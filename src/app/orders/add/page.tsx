@@ -13,7 +13,8 @@ function AddOrderInner() {
   const seedFromCart = params.get('fromCart') === '1';
   // ?draft=… continues an unfinished order from Drafts (and keeps the one being typed across a reload).
   // ?scan=parchi opens Scan a parchi at once (New sale's link).
-  return <OrderForm seedFromCart={seedFromCart} draftId={params.get('draft')} openScanner={params.get('scan') === 'parchi'} />;
+  // ?voice=1: filled in from what was said to the voice assistant (lib/voice/handoff.ts).
+  return <OrderForm seedFromCart={seedFromCart} draftId={params.get('draft')} openScanner={params.get('scan') === 'parchi'} fromVoice={params.get('voice') === '1'} />;
 }
 
 export default function AddOrderPage() {

@@ -44,7 +44,9 @@ import { resolveSaleCustomer } from '@/lib/walk-in';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import { Switch } from '@/components/ui/switch';
 import { BillScanner, type ScannedBill } from '@/components/cart/bill-scanner';
-import { reconcile } from '@/lib/vision/bill-draft';
+import { reconcile, billLineToProduct, type BillLine } from '@/lib/vision/bill-draft';
+import { takeHandoff } from '@/lib/voice/handoff';
+import { STORE_CONFIG } from '@/lib/store-config';
 import type { TakenBy } from '@/lib/store';
 import { useMe } from '@/hooks/use-me';
 
@@ -258,6 +260,30 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
       ].filter(Boolean).join(' '),
     });
   };
+
+  /**
+   * Filled in by voice (lib/voice/commands.ts new_sale): pieces from stock by their tags, pieces
+   * described as a bill's lines are, the customer, the discount and what was paid. It lands as a
+   * scanned bill does; nothing is invoiced until Create.
+   */
+  const voiceTaken = useRef(false);
+  useEffect(() => {
+    if (searchParams.get('voice') !== '1' || editInvoiceId || voiceTaken.current || !appReady) return;
+    voiceTaken.current = true;
+    const v = takeHandoff<{ customerId: string | null; skus: string[]; lines: BillLine[]; discount: number | null; paid: number | null; method: string | null }>('sale');
+    if (!v) return;
+    const blank = blankCartItem();
+    const items = (v.lines ?? []).map((line, i) => ({
+      ...(billLineToProduct(line, blank as unknown as Record<string, unknown>, STORE_CONFIG.defaultMetal) as unknown as Product),
+      sku: `VOICE-${Date.now().toString(36).toUpperCase()}-${i + 1}`,
+    }));
+    for (const sku of v.skus ?? []) if (!useAppStore.getState().cart.some(c => c.sku === sku)) addToCart(sku);
+    acceptScannedBill({ items, customerId: v.customerId ?? undefined, writtenTotal: null, amountPaid: v.paid, rates: {}, discount: v.discount });
+    if (v.paid && v.method && (PAYMENT_TYPES as readonly string[]).includes(v.method)) {
+      setSalePayments(rows => rows.map((r, i) => (i === 0 ? { ...r, method: v.method as PaymentType } : r)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appReady, searchParams, editInvoiceId]);
 
   // Line-item editor — every attribute of the line, any metal.
   const [editItem, setEditItem] = useState<Product | null>(null);

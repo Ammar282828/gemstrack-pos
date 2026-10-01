@@ -35,6 +35,7 @@ export type Edit =
   | { kind: 'grams'; value: number | null }
   | { kind: 'karat'; value: number | null }
   | { kind: 'description'; value: string }
+  | { kind: 'category'; value: string }
   /** A record field (name, phone …) or an order/invoice field (status, date, method). */
   | { kind: 'field'; key: string; value: string };
 
@@ -69,21 +70,23 @@ export const docKindFor = (a: VoiceAction) => DOC_KIND[a] ?? null;
 /** What each action shows on the card to be changed. */
 export function editableFor(a: VoiceAction): {
   person: 'customer' | 'karigar' | 'any' | null; doc: 'order' | 'invoice' | null;
-  amount: boolean; grams: boolean; method: boolean; status: boolean; date: boolean; note: boolean;
+  amount: boolean; grams: boolean; method: boolean; status: boolean; date: boolean; note: boolean; category: boolean;
   fields: readonly string[] | null;
 } {
-  const none = { person: null, doc: null, amount: false, grams: false, method: false, status: false, date: false, note: false, fields: null };
+  const none = { person: null, doc: null, amount: false, grams: false, method: false, status: false, date: false, note: false, category: false, fields: null };
   switch (a) {
     case 'record_payment': case 'record_owed': case 'record_payout': case 'record_we_owe': case 'write_off':
       return { ...none, person: 'any', amount: true, note: true };
     case 'gold_received': case 'gold_paid':
       return { ...none, person: 'any', grams: true, note: true };
-    case 'expense': case 'other_income':
+    case 'expense':
+      return { ...none, amount: true, note: true, category: true };
+    case 'other_income':
       return { ...none, amount: true, note: true };
     case 'invoice_payment':
       return { ...none, person: 'customer', doc: 'invoice', amount: true, method: true };
     case 'order_advance':
-      return { ...none, person: 'customer', doc: 'order', amount: true, note: true };
+      return { ...none, person: 'customer', doc: 'order', amount: true, method: true, note: true };
     case 'order_status':
       return { ...none, person: 'customer', doc: 'order', status: true };
     case 'order_promise':
@@ -152,6 +155,8 @@ export function applyEdit(draft: Draft, edit: Edit, current: Reading): Draft {
       return { ...d, raw: { ...raw, karat: edit.value } };
     case 'description':
       return { ...d, raw: { ...raw, description: edit.value } };
+    case 'category':
+      return { ...d, raw: { ...raw, category: edit.value } };
     case 'field': {
       const fields: Record<string, unknown> = { ...(raw.fields ?? {}) };
       if (edit.value.trim()) fields[edit.key] = edit.value; else delete fields[edit.key];
@@ -181,10 +186,10 @@ export function describeReading(r: Reading): string {
     case 'write_off': return `Write off ${rs(r.amount)} that ${who(r)} owes${note(r)}.`;
     case 'gold_received': return `${r.grams ?? 0} g of ${r.karat ?? ''}k received from ${who(r)}${note(r)}.`;
     case 'gold_paid': return `${r.grams ?? 0} g of ${r.karat ?? ''}k given to ${who(r)}${note(r)}.`;
-    case 'expense': return `An expense of ${rs(r.amount)}${note(r)}.`;
+    case 'expense': return `An expense of ${rs(r.amount)}${note(r)}${r.category ? ` (${r.category})` : ''}.`;
     case 'other_income': return `${rs(r.amount)} of other income${note(r)}.`;
     case 'invoice_payment': return `${rs(r.amount)} by ${(r.method ?? 'Cash').toLowerCase()} against ${docName(r)}.`;
-    case 'order_advance': return `${rs(r.amount)} advance on ${docName(r)}${note(r)}.`;
+    case 'order_advance': return `${rs(r.amount)} advance${r.method ? ` by ${r.method.toLowerCase()}` : ''} on ${docName(r)}${note(r)}.`;
     case 'order_status': return `${docName(r)} is now ${(r.status ?? '?').toLowerCase()}.`;
     case 'order_promise': return `${docName(r)} is promised for ${r.date ?? '?'}.`;
     case 'new_customer': case 'new_karigar': {

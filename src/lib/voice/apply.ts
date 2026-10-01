@@ -27,6 +27,8 @@ export interface AppliedEntry {
    * Undefined when the action created nothing that can be reversed by itself.
    */
   undo?: () => Promise<void>;
+  /** The person this was about or made, for a later step's "$n" (steps.ts). */
+  made?: { type: 'customer' | 'karigar'; value: { id: string; name: string; kind: 'customer' | 'karigar' } };
 }
 
 type Store = Pick<
@@ -118,7 +120,7 @@ export async function applyReading(reading: Reading, store: Store): Promise<Appl
     case 'expense': {
       const written = await store.addExpense({
         date,
-        category: 'Other',
+        category: reading.category || 'Other',
         description: reading.description || reading.summary || 'Spoken expense',
         amount: reading.amount ?? 0,
         paidBy: 'business',
@@ -151,6 +153,7 @@ export async function applyReading(reading: Reading, store: Store): Promise<Appl
         said: `Added ${created.name}.`,
         href: `/customers/${created.id}`,
         undo: () => store.deleteCustomer(created.id),
+        made: { type: 'customer', value: { id: created.id, name: created.name, kind: 'customer' } },
       };
     }
 
@@ -162,6 +165,7 @@ export async function applyReading(reading: Reading, store: Store): Promise<Appl
         said: `Added ${created.name}.`,
         href: `/karigars/${created.id}`,
         undo: () => store.deleteKarigar(created.id),
+        made: { type: 'karigar', value: { id: created.id, name: created.name, kind: 'karigar' } },
       };
     }
 
@@ -188,7 +192,7 @@ export async function applyReading(reading: Reading, store: Store): Promise<Appl
       const doc = reading.doc;
       const amount = reading.amount ?? 0;
       if (!doc) throw new Error('No order to put that on.');
-      const updated = await store.recordOrderAdvance(doc.id, amount, reading.description || 'Spoken advance');
+      const updated = await store.recordOrderAdvance(doc.id, amount, reading.description || 'Spoken advance', (reading.method ?? undefined) as PaymentType | undefined);
       if (!updated) throw new Error('The advance was not recorded.');
       const left = Math.max(0, updated.grandTotal);
       return {

@@ -190,7 +190,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 **AI: the key and the scanners** (`docs/features/ai.md`)
 - [Vertex AI key](docs/features/ai.md#vertex-ai-key) — `vertex-ai-key` in gemstrack-pos Secret Manager, read at run time; tiny per-minute quota
 - [Scanners](docs/features/ai.md#scanners) — wastage in grams, weight before stones, the bill's rate and discount; never 3.8-flash
-- [Voice](docs/features/ai.md#voice) — live words; every part editable
+- [Voice](docs/features/ai.md#voice) — live words; every part editable; anything, several steps
 
 **Post a piece and its tools** (`docs/features/post-a-piece.md`)
 - [Post a piece drafts](docs/features/post-a-piece.md#post-a-piece-drafts) — drafts on this device (IndexedDB), photos included; picks up where it left off

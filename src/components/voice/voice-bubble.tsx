@@ -14,25 +14,35 @@
  * The words show while he is still talking (lib/voice/live.ts), and everything on the card can
  * be changed before it is written: the words themselves, read again, or any part of the entry
  * (lib/voice/edit.ts, voice-editor.tsx) — owner, 2026-10-01.
+ *
+ * And it can do anything the ERP does (owner, 2026-10-01: "voice should be able to do absolutely
+ * anything in my pos"), several things to a sentence: each is a step on the card (lib/voice/
+ * steps.ts, commands.ts), checked and changeable like a single entry, done in order on one press.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, type AppState } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
-import { READ_ONLY_ACTIONS, type RawIntent, type Reading } from '@/lib/voice/resolve';
+import { READ_ONLY_ACTIONS, type RawIntent } from '@/lib/voice/resolve';
 import { documentsFor, type DocEntry } from '@/lib/voice/documents';
-import { applyEdit, canEdit, newDraft, readDraft, type Draft, type Edit } from '@/lib/voice/edit';
+import { applyEdit, canEdit, newDraft, readDraft, type Edit } from '@/lib/voice/edit';
 import { startLive, type LiveSession, type LiveState } from '@/lib/voice/live';
+import { runSteps, stepsFrom, undoAll, viewStep, type RawStep, type Step, type ViewCtx } from '@/lib/voice/steps';
+import type { Book } from '@/lib/voice/args';
+import type { RunCtx } from '@/lib/voice/commands';
+import { handOff } from '@/lib/voice/handoff';
+import { paletteFor } from '@/lib/nav';
 import { VoiceEditor } from './voice-editor';
-import { applyReading, type AppliedEntry } from '@/lib/voice/apply';
+import { VoiceCommandEditor } from './voice-command-editor';
+import type { AppliedEntry } from '@/lib/voice/apply';
 import { answerQuestion } from '@/lib/voice/answers';
 import { speak, stopSpeaking, speechOutputSupported } from '@/lib/voice/speak';
 import { phoneticKey, type LearnedAlias, type PersonKind, type RankedName, type RosterEntry } from '@/lib/voice/phonetics';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Mic, RotateCw, Square } from 'lucide-react';
+import { Loader2, Mic, RotateCw, Square, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_KARAT_VALUE_FOR_CALCULATION } from '@/lib/store';
 import { authedFetch } from '@/lib/voice/authed-fetch';
@@ -75,13 +85,59 @@ const SILENT_PEAK = 0.02;
 
 type Heard = { audio: Blob } | { text: string };
 
+/** Karachi's date: "kal" and "aaj" are the shop's days, not the server's. */
+const karachiToday = () => new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 10);
+
+const rosterOf = (st: Pick<AppState, 'customers' | 'karigars'>): RosterEntry[] => [
+  ...st.customers.filter((c) => !isWalkInName(c.name)).map((c) => ({ id: c.id, name: c.name, kind: 'customer' as const, phone: c.phone })),
+  ...st.karigars.map((k) => ({ id: k.id, name: k.name, kind: 'karigar' as const, phone: k.contact })),
+];
+
+/** Every screen, as the palette lists them (lib/nav.ts) — for "go". */
+const DESTINATIONS = () => paletteFor(false).map((d) => ({ label: d.label, href: d.href, keywords: d.keywords }));
+
+/** What the steps can name, from the store as it is now. */
+function bookOf(st: AppState, aliases: Map<string, LearnedAlias>): Book {
+  return {
+    roster: rosterOf(st), aliases,
+    customers: st.customers, karigars: st.karigars, orders: st.orders, invoices: st.generatedInvoices,
+    repairs: st.repairs, products: st.products, givenItems: st.givenItems, karigarJobs: st.karigarJobs,
+    expenses: st.expenses, extraRevenues: st.additionalRevenues, destinations: DESTINATIONS(), today: karachiToday(),
+  };
+}
+
+/**
+ * The lists a step's values are found in, loaded only when a step needs them, and waited for a
+ * moment (three seconds at most) so "open piece 123" can open at once rather than ask.
+ */
+function loadFor(steps: Step[], st: AppState): Promise<void> {
+  const text = JSON.stringify(steps);
+  const need: (keyof AppState)[] = [];
+  const want = (re: RegExp, load: () => void, flag: keyof AppState) => { if (re.test(text)) { load(); need.push(flag); } };
+  want(/"(product|sku)"|_piece"|new_sale/, st.loadProducts, 'hasProductsLoaded');
+  want(/repair/, st.loadRepairs, 'hasRepairsLoaded');
+  want(/given/, st.loadGivenItems, 'hasGivenItemsLoaded');
+  want(/job/, st.loadKarigarJobs, 'hasKarigarJobsLoaded');
+  want(/expense/, st.loadExpenses, 'hasExpensesLoaded');
+  want(/income/, st.loadAdditionalRevenues, 'hasAdditionalRevenueLoaded');
+  const ready = () => need.every((f) => !!useAppStore.getState()[f]);
+  if (ready()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => { clearTimeout(timer); unsub(); resolve(); };
+    const timer = setTimeout(done, 3000);
+    const unsub = useAppStore.subscribe(() => { if (ready()) done(); });
+  });
+}
+
+const NONE: never[] = [];
+
 export function VoiceBubble() {
   const router = useRouter();
   const { toast } = useToast();
 
   const [phase, setPhase] = useState<Phase>('idle');
-  /** The model's reply as the shop has changed it; the reading is built from it. */
-  const [draft, setDraft] = useState<Draft | null>(null);
+  /** What will be done, as the shop has changed it: one step for a single entry, more for "and … and …". */
+  const [steps, setSteps] = useState<Step[] | null>(null);
   const [transcript, setTranscript] = useState('');
   /** The words in the box, as the shop has corrected them. */
   const [words, setWords] = useState('');
@@ -110,36 +166,6 @@ export function VoiceBubble() {
   const loadVoiceAliases = useAppStore((s) => s.loadVoiceAliases);
   const teachVoiceAlias = useAppStore((s) => s.teachVoiceAlias);
 
-  /**
-   * Selected one at a time on purpose. A selector returning a fresh object literal is a new
-   * reference on every store change, which makes this component re-render in a loop — and
-   * a loop here means the microphone is torn down mid-sentence.
-   */
-  const addHisaabEntry = useAppStore((s) => s.addHisaabEntry);
-  const addExpense = useAppStore((s) => s.addExpense);
-  const addAdditionalRevenue = useAppStore((s) => s.addAdditionalRevenue);
-  const addCustomer = useAppStore((s) => s.addCustomer);
-  const addKarigar = useAppStore((s) => s.addKarigar);
-  const updateCustomer = useAppStore((s) => s.updateCustomer);
-  const updateKarigar = useAppStore((s) => s.updateKarigar);
-  const deleteHisaabEntry = useAppStore((s) => s.deleteHisaabEntry);
-  const deleteExpense = useAppStore((s) => s.deleteExpense);
-  const deleteAdditionalRevenue = useAppStore((s) => s.deleteAdditionalRevenue);
-  const deleteCustomer = useAppStore((s) => s.deleteCustomer);
-  const deleteKarigar = useAppStore((s) => s.deleteKarigar);
-  const recordOrderAdvance = useAppStore((s) => s.recordOrderAdvance);
-  const updateOrderStatus = useAppStore((s) => s.updateOrderStatus);
-  const updateOrder = useAppStore((s) => s.updateOrder);
-  const updateInvoicePayment = useAppStore((s) => s.updateInvoicePayment);
-  const store = useMemo(() => ({
-    addHisaabEntry, addExpense, addAdditionalRevenue,
-    addCustomer, addKarigar, updateCustomer, updateKarigar,
-    deleteHisaabEntry, deleteExpense, deleteAdditionalRevenue, deleteCustomer, deleteKarigar,
-    recordOrderAdvance, updateOrderStatus, updateOrder, updateInvoicePayment,
-  }), [addHisaabEntry, addExpense, addAdditionalRevenue, addCustomer, addKarigar, updateCustomer,
-       updateKarigar, deleteHisaabEntry, deleteExpense, deleteAdditionalRevenue, deleteCustomer, deleteKarigar,
-       recordOrderAdvance, updateOrderStatus, updateOrder, updateInvoicePayment]);
-
   /** Everything the fixed queries read. Nothing here is written to. */
   const hisaabEntries = useAppStore((s) => s.hisaabEntries);
   const karigarJobs = useAppStore((s) => s.karigarJobs);
@@ -150,7 +176,18 @@ export function VoiceBubble() {
   const loadOrders = useAppStore((s) => s.loadOrders);
   const loadInvoices = useAppStore((s) => s.loadGeneratedInvoices);
 
-  /** The entry just written, so "undo" a moment later means that one and nothing else. */
+  /**
+   * The rest of the book, followed only while the card is open: this bubble is on every screen,
+   * and following the stock list from the Settings page would re-draw it for nothing.
+   */
+  const open = steps !== null;
+  const repairs = useAppStore((s) => (open ? s.repairs : NONE));
+  const products = useAppStore((s) => (open ? s.products : NONE));
+  const givenItems = useAppStore((s) => (open ? s.givenItems : NONE));
+  const expenses = useAppStore((s) => (open ? s.expenses : NONE));
+  const extraRevenues = useAppStore((s) => (open ? s.additionalRevenues : NONE));
+
+  /** The steps just done, so "undo" a moment later means those and nothing else. */
   const lastWrite = useRef<AppliedEntry | null>(null);
 
   /**
@@ -184,16 +221,17 @@ export function VoiceBubble() {
    */
   const aliases = useMemo(() => aliasMap(voiceAliases), [voiceAliases]);
 
-  const roster = useMemo<RosterEntry[]>(() => [
-    ...customers.filter((c) => !isWalkInName(c.name)).map((c) => ({ id: c.id, name: c.name, kind: 'customer' as const, phone: c.phone })),
-    ...karigars.map((k) => ({ id: k.id, name: k.name, kind: 'karigar' as const, phone: k.contact })),
-  ], [customers, karigars]);
+  const roster = useMemo<RosterEntry[]>(() => rosterOf({ customers, karigars }), [customers, karigars]);
+  const destinations = useMemo(DESTINATIONS, []);
 
-  /** What would be written now: the draft, read by the same rules as a spoken sentence. */
-  const reading = useMemo<Reading | null>(
-    () => (draft ? readDraft(draft, { roster, aliases, documents }) : null),
-    [draft, roster, aliases, documents],
-  );
+  const book = useMemo<Book>(() => ({
+    roster, aliases, customers, karigars, orders, invoices, repairs, products, givenItems, karigarJobs,
+    expenses, extraRevenues, destinations, today: karachiToday(),
+  }), [roster, aliases, customers, karigars, orders, invoices, repairs, products, givenItems, karigarJobs, expenses, extraRevenues, destinations]);
+  const viewCtx = useMemo<ViewCtx>(() => ({ book, documents }), [book, documents]);
+
+  /** What each step would do now, read by the same rules as a spoken sentence. */
+  const views = useMemo(() => steps?.map((s) => viewStep(s, viewCtx)) ?? null, [steps, viewCtx]);
 
   /**
    * Say it out loud, when the browser can.
@@ -221,16 +259,21 @@ export function VoiceBubble() {
 
   useEffect(() => cleanup, [cleanup]);
 
+  /** The context every step runs in. The store is read afresh as each step goes. */
+  const runCtx = useCallback((): RunCtx => ({
+    get s() { return useAppStore.getState(); },
+    go: (href: string) => router.push(href),
+    handOff,
+    now: new Date().toISOString(),
+  }), [router]);
+
   /** Ask the model what was meant: the recording, or words (the live words, or the box corrected). */
   const interpret = useCallback(async (heard: Heard) => {
     // The book may still be arriving if the press was the first thing done on
     // this screen. Give it a moment, then read whatever is there.
     await untilLoaded(2500);
     const st = useAppStore.getState();
-    const rosterNow: RosterEntry[] = [
-      ...st.customers.filter((c) => !isWalkInName(c.name)).map((c) => ({ id: c.id, name: c.name, kind: 'customer' as const, phone: c.phone })),
-      ...st.karigars.map((k) => ({ id: k.id, name: k.name, kind: 'karigar' as const, phone: k.contact })),
-    ];
+    const rosterNow = rosterOf(st);
     const documentsNow = documentsFor(st.orders, st.generatedInvoices);
     const aliasesNow = aliasMap(st.voiceAliases);
     let said: { audio: string; mimeType: string } | { text: string };
@@ -253,19 +296,27 @@ export function VoiceBubble() {
         roster: rosterNow,
         documents: documentsNow,
         shopName: settings.shopName,
-        today: new Date().toISOString().slice(0, 10),
+        today: karachiToday(),
         // '21k' -> '21'; the prompt states a number, not a karat label.
         orderKarat: DEFAULT_KARAT_VALUE_FOR_CALCULATION.replace('k', ''),
+        screens: DESTINATIONS().map((d) => d.label),
       }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || 'Voice failed.');
-    return { raw: data as RawIntent & { transcript?: string }, ctx: { roster: rosterNow, aliases: aliasesNow, documents: documentsNow } };
+    return { raw: data as RawIntent & { transcript?: string; steps?: RawStep[] }, ctx: { roster: rosterNow, aliases: aliasesNow, documents: documentsNow } };
   }, [settings.shopName]);
+
+  /** Steps that only open something are done at once; the rest go on the card. */
+  const runNow = useCallback(async (s: Step[]) => {
+    const st = useAppStore.getState();
+    const res = await runSteps(s, { book: bookOf(st, aliasMap(st.voiceAliases)), documents: documentsFor(st.orders, st.generatedInvoices) }, runCtx());
+    if (res.error) toast({ title: 'Could not open that', description: res.error, variant: 'destructive' });
+  }, [runCtx, toast]);
 
   /** What to do with the model's reply: go somewhere, answer, undo, or show the card. */
   const handle = useCallback(async (
-    raw: RawIntent & { transcript?: string },
+    raw: RawIntent & { transcript?: string; steps?: RawStep[] },
     ctx: { roster: RosterEntry[]; aliases: Map<string, LearnedAlias>; documents: DocEntry[] },
     fallbackWords: string,
     /** A person already chosen on the card, kept when the words read again name the same sound. */
@@ -275,6 +326,32 @@ export function VoiceBubble() {
     setTranscript(heardWords);
     setWords(heardWords);
     setHeardAs(raw.person?.spoken_as || raw.person?.name || '');
+
+    /* Anything else, or several things at once: the steps. */
+    if (raw.action === 'do') {
+      const { steps: next, dropped } = stepsFrom(raw.steps);
+      if (dropped.length) toast({ title: 'Not something voice can do', description: dropped.join(', ') });
+      if (!next.length) {
+        setPhase('idle');
+        setSteps(null);
+        void say(raw.summary || 'Not sure what to do.');
+        toast({ title: raw.summary || 'Not sure what to do.' });
+        return;
+      }
+      await loadFor(next, useAppStore.getState());
+      const st = useAppStore.getState();
+      const nowViews = next.map((s) => viewStep(s, { book: bookOf(st, ctx.aliases), documents: ctx.documents }));
+      if (nowViews.every((v) => v.readOnly && v.ready)) {
+        setPhase('idle');
+        setSteps(null);
+        await runNow(next);
+        return;
+      }
+      setSteps(next);
+      setPhase('confirming');
+      void say(raw.summary || nowViews.map((v) => v.summary).join(' '));
+      return;
+    }
 
     /* The model's answer is a claim. This is where it becomes a pinned, checked reading. */
     let d = newDraft(raw);
@@ -286,7 +363,7 @@ export function VoiceBubble() {
     // order or a bill is the same: once it is pinned, it is a screen, not a question.
     if ((resolved.action === 'navigate' || resolved.action === 'open_order' || resolved.action === 'open_invoice') && resolved.screen) {
       setPhase('idle');
-      setDraft(null);
+      setSteps(null);
       router.push(resolved.screen);
       return;
     }
@@ -298,7 +375,7 @@ export function VoiceBubble() {
     if (raw.action === 'undo' || /\bundo\b/i.test(heardWords)) {
       const back = lastWrite.current;
       setPhase('idle');
-      setDraft(null);
+      setSteps(null);
       if (!back?.undo) {
         void say('There is nothing to undo.');
         toast({ title: 'Nothing to undo' });
@@ -309,8 +386,8 @@ export function VoiceBubble() {
         lastWrite.current = null;
         void say('Undone.');
         toast({ title: 'Undone' });
-      } catch {
-        toast({ title: 'Could not undo that', variant: 'destructive' });
+      } catch (e) {
+        toast({ title: 'Could not undo that', description: e instanceof Error ? e.message : undefined, variant: 'destructive' });
       }
       return;
     }
@@ -323,17 +400,17 @@ export function VoiceBubble() {
         field: resolved.fields ? Object.keys(resolved.fields)[0] : null,
       });
       setPhase('idle');
-      setDraft(null);
+      setSteps(null);
       void say(answer.text);
       toast({ title: answer.text });
       return;
     }
 
-    setDraft(d);
+    setSteps([{ kind: 'classic', draft: d }]);
     setPhase('confirming');
     // Read the reading back while it is being looked at, rather than after.
     if (resolved.summary) void say(resolved.summary);
-  }, [router, toast, say, customers, karigars, hisaabEntries, karigarJobs, orders]);
+  }, [router, toast, say, runNow, customers, karigars, hisaabEntries, karigarJobs, orders]);
 
   const send = useCallback(async (heard: Heard, liveWords: string) => {
     setPhase('thinking');
@@ -350,6 +427,9 @@ export function VoiceBubble() {
     }
   }, [interpret, handle, toast]);
 
+  const single = steps?.length === 1 && steps[0].kind === 'classic' ? steps[0] : null;
+  const singleReading = single && views ? views[0].reading ?? null : null;
+
   /** The words in the box were corrected: read them again, as words this time. */
   const reread = useCallback(async () => {
     const text = words.trim();
@@ -358,28 +438,42 @@ export function VoiceBubble() {
     try {
       const { raw, ctx } = await interpret({ text });
       // "Which Ahsan?" answered on the card is not asked again because a figure was corrected.
-      const keep = draft?.personChosen && reading?.person && heardAs ? { heard: heardAs, person: reading.person } : undefined;
+      const keep = single?.draft.personChosen && singleReading?.person && heardAs ? { heard: heardAs, person: singleReading.person } : undefined;
       await handle({ ...raw, transcript: text }, ctx, text, keep);
     } catch (err) {
       toast({ title: 'Could not read that', description: err instanceof Error ? err.message : 'Try again.', variant: 'destructive' });
     } finally {
       setRereading(false);
     }
-  }, [words, rereading, interpret, handle, toast, draft, reading, heardAs]);
+  }, [words, rereading, interpret, handle, toast, single, singleReading, heardAs]);
 
-  /** One change on the card. Opening an order or a bill, once pinned, simply goes there. */
-  const edit = useCallback((e: Edit) => {
-    if (!draft || !reading) return;
-    const next = applyEdit(draft, e, reading);
+  /** One change to a khata step. Opening an order or a bill, once pinned, simply goes there. */
+  const editClassic = useCallback((i: number, e: Edit) => {
+    const st = steps?.[i];
+    const reading = views?.[i]?.reading;
+    if (!steps || !st || st.kind !== 'classic' || !reading) return;
+    const next = applyEdit(st.draft, e, reading);
     const r = readDraft(next, { roster, aliases, documents });
-    if ((r.action === 'open_order' || r.action === 'open_invoice') && r.screen) {
-      setDraft(null);
+    if (steps.length === 1 && (r.action === 'open_order' || r.action === 'open_invoice') && r.screen) {
+      setSteps(null);
       setPhase('idle');
       router.push(r.screen);
       return;
     }
-    setDraft(next);
-  }, [draft, reading, roster, aliases, documents, router]);
+    setSteps(steps.map((s, n) => (n === i ? { kind: 'classic', draft: next } : s)));
+  }, [steps, views, roster, aliases, documents, router]);
+
+  const changeStep = useCallback((i: number, s: Step) => {
+    setSteps((prev) => prev?.map((x, n) => (n === i ? s : x)) ?? prev);
+  }, []);
+
+  const removeStep = useCallback((i: number) => {
+    setSteps((prev) => {
+      const next = prev?.filter((_, n) => n !== i) ?? null;
+      if (!next?.length) { setPhase('idle'); return null; }
+      return next;
+    });
+  }, []);
 
   const start = useCallback(async () => {
     // The microphone must never open while the assistant is still speaking, or it records
@@ -461,47 +555,54 @@ export function VoiceBubble() {
   const stopRef = useRef(stop);
   stopRef.current = stop;
 
+  const allReady = !!views?.length && views.every((v) => v.ready);
+
   const write = useCallback(async () => {
-    if (!reading || !draft) return;
-    if (!reading.postable) {
-      if (reading.blockedBecause) void say(reading.blockedBecause);
-      return;
-    }
+    if (!steps || !views || !allReady) return;
     /**
      * A person chosen on the card is the shop answering "who?", and that answer is the only
      * evidence in the whole matcher that is not a guess. Write it down before the entry, so
      * the correction survives even if the write itself fails.
      */
-    if (draft.personChosen && reading.person && heardAs && phoneticKey(heardAs).length) {
-      try { await teachVoiceAlias(heardAs, reading.person.kind, reading.person.id, reading.person.name); } catch { /* the entry still goes through */ }
+    const r0 = singleReading;
+    if (single?.draft.personChosen && r0?.person && heardAs && phoneticKey(heardAs).length) {
+      try { await teachVoiceAlias(heardAs, r0.person.kind, r0.person.id, r0.person.name); } catch { /* the entry still goes through */ }
     }
     setPhase('writing');
-    try {
-      const applied = await applyReading(reading, store);
-      lastWrite.current = applied;
-      void say(applied.said);
-      toast({
-        title: applied.said,
-        description: applied.undo ? 'Say "undo" to take it back.' : undefined,
-      });
-      setDraft(null);
-      setPhase('idle');
-      if (applied.href) router.push(applied.href);
-    } catch (err) {
+    const res = await runSteps(steps, viewCtx, runCtx());
+    const undo = undoAll(res.done);
+    if (res.done.length) lastWrite.current = { said: res.done.map((d) => d.said).join(' '), undo };
+    if (res.error !== null && res.failedAt !== null) {
+      // What went through stays done (and can be undone); what is left stays on the card to fix.
+      setSteps(steps.slice(res.failedAt));
       setPhase('confirming');
       toast({
-        title: 'Not written',
-        description: err instanceof Error ? err.message : 'Something went wrong.',
+        title: res.done.length ? `${res.done.length} done; step ${res.failedAt + 1} was not` : 'Not done',
+        description: res.error,
         variant: 'destructive',
       });
+      return;
     }
-  }, [reading, draft, store, router, toast, heardAs, teachVoiceAlias, say]);
+    const said = res.done.map((d) => d.said).join(' ');
+    void say(said);
+    toast({ title: said, description: undo ? 'Say "undo" to take it back.' : undefined });
+    setSteps(null);
+    setPhase('idle');
+    // Where to look at it: the last thing written, unless a step has already opened a page.
+    const opened = views.some((v) => v.readOnly || v.form);
+    const href = [...res.done].reverse().find((d) => d.href)?.href;
+    if (!opened && href) router.push(href);
+  }, [steps, views, allReady, single, singleReading, heardAs, teachVoiceAlias, viewCtx, runCtx, say, toast, router]);
 
-  const dismiss = () => { setDraft(null); setPhase('idle'); };
+  const dismiss = () => { setSteps(null); setPhase('idle'); };
 
   const busy = phase === 'thinking' || phase === 'writing';
   const liveShown = `${live.final} ${live.interim}`.trim();
   const wordsChanged = words.trim() !== transcript.trim() && words.trim().length > 0;
+  const many = (steps?.length ?? 0) > 1;
+  const asking = views?.some((v) => v.reading?.ambiguous || v.reading?.docAmbiguous || v.args.some((a) => a.r && !a.r.ok && a.r.candidates.length));
+  const writes = views?.some((v) => (v.kind === 'command' ? !v.readOnly : !!v.reading && !READ_ONLY_ACTIONS.has(v.reading.action))) ?? false;
+  const formsOnly = views?.every((v) => v.form || v.readOnly) ?? false;
 
   return (
     <>
@@ -562,15 +663,17 @@ export function VoiceBubble() {
           : <Mic className="h-5 w-5" />}
       </button>
 
-      <Dialog open={(phase === 'confirming' || phase === 'writing') && reading !== null} onOpenChange={(o) => { if (!o) dismiss(); }}>
+      <Dialog open={(phase === 'confirming' || phase === 'writing') && !!steps?.length} onOpenChange={(o) => { if (!o) dismiss(); }}>
         <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {reading?.ambiguous || reading?.docAmbiguous ? 'Which one?'
-                : reading?.postable ? 'Write this down?'
-                : 'Not ready to write'}
+              {asking ? 'Which one?'
+                : !allReady ? 'Not ready yet'
+                : many ? `Do these ${steps!.length} things?`
+                : formsOnly ? 'Open this?'
+                : 'Write this down?'}
             </DialogTitle>
-            <DialogDescription>Change anything before it is written.</DialogDescription>
+            <DialogDescription>Change anything before it is done.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3">
@@ -592,65 +695,75 @@ export function VoiceBubble() {
               />
             </div>
 
-            {reading?.summary && <p className="text-sm font-medium">{reading.summary}</p>}
-            {reading?.blockedBecause && !reading.ambiguous && !reading.docAmbiguous && (
-              <p className="text-sm text-destructive">{reading.blockedBecause}</p>
-            )}
+            {steps?.map((step, i) => {
+              const view = views?.[i];
+              if (!view) return null;
+              const reading = view.reading;
+              return (
+                <div key={i} className={cn('space-y-2.5', many && 'rounded-lg border p-3')}>
+                  {many && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={cn('text-xs font-medium uppercase tracking-wide', view.danger ? 'text-destructive' : 'text-muted-foreground')}>
+                        {i + 1}. {view.label}
+                      </span>
+                      <button type="button" aria-label={`Leave out step ${i + 1}`} className="text-muted-foreground hover:text-destructive" onClick={() => removeStep(i)}>
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                  {view.summary && <p className={cn('text-sm font-medium', view.danger && 'text-destructive')}>{view.summary}</p>}
+                  {view.problem && !reading?.ambiguous && !reading?.docAmbiguous && view.kind === 'classic' && (
+                    <p className="text-sm text-destructive">{view.problem}</p>
+                  )}
 
-            {reading?.ambiguous && reading.candidates.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  More than one person sounds like that. Nothing is written until you choose.
-                </p>
-                {reading.candidates.map((c) => (
-                  <Button
-                    key={`${c.kind}-${c.id}`}
-                    variant="outline"
-                    className="w-full justify-between"
-                    onClick={() => edit({ kind: 'person', person: c })}
-                  >
-                    <span>{c.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {c.kind === 'customer' ? 'Customer' : 'Karigar'}
-                    </span>
-                  </Button>
-                ))}
-              </div>
-            )}
+                  {reading?.ambiguous && reading.candidates.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">More than one person sounds like that. Nothing is written until you choose.</p>
+                      {reading.candidates.map((c) => (
+                        <Button key={`${c.kind}-${c.id}`} variant="outline" className="w-full justify-between" onClick={() => editClassic(i, { kind: 'person', person: c })}>
+                          <span>{c.name}</span>
+                          <span className="text-xs text-muted-foreground">{c.kind === 'customer' ? 'Customer' : 'Karigar'}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  )}
 
-            {/* The person is settled; the order or bill is not. */}
-            {!reading?.ambiguous && reading?.docAmbiguous && reading.docCandidates.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">{reading.blockedBecause}</p>
-                {reading.docCandidates.map((d) => (
-                  <Button
-                    key={d.id}
-                    variant="outline"
-                    className="h-auto w-full justify-between py-2 text-left"
-                    onClick={() => edit({ kind: 'doc', doc: d })}
-                  >
-                    <span className="min-w-0">
-                      <span className="block font-mono text-sm">{d.id}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{d.customerName} · {d.label}</span>
-                    </span>
-                  </Button>
-                ))}
-              </div>
-            )}
+                  {/* The person is settled; the order or bill is not. */}
+                  {!reading?.ambiguous && reading?.docAmbiguous && reading.docCandidates.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">{reading.blockedBecause}</p>
+                      {reading.docCandidates.map((d) => (
+                        <Button key={d.id} variant="outline" className="h-auto w-full justify-between py-2 text-left" onClick={() => editClassic(i, { kind: 'doc', doc: d })}>
+                          <span className="min-w-0">
+                            <span className="block font-mono text-sm">{d.id}</span>
+                            <span className="block truncate text-xs text-muted-foreground">{d.customerName} · {d.label}</span>
+                          </span>
+                        </Button>
+                      ))}
+                    </div>
+                  )}
 
-            {reading && canEdit(reading) && (
-              <VoiceEditor reading={reading} roster={roster} aliases={aliases} documents={documents} onEdit={edit} />
-            )}
+                  {reading && canEdit(reading) && (
+                    <VoiceEditor reading={reading} roster={roster} aliases={aliases} documents={documents} onEdit={(e) => editClassic(i, e)} />
+                  )}
+                  {step.kind === 'command' && <VoiceCommandEditor step={step} view={view} onChange={(s) => changeStep(i, s)} />}
+                </div>
+              );
+            })}
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={dismiss}>
-              {reading?.postable ? 'Cancel' : 'Close'}
+              {allReady ? 'Cancel' : 'Close'}
             </Button>
-            {reading && !READ_ONLY_ACTIONS.has(reading.action) && (
-              <Button onClick={() => write()} disabled={phase === 'writing' || rereading || !reading.postable}>
+            {(writes || formsOnly) && (
+              <Button
+                onClick={() => write()}
+                disabled={phase === 'writing' || rereading || !allReady}
+                variant={views?.some((v) => v.danger) ? 'destructive' : 'default'}
+              >
                 {phase === 'writing' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Write it down
+                {many ? 'Do all of it' : formsOnly ? 'Open it' : 'Write it down'}
               </Button>
             )}
           </DialogFooter>

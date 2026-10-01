@@ -60,3 +60,18 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   (`describeReading`). Choosing "which Ahsan?" no longer writes at once: it pins the person and the shop presses Write; a person
   chosen by hand is still taught as a correction, and survives a Read again of the same name.
 - Voice is the owner's only (`/api/voice/listen`). Its undo of a ledger entry, expense or income now asks for the delete code.
+- **Voice can do anything the ERP does, several things to a sentence** (2026-10-01, owner: "voice should be able to do absolutely
+  anything in anything in my pos"). The model answers a single khata entry as before; anything else, or more than one thing, is
+  action `do` with `steps`, one line each (`set_rate | metal=21k | rate=34000`: asked for a list of objects in a list, Gemini 2.5
+  Flash folded it into one string), read by `lib/voice/steps.ts`; each step a khata action or a command from the one catalogue (`lib/voice/commands.ts`,
+  about 45: any screen and any record opened, print or WhatsApp an invoice, finalize an order, the day's rates, alert switches, an
+  order's discount, notes, pieces to a karigar, made, handed over, a piece changed or removed, advances and payments deleted,
+  refunds, undoing an invoice, deletes of anything, repairs taken in, paid, ready, collected; stock pieces changed or deleted;
+  karigar jobs and silver; things given out and back; expenses with their category; customers merged). Values are read into real
+  rows by `lib/voice/args.ts` with the khata's rule: two possible people, two open orders, two pieces with that number → the card
+  asks. A later step uses an earlier one's result as `$1` ("new customer Sara … and her order"). **Orders, sales and new pieces are
+  priced by their forms**, so voice fills the form in and opens it (`lib/voice/handoff.ts`, `?voice=1`: the order form through the
+  slip scanner's `applyScan`, the sale through the bill scanner's `acceptScannedBill`, the piece as the form's starting values) and
+  the shop presses Create. Read-only steps run at once; the rest go on the card, each changeable (`voice-command-editor.tsx`),
+  done in order on one press, stopping at a failure with what went through kept (and undoable: "undo" takes back the whole batch).
+  Deletes still ask for the delete code. Nothing outside the catalogue can be reached by talking.

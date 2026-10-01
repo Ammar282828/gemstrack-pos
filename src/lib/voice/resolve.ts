@@ -32,6 +32,8 @@ export const VOICE_ACTIONS = [
   'ask', 'query_balance', 'navigate', 'help', 'unknown',
   /* takes back the last entry rather than writing a new one */
   'undo',
+  /* anything else, or several things at once: the reply's \`steps\` (steps.ts, commands.ts) */
+  'do',
 ] as const;
 
 export type VoiceAction = typeof VOICE_ACTIONS[number];
@@ -102,6 +104,8 @@ export interface RawIntent {
   doc?: { kind?: string; id?: string } | null;
   /** Set by us, not the model, when the figure had to be recovered from the summary. */
   amount_recovered?: boolean;
+  /** For an expense: its category, when one was said. */
+  category?: string;
 }
 
 export interface ResolvedPerson {
@@ -137,8 +141,10 @@ export interface Reading {
   status: string | null;
   /** For order_promise: YYYY-MM-DD. */
   date: string | null;
-  /** For invoice_payment: how it was paid. */
+  /** For invoice_payment and order_advance: how it was paid. */
   method: string | null;
+  /** For expense: the category said, if any. */
+  category: string | null;
   /** True when this reading is safe to write without asking anything further. */
   postable: boolean;
   /** Why it is not postable, in the shop's own words. */
@@ -284,7 +290,7 @@ const NEEDS_AMOUNT = new Set<VoiceAction>([
 const NEEDS_GRAMS = new Set<VoiceAction>(['gold_received', 'gold_paid']);
 
 /** Actions that never write anything. */
-export const READ_ONLY_ACTIONS = new Set<VoiceAction>(['ask', 'query_balance', 'navigate', 'help', 'unknown', 'undo', 'open_order', 'open_invoice']);
+export const READ_ONLY_ACTIONS = new Set<VoiceAction>(['ask', 'query_balance', 'navigate', 'help', 'unknown', 'undo', 'open_order', 'open_invoice', 'do']);
 
 export interface ResolveOptions {
   roster: RosterEntry[];
@@ -385,7 +391,8 @@ export function resolveIntent(raw: RawIntent | null | undefined, opts: ResolveOp
   const status = action === 'order_status' ? matchStatus(fields?.status ?? intent.summary) : null;
   const date = action === 'order_promise' && /^\d{4}-\d{2}-\d{2}$/.test(fields?.date ?? '') ? fields!.date : null;
   // The model tends to put "by bank transfer" in its sentence rather than the field.
-  const method = action === 'invoice_payment' ? matchMethod(fields?.method ?? intent.summary) : null;
+  const method = action === 'invoice_payment' ? matchMethod(fields?.method ?? intent.summary)
+    : action === 'order_advance' && (fields?.method || /cash|card|bank|transfer|cheque|check|online|easypaisa|jazz/i.test(String(intent.summary ?? ''))) ? matchMethod(fields?.method ?? intent.summary) : null;
 
   /* "ring for Fatema Marvi" should attach the order to her record, not just mention her. */
   let forCustomer: RankedName | null = null;
@@ -454,6 +461,7 @@ export function resolveIntent(raw: RawIntent | null | undefined, opts: ResolveOp
     status,
     date,
     method,
+    category: action === 'expense' && intent.category ? String(intent.category).slice(0, 60) : null,
     postable: !READ_ONLY_ACTIONS.has(action) && blockedBecause === null,
     blockedBecause,
   };

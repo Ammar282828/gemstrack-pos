@@ -13,7 +13,7 @@ import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
 import { generateJson, geminiConfigured, GeminiError } from '@/lib/voice/gemini';
 import { systemPrompt } from '@/lib/voice/prompt';
-import { VOICE_ACTIONS } from '@/lib/voice/resolve';
+import { READING_SCHEMA } from '@/lib/voice/schema';
 import type { RosterEntry } from '@/lib/voice/phonetics';
 import { documentLines, type DocEntry } from '@/lib/voice/documents';
 
@@ -54,78 +54,6 @@ async function denyUnlessOwner(req: NextRequest): Promise<NextResponse | null> {
 /** Long enough for a sentence said slowly, short enough that a stuck request gives up. */
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
 
-const READING_SCHEMA = {
-  type: 'OBJECT',
-  properties: {
-    transcript: {
-      type: 'STRING',
-      description: 'What was actually said, in the script it was said in. Never cleaned up.',
-    },
-    action: {
-      type: 'STRING',
-      enum: [...VOICE_ACTIONS],
-      description: 'Which of the shop\'s actions this sentence is.',
-    },
-    summary: {
-      type: 'STRING',
-      description: 'One short English sentence: what was recorded, who for, the figure. Or the question to ask.',
-    },
-    person: {
-      type: 'OBJECT',
-      description: 'Who this entry belongs to. Omit only for expense and other_income.',
-      properties: {
-        spoken_as: { type: 'STRING', description: 'The name exactly as it was heard, in Roman letters.' },
-        name: { type: 'STRING', description: 'The roster name you believe that to be.' },
-        kind: { type: 'STRING', enum: ['customer', 'karigar'] },
-      },
-    },
-    for_customer: {
-      type: 'STRING',
-      description: 'A customer named as who the work is for, when that is somebody other than the person above.',
-    },
-    amount: { type: 'NUMBER', description: 'Rupees. The remainder after any part-payment, never the total.' },
-    grams: { type: 'NUMBER', description: 'Weight in grams, for gold_received and gold_paid only.' },
-    karat: { type: 'NUMBER', description: 'Purity, only when it was actually said.' },
-    description: { type: 'STRING', description: 'What the entry was for, in his own words.' },
-    screen: { type: 'STRING', description: 'For navigate: dashboard, customers, karigars, orders, products, hisaab, expenses, analytics, calendar, settings.' },
-    query: { type: 'STRING', description: 'For ask: what is being asked about.' },
-    doc: {
-      type: 'OBJECT',
-      description: 'The order or invoice, only when he said its number.',
-      properties: {
-        kind: { type: 'STRING', enum: ['order', 'invoice'] },
-        id: { type: 'STRING', description: 'The number he said, as digits: "16".' },
-      },
-    },
-    fields: {
-      type: 'OBJECT',
-      description: 'For new_/edit_ actions: the record fields being set, camelCase.',
-      properties: {
-        name: { type: 'STRING' },
-        phone: { type: 'STRING' },
-        altPhone: { type: 'STRING' },
-        city: { type: 'STRING' },
-        address: { type: 'STRING' },
-        country: { type: 'STRING' },
-        ringSize: { type: 'STRING' },
-        bangleSize: { type: 'STRING' },
-        braceletSize: { type: 'STRING' },
-        chainLength: { type: 'STRING' },
-        birthday: { type: 'STRING' },
-        anniversary: { type: 'STRING' },
-        preference: { type: 'STRING' },
-        specialty: { type: 'STRING' },
-        workshop: { type: 'STRING' },
-        contact: { type: 'STRING' },
-        notes: { type: 'STRING' },
-        status: { type: 'STRING', description: 'For order_status: his word for the state of the work.' },
-        date: { type: 'STRING', description: 'For order_promise: YYYY-MM-DD.' },
-        method: { type: 'STRING', description: 'For invoice_payment: cash, card, bank transfer or cheque, if said.' },
-      },
-    },
-  },
-  required: ['action', 'summary'],
-} as const;
 
 export async function POST(req: NextRequest) {
   const denied = await denyUnlessOwner(req);
@@ -144,6 +72,7 @@ export async function POST(req: NextRequest) {
     shopName?: string;
     today?: string;
     orderKarat?: string | number;
+    screens?: string[];
   };
   try {
     body = await req.json();
@@ -151,7 +80,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Bad request body.' }, { status: 400 });
   }
 
-  const { audio, mimeType, text, roster = [], documents = [], shopName = 'the shop', today, orderKarat } = body;
+  const { audio, mimeType, text, roster = [], documents = [], shopName = 'the shop', today, orderKarat, screens = [] } = body;
 
   if (!audio && !text) {
     return NextResponse.json({ error: 'Nothing to listen to.' }, { status: 400 });
@@ -175,6 +104,7 @@ export async function POST(req: NextRequest) {
         roster: roster.slice(0, 4000),
         orderKarat,
         documents: documentLines(documents.slice(0, 200)),
+        screens: (Array.isArray(screens) ? screens : []).slice(0, 150).map(x => String(x).slice(0, 60)),
       }),
       parts,
       schema: READING_SCHEMA as unknown as Record<string, unknown>,

@@ -102,6 +102,8 @@ type ProductDataForAdd = Omit<Product, 'sku' | 'qrCodeDataUrl'>;
 
 interface ProductFormProps {
   product?: Product;
+  /** A new piece's starting values (voice's "new piece", lib/voice/commands.ts); never an edit. */
+  seed?: Partial<Product>;
   isCartEditMode?: boolean;
   onCartItemSubmit?: (sku: string, data: Partial<Product>) => void;
   onProductCreated?: (newProduct: Product) => void;
@@ -147,6 +149,7 @@ const getSafeDefaultValues = (p?: Product): ProductFormData => {
 
 export const ProductForm: React.FC<ProductFormProps> = ({ 
   product, 
+  seed,
   isCartEditMode = false, 
   onCartItemSubmit, 
   onProductCreated 
@@ -165,7 +168,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),
-    defaultValues: getSafeDefaultValues(product),
+    defaultValues: product ? getSafeDefaultValues(product) : { ...getSafeDefaultValues(), ...(seed ? Object.fromEntries(Object.entries(seed).filter(([, v]) => v !== undefined && v !== null)) : {}) } as ProductFormData,
   });
 
   const { watch, setValue, getValues, control, register } = form;

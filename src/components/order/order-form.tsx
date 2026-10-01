@@ -56,6 +56,7 @@ import {
   exchangeValue, describeExchange, reconcileSlip, hasHisaab, karatFor, metalFor,
 } from '@/lib/vision/order-draft';
 import type { OrderDraft } from '@/lib/vision/order-draft';
+import { takeHandoff } from '@/lib/voice/handoff';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import { useMe } from '@/hooks/use-me';
 
@@ -358,7 +359,7 @@ const PanelSection: React.FC<{
   </section>
 );
 
-export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draftId?: string | null; openScanner?: boolean }> = ({ order, seedFromCart, draftId, openScanner }) => {
+export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draftId?: string | null; openScanner?: boolean; fromVoice?: boolean }> = ({ order, seedFromCart, draftId, openScanner, fromVoice }) => {
   const { toast } = useToast();
   const router = useRouter();
   const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, clearCart } = useAppStore();
@@ -922,6 +923,23 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
       });
     });
   };
+
+  /**
+   * Filled in by voice (lib/voice/commands.ts new_order): the order the shop described, read into
+   * the same shape a scanned slip is, and laid into the form the same way. Nothing is created
+   * until Create is pressed here.
+   */
+  const voiceTaken = useRef(false);
+  useEffect(() => {
+    if (!fromVoice || isEditMode || voiceTaken.current) return;
+    voiceTaken.current = true;
+    const d = takeHandoff<OrderDraft & { advanceMethod?: string }>('order');
+    if (!d) return;
+    applyScan(d, []);
+    if (d.advanceMethod && (PAYMENT_TYPES as readonly string[]).includes(d.advanceMethod)) form.setValue('advanceMethod', d.advanceMethod as typeof PAYMENT_TYPES[number]);
+    toast({ title: 'Filled in from what you said', description: 'Check each piece and the money, then press Create.' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromVoice, isEditMode]);
 
   const handleAddNewItem = () => {
     setOpenItem(fields.length);

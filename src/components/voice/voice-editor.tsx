@@ -14,6 +14,7 @@ import { rankNames, type LearnedAlias, type RankedName, type RosterEntry } from 
 import { ORDER_STATUS_WORDS, PAYMENT_METHOD_WORDS, type DocEntry } from '@/lib/voice/documents';
 import type { Reading } from '@/lib/voice/resolve';
 import { docKindFor, editableFor, WRITE_ACTIONS, type Edit } from '@/lib/voice/edit';
+import { EXPENSE_CATEGORIES } from '@/lib/expense-categories';
 
 const FIELD_LABEL: Record<string, string> = {
   name: 'Name', phone: 'Phone', contact: 'Phone', altPhone: 'Other phone', email: 'Email', city: 'City', address: 'Address',
@@ -170,6 +171,14 @@ export function VoiceEditor({ reading, roster, aliases, documents, onEdit }: {
           <Row label="Weight"><NumberBox value={reading.grams} onChange={n => onEdit({ kind: 'grams', value: n })} suffix="g" /></Row>
           <Row label="Karat"><NumberBox value={reading.karat} onChange={n => onEdit({ kind: 'karat', value: n })} suffix="k" /></Row>
         </>
+      )}
+
+      {can.category && (
+        <Row label="Category">
+          <select className={selectClass} value={reading.category ?? 'Other'} onChange={e => onEdit({ kind: 'category', value: e.target.value })}>
+            {[...new Set([...EXPENSE_CATEGORIES, 'Other'])].map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Row>
       )}
 
       {can.method && (

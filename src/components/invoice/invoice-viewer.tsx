@@ -13,7 +13,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppStore, Invoice as InvoiceType, PAYMENT_TYPES, PaymentType } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { describeMetal, describeSettings, describeDelivery, describePlating } from '@/lib/materials';
@@ -110,6 +110,23 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
   const phoneFor = invoice?.customerContact || (invoice?.customerId ? customers.find(c => c.id === invoice.customerId)?.phone : '') || '';
   useEffect(() => { if (phoneFor && !phone) setPhone(normalizePhoneNumber(phoneFor)); }, [phoneFor]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ?do=print / ?do=share: asked for by the voice assistant (lib/voice/commands.ts), done once.
+  const doParam = useSearchParams().get('do');
+  const doneParam = useRef(false);
+  useEffect(() => {
+    if (!doParam || doneParam.current || !invoice) return;
+    if (doParam === 'share' && !phone) {
+      if (phoneFor) return; // the number is about to be filled in
+      doneParam.current = true;
+      toast({ title: 'No phone number', description: "Enter the customer's WhatsApp number, then press WhatsApp.", variant: 'destructive' });
+      return;
+    }
+    doneParam.current = true;
+    if (doParam === 'print') void printInvoice(invoice);
+    if (doParam === 'share') handleSendWhatsApp(invoice, { sameTab: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doParam, invoice, phone, phoneFor]);
+
   const handleRecordPayment = async (overrideAmount?: number) => {
     if (!invoice) return;
     const amount = overrideAmount ?? parseFloat(paymentAmount);
@@ -165,7 +182,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
    * activation is still there when window.open asks for it; wa.me cannot carry a file, so the invoice
    * goes as a link to its own page (Print's sheet lists WhatsApp for the PDF).
    */
-  const handleSendWhatsApp = (invoiceToSend: InvoiceType) => {
+  const handleSendWhatsApp = (invoiceToSend: InvoiceType, opts: { sameTab?: boolean } = {}) => {
     if (!phone) {
       toast({ title: "No phone number", description: "Enter the customer's WhatsApp number.", variant: "destructive" });
       return;
@@ -194,7 +211,9 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
         .catch(e => toast({ title: 'The link may not open', description: `Could not save its key: ${(e as Error).message}`, variant: 'destructive' }));
     }
     message += `\n\nView estimate: ${invoiceShareUrl(appUrl, invoiceToSend.id, key)}`;
-    window.open(whatsAppLink(phone, message), '_blank');
+    // From voice there is no tap to open a new tab with, so it opens in this one.
+    if (opts.sameTab) window.location.assign(whatsAppLink(phone, message));
+    else window.open(whatsAppLink(phone, message), '_blank');
     toast({ title: "Opening WhatsApp", description: "The message is written — press send." });
   };
 

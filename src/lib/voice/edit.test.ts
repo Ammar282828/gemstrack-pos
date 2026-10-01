@@ -77,7 +77,8 @@ describe('editing a reading', () => {
     const { d } = start({ action: 'invoice_payment', summary: 'Rashida paid Rs 20,000 by bank', person: { name: 'Rashida Modi', kind: 'customer' }, amount: 20000 });
     const out = edit(d, { kind: 'action', action: 'order_advance' });
     expect(out.r.doc?.id).toBe('ORD-000041');
-    expect(out.r.summary).toBe('Rs 20,000 advance on ORD-000041 (Rashida Modi).');
+    // How it was paid comes along: an advance carries its method too.
+    expect(out.r.summary).toBe('Rs 20,000 advance by bank transfer on ORD-000041 (Rashida Modi).');
   });
 
   it('keeps the method read from the sentence once something else is changed', () => {

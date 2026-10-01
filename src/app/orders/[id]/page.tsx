@@ -3,7 +3,7 @@
 "use client";
 
 import { OrderPhoto } from '@/components/order/order-photo';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { whatsAppLink } from '@/lib/whatsapp';
 import { describePlating } from '@/lib/materials';
@@ -14,7 +14,7 @@ import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '
 import { METAL_TYPES as metalTypeValues, describeMetal, describeDelivery } from '@/lib/materials';
 import { categorySingular } from '@/lib/categories';
 import { KarigarAssign, KarigarBulkAssign } from '@/components/karigar/karigar-assign';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAppStore, Order, OrderStatus, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType, Karigar, CUSTOMER_SOURCE_LABELS, PAYMENT_TYPES } from '@/lib/store';
@@ -503,6 +503,14 @@ export default function OrderDetailPage() {
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
   const [notificationType, setNotificationType] = useState<NotificationType | null>(null);
   const [isFinalizeDialogOpen, setIsFinalizeDialogOpen] = useState(false);
+  // ?do=finalize: the voice assistant asked for this order to be invoiced (lib/voice/commands.ts).
+  const doParam = useSearchParams().get('do');
+  const finalizeAsked = useRef(false);
+  useEffect(() => {
+    if (doParam !== 'finalize' || finalizeAsked.current || !order) return;
+    finalizeAsked.current = true;
+    if (!order.invoiceId) setIsFinalizeDialogOpen(true);
+  }, [doParam, order]);
   const [isAdvanceDialogOpen, setIsAdvanceDialogOpen] = useState(false);
   const [isRevertDialogOpen, setIsRevertDialogOpen] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
