@@ -1764,9 +1764,9 @@
     "semantic_hash": ""
   },
   "src/components/voice/voice-bubble.tsx": {
-    "mtime": 1790690881.2344186,
-    "seen": 1790854750.3718374,
-    "ast_hash": "1eaa07eeb75aa2c1a7875b7d8ce88207",
+    "mtime": 1790883975.5776923,
+    "seen": 1790884225.511889,
+    "ast_hash": "2591e2bb760143e54303b10974cb3452",
     "semantic_hash": ""
   },
   "src/hooks/use-form-field.ts": {
@@ -2286,9 +2286,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790873195.1104145,
-    "seen": 1790873362.443229,
-    "ast_hash": "925fefc04a7c7cf142bd3f6554051aca",
+    "mtime": 1790884053.9772282,
+    "seen": 1790884225.51227,
+    "ast_hash": "f883a937d75ab54bcfcab7b81927ee70",
     "semantic_hash": ""
   },
   "README.md": {
@@ -4344,9 +4344,9 @@
     "semantic_hash": ""
   },
   "docs/features/ai.md": {
-    "mtime": 1790852329.9155226,
-    "seen": 1790854750.372658,
-    "ast_hash": "ae103b3617c3cd7be1246e5815375b2d",
+    "mtime": 1790884024.6738894,
+    "seen": 1790884225.5122828,
+    "ast_hash": "893e28f791c193195878fc654d7f433c",
     "semantic_hash": ""
   },
   "docs/features/edit-a-piece.md": {
@@ -4629,6 +4629,36 @@
     "mtime": 1790872626.466664,
     "seen": 1790873362.4430892,
     "ast_hash": "ad7583167f5d9b42ecc0a9e9c7cdc3a8",
+    "semantic_hash": ""
+  },
+  "src/components/voice/voice-editor.tsx": {
+    "mtime": 1790884012.9541457,
+    "seen": 1790884225.5118914,
+    "ast_hash": "e3cebdd08042d2207a1ab193da498294",
+    "semantic_hash": ""
+  },
+  "src/lib/voice/edit.test.ts": {
+    "mtime": 1790883526.852516,
+    "seen": 1790884225.5121872,
+    "ast_hash": "df6043acacfdf4b4006b46cebdc200d3",
+    "semantic_hash": ""
+  },
+  "src/lib/voice/edit.ts": {
+    "mtime": 1790883515.948426,
+    "seen": 1790884225.512189,
+    "ast_hash": "7253ca777edf218382d730bf12f1177e",
+    "semantic_hash": ""
+  },
+  "src/lib/voice/live.test.ts": {
+    "mtime": 1790883500.279448,
+    "seen": 1790884225.5121915,
+    "ast_hash": "4be49f42e11e30a63d9b7b37cb1c04f0",
+    "semantic_hash": ""
+  },
+  "src/lib/voice/live.ts": {
+    "mtime": 1790883428.681854,
+    "seen": 1790884225.5121927,
+    "ast_hash": "485329b2016bcefd3778f9b35f8bef31",
     "semantic_hash": ""
   }
 }

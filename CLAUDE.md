@@ -103,17 +103,16 @@ Claude Code runs these repos in the cloud too, with no Mac (owner, 2026-09-27).
   `CLAUDE_CODE_REMOTE=true`; hooks run in single-repo sessions only, so run it by hand in a multi-repo one): the key becomes the
   machine's default Google credentials (and gcloud's), Node 20 goes first on PATH, and `.env.taheri.local` / `.env.mina.local`
   are written from the YAML with every secret filled (`scripts/cloud/fill-secrets.mjs`; prints counts, never values). The
-  environment's setup script is `scripts/cloud/environment-setup.sh` (gcloud CLI), pasted into the environment. Network: Full —
-  Meta, WAHA, Green API, Shopify, Magnific and both sites are not on the Trusted list.
+  environment's setup script is `scripts/cloud/environment-setup.sh` (gcloud CLI), pasted into the environment. Network: Full
+  (Meta, WAHA, Green API, Shopify, Magnific and the sites are off the Trusted list).
 - **Going live:** a cloud session can push only its own `claude/…` branch. `.github/workflows/cloud-deploy.yml` takes any push to
   `claude/**`, merges `main`, `taheri-next` and gemstrack-pos `main` into it, runs the typecheck and tests, and pushes the result
   to `main` + `taheri-next` here and to gemstrack-pos `main` (a write deploy key there; its private half is this repo's Actions
   secret `HOM_DEPLOY_KEY`): both houses at once, **with no review** (owner, 2026-09-27). A conflict or a failed check stops
   it before any push; nothing is force-pushed. taheri-site and mina-catalogue have their own `cloud-deploy.yml`. In a cloud
-  session: commit, push the branch, watch the run; on a conflict, rebase on `origin/main` and push again. "Run workflow" on cloud-deploy.yml defaults to a dry run (checks, no pushes).
-- **Mac only:** SSH to Hostinger (the sites deploy through Actions), Google sign-in to a local ERP (no browser —
-  typecheck, tests and the gate's `?dev=1` still work), the Mac's memory files (this file is the handoff), GoDaddy / Hostinger API
-  tokens (not in Secret Manager).
+  session: commit, push the branch, watch the run; on a conflict, rebase on `origin/main` and push again. "Run workflow" is a dry run.
+- **Mac only:** SSH to Hostinger (the sites deploy through Actions), Google sign-in to a local ERP (typecheck, tests and the
+  gate's `?dev=1` work here), the Mac's memory files (this file is the handoff), GoDaddy / Hostinger API tokens.
 
 ## Security: Mina's repo is public (found 2026-09-27)
 
@@ -191,6 +190,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 **AI: the key and the scanners** (`docs/features/ai.md`)
 - [Vertex AI key](docs/features/ai.md#vertex-ai-key) — `vertex-ai-key` in gemstrack-pos Secret Manager, read at run time; tiny per-minute quota
 - [Scanners](docs/features/ai.md#scanners) — wastage in grams, weight before stones, the bill's rate and discount; never 3.8-flash
+- [Voice](docs/features/ai.md#voice) — live words; every part editable
 
 **Post a piece and its tools** (`docs/features/post-a-piece.md`)
 - [Post a piece drafts](docs/features/post-a-piece.md#post-a-piece-drafts) — drafts on this device (IndexedDB), photos included; picks up where it left off

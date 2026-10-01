@@ -42,3 +42,21 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   karat's box in the cart — and its **discount**, so a scanned estimate lands at the paper's own total instead of being
   re-priced at today's rate. Measured on the two Taheri estimates of 2026-09-29: 2.5-flash and 3.1 Pro read every figure
   (10/10, 17/17; Pro ≈ 5 s once the rate limit lets it through), **gemini-3.8-flash returned no lines at all** — never use it here.
+
+### Voice
+
+- **The words show while he talks, and the card can be changed before anything is written** (2026-10-01, owner: "can't the
+  voice function show the transcript as it's recording, and have the ability to make any changes"). The live words come from
+  the browser's own speech recognition (`lib/voice/live.ts`, English (India): the shop writes Roman script; Chrome, Edge, Safari),
+  not Gemini, whose key allows a few calls a minute. Gemini still reads the recording afterwards and its reading is the one
+  written. When the recording comes back silent (a phone that gives the microphone to only one listener) the live words are
+  sent instead, as text. Every call took 3–10 s with only a spinner before (Cloud Run logs, Sept); the panel now shows the words
+  through that wait.
+- **The card** (`voice-editor.tsx`, `lib/voice/edit.ts`): the words in an editable box with **Read again** (the corrected words go
+  to the model as text), and every part of the entry: what it is (17 kinds), the person (typed, matched by letters then by sound),
+  the order or invoice, amount, weight and karat, how paid, status, promised date, note, a customer's or karigar's details. Each
+  change goes into the model's reply and `resolveIntent` reads it again, so an edited entry passes the same checks as a spoken one
+  (a real row, not more than the invoice owes, a karigar kept off the customer side); the card then describes it in its own words
+  (`describeReading`). Choosing "which Ahsan?" no longer writes at once: it pins the person and the shop presses Write; a person
+  chosen by hand is still taught as a correction, and survives a Read again of the same name.
+- Voice is the owner's only (`/api/voice/listen`). Its undo of a ledger entry, expense or income now asks for the delete code.
