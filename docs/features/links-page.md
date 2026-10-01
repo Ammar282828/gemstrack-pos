@@ -25,3 +25,17 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   now its hours (no Najmi Market/Saddar). Shared on WhatsApp it previews as the shop — `<title>`, description and
   `og:image` `public/brand/links-share-<brand>.png` (1200×630, drawn in headless Chromium) — and `/view-invoice/<id>` as
   "INV-… · <house>", "Your invoice from …" (both said "Jewellery ERP"). The Zebra label-printer script loads only in the ERP.
+  **Reviews, up top** (2026-10-01, owner: "add google reviews at the top or side or make it prominent somehow", both pages):
+  the house's rating as a pill under the welcome (stars, the figure, how many and where) and a **What they say** strip after the
+  WhatsApp card — real reviews quoted as written (`lib/reviews.ts`, tested: five stars first, 25–240 characters, one per reviewer
+  and per piece), "Write a review" under them where the house has a link (it leaves the Find us list then). The last reading lives
+  in each house's `app_settings/reviews`; the page waits on it at most 1.5 s, and the five-minute `social-queue-tick` reads the
+  source again every six hours (`lib/reviews-server.ts`; a failure keeps the last reading and is written to `lastError`).
+  **Taheri** is its Google listing "Taheri Collections" (`STORE_GOOGLE_PLACE`, the Maps feature id the review link resolves to):
+  4.9 from 17 on 2026-10-01 (16 five-star, one four), read by hand from the public listing with its three featured reviews, since
+  **the Places API (New) is not enabled in gemstrack-pos** — enabling it there is all it takes for the tick to keep it current (the
+  server's own identity calls it; no key). **House of Mina has no Google listing** (none found that day), so hers are the Judge.me
+  reviews of houseofmina.store — 4.81 from 138 — read live from the shop's metafields (`judgeme.all_reviews_rating`, `_count`,
+  `reviews_grid`) through the ERP's Shopify access (`STORE_REVIEWS_SOURCE=judgeme`); the page never calls them Google's, and each
+  quote links its piece. Judge.me's grid was last written 2026-03-25: no review has come in since March. A Google Business Profile
+  for her studio would put her on Maps; the page then takes `STORE_GOOGLE_PLACE` like Taheri's.

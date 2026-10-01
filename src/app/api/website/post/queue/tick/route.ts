@@ -12,6 +12,7 @@
  * a house with the Ad studio, assesses the library in the background (assess-run.ts): a paced
  * slice in whatever time was left, so the photos get assessed with no page open. Their own jobs
  * would be cleaner; the cloud sessions can't create Scheduler jobs.
+ * Every house also re-reads the link page's reviews when six hours old (lib/reviews-server.ts).
  * `?dry=1` answers what is due without sending anything.
  */
 
@@ -23,6 +24,7 @@ import { STORE_AD_STUDIO, STORE_POST_PIECE } from '@/lib/store-config';
 import { aiConfigured } from '@/lib/social/ai';
 import { loadAssessState, runAssessSlice } from '@/lib/ads/studio/assess-run';
 import { runDueReports } from '@/lib/notifications/dispatch';
+import { refreshReviews } from '@/lib/reviews-server';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -44,6 +46,8 @@ async function reports(dry: boolean) {
 export async function POST(req: NextRequest) {
   if (!isCronAuthorized(req, { strict: true })) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const dry = req.nextUrl.searchParams.get('dry') === '1';
+  // The link page's reviews, read again every six hours (reviews-server.ts); never in the way.
+  if (!dry) await refreshReviews().then(r => { if (r.status === 'failed') console.warn('[queue/tick] reviews:', r.error); }).catch(() => undefined);
   // The reports ride this tick in every house, so they come before the Post a Piece gate.
   if (!STORE_POST_PIECE) return NextResponse.json({ ok: true, notifications: await reports(dry) });
   const started = Date.now();

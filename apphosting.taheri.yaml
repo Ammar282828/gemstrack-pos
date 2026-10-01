@@ -284,6 +284,13 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # The same listing, for the link page's rating and quotes (lib/reviews-server.ts): its Maps
+  # feature id, which the review link above resolves to. Read through Google's Places API (New)
+  # once it is enabled in gemstrack-pos; until then the page shows the reading of 2026-10-01.
+  - variable: STORE_GOOGLE_PLACE
+    value: "0x3eb33f9193805f97:0x3d557f1ff0eae5aa"
+    availability:
+      - RUNTIME
   # Ads: the Instagram account Taheri's ads run as — picked automatically on
   # Ads → Setup, and any other one there is flagged as not this shop's.
   - variable: META_ADS_INSTAGRAM

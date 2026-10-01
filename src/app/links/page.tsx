@@ -12,10 +12,14 @@
  * (layout.tsx) and this page ships no JavaScript of its own.
  *
  * WHAT IT SHOWS, top to bottom:
- *   the wordmark, the house's line in its accent, a hairline ornament, one line of welcome;
+ *   the wordmark, the house's line in its accent, a hairline ornament, one line of welcome,
+ *     and the house's rating under it — stars, the figure, how many reviews and where (Google
+ *     for Taheri; houseofmina.store for Mina, who has no Google listing), opening them all;
  *   the top row — the WhatsApp channel (or, for a house without one, the community) —
  *     as the one card with a filled button, the page's single primary action (as New
  *     Sale is the ERP's one tinted control);
+ *   "What they say": a few real reviews, quoted as written (lib/reviews.ts picks them; the
+ *     house's last reading, reviews-server.ts), with "Write a review" where the house has a link;
  *   "Just in": the newest pieces on the house's own website, a spread across its
  *     collections (showcase.ts), each opening its page — streamed in after the rest,
  *     so a slow site never holds up a link;
@@ -38,6 +42,8 @@ import {
   LINKS_DRESS, STORE_BRAND, STORE_CONFIG, STORE_LINKS, STORE_LINKS_PAGE, STORE_LOGO_ASPECT, STORE_LOGO_LIGHT_URL,
 } from '@/lib/store-config';
 import { pickShowcase } from '@/lib/website/showcase';
+import { ratingLabel, type ReviewsSnapshot } from '@/lib/reviews';
+import { getReviews } from '@/lib/reviews-server';
 
 // Rendered per request: the pieces change daily, and nothing here may run at build.
 export const dynamic = 'force-dynamic';
@@ -63,7 +69,7 @@ const SERIF = STORE_BRAND === 'mina' ? newsreader.className : didone.className;
 
 const { ground: GROUND, accent: ACCENT, accentRgb: ACC } = LINKS_DRESS;
 
-type IconName = 'whatsapp' | 'instagram' | 'tiktok' | 'globe' | 'bag' | 'star' | 'arrow';
+type IconName = 'whatsapp' | 'instagram' | 'tiktok' | 'globe' | 'bag' | 'star' | 'arrow' | 'google';
 
 interface Utility { href: string; label: string; sub: string; icon: IconName }
 interface Shown { id: string; name: string; url: string; thumb: string; collection: string }
@@ -71,14 +77,17 @@ interface Shown { id: string; name: string; url: string; thumb: string; collecti
 const host = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
 const delay = (ms: number) => ({ '--d': `${ms}ms` }) as React.CSSProperties;
 
-export default function LinksPage() {
+export default async function LinksPage() {
+  // The house's last reading (never more than 1.5 s of the page's time; none → no rating shown).
+  const reviews = await getReviews();
   const utilities: Utility[] = ([
     { href: STORE_LINKS.instagram || STORE_CONFIG.instagramUrl, label: 'Instagram', sub: 'The work, up close', icon: 'instagram' },
     { href: STORE_LINKS.tiktok, label: 'TikTok', sub: 'Every piece, in motion', icon: 'tiktok' },
     { href: STORE_LINKS.whatsapp || STORE_CONFIG.whatsappUrl, label: 'Talk to us', sub: 'Ask anything — a price, a repair, an idea', icon: 'whatsapp' },
     { href: STORE_LINKS.website, label: STORE_LINKS_PAGE.websiteLabel || host(STORE_LINKS.website), sub: 'Browse the whole house at your own pace', icon: 'globe' },
     { href: STORE_LINKS.shop, label: host(STORE_LINKS.shop), sub: 'Order online, delivered to your door', icon: 'bag' },
-    { href: STORE_LINKS.googleReview, label: 'Leave a review', sub: 'Tell Karachi what you thought', icon: 'star' },
+    // With reviews showing, "Write a review" sits under them instead.
+    { href: reviews?.writeUrl ? '' : STORE_LINKS.googleReview, label: 'Leave a review', sub: 'Tell Karachi what you thought', icon: 'star' },
   ] as Utility[]).filter((e) => Boolean(e.href));
 
   // The channel (follow, nothing to join, lands in Updates), or a house's community.
@@ -104,6 +113,7 @@ export default function LinksPage() {
           <Ornament />
           {/* A customer arrives from a paper receipt with no idea what they have opened. */}
           <p className="lk-welcome">{STORE_LINKS_PAGE.welcome}</p>
+          {reviews && <RatingBadge r={reviews} />}
         </header>
 
         {top && (
@@ -122,6 +132,8 @@ export default function LinksPage() {
             <span className="lk-cta">{top.action} on WhatsApp <Icon name="arrow" size={14} /></span>
           </a>
         )}
+
+        {reviews && reviews.quotes.length > 0 && <Reviews r={reviews} />}
 
         {STORE_LINKS.website && (
           <Suspense fallback={<ShowcaseFrame><Skeleton /></ShowcaseFrame>}>
@@ -160,6 +172,64 @@ export default function LinksPage() {
         )}
       </div>
     </main>
+  );
+}
+
+/** How many and where: "17 Google reviews", "138 reviews". */
+const countLabel = (r: ReviewsSnapshot) => `${r.count.toLocaleString('en-US')} ${r.source === 'google' ? 'Google ' : ''}review${r.count === 1 ? '' : 's'}`;
+
+/** The rating under the welcome: the first thing after the house's own words, and a way to read them all. */
+function RatingBadge({ r }: { r: ReviewsSnapshot }) {
+  return (
+    <a href={r.readUrl} target="_blank" rel="noopener noreferrer" className="lk-rating"
+       aria-label={`Rated ${ratingLabel(r.rating)} out of 5 from ${countLabel(r)}${r.source === 'judgeme' ? ' on our online shop' : ''}. Read them.`}>
+      {r.source === 'google' && <Icon name="google" size={15} />}
+      <span className={`${SERIF} lk-rating-n`}>{ratingLabel(r.rating)}</span>
+      <Stars value={r.rating} />
+      <span className="lk-rating-c">{countLabel(r)}</span>
+    </a>
+  );
+}
+
+/** Real reviews, as written, a phone's swipe wide. */
+function Reviews({ r }: { r: ReviewsSnapshot }) {
+  return (
+    <section className="lk-sec lk-rise" style={delay(130)} aria-label="Reviews">
+      <div className="lk-sechead">
+        <h2 className="lk-label">What they say</h2>
+        <a href={r.readUrl} target="_blank" rel="noopener noreferrer" className="lk-more">
+          {/* Google lists every review; the shop has no page of them all, only its pieces' own. */}
+          {r.source === 'google' ? `All ${r.count.toLocaleString('en-US')}` : 'More'} <Icon name="arrow" size={12} />
+        </a>
+      </div>
+      <div className="lk-strip lk-quotes">
+        {r.quotes.map((q) => (
+          <figure key={`${q.author}-${q.text.slice(0, 24)}`} className="lk-quote">
+            <Stars value={q.stars} size={11} />
+            <blockquote className={`${SERIF} lk-qtext`}>{q.text}</blockquote>
+            <figcaption className="lk-qby">
+              {q.author}
+              {q.about && <> · <a href={q.about.url} target="_blank" rel="noopener noreferrer">{q.about.name}</a></>}
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+      {r.writeUrl && (
+        <a href={r.writeUrl} target="_blank" rel="noopener noreferrer" className="lk-write">
+          <Icon name="star" size={14} /> Write a review
+        </a>
+      )}
+    </section>
+  );
+}
+
+/** Five stars filled to the rating (4.8 → the fifth four-fifths full), in the house's accent. */
+function Stars({ value, size = 13 }: { value: number; size?: number }) {
+  const fill = `${Math.max(0, Math.min(100, (value / 5) * 100))}%`;
+  return (
+    <span className="lk-stars" aria-hidden style={{ '--w': fill, fontSize: size } as React.CSSProperties}>
+      <span className="lk-stars-on">★★★★★</span>★★★★★
+    </span>
   );
 }
 
@@ -293,6 +363,16 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
           <path d="M12 3a14 14 0 0 1 3.6 9A14 14 0 0 1 12 21a14 14 0 0 1-3.6-9A14 14 0 0 1 12 3Z" />
         </svg>
       );
+    case 'google':
+      // Google's G, in its own colours: the mark that says these are Google's reviews, not ours.
+      return (
+        <svg {...common}>
+          <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.05H12v3.88h5.38a4.6 4.6 0 0 1-2 3.02v2.5h3.24c1.9-1.75 2.98-4.32 2.98-7.35Z" />
+          <path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.42l-3.24-2.5c-.9.6-2.04.95-3.38.95-2.6 0-4.8-1.75-5.59-4.1H3.07v2.58A10 10 0 0 0 12 22Z" />
+          <path fill="#FBBC05" d="M6.41 13.93a6 6 0 0 1 0-3.86V7.49H3.07a10 10 0 0 0 0 9.02l3.34-2.58Z" />
+          <path fill="#EA4335" d="M12 5.98c1.47 0 2.79.5 3.83 1.5l2.87-2.87A9.6 9.6 0 0 0 12 2a10 10 0 0 0-8.93 5.49l3.34 2.58C7.2 7.73 9.4 5.98 12 5.98Z" />
+        </svg>
+      );
     case 'arrow':
       return (
         <svg {...common} {...line}>
@@ -334,6 +414,42 @@ const CSS = `
   .lk-orn::after { transform: scaleX(-1); }
   .lk-orn i { width: 5px; height: 5px; transform: rotate(45deg); border: 1px solid rgba(${ACC},.85); }
   .lk-welcome { margin: 18px auto 0; max-width: 21rem; font-size: 14px; line-height: 1.65; font-weight: 300; color: rgba(255,255,255,.68); }
+
+  /* The rating, right under the welcome: a quiet pill, the figure in the house's serif. */
+  .lk-rating {
+    display: inline-flex; align-items: center; gap: 9px; margin-top: 20px; padding: 8px 15px 8px 13px;
+    border-radius: 999px; border: 1px solid rgba(${ACC},.32); background: rgba(${ACC},.07);
+    transition: border-color .3s ease, background-color .3s ease;
+  }
+  .lk-rating:hover { border-color: rgba(${ACC},.65); background: rgba(${ACC},.11); }
+  .lk-rating-n { font-size: 19px; line-height: 1; color: #fff; }
+  .lk-rating-c { font-size: 12px; color: rgba(255,255,255,.72); }
+  .lk-stars { position: relative; display: inline-block; line-height: 1; letter-spacing: .12em; color: rgba(255,255,255,.2); white-space: nowrap; }
+  .lk-stars-on { position: absolute; inset: 0 auto 0 0; width: var(--w); overflow: hidden; color: ${ACCENT}; }
+
+  /* Reviews: a card each, swiped on a phone, the next one peeking in. */
+  .lk-strip.lk-quotes { scroll-padding-left: 20px; }
+  .lk-quote {
+    flex: 0 0 82%; scroll-snap-align: start; margin: 0; padding: 18px 18px 16px; border-radius: 18px;
+    display: flex; flex-direction: column; gap: 10px;
+    border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.03);
+  }
+  @media (min-width: 640px) {
+    .lk-strip.lk-quotes { display: flex; overflow-x: auto; margin: 0 -20px; padding: 0 20px 2px; }
+    .lk-quote { flex-basis: 300px; }
+  }
+  .lk-qtext { margin: 0; flex: 1; font-size: 16px; line-height: 1.5; font-style: italic; color: rgba(255,255,255,.92); }
+  .lk-qtext::before { content: '“'; color: ${ACCENT}; margin-right: 1px; }
+  .lk-qtext::after { content: '”'; color: ${ACCENT}; margin-left: 1px; }
+  .lk-qby { font-size: 11.5px; letter-spacing: .04em; color: rgba(255,255,255,.62); }
+  .lk-qby a { color: ${ACCENT}; }
+  .lk-write {
+    margin-top: 14px; height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px;
+    border-radius: 999px; border: 1px solid rgba(${ACC},.45); color: ${ACCENT};
+    font-size: 11px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase;
+    transition: border-color .3s ease, background-color .3s ease;
+  }
+  .lk-write:hover { border-color: rgba(${ACC},.8); background: rgba(${ACC},.08); }
 
   /* The one card that asks for something, and the one filled control on the page. */
   .lk-feat {

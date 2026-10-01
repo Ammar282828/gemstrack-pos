@@ -202,6 +202,13 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # The link page's rating and quotes: House of Mina has no Google listing; her reviews are
+  # Judge.me's on houseofmina.store (4.81 from 138 on 2026-10-01), read from the shop's
+  # metafields through the Shopify access below (lib/reviews-server.ts).
+  - variable: STORE_REVIEWS_SOURCE
+    value: "judgeme"
+    availability:
+      - RUNTIME
   # No TikTok: @houseofmina is someone else's account (owner, 2026-09-30: "the tiktok isnt hers").
   # The Shopify store, beside the catalogue on the link page.
   - variable: NEXT_PUBLIC_STORE_SHOP_URL
