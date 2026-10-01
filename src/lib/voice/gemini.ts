@@ -22,6 +22,7 @@
 
 import { GoogleAuth } from 'google-auth-library';
 import { envVertexKey, keyedModelUrl, vertexKey } from '@/lib/ai-key';
+import { markExhausted, modelOrder } from '@/lib/ai-fallback';
 
 const auth = new GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/cloud-platform'],
@@ -67,7 +68,8 @@ export interface GenerateOptions {
   signal?: AbortSignal;
   /**
    * The model, when not VERTEX_MODEL: the scanners ask for a stronger one (vision/scan-model.ts).
-   * One Google doesn't serve here (404) falls back to VERTEX_MODEL, so a scan never fails for it.
+   * One Google doesn't serve here (404), or calls exhausted (429; 3.1 Pro on 2026-10-01, lib/ai-fallback.ts),
+   * hands over to VERTEX_MODEL at once, so a scan never fails for it.
    */
   model?: string;
   /**
@@ -114,7 +116,7 @@ const WAIT_BRIEF = [3000];
 export async function generateJson<T>({
   system, parts, schema, temperature = 0, thinkingBudget, signal, model, patient,
 }: GenerateOptions): Promise<T> {
-  const models = [...new Set([model?.trim() || VERTEX_MODEL, VERTEX_MODEL])];
+  const models = modelOrder([model?.trim() || VERTEX_MODEL, VERTEX_MODEL]);
   const waits = patient ? WAIT_PATIENT : WAIT_BRIEF;
   const request = JSON.stringify({
     systemInstruction: { parts: [{ text: system }] },
@@ -134,8 +136,12 @@ export async function generateJson<T>({
     body = await res.json().catch(() => null);
     if (res.ok) break;
     const err = ((Array.isArray(body) ? body[0] : body) as { error?: { status?: string; message?: string } } | null)?.error ?? {};
-    // A model this project isn't served: the pinned one, which is.
-    if (res.status === 404 && m < models.length - 1) { m++; attempt = 0; continue; }
+    // A model this project isn't served, or one Google calls exhausted: the next, now.
+    if ((res.status === 404 || res.status === 429) && m < models.length - 1) {
+      if (res.status === 429) markExhausted(models[m]);
+      console.warn(`[gemini] ${models[m]} answered ${res.status} — trying ${models[m + 1]}`);
+      m++; attempt = 0; continue;
+    }
     if (res.status === 429 && attempt < waits.length) { await new Promise(r => setTimeout(r, waits[attempt++])); continue; }
     // A rate limit is a wait, not a fault; with the key it is almost never the money.
     if (err.status === 'RESOURCE_EXHAUSTED' || res.status === 429) {

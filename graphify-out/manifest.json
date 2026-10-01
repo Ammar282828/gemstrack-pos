@@ -2106,9 +2106,9 @@
     "semantic_hash": ""
   },
   "src/lib/voice/gemini.ts": {
-    "mtime": 1790706720.1526687,
-    "seen": 1790844174.0344763,
-    "ast_hash": "366f2fb081d48f8d0378063f9411bc16",
+    "mtime": 1790846129.1967473,
+    "seen": 1790846402.9822922,
+    "ast_hash": "0ac9979414299ae724ea3d7c9f85be53",
     "semantic_hash": ""
   },
   "src/lib/voice/model.ts": {
@@ -2550,9 +2550,9 @@
     "semantic_hash": ""
   },
   "src/lib/social/ai.ts": {
-    "mtime": 1790710336.363526,
-    "seen": 1790844174.0343304,
-    "ast_hash": "9a711d7570519dcc6d73f8438102e619",
+    "mtime": 1790846129.196093,
+    "seen": 1790846402.9821799,
+    "ast_hash": "d02dd166746af0a7ecf7360c9549ac5e",
     "semantic_hash": ""
   },
   "src/lib/social/gate.ts": {
@@ -2616,9 +2616,9 @@
     "semantic_hash": ""
   },
   "src/lib/social/health.ts": {
-    "mtime": 1790705414.7848341,
-    "seen": 1790844174.0343573,
-    "ast_hash": "45c2c21dd430e4cf70e9adcc5af366b0",
+    "mtime": 1790846129.1974945,
+    "seen": 1790846402.9822094,
+    "ast_hash": "2ff13a0a91e46efd6393cbf1698672cc",
     "semantic_hash": ""
   },
   "src/app/website/post/story-editor.tsx": {
@@ -4350,9 +4350,9 @@
     "semantic_hash": ""
   },
   "docs/features/ai.md": {
-    "mtime": 1790843209.844841,
-    "seen": 1790844174.0346136,
-    "ast_hash": "b64afcd9bd5b6adf3d6aec25a887288d",
+    "mtime": 1790846344.9545221,
+    "seen": 1790846402.9824798,
+    "ast_hash": "ae103b3617c3cd7be1246e5815375b2d",
     "semantic_hash": ""
   },
   "docs/features/edit-a-piece.md": {
@@ -4479,6 +4479,24 @@
     "mtime": 1790844139.112457,
     "seen": 1790844174.034328,
     "ast_hash": "65c273535a6724cd06e148caa91d1fe6",
+    "semantic_hash": ""
+  },
+  "src/lib/ai-fallback.test.ts": {
+    "mtime": 1790846129.1755085,
+    "seen": 1790846402.9819329,
+    "ast_hash": "42cd4ededf4376817f661f01ed54e8f0",
+    "semantic_hash": ""
+  },
+  "src/lib/ai-fallback.ts": {
+    "mtime": 1790846129.1728547,
+    "seen": 1790846402.9819355,
+    "ast_hash": "d4315b51abb4ab0b36ab16227c0a13eb",
+    "semantic_hash": ""
+  },
+  "src/lib/social/ai-fallback-call.test.ts": {
+    "mtime": 1790846286.2855387,
+    "seen": 1790846402.9821775,
+    "ast_hash": "9fbc77442fba59c45469f403b32ba706",
     "semantic_hash": ""
   }
 }

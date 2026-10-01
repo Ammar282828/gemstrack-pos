@@ -15,6 +15,8 @@
  *   IMAGE_AI_MODEL        gemini-3-pro-image      Nano Banana Pro — edits, re-stages
  *   IMAGE_AI_TEXT_MODEL   gemini-3.1-pro-preview  captions and the story plan
  *   IMAGE_AI_CHECK_MODEL  gemini-3.8-flash        "is it the same piece?", reading text back
+ *   IMAGE_AI_TEXT_FALLBACK gemini-3.6-flash       answers for either text model when Google says it is
+ *                                                 exhausted (lib/ai-fallback.ts; 3.1 Pro was, all of 2026-10-01's morning)
  *
  * Server-only.
  */
@@ -22,6 +24,7 @@
 import { GoogleAuth } from 'google-auth-library';
 import sharp from 'sharp';
 import { envVertexKey, keyedModelUrl, vertexKey, vertexKeySecret } from '@/lib/ai-key';
+import { markExhausted, modelOrder } from '@/lib/ai-fallback';
 
 const PROJECT = process.env.IMAGE_AI_PROJECT?.trim()
   || process.env.VERTEX_PROJECT?.trim()
@@ -32,6 +35,7 @@ const LOCATION = process.env.IMAGE_AI_LOCATION?.trim() || 'global';
 export const IMAGE_MODEL = process.env.IMAGE_AI_MODEL?.trim() || 'gemini-3-pro-image';
 export const TEXT_MODEL = process.env.IMAGE_AI_TEXT_MODEL?.trim() || 'gemini-3.1-pro-preview';
 export const CHECK_MODEL = process.env.IMAGE_AI_CHECK_MODEL?.trim() || 'gemini-3.8-flash';
+export const TEXT_FALLBACK = process.env.IMAGE_AI_TEXT_FALLBACK?.trim() || 'gemini-3.6-flash';
 
 const auth = new GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/cloud-platform'],
@@ -60,6 +64,10 @@ const host = () => LOCATION === 'global' ? 'aiplatform.googleapis.com' : `${LOCA
  * briefly overloaded (500/503) twice, soon; a rate limit (429) three times, waiting longer each
  * time — the Vertex AI key's project allows only a few requests a minute (2026-09-29), and an image
  * op already takes most of a minute, so waiting beats failing. `retries: 0` for the checks panel.
+ *
+ * A text model Google calls exhausted hands over to TEXT_FALLBACK at once (lib/ai-fallback.ts);
+ * only the last model in the chain waits. The image model has no stand-in, and `fallback: false`
+ * keeps a call on its model (the Ads helper's signed tool calls; the checks panel testing it).
  */
 const WAIT_OVERLOADED = [2500, 5000];
 const WAIT_RATE_LIMITED = [5000, 15000, 30000];
@@ -76,24 +84,48 @@ async function endpoint(model: string): Promise<{ url: string; headers: Record<s
   };
 }
 
-async function call(model: string, body: Record<string, unknown>, opts: { retries?: number } = {}): Promise<Record<string, unknown>> {
-  const { url, headers } = await endpoint(model);
+/** Gemini 3's `thinkingLevel` is refused by older models: a stand-in from before 3 goes without it. */
+function bodyFor(model: string, body: Record<string, unknown>): string {
+  const gc = body.generationConfig as { thinkingConfig?: { thinkingLevel?: string } } | undefined;
+  if (/^gemini-3/.test(model) || !gc?.thinkingConfig?.thinkingLevel) return JSON.stringify(body);
+  const { thinkingConfig: _drop, ...rest } = gc as Record<string, unknown>;
+  return JSON.stringify({ ...body, generationConfig: rest });
+}
 
-  for (let attempt = 0; ; attempt++) {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(240_000),
-    });
-    const data = await res.json().catch(() => null) as Record<string, unknown> | null;
-    if (res.ok && data) return data;
-    const err = (data?.error ?? {}) as { status?: string; message?: string };
-    const waits = res.status === 429 ? WAIT_RATE_LIMITED : res.status === 503 || res.status === 500 ? WAIT_OVERLOADED : [];
-    if (attempt < Math.min(waits.length, opts.retries ?? Infinity)) { await new Promise(r => setTimeout(r, waits[attempt])); continue; }
-    if (err.status === 'RESOURCE_EXHAUSTED') throw new AiError('Google is holding the AI to its per-minute quota (or it is out of credit). Try again in a minute.', 429);
-    throw new AiError(String(err.message || `Vertex AI returned ${res.status}`).slice(0, 300), res.status);
+async function call(model: string, body: Record<string, unknown>, opts: { retries?: number; fallback?: boolean } = {}): Promise<Record<string, unknown>> {
+  const chain = opts.fallback === false || model === IMAGE_MODEL ? [model] : modelOrder([model, TEXT_FALLBACK]);
+
+  for (let i = 0; i < chain.length; i++) {
+    const m = chain[i];
+    const last = i === chain.length - 1;
+    const { url, headers } = await endpoint(m);
+    const payload = bodyFor(m, body);
+    for (let attempt = 0; ; attempt++) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: payload,
+        signal: AbortSignal.timeout(240_000),
+      });
+      const data = await res.json().catch(() => null) as Record<string, unknown> | null;
+      if (res.ok && data) {
+        if (m !== model) console.warn(`[ai] ${model} unavailable — answered by ${m}`);
+        return data;
+      }
+      const err = (data?.error ?? {}) as { status?: string; message?: string };
+      // Exhausted, or not served to this key: the next model, now.
+      if (!last && (res.status === 429 || res.status === 404)) {
+        if (res.status === 429) markExhausted(m);
+        console.warn(`[ai] ${m} answered ${res.status} — trying ${chain[i + 1]}`);
+        break;
+      }
+      const waits = res.status === 429 ? WAIT_RATE_LIMITED : res.status === 503 || res.status === 500 ? WAIT_OVERLOADED : [];
+      if (attempt < Math.min(waits.length, opts.retries ?? Infinity)) { await new Promise(r => setTimeout(r, waits[attempt])); continue; }
+      if (err.status === 'RESOURCE_EXHAUSTED') throw new AiError('Google is holding the AI to its per-minute quota (or it is out of credit). Try again in a minute.', 429);
+      throw new AiError(String(err.message || `Vertex AI returned ${res.status}`).slice(0, 300), res.status);
+    }
   }
+  throw new AiError('No AI model answered.', 502);
 }
 
 type Candidate = { content?: { parts?: Array<{ text?: string; thought?: boolean; inlineData?: InlineImage }> }; finishReason?: string };
@@ -179,7 +211,7 @@ export async function chatTurn(opts: {
       temperature: opts.temperature ?? 0.4, maxOutputTokens: opts.maxOutputTokens ?? 8192,
       ...(opts.thinkingLevel && /^gemini-3/.test(opts.model) ? { thinkingConfig: { thinkingLevel: opts.thinkingLevel } } : {}),
     },
-  });
+  }, { fallback: false });
   const c = (data.candidates as Array<{ content?: ChatContent; finishReason?: string }> | undefined)?.[0];
   return { content: { role: 'model', parts: c?.content?.parts ?? [] }, finishReason: c?.finishReason, modelVersion: data.modelVersion as string | undefined };
 }
@@ -191,11 +223,11 @@ export async function chatTurn(opts: {
  * a second. Thinking turned down — left to itself the model spent up to 5 s deciding how to say
  * OK, past the panel's 8 s with a retry — and no retries: a rate limit is an answer here.
  */
-export async function aiPing(): Promise<void> {
-  await call(CHECK_MODEL, {
+export async function aiPing(model = CHECK_MODEL): Promise<void> {
+  await call(model, {
     contents: [{ role: 'user', parts: [{ text: 'Reply with the single word OK.' }] }],
-    generationConfig: { temperature: 0, ...(/^gemini-3/.test(CHECK_MODEL) ? { thinkingConfig: { thinkingLevel: 'low' } } : {}) },
-  }, { retries: 0 });
+    generationConfig: { temperature: 0, ...(/^gemini-3/.test(model) ? { thinkingConfig: { thinkingLevel: 'low' } } : {}) },
+  }, { retries: 0, fallback: false });
 }
 
 /**

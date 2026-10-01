@@ -14,7 +14,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { STORE_CONFIG, STORE_WEBSITE_FEATURED } from '@/lib/store-config';
 import { whatsAppChannelInfo, whatsAppDiagnostics, whatsAppProvider, whatsAppStatus } from '@/lib/whatsapp';
 import { loadFeatured } from '@/lib/website/featured';
-import { AiError, aiBilledTo, aiConfigured, aiPing, imageModelServed, IMAGE_MODEL } from './ai';
+import { AiError, aiBilledTo, aiConfigured, aiPing, imageModelServed, IMAGE_MODEL, TEXT_FALLBACK, TEXT_MODEL } from './ai';
 import { instagramConfigured, instagramHealth, tokenStoreAccess } from './instagram';
 import { diagnose, type Action } from './diagnose';
 import { diagnoseContext, recentErrors, type RecordedError } from './errors';
@@ -177,6 +177,19 @@ async function aiChecks(fresh: boolean): Promise<Check[]> {
         throw e;
       }
       return { status: 'ok', detail: `Vertex AI answered in ${((Date.now() - t) / 1000).toFixed(1)} s (billed through ${await aiBilledTo()}).` };
+    }),
+    // The text model on its own: "AI answers" pings the cheap model, which stayed green all through
+    // 2026-10-01's morning while 3.1 Pro (captions, the scanners) answered nothing but 429.
+    guard('ai-text', 'AI', 'Writing model answers', 'ai', async () => {
+      try {
+        await aiPing(TEXT_MODEL);
+      } catch (e) {
+        if (e instanceof AiError && e.status === 429) {
+          return { status: 'warn', detail: `${TEXT_MODEL} is out of allowance right now; captions and the scanners use ${TEXT_FALLBACK} and gemini-2.5-flash meanwhile.`, fix: 'Nothing to do at the counter — the backup answers. If it lasts, the AI key’s project needs more Vertex AI quota for this model (its owner, IAM & Admin → Quotas), or set IMAGE_AI_TEXT_MODEL / SCAN_AI_MODEL to a model that answers.' };
+        }
+        throw e;
+      }
+      return { status: 'ok', detail: `${TEXT_MODEL} answers.` };
     }),
     guard('ai-model', 'AI', 'Image model is available', 'ai', async () => {
       const served = await imageModelServed();

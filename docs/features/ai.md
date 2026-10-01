@@ -21,6 +21,14 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   (5 s, 15 s, 30 s) instead of failing, and the checks panel's ping (thinking `low`, no retries — left alone it thought for
   up to 5 s and, with a retry, blew the panel's 8 s) shows a rate limit as a warning, not "timed out". The fix is the key
   project owner's: raise its Vertex AI per-minute quota (IAM & Admin → Quotas).
+  **The quotas are per model** (2026-10-01): from at least 09:00 that morning `gemini-3.1-pro-preview` answered every call
+  with that 429 in 0.2 s, an hour after its last use, while 3.6-flash, 3.8-flash, 2.5-flash and the image model answered —
+  so Write with AI waited 50 s and failed ("AI is busy or out of credit"), and the scanners (also 3.1 Pro) would have too.
+  Since then a model answering 429 (or 404) hands over **at once** to the next in its chain and is passed over for 5 min on
+  that instance (`lib/ai-fallback.ts`, tested; only the chain's last model waits): the text models → `IMAGE_AI_TEXT_FALLBACK`
+  (**gemini-3.6-flash**, ~3–5 s), the scanners → voice's gemini-2.5-flash; the image model and the Ads helper (signed tool
+  calls) have none. The checks panel pings the writing model on its own ("Writing model answers") — the cheap model's ping
+  stayed green all morning.
 
 ### Scanners
 
