@@ -21,6 +21,10 @@
 
 runConfig:
   minInstances: 0
+  # 1 GiB, not Cloud Run's 512 MiB: one instance serves up to 80 requests at once — the counter,
+  # taheri.shop's live quotes, the five-minute ticks, photo work in sharp — and a request that
+  # runs it out of memory kills every other one on it with a bare 503 (95 times on 2026-10-01).
+  memoryMiB: 1024
 
 env:
   # whatsapp-web.js (local-only dev tool) pulls puppeteer. Skip the Chromium

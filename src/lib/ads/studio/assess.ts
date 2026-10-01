@@ -67,12 +67,12 @@ export async function assessBatch(assets: StudioAsset[]): Promise<BatchResult> {
   const batch = assets.slice(0, ASSESS_BATCH);
   const failed: BatchResult['failed'] = [];
   const loaded: { asset: StudioAsset; image: { mimeType: string; data: string } }[] = [];
-  await Promise.all(batch.map(async asset => {
+  // One photograph at a time: ten decoded together took a 512 MiB instance past its limit (2026-10-01).
+  for (const asset of batch) {
     try { loaded.push({ asset, image: await prepareImage(await assetJpeg(asset.id, 640)) }); }
     catch (e) { failed.push({ id: asset.id, error: e instanceof Error ? e.message : 'Could not load the photograph.' }); }
-  }));
+  }
   if (!loaded.length) return { done: [], failed };
-  loaded.sort((a, b) => batch.indexOf(a.asset) - batch.indexOf(b.asset));
 
   const parts = loaded.flatMap(({ asset, image }, i) => [
     { text: `Photograph ${i + 1} — "${asset.name}" (${asset.source === 'site' ? 'on the website' : 'from a shoot'}, ${asset.collection}):` },

@@ -58,6 +58,16 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   per-minute quota is shared with the counter. It rides the existing **`social-queue-tick`** (every 5 min, 300 s deadline) after
   the queue's own work — this session can only view Cloud Scheduler, not create a job; a dedicated `ad-assess-tick` job would be
   cleaner. Pause/resume and "Assess now" on the page. ~350 photos an hour.
+  <a id="out-of-memory"></a>**Out of memory, 2026-10-01** (owner pasted Post a Piece's "AI request failed (503)"): the TC folder
+  added by link on 09-29 holds 4000-px PNGs of 13–25 MB and three Photoshop files. A batch downloaded and decoded ten originals at
+  once (+337 MiB, measured), past the 512 MiB instance; Cloud Run killed it and every request on it — the counter's Enhance, 74
+  of taheri.shop's quotes at 07:45 — 95 times that day, each tick starting the same batch again because nothing had been saved.
+  Since then: **Drive photos come resized by Drive** (`thumbnailLink` with `=s<px>`, any size up to the original; it renders PSD
+  and HEIC too; an original is downloaded only when there is no preview, never over 40 MB) — all 39 stuck photos +57 MiB; a
+  batch loads one photo at a time; a batch the server died in, or a photo that failed, gets a strike and at two is left out of
+  the background runs (`assess-strikes.ts`, tested; `strikes` / `inFlight` in the state doc); instances have 1 GiB
+  (`runConfig.memoryMiB` in `apphosting.yaml`, both houses); the AI pages ask again once on a bare 503 (`ai-client.ts`, tested)
+  and otherwise say the ERP dropped it, not the AI.
   **The whole scene** (owner, 2026-09-29: "target whatsapp channel/insta/dm/whatsapp/website the full scene", after research by
   two agents that day — the houses' sites, their Google ads, TikTok, and Meta's docs; `market.ts` keeps the dated findings, shown
   in the Guide): a **Plan** tab of plays (`plays.ts`) by funnel stage — piece at today's price → WhatsApp (always on), WhatsApp or

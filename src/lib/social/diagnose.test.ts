@@ -90,6 +90,12 @@ describe('diagnose — anything', () => {
     expect(d.title).toBe('taheri.shop can’t be found by name');
     expect(d.fix).toContain('hosted.app');
   });
+  it('a request the ERP itself dropped is not sent to the checks', () => {
+    const d = diagnose('ai', { status: 503, message: 'The ERP’s server dropped the request (503) — not the AI' }, ctx);
+    expect(d.title).toBe('The ERP dropped that request');
+    expect(d.fix).not.toMatch(/checks/);
+    expect(d.retry).toBe(true);
+  });
   it('an unknown error still says what to do next', () => {
     const d = diagnose('page', 'something odd', ctx);
     expect(d.fix).toMatch(/Retry/);

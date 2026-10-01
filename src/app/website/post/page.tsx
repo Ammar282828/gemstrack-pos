@@ -71,6 +71,7 @@ import type { Palette } from '@/lib/social/palettes';
 import { PairEditor, useStoryDoc, type PairKey } from './story-editor';
 import { FONTS, headlineFace, bodyFace } from './fonts';
 import { diagnose, type Where } from '@/lib/social/diagnose';
+import { postAi } from '@/lib/social/ai-client';
 import { HealthPanel, useHealth, reportError, ActionButton, type Check as HealthCheck } from './health-panel';
 import { QueuePanel, useQueue, listOf } from './queue-panel';
 import { MAISON_HOUSES, isMaisonFolder, maisonFileName } from '@/lib/website/maisons';
@@ -164,10 +165,7 @@ async function callAi<T>(op: string, images: Blob[], params: Record<string, unkn
   form.set('op', op);
   form.set('params', JSON.stringify(params));
   images.forEach((b, i) => form.append('image', b, `image-${i}.jpg`));
-  const res = await fetch('/api/website/post/ai', { method: 'POST', headers: await authHeaders(), body: form });
-  const d = await res.json().catch(() => ({}));
-  if (!res.ok) throw httpError(d.error || `AI request failed (${res.status})`, res.status);
-  return d as T;
+  return postAi<T>(form, await authHeaders());
 }
 
 interface AiImageResponse { image: { mimeType: string; data: string }; check?: CheckResult | null }

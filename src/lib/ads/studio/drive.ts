@@ -11,8 +11,13 @@
  * Files are read with the ERP's own credentials (application default: the App Hosting
  * runtime account in production), read-only scope. Logos and wordmarks (a file or folder
  * named like one) are kept apart as brand marks, not ad photographs. Listing is cached ten
- * minutes per instance; a photo is fetched on demand and resized with sharp (HEIC first
- * through heic-convert, as the other upload routes do).
+ * minutes per instance. A photo is fetched on demand **at the size asked for, resized by Drive**
+ * (each file's `thumbnailLink` answers `=s<px>` up to the original's size, and renders HEIC
+ * and Photoshop files too), so the server never holds a shoot's original: the "TC" folder's
+ * 4000-px PNGs are 13–25 MB each, and ten of them decoded at once took a 512 MiB instance past
+ * its limit on every five-minute tick of 2026-10-01, killing the counter's and the website's
+ * requests that shared it. Only a file Drive has no preview for is downloaded whole (HEIC
+ * through heic-convert, as the other upload routes do), and never one over 40 MB.
  *
  * Server-only.
  */
@@ -28,6 +33,10 @@ const API = 'https://www.googleapis.com/drive/v3';
 const TTL_MS = 10 * 60 * 1000;
 const MAX_FOLDERS = 400;
 const MAX_FILES = 6000;
+/** An original downloaded whole (no preview from Drive) is refused above this. */
+const MAX_ORIGINAL_BYTES = 40 * 1024 * 1024;
+/** What sharp (and heic-convert) can decode from an original; anything else needs Drive's preview. */
+const DECODABLE = /^image\/(jpeg|pjpeg|png|webp|gif|tiff|avif|heic|heif|svg\+xml)$/i;
 
 export interface DriveImage {
   id: string;
@@ -53,6 +62,8 @@ class DriveError extends Error {
 }
 
 let cache: DriveLibrary | null = null;
+/** Each image's Drive preview link, server-side only (it opens a private file to anyone holding it). */
+const previews = new Map<string, string>();
 /** The next listing reads Drive afresh (a folder was added or taken away). */
 export const forgetDrive = () => { cache = null; };
 
@@ -112,9 +123,9 @@ async function driveGet<T>(path: string, params: Record<string, string>, tok?: s
 
 type RawFile = {
   id: string; name: string; mimeType: string; size?: string; createdTime?: string; modifiedTime?: string;
-  imageMediaMetadata?: { width?: number; height?: number };
+  imageMediaMetadata?: { width?: number; height?: number }; thumbnailLink?: string;
 };
-const FILE_FIELDS = 'nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,imageMediaMetadata(width,height))';
+const FILE_FIELDS = 'nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,imageMediaMetadata(width,height))';
 const FOLDER = 'application/vnd.google-apps.folder';
 const brandName = (s: string) => /\b(logo|logos|wordmark|monogram|lockup|brand ?kit)\b/i.test(s);
 
@@ -146,6 +157,9 @@ export async function driveLibrary(opts: { fresh?: boolean } = {}): Promise<Driv
     const take = (f: RawFile, folder: string, inBrand: boolean) => {
       if (f.mimeType.startsWith('video/')) { videos++; return; }
       if (!f.mimeType.startsWith('image/')) return;
+      // A file nothing here can draw (a camera's raw file with no preview yet) is left out, not retried forever.
+      if (!f.thumbnailLink && !DECODABLE.test(f.mimeType)) return;
+      if (f.thumbnailLink) previews.set(f.id, f.thumbnailLink);
       images.push({
         id: f.id, name: f.name, folder, mimeType: f.mimeType,
         width: f.imageMediaMetadata?.width ?? null, height: f.imageMediaMetadata?.height ?? null,
@@ -192,21 +206,44 @@ export async function driveLibrary(opts: { fresh?: boolean } = {}): Promise<Driv
   }
 }
 
+/** Drive's preview of a file at `size` px on the long side, or null when it has none. */
+async function preview(file: DriveImage, size: number): Promise<Buffer | null> {
+  const at = (link: string) => link.replace(/=s\d+(-[a-z0-9-]+)?$/i, '') + `=s${size}`;
+  for (let fresh = false; ; fresh = true) {
+    let link = previews.get(file.id);
+    // The listing's link expires after some hours: ask Drive for a new one once.
+    if (!link || fresh) {
+      const f = await driveGet<{ thumbnailLink?: string }>(`/files/${encodeURIComponent(file.id)}`, { fields: 'thumbnailLink' }).catch(() => null);
+      if (!f?.thumbnailLink) return null;
+      link = f.thumbnailLink;
+      previews.set(file.id, link);
+    }
+    const res = await fetch(at(link), { signal: AbortSignal.timeout(30_000) }).catch(() => null);
+    if (res?.ok && /^image\//.test(res.headers.get('content-type') || '')) return Buffer.from(await res.arrayBuffer());
+    if (fresh) return null;
+  }
+}
+
 /** One Drive image as a JPEG no wider or taller than `size`, for the studio's grid, the model and the canvas. */
 export async function driveJpeg(fileId: string, size: number): Promise<Buffer> {
   const lib = await driveLibrary();
   const file = lib.ok ? lib.images.find(i => i.id === fileId) : undefined;
   if (!file) throw new DriveError('Not in the shared library.', 404, 'no-access');
-  const res = await fetch(`${API}/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`, {
-    headers: { Authorization: `Bearer ${await token()}` },
-    signal: AbortSignal.timeout(45_000),
-  });
-  if (!res.ok) throw new DriveError(`Drive answered ${res.status} for the photo.`, res.status, 'error');
-  let buf = Buffer.from(await res.arrayBuffer());
-  if (/heic|heif/i.test(file.mimeType) || /\.(heic|heif)$/i.test(file.name)) {
-    buf = Buffer.from(await convertHeic({ buffer: buf, format: 'JPEG', quality: 0.92 }));
+  let buf = await preview(file, size);
+  if (!buf) {
+    if (!DECODABLE.test(file.mimeType)) throw new DriveError(`Drive has no preview of this ${file.mimeType} file yet.`, 415, 'error');
+    if (file.bytes > MAX_ORIGINAL_BYTES) throw new DriveError(`Drive has no preview of this file, and at ${Math.round(file.bytes / 2 ** 20)} MB it is too big to open here.`, 413, 'error');
+    const res = await fetch(`${API}/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`, {
+      headers: { Authorization: `Bearer ${await token()}` },
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!res.ok) throw new DriveError(`Drive answered ${res.status} for the photo.`, res.status, 'error');
+    buf = Buffer.from(await res.arrayBuffer());
+    if (/heic|heif/i.test(file.mimeType) || /\.(heic|heif)$/i.test(file.name)) {
+      buf = Buffer.from(await convertHeic({ buffer: buf, format: 'JPEG', quality: 0.92 }));
+    }
   }
-  return sharp(buf, { failOn: 'none' })
+  return sharp(buf, { failOn: 'none', sequentialRead: true })
     .rotate()
     .resize(size, size, { fit: 'inside', withoutEnlargement: true })
     .flatten({ background: '#ffffff' })

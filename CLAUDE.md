@@ -51,6 +51,8 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 - Hostinger (the site's server) is reachable over SSH with the deploy key `~/.ssh/taheri_deploy`
   (port 65002, user in `taheri-site/.github/workflows/deploy.yml`). **The key exists only on the owner's Mac** —
   on another device use hPanel or copy the key deliberately.
+- **A bare 503 is the server dying**, not the route (routes answer JSON): out of memory kills every request on that instance.
+  `gcloud logging read 'textPayload:"Memory limit of"'`. 1 GiB since 2026-10-01 — [why](docs/features/ad-studio.md#out-of-memory).
 - The owner is a Firebase/GCP Owner but lacks `iam.serviceAccounts.signBlob`, so `createCustomToken` fails from a laptop;
   test storage layers directly (`npx tsx`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID=gemstrack-pos`).
 

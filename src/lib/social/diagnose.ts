@@ -182,6 +182,10 @@ export function diagnose(where: Where, err: { status?: number; message?: string 
 
     case 'ai':
     case 'caption': {
+      // A bare 502/503/504 (ai-client.ts): the ERP's own server went down mid-request, so the checks would all pass.
+      if (/server dropped the request/.test(m)) {
+        return { title: 'The ERP dropped that request', fix: 'The ERP’s own server restarted while it was working — not the AI, and nothing to set up. It was already tried again once; press Retry.', retry: true };
+      }
       // Google answers a project with no billing account with 403 PERMISSION_DENIED too — "This API method
       // requires billing to be enabled. Please enable billing on project #jewelgen-mm-e3d43ecb" (2026-09-29) —
       // which the rule below took for a missing role. Nothing the ERP holds can fix it: the project needs billing.

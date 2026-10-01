@@ -41,6 +41,7 @@ import {
   type Assets, type Bind, type Fields, type SquarePresetId, type StoryDoc,
 } from '@/lib/social/editor';
 import { diagnose } from '@/lib/social/diagnose';
+import { postAi } from '@/lib/social/ai-client';
 import type { CheckResult } from '@/lib/social/prompts';
 import { siteLayouts, siteStartLayout } from '@/lib/social/site-design';
 import { SoloEditor, useStoryDoc } from '../post/story-editor';
@@ -366,9 +367,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
       form.set('op', op);
       form.set('params', JSON.stringify(params));
       form.append('image', await stampPhoto(current.img, { text: '', colour: 'auto', maxEdge: 2048 }), 'image-0.jpg');
-      const res = await fetch('/api/website/post/ai', { method: 'POST', headers: await authHeaders(), body: form });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw Object.assign(new Error(d.error || `AI request failed (${res.status})`), { status: res.status });
+      const d = await postAi<{ image: { mimeType: string; data: string }; check?: CheckResult | null }>(form, await authHeaders());
       const { url, img } = await fromBase64(d.image.data, d.image.mimeType);
       const id = `ai-${Date.now().toString(36)}`;
       setPhotos(prev => [...prev, { id, img, url, label }]);
