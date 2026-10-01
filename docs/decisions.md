@@ -226,6 +226,23 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   that made them (INV-000021 and INV-000042 still owe 39,000 under them) and one is a voice alias's target, so 12 stay. Mina has 11 too
   (not touched).
 
+### Saves are one trip
+
+- **Every save is one trip to the database, and orders don't carry photos** (2026-10-01, owner: "why is all updating an
+  invoice/adding advance/whatever update … so slow"). Both databases are in `nam5` (Iowa); every trip from Karachi is a full
+  round trip, and saves were 4–6 of them in a row: the transaction, the invoice-number check, the activity log, the ledger
+  lookup, the ledger write, the order's balance. Now: `addActivityLog` is never waited on (queued on the device's Firestore
+  cache); the invoice/order number check reads the number this device expects alongside the settings (a second read only
+  when the counter moved); the ledger (`hisaab`) rows and the source order's balance commit **inside** the same transaction
+  as the invoice, payment, discount or refund, their lookup running in parallel (`lib/writes/invoice-payment.ts`, tested to
+  commit once). **Sample photos live in `order_photos/<id>`** (`lib/order-photos.ts`, tested; the item keeps
+  `samplePhotoId`): 2.65 MB of Taheri's 2.71 MB of orders were 23 inline photos (biggest order 471 KB), rewritten on every
+  tick, assignment, advance and edit and pulled back by every open device and the karigar portal. Readers take either shape
+  (`components/order/order-photo.tsx`; the karigar and staff routes put photos back inline, `order-photos-server.ts`);
+  `scripts/move-order-photos.mjs <project> --apply` moved the old ones (one transaction per order, checked after). Found
+  with it: the order form's schema dropped every piece's `givenAt` (the Workshop's "Given") on each edit, and the order,
+  Hisaab account and product pages never loaded their own data, so opened from a link or a reload they said "not found".
+
 ## Money and analytics
 
 ### Lac and crore

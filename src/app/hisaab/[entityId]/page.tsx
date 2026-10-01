@@ -149,7 +149,12 @@ export default function EntityHisaabPage() {
   const entityId = params.entityId as string;
   const entityType = searchParams.get('type') as 'customer' | 'karigar';
 
-  const { customers, karigars, hisaabEntries, addHisaabEntry, deleteHisaabEntry, settings, isHisaabLoading, isCustomersLoading, isKarigarsLoading } = useAppStore();
+  const { customers, karigars, hisaabEntries, addHisaabEntry, deleteHisaabEntry, settings, isHisaabLoading, isCustomersLoading, isKarigarsLoading, loadHisaab, loadCustomers, loadKarigars } = useAppStore();
+  // Opened straight from a link (the karigar page's tiles, a reload) nothing had loaded these, and the
+  // page said "Entity not found".
+  const loaded = useAppStore(state => (state.hasHisaabLoaded || !!state.hisaabError)
+    && (state.hasCustomersLoaded || !!state.customersError) && (state.hasKarigarsLoaded || !!state.karigarsError));
+  React.useEffect(() => { loadHisaab(); loadCustomers(); loadKarigars(); }, [loadHisaab, loadCustomers, loadKarigars]);
 
   const entity: Customer | Karigar | undefined = useMemo(() => {
     if (entityType === 'customer') {
@@ -329,7 +334,7 @@ export default function EntityHisaabPage() {
     await savePDF(doc, `Ledger-${entity.name}-${format(new Date(), 'yyyy-MM-dd')}.pdf`, iOSWin);
   };
 
-  const isLoading = !appReady || isHisaabLoading || isCustomersLoading || isKarigarsLoading;
+  const isLoading = !appReady || !loaded || isHisaabLoading || isCustomersLoading || isKarigarsLoading;
 
   if (isLoading) {
     return (

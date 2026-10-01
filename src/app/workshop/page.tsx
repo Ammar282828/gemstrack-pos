@@ -1,5 +1,6 @@
 "use client";
 
+import { loadOrderPhoto } from '@/components/order/order-photo';
 import React, { useEffect, useMemo, useState } from 'react';
 import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
@@ -403,6 +404,8 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
   const [ref, setRef] = useState('');
   const [instructions, setInstructions] = useState('');
   const [sample, setSample] = useState('');
+  // Sent only when changed: an unchanged photo is not uploaded again with the other details.
+  const [sampleChanged, setSampleChanged] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -413,6 +416,11 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
     setRef(job.referenceSku || '');
     setInstructions(job.notes || '');
     setSample(job.sampleImage || '');
+    setSampleChanged(false);
+    // A photo kept in its own document (lib/order-photos.ts) is read for the editor.
+    let live = true;
+    if (!job.sampleImage && job.samplePhotoId) void loadOrderPhoto(job.samplePhotoId).then(v => { if (live && v) setSample(v); });
+    return () => { live = false; };
   }, [job]);
 
   if (!job) return null;
@@ -430,7 +438,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
           // Instructions are consolidated into adminNote; the legacy
           // stone/diamond fields are cleared so nothing renders twice.
           adminNote: instructions, stoneDetails: '', diamondDetails: '',
-          sampleImageDataUri: sample,
+          ...(sampleChanged && { sampleImageDataUri: sample }),
           ...(weight !== '' && { estimatedWeightG: Number(weight) }),
         });
       } else {
@@ -491,7 +499,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
             <Label className="text-xs flex items-center gap-1.5"><ImagePlus className="h-3.5 w-3.5" />Sample picture</Label>
             <p className="text-2xs text-muted-foreground mb-1.5">Shown to the karigar on their work list.</p>
             {job.source === 'order'
-              ? <SampleImageInput key={job.id} value={sample} onChange={setSample} onRemove={() => setSample('')} compact />
+              ? <SampleImageInput key={job.id} value={sample} onChange={v => { setSample(v); setSampleChanged(true); }} onRemove={() => { setSample(''); setSampleChanged(true); }} compact />
               : <p className="text-xs text-muted-foreground">Available on order items.</p>}
           </div>
 

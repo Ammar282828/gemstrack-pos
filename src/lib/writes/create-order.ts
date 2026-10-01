@@ -8,6 +8,7 @@
  */
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
+import { ORDER_PHOTOS, splitItemPhotos } from '@/lib/order-photos';
 
 const ORDERS = 'orders';
 const CUSTOMERS = 'customers';
@@ -51,6 +52,11 @@ export interface CreateOrderDeps {
   /** Firestore rejects undefined; both drivers already have a stripper.
    *  Constrained to objects because that is what the store's cleanObject takes. */
   clean: <T extends object>(o: T) => T;
+  /**
+   * The order number this caller expects (its copy of lastOrderNumber + 1). Read with the settings,
+   * so the clash check below costs no round trip of its own when it is right.
+   */
+  expectedNumber?: number;
 }
 
 export interface CreatedOrder extends Record<string, unknown> {
@@ -101,16 +107,24 @@ export async function createOrder(
   const summary = (input.items.length === 1 ? descriptions[0] : descriptions.join(', ')) || 'Custom order';
   const createdAt = new Date().toISOString();
 
+  const orderId = (n: number) => `ORD-${String(n).padStart(6, '0')}`;
+  const predicted = deps.expectedNumber && deps.expectedNumber > 0 ? orderId(deps.expectedNumber) : null;
+  // Sample photos go to documents of their own, in this same commit (lib/order-photos.ts).
+  const { items: itemsOut, photos } = splitItemPhotos(input.items as { sampleImageDataUri?: string }[]);
+
   const order = await db.runTransaction<CreatedOrder>(async tx => {
-    const settings = await tx.get<Record<string, number>>(SETTINGS, SETTINGS_DOC);
+    const [settings, predictedClash] = await Promise.all([
+      tx.get<Record<string, number>>(SETTINGS, SETTINGS_DOC),
+      predicted ? tx.get(ORDERS, predicted) : Promise.resolve(null),
+    ]);
     if (!settings) throw new Error('Global settings not found.');
 
     const nextNumber = (Number(settings.lastOrderNumber) || 0) + 1;
-    const id = `ORD-${String(nextNumber).padStart(6, '0')}`;
+    const id = orderId(nextNumber);
 
     // The counter can drift — an import, a restore, a half-finished write —
     // and silently overwriting a real order is far worse than refusing.
-    const clash = await tx.get(ORDERS, id);
+    const clash = id === predicted ? predictedClash : await tx.get(ORDERS, id);
     if (clash) throw new Error(`Order ID ${id} already exists. lastOrderNumber may be out of sync.`);
 
     /**
@@ -131,6 +145,7 @@ export async function createOrder(
 
     const doc = {
       ...input,
+      items: itemsOut,
       id,
       customerId,
       customerName,
@@ -148,6 +163,7 @@ export async function createOrder(
     // walk-in orders with no customer used to fail to save without a word.
     tx.set(ORDERS, id, clean(doc) as Record<string, unknown>);
     tx.update(SETTINGS, SETTINGS_DOC, { lastOrderNumber: nextNumber });
+    for (const ph of photos) tx.set(ORDER_PHOTOS, ph.id, { dataUri: ph.dataUri, orderId: id, createdAt });
     return doc;
   });
 

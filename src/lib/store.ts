@@ -1,5 +1,6 @@
 import { STORE_TAKEN_BY } from './store-config';
 
+import { ORDER_PHOTOS, splitItemPhotos } from '@/lib/order-photos';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { staticCategories, categoryTitle, categorySingular, type Category } from './categories';
@@ -620,6 +621,8 @@ export interface OrderItem {
   diamondCharges: number;
   stoneCharges: number;
   sampleImageDataUri?: string;
+  /** The sample photo's own document (`order_photos/<id>`, lib/order-photos.ts); it no longer rides in the order. */
+  samplePhotoId?: string;
   referenceSku?: string;
   sampleGiven: boolean;
   isCompleted: boolean;
@@ -1181,24 +1184,27 @@ export interface PrintHistoryEntry {
 // callback on contention — so logging inside it writes one log per attempt
 // while the document is written once. That is how INV-000319 ended up with six
 // "Created invoice" lines against a single invoice.
+/**
+ * One line in the activity log. Never waited on (2026-10-01, "why is every update so slow"): every
+ * save used to stop for its own log line — one more trip to Iowa before the screen moved on, two on
+ * a karigar assignment. The write is queued on the device's Firestore cache at once and goes on its
+ * own; a callers' `await` returns immediately.
+ */
 async function addActivityLog(
   eventType: LogEventType,
   description: string,
   details: string,
   entityId: string
 ) {
-    try {
-        const logEntry: Omit<ActivityLog, 'id'> = {
-            timestamp: new Date().toISOString(),
-            eventType,
-            description,
-            details,
-            entityId,
-        };
-        await addDoc(collection(db, FIRESTORE_COLLECTIONS.ACTIVITY_LOG), logEntry);
-    } catch (error) {
-        console.error("Failed to add activity log:", error);
-    }
+    const logEntry: Omit<ActivityLog, 'id'> = {
+        timestamp: new Date().toISOString(),
+        eventType,
+        description,
+        details,
+        entityId,
+    };
+    addDoc(collection(db, FIRESTORE_COLLECTIONS.ACTIVITY_LOG), logEntry)
+        .catch(error => console.error("Failed to add activity log:", error));
 }
 
 
@@ -2645,6 +2651,17 @@ export const useAppStore = create<AppState>()(
         if (cart.length === 0) return null;
         console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
 
+        // An edit replaces the invoice's ledger rows: they are looked up while the transaction reads,
+        // and swapped in the same commit (they used to be two more trips after it).
+        // A failed lookup never stops the invoice (as before): the old rows just stay, as they did then.
+        const oldHisaab = existingInvoiceId
+            ? getDocs(query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), where('linkedInvoiceId', '==', existingInvoiceId)))
+                .catch(e => { console.warn('[generateInvoice] Could not read old hisaab entries, continuing:', e); return null; })
+            : null;
+        // The number this invoice will most likely get, from the counter this device already has —
+        // read with the rest, so the "is it free?" check costs no trip of its own when it is right.
+        const predictedId = existingInvoiceId ? null : `INV-${((get().settings.lastInvoiceNumber || 0) + 1).toString().padStart(6, '0')}`;
+
         try {
             const result = await runTransaction(db, async (transaction) => {
                 const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
@@ -2661,7 +2678,7 @@ export const useAppStore = create<AppState>()(
                 // line of the bill, for nothing. Nothing downstream consults the stored
                 // product: the invoice is priced from the cart item in hand and
                 // sold_products is written from that same object.
-                const [settingsDoc, customerDoc, existingInvoiceDoc] = await Promise.all([
+                const [settingsDoc, customerDoc, existingInvoiceDoc, predictedDoc, oldHisaabSnap] = await Promise.all([
                     transaction.get(settingsDocRef),
                     customerInfo.id
                         ? transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerInfo.id))
@@ -2669,6 +2686,10 @@ export const useAppStore = create<AppState>()(
                     existingInvoiceId
                         ? transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, existingInvoiceId))
                         : Promise.resolve(null),
+                    predictedId
+                        ? transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, predictedId))
+                        : Promise.resolve(null),
+                    oldHisaab,
                 ]);
 
                 if (!settingsDoc.exists()) throw new Error("Global settings not found.");
@@ -2693,7 +2714,10 @@ export const useAppStore = create<AppState>()(
                 if (!existingInvoiceId) {
                     nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
                     newInvoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
-                    const targetInvoiceCheck = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, newInvoiceId));
+                    // Read above when this device's counter was current; only a stale one costs a trip.
+                    const targetInvoiceCheck = newInvoiceId === predictedId && predictedDoc
+                        ? predictedDoc
+                        : await transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, newInvoiceId));
                     if (targetInvoiceCheck.exists()) {
                         throw new Error(`Invoice ${newInvoiceId} already exists — the invoice counter (lastInvoiceNumber=${currentSettings.lastInvoiceNumber}) is stale. Please contact your administrator to recalibrate it.`);
                     }
@@ -2820,7 +2844,24 @@ export const useAppStore = create<AppState>()(
 
                 transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), cleanInvoiceData);
 
-                
+                // The ledger in the same commit: an edit's old rows go, and what is still owed is one
+                // row (it used to be a query, a batch and an add after the transaction).
+                oldHisaabSnap?.docs.forEach(d => transaction.delete(d.ref));
+                if (cleanInvoiceData.balanceDue > 0) {
+                    transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), {
+                        entityId: cleanInvoiceData.customerId || 'walk-in',
+                        entityType: 'customer',
+                        entityName: cleanInvoiceData.customerName || 'Walk-in Customer',
+                        date: cleanInvoiceData.createdAt,
+                        description: `Outstanding balance for Invoice ${invoiceId}`,
+                        cashDebit: cleanInvoiceData.balanceDue,
+                        cashCredit: 0,
+                        goldDebitGrams: 0,
+                        goldCreditGrams: 0,
+                        linkedInvoiceId: invoiceId,
+                    });
+                }
+
                 const finalInvoice = { ...cleanInvoiceData, id: invoiceId } as Invoice;
                 if(finalInvoice.items && typeof finalInvoice.items === 'object' && !Array.isArray(finalInvoice.items)){
                   finalInvoice.items = Object.values(finalInvoice.items);
@@ -2841,40 +2882,7 @@ export const useAppStore = create<AppState>()(
             // This line should be outside the transaction, in the main function body.
             set(state => { state.cart = []; });
 
-            // When editing an existing invoice, clean up its old hisaab entries so
-            // we don't end up with duplicate balance entries after re-creation.
-            // This runs AFTER the transaction so the invoice is always safe first.
-            if (existingInvoiceId) {
-                try {
-                    const oldHisaabSnap = await getDocs(query(
-                        collection(db, FIRESTORE_COLLECTIONS.HISAAB),
-                        where('linkedInvoiceId', '==', existingInvoiceId)
-                    ));
-                    if (!oldHisaabSnap.empty) {
-                        const hisaabBatch = writeBatch(db);
-                        oldHisaabSnap.docs.forEach(d => hisaabBatch.delete(d.ref));
-                        await hisaabBatch.commit();
-                    }
-                } catch (e) {
-                    console.warn('[generateInvoice] Could not clean up old hisaab entries, continuing:', e);
-                }
-            }
-
-            // If there's an outstanding balance, track it in hisaab
-            if (result && result.balanceDue > 0) {
-                await addDoc(collection(db, FIRESTORE_COLLECTIONS.HISAAB), {
-                    entityId: result.customerId || 'walk-in',
-                    entityType: 'customer',
-                    entityName: result.customerName || 'Walk-in Customer',
-                    date: result.createdAt,
-                    description: `Outstanding balance for Invoice ${result.id}`,
-                    cashDebit: result.balanceDue,
-                    cashCredit: 0,
-                    goldDebitGrams: 0,
-                    goldCreditGrams: 0,
-                    linkedInvoiceId: result.id,
-                });
-            }
+            // The ledger was written in the transaction above (edits: old rows out, one new row).
 
             if (result) syncInvoiceShopify(result.id, 'upsert');
 
@@ -2946,9 +2954,12 @@ export const useAppStore = create<AppState>()(
         if (!(refundAmount > 0)) return null;
 
         const invoiceRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
+        // The ledger rows are looked up while the transaction reads, and follow in its commit.
+        const linked = getDocs(query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), where('linkedInvoiceId', '==', invoiceId)));
+        linked.catch(() => { /* surfaced inside the transaction */ });
         try {
           const updatedInvoice = await runTransaction(db, async (transaction) => {
-            const invoiceDoc = await transaction.get(invoiceRef);
+            const [invoiceDoc, hisaabSnap] = await Promise.all([transaction.get(invoiceRef), linked]);
             if (!invoiceDoc.exists()) throw new Error('Invoice not found');
             const invoiceData = invoiceDoc.data() as Invoice;
 
@@ -2967,32 +2978,20 @@ export const useAppStore = create<AppState>()(
               balanceDue: newBalanceDue,
             });
 
-            return { ...invoiceData, id: invoiceId, paymentHistory: newPaymentHistory, amountPaid: newAmountPaid, balanceDue: newBalanceDue } as Invoice;
-          });
-
-          if (updatedInvoice) {
-            addActivityLog('invoice.refund', `Partial refund on invoice ${invoiceId}`,
-              `Amount: ${refundAmount.toLocaleString()}${reason ? ` | ${reason}` : ''}`, invoiceId);
             // Reconcile linked hisaab debit entries (the customer owes again).
-            const hisaabSnap = await getDocs(query(
-              collection(db, FIRESTORE_COLLECTIONS.HISAAB),
-              where('linkedInvoiceId', '==', invoiceId),
-            ));
             const debitDocs = hisaabSnap.docs.filter(d => Number(d.data().cashDebit ?? 0) > 0);
-            const hisaabBatch = writeBatch(db);
-            if (updatedInvoice.balanceDue > 0) {
+            if (newBalanceDue > 0) {
               if (debitDocs.length > 0) {
-                hisaabBatch.update(debitDocs[0].ref, { cashDebit: updatedInvoice.balanceDue });
-                debitDocs.slice(1).forEach(d => hisaabBatch.delete(d.ref));
-              } else if (updatedInvoice.customerId && updatedInvoice.customerId !== 'walk-in') {
-                const newRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
-                hisaabBatch.set(newRef, {
-                  entityId: updatedInvoice.customerId,
+                transaction.update(debitDocs[0].ref, { cashDebit: newBalanceDue });
+                debitDocs.slice(1).forEach(d => transaction.delete(d.ref));
+              } else if (invoiceData.customerId && invoiceData.customerId !== 'walk-in') {
+                transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), {
+                  entityId: invoiceData.customerId,
                   entityType: 'customer',
-                  entityName: updatedInvoice.customerName || 'Customer',
-                  date: updatedInvoice.createdAt,
+                  entityName: invoiceData.customerName || 'Customer',
+                  date: invoiceData.createdAt,
                   description: `Outstanding balance for Invoice ${invoiceId}`,
-                  cashDebit: updatedInvoice.balanceDue,
+                  cashDebit: newBalanceDue,
                   cashCredit: 0,
                   goldDebitGrams: 0,
                   goldCreditGrams: 0,
@@ -3000,7 +2999,16 @@ export const useAppStore = create<AppState>()(
                 });
               }
             }
-            await hisaabBatch.commit();
+
+            return { ...invoiceData, id: invoiceId, paymentHistory: newPaymentHistory, amountPaid: newAmountPaid, balanceDue: newBalanceDue } as Invoice;
+          });
+
+          if (updatedInvoice) {
+            addActivityLog('invoice.refund', `Partial refund on invoice ${invoiceId}`,
+              `Amount: ${refundAmount.toLocaleString()}${reason ? ` | ${reason}` : ''}`, invoiceId);
+            set(state => ({
+              generatedInvoices: state.generatedInvoices.map(i => i.id === invoiceId ? { ...i, ...updatedInvoice } : i),
+            }) as Partial<AppState>);
 
             // Mirror to Shopify: issue a refund for this exact amount.
             if (typeof window !== 'undefined' && !invoiceId.startsWith('SHOPIFY-')) {
@@ -3018,10 +3026,13 @@ export const useAppStore = create<AppState>()(
         if (get().settings.databaseLocked) return null;
 
         const invoiceRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
+        // The ledger rows are looked up while the transaction reads; ledger and order follow in its commit.
+        const linked = getDocs(query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), where('linkedInvoiceId', '==', invoiceId)));
+        linked.catch(() => { /* surfaced inside the transaction */ });
 
         try {
           const updatedInvoice = await runTransaction(db, async (transaction) => {
-            const invoiceDoc = await transaction.get(invoiceRef);
+            const [invoiceDoc, hisaabSnap] = await Promise.all([transaction.get(invoiceRef), linked]);
             if (!invoiceDoc.exists()) throw new Error("Invoice not found!");
 
             const invoiceData = invoiceDoc.data() as Invoice;
@@ -3037,6 +3048,32 @@ export const useAppStore = create<AppState>()(
 
             transaction.update(invoiceRef, updatedFields);
 
+            // Update linked hisaab entries
+            const debitDocs = hisaabSnap.docs.filter(d => (d.data().cashDebit ?? 0) > 0);
+            if (newBalanceDue <= 0) {
+              debitDocs.forEach(d => transaction.delete(d.ref));
+            } else if (debitDocs.length > 0) {
+              transaction.update(debitDocs[0].ref, { cashDebit: newBalanceDue });
+              debitDocs.slice(1).forEach(d => transaction.delete(d.ref));
+            } else if (invoiceData.customerId && invoiceData.customerId !== 'walk-in') {
+              transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), {
+                entityId: invoiceData.customerId,
+                entityType: 'customer',
+                entityName: invoiceData.customerName || 'Customer',
+                date: invoiceData.createdAt,
+                description: `Outstanding balance for Invoice ${invoiceId}`,
+                cashDebit: newBalanceDue,
+                cashCredit: 0,
+                goldDebitGrams: 0,
+                goldCreditGrams: 0,
+                linkedInvoiceId: invoiceId,
+              });
+            }
+
+            // Sync source order grandTotal
+            if (invoiceData.sourceOrderId) {
+              transaction.update(doc(db, FIRESTORE_COLLECTIONS.ORDERS, invoiceData.sourceOrderId), { grandTotal: newBalanceDue });
+            }
 
             return { ...invoiceData, ...updatedFields, id: invoiceId };
           });
@@ -3044,45 +3081,9 @@ export const useAppStore = create<AppState>()(
           if (updatedInvoice) {
             addActivityLog('invoice.update', `Discount updated on invoice ${invoiceId}`,
               `Discount: ${Number(updatedInvoice.discountAmount || 0).toLocaleString()} | New total: ${Number(updatedInvoice.grandTotal || 0).toLocaleString()}`, invoiceId);
-            // Update linked hisaab entries
-            const hisaabSnap = await getDocs(query(
-              collection(db, FIRESTORE_COLLECTIONS.HISAAB),
-              where('linkedInvoiceId', '==', invoiceId)
-            ));
-            const debitDocs = hisaabSnap.docs.filter(d => (d.data().cashDebit ?? 0) > 0);
-
-            const hisaabBatch = writeBatch(db);
-            if (updatedInvoice.balanceDue <= 0) {
-              debitDocs.forEach(d => hisaabBatch.delete(d.ref));
-            } else {
-              if (debitDocs.length > 0) {
-                hisaabBatch.update(debitDocs[0].ref, { cashDebit: updatedInvoice.balanceDue });
-                debitDocs.slice(1).forEach(d => hisaabBatch.delete(d.ref));
-              } else if (updatedInvoice.customerId && updatedInvoice.customerId !== 'walk-in') {
-                const newRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
-                hisaabBatch.set(newRef, {
-                  entityId: updatedInvoice.customerId,
-                  entityType: 'customer',
-                  entityName: updatedInvoice.customerName || 'Customer',
-                  date: updatedInvoice.createdAt,
-                  description: `Outstanding balance for Invoice ${invoiceId}`,
-                  cashDebit: updatedInvoice.balanceDue,
-                  cashCredit: 0,
-                  goldDebitGrams: 0,
-                  goldCreditGrams: 0,
-                  linkedInvoiceId: invoiceId,
-                });
-              }
-            }
-            await hisaabBatch.commit();
-
-            // Sync source order grandTotal
-            if (updatedInvoice.sourceOrderId) {
-              await updateDoc(
-                doc(db, FIRESTORE_COLLECTIONS.ORDERS, updatedInvoice.sourceOrderId),
-                { grandTotal: updatedInvoice.balanceDue }
-              );
-            }
+            set(state => ({
+              generatedInvoices: state.generatedInvoices.map(i => i.id === invoiceId ? { ...i, ...updatedInvoice } : i),
+            }) as Partial<AppState>);
             syncInvoiceShopify(invoiceId, 'upsert');
           }
 
@@ -3374,6 +3375,7 @@ export const useAppStore = create<AppState>()(
               },
               normalizePhone: (v) => normalizePhoneNumber(v),
               clean: cleanObject,
+              expectedNumber: (get().settings.lastOrderNumber || 0) + 1,
             },
             {
               log: (action, title, detail, ref) => { addActivityLog(action as LogEventType, title, detail, ref ?? ''); },
@@ -3390,9 +3392,16 @@ export const useAppStore = create<AppState>()(
       updateOrder: async (orderId, updatedOrderData) => {
         if(get().settings.databaseLocked) return;
         const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
-        const cleanData = cleanObject(updatedOrderData);
-        await setDoc(orderRef, cleanData, { merge: true });
-        await addActivityLog('order.update', `Updated order: ${orderId}`, `Details updated`, orderId);
+        // A new sample photo becomes a document of its own, in the same commit (lib/order-photos.ts):
+        // the order itself stays a few KB however many photos it has.
+        const split = Array.isArray(updatedOrderData.items) ? splitItemPhotos(updatedOrderData.items) : null;
+        const cleanData = cleanObject(split ? { ...updatedOrderData, items: split.items } : updatedOrderData);
+        const batch = writeBatch(db);
+        batch.set(orderRef, cleanData, { merge: true });
+        const at = new Date().toISOString();
+        for (const ph of split?.photos ?? []) batch.set(doc(db, ORDER_PHOTOS, ph.id), { dataUri: ph.dataUri, orderId, createdAt: at });
+        await batch.commit();
+        addActivityLog('order.update', `Updated order: ${orderId}`, `Details updated`, orderId);
         syncOrderShopify(orderId, 'upsert');
       },
       deleteOrder: async (orderId: string) => {
@@ -3570,14 +3579,22 @@ export const useAppStore = create<AppState>()(
           if ('referenceSku' in patch) setOrClear('referenceSku', patch.referenceSku);
           if (patch.estimatedWeightG !== undefined) next.estimatedWeightG = Number(patch.estimatedWeightG) || 0;
           if (patch.sampleImageDataUri !== undefined) {
+            // A new photo replaces whatever the piece had (an old inline one or an earlier document);
+            // removing it clears both.
+            delete next.samplePhotoId;
             if (patch.sampleImageDataUri) next.sampleImageDataUri = patch.sampleImageDataUri;
             else delete next.sampleImageDataUri;
           }
           return next;
         });
+        const split = splitItemPhotos(updatedItems);
 
         try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId), { items: updatedItems }, { merge: true });
+          const batch = writeBatch(db);
+          batch.set(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId), { items: split.items }, { merge: true });
+          const at = new Date().toISOString();
+          for (const ph of split.photos) batch.set(doc(db, ORDER_PHOTOS, ph.id), { dataUri: ph.dataUri, orderId, createdAt: at });
+          await batch.commit();
           await addActivityLog('order.update', `Making details updated on ${orderId}`,
             `${order.items[itemIndex]?.description || `Item ${itemIndex + 1}`}`, orderId);
           syncOrderShopify(orderId, 'upsert');
@@ -3871,8 +3888,14 @@ export const useAppStore = create<AppState>()(
         try {
             const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
 
+            // The number this device expects, read with the settings so the guard below costs no
+            // trip of its own unless the counter moved (2026-10-01: every save was 4–6 trips to Iowa).
+            const predictedId = `INV-${((get().settings.lastInvoiceNumber || 0) + 1).toString().padStart(6, '0')}`;
             const finalInvoice = await runTransaction(db, async (transaction) => {
-                const settingsDoc = await transaction.get(settingsDocRef);
+                const [settingsDoc, predictedDoc] = await Promise.all([
+                    transaction.get(settingsDocRef),
+                    transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, predictedId)),
+                ]);
                 if (!settingsDoc.exists()) throw new Error("Global settings not found.");
                 const currentSettings = settingsDoc.data() as Settings;
 
@@ -3880,7 +3903,9 @@ export const useAppStore = create<AppState>()(
                 const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
 
                 // Guard: never silently overwrite an existing invoice if the counter is stale
-                const targetInvoiceCheck = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId));
+                const targetInvoiceCheck = invoiceId === predictedId
+                    ? predictedDoc
+                    : await transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId));
                 if (targetInvoiceCheck.exists()) {
                     throw new Error(`Invoice ${invoiceId} already exists — the invoice counter (lastInvoiceNumber=${currentSettings.lastInvoiceNumber}) is stale. Please contact your administrator to recalibrate it.`);
                 }
@@ -3901,44 +3926,30 @@ export const useAppStore = create<AppState>()(
                     ...(order.shopifyDraftOrderId && { shopifyDraftOrderId: deleteField(), shopifyDraftOrderName: deleteField() }),
                 });
 
+                // The ledger in the same commit (it was an add after the transaction): what the
+                // customer still owes, or the advance that came to more than the bill.
+                if (newInvoice.balanceDue !== 0) {
+                    const owes = newInvoice.balanceDue > 0;
+                    transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), {
+                        entityId: newInvoice.customerId || 'walk-in',
+                        entityType: 'customer',
+                        entityName: newInvoice.customerName || 'Walk-in Customer',
+                        date: newInvoice.createdAt,
+                        description: owes ? `Outstanding balance for Invoice ${invoiceId}` : `Excess advance returned for Invoice ${invoiceId}`,
+                        cashDebit: owes ? newInvoice.balanceDue : 0,
+                        cashCredit: owes ? 0 : Math.abs(newInvoice.balanceDue),
+                        goldDebitGrams: 0,
+                        goldCreditGrams: 0,
+                        linkedInvoiceId: invoiceId,
+                    });
+                }
+
                 return newInvoice;
             });
 
             await addActivityLog('invoice.create', `Created invoice ${finalInvoice.id} from order ${order.id}`, `Customer: ${finalInvoice.customerName} | Total: ${finalInvoice.grandTotal.toLocaleString()}`, finalInvoice.id);
 
             set(state => { state.clearCart(); });
-
-            if (finalInvoice) {
-                if (finalInvoice.balanceDue > 0) {
-                    // Customer still owes money — track in hisaab
-                    await addDoc(collection(db, FIRESTORE_COLLECTIONS.HISAAB), {
-                        entityId: finalInvoice.customerId || 'walk-in',
-                        entityType: 'customer',
-                        entityName: finalInvoice.customerName || 'Walk-in Customer',
-                        date: finalInvoice.createdAt,
-                        description: `Outstanding balance for Invoice ${finalInvoice.id}`,
-                        cashDebit: finalInvoice.balanceDue,
-                        cashCredit: 0,
-                        goldDebitGrams: 0,
-                        goldCreditGrams: 0,
-                        linkedInvoiceId: finalInvoice.id,
-                    });
-                } else if (finalInvoice.balanceDue < 0) {
-                    // Advance was more than the final total — we owe the customer the difference
-                    await addDoc(collection(db, FIRESTORE_COLLECTIONS.HISAAB), {
-                        entityId: finalInvoice.customerId || 'walk-in',
-                        entityType: 'customer',
-                        entityName: finalInvoice.customerName || 'Walk-in Customer',
-                        date: finalInvoice.createdAt,
-                        description: `Excess advance returned for Invoice ${finalInvoice.id}`,
-                        cashDebit: 0,
-                        cashCredit: Math.abs(finalInvoice.balanceDue),
-                        goldDebitGrams: 0,
-                        goldCreditGrams: 0,
-                        linkedInvoiceId: finalInvoice.id,
-                    });
-                }
-            }
 
             if (finalInvoice) {
                 // Cancel the in-progress draft (if any) — the real Shopify order

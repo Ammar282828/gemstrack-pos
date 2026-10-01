@@ -4,6 +4,7 @@ import { resolveKarigar, verifyRequestEmail, isOwnerEmail } from '@/lib/karigar-
 import { categoryTitle, displayKarat } from '@/lib/categories';
 import { mergeInstructions } from '@/lib/workshop';
 import { describePlating } from '@/lib/materials';
+import { readOrderPhotos } from '@/lib/order-photos-server';
 
 /**
  * Returns the signed-in karigar's own work list and account balance.
@@ -103,6 +104,8 @@ export async function GET(req: NextRequest) {
           referenceSku: item.referenceSku || undefined,
           sampleGiven: !!item.sampleGiven,
           sampleImage: item.sampleImageDataUri || undefined,
+          // A photo in its own document is put back below (lib/order-photos-server.ts).
+          ...(!item.sampleImageDataUri && item.samplePhotoId ? { samplePhotoId: item.samplePhotoId } : {}),
           plating: describePlating(item),
           status: done ? 'completed' : (o.status === 'In Progress' ? 'in-progress' : 'pending'),
           assignedDate: o.createdAt,
@@ -171,6 +174,15 @@ export async function GET(req: NextRequest) {
     payments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     const active = jobs.filter(j => j.status !== 'completed');
+
+    // Photos kept in their own documents, back inline for the portal (one read for all of them).
+    const photoIds = jobs.map(j => (j as { samplePhotoId?: string }).samplePhotoId).filter((v): v is string => !!v);
+    if (photoIds.length) {
+      const photos = await readOrderPhotos(adminDb, photoIds);
+      for (const j of jobs as (typeof jobs[number] & { samplePhotoId?: string })[]) {
+        if (j.samplePhotoId) { j.sampleImage = photos.get(j.samplePhotoId) || undefined; delete j.samplePhotoId; }
+      }
+    }
 
     return NextResponse.json({
       role: 'karigar',

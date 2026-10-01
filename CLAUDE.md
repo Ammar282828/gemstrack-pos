@@ -135,7 +135,7 @@ Claude Code runs these repos in the cloud too, with no Mac (owner, 2026-09-27: "
 
 - How taheri.shop, the Mina catalogue and the ERP talk (every `/api/public/*` and website route), and WhatsApp through WAHA: `docs/features/site-and-erp.md` (runbook `ops/waha/README.md`).
 - House of Mina's catalogue (catalogue.houseofmina.store): `docs/features/mina-catalogue.md`.
-- In progress (editing website pieces, the Meta app settings, Meta's Ads connector) and the reconvergence's open items: `docs/in-progress.md`.
+- In progress (website edits, Meta app settings, Meta's Ads connector) and open items: `docs/in-progress.md`.
 - The AI copies and a proposed merge: `docs/ai-merge-proposal.md`.
 
 ## Decisions already made (don't reopen unless asked)
@@ -168,6 +168,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Advance method](docs/decisions.md#advance-method) — `.nullish()`, `onInvalid` toasts
 - [Exchange line](docs/decisions.md#exchange-line) — what + amount; weight and rate fold away
 - [Walk-ins](docs/decisions.md#walk-ins) — `lib/walk-in.ts`; one walk-in row everywhere
+- [Saves are one trip](docs/decisions.md#saves-are-one-trip) — one commit per save; photos in `order_photos`
 
 **Money and analytics**
 - [Lac and crore](docs/decisions.md#lac-and-crore) — `lib/money.ts`

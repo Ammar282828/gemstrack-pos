@@ -2,6 +2,7 @@
 
 "use client";
 
+import { OrderPhoto } from '@/components/order/order-photo';
 import React, { useState, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { whatsAppLink } from '@/lib/whatsapp';
@@ -486,7 +487,10 @@ export default function OrderDetailPage() {
   const order = useAppStore(state => state.orders.find(o => o.id === orderId));
   const settings = useAppStore(state => state.settings);
   const invoices = useAppStore(state => state.generatedInvoices);
-  const { updateOrderStatus, updateOrderItemStatus, removeItemFromOrder, updateOrder, karigars, loadKarigars, revertOrderFromInvoice, refundOrder, loadGeneratedInvoices } = useAppStore();
+  const { updateOrderStatus, updateOrderItemStatus, removeItemFromOrder, updateOrder, karigars, loadKarigars, revertOrderFromInvoice, refundOrder, loadGeneratedInvoices, loadOrders } = useAppStore();
+  // The page loads its own orders: opened straight from a link or a reload it used to say "Order not
+  // found", since only the Orders list ever started them.
+  const ordersSettled = useAppStore(state => state.hasOrdersLoaded || !!state.ordersError);
 
   const linkedInvoice = order?.invoiceId ? invoices.find(inv => inv.id === order.invoiceId) : null;
 
@@ -509,9 +513,10 @@ export default function OrderDetailPage() {
   const [isTracking, setIsTracking] = useState(false);
 
   useEffect(() => {
+    loadOrders();
     loadKarigars();
     loadGeneratedInvoices();
-  }, [loadKarigars, loadGeneratedInvoices]);
+  }, [loadOrders, loadKarigars, loadGeneratedInvoices]);
 
   const phoneForm = useForm<PhoneForm>();
 
@@ -827,7 +832,7 @@ export default function OrderDetailPage() {
   };
 
 
-  if (!isHydrated) {
+  if (!isHydrated || (!order && !ordersSettled)) {
     return (
         <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
         <ListSkeleton />
@@ -1212,11 +1217,11 @@ export default function OrderDetailPage() {
                           return (
                           <div key={index} className="p-4 border rounded-lg flex flex-col md:flex-row gap-4 bg-muted/30">
                               <div className="flex items-start gap-4 flex-grow min-w-0">
-                                  {item.sampleImageDataUri && (
+                                  <OrderPhoto item={item}>{src => (
                                       <div className="relative w-24 h-24 flex-shrink-0">
-                                          <Image src={item.sampleImageDataUri} alt={`Sample for ${item.description}`} fill className="object-contain rounded-md border bg-muted" />
+                                          <Image src={src} alt={`Sample for ${item.description}`} fill className="object-contain rounded-md border bg-muted" />
                                       </div>
-                                  )}
+                                  )}</OrderPhoto>
                                   <div className="flex-grow min-w-0">
                                       {item.itemCategory && (
                                           <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{categorySingular(item.itemCategory) || item.itemCategory}</span>

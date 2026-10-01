@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useOrderPhoto } from '@/components/order/order-photo';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Control } from 'react-hook-form';
@@ -102,6 +103,11 @@ const orderItemSchema = z.object({
   diamondCharges: z.coerce.number().min(0).default(0),
   stoneCharges: z.coerce.number().min(0).default(0),
   sampleImageDataUri: z.string().optional(),
+  // Kept through an edit, which replaces the order's items whole: zod drops what it isn't told
+  // about, so a piece's photo link (lib/order-photos.ts) and the date it went to the karigar
+  // (the Workshop's "Given") used to vanish on every save of the order form.
+  samplePhotoId: z.string().optional(),
+  givenAt: z.string().optional(),
   referenceSku: z.string().optional(),
   sampleGiven: z.boolean().default(false),
   hasDiamonds: z.boolean().default(false),
@@ -1428,10 +1434,18 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                             <div>
                                 <FormLabel>Sample picture</FormLabel>
                                 <FormField control={form.control} name={`items.${index}.sampleImageDataUri`} render={({ field }) => (
-                                    <SampleImageInput
+                                    <ItemSampleInput
                                         value={field.value}
-                                        onChange={(dataUri) => form.setValue(`items.${index}.sampleImageDataUri`, dataUri, { shouldValidate: true, shouldDirty: true })}
-                                        onRemove={() => form.setValue(`items.${index}.sampleImageDataUri`, '', { shouldValidate: true, shouldDirty: true })}
+                                        photoId={form.watch(`items.${index}.samplePhotoId`)}
+                                        onChange={(dataUri) => {
+                                            // A new photo replaces the stored one; it is moved out of the order on save.
+                                            form.setValue(`items.${index}.samplePhotoId`, undefined, { shouldDirty: true });
+                                            form.setValue(`items.${index}.sampleImageDataUri`, dataUri, { shouldValidate: true, shouldDirty: true });
+                                        }}
+                                        onRemove={() => {
+                                            form.setValue(`items.${index}.samplePhotoId`, undefined, { shouldDirty: true });
+                                            form.setValue(`items.${index}.sampleImageDataUri`, '', { shouldValidate: true, shouldDirty: true });
+                                        }}
                                     />
                                 )}/>
                             </div>
@@ -1643,3 +1657,9 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
     </Form>
   );
 };
+
+/** The sample picture field, showing a photo kept in its own document (lib/order-photos.ts) until it is replaced. */
+function ItemSampleInput({ value, photoId, onChange, onRemove }: { value?: string; photoId?: string; onChange: (dataUri: string) => void; onRemove: () => void }) {
+  const stored = useOrderPhoto(value ? null : { samplePhotoId: photoId });
+  return <SampleImageInput value={value || stored || ''} onChange={onChange} onRemove={onRemove} />;
+}

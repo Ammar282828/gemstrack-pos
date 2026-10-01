@@ -11,6 +11,7 @@
  * request that returns more than a staff member is allowed.
  */
 
+import { withInlinePhotos } from '@/lib/order-photos-server';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
@@ -73,7 +74,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const snap = await adminDb.collection(name).get();
-    const docs = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+    const raw = snap.docs.map(d => ({ ...d.data(), id: d.id }) as { id: string; items?: unknown });
+    // Staff can't read photo documents themselves: orders go out with their photos inline.
+    const docs = name === 'orders' ? await withInlinePhotos(adminDb, raw) : raw;
     return NextResponse.json(
       { collection: name, docs: staffViewAll(name, docs) },
       // Never cached: an order taken thirty seconds ago has to be there.

@@ -55,6 +55,8 @@ export interface WorkshopJob {
   referenceSku?: string;
   sampleGiven?: boolean;
   sampleImage?: string;
+  /** The sample photo's own document (lib/order-photos.ts), when it is not inline. */
+  samplePhotoId?: string;
   /** When the piece physically went to the karigar. Unset until the Given box is ticked. */
   givenAt?: string;
   plating?: string;
@@ -143,6 +145,7 @@ export function buildWorkshopJobs(
         referenceSku: item.referenceSku || undefined,
         sampleGiven: !!item.sampleGiven,
         sampleImage: item.sampleImageDataUri || undefined,
+        samplePhotoId: item.samplePhotoId || undefined,
         givenAt: item.givenAt || undefined,
         plating: describePlating(item),
         value: item.totalEstimate ?? 0,

@@ -74,7 +74,10 @@ export default function ProductDetailPage() {
   const settings = useAppStore(state => state.settings);
   const deleteProductAction = useAppStore(state => state.deleteProduct);
   const setProductQrCodeDataUrlAction = useAppStore(state => state.setProductQrCode);
-  const { addToCart } = useAppStore();
+  const { addToCart, loadProducts } = useAppStore();
+  // Opened from a scanned tag or a link, nothing had loaded the stock: "Product not found".
+  const productsSettled = useAppStore(state => state.hasProductsLoaded || !!state.productsError);
+  useEffect(() => { loadProducts(); }, [loadProducts]);
 
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | undefined>(undefined);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -133,7 +136,7 @@ export default function ProductDetailPage() {
     });
   };
 
-  if (!isHydrated) {
+  if (!isHydrated || (!productData && !productsSettled)) {
     return (
       <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
         <ListSkeleton />
