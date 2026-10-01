@@ -29,6 +29,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { PageBack } from '@/components/shared/page-back';
+import { deleteErrorText } from '@/lib/delete-code';
 
 const getStatusBadgeVariant = (status: Order['status']) => {
     switch (status) {
@@ -102,7 +103,7 @@ export default function CustomerDetailPage() {
       router.push('/customers');
     } catch (err) {
       console.error('Failed to delete customer:', err);
-      toast({ title: "Delete Failed", description: "Could not delete the customer. Please try again.", variant: "destructive" });
+      toast({ title: "Delete Failed", description: deleteErrorText(err, "Could not delete the customer. Please try again."), variant: "destructive" });
     }
   };
 

@@ -38,6 +38,7 @@ import { Save, Loader2 as Spinner } from 'lucide-react';
 import { AmountInput } from '@/components/ui/amount-input';
 import { buildWorkshopJobs } from '@/lib/workshop';
 import { karigarPosition } from '@/lib/karigar-position';
+import { deleteErrorText } from '@/lib/delete-code';
 
 const silverTransactionSchema = z.object({
   silverGrams: z.coerce.number().positive("Silver grams must be greater than 0"),
@@ -292,11 +293,16 @@ export default function KarigarDetailPage() {
   const totalSilverGrams = karigarSilver.reduce((s, t) => s + t.silverGrams, 0);
   const totalSilverSurcharge = karigarSilver.reduce((s, t) => s + t.totalSurcharge, 0);
 
-  const handleDeleteKarigar = () => {
+  const handleDeleteKarigar = async () => {
     if (!karigar) return;
-    deleteKarigarAction(karigar.id);
-    toast({ title: "Karigar Deleted" });
-    router.push('/karigars');
+    // Awaited: the delete asks for the code, and "deleted" is said only once it was.
+    try {
+      await deleteKarigarAction(karigar.id);
+      toast({ title: "Karigar Deleted" });
+      router.push('/karigars');
+    } catch (e) {
+      toast({ title: 'Not deleted', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    }
   };
 
   const handleStartNewBatch = async () => {
@@ -330,8 +336,8 @@ export default function KarigarDetailPage() {
     try {
       await deleteKarigarBatch(batchId);
       toast({ title: "Batch Deleted" });
-    } catch {
-      toast({ title: "Error", description: "Failed to delete batch.", variant: "destructive" });
+    } catch (e) {
+      toast({ title: "Error", description: deleteErrorText(e, "Failed to delete batch."), variant: "destructive" });
     }
   };
 

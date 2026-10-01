@@ -12,6 +12,7 @@ import { useIsStoreHydrated } from '@/hooks/use-store';
 import React, { useEffect } from 'react';
 import Script from 'next/script';
 import { GoogleAuthGate } from '@/components/auth/google-auth-gate';
+import { DeleteCodeDialog } from '@/components/shared/delete-code-dialog';
 import { STORE_CONFIG, STORE_BRAND, STORE_THEME_COLOR, STORE_ICONS, STORE_LINKS_PAGE, LINKS_DRESS, isLinksHost, storeLinksUrl } from '@/lib/store-config';
 import { readCachedTheme, writeCachedTheme, LIGHT_THEME, readDeviceTheme, DEVICE_THEME_EVENT, applyThemeToDocument, readCachedUiStyle, writeCachedUiStyle, applyUiStyleToDocument } from '@/lib/theme-cache';
 import { warmPdfLogo } from '@/lib/pdf-logo';
@@ -149,6 +150,8 @@ function AppBody({ children }: { children: React.ReactNode }) {
                 {children}
               </MainApp>
           </AppLayout>
+          {/* Every delete asks for the code here (lib/delete-code.ts). */}
+          <DeleteCodeDialog />
         </GoogleAuthGate>
       )}
       {!isPublicInvoicePage && <Toaster />}

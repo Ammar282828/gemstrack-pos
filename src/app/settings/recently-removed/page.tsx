@@ -26,6 +26,7 @@ import { Briefcase, Loader2, RotateCcw, Trash2, Users } from 'lucide-react';
 import { PageShell } from '@/components/shared/page-shell';
 import { PageBack } from '@/components/shared/page-back';
 import { format, formatDistanceToNow } from 'date-fns';
+import { deleteErrorText } from '@/lib/delete-code';
 
 export default function RecentlyRemovedPage() {
   const router = useRouter();
@@ -99,8 +100,8 @@ export default function RecentlyRemovedPage() {
         title: 'Recently removed emptied',
         description: `${result.customers} customer(s) and ${result.karigars} karigar(s) permanently deleted.`,
       });
-    } catch {
-      toast({ title: 'Could not empty the list', variant: 'destructive' });
+    } catch (e) {
+      toast({ title: 'Could not empty the list', description: deleteErrorText(e), variant: 'destructive' });
     } finally {
       setBusy(null);
     }

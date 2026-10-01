@@ -44,6 +44,7 @@ import { format } from 'date-fns';
 import { AmountInput } from '@/components/ui/amount-input';
 import { STORE_PARTNERSHIP } from '@/lib/store-config';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
+import { deleteErrorText } from '@/lib/delete-code';
 
 /** Expenses from "Pearls - Studs x2" onward. */
 const EXPENSE_CUTOFF = '2025-07-02';
@@ -278,8 +279,8 @@ export default function ShareholderFinancesPage() {
       await deleteExpense(expenseId);
       toast({ title: 'Salary payment removed' });
       loadExpenses();
-    } catch {
-      toast({ title: 'Delete failed', variant: 'destructive' });
+    } catch (e) {
+      toast({ title: 'Delete failed', description: deleteErrorText(e), variant: 'destructive' });
     }
   };
 
@@ -291,8 +292,8 @@ export default function ShareholderFinancesPage() {
       toast({ title: 'Entry removed' });
       await refreshLedgers();
       loadExpenses();
-    } catch {
-      toast({ title: 'Delete failed', variant: 'destructive' });
+    } catch (e) {
+      toast({ title: 'Delete failed', description: deleteErrorText(e), variant: 'destructive' });
     }
   };
 

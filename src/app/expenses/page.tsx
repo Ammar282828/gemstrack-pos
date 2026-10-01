@@ -41,6 +41,7 @@ import 'jspdf-autotable';
 import { SHAREHOLDERS } from '@/lib/shareholders';
 import { fitText } from '@/lib/pdf-text';
 import { PageShell } from '@/components/shared/page-shell';
+import { deleteErrorText } from '@/lib/delete-code';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -82,7 +83,7 @@ export default function ExpensesPage() {
       toast({ title: "Expense deleted", description: "The record has been removed." });
     } catch (err) {
       console.error('Failed to delete expense:', err);
-      toast({ title: "Delete failed", description: "Could not delete the expense.", variant: "destructive" });
+      toast({ title: "Delete failed", description: deleteErrorText(err, "Could not delete the expense."), variant: "destructive" });
     }
   };
 

@@ -29,7 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, MessageSquare, Check, Banknote, Edit, PlusCircle, CalendarIcon, List, RotateCcw, CheckCircle, Lock, XCircle } from 'lucide-react';
+import { Loader2, MessageSquare, Check, Banknote, Edit, PlusCircle, CalendarIcon, List, RotateCcw, CheckCircle, Lock, XCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveInvoicePdf } from '@/lib/invoice-pdf';
 import { PrintButton } from '@/components/shared/print-button';
@@ -55,7 +55,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
   const router = useRouter();
   const { toast } = useToast();
   const appReady = useAppReady();
-  const { customers, settings, allInvoices, hasInvoicesLoaded, updateInvoicePayment, refundInvoicePartial, updateInvoiceDiscount, deleteInvoice, loadCustomers, loadGeneratedInvoices } = useAppStore(state => ({
+  const { customers, settings, allInvoices, hasInvoicesLoaded, updateInvoicePayment, refundInvoicePartial, updateInvoiceDiscount, deleteInvoice, deleteInvoicePayment, loadCustomers, loadGeneratedInvoices } = useAppStore(state => ({
     customers: state.customers,
     settings: state.settings,
     allInvoices: state.generatedInvoices,
@@ -64,7 +64,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
     updateInvoicePayment: state.updateInvoicePayment,
     refundInvoicePartial: state.refundInvoicePartial,
     updateInvoiceDiscount: state.updateInvoiceDiscount,
-    deleteInvoice: state.deleteInvoice,
+    deleteInvoice: state.deleteInvoice, deleteInvoicePayment: state.deleteInvoicePayment,
     loadCustomers: state.loadCustomers,
     loadGeneratedInvoices: state.loadGeneratedInvoices,
   }));
@@ -208,6 +208,28 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
     }
   };
 
+  // Deleting (a mistake, a sale entered twice) asks for the delete code in the store (lib/delete-code.ts).
+  const handleDeleteInvoice = async () => {
+    if (!invoice) return;
+    try {
+      await deleteInvoice(invoice.id, false);
+      toast({ title: `Invoice ${invoice.id} deleted`, description: 'Its ledger rows went with it, and pieces only it had sold are back in stock.' });
+      router.push('/invoices');
+    } catch (e) {
+      toast({ title: 'Not deleted', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    }
+  };
+  const handleDeletePayment = async (index: number, p: { amount: number; date: string }) => {
+    if (!invoice) return;
+    try {
+      const updated = await deleteInvoicePayment(invoice.id, index, { amount: p.amount, date: p.date });
+      setLatest(updated);
+      toast({ title: 'Payment deleted', description: `PKR ${p.amount.toLocaleString()} taken off ${invoice.id}. Now due: PKR ${updated.balanceDue.toLocaleString()}.` });
+    } catch (e) {
+      toast({ title: 'Not deleted', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    }
+  };
+
   const handleRefundInvoice = async () => {
     if (!invoice) return;
     setIsRefunding(true);
@@ -234,8 +256,8 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
       setPartialRefundAmount('');
       setPartialRefundReason('');
       setIsRefundDialogOpen(false);
-    } catch {
-      toast({ title: 'Error', description: 'Failed to process refund.', variant: 'destructive' });
+    } catch (e) {
+      toast({ title: 'Not refunded', description: e instanceof Error ? e.message : 'Failed to process refund.', variant: 'destructive' });
     } finally {
       setIsRefunding(false);
     }
@@ -311,6 +333,9 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                         <RotateCcw className="mr-2 h-4 w-4"/> Refund
                       </Button>
                     )}
+                    <Button variant="ghost" onClick={handleDeleteInvoice} className="text-destructive hover:bg-destructive/10 hover:text-destructive" title="Delete this invoice (asks for the delete code)">
+                      <Trash2 className="mr-2 h-4 w-4"/> Delete
+                    </Button>
                     <Button asChild variant="ghost">
                       <Link href="/invoices/new"><PlusCircle className="mr-2 h-4 w-4"/> New sale</Link>
                     </Button>
@@ -555,6 +580,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                                             <TableHead>Method</TableHead>
                                             <TableHead className="hidden sm:table-cell">Notes</TableHead>
                                             <TableHead className="text-right">Amount (PKR)</TableHead>
+                                            <TableHead className="w-10"><span className="sr-only">Delete</span></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -570,6 +596,13 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                                                 </TableCell>
                                                 <TableCell className="hidden sm:table-cell">{p.notes || 'Payment received'}</TableCell>
                                                 <TableCell className="text-right font-medium">{p.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                                <TableCell className="p-1 text-right">
+                                                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                    aria-label={`Delete the payment of PKR ${p.amount.toLocaleString()}`} title="Delete this payment (asks for the delete code)"
+                                                    onClick={() => handleDeletePayment(index, p)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                  </Button>
+                                                </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>

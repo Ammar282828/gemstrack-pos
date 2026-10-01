@@ -30,7 +30,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
   configs drop the second laptop's `GOOGLE_APPLICATION_CREDENTIALS` (`~/.zshrc`, a missing file), which breaks every Google call.
 - The app is behind Google sign-in, locally and in **both** houses since 2026-09-30 (Taheri ran
   `NEXT_PUBLIC_OPEN_ACCESS=1` with open Firestore rules from 2026-09-07; owner: "taheri being open to all is a bit
-  dangerous"). Don't reintroduce the open-access flag, for local checks or anything else.
+  dangerous"). Don't reintroduce the open-access flag.
 - Typecheck: `npx tsc --noEmit -p .`. ESLint's config is broken (v9); the build is the lint gate.
 
 ## Configuration and access
@@ -39,7 +39,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
   be readable by the three App Hosting service accounts** (mirror `CRON_SECRET`'s IAM) *before* it is
   declared, or the rollout fails. Names are case-sensitive: the upload secret is `website-upload-secret`.
   A variable with `value: ""` also fails the rollout ("either 'value' or 'secret' field is required") — write
-  a word the code reads as off (`"none"`, `"0"`) instead.
+  a word the code reads as off (`"none"`, `"0"`).
 - **Taheri's backend also has console `overrideEnv`** (19 variables — Firebase config, `NEXT_PUBLIC_STORE_NAME` "Taheri",
   contacts, bank line, Instagram) and **they beat the YAML**. Read them with the App Hosting REST API
   (`GET …/projects/gemstrack-pos/locations/us-central1/backends/studio`, field `overrideEnv`); what a build actually used
@@ -63,7 +63,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
   and `apphosting.mina.yaml` hold everything that differs and are applied by App Hosting on top of the base
   for the backend whose environment name matches (an override can add or replace a variable, never remove one —
   so nothing goes in the base that only one house wants). Mina's file states every value its old fork had
-  baked into code; leave one out and Mina comes up wearing Taheri's name.
+  baked into code; leave one out and Mina wears Taheri's name.
 - A `secret:` in the base must exist in **both** projects; one in a house file only in that project.
 - What the variables drive (name, palette, menus, flags, expense categories, alert labels) and each ERP's icons: `docs/features/two-houses.md`.
 
@@ -74,8 +74,8 @@ git push taheri main main:taheri-next         # GitHub's main + Taheri rolls out
 git push hom main:main                        # House of Mina rolls out
 ```
 **Push both together, always** (owner, 2026-09-26: "push both together always") — no waiting on Taheri's rollout before
-Mina's. Keep `taheri`'s `main` level too: every cloud session starts there. `main` here is the shared working branch (the old dead
-`main` is kept as tag `old-main-2026-06`). `website-checkout` is retired.
+Mina's. Keep `taheri`'s `main` level too: every cloud session starts there. `main` here is the shared working branch (the old
+`main` is tag `old-main-2026-06`).
 
 **Running a house locally:** `npm run env:taheri` or `npm run env:mina` writes `.env.<house>.local`
 from the YAML files (secrets left blank to fill from Secret Manager), then `npm run dev:taheri`
@@ -178,6 +178,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Taheri sign-in](docs/decisions.md#taheri-sign-in) — `NEXT_PUBLIC_STORE_OWNER_EMAILS`; locked `firestore.rules` for the owner to publish; invoice share keys
 - [Signed-in defaults](docs/decisions.md#signed-in-defaults) — `NEXT_PUBLIC_STORE_PEOPLE`; Taken by and the Orders/Invoices/Workshop filters
 - [Karigar sign-in](docs/decisions.md#karigar-sign-in) — in-app browsers; `[sign-in]` in the log
+- [Delete code](docs/decisions.md#delete-code) — every delete asks; the server checks it
 
 **The website and copy**
 - [Customer copy](docs/decisions.md#customer-copy) — never "Najmi Market" or "Saddar"; the hours

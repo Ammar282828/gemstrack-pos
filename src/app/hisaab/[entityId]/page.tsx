@@ -44,6 +44,7 @@ import { SwipeToDelete } from '@/components/ui/swipe-to-delete';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PhoneField } from '@/components/ui/phone-field';
 import { fitText } from '@/lib/pdf-text';
+import { deleteErrorText } from '@/lib/delete-code';
 
 
 // Re-declare module for jsPDF in this file as well
@@ -203,7 +204,7 @@ export default function EntityHisaabPage() {
         await deleteHisaabEntry(entryId);
         toast({ title: "Success", description: "Transaction deleted successfully." });
       } catch(e) {
-          toast({ title: "Error", description: "Failed to delete transaction.", variant: "destructive" });
+          toast({ title: "Error", description: deleteErrorText(e, "Failed to delete transaction."), variant: "destructive" });
       } finally {
           setIsDeleting(null);
       }

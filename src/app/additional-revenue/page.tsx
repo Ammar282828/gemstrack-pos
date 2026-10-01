@@ -31,6 +31,7 @@ import { format, parseISO, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PageShell } from '@/components/shared/page-shell';
+import { deleteErrorText } from '@/lib/delete-code';
 
 // ── Form schema ──────────────────────────────────────────────────────────────
 const revenueSchema = z.object({
@@ -182,7 +183,7 @@ export default function AdditionalRevenuePage() {
         return;
       }
       console.error('Failed to delete revenue entry:', err);
-      toast({ title: 'Delete Failed', description: 'Could not delete the entry. Please try again.', variant: 'destructive' });
+      toast({ title: 'Delete Failed', description: deleteErrorText(err, 'Could not delete the entry. Please try again.'), variant: 'destructive' });
     }
   };
 

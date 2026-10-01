@@ -47,6 +47,7 @@ import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import type { TakenBy } from '@/lib/store';
 import { useMineFilter } from '@/hooks/use-me';
 import { PageShell } from '@/components/shared/page-shell';
+import { deleteErrorText } from '@/lib/delete-code';
 
 // ── small presentational helpers ────────────────────────────────────────────
 
@@ -982,8 +983,8 @@ export default function WorkshopPage() {
     try {
       await deleteKarigarJob(job.id.replace(/^job:/, ''));
       toast({ title: 'Job deleted' });
-    } catch {
-      toast({ title: 'Error', description: 'Could not delete.', variant: 'destructive' });
+    } catch (e) {
+      toast({ title: 'Error', description: deleteErrorText(e, 'Could not delete.'), variant: 'destructive' });
     }
   };
   const openAssign = (karigarId: string) => { setPresetKarigar(karigarId); setAddOpen(true); };

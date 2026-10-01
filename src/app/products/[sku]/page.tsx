@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { generateProductCsv } from '@/lib/csv';
+import { deleteErrorText } from '@/lib/delete-code';
 
 
 type ProductWithCalculatedCosts = ReturnType<typeof selectProductWithCosts>;
@@ -113,7 +114,12 @@ export default function ProductDetailPage() {
 
 
   const handleDeleteProduct = async () => {
-    await deleteProductAction(sku);
+    try {
+      await deleteProductAction(sku);
+    } catch (e) {
+      toast({ title: 'Not deleted', description: deleteErrorText(e, 'Could not delete the product.'), variant: 'destructive' });
+      return;
+    }
     toast({ title: "Product Deleted", description: `Product with SKU ${sku} has been deleted.` });
     router.push('/products');
   };

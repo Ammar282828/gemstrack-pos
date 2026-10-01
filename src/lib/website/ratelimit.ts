@@ -39,6 +39,17 @@ export async function rateLimit(scope: string, caller: string, max: number, wind
   });
 }
 
+/** Give one counted try back (a right delete code is not a guess). Never below zero. */
+export async function refundRateLimit(scope: string, caller: string): Promise<void> {
+  const id = `${scope}__${caller.replace(/[^a-zA-Z0-9_.:-]/g, '_').slice(0, 120)}`;
+  const ref = adminDb.collection(COLLECTION).doc(id);
+  await adminDb.runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    const count = (snap.data() as { count?: number } | undefined)?.count ?? 0;
+    if (count > 0) tx.update(ref, { count: count - 1 });
+  }).catch(() => {});
+}
+
 /** The caller's address as the App Hosting proxy reports it. */
 export function callerKey(headers: Headers): string {
   const fwd = headers.get('x-forwarded-for') || '';

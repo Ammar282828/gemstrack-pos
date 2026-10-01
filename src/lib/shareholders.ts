@@ -21,6 +21,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { PARTNER_DRAWINGS, type LedgerCategory, type LedgerType } from '@/lib/partnership';
+import { askDeleteCode, NOT_DELETED } from './delete-code';
 
 export { PARTNER_DRAWINGS, isBusinessCost } from '@/lib/partnership';
 
@@ -96,6 +97,8 @@ export async function linkExpense(who: ShareholderId, entryId: string, expenseId
 }
 
 export async function deleteLedgerEntry(who: ShareholderId, entryId: string): Promise<void> {
+  // Every delete asks for the delete code (lib/delete-code.ts).
+  if (!(await askDeleteCode(`Delete this ${shareholderById(who).name} ledger entry`))) throw new Error(NOT_DELETED);
   await deleteDoc(doc(db, shareholderById(who).ledger, entryId));
 }
 

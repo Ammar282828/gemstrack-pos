@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { deleteErrorText } from '@/lib/delete-code';
 
 const eventIcons: Record<LogEventType, React.ReactNode> = {
     'product.create': <Package className="h-4 w-4" />,
@@ -118,8 +119,8 @@ export default function ActivityLogPage() {
             }
             toast({ title: 'Reverted', description: `"${revertTarget.description}" has been undone.` });
             setRevertTarget(null);
-        } catch {
-            toast({ title: 'Revert Failed', description: 'An unexpected error occurred. Please try again.', variant: 'destructive' });
+        } catch (e) {
+            toast({ title: 'Revert Failed', description: deleteErrorText(e, 'An unexpected error occurred. Please try again.'), variant: 'destructive' });
         } finally {
             setIsReverting(false);
         }

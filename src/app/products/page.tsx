@@ -30,6 +30,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { generateProductCsv } from '@/lib/csv';
 import { PageShell } from '@/components/shared/page-shell';
+import { deleteErrorText } from '@/lib/delete-code';
 
 type ViewMode = 'grid' | 'list';
 
@@ -218,7 +219,12 @@ export default function ProductsPage() {
   };
   
   const handleDeleteProduct = async (sku: string) => {
-    await deleteProductAction(sku);
+    try {
+      await deleteProductAction(sku);
+    } catch (e) {
+      toast({ title: 'Not deleted', description: deleteErrorText(e, 'Could not delete the product.'), variant: 'destructive' });
+      return;
+    }
     setSelectedProductSkus(prev => prev.filter(s => s !== sku)); 
     toast({ title: "Product Deleted", description: `Product with SKU ${sku} has been deleted.` });
   };

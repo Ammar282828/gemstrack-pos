@@ -13,6 +13,7 @@ import { db, auth, firebaseConfig } from '@/lib/firebase';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { auth as firebaseAuth } from '@/lib/firebase';
+import { askDeleteCode, NOT_DELETED } from '@/lib/delete-code';
 import { newShareToken } from '@/lib/share-token';
 import { changedRates, mainRate, type RateKey } from '@/lib/rates';
 import { personFor } from '@/lib/people';
@@ -66,6 +67,14 @@ const MENS_RING_CATEGORY_ID_INTERNAL = 'cat018';
  * Flip to true to restore two-way behaviour.
  */
 const PUSH_TO_SHOPIFY = false;
+
+/**
+ * Every delete asks for the house's delete code first (lib/delete-code.ts; owner, 2026-10-01).
+ * Thrown, not returned, so a page that says "Deleted" after the call never says it falsely.
+ */
+async function requireDeleteCode(what: string): Promise<void> {
+  if (!(await askDeleteCode(what))) throw new Error(NOT_DELETED);
+}
 
 /**
  * A fire-and-forget POST to one of the ERP's own Shopify routes, as the signed-in user:
@@ -193,9 +202,9 @@ function effectiveRole(): 'owner' | 'staff' | 'none' {
   return devRole() ?? roleForEmail(auth?.currentUser?.email);
 }
 import { clientPort } from '@/lib/db-client-port';
-import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
+import { recordInvoicePayment, removeInvoicePayment } from '@/lib/writes/invoice-payment';
 import { type ExchangeEntry, exchangeTotal, invoiceExchangeFields, orderExchanges } from '@/lib/exchange';
-import { orderAdvancePayments } from '@/lib/order-payment';
+import { orderAdvancePayments, withoutOrderAdvance } from '@/lib/order-payment';
 import { isWalkInName, shouldCreateCustomer } from '@/lib/walk-in';
 import { createOrder } from '@/lib/writes/create-order';
 import { STORE_CONFIG } from '@/lib/store-config';
@@ -1421,6 +1430,8 @@ export interface AppState {
     payments?: SalePayment[]
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string, method?: PaymentType, reference?: string) => Promise<Invoice | null>;
+  /** One payment off an invoice (an advance carried over, a payment, a partial refund); asks for the delete code. */
+  deleteInvoicePayment: (invoiceId: string, index: number, payment: { amount: number; date: string }) => Promise<Invoice>;
   refundInvoicePartial: (invoiceId: string, refundAmount: number, reason?: string) => Promise<Invoice | null>;
   updateInvoiceDiscount: (invoiceId: string, newDiscountAmount: number) => Promise<Invoice | null>;
   syncHisaabOutstandingBalances: () => Promise<void>;
@@ -1455,6 +1466,8 @@ export interface AppState {
   revertOrderFromInvoice: (orderId: string, invoiceId: string) => Promise<void>;
   refundOrder: (orderId: string) => Promise<void>;
   recordOrderAdvance: (orderId: string, amount: number, notes: string, method?: PaymentType) => Promise<Order | null>;
+  /** One advance off an order not yet invoiced, as its page lists them; asks for the delete code. */
+  deleteOrderAdvance: (orderId: string, lineIndex: number) => Promise<Order>;
 
   loadHisaab: () => void;
   addHisaabEntry: (entryData: Omit<HisaabEntry, 'id'>) => Promise<HisaabEntry | null>;
@@ -2038,6 +2051,7 @@ export const useAppStore = create<AppState>()(
       },
       deleteSilverTransaction: async (id) => {
         if (get().settings.databaseLocked) return;
+        await requireDeleteCode(`Delete this silver entry`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.SILVER_TRANSACTIONS, id));
         } catch (error) {
@@ -2183,6 +2197,7 @@ export const useAppStore = create<AppState>()(
       },
       deleteProduct: async (sku) => {
         if(get().settings.databaseLocked) return;
+        await requireDeleteCode(`Delete product ${get().products.find(p => p.sku === sku)?.name || sku}`);
         const productName = get().products.find(p => p.sku === sku)?.name || sku;
         console.log(`[GemsTrack Store deleteProduct] Attempting to delete product SKU ${sku}.`);
         try {
@@ -2198,6 +2213,7 @@ export const useAppStore = create<AppState>()(
       },
        deleteLatestProducts: async (count: number) => {
             if (get().settings.databaseLocked || count <= 0) return 0;
+            await requireDeleteCode(`Delete the latest ${count} products`);
             console.log(`[deleteLatestProducts] Attempting to delete the latest ${count} products.`);
             try {
                 const productsRef = collection(db, FIRESTORE_COLLECTIONS.PRODUCTS);
@@ -2315,6 +2331,7 @@ export const useAppStore = create<AppState>()(
        */
       deleteCustomer: async (id) => {
         if(get().settings.databaseLocked) return;
+        await requireDeleteCode(`Delete customer ${get().customers.find(c => c.id === id)?.name || id}`);
         const customerName = get().customers.find(c => c.id === id)?.name || id;
         try {
           await updateDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), { deletedAt: new Date().toISOString() });
@@ -2339,6 +2356,7 @@ export const useAppStore = create<AppState>()(
 
       mergeCustomers: async (keepId, deleteId) => {
         if(get().settings.databaseLocked) return { updatedDocs: 0 };
+        await requireDeleteCode(`Merge, and delete customer ${get().customers.find(c => c.id === deleteId)?.name || deleteId}`);
         const keepCustomer = get().customers.find(c => c.id === keepId);
         const deleteCustomer = get().customers.find(c => c.id === deleteId);
         if (!keepCustomer || !deleteCustomer) throw new Error('One or both customers not found');
@@ -2431,6 +2449,7 @@ export const useAppStore = create<AppState>()(
       /** See deleteCustomer — this hides, it does not destroy. */
       deleteKarigar: async (id) => {
         if(get().settings.databaseLocked) return;
+        await requireDeleteCode(`Delete karigar ${get().karigars.find(k => k.id === id)?.name || id}`);
         const karigarName = get().karigars.find(k => k.id === id)?.name || id;
         try {
           await updateDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, id), { deletedAt: new Date().toISOString() });
@@ -2462,6 +2481,7 @@ export const useAppStore = create<AppState>()(
        */
       purgeRemoved: async () => {
         if(get().settings.databaseLocked) return { customers: 0, karigars: 0 };
+        await requireDeleteCode(`Delete every removed customer and karigar for good`);
         const customers = get().removedCustomers;
         const karigars = get().removedKarigars;
         for (const c of customers) await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, c.id));
@@ -2578,6 +2598,7 @@ export const useAppStore = create<AppState>()(
 
       deleteKarigarBatch: async (batchId) => {
         if(get().settings.databaseLocked) return;
+        await requireDeleteCode(`Delete this karigar batch`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGAR_BATCHES, batchId));
           set(state => { state.karigarBatches = state.karigarBatches.filter(b => b.id !== batchId); });
@@ -2943,6 +2964,20 @@ export const useAppStore = create<AppState>()(
           return null;
         }
       },
+      deleteInvoicePayment: async (invoiceId, index, payment) => {
+        if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
+        await requireDeleteCode(`Delete the payment of PKR ${payment.amount.toLocaleString()} on ${invoiceId}`);
+        // The same transaction that records a payment, run backwards (writes/invoice-payment.ts).
+        const updated = await removeInvoicePayment(clientPort, { invoiceId, index, amount: payment.amount, date: payment.date }, {
+          log: (action, title, detail, ref) => { addActivityLog(action as LogEventType, title, detail, ref ?? ''); },
+          syncInvoiceShopify: (id, mode) => { syncInvoiceShopify(id, mode); },
+        });
+        set(state => ({
+          generatedInvoices: state.generatedInvoices.map(i => i.id === invoiceId
+            ? { ...i, paymentHistory: updated.paymentHistory as Payment[], amountPaid: updated.amountPaid, balanceDue: updated.balanceDue } : i),
+        }) as Partial<AppState>);
+        return { ...(get().generatedInvoices.find(i => i.id === invoiceId) ?? {}), ...updated } as unknown as Invoice;
+      },
 
       /**
        * Record a partial refund on an invoice. Adds a negative entry to
@@ -2952,6 +2987,7 @@ export const useAppStore = create<AppState>()(
       refundInvoicePartial: async (invoiceId, refundAmount, reason) => {
         if (get().settings.databaseLocked) return null;
         if (!(refundAmount > 0)) return null;
+        await requireDeleteCode(`Refund PKR ${refundAmount.toLocaleString()} on ${invoiceId}`);
 
         const invoiceRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
         // The ledger rows are looked up while the transaction reads, and follow in its commit.
@@ -3278,6 +3314,7 @@ export const useAppStore = create<AppState>()(
 
       deleteInvoice: async (invoiceId, isEditing = false, syncShopify = true) => {
           if(get().settings.databaseLocked) return;
+          if (!isEditing) await requireDeleteCode(`Delete invoice ${invoiceId}`);
           console.log(`[deleteInvoice] Attempting to delete invoice ${invoiceId}. Is editing flow: ${isEditing}. Sync Shopify: ${syncShopify}`);
           try {
               const invoiceDocRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
@@ -3293,9 +3330,13 @@ export const useAppStore = create<AppState>()(
               
               // Only move products back if it's NOT an edit-and-replace operation
               // Order-generated items (SKU starts with 'ORD-') were never in the products collection, skip them
+              // A piece another invoice also sold (a sale entered twice) stays sold.
+              const soldElsewhere = (sku: string) => get().generatedInvoices.some(inv =>
+                  inv.id !== invoiceId && (Array.isArray(inv.items) ? inv.items : []).some(i => i.sku === sku));
               if (!isEditing) {
                   for(const item of invoiceData.items) {
                       if (item.sku.startsWith('ORD-')) continue;
+                      if (soldElsewhere(item.sku)) continue;
                       const soldProductRef = doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, item.sku);
                       const productData = {
                           sku: item.sku, name: item.name, categoryId: item.categoryId,
@@ -3321,12 +3362,22 @@ export const useAppStore = create<AppState>()(
 
               // If this invoice was created from an order, clear the invoiceId on that order
               // so it re-appears in revenue calculations.
+              // When the order still has another invoice (a sale entered twice), it keeps that one:
+              // clearing it would count the order's advance as revenue again beside the invoice.
+              // Only the order's link to THIS invoice is touched.
               if (invoiceData.sourceOrderId) {
-                  batch.set(
-                      doc(db, FIRESTORE_COLLECTIONS.ORDERS, invoiceData.sourceOrderId),
-                      { invoiceId: deleteField() },
-                      { merge: true }
-                  );
+                  const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, invoiceData.sourceOrderId);
+                  const [orderSnap, siblings] = await Promise.all([
+                      getDoc(orderRef).catch(() => null),
+                      isEditing ? Promise.resolve(null) : getDocs(query(collection(db, FIRESTORE_COLLECTIONS.INVOICES), where('sourceOrderId', '==', invoiceData.sourceOrderId))).catch(() => null),
+                  ]);
+                  const other = siblings?.docs.find(d => d.id !== invoiceId)?.id;
+                  // An order that is gone is left gone (a merge-set would make an empty one); one
+                  // that could not be read is cleared as before.
+                  const linked = orderSnap === null ? invoiceId : orderSnap.exists() ? orderSnap.data()?.invoiceId : undefined;
+                  if (orderSnap === null || orderSnap.exists()) {
+                      if (!linked || linked === invoiceId) batch.set(orderRef, { invoiceId: other ?? deleteField() }, { merge: true });
+                  }
               }
 
               batch.delete(invoiceDocRef);
@@ -3411,11 +3462,19 @@ export const useAppStore = create<AppState>()(
             console.error(`Order ${orderId} not found for deletion.`);
             return;
         }
+        // An invoiced order is the invoice's history: deleting it alone left the invoice pointing at nothing.
+        if (order.invoiceId) throw new Error(`${orderId} has invoice ${order.invoiceId}. Delete or undo the invoice first.`);
+        await requireDeleteCode(`Delete order ${orderId}`);
         console.log(`[GemsTrack Store deleteOrder] Attempting to delete order ID ${orderId}.`);
         try {
           // Cancel the Shopify draft FIRST while we still have orderId mapping in Firestore.
           if (order.shopifyDraftOrderId) syncOrderShopify(orderId, 'cancel');
-          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId));
+          // Its sample photos go with it (order_photos, lib/order-photos.ts), in the same commit.
+          const photos = await getDocs(query(collection(db, ORDER_PHOTOS), where('orderId', '==', orderId))).catch(() => null);
+          const batch = writeBatch(db);
+          photos?.docs.forEach(d => batch.delete(d.ref));
+          batch.delete(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId));
+          await batch.commit();
           await addActivityLog('order.delete', `Deleted order: ${orderId}`, `Customer: ${order.customerName}`, orderId);
           console.log(`[GemsTrack Store deleteOrder] Order ID ${orderId} deleted successfully.`);
         } catch (error) {
@@ -3734,6 +3793,7 @@ export const useAppStore = create<AppState>()(
 
       removeItemFromOrder: async (orderId, itemIndex) => {
         if (get().settings.databaseLocked) return;
+        await requireDeleteCode(`Remove item ${itemIndex + 1} from ${orderId}`);
         const order = get().orders.find(o => o.id === orderId);
         if (!order) throw new Error("Order not found");
         if (order.items.length <= 1) throw new Error("Cannot remove the last item from an order. Delete the order instead.");
@@ -3966,6 +4026,7 @@ export const useAppStore = create<AppState>()(
       },
       revertOrderFromInvoice: async (orderId, invoiceId) => {
         if (get().settings.databaseLocked) return;
+        await requireDeleteCode(`Undo invoice ${invoiceId} back to order ${orderId}`);
         try {
             // Carry forward the invoice's Shopify link to the order doc so the
             // next finalize re-uses the same Shopify order instead of creating a new one.
@@ -3997,6 +4058,7 @@ export const useAppStore = create<AppState>()(
       },
       refundOrder: async (orderId) => {
         if (get().settings.databaseLocked) return;
+        await requireDeleteCode(`Refund order ${orderId}`);
         const order = get().orders.find(o => o.id === orderId);
         if (!order) return;
         try {
@@ -4076,6 +4138,37 @@ export const useAppStore = create<AppState>()(
             throw error;
         }
     },
+      deleteOrderAdvance: async (orderId, lineIndex) => {
+        if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
+        const local = get().orders.find(o => o.id === orderId);
+        const line = local ? orderAdvancePayments(local, '')[lineIndex] : undefined;
+        if (!local || !line) throw new Error('That advance is not on this order any more.');
+        // Once invoiced, the advances are the invoice's payments, and cash counts them there.
+        if (local.invoiceId) throw new Error(`${orderId} is invoiced: delete the payment on ${local.invoiceId} instead.`);
+        await requireDeleteCode(`Delete the advance of PKR ${line.amount.toLocaleString()} on ${orderId}`);
+        const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
+        const updated = await runTransaction(db, async (transaction) => {
+          const snap = await transaction.get(orderRef);
+          if (!snap.exists()) throw new Error('Order not found!');
+          const o = { ...(snap.data() as Order), id: orderId };
+          const cut = withoutOrderAdvance(o, lineIndex);
+          if (!cut || Math.abs(cut.removed.amount - line.amount) > 0.005) throw new Error('The advances on this order changed. Open it again and try once more.');
+          // The balance as recording an advance works it out.
+          const grandTotal = o.subtotal - (Number(o.discountAmount) || 0) - cut.advancePayment - (o.advanceInExchangeValue || 0);
+          transaction.update(orderRef, {
+            advancePayment: cut.advancePayment, advances: cut.advances, grandTotal,
+            ...(cut.dropMethod ? { advanceMethod: deleteField() } : {}),
+          });
+          const next = { ...o, advancePayment: cut.advancePayment, advances: cut.advances, grandTotal } as Order;
+          if (cut.dropMethod) delete next.advanceMethod;
+          return next;
+        });
+        set(state => ({ orders: state.orders.map(o => o.id === orderId ? updated : o) }) as Partial<AppState>);
+        syncOrderShopify(orderId, 'upsert');
+        addActivityLog('order.update', `Advance deleted from Order ${orderId}`,
+          `Amount: ${line.amount.toLocaleString()} of ${String(line.date).slice(0, 10)} | Advance now ${updated.advancePayment.toLocaleString()}, balance ${updated.grandTotal.toLocaleString()}`, orderId);
+        return updated;
+      },
       
       addHisaabEntry: async (entryData) => {
         if(get().settings.databaseLocked) return null;
@@ -4090,6 +4183,7 @@ export const useAppStore = create<AppState>()(
       },
       deleteHisaabEntry: async (entryId: string) => {
         if(get().settings.databaseLocked) return;
+        await requireDeleteCode(`Delete this ledger entry`);
         console.log(`[GemsTrack Store deleteHisaabEntry] Attempting to delete entry ID ${entryId}.`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.HISAAB, entryId));
@@ -4185,6 +4279,7 @@ export const useAppStore = create<AppState>()(
       },
       deleteExpense: async (id: string) => {
         if(get().settings.databaseLocked) return;
+        await requireDeleteCode(`Delete expense "${get().expenses.find(e => e.id === id)?.description || id}"`);
         const existing = get().expenses.find(e => e.id === id);
         const expenseDesc = existing?.description || id;
         try {
@@ -4223,6 +4318,7 @@ export const useAppStore = create<AppState>()(
       },
       deleteAdditionalRevenue: async (id: string) => {
         if(get().settings.databaseLocked) return;
+        await requireDeleteCode(`Delete this extra revenue`);
         const row = get().additionalRevenues.find(r => r.id === id);
         // Money taken on a repair is the repair's: deleting the row here left the ticket showing
         // paid (audit, 2026-10-01). It changes on the repair, whose own delete removes these rows.
@@ -4261,6 +4357,7 @@ export const useAppStore = create<AppState>()(
       },
       deleteKarigarJob: async (id) => {
         if (get().settings.databaseLocked) return;
+        await requireDeleteCode(`Delete this karigar job`);
         const job = get().karigarJobs.find(j => j.id === id);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGAR_JOBS, id));
@@ -4312,6 +4409,7 @@ export const useAppStore = create<AppState>()(
       },
       deleteGivenItem: async (id) => {
         if (get().settings.databaseLocked) return;
+        await requireDeleteCode(`Delete given item "${get().givenItems.find(g => g.id === id)?.description || id}"`);
         const desc = get().givenItems.find(g => g.id === id)?.description || id;
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.GIVEN_ITEMS, id));
@@ -4411,6 +4509,7 @@ export const useAppStore = create<AppState>()(
 
       deleteRepair: async (id) => {
         if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
+        await requireDeleteCode(`Delete repair ${id}`);
         const repair = get().repairs.find(r => r.id === id);
         const batch = writeBatch(db);
         for (const p of repair?.payments || []) {

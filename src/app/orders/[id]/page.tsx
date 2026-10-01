@@ -71,6 +71,7 @@ import { PhoneField } from '@/components/ui/phone-field';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
+import { deleteErrorText } from '@/lib/delete-code';
 
 /** Shared by the table and by alignHeadCell, which needs the same object. */
 const SLIP_COLUMNS = {
@@ -487,7 +488,7 @@ export default function OrderDetailPage() {
   const order = useAppStore(state => state.orders.find(o => o.id === orderId));
   const settings = useAppStore(state => state.settings);
   const invoices = useAppStore(state => state.generatedInvoices);
-  const { updateOrderStatus, updateOrderItemStatus, removeItemFromOrder, updateOrder, karigars, loadKarigars, revertOrderFromInvoice, refundOrder, loadGeneratedInvoices, loadOrders } = useAppStore();
+  const { updateOrderStatus, updateOrderItemStatus, removeItemFromOrder, updateOrder, karigars, loadKarigars, revertOrderFromInvoice, refundOrder, loadGeneratedInvoices, loadOrders, deleteOrderAdvance, deleteOrder } = useAppStore();
   // The page loads its own orders: opened straight from a link or a reload it used to say "Order not
   // found", since only the Orders list ever started them.
   const ordersSettled = useAppStore(state => state.hasOrdersLoaded || !!state.ordersError);
@@ -533,8 +534,8 @@ export default function OrderDetailPage() {
         await revertOrderFromInvoice(order.id, order.invoiceId);
         toast({ title: "Order Reverted", description: `Invoice ${order.invoiceId} has been cancelled and order is now editable.` });
         setIsRevertDialogOpen(false);
-    } catch {
-        toast({ title: "Error", description: "Failed to revert order.", variant: "destructive" });
+    } catch (e) {
+        toast({ title: "Error", description: deleteErrorText(e, "Failed to revert order."), variant: "destructive" });
     } finally {
         setIsReverting(false);
     }
@@ -548,8 +549,8 @@ export default function OrderDetailPage() {
         toast({ title: "Invoice Cancelled", description: `Invoice ${order.invoiceId} removed. You can now edit the order.` });
         setIsRevertAndEditDialogOpen(false);
         router.push(`/orders/${order.id}/edit`);
-    } catch {
-        toast({ title: "Error", description: "Failed to cancel invoice before editing.", variant: "destructive" });
+    } catch (e) {
+        toast({ title: "Error", description: deleteErrorText(e, "Failed to cancel invoice before editing."), variant: "destructive" });
     } finally {
         setIsReverting(false);
     }
@@ -588,10 +589,31 @@ export default function OrderDetailPage() {
         await refundOrder(order.id);
         toast({ title: "Order Refunded", description: `Order ${order.id} has been marked as refunded and stock restored.` });
         setIsRefundDialogOpen(false);
-    } catch {
-        toast({ title: "Error", description: "Failed to process refund.", variant: "destructive" });
+    } catch (e) {
+        toast({ title: "Not refunded", description: e instanceof Error ? e.message : "Failed to process refund.", variant: "destructive" });
     } finally {
         setIsRefunding(false);
+    }
+  };
+
+  // Deletes ask for the delete code in the store (lib/delete-code.ts).
+  const handleDeleteAdvance = async (index: number, amount: number) => {
+    if (!order) return;
+    try {
+      const updated = await deleteOrderAdvance(order.id, index);
+      toast({ title: 'Advance deleted', description: `PKR ${amount.toLocaleString()} taken off ${order.id}. Balance now PKR ${updated.grandTotal.toLocaleString()}.` });
+    } catch (e) {
+      toast({ title: 'Not deleted', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    }
+  };
+  const handleDeleteOrder = async () => {
+    if (!order) return;
+    try {
+      await deleteOrder(order.id);
+      toast({ title: `Order ${order.id} deleted` });
+      router.push('/orders');
+    } catch (e) {
+      toast({ title: 'Not deleted', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
     }
   };
 
@@ -1081,6 +1103,16 @@ export default function OrderDetailPage() {
                                   </DropdownMenuItem>
                                 </>
                               )}
+                              <DropdownMenuSeparator />
+                              {order.invoiceId ? (
+                                <DropdownMenuItem disabled className="text-xs">
+                                  <Trash2 className="mr-2 h-4 w-4" />Delete order: delete or undo {order.invoiceId} first
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={handleDeleteOrder} className="text-destructive focus:text-destructive">
+                                  <Trash2 className="mr-2 h-4 w-4" />Delete order
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -1373,15 +1405,28 @@ export default function OrderDetailPage() {
                           {discountAmount > 0 && (
                             <div className="flex justify-between text-destructive"><span>Discount:</span> <span className="font-semibold">- PKR {discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           )}
-                          <div className="flex justify-between text-destructive"><span>Advance paid:</span> <span className="font-semibold">- PKR {advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                          <div className="flex justify-between items-center text-destructive"><span>Advance paid:</span>
+                            <span className="font-semibold inline-flex items-center gap-1">- PKR {advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              {/* One advance: its delete sits here; several: each line has its own below. */}
+                              {!order.invoiceId && advanceLines.length === 1 && (
+                                <button type="button" onClick={() => handleDeleteAdvance(0, advanceLines[0].amount)} className="min-h-0 p-1 text-muted-foreground hover:text-destructive"
+                                  aria-label="Delete this advance" title="Delete this advance (asks for the delete code)"><Trash2 className="h-3.5 w-3.5" /></button>
+                              )}
+                            </span>
+                          </div>
                           {/* Each advance with its day and how it was paid — these become the
                               invoice's payments when the order is finalised. */}
                           {advanceLines.length > 1 && (
                             <ul className="text-xs text-muted-foreground space-y-0.5 pl-3">
                               {advanceLines.map((a, i) => (
-                                <li key={i} className="flex justify-between gap-3">
+                                <li key={i} className="flex justify-between items-center gap-3">
                                   <span>{format(parseISO(a.date), 'dd MMM yyyy')}{a.method ? ` · ${a.method}` : ''}{a.notes ? ` · ${a.notes}` : ''}</span>
-                                  <span className="tabular-nums">{a.amount.toLocaleString()}</span>
+                                  <span className="tabular-nums inline-flex items-center gap-1">{a.amount.toLocaleString()}
+                                    {!order.invoiceId && (
+                                      <button type="button" onClick={() => handleDeleteAdvance(i, a.amount)} className="min-h-0 p-1 hover:text-destructive"
+                                        aria-label={`Delete the advance of ${a.amount.toLocaleString()}`} title="Delete this advance (asks for the delete code)"><Trash2 className="h-3 w-3" /></button>
+                                    )}
+                                  </span>
                                 </li>
                               ))}
                             </ul>

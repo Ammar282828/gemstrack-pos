@@ -32,6 +32,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { PageShell } from '@/components/shared/page-shell';
+import { deleteErrorText } from '@/lib/delete-code';
 
 const CustomerActions: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void>; isCard?: boolean }> = ({ customer, onDelete, isCard }) => {
   return (
@@ -565,13 +566,22 @@ export default function CustomersPage() {
 
 
   const handleDeleteCustomer = async (id: string) => {
-    await deleteCustomerAction(id);
+    try {
+      await deleteCustomerAction(id);
+    } catch (e) {
+      toast({ title: 'Not deleted', description: deleteErrorText(e, 'Could not delete the customer.'), variant: 'destructive' });
+      return;
+    }
     toast({ title: "Customer Deleted", description: `Customer has been deleted.` });
   };
 
   const handleMerge = async (keepId: string, deleteId: string) => {
-    const result = await mergeCustomers(keepId, deleteId);
-    toast({ title: "Customers Merged", description: `Duplicate removed. ${result.updatedDocs} records updated.` });
+    try {
+      const result = await mergeCustomers(keepId, deleteId);
+      toast({ title: "Customers Merged", description: `Duplicate removed. ${result.updatedDocs} records updated.` });
+    } catch (e) {
+      toast({ title: 'Not merged', description: deleteErrorText(e, 'Could not merge the customers.'), variant: 'destructive' });
+    }
   };
 
   // One "owed" for the whole ERP (lib/owed.ts): walk-ins and typed-name invoices are in its total and shown

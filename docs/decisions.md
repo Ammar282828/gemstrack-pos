@@ -298,6 +298,25 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   on a device handed across the counter it would otherwise credit everyone's sales to one login. Found with it: editing an
   invoice in the cart never loaded its Taken by, so a re-save dropped it; it loads now.
 
+### Delete code
+
+- **Every delete asks for a code first** (2026-10-01, owner: "add ability to delete invoices/advances/orders or anything —
+  just make it a verification thing to do that [code]"). One dialog (`components/shared/delete-code-dialog.tsx`), asked in
+  the store's delete actions themselves (`requireDeleteCode` → `lib/delete-code.ts`), so every way in is covered: pages, the
+  activity log's undo, swipe-to-delete on a phone, a delete inside another, the voice assistant's undo. A right code holds two
+  minutes (a row of deletes, or a refund that deletes its invoice, asks once); a refused one throws `NOT_DELETED`, and pages
+  show it instead of "deleted". **The code is never in the repo** (gemstrack-pos is public) or the browser: each house keeps a
+  salted SHA-256 at `app_private/delete_code`, the server compares (`/api/auth/delete-code`, owners and staff, 8 wrong tries per 15
+  minutes per account, wrong tries logged). Change it: `node scripts/set-delete-code.mjs <project> <code>`. A deliberate-action
+  check, not the database's boundary: an owner can still write Firestore directly. Gated: invoices (Delete beside Refund, the
+  refunds), **one payment on an invoice** (an order's advance carried over included — `removeInvoicePayment`, the payment
+  transaction run backwards), **one advance on an open order** (`withoutOrderAdvance`), **an order** (Delete order; refused
+  while it has an invoice, and its sample photos go with it), order items and undoing an invoice, customers (and merge, and
+  emptying Recently removed), karigars and their batches and silver, products (and "delete latest"), ledger, expenses, extra
+  revenue, given, repairs, workshop jobs, shareholder entries. Found with it: deleting one of two invoices for the same order
+  cleared the order's link (the advance counted as revenue again) — it now keeps the other; a duplicate's pieces stay sold.
+  Not gated: drafts (they have Undo), settings lists, ads and website items (outside the books).
+
 ### Karigar sign-in
 
 - **A karigar's Google sign-in fails on his phone, where the ERP can't see it** (2026-10-01, owner: "why cant uzair my karigar

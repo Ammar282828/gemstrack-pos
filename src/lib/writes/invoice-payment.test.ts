@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recordInvoicePayment } from './invoice-payment';
+import { recordInvoicePayment, removeInvoicePayment } from './invoice-payment';
 import type { DbPort, TxCtx } from '@/lib/db-port';
 
 /** An in-memory database that counts commits, so "one trip" is checked, not assumed. */
@@ -63,5 +63,34 @@ describe('recording a payment', () => {
     const two = fakeDb({ invoices: { 'INV-3': { grandTotal: 10_000, amountPaid: 0, balanceDue: 10_000, customerId: 'c3', paymentHistory: [] } } });
     await recordInvoicePayment(two.db, { invoiceId: 'INV-3', amount: 4_000, date: 'd' });
     expect(Object.values(two.data.hisaab)).toEqual([expect.objectContaining({ linkedInvoiceId: 'INV-3', cashDebit: 6_000, entityId: 'c3' })]);
+  });
+});
+
+describe('deleting a payment', () => {
+  it('takes it off, puts the balance back on the ledger and the order, in one commit', async () => {
+    const { db, data, stats } = fakeDb({
+      invoices: { 'INV-1': { grandTotal: 288_250, amountPaid: 288_250, balanceDue: 0, customerId: 'c1', customerName: 'Fatima', sourceOrderId: 'ORD-1',
+        paymentHistory: [{ amount: 30_000, date: '2026-09-25', notes: 'Advance on order ORD-1' }, { amount: 258_250, date: '2026-09-30', method: 'Cash' }] } },
+      orders: { 'ORD-1': { grandTotal: 0 } },
+    });
+    const out = await removeInvoicePayment(db, { invoiceId: 'INV-1', index: 0, amount: 30_000, date: '2026-09-25' });
+    expect(out.removed.notes).toBe('Advance on order ORD-1');
+    expect(data.invoices['INV-1']).toMatchObject({ amountPaid: 258_250, balanceDue: 30_000 });
+    expect((data.invoices['INV-1'].paymentHistory as unknown[]).length).toBe(1);
+    expect(Object.values(data.hisaab)).toEqual([expect.objectContaining({ entityId: 'c1', cashDebit: 30_000, linkedInvoiceId: 'INV-1' })]);
+    expect(data.orders['ORD-1']).toMatchObject({ grandTotal: 30_000 });
+    expect(stats.transactions).toBe(1);
+  });
+
+  it("a walk-in's paid invoice owing again gets the walk-in row it would have had", async () => {
+    const { db, data } = fakeDb({ invoices: { 'INV-2': { grandTotal: 1_000, amountPaid: 1_000, balanceDue: 0, customerName: 'Walk-in Customer', paymentHistory: [{ amount: 1_000, date: 'd' }] } } });
+    await removeInvoicePayment(db, { invoiceId: 'INV-2', index: 0, amount: 1_000, date: 'd' });
+    expect(Object.values(data.hisaab)).toEqual([expect.objectContaining({ entityId: 'walk-in', cashDebit: 1_000 })]);
+  });
+
+  it('refuses when the invoice changed since the page showed it', async () => {
+    const { db, data } = fakeDb({ invoices: { 'INV-3': { grandTotal: 1_000, amountPaid: 500, balanceDue: 500, paymentHistory: [{ amount: 500, date: 'd' }] } } });
+    await expect(removeInvoicePayment(db, { invoiceId: 'INV-3', index: 0, amount: 400, date: 'd' })).rejects.toThrow(/changed/);
+    expect(data.invoices['INV-3']).toMatchObject({ amountPaid: 500 });
   });
 });

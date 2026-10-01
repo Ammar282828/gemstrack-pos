@@ -33,6 +33,7 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { resolveRecipientId } from '@/lib/given';
 import { PageShell } from '@/components/shared/page-shell';
+import { deleteErrorText } from '@/lib/delete-code';
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 const givenSchema = z.object({
@@ -273,8 +274,8 @@ export default function GivenItemsPage() {
     try {
       await deleteGivenItem(id);
       toast({ title: 'Deleted' });
-    } catch {
-      toast({ title: 'Error', description: 'Could not delete item.', variant: 'destructive' });
+    } catch (e) {
+      toast({ title: 'Error', description: deleteErrorText(e, 'Could not delete item.'), variant: 'destructive' });
     }
   };
 
