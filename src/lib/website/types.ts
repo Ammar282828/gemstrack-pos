@@ -89,6 +89,8 @@ export interface PieceAttrs {
   weightGrams?: number;
   /** A great house's own piece (The Maisons on taheri.shop): "Cartier". */
   house?: string;
+  /** Shown in The Maisons on taheri.shop, house named or not: its price is asked for. */
+  maison?: boolean;
 }
 
 export type QuoteReason = 'unknown_piece' | 'not_configured' | 'no_weight' | 'diamond_enquire' | 'maison_enquire' | 'metal_enquire';

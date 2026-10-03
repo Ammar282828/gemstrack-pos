@@ -38,6 +38,9 @@ describe('quotePiece', () => {
     expect(love).toMatchObject({ priceable: false, reason: 'maison_enquire' });
     const dropped = quotePiece('Wristwear/The Maisons/Cartier — LOVE Bracelet, Classic.jpg', { metal: 'Yellow Gold', stone: 'None', cut: 'None', style: 'Contemporary', weightGrams: 27 }, config, rates);
     expect(dropped).toMatchObject({ priceable: false, reason: 'maison_enquire' });
+    // Moved into The Maisons with no house named (the Pavé Twist Karas): the site marks it `maison`.
+    const twist = quotePiece('Wristwear/Karay/DSC07675_overlay.webp', { metal: 'Yellow Gold', stone: 'Diamond', cut: 'Round', style: 'Contemporary', weightGrams: 18, maison: true }, config, rates);
+    expect(twist).toMatchObject({ priceable: false, reason: 'maison_enquire' });
   });
 
   it('adds the stone default for coloured stones and pearls, not for plain gold', () => {

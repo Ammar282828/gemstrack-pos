@@ -48,7 +48,8 @@ export function quotePiece(key: string, attrs: PieceAttrs | undefined, config: W
   if (!attrs) return { key, collection, priceable: false, reason: 'unknown_piece' };
   if (!config.enabled) return { key, collection, priceable: false, reason: 'not_configured' };
   // A great house's own piece is not gold by the gram: its price is asked for, never quoted.
-  if (attrs.house || isMaisonFolder(key.split('/').slice(0, 2).join('/'))) return { key, collection, priceable: false, reason: 'maison_enquire' };
+  // `maison` is every piece the site shows in The Maisons, its house named or not.
+  if (attrs.house || attrs.maison || isMaisonFolder(key.split('/').slice(0, 2).join('/'))) return { key, collection, priceable: false, reason: 'maison_enquire' };
 
   if (notByTheGram(attrs.metal)) return { key, collection, priceable: false, reason: 'metal_enquire' };
 
