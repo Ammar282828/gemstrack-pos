@@ -111,7 +111,11 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 - **One screen per question** (2026-10-01 audit, Phase 4). **Owed to you** is one rule, `lib/owed.ts` (tested): every invoice
   not refunded with `balanceDue` > 0.5, walk-ins and typed names included (under `WALK_IN_ENTITY` / `name:` keys, as Analytics
   keys them) — the dashboard, the customer list (it had dropped walk-ins and typed names), Invoices' subtitle and Hisaab's "On
-  invoices" line all read it and agree to the rupee. **Today's cash** (`/today`, a Home tab, owners only;
+  invoices" line all read it and agree to the rupee. **Since 2026-10-03 it adds the hisaab's hand-written balances** (the owner,
+  on his father's Easy Khata: "yes add dads"): each customer's ledger rows that no invoice keeps (`linkedInvoiceId` unset; not
+  karigars), counted when the customer owes the shop — on the dashboard (its tile then opens Hisaab and says how much is from
+  there) and the customer list; Invoices' subtitle and Hisaab's "On invoices" line stay invoices only. A customer with hisaab
+  rows is never offered as spam. **Today's cash** (`/today`, a Home tab, owners only;
   `lib/analytics/todays-cash.ts`, tested) is Karachi's day: money in by method (invoice payments, advances on orders not yet
   invoiced, repair money with the repair's own method, other income "Not recorded"), exchange apart, expenses the business paid,
   and **the drawer = Cash − expenses**; it is built on `cash-in.ts`, so it matches Analytics, and the 9 pm daily report's "Net

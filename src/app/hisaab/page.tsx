@@ -368,7 +368,7 @@ export default function HisaabPage() {
             <p className="text-2xl font-bold text-success">PKR {totalReceivable.toLocaleString()}</p>
             {totalReceivableGold > 0 && <p className="text-sm font-semibold text-success/90">{totalReceivableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g {STORE_METAL_WORD}</p>}
             <p className="text-xs text-muted-foreground mt-1">
-              On invoices: PKR {Math.round(owedOnInvoices.total).toLocaleString()} (the dashboard&apos;s &ldquo;Owed to you&rdquo;, walk-ins included)
+              On invoices: PKR {Math.round(owedOnInvoices.total).toLocaleString()}, walk-ins included (the dashboard&apos;s &ldquo;Owed to you&rdquo; adds the hand-written balances here)
             </p>
           </CardContent>
         </Card>

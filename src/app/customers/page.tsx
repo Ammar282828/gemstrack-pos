@@ -3,6 +3,7 @@
 "use client";
 
 import { owedToYou } from '@/lib/owed';
+import { WALK_IN_ENTITY } from '@/lib/walk-in';
 import React, { useState, useMemo, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { format, parseISO, subMonths } from 'date-fns';
@@ -530,15 +531,17 @@ export default function CustomersPage() {
   const [spamOpen, setSpamOpen] = useState(false);
 
   const appReady = useAppReady();
-  const { customers, orders, generatedInvoices, deleteCustomerAction, isCustomersLoading, loadCustomers, loadOrders, loadGeneratedInvoices, mergeCustomers } = useAppStore(state => ({
+  const { customers, orders, generatedInvoices, hisaabEntries, deleteCustomerAction, isCustomersLoading, loadCustomers, loadOrders, loadGeneratedInvoices, loadHisaab, mergeCustomers } = useAppStore(state => ({
     customers: state.customers,
     orders: state.orders,
     generatedInvoices: state.generatedInvoices,
+    hisaabEntries: state.hisaabEntries,
     deleteCustomerAction: state.deleteCustomer,
     isCustomersLoading: state.isCustomersLoading,
     loadCustomers: state.loadCustomers,
     loadOrders: state.loadOrders,
     loadGeneratedInvoices: state.loadGeneratedInvoices,
+    loadHisaab: state.loadHisaab,
     mergeCustomers: state.mergeCustomers,
   }));
   const { toast } = useToast();
@@ -548,16 +551,19 @@ export default function CustomersPage() {
       loadCustomers();
       loadOrders();
       loadGeneratedInvoices();
+      loadHisaab();
     }
-  }, [appReady, loadCustomers, loadOrders, loadGeneratedInvoices]);
+  }, [appReady, loadCustomers, loadOrders, loadGeneratedInvoices, loadHisaab]);
 
-  // Customer IDs that have any order or invoice — these are never flagged as spam.
+  // Customer IDs that have any order, invoice or hisaab row — these are never flagged as spam
+  // (the old khata's customers have a name and a ledger, no phone and no sale here).
   const transactedIds = useMemo(() => {
     const ids = new Set<string>();
     for (const o of orders) if (o.customerId) ids.add(o.customerId);
     for (const inv of generatedInvoices) if (inv.customerId) ids.add(inv.customerId);
+    for (const h of Array.isArray(hisaabEntries) ? hisaabEntries : []) if (h.entityType === 'customer' && h.entityId) ids.add(h.entityId);
     return ids;
-  }, [orders, generatedInvoices]);
+  }, [orders, generatedInvoices, hisaabEntries]);
 
   const spamCandidates = useMemo(
     () => (appReady ? detectSpamCustomers(customers, transactedIds) : []),
@@ -586,7 +592,8 @@ export default function CustomersPage() {
 
   // One "owed" for the whole ERP (lib/owed.ts): walk-ins and typed-name invoices are in its total and shown
   // as their own line here, since they have no customer record to sit on.
-  const owed = useMemo(() => owedToYou(generatedInvoices, id => customers.find(c => c.id === id)?.name), [generatedInvoices, customers]);
+  const owed = useMemo(() => owedToYou(generatedInvoices, id => customers.find(c => c.id === id)?.name, Array.isArray(hisaabEntries) ? hisaabEntries : []),
+    [generatedInvoices, customers, hisaabEntries]);
   /** Spend, outstanding and last-sale date per customer record. Invoices with only a typed-in name
    *  have no record to sit on; what they owe is in the tile's total as its own line. */
   const statsById = useMemo(() => {
@@ -605,9 +612,11 @@ export default function CustomersPage() {
       if (inv?.status === 'Refunded') continue;
       bump(inv?.customerId, inv?.grandTotal || 0, 0, inv?.createdAt);
     }
+    // A customer known only from the hisaab (the old khata) has no sale here, but still owes.
     for (const [key, o] of owed.byKey) {
       const cur = map.get(key);
       if (cur) cur.owed = o.amount;
+      else if (!key.startsWith('name:') && key !== WALK_IN_ENTITY) map.set(key, { spent: 0, owed: o.amount, count: 0 });
     }
     for (const o of orders) {
       if (!o || o.invoiceId || o.status === 'Cancelled' || o.status === 'Refunded') continue;

@@ -158,6 +158,7 @@ export default function HomePage() {
     karigars, loadKarigars, karigarJobs, loadKarigarJobs,
     customers, loadCustomers,
     repairs, loadRepairs,
+    hisaabEntries, loadHisaab,
     settings,
   } = useAppStore(state => ({
     loadProducts: state.loadProducts,
@@ -177,6 +178,8 @@ export default function HomePage() {
     loadCustomers: state.loadCustomers,
     repairs: state.repairs,
     loadRepairs: state.loadRepairs,
+    hisaabEntries: state.hisaabEntries,
+    loadHisaab: state.loadHisaab,
     settings: state.settings,
   }));
 
@@ -184,9 +187,9 @@ export default function HomePage() {
     if (!appReady) return;
     loadProducts(); loadOrders(); loadGeneratedInvoices();
     loadAdditionalRevenues(); loadExpenses(); loadKarigars(); loadKarigarJobs();
-    loadCustomers(); loadRepairs();
+    loadCustomers(); loadRepairs(); loadHisaab();
   }, [appReady, loadProducts, loadOrders, loadGeneratedInvoices,
-      loadAdditionalRevenues, loadExpenses, loadKarigars, loadKarigarJobs, loadCustomers, loadRepairs]);
+      loadAdditionalRevenues, loadExpenses, loadKarigars, loadKarigarJobs, loadCustomers, loadRepairs, loadHisaab]);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -210,8 +213,9 @@ export default function HomePage() {
     const todayInvoices = generatedInvoices.filter(i =>
       i.status !== 'Refunded' && parseISO(getInvoiceRevenueDate(i, ordersById)) >= todayStart);
 
-    // What customers owe: the one selector the customer list, Invoices and Hisaab read too (lib/owed.ts).
-    const owed = owedToYou(generatedInvoices);
+    // What customers owe: the one selector the customer list, Invoices and Hisaab read too (lib/owed.ts),
+    // with what the hisaab holds by hand (the old khata) added.
+    const owed = owedToYou(generatedInvoices, undefined, Array.isArray(hisaabEntries) ? hisaabEntries : []);
     const unpaid = [...owed.invoices].sort((a, b) => (b.balanceDue || 0) - (a.balanceDue || 0));
     const totalOutstanding = owed.total;
 
@@ -249,7 +253,7 @@ export default function HomePage() {
       todayInvoiceCount: todayInvoices.length,
       monthRevenue: rev(monthStart),
       lastMonthRevenue: rev(lastMonthStart, monthStart),
-      unpaid, totalOutstanding,
+      unpaid, totalOutstanding, owedInHisaab: owed.ledger,
       activeJobs, criticalJobs, unassignedJobs,
       due, lateDue, todayDue, readyWaiting,
       revenue30, expenses30, net30: revenue30 - expenses30,
@@ -257,7 +261,7 @@ export default function HomePage() {
         .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime())
         .slice(0, 12),
     };
-  }, [orders, generatedInvoices, additionalRevenues, expenses, karigars, karigarJobs, repairs]);
+  }, [orders, generatedInvoices, additionalRevenues, expenses, karigars, karigarJobs, repairs, hisaabEntries]);
 
   /**
    * Everything actually waiting on a decision, worst first — grouped, not
@@ -363,11 +367,13 @@ export default function HomePage() {
         <Headline label="This month" href="/analytics" icon={<CalendarDays className="h-4 w-4" />}
           value={compactPKR(stats.monthRevenue)} exact={`PKR ${stats.monthRevenue.toLocaleString()}`}
           sub={monthSub} />
-        <Headline label="Owed to you" href="/invoices" icon={<Receipt className="h-4 w-4" />}
+        <Headline label="Owed to you" href={stats.owedInHisaab > 0 ? '/hisaab' : '/invoices'} icon={<Receipt className="h-4 w-4" />}
           value={stats.totalOutstanding > 0 ? compactPKR(stats.totalOutstanding) : 'Nil'}
-          exact={`PKR ${stats.totalOutstanding.toLocaleString()}`}
+          exact={stats.owedInHisaab > 0
+            ? `PKR ${stats.totalOutstanding.toLocaleString()} — invoices ${(stats.totalOutstanding - stats.owedInHisaab).toLocaleString()}, hisaab ${stats.owedInHisaab.toLocaleString()}`
+            : `PKR ${stats.totalOutstanding.toLocaleString()}`}
           tone={stats.totalOutstanding > 0 ? 'text-destructive' : undefined}
-          sub={`${stats.unpaid.length} unpaid`} />
+          sub={stats.owedInHisaab > 0 ? `${stats.unpaid.length} unpaid · ${compactPKR(stats.owedInHisaab)} in hisaab` : `${stats.unpaid.length} unpaid`} />
         <Headline label="On the bench" href="/workshop" icon={<Hammer className="h-4 w-4" />}
           value={`${stats.activeJobs.length} piece${stats.activeJobs.length === 1 ? '' : 's'}`}
           tone={stats.criticalJobs.length > 0 ? 'text-destructive' : undefined}
