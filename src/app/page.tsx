@@ -373,7 +373,7 @@ export default function HomePage() {
             ? `PKR ${stats.totalOutstanding.toLocaleString()} — invoices ${(stats.totalOutstanding - stats.owedInHisaab).toLocaleString()}, hisaab ${stats.owedInHisaab.toLocaleString()}`
             : `PKR ${stats.totalOutstanding.toLocaleString()}`}
           tone={stats.totalOutstanding > 0 ? 'text-destructive' : undefined}
-          sub={stats.owedInHisaab > 0 ? `${stats.unpaid.length} unpaid · ${compactPKR(stats.owedInHisaab)} in hisaab` : `${stats.unpaid.length} unpaid`} />
+          sub={stats.owedInHisaab > 0 ? `${stats.unpaid.length} unpaid · ${compactPKR(stats.owedInHisaab).replace(/^PKR\s*/, '')} hisaab` : `${stats.unpaid.length} unpaid`} />
         <Headline label="On the bench" href="/workshop" icon={<Hammer className="h-4 w-4" />}
           value={`${stats.activeJobs.length} piece${stats.activeJobs.length === 1 ? '' : 's'}`}
           tone={stats.criticalJobs.length > 0 ? 'text-destructive' : undefined}

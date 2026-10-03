@@ -115,7 +115,12 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   on his father's Easy Khata: "yes add dads"): each customer's ledger rows that no invoice keeps (`linkedInvoiceId` unset; not
   karigars), counted when the customer owes the shop — on the dashboard (its tile then opens Hisaab and says how much is from
   there) and the customer list; Invoices' subtitle and Hisaab's "On invoices" line stay invoices only. A customer with hisaab
-  rows is never offered as spam. **Today's cash** (`/today`, a Home tab, owners only;
+  rows is never offered as spam. **The khata itself** (imported 2026-10-03 from his "Khatay ki Report" PDF, 3,863 rows; the owner
+  checked a review first): rows already in the ERP were skipped, and payments the ERP lacked went on their invoices (reference
+  "Easy Khata"). Each row is a hisaab entry with `source: 'easy-khata'`, its `khataName` and `khataPage`, described "Given…" /
+  "Received… (khata)", under the fixed id `khata-<sha1(date|name|side|amount|nth same row)[:16]>`. A name not already a customer
+  became one, `cust-khata-<sha1(name)[:12]>`, name only. The next export can therefore be imported over the top: existing ids are
+  skipped, and only rows after 2 Oct 26 need checking against the ERP. **Today's cash** (`/today`, a Home tab, owners only;
   `lib/analytics/todays-cash.ts`, tested) is Karachi's day: money in by method (invoice payments, advances on orders not yet
   invoiced, repair money with the repair's own method, other income "Not recorded"), exchange apart, expenses the business paid,
   and **the drawer = Cash − expenses**; it is built on `cash-in.ts`, so it matches Analytics, and the 9 pm daily report's "Net
