@@ -992,7 +992,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
             </div>
 
              {/* Sidebar */}
-            <div className="lg:col-span-1 lg:sticky top-8 space-y-6">
+            <div className="lg:col-span-1 space-y-6">
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-base">Customer</CardTitle>

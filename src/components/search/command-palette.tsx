@@ -54,7 +54,7 @@ const pkr = (n: number) => (n >= 100000 ? `PKR ${(n / 100000).toFixed(n >= 10000
  * Every page and every thing to make comes from the navigation registry (lib/nav.ts), for this
  * person: staff see what the sidebar shows them, and a house's switched-off pages are nowhere.
  * It was a hand-kept list of its own that had drifted from the sidebar — other names, missing
- * pages (From the website, Drafts, Scan, Labels, every Analytics and Ads tab) and no roles.
+ * pages (the Posts hub, Drafts, Scan, Labels, every Analytics and Ads tab) and no roles.
  */
 function destinationsFor(staff: boolean): Array<Item & { keywords: string[] }> {
   return paletteFor(staff).map(d => ({

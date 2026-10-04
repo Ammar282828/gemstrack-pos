@@ -5,7 +5,7 @@
  * to be fixed up and posted like a photo from the phone (owner, 2026-09-29: "for post a piece let
  * me add any pic from the website and then fix it up there").
  *
- * The same list as Posts → From the website (/api/website/site-pieces), opened on New arrivals,
+ * The same list as the Posts hub (/api/website/site-pieces), opened on New arrivals,
  * newest first; search, collections, several at once. The page fetches each chosen photograph
  * through the ERP (lib/website/site-photo.ts says which).
  */

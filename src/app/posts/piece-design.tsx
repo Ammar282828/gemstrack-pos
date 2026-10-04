@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * From the website → Crop & design (the owner, 2026-09-27: "for post a piece from
+ * A website piece → Crop & design (the owner, 2026-09-27: "for post a piece from
  * the website, add an ability to crop the photo or redesign etc like the rest of
  * the space"). The chosen piece's photo in the square editor Edit a piece and
  * Post a Piece use: crop by drag or pinch, the house's layouts (the weight, the
@@ -25,9 +25,9 @@ import { weightLabel } from '@/lib/social/caption';
 import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
 import { applySquarePreset, emptySquare, reflow, renderDocTo, type Assets, type Bind, type Fields, type SquarePresetId, type StoryDoc } from '@/lib/social/editor';
 import { showsWeight, siteDetailsLine, siteLayouts, siteStartLayout } from '@/lib/social/site-design';
-import { SoloEditor, useStoryDoc } from '../post/story-editor';
-import { FONTS, bodyFace, headlineFace } from '../post/fonts';
-import { useSiteAssets } from '../post/site-assets';
+import { SoloEditor, useStoryDoc } from '@/app/website/post/story-editor';
+import { FONTS, bodyFace, headlineFace } from '@/app/website/post/fonts';
+import { useSiteAssets } from '@/app/website/post/site-assets';
 
 export interface DesignPiece { id: string; name: string; url: string; collection: string; weightOnPhoto: boolean; photoSource: string | null; sourceMarked: boolean }
 

@@ -558,7 +558,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
         </section>
 
         {/* ── The words ── */}
-        <section className="rounded-xl border p-3 sm:p-4 space-y-3 self-start lg:sticky lg:top-4">
+        <section className="rounded-xl border p-3 sm:p-4 space-y-3 self-start lg:sticky lg:top-[4.5rem]">
           <h2 className="font-semibold">What the website says</h2>
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-2"><Label htmlFor="name">Name</Label>{own('name')}</div>

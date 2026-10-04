@@ -19,7 +19,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   SALES       Orders · Invoices · Repairs · Customers · Drafts (count)
   WORKSHOP &  Workshop (Jobs · Karigars · Given items) · Stock (Pieces · Add in bulk · Labels · Scan) — Stock owners only
   STOCK
-  MARKETING   Posts (Post a piece · From the website · Investments) · Website (Add photos · Edit a piece · Photo weights)
+  MARKETING   Posts (Hub · Post a piece · Investments) · Website (Add photos · Edit a piece · Photo weights)
               · Ads (Overview · Campaigns · Studio · New ad · Setup; Ad sets lights Campaigns, Audiences/Rules are cards on Setup)
   MONEY       Money (Expenses · Extra revenue · Overheads · Hisaab · Shareholders) · Analytics (Overview · Sales · Products ·
               Customers · Categories — the range rides in `?range=`, `lib/analytics/range-param.ts`, and carries across tabs)

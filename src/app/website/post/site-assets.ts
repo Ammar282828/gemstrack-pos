@@ -4,7 +4,7 @@
  * The fonts and marks the square editor draws a website photograph with — the
  * house site's own mark (STORE_SITE_MARK_SVG) and the t where there is one —
  * loaded as Post a Piece loads its own: layouts measure the marks when they place
- * them. For Website → Edit a piece and Posts → From the website; `enabled` holds
+ * them. For Website → Edit a piece and the Posts hub; `enabled` holds
  * it back until an editor is first wanted.
  */
 

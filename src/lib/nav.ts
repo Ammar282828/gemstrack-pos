@@ -24,7 +24,7 @@ import {
   Home, PlusCircle, ClipboardList, Receipt, Wrench, Users, FileClock, Hammer, Boxes, Send, Globe, Megaphone,
   Wallet, TrendingUp, Settings as SettingsIcon, Calendar, Briefcase, Package, Gem, Layers, ImagePlus, Scale,
   PenLine, Coins, Target, BookUser, PieChart, Landmark, Tag, ArchiveRestore, RotateCcw, Mic, History, Palette,
-  Rocket, BarChart3, UsersRound, ListChecks, SlidersHorizontal, Contact, Import, Database, ScanLine, Store,
+  Rocket, BarChart3, UsersRound, ListChecks, SlidersHorizontal, Contact, Import, Database, ScanLine, Camera,
   LayoutGrid, Bell, Plug, Banknote,
 } from 'lucide-react';
 import {
@@ -133,11 +133,12 @@ export const NAV: NavEntry[] = [
   },
   {
     // Everything that goes out to WhatsApp and Instagram (owner, 2026-09-25: Investments belongs with Post a Piece).
-    id: 'posts', group: 'marketing', staff: true, href: '/website/post', label: 'Posts', icon: Send,
+    // The hub (2026-10-04) is what went out today, the queue, and the website's pieces — From the website was folded into it.
+    id: 'posts', group: 'marketing', staff: true, href: '/posts', label: 'Posts', icon: Send,
     when: () => website() && (STORE_POST_PIECE || STORE_SITE_POSTS || STORE_INVESTMENTS),
     tabs: [
-      { staff: true, href: '/website/post', label: 'Post a piece', icon: Send, when: () => STORE_POST_PIECE, keywords: ['post', 'story', 'instagram', 'whatsapp', 'community', 'channel'] },
-      { staff: true, href: '/website/from-site', label: 'From the website', icon: Store, when: () => STORE_SITE_POSTS, keywords: ['website post', 'share a piece', 'new arrivals'] },
+      { staff: true, href: '/posts', label: 'Hub', heading: 'Posts', icon: LayoutGrid, match: ['/website/from-site'], keywords: ['from the website', 'website post', 'share a piece', 'new arrivals', 'queue', 'posted today', 'posting hub'] },
+      { staff: true, href: '/website/post', label: 'Post a piece', icon: Camera, when: () => STORE_POST_PIECE, keywords: ['post', 'story', 'instagram', 'whatsapp', 'community', 'channel', 'new photos'] },
       { staff: true, href: '/website/investments', label: 'Investments', icon: TrendingUp, when: () => STORE_INVESTMENTS, keywords: ['investment', 'gold post'] },
     ],
   },

@@ -1,5 +1,5 @@
 /**
- * AI words for a piece from the house's own website (Posts → From the website),
+ * AI words for a piece from the house's own website (the Posts hub),
  * in that house's voice. The model writes only two things — one line that sells
  * the piece, and its facts — and the POS builds the house's frame around them
  * (sitePieceCaption: name, weight, link, closing lines), so a link or a number

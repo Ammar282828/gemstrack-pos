@@ -1,7 +1,7 @@
 /**
  * A website piece's photograph re-made in the square editor: the layouts each
  * house's photos can take, the one a design starts on, and the small line under
- * the name. Shared by Website → Edit a piece and Posts → From the website (the
+ * the name. Shared by Website → Edit a piece and the Posts hub (the
  * owner, 2026-09-27: "for post a piece from the website, add an ability to crop
  * the photo or redesign etc like the rest of the space").
  */

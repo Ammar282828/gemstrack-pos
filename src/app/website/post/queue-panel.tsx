@@ -47,6 +47,8 @@ export interface NewPiece {
   wa: Blob[];
   story: Blob | null;
   thumb: Blob | null;
+  /** A piece already on the website (the Posts hub), so its sends read as posted. */
+  sitePiece?: string;
 }
 
 /** "a", "a and b", "a, b and c". */
@@ -100,7 +102,7 @@ export function useQueue() {
         headline: p.headline, caption: p.caption, fileBase: p.fileBase,
         counts: { site: p.site.length, wa: p.wa.length, story: !!p.story },
         website: p.targets.website, instagram: p.targets.instagram, whatsapp: p.targets.whatsapp,
-        ...(p.thumb ? { thumb: await base64(p.thumb) } : {}),
+        ...(p.thumb ? { thumb: await base64(p.thumb) } : {}), ...(p.sitePiece ? { sitePiece: p.sitePiece } : {}),
       } });
       id = item.id;
       const files: [string, Blob][] = [
@@ -286,10 +288,10 @@ export function QueuePanel({ api, destinationName, blockers }: {
       {(waiting.length > 0 || going.length > 0) && <ul className="divide-y">{[...going, ...waiting].map(row)}</ul>}
       {waiting.length > 0 && (
         <div className="grid grid-cols-2 gap-2 pt-1">
-          <Button size="sm" disabled={!!sending} onClick={() => setConfirmAll(true)}>
+          <Button size="sm" className="h-auto min-h-9 whitespace-normal py-1.5 leading-tight" disabled={!!sending} onClick={() => setConfirmAll(true)}>
             {sending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Send className="h-4 w-4 mr-1.5" />} Send {waiting.length > 1 ? `all ${waiting.length}` : 'it'} now
           </Button>
-          <Button size="sm" variant="secondary" disabled={!!sending} onClick={openSpread}><Clock className="h-4 w-4 mr-1.5" /> Spread over the day</Button>
+          <Button size="sm" variant="secondary" className="h-auto min-h-9 whitespace-normal py-1.5 leading-tight" disabled={!!sending} onClick={openSpread}><Clock className="h-4 w-4 mr-1.5 shrink-0" /> Spread over the day</Button>
         </div>
       )}
       {sent.length > 0 && (

@@ -345,7 +345,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          <main className="flex-1 min-w-0 p-4 overflow-auto md:p-6">
+          {/* overflow-x-clip, not overflow-auto: an overflow-auto <main> that never scrolls (the window does) is still the
+              scroll box every `sticky` inside it measures against, so no column or toolbar ever stuck (found 2026-10-04).
+              Clip keeps a wide page from widening the screen; tables scroll in their own wrapper (ui/table.tsx). */}
+          <main className="flex-1 min-w-0 p-4 overflow-x-clip md:p-6">
             {children}
           </main>
 

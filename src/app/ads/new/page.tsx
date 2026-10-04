@@ -13,7 +13,7 @@
  *   6  Preview           Meta's own rendering, feed / story / reels
  *   7  Make it           paused to look over, or live once Meta approves
  *
- * `?piece=<id>` starts from a website piece (Posts → From the website links
+ * `?piece=<id>` starts from a website piece (the Posts hub links
  * here); `?studio=<key>` from an ad made in Ads → Studio. The last audience and
  * budget are remembered on this device.
  */

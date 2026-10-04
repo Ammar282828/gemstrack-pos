@@ -49,6 +49,8 @@ export interface QueueItem extends QueueTargets {
   caption: string;
   /** "bangle-and-ring" — WhatsApp's file names. */
   fileBase: string;
+  /** A piece already on the website (the Posts hub): logged with each send, so it reads as posted. */
+  sitePiece?: string;
   counts: QueueCounts;
   /** A small JPEG for the list. */
   thumb?: Buffer;
@@ -83,13 +85,14 @@ export function toView(d: QueueItem): QueueItemView {
 
 // ── Making a piece ───────────────────────────────────────────────────────────
 
-export async function createItem(p: Pick<QueueItem, 'by' | 'headline' | 'caption' | 'fileBase' | 'counts' | 'website' | 'instagram' | 'whatsapp'> & { thumb?: Buffer }): Promise<QueueItem> {
+export async function createItem(p: Pick<QueueItem, 'by' | 'headline' | 'caption' | 'fileBase' | 'counts' | 'website' | 'instagram' | 'whatsapp' | 'sitePiece'> & { thumb?: Buffer }): Promise<QueueItem> {
   const ref = col().doc();
   const item: QueueItem = {
     ...p, id: ref.id, createdAt: new Date().toISOString(), status: 'draft', dueAt: null,
     stored: {}, done: {}, errors: {}, attempts: 0, claimedAt: null,
   };
   if (!p.thumb) delete item.thumb;
+  if (!p.sitePiece) delete item.sitePiece;
   await ref.set(item);
   return item;
 }
@@ -270,7 +273,7 @@ export async function sendItem(item: QueueItem, opts: { by: string; origin: stri
         ref_ = await s.whatsapp(d, jpegBlob(await image(`wa-${i}`)), name, caption);
         await adminDb.collection('social_posts').add({
           at: new Date().toISOString(), by: opts.by, destination: logName(d), chatId: d.chatId,
-          idMessage: ref_, fileName: name, caption: caption.slice(0, 1024), queue: item.id,
+          idMessage: ref_, fileName: name, caption: caption.slice(0, 1024), queue: item.id, ...(item.sitePiece ? { sitePiece: item.sitePiece } : {}),
         }).catch(() => undefined);
       } else {
         continue;

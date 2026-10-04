@@ -1,5 +1,5 @@
 /**
- * A piece from the house's website as an Instagram story (Posts → From the website;
+ * A piece from the house's website as an Instagram story (the Posts hub;
  * the owner, 2026-09-26: "from the website should also let me send to instagram story").
  *
  * The site's photograph is square and already carries the house's marks, so the

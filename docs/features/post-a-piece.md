@@ -124,7 +124,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 ### Website photos
 
 - **Photos from the website** (2026-09-29, owner: "for post a piece let me add any pic from the website and then fix it up
-  there"): Post a Piece's Photos step has **Website** (`site-picker.tsx`: the From the website list — New arrivals first, newest
+  there"): Post a Piece's Photos step has **Website** (`site-picker.tsx`: the Posts hub's list — New arrivals first, newest
   first, search, collections, up to 10 at once). Each photo comes through `/api/website/site-pieces/image` at 3000 px
   (`lib/website/site-photo.ts`, tested: the catalogue's unmarked source with `original=1`, so the post marks it once;
   taheri.shop's photo as the site shows it) and then is an ordinary photo — Enhance, Retouch, Extend, the designer. It carries

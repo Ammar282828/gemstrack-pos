@@ -2,7 +2,7 @@
  * Post a Piece's queue (src/lib/social/queue.ts).
  *
  *   GET   → the queue: what is waiting, scheduled or failed, and what went in the last two days
- *   POST  { headline, caption, fileBase, counts, website, instagram, whatsapp, thumb? }
+ *   POST  { headline, caption, fileBase, counts, website, instagram, whatsapp, thumb?, sitePiece? }
  *         → a new draft; its images follow one by one (POST /queue/:id), then PATCH { action: 'ready' }
  */
 
@@ -32,6 +32,7 @@ const Create = z.object({
   instagram: z.boolean(),
   whatsapp: z.array(z.string().max(80)).max(12),
   thumb: z.string().max(200_000).optional(),   // base64 JPEG
+  sitePiece: z.string().max(300).optional(),     // a piece already on the website (the Posts hub)
 });
 
 export async function POST(req: NextRequest) {
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
   const item = await createItem({
     by: who, headline: p.headline.trim(), caption: p.caption, fileBase: p.fileBase, counts: p.counts,
     website: p.website, instagram: p.instagram, whatsapp: [...new Set(p.whatsapp)],
-    thumb: p.thumb ? Buffer.from(p.thumb, 'base64') : undefined,
+    thumb: p.thumb ? Buffer.from(p.thumb, 'base64') : undefined, sitePiece: p.sitePiece || undefined,
   });
   return NextResponse.json({ item: toView(item) });
 }

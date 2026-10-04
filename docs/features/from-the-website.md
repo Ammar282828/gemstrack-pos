@@ -1,10 +1,30 @@
-# Posts → From the website
+# Posts: the hub and the website's pieces
 
 _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE.md keeps a one-line index; this is the record._
 
+### Posts hub
+
+- **Posts → Hub** (`/posts`, 2026-10-04; owner: "the posts tab could be consolidated a lot better … the workflows could be
+  smoother maybe merged? while still keeping everything central. like a posting hub maybe"). Built on what the send log showed:
+  in the ten days before, 26 of Taheri's 37 sends and all 24 of Mina's were website pieces, three or four within a minute or two,
+  each picked, sent and confirmed alone; the queue had never been used (`social_queue` empty in both houses). The hub, top down:
+  **Today** (`today.tsx`): every send from every path, one line per piece (`lib/social/sent-log.ts`, tested; `GET
+  /api/website/post/recent`, the last two days of `social_posts`), and in Taheri the gold post's parts (sent at, due at, needs your
+  OK — `statusOf`); **the queue** (Post a Piece's `QueuePanel`); **the website's pieces** (what From the website was): tap one or
+  several (up to 10) — each is a card of its own (`piece-card.tsx`: caption, AI words, weight stamp, crop & design, Instagram
+  story) — then one **Send all** after one confirm, one after another, stopping at the first failure (a piece some places took
+  leaves the tray: sending again would post twice), or **Later**: into the queue, to send at a time or spread over the day
+  (queue entries carry `sitePiece`, so they count as posted). Where posts go is one choice per device, shared with Post a Piece
+  (`post-drafts` prefs `waTargets`). On a phone a bar at the bottom says what is picked while Send is out of sight. **New piece**,
+  **Drafts** and "Still making X" open Post a Piece (`?new=1`, `?draft=<id>`; a card's **Post a piece** opens it with `?site=<id>`,
+  the piece already in its photos). `/website/from-site` redirects here. `postGate`'s default is now Post a Piece *or* the site
+  posts. Found on the way: `<main>`'s `overflow-auto` made every `sticky` in the ERP inert; it is `overflow-x-clip` now, sticky
+  offsets clear the 56 px top bar (`top-[4.5rem]`, Hisaab's search `top-14`), the sale page's sidebar (taller than a screen)
+  is no longer sticky, the order form's pricing card scrolls inside itself.
+
 ### From the website
 
-- **Posts → From the website** (`/website/from-site`, 2026-09-25; owner: "give me an option to take any post from taheri.shop (or
+- **Posts → From the website** (`/website/from-site` until 2026-10-04, now the Posts hub's grid and cards; 2026-09-25; owner: "give me an option to take any post from taheri.shop (or
   randomize) … add the post link to whatsapp community from right there", then the same for House of Mina): opens on **New arrivals**
   (owner: "by default show new arrivals"; `src/lib/website/new-arrivals.ts`, tested — the catalogue's own shelf, `newArrival` in
   `catalog-pieces.json`; taheri.shop: added in the last 30 days, never fewer than the newest 24, from the `added` each photo carries in

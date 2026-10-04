@@ -86,7 +86,7 @@ const FILL = { mode: 'fill' as const, zoom: 1, focusX: 0.5, focusY: 0.5 };
 
 const SITE = (STORE_LINKS.website || '').replace(/\/+$/, '');
 const SITE_NAME = SITE.replace(/^https?:\/\//, '');
-/** Photos → From the website: the house's own pieces, through the same list as Posts → From the website. */
+/** Photos → From the website: the house's own pieces, through the same list as the Posts hub. */
 const FROM_SITE = STORE_SITE_POSTS && !!SITE;
 const NUMBERS = STORE_WHATSAPP_NUMBERS.length ? STORE_WHATSAPP_NUMBERS : [waNumberFromUrl(STORE_LINKS.whatsapp)].filter(Boolean);
 
@@ -1094,13 +1094,22 @@ function PostAPiecePage() {
   };
 
   // Opening the page: the piece being made last, as it was left; otherwise a new one that starts
-  // where this device usually posts.
+  // where this device usually posts. The Posts hub opens it on a draft (?draft=), on a new piece
+  // (?new=1; the one in progress stays in Drafts), or on a piece from the website (?site=<id>).
   useEffect(() => {
     (async () => {
-      const id = currentPostDraft();
+      const sp = new URLSearchParams(window.location.search);
+      const asked = { draft: sp.get('draft'), site: sp.get('site'), fresh: sp.has('new') || sp.has('site') };
+      if (asked.draft || asked.fresh) {
+        // Taken once: a reload keeps the piece on the page, not the request.
+        ['draft', 'site', 'new'].forEach(k => sp.delete(k));
+        window.history.replaceState(window.history.state, '', `${window.location.pathname}${sp.toString() ? `?${sp}` : ''}`);
+      }
+      const id = asked.draft || (asked.fresh ? null : currentPostDraft());
       const ok = id ? await restoreDraft(id) : false;
+      if (asked.draft && !ok) toast({ title: 'That draft could not be opened', description: 'It may have been cleared from this device.', variant: 'destructive' });
       if (!ok) {
-        if (id) setCurrentPostDraft(null);
+        if (id || asked.fresh) setCurrentPostDraft(null);
         const prefs = readPostPrefs();
         destRef.current = prefs;
         if (typeof prefs.toWebsite === 'boolean' && SITE) setToWebsite(prefs.toWebsite);
@@ -1109,6 +1118,17 @@ function PostAPiecePage() {
       }
       restoring.current = false;
       refreshDraftCount();
+      if (asked.site && FROM_SITE) {
+        try {
+          const res = await fetch('/api/website/site-pieces', { headers: await authHeaders(), cache: 'no-store' });
+          const d = await res.json().catch(() => ({}));
+          const piece = ((d.pieces ?? []) as SitePick[]).find(x => x.id === asked.site);
+          if (!res.ok || !piece) throw new Error(d.error || 'That piece is no longer on the website.');
+          await addFromSite([piece]);
+        } catch (e) {
+          toast({ title: 'Couldn’t bring the piece in', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+        }
+      }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1434,7 +1454,7 @@ function PostAPiecePage() {
           </section>
         </div>
 
-        <aside className="contents lg:block lg:min-w-0 lg:space-y-6 lg:sticky lg:top-4 lg:self-start">
+        <aside className="contents lg:block lg:min-w-0 lg:space-y-6 lg:sticky lg:top-[4.5rem] lg:self-start">
           {(() => {
             const current = squarePhotos.find(p => p.id === square.doc.bg.photoId) ?? squarePhotos[0];
             const notSquare = current && Math.abs(current.img.naturalWidth / current.img.naturalHeight - 1) > 0.02;

@@ -101,7 +101,7 @@ export default function ScanPOSPage() {
        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 items-start">
 
         {/* --- Right Column (Cart Summary) - MOVED TO TOP ON MOBILE --- */}
-        <div className="lg:col-span-1 lg:sticky lg:top-8 order-1 lg:order-2">
+        <div className="lg:col-span-1 lg:sticky lg:top-[4.5rem] order-1 lg:order-2">
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-xl flex items-center">

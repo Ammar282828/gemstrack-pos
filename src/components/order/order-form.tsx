@@ -1500,7 +1500,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         </div>
         
         {/* What it costs. Last on a phone; pinned beside the list on a desktop. */}
-        <div className="lg:col-start-3 lg:row-start-2 lg:sticky lg:top-8 lg:self-start">
+        <div className="lg:col-start-3 lg:row-start-2 lg:sticky lg:top-[4.5rem] lg:self-start lg:max-h-[calc(100dvh-5.5rem)] lg:overflow-y-auto">
             <Card>
                 <CardHeader className="pb-4">
                     <CardTitle className="flex items-center text-base"><List className="mr-2 h-5 w-5"/>Pricing</CardTitle>

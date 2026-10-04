@@ -209,9 +209,9 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [WhatsApp reports](docs/features/notifications.md#whatsapp-reports) — `app_settings/global` by name; daily; [PDFs only](docs/features/notifications.md#pdfs-only)
 - [Monthly PDF](docs/features/notifications.md#monthly-pdf) — Analytics' rules; Analytics → Monthly PDF, and the 1st by WhatsApp
 
-**Posts → From the website** (`docs/features/from-the-website.md`)
-- [From the website](docs/features/from-the-website.md#from-the-website) — any site piece to the community or channel; crop & design
-- [Site story](docs/features/from-the-website.md#site-story) — `lib/social/site-story.ts`
+**Posts** (`docs/features/from-the-website.md`)
+- [Hub](docs/features/from-the-website.md#posts-hub) — `/posts`: Today, queue, site pieces in batches
+- [From the website](docs/features/from-the-website.md#from-the-website), [its story](docs/features/from-the-website.md#site-story) — the card
 
 **Investments by Taheri** (`docs/features/investments.md`)
 - [Investments](docs/features/investments.md#investments) — the routine files it; the page and the schedule send it

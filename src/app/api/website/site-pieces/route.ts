@@ -1,6 +1,6 @@
 /**
  * GET → the pieces on this house's website (src/lib/website/site-pieces.ts) and
- * when each last went to the community, for Posts → From the website.
+ * when each last went to the community, for the Posts hub.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
