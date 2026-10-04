@@ -28,7 +28,7 @@ import { cn } from '@/lib/utils';
 import { isBusinessCost } from '@/lib/partnership';
 import { upcomingOccasions, occasionWhen } from '@/lib/occasions';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
-import { useOnlineWaiting } from '@/lib/website/online-client';
+import { useOnlineWaiting, useSellingPausedForRates } from '@/lib/website/online-client';
 import { awaitingTransfer, bookedAsSale } from '@/lib/order-stage';
 
 /** PKR at a glance. Exact value stays available on hover. */
@@ -273,8 +273,18 @@ export default function HomePage() {
    * summed, repairs sitting ready, and the week's birthdays and anniversaries.
    */
   const onlineWaiting = useOnlineWaiting();
+  const ratePause = useSellingPausedForRates();
   const tasks = useMemo(() => {
     const out: React.ComponentProps<typeof TaskRow>[] = [];
+
+    // taheri.shop sells only at a rate set in the last 36 hours (lib/website/config.ts ratesFresh).
+    if (ratePause) {
+      out.push({
+        href: '/settings?tab=rates', tone: 'danger',
+        title: "Set today's gold rate — online selling is paused",
+        detail: ratePause.ratesUpdatedAt ? `Last set ${new Date(ratePause.ratesUpdatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · the rate chip at the top` : 'The rate chip at the top',
+      });
+    }
 
     // An online order nobody has looked at: the customer is waiting for the bank details.
     if (onlineWaiting > 0) {
@@ -351,7 +361,7 @@ export default function HomePage() {
     }
 
     return out;
-  }, [stats, customers, onlineWaiting]);
+  }, [stats, customers, onlineWaiting, ratePause]);
 
   if (!appReady) {
     return (

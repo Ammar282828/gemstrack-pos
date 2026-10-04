@@ -12,6 +12,7 @@ import { DEFAULT_WEBSITE_CONFIG, type WebsiteConfig } from './types';
 const rates = {
   goldRatePerGram24k: 30000, goldRatePerGram22k: 27500, goldRatePerGram21k: 26250, goldRatePerGram18k: 22500,
   palladiumRatePerGram: 9000, platinumRatePerGram: 10000, silverRatePerGram: 300,
+  updatedAt: '2026-09-18T08:00:00Z' as string | null,
 };
 const config: WebsiteConfig = {
   ...DEFAULT_WEBSITE_CONFIG, enabled: true, posCategoryId: 'cat001',
@@ -77,9 +78,22 @@ describe('buildWebsiteOrder', () => {
   });
 
   it('refuses when the shop has not finished setting up', () => {
-    const half = { ...ctx, bank: { ...bank, iban: '', accountNumber: '' } };
+    const half = { ...ctx, config: { ...config, posCategoryId: '' } };
     try { buildWebsiteOrder(good, half); throw new Error('should have thrown'); }
     catch (e) { expect((e as CheckoutRejected).code).toBe('not_selling'); }
+  });
+
+  it('takes an order with no bank details in the system: the shop sends them on WhatsApp', () => {
+    const noBank = { ...ctx, bank: { bankName: '', accountTitle: 'Taheri Collections', iban: '', accountNumber: '' } };
+    expect(buildWebsiteOrder({ ...good, expectedTotal: 121500 + 64750 + 500 }, noBank).grandTotal).toBe(186750);
+  });
+
+  it('pauses when the counter has not set the rate for 36 hours', () => {
+    const stale = { ...ctx, rates: { ...rates, updatedAt: '2026-09-16T21:00:00Z' } };
+    try { buildWebsiteOrder({ ...good, expectedTotal: 121500 + 64750 + 500 }, stale); throw new Error('should have thrown'); }
+    catch (e) { expect((e as CheckoutRejected).code).toBe('not_selling'); expect((e as Error).message).toMatch(/rate/); }
+    const never = { ...ctx, rates: { ...rates, updatedAt: null } };
+    expect(() => buildWebsiteOrder({ ...good, expectedTotal: 121500 + 64750 + 500 }, never)).toThrow();
   });
 
   it('rejects the honeypot and malformed input without pricing anything', () => {

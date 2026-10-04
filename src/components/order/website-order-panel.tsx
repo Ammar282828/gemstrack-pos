@@ -14,7 +14,7 @@
 import React, { useEffect, useState } from 'react';
 import { formatDistanceToNowStrict, parseISO } from 'date-fns';
 import type { Order } from '@/lib/store';
-import { staffFetch } from '@/lib/website/online-client';
+import { bankDetailsWhatsApp, staffFetch } from '@/lib/website/online-client';
 import { getAuth } from 'firebase/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Globe, Truck, Banknote, PackageCheck, RefreshCw, ExternalLink, FileText, Loader2, Ban, Clock } from 'lucide-react';
+import { Globe, Truck, Banknote, PackageCheck, RefreshCw, ExternalLink, FileText, Loader2, Ban, Clock, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const fmt = (n: number) => `Rs ${Math.round(n).toLocaleString('en-PK')}`;
@@ -127,6 +127,8 @@ function MoneyMoves({ order, onDone }: { order: Order; onDone?: () => void }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
+        {/* The shop sends its bank details itself (owner, 2026-10-04): the chat, the amount written in. */}
+        <Button asChild variant="outline"><a href={bankDetailsWhatsApp(order.customerContact || w.customerPhone || '', order.customerName || '', w.onlineId || order.id, total)} target="_blank" rel="noopener"><Send className="mr-2 h-4 w-4" />Bank details on WhatsApp</a></Button>
         <Button onClick={() => setAsk('paid')} disabled={!!busy} className="h-auto min-h-10 whitespace-normal py-2 text-left"><Banknote className="mr-2 h-4 w-4 flex-shrink-0" />Transfer received — {fmt(total)}</Button>
         <Button variant="ghost" className="text-muted-foreground" onClick={() => setAsk('lapse')} disabled={!!busy}><Ban className="mr-1.5 h-4 w-4" />Let it lapse</Button>
       </div>

@@ -19,7 +19,7 @@ import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import { z } from 'zod';
 import { adminDb } from '@/lib/firebase-admin';
 import { normalizePhoneNumber } from '@/lib/utils';
-import { bankDetails, ratesUsable, configReadiness } from './config';
+import { bankComplete, bankDetails, configReadiness, ratesFresh, ratesUsable } from './config';
 import { normalisePieceKey } from './catalog-source';
 import { deliveryChargeFor, quotePiece, type QuoteRates } from './pricing';
 import { shopNumber } from './notify';
@@ -62,7 +62,8 @@ export class CheckoutRejected extends Error {
 
 export interface BuildContext {
   config: WebsiteConfig;
-  rates: QuoteRates;
+  /** With when the counter set them: an old rate does not sell (config.ts ratesFresh). */
+  rates: QuoteRates & { updatedAt: string | null };
   catalog: Record<string, PieceAttrs>;
   origin: string;
   bank?: WebsiteBankDetails;
@@ -89,9 +90,12 @@ export function buildWebsiteOrder(raw: unknown, ctx: BuildContext): BuiltOrder {
   if (!parsed.success) throw new CheckoutRejected('invalid', 'Please check the form — something is missing or malformed.', 400, parsed.error.flatten().fieldErrors);
   const input = parsed.data;
 
-  const readiness = configReadiness(ctx.config, ctx.bank);
+  const readiness = configReadiness(ctx.config);
   if (!readiness.ready || !ratesUsable(ctx.rates)) {
     throw new CheckoutRejected('not_selling', 'Online ordering is not open right now. Please message us on WhatsApp.', 503);
+  }
+  if (!ratesFresh(ctx.rates.updatedAt, ctx.config, ctx.now || new Date())) {
+    throw new CheckoutRejected('not_selling', "Online ordering is paused until today's gold rate is set. Please message us on WhatsApp.", 503);
   }
 
   const asked = input.pieces.map(p => (typeof p === 'string' ? { key: p, size: undefined } : p));
@@ -290,8 +294,8 @@ export async function publicOrderView(id: string, token: string): Promise<Public
     subtotal: Number(o.subtotal) || 0,
     deliveryCharge: w.deliveryCharge,
     grandTotal: typeof w.total === 'number' ? w.total : (Number(o.subtotal) || 0) + (w.deliveryCharge || 0),
-    // Paid, or closed: the account is not shown again.
-    bank: w.paymentStatus === 'awaiting_transfer' || w.paymentStatus === 'slip_sent' ? bankDetails() : null,
+    // Only a complete account, only while it is owed. Taheri sends its own on WhatsApp (config.ts bankComplete).
+    bank: (w.paymentStatus === 'awaiting_transfer' || w.paymentStatus === 'slip_sent') && bankComplete(bankDetails()) ? bankDetails() : null,
     deliveryTo: { name: delivery.contactName || String(o.customerName || ''), city: delivery.city || '' },
     courier: leopards ? { cn: leopards.cn, trackingUrl: leopards.trackingUrl, deliveredAt: leopards.deliveredAt } : undefined,
     holdUntil: w.holdUntil,

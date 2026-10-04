@@ -9,9 +9,10 @@
  *
  *   confirm  the products and the ORD- order are written through the same createOrder the counter
  *            uses, stamped with the rates the customer was quoted, labelled Online
- *            (`source: 'website'`, `website.onlineId`). The customer gets the bank details and a
- *            day's hold on the price (WEBSITE_HOLD_HOURS); the hold starts now, not when they
- *            ordered, so a night's wait for the shop to open does not eat their time to pay.
+ *            (`source: 'website'`, `website.onlineId`). The customer is told it is confirmed and
+ *            that the bank details are coming — the shop sends those itself on WhatsApp (owner,
+ *            2026-10-04) — with a day's hold on the price (WEBSITE_HOLD_HOURS); the hold starts now,
+ *            not when they ordered, so a night's wait for the shop does not eat their time to pay.
  *   decline  with a reason the customer is sent. Nothing else is written.
  *
  * The customer keeps one reference, the ONL- number: their link works before and after, and the
@@ -146,6 +147,13 @@ export async function countWaiting(): Promise<number> {
   return snap.data().count;
 }
 
+/** Selling is switched on but paused because the counter's rate is too old (price-book.ts). */
+export async function sellingPausedForRates(): Promise<{ paused: boolean; ratesUpdatedAt: string | null }> {
+  const { quoteInputs, pausedForRates } = await import('./price-book');
+  const { config, rates } = await quoteInputs();
+  return { paused: pausedForRates(config, rates), ratesUpdatedAt: rates.updatedAt };
+}
+
 /** Waiting ones first, then the last fortnight's. */
 export async function listOnlineOrders(now = new Date()): Promise<OnlineOrderRow[]> {
   const since = new Date(now.getTime() - 14 * 86_400_000).toISOString();
@@ -175,8 +183,8 @@ export async function listOnlineOrders(now = new Date()): Promise<OnlineOrderRow
 }
 
 export async function confirmOnlineOrder(id: string, by: string, now = new Date()): Promise<{ orderId: string; notified: string | null }> {
+  // Whole, the account goes in the confirmation; otherwise the shop sends it on WhatsApp itself (notify.ts).
   const bank = bankDetails();
-  if (!bank.bankName || !(bank.iban || bank.accountNumber)) throw new FulfilmentError('The bank account is not set (the bank\'s name and the IBAN — docs/website-checkout.md), so the customer could not be told where to pay.', 409);
   const ref = adminDb.collection(ONLINE_ORDERS).doc(id);
   const at = now.toISOString();
   const claim = await adminDb.runTransaction(async tx => {

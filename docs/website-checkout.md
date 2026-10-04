@@ -13,7 +13,7 @@ integrated)". Payment is only ever a full advance by bank transfer.
 | step | the customer | the ERP |
 |---|---|---|
 | **Placed** | checkout: name, WhatsApp number, address, a size for every ring/bangle/kara ("Not sure" allowed), the terms ticked. Told: nothing is paid now, we confirm on WhatsApp, **no bank details yet** | `online_orders/ONL-XXXXXX` (`lib/website/online.ts`): the re-quoted lines, sizes, the rates quoted, and the order and products it *would* write (`draft`). Nothing in `orders`, `customers` or `products`. The shop gets the PDF alert; the customer a WhatsApp "received" |
-| **Confirmed** (or declined) | WhatsApp: bank details + the price held 24 h (`WEBSITE_HOLD_HOURS`); the same link now shows them and takes the slip. Declined: the reason, "nothing has been charged" | Orders → **Online — to confirm** (top of the hub; sidebar count; dashboard's Needs you). Confirm writes the products and an `ORD-` order through `createOrder`, stamped with the **quoted** rates, `source: 'website'`, `website.onlineId`, items fixed at the quoted price (`isManualPrice`). The card shows what the same pieces cost today. Two people pressing Confirm make one order (claimed in a transaction) |
+| **Confirmed** (or declined) | WhatsApp: "confirmed", the price held 24 h (`WEBSITE_HOLD_HOURS`), and that the bank details are coming — **the shop sends them itself on WhatsApp** (owner, 2026-10-04: "bank details will come from us through whatsapp"); the link shows the amount and takes the slip. Declined: the reason, "nothing has been charged" | Orders → **Online — to confirm** (top of the hub; sidebar count; dashboard's Needs you). Confirm writes the products and an `ORD-` order through `createOrder`, stamped with the **quoted** rates, `source: 'website'`, `website.onlineId`, items fixed at the quoted price (`isManualPrice`), then offers **Send bank details on WhatsApp** (the customer's chat, amount and reference written in; also on the order's Online panel). The card shows what the same pieces cost today. Two people pressing Confirm make one order (claimed in a transaction) |
 | **Slip** | uploads a photo/PDF from the order page (shrunk to a JPEG in the browser) | `website_slips/{id}` (bytes, ≤ 900 KB, type checked by its first bytes); `paymentStatus: slip_sent`; the shop gets a PDF **with the slip in it**. A slip is not money |
 | **Paid** | WhatsApp "received"; page shows Paid → being made | hub stage **Awaiting transfer** → *Check transfer* / *Slip in — check* → **Transfer received**: the pieces as a dated **Bank Transfer** advance (`advances`, so Cash In / Today's cash count it that day), the delivery charge as **extra revenue**, balance 0. The order then sits in *Not started* to give out |
 | **Hold over** | a reminder 4 h before (waking hours only) | the tick (`sweepOnline`) tells the shop once; **nothing lapses on its own** — people pay and forget the slip. *Let it lapse* (after checking the bank) cancels and tells the customer |
@@ -45,19 +45,24 @@ let the weight price it.
 | `components/order/online-inbox.tsx`, `website-order-panel.tsx` (`TransferDialog`) | the inbox cards; the order's Online panel and the hub's transfer check |
 | `firestore.rules` | `online_orders`, `website_slips`: no client access (Admin SDK only) |
 
-## Before the switch goes on
+## Switched on (2026-10-04)
 
-1. **Bank details, in the environment** (never Firestore: nothing that writes to the database can
-   change where a customer's money goes). `NEXT_PUBLIC_STORE_BANK_LINE` = "Bank — Account title", or
-   the title alone with the bank in `WEBSITE_BANK_NAME` — Taheri's line is a console `overrideEnv`
-   ("Taheri Collections", which beats the YAML), so its bank goes in `apphosting.taheri.yaml` as
-   `WEBSITE_BANK_NAME` — and `NEXT_PUBLIC_STORE_IBAN` (or `WEBSITE_BANK_ACCOUNT`). Confirm refuses
-   while they are empty. The help pages promise the title reads **Taheri Collections**.
-2. **Publish `firestore.rules`** (owner, console). With the book open anyone can write orders.
-3. **Pricing** in Settings → Integrations (set: making 1,500/g, delivery Rs 500, free over 300,000),
-   then the switch on.
-4. **Rates set daily** at the counter — the price book quotes whatever is there.
-5. **Leopards** (optional): `LEOPARDS_API_KEY`, `LEOPARDS_API_PASSWORD`; without them a CN is typed in.
+- **Bank details: the shop's, on WhatsApp.** Nothing in the system holds them for Taheri; the confirmation
+  says they are coming and the order page says they come from +92 335 2275553. If a whole account is ever
+  put in the environment (`NEXT_PUBLIC_STORE_BANK_LINE` "Bank — Title", or the title with
+  `WEBSITE_BANK_NAME`, plus `NEXT_PUBLIC_STORE_IBAN`), the message and the page show it (`bankComplete`).
+- **Only at a fresh rate.** The site prices and checkout takes orders only while the counter's gold rate
+  was set in the last 36 hours (`maxRateAgeHours` in `app_settings/website`; `ratesFresh`). Older, every
+  piece is "ask on WhatsApp" and the dashboard's Needs you says to set the rate (the rate sheet's gold.pk
+  fetch is one tap). The rate was 3½ days old the day selling went on.
+- **Pricing from the counter.** The website's making and wastage were test values ("set your own pricing
+  before enabling"); they were replaced with the counter's own medians from 180 days of invoices
+  (88 invoices, 103 gold lines): default Rs 1,500/g and 12%; rings and bands Rs 1,550/g and 10%; karas and
+  bangles Rs 700/g and 15%; lockets, taweez and takhti Rs 1,950/g and 15%; tops, jhumki and baali
+  Rs 2,950/g and 15%; chains Rs 1,500/g and 15%. Settings → Integrations changes any of it.
+- **Still the owner's:** publish `firestore.rules` in the console — with the database open, anyone can
+  write to it directly, online orders included.
+- **Leopards** (optional): `LEOPARDS_API_KEY`, `LEOPARDS_API_PASSWORD`; without them a CN is typed in.
 
 ## Testing — on the emulator, never the live book
 

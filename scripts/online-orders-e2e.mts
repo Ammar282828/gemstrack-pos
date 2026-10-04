@@ -70,7 +70,9 @@ try { await online.declineOnlineOrder(placed.id, 'x@x', 'Changed our mind'); } c
 ok(/confirmed already/.test(declineLate), 'a confirmed order cannot be declined');
 
 const v2 = await online.publicOnlineView(placed.id, placed.token);
-ok(v2?.confirmation === 'confirmed' && v2.ref === 'ORD-000042' && v2.id === placed.id && v2.bank?.iban && v2.grandTotal === expected, 'the customer now sees the bank details and the shop ref');
+// With a whole account in the environment the page shows it; without (Taheri: the shop sends it on WhatsApp) it shows none.
+const bankInEnv = !!process.env.NEXT_PUBLIC_STORE_IBAN;
+ok(v2?.confirmation === 'confirmed' && v2.ref === 'ORD-000042' && v2.id === placed.id && (bankInEnv ? !!v2.bank?.iban : v2.bank === null) && v2.grandTotal === expected, `the customer sees the shop ref, and ${bankInEnv ? 'the bank details' : 'no bank details (they come on WhatsApp)'}`);
 ok((await publicOrderView('ORD-000042', placed.token))?.id === placed.id, 'the ORD- link shows the same order under the ONL- number');
 
 const jpeg = 'data:image/jpeg;base64,' + Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(500, 7)]).toString('base64');

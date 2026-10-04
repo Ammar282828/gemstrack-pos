@@ -15,7 +15,7 @@
  * things a quote carries, without the key repeated.
  */
 
-import { configReadiness, loadRates, loadWebsiteConfig, ratesUsable } from './config';
+import { configReadiness, loadRates, loadWebsiteConfig, ratesFresh, ratesUsable } from './config';
 import { getCatalogAttributes } from './catalog-source';
 import { quotePiece } from './pricing';
 import { getPosWeights, mergeWeights } from './weights';
@@ -26,6 +26,8 @@ export type BookEntry = [number | null, string | null, number | null, string | n
 
 export interface PriceBook {
   selling: boolean;
+  /** Switched on but the counter's rate is too old to sell at (config.ts ratesFresh). */
+  pausedForRates: boolean;
   currency: string;
   ratesAt: string;
   ratesUpdatedAt: string | null;
@@ -46,9 +48,14 @@ export function quoteInputs(): Promise<{ config: WebsiteConfig; rates: QuoteRate
   return value;
 }
 
-export function isSelling(config: WebsiteConfig, rates: QuoteRates): boolean {
+export function isSelling(config: WebsiteConfig, rates: QuoteRates & { updatedAt?: string | null }, now = new Date()): boolean {
   // The same test checkout applies: a price the site shows must be one it can take an order at.
-  return config.enabled && ratesUsable(rates) && configReadiness(config).ready;
+  return config.enabled && ratesUsable(rates) && ratesFresh(rates.updatedAt, config, now) && configReadiness(config).ready;
+}
+
+/** Switched on, and waiting only for today's rate: what the ERP's dashboard says to the counter. */
+export function pausedForRates(config: WebsiteConfig, rates: QuoteRates & { updatedAt?: string | null }, now = new Date()): boolean {
+  return config.enabled && configReadiness(config).ready && !ratesFresh(rates.updatedAt, config, now);
 }
 
 const BOOK_MS = 60_000;
@@ -74,6 +81,7 @@ async function build(): Promise<PriceBook> {
   }
   return {
     selling,
+    pausedForRates: pausedForRates(config, rates),
     currency: config.currency,
     ratesAt: rates.updatedAt ?? new Date().toISOString(),
     ratesUpdatedAt: rates.updatedAt,

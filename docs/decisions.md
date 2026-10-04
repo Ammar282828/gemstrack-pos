@@ -248,8 +248,11 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   Bank Transfer advance and the delivery as extra revenue — it was writing the total into `advancePayment` and leaving
   `grandTotal` (the ERP's *balance*) at the full amount, so a paid order would have shown as owing it all. **Nothing lapses on its
   own**: the tick reminds the customer and tells the shop; *Let it lapse* is a person's call after checking the bank. Slips are
-  uploaded from the order page and reach the shop inside the PDF. The design, the parts and testing on the emulator:
-  `docs/website-checkout.md`.
+  uploaded from the order page and reach the shop inside the PDF. **Bank details are the shop's to send, on WhatsApp**
+  (owner: "bank details will come from us through whatsapp") — never on the site; Confirm opens the customer's chat with the
+  amount written in. **The site sells only at a rate set in the last 36 hours** (it was 3½ days old when selling went on), and
+  the website's making and wastage are the counter's own medians, not the test values that were there. The design, the parts
+  and testing on the emulator: `docs/website-checkout.md`.
 
 ### Advance method
 

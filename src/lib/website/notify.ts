@@ -54,12 +54,20 @@ export function customerReceivedMessage(o: OrderSummaryForMessage): string {
   return `Assalamualaikum ${o.customerName}, thank you for your order at TAHERI.\n\nOrder ${o.id}\n${lineList(o)}\n\nWe look at every order ourselves before we take any payment. We will confirm yours here on WhatsApp during shop hours (${HOURS}) and send the bank details then — please don't transfer anything before that.\n\nYour order: ${o.statusUrl}`;
 }
 
-/** Confirmed by the shop: the bank details, and how long today's price is held. */
+/**
+ * Confirmed by the shop: how long the price is held, and where to pay. The account is in the message
+ * only when the ERP knows it whole (config.ts bankComplete); Taheri's people send it themselves on
+ * WhatsApp right after confirming (the owner, 2026-10-04), so the message says it is coming.
+ */
 export function customerConfirmedMessage(o: OrderSummaryForMessage, bank: WebsiteBankDetails): string {
+  const complete = !!bank.bankName && !!(bank.iban || bank.accountNumber);
   const account = [bank.bankName, bank.accountTitle, bank.iban ? `IBAN ${bank.iban}` : '', bank.accountNumber ? `A/C ${bank.accountNumber}` : '']
     .filter(Boolean).join('\n');
+  const payTo = complete
+    ? `Please transfer the full amount to:\n${account}`
+    : `We are sending you our bank details here on WhatsApp now. Please pay only into the account we send from this number${bank.accountTitle ? ` — the title reads ${bank.accountTitle}` : ''}.`;
   const hold = o.holdUntil ? `\n\nThe price is held for you until *${karachiTime(o.holdUntil)}*. Gold moves daily, so if the transfer has not reached us by then we will check with you before anything changes.` : '';
-  return `Assalamualaikum ${o.customerName}, your order ${o.id} is confirmed.\n\n${lineList(o)}\n\nPlease transfer the full amount to:\n${account}${hold}\n\nThen upload the transfer slip on your order page, or send it here quoting ${o.id}. We start on your piece the day the transfer clears, and send you the Leopards tracking number when it leaves us.\n\nYour order: ${o.statusUrl}${bank.instructions ? `\n\n${bank.instructions}` : ''}`;
+  return `Assalamualaikum ${o.customerName}, your order ${o.id} is confirmed.\n\n${lineList(o)}\n\n${payTo}${hold}\n\nOnce you have paid, upload the transfer slip on your order page, or send it here quoting ${o.id}. We start on your piece the day the transfer clears, and send you the Leopards tracking number when it leaves us.\n\nYour order: ${o.statusUrl}${complete && bank.instructions ? `\n\n${bank.instructions}` : ''}`;
 }
 
 export function customerDeclinedMessage(orderId: string, name: string, reason: string, statusUrl: string): string {

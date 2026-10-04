@@ -63,6 +63,12 @@ export interface WebsiteConfig {
   /** Flat delivery charge in rupees. Leopards is booked by the shop after payment. */
   deliveryCharge: number;
   freeDeliveryOver?: number;
+  /**
+   * The site sells only while the counter's gold rate is this fresh (hours; 36 when unset). Older,
+   * and every piece shows "ask on WhatsApp" until the rate is set again: a price is a promise, and a
+   * rate days old is a promise at last week's gold (the rate was 3½ days old the day selling went on).
+   */
+  maxRateAgeHours?: number;
   /** The POS category new website products are filed under. */
   posCategoryId: string;
   updatedAt?: string;

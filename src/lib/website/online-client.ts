@@ -33,6 +33,8 @@ export const listOnline = () => staffFetch<{ orders: OnlineOrderRow[] }>('/api/w
 
 const POLL_MS = 120_000;
 let waiting = 0;
+/** Selling is on but waiting for today's rate (lib/website/price-book.ts pausedForRates). */
+let paused: { ratesUpdatedAt: string | null } | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
 let unauth: (() => void) | null = null;
 let inflight: Promise<void> | null = null;
@@ -42,8 +44,11 @@ const listeners = new Set<() => void>();
 export function refreshWaiting(): Promise<void> {
   if (!STORE_WEBSITE_SELLING || typeof window === 'undefined') return Promise.resolve();
   if (inflight) return inflight;
-  inflight = staffFetch<{ waiting: number }>('/api/website/online?count=1')
-    .then(d => { if (d.waiting !== waiting) { waiting = d.waiting; listeners.forEach(l => l()); } })
+  inflight = staffFetch<{ waiting: number; pausedForRates?: boolean; ratesUpdatedAt?: string | null }>('/api/website/online?count=1')
+    .then(d => {
+      const nextPaused = d.pausedForRates ? { ratesUpdatedAt: d.ratesUpdatedAt ?? null } : null;
+      if (d.waiting !== waiting || JSON.stringify(nextPaused) !== JSON.stringify(paused)) { waiting = d.waiting; paused = nextPaused; listeners.forEach(l => l()); }
+    })
     .catch(() => undefined)
     .finally(() => { inflight = null; });
   return inflight;
@@ -69,4 +74,19 @@ const onFocus = () => { void refreshWaiting(); };
 /** Online orders waiting to be confirmed; 0 in a house that does not sell online. */
 export function useOnlineWaiting(): number {
   return useSyncExternalStore(subscribe, () => waiting, () => 0);
+}
+
+/** Non-null while taheri.shop's selling is on but paused for an old gold rate. */
+export function useSellingPausedForRates(): { ratesUpdatedAt: string | null } | null {
+  return useSyncExternalStore(subscribe, () => paused, () => null);
+}
+
+/**
+ * WhatsApp to the customer from the shop's phone, the amount and reference written in: the shop
+ * sends its bank details itself (the owner, 2026-10-04), so this opens the chat ready for them.
+ */
+export function bankDetailsWhatsApp(phone: string, name: string, ref: string, total: number): string {
+  const digits = String(phone || '').replace(/[^\d]/g, '');
+  const text = `Assalamualaikum ${name}, your order ${ref} is confirmed. The amount is Rs ${Math.round(total).toLocaleString('en-PK')}. Please transfer it to:\n`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
 }

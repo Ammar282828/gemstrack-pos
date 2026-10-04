@@ -12,9 +12,9 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { formatDistanceToNowStrict, parseISO } from 'date-fns';
-import { Check, Globe, Loader2, MapPin, MessageCircle, Phone, X } from 'lucide-react';
+import { Check, Globe, Loader2, MapPin, MessageCircle, Phone, Send, X } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { listOnline, refreshWaiting, staffFetch, useOnlineWaiting } from '@/lib/website/online-client';
+import { bankDetailsWhatsApp, listOnline, refreshWaiting, staffFetch, useOnlineWaiting } from '@/lib/website/online-client';
 import type { OnlineOrderRow } from '@/lib/website/types';
 import { STORE_WEBSITE_SELLING } from '@/lib/store-config';
 import { useToast } from '@/hooks/use-toast';
@@ -74,6 +74,8 @@ function OnlineCard({ row, onDone }: { row: OnlineOrderRow; onDone: () => void }
   const [open, setOpen] = useState<'confirm' | 'decline' | null>(null);
   const [busy, setBusy] = useState(false);
   const [reason, setReason] = useState('');
+  /** Confirmed: the dialog stays open on its second step, sending the bank details on WhatsApp. */
+  const [confirmed, setConfirmed] = useState<{ orderId: string; notified: string | null } | null>(null);
   const moved = row.todayTotal != null ? row.todayTotal - row.grandTotal : 0;
   const movedPct = row.grandTotal ? (moved / row.grandTotal) * 100 : 0;
   const phone = row.customer.phone.replace(/[^\d]/g, '');
@@ -84,13 +86,7 @@ function OnlineCard({ row, onDone }: { row: OnlineOrderRow; onDone: () => void }
     try {
       const r = await staffFetch<{ orderId: string; notified: string | null }>(`/api/website/online/${encodeURIComponent(row.id)}`, { action: 'confirm' });
       loadOrders();
-      toast({
-        title: `${row.id} is ${r.orderId}`,
-        description: r.notified ? `Confirmed — but the WhatsApp with the bank details did not send (${r.notified}). Send them yourself.` : `Confirmed. ${row.customer.name} has the bank details and ${HOLD_HOURS} hours to pay.`,
-        variant: r.notified ? 'destructive' : undefined,
-      });
-      setOpen(null);
-      onDone();
+      setConfirmed(r);
     } catch (e) {
       toast({ title: 'Not confirmed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
     } finally { setBusy(false); }
@@ -161,12 +157,29 @@ function OnlineCard({ row, onDone }: { row: OnlineOrderRow; onDone: () => void }
         </Button>
       </div>
 
-      <Dialog open={open === 'confirm'} onOpenChange={o => { if (!busy && !o) setOpen(null); }}>
+      <Dialog open={open === 'confirm'} onOpenChange={o => { if (!busy && !o) { setOpen(null); if (confirmed) onDone(); } }}>
         <DialogContent className="max-w-md">
+          {confirmed ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{row.id} is {confirmed.orderId}</DialogTitle>
+                <DialogDescription>
+                  {confirmed.notified
+                    ? `Confirmed — but the WhatsApp telling ${row.customer.name} did not send (${confirmed.notified}).`
+                    : `${row.customer.name} has been told it is confirmed and that your bank details are coming.`}{' '}
+                  Send them now: the price is held {HOLD_HOURS} hours for {rs(row.grandTotal)}.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => { setOpen(null); onDone(); }}>Done</Button>
+                <Button asChild><a href={bankDetailsWhatsApp(row.customer.phone, row.customer.name, row.id, row.grandTotal)} target="_blank" rel="noopener"><Send className="mr-1.5 h-4 w-4" />Send bank details on WhatsApp</a></Button>
+              </DialogFooter>
+            </>
+          ) : (<>
           <DialogHeader>
             <DialogTitle>Confirm {row.id}?</DialogTitle>
             <DialogDescription>
-              It becomes an order in the book for {row.customer.name}, labelled Online, with its {row.lines.length === 1 ? 'piece' : `${row.lines.length} pieces`} at the prices they were quoted. They are sent the bank details on WhatsApp and have {HOLD_HOURS} hours to transfer {rs(row.grandTotal)}.
+              It becomes an order in the book for {row.customer.name}, labelled Online, with its {row.lines.length === 1 ? 'piece' : `${row.lines.length} pieces`} at the prices they were quoted. They are told on WhatsApp, and you send them your bank details there; they have {HOLD_HOURS} hours to transfer {rs(row.grandTotal)}.
             </DialogDescription>
           </DialogHeader>
           <ul className="space-y-1 text-sm">
@@ -176,8 +189,9 @@ function OnlineCard({ row, onDone }: { row: OnlineOrderRow; onDone: () => void }
           </ul>
           <DialogFooter>
             <Button variant="outline" disabled={busy} onClick={() => setOpen(null)}>Not yet</Button>
-            <Button disabled={busy} onClick={confirm}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}Confirm &amp; send bank details</Button>
+            <Button disabled={busy} onClick={confirm}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}Confirm</Button>
           </DialogFooter>
+          </>)}
         </DialogContent>
       </Dialog>
 

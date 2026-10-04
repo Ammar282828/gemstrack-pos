@@ -63,12 +63,28 @@ export function bankDetails(env: NodeJS.ProcessEnv = process.env): WebsiteBankDe
   };
 }
 
+/**
+ * Whether the account is fully known (a bank and an IBAN or number). Taheri's is not, on purpose: the
+ * shop sends its bank details itself on WhatsApp after confirming (the owner, 2026-10-04: "bank details
+ * will come from us through whatsapp"), so a confirmed order says they are on their way instead.
+ */
+export const bankComplete = (b: WebsiteBankDetails | null | undefined): b is WebsiteBankDetails =>
+  !!b && !!b.bankName && !!(b.iban || b.accountNumber);
+
+export const DEFAULT_MAX_RATE_AGE_HOURS = 36;
+
+/** The counter set the gold rate recently enough to sell at it (WebsiteConfig.maxRateAgeHours). */
+export function ratesFresh(updatedAt: string | null | undefined, config: Pick<WebsiteConfig, 'maxRateAgeHours'>, now: Date = new Date()): boolean {
+  const hours = Number(config.maxRateAgeHours) > 0 ? Number(config.maxRateAgeHours) : DEFAULT_MAX_RATE_AGE_HOURS;
+  const at = updatedAt ? Date.parse(updatedAt) : NaN;
+  return Number.isFinite(at) && now.getTime() - at <= hours * 3_600_000;
+}
+
 /** Whether the shop has filled in enough to sell. Surfaced to the settings screen and the quote route. */
-export function configReadiness(c: WebsiteConfig, bank: WebsiteBankDetails = bankDetails()): { ready: boolean; missing: string[] } {
+export function configReadiness(c: WebsiteConfig): { ready: boolean; missing: string[] } {
   const missing: string[] = [];
   if (!c.enabled) missing.push('enabled');
   if (!c.posCategoryId) missing.push('posCategoryId');
   if (!(c.defaultPricing.makingChargesPerGram > 0)) missing.push('defaultPricing.makingChargesPerGram');
-  if (!bank.bankName || !(bank.iban || bank.accountNumber)) missing.push('bank (NEXT_PUBLIC_STORE_BANK_LINE "Bank — Title", or the title and WEBSITE_BANK_NAME; NEXT_PUBLIC_STORE_IBAN)');
   return { ready: missing.length === 0, missing };
 }
