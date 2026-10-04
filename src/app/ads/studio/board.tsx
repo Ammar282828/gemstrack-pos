@@ -41,6 +41,9 @@ import { AuthedImg, SITE_LABEL, downloadBlob, fetchAsset, safeName, type Library
 
 const LAST_KEY = 'taheri_studio_board';
 const POLL_MS = 4000;
+/** While an agent is at work (it changed the board in the last two minutes): asked for every 1.5 s. */
+const POLL_AGENT_MS = 1500;
+const agentBusy = (b: Pick<Board, 'by' | 'updated'> | null) => !!b && b.by.startsWith('agent:') && Date.now() - Date.parse(b.updated) < 120_000;
 const SHOW_PX = 540;   // the size each design is drawn at for the board
 const VIEW_PX = 720;   // and for the agent to look at
 const FORMATS: AdFormat[] = [...AD_FORMAT_ORDER, ...MORE_FORMAT_ORDER];
@@ -85,8 +88,25 @@ export function BoardSection() {
     return r.boards;
   }, []);
 
+  // The list too: a board an agent makes appears without a reload, and is offered.
+  const [offer, setOffer] = useState<BoardSummary | null>(null);
+  const known = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const t = setInterval(async () => {
+      try {
+        const list = await loadList();
+        const seen = known.current;
+        known.current = new Set(list.map(b => b.id));
+        const fresh = seen ? list.find(b => !seen.has(b.id)) : undefined;
+        if (fresh) { setOffer(fresh); setCurrent(c => c ?? fresh.id); }
+      } catch { /* the next one */ }
+    }, 6000);
+    return () => clearInterval(t);
+  }, [loadList]);
+
   useEffect(() => {
     loadList().then(list => {
+      known.current = new Set(list.map(b => b.id));
       let last: string | null = null;
       try { last = localStorage.getItem(LAST_KEY); } catch { /* private mode */ }
       setCurrent(list.find(b => b.id === last)?.id ?? list[0]?.id ?? null);
@@ -127,6 +147,14 @@ export function BoardSection() {
           <Button onClick={create}><Plus className="h-4 w-4 mr-1" /> Make the first board</Button>
         </div>
       )}
+      {offer && offer.id !== current && (
+        <p className="text-sm rounded-lg border border-primary/40 bg-primary/5 p-2.5 flex items-center gap-2">
+          {offer.by.startsWith('agent:') ? <Bot className="h-4 w-4 shrink-0 text-primary" /> : <Plus className="h-4 w-4 shrink-0" />}
+          <span className="flex-1">{offer.by.startsWith('agent:') ? 'The agent made a new board' : 'A new board'}: <b>{offer.name}</b></span>
+          <Button size="sm" onClick={() => { choose(offer.id); setOffer(null); }}>Open it</Button>
+          <button type="button" className="p-1 min-h-0 text-muted-foreground" onClick={() => setOffer(null)} aria-label="Not now"><X className="h-4 w-4" /></button>
+        </p>
+      )}
       {current && <BoardView key={current} id={current} onGone={() => { setCurrent(null); loadList(); }} onRenamed={loadList} />}
       <AgentDialog open={agentOpen} onOpenChange={setAgentOpen} />
     </div>
@@ -165,17 +193,41 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
 
   useEffect(() => { load().catch(e => { fail('The board didn’t load', e); onGone(); }); }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // What an agent (or another phone) changed: asked for every few seconds while the page is in front.
+  // What an agent (or another phone) changed. Asked for even while the tab is behind another — the
+  // owner is often watching the agent's chat, and the agent can only see a design once this page has
+  // drawn it — and every 1.5 s while an agent is at work (2026-10-04, owner: "why isn't the page
+  // updating dynamically"). Designs that arrived or changed glow for a moment; new ones are brought
+  // into view unless the owner has just moved the board.
+  const dragRef = useRef(drag);
+  dragRef.current = drag;
+  const [fresh, setFresh] = useState<Set<string>>(new Set());
+  const touched = useRef(0);   // when the owner last panned, zoomed or dragged
   useEffect(() => {
-    const t = setInterval(async () => {
-      if (document.hidden || busy.current || drag || !boardRef.current) return;
-      try {
-        const r = await api<{ same?: boolean; board?: Board; drawn?: Record<string, number> }>(`/api/ads/studio/boards/${id}?since=${boardRef.current.rev}`);
-        if (r.board && !busy.current) { setBoard(r.board); if (r.drawn) setDrawn(r.drawn); }
-      } catch { /* the next one */ }
-    }, POLL_MS);
-    return () => clearInterval(t);
-  }, [id, drag]);
+    let stop = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      const cur = boardRef.current;
+      if (cur && !busy.current && !dragRef.current) {
+        try {
+          const r = await api<{ same?: boolean; board?: Board; drawn?: Record<string, number> }>(`/api/ads/studio/boards/${id}?since=${cur.rev}`);
+          if (r.board && !busy.current && !stop) {
+            const before = new Map(cur.frames.map(f => [f.id, f.rev]));
+            const changed = r.board.frames.filter(f => before.get(f.id) !== f.rev && f.by !== 'page').map(f => f.id);
+            const grew = r.board.frames.length > cur.frames.length || r.board.notes.length > cur.notes.length;
+            setBoard(r.board); if (r.drawn) setDrawn(r.drawn);
+            if (changed.length) {
+              setFresh(new Set(changed));
+              setTimeout(() => setFresh(new Set()), 2500);
+            }
+            if (grew && Date.now() - touched.current > 8000) requestAnimationFrame(() => fitRef.current());
+          }
+        } catch { /* the next one */ }
+      }
+      if (!stop) timer = setTimeout(tick, agentBusy(boardRef.current) ? POLL_AGENT_MS : POLL_MS);
+    };
+    timer = setTimeout(tick, POLL_MS);
+    return () => { stop = true; clearTimeout(timer); };
+  }, [id]);
 
   /** Change the board: shown at once, then applied on the server (whose answer is the truth). */
   const send = useCallback(async (ops: BoardOp[]): Promise<string[]> => {
@@ -213,6 +265,8 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
     const z = Math.min(1.5, Math.max(0.08, Math.min((el.clientWidth - pad * 2) / (x1 - x0), (el.clientHeight - pad * 2) / (y1 - y0))));
     setView({ z, x: pad - x0 * z + (el.clientWidth - pad * 2 - (x1 - x0) * z) / 2, y: pad - y0 * z });
   }, []);
+  const fitRef = useRef(fit);
+  fitRef.current = fit;
   useEffect(() => { if (board && !fitted.current) { fitted.current = true; requestAnimationFrame(fit); } }, [board, fit]);
 
   const zoomAt = useCallback((k: number, cx: number, cy: number) => {
@@ -227,6 +281,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      touched.current = Date.now();
       const r = el.getBoundingClientRect();
       if (e.ctrlKey || e.metaKey) zoomAt(Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
       else setView(v => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
@@ -269,6 +324,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
     const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
     if (!g.moved && Math.hypot(dx, dy) < 4) return;
     g.moved = true;
+    touched.current = Date.now();
     if (g.kind === 'pan') setView(v => ({ ...v, x: g.ox + dx, y: g.oy + dy }));
     else setDrag({ kind: g.kind, id: g.id!, x: g.ox + dx / view.z, y: g.oy + dy / view.z });
   };
@@ -386,6 +442,13 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
           </span>
         </div>
         {cooking && <p className="text-xs rounded-lg bg-primary/10 p-2 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin shrink-0" /> {cooking}</p>}
+        {agentBusy(board) && (
+          <p className="text-xs rounded-lg border border-sky-400/50 bg-sky-400/10 p-2 flex items-center gap-2">
+            <Bot className="h-4 w-4 shrink-0 text-sky-500" />
+            <span className="flex-1">The agent is working on this board — its designs appear here as they come. Keep this page open: it draws them for the agent.</span>
+            <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-500" /></span>
+          </p>
+        )}
         <div
           ref={boxRef}
           className="relative h-[68svh] min-h-[420px] overflow-hidden rounded-xl border bg-muted/40 touch-none select-none cursor-grab active:cursor-grabbing"
@@ -396,7 +459,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
             {frames.map(f => {
               const p = pos('frame', f);
               return (
-                <FrameCard key={f.id} frame={f} x={p.x} y={p.y} selected={sel?.kind === 'frame' && sel.id === f.id}
+                <FrameCard key={f.id} frame={f} x={p.x} y={p.y} selected={sel?.kind === 'frame' && sel.id === f.id} fresh={fresh.has(f.id)}
                   marks={marks} ready={marksReady && fontsOk} boardId={board.id} drawnRev={drawn[f.id]}
                   onDown={e => onDown(e, { kind: 'frame', id: f.id, x: f.x, y: f.y })} onLaidOut={onLaidOut} onDrawn={onDrawn}
                   onOpen={() => setEditing(f.id)} />
@@ -449,8 +512,8 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
 
 // ── A design on the board ──────────────────────────────────────────────────
 
-function FrameCard({ frame: f, x, y, selected, marks, ready, boardId, drawnRev, onDown, onLaidOut, onDrawn, onOpen }: {
-  frame: BoardFrame; x: number; y: number; selected: boolean; marks: Assets['marks']; ready: boolean; boardId: string; drawnRev: number | undefined;
+function FrameCard({ frame: f, x, y, selected, fresh, marks, ready, boardId, drawnRev, onDown, onLaidOut, onDrawn, onOpen }: {
+  frame: BoardFrame; x: number; y: number; selected: boolean; fresh: boolean; marks: Assets['marks']; ready: boolean; boardId: string; drawnRev: number | undefined;
   onDown: (e: React.PointerEvent) => void; onLaidOut: (f: BoardFrame, doc: StoryDoc) => void; onDrawn: (id: string, rev: number) => void; onOpen: () => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -493,7 +556,7 @@ function FrameCard({ frame: f, x, y, selected, marks, ready, boardId, drawnRev, 
         {f.by === 'ai' && <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />}
         <span className="truncate">{f.label || 'Design'}</span>
       </p>
-      <div className={cn('relative overflow-hidden rounded-sm bg-background shadow-sm ring-1 ring-border', selected && 'ring-4 ring-primary')} style={{ width: w, height: h }}>
+      <div className={cn('relative overflow-hidden rounded-sm bg-background shadow-sm ring-1 ring-border transition-shadow duration-700', fresh && 'ring-8 ring-sky-400/80 shadow-[0_0_60px_rgba(56,189,248,0.6)]', selected && 'ring-4 ring-primary')} style={{ width: w, height: h }}>
         {url ? <img src={url} alt={f.label} draggable={false} className="h-full w-full object-cover pointer-events-none" />
           : <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground p-4 text-center">{err ? `Couldn’t draw it: ${err}` : <Loader2 className="h-5 w-5 animate-spin" />}</div>}
       </div>
