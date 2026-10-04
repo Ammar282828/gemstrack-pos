@@ -84,6 +84,19 @@ export function RatesForm({ onSaved }: { onSaved?: () => void }) {
     } finally { setFetching(false); }
   };
 
+  const confirmRates = useAppStore(s => s.confirmRates);
+  // Nothing moved since the last setting: one tap says so, and the website keeps selling (36-hour rule).
+  const confirmSame = async () => {
+    setSaving(true);
+    try {
+      await confirmRates();
+      toast({ title: 'Rate confirmed', description: `${MAIN.label} ${pkr(stored[MAIN.key])} is today's rate — new sales and the website.` });
+      onSaved?.();
+    } catch (e) {
+      toast({ title: 'Not confirmed', description: e instanceof Error ? e.message : 'Check the connection and try again.', variant: 'destructive' });
+    } finally { setSaving(false); }
+  };
+
   const save = async () => {
     if (!changed.length) return;
     setSaving(true);
@@ -123,10 +136,17 @@ export function RatesForm({ onSaved }: { onSaved?: () => void }) {
       ))}
       <div className="flex items-center justify-end gap-2">
         {changed.length > 0 && <Button type="button" variant="ghost" onClick={() => { setValues({}); setFromGoldPk(false); }} disabled={saving}>Discard</Button>}
-        <Button type="button" onClick={save} disabled={!changed.length || saving}>
-          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-          Save {changed.length > 1 ? `${changed.length} rates` : 'rate'}
-        </Button>
+        {changed.length > 0 ? (
+          <Button type="button" onClick={save} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            Save {changed.length > 1 ? `${changed.length} rates` : 'rate'}
+          </Button>
+        ) : (
+          <Button type="button" onClick={confirmSame} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            Same today — confirm {MAIN.label} {pkr(stored[MAIN.key])}
+          </Button>
+        )}
       </div>
     </div>
   );

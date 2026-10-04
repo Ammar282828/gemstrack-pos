@@ -54,7 +54,9 @@ let the weight price it.
 - **Only at a fresh rate.** The site prices and checkout takes orders only while the counter's gold rate
   was set in the last 36 hours (`maxRateAgeHours` in `app_settings/website`; `ratesFresh`). Older, every
   piece is "ask on WhatsApp" and the dashboard's Needs you says to set the rate (the rate sheet's gold.pk
-  fetch is one tap). The rate was 3½ days old the day selling went on.
+  fetch is one tap). The rate was 3½ days old the day selling went on. A rate that did not move is set
+  with the sheet's **Same today — confirm** (`store.confirmRates`): Save does nothing when no figure changed,
+  so before it an unchanged rate could not be re-set and the site would have paused for it.
 - **Pricing from the counter.** The website's making and wastage were test values ("set your own pricing
   before enabling"); they were replaced with the counter's own medians from 180 days of invoices
   (88 invoices, 103 gold lines): default Rs 1,500/g and 12%; rings and bands Rs 1,550/g and 10%; karas and
