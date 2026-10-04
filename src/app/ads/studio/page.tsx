@@ -11,6 +11,7 @@
  *   Picks        the best photographs for the chosen placement, as ranked from each one's assessment
  *   Library      every photo from taheri.shop and the shared Drive folders, searchable, with its score
  *   Make         the maker: Taheri's ad layouts at Meta's sizes, AI words, a pre-flight check, → New ad
+ *   Board        an endless canvas of designs and notes; AI variants side by side; an agent over MCP (board.tsx)
  *   Saved        made ads kept in folders, and the ads already in the ad account
  *   Competitors  found by Google Search, looked up on Instagram, read for what works
  *   Guide        the days ads stay off, what the account's own winners share, the playbook, the rules
@@ -22,7 +23,7 @@ import React, { Suspense, useCallback, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { PageShell } from '@/components/shared/page-shell';
-import { Palette, Star, Images, Brush, Swords, BookOpen, PlugZap, Map as MapIcon, X, FolderOpen } from 'lucide-react';
+import { Palette, Star, Images, Brush, Swords, BookOpen, PlugZap, Map as MapIcon, X, FolderOpen, LayoutDashboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_AD_STUDIO } from '@/lib/store-config';
 import { useAdsStatus } from '../ads-kit';
@@ -32,6 +33,7 @@ import { RivalsSection } from './rivals';
 import { GuideSection } from './guide';
 import { PlanSection } from './plan';
 import { SavedSection, type SavedRestore } from './saved';
+import { BoardSection } from './board';
 import type { Play } from '@/lib/ads/studio/plays';
 import type { LibraryItem, WorkPhoto } from './studio-kit';
 
@@ -40,6 +42,7 @@ const VIEWS = [
   { key: 'picks', label: 'Picks', icon: Star },
   { key: 'library', label: 'Library', icon: Images },
   { key: 'make', label: 'Make', icon: Brush },
+  { key: 'board', label: 'Board', icon: LayoutDashboard },
   { key: 'saved', label: 'Saved', icon: FolderOpen },
   { key: 'rivals', label: 'Competitors', icon: Swords },
   { key: 'guide', label: 'Guide', icon: BookOpen },
@@ -100,6 +103,7 @@ function AdStudio() {
       {v === 'picks' && <PicksSection placement={placement} onPlacement={setPlacement} onOpen={setOpen} reloadKey={reloadKey} />}
       {v === 'library' && <LibrarySection placement={placement} onPlacement={setPlacement} onOpen={setOpen} reloadKey={reloadKey} />}
       {v === 'make' && <Maker work={work} onChoose={() => go('picks')} onUpload={setWork} play={play} restore={restore} />}
+      {v === 'board' && <BoardSection />}
       {v === 'saved' && <SavedSection onOpen={reopen} />}
       {v === 'rivals' && <RivalsSection connected={connected} />}
       {v === 'guide' && <GuideSection connected={ready} />}

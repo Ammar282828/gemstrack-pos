@@ -195,3 +195,32 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   (`drive-link.ts`, tested; `app_settings/ad_studio_drive.folders`, never in the code since gemstrack-pos is public; the Drive
   card's "add a folder by link", `/api/ads/studio/drive`), and TC (63 photos) was added that way. The Vault's logos
   (Taheri Vault / attachments / logos) are private to the owner and not shared.
+
+<a id="board"></a>### Board
+
+- **Board** (`/ads/studio?v=board`, `board.tsx`; 2026-10-04, owner after an audit of pen.dev: "sure run it") — pen.dev's idea on the
+  house's own parts: an endless canvas (drag to pan, pinch / ctrl-scroll to zoom, Fit) of **designs side by side** — each the maker's
+  own layout document (`StoryDoc`) on one library photo, in one of the studio's shapes and layouts — and **sticky notes**.
+  `studio_boards/{id}` holds a board (designs, notes, rev); every change is a list of **operations** (`board-shape.ts`, tested:
+  add/put/move/remove, note/noteMove/noteText/noteRemove, rename) applied in a Firestore transaction (`board.ts`), so the page and an
+  agent working at once never overwrite each other; the page asks `?since=<rev>` every 4 s. A design's `rev` goes up on every change
+  (not on a move). A website photo is used through its **unmarked Drive original** when there is one (as the maker does), else as
+  itself with `marked` (layouts add no wordmark).
+  **Per design:** Edit (the maker's `SoloEditor` in a dialog; Save to the board), **Let it cook** (2–6 variants: Make it with AI's
+  `op=direct` once per variant, each asked from another angle — `ANGLES` — plus the owner's aim or a note, three at a time for the
+  Vertex quota; each lands beside the last, `by: 'ai'`, with the model's `why`), **In another shape** (a copy laid out afresh in any
+  shape), Duplicate, Download (full size JPEG), Remove. Measured: two variants in 24 s.
+  **An agent over MCP** (`/api/studio/mcp`, `board-agent.ts`, tested): **Connect an agent** makes a key (`tstudio_…`, kept as a
+  SHA-256 hash in `app_settings/studio_agent`, shown once, revocable there, 600 calls an hour) and the `claude mcp add --transport
+  http …` line. Plain JSON-RPC (Streamable HTTP, JSON answers only; notifications get 202). Thirteen tools: `get_style` (the house
+  brief from `brand.ts`, the shapes, the layouts, the StoryDoc format, how to work), `list_boards`, `create_board`, `get_board` (notes
+  first — the owner's instructions), `find_photos` (the library with the ERP's specs line and the assessment), `view_photo`,
+  `add_design`, `update_design`, `move_design`, `remove_design`, `add_note`, `remove_note`, `view_design`. **The agent never lays
+  out:** it gives a layout and words, and the page — the only place with the photo, the fonts and a canvas — lays the design out the
+  next time the board is open, draws it, and posts a 720-px JPEG to `studio_board_views/{board}__{frame}` with the rev it shows;
+  `view_design` returns that picture (or says it is stale / not drawn yet). Words an agent writes pass `wordProblems`: no sale words
+  or hashtags (`breaksHouseRule`), no figure the ERP's specs line doesn't have (`inventedFigures`) — refused with the reason, so the
+  agent fixes its call. A design's document from outside goes through `cleanDoc` (renderer's layer kinds only, numbers finite, ≤ 80
+  layers, ≤ 60 KB, no uploaded pictures). Tried end to end on 2026-10-04 (local, real Firestore and Vertex): the agent added two
+  designs and a note, its "22K and only 3g — 20% off" was refused, the page drew them, `view_design` returned the drawing; the test
+  board and key were deleted after.
