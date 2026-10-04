@@ -69,6 +69,17 @@ export const MAX_NOTES = 80;
 const MAX_LAYERS = 80;
 const MAX_DOC_BYTES = 60_000;
 
+/**
+ * A layout that works for the photo and the shape. The full-bleed layouts (the photo filling the frame,
+ * the words over it) put the words across the piece on a 9:16, and cut the wordmark taheri.shop burns
+ * into its photos; those get the framed layout (the photo inset whole, the words beneath) instead.
+ * Seen on the first weekly board, 2026-10-04.
+ */
+const FULL_BLEED: readonly AdTemplateId[] = ['headline', 'clean', 'band', 'certified'];
+export function safeTemplate(t: AdTemplateId, o: { marked: boolean; format: AdFormat }): AdTemplateId {
+  return (o.marked || o.format === 'story') && FULL_BLEED.includes(t) ? 'framed' : t;
+}
+
 export const newId = (k: string) => `${k}-${Math.random().toString(36).slice(2, 9)}`;
 const num = (v: unknown, d: number, lo = -1e6, hi = 1e6) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
 const str = (v: unknown, max: number, d = '') => (typeof v === 'string' ? v.slice(0, max) : d);

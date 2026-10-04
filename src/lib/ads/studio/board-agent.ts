@@ -16,7 +16,8 @@ import { breaksHouseRule, inventedFigures } from './prompts';
 import { listAssets, loadAssessments, assetJpeg } from './assets';
 import { adScore } from './assessment';
 import { changeBoard, createBoard, getBoard, getView, listBoards, viewRevs } from './board';
-import { BOARD_SCALE, framePx, wordsOf, type BoardFrame, type BoardOp } from './board-shape';
+import { BOARD_SCALE, framePx, isTemplateId, safeTemplate, wordsOf, type BoardFrame, type BoardOp } from './board-shape';
+import { isAdFormat } from './templates';
 import { FONT_LABEL } from '@/lib/social/editor';
 
 export const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
@@ -63,7 +64,7 @@ function styleGuide(): string {
     `# ${BRAND.identity.name} Studio — how to design here`,
     brandBrief(),
     `## Shapes (format)\n${formats}`,
-    `## Layouts (template)\n${layouts}\nThe layout draws the words from \`fields\` (kicker, headline, weight = the ERP's specs line, details = call to action) in the house's type, colours and marks. Prefer choosing a layout and writing words over writing documents by hand.`,
+    `## Layouts (template)\n${layouts}\nA 9:16 story, or a website photo with the wordmark burned in (markedByWebsite in find_photos), always gets the framed layout instead of a full-bleed one (headline, clean, band, certified): over-photo words cross the piece on a story, and a crop cuts the burned-in mark.\nThe layout draws the words from \`fields\` (kicker, headline, weight = the ERP's specs line, details = call to action) in the house's type, colours and marks. Prefer choosing a layout and writing words over writing documents by hand.`,
     `## Words\n- Use the photo's \`specs\` line from find_photos as \`weight\`, exactly. Never add a figure (karat, weight, price, carat, year) that the ERP didn't give: it is refused.\n- No sale or discount words, no hashtags: refused.\n- Prices are allowed only when the owner gives one in a note.`,
     `## The layout document (doc), for fine changes\nA StoryDoc: { bg: { photoId: "photo", placement: { mode: "fill", zoom, focusX, focusY }, dim (0–1), gradient, color }, layers: Layer[], frame: { w, h } }. Coordinates are design pixels from the top left.\n- text: { id, kind:"text", text, bind?: "kicker"|"headline"|"weight"|"details" (bound text shows that field), x, y (y is the first line's baseline), size, font, color, align:"left"|"center"|"right", width, fit, spacing (em), lineHeight, upper, shadow, box: null | { color, radius, pad }, rotate, opacity }\n- wordmark: { id, kind:"wordmark", mark:"wordmark"|"t", x, y, width, color, autoColor, rotate, opacity }\n- rect/circle/line/arrow/shape: { id, kind, x, y, w, h, color, stroke, fill, curve, radius, rotate, opacity }\n- image: { id, kind:"image", photoId:"photo", x, y, w, h?, radius, border, shadow, rotate, opacity }\nFonts: ${Object.keys(FONT_LABEL).join(', ')}. At most 80 layers, 60 KB.`,
     `## Working on a board\n1. get_board — read the owner's notes first.\n2. find_photos → view_photo to choose.\n3. add_design (several, with \`near\` to set variants side by side; label each, give \`why\`).\n4. view_design to check each one once the page has drawn it; update_design to fix.\n5. add_note to explain the set or ask a question.\nOn the board a design is drawn at ${Math.round(BOARD_SCALE * 100)}% of its pixel size; designs sit in rows 48 units apart.`,
@@ -131,7 +132,9 @@ export async function callTool(name: string, args: Record<string, unknown>, who:
       if (!asset) return oops(`No photo “${photo}” — find_photos gives the ids.`);
       const fields = { kicker: '', headline: asset.name, weight: asset.specs, details: BRAND.voice.ctas[0].replace(/\.$/, ''), ...(args.fields as object ?? {}) };
       // A website photo carries the burned-in wordmark; its unmarked Drive original is used when there is one (as the maker does).
-      const frame = { assetId: asset.original?.id ?? photo, marked: asset.source === 'site' && !asset.original, format: args.format, template: args.template ?? 'headline', fields, label: args.label ?? asset.name, why: args.why, by: 'agent', doc: null } as Partial<BoardFrame> & { assetId: string };
+      const marked = asset.source === 'site' && !asset.original;
+      const format = isAdFormat(args.format) ? args.format : 'portrait';
+      const frame = { assetId: asset.original?.id ?? photo, marked, format, template: safeTemplate(isTemplateId(args.template) ? args.template : 'headline', { marked, format }), fields, label: args.label ?? asset.name, why: args.why, by: 'agent', doc: null } as Partial<BoardFrame> & { assetId: string };
       const problems = wordProblems({ fields: fields as BoardFrame['fields'], doc: null });
       if (problems.length) return oops(`Not added — ${problems.join('; ')}.`);
       const { added } = await change(b.id, [{ op: 'add', frame, near: typeof args.near === 'string' ? args.near : undefined }]);
@@ -145,8 +148,8 @@ export async function callTool(name: string, args: Record<string, unknown>, who:
       if (args.fields) patch.fields = { ...cur.fields, ...(args.fields as object) } as BoardFrame['fields'];
       if (args.label !== undefined) patch.label = String(args.label);
       if (args.why !== undefined) patch.why = String(args.why);
-      if (args.template) patch.template = args.template as BoardFrame['template'];
       if (args.format) patch.format = args.format as BoardFrame['format'];
+      if (args.template || args.format) patch.template = safeTemplate((args.template ?? cur.template) as BoardFrame['template'], { marked: cur.marked, format: patch.format ?? cur.format });
       if (args.doc) patch.doc = args.doc as BoardFrame['doc'];
       else if ((args.template && args.template !== cur.template) || (args.format && args.format !== cur.format)) patch.doc = null;
       const problems = wordProblems({ fields: patch.fields ?? cur.fields, doc: patch.doc === undefined ? cur.doc : patch.doc });

@@ -57,3 +57,13 @@ describe('a layout document from outside', () => {
     expect(nextSpot([], { w: 1080, h: 1350 })).toEqual({ x: 0, y: 0 });
   });
 });
+
+describe('a layout that suits the photo and shape', () => {
+  it('frames a story and a marked photo; leaves the rest', async () => {
+    const { safeTemplate } = await import('./board-shape');
+    expect(safeTemplate('headline', { marked: false, format: 'story' })).toBe('framed');
+    expect(safeTemplate('band', { marked: true, format: 'portrait' })).toBe('framed');
+    expect(safeTemplate('heritage', { marked: true, format: 'story' })).toBe('heritage');
+    expect(safeTemplate('headline', { marked: false, format: 'portrait' })).toBe('headline');
+  });
+});
