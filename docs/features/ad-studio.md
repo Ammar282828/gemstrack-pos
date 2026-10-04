@@ -240,3 +240,17 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   headline its room on a 4:5 (the call to action fell off the frame). Tried on 2026-10-04 (local, real Firestore and Vertex): two
   weekly boards (the second after the one-row-a-piece fix: six different pieces, twelve designs), Save and Queue a post from a
   design (then deleted); New ad was not pressed (it would put a picture in the ad account).
+
+<a id="five-tabs"></a>### Five tabs
+
+- **The Studio has five tabs** (2026-10-04, owner: "audit and consolidate ads tab"; there were eight): **Plan** (What to run —
+  the plays; Ad days & rules — the old Guide; Competitors), **Photos** (Best for ads — the old Picks; Every photo — the old
+  Library), **Make**, **Board**, **Saved**. A second row of chips picks the section (`?s=`); the old `?v=picks|library|guide|rivals`
+  addresses open where they went. Picks and Library were one library twice; Plan, Guide and Competitors one question.
+  **Setup** folds a finished step to its title (it was ~5,000 px of one-time instructions on a phone for a connected house; now
+  ~2,400) and opens with the Readiness strip — which now also says when this ERP can't save the Meta login (step 2's red line,
+  that had been below the fold). The audit found three things only the owner can do, all listed there: grant the App Hosting
+  account Secret Version Adder on `meta-ads-token`, add `instagram_manage_insights` to the login configuration and connect
+  again, and nothing was running (the one campaign ended 2026-10-01). The fourth — the pixel not on taheri.shop — was fixed in
+  taheri-site (`src/lib/analytics.js`).
+
