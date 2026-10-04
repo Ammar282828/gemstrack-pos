@@ -23,7 +23,7 @@ export const PromiseLine: React.FC<{ order: Sliver; className?: string }> = ({ o
   const t = orderTiming(order, now);
 
   if (!order.promisedDate) {
-    return <p className={cn('text-xs text-muted-foreground', className)}>no date promised</p>;
+    return <p className={cn('text-xs text-muted-foreground', className)}>no due date</p>;
   }
 
   // A finished order's promise is history; only chase what is still open.

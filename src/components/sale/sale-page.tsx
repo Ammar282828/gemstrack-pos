@@ -711,7 +711,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
       // doesn't return to a form whose pieces are gone.
       if (wasEdit) router.replace(`/invoices/${invoice.id}`); else router.push(`/invoices/${invoice.id}`);
       toast({
-        title: "Invoice created",
+        title: wasEdit ? "Invoice updated" : "Invoice created",
         description: paymentsNow.length
           ? `${invoice.id}: PKR ${invoice.amountPaid.toLocaleString()} paid${invoice.balanceDue > 0 ? `, PKR ${invoice.balanceDue.toLocaleString()} still due` : ' — paid in full'}.`
           : `${invoice.id} is ready to print or send.`,
@@ -742,6 +742,8 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
     setSelectedCustomerId(generatedInvoice.customerId || WALK_IN_CUSTOMER_VALUE);
     setHideRates(!!generatedInvoice.hideRates);
     setInternalNote(generatedInvoice.internalNote || '');
+    // Its delivery too: never loaded, a re-save wrote the empty form's over it (found 2026-10-04).
+    setDelivery(generatedInvoice.delivery ?? EMPTY_DELIVERY);
     // Who made the sale stays theirs: editing never loaded it, so a re-save dropped it (and with
     // the signed-in default, would have handed the sale to whoever edited it).
     setTakenBy(generatedInvoice.takenBy as TakenBy | undefined);

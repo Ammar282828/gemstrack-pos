@@ -194,6 +194,7 @@ import { clientPort } from '@/lib/db-client-port';
 import { recordInvoicePayment, removeInvoicePayment } from '@/lib/writes/invoice-payment';
 import { type ExchangeEntry, exchangeTotal, invoiceExchangeFields, orderExchanges } from '@/lib/exchange';
 import { orderAdvancePayments, withoutOrderAdvance } from '@/lib/order-payment';
+import { statusAfterUntick, statusFromPieces } from '@/lib/order-stage';
 import { isWalkInName, shouldCreateCustomer } from '@/lib/walk-in';
 import { createOrder } from '@/lib/writes/create-order';
 import { STORE_CONFIG } from '@/lib/store-config';
@@ -417,6 +418,8 @@ export interface Product {
 
 export interface InvoiceItem {
   sku: string;
+  /** A silver piece priced at its own all-in rate, kept so an edit prices it the same (2026-10-04). */
+  silverRatePerGram?: number;
   name: string;
   categoryId: string;
   metalType: MetalType;
@@ -1423,6 +1426,8 @@ export interface AppState {
   deleteInvoicePayment: (invoiceId: string, index: number, payment: { amount: number; date: string }) => Promise<Invoice>;
   refundInvoicePartial: (invoiceId: string, refundAmount: number, reason?: string) => Promise<Invoice | null>;
   updateInvoiceDiscount: (invoiceId: string, newDiscountAmount: number) => Promise<Invoice | null>;
+  /** Name a saved sale (a walk-in, or the wrong person) without re-pricing it; its ledger line moves with it. */
+  setInvoiceCustomer: (invoiceId: string, who: { customerId?: string; name: string; phone?: string }) => Promise<Invoice | null>;
   syncHisaabOutstandingBalances: () => Promise<void>;
   deleteInvoice: (invoiceId: string, isEditing?: boolean, syncShopify?: boolean) => Promise<void>;
   
@@ -2650,6 +2655,9 @@ export const useAppStore = create<AppState>()(
                 // recalculated from metal weights giving a different (or zero) total.
                 isCustomPrice: hasManualPrice,
                 customPrice: hasManualPrice ? item.unitPrice : undefined,
+                ...(item.silverRatePerGram ? { silverRatePerGram: item.silverRatePerGram } : {}),
+                ...(item.platingType ? { platingType: item.platingType } : {}),
+                ...(item.platingNote ? { platingNote: item.platingNote } : {}),
                 quantity: 1
             };
         });
@@ -2657,6 +2665,8 @@ export const useAppStore = create<AppState>()(
 
       generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchanges?, existingInvoiceId?, delivery?, takenBy?, hideRates?, internalNote?, payments?) => {
         if(get().settings.databaseLocked) return null;
+        // Set inside the transaction below; an object, so TypeScript doesn't narrow it to null out here.
+        const before: { total: number | null } = { total: null };
         const { cart } = get();
         if (cart.length === 0) return null;
         console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
@@ -2712,6 +2722,7 @@ export const useAppStore = create<AppState>()(
                 let existingInvoiceData: Omit<Invoice, 'id'> | null = null;
                 if (existingInvoiceDoc?.exists()) {
                     existingInvoiceData = existingInvoiceDoc.data() as Omit<Invoice, 'id'>;
+                    before.total = Number(existingInvoiceData.grandTotal) || 0;
                     existingAmountPaid = existingInvoiceData.amountPaid || 0;
                     existingPaymentHistory = existingInvoiceData.paymentHistory || [];
                     existingCreatedAt = existingInvoiceData.createdAt;
@@ -2756,6 +2767,10 @@ export const useAppStore = create<AppState>()(
                     goldRatePerGram21k: invoiceRates.goldRatePerGram21k ?? 0,
                     goldRatePerGram18k: invoiceRates.goldRatePerGram18k ?? 0,
                     palladiumRatePerGram: invoiceRates.palladiumRatePerGram ?? 0,
+                    // The per-karat palladium rates the sale screen priced with: dropped here, an 18k or
+                    // 12k piece was saved at the flat rate while the screen had shown another (2026-10-04).
+                    ...(Number(invoiceRates.palladiumRatePerGram18k) > 0 && { palladiumRatePerGram18k: Number(invoiceRates.palladiumRatePerGram18k) }),
+                    ...(Number(invoiceRates.palladiumRatePerGram12k) > 0 && { palladiumRatePerGram12k: Number(invoiceRates.palladiumRatePerGram12k) }),
                     platinumRatePerGram: invoiceRates.platinumRatePerGram ?? 0,
                     silverRatePerGram: invoiceRates.silverRatePerGram ?? 0,
                 };
@@ -2782,6 +2797,19 @@ export const useAppStore = create<AppState>()(
                     if (cartItem.diamondDetails) itemToAdd.diamondDetails = cartItem.diamondDetails;
                     if (cartItem.size) itemToAdd.size = cartItem.size;
                     if (cartItem.isCustomPrice) itemToAdd.isCustomPrice = true;
+                    if (cartItem.metalType === 'silver' && Number(cartItem.silverRatePerGram) > 0) itemToAdd.silverRatePerGram = Number(cartItem.silverRatePerGram);
+                    if (cartItem.platingType) itemToAdd.platingType = cartItem.platingType;
+                    if (cartItem.platingNote) itemToAdd.platingNote = cartItem.platingNote;
+                    // An edit rebuilds every line from the cart, which knows nothing of the Workshop: the
+                    // karigar given a Shopify sale's piece, its tick, its category. They were dropped on
+                    // every re-save (found 2026-10-04); the line as saved keeps them.
+                    if (existingInvoiceData) {
+                        const lines = (Array.isArray(existingInvoiceData.items) ? existingInvoiceData.items : Object.values(existingInvoiceData.items || {})) as InvoiceItem[];
+                        const saved = lines.find(l => l?.sku === cartItem.sku);
+                        if (saved) for (const k of ['karigarId', 'isCompleted', 'itemCategory', 'platingType', 'platingNote', 'silverRatePerGram'] as const) {
+                            if (saved[k] !== undefined && saved[k] !== null && (itemToAdd as Record<string, unknown>)[k] === undefined) (itemToAdd as Record<string, unknown>)[k] = saved[k];
+                        }
+                    }
 
                     invoiceItems.push(cleanObject(itemToAdd as InvoiceItem));
 
@@ -2881,8 +2909,15 @@ export const useAppStore = create<AppState>()(
             });
 
             if (result) {
-              addActivityLog('invoice.create', `Created invoice ${result.id}`,
-                `Customer: ${result.customerName || 'Walk-in'} | Total: ${Number(result.grandTotal || 0).toLocaleString()}`, result.id);
+              // An edit is an update, not a second sale: logged as invoice.create it read as a new invoice
+              // and carried the activity log's Revert, which deletes the whole invoice (found 2026-10-04).
+              if (existingInvoiceId) {
+                addActivityLog('invoice.update', `Updated invoice ${result.id}`,
+                  `Customer: ${result.customerName || 'Walk-in'} | Total: ${before.total !== null && Math.abs(before.total - Number(result.grandTotal || 0)) > 0.5 ? `${before.total.toLocaleString()} → ` : ''}${Number(result.grandTotal || 0).toLocaleString()}`, result.id);
+              } else {
+                addActivityLog('invoice.create', `Created invoice ${result.id}`,
+                  `Customer: ${result.customerName || 'Walk-in'} | Total: ${Number(result.grandTotal || 0).toLocaleString()}`, result.id);
+              }
               for (const p of (payments || []).filter(x => Number.isFinite(x.amount) && x.amount > 0)) {
                 addActivityLog('invoice.payment', `Payment received for invoice ${result.id}`,
                   `Amount: ${p.amount.toLocaleString()}${p.method ? ` (${p.method})` : ''} | Customer: ${result.customerName || 'Walk-in'} | taken with the invoice`, result.id);
@@ -3040,6 +3075,39 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      setInvoiceCustomer: async (invoiceId, who) => {
+        if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
+        const name = who.name.trim();
+        if (!name || isWalkInName(name)) throw new Error('Type the customer’s name, or pick them from the list.');
+        // A quarter of invoices were re-saved after the sale, a quarter of those only to change who
+        // it was for (the audit of 2026-10-04): a full edit re-priced everything to change one name.
+        // This changes the name, the customer and the ledger line it owes on, nothing else.
+        const invoiceRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
+        const linked = await getDocs(query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), where('linkedInvoiceId', '==', invoiceId)));
+        const out = await runTransaction(db, async (transaction) => {
+          const snap = await transaction.get(invoiceRef);
+          if (!snap.exists()) throw new Error(`Invoice ${invoiceId} not found.`);
+          const inv = snap.data() as Omit<Invoice, 'id'>;
+          let customerId = who.customerId;
+          let customerName = name;
+          if (customerId) {
+            const c = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerId));
+            if (c.exists()) customerName = (c.data() as Customer).name || name; else customerId = undefined;
+          }
+          if (!customerId) {
+            customerId = `cust-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+            transaction.set(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerId), { name, phone: who.phone?.trim() || '', address: '', email: '' });
+          }
+          const patch = { customerId, customerName, ...(who.phone?.trim() ? { customerContact: who.phone.trim() } : {}) };
+          transaction.update(invoiceRef, patch);
+          for (const row of linked.docs) transaction.update(row.ref, { entityId: customerId, entityName: customerName, entityType: 'customer' });
+          return { before: inv.customerName || 'Walk-in', invoice: { id: invoiceId, ...inv, ...patch } as Invoice };
+        });
+        addActivityLog('invoice.update', `Customer set on invoice ${invoiceId}`, `${out.before} → ${out.invoice.customerName}`, invoiceId);
+        set(state => ({ generatedInvoices: state.generatedInvoices.map(i => i.id === invoiceId ? { ...i, ...out.invoice } : i) }) as Partial<AppState>);
+        syncInvoiceShopify(invoiceId, 'upsert');
+        return out.invoice;
+      },
       updateInvoiceDiscount: async (invoiceId, newDiscountAmount) => {
         if (get().settings.databaseLocked) return null;
 
@@ -3426,6 +3494,29 @@ export const useAppStore = create<AppState>()(
       updateOrder: async (orderId, updatedOrderData) => {
         if(get().settings.databaseLocked) return;
         const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
+        const existing = get().orders.find(o => o.id === orderId);
+        // The pieces move the order on (lib/order-stage.ts): all with karigars → In Progress, all finished → Completed.
+        const movedTo = existing && Array.isArray(updatedOrderData.items)
+          ? statusFromPieces(updatedOrderData.status ?? existing.status, updatedOrderData.items, !!(updatedOrderData.invoiceId ?? existing.invoiceId))
+          : null;
+        // More advance typed into the form is money taken today: it joins the list of advances with
+        // today's date, as "Record an advance" does. Left out, orderAdvancePayments dated it to the
+        // day the order was made — on the invoice and in Today's cash (found 2026-10-04).
+        let addedAdvance: Payment | null = null;
+        if (existing && typeof updatedOrderData.advancePayment === 'number' && !('advances' in updatedOrderData)) {
+          const before = Number(existing.advancePayment) || 0;
+          const after = Number(updatedOrderData.advancePayment) || 0;
+          const listed = (existing.advances || []).reduce((n, p) => n + (Number(p.amount) || 0), 0);
+          if (after > before + 0.5 && listed <= before + 0.5) {
+            addedAdvance = cleanObject({
+              amount: Math.round((after - before) * 100) / 100, date: new Date().toISOString(), notes: 'Added in the order form',
+              // The form's "Paid by" names this money only when there was no advance before it.
+              ...(before <= 0.5 && updatedOrderData.advanceMethod ? { method: updatedOrderData.advanceMethod } : {}),
+            }) as Payment;
+            updatedOrderData = { ...updatedOrderData, advances: [...(existing.advances || []), addedAdvance] };
+          }
+        }
+        if (movedTo) updatedOrderData = { ...updatedOrderData, status: movedTo };
         // A new sample photo becomes a document of its own, in the same commit (lib/order-photos.ts):
         // the order itself stays a few KB however many photos it has.
         const split = Array.isArray(updatedOrderData.items) ? splitItemPhotos(updatedOrderData.items) : null;
@@ -3436,6 +3527,11 @@ export const useAppStore = create<AppState>()(
         for (const ph of split?.photos ?? []) batch.set(doc(db, ORDER_PHOTOS, ph.id), { dataUri: ph.dataUri, orderId, createdAt: at });
         await batch.commit();
         addActivityLog('order.update', `Updated order: ${orderId}`, `Details updated`, orderId);
+        if (addedAdvance) addActivityLog('order.update', `Advance recorded for Order ${orderId}`, `Amount: ${addedAdvance.amount.toLocaleString()}${addedAdvance.method ? ` (${addedAdvance.method})` : ''} | in the order form`, orderId);
+        if (movedTo) {
+          addActivityLog('order.update', `${orderId} → ${movedTo}`, movedTo === 'Completed' ? 'Every piece is finished' : 'Every piece now has a karigar', orderId);
+          if (movedTo === 'Completed') notifyAlert({ event: 'order-status', id: orderId, status: movedTo });
+        }
         syncOrderShopify(orderId, 'upsert');
       },
       deleteOrder: async (orderId: string) => {
@@ -3523,11 +3619,18 @@ export const useAppStore = create<AppState>()(
         const updatedItems = order.items.map((item, i) =>
           i === itemIndex ? { ...item, isCompleted } : item
         );
+        // The last piece finished finishes the order; a piece unticked on a finished one sends it back.
+        const invoiced = !!order.invoiceId;
+        const nextStatus = isCompleted ? statusFromPieces(order.status, updatedItems, invoiced) : statusAfterUntick(order.status, invoiced);
 
         try {
           const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
-          await setDoc(orderDocRef, { items: updatedItems }, { merge: true });
+          await setDoc(orderDocRef, { items: updatedItems, ...(nextStatus && { status: nextStatus }) }, { merge: true });
           console.log(`Successfully updated item #${itemIndex} status for order ${orderId}.`);
+          if (nextStatus) {
+            addActivityLog('order.update', `${orderId} → ${nextStatus}`, nextStatus === 'Completed' ? 'Every piece is finished' : `${order.items[itemIndex]?.description || `Item ${itemIndex + 1}`} is not finished`, orderId);
+            if (nextStatus === 'Completed') notifyAlert({ event: 'order-status', id: orderId, status: nextStatus });
+          }
           syncOrderShopify(orderId, 'upsert');
         } catch (error) {
           console.error(`Error updating item status for order ${orderId}:`, error);
@@ -3541,12 +3644,9 @@ export const useAppStore = create<AppState>()(
        * Returns the status to write, or null to leave it alone. Only ever
        * promotes Pending; it will not touch Completed, Cancelled or Refunded.
        */
-      _statusAfterAssign: (order: Order, items: OrderItem[]): OrderStatus | null => {
-        if (order.status !== 'Pending') return null;
-        if (!items.length) return null;
-        const allAssigned = items.every(i => i.karigarId && i.karigarId !== 'none');
-        return allAssigned ? 'In Progress' : null;
-      },
+      _statusAfterAssign: (order: Order, items: OrderItem[]): OrderStatus | null =>
+        // Only the assignment's own step: a karigar given never finishes an order by itself.
+        (order.status === 'Pending' && statusFromPieces(order.status, items.map(i => ({ ...i, isCompleted: false })), !!order.invoiceId)) || null,
 
       updateOrderItemKarigar: async (orderId, itemIndex, karigarId) => {
         if (get().settings.databaseLocked) return;

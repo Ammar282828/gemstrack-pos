@@ -29,6 +29,8 @@ import { useRouter } from 'next/navigation';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import { useMineFilter } from '@/hooks/use-me';
 import { PageShell } from '@/components/shared/page-shell';
+import { NextStep } from '@/components/order/next-step';
+import { STAGES, STAGE_ORDER, stageOf, type OrderStage } from '@/lib/order-stage';
 
 type PaymentStatus = OrderPaymentStatus;
 const getPaymentStatus = getOrderPaymentStatus;
@@ -84,7 +86,7 @@ function usePrintSlip(order: Order) {
   return { print, busy };
 }
 
-const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
+const OrderRow: React.FC<{ order: Order; owed: number }> = ({ order, owed }) => {
   const { print, busy } = usePrintSlip(order);
   const { toast } = useToast();
   const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
@@ -102,7 +104,7 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
   const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
 
   return (
-    <Card className={cn('mb-3 md:hidden', order.status === 'Completed' && settledRowClass)}>
+    <Card className={cn('mb-3 md:hidden', stageOf(order, owed) === 'done' && settledRowClass)}>
         {/* The whole card opens the order, so the footer button that used to
             say so as well is gone. */}
         <CardContent className="p-3.5 space-y-2.5 cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)}>
@@ -150,25 +152,26 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
                    )}
                    <Progress value={progressPercentage} className="h-1.5 mt-1" />
                  </div>
-                 <Button type="button" size="sm" variant="outline" className="h-8 flex-shrink-0" onClick={print} disabled={busy} aria-label="Print slip">
+                 <Button type="button" size="sm" variant="outline" className="h-8 flex-shrink-0" onClick={e => { e.stopPropagation(); print(); }} disabled={busy} aria-label="Print slip">
                    {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-                   <span className="ml-2">Print</span>
                  </Button>
             </div>
+            {/* The one thing to do next, on the card (lib/order-stage.ts). */}
+            <NextStep order={order} owed={owed} className="pt-1 [&>*:first-child]:flex-1" />
 
         </CardContent>
     </Card>
   );
 };
 
-const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
+const OrderTableRow: React.FC<{ order: Order; owed: number }> = ({ order, owed }) => {
   const { print, busy } = usePrintSlip(order);
     const { toast } = useToast();
     const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null);
 
-    const DESTRUCTIVE_STATUSES: OrderStatus[] = ['Cancelled', 'Refunded'];
+    const DESTRUCTIVE_STATUSES: OrderStatus[] = ['Cancelled'];
 
     const applyStatusChange = async (newStatus: OrderStatus) => {
         setIsUpdatingStatus(true);
@@ -201,7 +204,7 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
   
     return (
       <>
-      <TableRow className={cn(order.status === 'Completed' && settledRowClass)}>
+      <TableRow className={cn(stageOf(order, owed) === 'done' && settledRowClass)}>
         <TableCell className="font-medium align-top">
           <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
             {order.id}
@@ -211,7 +214,7 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
           )}
           {/* Count first: it is the scannable part, and the item list is
               going to truncate whatever happens. */}
-          <p className="text-xs text-muted-foreground max-w-[18rem] mt-0.5 truncate" title={order.summary}>
+          <p className="text-xs text-muted-foreground max-w-[13rem] mt-0.5 truncate" title={order.summary}>
             {totalItems > 0 && <span className="tabular-nums">{totalItems} item{totalItems === 1 ? '' : 's'}</span>}
             {totalItems > 0 && order.summary ? ' · ' : ''}
             {order.summary || (totalItems === 0 ? 'No items' : '')}
@@ -221,7 +224,8 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
             {/* Taken on top, promised underneath — the promise is the one you
                 chase against, so it gets the colour when it has passed. */}
             <div className="whitespace-nowrap leading-tight">
-                <p className="text-sm">{format(parseISO(order.createdAt), 'd MMM yyyy')}</p>
+                {/* This year's date without the year: the table has to fit a laptop beside the sidebar. */}
+                <p className="text-sm">{format(parseISO(order.createdAt), parseISO(order.createdAt).getFullYear() === new Date().getFullYear() ? 'd MMM' : 'd MMM yyyy')}</p>
                 <PromiseLine order={order} />
             </div>
         </TableCell>
@@ -246,7 +250,7 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
                wrapping a coloured badge, which read as two controls stacked on
                each other, and the count, the bar and the badge each took their
                own line — three rows of chrome for one status. */}
-           <div className="flex flex-col gap-1.5 w-[9.5rem]">
+           <div className="flex flex-col gap-1.5 min-w-[9.5rem]">
               {isUpdatingStatus ? (
                   <span className="inline-flex h-7 items-center gap-1.5 text-xs text-muted-foreground">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />Saving…
@@ -265,8 +269,8 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
                           <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                          {ORDER_STATUSES.map(status => (
-                              <SelectItem key={status} value={status}>{status}</SelectItem>
+                          {ORDER_STATUSES.filter(st => st !== 'Refunded' || st === order.status).map(status => (
+                              <SelectItem key={status} value={status} disabled={status === 'Refunded'}>{status}</SelectItem>
                           ))}
                       </SelectContent>
                   </Select>
@@ -286,19 +290,14 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
                   <Progress value={progressPercentage} className="h-1" />
                 </div>
               )}
+              <NextStep order={order} owed={owed} className="-ml-0.5" compact />
           </div>
         </TableCell>
         <TableCell className="text-right">
           <div className="inline-flex items-center gap-1.5">
             <Button type="button" size="sm" variant="outline" onClick={print} disabled={busy} aria-label="Print slip" title="Print the workshop slip">
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-              <span className="sr-only lg:not-sr-only lg:ml-2">Print</span>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/orders/${order.id}`}>
-                <Eye className="w-4 h-4" />
-                <span className="sr-only lg:not-sr-only lg:ml-2">View</span>
-              </Link>
+              <span className="sr-only">Print</span>
             </Button>
           </div>
         </TableCell>
@@ -339,17 +338,29 @@ export default function OrdersPage() {
   const [monthFilter, setMonthFilter] = useState<string>('All');
 
   const appReady = useAppReady();
-  const { orders, isOrdersLoading, loadOrders } = useAppStore(state => ({
+  const { orders, isOrdersLoading, loadOrders, invoices, loadGeneratedInvoices } = useAppStore(state => ({
     orders: state.orders,
     isOrdersLoading: state.isOrdersLoading,
     loadOrders: state.loadOrders,
+    invoices: state.generatedInvoices,
+    loadGeneratedInvoices: state.loadGeneratedInvoices,
   }));
 
   useEffect(() => {
     if (appReady) {
       loadOrders();
+      loadGeneratedInvoices();
     }
-  }, [appReady, loadOrders]);
+  }, [appReady, loadOrders, loadGeneratedInvoices]);
+
+  /** What each invoiced order's invoice still has owing: the hub's "Awaiting payment". */
+  const owedOn = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const inv of invoices) if (inv.status !== 'Refunded' && (Number(inv.balanceDue) || 0) > 0.5) m.set(inv.id, Number(inv.balanceDue));
+    return m;
+  }, [invoices]);
+  const owedFor = (o: Order) => (o.invoiceId ? owedOn.get(o.invoiceId) ?? 0 : 0);
+  const [openDone, setOpenDone] = useState<Record<string, boolean>>({});
 
   // Build the list of months present in the data, most recent first.
   const monthOptions = useMemo(() => {
@@ -364,8 +375,12 @@ export default function OrdersPage() {
   // Shown on the collapsed mobile Filters button so an active filter is never
   // hidden from view.
 
-  /** Day by default, matching Expenses and Billing. */
-  const [groupBy, setGroupBy] = useState<'status' | Graduation>('day');
+  /**
+   * By stage first (2026-10-04): the list is the orders hub — what is ready to hand over, what is
+   * with the karigars, what is not started, what is invoiced and still owed — each card carrying
+   * its next step. Status and the dates are one tap away.
+   */
+  const [groupBy, setGroupBy] = useState<'stage' | 'status' | Graduation>('stage');
 
   const filteredOrders = useMemo(() => {
     if (!appReady) return [];
@@ -395,7 +410,11 @@ export default function OrdersPage() {
       if (rows.length) out.push({ key, title, hint, rows, danger });
     };
 
-    if (groupBy === 'status') {
+    if (groupBy === 'stage') {
+      for (const st of STAGE_ORDER) {
+        push(st, STAGES[st].title, STAGES[st].hint, filteredOrders.filter(o => stageOf(o, owedFor(o)) === st), st === 'new');
+      }
+    } else if (groupBy === 'status') {
       // Ordered the way work moves, so the list reads as a pipeline.
       for (const st of ORDER_STATUSES) {
         push(st, st, st === 'Pending' ? 'not started' : '', filteredOrders.filter(o => o.status === st),
@@ -422,7 +441,9 @@ export default function OrdersPage() {
       value: s.rows.reduce((n, o) => n + (o.subtotal || 0), 0),
       due: s.rows.reduce((n, o) => n + Math.max(0, o.grandTotal || 0), 0),
     }));
-  }, [filteredOrders, groupBy]);
+  }, [filteredOrders, groupBy, owedOn]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** Done and closed orders fold away under the hub; they are history, not work. */
+  const folds = (key: string) => groupBy === 'stage' && (key === 'done' || key === 'closed') && !openDone[key];
 
   if (!appReady) {
     return (
@@ -457,9 +478,9 @@ export default function OrdersPage() {
         activeCount={[monthFilter, statusFilter, paymentFilter].filter(v => v !== 'All').length + (takenByFilter ? 1 : 0)}
         actions={
           <div className="inline-flex rounded-md border overflow-hidden flex-shrink-0" role="group" aria-label="Group by">
-            {([['status', 'Status'], ...GRADUATIONS.map(g => [g.id, g.label] as const)] as const).map(([id, label]) => (
+            {([['stage', 'Stage'], ...GRADUATIONS.map(g => [g.id, g.label] as const)] as const).map(([id, label]) => (
               <button
-                key={id} type="button" onClick={() => setGroupBy(id as 'status' | Graduation)}
+                key={id} type="button" onClick={() => setGroupBy(id as 'stage' | 'status' | Graduation)}
                 aria-pressed={groupBy === id}
                 className={cn('px-2.5 text-xs h-9 transition-colors whitespace-nowrap',
                   groupBy === id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
@@ -522,14 +543,16 @@ export default function OrdersPage() {
                 <div className="flex items-baseline justify-between gap-3 px-1 pb-1.5">
                   <div className="flex items-baseline gap-2 min-w-0">
                     <h2 className={cn('text-sm font-semibold truncate', s.danger && 'text-destructive')}>{s.title}</h2>
-                    {s.hint && <span className="text-2xs text-muted-foreground flex-shrink-0">{s.hint}</span>}
+                    {s.hint && <span className="hidden min-[420px]:inline text-2xs text-muted-foreground flex-shrink-0">{s.hint}</span>}
                   </div>
                   <div className="flex items-baseline gap-2 flex-shrink-0">
                     <span className="text-2xs text-muted-foreground">{s.rows.length}</span>
                     <span className="text-sm font-semibold tabular-nums">{pkr(s.value)}</span>
                   </div>
                 </div>
-                {s.rows.map(order => <OrderRow key={order.id} order={order} />)}
+                {folds(s.key)
+                  ? <button type="button" className="w-full rounded-lg border border-dashed py-2 text-xs text-muted-foreground" onClick={() => setOpenDone(d => ({ ...d, [s.key]: true }))}>Show {s.rows.length}</button>
+                  : s.rows.map(order => <OrderRow key={order.id} order={order} owed={owedFor(order)} />)}
               </section>
             ))}
           </div>
@@ -564,7 +587,9 @@ export default function OrdersPage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                      {s.rows.map(order => <OrderTableRow key={order.id} order={order} />)}
+                      {folds(s.key)
+                        ? <TableRow><TableCell colSpan={6} className="py-1.5"><button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setOpenDone(d => ({ ...d, [s.key]: true }))}>Show {s.rows.length}</button></TableCell></TableRow>
+                        : s.rows.map(order => <OrderTableRow key={order.id} order={order} owed={owedFor(order)} />)}
                     </React.Fragment>
                   ))}
                 </TableBody>

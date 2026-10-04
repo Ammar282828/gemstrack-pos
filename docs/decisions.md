@@ -205,6 +205,36 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   lumped "Advance from Order" payment. Re-saving an invoice from the cart keeps `sourceOrderId`, Shopify links and source
   (`INVOICE_PROVENANCE`). Payments can also be taken in the cart as the invoice is written (`generateInvoice(…, payments)`).
 
+### Orders hub
+
+- **The Orders list is the orders hub; the pieces move an order on** (2026-10-04, owner: "take the same approach for the entire
+  pos" — the Posts hub's: read how the shop really works, then merge what is split). The audit (both houses' activity log, 60
+  days): each order saved ~4.4 times after it was made — status typed by hand (Taheri 45, Mina 88), "Details updated" through the
+  whole edit form (Taheri 72), Completed then Finalize as two steps; 5 of Taheri's and 10 of Mina's finished orders never
+  invoiced. Now: **`lib/order-stage.ts`** (tested) — every piece with a karigar → In Progress, every piece finished → Completed,
+  on every path (the karigar pickers, bulk assign, a piece ticked or unticked, the edit form, a new order); forward only, never an
+  invoiced, cancelled or refunded order. **The list opens grouped by stage** — Ready to hand over · With karigars · Not started ·
+  Awaiting payment (the invoice still owed, from `generatedInvoices`) · Done and Cancelled folded — and **each card carries its next
+  step** (`components/order/next-step.tsx`): Give out (the karigar pickers, `give-out-dialog.tsx`), Mark ready, Finalize & invoice
+  (the order page's dialog, now `components/order/order-dialogs.tsx`), Take PKR … (the invoice), and an Advance from any order being
+  made. Finalize is offered from In Progress too (it completes the order). The status pill offers no bare "Refunded" (list, order
+  page, the staff route): Refund order does a refund; Cancel asks first on the order page as on the list. **An advance typed into
+  the edit form is dated today** — it joins `advances` (`store.updateOrder`); before, `orderAdvancePayments` dated it to the day the
+  order was made, on the invoice and in Today's cash. "Status" grouping became "Stage" (the status filter stays). Found on the way:
+  `<main>`'s `overflow-auto` made every `sticky` inert (see Posts hub).
+
+### Name a sale
+
+- **Who a sale was for is set on the invoice, and an edit is an edit** (2026-10-04). A quarter of invoices were re-saved after the
+  sale (Taheri 24 of 92, Mina 50 of 253), a quarter of those to change the customer — a walk-in named once the bill was out (see
+  Walk-ins) — through Edit invoice, which re-prices every piece. **Name them / Change** beside the name on the invoice
+  (`components/invoice/set-customer-dialog.tsx` → `store.setInvoiceCustomer`): picks or makes the customer, moves the sale's
+  hisaab line to them, re-prices nothing. And a full edit no longer loses what the cart doesn't know: each line keeps its
+  `karigarId`, tick, category, plating and a silver piece's own rate (`InvoiceItem.silverRatePerGram`; Mina's Shopify sales lost
+  their karigar on every re-save), the delivery is loaded back, palladium 18k/12k rates reach the save, and the log says
+  `invoice.update` with the old → new total (it said `invoice.create`, which read as a second sale and carried the activity log's
+  Revert — a delete of the whole invoice, behind the delete code).
+
 ### Advance method
 
 - **An order's advance method is optional, and a refused save is never silent** (2026-09-28, owner: "paid by how? causing

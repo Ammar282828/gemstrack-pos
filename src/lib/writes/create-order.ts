@@ -9,6 +9,7 @@
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
 import { ORDER_PHOTOS, splitItemPhotos } from '@/lib/order-photos';
+import { statusFromPieces } from '@/lib/order-stage';
 
 const ORDERS = 'orders';
 const CUSTOMERS = 'customers';
@@ -154,7 +155,8 @@ export async function createOrder(
       subtotal,
       grandTotal,
       createdAt,
-      status: 'Pending',
+      // Made with every piece already given out (or finished), it starts there (lib/order-stage.ts).
+      status: statusFromPieces('Pending', input.items as { karigarId?: string; isCompleted?: boolean }[]) ?? 'Pending',
       summary,
       ratesApplied,
     } as CreatedOrder;

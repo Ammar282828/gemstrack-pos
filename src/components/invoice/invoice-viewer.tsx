@@ -43,6 +43,8 @@ import { format } from 'date-fns';
 import { AmountInput } from '@/components/ui/amount-input';
 import { invoiceExchanges, describeExchangeEntry } from '@/lib/exchange';
 import { OrderCarryOver } from '@/components/invoice/order-carry-over';
+import { SetCustomerDialog } from '@/components/invoice/set-customer-dialog';
+import { isWalkInName } from '@/lib/walk-in';
 import { FormSkeleton } from '@/components/shared/skeletons';
 import { PhoneField } from '@/components/ui/phone-field';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -157,6 +159,9 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
       setIsSubmittingPayment(false);
     }
   };
+
+  // Who the sale was for, changed without the full edit (components/invoice/set-customer-dialog.tsx).
+  const [settingCustomer, setSettingCustomer] = useState(false);
 
   const handleSaveDiscount = async () => {
     if (!invoice) return;
@@ -311,6 +316,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
           <QRCode id="links-qr-code" value={storeLinksUrl()} size={128} />
           <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
         </div>
+        <SetCustomerDialog invoice={invoice} open={settingCustomer} onOpenChange={setSettingCustomer} onDone={setLatest} />
         <Card className="max-w-4xl mx-auto shadow-lg">
            <CardHeader>
             <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
@@ -322,6 +328,12 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                     <CardTitle className="text-2xl font-bold font-mono">{invoice.id}</CardTitle>
                     <CardDescription className="mt-1">
                       {invoice.customerName || 'Walk-in Customer'}
+                      {invoice.status !== 'Refunded' && (
+                        <button type="button" onClick={() => setSettingCustomer(true)}
+                          className={cn('ml-1.5 text-xs font-medium hover:underline', !invoice.customerName || isWalkInName(invoice.customerName) ? 'text-primary' : 'text-muted-foreground')}>
+                          {!invoice.customerName || isWalkInName(invoice.customerName) ? 'Name them' : 'Change'}
+                        </button>
+                      )}
                       {' · '}
                       {new Date(invoice.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                       {invoice.takenBy && <>{' · taken by '}{invoice.takenBy}</>}

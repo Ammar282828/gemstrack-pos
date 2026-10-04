@@ -90,6 +90,8 @@ export async function POST(req: NextRequest) {
         if (!orderId || !ORDER_STATUSES.includes(status)) {
           return NextResponse.json({ error: 'Bad request' }, { status: 400 });
         }
+        // A refund is "Refund order" (the invoice undone, stock back, the delete code), never a relabel.
+        if (status === 'Refunded') return NextResponse.json({ error: 'Refund an order from its page (Refund order).' }, { status: 400 });
 
         const ref = adminDb.collection('orders').doc(orderId);
         const snap = await ref.get();

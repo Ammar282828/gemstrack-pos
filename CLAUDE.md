@@ -147,7 +147,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Hooks](docs/decisions.md#hooks) — the `/orders/add` crash of 2026-09-22
 - [Fonts](docs/decisions.md#fonts) — every face in `src/fonts/`, `next/font/local`
 - [Light and dark](docs/decisions.md#light-and-dark) — the device's choice wins; `theme-default` set outside React
-- [Recent picks](docs/decisions.md#recent-picks) — last five per device, moved not duplicated
+- [Recent picks](docs/decisions.md#recent-picks) — last five per device
 
 **Home and the day**
 - [Dashboard](docs/decisions.md#dashboard) — four figures, Needs you, Due to customers, Recent sales; no buttons
@@ -163,8 +163,10 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Invoice PDF](docs/decisions.md#invoice-pdf) — `saveInvoicePdf`, per-piece printing
 - [Exchange rows](docs/decisions.md#exchange-rows) — `exchanges`, with the old totals kept
 - [Order to invoice](docs/decisions.md#order-to-invoice) — advances as payments, exchange, discount, notes
+- [Orders hub](docs/decisions.md#orders-hub) — by stage, a next step per card; pieces set status
+- [Name a sale](docs/decisions.md#name-a-sale) — on the invoice, no re-price
 - [Advance method](docs/decisions.md#advance-method) — `.nullish()`, `onInvalid` toasts
-- [Exchange line](docs/decisions.md#exchange-line) — what + amount; weight and rate fold away
+- [Exchange line](docs/decisions.md#exchange-line) — what + amount
 - [Walk-ins](docs/decisions.md#walk-ins) — `lib/walk-in.ts`; one walk-in row everywhere
 - [Saves are one trip](docs/decisions.md#saves-are-one-trip) — one commit per save; photos in `order_photos`
 
@@ -193,9 +195,9 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Voice](docs/features/ai.md#voice) — live words; every part editable; anything, several steps
 
 **Post a piece and its tools** (`docs/features/post-a-piece.md`)
-- [Post a piece drafts](docs/features/post-a-piece.md#post-a-piece-drafts) — drafts on this device (IndexedDB), photos included; picks up where it left off
-- [Post a piece](docs/features/post-a-piece.md#post-a-piece) — story, square and caption from one piece; to site, WhatsApp, Instagram; [Paint](docs/features/post-a-piece.md#paint)
-- [Checks](docs/features/post-a-piece.md#checks) — every dependency tested live, with a fix for each failure
+- [Post a piece drafts](docs/features/post-a-piece.md#post-a-piece-drafts) — on this device (IndexedDB), photos included; resumes
+- [Post a piece](docs/features/post-a-piece.md#post-a-piece) — story, square, caption from one piece → site, WhatsApp, Instagram; [Paint](docs/features/post-a-piece.md#paint)
+- [Checks](docs/features/post-a-piece.md#checks) — each dependency tested live, with its fix
 - [Story editor](docs/features/post-a-piece.md#story-editor) — the layer document and its editor
 - [Square only](docs/features/post-a-piece.md#square-only) — the square editor and SVG marks
 - [Designer](docs/features/post-a-piece.md#designer) — Canva-style, phone first
@@ -226,7 +228,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Ads](docs/features/ads.md#ads) — Meta ad account per house; Overview, Campaigns, New ad, Setup; the helper
 
 **Ad studio** (`docs/features/ad-studio.md`)
-- [Ad studio](docs/features/ad-studio.md#ad-studio) — Picks, Library, Make, Plan, Guide, Saved, Competitors; both houses; [any shape](docs/features/ad-studio.md#any-shape)
+- [Ad studio](docs/features/ad-studio.md#ad-studio) — seven tabs, both houses; [any shape](docs/features/ad-studio.md#any-shape)
 
 ## graphify
 
@@ -235,6 +237,6 @@ This project has a graphify knowledge graph at graphify-out/.
 Rules:
 - Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
 - If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
-- For cross-module "how does X relate to Y" questions, prefer `graphify query "<question>"`, `graphify path "<A>" "<B>"`, or `graphify explain "<concept>"` over grep — these traverse the graph's EXTRACTED + INFERRED edges instead of scanning files
+- For cross-module "how does X relate to Y" questions, prefer `graphify query "<question>"`, `graphify path "<A>" "<B>"`, or `graphify explain "<concept>"` over grep — they walk the graph's edges
 - After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
 - `graphify` is installed with pipx (`pipx install graphifyy`); `graphify-out/cache/` and the dated backup folders are gitignored, the graph itself is committed.
