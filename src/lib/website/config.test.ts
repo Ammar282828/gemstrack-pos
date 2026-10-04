@@ -7,6 +7,11 @@ describe('bankDetails', () => {
     const b = bankDetails({ NEXT_PUBLIC_STORE_BANK_LINE: 'Meezan Bank — Taheri Jewellers', NEXT_PUBLIC_STORE_IBAN: 'PK00MEZN0000000000000000' } as unknown as NodeJS.ProcessEnv);
     expect(b).toMatchObject({ bankName: 'Meezan Bank', accountTitle: 'Taheri Jewellers', iban: 'PK00MEZN0000000000000000' });
   });
+  it('takes a line with no bank as the title alone, and the bank from WEBSITE_BANK_NAME — never the title as the bank', () => {
+    const env = (o: Record<string, string>) => o as unknown as NodeJS.ProcessEnv;
+    expect(bankDetails(env({ NEXT_PUBLIC_STORE_BANK_LINE: 'Taheri Collections' }))).toMatchObject({ bankName: '', accountTitle: 'Taheri Collections' });
+    expect(bankDetails(env({ NEXT_PUBLIC_STORE_BANK_LINE: 'Taheri Collections', WEBSITE_BANK_NAME: 'Meezan Bank' }))).toMatchObject({ bankName: 'Meezan Bank', accountTitle: 'Taheri Collections' });
+  });
   it('is empty, not undefined, when nothing is set — so readiness can say what is missing', () => {
     expect(bankDetails({} as unknown as NodeJS.ProcessEnv)).toMatchObject({ bankName: '', iban: '' });
     const r = configReadiness({ ...DEFAULT_WEBSITE_CONFIG, enabled: true, posCategoryId: 'x', defaultPricing: { ...DEFAULT_WEBSITE_CONFIG.defaultPricing, makingChargesPerGram: 1 } }, bankDetails({} as unknown as NodeJS.ProcessEnv));

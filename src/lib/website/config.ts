@@ -45,14 +45,18 @@ export function ratesUsable(r: QuoteRates): boolean {
 
 /**
  * The account the customer pays into. Environment only — see types.ts. The
- * bank line is "Bank — Account title"; the IBAN carries the rest.
+ * bank line is "Bank — Account title" (or the title alone, with WEBSITE_BANK_NAME); the IBAN carries the rest.
  */
 export function bankDetails(env: NodeJS.ProcessEnv = process.env): WebsiteBankDetails {
   const line = (env.NEXT_PUBLIC_STORE_BANK_LINE || '').trim();
-  const [bankName = '', accountTitle = ''] = line.split(/\s+[—–-]\s+/, 2);
+  const [first = '', second = ''] = line.split(/\s+[—–-]\s+/, 2);
+  // A line with no bank in it is the account title alone — Taheri's ("Taheri Collections", a console
+  // override that beats the YAML). The bank's name then comes from WEBSITE_BANK_NAME, never guessed:
+  // a title shown as the bank is a customer paying into the wrong place.
+  const bankName = second ? first.trim() : (env.WEBSITE_BANK_NAME || '').trim();
   return {
-    bankName: bankName.trim(),
-    accountTitle: (accountTitle || bankName).trim(),
+    bankName,
+    accountTitle: (second || first).trim(),
     accountNumber: (env.WEBSITE_BANK_ACCOUNT || '').trim(),
     iban: (env.NEXT_PUBLIC_STORE_IBAN || '').trim(),
     instructions: (env.WEBSITE_BANK_NOTE || '').trim() || undefined,
@@ -65,6 +69,6 @@ export function configReadiness(c: WebsiteConfig, bank: WebsiteBankDetails = ban
   if (!c.enabled) missing.push('enabled');
   if (!c.posCategoryId) missing.push('posCategoryId');
   if (!(c.defaultPricing.makingChargesPerGram > 0)) missing.push('defaultPricing.makingChargesPerGram');
-  if (!bank.bankName || !(bank.iban || bank.accountNumber)) missing.push('bank (NEXT_PUBLIC_STORE_BANK_LINE + NEXT_PUBLIC_STORE_IBAN)');
+  if (!bank.bankName || !(bank.iban || bank.accountNumber)) missing.push('bank (NEXT_PUBLIC_STORE_BANK_LINE "Bank — Title", or the title and WEBSITE_BANK_NAME; NEXT_PUBLIC_STORE_IBAN)');
   return { ready: missing.length === 0, missing };
 }

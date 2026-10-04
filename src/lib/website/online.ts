@@ -176,7 +176,7 @@ export async function listOnlineOrders(now = new Date()): Promise<OnlineOrderRow
 
 export async function confirmOnlineOrder(id: string, by: string, now = new Date()): Promise<{ orderId: string; notified: string | null }> {
   const bank = bankDetails();
-  if (!bank.bankName || !(bank.iban || bank.accountNumber)) throw new FulfilmentError('The bank account is not set (NEXT_PUBLIC_STORE_BANK_LINE and NEXT_PUBLIC_STORE_IBAN), so the customer could not be told where to pay.', 409);
+  if (!bank.bankName || !(bank.iban || bank.accountNumber)) throw new FulfilmentError('The bank account is not set (the bank\'s name and the IBAN — docs/website-checkout.md), so the customer could not be told where to pay.', 409);
   const ref = adminDb.collection(ONLINE_ORDERS).doc(id);
   const at = now.toISOString();
   const claim = await adminDb.runTransaction(async tx => {

@@ -16377,7 +16377,7 @@
       "file_type": "code",
       "norm_label": "configreadiness()",
       "source_file": "src/lib/website/config.ts",
-      "source_location": "L63"
+      "source_location": "L67"
     },
     {
       "id": "src_lib_website_config_loadrates",
@@ -51781,7 +51781,7 @@
       "node_kind": "heading",
       "norm_label": "testing \u2014 on the emulator, never the live book",
       "source_file": "docs/website-checkout.md",
-      "source_location": "L61"
+      "source_location": "L62"
     },
     {
       "id": "docs_website_checkout_the_flow_confirm_first_2026_10_04",
@@ -287551,7 +287551,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/website-checkout.md",
-      "source_location": "L61",
+      "source_location": "L62",
       "weight": 1.0
     },
     {
@@ -340274,7 +340274,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/lib/website/config.ts",
-      "source_location": "L63",
+      "source_location": "L67",
       "weight": 1.0
     },
     {
@@ -348953,5 +348953,5 @@
       ]
     }
   ],
-  "built_at_commit": "cbfb61db5245a7a331f07c8672a72ded9efa6587"
+  "built_at_commit": "69ee5367190f2999e23f2037139892de19e23478"
 }

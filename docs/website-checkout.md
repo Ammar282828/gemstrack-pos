@@ -48,10 +48,11 @@ let the weight price it.
 ## Before the switch goes on
 
 1. **Bank details, in the environment** (never Firestore: nothing that writes to the database can
-   change where a customer's money goes). `NEXT_PUBLIC_STORE_BANK_LINE` = "Bank — Account title"
-   (Taheri's is a console `overrideEnv`, which beats the YAML) and `NEXT_PUBLIC_STORE_IBAN` (or
-   `WEBSITE_BANK_ACCOUNT`). Confirm refuses while they are empty. The help pages promise the title
-   reads **Taheri Collections**.
+   change where a customer's money goes). `NEXT_PUBLIC_STORE_BANK_LINE` = "Bank — Account title", or
+   the title alone with the bank in `WEBSITE_BANK_NAME` — Taheri's line is a console `overrideEnv`
+   ("Taheri Collections", which beats the YAML), so its bank goes in `apphosting.taheri.yaml` as
+   `WEBSITE_BANK_NAME` — and `NEXT_PUBLIC_STORE_IBAN` (or `WEBSITE_BANK_ACCOUNT`). Confirm refuses
+   while they are empty. The help pages promise the title reads **Taheri Collections**.
 2. **Publish `firestore.rules`** (owner, console). With the book open anyone can write orders.
 3. **Pricing** in Settings → Integrations (set: making 1,500/g, delivery Rs 500, free over 300,000),
    then the switch on.
