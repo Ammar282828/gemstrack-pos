@@ -1350,6 +1350,8 @@ export interface AppState {
   loadSettings: () => Promise<void>;
   /** `source` names where a rate change came from, for the activity log (the rate form, gold.pk, the cart). */
   updateSettings: (newSettings: Partial<Pick<Settings, keyof Settings>>, opts?: { source?: string }) => Promise<void>;
+  /** Today's rate is yesterday's: stamp it as set now, by whoever is signed in, and change nothing else. */
+  confirmRates: () => Promise<void>;
 
   addCategory: (title: string) => void; // Local category management
   updateCategory: (id: string, title: string) => void;
@@ -2006,6 +2008,23 @@ export const useAppStore = create<AppState>()(
           set((state) => { state.settings = currentSettings; });
           throw error;
         }
+      },
+
+      // A rate that did not move still has to be set each day: taheri.shop sells only at a rate set in
+      // the last 36 hours (lib/website/config.ts ratesFresh), and Save does nothing when no figure changed.
+      confirmRates: async () => {
+        if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
+        const before = get().settings;
+        const stamp = { ratesUpdatedAt: new Date().toISOString(), ratesUpdatedBy: signedInName() };
+        set((state) => { state.settings = { ...state.settings, ...stamp }; });
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID), stamp, { merge: true });
+        } catch (error) {
+          set((state) => { state.settings = before; });
+          throw error;
+        }
+        const main = mainRate(STORE_CONFIG.defaultMetal);
+        await addActivityLog('rates.update', `Rate confirmed: ${RATE_LABEL[main.key]} ${pkr(before[main.key])}, unchanged`, `By ${stamp.ratesUpdatedBy}`, 'rates');
       },
 
       addCategory: (title) => set((state) => {
