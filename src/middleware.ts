@@ -75,6 +75,11 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Static assets and images are excluded so the wordmark still loads on the page.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)'],
+  // Static assets and images are excluded so the wordmark still loads on the page. So are the two
+  // public reads taheri.shop leaves to Google's edge — the price book and the set of the day: App
+  // Hosting's CDN caches nothing that passes through middleware ("Routes affected by Next.js
+  // middleware aren't cached"), so with them in the matcher every visitor reached the server
+  // (found 2026-10-04: cdn-cache-status miss, Cache-Control rewritten to private). Both are the
+  // same public answer on any hostname, so the links host gains nothing by reaching them.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/public/prices|api/public/featured|.*\\..*).*)'],
 };

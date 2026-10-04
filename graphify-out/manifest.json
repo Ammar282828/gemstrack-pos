@@ -2250,9 +2250,9 @@
     "semantic_hash": ""
   },
   "src/middleware.ts": {
-    "mtime": 1790809062.0766773,
-    "seen": 1790854750.3726017,
-    "ast_hash": "81421b812c6763985db8edfc3a29dc00",
+    "mtime": 1791114564.1894379,
+    "seen": 1791114700.183701,
+    "ast_hash": "6ee57f8db2d74b7c524f7b4f6c5e9adf",
     "semantic_hash": ""
   },
   "src/types/vcard-parser.d.ts": {
