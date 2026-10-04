@@ -531,9 +531,9 @@ function PostsHub() {
       {n > 0 && !sendInView && (
         <div className="glass-bar lg:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-2.5 pr-20 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">
           <button type="button" onClick={() => sendRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })} className="flex w-full items-center gap-2.5 text-left">
-            <span className="flex -space-x-2">{picked.slice(0, 3).map(id => <img key={id} src={byId.get(id)?.thumb} alt="" className="h-8 w-8 rounded-md border-2 border-background object-cover" />)}</span>
-            <span className="min-w-0 flex-1 truncate text-sm font-medium">{n} picked</span>
-            <span className="shrink-0 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">{busy === 'send' ? 'Sending…' : 'Review & send'}</span>
+            <span className="flex shrink-0 -space-x-3">{picked.slice(0, 2).map(id => <img key={id} src={byId.get(id)?.thumb} alt="" className="h-8 w-8 rounded-md border-2 border-background object-cover" />)}</span>
+            <span className="min-w-0 flex-1 whitespace-nowrap text-sm font-medium">{n} picked</span>
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">{busy === 'send' ? 'Sending…' : 'Send…'}</span>
           </button>
         </div>
       )}
