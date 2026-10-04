@@ -6,7 +6,8 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 
 | Route | Who calls it | What it does |
 |---|---|---|
-| `/api/public/quote`, `checkout`, `order/:id` | taheri.shop | prices at today's rate; bank-transfer checkout; the customer's order page (token link) |
+| `/api/public/prices`, `quote`, `checkout`, `order/:id`, `order/:id/slip` | taheri.shop | the price book (CDN-cached); one-off quotes; placing an online order (`online_orders`, to be confirmed); the customer's order page (token link, ONL- or ORD-); the transfer slip |
+| `/api/website/online`, `online/[id]` | ERP Orders → Online — to confirm | list (and `?count=1` for the sidebar); confirm → ORD- order + bank details, or decline with a reason |
 | `/api/public/featured` | taheri.shop | the set of the day (`app_settings/website_featured`), cached 60 s |
 | `/api/public/me` | taheri.shop and (on Mina's POS) catalogue.houseofmina.store, Bearer Firebase ID token of that house's project | the customer's record: profile, favourites, orders (`website_customers/{uid}`). Favourites must be three-part keys (`isPieceKey`): taheri.shop's `Category/Collection/file`, the catalogue's `mina/piece/<handle>` |
 | `/api/website/photos` | POS page Add Photos | relays a photo to `taheri.shop/api/upload.php` with `WEBSITE_UPLOAD_SECRET`; HEIC → JPEG on the way |
@@ -22,12 +23,12 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 | `/api/website/site-pieces` (+ `/image?id=`) | POS page Posts → Hub (`/posts`) | the house website's pieces (taheri.shop: `catalog-attributes.json`, which carries each photo's page `path`; the Mina catalogue: `catalog-pieces.json`) and when each last went out; a piece's photo as a JPEG from this server (only listed pieces) |
 | `/api/website/edits` | POS page Edit a piece | GET: every site piece with the counter's changes (hidden ones too) + recent changes; `?id=` one piece, its last design, its original photo's address. POST: a piece's words / re-made photo / put back → the site's `api/override.php` — see "Edit a piece" below |
 | `/api/public/social/[id]` | Instagram's fetcher | serves a story image for the minutes a post takes (Firestore `social_media`, deleted after) — there is no public bucket |
-| `/api/website/orders/[id]` | POS order page | mark paid / shipped — **always verifies a token, even under open access** |
+| `/api/website/orders/[id]` (+ `/slips/[slipId]`) | ERP order page, the hub's transfer check | transfer received / lapse / ship / delivered; the slip's file — **always verifies a token** |
 | `/api/ads/*` (`status`, `connect`, `callback`, `setup`, `overview`, `campaigns`, `object/[id]`, `create`, `images`, `library`, `media`, `preview`, `estimate`, `search`, `audiences`, `rules`, `assistant`, `template`) | POS pages under **Ads** | this house's Meta ad account through the Marketing API (Graph v26.0) — see "Ads" below |
 
 CORS for `/api/public/*` is in `src/lib/website/cors.ts` (taheri.shop, www, and localhost:5180 in dev).
-Design and go-live checklist: `docs/website-checkout.md`. Go-live of online selling is still blocked by empty
-bank env vars and the open Firestore rules.
+Design, the confirm-first flow and the go-live checklist: `docs/website-checkout.md`. Go-live of online selling
+is still blocked by empty bank env vars and the open Firestore rules.
 
 ### WhatsApp: WAHA (since 2026-09-25)
 

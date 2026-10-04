@@ -1,70 +1,77 @@
 # Selling from taheri.shop — how it works, and what must be true before it is switched on
 
-The public site is a catalogue of photographs with no prices. This feature lets a
-visitor buy one without the site ever knowing a price: the site asks the POS, the
-POS answers from the piece's burned-in weight and today's rate through the same
-`calculateProductPrice` an invoice uses, and at checkout the POS creates the product
-and the order together. Nothing exists in inventory until it is bought.
+The public site is a catalogue of photographs. This feature lets a visitor buy one without the
+site ever knowing a price: the site asks the ERP, the ERP answers from the piece's weight and
+today's rate through the same `calculateProductPrice` an invoice uses. Nothing exists in the book
+until the shop has confirmed the order.
+
+## The flow (confirm-first, 2026-10-04)
+
+The owner: "label online orders (they will always need to be confirmed before they get fully
+integrated)". Payment is only ever a full advance by bank transfer.
+
+| step | the customer | the ERP |
+|---|---|---|
+| **Placed** | checkout: name, WhatsApp number, address, a size for every ring/bangle/kara ("Not sure" allowed), the terms ticked. Told: nothing is paid now, we confirm on WhatsApp, **no bank details yet** | `online_orders/ONL-XXXXXX` (`lib/website/online.ts`): the re-quoted lines, sizes, the rates quoted, and the order and products it *would* write (`draft`). Nothing in `orders`, `customers` or `products`. The shop gets the PDF alert; the customer a WhatsApp "received" |
+| **Confirmed** (or declined) | WhatsApp: bank details + the price held 24 h (`WEBSITE_HOLD_HOURS`); the same link now shows them and takes the slip. Declined: the reason, "nothing has been charged" | Orders → **Online — to confirm** (top of the hub; sidebar count; dashboard's Needs you). Confirm writes the products and an `ORD-` order through `createOrder`, stamped with the **quoted** rates, `source: 'website'`, `website.onlineId`, items fixed at the quoted price (`isManualPrice`). The card shows what the same pieces cost today. Two people pressing Confirm make one order (claimed in a transaction) |
+| **Slip** | uploads a photo/PDF from the order page (shrunk to a JPEG in the browser) | `website_slips/{id}` (bytes, ≤ 900 KB, type checked by its first bytes); `paymentStatus: slip_sent`; the shop gets a PDF **with the slip in it**. A slip is not money |
+| **Paid** | WhatsApp "received"; page shows Paid → being made | hub stage **Awaiting transfer** → *Check transfer* / *Slip in — check* → **Transfer received**: the pieces as a dated **Bank Transfer** advance (`advances`, so Cash In / Today's cash count it that day), the delivery charge as **extra revenue**, balance 0. The order then sits in *Not started* to give out |
+| **Hold over** | a reminder 4 h before (waking hours only) | the tick (`sweepOnline`) tells the shop once; **nothing lapses on its own** — people pay and forget the slip. *Let it lapse* (after checking the bank) cancels and tells the customer |
+| **Shipped / Delivered** | tracking on the page and WhatsApp | Leopards API or a CN typed in, as before |
+
+Until its transfer is in, an online order is **not a sale**: `bookedAsSale` (`lib/order-stage.ts`)
+keeps it out of the dashboard's Taken today, Analytics and the monthly PDF; it is not on the
+workshop's list or "Due to customers". (Counted, a stranger's two-million basket was "Taken today".)
+
+The customer keeps one reference, the ONL- number: `/order/ONL-…?t=` works before and after
+confirming and shows the shop's ORD- number once there is one. The Orders search finds an order by
+its ONL- number.
+
+A finished piece that weighs differently is settled at the order's rate, either way, before it is
+sent (taheri.shop/payment): Finalize & invoice starts from the paid price; untick the fixed price to
+let the weight price it.
 
 ## The parts
 
 | where | what |
 |---|---|
-| `src/lib/website/pricing.ts` | `quotePiece` — gold, palladium, coloured stones; diamonds are enquiries by default; no readable weight → no price |
-| `src/lib/website/checkout.ts` | `buildWebsiteOrder` (pure, tested) → `placeWebsiteOrder`. Every piece is re-quoted server-side; a moved rate refuses with the new total |
-| `src/lib/website/fulfilment.ts` | transfer received → ship (Leopards API, or a CN typed in) → delivered; each tells the customer on WhatsApp |
-| `src/app/api/public/{quote,checkout,order/[id]}` | the site's three routes. CORS to `WEBSITE_ORIGIN` only, per-caller rate limits, honeypot |
-| `src/app/api/website/orders/[id]` | the shop's actions — owner or staff, **always** signed in. Deliberately does not follow `NEXT_PUBLIC_OPEN_ACCESS`: it marks money received and goods shipped |
-| **Website → Add Photos** (`/website/photos`) | put pieces on the website from the counter. Choose a collection, drag in a tray of photographs (or shoot them on the phone), watch them upload one by one. Relays to the site's `api/upload.php` with `WEBSITE_UPLOAD_SECRET`, which writes into `catalog-drop/` — the site folds them into the gallery on the next page load, no rebuild |
-| **Website → Photo Weights** (`/website/weights`) | record the weight of photographs that do not carry one in their corner. One photo at a time, one field, Enter saves and moves on. The site draws it onto the photo like the burned-in ones and prices from it. Stored in `website_pieces`; read through `/api/website/pieces` |
-| Settings → Integrations → *Selling on taheri.shop* | the switch, default and per-collection pricing, diamond policy, delivery, the POS category |
-| Orders | a **Website** badge in the list; the order page carries payment state, the three moves, and the customer's link |
-
-The site reads `/catalog-attributes.json` (published by its build) for weights; the
-POS reads the same file — never the values a browser sends.
+| `src/lib/website/pricing.ts` | `quotePiece` — gold, palladium, coloured stones; diamonds and the Maisons are enquiries; no weight → no price |
+| `src/lib/website/price-book.ts` + `GET /api/public/prices` | every piece's price in one answer, built at most once a minute per instance and cached at Google's edge (`s-maxage=120, stale-while-revalidate=600`). The site reads it once per visit: browsing costs the ERP nothing however many people are on the site |
+| `src/lib/website/checkout.ts` | `buildWebsiteOrder` (pure, tested): every piece re-quoted server-side; a moved rate refuses with the new total. `publicOrderView` |
+| `src/lib/website/online.ts` | place, list, confirm, decline, the customer's view, the account's list, `sweepOnline` (on the five-minute tick) |
+| `src/lib/website/slips.ts`, `fulfilment.ts` | slips; transfer received, lapse, ship, delivered |
+| `src/app/api/public/{prices,quote,checkout,order/[id],order/[id]/slip}` | the site's routes: CORS to `WEBSITE_ORIGIN`, per-caller limits (an in-memory one for the reads), honeypot |
+| `src/app/api/website/online[/id]`, `orders/[id][/slips/[slipId]]` | the shop's — owner or staff, **always** signed in (`staff-gate.ts`) |
+| `components/order/online-inbox.tsx`, `website-order-panel.tsx` (`TransferDialog`) | the inbox cards; the order's Online panel and the hub's transfer check |
+| `firestore.rules` | `online_orders`, `website_slips`: no client access (Admin SDK only) |
 
 ## Before the switch goes on
 
-1. **Bank details, in the environment.** `NEXT_PUBLIC_STORE_BANK_LINE`
-   ("Meezan Bank — Taheri Jewellers") and `NEXT_PUBLIC_STORE_IBAN` in apphosting.yaml.
-   Both are declared and **empty** today. They are read from the environment on purpose:
-   nothing that can write to the database can change where a customer's money goes.
-2. **Close the database.** `firestore.rules` is `allow read, write: if true` (opened
-   2026-09-07). While it is, anyone can create orders directly and edit the pricing
-   document. Publish `firestore.rules` (Taheri's locked rules since 2026-09-30; they contain the website rules)
-   and deploy the ruleset. Selling online with the book open is not safe.
-3. **Set the pricing** in Settings → Integrations: a POS category for website products,
-   the default making charge per gram, wastage, and any per-collection rows. Until a
-   making charge is set the site shows no prices.
-4. **Weights.** 1,215 of 2,272 pieces carry a readable weight; only those get a price.
-   The rest stay "Inquire" until a weight is added.
-5. **Photo uploads** — done 2026-09-20, kept here for the day it is rotated.
-   The same value lives in two places: Secret Manager as `website-upload-secret`
-   (declared in `apphosting.yaml` as `WEBSITE_UPLOAD_SECRET`; the two names
-   need not match), and on Hostinger as the file
-   `~/domains/taheri.shop/.website-upload-secret`, mode 600, one level above
-   `public_html`. Shared hosting does not pass env vars to PHP reliably, which
-   is why it is a file. Two things bite: a Secret Manager entry has **no IAM
-   bindings** when created by hand, and App Hosting fails the rollout on read —
-   grant `secretAccessor` + `viewer` to the same three service accounts
-   `CRON_SECRET` has before declaring it; and the site's `api/*.php` only
-   reaches Hostinger through the deploy workflow (it used to skip `api/`).
-   Without the secret, Add Photos says so plainly and refuses to send. Rotate
-   with `openssl rand -base64 32`, replace both sides, push to roll out.
-6. **Leopards** (optional): `LEOPARDS_API_KEY`, `LEOPARDS_API_PASSWORD` as secrets.
-   Without them the order page takes a consignment number typed in by hand.
-7. Deploy both: merge `website-checkout` here (App Hosting rolls out on push to main)
-   and `checkout` on the site (its workflow deploys on push to main).
+1. **Bank details, in the environment** (never Firestore: nothing that writes to the database can
+   change where a customer's money goes). `NEXT_PUBLIC_STORE_BANK_LINE` = "Bank — Account title"
+   (Taheri's is a console `overrideEnv`, which beats the YAML) and `NEXT_PUBLIC_STORE_IBAN` (or
+   `WEBSITE_BANK_ACCOUNT`). Confirm refuses while they are empty. The help pages promise the title
+   reads **Taheri Collections**.
+2. **Publish `firestore.rules`** (owner, console). With the book open anyone can write orders.
+3. **Pricing** in Settings → Integrations (set: making 1,500/g, delivery Rs 500, free over 300,000),
+   then the switch on.
+4. **Rates set daily** at the counter — the price book quotes whatever is there.
+5. **Leopards** (optional): `LEOPARDS_API_KEY`, `LEOPARDS_API_PASSWORD`; without them a CN is typed in.
 
-## Testing locally
+## Testing — on the emulator, never the live book
 
-Run the POS under **Node 20** (`POS (node 20)` in `.claude/launch.json`): on Node 26
-the Google auth library's fetch fails against `oauth2.googleapis.com`. A dev-only
-`.env.development.local` with `WEBSITE_NOTIFY=off`,
-`WEBSITE_ORIGIN=http://localhost:5180`,
-`WEBSITE_CATALOG_URL=http://localhost:5180/catalog-attributes.json` and test bank
-values lets a checkout run end to end against the live book without messaging anyone.
-To exercise the shop's actions without signing in, add `WEBSITE_ACTIONS_DEV_BYPASS=1`
-to that same dev-only file — it is server-only and refused in production.
-Delete the test order, its `WEB-` product and customer afterwards, and put
-`lastOrderNumber` back. `npm test` covers the pure parts.
+Confirming takes the next ORD- number, so a test against the live book leaves a hole in the
+sequence. Use the Firestore emulator (Java 21 is in the cloud container):
+
+```
+java -jar ~/.cache/firebase/emulators/cloud-firestore-emulator-v*.jar --host=127.0.0.1 --port=8085 &
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-taheri WEBSITE_NOTIFY=off \
+  NEXT_PUBLIC_STORE_BANK_LINE='Test Bank — Test' NEXT_PUBLIC_STORE_IBAN=PK00TEST0000000000000000 \
+  npx tsx scripts/online-orders-e2e.mts          # 37 checks: place → confirm → slip → paid, decline, the tick
+```
+
+(Get the jar once with `npx firebase-tools emulators:start --only firestore`.) For the screens, run the
+ERP with `FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 NEXT_PUBLIC_FIRESTORE_EMULATOR=127.0.0.1:8085
+WEBSITE_ACTIONS_DEV_BYPASS=1 WEBSITE_NOTIFY=off` (+ the bank values) `npm run dev:taheri` and open
+`/orders?dev=1`; the browser's Firestore follows `NEXT_PUBLIC_FIRESTORE_EMULATOR` in development only.
+The site: `VITE_POS_API=http://localhost:3000 npx vite --port 5180` in taheri-site.

@@ -68,8 +68,8 @@ export interface NavEntry extends Place {
   tabs?: NavTab[];
   /** Pages reached from this entry that are not tabs of it (see the file's head). */
   pages?: Place[];
-  /** A live count beside the label. */
-  count?: 'drafts';
+  /** A live count beside the label: unfinished drafts, or online orders waiting to be confirmed. */
+  count?: 'drafts' | 'online';
   /** The palette names this entry's tabs `Entry › Tab` ("Ads › Studio"): their words alone are
    *  someone else's (Analytics' Customers is not the customer list). */
   qualify?: boolean;
@@ -103,7 +103,7 @@ export const NAV: NavEntry[] = [
       { href: '/today', label: 'Today’s cash', icon: Banknote, keywords: ['cash', 'drawer', 'till', 'today', 'collected', 'daily cash'] },
     ],
   },
-  { id: 'orders', group: 'sales', staff: true, href: '/orders', label: 'Orders', icon: ClipboardList, keywords: ['custom order', 'order'] },
+  { id: 'orders', group: 'sales', staff: true, href: '/orders', label: 'Orders', icon: ClipboardList, count: 'online', keywords: ['custom order', 'order', 'online order', 'website order', 'to confirm'] },
   // /invoices/new, /invoices/<id> and its /edit sit under it; /cart only redirects there (old links).
   { id: 'invoices', group: 'sales', staff: true, href: '/invoices', label: 'Invoices', icon: Receipt, keywords: ['bills', 'estimate', 'unpaid'], match: ['/cart'] },
   { id: 'repairs', group: 'sales', staff: true, href: '/repairs', label: 'Repairs', icon: Wrench, keywords: ['repair', 'fix'] },

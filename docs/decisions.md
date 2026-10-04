@@ -235,6 +235,22 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   `invoice.update` with the old → new total (it said `invoice.create`, which read as a second sale and carried the activity log's
   Revert — a delete of the whole invoice, behind the delete code).
 
+### Online orders
+
+- **Every online order is confirmed by a person before it is anything** (2026-10-04, owner: "connect the backend to
+  pos.taheri.shop fully and label online orders (they will always need to be confirmed before they get fully integrated)";
+  payment "will only always be through advance bank transfer"). Placing writes only `online_orders/ONL-XXXXXX` — no ORD- number,
+  customer or product, and **no bank details to the customer**, so no money moves on an order nobody has looked at. Orders opens on
+  **Online — to confirm** (count in the sidebar, a line in Needs you, a PDF alert; the card shows the price at today's rate beside the
+  quoted one). Confirm writes the ORD- order (labelled **Online**, the quoted rates, pieces fixed at the paid price) and starts a 24-hour
+  hold; Decline sends the reason. **Until the transfer is in an online order is not a sale** (`bookedAsSale`): out of Taken today,
+  Analytics, the monthly PDF, the workshop and Due to customers. **Transfer received** books it as the counter books money: a dated
+  Bank Transfer advance and the delivery as extra revenue — it was writing the total into `advancePayment` and leaving
+  `grandTotal` (the ERP's *balance*) at the full amount, so a paid order would have shown as owing it all. **Nothing lapses on its
+  own**: the tick reminds the customer and tells the shop; *Let it lapse* is a person's call after checking the bank. Slips are
+  uploaded from the order page and reach the shop inside the PDF. The design, the parts and testing on the emulator:
+  `docs/website-checkout.md`.
+
 ### Advance method
 
 - **An order's advance method is optional, and a refused save is never silent** (2026-09-28, owner: "paid by how? causing

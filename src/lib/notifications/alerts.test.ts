@@ -75,10 +75,10 @@ describe('orderDoc', () => {
 });
 
 describe('websiteOrderDoc', () => {
-  it('lists the pieces and says it waits on the transfer', () => {
-    const d = websiteOrderDoc({ id: 'ORD-000050', customerName: 'Sara', customerPhone: '0301', city: 'Lahore', lines: [{ description: 'Studs', price: 45000 }], subtotal: 45000, deliveryCharge: 0, grandTotal: 45000, statusUrl: 'https://taheri.shop/o/x' }, now);
-    expect(d.headline).toBe('ORD-000050 · Sara · PKR 45,000');
-    expect(d.figures?.[0].note).toBe('awaiting the bank transfer');
+  it('lists the pieces and says it waits to be confirmed', () => {
+    const d = websiteOrderDoc({ id: 'ONL-7KQ4M2', customerName: 'Sara', customerPhone: '0301', city: 'Lahore', lines: [{ description: 'Studs', price: 45000 }], subtotal: 45000, deliveryCharge: 0, grandTotal: 45000, statusUrl: 'https://taheri.shop/o/x' }, now);
+    expect(d.headline).toBe('ONL-7KQ4M2 · Sara · PKR 45,000 · to confirm');
+    expect(d.figures?.[0].note).toBe('confirm it before anything else');
     expect(d.footnote).toContain('https://taheri.shop/o/x');
   });
 });

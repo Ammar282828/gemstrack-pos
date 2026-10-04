@@ -16,7 +16,21 @@
  */
 
 type Piece = { karigarId?: string | null; isCompleted?: boolean };
-type Stageable = { status: string; items?: readonly Piece[] | null; invoiceId?: string | null };
+type Stageable = { status: string; items?: readonly Piece[] | null; invoiceId?: string | null; website?: { paymentStatus?: string } | null };
+
+/** A confirmed online order whose bank transfer is not in yet (lib/website/online.ts): nothing is made before it is. */
+export const awaitingTransfer = (o: Pick<Stageable, 'website'>) =>
+  o.website?.paymentStatus === 'awaiting_transfer' || o.website?.paymentStatus === 'slip_sent';
+
+/**
+ * An order not yet invoiced that the books count as a sale on the day it was taken (its subtotal):
+ * the dashboard, Analytics and the monthly PDF all read this one rule. A counter order is a sale
+ * once taken — the customer stood there and agreed. An online order is not, until its transfer is
+ * in: confirmed and unpaid it is an offer the customer may let lapse, and counting it put a
+ * stranger's two-million-rupee basket into "Taken today" before a rupee had moved (2026-10-04).
+ */
+export const bookedAsSale = (o: { createdAt?: string; status?: string; invoiceId?: string | null; website?: { paymentStatus?: string } | null } | null | undefined): boolean =>
+  !!o?.createdAt && o.status !== 'Cancelled' && o.status !== 'Refunded' && !o.invoiceId && !awaitingTransfer(o);
 
 const hasKarigar = (p: Piece) => !!p.karigarId && p.karigarId !== 'none';
 
@@ -37,6 +51,7 @@ export function statusAfterUntick(status: string, invoiced = false): 'In Progres
 
 /**
  * The hub's stages, in the order they are worked:
+ *   transfer an online order, confirmed, its bank transfer not recorded yet — check the bank
  *   ready    finished, not invoiced — hand it over: Finalize & invoice
  *   karigar  In Progress — with the karigars
  *   new      Pending — not started: give the pieces to karigars
@@ -44,10 +59,11 @@ export function statusAfterUntick(status: string, invoiced = false): 'In Progres
  *   done     invoiced and paid
  *   closed   Cancelled or Refunded
  */
-export type OrderStage = 'ready' | 'karigar' | 'new' | 'payment' | 'done' | 'closed';
-export const STAGE_ORDER: OrderStage[] = ['ready', 'karigar', 'new', 'payment', 'done', 'closed'];
+export type OrderStage = 'transfer' | 'ready' | 'karigar' | 'new' | 'payment' | 'done' | 'closed';
+export const STAGE_ORDER: OrderStage[] = ['transfer', 'ready', 'karigar', 'new', 'payment', 'done', 'closed'];
 
 export const STAGES: Record<OrderStage, { title: string; hint: string }> = {
+  transfer: { title: 'Awaiting transfer', hint: 'online, confirmed — check the bank' },
   ready: { title: 'Ready to hand over', hint: 'finished — invoice it' },
   karigar: { title: 'With karigars', hint: 'being made' },
   new: { title: 'Not started', hint: 'give the pieces out' },
@@ -59,6 +75,7 @@ export const STAGES: Record<OrderStage, { title: string; hint: string }> = {
 /** `owedOnInvoice`: what the order's invoice still has owing (0 when paid or not invoiced). */
 export function stageOf(order: Stageable, owedOnInvoice = 0): OrderStage {
   if (order.status === 'Cancelled' || order.status === 'Refunded') return 'closed';
+  if (!order.invoiceId && awaitingTransfer(order)) return 'transfer';
   if (order.invoiceId) return owedOnInvoice > 0.5 ? 'payment' : 'done';
   if (order.status === 'Completed') return 'ready';
   if (order.status === 'In Progress') return 'karigar';

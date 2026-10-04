@@ -161,14 +161,16 @@ export function orderDoc(order: Order, kind: OrderAlert, now = new Date()): Aler
 
 /** A website order, for the shop. */
 export function websiteOrderDoc(o: OrderSummaryForMessage, now = new Date()): AlertDoc {
+  // Every online order waits for a person (lib/website/online.ts): the customer has no bank
+  // details until it is confirmed, so the alert says what to do, not "awaiting the transfer".
   return {
     kind: 'website-order',
-    title: 'Website order',
+    title: 'Online order',
     heading: o.id,
     subheading: join([o.customerName, o.customerPhone, o.city]),
-    headline: join([o.id, o.customerName, pkr(o.grandTotal)]),
+    headline: join([o.id, o.customerName, pkr(o.grandTotal), 'to confirm']),
     figures: [
-      { label: 'Total', value: pkr(o.grandTotal), note: 'awaiting the bank transfer', tone: 'flag' },
+      { label: 'Total', value: pkr(o.grandTotal), note: 'confirm it before anything else', tone: 'flag' },
       { label: 'Delivery', value: o.deliveryCharge ? pkr(o.deliveryCharge) : 'Free' },
     ],
     sections: [{
@@ -178,8 +180,81 @@ export function websiteOrderDoc(o: OrderSummaryForMessage, now = new Date()): Al
         rows: o.lines.map(l => [l.description, rs(l.price)]),
         foot: ['Subtotal', rs(o.subtotal)],
       },
+    }, {
+      title: 'What to do',
+      text: [
+        'Open Orders in the ERP: it is at the top, under Online — to confirm. Confirm it and the customer gets the bank details and a day to pay at this price; decline it and they are told why.',
+        'Nothing is in the book until you confirm: no order number, no customer, no piece.',
+      ],
     }],
     footnote: `The customer's page: ${o.statusUrl}`,
+    at: now,
+  };
+}
+
+/** Online orders still waiting for someone to look at them (the five-minute tick, once each). */
+export function onlineWaitingDoc(rows: { id: string; customerName: string; city?: string; grandTotal: number; placedAt: string }[], now = new Date()): AlertDoc {
+  const total = rows.reduce((s, r) => s + r.grandTotal, 0);
+  return {
+    kind: 'online-waiting',
+    title: 'Online orders waiting',
+    heading: `${plural(rows.length, 'online order')} to confirm`,
+    subheading: 'The customers have no bank details until you do.',
+    headline: join([plural(rows.length, 'online order'), pkr(total), 'waiting']),
+    sections: [{
+      title: 'Waiting',
+      table: {
+        columns: [{ label: 'Order' }, { label: 'Placed', width: 18 }, { label: 'PKR', width: 20, align: 'right' }],
+        rows: rows.map(r => [join([r.id, r.customerName, r.city]), `${shortDay(r.placedAt)} ${clock(r.placedAt)}`, rs(r.grandTotal)]),
+      },
+    }],
+    footnote: 'Orders → Online — to confirm, in the ERP.',
+    at: now,
+  };
+}
+
+/** The slip a customer sent from their order page, with the picture itself when it is one. */
+export function onlineSlipDoc(o: { orderId: string; onlineId?: string; customerName: string; total: number; slip: { amount?: number; reference?: string; fromBank?: string }; image?: { dataUrl: string; format: 'JPEG' | 'PNG' } }, now = new Date()): AlertDoc {
+  const ref = o.onlineId ? `${o.orderId} · ${o.onlineId}` : o.orderId;
+  const short = o.slip.amount && Math.abs(o.slip.amount - o.total) > 0.5;
+  return {
+    kind: 'online-slip',
+    title: 'Transfer slip',
+    heading: ref,
+    subheading: o.customerName,
+    headline: join([o.orderId, o.customerName, 'slip', o.slip.amount ? pkr(o.slip.amount) : '']),
+    figures: [
+      { label: 'Order total', value: pkr(o.total) },
+      { label: 'They say they sent', value: o.slip.amount ? pkr(o.slip.amount) : '—', ...(short ? { note: 'not the total', tone: 'flag' as const } : {}) },
+    ],
+    sections: [
+      ...(o.slip.reference || o.slip.fromBank ? [{ title: 'From the customer', pairs: [
+        ...(o.slip.fromBank ? [{ label: 'From', value: o.slip.fromBank }] : []),
+        ...(o.slip.reference ? [{ label: 'Reference', value: o.slip.reference }] : []),
+      ] }] : []),
+      { title: 'What to do', text: ['Check the bank: a slip is not the money. When it is in, press Transfer received on the order (Orders → Online — awaiting transfer): it is paid in full, the customer is told, and you can give it out.'] },
+      o.image ? { title: 'The slip', image: o.image } : { title: 'The slip', text: ['A PDF: open the order in the ERP to see it.'] },
+    ],
+    at: now,
+  };
+}
+
+/** A confirmed online order whose price hold ran out with no transfer recorded (once). */
+export function holdEndedDoc(o: { orderId: string; onlineId?: string; customerName: string; total: number; slipSent: boolean }, now = new Date()): AlertDoc {
+  return {
+    kind: 'online-hold-ended',
+    title: 'Hold ended',
+    heading: o.onlineId ? `${o.orderId} · ${o.onlineId}` : o.orderId,
+    subheading: o.customerName,
+    headline: join([o.orderId, o.customerName, pkr(o.total), 'hold ended']),
+    figures: [{ label: 'Order total', value: pkr(o.total), note: o.slipSent ? 'a slip came: check it' : 'no slip came', tone: 'flag' }],
+    sections: [{
+      title: 'What to do',
+      text: [
+        'Check the bank before anything else: people often pay and forget the slip.',
+        'Money in: Transfer received. Nothing came: Let it lapse, which cancels the order and tells the customer. Nothing happens on its own.',
+      ],
+    }],
     at: now,
   };
 }

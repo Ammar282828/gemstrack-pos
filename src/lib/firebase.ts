@@ -2,7 +2,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { connectFirestoreEmulator, getFirestore, type Firestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
 // --- Firebase configuration — set per-store via environment variables ---
 // Silver store values are the fallback defaults.
@@ -44,6 +44,15 @@ if (getApps().length === 0) {
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
     });
     console.log('[GemsTrack Firebase] Firestore instance with on-device cache created.');
+    // A development server pointed at the Firestore emulator (NEXT_PUBLIC_FIRESTORE_EMULATOR=host:port),
+    // so a flow that writes — an online order confirmed, money booked — can be tried without the live
+    // book. Refused in a production build, so it cannot be switched on where the shop works.
+    const emu = process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR;
+    if (emu && process.env.NODE_ENV !== 'production') {
+      const [host, port] = emu.split(':');
+      connectFirestoreEmulator(db, host, Number(port) || 8080);
+      console.warn('[GemsTrack Firebase] Using the Firestore EMULATOR at', emu);
+    }
   } catch (e) {
     console.error('[GemsTrack Firebase] Failed to initialize Firestore:', e);
     db = getFirestore(app);

@@ -146,8 +146,20 @@ export function renderAlertPdf(d: AlertDoc, logo: ReportLogo | null): jsPDF {
     y = (doc.lastAutoTable.finalY || y) + 1;
   };
 
+  /** A picture's height on the page: as wide as the page, no taller than a page leaves under its header. */
+  const imageBox = (img: NonNullable<Section['image']>) => {
+    try {
+      const { width, height } = doc.getImageProperties(img.dataUrl);
+      const aspect = width > 0 && height > 0 ? width / height : 0.6;
+      const h = Math.min(CW / aspect, H - BOTTOM - TOP - 14);
+      return { w: h * aspect, h };
+    } catch { return null; }
+  };
+
   const section = (s: Section) => {
-    room(16);
+    const box = s.image ? imageBox(s.image) : null;
+    // A picture keeps its title: both go to the next page together when the picture will not fit.
+    room(box ? box.h + 12 : 16);
     y += 5;
     label(doc, plain(s.title), M, y, { size: 6.5, spacing: 0.8, colour: BRAND });
     if (s.note) {
@@ -167,7 +179,7 @@ export function renderAlertPdf(d: AlertDoc, logo: ReportLogo | null): jsPDF {
       }
     }
     y += 3;
-    const nothing = !s.figures?.length && !s.pairs?.length && !s.table?.rows.length && !s.text?.length;
+    const nothing = !s.figures?.length && !s.pairs?.length && !s.table?.rows.length && !s.text?.length && !s.image;
     if (nothing) {
       doc.setFont('helvetica', 'normal').setFontSize(8);
       ink(MUTED);
@@ -187,6 +199,13 @@ export function renderAlertPdf(d: AlertDoc, logo: ReportLogo | null): jsPDF {
         for (const line of lines) { room(4.4); ink(INK); doc.text(line, M, y); y += 4.2; }
         y += 1.2;
       }
+    }
+    if (s.image && box) {
+      try {
+        y += 2;
+        doc.addImage(s.image.dataUrl, s.image.format, M + (CW - box.w) / 2, y, box.w, box.h, undefined, 'FAST');
+        y += box.h + 2;
+      } catch { /* a picture that will not draw must not stop the document */ }
     }
   };
 

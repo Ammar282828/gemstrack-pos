@@ -12,6 +12,7 @@
  * 7-day / 14-day thresholds the overdue WhatsApp alerts already use.
  */
 
+import { awaitingTransfer } from '@/lib/order-stage';
 import type { Order, KarigarJob, KarigarJobStatus, Karigar, Invoice, InvoiceItem } from './store';
 import { categoryTitle as resolveCategoryTitle, displayKarat } from './categories';
 import { describePlating } from './materials';
@@ -100,6 +101,8 @@ export function buildWorkshopJobs(
     if (!order) continue;
     if (order.status === 'Cancelled' || order.status === 'Refunded') continue;
     if (order.invoiceId && !opts.includeInvoicedOrders) continue;
+    // An online order whose transfer is not in is not work yet: nothing is made before the money is.
+    if (awaitingTransfer(order)) continue;
     // Pending orders belong here. They used to be excluded on the reasoning
     // that nothing had been handed out yet — but assigning a karigar is
     // exactly what moves an order to In Progress, so hiding Pending work made

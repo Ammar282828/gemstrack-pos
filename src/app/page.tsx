@@ -28,6 +28,8 @@ import { cn } from '@/lib/utils';
 import { isBusinessCost } from '@/lib/partnership';
 import { upcomingOccasions, occasionWhen } from '@/lib/occasions';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
+import { useOnlineWaiting } from '@/lib/website/online-client';
+import { awaitingTransfer, bookedAsSale } from '@/lib/order-stage';
 
 /** PKR at a glance. Exact value stays available on hover. */
 function compactPKR(n: number): string {
@@ -205,7 +207,7 @@ export default function HomePage() {
       const inWindow = (d: Date) => d >= from && d < to;
       return generatedInvoices.filter(i => i.status !== 'Refunded' && inWindow(parseISO(getInvoiceRevenueDate(i, ordersById))))
         .reduce((s, i) => s + invoiceSaleValue(i), 0)
-      + orders.filter(o => inWindow(parseISO(o.createdAt)) && o.status !== 'Cancelled' && o.status !== 'Refunded' && !o.invoiceId)
+      + orders.filter(o => bookedAsSale(o) && inWindow(parseISO(o.createdAt)))
         .reduce((s, o) => s + (o.subtotal || 0), 0)
       + additionalRevenues.filter(r => inWindow(parseISO(r.date))).reduce((s, r) => s + (r.amount || 0), 0);
     };
@@ -226,7 +228,8 @@ export default function HomePage() {
 
     // What is due to customers: open orders and repairs still in the shop, by their promise.
     const due: Due[] = [
-      ...orders.filter(isActiveOrder).map((o: Order): Due => ({
+      // An online order waiting for its transfer is owed nothing yet (lib/order-stage.ts).
+      ...orders.filter(o => isActiveOrder(o) && !awaitingTransfer(o)).map((o: Order): Due => ({
         key: `o${o.id}`, href: `/orders/${o.id}`, kind: 'order', id: o.id, customer: o.customerName || 'Walk-in',
         amount: typeof o.grandTotal === 'number' ? o.grandTotal : 0, timing: orderTiming(o, now),
       })),
@@ -269,8 +272,18 @@ export default function HomePage() {
    * one row (the Due list names them), the three largest unpaid then the rest
    * summed, repairs sitting ready, and the week's birthdays and anniversaries.
    */
+  const onlineWaiting = useOnlineWaiting();
   const tasks = useMemo(() => {
     const out: React.ComponentProps<typeof TaskRow>[] = [];
+
+    // An online order nobody has looked at: the customer is waiting for the bank details.
+    if (onlineWaiting > 0) {
+      out.push({
+        href: '/orders', tone: 'danger',
+        title: onlineWaiting === 1 ? 'An online order to confirm' : `${onlineWaiting} online orders to confirm`,
+        detail: 'From taheri.shop · they get the bank details when you confirm',
+      });
+    }
 
     if (stats.lateDue.length) {
       const worst = stats.lateDue[0];
@@ -338,7 +351,7 @@ export default function HomePage() {
     }
 
     return out;
-  }, [stats, customers]);
+  }, [stats, customers, onlineWaiting]);
 
   if (!appReady) {
     return (

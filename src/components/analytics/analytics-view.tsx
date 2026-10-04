@@ -35,6 +35,7 @@ import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { saleCustomerKey, WALK_IN_ENTITY, WALK_IN_NAME } from '@/lib/walk-in';
 import { toTola, formatWeight } from '@/lib/units';
 import { MonthlyReportButton } from '@/components/reports/monthly-report-button';
+import { bookedAsSale } from '@/lib/order-stage';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
@@ -124,7 +125,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
       yearMap[yr].unpaid += Math.max(0, inv.balanceDue || 0);
     });
     orders.forEach(order => {
-      if (!order?.createdAt || order.status === 'Cancelled' || order.status === 'Refunded' || order.invoiceId) return;
+      if (!bookedAsSale(order)) return;
       const yr = getYear(parseISO(order.createdAt));
       if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
       // Use subtotal: the full order value regardless of advance paid
@@ -178,7 +179,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
       add(getInvoiceRevenueDate(inv, ordersById), invoiceSaleValue(inv));
     });
     orders.forEach(o => {
-      if (!o?.createdAt || o.status === 'Cancelled' || o.status === 'Refunded' || o.invoiceId) return;
+      if (!bookedAsSale(o)) return;
       add(o.createdAt, o.subtotal || 0);
     });
     additionalRevenues.forEach(r => { if (r?.date) add(r.date, r.amount || 0); });
@@ -238,10 +239,9 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
   // Uninvoiced orders only (not Cancelled, no invoiceId — those are already counted in invoice revenue)
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
-      if (!order || !order.createdAt) return false;
-      if (order.status === 'Cancelled') return false;
-      if (order.status === 'Refunded') return false;
-      if (order.invoiceId) return false; // already counted via invoice
+      // Not invoiced (an invoiced one is counted through its invoice), not closed, and not an
+      // online order still waiting for its transfer (lib/order-stage.ts bookedAsSale).
+      if (!bookedAsSale(order)) return false;
       if (!dateRange || !dateRange.from) return true;
       const orderDate = parseISO(order.createdAt);
       const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());

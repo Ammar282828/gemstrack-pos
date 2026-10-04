@@ -1,6 +1,6 @@
 /**
- * The two WhatsApp messages a website order produces, and the two more as it
- * moves. Sent through the shop's own gateway, so they arrive from the number
+ * The WhatsApp messages an online order produces as it moves: received, confirmed (with the bank
+ * details) or declined, paid, reminded, shipped. Sent through the shop's own gateway, so they arrive from the number
  * customers already know. The customer's are words; the shop's copy is a PDF
  * like every alert to the shop (lib/notifications, owner 2026-10-01).
  *
@@ -31,18 +31,51 @@ export interface OrderSummaryForMessage {
   deliveryCharge: number;
   grandTotal: number;
   statusUrl: string;
+  /** Today's price is held until then for the transfer. */
+  holdUntil?: string;
 }
 
-export function customerPlacedMessage(o: OrderSummaryForMessage, bank: WebsiteBankDetails): string {
+/** "Sunday 5 October, 2:30 pm" in Karachi. */
+export function karachiTime(iso: string): string {
+  return new Date(iso).toLocaleString('en-GB', { timeZone: 'Asia/Karachi', weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+/** The shop's hours, as the site and the policies say them. */
+const HOURS = 'Saturday to Thursday 11 am – 9 pm, Friday 3:30 – 8 pm';
+
+const lineList = (o: OrderSummaryForMessage) => {
   const lines = o.lines.map((l, i) => `${i + 1}. ${l.description} — ${fmt(l.price)}`).join('\n');
-  const delivery = o.deliveryCharge ? `\nDelivery: ${fmt(o.deliveryCharge)}` : '';
+  const delivery = o.deliveryCharge ? `\nDelivery: ${fmt(o.deliveryCharge)}` : '\nDelivery: free';
+  return `${lines}${delivery}\n*Total: ${fmt(o.grandTotal)}*`;
+};
+
+/** The moment it is placed: received, not yet accepted — and no bank details, so nobody pays early. */
+export function customerReceivedMessage(o: OrderSummaryForMessage): string {
+  return `Assalamualaikum ${o.customerName}, thank you for your order at TAHERI.\n\nOrder ${o.id}\n${lineList(o)}\n\nWe look at every order ourselves before we take any payment. We will confirm yours here on WhatsApp during shop hours (${HOURS}) and send the bank details then — please don't transfer anything before that.\n\nYour order: ${o.statusUrl}`;
+}
+
+/** Confirmed by the shop: the bank details, and how long today's price is held. */
+export function customerConfirmedMessage(o: OrderSummaryForMessage, bank: WebsiteBankDetails): string {
   const account = [bank.bankName, bank.accountTitle, bank.iban ? `IBAN ${bank.iban}` : '', bank.accountNumber ? `A/C ${bank.accountNumber}` : '']
     .filter(Boolean).join('\n');
-  return `Assalamualaikum ${o.customerName}, thank you for your order at TAHERI.\n\nOrder ${o.id}\n${lines}${delivery}\n*Total: ${fmt(o.grandTotal)}*\n\nPlease transfer the full amount to:\n${account}\n\nThen send us the transfer slip here, quoting ${o.id}. We book your piece with Leopards the day the transfer clears and send you the tracking number.\n\nYour order: ${o.statusUrl}${bank.instructions ? `\n\n${bank.instructions}` : ''}`;
+  const hold = o.holdUntil ? `\n\nThe price is held for you until *${karachiTime(o.holdUntil)}*. Gold moves daily, so if the transfer has not reached us by then we will check with you before anything changes.` : '';
+  return `Assalamualaikum ${o.customerName}, your order ${o.id} is confirmed.\n\n${lineList(o)}\n\nPlease transfer the full amount to:\n${account}${hold}\n\nThen upload the transfer slip on your order page, or send it here quoting ${o.id}. We start on your piece the day the transfer clears, and send you the Leopards tracking number when it leaves us.\n\nYour order: ${o.statusUrl}${bank.instructions ? `\n\n${bank.instructions}` : ''}`;
+}
+
+export function customerDeclinedMessage(orderId: string, name: string, reason: string, statusUrl: string): string {
+  return `Assalamualaikum ${name}, thank you for your order ${orderId}. We are sorry — we can't take it as it was placed: ${reason.trim().replace(/\.$/, '')}.\n\nNothing has been charged. Reply here and we will help you find the right piece.\n\n${statusUrl}`;
 }
 
 export function customerPaidMessage(orderId: string, name: string): string {
   return `Assalamualaikum ${name}, we have received your transfer for order ${orderId}. Jazakallah. We are preparing your piece and will send the Leopards tracking number as soon as it is booked.`;
+}
+
+export function customerReminderMessage(orderId: string, name: string, total: number, holdUntil: string, statusUrl: string): string {
+  return `Assalamualaikum ${name}, a reminder that order ${orderId} (${fmt(total)}) is held at its price until ${karachiTime(holdUntil)}. If you have already transferred, upload the slip on your order page so we can start — or reply here: ${statusUrl}`;
+}
+
+export function customerExpiredMessage(orderId: string, name: string): string {
+  return `Assalamualaikum ${name}, we did not receive the transfer for order ${orderId}, so we have closed it — gold moves daily and the price was held for a day. If you would still like the piece, place it again on taheri.shop at today's rate, or reply here and we will help.`;
 }
 
 export function customerShippedMessage(orderId: string, name: string, cn: string, trackingUrl: string): string {
@@ -60,25 +93,27 @@ export async function trySend(to: string | null | undefined, body: string): Prom
 }
 
 /**
- * The shop's copy of a website order: a PDF (lib/notifications/alerts.ts websiteOrderDoc) to the
- * alert numbers in Settings → Notifications, like every other alert, or to the shop's own number
- * when none are set. It went only to the shop's own number before, which is the line the gateway
- * sends from, so it arrived as a message to itself.
+ * A document to the shop: a PDF (lib/notifications) to the alert numbers in Settings → Notifications,
+ * like every other alert, or to the shop's own number when none are set. It went only to the shop's
+ * own number before, which is the line the gateway sends from, so it arrived as a message to itself.
  */
-export async function trySendShopCopy(o: OrderSummaryForMessage): Promise<string | null> {
-  if (process.env.WEBSITE_NOTIFY === 'off') { console.log('[website notify: off] shop copy', o.id); return 'notifications off'; }
+export async function trySendShopDoc(build: () => Promise<import('@/lib/notifications/doc').AlertDoc> | import('@/lib/notifications/doc').AlertDoc, label: string): Promise<string | null> {
+  if (process.env.WEBSITE_NOTIFY === 'off') { console.log('[website notify: off] shop', label); return 'notifications off'; }
   try {
-    const [{ sendDoc }, { websiteOrderDoc }, { readNotifSettings }] = await Promise.all([
-      import('@/lib/notifications/send-doc'), import('@/lib/notifications/alerts'), import('@/lib/notifications/dispatch'),
-    ]);
+    const [{ sendDoc }, { readNotifSettings }] = await Promise.all([import('@/lib/notifications/send-doc'), import('@/lib/notifications/dispatch')]);
     const s = await readNotifSettings().catch(() => null);
     const saved = s?.notifEnabled ? (s.notifPhones ?? []).map(String).filter(Boolean) : [];
     const own = shopNumber();
     const to = saved.length ? saved : own ? [own] : [];
     if (!to.length) return 'no recipient';
-    const r = await sendDoc(websiteOrderDoc(o), to);
+    const r = await sendDoc(await build(), to);
     return r.sent ? null : r.failed.join('; ') || 'not sent';
   } catch (e) {
     return e instanceof Error ? e.message : String(e);
   }
+}
+
+/** The shop's copy of a new online order. */
+export function trySendShopCopy(o: OrderSummaryForMessage): Promise<string | null> {
+  return trySendShopDoc(async () => (await import('@/lib/notifications/alerts')).websiteOrderDoc(o), o.id);
 }

@@ -29,6 +29,7 @@ import { roleForEmail } from '@/lib/roles';
 import { devRole, captureDevRole } from '@/lib/dev-role';
 import { writeDeviceTheme } from '@/lib/theme-cache';
 import { RateChip, RateSheet } from '@/components/rates/rate-chip';
+import { useOnlineWaiting } from '@/lib/website/online-client';
 
 // The sidebar, the top bar's tabs and the palette all come from one registry (lib/nav.ts): a page is
 // added there or it is nowhere, and nav.test.ts fails when they drift.
@@ -94,6 +95,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Drafts waiting, for the count beside Drafts in the sidebar.
   const { drafts } = useWorkDrafts();
   const draftCount = drafts.length;
+  const onlineWaiting = useOnlineWaiting();
   const [isOnline, setIsOnline] = useState(true);
   // Restore the last sidebar state. The provider writes sidebar_state on
   // every toggle but only reads defaultOpen once, so a hardcoded `true` threw
@@ -225,6 +227,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                   <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                                   {item.count === 'drafts' && draftCount > 0 && (
                                     <span className="ml-auto rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold leading-5 text-primary group-data-[collapsible=icon]:hidden">{draftCount}</span>
+                                  )}
+                                  {/* Online orders waiting to be confirmed: the shop's to act, so the brand's colour. */}
+                                  {item.count === 'online' && onlineWaiting > 0 && (
+                                    <span className="ml-auto rounded-full bg-primary px-1.5 text-[11px] font-semibold leading-5 text-primary-foreground group-data-[collapsible=icon]:hidden" title={`${onlineWaiting} online order${onlineWaiting === 1 ? '' : 's'} to confirm`}>{onlineWaiting}</span>
                                   )}
                                 </a>
                               </SidebarMenuButton>

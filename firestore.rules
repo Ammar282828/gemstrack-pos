@@ -68,6 +68,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Online orders before the shop confirms them, and the transfer slips customers send
+    // (lib/website/online.ts, slips.ts). Customers' names, numbers, addresses and bank slips:
+    // read and written only by the Admin SDK through /api/public/* and /api/website/*, which
+    // check the customer's link or the staff account themselves.
+    match /online_orders/{id} {
+      allow read, write: if false;
+    }
+    match /website_slips/{id} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if isOwner();
     }

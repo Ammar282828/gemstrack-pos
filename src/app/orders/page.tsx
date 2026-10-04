@@ -30,6 +30,7 @@ import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import { useMineFilter } from '@/hooks/use-me';
 import { PageShell } from '@/components/shared/page-shell';
 import { NextStep } from '@/components/order/next-step';
+import { OnlineBadge, OnlineInbox } from '@/components/order/online-inbox';
 import { STAGES, STAGE_ORDER, stageOf, type OrderStage } from '@/lib/order-stage';
 
 type PaymentStatus = OrderPaymentStatus;
@@ -109,9 +110,12 @@ const OrderRow: React.FC<{ order: Order; owed: number }> = ({ order, owed }) => 
             say so as well is gone. */}
         <CardContent className="p-3.5 space-y-2.5 cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)}>
             <div className="flex justify-between items-start">
-                <Link href={`/orders/${order.id}`} className="font-bold text-primary hover:underline text-lg">
-                    {order.id}
-                </Link>
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                  <Link href={`/orders/${order.id}`} className="font-bold text-primary hover:underline text-lg whitespace-nowrap">
+                      {order.id}
+                  </Link>
+                  {order.source === 'website' && order.website && <OnlineBadge onlineId={order.website.onlineId} />}
+                </div>
                 <div className="flex items-center gap-1.5">
                   <Badge className={cn("border-transparent", getPaymentBadgeClass(getPaymentStatus(order)))}>{getPaymentStatus(order)}</Badge>
                   <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
@@ -209,9 +213,7 @@ const OrderTableRow: React.FC<{ order: Order; owed: number }> = ({ order, owed }
           <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
             {order.id}
           </Link>
-          {order.source === 'website' && (
-            <Badge variant="outline" className="ml-2 h-5 px-1.5 text-[10px] font-medium border-sky-500/40 text-sky-700 dark:text-sky-300">Website</Badge>
-          )}
+          {order.source === 'website' && order.website && <OnlineBadge onlineId={order.website.onlineId} className="ml-2" />}
           {/* Count first: it is the scannable part, and the item list is
               going to truncate whatever happens. */}
           <p className="text-xs text-muted-foreground max-w-[13rem] mt-0.5 truncate" title={order.summary}>
@@ -392,7 +394,9 @@ export default function OrdersPage() {
         (
             order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (order.customerContact && order.customerContact.includes(searchTerm))
+            (order.customerContact && order.customerContact.includes(searchTerm)) ||
+            // The customer quotes the ONL- number they were given.
+            (!!order.website?.onlineId && order.website.onlineId.toLowerCase().includes(searchTerm.toLowerCase()))
         )
     ).sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
   }, [orders, searchTerm, appReady, statusFilter, paymentFilter, monthFilter, takenByFilter]);
@@ -412,7 +416,7 @@ export default function OrdersPage() {
 
     if (groupBy === 'stage') {
       for (const st of STAGE_ORDER) {
-        push(st, STAGES[st].title, STAGES[st].hint, filteredOrders.filter(o => stageOf(o, owedFor(o)) === st), st === 'new');
+        push(st, STAGES[st].title, STAGES[st].hint, filteredOrders.filter(o => stageOf(o, owedFor(o)) === st), st === 'new' || st === 'transfer');
       }
     } else if (groupBy === 'status') {
       // Ordered the way work moves, so the list reads as a pipeline.
@@ -517,6 +521,9 @@ export default function OrdersPage() {
           </SelectContent>
         </Select>
       </FilterBar>
+
+      {/* Online orders waiting to be confirmed: not orders yet, so above the list (online-inbox.tsx). */}
+      <OnlineInbox />
 
       {isOrdersLoading ? (
         <ListSkeleton rows={5} />

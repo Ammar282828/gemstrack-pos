@@ -157,7 +157,8 @@ export async function createOrder(
       createdAt,
       // Made with every piece already given out (or finished), it starts there (lib/order-stage.ts).
       status: statusFromPieces('Pending', input.items as { karigarId?: string; isCompleted?: boolean }[]) ?? 'Pending',
-      summary,
+      // A summary the caller wrote (a website order's "full advance by bank transfer, Leopards to …") stays.
+      summary: (() => { const own = (input as unknown as { summary?: unknown }).summary; return typeof own === 'string' && own.trim() ? own : summary; })(),
       ratesApplied,
     } as CreatedOrder;
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pieceCounts, stageOf, statusAfterUntick, statusFromPieces } from './order-stage';
+import { bookedAsSale, pieceCounts, stageOf, statusAfterUntick, statusFromPieces } from './order-stage';
 
 const k = (karigarId?: string, isCompleted = false) => ({ karigarId, isCompleted });
 
@@ -40,11 +40,32 @@ describe('stageOf', () => {
     expect(stageOf({ status: 'Refunded', invoiceId: 'INV-1' }, 5000)).toBe('closed');
     expect(stageOf({ status: 'Cancelled' })).toBe('closed');
   });
+  it('holds a confirmed online order at the transfer until the money is in', () => {
+    expect(stageOf({ status: 'Pending', website: { paymentStatus: 'awaiting_transfer' } })).toBe('transfer');
+    expect(stageOf({ status: 'Pending', website: { paymentStatus: 'slip_sent' } })).toBe('transfer');
+    expect(stageOf({ status: 'Pending', website: { paymentStatus: 'transfer_received' } })).toBe('new');
+    expect(stageOf({ status: 'Cancelled', website: { paymentStatus: 'expired' } })).toBe('closed');
+  });
 });
 
 describe('pieceCounts', () => {
   it('counts pieces, those without a karigar and those finished', () => {
     expect(pieceCounts([k('a', true), k(), k('none')])).toEqual({ total: 3, unassigned: 2, done: 1 });
     expect(pieceCounts(null)).toEqual({ total: 0, unassigned: 0, done: 0 });
+  });
+});
+
+describe('bookedAsSale', () => {
+  const at = '2026-10-04T10:00:00Z';
+  it('counts a counter order once taken, not once invoiced or closed', () => {
+    expect(bookedAsSale({ createdAt: at, status: 'Pending' })).toBe(true);
+    expect(bookedAsSale({ createdAt: at, status: 'Completed', invoiceId: 'INV-1' })).toBe(false);
+    expect(bookedAsSale({ createdAt: at, status: 'Cancelled' })).toBe(false);
+    expect(bookedAsSale(null)).toBe(false);
+  });
+  it('counts an online order only once its transfer is in', () => {
+    expect(bookedAsSale({ createdAt: at, status: 'Pending', website: { paymentStatus: 'awaiting_transfer' } })).toBe(false);
+    expect(bookedAsSale({ createdAt: at, status: 'Pending', website: { paymentStatus: 'slip_sent' } })).toBe(false);
+    expect(bookedAsSale({ createdAt: at, status: 'Pending', website: { paymentStatus: 'transfer_received' } })).toBe(true);
   });
 });

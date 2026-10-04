@@ -97,17 +97,8 @@ export async function saveCustomer(id: Identity, patch: { profile?: Partial<Cust
 }
 
 /** The customer's website orders, newest first, in the shape their order page shows. */
-export async function ordersFor(uid: string): Promise<{ id: string; token: string; placedAt: string; status: string; paymentStatus: string; grandTotal: number; items: { description: string; image: string }[] }[]> {
-  const origin = (process.env.WEBSITE_ORIGIN || 'https://taheri.shop').replace(/\/+$/, '');
-  const snap = await adminDb.collection('orders').where('website.customerUid', '==', uid).limit(50).get();
-  const out = snap.docs.map(doc => {
-    const o = doc.data() as Record<string, unknown>;
-    const w = (o.website || {}) as { token?: string; placedAt?: string; paymentStatus?: string; pieces?: string[] };
-    const items = ((o.items as { description: string }[]) || []).map((it, i) => ({
-      description: it.description,
-      image: w.pieces?.[i] ? `${origin}/catalog-thumb/${encodeURI(w.pieces[i])}` : '',
-    }));
-    return { id: doc.id, token: w.token || '', placedAt: w.placedAt || '', status: String(o.status || 'Pending'), paymentStatus: String(w.paymentStatus || ''), grandTotal: Number(o.grandTotal) || 0, items };
-  });
-  return out.sort((a, b) => b.placedAt.localeCompare(a.placedAt));
+/** Their online orders, newest first: the ONL- number they were given, and where each stands. */
+export async function ordersFor(uid: string) {
+  const { onlineOrdersFor } = await import('./online');
+  return onlineOrdersFor(uid);
 }

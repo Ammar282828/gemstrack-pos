@@ -7,8 +7,8 @@ Next.js **ERP** (it started as a point-of-sale; renamed 2026-09-27) serving **tw
 | Taheri (gold and diamond) | erp.taheri.shop (and pos.taheri.shop) | `gemstrack-pos` | `studio` / `taheri` | branch **`taheri-next`** of this repo |
 | House of Mina (silver) | erp.houseofmina.store (and pos.houseofmina.store) | `hom-pos-52710474-ceeea` | `studio` / `mina` | branch **`main`** of repo **gemstrack-pos** (remote `hom`) |
 
-The two were forks that drifted; they were reconverged on 2026-09-22 and this history is now
-the one both deploy from. `.firebaserc` names hom-pos and is only for the Firebase CLI, which is not used.
+Two forks that drifted, reconverged 2026-09-22: both deploy from this history.
+`.firebaserc` (hom-pos) is for the unused Firebase CLI.
 
 The public website is a separate repo: **taheri-site** (github.com/Ammar282828/taheri-site,
 `~/Projects/taheri-site`), a Vite app on Hostinger. Read its CLAUDE.md for the site.
@@ -21,7 +21,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 - **`main` is the working branch.** Taheri deploys from `taheri-next`, Mina from `hom`'s `main`; both are
   pushed *from* `main` (see below). Every push to a deploy branch rolls out automatically
   (~5 min; `gcloud builds list --region us-central1 --project <project>` shows it).
-- Never trigger builds by hand (REST/console); they jam the queue and a stale site looks like a code bug.
+- Never trigger builds by hand (REST/console): they jam the queue, and a stale site looks like a bug.
 
 ## Running locally
 
@@ -31,14 +31,14 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 - The app is behind Google sign-in, locally and in **both** houses since 2026-09-30 (Taheri ran
   `NEXT_PUBLIC_OPEN_ACCESS=1` with open Firestore rules from 2026-09-07; owner: "taheri being open to all is a bit
   dangerous"). Don't reintroduce the open-access flag.
-- Typecheck: `npx tsc --noEmit -p .`. ESLint's config is broken (v9); the build is the lint gate.
+- Typecheck: `npx tsc --noEmit -p .`. ESLint (v9) is broken; the build is the lint gate.
 
 ## Configuration and access
 
 - `apphosting.yaml` holds every env var. A `secret:` it declares **must exist in Secret Manager and
   be readable by the three App Hosting service accounts** (mirror `CRON_SECRET`'s IAM) *before* it is
   declared, or the rollout fails. Names are case-sensitive: the upload secret is `website-upload-secret`.
-  A variable with `value: ""` also fails the rollout ("either 'value' or 'secret' field is required") — write
+  A variable with `value: ""` also fails the rollout — write
   a word the code reads as off (`"none"`, `"0"`).
 - **Taheri's backend also has console `overrideEnv`** (19 variables — Firebase config, `NEXT_PUBLIC_STORE_NAME` "Taheri",
   contacts, bank line, Instagram) and **they beat the YAML**. Read them with the App Hosting REST API
@@ -125,8 +125,7 @@ Claude Code runs these repos in the cloud too, with no Mac (owner, 2026-09-27).
   `gcloud iam service-accounts keys list --iam-account firebase-adminsdk-fbsvc@hom-pos-52710474-ceeea.iam.gserviceaccount.com --project hom-pos-52710474-ceeea --managed-by=user`,
   then `… keys delete <KEY_ID>`. It bypasses Firestore rules. The second laptop's Mina `.env.local` may use that key.
   cloud-deploy now refuses a tree with a PEM private key in it (a push from a Mac is not checked).
-- The `client_id`/`client_secret` in about a dozen scripts is the Firebase CLI's own OAuth client, public by design (the
-  refresh token is read from the local CLI config).
+- Scripts' `client_id`/`client_secret` is the Firebase CLI's own OAuth client, public by design.
 - **Taheri's Firestore is open until the owner publishes `firestore.rules`** in the Firebase console (never the CLI from here): see [Taheri sign-in](docs/decisions.md#taheri-sign-in).
 
 ## Where the rest is written down
@@ -151,7 +150,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Home and the day**
 - [Dashboard](docs/decisions.md#dashboard) — four figures, Needs you, Due to customers, Recent sales; no buttons
-- [Rate chip](docs/decisions.md#rate-chip) — the rate chip; the cart writes back only a new invoice's typed rates
+- [Rate chip](docs/decisions.md#rate-chip) — the cart writes back only a new invoice's typed rates
 - [One screen per question](docs/decisions.md#one-screen-per-question) — `lib/owed.ts`, Today's cash, the karigar's Now
 
 **Selling: invoices, orders, repairs**
@@ -164,7 +163,8 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Exchange rows](docs/decisions.md#exchange-rows) — `exchanges`, with the old totals kept
 - [Order to invoice](docs/decisions.md#order-to-invoice) — advances as payments, exchange, discount, notes
 - [Orders hub](docs/decisions.md#orders-hub) — by stage, a next step per card; pieces set status
-- [Name a sale](docs/decisions.md#name-a-sale) — on the invoice, no re-price
+- [Online orders](docs/decisions.md#online-orders) — a person confirms; no sale until the transfer
+- [Name a sale](docs/decisions.md#name-a-sale) — on the invoice
 - [Advance method](docs/decisions.md#advance-method) — `.nullish()`, `onInvalid` toasts
 - [Exchange line](docs/decisions.md#exchange-line) — what + amount
 - [Walk-ins](docs/decisions.md#walk-ins) — `lib/walk-in.ts`; one walk-in row everywhere

@@ -23,6 +23,7 @@ import { cashInForPeriod, invoicedOrderIds, type CashIn } from '@/lib/analytics/
 import { exchangeTotal, invoiceExchanges } from '@/lib/exchange';
 import { orderAdvancePayments } from '@/lib/order-payment';
 import { isBusinessCost } from '@/lib/partnership';
+import { bookedAsSale } from '@/lib/order-stage';
 
 export interface MonthRef { year: number; month: number }
 
@@ -168,7 +169,7 @@ function figures(input: MonthlyInput, b: { from: Date; to: Date }, ordersById: M
   const { jewellery } = splitAllCoinSales(input.invoices);
   let revenue = 0;
   for (const inv of jewellery) if (inv?.createdAt && inv.status !== 'Refunded' && within(revenueDate(inv, ordersById), b)) revenue += invoiceSaleValue(inv);
-  for (const o of input.orders) if (o?.createdAt && o.status !== 'Cancelled' && o.status !== 'Refunded' && !o.invoiceId && within(o.createdAt, b)) revenue += n(o.subtotal);
+  for (const o of input.orders) if (bookedAsSale(o) && within(o.createdAt, b)) revenue += n(o.subtotal);
   for (const r of input.extraRevenues) if (r?.date && within(r.date, b)) revenue += n(r.amount);
   const cash = cashInForPeriod({
     invoices: jewellery, orders: input.orders, invoiced: invoicedOrderIds(input.orders, input.invoices),
@@ -222,7 +223,7 @@ export function buildMonthlyReport(input: MonthlyInput, month: MonthRef, now = n
   for (const inv of coins) if (inv?.createdAt && inv.status !== 'Refunded' && within(revenueDate(inv, ordersById), b)) coinRevenue += invoiceSaleValue(inv);
 
   const openOrders: OpenOrderRow[] = input.orders
-    .filter(o => o?.createdAt && o.status !== 'Cancelled' && o.status !== 'Refunded' && !o.invoiceId && within(o.createdAt, b))
+    .filter(o => bookedAsSale(o) && within(o.createdAt, b))
     .map(o => ({
       id: o.id,
       date: o.createdAt,

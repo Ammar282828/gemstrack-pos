@@ -52,12 +52,15 @@ describe('buildWebsiteOrder', () => {
     expect(built.products[1].name).toBe('Yellow Gold Jhumki with Ruby — Jhumki 2');
     expect(built.order).toMatchObject({
       status: 'Pending', source: 'website', customerName: 'Ayesha Khan', customerContact: '+923001234567',
-      subtotal: 186250, grandTotal: 186750, advancePayment: 0,
+      // The order's grandTotal is the ERP's balance on its pieces; what the customer pays is website.total.
+      subtotal: 186250, grandTotal: 186250, advancePayment: 0,
       delivery: { required: true, city: 'Karachi', charge: 500 },
-      website: { paymentMethod: 'bank_transfer', paymentStatus: 'awaiting_transfer', token: 'tok', bagId: 'bag_0123456789', deliveryCharge: 500 },
+      website: { paymentMethod: 'bank_transfer', paymentStatus: 'awaiting_transfer', token: 'tok', bagId: 'bag_0123456789', deliveryCharge: 500, total: 186750 },
     });
-    const items = built.order.items as { totalEstimate: number; referenceSku: string; estimatedWeightG: number }[];
+    const items = built.order.items as { totalEstimate: number; referenceSku: string; estimatedWeightG: number; isManualPrice: boolean; manualPrice: number }[];
     expect(items.map(i => i.totalEstimate)).toEqual([121500, 64750]);
+    // Fixed at the quote, so Finalize & invoice charges what was paid whatever the piece weighs.
+    expect(items.map(i => [i.isManualPrice, i.manualPrice])).toEqual([[true, 121500], [true, 64750]]);
     expect(items[0].referenceSku).toBe(built.products[0].sku);
     expect(items[0].estimatedWeightG).toBe(4);
   });

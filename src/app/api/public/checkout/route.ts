@@ -1,17 +1,18 @@
 /**
- * POST /api/public/checkout  → places a website order.
+ * POST /api/public/checkout  → places an online order, to be confirmed by the shop (online.ts).
  *
  * The body carries who is buying, where it goes, and which pieces. It does not
- * carry prices: the POS re-quotes every piece at this moment and the customer
+ * carry prices: the ERP re-quotes every piece at this moment and the customer
  * pays what that says. If the quote moved since they filled their bag, the
  * reply says so and nothing is placed — the site shows the new total and asks
- * again.
+ * again. The reply has no bank details: those go once the shop confirms.
  */
 
 import { NextRequest } from 'next/server';
 import { json, preflight } from '@/lib/website/cors';
 import { rateLimit, callerKey } from '@/lib/website/ratelimit';
-import { placeWebsiteOrder, CheckoutRejected } from '@/lib/website/checkout';
+import { CheckoutRejected } from '@/lib/website/checkout';
+import { placeOnlineOrder } from '@/lib/website/online';
 import { identityFromRequest } from '@/lib/website/customers';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   try {
     // Optional: a signed-in customer's token ties the order to their account.
     const who = await identityFromRequest(req);
-    const placed = await placeWebsiteOrder(body, { caller, origin: req.headers.get('origin') || '', customerUid: who?.uid });
+    const placed = await placeOnlineOrder(body, { customerUid: who?.uid });
     return json(req, placed, { status: 201 });
   } catch (e) {
     if (e instanceof CheckoutRejected) return json(req, { error: e.message, code: e.code, detail: e.detail }, { status: e.status });

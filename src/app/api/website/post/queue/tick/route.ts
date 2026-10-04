@@ -12,7 +12,10 @@
  * a house with the Ad studio, assesses the library in the background (assess-run.ts): a paced
  * slice in whatever time was left, so the photos get assessed with no page open. Their own jobs
  * would be cleaner; the cloud sessions can't create Scheduler jobs.
- * Every house also re-reads the link page's reviews when six hours old (lib/reviews-server.ts).
+ * Every house also re-reads the link page's reviews when six hours old (lib/reviews-server.ts), and
+ * a house that takes online orders looks after them (lib/website/online.ts sweepOnline: the shop
+ * nudged about orders waiting to be confirmed, customers reminded before their hold ends, the shop
+ * told when a hold has ended).
  * `?dry=1` answers what is due without sending anything.
  */
 
@@ -25,12 +28,24 @@ import { aiConfigured } from '@/lib/social/ai';
 import { loadAssessState, runAssessSlice } from '@/lib/ads/studio/assess-run';
 import { runDueReports } from '@/lib/notifications/dispatch';
 import { refreshReviews } from '@/lib/reviews-server';
+import { onlineOrdersPossible, sweepOnline } from '@/lib/website/online';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 /** Stop taking new pieces after this long, so the last one finishes inside the request. */
 const BUDGET_MS = 150_000;
+
+/** Online orders' nudges and reminders; a failure here must never stop the rest. */
+async function online(dry: boolean) {
+  try {
+    if (!(await onlineOrdersPossible())) return null;
+    return await sweepOnline(new Date(), dry);
+  } catch (e) {
+    console.warn('[queue/tick] online orders:', e instanceof Error ? e.message : e);
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
 
 /** The reports due now; a failure here must never stop the queue. */
 async function reports(dry: boolean) {
@@ -48,11 +63,12 @@ export async function POST(req: NextRequest) {
   const dry = req.nextUrl.searchParams.get('dry') === '1';
   // The link page's reviews, read again every six hours (reviews-server.ts); never in the way.
   if (!dry) await refreshReviews().then(r => { if (r.status === 'failed') console.warn('[queue/tick] reviews:', r.error); }).catch(() => undefined);
+  const onlineOrders = await online(dry);
   // The reports ride this tick in every house, so they come before the Post a Piece gate.
-  if (!STORE_POST_PIECE) return NextResponse.json({ ok: true, notifications: await reports(dry) });
+  if (!STORE_POST_PIECE) return NextResponse.json({ ok: true, onlineOrders, notifications: await reports(dry) });
   const started = Date.now();
   const due = await dueItems(new Date(started));
-  if (dry) return NextResponse.json({ ok: true, dry: true, due: due.map(d => ({ id: d.id, headline: d.headline, dueAt: d.dueAt, status: d.status })), notifications: await reports(true) });
+  if (dry) return NextResponse.json({ ok: true, dry: true, onlineOrders, due: due.map(d => ({ id: d.id, headline: d.headline, dueAt: d.dueAt, status: d.status })), notifications: await reports(true) });
   const results: { id: string; headline: string; status: string }[] = [];
   for (const d of due) {
     if (Date.now() - started > BUDGET_MS) break;
@@ -78,5 +94,5 @@ export async function POST(req: NextRequest) {
       console.warn('[queue/tick] assessing:', e instanceof Error ? e.message : e);
     }
   }
-  return NextResponse.json({ ok: true, due: due.length, results, swept, notifications, assessed });
+  return NextResponse.json({ ok: true, due: due.length, results, swept, onlineOrders, notifications, assessed });
 }

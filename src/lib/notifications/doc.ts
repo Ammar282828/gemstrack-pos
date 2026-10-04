@@ -38,6 +38,8 @@ export interface Section {
   pairs?: { label: string; value: string; tone?: Tone; strong?: boolean }[];
   table?: Table;
   text?: string[];
+  /** A picture, the width of the page (a transfer slip). */
+  image?: { dataUrl: string; format: 'JPEG' | 'PNG' };
   /** Said when the section has nothing in it, instead of leaving it out. */
   empty?: string;
 }
