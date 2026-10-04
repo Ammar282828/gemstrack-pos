@@ -16,9 +16,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adsGate, noStore } from '@/lib/ads/gate';
 import { STORE_AD_STUDIO } from '@/lib/store-config';
-import { CHECK_MODEL, TEXT_MODEL, generateImage, generateJson, generateText, prepareImage, type InlineImage } from '@/lib/social/ai';
-import { CHECK_PROMPT, CHECK_SCHEMA, CHECK_SYSTEM, READ_PROMPT, SCENES, type CheckResult } from '@/lib/social/prompts';
-import { DIRECT_SCHEMA, DIRECT_SYSTEM, breaksHouseRule, directPrompt, inventedFigures, paintPrompt, type Direction } from '@/lib/ads/studio/prompts';
+import { CHECK_MODEL, generateImage, generateJson, generateText, prepareImage, type InlineImage } from '@/lib/social/ai';
+import { CHECK_PROMPT, CHECK_SCHEMA, CHECK_SYSTEM, READ_PROMPT, type CheckResult } from '@/lib/social/prompts';
+import { breaksHouseRule, inventedFigures, paintPrompt } from '@/lib/ads/studio/prompts';
+import { artDirect } from '@/lib/ads/studio/art-direct';
 import { studioAiGate, studioFail } from '@/lib/ads/studio/route-kit';
 
 export const dynamic = 'force-dynamic';
@@ -64,29 +65,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ image, lettering: { read, missing, ok: !!read && missing.length === 0 }, check }, { headers: noStore });
     }
 
-    const d = await generateJson<Direction>({
-      model: process.env.AD_STUDIO_TEXT_MODEL?.trim() || TEXT_MODEL, system: DIRECT_SYSTEM, schema: DIRECT_SCHEMA, temperature: 0.7,
-      parts: [{ inlineData: photo }, { text: directPrompt({
-        name: s('name', 120), collection: s('collection', 80), specs: s('specs'), price: s('price', 80), brief: s('brief', 400),
-        format: `${shape} (${aspect})`, destination: s('destination', 120) || 'a WhatsApp chat with the shop',
-        scenes: SCENES.map(x => `${x.id} (${x.label}; suits ${x.suits})`).join(', '),
-      }) }],
+    const direction = await artDirect(photo, {
+      name: s('name', 120), collection: s('collection', 80), specs: s('specs'), price: s('price', 80), brief: s('brief', 400),
+      format: `${shape} (${aspect})`, destination: s('destination', 120),
     });
-    const ok = (t: unknown, max: number) => typeof t === 'string' && t.trim().length > 0 && t.length <= max && !breaksHouseRule(t) && inventedFigures(t, facts).length === 0;
-    // Lines on a picture take no full stop; a kicker that only repeats the specs line is dropped.
-    const line = (t: string) => t.trim().replace(/[.。]+$/, '');
-    const specs = s('specs').toLowerCase();
-    const kicker = ok(d.kicker, 40) ? line(d.kicker) : '';
-    const direction: Direction = {
-      layout: d.layout, why: String(d.why || '').slice(0, 300),
-      kicker: kicker && specs.includes(kicker.toLowerCase()) ? '' : kicker,
-      headline: ok(d.headline, 60) ? line(d.headline) : s('name', 60),
-      cta: ok(d.cta, 60) ? line(d.cta) : 'Message us for today’s price',
-      primaryText: (d.primaryText ?? []).filter(t => ok(t, 600)),
-      adHeadlines: (d.adHeadlines ?? []).filter(t => ok(t, 60)),
-      extend: !!d.extend,
-      scene: SCENES.some(x => x.id === d.scene) ? d.scene : null,
-    };
     return NextResponse.json({ direction }, { headers: noStore });
   } catch (e) {
     return studioFail(e, 'auto');

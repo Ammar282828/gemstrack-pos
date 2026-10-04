@@ -12,6 +12,7 @@
  * a house with the Ad studio, assesses the library in the background (assess-run.ts): a paced
  * slice in whatever time was left, so the photos get assessed with no page open. Their own jobs
  * would be cleaner; the cloud sessions can't create Scheduler jobs.
+ * The Ad studio's houses also get this week's board on Mondays (lib/ads/studio/weekly.ts).
  * Every house also re-reads the link page's reviews when six hours old (lib/reviews-server.ts), and
  * a house that takes online orders looks after them (lib/website/online.ts sweepOnline: the shop
  * nudged about orders waiting to be confirmed, customers reminded before their hold ends, the shop
@@ -26,6 +27,7 @@ import { claimItem, dueItems, sendItem, sweep } from '@/lib/social/queue';
 import { STORE_AD_STUDIO, STORE_POST_PIECE } from '@/lib/store-config';
 import { aiConfigured } from '@/lib/social/ai';
 import { loadAssessState, runAssessSlice } from '@/lib/ads/studio/assess-run';
+import { loadWeekly, runWeeklySlice, startWeekly, weeklyDue } from '@/lib/ads/studio/weekly';
 import { runDueReports } from '@/lib/notifications/dispatch';
 import { refreshReviews } from '@/lib/reviews-server';
 import { onlineOrdersPossible, sweepOnline } from '@/lib/website/online';
@@ -81,6 +83,19 @@ export async function POST(req: NextRequest) {
   if (results.length) console.log(`[queue/tick] ${results.map(r => `${r.headline || r.id}:${r.status}`).join(' ')}`);
   const notifications = await reports(false);
 
+  // This week's board (weekly.ts): started on Monday from 9:00, Karachi, and designed a few pieces a tick.
+  let weekly: { board: string | null; done: number; pending: number; failed: number } | null = null;
+  if (STORE_AD_STUDIO && aiConfigured() && 240_000 - (Date.now() - started) > 90_000) {
+    try {
+      let w = await loadWeekly();
+      if (weeklyDue(w, new Date())) w = await startWeekly(new Date());
+      if (w.pending.length) w = await runWeeklySlice(Math.min(120_000, 240_000 - (Date.now() - started) - 30_000));
+      weekly = { board: w.board, done: w.done, pending: w.pending.length, failed: w.failed.length };
+    } catch (e) {
+      console.warn('[queue/tick] weekly board:', e instanceof Error ? e.message : e);
+    }
+  }
+
   // The Ad studio's library, in the time left (the Scheduler's deadline is 300 s): a batch of ten
   // photographs, a pause, and so on — gentle on the AI key the counter shares.
   let assessed: { done: number; remaining: number; stopped: string | null; busy?: boolean } | null = null;
@@ -94,5 +109,5 @@ export async function POST(req: NextRequest) {
       console.warn('[queue/tick] assessing:', e instanceof Error ? e.message : e);
     }
   }
-  return NextResponse.json({ ok: true, due: due.length, results, swept, onlineOrders, notifications, assessed });
+  return NextResponse.json({ ok: true, due: due.length, results, swept, onlineOrders, notifications, weekly, assessed });
 }

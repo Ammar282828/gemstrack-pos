@@ -24,15 +24,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, Copy, Download, Loader2, Maximize, Minus, Pencil, Plus, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X } from 'lucide-react';
+import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
 import { reflow, renderDocTo, type Assets, type Bind, type Fields, type StoryDoc } from '@/lib/social/editor';
 import { AD_FORMATS, AD_FORMAT_ORDER, AD_TEMPLATES, MORE_FORMAT_ORDER, PHOTO, applyAdTemplate, blankAd, formatInfo, type AdFormat, type AdTemplateId } from '@/lib/ads/studio/templates';
-import { BOARD_SCALE, applyOps, framePx, newId, type Board, type BoardFrame, type BoardNote, type BoardOp } from '@/lib/ads/studio/board-shape';
+import { BOARD_SCALE, applyOps, framePx, newId, safeTemplate, type Board, type BoardFrame, type BoardNote, type BoardOp } from '@/lib/ads/studio/board-shape';
 import type { BoardSummary } from '@/lib/ads/studio/board';
 import type { Direction } from '@/lib/ads/studio/prompts';
 import { VOICE } from '@/lib/ads/studio/brand';
+import { HANDOFF_PREFIX, type StudioHandoff } from '@/lib/ads/studio/handoff';
+import type { WeeklyState } from '@/lib/ads/studio/weekly';
+import { STORE_LINKS } from '@/lib/store-config';
 import { SoloEditor, useStoryDoc } from '../../website/post/story-editor';
 import { FONTS, bodyFace, headlineFace, serifFace } from '../../website/post/fonts';
 import { useSiteAssets } from '../../website/post/site-assets';
@@ -138,6 +142,7 @@ export function BoardSection() {
           </Select>
         )}
         <Button size="sm" variant="outline" onClick={create}><Plus className="h-4 w-4 mr-1" /> New board</Button>
+        <WeeklyButton onBoard={id => { loadList().then(() => choose(id)); }} />
         <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setAgentOpen(true)}><Bot className="h-4 w-4 mr-1" /> Connect an agent</Button>
       </div>
       {!boards && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading the boards…</p>}
@@ -158,6 +163,43 @@ export function BoardSection() {
       {current && <BoardView key={current} id={current} onGone={() => { setCurrent(null); loadList(); }} onRenamed={loadList} />}
       <AgentDialog open={agentOpen} onOpenChange={setAgentOpen} />
     </div>
+  );
+}
+
+/**
+ * This week's board, now (weekly.ts — the tick makes it by itself on Mondays from 9:00): a new board of
+ * the week's new pieces, designed a few at a time while this page waits; it opens as soon as it exists.
+ */
+function WeeklyButton({ onBoard }: { onBoard: (id: string) => void }) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState<string | null>(null);
+  const run = async () => {
+    if (!window.confirm('Make this week’s board now? It designs up to six of the week’s new pieces (about a minute each).')) return;
+    setBusy('Starting…');
+    try {
+      let action = 'start';
+      let lastDone = -1;
+      for (let i = 0; i < 12; i++) {
+        const { weekly } = await api<{ weekly: WeeklyState & { busy?: boolean } }>('/api/ads/studio/weekly', { body: { action } });
+        if (i === 0 && weekly.board) onBoard(weekly.board);
+        action = 'continue';
+        if (!weekly.pending.length) {
+          toast({ title: 'This week’s board is ready', description: `${weekly.done} piece${weekly.done === 1 ? '' : 's'} designed${weekly.failed.length ? `; ${weekly.failed.length} couldn’t be` : ''}.` });
+          break;
+        }
+        setBusy(`${weekly.done} designed, ${weekly.pending.length} to go…`);
+        // Nothing new this round (the AI's per-minute quota, or the tick at it): a minute before asking again.
+        const stuck = weekly.done === lastDone;
+        lastDone = weekly.done;
+        if (weekly.busy || stuck) await new Promise(r => setTimeout(r, weekly.busy ? 15_000 : 60_000));
+      }
+    } catch (e) { toast({ title: 'Couldn’t make it', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }); }
+    finally { setBusy(null); }
+  };
+  return (
+    <Button size="sm" variant="outline" disabled={!!busy} onClick={run} title="The tick makes one by itself every Monday from 9:00">
+      {busy ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CalendarDays className="h-4 w-4 mr-1" />} {busy ?? 'This week’s board'}
+    </Button>
   );
 }
 
@@ -358,7 +400,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
     const fid = newId('frame');
     await send([{ op: 'add', frame: {
       // The website photo's unmarked Drive original when there is one (as the maker does): no burned-in wordmark cut by the frame.
-      id: fid, assetId: item.original?.id ?? item.id, marked: item.source === 'site' && !item.original, format, template: 'headline', label: item.name, by: 'page', doc: null,
+      id: fid, assetId: item.original?.id ?? item.id, marked: item.source === 'site' && !item.original, format, template: safeTemplate('headline', { marked: item.source === 'site' && !item.original, format }), label: item.name, by: 'page', doc: null,
       fields: {
         kicker: item.source === 'site' && item.collection !== 'Website' ? item.collection : '',
         headline: item.assessment?.headline || item.name, weight: item.specs ?? '', details: VOICE.ctas[0].replace(/\.$/, ''),
@@ -370,16 +412,93 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
   const duplicate = (f: BoardFrame, format?: AdFormat) => {
     const { id: _id, rev: _rev, x: _x, y: _y, ...rest } = f;
     const short = format ? formatInfo(format).short : '';
-    send([{ op: 'add', near: f.id, frame: { ...rest, by: 'page', ...(format ? { format, doc: null, label: `${f.label} · ${short}` } : { label: `${f.label} · copy` }) } }]);
+    send([{ op: 'add', near: f.id, frame: { ...rest, by: 'page', ...(format ? { format, doc: null, template: safeTemplate(f.template, { marked: f.marked, format }), label: `${f.label} · ${short}` } : { label: `${f.label} · copy` }) } }]);
   };
 
+  /** The design at full size (or the same layout in another shape: the story for Instagram). */
+  const render = async (f: BoardFrame, shape?: AdFormat, px?: number, q = 0.92) => {
+    const pic = f.assetId ? await photoOf(f.assetId) : null;
+    const a = assetsFor(pic, marks);
+    const doc = shape && shape !== f.format ? layOut({ ...f, format: shape, template: safeTemplate(f.template, { marked: f.marked, format: shape }) }, a) : f.doc ?? layOut(f, a);
+    return { blob: await canvasToJpeg(drawTo(doc, f.fields, a, px ?? (doc.frame ?? framePx(f)).w), q), doc, pic };
+  };
+  const dataUrl = (b: Blob) => new Promise<string>(res => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsDataURL(b); });
+
   const download = async (f: BoardFrame) => {
+    try { downloadBlob((await render(f)).blob, `${safeName(f.fields.headline || f.label)}-${f.format}.jpg`); }
+    catch (e) { fail('Couldn’t draw it', e); }
+  };
+
+  // ── Out of the board (2026-10-04, owner: "yes" — to "one tap from a design to Saved ads, a new Meta ad, or the post queue") ──
+  const router = useRouter();
+  const [sending, setSending] = useState<string | null>(null);
+  const [queueFor, setQueueFor] = useState<BoardFrame | null>(null);
+
+  const saveToSaved = async (f: BoardFrame) => {
+    setSending('Saving to Saved ads…');
     try {
-      const pic = f.assetId ? await photoOf(f.assetId) : null;
-      const a = assetsFor(pic, marks);
-      const blob = await canvasToJpeg(drawTo(f.doc ?? layOut(f, a), f.fields, a, framePx(f).w), 0.92);
-      downloadBlob(blob, `${safeName(f.fields.headline || f.label)}-${f.format}.jpg`);
-    } catch (e) { fail('Couldn’t draw it', e); }
+      const { blob, doc, pic } = await render(f);
+      const thumb = await dataUrl((await render(f, undefined, 200, 0.7)).blob);
+      const form = new FormData();
+      form.append('meta', JSON.stringify({
+        folder: null, name: f.fields.headline || f.label || 'Board design', format: f.format, template: f.template, fields: f.fields, price: '',
+        text: '', headline: f.fields.headline, goal: 'whatsapp', link: '', asset: f.assetId ? { id: f.assetId, name: f.label } : null, thumb,
+      }));
+      form.append('image', blob, 'ad.jpg');
+      if (pic) form.append('photo', pic.blob, 'photo.jpg');
+      form.append('doc', new Blob([JSON.stringify(doc)], { type: 'application/json' }), 'doc.json');
+      await api('/api/ads/studio/saved', { form });
+      toast({ title: 'Saved', description: 'In Studio → Saved.' });
+    } catch (e) { fail('Couldn’t save it', e); } finally { setSending(null); }
+  };
+
+  const toNewAd = async (f: BoardFrame) => {
+    setSending('Putting it in a new ad…');
+    try {
+      const upload = async (b: Blob, name: string) => { const form = new FormData(); form.append('file', b, name); return api<{ hash: string; url: string | null }>('/api/ads/images', { form }); };
+      const feed = f.format === 'portrait' || f.format === 'square';
+      const [up, vert] = await Promise.all([
+        render(f).then(r => upload(r.blob, `${safeName(f.fields.headline)}.jpg`)),
+        feed ? render(f, 'story').then(r => upload(r.blob, `${safeName(f.fields.headline)}-9x16.jpg`)) : Promise.resolve(null),
+      ]);
+      await api('/api/ads/studio/creatives', { body: { assets: f.assetId ? [f.assetId] : [], hash: up.hash, url: up.url, format: f.format, name: f.fields.headline } }).catch(() => undefined);
+      const key = Math.random().toString(36).slice(2, 10);
+      const handoff: StudioHandoff = {
+        photos: [{ hash: up.hash, url: up.url, headline: f.fields.headline, link: STORE_LINKS.website ?? undefined }],
+        vertical: vert ? { hash: vert.hash, url: vert.url } : null,
+        text: [f.fields.headline, f.fields.weight, f.fields.details].filter(Boolean).join('\n'), headline: f.fields.headline, goal: 'whatsapp',
+        name: `${f.fields.headline || f.label} · ${formatInfo(f.format).short}${vert ? ' + 9:16' : ''}`,
+      };
+      sessionStorage.setItem(HANDOFF_PREFIX + key, JSON.stringify(handoff));
+      router.push(`/ads/new?studio=${key}`);
+    } catch (e) { fail('Couldn’t make a new ad', e); setSending(null); }
+  };
+
+  const queuePost = async (f: BoardFrame, o: { whatsapp: string[]; instagram: boolean; caption: string }) => {
+    setQueueFor(null);
+    setSending('Queuing the post…');
+    let qid: string | null = null;
+    try {
+      const wa = o.whatsapp.length ? (await render(f)).blob : null;
+      const story = o.instagram ? (await render(f, 'story', AD_FORMATS.story.frame.w)).blob : null;
+      const thumb = (await dataUrl((await render(f, undefined, 240, 0.7)).blob)).split(',')[1];
+      const { item } = await api<{ item: { id: string } }>('/api/website/post/queue', { body: {
+        headline: f.fields.headline || f.label, caption: o.caption, fileBase: safeName(f.fields.headline || f.label),
+        counts: { site: 0, wa: wa ? 1 : 0, story: !!story }, website: null, instagram: !!story, whatsapp: o.whatsapp, thumb,
+      } });
+      qid = item.id;
+      for (const [key, b] of [['wa-0', wa], ['story', story]] as [string, Blob | null][]) {
+        if (!b) continue;
+        const form = new FormData();
+        form.set('key', key); form.set('file', new File([b], `${key}.jpg`, { type: 'image/jpeg' }));
+        await api(`/api/website/post/queue/${qid}`, { form });
+      }
+      await api(`/api/website/post/queue/${qid}`, { method: 'PATCH', body: { action: 'ready' } });
+      toast({ title: 'In the post queue', description: 'Posts → Hub: send it now or set a time.' });
+    } catch (e) {
+      if (qid) api(`/api/website/post/queue/${qid}`, { method: 'DELETE' }).catch(() => undefined);
+      fail('Couldn’t queue it', e);
+    } finally { setSending(null); }
   };
 
   const cook = async (f: BoardFrame, n: number, brief: string) => {
@@ -408,7 +527,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
         if (!d) continue;
         const { id: _id, rev: _rev, x: _x, y: _y, ...rest } = f;
         const added = await send([{ op: 'add', near, frame: {
-          ...rest, by: 'ai', doc: null, template: d.layout as AdTemplateId, why: d.why, label: `${f.label} · ${i + 1}`,
+          ...rest, by: 'ai', doc: null, template: safeTemplate(d.layout as AdTemplateId, { marked: f.marked, format: f.format }), why: d.why, label: `${f.label} · ${i + 1}`,
           fields: { ...f.fields, kicker: d.kicker || '', headline: d.headline || f.fields.headline, details: d.cta || f.fields.details },
         } }]);
         if (added[0]) { near = added[0]; made++; }
@@ -441,7 +560,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
             <Button size="sm" variant="ghost" onClick={fit}><Maximize className="h-4 w-4 mr-1" /> Fit</Button>
           </span>
         </div>
-        {cooking && <p className="text-xs rounded-lg bg-primary/10 p-2 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin shrink-0" /> {cooking}</p>}
+        {(cooking || sending) && <p className="text-xs rounded-lg bg-primary/10 p-2 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin shrink-0" /> {cooking || sending}</p>}
         {agentBusy(board) && (
           <p className="text-xs rounded-lg border border-sky-400/50 bg-sky-400/10 p-2 flex items-center gap-2">
             <Bot className="h-4 w-4 shrink-0 text-sky-500" />
@@ -489,6 +608,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
             onLabel={label => send([{ op: 'put', id: selFrame.id, patch: { label } }])}
             onEdit={() => setEditing(selFrame.id)} onCook={(n, brief) => cook(selFrame, n, brief)}
             onShape={fmt => duplicate(selFrame, fmt)} onDuplicate={() => duplicate(selFrame)} onDownload={() => download(selFrame)}
+            sending={!!sending} onSave={() => saveToSaved(selFrame)} onNewAd={() => toNewAd(selFrame)} onQueue={() => setQueueFor(selFrame)}
             onRemove={() => { send([{ op: 'remove', id: selFrame.id }]); setSel(null); }} />
         )}
         {selNote && (
@@ -502,6 +622,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
       </aside>
 
       <PhotoPicker open={picker} onOpenChange={setPicker} onPick={addPhoto} />
+      {queueFor && <QueueDialog frame={queueFor} onClose={() => setQueueFor(null)} onQueue={o => queuePost(queueFor, o)} />}
       {editing && (() => {
         const f = frames.find(x => x.id === editing);
         return f ? <FrameEditor frame={f} marks={marks} onClose={() => setEditing(null)} onSave={patch => { send([{ op: 'put', id: f.id, patch: { ...patch, by: 'page' } }]); setEditing(null); }} /> : null;
@@ -591,9 +712,10 @@ function BoardName({ board, onRename, onDelete }: { board: Board; onRename: (n: 
   );
 }
 
-function FramePanel({ frame: f, notes, busy, onLabel, onEdit, onCook, onShape, onDuplicate, onDownload, onRemove }: {
+function FramePanel({ frame: f, notes, busy, sending, onLabel, onEdit, onCook, onShape, onDuplicate, onDownload, onRemove, onSave, onNewAd, onQueue }: {
   frame: BoardFrame; notes: BoardNote[]; busy: boolean; onLabel: (l: string) => void; onEdit: () => void; onCook: (n: number, brief: string) => void;
   onShape: (f: AdFormat) => void; onDuplicate: () => void; onDownload: () => void; onRemove: () => void;
+  sending: boolean; onSave: () => void; onNewAd: () => void; onQueue: () => void;
 }) {
   const [label, setLabel] = useState(f.label);
   const [n, setN] = useState(4);
@@ -610,6 +732,14 @@ function FramePanel({ frame: f, notes, busy, onLabel, onEdit, onCook, onShape, o
           <Button size="sm" variant="outline" onClick={onDownload}><Download className="h-4 w-4 mr-1" /> Download</Button>
           <Button size="sm" variant="outline" onClick={onDuplicate}><Files className="h-4 w-4 mr-1" /> Duplicate</Button>
           <Button size="sm" variant="outline" onClick={onRemove}><Trash2 className="h-4 w-4 mr-1" /> Remove</Button>
+        </div>
+      </section>
+      <section className="rounded-xl border p-3 space-y-2">
+        <p className="text-sm font-semibold flex items-center gap-1.5"><Send className="h-4 w-4" /> Use it</p>
+        <div className="grid gap-2">
+          <Button size="sm" disabled={sending} onClick={onQueue}><Send className="h-4 w-4 mr-1" /> Queue a post — WhatsApp, Instagram</Button>
+          <Button size="sm" variant="outline" disabled={sending} onClick={onNewAd}><Rocket className="h-4 w-4 mr-1" /> Use in a new Meta ad</Button>
+          <Button size="sm" variant="outline" disabled={sending} onClick={onSave}><FolderOpen className="h-4 w-4 mr-1" /> Save to Saved ads</Button>
         </div>
       </section>
       <section className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2">
@@ -638,6 +768,57 @@ function FramePanel({ frame: f, notes, busy, onLabel, onEdit, onCook, onShape, o
         </div>
       </section>
     </>
+  );
+}
+
+// ── Queue a post ───────────────────────────────────────────────────────────
+
+function QueueDialog({ frame: f, onClose, onQueue }: { frame: BoardFrame; onClose: () => void; onQueue: (o: { whatsapp: string[]; instagram: boolean; caption: string }) => void }) {
+  const [places, setPlaces] = useState<{ key: string; name: string; size: number | null }[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [wa, setWa] = useState<string[]>([]);
+  const [ig, setIg] = useState(false);
+  const [caption, setCaption] = useState([f.fields.headline, f.fields.weight, f.fields.details].filter(Boolean).join('\n'));
+  useEffect(() => {
+    api<{ community: { name: string } | null; channel: { name: string; followers: number | null } | null; groups: { key: string; name: string; size: number | null }[] }>('/api/website/post')
+      .then(r => {
+        const list = [...(r.channel ? [{ key: 'channel', name: r.channel.name, size: r.channel.followers }] : []), ...(r.groups ?? [])];
+        setPlaces(list);
+        setWa(list.some(p => p.key === 'channel') ? ['channel'] : []);
+      })
+      .catch(e => { setErr(e instanceof Error ? e.message : String(e)); setPlaces([]); });
+  }, []);
+  const toggle = (k: string) => setWa(w => (w.includes(k) ? w.filter(x => x !== k) : [...w, k]));
+  return (
+    <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Queue a post</DialogTitle>
+          <DialogDescription>It waits in Posts → Hub, held: send it now or set a time there. Nothing goes out from here.</DialogDescription>
+        </DialogHeader>
+        {!places && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Finding the WhatsApp places…</p>}
+        {err && <p className="text-xs text-destructive">{err}</p>}
+        {places && (
+          <div className="space-y-1.5">
+            {places.map(p => (
+              <label key={p.key} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={wa.includes(p.key)} onChange={() => toggle(p.key)} />
+                <span>{p.name}{p.size != null ? <span className="text-muted-foreground"> · {p.size.toLocaleString()}</span> : null}</span>
+              </label>
+            ))}
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={ig} onChange={() => setIg(v => !v)} />
+              <span>Instagram story <span className="text-muted-foreground">· the same design at 9:16</span></span>
+            </label>
+          </div>
+        )}
+        <Textarea value={caption} onChange={e => setCaption(e.target.value)} className="min-h-[90px] text-base sm:text-sm" aria-label="Caption" />
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button disabled={!wa.length && !ig} onClick={() => onQueue({ whatsapp: wa, instagram: ig, caption })}><Send className="h-4 w-4 mr-1" /> Queue it</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

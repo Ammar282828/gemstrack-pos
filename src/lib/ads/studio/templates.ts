@@ -244,7 +244,11 @@ export function applyAdTemplate(doc: StoryDoc, id: AdTemplateId, fields: Fields,
       out.push(...stack(f, top + ph + 36, { headline: 70 }));
     } else {
       const top = 150;
-      const ph = Math.max(360, f.h - top - 335);
+      // A headline long enough to take two lines (about 0.42 em a character in the Didone italic) takes its
+      // room from the photo, so the call to action stays inside the frame (2026-10-04: the first weekly
+      // board's "Architectural Form Handcrafted in Gold" pushed "Message us…" off a 4:5).
+      const twoLines = (fields.headline || '').length * 0.42 * 72 > f.w - 180;
+      const ph = Math.max(360, f.h - top - 335 - (twoLines ? 80 : 0));
       const pw = Math.min(900, Math.round(ph * 1.1));
       out.push(photoLayer(Math.round(f.w / 2 - pw / 2), top, pw, ph, { border: GOLD }));
       const w = 180;

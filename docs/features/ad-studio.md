@@ -224,3 +224,19 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   layers, ≤ 60 KB, no uploaded pictures). Tried end to end on 2026-10-04 (local, real Firestore and Vertex): the agent added two
   designs and a note, its "22K and only 3g — 20% off" was refused, the page drew them, `view_design` returned the drawing; the test
   board and key were deleted after.
+  **Out of the board, and this week's board** (2026-10-04, owner "yes" to both). Each design's panel has **Use it**: *Queue a
+  post* (the design to the chosen WhatsApp places — the channel ticked first — and/or an Instagram story, the same layout at 9:16;
+  it joins Post a Piece's queue **held**, so nothing goes out from the board: Posts → Hub sends it or sets a time), *Use in a new
+  Meta ad* (the maker's handoff: the picture, and its 9:16 for a feed design, into the ad account's library and `/ads/new?studio=`),
+  *Save to Saved ads*. **This week's board** (`weekly.ts`, tested): on Monday from 9:00 Karachi the queue tick starts a board
+  "This week · <date>" of the week's new website pieces (one per name — a piece's other photographs share it), topped up with the
+  best photos not yet in an ad (score ≥ 60), six at most; each piece is art-directed once (`art-direct.ts`, moved out of
+  `/api/ads/studio/auto` so both use it) and laid down as a 4:5 and a 9:16, a row a piece, with a note saying what it is. A few
+  pieces a tick, paced 8 s, under a lease in `app_settings/studio_weekly`; a piece the AI's per-minute quota stops waits for the
+  next slice (three tries). The page's **This week's board** button makes one now and waits for it. **`safeTemplate`**: a 9:16, or a
+  website photo with the burned-in wordmark (`marked`), never gets a full-bleed layout (headline, clean, band, certified) — words
+  crossed the piece and the crop cut the mark on the first weekly board — it gets framed; applied wherever a design is made (weekly,
+  cook, add a photo, another shape, the agent, the 9:16 sent to Instagram or a new ad). The framed layout now gives a two-line
+  headline its room on a 4:5 (the call to action fell off the frame). Tried on 2026-10-04 (local, real Firestore and Vertex): two
+  weekly boards (the second after the one-row-a-piece fix: six different pieces, twelve designs), Save and Queue a post from a
+  design (then deleted); New ad was not pressed (it would put a picture in the ad account).
