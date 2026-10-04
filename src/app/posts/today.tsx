@@ -63,7 +63,7 @@ export function TodayCard({ sent, investments, now, thumbOf, placeName }: {
   const shown = all ? today : today.slice(0, 4);
 
   return (
-    <section className="rounded-2xl border bg-card p-3.5 sm:p-4 space-y-3 shadow-sm">
+    <section className="min-w-0 rounded-2xl border bg-card p-3.5 sm:p-4 space-y-3 shadow-sm">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-base font-semibold">Today</h2>
         {sent && <span className="text-xs text-muted-foreground">{today.length ? `${today.length} out · last ${clock(today[0].at)}` : 'Nothing out yet'}</span>}

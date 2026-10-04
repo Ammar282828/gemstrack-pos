@@ -387,7 +387,7 @@ function PostsHub() {
 
       <HealthPanel health={health} />
 
-      <div className={cn('grid gap-5', hasQueue && 'lg:grid-cols-2')}>
+      <div className={cn('grid min-w-0 gap-5 [&>*]:min-w-0', hasQueue && 'lg:grid-cols-2')}>
         <TodayCard sent={sent} investments={inv} now={now} thumbOf={id => byId.get(id)?.thumb} placeName={placeName} />
         {hasQueue && (
           <div ref={queueRef} className="scroll-mt-20 [&>div]:rounded-2xl [&>div]:bg-card [&>div]:shadow-sm">
