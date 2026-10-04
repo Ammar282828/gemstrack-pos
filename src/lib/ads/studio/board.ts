@@ -18,7 +18,7 @@ export const BOARDS = 'studio_boards';
 const VIEWS = 'studio_board_views';
 const AGENT = 'app_settings/studio_agent';
 
-export interface BoardSummary { id: string; name: string; frames: number; notes: number; updated: string }
+export interface BoardSummary { id: string; name: string; frames: number; notes: number; updated: string; by: string }
 
 const now = () => new Date().toISOString();
 const fail = (m: string, status: number) => Object.assign(new Error(m), { status });
@@ -27,7 +27,7 @@ export async function listBoards(): Promise<BoardSummary[]> {
   const snap = await adminDb.collection(BOARDS).orderBy('updated', 'desc').limit(200).get();
   return snap.docs.map(d => {
     const b = d.data() as Omit<Board, 'id'>;
-    return { id: d.id, name: b.name, frames: b.frames?.length ?? 0, notes: b.notes?.length ?? 0, updated: b.updated };
+    return { id: d.id, name: b.name, frames: b.frames?.length ?? 0, notes: b.notes?.length ?? 0, updated: b.updated, by: b.by ?? '' };
   });
 }
 
