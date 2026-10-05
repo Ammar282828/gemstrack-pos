@@ -18,7 +18,8 @@
 import { configReadiness, loadRates, loadWebsiteConfig, ratesFresh, ratesUsable } from './config';
 import { getCatalogAttributes } from './catalog-source';
 import { quotePiece } from './pricing';
-import { getPosWeights, mergeWeights } from './weights';
+import { mergeWeights, posOnlyWeights } from './weights';
+import { getPieceWeights } from './piece-weights';
 import type { QuoteRates } from './pricing';
 import type { WebsiteConfig } from './types';
 
@@ -70,7 +71,7 @@ export function priceBook(): Promise<PriceBook> {
 }
 
 async function build(): Promise<PriceBook> {
-  const [{ config, rates }, published, pos] = await Promise.all([quoteInputs(), getCatalogAttributes(), getPosWeights()]);
+  const [{ config, rates }, published, pos] = await Promise.all([quoteInputs(), getCatalogAttributes(), getPieceWeights()]);
   const catalog = mergeWeights(published, pos);
   const selling = isSelling(config, rates);
   const priced = selling ? config : { ...config, enabled: false };
@@ -79,6 +80,8 @@ async function build(): Promise<PriceBook> {
     const q = quotePiece(key, attrs, priced, rates);
     prices[key] = [q.priceable && typeof q.price === 'number' ? Math.round(q.price) : null, q.priceable ? null : q.reason ?? null, attrs?.weightGrams ?? null, attrs?.weightSource ?? null];
   }
+  // Drops since the catalogue was built: their counter weight, never a price (weights.ts posOnlyWeights).
+  for (const [key, grams] of Object.entries(posOnlyWeights(published, pos))) prices[key] = [null, 'unknown_piece', grams, 'pos'];
   return {
     selling,
     pausedForRates: pausedForRates(config, rates),

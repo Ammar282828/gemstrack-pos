@@ -26,6 +26,11 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 | `/api/website/orders/[id]` (+ `/slips/[slipId]`) | ERP order page, the hub's transfer check | transfer received / lapse / ship / delivered; the slip's file — **always verifies a token** |
 | `/api/ads/*` (`status`, `connect`, `callback`, `setup`, `overview`, `campaigns`, `object/[id]`, `create`, `images`, `library`, `media`, `preview`, `estimate`, `search`, `audiences`, `rules`, `assistant`, `template`) | POS pages under **Ads** | this house's Meta ad account through the Marketing API (Graph v26.0) — see "Ads" below |
 
+**Counter weights reach taheri.shop per piece** (2026-10-05): a weight entered on any photograph of a piece — Edit a piece lists the extra
+angles (`angleOf`) too — is the piece's unless its lead has its own (`lib/website/piece-weights.ts`, `withAngleWeights`), and a drop
+the built catalogue doesn't hold yet still carries its weight in the price book (never a price: `posOnlyWeights`). The site keys a
+drop's photo from `/catalog-drop-cache/…` and `/api/img.php/…` too (`cart.js pieceKeyFromImage`).
+
 CORS for `/api/public/*` is in `src/lib/website/cors.ts` (taheri.shop, www, and localhost:5180 in dev).
 Design, the confirm-first flow and the go-live checklist: `docs/website-checkout.md`. Go-live of online selling
 is still blocked by empty bank env vars and the open Firestore rules.
