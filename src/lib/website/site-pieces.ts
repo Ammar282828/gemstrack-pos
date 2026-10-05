@@ -25,7 +25,8 @@
 
 import { adminDb } from '@/lib/firebase-admin';
 import { getCatalogAttributes } from '@/lib/website/catalog-source';
-import { getPosWeights, mergeWeights } from '@/lib/website/weights';
+import { mergeWeights } from '@/lib/website/weights';
+import { getPieceWeights } from '@/lib/website/piece-weights';
 import { collectionOfKey } from '@/lib/website/pricing';
 import { byNewest, newArrivalIds } from '@/lib/website/new-arrivals';
 import { getSiteOverrides, imagePathOf, type SiteOverride } from '@/lib/website/site-edits';
@@ -131,7 +132,7 @@ async function dropsOf(site: string): Promise<Drop[]> {
 
 async function fromAttributes(site: string): Promise<Listed[]> {
   // Never the counter's weights cached: a weight typed a moment ago shows at once.
-  const [catalog, pos, drops] = await Promise.all([getCatalogAttributes({ own: true }), getPosWeights(true).catch(() => ({})), dropsOf(site)]);
+  const [catalog, pos, drops] = await Promise.all([getCatalogAttributes({ own: true }), getPieceWeights(true).catch(() => ({})), dropsOf(site)]);
   const merged = mergeWeights(catalog, pos);
   const abs = (u: string) => (/^https?:\/\//.test(u) ? u : `${site}${u.startsWith('/') ? '' : '/'}${u}`);
   // A drop is keyed like the photograph it becomes ("…/DSC09213.jpg" → "…/DSC09213.webp"); an adopted one is listed below.

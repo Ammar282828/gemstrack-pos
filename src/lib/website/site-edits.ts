@@ -35,6 +35,8 @@ export interface SiteOverride {
   /** The photograph now shows the weight: the site doesn't draw it again. */
   weightOnPhoto?: boolean;
   hidden?: boolean;
+  /** This photograph is another angle of that piece (its lead photograph's key): it shows on that piece's page. */
+  angleOf?: string;
   photo?: { image: string; v: string; edited: boolean; w?: number; h?: number };
   at?: string;
 }

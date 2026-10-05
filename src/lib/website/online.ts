@@ -32,7 +32,8 @@ import { createOrder } from '@/lib/writes/create-order';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { bankDetails, loadRates, loadWebsiteConfig } from './config';
 import { getCatalogAttributes } from './catalog-source';
-import { getPosWeights, mergeWeights } from './weights';
+import { mergeWeights } from './weights';
+import { getPieceWeights } from './piece-weights';
 import { deliveryChargeFor } from './pricing';
 import { priceBook } from './price-book';
 import { buildWebsiteOrder, publicOrderView, ratesForOrder, safeEqual, statusUrl, stripUndefined, websiteCustomer } from './checkout';
@@ -82,7 +83,7 @@ export interface PlacedOnline {
 
 export async function placeOnlineOrder(raw: unknown, meta: { customerUid?: string }): Promise<PlacedOnline> {
   // Read fresh, not from the price book's memory: this is the price the customer will be held to.
-  const [config, rates, published, pos] = await Promise.all([loadWebsiteConfig(), loadRates(), getCatalogAttributes(), getPosWeights()]);
+  const [config, rates, published, pos] = await Promise.all([loadWebsiteConfig(), loadRates(), getCatalogAttributes(), getPieceWeights()]);
   const built = buildWebsiteOrder(raw, { config, rates, catalog: mergeWeights(published, pos), origin: origin(), bank: bankDetails() });
   const order = built.order as Record<string, unknown> & { website: WebsiteOrderMeta & { bagId: string }; customerName: string; customerContact: string; delivery: { address: string; city: string; notes?: string } };
   if (meta.customerUid) order.website.customerUid = meta.customerUid;

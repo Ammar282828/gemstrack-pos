@@ -61,6 +61,36 @@ export interface PieceWithWeight extends PieceAttrs {
  * The catalogue with counter weights folded in. A counter weight replaces the
  * label's for pricing; `weightSource` tells the site whether to draw it.
  */
+/**
+ * A weight entered on any photograph of a piece is the piece's. Edit a piece lists every photograph,
+ * the extra angles too (taheri.shop's `angleOf`), and a weight typed on an angle was stored under the
+ * angle — while the site shows a piece's weight from its lead photograph, so it never appeared (the
+ * owner weighed five angles on 2026-10-05). The lead takes its angles' weight, the latest entered,
+ * unless it has its own.
+ */
+export function withAngleWeights(pos: Record<string, PosWeight>, overrides: Record<string, { angleOf?: unknown }>): Record<string, PosWeight> {
+  const out: Record<string, PosWeight> = { ...pos };
+  for (const [key, w] of Object.entries(pos)) {
+    const lead = overrides[key]?.angleOf;
+    if (typeof lead !== 'string' || !lead || lead === key || pos[lead]) continue;
+    const had = out[lead];
+    if (!had || String(had.enteredAt) < String(w.enteredAt)) out[lead] = { ...w, key: lead };
+  }
+  return out;
+}
+
+/**
+ * Counter weights for photographs the published catalogue doesn't hold yet: the drops added from the
+ * ERP (Add Photos, Post a piece) that the site folds in at run time until its next rebuild. Their weight
+ * still has to reach the site — it draws it on the photo and shows it on the page — but with no metal,
+ * karat or stone recorded they are never priced (the book carries them as weight only).
+ */
+export function posOnlyWeights(catalog: Record<string, PieceAttrs>, pos: Record<string, PosWeight>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [key, w] of Object.entries(pos)) if (!catalog[key] && w.weightGrams > 0) out[key] = w.weightGrams;
+  return out;
+}
+
 export function mergeWeights(catalog: Record<string, PieceAttrs>, pos: Record<string, PosWeight>): Record<string, PieceWithWeight> {
   const out: Record<string, PieceWithWeight> = {};
   for (const [key, attrs] of Object.entries(catalog)) {

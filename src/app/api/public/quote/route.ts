@@ -15,7 +15,8 @@ import { memoryLimit } from '@/lib/website/memory-limit';
 import { isSelling, quoteInputs } from '@/lib/website/price-book';
 import { getCatalogAttributes, normalisePieceKey } from '@/lib/website/catalog-source';
 import { quotePiece } from '@/lib/website/pricing';
-import { getPosWeights, mergeWeights } from '@/lib/website/weights';
+import { mergeWeights } from '@/lib/website/weights';
+import { getPieceWeights } from '@/lib/website/piece-weights';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return json(req, { error: 'Send { pieces: string[] }' }, { status: 400 });
 
-  const [{ config, rates }, published, pos] = await Promise.all([quoteInputs(), getCatalogAttributes(), getPosWeights()]);
+  const [{ config, rates }, published, pos] = await Promise.all([quoteInputs(), getCatalogAttributes(), getPieceWeights()]);
   const catalog = mergeWeights(published, pos);
   // The same test checkout applies: a price the site shows must be one it can
   // take an order at, or the bag leads to a refusal.
@@ -47,7 +48,9 @@ export async function POST(req: NextRequest) {
     // The site gets a price or a reason, never the breakdown — margins stay in
     // the book. The weight and where it came from travel regardless of selling:
     // the site draws counter-entered weights onto the photo.
-    return { key, priceable: q.priceable, price: q.price, reason: q.reason, weightGrams: a?.weightGrams ?? null, weightSource: a?.weightSource ?? null };
+    // A drop the catalogue doesn't hold yet still carries a weight the counter recorded (no price).
+    const counter = a ? null : pos[key]?.weightGrams ?? null;
+    return { key, priceable: q.priceable, price: q.price, reason: q.reason, weightGrams: a?.weightGrams ?? counter, weightSource: a?.weightSource ?? (counter ? 'pos' : null) };
   });
 
   return json(req, {
