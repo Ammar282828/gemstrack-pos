@@ -176,13 +176,32 @@ export async function sendWhatsAppFileToGroup(chatId: string, file: Blob, fileNa
 }
 
 /**
- * One file to a person's number — the monthly report PDF to the shop's own alert numbers.
- * The number comes from Settings, never from a request (see /api/notifications/alert).
+ * One file to a person's number — the monthly report PDF to the shop's own alert numbers (from
+ * Settings), and an invoice to its customer (the number a signed-in owner or staff typed:
+ * /api/invoices/[id]/whatsapp).
  */
 export async function sendWhatsAppFile(to: string, file: Blob, fileName: string, caption = ''): Promise<string> {
   const digits = digitsOnly(to);
   if (digits.length < 10) throw new Error(`Not a phone number: ${to}`);
   return sendFileToChat(`${digits}@c.us`, file, fileName, caption);
+}
+
+/**
+ * Is this number on WhatsApp? Asked before sending a customer something, because a send to a number
+ * that isn't arrives nowhere and reports success. true / false from WAHA; null when it can't say
+ * (Green API, or WAHA failing to answer) — the caller then sends and hopes.
+ */
+export async function whatsAppNumberExists(phone: string): Promise<boolean | null> {
+  const w = waha();
+  const digits = digitsOnly(phone);
+  if (!w || digits.length < 10) return null;
+  try {
+    const d = await wahaCall<{ numberExists?: boolean }>(
+      `/api/contacts/check-exists?phone=${digits}&session=${encodeURIComponent(w.session)}`, { timeoutMs: 15000 });
+    return typeof d?.numberExists === 'boolean' ? d.numberExists : null;
+  } catch {
+    return null;
+  }
 }
 
 async function sendFileToChat(chatId: string, file: Blob, fileName: string, caption: string): Promise<string> {

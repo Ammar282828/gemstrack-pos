@@ -31,7 +31,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, MessageSquare, Check, Banknote, Edit, PlusCircle, CalendarIcon, List, RotateCcw, CheckCircle, Lock, XCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { saveInvoicePdf } from '@/lib/invoice-pdf';
+import { buildInvoicePdf, saveInvoicePdf } from '@/lib/invoice-pdf';
+import { invoiceWhatsAppCaption } from '@/lib/invoice-share';
+import { authedFetch } from '@/lib/voice/authed-fetch';
+import { ToastAction } from '@/components/ui/toast';
 import { PrintButton } from '@/components/shared/print-button';
 import QRCode from 'qrcode.react';
 import { Separator } from '@/components/ui/separator';
@@ -125,7 +128,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
     }
     doneParam.current = true;
     if (doParam === 'print') void printInvoice(invoice);
-    if (doParam === 'share') handleSendWhatsApp(invoice, { sameTab: true });
+    if (doParam === 'share') void handleSendWhatsApp(invoice);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doParam, invoice, phone, phoneFor]);
 
@@ -183,27 +186,54 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
   };
 
   /**
-   * Open WhatsApp to the customer, message written, the invoice linked. Synchronous, so the tap's
-   * activation is still there when window.open asks for it; wa.me cannot carry a file, so the invoice
-   * goes as a link to its own page (Print's sheet lists WhatsApp for the PDF).
+   * Send the invoice's PDF to the customer on WhatsApp, from the shop's own line (the owner,
+   * 2026-10-05: "directly send a pdf of the invoice to the customer instead of a link"). The PDF is
+   * the one Print saves, drawn here; /api/invoices/[id]/whatsapp names it "Invoice - <customer>"
+   * and sends it through the ERP's WhatsApp gateway. If that can't (the line unlinked, no
+   * gateway), the toast offers the old way: WhatsApp opened on this device with a link.
    */
-  const handleSendWhatsApp = (invoiceToSend: InvoiceType, opts: { sameTab?: boolean } = {}) => {
+  const [sending, setSending] = useState(false);
+  const handleSendWhatsApp = async (invoiceToSend: InvoiceType) => {
     if (!phone) {
       toast({ title: "No phone number", description: "Enter the customer's WhatsApp number.", variant: "destructive" });
       return;
     }
-    let message = `Dear ${invoiceToSend.customerName || 'Customer'},\n\n`;
-    message += `Here is your estimate from ${settings.shopName}.\n\n`;
-    message += `*Estimate ID:* ${invoiceToSend.id}\n`;
-    message += `*Total Amount:* PKR ${invoiceToSend.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n`;
-    if (invoiceToSend.amountPaid > 0) {
-      message += `*Amount Paid:* PKR ${invoiceToSend.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n`;
-      message += `*Balance Due:* PKR ${invoiceToSend.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
-    } else {
-      message += `*Amount Due:* PKR ${invoiceToSend.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
+    if (sending) return;
+    setSending(true);
+    try {
+      const customer = invoiceToSend.customerId ? customers.find(c => c.id === invoiceToSend.customerId) : null;
+      const pdf = await buildInvoicePdf(invoiceToSend, { customer });
+      const bytes = new Uint8Array(pdf.output('arraybuffer'));
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      const res = await authedFetch(`/api/invoices/${encodeURIComponent(invoiceToSend.id)}/whatsapp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: phone, pdf: btoa(bin) }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; to?: string; at?: string; by?: string; fileName?: string };
+      if (!res.ok) throw new Error(res.status === 401 ? 'Sign in with Google to send from the shop’s WhatsApp.' : data.error || `Failed (${res.status})`);
+      setLatest({ ...invoiceToSend, sentOnWhatsApp: { at: data.at!, to: data.to!, by: data.by! } });
+      toast({ title: `Sent to ${invoiceToSend.customerName && !isWalkInName(invoiceToSend.customerName) ? invoiceToSend.customerName : data.to}`, description: `${data.fileName} — on WhatsApp, from the shop’s number.` });
+    } catch (e) {
+      toast({
+        title: 'Could not send the PDF',
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+        action: <ToastAction altText="Open WhatsApp with a link instead" onClick={() => openWhatsAppWithLink(invoiceToSend)}>Send a link</ToastAction>,
+      });
+    } finally {
+      setSending(false);
     }
-    message += `Thank you for your business.`;
+  };
 
+  /**
+   * The old way, kept for when the shop's line can't send: WhatsApp opened on this device, message
+   * written, the invoice linked (wa.me cannot carry a file). Synchronous, so the tap's activation is
+   * still there when window.open asks for it.
+   */
+  const openWhatsAppWithLink = (invoiceToSend: InvoiceType) => {
+    let message = invoiceWhatsAppCaption(invoiceToSend, settings.shopName).replace(' is attached.', ' is at the link below.');
     const appUrl = typeof window !== 'undefined' ? window.location.origin : STORE_CONFIG.appUrl;
     // The link carries the invoice's key: its page is closed to anyone without it. An invoice from
     // before keys existed gets one now — chosen here, not after a round trip, because window.open
@@ -215,10 +245,8 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
       fsSetDoc(fsDoc(fsDb, 'invoices', invoiceToSend.id), { shareToken: key }, { merge: true })
         .catch(e => toast({ title: 'The link may not open', description: `Could not save its key: ${(e as Error).message}`, variant: 'destructive' }));
     }
-    message += `\n\nView estimate: ${invoiceShareUrl(appUrl, invoiceToSend.id, key)}`;
-    // From voice there is no tap to open a new tab with, so it opens in this one.
-    if (opts.sameTab) window.location.assign(whatsAppLink(phone, message));
-    else window.open(whatsAppLink(phone, message), '_blank');
+    message += `\n\n${invoiceShareUrl(appUrl, invoiceToSend.id, key)}`;
+    window.open(whatsAppLink(phone, message), '_blank');
     toast({ title: "Opening WhatsApp", description: "The message is written — press send." });
   };
 
@@ -532,9 +560,17 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                                 aria-label="WhatsApp number"
                             />
                         </div>
-                        <Button onClick={() => handleSendWhatsApp(invoice)} className="w-full">
-                            <MessageSquare className="mr-2 h-4 w-4"/> Send via WhatsApp
+                        <Button onClick={() => handleSendWhatsApp(invoice)} className="w-full" disabled={sending}>
+                            {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MessageSquare className="mr-2 h-4 w-4"/>}
+                            {sending ? 'Sending the PDF…' : invoice.sentOnWhatsApp ? 'Send again on WhatsApp' : 'Send via WhatsApp'}
                         </Button>
+                        {/* Whoever opens it next sees it went, so it isn't sent twice. */}
+                        {invoice.sentOnWhatsApp && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            <Check className="h-3.5 w-3.5 text-success"/>
+                            PDF sent to {invoice.sentOnWhatsApp.to} · {format(new Date(invoice.sentOnWhatsApp.at), 'd MMM, h:mm a')}
+                          </p>
+                        )}
                     </div>
 
                     <div className="space-y-4">

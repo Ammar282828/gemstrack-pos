@@ -32,3 +32,12 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   them, and `src/app/manifest.ts` is the installed app ("Taheri ERP" / "House of Mina ERP", `POS_LABEL`) — the old
   `public/manifest.json` was linked from nowhere and pointed at icons that didn't exist. `env-for-house.mjs` now quotes
   values: unquoted, dotenv read `#1C1114` as a comment, so every colour variable was empty locally.
+
+## Dated notes (moved from CLAUDE.md, 2026-10-05)
+
+- Taheri's console `overrideEnv`: on 2026-09-26 its `NEXT_PUBLIC_STORE_WHATSAPP_URL` (the Collections community invite) was
+  removed so the YAML's `wa.me` chat applies.
+- A stale `.env.mina.local` gave a local Mina Taheri's menus (2026-09-25): re-run `npm run env:mina` after changing either YAML.
+- `.env.local` is Mina's on the second laptop: when it names another Firebase project, `env:taheri` blanks its variables too
+  (2026-09-26).
+- The old `main` (before the forks reconverged) is the tag `old-main-2026-06`.

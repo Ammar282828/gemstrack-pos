@@ -24,6 +24,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 | `/api/website/edits` | POS page Edit a piece | GET: every site piece with the counter's changes (hidden ones too) + recent changes; `?id=` one piece, its last design, its original photo's address. POST: a piece's words / re-made photo / put back → the site's `api/override.php` — see "Edit a piece" below |
 | `/api/public/social/[id]` | Instagram's fetcher | serves a story image for the minutes a post takes (Firestore `social_media`, deleted after) — there is no public bucket |
 | `/api/website/orders/[id]` (+ `/slips/[slipId]`) | ERP order page, the hub's transfer check | transfer received / lapse / ship / delivered; the slip's file — **always verifies a token** |
+| `/api/invoices/[id]/whatsapp` | ERP invoice screen, Send via WhatsApp | the invoice's PDF (drawn in the browser) to its customer from the shop's line, named `Invoice - <customer>` — owner or staff, **always verifies a token**; checks the number is on WhatsApp first |
 | `/api/ads/*` (`status`, `connect`, `callback`, `setup`, `overview`, `campaigns`, `object/[id]`, `create`, `images`, `library`, `media`, `preview`, `estimate`, `search`, `audiences`, `rules`, `assistant`, `template`) | POS pages under **Ads** | this house's Meta ad account through the Marketing API (Graph v26.0) — see "Ads" below |
 
 **Counter weights reach taheri.shop per piece** (2026-10-05): a weight entered on any photograph of a piece — Edit a piece lists the extra

@@ -171,10 +171,11 @@ export const COMMANDS: CommandDef[] = [
     run: async (v, x) => go(`/invoices/${(v.invoice as Invoice).id}?do=print`, `Printing ${(v.invoice as Invoice).id}.`)(v, x),
   },
   {
-    id: 'send_invoice', label: 'Send an invoice on WhatsApp', readOnly: true,
+    // Not read-only: it sends the PDF from the shop's line straight away, so it is confirmed first.
+    id: 'send_invoice', label: 'Send an invoice on WhatsApp',
     say: "Send an invoice to its customer on WhatsApp.", args: [A.invoice()],
     describe: l => `Send ${l.invoice} to the customer on WhatsApp.`,
-    run: async (v, x) => go(`/invoices/${(v.invoice as Invoice).id}?do=share`, `Opening WhatsApp for ${(v.invoice as Invoice).id}.`)(v, x),
+    run: async (v, x) => go(`/invoices/${(v.invoice as Invoice).id}?do=share`, `Sending ${(v.invoice as Invoice).id} to the customer on WhatsApp.`)(v, x),
   },
   {
     id: 'finalize_order', label: 'Finalize an order into an invoice', readOnly: true,

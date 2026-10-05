@@ -43,8 +43,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 - **Taheri's backend also has console `overrideEnv`** (19 variables — Firebase config, `NEXT_PUBLIC_STORE_NAME` "Taheri",
   contacts, bank line, Instagram) and **they beat the YAML**. Read them with the App Hosting REST API
   (`GET …/projects/gemstrack-pos/locations/us-central1/backends/studio`, field `overrideEnv`); what a build actually used
-  is `builds/<id>` → `config.env`. On 2026-09-26 its `NEXT_PUBLIC_STORE_WHATSAPP_URL` (the Collections community invite)
-  was removed so the YAML's `wa.me` chat applies. Mina's backend has none.
+  is `builds/<id>` → `config.env`. Mina's backend has none.
 - Firebase CLI login is broken on the owner's Mac. Use **`gcloud`** (authenticated as the owner):
   `gcloud secrets …`, `gcloud builds list`, `gcloud run revisions list` — all `--project gemstrack-pos --region us-central1`.
   Never print a secret value; compare `sha256` of trimmed values instead.
@@ -74,16 +73,14 @@ git push taheri main main:taheri-next         # GitHub's main + Taheri rolls out
 git push hom main:main                        # House of Mina rolls out
 ```
 **Push both together, always** (owner, 2026-09-26: "push both together always") — no waiting on Taheri's rollout before
-Mina's. Keep `taheri`'s `main` level too: every cloud session starts there. `main` here is the shared working branch (the old
-`main` is tag `old-main-2026-06`).
+Mina's. Keep `taheri`'s `main` level too: every cloud session starts there. `main` here is the shared working branch.
 
 **Running a house locally:** `npm run env:taheri` or `npm run env:mina` writes `.env.<house>.local`
 from the YAML files (secrets left blank to fill from Secret Manager), then `npm run dev:taheri`
 (port 3000) or `npm run dev:mina` (port 3001). `.env.local` is a hand-kept Taheri file that plain `npm run dev` uses.
 Next reads `.env.local` / `.env.development.local` even under `dev:mina` and fills any variable the process lacks, so the
 generator writes every variable that isn't the house's as **empty** (Next then leaves it alone). Re-run `npm run env:mina`
-after changing either YAML (a stale one gave a local Mina Taheri's menus, 2026-09-25). `.env.local` is Mina's on the second
-laptop: when it names another Firebase project, `env:taheri` blanks its variables too (2026-09-26).
+after changing either YAML.
 
 ## Cloud sessions (claude.ai/code, since 2026-09-27)
 
@@ -159,7 +156,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Wastage in grams](docs/decisions.md#wastage-in-grams) — the workshop slip keeps the percentage
 - [Repairs](docs/decisions.md#repairs) — a ticket of many pieces; In the shop → Ready → Collected; money to Extra revenue
 - [Invoice pages](docs/decisions.md#invoice-pages) — the viewer never touches the cart; `/cart` redirects; `/view-invoice/<id>` is the customer's
-- [Invoice PDF](docs/decisions.md#invoice-pdf) — `saveInvoicePdf`, per-piece printing
+- [Invoice PDF](docs/decisions.md#invoice-pdf) — `saveInvoicePdf`, per-piece printing; "Invoice - <customer>"; WhatsApp sends the PDF
 - [Exchange rows](docs/decisions.md#exchange-rows) — `exchanges`, with the old totals kept
 - [Order to invoice](docs/decisions.md#order-to-invoice) — advances as payments, exchange, discount, notes
 - [Orders hub](docs/decisions.md#orders-hub) — by stage, a next step per card; pieces set status

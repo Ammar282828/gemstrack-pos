@@ -554,6 +554,8 @@ export interface Invoice {
   refundedAt?: string; // ISO string of refund time
   /** The key in the customer's link to this invoice (lib/share-token.ts); kept when it is re-saved. */
   shareToken?: string;
+  /** The last time its PDF went to the customer from the shop's line (/api/invoices/[id]/whatsapp). An edit drops it: that version wasn't sent. */
+  sentOnWhatsApp?: { at: string; to: string; by: string };
   acquisitionSource?: CustomerSource; // Acquisition channel for this sale (carried from order/customer). Named distinctly from the Shopify `source` above.
 }
 

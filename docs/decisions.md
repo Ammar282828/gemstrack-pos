@@ -185,6 +185,17 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   the invoice screen (`/invoices/<id>`) and `/view-invoice`. `perPiece` prints a multi-piece invoice as one invoice per piece on its
   own page ("Piece 2 of 3"); discount, exchange, adjustments and paid are shared pro rata by piece price, the last piece
   absorbs rounding, payment history is left off the pieces. The split button is `components/shared/print-button.tsx`.
+- **The customer never gets the number as its name** (owner, 2026-10-05: "don't give the invoice numbered name to the
+  customer … say invoice and then customer name"): every download, print and send is **`Invoice - <customer>.pdf`** (a
+  walk-in's carries its day), and the PDF's own title says the same, so WhatsApp's preview does too (`lib/invoice-share.ts`).
+  The number stays printed inside, where the shop finds the sale when the customer comes back.
+- **Send via WhatsApp sends the PDF itself** (same day: "directly send a pdf of the invoice to the customer instead of a
+  link"). The invoice screen draws the PDF Print saves and posts it to `/api/invoices/[id]/whatsapp` (owner or staff, signed
+  in), which sends it from the shop's own line (WAHA — Taheri 0326 2275554, Mina 0316 1930960) with what is owed written
+  under it: no number, no link. WAHA is asked first whether the number is on WhatsApp (a send to one that isn't vanishes
+  and reports success). The invoice keeps `sentOnWhatsApp` {at, to, by}, shown under the button so nobody sends it twice;
+  an edit drops it. If the line can't send, the error toast offers **Send a link** — the old wa.me message. Voice's "send
+  the invoice" now asks before it runs, because it really sends.
 
 ### Exchange rows
 

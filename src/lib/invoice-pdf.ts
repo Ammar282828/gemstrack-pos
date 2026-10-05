@@ -30,6 +30,7 @@ import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { drawItemCell, itemCellHeight, type ItemBlock, wastageLine } from '@/lib/invoice-item-cell';
 import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
 import { describeExchangeEntry } from '@/lib/exchange';
+import { invoiceFileName, invoiceTitle } from '@/lib/invoice-share';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -357,6 +358,8 @@ export async function buildInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions 
     logoDataUrl: pdfLogo?.dataUrl ?? null,
     logoFormat: pdfLogo?.format ?? 'PNG',
   };
+  // What a PDF viewer, and WhatsApp's preview of the file, shows as its name.
+  doc.setProperties({ title: invoiceTitle(invoice) });
   const invoices = opts.perPiece ? splitInvoicePerPiece(invoice) : [invoice];
   invoices.forEach((inv, i) => {
     if (i > 0) doc.addPage();
@@ -372,9 +375,8 @@ export async function saveInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions =
   const iOSWin = openPDFWindowForIOS();
   try {
     const doc = await buildInvoicePdf(invoice, opts);
-    const name = opts.perPiece && itemsOf(invoice).length > 1
-      ? `Invoice-${invoice.id}-per-piece.pdf`
-      : `Invoice-${invoice.id}.pdf`;
+    // "Invoice - <customer>", never the number (lib/invoice-share.ts).
+    const name = invoiceFileName(invoice, { perPiece: opts.perPiece && itemsOf(invoice).length > 1 });
     await savePDF(doc, name, iOSWin);
   } catch (e) {
     iOSWin?.close();
