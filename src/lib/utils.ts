@@ -141,6 +141,13 @@ export const settledRowClass =
   'opacity-55 hover:opacity-100 focus-within:opacity-100 transition-opacity';
 
 /**
+ * A row taken by whoever is signed in: tinted, with a bar down its left edge — in its place in the
+ * list, not filtered to or moved to the top (the owner, 2026-10-05: "if its my account my orders
+ * should be highlighted rather than sorted"). Orders and Invoices.
+ */
+export const mineRowClass = 'bg-primary/[0.07] shadow-[inset_3px_0_0_hsl(var(--primary))]';
+
+/**
  * Rows that touch Shopify.
  *
  * A tint plus a left edge, rather than colour alone — the row still has to be

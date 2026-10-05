@@ -18,11 +18,14 @@ export function useMe(): TakenBy | undefined {
 const ANYONE = '__anyone__';
 
 /**
- * A list's "Taken by" filter that starts on the signed-in person. Whatever is picked after —
- * someone else, or Anyone — holds for the rest of the visit (sessionStorage, per list), so
- * opening an order and coming back doesn't snap the list back to them.
+ * A list's "Taken by" filter. It starts on the signed-in person (the Workshop), or on Anyone with
+ * `startOnMe: false` — Orders and Invoices, the owner, 2026-10-05: "remove the default filter for
+ * every account when looking at orders and invoice page"; there the signed-in person's own rows are
+ * highlighted in place instead (`mineRowClass`). Whatever is picked after — someone, or Anyone —
+ * holds for the rest of the visit (sessionStorage, per list), so opening an order and coming back
+ * doesn't snap the list back.
  */
-export function useMineFilter(list: string, opts: { startOnAnyone?: boolean } = {}): [TakenBy | undefined, (v: TakenBy | undefined) => void] {
+export function useMineFilter(list: string, opts: { startOnAnyone?: boolean; startOnMe?: boolean } = {}): [TakenBy | undefined, (v: TakenBy | undefined) => void] {
   const me = useMe();
   const key = `gemstrack:taken-by-filter:${list}`;
   const [value, setValue] = useState<TakenBy | undefined>(() => {
@@ -32,8 +35,8 @@ export function useMineFilter(list: string, opts: { startOnAnyone?: boolean } = 
     try {
       const kept = typeof window !== 'undefined' ? window.sessionStorage.getItem(key) : null;
       if (kept) return kept === ANYONE ? undefined : (kept as TakenBy);
-    } catch { /* storage refused: start on the person */ }
-    return me;
+    } catch { /* storage refused: start as the list starts */ }
+    return opts.startOnMe === false ? undefined : me;
   });
   const set = useCallback((v: TakenBy | undefined) => {
     setValue(v);

@@ -418,6 +418,12 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   on them (`useMineFilter`: a choice, Anyone included, holds for the visit in sessionStorage). Only a default, always shown —
   on a device handed across the counter it would otherwise credit everyone's sales to one login. Found with it: editing an
   invoice in the cart never loaded its Taken by, so a re-save dropped it; it loads now.
+- **Orders and Invoices start on everyone, not the signed-in person** (2026-10-05, owner: "remove the default filter for every
+  account when looking at orders and invoice page … default should be by day … if its my account my orders should be
+  highlighted rather than sorted"; both houses). `useMineFilter(list, { startOnMe: false })`: they open on *Anyone*, and a
+  choice still holds for the visit. The signed-in person's own rows are **highlighted in place** — tinted, with a bar down
+  the left (`mineRowClass`, lib/utils.ts; "Taken by you" on hover) — never filtered or moved. Orders open **grouped by day**
+  (Invoices already did); Stage is a tap away. The Workshop still starts on the signed-in person.
 
 ### Delete code
 

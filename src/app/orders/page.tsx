@@ -18,7 +18,7 @@ import QRCode from 'qrcode.react';
 import { generateOrderSlipPDF } from '@/lib/order-slip-pdf';
 import { STORE_CONFIG, storeLinksUrl } from '@/lib/store-config';
 import { format, parseISO } from 'date-fns';
-import { cn, settledRowClass } from '@/lib/utils';
+import { cn, settledRowClass, mineRowClass } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -27,7 +27,7 @@ import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
 import { PromiseLine } from '@/components/shared/promise-line';
 import { useRouter } from 'next/navigation';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
-import { useMineFilter } from '@/hooks/use-me';
+import { useMe, useMineFilter } from '@/hooks/use-me';
 import { PageShell } from '@/components/shared/page-shell';
 import { NextStep } from '@/components/order/next-step';
 import { OnlineBadge, OnlineInbox } from '@/components/order/online-inbox';
@@ -87,7 +87,7 @@ function usePrintSlip(order: Order) {
   return { print, busy };
 }
 
-const OrderRow: React.FC<{ order: Order; owed: number }> = ({ order, owed }) => {
+const OrderRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ order, owed, mine }) => {
   const { print, busy } = usePrintSlip(order);
   const { toast } = useToast();
   const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
@@ -105,7 +105,7 @@ const OrderRow: React.FC<{ order: Order; owed: number }> = ({ order, owed }) => 
   const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
 
   return (
-    <Card className={cn('mb-3 md:hidden', stageOf(order, owed) === 'done' && settledRowClass)}>
+    <Card className={cn('mb-3 md:hidden', stageOf(order, owed) === 'done' && settledRowClass, mine && mineRowClass)} title={mine ? 'Taken by you' : undefined}>
         {/* The whole card opens the order, so the footer button that used to
             say so as well is gone. */}
         <CardContent className="p-3.5 space-y-2.5 cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)}>
@@ -168,7 +168,7 @@ const OrderRow: React.FC<{ order: Order; owed: number }> = ({ order, owed }) => 
   );
 };
 
-const OrderTableRow: React.FC<{ order: Order; owed: number }> = ({ order, owed }) => {
+const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ order, owed, mine }) => {
   const { print, busy } = usePrintSlip(order);
     const { toast } = useToast();
     const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
@@ -208,7 +208,7 @@ const OrderTableRow: React.FC<{ order: Order; owed: number }> = ({ order, owed }
   
     return (
       <>
-      <TableRow className={cn(stageOf(order, owed) === 'done' && settledRowClass)}>
+      <TableRow className={cn(stageOf(order, owed) === 'done' && settledRowClass, mine && mineRowClass)} title={mine ? 'Taken by you' : undefined}>
         <TableCell className="font-medium align-top">
           <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
             {order.id}
@@ -335,7 +335,9 @@ export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
   // Starts on whoever is signed in (lib/people.ts); Anyone is one tap away.
-  const [takenByFilter, setTakenByFilter] = useMineFilter('orders');
+  // Everyone's orders to start with; the signed-in person's own are highlighted, not filtered (2026-10-05).
+  const [takenByFilter, setTakenByFilter] = useMineFilter('orders', { startOnMe: false });
+  const me = useMe();
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | 'All'>('All');
   const [monthFilter, setMonthFilter] = useState<string>('All');
 
@@ -382,7 +384,8 @@ export default function OrdersPage() {
    * with the karigars, what is not started, what is invoiced and still owed — each card carrying
    * its next step. Status and the dates are one tap away.
    */
-  const [groupBy, setGroupBy] = useState<'stage' | 'status' | Graduation>('stage');
+  // By day to start with (the owner, 2026-10-05); Stage is a tap away.
+  const [groupBy, setGroupBy] = useState<'stage' | 'status' | Graduation>('day');
 
   const filteredOrders = useMemo(() => {
     if (!appReady) return [];
@@ -559,7 +562,7 @@ export default function OrdersPage() {
                 </div>
                 {folds(s.key)
                   ? <button type="button" className="w-full rounded-lg border border-dashed py-2 text-xs text-muted-foreground" onClick={() => setOpenDone(d => ({ ...d, [s.key]: true }))}>Show {s.rows.length}</button>
-                  : s.rows.map(order => <OrderRow key={order.id} order={order} owed={owedFor(order)} />)}
+                  : s.rows.map(order => <OrderRow key={order.id} order={order} owed={owedFor(order)} mine={!!me && order.takenBy === me} />)}
               </section>
             ))}
           </div>
@@ -596,7 +599,7 @@ export default function OrdersPage() {
                       </TableRow>
                       {folds(s.key)
                         ? <TableRow><TableCell colSpan={6} className="py-1.5"><button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setOpenDone(d => ({ ...d, [s.key]: true }))}>Show {s.rows.length}</button></TableCell></TableRow>
-                        : s.rows.map(order => <OrderTableRow key={order.id} order={order} owed={owedFor(order)} />)}
+                        : s.rows.map(order => <OrderTableRow key={order.id} order={order} owed={owedFor(order)} mine={!!me && order.takenBy === me} />)}
                     </React.Fragment>
                   ))}
                 </TableBody>

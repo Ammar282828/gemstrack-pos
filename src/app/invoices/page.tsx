@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Loader2, FileText, ClipboardList, AlertTriangle, Calendar, Upload, CheckCircle2, ShoppingBag, Link2, Copy, Send } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
-import { cn, settledRowClass, shopifyRowClass, shopifyCardClass } from '@/lib/utils';
+import { cn, settledRowClass, shopifyRowClass, shopifyCardClass, mineRowClass } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from "react-day-picker";
@@ -38,7 +38,7 @@ import QRCode from 'qrcode.react';
 import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
 import { fitText } from '@/lib/pdf-text';
 import { label } from '@/lib/pdf-chrome';
-import { useMineFilter } from '@/hooks/use-me';
+import { useMe, useMineFilter } from '@/hooks/use-me';
 import { RecordPaymentDialog } from '@/components/invoice/record-payment-dialog';
 import { PageShell } from '@/components/shared/page-shell';
 
@@ -78,7 +78,7 @@ const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' =>
 const isShopifyDoc = (doc: DocumentType): boolean =>
   doc.docType === 'invoice' && !!((doc as Invoice).source?.startsWith('shopify'));
 
-const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPerPiece?: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean }> = ({ doc, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink }) => {
+const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPerPiece?: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean; mine?: boolean }> = ({ doc, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink, mine }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
 
@@ -92,7 +92,7 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPe
 
     return (
         <Card className={cn('mb-3', status === 'Completed' && settledRowClass,
-          isShopifyDoc(doc) && shopifyCardClass)}>
+          isShopifyDoc(doc) && shopifyCardClass, mine && mineRowClass)} title={mine ? 'Taken by you' : undefined}>
             <CardContent className="p-3.5 space-y-2.5" onClick={handleCardClick}>
                 <div className="flex justify-between items-start">
                     <div>
@@ -168,7 +168,7 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPe
     );
 };
 
-const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPerPiece?: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean }> = ({ doc, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink }) => {
+const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPerPiece?: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean; mine?: boolean }> = ({ doc, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink, mine }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
 
@@ -182,7 +182,7 @@ const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPer
 
     return (
         <TableRow onClick={handleRowClick} className={cn('cursor-pointer',
-          status === 'Completed' && settledRowClass, isShopifyDoc(doc) && shopifyRowClass)}>
+          status === 'Completed' && settledRowClass, isShopifyDoc(doc) && shopifyRowClass, mine && mineRowClass)} title={mine ? 'Taken by you' : undefined}>
             <TableCell>
                  <div className="font-medium text-primary hover:underline">{doc.id}</div>
             </TableCell>
@@ -406,7 +406,9 @@ export default function DocumentsPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [monthFilter, setMonthFilter] = useState<string>('All');
   // Starts on whoever is signed in (lib/people.ts); Anyone is one tap away.
-  const [takenByFilter, setTakenByFilter] = useMineFilter('invoices');
+  // Everyone's sales to start with; the signed-in person's own are highlighted, not filtered (2026-10-05).
+  const [takenByFilter, setTakenByFilter] = useMineFilter('invoices', { startOnMe: false });
+  const me = useMe();
   /**
    * How the list is broken up. Day by default — the usual question is what
    * happened recently — with the same graduations Expenses offers, plus a
@@ -680,6 +682,7 @@ export default function DocumentsPage() {
         onStatusChange: d.docType === 'order' ? (s: OrderStatus) => handleOrderStatusChange(d.id, s) : undefined,
         onSendPaymentLink: d.docType === 'invoice' ? () => handleSendPaymentLink(d as Invoice) : undefined,
         isSendingLink: sendingLinkId === d.id,
+        mine: !!me && (d as { takenBy?: string }).takenBy === me,
       });
 
       const heading = (s: typeof sections[number]) => (

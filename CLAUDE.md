@@ -174,7 +174,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 **People and sign-in**
 - [Add photos sign-in](docs/decisions.md#add-photos-sign-in) — superseded 2026-09-30: every house signs in
 - [Taheri sign-in](docs/decisions.md#taheri-sign-in) — `NEXT_PUBLIC_STORE_OWNER_EMAILS`; locked `firestore.rules` for the owner to publish; invoice share keys
-- [Signed-in defaults](docs/decisions.md#signed-in-defaults) — `NEXT_PUBLIC_STORE_PEOPLE`; Taken by and the Orders/Invoices/Workshop filters
+- [Signed-in defaults](docs/decisions.md#signed-in-defaults) — `NEXT_PUBLIC_STORE_PEOPLE`; Taken by, Workshop; Orders/Invoices: all, yours lit
 - [Karigar sign-in](docs/decisions.md#karigar-sign-in) — in-app browsers; `[sign-in]` in the log
 - [Marketing role](docs/decisions.md#marketing-role) — `NEXT_PUBLIC_STORE_MARKETING_EMAILS`; the Marketing group only, through the server; customer audiences stay owners'
 - [Delete code](docs/decisions.md#delete-code) — every delete asks; the server checks it
