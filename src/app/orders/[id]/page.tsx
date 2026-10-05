@@ -25,6 +25,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { WebsiteOrderPanel } from '@/components/order/website-order-panel';
 import { FinalizeOrderDialog, RecordAdvanceDialog } from '@/components/order/order-dialogs';
+import { MarginFigure } from '@/components/shared/shop-margin';
+import { orderMargin } from '@/lib/margin';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw, Truck, PackageSearch, ExternalLink, Trash2, Lock, ShoppingBag, MoreHorizontal } from 'lucide-react';
@@ -1243,6 +1245,8 @@ export default function OrderDetailPage() {
                           )}
                           <Separator className="my-2 bg-muted-foreground/20"/>
                           <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                          {/* The shop's margin on the order (lib/margin.ts) — blurred until tapped, never on the slip. */}
+                          <MarginFigure className="mt-3" margin={orderMargin(order)} />
                       </div>
                   </div>
                   </>

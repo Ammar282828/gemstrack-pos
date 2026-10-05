@@ -21,6 +21,8 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   Invoices: `NEXT_PUBLIC_STORE_INVOICE_BY_CUSTOMER` ("Invoice - <customer>.pdf", never the number) and
   `_INVOICE_WHATSAPP_PDF` (Send via WhatsApp sends the PDF from the shop's line) are Taheri's (owner, 2026-10-05: "these
   are instructions for taheri pos"); Mina sets both "0" and keeps `Invoice-INV-….pdf` and the wa.me message with its link.
+  The margin (`NEXT_PUBLIC_STORE_COST_RATTI_LESS`, default 6: gold costs the 24k rate less 6 ratti; decisions.md#margin) is
+  Taheri's; Mina sets "none" — no 24k ask, no margin shown, Analytics keeps its `NEXT_PUBLIC_STORE_EST_MARGIN`.
   **Expense categories** are `NEXT_PUBLIC_STORE_EXPENSE_CATEGORIES` (`lib/expense-categories.ts`; Taheri's list by default,
   Mina's own 15 since 2026-09-25, worked out from all its expenses); Partner Drawings, Partner Salary and Other are always
   added — `lib/partnership.ts` reads the first two by name. The expenses filter also offers any other name an expense carries.
@@ -44,3 +46,5 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 - `.env.local` is Mina's on the second laptop: when it names another Firebase project, `env:taheri` blanks its variables too
   (2026-09-26).
 - The old `main` (before the forks reconverged) is the tag `old-main-2026-06`.
+- Taheri's console `overrideEnv` (19 variables) holds the Firebase config, `NEXT_PUBLIC_STORE_NAME` "Taheri", contacts,
+  the bank line and Instagram.

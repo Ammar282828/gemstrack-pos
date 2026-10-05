@@ -52,6 +52,9 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 ### Hooks
 
 - In a component, no hook after an early `return` (the `/orders/add` crash of 2026-09-22 was exactly that).
+  Again 2026-10-05: voice's `useRef`/`useEffect` (added 2026-10-01) sat below the order form's *Loading* return, so New
+  order crashed whenever it opened before the shop's data had loaded (a refresh, a link, voice's new order); the return
+  is now below every hook.
 
 ### Fonts
 
@@ -330,6 +333,26 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 
 - **Analytics money reads in lac and crore** (`src/lib/money.ts`: `pkrLac`, `lacCrore`, `axisLac`): exact below 1 lac,
   then `4.5 lac` / `1.25 crore` to two decimals, chart axes `50k · 2.5L · 1.2Cr`. Grams, tola and counts are untouched.
+
+### Margin
+
+- **What the shop earns, on every order and sale — never for the customer** (owner, 2026-10-05). Its gold costs it "the
+  weight … in 24 karat minus 6 ratti": a tola is 96 ratti, so a gram of jewellery costs the 24k rate × 90/96 (93.75%).
+  The 24k rate is **asked for** as the order or sale is made — New sale's *For the shop* card, the order form's totals,
+  Finalize & invoice (starting from the order's own) — empty, with the rate sheet's one tap away, and stored as
+  `costRate24k` on the order or invoice. Given, the margin is worked out (`lib/margin.ts`): each gold piece with a weight
+  at its metal (less stones) × that cost, its stone and diamond charges at what they were charged, a piece without a
+  weight or not gold at 10%. **Not given, 10%** — and every order and sale recorded before 2026-10-05 stays at 10%
+  ("for all the previous recorded stuff keep the profit as 10 percent"); the 24k rate kept on old sales is not used
+  (on 92 sales the stored 24k had drifted from the 21k the counter prices by: 0.88–0.91 of it, some equal, one 7×).
+- **Who sees it:** owners and staff (owner: "tell owners and staff … just make sure the customer does not get any of this
+  info"). It shows as *We earn* on New sale, the order form, Finalize, an invoice's and an order's page, **blurred until
+  tapped** — the counter turns its screen to show a customer the bill — and the figure is not in the page until then.
+  Never in a PDF, the WhatsApp message, the website, or the customer's invoice link (`/api/public/invoice` strips
+  `costRate24k`). **Analytics' Est. profit** is each sale's own margin (10% where no rate; extra revenue at 10%), and
+  says how many sales had a rate; the yearly table likewise. Mina (silver): `NEXT_PUBLIC_STORE_COST_RATTI_LESS` "none".
+- `STORE_EST_MARGIN` and the ratti read an empty variable as unset: the env generator writes Mina-only variables empty
+  for a local Taheri, and `Number('')` made every local estimate 0%.
 
 ### Exchange as cash
 

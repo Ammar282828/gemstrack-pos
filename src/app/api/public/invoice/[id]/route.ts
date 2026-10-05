@@ -46,8 +46,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     adminDb.collection('app_settings').doc('global').get().then(d => d.data() as Row | undefined).catch(() => undefined),
   ]);
 
-  // The shop's own words stay the shop's: the note on the sale, a piece's admin note, who is working on it.
-  const { internalNote: _note, shareToken: _key, ...shown } = inv;
+  // The shop's own words stay the shop's: the note on the sale, a piece's admin note, who is working on it —
+  // and its margin: the 24k rate it was costed at (lib/margin.ts; the owner: "make sure the customer does
+  // not get any of this info").
+  const { internalNote: _note, shareToken: _key, costRate24k: _cost, sentOnWhatsApp: _sent, ...shown } = inv;
   const items = Array.isArray(inv.items) ? inv.items : Object.values((inv.items || {}) as Record<string, Row>);
   const cleanItems = (items as Row[]).map(({ adminNote: _a, karigarId: _k, givenAt: _g, isCompleted: _c, ...rest }) => rest);
 

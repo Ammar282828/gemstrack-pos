@@ -29,6 +29,7 @@ import Link from 'next/link';
 import { isBusinessCost } from '@/lib/partnership';
 import { pkrLac, lacCrore, axisLac } from '@/lib/money';
 import { STORE_EST_MARGIN } from '@/lib/store-config';
+import { ASSUMED_MARGIN, COST_RATTI_LESS, invoiceMargin, orderMargin } from '@/lib/margin';
 import { splitAllCoinSales, summariseCoins } from '@/lib/analytics/coins';
 import { cashInForPeriod, invoicedOrderIds } from '@/lib/analytics/cash-in';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
@@ -116,33 +117,39 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
     () => splitAllCoinSales(generatedInvoices), [generatedInvoices]);
 
   const yearlySummary = useMemo(() => {
-    const yearMap: Record<number, { revenue: number; expenses: number; unpaid: number }> = {};
+    const yearMap: Record<number, { revenue: number; expenses: number; unpaid: number; profit: number }> = {};
+    const blank = () => ({ revenue: 0, expenses: 0, unpaid: 0, profit: 0 });
     jewelleryInvoices.forEach(inv => {
       if (!inv?.createdAt || inv.status === 'Refunded') return;
       const yr = getYear(parseISO(getInvoiceRevenueDate(inv, ordersById)));
-      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
-      yearMap[yr].revenue += invoiceSaleValue(inv);
+      if (!yearMap[yr]) yearMap[yr] = blank();
+      const value = invoiceSaleValue(inv);
+      yearMap[yr].revenue += value;
+      // Each sale at its own margin: from the 24k rate typed when it was made, else 10% (lib/margin.ts).
+      yearMap[yr].profit += value * invoiceMargin(inv).percent / 100;
       yearMap[yr].unpaid += Math.max(0, inv.balanceDue || 0);
     });
     orders.forEach(order => {
       if (!bookedAsSale(order)) return;
       const yr = getYear(parseISO(order.createdAt));
-      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
+      if (!yearMap[yr]) yearMap[yr] = blank();
       // Use subtotal: the full order value regardless of advance paid
       yearMap[yr].revenue += order.subtotal || 0;
+      yearMap[yr].profit += (order.subtotal || 0) * orderMargin(order).percent / 100;
     });
     additionalRevenues.forEach(r => {
       if (!r?.date) return;
       const yr = getYear(parseISO(r.date));
-      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
+      if (!yearMap[yr]) yearMap[yr] = blank();
       yearMap[yr].revenue += r.amount || 0;
+      yearMap[yr].profit += (r.amount || 0) * ASSUMED_MARGIN;
     });
     expenses.forEach(exp => {
       if (!exp?.date) return;
       // Drawings are a distribution of profit, not a cost of earning it.
       if (!isBusinessCost(exp)) return;
       const yr = getYear(parseISO(exp.date));
-      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
+      if (!yearMap[yr]) yearMap[yr] = blank();
       yearMap[yr].expenses += exp.amount || 0;
     });
     return Object.entries(yearMap)
@@ -151,6 +158,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
         revenue: data.revenue,
         expenses: data.expenses,
         unpaid: data.unpaid,
+        profit: data.profit,
         netProfit: data.revenue - data.expenses,
       }))
       .sort((a, b) => b.year - a.year);
@@ -283,6 +291,10 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
         totalItemsSold: 0,
         totalDiscounts: 0,
         averageItemsPerOrder: 0,
+        // ── What was earned: each sale at its own margin (lib/margin.ts) ──────
+        estProfit: 0,
+        salesCosted: 0,
+        salesCount: 0,
         // ── Gold, by weight ─────────────────────────────────────────────────
         // Grams of gold in the jewellery sold this period, and by karat. Coins are
         // not in here; they have their own card and their own grams.
@@ -340,6 +352,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
 
     let totalSales = 0;
     let invoiceSalesAcc = 0;
+    let estProfit = 0, salesCosted = 0, salesCount = 0;
     let totalItemsSold = 0;
     let goldGrams = 0;
     let goldPieces = 0;
@@ -357,6 +370,10 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
       const invAmount = invoiceSaleValue(invoice);
       totalSales += invAmount;
       invoiceSalesAcc += invAmount;
+      const invMargin = invoiceMargin(invoice);
+      estProfit += invAmount * invMargin.percent / 100;
+      salesCount += 1;
+      if (!invMargin.assumed) salesCosted += 1;
       totalDiscounts += invoice.discountAmount || 0;
       totalUnpaid += Math.max(0, invoice.balanceDue || 0);
 
@@ -426,6 +443,10 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
       const amount = order.subtotal || 0;
       totalSales += amount;
       orderSales += amount;
+      const ordMargin = orderMargin(order);
+      estProfit += amount * ordMargin.percent / 100;
+      salesCount += 1;
+      if (!ordMargin.assumed) salesCosted += 1;
 
       const dateKey = format(startOfDay(parseISO(order.createdAt)), 'yyyy-MM-dd');
       if (!salesByDate[dateKey]) {
@@ -452,6 +473,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
       const amount = r.amount || 0;
       totalSales += amount;
       extraRevenue += amount;
+      estProfit += amount * ASSUMED_MARGIN;
       const dateKey = format(startOfDay(parseISO(r.date)), 'yyyy-MM-dd');
       if (!salesByDate[dateKey]) {
         salesByDate[dateKey] = { sales: 0, orders: 0, itemsSold: 0 };
@@ -530,6 +552,9 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
       .slice(0, 10);
       
     calcData.totalSales = totalSales;
+    calcData.estProfit = estProfit;
+    calcData.salesCosted = salesCosted;
+    calcData.salesCount = salesCount;
     calcData.invoiceSales = invoiceSalesAcc;
     calcData.orderSales = orderSales;
     calcData.extraRevenue = extraRevenue;
@@ -785,7 +810,13 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
               at the same volume is the same problem as nine full Cards. */}
           {(() => {
             const netProfit = analyticsData.totalSales - analyticsData.totalExpenses;
-            const estProfit = analyticsData.totalSales * STORE_EST_MARGIN;
+            // Each sale at its own margin — worked out from the 24k rate typed when it was made, 10%
+            // where none was (everything before 2026-10-05) — and extra revenue at 10% (lib/margin.ts).
+            const estProfit = analyticsData.estProfit;
+            const estPct = analyticsData.totalSales > 0 ? Math.round(estProfit / analyticsData.totalSales * 1000) / 10 : 0;
+            const estSub = COST_RATTI_LESS === null || analyticsData.salesCosted === 0
+              ? `revenue × ${Math.round(STORE_EST_MARGIN * 100)}%, before expenses`
+              : `${estPct}% of revenue · ${analyticsData.salesCosted} of ${analyticsData.salesCount} sales from their 24k rate, the rest at ${Math.round(ASSUMED_MARGIN * 100)}% · before expenses`;
             const margin = analyticsData.totalSales > 0 ? (netProfit / analyticsData.totalSales) * 100 : 0;
             const money = (n: number) => pkrLac(n);
 
@@ -800,7 +831,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
                 ].filter(Boolean).join(' · '),
               },
               { label: 'Expenses', value: money(analyticsData.totalExpenses), tone: 'text-destructive', icon: <CreditCard className="h-4 w-4" />, sub: 'paid out in this period' },
-              { label: 'Est. profit', value: money(estProfit), tone: 'text-blue-600', icon: <TrendingUp className="h-4 w-4" />, sub: `revenue × ${Math.round(STORE_EST_MARGIN * 100)}%, before expenses` },
+              { label: 'Est. profit', value: money(estProfit), tone: 'text-blue-600', icon: <TrendingUp className="h-4 w-4" />, sub: estSub },
               {
                 label: 'Net profit', value: money(netProfit),
                 tone: netProfit >= 0 ? 'text-success' : 'text-destructive',
@@ -1154,7 +1185,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
                       <TableHead className="text-right">Revenue</TableHead>
                       <TableHead className="text-right text-warning hidden sm:table-cell">Unpaid</TableHead>
                       <TableHead className="text-right hidden sm:table-cell">Expenses</TableHead>
-                      <TableHead className="text-right text-blue-600 hidden md:table-cell">{`Est. Profit (${Math.round(STORE_EST_MARGIN * 100)}%)`}</TableHead>
+                      <TableHead className="text-right text-blue-600 hidden md:table-cell">{COST_RATTI_LESS === null ? `Est. Profit (${Math.round(STORE_EST_MARGIN * 100)}%)` : 'Est. Profit'}</TableHead>
                       <TableHead className="text-right">Net profit</TableHead>
                       <TableHead className="text-right hidden sm:table-cell">Margin</TableHead>
                     </TableRow>
@@ -1173,7 +1204,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
                         </TableCell>
                         <TableCell className="text-right text-destructive hidden sm:table-cell">{lacCrore(row.expenses)}</TableCell>
                         <TableCell className="text-right font-medium text-blue-600 hidden md:table-cell">
-                          {lacCrore(row.revenue * STORE_EST_MARGIN)}
+                          {lacCrore(row.profit)}
                         </TableCell>
                         <TableCell className={`text-right font-semibold ${row.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
                           {lacCrore(row.netProfit)}

@@ -78,7 +78,13 @@ export const STORE_CONFIG = {
  * shop's margin: on Taheri's gold that overstated estimated profit roughly fourfold,
  * on the one screen anybody would look at to judge how the year is going.
  */
-export const STORE_EST_MARGIN = Number(process.env.NEXT_PUBLIC_STORE_EST_MARGIN ?? '0.10');
+// Empty is unset: the env generator writes a variable only the other house has as '' (CLAUDE.md), and
+// Number('') is 0 — a local Taheri read every estimate as nothing.
+export const STORE_EST_MARGIN = (() => {
+  const raw = (process.env.NEXT_PUBLIC_STORE_EST_MARGIN || '').trim();
+  const n = Number(raw);
+  return raw && Number.isFinite(n) && n >= 0 && n < 1 ? n : 0.10;
+})();
 
 /**
  * The shop's link page, and what is on it.

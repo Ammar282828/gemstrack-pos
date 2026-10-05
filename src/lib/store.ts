@@ -555,6 +555,8 @@ export interface Invoice {
   refundedAt?: string; // ISO string of refund time
   /** The key in the customer's link to this invoice (lib/share-token.ts); kept when it is re-saved. */
   shareToken?: string;
+  /** The 24k rate typed as the sale was made, for the shop's own margin (lib/margin.ts); never shown to the customer. */
+  costRate24k?: number;
   /** The last time its PDF went to the customer from the shop's line (/api/invoices/[id]/whatsapp). An edit drops it: that version wasn't sent. */
   sentOnWhatsApp?: { at: string; to: string; by: string };
   acquisitionSource?: CustomerSource; // Acquisition channel for this sale (carried from order/customer). Named distinctly from the Shopify `source` above.
@@ -672,6 +674,8 @@ export interface Order {
   ratesApplied: Partial<Settings>; // Store all rates at time of order
   /** See Invoice.hideRates. Carried onto the invoice when the order is finalised. */
   hideRates?: boolean;
+  /** The 24k rate typed as the order was taken, for the shop's own margin (lib/margin.ts); never shown to the customer. */
+  costRate24k?: number;
   /** Who took it at the counter. See TAKEN_BY. */
   takenBy?: TakenBy;
   subtotal: number;
@@ -1418,7 +1422,9 @@ export interface AppState {
     hideRates?: boolean,
     internalNote?: string,
     /** Payments taken as the invoice is written; added to any it already had. */
-    payments?: SalePayment[]
+    payments?: SalePayment[],
+    /** The 24k rate typed for the shop's margin (lib/margin.ts); none, and the sale is taken at 10%. */
+    costRate24k?: number
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string, method?: PaymentType, reference?: string) => Promise<Invoice | null>;
   /** One payment off an invoice (an advance carried over, a payment, a partial refund); asks for the delete code. */
@@ -1454,7 +1460,9 @@ export interface AppState {
   generateInvoiceFromOrder: (
     order: Order,
     finalizedItems: FinalizedOrderItemData[],
-    additionalDiscount: number
+    additionalDiscount: number,
+    /** The 24k rate typed at Finalize for the shop's margin; none, and the sale is taken at 10%. */
+    costRate24k?: number
   ) => Promise<Invoice | null>;
   revertOrderFromInvoice: (orderId: string, invoiceId: string) => Promise<void>;
   refundOrder: (orderId: string) => Promise<void>;
@@ -2681,7 +2689,7 @@ export const useAppStore = create<AppState>()(
         });
       }),
 
-      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchanges?, existingInvoiceId?, delivery?, takenBy?, hideRates?, internalNote?, payments?) => {
+      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchanges?, existingInvoiceId?, delivery?, takenBy?, hideRates?, internalNote?, payments?, costRate24k?) => {
         if(get().settings.databaseLocked) return null;
         // Set inside the transaction below; an object, so TypeScript doesn't narrow it to null out here.
         const before: { total: number | null } = { total: null };
@@ -2878,6 +2886,7 @@ export const useAppStore = create<AppState>()(
                     // Only set when the counter chose someone; undefined stays out of Firestore.
                     ...(takenBy ? { takenBy } : {}),
                     ...(hideRates ? { hideRates: true } : {}),
+                    ...(Number(costRate24k) > 0 ? { costRate24k: Number(costRate24k) } : {}),
                     ...(internalNote?.trim() ? { internalNote: internalNote.trim() } : {}),
                     paymentHistory,
                     customerName: finalCustomerName || 'Walk-in Customer',
@@ -3907,7 +3916,7 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      generateInvoiceFromOrder: async (order, finalizedItems, additionalDiscount) => {
+      generateInvoiceFromOrder: async (order, finalizedItems, additionalDiscount, costRate24k) => {
         if (get().settings.databaseLocked) return null;
         const { settings } = get();
         let finalSubtotal = 0;
@@ -3991,6 +4000,7 @@ export const useAppStore = create<AppState>()(
             ...(order.source && { acquisitionSource: order.source }),
             sourceOrderId: order.id,
             ...(order.hideRates ? { hideRates: true } : {}),
+            ...(Number(costRate24k) > 0 ? { costRate24k: Number(costRate24k) } : {}),
             ...invoiceExchangeFields(exchanges),
             ...(order.takenBy ? { takenBy: order.takenBy } : {}),
             // The order's notes are the shop's; on the invoice they are its note for the shop,

@@ -49,6 +49,8 @@ import { takeHandoff } from '@/lib/voice/handoff';
 import { STORE_CONFIG } from '@/lib/store-config';
 import type { TakenBy } from '@/lib/store';
 import { useMe } from '@/hooks/use-me';
+import { CostRateField, MarginFigure, SHOP_MARGIN_ON } from '@/components/shared/shop-margin';
+import { invoiceMargin } from '@/lib/margin';
 
 
 type RateInputs = {
@@ -158,6 +160,8 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
   const [hideRates, setHideRates] = useState(false);
   // See Invoice.internalNote: for the shop, never for the customer.
   const [internalNote, setInternalNote] = useState('');
+  // The 24k rate now, for the shop's margin (lib/margin.ts): asked, never assumed; none is 10%.
+  const [costRate24k, setCostRate24k] = useState<number | undefined>(undefined);
   // Gold (or anything) taken in exchange — the same rows as on an order (lib/exchange.ts).
   const [exchangeRows, setExchangeRows] = useState<ExchangeRow[]>(() => [blankExchangeRow()]);
   // Payments taken as the invoice is written (the owner, 2026-09-25: "add payments as we make
@@ -467,6 +471,9 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
         items: estimatedItems,
     };
   }, [appReady, settings, cartItemsFromStore, rateInputs, discountAmountInput, exchangeRows, cartMetalInfo]);
+  const saleMargin = useMemo(() => (estimatedInvoice && estimatedInvoice.items.length
+    ? invoiceMargin({ items: estimatedInvoice.items, subtotal: estimatedInvoice.subtotal, discountAmount: parseFloat(discountAmountInput) || 0, costRate24k })
+    : null), [estimatedInvoice, discountAmountInput, costRate24k]);
 
   // ── A new sale, kept in Drafts as it is typed (components/drafts/use-work-drafts.ts) ──
   // Only a new sale: never an invoice on screen, an estimate being changed, or an invoice opened here
@@ -474,10 +481,10 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
   // device is finished on another; this device remembers which draft its cart is.
   const saleDraftValue = useMemo(() => ({
     walkInCustomerName, walkInCustomerPhone, discountAmountInput, exchangeRows, internalNote, salePayments,
-    selectedCustomerId, takenBy, hideRates, delivery,
+    selectedCustomerId, takenBy, hideRates, delivery, costRate24k: costRate24k ?? null,
     cart: cartItemsFromStore, subtotal: estimatedInvoice?.subtotal ?? 0,
   }), [walkInCustomerName, walkInCustomerPhone, discountAmountInput, exchangeRows, internalNote, salePayments,
-       selectedCustomerId, takenBy, hideRates, delivery, cartItemsFromStore, estimatedInvoice?.subtotal]);
+       selectedCustomerId, takenBy, hideRates, delivery, costRate24k, cartItemsFromStore, estimatedInvoice?.subtotal]);
   const saleCustomerName = selectedCustomerId && selectedCustomerId !== WALK_IN_CUSTOMER_VALUE
     ? customers.find(c => c.id === selectedCustomerId)?.name || '' : '';
   const saleDraft = useWorkDraft({
@@ -504,6 +511,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
     if (typeof d.selectedCustomerId === 'string') setSelectedCustomerId(d.selectedCustomerId);
     if (typeof d.takenBy === 'string') setTakenBy(d.takenBy as TakenBy);
     setHideRates(!!d.hideRates);
+    setCostRate24k(Number(d.costRate24k) > 0 ? Number(d.costRate24k) : undefined);
     if (d.delivery && typeof d.delivery === 'object') setDelivery(d.delivery as DeliveryInfo);
     if (withCart && Array.isArray(d.cart)) { clearCart(); (d.cart as Product[]).forEach(p => addProductToCart(p)); }
   }, [clearCart, addProductToCart]);
@@ -670,7 +678,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
     setIsGeneratingEstimate(true);
     let invoice;
     try {
-      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchanges, isEditingEstimate ? editingInvoiceId : undefined, delivery, takenBy, hideRates, internalNote, paymentsNow);
+      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchanges, isEditingEstimate ? editingInvoiceId : undefined, delivery, takenBy, hideRates, internalNote, paymentsNow, costRate24k);
       // The sale is an invoice now: out of Drafts, and nothing written there again.
       if (invoice) { saleDraft.finish(); setSalePayments([blankSalePayment()]); setExchangeRows([blankExchangeRow()]); }
     } catch (error) {
@@ -742,6 +750,8 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
     setSelectedCustomerId(generatedInvoice.customerId || WALK_IN_CUSTOMER_VALUE);
     setHideRates(!!generatedInvoice.hideRates);
     setInternalNote(generatedInvoice.internalNote || '');
+    // Its own 24k rate, or none: a sale made before the ask stays at 10% unless one is typed now.
+    setCostRate24k(Number(generatedInvoice.costRate24k) > 0 ? Number(generatedInvoice.costRate24k) : undefined);
     // Its delivery too: never loaded, a re-save wrote the empty form's over it (found 2026-10-04).
     setDelivery(generatedInvoice.delivery ?? EMPTY_DELIVERY);
     // Who made the sale stays theirs: editing never loaded it, so a re-save dropped it (and with
@@ -985,10 +995,18 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
                         <CardTitle className="text-base flex items-center"><Lock className="mr-2 h-4 w-4 text-warning"/>For the shop</CardTitle>
                         <CardDescription>Never printed on the bill or sent to the customer.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-3">
                         <Textarea value={internalNote} onChange={e => setInternalNote(e.target.value)} rows={2}
                           placeholder="Changes still to make, promises given, anything to remember about this sale"
                           aria-label="Notes for the shop" className="border-warning/40 bg-warning/10" />
+                        {/* The shop's margin on this sale (lib/margin.ts): the 24k rate now, and what it
+                            comes to — blurred until tapped, never on the bill. */}
+                        {SHOP_MARGIN_ON && (
+                          <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
+                            <CostRateField value={costRate24k} onChange={setCostRate24k} sheetRate24k={settings.goldRatePerGram24k} />
+                            <MarginFigure margin={saleMargin} />
+                          </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

@@ -52,6 +52,8 @@ import { ORDER_DEFAULT_FIELDS, summarizeOrder } from '@/lib/work-drafts';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { OrderScanner } from '@/components/order/order-scanner';
 import { wastagePercentOf } from '@/lib/vision/wastage';
+import { CostRateField, MarginFigure, SHOP_MARGIN_ON } from '@/components/shared/shop-margin';
+import { orderMargin } from '@/lib/margin';
 import {
   exchangeValue, describeExchange, reconcileSlip, hasHisaab, karatFor, metalFor,
 } from '@/lib/vision/order-draft';
@@ -160,6 +162,8 @@ const orderFormSchema = z.object({
     goldRate24k: z.coerce.number().min(0),
     hideRates: z.boolean().default(false),
     discountAmount: z.coerce.number().min(0).default(0),
+    /** The 24k rate now, for the shop's margin (lib/margin.ts); 0 is none, and the order is taken at 10%. */
+    costRate24k: z.coerce.number().min(0).default(0),
     advancePayment: z.coerce.number().min(0).default(0),
     /** How the advance taken with the order was paid. Nullish, not optional: an order
      *  saved without an advance stores `advanceMethod: null` (the edit path clears it that
@@ -406,6 +410,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
       goldRate18k: 0, goldRate21k: 0, goldRate22k: 0, goldRate24k: 0,
       palladiumRate18k: 0, palladiumRate12k: 0,
       discountAmount: 0,
+      costRate24k: 0,
       advancePayment: 0,
       advanceMethod: 'Cash',
       exchangeRows: [blankExchangeRow()],
@@ -452,6 +457,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         goldRate24k: rates.goldRatePerGram24k || 0,
         hideRates: !!order.hideRates,
         discountAmount: Number(order.discountAmount) || 0,
+        costRate24k: Number(order.costRate24k) || 0,
         advancePayment: Number(order.advancePayment) || 0,
         advanceMethod: order.advanceMethod ?? undefined,
         exchangeRows: rowsFromExchanges(orderExchanges(order)),
@@ -561,6 +567,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
 
   const liveEstimate = useMemo(() => {
     let subtotal = 0;
+    // Each piece's price as it stands, in order, for the shop's margin.
+    const prices: number[] = [];
     const ratesForCalc = { 
         goldRatePerGram18k: formValues.goldRate18k || 0,
         goldRatePerGram21k: formValues.goldRate21k || 0,
@@ -573,9 +581,11 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         silverRatePerGram: settings.silverRatePerGram,
     };
 
-    (formValues.items || []).forEach(item => {
+    (formValues.items || []).forEach((item, i) => {
+        prices[i] = 0;
         if (item.isManualPrice) {
-            subtotal += Number(item.manualPrice) || 0;
+            prices[i] = Number(item.manualPrice) || 0;
+            subtotal += prices[i];
             return;
         }
 
@@ -593,6 +603,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         };
 
         const costs = calculateProductCosts(productForCalc, ratesForCalc);
+        prices[i] = costs.totalPrice;
         subtotal += costs.totalPrice;
     });
 
@@ -601,7 +612,10 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
     const totalAdvance = (Number(formValues.advancePayment) || 0) + (Number(formValues.advanceInExchangeValue) || 0);
     const grandTotal = subtotal - discount - totalAdvance;
 
-    return { subtotal, discount, grandTotal };
+    const margin = (formValues.items || []).length
+      ? orderMargin({ items: formValues.items, discountAmount: discount, costRate24k: Number(formValues.costRate24k) || 0 }, prices)
+      : null;
+    return { subtotal, discount, grandTotal, margin };
   }, [formValues, settings]);
   liveTotal.current = liveEstimate.grandTotal;
 
@@ -689,6 +703,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
             items: enrichedItems,
             ratesApplied: ratesForOrder,
             ...(data.hideRates ? { hideRates: true } : {}),
+            // A 24k rate typed now, or none (null clears an old one; cleanObject keeps null).
+            costRate24k: (Number(data.costRate24k) > 0 ? Number(data.costRate24k) : null) as unknown as undefined,
             subtotal,
             discountAmount: discount,
             grandTotal,
@@ -725,6 +741,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
             advancePayment: data.advancePayment,
             ...(Number(data.advancePayment) > 0 && data.advanceMethod ? { advanceMethod: data.advanceMethod } : {}),
             ...orderExchangeFields(exchangesFromRows(data.exchangeRows || [])),
+            ...(Number(data.costRate24k) > 0 ? { costRate24k: Number(data.costRate24k) } : {}),
             subtotal,
             discountAmount: discount,
             grandTotal,
@@ -760,14 +777,6 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
     }
   };
   
-  if (isSettingsLoading || isCustomersLoading || isKarigarsLoading) {
-    return (
-      <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-        <p className="text-lg text-muted-foreground">Loading Form...</p>
-      </div>
-    );
-  }
 
     const handleAddInventoryProduct = (product: Product) => {
         // A freshly added piece opens straight away — it is what you came to fill in.
@@ -930,8 +939,9 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
    * until Create is pressed here.
    */
   const voiceTaken = useRef(false);
+  const formLoading = isSettingsLoading || isCustomersLoading || isKarigarsLoading;
   useEffect(() => {
-    if (!fromVoice || isEditMode || voiceTaken.current) return;
+    if (!fromVoice || isEditMode || voiceTaken.current || formLoading) return;
     voiceTaken.current = true;
     const d = takeHandoff<OrderDraft & { advanceMethod?: string }>('order');
     if (!d) return;
@@ -939,7 +949,20 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
     if (d.advanceMethod && (PAYMENT_TYPES as readonly string[]).includes(d.advanceMethod)) form.setValue('advanceMethod', d.advanceMethod as typeof PAYMENT_TYPES[number]);
     toast({ title: 'Filled in from what you said', description: 'Check each piece and the money, then press Create.' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromVoice, isEditMode]);
+  }, [fromVoice, isEditMode, formLoading]);
+
+  // After every hook, never before one: the voice hook above once sat below this return, and the form
+  // crashed ("Rendered more hooks than during the previous render") whenever it opened before the
+  // shop's data had loaded — a refresh, a link, voice's new order (decisions.md#hooks, found 2026-10-05).
+  if (isSettingsLoading || isCustomersLoading || isKarigarsLoading) {
+    return (
+      <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+        <p className="text-lg text-muted-foreground">Loading Form...</p>
+      </div>
+    );
+  }
+
 
   const handleAddNewItem = () => {
     setOpenItem(fields.length);
@@ -1640,6 +1663,16 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                             <span className="text-xl font-bold text-primary tabular-nums">{money(liveEstimate.grandTotal)}</span>
                         </div>
                     </div>
+                    {/* The shop's margin on this order (lib/margin.ts): the 24k rate now, and what it
+                        comes to — blurred until tapped, never on the slip or the invoice. */}
+                    {SHOP_MARGIN_ON && (
+                      <div className="mt-3 space-y-2">
+                        <FormField control={form.control} name="costRate24k" render={({ field }) => (
+                          <CostRateField id="order-cost-rate-24k" value={field.value} onChange={v => field.onChange(v ?? 0)} sheetRate24k={settings.goldRatePerGram24k} />
+                        )}/>
+                        <MarginFigure margin={liveEstimate.margin} />
+                      </div>
+                    )}
                 </CardContent>
                 <CardFooter className="flex-col gap-2">
                     <Button type="button" variant="outline" onClick={() => router.back()} className="w-full">

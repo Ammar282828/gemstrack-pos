@@ -29,6 +29,8 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { finalizedItemCosts, orderInvoiceRates, takesWastageAndMaking, wastageGramsFor, wastagePercentFor } from '@/lib/order-finalize';
 import { exchangeTotal, orderExchanges } from '@/lib/exchange';
 import { orderAdvancePayments } from '@/lib/order-payment';
+import { CostRateField, MarginFigure, SHOP_MARGIN_ON } from '@/components/shared/shop-margin';
+import { marginOf } from '@/lib/margin';
 
 // --- Finalize Order Dialog Components ---
 const finalizeOrderItemSchema = z.object({
@@ -107,11 +109,21 @@ export const FinalizeOrderDialog: React.FC<{
     const rates = React.useMemo(() => orderInvoiceRates(order, settings), [order, settings]);
     const typed = form.watch('items');
     const discount = Number(form.watch('additionalDiscount')) || 0;
-    const prices = order.items.map((it, i) => typed?.[i] ? finalizedItemCosts(it, typed[i], rates).price : 0);
+    const costs = order.items.map((it, i) => typed?.[i] ? finalizedItemCosts(it, typed[i], rates) : null);
+    const prices = costs.map(c => c?.price ?? 0);
     const subtotal = prices.reduce((a, b) => a + b, 0);
     const exchange = exchangeTotal(orderExchanges(order));
     const advances = orderAdvancePayments(order).reduce((a, p) => a + (Number(p.amount) || 0), 0);
     const balance = subtotal - discount - exchange - advances;
+    // The 24k rate now, for the shop's margin (lib/margin.ts): the order's own to start with, if it had one.
+    const [costRate24k, setCostRate24k] = React.useState<number | undefined>(Number(order.costRate24k) > 0 ? Number(order.costRate24k) : undefined);
+    // Each piece as the invoice will hold it, so this is the margin the invoice's page shows.
+    const margin = marginOf(order.items.map((it, i) => ({
+        metalType: it.metalType, karat: it.karat,
+        weightG: typed?.[i]?.isManualPrice ? 0 : Number(typed?.[i]?.finalWeightG) || 0,
+        stoneWeightG: it.stoneWeightG, price: prices[i],
+        stoneCharges: costs[i]?.stoneCharges, diamondCharges: costs[i]?.diamondCharges,
+    })), subtotal - discount, costRate24k);
     const rateLine = order.items.some(it => it.metalType === 'gold')
       ? (['21k', '22k', '18k', '24k'] as const)
           .filter(k => order.items.some(it => it.metalType === 'gold' && it.karat === k))
@@ -119,7 +131,7 @@ export const FinalizeOrderDialog: React.FC<{
       : '';
 
     const handleFinalize = async (data: FinalizeOrderFormData) => {
-        const newInvoice = await generateInvoiceFromOrder(order, data.items, data.additionalDiscount);
+        const newInvoice = await generateInvoiceFromOrder(order, data.items, data.additionalDiscount, costRate24k);
         if (newInvoice) {
             toast({
                 title: "Invoice Generated",
@@ -260,6 +272,13 @@ export const FinalizeOrderDialog: React.FC<{
                               <div className="flex justify-between border-t pt-1 font-semibold"><span>{balance < 0 ? 'Owed to the customer' : 'Balance due'}</span><span>{rs(Math.abs(balance))}</span></div>
                               {rateLine && <p className="pt-1 text-xs text-muted-foreground">At the order&apos;s rate: {rateLine}</p>}
                             </div>
+                            {/* The shop's margin on the invoice this makes — blurred until tapped, never printed. */}
+                            {SHOP_MARGIN_ON && (
+                              <div className="md:col-span-2 grid gap-3 sm:grid-cols-2 sm:items-end">
+                                <CostRateField id="finalize-cost-rate-24k" value={costRate24k} onChange={setCostRate24k} sheetRate24k={settings.goldRatePerGram24k} />
+                                <MarginFigure margin={margin} />
+                              </div>
+                            )}
                         </div>
                         <DialogFooter>
                             <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>

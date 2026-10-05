@@ -416,6 +416,13 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Taheri's margin (lib/margin.ts): its gold costs it the 24k rate less 6 ratti, asked for on every order
+  # and sale. Mina's silver is not costed that way: no 24k ask, no margin shown, analytics keeps its estimate.
+  - variable: NEXT_PUBLIC_STORE_COST_RATTI_LESS
+    value: "none"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_STORE_WEBSITE_FEATURED
     value: "0"
     availability:

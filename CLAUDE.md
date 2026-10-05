@@ -40,8 +40,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
   declared, or the rollout fails. Names are case-sensitive: the upload secret is `website-upload-secret`.
   A variable with `value: ""` also fails the rollout — write
   a word the code reads as off (`"none"`, `"0"`).
-- **Taheri's backend also has console `overrideEnv`** (19 variables — Firebase config, `NEXT_PUBLIC_STORE_NAME` "Taheri",
-  contacts, bank line, Instagram) and **they beat the YAML**. Read them with the App Hosting REST API
+- **Taheri's backend also has console `overrideEnv`** (19 variables; docs/features/two-houses.md) and **they beat the YAML**. Read them with the App Hosting REST API
   (`GET …/projects/gemstrack-pos/locations/us-central1/backends/studio`, field `overrideEnv`); what a build actually used
   is `builds/<id>` → `config.env`. Mina's backend has none.
 - Firebase CLI login is broken on the owner's Mac. Use **`gcloud`** (authenticated as the owner):
@@ -169,6 +168,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Money and analytics**
 - [Lac and crore](docs/decisions.md#lac-and-crore) — `lib/money.ts`
+- [Margin](docs/decisions.md#margin) — the typed 24k less 6 ratti, else 10%; never the customer's
 - [Exchange as cash](docs/decisions.md#exchange-as-cash) — in Cash In and in revenue (`invoiceSaleValue`)
 
 **People and sign-in**
@@ -238,4 +238,4 @@ Rules:
 - If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
 - For cross-module "how does X relate to Y" questions, prefer `graphify query "<question>"`, `graphify path "<A>" "<B>"`, or `graphify explain "<concept>"` over grep — they walk the graph's edges
 - After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
-- `graphify` is installed with pipx (`pipx install graphifyy`); `graphify-out/cache/` and the dated backup folders are gitignored, the graph itself is committed.
+- `graphify` via pipx (`pipx install graphifyy`); `graphify-out/cache/` and dated backups are gitignored.

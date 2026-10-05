@@ -35,6 +35,8 @@ import { buildInvoicePdf, saveInvoicePdf } from '@/lib/invoice-pdf';
 import { invoiceWhatsAppCaption } from '@/lib/invoice-share';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { ToastAction } from '@/components/ui/toast';
+import { MarginFigure } from '@/components/shared/shop-margin';
+import { invoiceMargin } from '@/lib/margin';
 import { PrintButton } from '@/components/shared/print-button';
 import QRCode from 'qrcode.react';
 import { Separator } from '@/components/ui/separator';
@@ -431,6 +433,9 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                     <p className="text-warning whitespace-pre-wrap mt-1">{invoice.internalNote}</p>
                   </div>
                 )}
+                {/* The shop's margin on this sale (lib/margin.ts): from the 24k rate typed when it was made,
+                    else 10% — blurred until tapped; the customer's page and the PDF never carry it. */}
+                <MarginFigure margin={invoiceMargin(invoice)} />
                 {/* An order's advances, exchange and the rest, read from the order itself. */}
                 <OrderCarryOver invoice={invoice} />
                 <div className="p-4 border rounded-md bg-background">
