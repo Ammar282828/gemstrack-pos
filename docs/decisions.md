@@ -295,6 +295,19 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   make it super simple"): each exchange row in the order form and the cart is what it is + the amount; "+ Weight & rate" folds
   open grams and rate (and karat only where `defaultMetal` is gold). Labels say "Exchange", not "Exchange gold".
 
+### Sizes to the profile
+
+- **A size on an order is offered to the customer's profile** (owner, 2026-10-05: "show a popup to save the size in the
+  customer bio for the future if the customer size is not already in their bio. If it is in the bio then no popup").
+  The order form reads each piece's size by category (`lib/customer-sizes.ts`): rings, bands and a set's ring →
+  `ringSize`; bangles and a locket set's bangle → `bangleSize`; bracelets, a loose bracelet and a set's bracelet →
+  `braceletSize`. A size the profile doesn't hold, or holds differently ("The profile says 11 — this replaces it"),
+  brings up *Save to <name>'s profile?* a moment after it is picked (a set's two parts come as one question); the same
+  size gives none. *Not now* is final for that size on that order. A customer on file is saved to then; a new one (a
+  typed name) is asked when a size is picked — never while the name is being typed — and saved once the order makes
+  them; sizes picked before the name are offered by a toast as the order is created. Opening an order to edit asks
+  nothing about the sizes it already had; a walk-in is never asked. Taheri's: Mina sets `NEXT_PUBLIC_STORE_SIZE_TO_PROFILE` "0".
+
 ### Walk-ins
 
 - **A walk-in sale makes no customer** (2026-09-29; Taheri's book had 17 "Walk-in Customer" records, most left behind when the

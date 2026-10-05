@@ -7,7 +7,7 @@ Next.js **ERP** (it started as a point-of-sale; renamed 2026-09-27) serving **tw
 | Taheri (gold and diamond) | erp.taheri.shop (and pos.taheri.shop) | `gemstrack-pos` | `studio` / `taheri` | branch **`taheri-next`** of this repo |
 | House of Mina (silver) | erp.houseofmina.store (and pos.houseofmina.store) | `hom-pos-52710474-ceeea` | `studio` / `mina` | branch **`main`** of repo **gemstrack-pos** (remote `hom`) |
 
-Two forks that drifted, reconverged 2026-09-22: both deploy from this history.
+Two forks, reconverged 2026-09-22: both deploy from this history.
 `.firebaserc` (hom-pos) is for the unused Firebase CLI.
 
 The public website is a separate repo: **taheri-site** (github.com/Ammar282828/taheri-site,
@@ -47,8 +47,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
   `gcloud secrets …`, `gcloud builds list`, `gcloud run revisions list` — all `--project gemstrack-pos --region us-central1`.
   Never print a secret value; compare `sha256` of trimmed values instead.
 - Hostinger (the site's server) is reachable over SSH with the deploy key `~/.ssh/taheri_deploy`
-  (port 65002, user in `taheri-site/.github/workflows/deploy.yml`). **The key exists only on the owner's Mac** —
-  on another device use hPanel or copy the key deliberately.
+  (port 65002, user in `taheri-site/.github/workflows/deploy.yml`). **The key exists only on the owner's Mac.**
 - **A bare 503 is the server dying**, not a route (routes answer JSON): out of memory kills every request on it.
   `gcloud logging read 'textPayload:"Memory limit of"'`. 1 GiB since 2026-10-01 — [why](docs/features/ad-studio.md#out-of-memory).
 - The owner is a Firebase/GCP Owner but lacks `iam.serviceAccounts.signBlob`, so `createCustomToken` fails from a laptop;
@@ -163,12 +162,13 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Name a sale](docs/decisions.md#name-a-sale) — on the invoice
 - [Advance method](docs/decisions.md#advance-method) — `.nullish()`, `onInvalid` toasts
 - [Exchange line](docs/decisions.md#exchange-line) — what + amount
+- [Sizes to the profile](docs/decisions.md#sizes-to-the-profile) — order sizes, offered once
 - [Walk-ins](docs/decisions.md#walk-ins) — `lib/walk-in.ts`; one walk-in row everywhere
 - [Saves are one trip](docs/decisions.md#saves-are-one-trip) — one commit per save; photos in `order_photos`
 
 **Money and analytics**
 - [Lac and crore](docs/decisions.md#lac-and-crore) — `lib/money.ts`
-- [Margin](docs/decisions.md#margin) — the typed 24k less 6 ratti, else 10%; never the customer's
+- [Margin](docs/decisions.md#margin) — typed 24k less 6 ratti, else 10%; never the customer's
 - [Exchange as cash](docs/decisions.md#exchange-as-cash) — in Cash In and in revenue (`invoiceSaleValue`)
 
 **People and sign-in**

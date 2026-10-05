@@ -384,17 +384,31 @@ export async function whatsAppDiagnostics(chatId?: string): Promise<{
 // and a dead one on another. This is the single rule.
 
 /**
- * Digits only, with a Pakistan country code.
- *   0300 1234567 -> 923001234567
- *   +92 300 …    -> 923001234567
- *   300 1234567  -> 923001234567
+ * Digits only, with the country code — Pakistan's when the number was written the Pakistani way.
+ *   0300 1234567     -> 923001234567
+ *   +92 300 …        -> 923001234567
+ *   300 1234567      -> 923001234567
+ *   +1 415 555 1234  -> 14155551234   (its own code, kept)
+ *   0044 20 7946 …   -> 44207946…
  * Returns '' when there is nothing dialable.
+ *
+ * It used to put 92 in front of anything not already starting 92 or 0, so every number from abroad
+ * — Taheri's book holds 63, stored "+1 …", "+44 …", "+971 …" — went to "92 1 415 …", nobody's
+ * WhatsApp (the owner, 2026-10-05: "it does a +92 before that"). A number written with its "+" or
+ * "00" is international and stays as written; only a domestic one gets Pakistan's code.
  */
 export function toWhatsAppNumber(phone: string | undefined | null): string {
-  const digits = String(phone || '').replace(/\D/g, '');
+  const raw = String(phone || '').trim();
+  const digits = raw.replace(/\D/g, '');
   if (!digits) return '';
+  if (raw.startsWith('+')) return digits;
+  if (/^00[1-9]/.test(digits)) return digits.slice(2);
   if (digits.startsWith('92')) return digits;
   if (digits.startsWith('0')) return '92' + digits.replace(/^0+/, '');
+  // A Pakistani mobile written without its 0: 3xx xxxxxxx.
+  if (digits.length === 10 && digits.startsWith('3')) return '92' + digits;
+  // Longer than any Pakistani number without a code: it carries its own (a "1 415 …" pasted bare).
+  if (digits.length >= 11) return digits;
   return '92' + digits;
 }
 

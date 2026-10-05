@@ -423,6 +423,12 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Taheri's: the order form's "save this size to the customer's profile?" (lib/customer-sizes.ts).
+  - variable: NEXT_PUBLIC_STORE_SIZE_TO_PROFILE
+    value: "0"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_STORE_WEBSITE_FEATURED
     value: "0"
     availability:

@@ -270,6 +270,10 @@ export const STORE_INVOICE_BY_CUSTOMER = process.env.NEXT_PUBLIC_STORE_INVOICE_B
  *  2026-10-05). House of Mina sets "0": WhatsApp opens on the device with the message and a link, as before. */
 export const STORE_INVOICE_WHATSAPP_PDF = process.env.NEXT_PUBLIC_STORE_INVOICE_WHATSAPP_PDF !== '0';
 
+/** The order form offers to keep a ring, bangle or bracelet size in the customer's profile when the profile
+ *  doesn't hold it (Taheri, 2026-10-05; lib/customer-sizes.ts). House of Mina sets "0". */
+export const STORE_SIZE_TO_PROFILE = process.env.NEXT_PUBLIC_STORE_SIZE_TO_PROFILE !== '0';
+
 /**
  * Website → Edit a piece: a piece already on this house's website, changed from
  * the counter — its photograph re-made (cropped, the weight and the mark stamped

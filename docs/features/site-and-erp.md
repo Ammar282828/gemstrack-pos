@@ -44,3 +44,11 @@ gateway on the `waha` VM in gemstrack-pos (https://35-184-20-165.sslip.io), with
 back to Green API otherwise; Green API stays configured until the owner cancels it. WAHA also posts to the WhatsApp
 **channel** (`WHATSAPP_CHANNEL_ID`, Taheri's), which Green API never could. Runbook — relinking, resets, updates:
 **`ops/waha/README.md`**.
+
+**Numbers from abroad** (2026-10-05): `toWhatsAppNumber` put 92 in front of anything not starting 92 or 0, so every
+customer abroad (71 numbers in Taheri's book — US, UK, UAE, Germany…) was dialled as "92 1 415 …". A number written with
+"+" or "00" now keeps its own code; only a domestic one gets Pakistan's (`whatsapp-number.test.ts`).
+
+**A local ERP sends for real.** WAHA is the live line whatever Firestore the ERP points at (the emulator included). Test a
+send only to the shop's own number: on 2026-10-05 a test invoice to the "fictional" +1 415 555 0100 reached a real
+WhatsApp account and had to be deleted for everyone (it was, before it was read).

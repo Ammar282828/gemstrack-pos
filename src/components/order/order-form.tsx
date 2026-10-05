@@ -49,7 +49,11 @@ import { PhoneField } from '@/components/ui/phone-field';
 import { useWorkDraft } from '@/components/drafts/use-work-drafts';
 import { DraftsShortcut } from '@/components/drafts/draft-list';
 import { ORDER_DEFAULT_FIELDS, summarizeOrder } from '@/lib/work-drafts';
-import { STORE_CONFIG } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_SIZE_TO_PROFILE } from '@/lib/store-config';
+import { isWalkInName } from '@/lib/walk-in';
+import { ToastAction } from '@/components/ui/toast';
+import { PROFILE_SIZE_LABEL, sizeSuggestions, type ProfileSizeField, type SizeSuggestion } from '@/lib/customer-sizes';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { OrderScanner } from '@/components/order/order-scanner';
 import { wastagePercentOf } from '@/lib/vision/wastage';
 import { CostRateField, MarginFigure, SHOP_MARGIN_ON } from '@/components/shared/shop-margin';
@@ -366,7 +370,7 @@ const PanelSection: React.FC<{
 export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draftId?: string | null; openScanner?: boolean; fromVoice?: boolean }> = ({ order, seedFromCart, draftId, openScanner, fromVoice }) => {
   const { toast } = useToast();
   const router = useRouter();
-  const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, clearCart } = useAppStore();
+  const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, updateCustomer, clearCart } = useAppStore();
   const cartItems = useAppStore(state => state.cart);
   // Past orders supply the addresses this customer has been delivered to.
   const orders = useAppStore(state => state.orders);
@@ -550,6 +554,67 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         }
     }
   }, [selectedCustomerId, customers, form]);
+
+  /**
+   * A ring, bangle or bracelet size the customer's profile doesn't hold: offered for it, once
+   * (the owner, 2026-10-05: "show a popup to save the size in the customer bio for the future if the
+   * customer size is not already in their bio"; lib/customer-sizes.ts). A customer on file is saved
+   * to there and then; one typed here is made with the order, so theirs are kept until it is.
+   * Opening an order to edit asks nothing about the sizes it already had.
+   */
+  const [sizeAsk, setSizeAsk] = React.useState<{ who: string; name: string; rows: SizeSuggestion[]; chosen: Set<ProfileSizeField> } | null>(null);
+  const [sizesDecided, setSizesDecided] = React.useState<Set<string>>(() => new Set());
+  const [newCustomerSizes, setNewCustomerSizes] = React.useState<Partial<Record<ProfileSizeField, string>>>({});
+  const sizeBaseline = useRef(false);
+  const typedName = (form.watch('customerName') || '').trim();
+  const sizeWho = selectedCustomerId && selectedCustomerId !== WALK_IN_CUSTOMER_VALUE
+    ? selectedCustomerId : typedName && !isWalkInName(typedName) ? `new:${typedName.toLowerCase()}` : '';
+  const sizeProfile = sizeWho && !sizeWho.startsWith('new:') ? customers.find(c => c.id === sizeWho) ?? null : null;
+  const sizeItems = (form.watch('items') || []).map(it => ({ itemCategory: it?.itemCategory, size: it?.size }));
+  const sizeSig = JSON.stringify(sizeItems);
+  // A name being typed is not a reason to ask ("Zar…" would be offered a profile): a new customer is
+  // asked when a size is picked, a customer on file also when they are chosen.
+  const sizeSeen = useRef({ sig: '', who: '' });
+  const sizeTrigger = `${sizeSig}|${sizeProfile ? sizeWho : ''}`;
+  useEffect(() => {
+    if (!STORE_SIZE_TO_PROFILE || isSettingsLoading || isCustomersLoading || !sizeWho || sizeAsk) return;
+    if (!sizeWho.startsWith('new:') && !sizeProfile) return; // the customer list is still arriving
+    const changed = sizeSeen.current.sig !== sizeSig || (!!sizeProfile && sizeSeen.current.who !== sizeWho);
+    if (!changed) return;
+    const rows = sizeSuggestions(sizeWho, sizeProfile, sizeItems, sizesDecided)
+      .filter(r => !(sizeWho.startsWith('new:') && newCustomerSizes[r.field] === r.value));
+    if (isEditMode && !sizeBaseline.current) {
+      // What the order already had is not news.
+      sizeBaseline.current = true;
+      if (rows.length) setSizesDecided(prev => new Set([...prev, ...rows.map(r => r.key)]));
+      return;
+    }
+    if (!rows.length) { sizeSeen.current = { sig: sizeSig, who: sizeWho }; return; }
+    // A moment after the last size is picked, so a set's two parts come as one question.
+    const t = setTimeout(() => {
+      sizeSeen.current = { sig: sizeSig, who: sizeWho };
+      setSizeAsk({ who: sizeWho, name: sizeProfile?.name || typedName, rows, chosen: new Set(rows.map(r => r.field)) });
+    }, 700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sizeTrigger, sizeProfile, sizesDecided, sizeAsk, isSettingsLoading, isCustomersLoading, newCustomerSizes]);
+  const closeSizeAsk = (save: boolean) => {
+    if (!sizeAsk) return;
+    const { who, name, rows, chosen } = sizeAsk;
+    setSizesDecided(prev => new Set([...prev, ...rows.map(r => r.key)]));
+    setSizeAsk(null);
+    const picked = rows.filter(r => chosen.has(r.field));
+    if (!save || !picked.length) return;
+    const fields = Object.fromEntries(picked.map(r => [r.field, r.value])) as Partial<Record<ProfileSizeField, string>>;
+    const words = picked.map(r => `${PROFILE_SIZE_LABEL[r.field].toLowerCase()} ${r.value}`).join(', ');
+    if (who.startsWith('new:')) {
+      setNewCustomerSizes(prev => ({ ...prev, ...fields }));
+      toast({ title: `Kept for ${name}`, description: `Their ${words} go${picked.length === 1 ? 'es' : ''} on their profile when this order is created.` });
+      return;
+    }
+    void updateCustomer(who, { name, ...fields })
+      .then(() => toast({ title: `Saved to ${name}'s profile`, description: `${words[0].toUpperCase()}${words.slice(1)}.` }));
+  };
 
   /** Price one item, exactly the way the subtotal below does. */
   const priceOfItem = React.useCallback((item: OrderFormData['items'][number], rates: Partial<Settings>) => {
@@ -759,6 +824,26 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
 
         try {
             const newOrder = await addOrder(orderToSave);
+            // A customer made with this order: the sizes chosen for their profile go on it now, and any
+            // never asked about (picked before the name was typed) are offered once, on the way out.
+            if (STORE_SIZE_TO_PROFILE && newOrder?.customerId && !finalCustomerId) {
+              const madeName = newOrder.customerName || finalCustomerName || '';
+              if (Object.keys(newCustomerSizes).length) void updateCustomer(newOrder.customerId, { name: madeName, ...newCustomerSizes });
+              const unasked = sizeSuggestions(sizeWho || `new:${madeName.toLowerCase()}`, newCustomerSizes, sizeItems, sizesDecided);
+              if (unasked.length) {
+                const fields = Object.fromEntries(unasked.map(r => [r.field, r.value])) as Partial<Record<ProfileSizeField, string>>;
+                const words = unasked.map(r => `${PROFILE_SIZE_LABEL[r.field].toLowerCase()} ${r.value}`).join(', ');
+                const madeId = newOrder.customerId;
+                toast({
+                  title: `Save to ${madeName}'s profile?`,
+                  description: `Their ${words}, for next time.`,
+                  duration: 15000,
+                  action: <ToastAction altText="Save the sizes to the customer's profile" onClick={() => {
+                    void updateCustomer(madeId, { name: madeName, ...fields }).then(() => toast({ title: `Saved to ${madeName}'s profile` }));
+                  }}>Save</ToastAction>,
+                });
+              }
+            }
             if (newOrder) {
                 // The cart's contents have become the order; leaving them
                 // behind would bill the same pieces a second time.
@@ -1705,6 +1790,33 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
             </div>
         </div>
       </form>
+      {/* Save a size to the customer's profile? (lib/customer-sizes.ts) — portalled, so its buttons never submit the order. */}
+      <AlertDialog open={!!sizeAsk} onOpenChange={open => { if (!open) closeSizeAsk(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save to {sizeAsk?.name || 'the customer'}&apos;s profile?</AlertDialogTitle>
+            <AlertDialogDescription>So the size is there next time, on any order or sale for them.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            {sizeAsk?.rows.map(r => (
+              <label key={r.field} className="flex items-center gap-3 rounded-md border p-3 text-sm cursor-pointer">
+                <Checkbox
+                  checked={sizeAsk.chosen.has(r.field)}
+                  onCheckedChange={c => setSizeAsk(a => a && ({ ...a, chosen: new Set(c ? [...a.chosen, r.field] : [...a.chosen].filter(f => f !== r.field)) }))}
+                />
+                <span className="flex-1">
+                  <span className="font-medium">{PROFILE_SIZE_LABEL[r.field]}: {r.value}</span>
+                  <span className="block text-xs text-muted-foreground">{r.current ? `The profile says ${r.current} — this replaces it.` : 'Not in the profile yet.'}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => closeSizeAsk(false)}>Not now</AlertDialogCancel>
+            <AlertDialogAction onClick={() => closeSizeAsk(true)} disabled={!sizeAsk?.chosen.size}>Save to profile</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Form>
   );
 };

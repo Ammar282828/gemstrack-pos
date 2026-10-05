@@ -23,6 +23,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   are instructions for taheri pos"); Mina sets both "0" and keeps `Invoice-INV-….pdf` and the wa.me message with its link.
   The margin (`NEXT_PUBLIC_STORE_COST_RATTI_LESS`, default 6: gold costs the 24k rate less 6 ratti; decisions.md#margin) is
   Taheri's; Mina sets "none" — no 24k ask, no margin shown, Analytics keeps its `NEXT_PUBLIC_STORE_EST_MARGIN`.
+  The order form's *save this size to the profile?* (`NEXT_PUBLIC_STORE_SIZE_TO_PROFILE`) is Taheri's; Mina sets "0".
   **Expense categories** are `NEXT_PUBLIC_STORE_EXPENSE_CATEGORIES` (`lib/expense-categories.ts`; Taheri's list by default,
   Mina's own 15 since 2026-09-25, worked out from all its expenses); Partner Drawings, Partner Salary and Other are always
   added — `lib/partnership.ts` reads the first two by name. The expenses filter also offers any other name an expense carries.
