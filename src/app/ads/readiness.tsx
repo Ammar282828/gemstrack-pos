@@ -26,6 +26,9 @@ export function Readiness({ status }: { status: AdsStatus }) {
   if (live && (!live.privacyPolicyUrl || !live.category || !live.icon)) {
     items.push({ text: 'The Meta app is still in Development: new ads from new photos are refused (boosting a post works). Fill privacy policy, category and icon, then switch it Live.', href: '/ads/setup' });
   }
+  // The login can't be kept (2026-10-04 audit: Setup's step 2 said so, in red, below the fold): a user login
+  // then lapses at its expiry and every Ads page stops — reconnecting is the only remedy until it is granted.
+  if (!status.app.tokenStore.write) items.push({ text: `This ERP can’t save the Meta login (${status.app.tokenSecret}): grant the App Hosting account Secret Version Adder on it — until then, connect again before each login runs out.`, href: '/ads/setup' });
   const missing = status.connection?.missingScopes ?? [];
   if (missing.length) items.push({ text: `The Facebook login lacks ${missing.join(', ')} — add ${missing.length === 1 ? 'it' : 'them'} to the login configuration and connect again.`, href: '/ads/setup' });
   if (SITE && pixel && !pixel.live) {

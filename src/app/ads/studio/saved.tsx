@@ -110,7 +110,7 @@ export function SavedSection({ onOpen }: { onOpen: (r: SavedRestore) => void }) 
             {folder && <><Button variant="ghost" size="icon" className="h-9 w-9 min-h-0" aria-label="Rename folder" onClick={renameFolder}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-9 w-9 min-h-0" aria-label="Delete folder" onClick={dropFolder}><Trash2 className="h-4 w-4" /></Button></>}
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p> : !data ? <p className="text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin inline mr-1" /> …</p>
-            : !shown.length ? <p className="text-sm text-muted-foreground py-8 text-center">{data.items.length ? 'Nothing here.' : 'Nothing saved yet — “Save” in Make keeps an ad here.'}</p> : (
+            : !shown.length ? <p className="text-sm text-muted-foreground py-8 text-center">{data.items.length ? 'Nothing here.' : 'Nothing saved yet — “Save” in Make, or “Save to Saved ads” on a Board design, keeps an ad here.'}</p> : (
               <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                 {shown.map(s => (
                   <button key={s.id} type="button" onClick={() => setOpen(s)} className="card rounded-xl border overflow-hidden text-left bg-card min-h-0">

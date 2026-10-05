@@ -455,7 +455,7 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
       <div className="rounded-xl border border-dashed p-8 text-center space-y-3">
         <Layers className="h-8 w-8 mx-auto text-muted-foreground" />
         <p className="font-medium">Choose a photograph to make an ad from</p>
-        <p className="text-sm text-muted-foreground max-w-md mx-auto">Open any photo in Picks or the Library and press “Make an ad”, fixed or as it is — or start from a photo on this device.</p>
+        <p className="text-sm text-muted-foreground max-w-md mx-auto">Open any photo in Photos and press “Make an ad”, fixed or as it is — or start from a photo on this device.</p>
         <div className="flex flex-wrap justify-center gap-2">
           <Button onClick={onChoose}><ImagePlus className="h-4 w-4 mr-1.5" /> Choose from the picks</Button>
           <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4 mr-1.5" /> A photo from this device</Button>

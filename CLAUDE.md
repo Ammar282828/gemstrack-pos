@@ -228,7 +228,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Ads](docs/features/ads.md#ads) — Meta ad account per house; Overview, Campaigns, New ad, Setup; the helper
 
 **Ad studio** (`docs/features/ad-studio.md`)
-- [Ad studio](docs/features/ad-studio.md#ad-studio) — eight tabs, both houses; [any shape](docs/features/ad-studio.md#any-shape)
+- [Ad studio](docs/features/ad-studio.md#ad-studio) — [five tabs](docs/features/ad-studio.md#five-tabs) (Plan, Photos, Make, Board, Saved), both houses; [any shape](docs/features/ad-studio.md#any-shape)
 - [Board](docs/features/ad-studio.md#board) — designs and notes on an endless canvas, Let it cook, an agent over MCP (`/api/studio/mcp`); Use it (queue a post, new ad, save); this week's board every Monday 9:00
 
 ## graphify

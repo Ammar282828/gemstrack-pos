@@ -7,15 +7,16 @@
  * taheri.shop and from my google drive … to recommend, fix, assess and build + help create like in
  * canva ad creatives".
  *
- *   Plan         the plays: what to run for each place a buyer lands (plays.ts), "Make this" → the maker set up for it
- *   Picks        the best photographs for the chosen placement, as ranked from each one's assessment
- *   Library      every photo from taheri.shop and the shared Drive folders, searchable, with its score
- *   Make         the maker: Taheri's ad layouts at Meta's sizes, AI words, a pre-flight check, → New ad
+ *   Plan         what to run (the plays, plays.ts; "Make this" → the maker set up for it), the ad days and the
+ *                house's rules, what its own ads say, the playbook (Guide), and the competitors
+ *   Photos       the library: the best for the chosen placement first (Picks), or every photo, searchable (Library)
+ *   Make         the maker: the house's ad layouts at Meta's sizes, AI words, a pre-flight check, → New ad
  *   Board        an endless canvas of designs and notes; AI variants side by side; an agent over MCP (board.tsx)
  *   Saved        made ads kept in folders, and the ads already in the ad account
- *   Competitors  found by Google Search, looked up on Instagram, read for what works
- *   Guide        the days ads stay off, what the account's own winners share, the playbook, the rules
  *
+ * Five tabs (the audit of 2026-10-04, owner: "audit and consolidate ads tab"; there were eight): Picks and
+ * Library were one library twice, and Plan, Guide and Competitors one question — what to run and why.
+ * The old addresses (?v=picks, library, guide, rivals) open where they went.
  * One Ads tab; the sections are `?v=` so a section can be linked and survives a reload.
  */
 
@@ -39,15 +40,19 @@ import type { LibraryItem, WorkPhoto } from './studio-kit';
 
 const VIEWS = [
   { key: 'plan', label: 'Plan', icon: MapIcon },
-  { key: 'picks', label: 'Picks', icon: Star },
-  { key: 'library', label: 'Library', icon: Images },
+  { key: 'photos', label: 'Photos', icon: Images },
   { key: 'make', label: 'Make', icon: Brush },
   { key: 'board', label: 'Board', icon: LayoutDashboard },
   { key: 'saved', label: 'Saved', icon: FolderOpen },
-  { key: 'rivals', label: 'Competitors', icon: Swords },
-  { key: 'guide', label: 'Guide', icon: BookOpen },
 ] as const;
 type View = typeof VIEWS[number]['key'];
+
+/** Each tab's own sections (a second row of chips), and where the old tabs' addresses land. */
+const PARTS = {
+  plan: [{ key: 'plays', label: 'What to run', icon: MapIcon }, { key: 'guide', label: 'Ad days & rules', icon: BookOpen }, { key: 'rivals', label: 'Competitors', icon: Swords }],
+  photos: [{ key: 'picks', label: 'Best for ads', icon: Star }, { key: 'library', label: 'Every photo', icon: Images }],
+} as const;
+const OLD: Record<string, [View, string]> = { picks: ['photos', 'picks'], library: ['photos', 'library'], guide: ['plan', 'guide'], rivals: ['plan', 'rivals'] };
 
 export default function AdStudioRoute() {
   if (!STORE_AD_STUDIO) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">The Studio isn’t part of this shop.</p>;
@@ -58,8 +63,11 @@ function AdStudio() {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const v = (VIEWS.some(x => x.key === params.get('v')) ? params.get('v') : 'plan') as View;
-  const go = useCallback((next: View) => router.replace(`${pathname}?v=${next}`, { scroll: false }), [router, pathname]);
+  const asked = params.get('v') || '';
+  const [v, defaultPart] = OLD[asked] ?? [(VIEWS.some(x => x.key === asked) ? asked : 'plan') as View, ''];
+  const parts = (PARTS as Record<string, readonly { key: string; label: string; icon: typeof MapIcon }[]>)[v] ?? [];
+  const part = parts.some(x => x.key === params.get('s')) ? params.get('s')! : defaultPart || parts[0]?.key || '';
+  const go = useCallback((next: View, s?: string) => router.replace(`${pathname}?v=${next}${s ? `&s=${s}` : ''}`, { scroll: false }), [router, pathname]);
   const [placement, setPlacement] = usePlacement();
   const [open, setOpen] = useState<LibraryItem | null>(null);
   const [work, setWork] = useState<WorkPhoto | null>(null);
@@ -73,7 +81,7 @@ function AdStudio() {
 
   const make = (w: WorkPhoto) => { setWork(w); setOpen(null); go('make'); };
   const reopen = (r: SavedRestore) => { setPlay(null); setRestore(r); setWork(r.work); go('make'); };
-  const startPlay = (p: Play) => { setPlay(p); go(work ? 'make' : 'picks'); };
+  const startPlay = (p: Play) => { setPlay(p); go(work ? 'make' : 'photos', work ? undefined : 'picks'); };
 
   return (
     <PageShell title="Studio" icon={<Palette className="h-6 w-6" />} width="wide">
@@ -85,7 +93,17 @@ function AdStudio() {
           </button>
         ))}
       </nav>
-      {status && !ready && (v === 'make' || v === 'rivals') && (
+      {parts.length > 0 && (
+        <nav className="flex gap-1.5 overflow-x-auto" aria-label={`${VIEWS.find(x => x.key === v)?.label} sections`}>
+          {parts.map(x => (
+            <button key={x.key} type="button" onClick={() => go(v, x.key)} aria-current={part === x.key ? 'true' : undefined}
+              className={cn('inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs whitespace-nowrap min-h-0', part === x.key ? 'border-primary bg-primary/10 text-foreground' : 'text-muted-foreground hover:text-foreground')}>
+              <x.icon className="h-3.5 w-3.5" /> {x.label}
+            </button>
+          ))}
+        </nav>
+      )}
+      {status && !ready && (v === 'make' || part === 'rivals') && (
         <p className="text-xs rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5 flex items-center gap-2">
           <PlugZap className="h-4 w-4 shrink-0" />
           <span>Meta isn’t set up — <Link href="/ads/setup" className="text-primary underline">Setup</Link>.</span>
@@ -99,14 +117,14 @@ function AdStudio() {
           <button type="button" className="p-1 min-h-0 text-muted-foreground" onClick={() => setPlay(null)} aria-label="Not this play"><X className="h-4 w-4" /></button>
         </p>
       )}
-      {v === 'plan' && <PlanSection onMake={startPlay} hasPhoto={!!work} />}
-      {v === 'picks' && <PicksSection placement={placement} onPlacement={setPlacement} onOpen={setOpen} reloadKey={reloadKey} />}
-      {v === 'library' && <LibrarySection placement={placement} onPlacement={setPlacement} onOpen={setOpen} reloadKey={reloadKey} />}
-      {v === 'make' && <Maker work={work} onChoose={() => go('picks')} onUpload={setWork} play={play} restore={restore} />}
+      {v === 'plan' && part === 'plays' && <PlanSection onMake={startPlay} hasPhoto={!!work} />}
+      {v === 'plan' && part === 'guide' && <GuideSection connected={ready} />}
+      {v === 'plan' && part === 'rivals' && <RivalsSection connected={connected} />}
+      {v === 'photos' && part === 'picks' && <PicksSection placement={placement} onPlacement={setPlacement} onOpen={setOpen} reloadKey={reloadKey} />}
+      {v === 'photos' && part === 'library' && <LibrarySection placement={placement} onPlacement={setPlacement} onOpen={setOpen} reloadKey={reloadKey} />}
+      {v === 'make' && <Maker work={work} onChoose={() => go('photos', 'picks')} onUpload={setWork} play={play} restore={restore} />}
       {v === 'board' && <BoardSection />}
       {v === 'saved' && <SavedSection onOpen={reopen} />}
-      {v === 'rivals' && <RivalsSection connected={connected} />}
-      {v === 'guide' && <GuideSection connected={ready} />}
 
       <AssetSheet item={open} placement={placement} onClose={() => setOpen(null)} onMake={make} onChanged={() => setReloadKey(n => n + 1)} />
     </PageShell>

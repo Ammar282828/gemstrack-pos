@@ -17,7 +17,8 @@ import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { UsersRound, ListChecks, Settings2, CheckCircle2, XCircle, Circle, Loader2, ExternalLink, Copy, Facebook, Instagram, Megaphone, RefreshCw, Check, MessageCircle, AlertTriangle, Unplug, Globe } from 'lucide-react';
+import { Readiness } from '../readiness';
+import { UsersRound, ListChecks, Settings2, CheckCircle2, XCircle, Circle, Loader2, ExternalLink, Copy, Facebook, Instagram, Megaphone, RefreshCw, Check, MessageCircle, AlertTriangle, Unplug, Globe, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_CONFIG, STORE_META_ADS } from '@/lib/store-config';
 import { ACCOUNT_STATUS } from '@/lib/ads/shape';
@@ -37,15 +38,23 @@ const DOMAINS = [...new Set(ORIGINS.map(o => new URL(o).hostname.replace(/^(erp|
 
 interface Assets { accounts: AccountChoice[]; pages: PageChoice[]; instagram: InstagramChoice[]; settings: AdsSettings; houseInstagram: string | null }
 
-function Step({ n, done, title, children, tone }: { n: number; done: boolean | null; title: React.ReactNode; children?: React.ReactNode; tone?: 'bad' }) {
+/**
+ * A step. A finished one folds to its title (the audit of 2026-10-04: a connected house scrolled ~5,000 px of
+ * one-time instructions to find the three lines still wrong); tap to open. One that still needs something
+ * (`attention`) stays open even when done.
+ */
+function Step({ n, done, title, children, tone, attention }: { n: number; done: boolean | null; title: React.ReactNode; children?: React.ReactNode; tone?: 'bad'; attention?: boolean }) {
+  const icon = done === null ? <Circle className="h-5 w-5 text-muted-foreground shrink-0" /> : done ? <CheckCircle2 className="h-5 w-5 text-success shrink-0" /> : <XCircle className="h-5 w-5 text-destructive shrink-0" />;
+  const head = <><span className="text-muted-foreground font-normal tabular-nums">{n}.</span> {title}</>;
+  if (!children) return <section className={cn('rounded-xl border p-4', tone === 'bad' && 'border-destructive/40')}><h2 className="flex items-center gap-2 font-semibold">{icon}{head}</h2></section>;
   return (
-    <section className={cn('rounded-xl border p-4 space-y-3', tone === 'bad' && 'border-destructive/40')}>
-      <h2 className="flex items-center gap-2 font-semibold">
-        {done === null ? <Circle className="h-5 w-5 text-muted-foreground" /> : done ? <CheckCircle2 className="h-5 w-5 text-success" /> : <XCircle className="h-5 w-5 text-destructive" />}
-        <span className="text-muted-foreground font-normal tabular-nums">{n}.</span> {title}
-      </h2>
-      {children && <div className="text-sm space-y-2 pl-7">{children}</div>}
-    </section>
+    <details open={done !== true || attention || tone === 'bad'} className={cn('group rounded-xl border p-4', tone === 'bad' && 'border-destructive/40', attention && 'border-warning/50')}>
+      <summary className="flex items-center gap-2 font-semibold cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+        {icon}<span className="flex-1 flex items-center gap-2">{head}</span>
+        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180 shrink-0" />
+      </summary>
+      <div className="text-sm space-y-2 pl-7 pt-3">{children}</div>
+    </details>
   );
 }
 
@@ -147,6 +156,8 @@ function AdsSetup() {
       {error && <ErrorLine error={error} onRetry={reload} />}
       {!status && loading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Checking…</div>}
       {status && <AccountAlerts status={status} />}
+      {/* What is still wrong, first: the steps below fold once done (the audit of 2026-10-04). */}
+      {status && <Readiness status={status} />}
 
       {/* Audiences and Rules were tabs of their own; they are set up once and looked at rarely, so they
           are cards here and their pages light Setup (lib/nav.ts). */}
@@ -207,7 +218,7 @@ function AdsSetup() {
             </p>
           </Step>
 
-          <Step n={3} done={conn ? conn.connected : null} tone={conn && !conn.connected ? 'bad' : undefined} title={<>Connect <span className="inline-flex items-center gap-1"><Facebook className="h-4 w-4" /> Facebook</span></>}>
+          <Step n={3} done={conn ? conn.connected : null} tone={conn && !conn.connected ? 'bad' : undefined} attention={!!conn && (conn.missingScopes.length > 0 || (conn.kind === 'user' && conn.daysLeft !== null && conn.daysLeft <= 10))} title={<>Connect <span className="inline-flex items-center gap-1"><Facebook className="h-4 w-4" /> Facebook</span></>}>
             {conn ? (
               <>
                 <p>{conn.connected ? <>Connected{conn.userName ? <> as <b>{conn.userName}</b></> : null}{conn.kind === 'system' ? ' (a system user — never expires)' : ''}.</> : <span className="text-destructive">{conn.error || 'The connection is no longer valid.'}</span>}
