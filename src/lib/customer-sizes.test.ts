@@ -6,7 +6,7 @@ describe('a piece’s size, for the customer’s profile', () => {
     expect(profileSizesOf('cat001', '12')).toEqual({ ringSize: '12' });
     expect(profileSizesOf('cat009', '20.5')).toEqual({ ringSize: '20.5' });
     expect(profileSizesOf('cat007', '2.4')).toEqual({ bangleSize: '2.4' });
-    expect(profileSizesOf('cat005', '2.6')).toEqual({ braceletSize: '2.6' });
+    expect(profileSizesOf('cat005', '6.5"')).toEqual({ braceletSize: '6.5"' });
     expect(profileSizesOf('cat011', 'Ring: 10 · Bangle: 2.4')).toEqual({ ringSize: '10', bangleSize: '2.4' });
     expect(profileSizesOf('cat006', '2.2')).toEqual({ braceletSize: '2.2' }); // a size from before the set had two parts
   });
@@ -21,6 +21,9 @@ describe('a piece’s size, for the customer’s profile', () => {
     expect(sameSize('12', ' 12.0 ')).toBe(true);
     expect(sameSize('US 6', 'us  6')).toBe(true);
     expect(sameSize('12', '12.5')).toBe(false);
+    expect(sameSize('7', '7"')).toBe(true);
+    expect(sameSize('7 in', '7.0"')).toBe(true);
+    expect(sameSize('6.25', '6.5"')).toBe(false);
   });
 
   it('asks only for what the profile does not hold, once', () => {
@@ -32,5 +35,20 @@ describe('a piece’s size, for the customer’s profile', () => {
     const decided = new Set(changed.map(s => s.key));
     expect(sizeSuggestions('c1', { ringSize: '11' }, items, decided)).toEqual([]);
     expect(sizeSuggestions('c2', { ringSize: '11' }, items, decided)).toHaveLength(2); // another customer is asked again
+  });
+});
+
+describe('bracelet sizes', () => {
+  it('are offered in inches, quarter by quarter, for bracelets, loose bracelets and a set’s bracelet', async () => {
+    const { sizeScaleFor, isMultiPartScale } = await import('./store');
+    const single = sizeScaleFor('cat005');
+    expect(single && !isMultiPartScale(single) && single.options.slice(0, 3)).toEqual(['4.5"', '4.75"', '5"']);
+    expect(single && !isMultiPartScale(single) && single.options.at(-1)).toBe('9"');
+    const loose = sizeScaleFor('cat019');
+    expect(loose && !isMultiPartScale(loose) && loose.options).toContain('6.25"');
+    const set = sizeScaleFor('cat006');
+    expect(isMultiPartScale(set) && set.parts.find(p => p.key === 'Bracelet')?.options).toContain('7"');
+    const bangle = sizeScaleFor('cat007');
+    expect(bangle && !isMultiPartScale(bangle) && bangle.options[0]).toBe('1.1');
   });
 });

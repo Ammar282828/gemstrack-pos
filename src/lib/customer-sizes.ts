@@ -56,11 +56,15 @@ export function profileSizesOf(categoryId: string | undefined, size: string | un
   return field ? { [field]: value } : {};
 }
 
-/** Sizes compare as the counter writes them: "12", " 12 ", "12.0" and "US 6"/"us 6" are each one size. */
+/**
+ * Sizes compare as the counter writes them: "12", " 12 ", "12.0" are one size, "US 6"/"us 6" one, and a
+ * bracelet's inches with or without the mark — 7, 7", 7 in, 7 inches — one.
+ */
 export const sameSize = (a: string | undefined | null, b: string | undefined | null) => {
   const norm = (s: string | undefined | null) => {
     const t = String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
-    return /^\d+(\.\d+)?"?$/.test(t) ? String(Number(t.replace('"', ''))) + (t.endsWith('"') ? '"' : '') : t;
+    const m = /^(\d+(?:\.\d+)?)\s*(?:"|''|in|inch|inches)?$/.exec(t);
+    return m ? String(Number(m[1])) : t;
   };
   return norm(a) === norm(b);
 };

@@ -1026,15 +1026,20 @@ const RING_SIZES_INDIAN: string[] = Array.from({ length: 51 }, (_, i) => {
   const v = i / 2;
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 });
-const BRACELET_BANGLE_SIZES: string[] = (() => {
+const BANGLE_SIZES: string[] = (() => {
   const out: string[] = [];
   for (let i = 11; i <= 30; i++) out.push((i / 10).toFixed(1)); // 1.1 .. 3.0
   return out;
 })();
-const LOOSE_BRACELET_SIZES: string[] = (() => {
+/**
+ * Bracelets are sized in inches (the owner, 2026-10-05: "for bracelets the sizes should be in
+ * inches"). They had the bangle scale, 1.1–3.0, so the counter typed its inches over it — 5, 6.25,
+ * 6.75, 7 on Taheri's orders — and the customer's profile already asked "e.g., 7 in". 4.5" to 9" in
+ * quarter inches: 4.5", 4.75", 5", … 9".
+ */
+const BRACELET_SIZES: string[] = (() => {
   const out: string[] = [];
-  // 5.75" to 9.0" in 0.25" steps → 14 values
-  for (let q = 23; q <= 36; q++) out.push(`${(q / 4).toFixed(2)}"`);
+  for (let q = 18; q <= 36; q++) out.push(`${q / 4}"`);
   return out;
 })();
 const NECKLACE_SIZES: string[] = ['14"', '16"', '18"', '20"', '22"', '24"', '26"', '28"', '30"'];
@@ -1056,22 +1061,22 @@ export const SIZE_SCALES: Record<string, SizeScale> = {
   'cat018': { label: 'Indian ring size (0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
   'cat009': { label: 'Band size (Indian 0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
   'cat010': { label: 'Ring size (Indian 0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
-  'cat005': { label: 'Bracelet size (1.1–3.0)',                 options: BRACELET_BANGLE_SIZES },
+  'cat005': { label: 'Bracelet size (inches)',                  options: BRACELET_SIZES },
   'cat006': {
     label: 'Ring + Bracelet size',
     legacyPartKey: 'Bracelet',
     parts: [
       { key: 'Ring',     label: 'Ring size (Indian 0–25, 0.5 steps)', options: RING_SIZES_INDIAN },
-      { key: 'Bracelet', label: 'Bracelet size (1.1–3.0)',            options: BRACELET_BANGLE_SIZES },
+      { key: 'Bracelet', label: 'Bracelet size (inches)',             options: BRACELET_SIZES },
     ],
   },
-  'cat007': { label: 'Bangle size (1.1–3.0)',                   options: BRACELET_BANGLE_SIZES },
+  'cat007': { label: 'Bangle size (1.1–3.0)',                   options: BANGLE_SIZES },
   'cat014': {
     label: 'Ring + Bracelet size',
     legacyPartKey: 'Bracelet',
     parts: [
       { key: 'Ring',     label: 'Ring size (Indian 0–25, 0.5 steps)', options: RING_SIZES_INDIAN },
-      { key: 'Bracelet', label: 'Bracelet size (1.1–3.0)',            options: BRACELET_BANGLE_SIZES },
+      { key: 'Bracelet', label: 'Bracelet size (inches)',             options: BRACELET_SIZES },
     ],
   },
   'cat015': {
@@ -1079,19 +1084,19 @@ export const SIZE_SCALES: Record<string, SizeScale> = {
     legacyPartKey: 'Bracelet',
     parts: [
       { key: 'Ring',     label: 'Ring size (Indian 0–25, 0.5 steps)', options: RING_SIZES_INDIAN },
-      { key: 'Bracelet', label: 'Bracelet size (1.1–3.0)',            options: BRACELET_BANGLE_SIZES },
+      { key: 'Bracelet', label: 'Bracelet size (inches)',             options: BRACELET_SIZES },
     ],
   },
   // Necklace sets without bracelets can still include a ring.
   'cat013': { label: 'Ring size (Indian 0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
   'cat016': { label: 'Ring size (Indian 0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
-  'cat019': { label: 'Loose bracelet (inches)',                 options: LOOSE_BRACELET_SIZES },
+  'cat019': { label: 'Loose bracelet (inches)',                 options: BRACELET_SIZES },
   'cat012': { label: 'String length (inches)',                  options: NECKLACE_SIZES },
   'cat011': {
     label: 'Ring + Bangle size',
     parts: [
       { key: 'Ring',   label: 'Ring size (Indian 0–25, 0.5 steps)', options: RING_SIZES_INDIAN },
-      { key: 'Bangle', label: 'Bangle size (1.1–3.0)',              options: BRACELET_BANGLE_SIZES },
+      { key: 'Bangle', label: 'Bangle size (1.1–3.0)',              options: BANGLE_SIZES },
     ],
   },
 };
