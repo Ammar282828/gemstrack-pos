@@ -183,13 +183,16 @@ import { _calculateProductCostsInternal, GOLD_COIN_CATEGORY_ID_INTERNAL, DEFAULT
 // --- Type Definitions ---
 export type { MetalType, KaratValue } from './materials';
 import type { OverheadItem, OverheadPlan } from '@/lib/overheads';
-import { roleForEmail, isStaffCollection } from '@/lib/roles';
+import { roleForEmail, isStaffCollection, MARKETING_COLLECTIONS } from '@/lib/roles';
 import { devRole, DEV_ROLE_HEADER } from '@/lib/dev-role';
 
 /** The role the app should behave as: a dev preview wins over the real one. */
-function effectiveRole(): 'owner' | 'staff' | 'none' {
+function effectiveRole(): 'owner' | 'staff' | 'marketing' | 'none' {
   return devRole() ?? roleForEmail(auth?.currentUser?.email);
 }
+
+/** Staff and marketing accounts have no Firestore access: their store reads through /api/staff/* (roles.ts). */
+const readsThroughServer = (): boolean => { const r = effectiveRole(); return r === 'staff' || r === 'marketing'; };
 import { clientPort } from '@/lib/db-client-port';
 import { recordInvoicePayment, removeInvoicePayment } from '@/lib/writes/invoice-payment';
 import { type ExchangeEntry, exchangeTotal, invoiceExchangeFields, orderExchanges } from '@/lib/exchange';
@@ -1559,7 +1562,7 @@ const createDataLoader = <T, K extends keyof AppState>(
     // for them this collection is filled from /api/staff/*, which strips the
     // cost side server-side. Polled rather than live: losing realtime is the
     // price of the filter, and a shop needs minutes-fresh, not seconds-fresh.
-    if (effectiveRole() === 'staff') {
+    if (readsThroughServer()) {
       attachStaffPoll(collectionName, stateKey, loadingKey, errorKey, loadedKey, orderByField, orderByDirection, set);
       return;
     }
@@ -1670,6 +1673,8 @@ function attachStaffPoll(
     } as unknown as Partial<AppState>);
 
   if (!isStaffCollection(collectionName)) { settle([]); return; }
+  // A marketing account is refused everything but the settings and the pieces; settle the rest as empty.
+  if (effectiveRole() === 'marketing' && !(MARKETING_COLLECTIONS as readonly string[]).includes(collectionName)) { settle([]); return; }
 
   const dir = orderByDirection === 'desc' ? -1 : 1;
   const sortByField = (list: Record<string, unknown>[]) =>
@@ -1864,7 +1869,7 @@ export const useAppStore = create<AppState>()(
         // Staff cannot read this document either, and the whole app gates on
         // it — appReady never turns true without settings, so without this
         // branch a staff sign-in lands on a spinner that never resolves.
-        if (effectiveRole() === 'staff') {
+        if (readsThroughServer()) {
           const pull = async () => {
             try {
               const token = await auth?.currentUser?.getIdToken();

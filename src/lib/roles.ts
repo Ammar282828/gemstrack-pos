@@ -8,6 +8,11 @@
  *            moving. No expenses, no ledger, no shareholder finances, no
  *            settings, no analytics.
  *   karigar  A craftsman, who only ever sees their own work (/my-work).
+ *   marketing  Someone who runs the shop's marketing (the owner, 2026-10-05: "access only to the
+ *            marketing section"): Posts, Website and Ads, and nothing of the books — no sales,
+ *            orders, customers, stock costs, money or settings. Like staff, no direct Firestore
+ *            access; the routes they use let them in (ads/gate.ts, social/gate.ts and the
+ *            website routes), and their store reads only the settings and pieces (MARKETING_COLLECTIONS).
  *
  * Staff, like karigars, get NO direct Firestore access — see firestore.rules.
  * That is not belt-and-braces on top of a hidden menu; it is the actual
@@ -22,7 +27,7 @@
 
 import { STORE_CONFIG } from './store-config';
 
-export type Role = 'owner' | 'staff' | 'karigar' | 'none';
+export type Role = 'owner' | 'staff' | 'marketing' | 'karigar' | 'none';
 
 const normalise = (email: string | undefined | null): string =>
   String(email || '').trim().toLowerCase();
@@ -40,11 +45,20 @@ export const isOwner = (email: string | undefined | null): boolean => {
   return !!e && OWNER_EMAILS.includes(e);
 };
 
+/** Marketing accounts, comma-separated (NEXT_PUBLIC_STORE_MARKETING_EMAILS). Empty by default. */
+export const MARKETING_EMAILS = list(process.env.NEXT_PUBLIC_STORE_MARKETING_EMAILS);
+
 export const isStaff = (email: string | undefined | null): boolean => {
   const e = normalise(email);
   // Owner wins. Listing an owner as staff by mistake must not demote them out
   // of their own books.
   return !!e && !isOwner(e) && STAFF_EMAILS.includes(e);
+};
+
+/** Owner and staff win: naming someone in both lists must never take the books away from them. */
+export const isMarketing = (email: string | undefined | null): boolean => {
+  const e = normalise(email);
+  return !!e && !isOwner(e) && !STAFF_EMAILS.includes(e) && MARKETING_EMAILS.includes(e);
 };
 
 /**
@@ -55,6 +69,7 @@ export const isStaff = (email: string | undefined | null): boolean => {
 export function roleForEmail(email: string | undefined | null): Exclude<Role, 'karigar'> {
   if (isOwner(email)) return 'owner';
   if (isStaff(email)) return 'staff';
+  if (isMarketing(email)) return 'marketing';
   return 'none';
 }
 
@@ -83,6 +98,13 @@ export const STAFF_COLLECTIONS = [
 ] as const;
 
 export type StaffCollection = (typeof STAFF_COLLECTIONS)[number];
+
+/**
+ * What a marketing account's store may read, through the same server path as staff (and stripped the
+ * same way): the shop's settings (the allow-listed fields below) and its pieces, which Post a Piece and
+ * the Studio show. Not orders, invoices, customers or anything with money in it.
+ */
+export const MARKETING_COLLECTIONS = ['settings', 'products', 'categories'] as const;
 
 export const isStaffCollection = (name: string): name is StaffCollection =>
   (STAFF_COLLECTIONS as readonly string[]).includes(name);

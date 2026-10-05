@@ -56,7 +56,7 @@ const pkr = (n: number) => (n >= 100000 ? `PKR ${(n / 100000).toFixed(n >= 10000
  * It was a hand-kept list of its own that had drifted from the sidebar — other names, missing
  * pages (the Posts hub, Drafts, Scan, Labels, every Analytics and Ads tab) and no roles.
  */
-function destinationsFor(staff: boolean): Array<Item & { keywords: string[] }> {
+function destinationsFor(staff: boolean | 'marketing'): Array<Item & { keywords: string[] }> {
   return paletteFor(staff).map(d => ({
     id: d.key, label: d.label, group: d.group, href: d.href,
     icon: <d.icon className="h-4 w-4" />,
@@ -92,7 +92,8 @@ export function CommandPalette() {
   const loadKarigars = useAppStore((s) => s.loadKarigars);
   // The same role rule as the sidebar (app-layout.tsx).
   const { user } = useAuth();
-  const isStaff = (devRole() ?? roleForEmail(user?.email)) === 'staff';
+  const role = devRole() ?? roleForEmail(user?.email);
+  const isStaff: boolean | 'marketing' = role === 'marketing' ? 'marketing' : role === 'staff';
 
   // Ctrl+K / Cmd+K anywhere, including from inside a field.
   useEffect(() => {

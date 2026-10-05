@@ -59,6 +59,20 @@ describe('who sees what', () => {
     expect(staff).not.toContain('ads');
     expect(forRole(SETTINGS, true)).toBeNull();
   });
+  it('a marketing account gets the Marketing group and nothing else', () => {
+    const groups = sidebarFor('marketing');
+    expect(groups.map(g => g.key)).toEqual(['marketing']);
+    const ids = groups.flatMap(g => g.entries.map(e => e.id));
+    expect(ids.length).toBeGreaterThan(0);
+    expect(groups.flatMap(g => g.entries).every(e => e.group === 'marketing')).toBe(true);
+    expect(ids).not.toContain('home');
+    expect(ids).not.toContain('orders');
+    expect(forRole(SETTINGS, 'marketing')).toBeNull();
+    const places = paletteFor('marketing');
+    expect(places.every(d => d.group === 'Go to')).toBe(true);
+    expect(places.map(d => d.href)).not.toContain('/expenses');
+    expect(places.map(d => d.href)).not.toContain('/');
+  });
   it('the palette follows the same rule and flags', () => {
     const staff = paletteFor(true).map(d => d.href);
     expect(staff).toContain('/orders');

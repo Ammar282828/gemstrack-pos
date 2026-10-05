@@ -247,7 +247,20 @@ export function within(pathname: string, href: string): boolean {
  * A person's view of an entry: absent if the house doesn't have it or they may not open it; else
  * only the tabs and pages they can, and the entry opens the first tab.
  */
-export function forRole(entry: NavEntry, staff: boolean): NavEntry | null {
+/** Who the menu is drawn for. `true`/`false` are the old staff/owner flag, kept for the callers that pass it. */
+export type NavRole = 'owner' | 'staff' | 'marketing';
+const asRole = (who: boolean | NavRole): NavRole => (typeof who === 'boolean' ? (who ? 'staff' : 'owner') : who);
+
+export function forRole(entry: NavEntry, who: boolean | NavRole): NavEntry | null {
+  const role = asRole(who);
+  // A marketing account (roles.ts) sees the Marketing group whole — Posts, Website, Ads — and nothing else.
+  if (role === 'marketing') {
+    if (!on(entry) || entry.group !== 'marketing') return null;
+    if (!entry.tabs) return entry;
+    const tabs = entry.tabs.filter(on);
+    return tabs.length ? { ...entry, href: tabs[0].href, tabs, pages: entry.pages?.filter(on) } : null;
+  }
+  const staff = role === 'staff';
   if (!on(entry) || (staff && !entry.staff)) return null;
   if (!entry.tabs) return entry;
   const tabs = entry.tabs.filter(t => on(t) && (!staff || t.staff));
@@ -257,7 +270,7 @@ export function forRole(entry: NavEntry, staff: boolean): NavEntry | null {
 }
 
 /** The sidebar for a person: groups in order, each with the rows they can see. Empty groups go. */
-export function sidebarFor(staff: boolean): { key: NavGroup; label: string; entries: NavEntry[] }[] {
+export function sidebarFor(staff: boolean | NavRole): { key: NavGroup; label: string; entries: NavEntry[] }[] {
   return GROUPS
     .map(g => ({ ...g, entries: NAV.filter(e => e.group === g.key).map(e => forRole(e, staff)).filter((e): e is NavEntry => !!e) }))
     .filter(g => g.entries.length > 0);
@@ -319,8 +332,9 @@ export interface Destination { key: string; label: string; href: string; icon: L
  * tab's label is `Entry › Tab` when the entry qualifies its tabs or when the label alone is another
  * place's too; a tab at its entry's own address is the entry (its label becomes a keyword).
  */
-export function paletteFor(staff: boolean): Destination[] {
-  const entries = ALL_ENTRIES.map(e => forRole(e, staff)).filter((e): e is NavEntry => !!e);
+export function paletteFor(who: boolean | NavRole): Destination[] {
+  const role = asRole(who), staff = role === 'staff';
+  const entries = ALL_ENTRIES.map(e => forRole(e, role)).filter((e): e is NavEntry => !!e);
   const raw: (Destination & { entry?: NavEntry; tabLabel?: string })[] = [];
   for (const e of entries) {
     const own = e.tabs?.find(t => t.href === e.href);
@@ -337,7 +351,7 @@ export function paletteFor(staff: boolean): Destination[] {
   for (const d of raw) count.set(d.label.toLowerCase(), (count.get(d.label.toLowerCase()) ?? 0) + 1);
   const places: Destination[] = raw.map(({ entry, tabLabel, ...d }) =>
     entry && tabLabel && (entry.qualify || (count.get(tabLabel.toLowerCase()) ?? 0) > 1) ? { ...d, label: `${entry.label} › ${tabLabel}` } : d);
-  const actions: Destination[] = ACTIONS.filter(a => on(a) && (!staff || a.staff))
+  const actions: Destination[] = role === 'marketing' ? [] : ACTIONS.filter(a => on(a) && (!staff || a.staff))
     .map(a => ({ key: `a:${a.href}`, label: a.label, href: a.href, icon: a.icon, group: 'Create', keywords: a.keywords ?? [] }));
   return [...places.filter(p => p.key !== 'e:new-sale'), ...actions];
 }

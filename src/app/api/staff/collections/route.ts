@@ -15,7 +15,7 @@ import { withInlinePhotos } from '@/lib/order-photos-server';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
-import { roleForEmail, isStaffCollection, STAFF_COLLECTIONS } from '@/lib/roles';
+import { roleForEmail, isStaffCollection, STAFF_COLLECTIONS, MARKETING_COLLECTIONS } from '@/lib/roles';
 import { staffViewAll, staffSettingsView } from '@/lib/staff-view';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const role = roleForEmail(email);
-  if (role !== 'staff' && role !== 'owner') {
+  if (role !== 'staff' && role !== 'owner' && role !== 'marketing') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   // Only logged, not branched on: this endpoint already returns the staff view
@@ -48,6 +48,10 @@ export async function GET(req: NextRequest) {
   // One collection per call, so a slow collection cannot hold up the rest and
   // the client can keep its existing per-collection loading states.
   const name = req.nextUrl.searchParams.get('name') || '';
+  // A marketing account reads the settings and the pieces, nothing of the books (roles.ts).
+  if (role === 'marketing' && !(MARKETING_COLLECTIONS as readonly string[]).includes(name)) {
+    return NextResponse.json({ error: 'Not available', allowed: MARKETING_COLLECTIONS }, { status: 403 });
+  }
 
   // Settings is a single document, not a collection, and needs the rates and
   // the shop details to price and print anything at all.

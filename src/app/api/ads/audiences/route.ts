@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
+import { adsFail, adsGate, noStore, ownerOnly } from '@/lib/ads/gate';
 import { MetaAdsError } from '@/lib/ads/meta';
 import { requireAccount } from '@/lib/ads/settings';
 import { createCustomerAudience, createEngagementAudience, createLookalike, deleteAudience, listAudiences, refreshCustomerAudience, ENGAGEMENT_EVENTS } from '@/lib/ads/audiences';
@@ -36,6 +36,8 @@ export async function POST(req: NextRequest) {
   const who = await adsGate(req);
   if (who instanceof NextResponse) return who;
   const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  // A customer audience sends the customer book (hashed) to Meta: owners only, not a marketing account.
+  if (b.kind === 'customers' || b.kind === 'refresh') { const no = await ownerOnly(req); if (no) return no; }
   const today = new Date().toISOString().slice(0, 10);
   try {
     const { act, settings } = await requireAccount();

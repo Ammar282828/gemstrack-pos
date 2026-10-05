@@ -126,16 +126,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // return below: a hook after it changes the hook count the render the store hydrates.
   const scrolled = useScrolled('.app-inset > main');
 
+  // A marketing account (roles.ts) has only the Marketing group: any other address — the dashboard
+  // included, which shows the day's money — sends it to the first page it may open. The server refuses
+  // the data anyway; this keeps it off pages that would only be empty.
+  const marketingHome = roleForEmail(user?.email) === 'marketing'
+    ? (() => { const groups = sidebarFor('marketing'); const all = groups.flatMap(g => g.entries); return locate(pathname, all) ? null : (all[0]?.href ?? null); })()
+    : null;
+  useEffect(() => { if (marketingHome) router.replace(marketingHome); }, [marketingHome, router]);
+
   if (!isStoreHydrated) return null;
 
   // Staff see only what they can actually reach. This is presentation, not
   // protection — the boundary is firestore.rules — but a menu full of doors
   // that error on opening is its own kind of broken.
   const role = devRole() ?? roleForEmail(user?.email);
-  const isStaff = role === 'staff';
-  const visibleGroups = sidebarFor(isStaff);
-  const settingsEntry = forRole(SETTINGS, isStaff);
-  const newSaleEntry = forRole(NEW_SALE, isStaff);
+  const navRole = role === 'marketing' ? 'marketing' : role === 'staff' ? 'staff' : 'owner';
+  const visibleGroups = sidebarFor(navRole);
+  const settingsEntry = forRole(SETTINGS, navRole);
+  const newSaleEntry = forRole(NEW_SALE, navRole);
 
   // This page's row and the tab it lights (a detail page lights the tab it sits under); the top bar
   // shows the row's tabs whenever there is more than one to choose between.

@@ -375,6 +375,24 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   cleared the order's link (the advance counted as revenue again) — it now keeps the other; a duplicate's pieces stay sold.
   Not gated: drafts (they have Undo), settings lists, ads and website items (outside the books).
 
+### Marketing role
+
+The owner, 2026-10-05: unknownuser80@gmail.com should have "access only to the marketing section" of House of Mina's ERP.
+A fourth role beside owner, staff and karigar (`lib/roles.ts`), named by `NEXT_PUBLIC_STORE_MARKETING_EMAILS`
+(`apphosting.mina.yaml`; Taheri names nobody). An owner or staff listing always wins.
+
+- **What it sees:** the Marketing group whole (Posts, Website, Ads with the Studio) and nothing else: no dashboard, sales,
+  orders, customers, stock, money, analytics or settings (`forRole(…, 'marketing')` in `lib/nav.ts`). Any other address,
+  the dashboard included, sends it to its first page (`app-layout.tsx`).
+- **The boundary is the server, as for staff:** no direct Firestore access; its store reads only `settings` (the staff
+  allow-list), `products` and `categories` through `/api/staff/collections`, stripped like staff's (`MARKETING_COLLECTIONS`).
+  `adsGate`, `postGate` and the website routes let it in; the online-order routes (`staffGate`), the staff write path,
+  voice and the bill scanners do not. **Customer audiences** (which send the customer book, hashed, to Meta) stay owners'
+  only (`ownerOnly` in `ads/gate.ts`); Instagram-engager and lookalike audiences are open to it.
+- **Two things outside the code:** Mina's Firebase has sign-up off, so the account's first sign-in needs it on for that
+  minute; and Mina's Firestore rules must give database access to owners only, or a marketing account could read the
+  books from the browser whatever the menu shows (see [Karigar sign-in](#karigar-sign-in)).
+
 ### Karigar sign-in
 
 - **A karigar's Google sign-in fails on his phone, where the ERP can't see it** (2026-10-01, owner: "why cant uzair my karigar

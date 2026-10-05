@@ -120,6 +120,13 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Marketing accounts (lib/roles.ts): sign in and see only the Marketing group — Posts, Website, Ads —
+  # never the books. The owner, 2026-10-05: unknownuser80 "access only to the marketing section".
+  - variable: NEXT_PUBLIC_STORE_MARKETING_EMAILS
+    value: "unknownuser80@gmail.com"
+    availability:
+      - BUILD
+      - RUNTIME
   # Counter staff, for "Taken by" on orders and invoices — ADJUST to Mina's counter.
   - variable: NEXT_PUBLIC_STORE_TAKEN_BY
     value: "Mina,Ammar,Murtaza"

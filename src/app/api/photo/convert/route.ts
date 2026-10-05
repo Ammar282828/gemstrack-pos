@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   if (!OPEN_ACCESS) {
     const email = await verifyRequestEmail(req);
     const role = email ? roleForEmail(email) : null;
-    if (role !== 'owner' && role !== 'staff') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (role !== 'owner' && role !== 'staff' && role !== 'marketing') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const form = await req.formData().catch(() => null);
   const file = form?.get('file');

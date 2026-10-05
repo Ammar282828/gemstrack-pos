@@ -53,7 +53,7 @@ async function gate(req: NextRequest): Promise<string | NextResponse> {
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const role = roleForEmail(email);
-  if (role !== 'owner' && role !== 'staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (role !== 'owner' && role !== 'staff' && role !== 'marketing') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   return email;
 }
 

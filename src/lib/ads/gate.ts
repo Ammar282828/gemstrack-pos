@@ -1,9 +1,11 @@
 /**
  * Who may use the Ads routes: whoever the POS lets in (the owner, 2026-09-25:
  * "open like the rest"). Under NEXT_PUBLIC_OPEN_ACCESS that is anyone who
- * reaches the app; otherwise a verified owner — ad money is owners' business,
- * like Expenses and Analytics, which staff don't see. Nobody, in a house with
- * the feature off.
+ * reaches the app; otherwise a verified owner or marketing account (roles.ts;
+ * the owner, 2026-10-05) — ad money is not the shop floor's business, like
+ * Expenses and Analytics, which staff don't see. Nobody, in a house with the
+ * feature off. The audiences built from the customer book stay owners' only
+ * (`ownerOnly`).
  *
  * Also the one way every route turns a failure into an answer, with Meta's own
  * words and the right status.
@@ -23,8 +25,16 @@ export async function adsGate(req: NextRequest, enabled = STORE_META_ADS): Promi
   if (OPEN_ACCESS) return 'counter';
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (roleForEmail(email) !== 'owner') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const role = roleForEmail(email);
+  if (role !== 'owner' && role !== 'marketing') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   return email;
+}
+
+/** For the few ads routes that hand the shop's own records to Meta (customer audiences): owners only. */
+export async function ownerOnly(req: NextRequest): Promise<NextResponse | null> {
+  if (OPEN_ACCESS) return null;
+  const email = await verifyRequestEmail(req);
+  return email && roleForEmail(email) === 'owner' ? null : NextResponse.json({ error: 'Only an owner can do this.' }, { status: 403 });
 }
 
 export function adsFail(e: unknown, where: string): NextResponse {
