@@ -352,8 +352,9 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 - **What the shop earns, on every order and sale — never for the customer** (owner, 2026-10-05). Its gold costs it "the
   weight … in 24 karat minus 6 ratti": a tola is 96 ratti, so a gram of jewellery costs the 24k rate × 90/96 (93.75%).
   The 24k rate is **asked for** as the order or sale is made — New sale's *For the shop* card, the order form's totals,
-  Finalize & invoice (starting from the order's own) — empty, with the rate sheet's one tap away, and stored as
-  `costRate24k` on the order or invoice. Given, the margin is worked out (`lib/margin.ts`): each gold piece with a weight
+  Finalize & invoice (starting from the order's own) — empty, with the rate sheet's one tap away — **typed per tola**
+  (same day: "let me add the tola rate instead, and then you can calculate the per-gram rate"; ÷ 11.664, `lib/units.ts`)
+  and stored per gram as `costRate24k` on the order or invoice. Given, the margin is worked out (`lib/margin.ts`): each gold piece with a weight
   at its metal (less stones) × that cost, its stone and diamond charges at what they were charged, a piece without a
   weight or not gold at 10%. **Not given, 10%** — and every order and sale recorded before 2026-10-05 stays at 10%
   ("for all the previous recorded stuff keep the profit as 10 percent"); the 24k rate kept on old sales is not used

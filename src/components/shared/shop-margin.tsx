@@ -19,33 +19,45 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { COST_RATTI_LESS, ASSUMED_MARGIN, goldCostPerGram, percentLabel, type Margin } from '@/lib/margin';
+import { GRAMS_PER_TOLA } from '@/lib/units';
 
 export const SHOP_MARGIN_ON = COST_RATTI_LESS !== null;
 
 const rs = (n: number) => `PKR ${Math.round(Number(n) || 0).toLocaleString('en-PK')}`;
 
-/** "24k rate now", with today's rate sheet one tap away. Empty is allowed: the sale is then taken at 10%. */
+/**
+ * "24k rate now", typed per tola — the way the bazaar quotes it (the owner, 2026-10-05: "let me add
+ * the tola rate instead, and then you can calculate the per-gram rate"). The value in and out stays
+ * per gram (costRate24k, lib/margin.ts), so nothing stored changes: the box shows it × 11.664 (lib/units.ts) and
+ * hands back what is typed ÷ 11.664. The rate sheet's 24k is one tap away; empty is allowed, and the
+ * sale is then taken at 10%.
+ */
 export function CostRateField({ value, onChange, sheetRate24k, id = 'cost-rate-24k', className }: {
+  /** Per gram. */
   value: number | string | null | undefined;
+  /** Per gram, or undefined when cleared. */
   onChange: (v: number | undefined) => void;
-  /** The rate sheet's 24k, offered, never filled in by itself. */
+  /** The rate sheet's 24k per gram, offered, never filled in by itself. */
   sheetRate24k?: number;
   id?: string;
   className?: string;
 }) {
   if (!SHOP_MARGIN_ON) return null;
-  const typed = Number(value) || 0;
-  const sheet = Number(sheetRate24k) || 0;
+  const perGram = Number(value) || 0;
+  const perTola = Math.round(perGram * GRAMS_PER_TOLA);
+  const sheetTola = Math.round((Number(sheetRate24k) || 0) * GRAMS_PER_TOLA);
   return (
     <div className={cn('space-y-1.5', className)}>
-      <Label htmlFor={id} className="flex items-center gap-1.5"><Lock className="h-3.5 w-3.5 text-warning" />24k rate now (PKR / g)</Label>
-      <AmountInput id={id} value={typed || ''} onValueChange={v => onChange(Number(v) > 0 ? Number(v) : undefined)} placeholder="For our margin — leave empty for 10%" />
+      <Label htmlFor={id} className="flex items-center gap-1.5"><Lock className="h-3.5 w-3.5 text-warning" />24k rate now (PKR / tola)</Label>
+      <AmountInput id={id} value={perTola || ''} maxDecimals={0}
+        onValueChange={v => onChange(Number(v) > 0 ? Number(v) / GRAMS_PER_TOLA : undefined)}
+        placeholder="For our margin — leave empty for 10%" />
       <p className="text-xs text-muted-foreground">
-        {typed > 0
-          ? <>Our cost: {rs(goldCostPerGram(typed))} a gram of jewellery (24k less {COST_RATTI_LESS} ratti).</>
+        {perGram > 0
+          ? <>{rs(perGram)} a gram · our cost {rs(goldCostPerGram(perGram))} a gram of jewellery (24k less {COST_RATTI_LESS} ratti).</>
           : <>Without it the margin is taken as {Math.round(ASSUMED_MARGIN * 100)}%.</>}
-        {sheet > 0 && Math.round(sheet) !== Math.round(typed) && (
-          <> <button type="button" className="underline underline-offset-2 text-foreground" onClick={() => onChange(sheet)}>Use the rate sheet&apos;s {sheet.toLocaleString('en-PK')}</button></>
+        {sheetTola > 0 && sheetTola !== perTola && (
+          <> <button type="button" className="underline underline-offset-2 text-foreground" onClick={() => onChange(sheetTola / GRAMS_PER_TOLA)}>Use the rate sheet&apos;s {sheetTola.toLocaleString('en-PK')} a tola</button></>
         )}
       </p>
     </div>

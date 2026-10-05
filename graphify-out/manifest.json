@@ -2286,9 +2286,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1791203537.814222,
-    "seen": 1791203579.4025815,
-    "ast_hash": "4cda6962d340587856854e5fe87d1b25",
+    "mtime": 1791203585.8102162,
+    "seen": 1791204179.0111935,
+    "ast_hash": "5316c56a0d788bd2a69df2edd13518ce",
     "semantic_hash": ""
   },
   "README.md": {
@@ -4320,9 +4320,9 @@
     "semantic_hash": ""
   },
   "docs/decisions.md": {
-    "mtime": 1791203530.8924434,
-    "seen": 1791203579.4025958,
-    "ast_hash": "accd708d2af05cb7ea563cb47f414abc",
+    "mtime": 1791204128.1337216,
+    "seen": 1791204179.0112119,
+    "ast_hash": "59ee5ab2bed7b71bcf507fb27a27e6ca",
     "semantic_hash": ""
   },
   "docs/features/ad-studio.md": {
@@ -5004,9 +5004,9 @@
     "semantic_hash": ""
   },
   "src/components/shared/shop-margin.tsx": {
-    "mtime": 1791201309.7785563,
-    "seen": 1791202328.3226771,
-    "ast_hash": "1d6dff54b62aa81540f85d8dca8d7b72",
+    "mtime": 1791204073.9687212,
+    "seen": 1791204179.0101688,
+    "ast_hash": "b5e587e9ce8362efcc3a8d903fdcc571",
     "semantic_hash": ""
   },
   "src/lib/margin.test.ts": {
