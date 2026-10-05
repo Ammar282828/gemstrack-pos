@@ -156,9 +156,9 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Wastage in grams](docs/decisions.md#wastage-in-grams) — the workshop slip keeps the percentage
 - [Repairs](docs/decisions.md#repairs) — a ticket of many pieces; In the shop → Ready → Collected; money to Extra revenue
 - [Invoice pages](docs/decisions.md#invoice-pages) — the viewer never touches the cart; `/cart` redirects; `/view-invoice/<id>` is the customer's
-- [Invoice PDF](docs/decisions.md#invoice-pdf) — `saveInvoicePdf`, per-piece printing; "Invoice - <customer>"; WhatsApp sends the PDF
+- [Invoice PDF](docs/decisions.md#invoice-pdf) — `saveInvoicePdf`, per-piece; Taheri: "Invoice - <customer>", PDF on WhatsApp
 - [Exchange rows](docs/decisions.md#exchange-rows) — `exchanges`, with the old totals kept
-- [Order to invoice](docs/decisions.md#order-to-invoice) — advances as payments, exchange, discount, notes
+- [Order to invoice](docs/decisions.md#order-to-invoice) — advances as payments, exchange, discount, notes; wastage/making
 - [Orders hub](docs/decisions.md#orders-hub) — by stage, a next step per card; pieces set status
 - [Online orders](docs/decisions.md#online-orders) — a person confirms; no sale until the transfer
 - [Name a sale](docs/decisions.md#name-a-sale) — on the invoice

@@ -20,7 +20,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { metalLabel, describeSettings, describeDelivery } from '@/lib/materials';
 import { categorySingular } from '@/lib/categories';
-import { STORE_LOGO_ASPECT } from '@/lib/store-config';
+import { STORE_INVOICE_BY_CUSTOMER, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { staticCategories, type Invoice, type InvoiceItem, type Customer } from '@/lib/store';
 import { openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import { loadPdfLogo } from '@/lib/pdf-logo';
@@ -359,7 +359,7 @@ export async function buildInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions 
     logoFormat: pdfLogo?.format ?? 'PNG',
   };
   // What a PDF viewer, and WhatsApp's preview of the file, shows as its name.
-  doc.setProperties({ title: invoiceTitle(invoice) });
+  if (STORE_INVOICE_BY_CUSTOMER) doc.setProperties({ title: invoiceTitle(invoice) });
   const invoices = opts.perPiece ? splitInvoicePerPiece(invoice) : [invoice];
   invoices.forEach((inv, i) => {
     if (i > 0) doc.addPage();
@@ -375,8 +375,11 @@ export async function saveInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions =
   const iOSWin = openPDFWindowForIOS();
   try {
     const doc = await buildInvoicePdf(invoice, opts);
-    // "Invoice - <customer>", never the number (lib/invoice-share.ts).
-    const name = invoiceFileName(invoice, { perPiece: opts.perPiece && itemsOf(invoice).length > 1 });
+    // Taheri: "Invoice - <customer>", never the number (lib/invoice-share.ts).
+    const perPiece = !!opts.perPiece && itemsOf(invoice).length > 1;
+    const name = STORE_INVOICE_BY_CUSTOMER
+      ? invoiceFileName(invoice, { perPiece })
+      : perPiece ? `Invoice-${invoice.id}-per-piece.pdf` : `Invoice-${invoice.id}.pdf`;
     await savePDF(doc, name, iOSWin);
   } catch (e) {
     iOSWin?.close();

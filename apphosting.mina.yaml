@@ -403,6 +403,19 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Taheri's invoice changes of 2026-10-05, not Mina's (the owner: "these are instructions for taheri pos"):
+  # Mina's invoices keep their number as their file name, and Send via WhatsApp opens WhatsApp on the
+  # device with the message and a link instead of sending the PDF from Mina's line.
+  - variable: NEXT_PUBLIC_STORE_INVOICE_BY_CUSTOMER
+    value: "0"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_INVOICE_WHATSAPP_PDF
+    value: "0"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_STORE_WEBSITE_FEATURED
     value: "0"
     availability:

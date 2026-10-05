@@ -179,6 +179,7 @@ async function deleteCollection(collectionName: string) {
 // because every existing caller imports it from the store.
 export { calculateProductPrice } from './pricing';
 import { _calculateProductCostsInternal, GOLD_COIN_CATEGORY_ID_INTERNAL, DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL } from './pricing';
+import { finalizedItemCosts, orderInvoiceRates, type FinalizedItem } from './order-finalize';
 
 // --- Type Definitions ---
 export type { MetalType, KaratValue } from './materials';
@@ -1248,17 +1249,8 @@ export class RepairRevenueError extends Error {
 // --- Store State and Actions ---
 type ProductDataForAdd = Omit<Product, 'sku' | 'qrCodeDataUrl'>;
 type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
-type FinalizedOrderItemData = {
-    description: string; // Added to help identify item
-    metalType: MetalType;
-    karat?: KaratValue;
-    finalWeightG: number;
-    finalMakingCharges: number;
-    finalDiamondCharges: number;
-    finalStoneCharges: number;
-    isManualPrice?: boolean;
-    finalManualPrice?: number;
-};
+/** One piece as Finalize & invoice sends it (lib/order-finalize.ts). */
+type FinalizedOrderItemData = FinalizedItem;
 
 
 export interface CartItem extends Product {
@@ -3919,15 +3911,7 @@ export const useAppStore = create<AppState>()(
         if (get().settings.databaseLocked) return null;
         const { settings } = get();
         let finalSubtotal = 0;
-        const ratesForInvoice = order.ratesApplied || {
-            goldRatePerGram24k: settings.goldRatePerGram24k,
-            goldRatePerGram22k: settings.goldRatePerGram22k,
-            goldRatePerGram21k: settings.goldRatePerGram21k,
-            goldRatePerGram18k: settings.goldRatePerGram18k,
-            palladiumRatePerGram: settings.palladiumRatePerGram,
-            platinumRatePerGram: settings.platinumRatePerGram,
-            silverRatePerGram: settings.silverRatePerGram
-        };
+        const ratesForInvoice = orderInvoiceRates(order, settings);
 
         const finalInvoiceItems: InvoiceItem[] = [];
         order.items.forEach((originalItem, index) => {
@@ -3937,30 +3921,10 @@ export const useAppStore = create<AppState>()(
                 throw new Error(`Finalized data for item "${originalItem.description}" not found.`);
             }
 
-            let itemPrice: number;
-            let itemCosts: { metalCost: number; wastageCost: number; makingCharges: number; diamondCharges: number; stoneCharges: number };
-
-            if (finalizedData.isManualPrice) {
-                itemPrice = Number(finalizedData.finalManualPrice) || 0;
-                itemCosts = { metalCost: 0, wastageCost: 0, makingCharges: 0, diamondCharges: 0, stoneCharges: 0 };
-            } else {
-                const productForCostCalc = {
-                    metalType: originalItem.metalType,
-                    karat: originalItem.karat,
-                    metalWeightG: finalizedData.finalWeightG,
-                    stoneWeightG: originalItem.stoneWeightG,
-                    hasStones: originalItem.hasStones,
-                    wastagePercentage: originalItem.wastagePercentage,
-                    makingCharges: finalizedData.finalMakingCharges,
-                    hasDiamonds: originalItem.hasDiamonds,
-                    diamondCharges: finalizedData.finalDiamondCharges,
-                    stoneCharges: finalizedData.finalStoneCharges,
-                    miscCharges: 0,
-                };
-                const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice as any);
-                itemPrice = costs.totalPrice;
-                itemCosts = { metalCost: costs.metalCost, wastageCost: costs.wastageCost, makingCharges: costs.makingCharges, diamondCharges: costs.diamondCharges, stoneCharges: costs.stoneCharges };
-            }
+            // The figures typed in Finalize & invoice — weight, wastage, making, stones, diamonds —
+            // priced exactly as the dialog showed them (lib/order-finalize.ts).
+            const itemCosts = finalizedItemCosts(originalItem, finalizedData, ratesForInvoice);
+            const itemPrice = itemCosts.price;
 
             finalSubtotal += itemPrice;
 
@@ -3978,7 +3942,7 @@ export const useAppStore = create<AppState>()(
                 itemTotal: itemPrice,
                 metalCost: itemCosts.metalCost,
                 wastageCost: itemCosts.wastageCost,
-                wastagePercentage: originalItem.wastagePercentage,
+                wastagePercentage: itemCosts.wastagePercentage,
                 makingCharges: itemCosts.makingCharges,
                 diamondChargesIfAny: itemCosts.diamondCharges,
                 stoneChargesIfAny: itemCosts.stoneCharges,

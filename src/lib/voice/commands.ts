@@ -23,7 +23,7 @@ import type {
 } from '@/lib/store';
 import { staticCategories } from '@/lib/categories';
 import { EXPENSE_CATEGORIES } from '@/lib/expense-categories';
-import { STORE_CONFIG } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_INVOICE_WHATSAPP_PDF } from '@/lib/store-config';
 import { ORDER_CATEGORIES, type OrderDraft, type DraftItem } from '@/lib/vision/order-draft';
 import type { BillLine } from '@/lib/vision/bill-draft';
 import { orderAdvancePayments } from '@/lib/order-payment';
@@ -171,11 +171,13 @@ export const COMMANDS: CommandDef[] = [
     run: async (v, x) => go(`/invoices/${(v.invoice as Invoice).id}?do=print`, `Printing ${(v.invoice as Invoice).id}.`)(v, x),
   },
   {
-    // Not read-only: it sends the PDF from the shop's line straight away, so it is confirmed first.
-    id: 'send_invoice', label: 'Send an invoice on WhatsApp',
+    // Where the PDF goes from the shop's line straight away (Taheri) it is confirmed first; where it
+    // only opens WhatsApp on the device (Mina), a person still presses send there.
+    id: 'send_invoice', label: 'Send an invoice on WhatsApp', readOnly: !STORE_INVOICE_WHATSAPP_PDF,
     say: "Send an invoice to its customer on WhatsApp.", args: [A.invoice()],
     describe: l => `Send ${l.invoice} to the customer on WhatsApp.`,
-    run: async (v, x) => go(`/invoices/${(v.invoice as Invoice).id}?do=share`, `Sending ${(v.invoice as Invoice).id} to the customer on WhatsApp.`)(v, x),
+    run: async (v, x) => go(`/invoices/${(v.invoice as Invoice).id}?do=share`,
+      STORE_INVOICE_WHATSAPP_PDF ? `Sending ${(v.invoice as Invoice).id} to the customer on WhatsApp.` : `Opening WhatsApp for ${(v.invoice as Invoice).id}.`)(v, x),
   },
   {
     id: 'finalize_order', label: 'Finalize an order into an invoice', readOnly: true,

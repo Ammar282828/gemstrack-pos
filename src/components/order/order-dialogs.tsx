@@ -26,6 +26,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { AmountInput } from '@/components/ui/amount-input';
+import { finalizedItemCosts, orderInvoiceRates, takesWastageAndMaking, wastageGramsFor, wastagePercentFor } from '@/lib/order-finalize';
+import { exchangeTotal, orderExchanges } from '@/lib/exchange';
+import { orderAdvancePayments } from '@/lib/order-payment';
 
 // --- Finalize Order Dialog Components ---
 const finalizeOrderItemSchema = z.object({
@@ -35,6 +38,7 @@ const finalizeOrderItemSchema = z.object({
   isManualPrice: z.boolean().default(true),
   finalManualPrice: z.coerce.number().min(0).default(0),
   finalWeightG: z.coerce.number().min(0).default(0),
+  finalWastagePercentage: z.coerce.number().min(0, "Cannot be negative.").default(0),
   finalMakingCharges: z.coerce.number().min(0, "Cannot be negative."),
   finalDiamondCharges: z.coerce.number().min(0, "Cannot be negative."),
   finalStoneCharges: z.coerce.number().min(0, "Cannot be negative."),
@@ -53,12 +57,28 @@ const finalizeOrderSchema = z.object({
 
 type FinalizeOrderFormData = z.infer<typeof finalizeOrderSchema>;
 
+const rs = (n: number) => `PKR ${Math.round(Number(n) || 0).toLocaleString('en-PK')}`;
+const grams3 = (g: number) => Math.round((Number(g) || 0) * 1000) / 1000;
+
+/** A unit at the right edge of a number box: "%" and "g" side by side read as one figure two ways. */
+const Unit: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{children}</span>
+);
+
+/**
+ * Finalize & invoice: the finished pieces' weight, wastage and making (and stones, diamonds), the
+ * discount, and what it all comes to — the owner, 2026-10-05: change "the wastage and making …
+ * without having to re-edit it". Wastage was missing, so a different figure meant editing the
+ * invoice after; and nothing showed the price until the invoice existed. Each piece's price and the
+ * balance are worked out here as you type, by the same calculation the invoice is written with
+ * (lib/order-finalize.ts), at the order's booked rate.
+ */
 export const FinalizeOrderDialog: React.FC<{
     order: Order;
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }> = ({ order, open, onOpenChange }) => {
-    const { generateInvoiceFromOrder } = useAppStore();
+    const { generateInvoiceFromOrder, settings } = useAppStore(s => ({ generateInvoiceFromOrder: s.generateInvoiceFromOrder, settings: s.settings }));
     const router = useRouter();
     const { toast } = useToast();
 
@@ -72,6 +92,7 @@ export const FinalizeOrderDialog: React.FC<{
                 isManualPrice: item.isManualPrice || false,
                 finalManualPrice: item.manualPrice || item.totalEstimate || 0,
                 finalWeightG: item.estimatedWeightG,
+                finalWastagePercentage: Number(item.wastagePercentage) || 0,
                 finalMakingCharges: item.makingCharges,
                 finalDiamondCharges: item.diamondCharges,
                 finalStoneCharges: item.stoneCharges,
@@ -81,6 +102,21 @@ export const FinalizeOrderDialog: React.FC<{
     });
 
     const { fields } = useFieldArray({ control: form.control, name: "items" });
+
+    // What it comes to, live: the order's booked rate, the figures as typed.
+    const rates = React.useMemo(() => orderInvoiceRates(order, settings), [order, settings]);
+    const typed = form.watch('items');
+    const discount = Number(form.watch('additionalDiscount')) || 0;
+    const prices = order.items.map((it, i) => typed?.[i] ? finalizedItemCosts(it, typed[i], rates).price : 0);
+    const subtotal = prices.reduce((a, b) => a + b, 0);
+    const exchange = exchangeTotal(orderExchanges(order));
+    const advances = orderAdvancePayments(order).reduce((a, p) => a + (Number(p.amount) || 0), 0);
+    const balance = subtotal - discount - exchange - advances;
+    const rateLine = order.items.some(it => it.metalType === 'gold')
+      ? (['21k', '22k', '18k', '24k'] as const)
+          .filter(k => order.items.some(it => it.metalType === 'gold' && it.karat === k))
+          .map(k => `${k} ${Number(rates[`goldRatePerGram${k}`] || 0).toLocaleString('en-PK')}/g`).join(' · ')
+      : '';
 
     const handleFinalize = async (data: FinalizeOrderFormData) => {
         const newInvoice = await generateInvoiceFromOrder(order, data.items, data.additionalDiscount);
@@ -107,20 +143,36 @@ export const FinalizeOrderDialog: React.FC<{
                 <DialogHeader>
                     <DialogTitle>Finalize & invoice</DialogTitle>
                     <DialogDescription>
-                        Confirm or update the final weights and charges for each item. Everything settled on the order carries over
-                        to the invoice: each advance as a payment with its date and how it was paid, the gold taken in exchange,
-                        the discount, who took the order, the delivery address and the notes.
+                        The finished pieces' weight, wastage and making — change any of them here; the order itself stays as it was.
+                        Everything settled on the order carries over to the invoice: each advance as a payment with its date and how
+                        it was paid, the gold taken in exchange, the discount, who took the order, the delivery address and the notes.
                     </DialogDescription>
                 </DialogHeader>
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleFinalize)} className="space-y-6">
                         <ScrollArea className="h-[50vh] p-1">
                             <div className="space-y-4 p-3">
-                                {fields.map((field, index) => (
+                                {fields.map((field, index) => {
+                                    const original = order.items[index];
+                                    const manual = !!typed?.[index]?.isManualPrice;
+                                    const onOrder = Number(original?.isManualPrice ? original.manualPrice : original?.totalEstimate) || 0;
+                                    const stoneG = Number(original?.stoneWeightG) || 0;
+                                    const weight = Number(typed?.[index]?.finalWeightG) || 0;
+                                    const metal = form.getValues(`items.${index}.metalType`);
+                                    return (
                                     <Card key={field.id} className="p-4 bg-muted/50 space-y-3">
-                                        <p className="font-bold text-sm">Item #{index + 1}: {form.getValues(`items.${index}.description`)}</p>
+                                        <div className="flex items-baseline justify-between gap-3">
+                                          <p className="font-bold text-sm min-w-0">Item #{index + 1}: {form.getValues(`items.${index}.description`)}</p>
+                                          {/* The piece's price as typed, and what the order had it at when it differs. */}
+                                          <p className="shrink-0 text-right text-sm tabular-nums">
+                                            <span className="font-semibold">{rs(prices[index])}</span>
+                                            {onOrder > 0 && Math.round(onOrder) !== Math.round(prices[index]) && (
+                                              <span className="block text-xs text-muted-foreground">on the order {rs(onOrder)}</span>
+                                            )}
+                                          </p>
+                                        </div>
                                         {/* Manual price (Primary) */}
-                                        {form.watch(`items.${index}.isManualPrice`) && (
+                                        {manual && (
                                             <FormField control={form.control} name={`items.${index}.finalManualPrice`} render={({ field }) => (
                                                 <FormItem><FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Final Price (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
                                             )}/>
@@ -130,33 +182,63 @@ export const FinalizeOrderDialog: React.FC<{
                                             <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-2 bg-muted/30">
                                                 <FormControl><Checkbox checked={!field.value} onCheckedChange={(checked) => field.onChange(!checked)} /></FormControl>
                                                 <div className="space-y-0.5 leading-none">
-                                                    <FormLabel className="text-xs text-muted-foreground cursor-pointer">Use Rate &amp; Stone Calculation Instead</FormLabel>
+                                                    <FormLabel className="text-xs text-muted-foreground cursor-pointer">Price it by weight, wastage and making</FormLabel>
                                                 </div>
                                             </FormItem>
                                         )}/>
                                         {/* Rate calculation (Secondary) */}
-                                        {!form.watch(`items.${index}.isManualPrice`) && (
+                                        {!manual && (
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <FormField control={form.control} name={`items.${index}.finalWeightG`} render={({ field }) => (
-                                                    <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4"/>Final Weight (g)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
+                                                    <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4"/>Final Weight (g)</FormLabel><FormControl><AmountInput maxDecimals={3} {...field} /></FormControl><FormMessage /></FormItem>
                                                 )}/>
-                                                <FormField control={form.control} name={`items.${index}.finalMakingCharges`} render={({ field }) => (
-                                                    <FormItem><FormLabel className="flex items-center"><Gem className="mr-2 h-4"/>Final Making Charges</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
+                                                {takesWastageAndMaking(metal) ? (
+                                                  // One figure two ways: the percentage the price is made from, and the
+                                                  // grams the karigar writes ("6.500 + 0.650") and the invoice prints.
+                                                  <FormField control={form.control} name={`items.${index}.finalWastagePercentage`} render={({ field }) => (
+                                                    <FormItem>
+                                                      <FormLabel className="flex items-center"><Percent className="mr-2 h-4"/>Wastage</FormLabel>
+                                                      <div className="grid grid-cols-2 gap-2">
+                                                        <div className="relative">
+                                                          <FormControl><AmountInput {...field} maxDecimals={2} placeholder="0" aria-label="Wastage in percent" className="pr-7" /></FormControl>
+                                                          <Unit>%</Unit>
+                                                        </div>
+                                                        <div className="relative">
+                                                          <AmountInput
+                                                            aria-label="Wastage in grams" maxDecimals={3} placeholder="0" className="pr-7"
+                                                            value={grams3(wastageGramsFor(Number(field.value) || 0, weight, stoneG))}
+                                                            onValueChange={g => field.onChange(wastagePercentFor(Number(g) || 0, weight, stoneG))}
+                                                          />
+                                                          <Unit>g</Unit>
+                                                        </div>
+                                                      </div>
+                                                      {stoneG > 0 && <FormDescription>Of the metal: {grams3(weight)} g less {grams3(stoneG)} g of stones.</FormDescription>}
+                                                      <FormMessage />
+                                                    </FormItem>
+                                                  )}/>
+                                                ) : (
+                                                  <p className="self-end pb-2 text-xs text-muted-foreground">Silver&apos;s rate per gram covers its making and wastage.</p>
+                                                )}
+                                                {takesWastageAndMaking(metal) && (
+                                                  <FormField control={form.control} name={`items.${index}.finalMakingCharges`} render={({ field }) => (
+                                                      <FormItem><FormLabel className="flex items-center"><Gem className="mr-2 h-4"/>Making (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
+                                                  )}/>
+                                                )}
+                                                <FormField control={form.control} name={`items.${index}.finalStoneCharges`} render={({ field }) => (
+                                                    <FormItem><FormLabel>Stones (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
                                                 )}/>
                                                 <FormField control={form.control} name={`items.${index}.finalDiamondCharges`} render={({ field }) => (
-                                                    <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4"/>Final Diamond Charges</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
-                                                )}/>
-                                                <FormField control={form.control} name={`items.${index}.finalStoneCharges`} render={({ field }) => (
-                                                    <FormItem><FormLabel>Final Stone Charges</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
+                                                    <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4"/>Diamonds (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
                                                 )}/>
                                             </div>
                                         )}
                                     </Card>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </ScrollArea>
                         <Separator />
-                        <div className="p-3">
+                        <div className="p-3 grid gap-4 md:grid-cols-2">
                             <FormField control={form.control} name="additionalDiscount" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel className="flex items-center text-base"><Percent className="mr-2 h-4"/>Discount</FormLabel>
@@ -169,6 +251,15 @@ export const FinalizeOrderDialog: React.FC<{
                                   <FormMessage />
                                 </FormItem>
                             )}/>
+                            {/* What the invoice will say, before it exists. */}
+                            <div className="rounded-md border bg-muted/30 p-3 text-sm tabular-nums space-y-1" aria-live="polite">
+                              <div className="flex justify-between"><span>Pieces</span><span>{rs(subtotal)}</span></div>
+                              {discount > 0 && <div className="flex justify-between text-muted-foreground"><span>Discount</span><span>− {rs(discount)}</span></div>}
+                              {exchange > 0 && <div className="flex justify-between text-muted-foreground"><span>Exchange</span><span>− {rs(exchange)}</span></div>}
+                              {advances > 0 && <div className="flex justify-between text-muted-foreground"><span>Advances paid</span><span>− {rs(advances)}</span></div>}
+                              <div className="flex justify-between border-t pt-1 font-semibold"><span>{balance < 0 ? 'Owed to the customer' : 'Balance due'}</span><span>{rs(Math.abs(balance))}</span></div>
+                              {rateLine && <p className="pt-1 text-xs text-muted-foreground">At the order&apos;s rate: {rateLine}</p>}
+                            </div>
                         </div>
                         <DialogFooter>
                             <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>

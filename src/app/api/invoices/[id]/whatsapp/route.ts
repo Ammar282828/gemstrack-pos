@@ -15,7 +15,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { staffFail, staffGate } from '@/lib/website/staff-gate';
 import { sendWhatsAppFile, toWhatsAppNumber, whatsAppNumberExists, whatsAppProvider } from '@/lib/whatsapp';
 import { invoiceFileName, invoiceWhatsAppCaption } from '@/lib/invoice-share';
-import { STORE_CONFIG } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_INVOICE_BY_CUSTOMER, STORE_INVOICE_WHATSAPP_PDF } from '@/lib/store-config';
 import type { Invoice } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
@@ -30,6 +30,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as { to?: string; pdf?: string };
 
+  // Taheri's (NEXT_PUBLIC_STORE_INVOICE_WHATSAPP_PDF); House of Mina sends a link from the device.
+  if (!STORE_INVOICE_WHATSAPP_PDF) return NextResponse.json({ error: 'This house sends invoices as a link.' }, { status: 404 });
   const to = toWhatsAppNumber(body.to);
   if (to.length < 11 || to.length > 15) return NextResponse.json({ error: "Enter the customer's WhatsApp number." }, { status: 400 });
   if (!whatsAppProvider()) return NextResponse.json({ error: "This shop's WhatsApp line isn't connected to the ERP." }, { status: 503 });
@@ -50,7 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
     // The name the shop gave itself in Settings ("Taheri"), as the counter's own message used.
     const shopName = String((await adminDb.doc('app_settings/global').get().catch(() => null))?.get('shopName') || '').trim() || STORE_CONFIG.name;
-    const fileName = invoiceFileName(inv);
+    const fileName = STORE_INVOICE_BY_CUSTOMER ? invoiceFileName(inv) : `Invoice-${id}.pdf`;
     await sendWhatsAppFile(to, new Blob([new Uint8Array(bytes)], { type: 'application/pdf' }), fileName, invoiceWhatsAppCaption(inv, shopName));
 
     const sent = { at: new Date().toISOString(), to: `+${to}`, by: who };

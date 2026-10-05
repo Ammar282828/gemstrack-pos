@@ -185,6 +185,9 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   the invoice screen (`/invoices/<id>`) and `/view-invoice`. `perPiece` prints a multi-piece invoice as one invoice per piece on its
   own page ("Piece 2 of 3"); discount, exchange, adjustments and paid are shared pro rata by piece price, the last piece
   absorbs rounding, payment history is left off the pieces. The split button is `components/shared/print-button.tsx`.
+- **Taheri's, not Mina's** (owner, the same day: "these are instructions for taheri pos"): the next two follow
+  `NEXT_PUBLIC_STORE_INVOICE_BY_CUSTOMER` and `_INVOICE_WHATSAPP_PDF`, which Mina's file sets to "0" — its invoices keep
+  `Invoice-INV-….pdf` and its Send via WhatsApp the device's wa.me message with the estimate's ID and link.
 - **The customer never gets the number as its name** (owner, 2026-10-05: "don't give the invoice numbered name to the
   customer … say invoice and then customer name"): every download, print and send is **`Invoice - <customer>.pdf`** (a
   walk-in's carries its day), and the PDF's own title says the same, so WhatsApp's preview does too (`lib/invoice-share.ts`).
@@ -215,6 +218,15 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   invoice's never-printed `internalNote`), hide-rates, source and item plating. Until then exchange and advances were one
   lumped "Advance from Order" payment. Re-saving an invoice from the cart keeps `sourceOrderId`, Shopify links and source
   (`INVOICE_PROVENANCE`). Payments can also be taken in the cart as the invoice is written (`generateInvoice(…, payments)`).
+- **Finalize & invoice takes the final wastage and making** (owner, 2026-10-05: "allow me to change the wastage and
+  making … without having to re-edit it"). Wastage was not in the dialog — the order's percentage went to the invoice as
+  it was, and 2 of the 26 rate-priced pieces invoiced from orders had been corrected by editing the invoice after. Each
+  piece now has weight (to 3 places), **wastage as % and as grams** (one figure two ways: the grams the karigar writes,
+  "6.500 + 0.650", on the metal less its stones), making, stones and diamonds (silver's rate holds its making and wastage,
+  so silver asks for neither); its price as typed beside "on the order …"; and Pieces − discount − exchange − advances =
+  balance due, at the order's booked rate. The dialog and the invoice share one calculation (`lib/order-finalize.ts`), so
+  the preview is the invoice. The order keeps its estimates. A diamond charge typed for a piece the order hadn't ticked as
+  having diamonds now counts (it was dropped).
 
 ### Orders hub
 

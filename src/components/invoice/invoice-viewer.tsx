@@ -18,7 +18,7 @@ import { useAppStore, Invoice as InvoiceType, PAYMENT_TYPES, PaymentType } from 
 import { useAppReady } from '@/hooks/use-store';
 import { describeMetal, describeSettings, describeDelivery, describePlating } from '@/lib/materials';
 import { categorySingular } from '@/lib/categories';
-import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
+import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL, STORE_INVOICE_BY_CUSTOMER, STORE_INVOICE_WHATSAPP_PDF } from '@/lib/store-config';
 import { doc as fsDoc, getDoc as fsGetDoc, setDoc as fsSetDoc } from 'firebase/firestore';
 import { db as fsDb } from '@/lib/firebase';
 import { invoiceShareUrl, newShareToken } from '@/lib/share-token';
@@ -52,6 +52,22 @@ import { FormSkeleton } from '@/components/shared/skeletons';
 import { PhoneField } from '@/components/ui/phone-field';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import 'react-phone-number-input/style.css';
+
+/** The counter's message as it was before Taheri's PDF sends (House of Mina's): the estimate's ID and what is owed. */
+function estimateMessage(inv: InvoiceType, shopName: string): string {
+  const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2 });
+  let message = `Dear ${inv.customerName || 'Customer'},\n\n`;
+  message += `Here is your estimate from ${shopName}.\n\n`;
+  message += `*Estimate ID:* ${inv.id}\n`;
+  message += `*Total Amount:* PKR ${money(inv.grandTotal)}\n`;
+  if (inv.amountPaid > 0) {
+    message += `*Amount Paid:* PKR ${money(inv.amountPaid)}\n`;
+    message += `*Balance Due:* PKR ${money(inv.balanceDue)}\n\n`;
+  } else {
+    message += `*Amount Due:* PKR ${money(inv.grandTotal)}\n\n`;
+  }
+  return message + `Thank you for your business.`;
+}
 
 /** Keys given to older invoices this session, so sending one twice sends the same link. */
 const sentKeys = new Map<string, string>();
@@ -128,7 +144,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
     }
     doneParam.current = true;
     if (doParam === 'print') void printInvoice(invoice);
-    if (doParam === 'share') void handleSendWhatsApp(invoice);
+    if (doParam === 'share') void handleSendWhatsApp(invoice, { sameTab: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doParam, invoice, phone, phoneFor]);
 
@@ -191,13 +207,15 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
    * the one Print saves, drawn here; /api/invoices/[id]/whatsapp names it "Invoice - <customer>"
    * and sends it through the ERP's WhatsApp gateway. If that can't (the line unlinked, no
    * gateway), the toast offers the old way: WhatsApp opened on this device with a link.
+   * Taheri's (STORE_INVOICE_WHATSAPP_PDF); House of Mina keeps the link.
    */
   const [sending, setSending] = useState(false);
-  const handleSendWhatsApp = async (invoiceToSend: InvoiceType) => {
+  const handleSendWhatsApp = async (invoiceToSend: InvoiceType, opts: { sameTab?: boolean } = {}) => {
     if (!phone) {
       toast({ title: "No phone number", description: "Enter the customer's WhatsApp number.", variant: "destructive" });
       return;
     }
+    if (!STORE_INVOICE_WHATSAPP_PDF) { openWhatsAppWithLink(invoiceToSend, opts); return; }
     if (sending) return;
     setSending(true);
     try {
@@ -232,8 +250,11 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
    * written, the invoice linked (wa.me cannot carry a file). Synchronous, so the tap's activation is
    * still there when window.open asks for it.
    */
-  const openWhatsAppWithLink = (invoiceToSend: InvoiceType) => {
-    let message = invoiceWhatsAppCaption(invoiceToSend, settings.shopName).replace(' is attached.', ' is at the link below.');
+  const openWhatsAppWithLink = (invoiceToSend: InvoiceType, opts: { sameTab?: boolean } = {}) => {
+    // Taheri's words carry no number (STORE_INVOICE_BY_CUSTOMER); Mina's are the counter's own, ID and all.
+    let message = STORE_INVOICE_BY_CUSTOMER
+      ? invoiceWhatsAppCaption(invoiceToSend, settings.shopName).replace(' is attached.', ' is at the link below.')
+      : estimateMessage(invoiceToSend, settings.shopName);
     const appUrl = typeof window !== 'undefined' ? window.location.origin : STORE_CONFIG.appUrl;
     // The link carries the invoice's key: its page is closed to anyone without it. An invoice from
     // before keys existed gets one now — chosen here, not after a round trip, because window.open
@@ -245,8 +266,10 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
       fsSetDoc(fsDoc(fsDb, 'invoices', invoiceToSend.id), { shareToken: key }, { merge: true })
         .catch(e => toast({ title: 'The link may not open', description: `Could not save its key: ${(e as Error).message}`, variant: 'destructive' }));
     }
-    message += `\n\n${invoiceShareUrl(appUrl, invoiceToSend.id, key)}`;
-    window.open(whatsAppLink(phone, message), '_blank');
+    message += `\n\n${STORE_INVOICE_BY_CUSTOMER ? '' : 'View estimate: '}${invoiceShareUrl(appUrl, invoiceToSend.id, key)}`;
+    // From voice there is no tap to open a new tab with, so it opens in this one.
+    if (opts.sameTab) window.location.assign(whatsAppLink(phone, message));
+    else window.open(whatsAppLink(phone, message), '_blank');
     toast({ title: "Opening WhatsApp", description: "The message is written — press send." });
   };
 

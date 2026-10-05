@@ -18,6 +18,9 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   catalogue has neither, so its file sets both to "0" at go-live); **Post a Piece** and **Investments** follow
   `NEXT_PUBLIC_STORE_POST_PIECE` / `_INVESTMENTS` (Taheri's accounts and series; Mina sets both "0", which hides the menu
   entries and pages and makes their routes answer 404 — owner, 2026-09-25: "why are taheri features in mina pos").
+  Invoices: `NEXT_PUBLIC_STORE_INVOICE_BY_CUSTOMER` ("Invoice - <customer>.pdf", never the number) and
+  `_INVOICE_WHATSAPP_PDF` (Send via WhatsApp sends the PDF from the shop's line) are Taheri's (owner, 2026-10-05: "these
+  are instructions for taheri pos"); Mina sets both "0" and keeps `Invoice-INV-….pdf` and the wa.me message with its link.
   **Expense categories** are `NEXT_PUBLIC_STORE_EXPENSE_CATEGORIES` (`lib/expense-categories.ts`; Taheri's list by default,
   Mina's own 15 since 2026-09-25, worked out from all its expenses); Partner Drawings, Partner Salary and Other are always
   added — `lib/partnership.ts` reads the first two by name. The expenses filter also offers any other name an expense carries.

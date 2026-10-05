@@ -256,6 +256,14 @@ export const STORE_WEBSITE_FEATURED = process.env.NEXT_PUBLIC_STORE_WEBSITE_FEAT
  *  selling card (it read "Selling on taheri.shop" in Mina's ERP). */
 export const STORE_WEBSITE_SELLING = process.env.NEXT_PUBLIC_STORE_WEBSITE_SELLING !== '0';
 
+/** An invoice reaches its customer named after them — "Invoice - Fatima Hussain.pdf", the number never its name — in
+ *  every download, print and send (Taheri, 2026-10-05; lib/invoice-share.ts). House of Mina sets "0": "Invoice-INV-….pdf". */
+export const STORE_INVOICE_BY_CUSTOMER = process.env.NEXT_PUBLIC_STORE_INVOICE_BY_CUSTOMER !== '0';
+
+/** Send via WhatsApp sends the invoice's PDF from the shop's own line (/api/invoices/[id]/whatsapp; Taheri,
+ *  2026-10-05). House of Mina sets "0": WhatsApp opens on the device with the message and a link, as before. */
+export const STORE_INVOICE_WHATSAPP_PDF = process.env.NEXT_PUBLIC_STORE_INVOICE_WHATSAPP_PDF !== '0';
+
 /**
  * Website → Edit a piece: a piece already on this house's website, changed from
  * the counter — its photograph re-made (cropped, the weight and the mark stamped

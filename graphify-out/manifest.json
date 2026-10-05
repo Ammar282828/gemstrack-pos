@@ -2028,15 +2028,15 @@
     "semantic_hash": ""
   },
   "src/lib/store-config.ts": {
-    "mtime": 1790807452.62397,
-    "seen": 1790854750.3724017,
-    "ast_hash": "8548f6031417ab671eabb29190f8155a",
+    "mtime": 1791199478.5535336,
+    "seen": 1791199806.7477074,
+    "ast_hash": "cef4c848fd86487a18267846101fab23",
     "semantic_hash": ""
   },
   "src/lib/store.ts": {
-    "mtime": 1791197850.410271,
-    "seen": 1791198358.0531228,
-    "ast_hash": "2150b9b8fc82c537244ba0366d4c8779",
+    "mtime": 1791199354.8481855,
+    "seen": 1791199806.7477083,
+    "ast_hash": "145b10e3e53c7a47b43512bd876368a4",
     "semantic_hash": ""
   },
   "src/lib/theme-cache.ts": {
@@ -2286,9 +2286,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1791198309.7075717,
-    "seen": 1791198358.0532336,
-    "ast_hash": "4c56967152071d43162966a8b245166c",
+    "mtime": 1791199751.2417583,
+    "seen": 1791199806.7478852,
+    "ast_hash": "0b847058ae971e20d1dea3f78594b1d1",
     "semantic_hash": ""
   },
   "README.md": {
@@ -2424,9 +2424,9 @@
     "semantic_hash": ""
   },
   "apphosting.mina.yaml": {
-    "mtime": 1791197665.1753957,
-    "seen": 1791198358.053236,
-    "ast_hash": "002353fc42479205151fddf7afb698a9",
+    "mtime": 1791199505.2713573,
+    "seen": 1791199806.7478883,
+    "ast_hash": "bd003f7354a1bb0319fd1d9e59119e08",
     "semantic_hash": ""
   },
   "apphosting.taheri.yaml": {
@@ -2448,9 +2448,9 @@
     "semantic_hash": ""
   },
   "src/lib/invoice-pdf.ts": {
-    "mtime": 1791197803.1799443,
-    "seen": 1791198358.0529962,
-    "ast_hash": "ec23030a13ff92d440e14196bdeb9f25",
+    "mtime": 1791199478.5544176,
+    "seen": 1791199806.7475069,
+    "ast_hash": "d8a1a36ad469375c3272129b73b3fb0d",
     "semantic_hash": ""
   },
   "src/app/repairs/page.tsx": {
@@ -4296,9 +4296,9 @@
     "semantic_hash": ""
   },
   "src/components/invoice/invoice-viewer.tsx": {
-    "mtime": 1791197914.4817278,
-    "seen": 1791198358.0527446,
-    "ast_hash": "92b7587266804265e73bcaf4e6503409",
+    "mtime": 1791199498.2450752,
+    "seen": 1791199806.7470603,
+    "ast_hash": "60e73499647cd83c924241e2182b4e12",
     "semantic_hash": ""
   },
   "src/components/sale/sale-page.tsx": {
@@ -4320,9 +4320,9 @@
     "semantic_hash": ""
   },
   "docs/decisions.md": {
-    "mtime": 1791198309.7131186,
-    "seen": 1791198358.053241,
-    "ast_hash": "74a3bc23c62f721a8bd50af2d01fc587",
+    "mtime": 1791199744.5192459,
+    "seen": 1791199806.747897,
+    "ast_hash": "a79061a5efa6d6200a8a20e423f959f8",
     "semantic_hash": ""
   },
   "docs/features/ad-studio.md": {
@@ -4398,9 +4398,9 @@
     "semantic_hash": ""
   },
   "docs/features/two-houses.md": {
-    "mtime": 1791198309.7082303,
-    "seen": 1791198358.0532553,
-    "ast_hash": "9afbf1dd105e1208c15c295cb29c8b35",
+    "mtime": 1791199744.5183883,
+    "seen": 1791199806.7479162,
+    "ast_hash": "16c6380af73b66f9025bbf1e26dd27ec",
     "semantic_hash": ""
   },
   "docs/in-progress.md": {
@@ -4674,9 +4674,9 @@
     "semantic_hash": ""
   },
   "src/lib/voice/commands.ts": {
-    "mtime": 1791197914.4805706,
-    "seen": 1791198358.0531402,
-    "ast_hash": "a22c6eb32931213913aa67013455afa0",
+    "mtime": 1791199498.2439837,
+    "seen": 1791199806.7477322,
+    "ast_hash": "4c268ee60fb6751069a81232929629f9",
     "semantic_hash": ""
   },
   "src/lib/voice/handoff.ts": {
@@ -4764,9 +4764,9 @@
     "semantic_hash": ""
   },
   "src/components/order/order-dialogs.tsx": {
-    "mtime": 1791105625.0300298,
-    "seen": 1791106473.1433122,
-    "ast_hash": "d33782bf00f745a5b57aa265aa919a4e",
+    "mtime": 1791199445.6256545,
+    "seen": 1791199806.7470906,
+    "ast_hash": "1c4179edb3dc3f15a656f777698eebe3",
     "semantic_hash": ""
   },
   "src/lib/order-stage.test.ts": {
@@ -4968,9 +4968,9 @@
     "semantic_hash": ""
   },
   "src/app/api/invoices/[id]/whatsapp/route.ts": {
-    "mtime": 1791197867.8587725,
-    "seen": 1791198358.0525467,
-    "ast_hash": "e5d06fc030b5cf44dfacb86f86a5d1ba",
+    "mtime": 1791199478.5548983,
+    "seen": 1791199806.7466297,
+    "ast_hash": "220997848fefad53e0def05271d035b4",
     "semantic_hash": ""
   },
   "src/lib/invoice-share.test.ts": {
@@ -4989,6 +4989,18 @@
     "mtime": 1791197665.180095,
     "seen": 1791198358.053073,
     "ast_hash": "c89abc804ecef9c4a18724ac1acdf153",
+    "semantic_hash": ""
+  },
+  "src/lib/order-finalize.test.ts": {
+    "mtime": 1791199820.9204118,
+    "seen": 1791199859.6463566,
+    "ast_hash": "5c04019f3c8946d255d4f768f5983864",
+    "semantic_hash": ""
+  },
+  "src/lib/order-finalize.ts": {
+    "mtime": 1791199665.8203576,
+    "seen": 1791199806.7475684,
+    "ast_hash": "58a21089867f9f2a3ead98ab5be77c6b",
     "semantic_hash": ""
   }
 }
