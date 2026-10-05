@@ -1032,12 +1032,11 @@ const BANGLE_SIZES: string[] = (() => {
   return out;
 })();
 /**
- * Bracelets are sized in inches (the owner, 2026-10-05: "for bracelets the sizes should be in
- * inches"). They had the bangle scale, 1.1–3.0, so the counter typed its inches over it — 5, 6.25,
- * 6.75, 7 on Taheri's orders — and the customer's profile already asked "e.g., 7 in". 4.5" to 9" in
- * quarter inches: 4.5", 4.75", 5", … 9".
+ * A loose bracelet is sized in inches, 4.5" to 9" in quarter inches (4.5", 4.75", 5", … 9"). Only the
+ * loose bracelet: the owner, 2026-10-05 — "only do inches for loose bracelets" — so Bracelets and a
+ * set's bracelet keep the 1.1–3.0 scale they share with bangles.
  */
-const BRACELET_SIZES: string[] = (() => {
+const LOOSE_BRACELET_SIZES: string[] = (() => {
   const out: string[] = [];
   for (let q = 18; q <= 36; q++) out.push(`${q / 4}"`);
   return out;
@@ -1061,13 +1060,13 @@ export const SIZE_SCALES: Record<string, SizeScale> = {
   'cat018': { label: 'Indian ring size (0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
   'cat009': { label: 'Band size (Indian 0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
   'cat010': { label: 'Ring size (Indian 0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
-  'cat005': { label: 'Bracelet size (inches)',                  options: BRACELET_SIZES },
+  'cat005': { label: 'Bracelet size (1.1–3.0)',                 options: BANGLE_SIZES },
   'cat006': {
     label: 'Ring + Bracelet size',
     legacyPartKey: 'Bracelet',
     parts: [
       { key: 'Ring',     label: 'Ring size (Indian 0–25, 0.5 steps)', options: RING_SIZES_INDIAN },
-      { key: 'Bracelet', label: 'Bracelet size (inches)',             options: BRACELET_SIZES },
+      { key: 'Bracelet', label: 'Bracelet size (1.1–3.0)',            options: BANGLE_SIZES },
     ],
   },
   'cat007': { label: 'Bangle size (1.1–3.0)',                   options: BANGLE_SIZES },
@@ -1076,7 +1075,7 @@ export const SIZE_SCALES: Record<string, SizeScale> = {
     legacyPartKey: 'Bracelet',
     parts: [
       { key: 'Ring',     label: 'Ring size (Indian 0–25, 0.5 steps)', options: RING_SIZES_INDIAN },
-      { key: 'Bracelet', label: 'Bracelet size (inches)',             options: BRACELET_SIZES },
+      { key: 'Bracelet', label: 'Bracelet size (1.1–3.0)',            options: BANGLE_SIZES },
     ],
   },
   'cat015': {
@@ -1084,13 +1083,13 @@ export const SIZE_SCALES: Record<string, SizeScale> = {
     legacyPartKey: 'Bracelet',
     parts: [
       { key: 'Ring',     label: 'Ring size (Indian 0–25, 0.5 steps)', options: RING_SIZES_INDIAN },
-      { key: 'Bracelet', label: 'Bracelet size (inches)',             options: BRACELET_SIZES },
+      { key: 'Bracelet', label: 'Bracelet size (1.1–3.0)',            options: BANGLE_SIZES },
     ],
   },
   // Necklace sets without bracelets can still include a ring.
   'cat013': { label: 'Ring size (Indian 0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
   'cat016': { label: 'Ring size (Indian 0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
-  'cat019': { label: 'Loose bracelet (inches)',                 options: BRACELET_SIZES },
+  'cat019': { label: 'Loose bracelet (inches)',                 options: LOOSE_BRACELET_SIZES },
   'cat012': { label: 'String length (inches)',                  options: NECKLACE_SIZES },
   'cat011': {
     label: 'Ring + Bangle size',

@@ -307,12 +307,9 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   typed name) is asked when a size is picked — never while the name is being typed — and saved once the order makes
   them; sizes picked before the name are offered by a toast as the order is created. Opening an order to edit asks
   nothing about the sizes it already had; a walk-in is never asked. Taheri's: Mina sets `NEXT_PUBLIC_STORE_SIZE_TO_PROFILE` "0".
-- **Bracelets are sized in inches** (owner, 2026-10-05): every bracelet picker — Bracelets, a loose bracelet, a set's
-  bracelet — offers 4.5" to 9" in quarter inches (`SIZE_SCALES`, store.ts); bangles keep 1.1–3.0. They had the bangle
-  scale, and the counter typed inches over it (5, 6.25, 6.75, 7 on Taheri's bracelet orders); the profile already said
-  "e.g., 7 in". Sizes already saved stay as typed (the picker shows any value), and 7, 7" and 7 in are one size to the
-  profile check. A *Bracelet and Ring Set*'s bracelet was recorded 2.2–2.75 — bangle-style — so those may want the
-  bangle scale back.
+- **Only a loose bracelet is sized in inches** (owner, 2026-10-05: "only do inches for loose bracelets. rest of those
+  bracelet options change back"): its picker offers 4.5" to 9" in quarter inches; Bracelets and a set's bracelet keep
+  1.1–3.0, the scale they share with bangles (`SIZE_SCALES`, store.ts). The profile check reads 7, 7" and 7 in as one size.
 
 ### Walk-ins
 
