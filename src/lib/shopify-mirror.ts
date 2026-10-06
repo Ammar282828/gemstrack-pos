@@ -57,8 +57,9 @@ export interface MirroredInvoice {
 export function shopifyPaymentMethod(gateway: string | undefined): PaymentType | undefined {
   const g = String(gateway || '').toLowerCase();
   if (/safepay|card|stripe|paypal|shopify_payments/.test(g)) return 'Card';
-  // Cash on delivery is collected by the courier and paid into the bank with the rest of the week's.
-  if (/bank|transfer|deposit|cash on delivery|\bcod\b/.test(g)) return 'Bank Transfer';
+  // Cash on delivery is collected by the courier and paid into the bank with the rest of the week's;
+  // a JazzCash or Easypaisa wallet (or Raast) settles into the bank the same way.
+  if (/bank|transfer|deposit|cash on delivery|\bcod\b|jazz ?cash|easy ?paisa|wallet|raast/.test(g)) return 'Bank Transfer';
   return undefined; // "manual" (marked paid by hand on Shopify): how is not known
 }
 

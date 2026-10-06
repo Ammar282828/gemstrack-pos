@@ -22,6 +22,8 @@ describe('how a Shopify payment reached the shop', () => {
     expect(shopifyPaymentMethod('Safepay Checkout Onsite')).toBe('Card');
     expect(shopifyPaymentMethod('Bank Deposit')).toBe('Bank Transfer');
     expect(shopifyPaymentMethod('Cash on Delivery (COD)')).toBe('Bank Transfer');
+    expect(shopifyPaymentMethod('JazzCash')).toBe('Bank Transfer');
+    expect(shopifyPaymentMethod('Easypaisa Mobile Account')).toBe('Bank Transfer');
     expect(shopifyPaymentMethod('manual')).toBeUndefined();
     expect(shopifyPaymentMethod(undefined)).toBeUndefined();
   });
