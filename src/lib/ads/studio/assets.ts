@@ -7,7 +7,10 @@
  *   drive  every image in the Google Drive folders shared with the ERP (drive.ts), shown
  *          through this server (/api/ads/studio/image), since Drive keeps them private
  *
- * An asset's id is `site:<piece id>` or `drive:<file id>`. Assessments live in Firestore
+ *   upload photographs prepared outside (re-cropped, upscaled, a product shot cut out) and
+ *          kept in Firestore `studio_uploads`, one JPEG of at most ~900 KB a document (uploads.ts)
+ *
+ * An asset's id is `site:<piece id>`, `drive:<file id>` or `up:<upload id>`. Assessments live in Firestore
  * `ad_assets`, one document per asset under a hash of its id (a site id holds slashes);
  * `ad_studio_creatives` records what the studio made from which assets, so a photograph
  * already in an ad goes after the rest in the picks.
@@ -24,8 +27,9 @@ import { driveJpeg, driveLibrary } from './drive';
 import { normalizeAssessment, type AssetAssessment } from './assessment';
 import { pieceSpecs } from './specs';
 import { originalsByShot, shotKey } from './originals';
+import { listUploads, uploadJpeg } from './uploads';
 
-export type AssetSource = 'site' | 'drive';
+export type AssetSource = 'site' | 'drive' | 'upload';
 
 export interface StudioAsset {
   id: string;
@@ -68,11 +72,18 @@ export interface Library {
 
 /** Both sources, newest first. */
 export async function listAssets(opts: { fresh?: boolean } = {}): Promise<Library> {
-  const [site, drive] = await Promise.all([
+  const [site, drive, uploads] = await Promise.all([
     getSitePieces({ fresh: opts.fresh }).then(r => ({ ok: true as const, ...r })).catch((e: unknown) => ({ ok: false as const, error: e instanceof Error ? e.message : String(e) })),
     driveLibrary({ fresh: opts.fresh }),
+    listUploads({ fresh: opts.fresh }).catch(() => []),
   ]);
   const assets: StudioAsset[] = [];
+  for (const u of uploads) {
+    assets.push({
+      id: `up:${u.id}`, source: 'upload', key: u.id, name: u.name, collection: u.collection || 'Uploads',
+      thumb: imageUrl(`up:${u.id}`, 480), page: u.page, added: u.added, specs: u.specs, original: null,
+    });
+  }
   const originals = drive.ok ? originalsByShot(drive.images.filter(i => !i.brand).map(i => ({ id: i.id, name: i.name, created: i.created ?? null }))) : new Map<string, { id: string; name: string }>();
   if (site.ok) {
     for (const p of site.pieces) {
@@ -159,6 +170,7 @@ export async function assetJpeg(id: string, size: number): Promise<Buffer> {
   const [source, ...rest] = id.split(':');
   const key = rest.join(':');
   if (source === 'drive') return driveJpeg(key, size);
+  if (source === 'up') return uploadJpeg(key, size);
   if (source !== 'site' && source !== 'source') throw Object.assign(new Error('Unknown source.'), { status: 400 });
   const piece = await getSitePiece(key);
   if (!piece || !piece.image.startsWith(`${siteOrigin()}/`)) throw Object.assign(new Error('No such piece on the website.'), { status: 404 });

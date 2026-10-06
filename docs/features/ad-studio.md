@@ -241,6 +241,14 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   weekly boards (the second after the one-row-a-piece fix: six different pieces, twelve designs), Save and Queue a post from a
   design (then deleted); New ad was not pressed (it would put a picture in the ad account).
 
+- **Uploads and product insets** (2026-10-06, owner: "use these … ai upscale, rescale, add the product shot in there"). A third
+  library source, **uploads** (`uploads.ts`): photographs prepared outside the studio (re-cropped, upscaled, a product shot cut
+  out) kept in Firestore `studio_uploads`, one JPEG under 1 MiB a document, asset id `up:<id>`, served by the same image route.
+  A cloud session can write Firestore but cannot put full-size files in the owner's Drive, so this is how its work reaches the
+  board. And a design may now hold **more library photos as image layers**: a layer whose `photoId` is `lib:<asset id>` (the
+  product shot beside the hand that wears it); the board fetches each like the design's own photo, draws it, sends it in the
+  agent's view and the downloads, and offers it in the editor.
+
 <a id="five-tabs"></a>### Five tabs
 
 - **The Studio has five tabs** (2026-10-04, owner: "audit and consolidate ads tab"; there were eight): **Plan** (What to run —

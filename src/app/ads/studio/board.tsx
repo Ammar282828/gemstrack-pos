@@ -73,7 +73,24 @@ const fontsReady = () => (fontsOnce ??= Promise.all(
   [`600 40px ${FONTS.headline}`, `400 40px ${FONTS.body}`, `400 40px ${FONTS.serif}`, `italic 400 40px ${FONTS.serif}`].map(f => document.fonts.load(f).catch(() => null)),
 ));
 
-const assetsFor = (pic: Pic | null, marks: Assets['marks']): Assets => ({ photos: pic ? { [PHOTO]: pic.img } : {} as Assets['photos'], marks, fonts: FONTS });
+/**
+ * A design may hold more library photos than its own as image layers — a product shot inset beside the
+ * hand that wears it (2026-10-06, owner: "add the product shot in there"). Such a layer's photoId is
+ * `lib:<asset id>`; the page fetches each like the design's own photo.
+ */
+const LIB = 'lib:';
+const extraIds = (doc: StoryDoc | null | undefined): string[] =>
+  [...new Set((doc?.layers ?? []).flatMap(l => (l.kind === 'image' && !l.src && l.photoId.startsWith(LIB) ? [l.photoId] : [])))];
+type Extras = Record<string, Pic>;
+async function extrasOf(doc: StoryDoc | null | undefined): Promise<Extras> {
+  const ids = extraIds(doc);
+  const got = await Promise.all(ids.map(id => photoOf(id.slice(LIB.length)).catch(() => null)));
+  return Object.fromEntries(ids.flatMap((id, i) => (got[i] ? [[id, got[i]!]] : [])));
+}
+const assetsFor = (pic: Pic | null, marks: Assets['marks'], extras: Extras = {}): Assets => ({
+  photos: { ...(pic ? { [PHOTO]: pic.img } : {}), ...Object.fromEntries(Object.entries(extras).map(([k, v]) => [k, v.img])) } as Assets['photos'],
+  marks, fonts: FONTS,
+});
 const layOut = (f: Pick<BoardFrame, 'format' | 'template' | 'fields' | 'marked'>, a: Assets): StoryDoc =>
   applyAdTemplate(blankAd(f.format), f.template, f.fields, a, { photoMarked: f.marked });
 const drawTo = (doc: StoryDoc, fields: Fields, a: Assets, px: number) => renderDocTo(reflow(doc, fields, a), fields, a, px);
@@ -418,7 +435,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
   /** The design at full size (or the same layout in another shape: the story for Instagram). */
   const render = async (f: BoardFrame, shape?: AdFormat, px?: number, q = 0.92) => {
     const pic = f.assetId ? await photoOf(f.assetId) : null;
-    const a = assetsFor(pic, marks);
+    const a = assetsFor(pic, marks, await extrasOf(f.doc));
     const doc = shape && shape !== f.format ? layOut({ ...f, format: shape, template: safeTemplate(f.template, { marked: f.marked, format: shape }) }, a) : f.doc ?? layOut(f, a);
     return { blob: await canvasToJpeg(drawTo(doc, f.fields, a, px ?? (doc.frame ?? framePx(f)).w), q), doc, pic };
   };
@@ -650,7 +667,7 @@ function FrameCard({ frame: f, x, y, selected, fresh, marks, ready, boardId, dra
     (async () => {
       try {
         const pic = f.assetId ? await photoOf(f.assetId) : null;
-        const a = assetsFor(pic, marks);
+        const a = assetsFor(pic, marks, await extrasOf(f.doc));
         if (!f.doc) { onLaidOut(f, layOut(f, a)); return; }
         const shown = await canvasToJpeg(drawTo(f.doc, f.fields, a, SHOW_PX), 0.86);
         if (!live) return;
@@ -826,9 +843,11 @@ function QueueDialog({ frame: f, onClose, onQueue }: { frame: BoardFrame; onClos
 
 function FrameEditor({ frame: f, marks, onClose, onSave }: { frame: BoardFrame; marks: Assets['marks']; onClose: () => void; onSave: (p: Partial<BoardFrame>) => void }) {
   const [pic, setPic] = useState<Pic | null>(null);
+  const [extras, setExtras] = useState<Extras>({});
   const [fields, setFields] = useState<Fields>(f.fields);
   const [template, setTemplate] = useState<AdTemplateId>(f.template);
-  const assets = useMemo(() => assetsFor(pic, marks), [pic, marks]);
+  const assets = useMemo(() => assetsFor(pic, marks, extras), [pic, marks, extras]);
+  useEffect(() => { extrasOf(f.doc).then(setExtras).catch(() => setExtras({})); }, [f.doc]);
   const doc = useStoryDoc(f.doc ?? blankAd(f.format));
   const started = useRef(false);
   useEffect(() => { if (f.assetId) photoOf(f.assetId).then(setPic).catch(() => setPic(null)); }, [f.assetId]);
@@ -851,7 +870,7 @@ function FrameEditor({ frame: f, marks, onClose, onSave }: { frame: BoardFrame; 
           placeholder: ready ? undefined : <div className="flex h-60 items-center justify-center text-sm text-muted-foreground"><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Fetching the photo…</div>,
           props: {
             api: doc, square: true, fields, assets,
-            photos: pic ? [{ id: PHOTO, url: pic.url, label: f.label }] : [],
+            photos: [...(pic ? [{ id: PHOTO, url: pic.url, label: f.label }] : []), ...Object.entries(extras).map(([id, x]) => ({ id, url: x.url, label: 'Product shot' }))],
             palette: PALETTES[0], onPalette: () => undefined, lettered: null, weightOwnLine: true, websiteLabel: SITE_LABEL,
             onField: (b: Bind, v: string) => setFields(x => ({ ...x, [b]: v })),
             presets: AD_TEMPLATES.map(t => ({ id: t.id, label: t.label })),
