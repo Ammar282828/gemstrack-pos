@@ -105,7 +105,7 @@ const OrderRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ or
   const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
 
   return (
-    <Card className={cn('mb-3 md:hidden', stageOf(order, owed) === 'done' && settledRowClass, mine && mineRowClass)} title={mine ? 'Taken by you' : undefined}>
+    <Card className={cn('mb-3 md:hidden', (order.invoiceId || stageOf(order, owed) === 'done') && settledRowClass, mine && mineRowClass)} title={mine ? 'Taken by you' : undefined}>
         {/* The whole card opens the order, so the footer button that used to
             say so as well is gone. */}
         <CardContent className="p-3.5 space-y-2.5 cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)}>
@@ -208,7 +208,8 @@ const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = 
   
     return (
       <>
-      <TableRow className={cn(stageOf(order, owed) === 'done' && settledRowClass, mine && mineRowClass)} title={mine ? 'Taken by you' : undefined}>
+      {/* Invoiced, paid or not, is greyed (the owner, 2026-10-06): the order's work is done and its money is the invoice's. */}
+      <TableRow className={cn((order.invoiceId || stageOf(order, owed) === 'done') && settledRowClass, mine && mineRowClass)} title={mine ? 'Taken by you' : undefined}>
         <TableCell className="font-medium align-top">
           <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
             {order.id}

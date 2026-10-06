@@ -4179,6 +4179,12 @@ export const useAppStore = create<AppState>()(
                     throw new Error("Order not found!");
                 }
                 const orderData = orderDoc.data() as Order;
+                // Once invoiced, money is taken on the invoice only (the owner, 2026-10-06: "its only from
+                // invoice"): an advance here would sit on the order, after its advances became the
+                // invoice's payments, and the invoice would never see it.
+                if (orderData.invoiceId) {
+                    throw new Error(`${orderId} is invoiced as ${orderData.invoiceId} — take the payment on the invoice.`);
+                }
                 
                 const currentAdvance = Number(orderData.advancePayment) || 0;
                 const newAdvancePayment = currentAdvance + amount;

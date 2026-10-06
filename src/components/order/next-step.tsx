@@ -8,7 +8,8 @@
  *   Not started     Give out — the karigar pickers (the order moves to In Progress by itself)
  *   With karigars   Mark ready — Completed, every piece ticked
  *   Ready           Finalize & invoice — the order's own dialog, then the invoice to take the rest
- *   Awaiting money  Take PKR … — the invoice, where the payment is one tap
+ *   Invoiced        nothing to do here — money is taken on the invoice only (the owner, 2026-10-06:
+ *                   "stop showing take money option since its only from invoice"); a quiet link to it
  *   Online, unpaid  Check transfer — the slips, the hold, Transfer received or Let it lapse
  *
  * and an advance can be recorded from any order still being made (dated today).
@@ -16,7 +17,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Banknote, CheckCircle2, CreditCard, FileText, Loader2, UserPlus, Wallet } from 'lucide-react';
+import { Banknote, CheckCircle2, CreditCard, FileText, Loader2, UserPlus } from 'lucide-react';
 import { useAppStore, type Order } from '@/lib/store';
 import { stageOf } from '@/lib/order-stage';
 import { useToast } from '@/hooks/use-toast';
@@ -62,10 +63,10 @@ export function NextStep({ order, owed, className, size = 'sm', compact = false 
         </Button>
       )}
       {stage === 'ready' && <Button type="button" size="sm" className={h} onClick={() => setOpen('finalize')}><FileText className="mr-1.5 h-4 w-4" />Finalize &amp; invoice</Button>}
-      {stage === 'payment' && order.invoiceId && (
-        <Button asChild size="sm" className={h}>
-          <Link href={`/invoices/${order.invoiceId}`}><Wallet className="mr-1.5 h-4 w-4" />Take {Math.round(owed).toLocaleString()}</Link>
-        </Button>
+      {order.invoiceId && (
+        <Link href={`/invoices/${order.invoiceId}`} className="text-xs text-muted-foreground underline-offset-2 hover:underline whitespace-nowrap">
+          Invoiced · {order.invoiceId}
+        </Link>
       )}
       {making && (
         <Button type="button" size="sm" variant="ghost" className={cn(h, 'px-2 text-muted-foreground')} onClick={() => setOpen('advance')} title="Record an advance" aria-label="Record an advance">

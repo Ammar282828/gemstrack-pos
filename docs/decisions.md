@@ -249,6 +249,12 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   order was made, on the invoice and in Today's cash. "Status" grouping became "Stage" (the status filter stays). Found on the way:
   `<main>`'s `overflow-auto` made every `sticky` inert (see Posts hub).
 
+- **Invoiced orders are greyed, and money is taken on the invoice only** (2026-10-06, owner: "grey out all orders that have
+  been converted to invoice in orders page and stop showing take money option since its only from invoice"; both houses).
+  Every order with an invoice is greyed in the list, paid or not; its card's next step is a quiet *Invoiced · INV-…* link,
+  never *Take PKR …* or *Advance*; the order page hides *Record an advance* once invoiced (it showed it at the foot of the
+  totals regardless), and `recordOrderAdvance` refuses an invoiced order, so voice can't either. Checked when it shipped:
+  no advance had been recorded on an order after its invoice (Taheri 20 invoiced orders, Mina 122).
 ### Name a sale
 
 - **Who a sale was for is set on the invoice, and an edit is an edit** (2026-10-04). A quarter of invoices were re-saved after the

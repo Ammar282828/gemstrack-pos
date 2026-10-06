@@ -1,7 +1,7 @@
-# Graph Report - taheri-pos  (2026-10-05)
+# Graph Report - taheri-pos  (2026-10-06)
 
 ## Corpus Check
-- 810 files · ~772,276 words
+- 810 files · ~772,535 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 25 file(s) not represented in the graph (top: .woff2 14, (none) 3, .cache 2)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f5bcea78`
+- Built from commit: `65215e90`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

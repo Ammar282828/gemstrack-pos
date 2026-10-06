@@ -67,7 +67,7 @@ export const STAGES: Record<OrderStage, { title: string; hint: string }> = {
   ready: { title: 'Ready to hand over', hint: 'finished — invoice it' },
   karigar: { title: 'With karigars', hint: 'being made' },
   new: { title: 'Not started', hint: 'give the pieces out' },
-  payment: { title: 'Awaiting payment', hint: 'invoiced, money owed' },
+  payment: { title: 'Awaiting payment', hint: 'invoiced — taken on the invoice' },
   done: { title: 'Done', hint: 'invoiced and paid' },
   closed: { title: 'Cancelled or refunded', hint: '' },
 };

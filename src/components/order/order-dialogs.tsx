@@ -325,7 +325,7 @@ export const RecordAdvanceDialog: React.FC<{
         } catch (error) {
              toast({
                 title: "Error",
-                description: "Failed to record advance payment.",
+                description: error instanceof Error && error.message.includes('invoiced') ? error.message : "Failed to record advance payment.",
                 variant: "destructive",
             });
         }

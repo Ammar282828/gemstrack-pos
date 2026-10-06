@@ -1198,7 +1198,10 @@ export default function OrderDetailPage() {
                   )}
 
                   <div className="flex flex-col md:flex-row justify-end items-start gap-4">
-                     <Button variant="outline" onClick={() => setIsAdvanceDialogOpen(true)}>Record an advance</Button>
+                     {/* Shown only while the order is being made: once invoiced, money is taken on the invoice. */}
+                     {!order.invoiceId && order.status !== 'Cancelled' && order.status !== 'Refunded' && (
+                       <Button variant="outline" onClick={() => setIsAdvanceDialogOpen(true)}>Record an advance</Button>
+                     )}
                       <div className="w-full max-w-sm space-y-2 p-4 text-base bg-muted/30 rounded-lg">
                           <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           {discountAmount > 0 && (
