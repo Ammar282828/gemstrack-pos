@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchAllPages, mapCustomer, mapInvoice, mapProduct, getShopifyCredentials } from '../_lib';
 import { adminDb } from '@/lib/firebase-admin';
+import { mirrorShopifyOrderById } from '../_order-mirror';
 import { verifyRequestEmail, isOwnerEmail } from '@/lib/karigar-auth';
 
 /** Only a signed-in owner may list or import Shopify orders. Without this the
@@ -203,6 +204,10 @@ export async function POST(request: NextRequest) {
         try {
           await adminDb.collection('invoices').doc(`SHOPIFY-${o.order_number}`).set(mapInvoice(o), { merge: true });
           imported.orders++;
+          // Its payments as Shopify took them (dated, by method, so Cash In sees them) and its state;
+          // from here the orders notice keeps it current.
+          await mirrorShopifyOrderById(shop, token, String(o.id))
+            .catch((e: unknown) => errors.push(`Order #${o.order_number}: imported; its payments will follow (${(e as Error).message})`));
         } catch (e: unknown) { errors.push(`Order #${o.order_number}: ${(e as Error).message}`); }
       }
     }

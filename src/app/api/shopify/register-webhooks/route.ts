@@ -3,14 +3,11 @@ import { erpUserOrCron } from '@/lib/erp-gate';
 import { APP_URL, SHOPIFY_API_VERSION } from '../_lib';
 import { adminDb } from '@/lib/firebase-admin';
 
+// Only the orders: what Shopify says happened to a web order since it was pulled in (webhooks/orders).
+// Customers, products and checkout drafts come in through the pull, so their notices do nothing.
 const WEBHOOK_TOPICS = [
   { topic: 'orders/create', address: `${APP_URL}/api/shopify/webhooks/orders` },
   { topic: 'orders/updated', address: `${APP_URL}/api/shopify/webhooks/orders` },
-  { topic: 'customers/create', address: `${APP_URL}/api/shopify/webhooks/customers` },
-  { topic: 'customers/update', address: `${APP_URL}/api/shopify/webhooks/customers` },
-  { topic: 'products/create', address: `${APP_URL}/api/shopify/webhooks/products` },
-  { topic: 'products/update', address: `${APP_URL}/api/shopify/webhooks/products` },
-  { topic: 'draft_orders/update', address: `${APP_URL}/api/shopify/webhooks/draft-orders` },
 ];
 
 async function getExistingWebhooks(shop: string, token: string) {

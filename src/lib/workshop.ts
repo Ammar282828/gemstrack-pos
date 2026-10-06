@@ -197,7 +197,9 @@ export function buildWorkshopJobs(
     // invoices imported before this field existed carry fulfilment only in
     // their note text, and rewriting them is a migration, not a read fix.
     const fulfilment = String(inv.shopifyFulfillment || '').toLowerCase();
-    const isOnline = String(inv.source || '').startsWith('shopify')
+    // Cancelled on Shopify: nothing to make (lib/shopify-mirror.ts). A piece already handed to a
+    // karigar still shows below — someone has it.
+    const isOnline = String(inv.source || '').startsWith('shopify') && !inv.shopifyCancelledAt
       && (fulfilment
         ? fulfilment !== 'fulfilled'
         : /unfulfilled/i.test(String(inv.notes || '')));

@@ -546,6 +546,10 @@ export interface Invoice {
   notes?: string;  // import provenance / fulfilment status for Shopify orders
   shopifyFulfillment?: string;      // 'fulfilled' | 'unfulfilled' | ''
   shopifyFinancialStatus?: string;  // 'paid' | 'pending' | 'voided' | …
+  /** Shopify's word, kept by its notices (lib/shopify-mirror.ts): when it was cancelled there, the payments taken there. */
+  shopifyCancelledAt?: string;
+  shopifyTransactionIds?: string[];
+  shopifySyncedAt?: string;
   shopifyOrderName?: string;
   shopifyOrderId?: string;
   shopifyOrderNumber?: number;
@@ -716,6 +720,8 @@ export interface Order {
 const INVOICE_PROVENANCE = [
   'sourceOrderId', 'source', 'notes', 'acquisitionSource', 'shopifyFulfillment', 'shopifyFinancialStatus',
   'shopifyOrderName', 'shopifyOrderId', 'shopifyOrderNumber', 'shopifyDraftOrderId', 'shopifyCheckoutUrl',
+  // Which of Shopify's payments are already on it: lose these and its next notice adds them again.
+  'shopifyTransactionIds', 'shopifyCancelledAt', 'shopifySyncedAt',
   // A link already sent to the customer keeps working after the invoice is edited.
   'shareToken',
 ] as const;

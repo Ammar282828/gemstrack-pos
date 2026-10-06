@@ -8,6 +8,8 @@
  */
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
+import type { Payment } from '@/lib/store';
+import { planShopifyMirror, type MirroredInvoice, type ShopifyOrderState, type ShopifyTransaction } from '@/lib/shopify-mirror';
 
 const INVOICES = 'invoices';
 const HISAAB = 'hisaab';
@@ -178,4 +180,70 @@ export async function removeInvoicePayment(
   )).catch(() => { /* logged by the driver */ });
   fx.syncInvoiceShopify?.(invoiceId, 'upsert');
   return updated;
+}
+
+export interface ShopifyMirrorResult {
+  invoiceId: string;
+  /** Payments added from Shopify, and what the invoice now says. */
+  added: Payment[];
+  amountPaid?: number;
+  balanceDue?: number;
+  /** Cancelled on Shopify with nothing paid: now Refunded. */
+  voided?: boolean;
+  changed: boolean;
+}
+
+/**
+ * Shopify's word on a web order, onto its invoice (lib/shopify-mirror.ts has the rule): its payments,
+ * each once and only up to what is owed, and its payment, fulfilment and cancellation state. Read and
+ * written in one transaction, so the same notice delivered twice at once (Mina's store sends each to
+ * two addresses) still adds a payment once. `extra` is written with it (a payment link's order id).
+ */
+export async function mirrorShopifyOrder(
+  db: DbPort,
+  invoiceId: string,
+  order: ShopifyOrderState,
+  transactions: ShopifyTransaction[],
+  extra: Record<string, unknown> = {},
+  fx: SideEffects = {},
+  opts: { voidWhenCancelled?: boolean } = {},
+): Promise<ShopifyMirrorResult | null> {
+  const linkedRows = db.queryEquals<{ cashDebit?: number }>(HISAAB, 'linkedInvoiceId', invoiceId);
+  linkedRows.catch(() => { /* surfaced by the await inside the transaction */ });
+
+  const result = await db.runTransaction<ShopifyMirrorResult | null>(async tx => {
+    const [invoice, linked] = await Promise.all([
+      tx.get<Omit<PaidInvoice, 'id'> & MirroredInvoice>(INVOICES, invoiceId),
+      linkedRows,
+    ]);
+    if (!invoice) return null;
+    const plan = planShopifyMirror(invoice, order, transactions, opts);
+    const extraChanged = Object.entries(extra).some(([k, v]) => (invoice as unknown as Record<string, unknown>)[k] !== v);
+    if (!plan.changed && !extraChanged) return { invoiceId, added: [], changed: false };
+    tx.update(INVOICES, invoiceId, {
+      ...plan.fields,
+      ...extra,
+      shopifySyncedAt: new Date().toISOString(),
+      ...(plan.added.length && { paymentHistory: plan.paymentHistory, amountPaid: plan.amountPaid, balanceDue: plan.balanceDue }),
+      ...(plan.voids && { status: 'Refunded', refundedAt: plan.fields.shopifyCancelledAt }),
+    });
+    // Voided, it owes nothing: its ledger row goes as a paid one's does.
+    if (plan.added.length || plan.voids) followBalance(db, tx, invoiceId, invoice, linked, plan.voids ? 0 : plan.balanceDue, false);
+    return { invoiceId, added: plan.added, amountPaid: plan.amountPaid, balanceDue: plan.balanceDue, voided: plan.voids, changed: true };
+  });
+
+  if (result?.voided) {
+    void Promise.resolve(fx.log?.('invoice.refund', `Cancelled on Shopify: invoice ${invoiceId}`, `Order #${order.order_number}, nothing paid`, invoiceId))
+      .catch(() => { /* logged by the driver */ });
+  }
+  if (result?.added.length) {
+    const total = result.added.reduce((s, p) => s + p.amount, 0);
+    void Promise.resolve(fx.log?.(
+      'invoice.payment',
+      `Paid on Shopify: invoice ${invoiceId}`,
+      `Amount: ${total.toLocaleString()} | Order #${order.order_number}`,
+      invoiceId,
+    )).catch(() => { /* logged by the driver */ });
+  }
+  return result;
 }

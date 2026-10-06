@@ -286,6 +286,29 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   the website's making and wastage are the counter's own medians, not the test values that were there. The design, the parts
   and testing on the emulator: `docs/website-checkout.md`.
 
+### Shopify notices
+
+- **Shopify's notices keep a pulled-in web order current, and never rewrite it** (2026-10-06, House of Mina; found while
+  checking the rhodium bands reached the ERP). Every notice had been refused (401) since at least 2026-09-06: the ERP checked
+  them with `SHOPIFY_API_SECRET`, the secret of another Shopify app than "HOM POS", whose token (`SHOPIFY_ACCESS_TOKEN`)
+  registered all 12. So web orders froze as the pull brought them in — of 47, 45 behind: 5 paid on Shopify (Rs 95,300) still
+  owed, 40 shipped still in the Workshop, 3 cancelled still sales. Fixing the secret alone would have been worse: the handler
+  rewrote the whole invoice on each update (`paymentHistory: []`, every piece gold 21k), and 183 of 187 web invoices carry the
+  shop's own payments and karigars. Now (`lib/shopify-mirror.ts`, `app/api/shopify/_order-mirror.ts`):
+  - a notice gives only the order's id; the order and its transactions are **read back from Shopify** with the token, so no
+    secret is needed and duplicates (each notice goes to two addresses: `pos.houseofmina.store` and the hosted.app one, kept as
+    the spare the .shop outage argued for) or out-of-order ones end in Shopify's latest word;
+  - only an invoice the ERP already has changes — the pull stays the way in, for orders, customers and stock (their notices
+    do nothing; the products one would have made a stock row for each of the Birthstone Stack's 1,824 variants);
+  - Shopify's successful sale/capture becomes a payment once (`shopifyTransactionIds`, kept through an edit by
+    `INVOICE_PROVENANCE`), only up to what is owed, never Cash (the drawer never saw it: COD and bank deposit are Bank Transfer,
+    Safepay Card), in the same transaction as the ledger; `amountPaid` never goes down;
+  - fulfilment and payment state as Shopify words them; a web sale **cancelled there with nothing paid is voided**
+    (`status: 'Refunded'`), with money taken only marked (`shopifyCancelledAt`);
+  - an order the ERP pushed out itself (`pos-import`) is left alone: its note "POS Invoice INV-…" made the old handler mark
+    the invoice paid in full on any Shopify edit (INV-000228 owed Rs 29,000).
+  Catch-up for missed notices: `npx tsx --env-file=.env.mina.local scripts/shopify-mirror-orders.ts` (dry run; `--apply`).
+
 ### Advance method
 
 - **An order's advance method is optional, and a refused save is never silent** (2026-09-28, owner: "paid by how? causing

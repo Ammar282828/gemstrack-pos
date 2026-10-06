@@ -46,7 +46,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 - Firebase CLI login is broken on the owner's Mac. Use **`gcloud`** (authenticated as the owner):
   `gcloud secrets …`, `gcloud builds list`, `gcloud run revisions list` — all `--project gemstrack-pos --region us-central1`.
   Never print a secret value; compare `sha256` of trimmed values instead.
-- Hostinger (the site's server) is reachable over SSH with the deploy key `~/.ssh/taheri_deploy`
+- Hostinger is reachable over SSH with the deploy key `~/.ssh/taheri_deploy`
   (port 65002, user in `taheri-site/.github/workflows/deploy.yml`). **The key exists only on the owner's Mac.**
 - **A bare 503 is the server dying**, not a route (routes answer JSON): out of memory kills every request on it.
   `gcloud logging read 'textPayload:"Memory limit of"'`. 1 GiB since 2026-10-01 — [why](docs/features/ad-studio.md#out-of-memory).
@@ -159,6 +159,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Order to invoice](docs/decisions.md#order-to-invoice) — advances as payments, exchange, discount, notes; wastage/making
 - [Orders hub](docs/decisions.md#orders-hub) — by stage, a next step per card; pieces set status
 - [Online orders](docs/decisions.md#online-orders) — a person confirms; no sale until the transfer
+- [Shopify notices](docs/decisions.md#shopify-notices) — read back; web orders kept current, never rewritten
 - [Name a sale](docs/decisions.md#name-a-sale) — on the invoice
 - [Advance method](docs/decisions.md#advance-method) — `.nullish()`, `onInvalid` toasts
 - [Exchange line](docs/decisions.md#exchange-line) — what + amount
@@ -194,7 +195,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Post a piece and its tools** (`docs/features/post-a-piece.md`)
 - [Post a piece drafts](docs/features/post-a-piece.md#post-a-piece-drafts) — on this device (IndexedDB), photos included; resumes
-- [Post a piece](docs/features/post-a-piece.md#post-a-piece) — story, square, caption from one piece → site, WhatsApp, Instagram; [Paint](docs/features/post-a-piece.md#paint)
+- [Post a piece](docs/features/post-a-piece.md#post-a-piece) — story, square, caption → site, WhatsApp, Instagram; [Paint](docs/features/post-a-piece.md#paint)
 - [Checks](docs/features/post-a-piece.md#checks) — each dependency tested live, with its fix
 - [Story editor](docs/features/post-a-piece.md#story-editor) — the layer document and its editor
 - [Square only](docs/features/post-a-piece.md#square-only) — the square editor and SVG marks
@@ -226,8 +227,8 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Ads](docs/features/ads.md#ads) — Meta ad account per house; Overview, Campaigns, New ad, Setup; the helper
 
 **Ad studio** (`docs/features/ad-studio.md`)
-- [Ad studio](docs/features/ad-studio.md#ad-studio) — [five tabs](docs/features/ad-studio.md#five-tabs) (Plan, Photos, Make, Board, Saved), both houses; [any shape](docs/features/ad-studio.md#any-shape)
-- [Board](docs/features/ad-studio.md#board) — designs and notes on an endless canvas, Let it cook, an agent over MCP (`/api/studio/mcp`); Use it (queue a post, new ad, save); this week's board every Monday 9:00
+- [Ad studio](docs/features/ad-studio.md#ad-studio) — [five tabs](docs/features/ad-studio.md#five-tabs), both houses; [any shape](docs/features/ad-studio.md#any-shape)
+- [Board](docs/features/ad-studio.md#board) — an endless canvas, Let it cook, an agent over MCP (`/api/studio/mcp`); Use it; this week's board every Monday 9:00
 
 ## graphify
 

@@ -822,9 +822,9 @@
     "semantic_hash": ""
   },
   "src/app/api/shopify/_lib.ts": {
-    "mtime": 1790533461.6787117,
-    "seen": 1790854750.371245,
-    "ast_hash": "90183c8815543a8a0016257a399eddd6",
+    "mtime": 1791322040.0987353,
+    "seen": 1791322481.7997086,
+    "ast_hash": "82587a7d3be81cc19907d64f4031ed49",
     "semantic_hash": ""
   },
   "src/app/api/shopify/auth/route.ts": {
@@ -900,9 +900,9 @@
     "semantic_hash": ""
   },
   "src/app/api/shopify/register-webhooks/route.ts": {
-    "mtime": 1790798519.698005,
-    "seen": 1790854750.3712766,
-    "ast_hash": "00e1be46c3f68cfa41823ecb370050ad",
+    "mtime": 1791322030.283805,
+    "seen": 1791322481.799757,
+    "ast_hash": "12ae8c2e642cc197b9ad91b2cd7a101c",
     "semantic_hash": ""
   },
   "src/app/api/shopify/sync/invoice/route.ts": {
@@ -924,27 +924,27 @@
     "semantic_hash": ""
   },
   "src/app/api/shopify/webhooks/customers/route.ts": {
-    "mtime": 1790533461.6799312,
-    "seen": 1790854750.3712885,
-    "ast_hash": "a22fd4d16430f98fd63471d68348272e",
+    "mtime": 1791322030.2697055,
+    "seen": 1791322481.7997694,
+    "ast_hash": "c64e98bf727aa67fcd0a16f536b27d7e",
     "semantic_hash": ""
   },
   "src/app/api/shopify/webhooks/draft-orders/route.ts": {
-    "mtime": 1790533461.6799312,
-    "seen": 1790854750.371291,
-    "ast_hash": "c46fa3804e55bc71ae53019b41134e5e",
+    "mtime": 1791322030.2630944,
+    "seen": 1791322481.7997704,
+    "ast_hash": "f1e3767f25e7443745ecd8da95bd79da",
     "semantic_hash": ""
   },
   "src/app/api/shopify/webhooks/orders/route.ts": {
-    "mtime": 1790533461.6799312,
-    "seen": 1790854750.3712928,
-    "ast_hash": "b3fdf87d91b23b3f0c562204f8415c53",
+    "mtime": 1791322000.755095,
+    "seen": 1791322481.7997723,
+    "ast_hash": "08cb88422c372d80d466c5ec461f02f9",
     "semantic_hash": ""
   },
   "src/app/api/shopify/webhooks/products/route.ts": {
-    "mtime": 1790533461.6799312,
-    "seen": 1790854750.371295,
-    "ast_hash": "8bbe161898e79db8550fb02b730fc0aa",
+    "mtime": 1791322030.2717884,
+    "seen": 1791322481.7997735,
+    "ast_hash": "bb20adfcf4196688b4f0f9bba4be6e33",
     "semantic_hash": ""
   },
   "src/app/api/staff/collections/route.ts": {
@@ -2034,9 +2034,9 @@
     "semantic_hash": ""
   },
   "src/lib/store.ts": {
-    "mtime": 1791273260.7051778,
-    "seen": 1791273506.5307746,
-    "ast_hash": "9aaccbdbd3a5453d7f4994efcb22d73c",
+    "mtime": 1791322062.4215736,
+    "seen": 1791322481.8003678,
+    "ast_hash": "535ac70eca9f157136d99ecc31c4b8a8",
     "semantic_hash": ""
   },
   "src/lib/theme-cache.ts": {
@@ -2226,9 +2226,9 @@
     "semantic_hash": ""
   },
   "src/lib/workshop.ts": {
-    "mtime": 1791113564.3051963,
-    "seen": 1791113619.2691982,
-    "ast_hash": "e2e5679a1e7b0cdbf28a30f2ba374030",
+    "mtime": 1791322050.5863976,
+    "seen": 1791322481.8005142,
+    "ast_hash": "51b5d594bc9ca73603fd61ee0f11f0e3",
     "semantic_hash": ""
   },
   "src/lib/writes/create-order.ts": {
@@ -2238,9 +2238,9 @@
     "semantic_hash": ""
   },
   "src/lib/writes/invoice-payment.ts": {
-    "mtime": 1790872721.671286,
-    "seen": 1790873362.4432201,
-    "ast_hash": "c878305c088c602b26817f1628f8372e",
+    "mtime": 1791322339.8953254,
+    "seen": 1791322481.800518,
+    "ast_hash": "45c3b65e17339b2d93e379c73d8194d8",
     "semantic_hash": ""
   },
   "src/lib/zebra-printer.ts": {
@@ -2286,9 +2286,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1791209568.955707,
-    "seen": 1791209609.7155755,
-    "ast_hash": "f05d275ef3bd11a06d476c82bf5c5c42",
+    "mtime": 1791322450.2486346,
+    "seen": 1791322481.8005311,
+    "ast_hash": "b592d4efa82f1fc3510514f4374b578a",
     "semantic_hash": ""
   },
   "README.md": {
@@ -4320,9 +4320,9 @@
     "semantic_hash": ""
   },
   "docs/decisions.md": {
-    "mtime": 1791273462.2238357,
-    "seen": 1791273506.5310698,
-    "ast_hash": "9761d33a171b105d66760b90e9eae107",
+    "mtime": 1791322418.9976873,
+    "seen": 1791322481.8005404,
+    "ast_hash": "aee0a9f8a822b1ec42772cf745bf5ce3",
     "semantic_hash": ""
   },
   "docs/features/ad-studio.md": {
@@ -4440,9 +4440,9 @@
     "semantic_hash": ""
   },
   "src/lib/writes/invoice-payment.test.ts": {
-    "mtime": 1790870640.3418,
-    "seen": 1790871596.0034516,
-    "ast_hash": "e13005af9e84fbccf9923cfe6d61aa5e",
+    "mtime": 1791322353.3670871,
+    "seen": 1791322481.800517,
+    "ast_hash": "882e151d90b4081d5aea13f3fe4443c0",
     "semantic_hash": ""
   },
   "src/lib/ads/studio/assess-strikes.test.ts": {
@@ -5037,6 +5037,30 @@
     "mtime": 1791202848.7562723,
     "seen": 1791203579.4024394,
     "ast_hash": "106a903f7a0c8739aa246ad29b09bdee",
+    "semantic_hash": ""
+  },
+  "scripts/shopify-mirror-orders.ts": {
+    "mtime": 1791322339.8962028,
+    "seen": 1791322481.7995117,
+    "ast_hash": "47e766f5248db37a7066d75e27b6ed25",
+    "semantic_hash": ""
+  },
+  "src/app/api/shopify/_order-mirror.ts": {
+    "mtime": 1791322339.8957894,
+    "seen": 1791322481.79971,
+    "ast_hash": "36fc7cfee338e56cd2fe7eeaf48b5742",
+    "semantic_hash": ""
+  },
+  "src/lib/shopify-mirror.test.ts": {
+    "mtime": 1791322091.6456532,
+    "seen": 1791322481.800318,
+    "ast_hash": "6efdbab0bda2745f1aefeb346d24012d",
+    "semantic_hash": ""
+  },
+  "src/lib/shopify-mirror.ts": {
+    "mtime": 1791322405.8869755,
+    "seen": 1791322481.8003192,
+    "ast_hash": "623b9bf3d49154053fe82fdbcab1a0f7",
     "semantic_hash": ""
   }
 }

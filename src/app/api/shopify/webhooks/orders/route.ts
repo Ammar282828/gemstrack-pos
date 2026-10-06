@@ -1,74 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as admin from 'firebase-admin';
-import { validateWebhookHmac, mapInvoice, mapCustomer } from '../../_lib';
+import { getShopifyCredentials, webhookResourceId } from '../../_lib';
 import { adminDb } from '@/lib/firebase-admin';
+import { mirrorShopifyOrderById } from '../../_order-mirror';
 
-const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET || '';
-
+/**
+ * orders/create and orders/updated: what Shopify says happened to a web order since it was pulled
+ * in — paid, shipped, cancelled — onto its invoice (app/api/shopify/_order-mirror.ts).
+ *
+ * The notice is only told which order; the order itself is read back from Shopify with the shop's
+ * own token. So nothing in the body is trusted and no signing secret is needed: until 2026-10-06
+ * every notice was refused for one, signed by the "HOM POS" app and checked against another app's
+ * secret, and the ERP's web orders froze as they were pulled. Reading it back also means notices
+ * arriving out of order, or twice (Mina's store sends each to two addresses), all end in Shopify's
+ * latest word.
+ */
 export async function POST(request: NextRequest) {
-  const rawBody = await request.text();
+  const orderId = webhookResourceId(await request.text());
+  if (!orderId) return NextResponse.json({ ok: true, skipped: 'no-order-id' });
 
-  if (SHOPIFY_API_SECRET) {
-    const hmacHeader = request.headers.get('x-shopify-hmac-sha256') || '';
-    if (!validateWebhookHmac(rawBody, hmacHeader, SHOPIFY_API_SECRET)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  let creds: { shop: string; token: string };
+  try { creds = await getShopifyCredentials(adminDb); } catch { return NextResponse.json({ ok: true, skipped: 'not-connected' }); }
+
+  try {
+    const outcome = await mirrorShopifyOrderById(creds.shop, creds.token, orderId);
+    return NextResponse.json({ ok: true, ...outcome });
+  } catch (e) {
+    // A failure answers 500, so Shopify sends it again later.
+    console.error('[shopify/webhooks/orders]', orderId, (e as Error)?.message);
+    return NextResponse.json({ error: 'mirror failed' }, { status: 500 });
   }
-
-  const order = JSON.parse(rawBody);
-  const invoiceId = `SHOPIFY-${order.order_number}`;
-
-  // Check if this order originated from a POS draft order (payment link flow)
-  const posInvoiceMatch = order.note?.match(/POS Invoice (INV-\d+)/);
-  if (posInvoiceMatch && (order.financial_status === 'paid' || order.financial_status === 'partially_paid')) {
-    const posInvoiceId = posInvoiceMatch[1];
-    const posInvoiceDoc = await adminDb.collection('invoices').doc(posInvoiceId).get();
-    if (posInvoiceDoc.exists) {
-      const data = posInvoiceDoc.data()!;
-      const grandTotal = data.grandTotal || 0;
-      const alreadyPaid = data.amountPaid || 0;
-      const newPayment = grandTotal - alreadyPaid;
-
-      if (newPayment > 0) {
-        await posInvoiceDoc.ref.update({
-          amountPaid: grandTotal,
-          balanceDue: 0,
-          shopifyOrderId: String(order.id),
-          shopifyOrderNumber: order.order_number,
-          paymentHistory: admin.firestore.FieldValue.arrayUnion({
-            amount: newPayment,
-            date: new Date().toISOString(),
-            notes: `Paid via Shopify checkout (Order #${order.order_number})`,
-          }),
-        });
-
-        // Clean up hisaab outstanding balance entries
-        const hisaabSnap = await adminDb.collection('hisaab')
-          .where('linkedInvoiceId', '==', posInvoiceId)
-          .get();
-        const batch = adminDb.batch();
-        hisaabSnap.docs.forEach(d => batch.delete(d.ref));
-        await batch.commit();
-      }
-    }
-  }
-
-  // Echo prevention: orders that originated from a POS push carry the
-  // `pos-import` tag (and a per-invoice tag). Don't mirror them — the source
-  // POS invoice is already the canonical record. The earlier branch above
-  // handles the payment-link flow where Shopify is the payment gateway.
-  const tags = (order.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean);
-  const isPosPushed = tags.includes('pos-import') || tags.some((t: string) => t.startsWith('pos-inv-'));
-
-  if (!isPosPushed) {
-    // Standard Shopify order → invoice sync (for non-POS orders)
-    await adminDb.collection('invoices').doc(invoiceId).set(mapInvoice(order), { merge: true });
-  }
-
-  if (order.customer) {
-    const customerId = `shopify-${order.customer.id}`;
-    await adminDb.collection('customers').doc(customerId).set(mapCustomer(order.customer), { merge: true });
-  }
-
-  return NextResponse.json({ ok: true });
 }

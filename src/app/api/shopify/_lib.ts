@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 
 export const FIRESTORE_PROJECT_ID = 'hom-pos-52710474-ceeea';
 export const FIRESTORE_API_KEY = 'AIzaSyBJsDVAI_b7RvnSf-cpnSNLXQ-R0OH0qU4';
@@ -21,13 +20,19 @@ export const APP_URL = (
   process.env.NEXT_PUBLIC_APP_URL || 'https://studio--hom-pos-52710474-ceeea.us-central1.hosted.app'
 ).replace(/\/+$/, '');
 
-// --- Webhook HMAC validation ---
-export function validateWebhookHmac(rawBody: string, hmacHeader: string, secret: string): boolean {
-  const digest = crypto.createHmac('sha256', secret).update(rawBody, 'utf8').digest('base64');
+// --- Webhooks ---
+// Not signature-checked: each notice's subject is read back from Shopify (webhooks/orders/route.ts).
+/**
+ * The id a Shopify notice is about, and nothing else from it: the ERP reads the thing itself back
+ * from Shopify with the shop's token (app/api/shopify/_order-mirror.ts), so a forged or stale body
+ * can at most make it look something up. Digits only, so it can only ever name a path segment.
+ */
+export function webhookResourceId(rawBody: string): string | null {
   try {
-    return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(hmacHeader));
+    const id = String(JSON.parse(rawBody)?.id ?? '');
+    return /^\d{1,20}$/.test(id) ? id : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -162,8 +167,11 @@ export function mapInvoiceItem(lineItem: any) {
 export function mapInvoice(order: any) {
   const discount = parseFloat(order.total_discounts || '0');
   const grandTotal = parseFloat(order.total_price || '0');
-  const isPaid = order.financial_status === 'paid' || order.financial_status === 'partially_paid';
-  const amountPaid = isPaid ? grandTotal : 0;
+  // What Shopify has received: all of it when paid, what is not outstanding when part-paid (it was
+  // taken as paid in full). The payments themselves are added by the mirror (app/api/shopify/_order-mirror.ts).
+  const received = order.financial_status === 'paid' ? grandTotal
+    : order.financial_status === 'partially_paid' ? Math.max(0, grandTotal - parseFloat(order.total_outstanding || '0')) : 0;
+  const amountPaid = Math.min(grandTotal, received);
   const items = (order.line_items || []).map(mapInvoiceItem);
   const subtotal = items.reduce((sum: number, item: { itemTotal?: number }) => sum + (item.itemTotal || 0), 0);
   const adjustmentsAmount = grandTotal - (subtotal - discount);
