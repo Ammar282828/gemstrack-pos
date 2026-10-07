@@ -22,7 +22,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { AmountInput } from '@/components/ui/amount-input';
@@ -164,7 +163,9 @@ export const FinalizeOrderDialog: React.FC<{
                 </DialogHeader>
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleFinalize)} className="space-y-6">
-                        <ScrollArea className="h-[50vh] p-1">
+                        {/* The pieces scroll with the rest of the window, not in a box of their own: a second
+                            scroller inside the first is the one a thumb gets stuck in on a phone. */}
+                        <div className="p-1">
                             <div className="space-y-4 p-3">
                                 {fields.map((field, index) => {
                                     const original = order.items[index];
@@ -256,7 +257,7 @@ export const FinalizeOrderDialog: React.FC<{
                                     );
                                 })}
                             </div>
-                        </ScrollArea>
+                        </div>
                         <Separator />
                         <div className="p-3 grid gap-4 md:grid-cols-2">
                             <FormField control={form.control} name="additionalDiscount" render={({ field }) => (
@@ -288,7 +289,8 @@ export const FinalizeOrderDialog: React.FC<{
                               </div>
                             )}
                         </div>
-                        <DialogFooter>
+                        {/* Pinned to the window's foot, so Finalize is in reach however many pieces there are. */}
+                        <DialogFooter className="sticky -bottom-6 -mx-6 -mb-6 gap-2 border-t bg-background/95 px-6 py-4 backdrop-blur">
                             <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                             <Button type="submit" disabled={form.formState.isSubmitting}>
                                 {form.formState.isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <FileText className="mr-2 h-4 w-4"/>}
