@@ -37,6 +37,7 @@ import { saleCustomerKey, WALK_IN_ENTITY, WALK_IN_NAME } from '@/lib/walk-in';
 import { toTola, formatWeight } from '@/lib/units';
 import { MonthlyReportButton } from '@/components/reports/monthly-report-button';
 import { bookedAsSale } from '@/lib/order-stage';
+import { chartMotion } from '@/lib/chart-motion';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
@@ -1056,7 +1057,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
                             formatter={(value: number) => [`${pkrLac(value)}`, "Amount"]}
                         />
                         <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
-                        <Bar dataKey="amount" name="Amount" fill="hsl(var(--chart-5))" radius={[0, 4, 4, 0]} barSize={20} />
+                        <Bar {...chartMotion()} dataKey="amount" name="Amount" fill="hsl(var(--chart-5))" radius={[0, 4, 4, 0]} barSize={20} />
                     </BarChart>
                     </ResponsiveContainer>
                 ) : (
@@ -1093,8 +1094,8 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
                         }}
                     />
                     <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
-                    <Line yAxisId="left" type="monotone" dataKey="sales" name="Sales" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={{ r: 4, fill: 'hsl(var(--chart-1))', strokeWidth:0 }} activeDot={{ r: 6, fill: 'hsl(var(--chart-1))', strokeWidth:0 }}/>
-                    <Line yAxisId="right" type="monotone" dataKey="orders" name="Orders" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 4, fill: 'hsl(var(--chart-2))', strokeWidth:0 }} activeDot={{ r: 6, fill: 'hsl(var(--chart-2))', strokeWidth:0 }} />
+                    <Line {...chartMotion()} yAxisId="left" type="monotone" dataKey="sales" name="Sales" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={{ r: 4, fill: 'hsl(var(--chart-1))', strokeWidth:0 }} activeDot={{ r: 6, fill: 'hsl(var(--chart-1))', strokeWidth:0 }}/>
+                    <Line {...chartMotion()} yAxisId="right" type="monotone" dataKey="orders" name="Orders" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 4, fill: 'hsl(var(--chart-2))', strokeWidth:0 }} activeDot={{ r: 6, fill: 'hsl(var(--chart-2))', strokeWidth:0 }} />
                   </LineChart>
                 </ResponsiveContainer>
                  ) : (
@@ -1155,7 +1156,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
                         label={{ value: 'avg', position: 'right', fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
                       />
                     )}
-                    <Bar dataKey="revenue" name="Revenue" radius={[4, 4, 0, 0]}>
+                    <Bar {...chartMotion()} dataKey="revenue" name="Revenue" radius={[4, 4, 0, 0]}>
                       {/* The best month is picked out so the peak is findable at a glance. */}
                       {monthlyRevenue.data.map(d => (
                         <Cell key={d.key} fill={d.key === monthlyRevenue.best ? 'hsl(var(--chart-2))' : 'hsl(var(--chart-1))'} />
@@ -1318,7 +1319,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
                             formatter={(value: number) => [`${pkrLac(value)}`, "Sales"]}
                         />
                         <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
-                        <Bar dataKey="sales" name="Sales" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} barSize={20} />
+                        <Bar {...chartMotion()} dataKey="sales" name="Sales" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} barSize={20} />
                     </BarChart>
                     </ResponsiveContainer>
                 ) : (
@@ -1438,7 +1439,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
                           />
                           <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
                           {analyticsData.sourceActiveKeys.map((key) => (
-                            <Line
+                            <Line {...chartMotion()}
                               key={key}
                               type="monotone"
                               dataKey={key}

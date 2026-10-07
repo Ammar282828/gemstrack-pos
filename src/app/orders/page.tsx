@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { useLingering } from '@/hooks/use-lingering';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
@@ -174,6 +175,7 @@ const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = 
     const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null);
+    const pendingShown = useLingering(pendingStatus); // stays while the dialog closes (hooks/use-lingering.ts)
 
     const DESTRUCTIVE_STATUSES: OrderStatus[] = ['Cancelled'];
 
@@ -310,7 +312,7 @@ const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = 
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to mark order <strong>{order.id}</strong> as <strong>{pendingStatus}</strong>? This action is difficult to reverse.
+              Are you sure you want to mark order <strong>{order.id}</strong> as <strong>{pendingShown}</strong>? This action is difficult to reverse.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -548,9 +550,10 @@ export default function OrdersPage() {
               containers and 79 repeated column headers, which is both slow and
               why the header kept reappearing down the page. The group heading
               is a row inside the single table now. */}
-          <div className="md:hidden space-y-4">
+          <div className="md:hidden space-y-4 cv-list">
             {sections.map(s => (
-              <section key={s.key}>
+              // Skipped while off screen (globals.css .cv-list); a card is ~281px tall on a phone.
+              <section key={s.key} style={{ '--cv-size': `${26 + s.rows.length * 281}px` } as React.CSSProperties}>
                 <div className="flex items-baseline justify-between gap-3 px-1 pb-1.5">
                   <div className="flex items-baseline gap-2 min-w-0">
                     <h2 className={cn('text-sm font-semibold truncate', s.danger && 'text-destructive')}>{s.title}</h2>

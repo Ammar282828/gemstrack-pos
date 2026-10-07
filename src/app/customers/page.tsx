@@ -690,7 +690,8 @@ export default function CustomersPage() {
           <span className="text-2xs text-muted-foreground flex-shrink-0">{people.length}</span>
         </div>
 
-        <div className="md:hidden">
+        {/* Each card skipped while off screen (globals.css .cv-list); ~120px tall on a phone. */}
+        <div className="md:hidden cv-list" style={{ '--cv-size': '120px' } as React.CSSProperties}>
           {people.map(c => (
             <CustomerCard key={c.id} customer={c} stats={statsById.get(c.id)} onDelete={handleDeleteCustomer} />
           ))}

@@ -14,6 +14,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useLingering } from '@/hooks/use-lingering';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -91,6 +92,7 @@ export function PieceCard({ piece, shown, siteName, posted, photo, token, ig, lo
   const [busy, setBusy] = useState<'ai' | 'story' | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [story, setStory] = useState<{ url: string; blob: Blob } | null>(null);
+  const storyShown = useLingering(story); // what its dialog shows while closing (hooks/use-lingering.ts)
   const stamped = useRef<{ key: string; blob: Blob } | null>(null);
   const mark = useRef<Promise<HTMLImageElement | null> | null>(null);
 
@@ -278,7 +280,7 @@ export function PieceCard({ piece, shown, siteName, posted, photo, token, ig, lo
             <AlertDialogTitle>{ig?.connected ? `Post this story${ig.username ? ` to @${ig.username}` : ''}?` : 'The story'}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm">
-                {story && <img src={story.url} alt="The story" className="mx-auto max-h-[55vh] rounded-lg border object-contain" style={{ aspectRatio: '9 / 16' }} />}
+                {storyShown && <img src={storyShown.url} alt="The story" className="mx-auto max-h-[55vh] rounded-lg border object-contain" style={{ aspectRatio: '9 / 16' }} />}
                 <p className="text-xs">{ig?.connected
                   ? 'It goes up on Instagram at once and can’t be taken down from here. Instagram’s API can’t add a link sticker — add one by hand in the app if you want it.'
                   : ig?.configured ? 'Instagram isn’t connected on this ERP (Post a piece → Instagram connects it), so save it and post it from the Instagram app.'

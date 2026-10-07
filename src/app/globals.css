@@ -421,13 +421,22 @@ html.ui-glass.dark {
    it doesn't scroll. Cards keep their opaque colour on top of it. */
 html.ui-glass body {
   background-color: hsl(var(--background));
+}
+/* The light is a layer of its own, fixed behind everything (2026-10-07). As `background-attachment:
+   fixed` on the body, iPhones ignored it — Safari scrolls a fixed background with the page, so the
+   glow slid away under the glass — and Chrome repainted the whole page on every scroll frame. */
+html.ui-glass body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background-image:
     radial-gradient(60rem 40rem at 8% -10%, hsl(var(--primary) / 0.14), transparent 60%),
     radial-gradient(50rem 36rem at 100% 110%, hsl(var(--chart-2) / 0.12), transparent 60%),
     radial-gradient(40rem 30rem at 60% 50%, hsl(var(--foreground) / 0.025), transparent 60%);
-  background-attachment: fixed;
 }
-html.ui-glass.dark body {
+html.ui-glass.dark body::before {
   background-image:
     radial-gradient(60rem 40rem at 8% -10%, hsl(var(--primary) / 0.28), transparent 60%),
     radial-gradient(50rem 36rem at 100% 110%, hsl(var(--chart-2) / 0.18), transparent 60%),
@@ -754,7 +763,7 @@ html.ui-glass .glass-fab:active { transform: scale(0.94); }
       browser without backdrop-filter gets the solid material too. ─────────── */
 @media (prefers-reduced-transparency: reduce) {
   html.ui-glass { --glass-a: 1; --glass-a-large: 1; --glass-a-window: 1; --glass-blur: 0px; --glass-sat: 1; }
-  html.ui-glass body { background-image: none; }
+  html.ui-glass body::before { background-image: none; }
   html.ui-glass .app-header::before { opacity: 1; -webkit-backdrop-filter: none; backdrop-filter: none; background: hsl(var(--background)); -webkit-mask-image: none; mask-image: none; inset: 0; }
   html.ui-glass .glass-prominent { background-color: hsl(var(--primary)); }
 }
@@ -770,4 +779,33 @@ html.ui-glass .glass-fab:active { transform: scale(0.94); }
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   html.ui-glass { --glass-a: 0.97; --glass-a-large: 1; --glass-a-window: 1; }
+}
+
+/* ── Reduce Motion, everywhere (2026-10-07) ─────────────────────────────────
+   Only the glass controls honoured it. Now every dialog, sheet, menu, fold and press arrives at once
+   for someone who has asked their phone for less movement — except what reports that something is
+   happening: a spinner still turns, slower, so a wait never looks like a hang. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-spin {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+  .btn:active { transform: none !important; }
+}
+
+/* ── Long lists on a phone (2026-10-07) ──────────────────────────────────────
+   Opening any dialog or the menu restyles the whole page — Radix sets pointer-events on the body and
+   adds a scroll-lock stylesheet — so behind a long list it stalled: 5,320 elements restyled twice,
+   ~370 ms at 4x CPU, under 120 invoices; the shop has four times that. A section or card off screen
+   is now skipped (not styled, laid out or painted) until it nears the screen; `--cv-size` is its
+   estimated height until it has been drawn once, then its real one (`auto`). */
+.cv-list > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--cv-size, 240px);
 }

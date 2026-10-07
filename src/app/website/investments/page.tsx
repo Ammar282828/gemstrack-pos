@@ -23,6 +23,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { useLingering } from '@/hooks/use-lingering';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -338,6 +339,7 @@ function DayCard({ post: p, isToday, targets, schedule, now, onChanged }: { post
   const [teaser, setTeaser] = useState(p.teaser);
   const [busy, setBusy] = useState<Target | 'all' | 'plan' | null>(null);
   const [confirm, setConfirm] = useState<{ targets: Target[]; force: boolean } | null>(null);
+  const confirmShown = useLingering(confirm); // what its dialog shows while closing (hooks/use-lingering.ts)
   useEffect(() => { setPost(p.post); setTeaser(p.teaser); }, [p.post, p.teaser]);
 
   const card = (kind: 'square' | 'story') => `/api/public/investments/${p.id}/${kind}?v=${encodeURIComponent(p.receivedAt)}`;
@@ -488,22 +490,22 @@ function DayCard({ post: p, isToday, targets, schedule, now, onChanged }: { post
       <AlertDialog open={!!confirm} onOpenChange={o => { if (!o) setConfirm(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{confirm?.force ? 'Send it again?' : confirm && confirm.targets.length > 1 ? `Send all ${confirm.targets.length} now?` : 'Send it now?'}</AlertDialogTitle>
+            <AlertDialogTitle>{confirmShown?.force ? 'Send it again?' : confirmShown && confirmShown.targets.length > 1 ? `Send all ${confirmShown.targets.length} now?` : 'Send it now?'}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm">
-                {confirm && confirm.targets.length > 1 ? (<>
+                {confirmShown && confirmShown.targets.length > 1 ? (<>
                   <p>{longDate(p.date)}, one after another:</p>
-                  <ul className="list-disc pl-5 space-y-0.5">{confirm.targets.map(t => <li key={t}>{TARGETS[t].label} → {TARGETS[t].to}</li>)}</ul>
+                  <ul className="list-disc pl-5 space-y-0.5">{confirmShown.targets.map(t => <li key={t}>{TARGETS[t].label} → {TARGETS[t].to}</li>)}</ul>
                   <p className="text-xs">None of it can be unsent from here.</p>
-                </>) : confirm && (
-                  <p>{`${TARGETS[confirm.targets[0]].label} for ${longDate(p.date)} goes to ${TARGETS[confirm.targets[0]].to}${confirm.force ? ' a second time — everyone will see it twice' : ''}. It can’t be unsent from here.`}</p>
+                </>) : confirmShown && (
+                  <p>{`${TARGETS[confirmShown.targets[0]].label} for ${longDate(p.date)} goes to ${TARGETS[confirmShown.targets[0]].to}${confirmShown.force ? ' a second time — everyone will see it twice' : ''}. It can’t be unsent from here.`}</p>
                 )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Not yet</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { const c = confirm!; setConfirm(null); send(c.targets, c.force); }}>{confirm?.force ? 'Send again' : confirm && confirm.targets.length > 1 ? 'Send all' : 'Send'}</AlertDialogAction>
+            <AlertDialogAction onClick={() => { const c = confirm; setConfirm(null); if (c) send(c.targets, c.force); }}>{confirmShown?.force ? 'Send again' : confirmShown && confirmShown.targets.length > 1 ? 'Send all' : 'Send'}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

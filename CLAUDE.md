@@ -7,8 +7,7 @@ Next.js **ERP** (it started as a point-of-sale; renamed 2026-09-27) serving **tw
 | Taheri (gold and diamond) | erp.taheri.shop (and pos.taheri.shop) | `gemstrack-pos` | `studio` / `taheri` | branch **`taheri-next`** of this repo |
 | House of Mina (silver) | erp.houseofmina.store (and pos.houseofmina.store) | `hom-pos-52710474-ceeea` | `studio` / `mina` | branch **`main`** of repo **gemstrack-pos** (remote `hom`) |
 
-Two forks, reconverged 2026-09-22: both deploy from this history.
-`.firebaserc` (hom-pos) is for the unused Firebase CLI.
+Two forks, reconverged 2026-09-22: both deploy from this history (`.firebaserc` is for the unused CLI).
 
 The public website is a separate repo: **taheri-site** (github.com/Ammar282828/taheri-site,
 `~/Projects/taheri-site`), a Vite app on Hostinger. Read its CLAUDE.md for the site.
@@ -27,7 +26,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 
 - **Node 20**, not the Mac's default: launch config "POS (node 20)" (`PATH=/opt/homebrew/opt/node@20/bin:$PATH npm run dev`, port 3000), or per house
   "Taheri (node 20)" (port 3000) / "Mina (node 20)" (port 3001). On Node 26 Google auth fails ("Premature close"). The per-house
-  configs drop the second laptop's `GOOGLE_APPLICATION_CREDENTIALS` (`~/.zshrc`, a missing file), which breaks every Google call.
+  configs drop the second laptop's `GOOGLE_APPLICATION_CREDENTIALS` (a missing file), which breaks every Google call.
 - The app is behind Google sign-in, locally and in **both** houses since 2026-09-30 (Taheri ran
   `NEXT_PUBLIC_OPEN_ACCESS=1` with open Firestore rules from 2026-09-07; owner: "taheri being open to all is a bit
   dangerous"). Don't reintroduce the open-access flag.
@@ -70,7 +69,7 @@ git pull --no-rebase taheri main              # what cloud sessions shipped (see
 git push taheri main main:taheri-next         # GitHub's main + Taheri rolls out (~5 min)
 git push hom main:main                        # House of Mina rolls out
 ```
-**Push both together, always** (owner, 2026-09-26: "push both together always") — no waiting on Taheri's rollout before
+**Push both together, always** (owner, 2026-09-26) — no waiting on Taheri's rollout before
 Mina's. Keep `taheri`'s `main` level too: every cloud session starts there. `main` here is the shared working branch.
 
 **Running a house locally:** `npm run env:taheri` or `npm run env:mina` writes `.env.<house>.local`
@@ -82,7 +81,7 @@ after changing either YAML.
 
 ## Cloud sessions (claude.ai/code, since 2026-09-27)
 
-Claude Code runs these repos in the cloud too, with no Mac (owner, 2026-09-27).
+Claude Code runs these repos in the cloud too, with no Mac.
 - **One Google credential:** the service account `claude-cloud@gemstrack-pos`. Its JSON key, base64, is the environment
   variable `GCP_SA_KEY_B64` of the claude.ai/code environment (the Mac keeps it in `~/.config/claude-cloud/`, owner-only;
   `environment.env` there is the line to paste). It may read exactly the secrets the backends use (Taheri 13, Mina 14 —
@@ -120,12 +119,12 @@ Claude Code runs these repos in the cloud too, with no Mac (owner, 2026-09-27).
   `gcloud iam service-accounts keys list --iam-account firebase-adminsdk-fbsvc@hom-pos-52710474-ceeea.iam.gserviceaccount.com --project hom-pos-52710474-ceeea --managed-by=user`,
   then `… keys delete <KEY_ID>`. It bypasses Firestore rules. The second laptop's Mina `.env.local` may use that key.
   cloud-deploy now refuses a tree with a PEM private key in it (a push from a Mac is not checked).
-- Scripts' `client_id`/`client_secret` is the Firebase CLI's own OAuth client, public by design.
+- Scripts' `client_id`/`client_secret` is the Firebase CLI's public OAuth client.
 - **Taheri's Firestore is open until the owner publishes `firestore.rules`** in the Firebase console (never the CLI from here): see [Taheri sign-in](docs/decisions.md#taheri-sign-in).
 
 ## Where the rest is written down
 
-- How taheri.shop, the Mina catalogue and the ERP talk (every `/api/public/*` and website route), and WhatsApp through WAHA: `docs/features/site-and-erp.md` (runbook `ops/waha/README.md`).
+- taheri.shop, the Mina catalogue and the ERP (`/api/public/*`, website routes), WhatsApp via WAHA: `docs/features/site-and-erp.md` (runbook `ops/waha/README.md`).
 - House of Mina's catalogue (catalogue.houseofmina.store): `docs/features/mina-catalogue.md`.
 - In progress (website edits, Meta app settings, Meta's Ads connector) and open items: `docs/in-progress.md`.
 - The AI copies and a proposed merge: `docs/ai-merge-proposal.md`.
@@ -141,6 +140,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Hooks](docs/decisions.md#hooks) — the `/orders/add` crash of 2026-09-22
 - [Fonts](docs/decisions.md#fonts) — every face in `src/fonts/`, `next/font/local`
 - [Light and dark](docs/decisions.md#light-and-dark) — the device's choice wins; `theme-default` set outside React
+- [Motion](docs/decisions.md#motion) — three curves; dialogs linger; Reduce Motion
 - [Recent picks](docs/decisions.md#recent-picks) — last five per device
 
 **Home and the day**
@@ -159,7 +159,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Order to invoice](docs/decisions.md#order-to-invoice) — advances as payments, exchange, discount, notes; wastage/making
 - [Orders hub](docs/decisions.md#orders-hub) — by stage, a next step per card; pieces set status
 - [Online orders](docs/decisions.md#online-orders) — a person confirms; no sale until the transfer
-- [Shopify notices](docs/decisions.md#shopify-notices) — read back; web orders kept current, never rewritten
+- [Shopify notices](docs/decisions.md#shopify-notices) — read back; kept current, never rewritten
 - [Name a sale](docs/decisions.md#name-a-sale) — on the invoice
 - [Advance method](docs/decisions.md#advance-method) — `.nullish()`, `onInvalid` toasts
 - [Exchange line](docs/decisions.md#exchange-line) — what + amount
@@ -169,16 +169,16 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Money and analytics**
 - [Lac and crore](docs/decisions.md#lac-and-crore) — `lib/money.ts`
-- [Invoice credit](docs/decisions.md#invoice-credit) — paid past the total is a named customer's credit, on their hisaab in the same commit
+- [Invoice credit](docs/decisions.md#invoice-credit) — overpaid is a named customer's credit, on their hisaab
 - [Margin](docs/decisions.md#margin) — typed 24k less 6 ratti, else 10%; never the customer's
 - [Exchange as cash](docs/decisions.md#exchange-as-cash) — in Cash In and in revenue (`invoiceSaleValue`)
 
 **People and sign-in**
 - [Add photos sign-in](docs/decisions.md#add-photos-sign-in) — superseded 2026-09-30: every house signs in
-- [Taheri sign-in](docs/decisions.md#taheri-sign-in) — `NEXT_PUBLIC_STORE_OWNER_EMAILS`; locked `firestore.rules` for the owner to publish; invoice share keys
+- [Taheri sign-in](docs/decisions.md#taheri-sign-in) — `NEXT_PUBLIC_STORE_OWNER_EMAILS`; locked rules for the owner to publish; share keys
 - [Signed-in defaults](docs/decisions.md#signed-in-defaults) — `NEXT_PUBLIC_STORE_PEOPLE`; Taken by, Workshop; Orders/Invoices: all, yours lit
 - [Karigar sign-in](docs/decisions.md#karigar-sign-in) — in-app browsers; `[sign-in]` in the log
-- [Marketing role](docs/decisions.md#marketing-role) — `NEXT_PUBLIC_STORE_MARKETING_EMAILS`; the Marketing group only, through the server; customer audiences stay owners'
+- [Marketing role](docs/decisions.md#marketing-role) — `NEXT_PUBLIC_STORE_MARKETING_EMAILS`; Marketing group only, via the server; audiences owners'
 - [Delete code](docs/decisions.md#delete-code) — every delete asks; the server checks it
 
 **The website and copy**
@@ -229,7 +229,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Ad studio** (`docs/features/ad-studio.md`)
 - [Ad studio](docs/features/ad-studio.md#ad-studio) — [five tabs](docs/features/ad-studio.md#five-tabs), both houses; [any shape](docs/features/ad-studio.md#any-shape)
-- [Board](docs/features/ad-studio.md#board) — an endless canvas, Let it cook, an agent over MCP (`/api/studio/mcp`); Use it; this week's board every Monday 9:00
+- [Board](docs/features/ad-studio.md#board) — endless canvas, Let it cook, MCP agent (`/api/studio/mcp`), Use it; a weekly board Mondays 9:00
 
 ## graphify
 

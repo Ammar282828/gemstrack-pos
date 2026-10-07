@@ -10,6 +10,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useLingering } from '@/hooks/use-lingering';
 import { Banknote, Loader2 } from 'lucide-react';
 import { useAppStore, PAYMENT_TYPES, type Invoice, type PaymentType } from '@/lib/store';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -21,11 +22,13 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { balanceLine, canHoldCredit } from '@/lib/invoice-credit';
 
-export function RecordPaymentDialog({ invoice, open, onOpenChange }: {
+export function RecordPaymentDialog({ invoice: invoiceNow, open, onOpenChange }: {
   invoice: Pick<Invoice, 'id' | 'balanceDue' | 'customerName' | 'customerId'> | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  // Shown as it was while the dialog closes (hooks/use-lingering.ts): the balance fell to 0 as it faded.
+  const invoice = useLingering(invoiceNow);
   const updateInvoicePayment = useAppStore(s => s.updateInvoicePayment);
   const { toast } = useToast();
   const [amount, setAmount] = useState<number | undefined>(undefined);

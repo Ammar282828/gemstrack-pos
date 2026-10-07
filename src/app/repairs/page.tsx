@@ -11,6 +11,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useLingering } from '@/hooks/use-lingering';
 import { format, parseISO, addDays, differenceInCalendarDays } from 'date-fns';
 import QRCode from 'qrcode.react';
 import {
@@ -262,13 +263,15 @@ function RepairForm({ repair, onDone }: { repair?: Repair; onDone: (saved?: Repa
 }
 
 // ── Hand back: take the balance, done ───────────────────────────────────────
-function HandBackDialog({ repair, onClose }: { repair: Repair; onClose: () => void }) {
+function HandBackDialog({ repair, open, onClose }: { repair: Repair; open: boolean; onClose: () => void }) {
   const { setRepairStatus, recordRepairPayment } = useAppStore();
   const { toast } = useToast();
   const balance = repairBalance(repair);
   const [amount, setAmount] = useState<number | undefined>(balance || undefined);
   const [method, setMethod] = useState<PaymentType>('Cash');
   const [busy, setBusy] = useState(false);
+  // It stays mounted while it closes (so it can leave, not vanish); each opening starts from the balance.
+  useEffect(() => { if (open) { setAmount(repairBalance(repair) || undefined); setMethod('Cash'); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const go = async () => {
     setBusy(true);
     try {
@@ -281,7 +284,7 @@ function HandBackDialog({ repair, onClose }: { repair: Repair; onClose: () => vo
     } finally { setBusy(false); }
   };
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Hand back</DialogTitle>
@@ -311,6 +314,7 @@ export default function RepairsPage() {
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<Repair | 'new' | null>(null);
   const [handingBack, setHandingBack] = useState<Repair | null>(null);
+  const handShown = useLingering(handingBack); // kept while its dialog closes (hooks/use-lingering.ts)
   const [today] = useState(() => new Date());
 
   useEffect(() => { if (appReady) loadRepairs(); }, [appReady, loadRepairs]);
@@ -490,7 +494,7 @@ export default function RepairsPage() {
         </DialogContent>
       </Dialog>
 
-      {handingBack && <HandBackDialog repair={handingBack} onClose={() => setHandingBack(null)} />}
+      {handShown && <HandBackDialog key={handShown.id} repair={handShown} open={!!handingBack} onClose={() => setHandingBack(null)} />}
     </PageShell>
   );
 }

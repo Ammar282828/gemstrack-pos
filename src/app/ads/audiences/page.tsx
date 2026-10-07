@@ -9,6 +9,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { useLingering } from '@/hooks/use-lingering';
 import { PageShell } from '@/components/shared/page-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +46,7 @@ function Audiences() {
   const [percent, setPercent] = useState(1);
   const [country, setCountry] = useState('PK');
   const [confirm, setConfirm] = useState<{ kind: 'delete' | 'customers'; a?: Audience } | null>(null);
+  const confirmShown = useLingering(confirm); // what its dialog shows while closing (hooks/use-lingering.ts)
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -158,19 +160,19 @@ function Audiences() {
       <AlertDialog open={!!confirm} onOpenChange={o => { if (!o) setConfirm(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{confirm?.kind === 'delete' ? `Delete “${confirm.a?.name}”?` : `Send “${seg?.label}” to Meta?`}</AlertDialogTitle>
+            <AlertDialogTitle>{confirmShown?.kind === 'delete' ? `Delete “${confirmShown.a?.name}”?` : `Send “${seg?.label}” to Meta?`}</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirm?.kind === 'delete'
+              {confirmShown?.kind === 'delete'
                 ? 'Ads that reach or leave out this audience lose it and keep the rest of their targeting. This can’t be undone.'
                 : 'The customers’ phone numbers, emails and names are scrambled on this server first; Meta receives only the scrambled codes, matches them to accounts, and doesn’t keep the unmatched ones. The first time, Meta may ask for its Custom Audience terms to be accepted.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Not now</AlertDialogCancel>
-            <AlertDialogAction className={confirm?.kind === 'delete' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : undefined} onClick={() => {
+            <AlertDialogAction className={confirmShown?.kind === 'delete' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : undefined} onClick={() => {
               const c = confirm; setConfirm(null);
               if (c?.kind === 'delete' && c.a) remove(c.a); else make({ kind: 'customers', segment }, 'customers');
-            }}>{confirm?.kind === 'delete' ? 'Delete' : 'Send'}</AlertDialogAction>
+            }}>{confirmShown?.kind === 'delete' ? 'Delete' : 'Send'}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

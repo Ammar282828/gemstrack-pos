@@ -1,6 +1,7 @@
 "use client";
 
 import { loadOrderPhoto } from '@/components/order/order-photo';
+import { useLingering } from '@/hooks/use-lingering';
 import React, { useEffect, useMemo, useState } from 'react';
 import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
@@ -394,7 +395,9 @@ const OrderGroupedJobs: React.FC<{
 
 // ── edit the making details of a job (owner-side, Workshop only) ────────────
 
-const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void }> = ({ job, onClose }) => {
+const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void }> = ({ job: jobNow, onClose }) => {
+  // Shown as it was while the dialog closes (hooks/use-lingering.ts): it rendered nothing and vanished.
+  const job = useLingering(jobNow);
   const updateOrderItemDetails = useAppStore(s => s.updateOrderItemDetails);
   const updateKarigarJob = useAppStore(s => s.updateKarigarJob);
   const { toast } = useToast();
@@ -422,7 +425,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
     let live = true;
     if (!job.sampleImage && job.samplePhotoId) void loadOrderPhoto(job.samplePhotoId).then(v => { if (live && v) setSample(v); });
     return () => { live = false; };
-  }, [job]);
+  }, [jobNow]); // eslint-disable-line react-hooks/exhaustive-deps -- each opening starts from the job
 
   if (!job) return null;
 
@@ -460,7 +463,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
   };
 
   return (
-    <Dialog open={!!job} onOpenChange={v => { if (!v) onClose(); }}>
+    <Dialog open={!!jobNow} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full max-w-lg max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Pencil className="h-5 w-5 text-primary" />Making details</DialogTitle>

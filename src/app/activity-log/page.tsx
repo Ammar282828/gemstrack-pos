@@ -2,6 +2,7 @@
 "use client";
 
 import { PageShell } from '@/components/shared/page-shell';
+import { useLingering } from '@/hooks/use-lingering';
 import { SignInActivity, EmergencyLock } from '@/components/settings/settings-sections';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
@@ -80,6 +81,7 @@ export default function ActivityLogPage() {
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [typeFilter, setTypeFilter] = useState<string>('All');
     const [revertTarget, setRevertTarget] = useState<ActivityLog | null>(null);
+    const revertTargetShown = useLingering(revertTarget); // what its dialog shows while closing (hooks/use-lingering.ts)
     const [isReverting, setIsReverting] = useState(false);
     const { toast } = useToast();
     
@@ -205,13 +207,13 @@ export default function ActivityLogPage() {
                 <DialogHeader>
                     <DialogTitle>Revert this action?</DialogTitle>
                     <DialogDescription>
-                        <span className="font-medium text-foreground">{revertTarget?.description}</span>
+                        <span className="font-medium text-foreground">{revertTargetShown?.description}</span>
                         <br />
-                        <span className="text-muted-foreground text-xs">{revertTarget && format(parseISO(revertTarget.timestamp), 'PPp')}</span>
+                        <span className="text-muted-foreground text-xs">{revertTargetShown && format(parseISO(revertTargetShown.timestamp), 'PPp')}</span>
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-2 text-sm text-muted-foreground">
-                    {revertTarget && revertConsequences[revertTarget.eventType]}
+                    {revertTargetShown && revertConsequences[revertTargetShown.eventType]}
                     <p className="mt-2 font-medium text-destructive">This cannot be undone.</p>
                 </div>
                 <DialogFooter className="gap-2">

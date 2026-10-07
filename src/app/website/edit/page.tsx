@@ -19,6 +19,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLingering } from '@/hooks/use-lingering';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -283,6 +284,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
 
   const [busy, setBusy] = useState<null | 'save' | 'photo' | 'all' | 'ai'>(null);
   const [confirm, setConfirm] = useState<null | 'save' | 'photo' | 'all'>(null);
+  const confirmShown = useLingering(confirm); // what its dialog shows while closing (hooks/use-lingering.ts)
   const [askOpen, setAskOpen] = useState(false);
   const [askText, setAskText] = useState('');
 
@@ -619,11 +621,11 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirm === 'save' ? `Change it on ${SITE_NAME}?` : confirm === 'photo' ? 'Put the original photo back?' : 'Undo every change to this piece?'}
+              {confirmShown === 'save' ? `Change it on ${SITE_NAME}?` : confirmShown === 'photo' ? 'Put the original photo back?' : 'Undo every change to this piece?'}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm">
-                {confirm === 'save' && (
+                {confirmShown === 'save' && (
                   <ul className="list-disc pl-5 space-y-0.5">
                     {photoChanged && <li>The photo is replaced{stamped ? `, with ${wLabel} on it` : ''}{ai.length ? ` (${ai.join(', ').toLowerCase()})` : ''}. The original is kept.</li>}
                     {words.name !== piece.words.name && <li>Name: “{words.name.trim()}”</li>}
@@ -634,8 +636,8 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
                     {hidden !== piece.hidden && <li>{hidden ? 'Hidden from the website' : 'Shown on the website again'}</li>}
                   </ul>
                 )}
-                {confirm === 'photo' && <p>The website shows the photo as it was built. Your design is forgotten; the words stay as they are.</p>}
-                {confirm === 'all' && <p>The photo, the name, the words and hiding all go back to what the website was built with. {tags ? 'A weight typed here stays (it’s the piece’s weight).' : ''}</p>}
+                {confirmShown === 'photo' && <p>The website shows the photo as it was built. Your design is forgotten; the words stay as they are.</p>}
+                {confirmShown === 'all' && <p>The photo, the name, the words and hiding all go back to what the website was built with. {tags ? 'A weight typed here stays (it’s the piece’s weight).' : ''}</p>}
                 <p className="text-xs">Pages opened from about a minute later show it; the next deploy writes it into the pages search engines read.</p>
               </div>
             </AlertDialogDescription>
@@ -643,7 +645,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
           <AlertDialogFooter>
             <AlertDialogCancel>Not yet</AlertDialogCancel>
             <AlertDialogAction onClick={() => { const c = confirm; setConfirm(null); if (c === 'save') save(); else if (c) putBack(c); }}>
-              {confirm === 'save' ? 'Save' : 'Put it back'}
+              {confirmShown === 'save' ? 'Save' : 'Put it back'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

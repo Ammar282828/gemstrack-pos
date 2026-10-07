@@ -100,7 +100,7 @@ export const FilterBar: React.FC<{
               Below it, `hidden` folds them away until asked for. */}
           {children && (
             <div className={cn(
-              'grid grid-cols-2 gap-2 sm:contents [&_button]:h-9 [&_[role=combobox]]:h-9',
+              'grid grid-cols-2 gap-2 sm:contents [&_button]:h-9 [&_[role=combobox]]:h-9 animate-in fade-in-0 slide-in-from-top-1 duration-200 ease-enter',
               !open && 'hidden sm:contents',
             )}>
               {children}

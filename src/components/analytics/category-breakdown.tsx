@@ -15,6 +15,7 @@ import type { DateRange } from 'react-day-picker';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { pkrLac, lacCrore } from '@/lib/money';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { chartMotion } from '@/lib/chart-motion';
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
@@ -118,7 +119,7 @@ export function CategoryBreakdown({ range: dateRange }: { range: DateRange | und
                         <CardContent>
                             <ResponsiveContainer width="100%" height={300}>
                                 <PieChart>
-                                    <Pie data={categoryPerformance} dataKey="revenue" nameKey="name" cx="50%" cy="50%" outerRadius={100} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                                    <Pie {...chartMotion()} data={categoryPerformance} dataKey="revenue" nameKey="name" cx="50%" cy="50%" outerRadius={100} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
                                           const RADIAN = Math.PI / 180;
                                           const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
                                           const x = cx + radius * Math.cos(-midAngle * RADIAN);

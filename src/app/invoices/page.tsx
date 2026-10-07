@@ -707,9 +707,10 @@ export default function DocumentsPage() {
               separate <Table> elements here for 461 documents — 176 scroll
               containers and 176 repeated column headers. The group heading is
               a row inside the single table now. */}
-          <div className="md:hidden space-y-4">
+          <div className="md:hidden space-y-4 cv-list">
             {sections.map(s => (
-              <section key={s.key}>
+              // Skipped while off screen (globals.css .cv-list); a card is ~214px tall on a phone.
+              <section key={s.key} style={{ '--cv-size': `${26 + s.rows.length * 214}px` } as React.CSSProperties}>
                 <div className="px-1 pb-1.5">{heading(s)}</div>
                 {s.rows.map(d => <DocumentCard key={`${d.docType}-${d.id}`} {...rowProps(d)} />)}
               </section>

@@ -2,6 +2,7 @@
 "use client";
 
 import { useOrderPhoto } from '@/components/order/order-photo';
+import { useLingering } from '@/hooks/use-lingering';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Control } from 'react-hook-form';
@@ -563,6 +564,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
    * Opening an order to edit asks nothing about the sizes it already had.
    */
   const [sizeAsk, setSizeAsk] = React.useState<{ who: string; name: string; rows: SizeSuggestion[]; chosen: Set<ProfileSizeField> } | null>(null);
+  const sizeAskShown = useLingering(sizeAsk); // what the dialog shows while it closes (hooks/use-lingering.ts)
   const [sizesDecided, setSizesDecided] = React.useState<Set<string>>(() => new Set());
   const [newCustomerSizes, setNewCustomerSizes] = React.useState<Partial<Record<ProfileSizeField, string>>>({});
   const sizeBaseline = useRef(false);
@@ -1333,7 +1335,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                             </Button>
                           )}
                         </div>
-                        <div className={cn('space-y-5 px-4 pb-4', !open && 'hidden')}>
+                        <div className={cn('space-y-5 px-4 pb-4 animate-in fade-in-0 slide-in-from-top-1 duration-200 ease-enter', !open && 'hidden')}>
                             {/*
                               One order of things, top to bottom: what the piece is, what it
                               costs, what the bench needs, and what it was copied from. Every
@@ -1794,14 +1796,14 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
       <AlertDialog open={!!sizeAsk} onOpenChange={open => { if (!open) closeSizeAsk(false); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Save to {sizeAsk?.name || 'the customer'}&apos;s profile?</AlertDialogTitle>
+            <AlertDialogTitle>Save to {sizeAskShown?.name || 'the customer'}&apos;s profile?</AlertDialogTitle>
             <AlertDialogDescription>So the size is there next time, on any order or sale for them.</AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
-            {sizeAsk?.rows.map(r => (
+            {sizeAskShown?.rows.map(r => (
               <label key={r.field} className="flex items-center gap-3 rounded-md border p-3 text-sm cursor-pointer">
                 <Checkbox
-                  checked={sizeAsk.chosen.has(r.field)}
+                  checked={sizeAskShown.chosen.has(r.field)}
                   onCheckedChange={c => setSizeAsk(a => a && ({ ...a, chosen: new Set(c ? [...a.chosen, r.field] : [...a.chosen].filter(f => f !== r.field)) }))}
                 />
                 <span className="flex-1">
@@ -1813,7 +1815,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => closeSizeAsk(false)}>Not now</AlertDialogCancel>
-            <AlertDialogAction onClick={() => closeSizeAsk(true)} disabled={!sizeAsk?.chosen.size}>Save to profile</AlertDialogAction>
+            <AlertDialogAction onClick={() => closeSizeAsk(true)} disabled={!sizeAskShown?.chosen.size}>Save to profile</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

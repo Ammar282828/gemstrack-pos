@@ -646,7 +646,7 @@ export function VoiceBubble() {
         disabled={busy}
         className={cn(
           // Clear of the mobile bottom nav, which is 4rem tall.
-          'fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all md:bottom-6',
+          'fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-[background-color,color,box-shadow,transform] duration-200 ease-enter active:scale-95 md:bottom-6',
           phase === 'listening'
             ? 'bg-primary text-primary-foreground'
             : 'glass-fab bg-background text-foreground border hover:bg-accent',

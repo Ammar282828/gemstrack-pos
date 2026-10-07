@@ -18,6 +18,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLingering } from '@/hooks/use-lingering';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -450,6 +451,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
   const router = useRouter();
   const [sending, setSending] = useState<string | null>(null);
   const [queueFor, setQueueFor] = useState<BoardFrame | null>(null);
+  const queueShown = useLingering(queueFor); // kept while its dialog closes (hooks/use-lingering.ts)
 
   const saveToSaved = async (f: BoardFrame) => {
     setSending('Saving to Saved ads…');
@@ -639,7 +641,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
       </aside>
 
       <PhotoPicker open={picker} onOpenChange={setPicker} onPick={addPhoto} />
-      {queueFor && <QueueDialog frame={queueFor} onClose={() => setQueueFor(null)} onQueue={o => queuePost(queueFor, o)} />}
+      {queueShown && <QueueDialog key={queueShown.id} frame={queueShown} open={!!queueFor} onClose={() => setQueueFor(null)} onQueue={o => { if (queueFor) queuePost(queueFor, o); }} />}
       {editing && (() => {
         const f = frames.find(x => x.id === editing);
         return f ? <FrameEditor frame={f} marks={marks} onClose={() => setEditing(null)} onSave={patch => { send([{ op: 'put', id: f.id, patch: { ...patch, by: 'page' } }]); setEditing(null); }} /> : null;
@@ -790,7 +792,7 @@ function FramePanel({ frame: f, notes, busy, sending, onLabel, onEdit, onCook, o
 
 // ── Queue a post ───────────────────────────────────────────────────────────
 
-function QueueDialog({ frame: f, onClose, onQueue }: { frame: BoardFrame; onClose: () => void; onQueue: (o: { whatsapp: string[]; instagram: boolean; caption: string }) => void }) {
+function QueueDialog({ frame: f, open, onClose, onQueue }: { frame: BoardFrame; open: boolean; onClose: () => void; onQueue: (o: { whatsapp: string[]; instagram: boolean; caption: string }) => void }) {
   const [places, setPlaces] = useState<{ key: string; name: string; size: number | null }[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [wa, setWa] = useState<string[]>([]);
@@ -807,7 +809,7 @@ function QueueDialog({ frame: f, onClose, onQueue }: { frame: BoardFrame; onClos
   }, []);
   const toggle = (k: string) => setWa(w => (w.includes(k) ? w.filter(x => x !== k) : [...w, k]));
   return (
-    <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
+    <Dialog open={open} onOpenChange={o => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Queue a post</DialogTitle>

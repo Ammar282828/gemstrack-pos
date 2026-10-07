@@ -11,7 +11,7 @@
  * invoice will say.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Product, Settings, MetalType, KaratValue, calculateProductCosts,
   staticCategories, METAL_TYPES, KARAT_VALUES,
@@ -161,12 +161,20 @@ export const EditCartItemDialog: React.FC<{
   onSave: (sku: string, patch: Partial<Product>) => void;
   /** 'create' relabels the dialog and requires a name before saving. */
   mode?: 'edit' | 'create';
-}> = ({ item, settings, onClose, onSave, mode = 'edit' }) => {
-  const [d, setD] = useState<Draft | null>(null);
-  useEffect(() => { setD(item ? toDraft(item) : null); }, [item]);
+}> = ({ item: itemNow, settings, onClose, onSave, mode = 'edit' }) => {
+  // The piece and its draft stay while the dialog leaves (2026-10-07): it rendered nothing the moment
+  // `item` cleared, so it vanished instead of closing. Each opening starts a fresh draft — edits from
+  // a cancelled one never come back — set during render, so the first frame already shows this piece.
+  const [held, setHeld] = useState<{ item: Product | null; d: Draft | null; open: boolean }>(
+    () => ({ item: itemNow, d: itemNow ? toDraft(itemNow) : null, open: !!itemNow }));
+  if (itemNow && (!held.open || itemNow !== held.item)) setHeld({ item: itemNow, d: toDraft(itemNow), open: true });
+  else if (!itemNow && held.open) setHeld(h => ({ ...h, open: false }));
+  const item = itemNow ?? held.item;
+  const d = held.d;
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) =>
-    setD(prev => (prev ? { ...prev, [k]: v } : prev));
+    setHeld(h => (h.d ? { ...h, d: { ...h.d, [k]: v } } : h));
+  const setD = (fn: (prev: Draft | null) => Draft | null) => setHeld(h => ({ ...h, d: fn(h.d) }));
 
   // Live price, computed exactly the way the cart line does it.
   const preview = useMemo(() => {
@@ -182,7 +190,7 @@ export const EditCartItemDialog: React.FC<{
   const isSilver = d.metalType === 'silver';
 
   return (
-    <Dialog open={!!item} onOpenChange={o => { if (!o) onClose(); }}>
+    <Dialog open={!!itemNow} onOpenChange={o => { if (!o) onClose(); }}>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{mode === 'create' ? 'New item' : 'Edit item'}</DialogTitle>

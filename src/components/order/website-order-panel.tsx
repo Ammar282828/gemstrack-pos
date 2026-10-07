@@ -12,6 +12,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useLingering } from '@/hooks/use-lingering';
 import { formatDistanceToNowStrict, parseISO } from 'date-fns';
 import type { Order } from '@/lib/store';
 import { bankDetailsWhatsApp, staffFetch } from '@/lib/website/online-client';
@@ -116,6 +117,7 @@ function HoldLine({ w }: { w: W }) {
 function MoneyMoves({ order, onDone }: { order: Order; onDone?: () => void }) {
   const { busy, run } = useAction(order);
   const [ask, setAsk] = useState<'paid' | 'lapse' | null>(null);
+  const askShown = useLingering(ask); // the words stay while the dialog closes (hooks/use-lingering.ts)
   const w = order.website!;
   const total = onlineTotal(order);
   const go = async () => {
@@ -135,17 +137,17 @@ function MoneyMoves({ order, onDone }: { order: Order; onDone?: () => void }) {
       <Dialog open={!!ask} onOpenChange={o => { if (!busy && !o) setAsk(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{ask === 'paid' ? `${fmt(total)} is in the account?` : `Let ${w.onlineId || order.id} lapse?`}</DialogTitle>
+            <DialogTitle>{askShown === 'paid' ? `${fmt(total)} is in the account?` : `Let ${w.onlineId || order.id} lapse?`}</DialogTitle>
             <DialogDescription>
-              {ask === 'paid'
+              {askShown === 'paid'
                 ? <>Only once you see it in the bank — a slip is not the money. The order is paid in full ({fmt(Number(order.subtotal) || 0)} for the pieces as a bank-transfer advance{w.deliveryCharge ? `, ${fmt(w.deliveryCharge)} delivery as extra revenue` : ''}), {order.customerName || 'the customer'} is told, and it is ready to give out.</>
                 : <>Only once you have checked the bank and nothing came. The order is cancelled and {order.customerName || 'the customer'} is told it lapsed and can order again at today&apos;s rate.</>}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" disabled={!!busy} onClick={() => setAsk(null)}>Not yet</Button>
-            <Button variant={ask === 'lapse' ? 'destructive' : 'default'} disabled={!!busy} onClick={go}>
-              {busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}{ask === 'paid' ? 'Yes, it is in' : 'Let it lapse'}
+            <Button variant={askShown === 'lapse' ? 'destructive' : 'default'} disabled={!!busy} onClick={go}>
+              {busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}{askShown === 'paid' ? 'Yes, it is in' : 'Let it lapse'}
             </Button>
           </DialogFooter>
         </DialogContent>

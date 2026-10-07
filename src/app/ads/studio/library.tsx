@@ -120,7 +120,7 @@ export function AssessBar({ counts, runner, big }: { counts: LibraryResponse['co
             {' · '}{runner.running ? `assessing${runner.done ? ` (${runner.done})` : '…'}` : left === 0 ? 'all done' : st?.background ? `~${Math.max(1, Math.round(left / 350))} h to go` : 'paused'}
           </span>
         </p>
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-all" style={{ width: `${pctDone}%` }} /></div>
+        <div className="h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-[width] duration-300 ease-enter" style={{ width: `${pctDone}%` }} /></div>
         {last?.stopped && !runner.running && <p className="text-[11px] text-warning truncate" title={last.stopped}>Last run {ago === 0 ? 'just now' : `${ago} min ago`}: {last.stopped}</p>}
       </div>
       <div className="flex gap-2 shrink-0">
@@ -354,7 +354,8 @@ export function AssetSheet({ item, placement, onClose, onMake, onChanged }: {
   const [scenes, setScenes] = useState(false);
   const [assessing, setAssessing] = useState(false);
 
-  useEffect(() => { setShown(item); }, [item]);
+  // Kept while the sheet slides away, so it leaves with its photo rather than empty (2026-10-07).
+  useEffect(() => { if (item) setShown(item); }, [item]);
   useEffect(() => {
     setEdits(prev => { prev.forEach(e => URL.revokeObjectURL(e.url)); return []; });
     setView(-1); setScenes(false); setPhotoError(null);

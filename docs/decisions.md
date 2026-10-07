@@ -81,6 +81,36 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   a layout effect, before paint. Reproduced and re-checked in headless Chromium in five cache states (`gemstrack:theme` /
   `gemstrack:theme-device`).
 
+### Motion
+
+- **How the ERP moves** (2026-10-07, owner: "audit all animations, make smooth ones wherever needed"). Measured first —
+  production build, phone size, CPU 4x slower, every frame timed (`motion-bench`, scratch) — so the change went where it
+  was felt, not where it looked wrong in the code.
+  - **Three curves** (`tailwind.config.ts`): `ease-enter` (0.22, 1, 0.36, 1) for what arrives, `ease-exit` (0.4, 0, 1,
+    1) for what leaves, `ease-sheet` (0.32, 0.72, 0, 1, the iOS sheet) for what travels. Dialogs 200 ms in / 150 ms out;
+    sheets — the phone's menu — 300 / 200 (they were 500 ms ease-in-out, slow to start and slow to land); menus,
+    pickers and tooltips out in 100 ms; the desktop sidebar on the sheet curve, not linear. `transition-all` is named
+    properties everywhere.
+  - **Nothing vanishes.** 17 dialogs closed half-empty or not at all: content read the value that closing had just
+    cleared (a payment's balance fell to 0 and its "more than the balance" warning flashed as it faded; a status
+    confirm lost its status), or the dialog was unmounted on close (New sale's piece editor, Hand back, Queue).
+    `hooks/use-lingering.ts` keeps what a dialog shows until it has gone; its buttons still act on the live value, so
+    a second tap during the fade does nothing. The piece editor starts a fresh draft on each opening.
+  - **What snapped now eases:** an order's piece and the phone's filters (fade + 4 px); buttons press (98%); charts
+    draw in 600 ms, not 1.5 s (`lib/chart-motion.ts`).
+  - **Swipe-to-delete** (Hisaab, Expenses) follows the finger without React, and decides after 8 px whether it is a
+    swipe or a scroll: a thumb scrolling the list no longer drags rows sideways. A flick counts.
+  - **The stall behind dialogs:** opening any dialog or the menu restyles the whole page (Radix's body pointer-events
+    and scroll-lock stylesheet), so it froze in proportion to the list behind it — 5,320 elements restyled twice,
+    up to 217 ms, under 120 invoices. `.cv-list` (globals.css) skips off-screen sections on Invoices, Orders and
+    Customers: 815 elements, worst frame 50–100 ms.
+  - **Reduce Motion is honoured everywhere** (it was only on the glass controls); spinners still turn, slower.
+  - **Glass:** its light is a fixed layer, not `background-attachment: fixed` — which iPhones ignore (the glow
+    scrolled away) and Chrome repaints on every scroll frame.
+  - Left: the desktop sidebar's width animation reflows the table each frame (fine at full speed); the piece
+    editor's first render (~130 ms at 4x); Invoices and Customers render the phone list and the hidden desktop table
+    both, every keystroke in the search box.
+
 ### Recent picks
 
 - Every dropdown with 7+ options (`Select`, `SearchablePicker`) shows this device's last five picks under **Recent**

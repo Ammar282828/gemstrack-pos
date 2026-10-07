@@ -24,6 +24,7 @@ import {
 } from '@/lib/ads/shape';
 import { api, useAdsStatus, useRange, RangePicker, NotReady, AccountAlerts, AccountPill, ErrorLine, StatusPill } from './ads-kit';
 import { Readiness } from './readiness';
+import { chartMotion } from '@/lib/chart-motion';
 
 interface Breakdown { key: string; label: string; metrics: Metrics }
 interface Overview {
@@ -218,8 +219,8 @@ function AdsOverview() {
                         <YAxis yAxisId="r" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={v => compact(Number(v))} />
                         <Tooltip contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
                           formatter={(v: number, name: string) => (name === 'spend' ? [money(v, cur), 'Spent'] : [count(v), main?.label ?? 'Results'])} />
-                        <Bar yAxisId="s" dataKey="spend" fill="hsl(var(--chart-1))" radius={[3, 3, 0, 0]} maxBarSize={28} />
-                        <Line yAxisId="r" dataKey="result" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} type="monotone" />
+                        <Bar {...chartMotion()} yAxisId="s" dataKey="spend" fill="hsl(var(--chart-1))" radius={[3, 3, 0, 0]} maxBarSize={28} />
+                        <Line {...chartMotion()} yAxisId="r" dataKey="result" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} type="monotone" />
                       </ComposedChart>
                     </ResponsiveContainer>
                   </div>

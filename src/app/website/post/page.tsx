@@ -41,6 +41,7 @@
  */
 
 import { SetOfTheDayCard, putFeatured, FeaturedError } from '@/components/website/set-of-the-day';
+import { useLingering } from '@/hooks/use-lingering';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
@@ -228,17 +229,20 @@ function PostAPiecePage() {
   const [painted, setPainted] = useState<Lettered | null>(null);
   const [postPainted, setPostPainted] = useState(false);
   const [paintFor, setPaintFor] = useState<'story' | 'post' | null>(null);
+  const paintForShown = useLingering(paintFor); // what its dialog shows while closing (hooks/use-lingering.ts)
   const [paintBrief, setPaintBrief] = useState('');
 
   // ── AI ──
   const [aiBusy, setAiBusy] = useState<Record<string, string>>({}); // key → what it is doing
   const [aiCaption, setAiCaption] = useState<CaptionResult | null>(null);
   const [restageFor, setRestageFor] = useState<{ photoId: string; aspect: Aspect } | null>(null);
+  const restageForShown = useLingering(restageFor); // what its dialog shows while closing (hooks/use-lingering.ts)
   const [sceneId, setSceneId] = useState(SCENES[0].id);
   const [customScene, setCustomScene] = useState('');
   const [restagePromptText, setRestagePromptText] = useState<string | null>(null); // edited by hand, else null
   const [tidy, setTidy] = useState(true);
   const [askFor, setAskFor] = useState<{ photoId: string; aspect: Aspect | null } | null>(null);
+  const askForShown = useLingering(askFor); // what its dialog shows while closing (hooks/use-lingering.ts)
   const [askText, setAskText] = useState('');
   const [askPromptText, setAskPromptText] = useState<string | null>(null);
   const [wholeOpen, setWholeOpen] = useState(false);
@@ -1697,13 +1701,13 @@ function PostAPiecePage() {
             <Label htmlFor="custom-scene" className="text-xs">Or describe one</Label>
             <Input id="custom-scene" value={customScene} onChange={e => setCustomScene(e.target.value)} placeholder="on a marble tray beside white roses, morning light" />
           </div>
-          {restageFor && (
-            <Seg value={restageFor.aspect} options={[['9:16', 'Story 9:16'], ['4:5', 'Portrait 4:5'], ['1:1', 'Square']]} onChange={v => setRestageFor(r => r && { ...r, aspect: v as Aspect })} />
+          {restageForShown && (
+            <Seg value={restageForShown.aspect} options={[['9:16', 'Story 9:16'], ['4:5', 'Portrait 4:5'], ['1:1', 'Square']]} onChange={v => setRestageFor(r => r && { ...r, aspect: v as Aspect })} />
           )}
-          {restageFor && (
+          {restageForShown && (
             <PromptEditor
               value={restagePromptText}
-              generated={restagePrompt(customScene.trim() || SCENES.find(s => s.id === sceneId)?.brief || '', restageFor.aspect)}
+              generated={restagePrompt(customScene.trim() || SCENES.find(s => s.id === sceneId)?.brief || '', restageForShown.aspect)}
               onChange={setRestagePromptText}
             />
           )}
@@ -1721,7 +1725,7 @@ function PostAPiecePage() {
             <DialogTitle>Ask AI to change this photo</DialogTitle>
             <DialogDescription>Say it the way you’d tell a photographer. The piece itself is protected, and the result is checked against the original.</DialogDescription>
           </DialogHeader>
-          {askFor && (() => { const src = photos.find(p => p.id === askFor.photoId); return src ? <img src={src.url} alt="" className="h-28 w-28 object-cover rounded-md mx-auto" /> : null; })()}
+          {askForShown && (() => { const src = photos.find(p => p.id === askForShown.photoId); return src ? <img src={src.url} alt="" className="h-28 w-28 object-cover rounded-md mx-auto" /> : null; })()}
           <Textarea value={askText} onChange={e => setAskText(e.target.value)} rows={3} autoFocus
             placeholder="e.g. put it on white marble with a few rose petals · remove the hand · warmer evening light · make the background deep green velvet" />
           <div className="flex flex-wrap gap-1.5">
@@ -1729,10 +1733,10 @@ function PostAPiecePage() {
               <button key={t} type="button" onClick={() => setAskText(t)} className="text-xs rounded-full border px-2.5 py-1 text-muted-foreground hover:text-foreground">{t}</button>
             ))}
           </div>
-          {askFor && (
-            <Seg value={askFor.aspect ?? 'same'} options={[['same', 'Same shape'], ['9:16', 'Story 9:16'], ['4:5', 'Portrait 4:5'], ['1:1', 'Square']]} onChange={v => setAskFor(a => a && { ...a, aspect: v === 'same' ? null : v as Aspect })} />
+          {askForShown && (
+            <Seg value={askForShown.aspect ?? 'same'} options={[['same', 'Same shape'], ['9:16', 'Story 9:16'], ['4:5', 'Portrait 4:5'], ['1:1', 'Square']]} onChange={v => setAskFor(a => a && { ...a, aspect: v === 'same' ? null : v as Aspect })} />
           )}
-          {askFor && <PromptEditor value={askPromptText} generated={customPrompt(askText || '…', askFor.aspect)} onChange={setAskPromptText} />}
+          {askForShown && <PromptEditor value={askPromptText} generated={customPrompt(askText || '…', askForShown.aspect)} onChange={setAskPromptText} />}
           <DialogFooter>
             <Button variant="ghost" onClick={() => { setAskFor(null); setAskPromptText(null); }}>Cancel</Button>
             <Button onClick={runAsk} disabled={!askText.trim() && !askPromptText?.trim()}><Sparkles className="h-4 w-4 mr-1.5" /> Do it</Button>
@@ -1765,9 +1769,9 @@ function PostAPiecePage() {
       <Dialog open={!!paintFor} onOpenChange={o => { if (!o) setPaintFor(null); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Paint the whole {paintFor === 'post' ? 'post' : 'story'}</DialogTitle>
+            <DialogTitle>Paint the whole {paintForShown === 'post' ? 'post' : 'story'}</DialogTitle>
             <DialogDescription>
-              The AI paints a finished {paintFor === 'post' ? 'square post' : '9:16 story'} around the piece, the way the Ad studio paints an ad: the ground, the light, a fine frame and the lettering, all in one picture.
+              The AI paints a finished {paintForShown === 'post' ? 'square post' : '9:16 story'} around the piece, the way the Ad studio paints an ad: the ground, the light, a fine frame and the lettering, all in one picture.
               It writes exactly these words, then reads them back and checks the piece against your photo.
             </DialogDescription>
           </DialogHeader>
@@ -1779,7 +1783,7 @@ function PostAPiecePage() {
           <Textarea value={paintBrief} onChange={e => setPaintBrief(e.target.value)} rows={3}
             placeholder="Optional — your direction, e.g. warm candlelight, deep green ground · or: minimal, lots of empty space" />
           <p className="text-xs text-muted-foreground">
-            {paintFor === 'post'
+            {paintForShown === 'post'
               ? 'The painting goes to WhatsApp and when you share or save the post; the website keeps the catalogue square.'
               : 'Your layout’s words make way for the painting’s; the mark stays where your design has it.'}
           </p>

@@ -107,9 +107,17 @@ export default {
           '100%': { transform: 'translateY(100vh)' },
         }
   		},
+  		// The ERP's motion (docs/decisions.md#motion): things arrive on a soft ease-out, leave on a quick
+  		// ease-in, and sheets travel on the iOS sheet curve. tailwindcss-animate reads these for its
+  		// animate-in / animate-out too, so `data-[state=open]:ease-enter` sets the keyframes' timing.
+  		transitionTimingFunction: {
+  			enter: 'cubic-bezier(0.22, 1, 0.36, 1)',
+  			exit: 'cubic-bezier(0.4, 0, 1, 1)',
+  			sheet: 'cubic-bezier(0.32, 0.72, 0, 1)',
+  		},
   		animation: {
-  			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'accordion-down': 'accordion-down 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
+  			'accordion-up': 'accordion-up 0.16s cubic-bezier(0.4, 0, 1, 1)',
         'scan-line': 'scan-line 3s ease-in-out infinite',
   		}
   	}
