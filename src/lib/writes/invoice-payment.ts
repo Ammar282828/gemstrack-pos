@@ -9,6 +9,7 @@
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
 import type { Payment } from '@/lib/store';
+import { canHoldCredit, creditDescription, inCredit, isCreditRow } from '@/lib/invoice-credit';
 import { planShopifyMirror, type MirroredInvoice, type ShopifyOrderState, type ShopifyTransaction } from '@/lib/shopify-mirror';
 
 const INVOICES = 'invoices';
@@ -46,7 +47,7 @@ export async function recordInvoicePayment(
   // ledger rows linked to this invoice are looked up while the transaction reads the invoice, and
   // the payment, the ledger and the order's balance are committed together. Each of those used to
   // wait for the one before — a full trip to Iowa and back from the counter, every time.
-  const linkedRows = db.queryEquals<{ cashDebit?: number }>(HISAAB, 'linkedInvoiceId', invoiceId);
+  const linkedRows = db.queryEquals<LinkedRow>(HISAAB, 'linkedInvoiceId', invoiceId);
   linkedRows.catch(() => { /* surfaced by the await inside the transaction */ });
 
   const updated = await db.runTransaction<PaidInvoice>(async tx => {
@@ -100,7 +101,10 @@ type Tx = Parameters<Parameters<DbPort['runTransaction']>[0]>[0];
  * it always has); deleting one can put a paid walk-in invoice back in debt, and then the walk-in
  * row it would have had at the till is written, under the fixed 'walk-in' entity.
  */
-function followBalance(db: DbPort, tx: Tx, invoiceId: string, invoice: Omit<PaidInvoice, 'id'>, linked: { id: string; cashDebit?: number }[], balanceDue: number, walkInRow: boolean) {
+type LinkedRow = { id: string; cashDebit?: number; cashCredit?: number; description?: string };
+
+function followBalance(db: DbPort, tx: Tx, invoiceId: string, invoice: Omit<PaidInvoice, 'id'>, linked: LinkedRow[], balanceDue: number, walkInRow: boolean) {
+  followCredit(db, tx, invoiceId, invoice, linked, balanceDue);
   // The customer's ledger has to follow the invoice. Single-field query and a
   // filter in memory, to avoid needing a composite index for one lookup.
   const debits = linked.filter(d => (d.cashDebit ?? 0) > 0);
@@ -132,6 +136,37 @@ function followBalance(db: DbPort, tx: Tx, invoiceId: string, invoice: Omit<Paid
   if (invoice.sourceOrderId) tx.update(ORDERS, invoice.sourceOrderId, { grandTotal: balanceDue });
 }
 
+/**
+ * An invoice paid past its total is in credit (lib/invoice-credit.ts): the customer's hisaab holds
+ * one credit row at the amount over, written in the same commit, and it goes when the invoice is
+ * back at or under its total. Before this only the ledger sync wrote it, some time later.
+ */
+function followCredit(db: DbPort, tx: Tx, invoiceId: string, invoice: Omit<PaidInvoice, 'id'>, linked: LinkedRow[], balanceDue: number) {
+  const credits = linked.filter(r => isCreditRow(r, invoiceId));
+  if (!inCredit(balanceDue) || !canHoldCredit(invoice.customerId)) {
+    credits.forEach(r => tx.delete(HISAAB, r.id));
+    return;
+  }
+  const credit = -balanceDue;
+  if (credits.length > 0) {
+    tx.update(HISAAB, credits[0].id, { cashCredit: credit, cashDebit: 0, description: creditDescription(invoiceId) });
+    credits.slice(1).forEach(r => tx.delete(HISAAB, r.id));
+    return;
+  }
+  tx.set(HISAAB, db.newId(HISAAB), {
+    entityId: invoice.customerId,
+    entityType: 'customer',
+    entityName: invoice.customerName || 'Customer',
+    date: invoice.createdAt,
+    description: creditDescription(invoiceId),
+    cashDebit: 0,
+    cashCredit: credit,
+    goldDebitGrams: 0,
+    goldCreditGrams: 0,
+    linkedInvoiceId: invoiceId,
+  });
+}
+
 export interface RemovePaymentInput {
   invoiceId: string;
   /** The payment's place in paymentHistory, as the page showed it. */
@@ -153,7 +188,7 @@ export async function removeInvoicePayment(
   fx: SideEffects = {},
 ): Promise<PaidInvoice & { removed: { amount: number; date: string; notes?: string } }> {
   const { invoiceId, index } = input;
-  const linkedRows = db.queryEquals<{ cashDebit?: number }>(HISAAB, 'linkedInvoiceId', invoiceId);
+  const linkedRows = db.queryEquals<LinkedRow>(HISAAB, 'linkedInvoiceId', invoiceId);
   linkedRows.catch(() => { /* surfaced by the await inside the transaction */ });
 
   const updated = await db.runTransaction(async tx => {
@@ -208,7 +243,7 @@ export async function mirrorShopifyOrder(
   fx: SideEffects = {},
   opts: { voidWhenCancelled?: boolean } = {},
 ): Promise<ShopifyMirrorResult | null> {
-  const linkedRows = db.queryEquals<{ cashDebit?: number }>(HISAAB, 'linkedInvoiceId', invoiceId);
+  const linkedRows = db.queryEquals<LinkedRow>(HISAAB, 'linkedInvoiceId', invoiceId);
   linkedRows.catch(() => { /* surfaced by the await inside the transaction */ });
 
   const result = await db.runTransaction<ShopifyMirrorResult | null>(async tx => {

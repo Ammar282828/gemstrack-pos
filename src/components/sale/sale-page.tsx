@@ -40,7 +40,7 @@ import { PhoneField } from '@/components/ui/phone-field';
 import { useWorkDraft } from '@/components/drafts/use-work-drafts';
 import { DraftsShortcut } from '@/components/drafts/draft-list';
 import { SALE_DEFAULT_FIELDS, summarizeSale } from '@/lib/work-drafts';
-import { resolveSaleCustomer } from '@/lib/walk-in';
+import { isWalkInName, resolveSaleCustomer } from '@/lib/walk-in';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import { Switch } from '@/components/ui/switch';
 import { BillScanner, type ScannedBill } from '@/components/cart/bill-scanner';
@@ -552,7 +552,13 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
   const paidBefore = isEditingEstimate ? (editingInvoiceOriginalRef.current?.amountPaid || 0) : 0;
   const paidNow = salePayments.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
   const balanceAfterPayments = estimatedInvoice ? estimatedInvoice.grandTotal - paidBefore - paidNow : null;
-  const overpaid = balanceAfterPayments !== null && balanceAfterPayments < -0.5;
+  const paidOver = balanceAfterPayments !== null && balanceAfterPayments < -0.5;
+  // Paid past the total is the customer's credit (lib/invoice-credit.ts), if there is a customer:
+  // one picked, or a name or number typed (generateInvoice makes them one). A walk-in's extra is change.
+  const namedCustomer = (!!selectedCustomerId && selectedCustomerId !== WALK_IN_CUSTOMER_VALUE)
+    || (!!walkInCustomerName?.trim() && !isWalkInName(walkInCustomerName)) || !!walkInCustomerPhone?.trim();
+  const inCreditNow = paidOver && namedCustomer;
+  const overpaid = paidOver && !namedCustomer;
   const setSalePayment = (id: string, patch: Partial<SalePaymentRow>) =>
     setSalePayments(rows => rows.map(r => (r.id === id ? { ...r, ...patch } : r)));
   // "Paid in full": the row takes whatever the others leave outstanding.
@@ -587,7 +593,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
     if (missing.length > 0) {
       return `Enter a ${missing.join(' and ')} gold rate above — it is currently zero, so the total cannot be worked out.`;
     }
-    if (overpaid) return 'The payments come to more than the total. Check the amounts received.';
+    if (overpaid) return 'The payments come to more than the total. To keep the rest as credit, name the customer; otherwise check the amounts received.';
     return null;
   }, [appReady, settings, cartItemsFromStore, rateInputs, cartMetalInfo, overpaid]);
 
@@ -727,7 +733,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
       toast({
         title: wasEdit ? "Invoice updated" : "Invoice created",
         description: paymentsNow.length
-          ? `${invoice.id}: PKR ${invoice.amountPaid.toLocaleString()} paid${invoice.balanceDue > 0 ? `, PKR ${invoice.balanceDue.toLocaleString()} still due` : ' — paid in full'}.`
+          ? `${invoice.id}: PKR ${invoice.amountPaid.toLocaleString()} paid${invoice.balanceDue > 0.5 ? `, PKR ${invoice.balanceDue.toLocaleString()} still due` : invoice.balanceDue < -0.5 ? `, PKR ${Math.abs(invoice.balanceDue).toLocaleString()} in credit` : ' — paid in full'}.`
           : `${invoice.id} is ready to print or send.`,
       });
     } else {
@@ -1188,10 +1194,10 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
                               <Plus className="mr-2 h-4 w-4"/> Add another payment
                             </Button>
                             {balanceAfterPayments !== null && (paidNow > 0 || paidBefore > 0) ? (
-                              <div className={`flex justify-between font-semibold ${overpaid ? 'text-destructive' : ''}`}>
-                                <span>{overpaid ? 'More than the total by' : balanceAfterPayments <= 0.5 ? 'Paid in full' : 'Balance due'}</span>
+                              <div className={`flex justify-between font-semibold ${overpaid ? 'text-destructive' : inCreditNow ? 'text-success' : ''}`}>
+                                <span>{overpaid ? 'More than the total by' : inCreditNow ? 'Credit to customer' : balanceAfterPayments <= 0.5 ? 'Paid in full' : 'Balance due'}</span>
                                 <span className="tabular-nums">
-                                  {overpaid ? `PKR ${Math.abs(balanceAfterPayments).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                                  {overpaid || inCreditNow ? `PKR ${Math.abs(balanceAfterPayments).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
                                     : balanceAfterPayments <= 0.5 ? <CheckCircle className="inline h-4 w-4" aria-label="Paid in full"/>
                                     : `PKR ${balanceAfterPayments.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                                 </span>
@@ -1243,7 +1249,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
                     </p>
                     {balanceAfterPayments !== null && paidNow > 0 && (
                       <p className={`text-2xs tabular-nums truncate ${overpaid ? 'text-destructive' : 'text-muted-foreground'}`}>
-                        {overpaid ? 'Paid more than the total' : balanceAfterPayments <= 0.5 ? 'Paid in full' : `Due PKR ${balanceAfterPayments.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                        {overpaid ? 'Paid more than the total' : inCreditNow ? `Credit PKR ${Math.abs(balanceAfterPayments).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : balanceAfterPayments <= 0.5 ? 'Paid in full' : `Due PKR ${balanceAfterPayments.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                       </p>
                     )}
                 </div>

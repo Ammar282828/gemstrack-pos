@@ -202,6 +202,7 @@ import { statusAfterUntick, statusFromPieces } from '@/lib/order-stage';
 import { isWalkInName, shouldCreateCustomer } from '@/lib/walk-in';
 import { createOrder } from '@/lib/writes/create-order';
 import { STORE_CONFIG } from '@/lib/store-config';
+import { canHoldCredit, creditDescription, inCredit, isCreditRow } from '@/lib/invoice-credit';
 export type { OverheadItem, OverheadPlan };
 
 export { METAL_TYPES, KARAT_VALUES, metalLabel, karatLabel, describeMetal } from './materials';
@@ -2892,8 +2893,9 @@ export const useAppStore = create<AppState>()(
                     }));
                 const paymentHistory = [...existingPaymentHistory, ...takenNow];
                 const amountPaid = paymentHistory.reduce((acc, p) => acc + (p.amount || 0), 0);
-                if (takenNow.length && amountPaid > grandTotal + 0.5) {
-                    throw new Error(`The payments (PKR ${amountPaid.toLocaleString()}) come to more than the invoice (PKR ${grandTotal.toLocaleString()}).`);
+                // Over the total is credit for a named customer; nobody holds a walk-in's (lib/invoice-credit.ts).
+                if (takenNow.length && amountPaid > grandTotal + 0.5 && !canHoldCredit(finalCustomerId)) {
+                    throw new Error(`The payments (PKR ${amountPaid.toLocaleString()}) come to more than the invoice (PKR ${grandTotal.toLocaleString()}). Name the customer to keep the rest as credit.`);
                 }
 
                 const newInvoiceData: Omit<Invoice, 'id'> = {
@@ -2940,6 +2942,21 @@ export const useAppStore = create<AppState>()(
                         description: `Outstanding balance for Invoice ${invoiceId}`,
                         cashDebit: cleanInvoiceData.balanceDue,
                         cashCredit: 0,
+                        goldDebitGrams: 0,
+                        goldCreditGrams: 0,
+                        linkedInvoiceId: invoiceId,
+                    });
+                }
+                // Paid past the total for a named customer: the rest is their credit (lib/invoice-credit.ts).
+                if (inCredit(cleanInvoiceData.balanceDue) && canHoldCredit(cleanInvoiceData.customerId)) {
+                    transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), {
+                        entityId: cleanInvoiceData.customerId,
+                        entityType: 'customer',
+                        entityName: cleanInvoiceData.customerName || 'Customer',
+                        date: cleanInvoiceData.createdAt,
+                        description: creditDescription(invoiceId),
+                        cashDebit: 0,
+                        cashCredit: -cleanInvoiceData.balanceDue,
                         goldDebitGrams: 0,
                         goldCreditGrams: 0,
                         linkedInvoiceId: invoiceId,
@@ -3262,7 +3279,6 @@ export const useAppStore = create<AppState>()(
           const batch = writeBatch(db);
           let ops = 0;
           const getOutstandingDescription = (invoiceId: string) => `Outstanding balance for Invoice ${invoiceId}`;
-          const getExcessAdvanceDescription = (invoiceId: string) => `Excess advance returned for Invoice ${invoiceId}`;
 
           // Iterate over hisaab entries — for each entry linked to an invoice, validate it
           // Group by invoiceId so we can handle duplicates
@@ -3286,9 +3302,7 @@ export const useAppStore = create<AppState>()(
             const outstandingDebitEntries = linked.filter(h =>
               (h.cashDebit ?? 0) > 0 && h.description === getOutstandingDescription(inv.id)
             );
-            const excessAdvanceCreditEntries = linked.filter(h =>
-              (h.cashCredit ?? 0) > 0 && h.description === getExcessAdvanceDescription(inv.id)
-            );
+            const excessAdvanceCreditEntries = linked.filter(h => isCreditRow(h, inv.id));
             const resolvedCustomerId = inv.customerId || customerByName[inv.customerName?.toLowerCase().trim()]?.id || '';
             const balanceDue = inv.status === 'Refunded' ? 0 : Number(inv.balanceDue ?? 0);
 
@@ -3343,7 +3357,7 @@ export const useAppStore = create<AppState>()(
                     entityType: 'customer',
                     entityName: inv.customerName || 'Customer',
                     date: inv.createdAt,
-                    description: getExcessAdvanceDescription(inv.id),
+                    description: creditDescription(inv.id),
                     cashDebit: 0,
                     cashCredit: creditAmount,
                     goldDebitGrams: 0,
@@ -4090,7 +4104,7 @@ export const useAppStore = create<AppState>()(
                         entityType: 'customer',
                         entityName: newInvoice.customerName || 'Walk-in Customer',
                         date: newInvoice.createdAt,
-                        description: owes ? `Outstanding balance for Invoice ${invoiceId}` : `Excess advance returned for Invoice ${invoiceId}`,
+                        description: owes ? `Outstanding balance for Invoice ${invoiceId}` : creditDescription(invoiceId),
                         cashDebit: owes ? newInvoice.balanceDue : 0,
                         cashCredit: owes ? 0 : Math.abs(newInvoice.balanceDue),
                         goldDebitGrams: 0,

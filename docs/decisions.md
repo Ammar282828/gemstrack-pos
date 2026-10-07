@@ -374,6 +374,28 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 
 ## Money and analytics
 
+### Invoice credit
+
+Owner, 2026-10-07: "allow invoices to go into credit". An invoice may be paid past its total; the
+balance below zero is the customer's credit (`lib/invoice-credit.ts`).
+
+- **Only for a named customer.** Credit lives on their hisaab, where it nets against what they owe and
+  shows as owed to them. A walk-in has no hisaab, so money over the total from nobody in particular is
+  change to hand back: the payment is refused until the invoice is given a name. The server's
+  overpayment check in `generateInvoice` follows the same rule.
+- **Where it can happen:** recording a payment (the Invoices list, and the invoice page, which
+  takes one for a named customer even once it is paid), New Sale's payment rows, and Finalize, which already allowed advances over the bill.
+- **The ledger in the same commit.** One row per invoice, `Credit held for Invoice <id>`, cashCredit =
+  the amount over (`followCredit` in `lib/writes/invoice-payment.ts`, and `generateInvoice`). It moves
+  with later payments and goes when a deleted payment brings the invoice back under its total. The
+  sync's old text, `Excess advance returned for Invoice <id>`, is still read as a credit row and is
+  rewritten in the new words when it changes.
+- **How it reads:** "Credit to customer" on the invoice page, the PDF ("Credit to Customer") and the
+  customer's page ("Credit to you"), and "Credit to you" in the WhatsApp caption, never a negative
+  Balance due. Under half a rupee either way counts as settled.
+- **Not built yet:** spending the credit. It sits on the hisaab; using it against a later invoice is
+  done by hand for now.
+
 ### Lac and crore
 
 - **Analytics money reads in lac and crore** (`src/lib/money.ts`: `pkrLac`, `lacCrore`, `axisLac`): exact below 1 lac,

@@ -42,6 +42,7 @@ import QRCode from 'qrcode.react';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { cn, normalizePhoneNumber } from '@/lib/utils';
+import { balanceLine, canHoldCredit } from '@/lib/invoice-credit';
 import { getInvoiceAdjustmentsAmount, getInvoiceExchangeTotal } from '@/lib/financials';
 import { stockSku } from '@/lib/sku';
 import { format } from 'date-fns';
@@ -157,8 +158,9 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
       toast({ title: "Invalid amount", description: "Enter a positive payment amount.", variant: "destructive" });
       return;
     }
-    if (amount > invoice.balanceDue) {
-      toast({ title: "Overpayment", description: `Payment cannot exceed the balance due of PKR ${invoice.balanceDue.toLocaleString()}.`, variant: "destructive" });
+    // Over the balance is the customer's credit (lib/invoice-credit.ts) — only someone named can hold it.
+    if (amount > Math.max(0, invoice.balanceDue) + 0.5 && !canHoldCredit(invoice.customerId)) {
+      toast({ title: "More than the balance", description: `PKR ${Math.max(0, invoice.balanceDue).toLocaleString()} is due. To keep the rest as credit, name who this invoice is for first.`, variant: "destructive" });
       return;
     }
     // A ref, not the isSubmitting state: React batches state updates, so a fast double-click can fire
@@ -172,7 +174,8 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
       setLatest(updated);
       setPaymentAmount('');
       setPaymentRef('');
-      toast({ title: "Payment recorded", description: `PKR ${amount.toLocaleString()} by ${paymentMethod}.` });
+      const after = balanceLine(updated.balanceDue);
+      toast({ title: "Payment recorded", description: `PKR ${amount.toLocaleString()} by ${paymentMethod}${after.state === 'credit' ? `; PKR ${after.amount.toLocaleString()} in credit` : ''}.` });
     } catch {
       toast({ title: "Error", description: "Failed to record payment.", variant: "destructive" });
     } finally {
@@ -301,7 +304,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
     try {
       const updated = await deleteInvoicePayment(invoice.id, index, { amount: p.amount, date: p.date });
       setLatest(updated);
-      toast({ title: 'Payment deleted', description: `PKR ${p.amount.toLocaleString()} taken off ${invoice.id}. Now due: PKR ${updated.balanceDue.toLocaleString()}.` });
+      toast({ title: 'Payment deleted', description: `PKR ${p.amount.toLocaleString()} taken off ${invoice.id}. ${balanceLine(updated.balanceDue).label}${balanceLine(updated.balanceDue).amount ? `: PKR ${balanceLine(updated.balanceDue).amount.toLocaleString()}` : ''}.` });
     } catch (e) {
       toast({ title: 'Not deleted', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
     }
@@ -395,6 +398,10 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                       {(invoice.balanceDue || 0) > 0 ? (
                         <Badge variant="outline" className="text-destructive border-destructive/40 bg-destructive/5">
                           PKR {(invoice.balanceDue || 0).toLocaleString()} due
+                        </Badge>
+                      ) : balanceLine(invoice.balanceDue).state === 'credit' ? (
+                        <Badge variant="outline" className="text-success border-success/40 bg-success/5">
+                          PKR {balanceLine(invoice.balanceDue).amount.toLocaleString()} in credit
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-success border-success/40 bg-success/5">Paid in full</Badge>
@@ -571,7 +578,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                         {invoice.amountPaid > 0 && (
                           <div className="flex justify-end items-center gap-4 text-success"><span>Paid:</span> <span className="w-32 font-medium">PKR {invoice.amountPaid.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                         )}
-                        <div className={cn('flex justify-end items-center gap-4 font-semibold', invoice.balanceDue > 0 ? 'text-destructive' : 'text-muted-foreground')}><span>Balance due:</span> <span className="w-32">PKR {invoice.balanceDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                        <div className={cn('flex justify-end items-center gap-4 font-semibold', invoice.balanceDue > 0 ? 'text-destructive' : balanceLine(invoice.balanceDue).state === 'credit' ? 'text-success' : 'text-muted-foreground')}><span>{balanceLine(invoice.balanceDue).state === 'credit' ? 'Credit to customer' : 'Balance due'}:</span> <span className="w-32">PKR {Math.abs(invoice.balanceDue).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                      </div>
                 </div>
 
@@ -603,7 +610,8 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
 
                     <div className="space-y-4">
                         <h3 className="font-semibold text-lg">Record a payment</h3>
-                        {invoice.balanceDue <= 0 ? (
+                        {/* A paid invoice still takes money from a named customer: it goes on as their credit. */}
+                        {invoice.balanceDue <= 0 && !canHoldCredit(invoice.customerId) ? (
                           <p className="text-sm text-muted-foreground">Nothing outstanding on this invoice.</p>
                         ) : (
                         <>
@@ -611,11 +619,16 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                             <Label htmlFor="payment-amount">Amount received (PKR)</Label>
                             <AmountInput 
                                 id="payment-amount" 
-                                placeholder={`Balance due: ${invoice.balanceDue.toLocaleString()}`}
+                                placeholder={invoice.balanceDue > 0 ? `Balance due: ${invoice.balanceDue.toLocaleString()}` : 'Taken as credit'}
                                 value={paymentAmount}
                                 onValueChange={v => setPaymentAmount(v === undefined ? '' : String(v))}
                             />
                         </div>
+                        {canHoldCredit(invoice.customerId) && Number(paymentAmount) > Math.max(0, invoice.balanceDue) + 0.5 && (
+                          <p className="text-xs font-medium text-success">
+                            PKR {Math.round(Number(paymentAmount) - Math.max(0, invoice.balanceDue)).toLocaleString()} over the balance stays as credit on {invoice.customerName || 'the customer'}&apos;s hisaab.
+                          </p>
+                        )}
                         <div className="grid grid-cols-2 gap-2">
                           <div>
                             <Label className="text-xs">Paid by</Label>
@@ -640,7 +653,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
 
                         <Button 
                             className="w-full"
-                            disabled={!paymentAmount || isSubmittingPayment || invoice.balanceDue <= 0}
+                            disabled={!paymentAmount || isSubmittingPayment}
                             onClick={() => handleRecordPayment()}
                         >
                             {isSubmittingPayment ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Banknote className="mr-2 h-4 w-4"/>}

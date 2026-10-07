@@ -184,3 +184,43 @@ describe("Shopify's word on a web order", () => {
     expect(data.invoices).toEqual({});
   });
 });
+
+describe('paying past the total', () => {
+  it("puts a named customer's invoice in credit, on their hisaab, in the same commit", async () => {
+    const { db, data, stats } = fakeDb({
+      invoices: { 'INV-5': { grandTotal: 10_000, amountPaid: 0, balanceDue: 10_000, customerId: 'c5', customerName: 'Zainab', createdAt: 'd0', sourceOrderId: 'ORD-5', paymentHistory: [] } },
+      hisaab: { h1: { linkedInvoiceId: 'INV-5', cashDebit: 10_000, description: 'Outstanding balance for Invoice INV-5' } },
+      orders: { 'ORD-5': { grandTotal: 10_000 } },
+    });
+    const out = await recordInvoicePayment(db, { invoiceId: 'INV-5', amount: 15_000, date: 'd', method: 'Cash' });
+    expect(out.balanceDue).toBe(-5_000);
+    expect(data.hisaab.h1).toBeUndefined();
+    const credits = Object.values(data.hisaab).filter(h => h.linkedInvoiceId === 'INV-5');
+    expect(credits).toEqual([expect.objectContaining({ entityId: 'c5', cashCredit: 5_000, cashDebit: 0, description: 'Credit held for Invoice INV-5' })]);
+    expect(data.orders['ORD-5']).toMatchObject({ grandTotal: -5_000 });
+    expect(stats.transactions).toBe(1);
+  });
+
+  it('moves the credit with later payments, and takes it away when a payment is deleted', async () => {
+    const { db, data } = fakeDb({
+      invoices: { 'INV-6': { grandTotal: 10_000, amountPaid: 12_000, balanceDue: -2_000, customerId: 'c6', paymentHistory: [{ amount: 12_000, date: 'a' }] } },
+      hisaab: { h1: { linkedInvoiceId: 'INV-6', cashCredit: 2_000, cashDebit: 0, description: 'Excess advance returned for Invoice INV-6' } },
+    });
+    await recordInvoicePayment(db, { invoiceId: 'INV-6', amount: 1_000, date: 'b' });
+    expect(data.hisaab.h1).toMatchObject({ cashCredit: 3_000, description: 'Credit held for Invoice INV-6' });
+    await removeInvoicePayment(db, { invoiceId: 'INV-6', index: 0, amount: 12_000, date: 'a' });
+    expect(data.invoices['INV-6']).toMatchObject({ balanceDue: 9_000 });
+    expect(data.hisaab.h1).toBeUndefined();
+    expect(Object.values(data.hisaab)).toEqual([expect.objectContaining({ cashDebit: 9_000 })]);
+  });
+
+  it('holds no credit for a walk-in', async () => {
+    const { db, data } = fakeDb({
+      invoices: { 'INV-7': { grandTotal: 1_000, amountPaid: 0, balanceDue: 1_000, paymentHistory: [] } },
+      hisaab: {},
+    });
+    await recordInvoicePayment(db, { invoiceId: 'INV-7', amount: 1_500, date: 'd' });
+    expect(Object.keys(data.hisaab)).toHaveLength(0);
+  });
+});
+

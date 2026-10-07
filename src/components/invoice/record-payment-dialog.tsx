@@ -19,9 +19,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { balanceLine, canHoldCredit } from '@/lib/invoice-credit';
 
 export function RecordPaymentDialog({ invoice, open, onOpenChange }: {
-  invoice: Pick<Invoice, 'id' | 'balanceDue' | 'customerName'> | null;
+  invoice: Pick<Invoice, 'id' | 'balanceDue' | 'customerName' | 'customerId'> | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -39,9 +40,13 @@ export function RecordPaymentDialog({ invoice, open, onOpenChange }: {
   }, [open, invoice]);
 
   const balance = invoice?.balanceDue ?? 0;
+  // Over the balance is credit for a named customer (lib/invoice-credit.ts); a walk-in's extra is change.
+  const over = amount ? Math.round(amount - Math.max(0, balance)) : 0;
+  const creditOk = canHoldCredit(invoice?.customerId);
   const problem = !amount || amount <= 0 ? 'Enter the amount received.'
-    : amount > balance + 0.005 ? `More than the balance of PKR ${balance.toLocaleString()}.`
+    : over > 0 && !creditOk ? `More than the balance of PKR ${balance.toLocaleString()}. Credit needs a customer: name who this invoice is for first.`
     : !method ? 'Choose how it was paid.' : null;
+  const creditNote = over > 0 && creditOk ? `PKR ${over.toLocaleString()} over the balance stays as credit on ${invoice?.customerName || 'the customer'}'s hisaab.` : null;
 
   const save = async () => {
     if (!invoice || problem || !method || !amount || lock.current) return;
@@ -49,7 +54,8 @@ export function RecordPaymentDialog({ invoice, open, onOpenChange }: {
     try {
       const updated = await updateInvoicePayment(invoice.id, amount, new Date().toISOString(), method, method === 'Cash' ? '' : reference);
       if (!updated) throw new Error();
-      toast({ title: 'Payment recorded', description: `PKR ${amount.toLocaleString()} by ${method} on ${invoice.id}${updated.balanceDue > 0 ? `, PKR ${updated.balanceDue.toLocaleString()} still due` : ' — paid in full'}.` });
+      const after = balanceLine(updated.balanceDue);
+      toast({ title: 'Payment recorded', description: `PKR ${amount.toLocaleString()} by ${method} on ${invoice.id}${after.state === 'due' ? `, PKR ${after.amount.toLocaleString()} still due` : after.state === 'credit' ? `, PKR ${after.amount.toLocaleString()} in credit` : ' — paid in full'}.` });
       onOpenChange(false);
     } catch {
       toast({ title: 'Payment not recorded', description: 'Check the connection and try again.', variant: 'destructive' });
@@ -82,6 +88,7 @@ export function RecordPaymentDialog({ invoice, open, onOpenChange }: {
             </div>
           </div>
           {problem && amount !== undefined && <p className="text-xs text-muted-foreground">{problem}</p>}
+          {!problem && creditNote && <p className="text-xs font-medium text-success">{creditNote}</p>}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>

@@ -169,6 +169,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Money and analytics**
 - [Lac and crore](docs/decisions.md#lac-and-crore) — `lib/money.ts`
+- [Invoice credit](docs/decisions.md#invoice-credit) — paid past the total is a named customer's credit, on their hisaab in the same commit
 - [Margin](docs/decisions.md#margin) — typed 24k less 6 ratti, else 10%; never the customer's
 - [Exchange as cash](docs/decisions.md#exchange-as-cash) — in Cash In and in revenue (`invoiceSaleValue`)
 

@@ -8,6 +8,7 @@
  */
 
 import { isWalkInName } from '@/lib/walk-in';
+import { balanceLine } from '@/lib/invoice-credit';
 
 type Named = { customerName?: string | null; createdAt?: string | null };
 
@@ -40,7 +41,8 @@ export function invoiceWhatsAppCaption(
   lines.push(`*Total:* ${pkr(inv.grandTotal)}`);
   if ((inv.amountPaid || 0) > 0) {
     lines.push(`*Paid:* ${pkr(inv.amountPaid)}`);
-    lines.push(`*Balance due:* ${pkr(inv.balanceDue)}`);
+    const b = balanceLine(inv.balanceDue);
+    lines.push(b.state === 'credit' ? `*Credit to you:* ${pkr(b.amount)}` : `*Balance due:* ${pkr(inv.balanceDue)}`);
   }
   lines.push('', 'Thank you for your business.');
   return lines.join('\n');

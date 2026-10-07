@@ -14,6 +14,7 @@ import QRCode from 'qrcode.react';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { DetailSkeleton } from '@/components/shared/skeletons';
 import { useToast } from '@/hooks/use-toast';
+import { balanceLine } from '@/lib/invoice-credit';
 
 export default function ViewInvoicePage() {
   const params = useParams();
@@ -176,8 +177,8 @@ export default function ViewInvoicePage() {
                                 <p className="font-semibold text-success">- PKR {invoice.amountPaid.toLocaleString()}</p>
                             </div>
                             <div className="flex justify-between items-center mt-1">
-                                <p className="text-sm text-muted-foreground">Balance Due</p>
-                                <p className="font-semibold text-destructive">PKR {invoice.balanceDue.toLocaleString()}</p>
+                                <p className="text-sm text-muted-foreground">{balanceLine(invoice.balanceDue).state === 'credit' ? 'Credit to you' : 'Balance Due'}</p>
+                                <p className={`font-semibold ${balanceLine(invoice.balanceDue).state === 'credit' ? 'text-success' : 'text-destructive'}`}>PKR {Math.abs(invoice.balanceDue).toLocaleString()}</p>
                             </div>
                         </div>
                     )}

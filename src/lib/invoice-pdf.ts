@@ -31,6 +31,7 @@ import { drawItemCell, itemCellHeight, type ItemBlock, wastageLine } from '@/lib
 import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
 import { describeExchangeEntry } from '@/lib/exchange';
 import { invoiceFileName, invoiceTitle } from '@/lib/invoice-share';
+import { balanceLine } from '@/lib/invoice-credit';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -333,7 +334,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
     rows: totalRows,
     total: { label: 'Grand Total', value: pkr(inv.grandTotal) },
     after: inv.amountPaid > 0 ? [{ label: 'Amount Paid', value: `- ${pkr(inv.amountPaid)}` }] : [],
-    closing: inv.amountPaid > 0 ? { label: 'Balance Due', value: pkr(inv.balanceDue) } : undefined,
+    closing: inv.amountPaid > 0 ? { label: balanceLine(inv.balanceDue).state === 'credit' ? 'Credit to Customer' : 'Balance Due', value: pkr(Math.abs(inv.balanceDue)) } : undefined,
   });
 
   // The QR codes are canvases the printing page renders off-screen under
