@@ -120,9 +120,11 @@ export const FinalizeOrderDialog: React.FC<{
     // Each piece as the invoice will hold it, so this is the margin the invoice's page shows.
     const margin = marginOf(order.items.map((it, i) => ({
         metalType: it.metalType, karat: it.karat,
-        weightG: typed?.[i]?.isManualPrice ? 0 : Number(typed?.[i]?.finalWeightG) || 0,
+        weightG: Number(typed?.[i]?.finalWeightG) || 0,
         stoneWeightG: it.stoneWeightG, price: prices[i],
         stoneCharges: costs[i]?.stoneCharges, diamondCharges: costs[i]?.diamondCharges,
+        fixedPrice: !!typed?.[i]?.isManualPrice,
+        setWithStones: !!(it.hasDiamonds || it.hasStones || it.stoneDetails?.trim() || it.diamondDetails?.trim() || (Number(it.stoneWeightG) || 0) > 0),
     })), subtotal - discount, costRate24k);
     const rateLine = order.items.some(it => it.metalType === 'gold')
       ? (['21k', '22k', '18k', '24k'] as const)
@@ -183,11 +185,17 @@ export const FinalizeOrderDialog: React.FC<{
                                             )}
                                           </p>
                                         </div>
-                                        {/* Manual price (Primary) */}
+                                        {/* Manual price (Primary), and the piece's weight beside it: a fixed price still has one, and
+                                            the invoice prints it (owner, 2026-10-07). It was dropped here — written as 0 g. */}
                                         {manual && (
-                                            <FormField control={form.control} name={`items.${index}.finalManualPrice`} render={({ field }) => (
-                                                <FormItem><FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Final Price (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
-                                            )}/>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <FormField control={form.control} name={`items.${index}.finalManualPrice`} render={({ field }) => (
+                                                    <FormItem><FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Final Price (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
+                                                )}/>
+                                                <FormField control={form.control} name={`items.${index}.finalWeightG`} render={({ field }) => (
+                                                    <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4"/>Weight (g)</FormLabel><FormControl><AmountInput maxDecimals={3} zeroAsEmpty placeholder="Optional" {...field} /></FormControl><FormDescription>Printed on the invoice; the price stays as typed.</FormDescription><FormMessage /></FormItem>
+                                                )}/>
+                                            </div>
                                         )}
                                         {/* Toggle to rate calculation */}
                                         <FormField control={form.control} name={`items.${index}.isManualPrice`} render={({ field }) => (

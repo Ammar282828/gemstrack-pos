@@ -391,6 +391,13 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   weight or not gold at 10%. **Not given, 10%** — and every order and sale recorded before 2026-10-05 stays at 10%
   ("for all the previous recorded stuff keep the profit as 10 percent"); the 24k rate kept on old sales is not used
   (on 92 sales the stored 24k had drifted from the 21k the counter prices by: 0.88–0.91 of it, some equal, one 7×).
+- **A fixed price keeps its weight** (2026-10-07, owner: "when we make an invoice for a fixed price, still allow us to add
+  the weight"). New sale's piece editor shows *Weight (g)* beside *Price* when the piece is *Fixed price*, and Finalize &
+  invoice shows it for a fixed-price piece too (it wrote 0 g there, dropping the order's weight). It prints on the bill and
+  the PDF and moves nothing — the price is the price (`pricing.ts`). For the margin, plain gold at a fixed price is now costed
+  from its gold; **with diamonds or stones in it, it stays at 10%** (their cost is inside the price and written nowhere, so
+  gold alone would read a diamond ring as ~90%). So a fixed-price line keeps `hasDiamonds`/`hasStones`, and an edit reads
+  them (and the details) back, since its charges are 0.
 - **Who sees it:** owners and staff (owner: "tell owners and staff … just make sure the customer does not get any of this
   info"). It shows as *We earn* on New sale, the order form, Finalize, an invoice's and an order's page, **blurred until
   tapped** — the counter turns its screen to show a customer the bill — and the figure is not in the page until then.

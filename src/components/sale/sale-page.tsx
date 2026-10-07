@@ -472,8 +472,14 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
     };
   }, [appReady, settings, cartItemsFromStore, rateInputs, discountAmountInput, exchangeRows, cartMetalInfo]);
   const saleMargin = useMemo(() => (estimatedInvoice && estimatedInvoice.items.length
-    ? invoiceMargin({ items: estimatedInvoice.items, subtotal: estimatedInvoice.subtotal, discountAmount: parseFloat(discountAmountInput) || 0, costRate24k })
-    : null), [estimatedInvoice, discountAmountInput, costRate24k]);
+    ? invoiceMargin({
+        // With what the cart knows and the estimate doesn't: a fixed price, and what is set in it (lib/margin.ts).
+        items: estimatedInvoice.items.map(it => {
+          const c = cartItemsFromStore.find(x => x.sku === it.sku);
+          return { ...it, isCustomPrice: c?.isCustomPrice, hasDiamonds: c?.hasDiamonds, hasStones: c?.hasStones, stoneDetails: c?.stoneDetails, diamondDetails: c?.diamondDetails };
+        }),
+        subtotal: estimatedInvoice.subtotal, discountAmount: parseFloat(discountAmountInput) || 0, costRate24k })
+    : null), [estimatedInvoice, cartItemsFromStore, discountAmountInput, costRate24k]);
 
   // ── A new sale, kept in Drafts as it is typed (components/drafts/use-work-drafts.ts) ──
   // Only a new sale: never an invoice on screen, an estimate being changed, or an invoice opened here

@@ -132,7 +132,7 @@ const Num: React.FC<{
 }> = ({ label, value, onChange, step, placeholder, hint }) => (
   <div>
     <Label className="text-xs">{label}</Label>
-    <AmountInput step={step} value={value} placeholder={placeholder} zeroAsEmpty
+    <AmountInput step={step} value={value} placeholder={placeholder} zeroAsEmpty aria-label={label}
       onValueChange={v => onChange(v === undefined ? '' : String(v))} />
     {hint && <p className="text-2xs text-muted-foreground mt-0.5">{hint}</p>}
   </div>
@@ -262,6 +262,11 @@ export const EditCartItemDialog: React.FC<{
           {d.isCustomPrice ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Num label="Price (PKR)" value={d.customPrice} onChange={v => set('customPrice', v)} placeholder="The agreed total for this piece" />
+              {/* A fixed price still has a weight, and the bill says it (owner, 2026-10-07: "still allow us to add the
+                  weight"). It moves nothing — the price is the price (pricing.ts) — but it prints, and the shop's
+                  margin is costed from it (lib/margin.ts) instead of the 10% guess. */}
+              <Num label="Weight (g)" value={d.metalWeightG} onChange={v => set('metalWeightG', v)} step="0.001"
+                placeholder="Optional" hint="Printed on the bill; the price stays as typed." />
               {isSilver && (
                 <Num label="Reference rate per gram (optional)" value={d.silverRatePerGram}
                   onChange={v => set('silverRatePerGram', v)} placeholder="e.g. 150"

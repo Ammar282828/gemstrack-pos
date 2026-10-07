@@ -54,3 +54,28 @@ describe('what the shop earns', () => {
     expect(orderMargin({ ...order, costRate24k: undefined }).percent).toBe(10);
   });
 });
+
+describe('a fixed price with its weight (2026-10-07)', () => {
+  const rate = 38538; // 10 g costs 361,293.75
+  it('plain gold at a fixed price is costed from its gold', () => {
+    const m = invoiceMargin({ items: [{ metalType: 'gold', karat: '21k', metalWeightG: 10, itemTotal: 400000, isCustomPrice: true }], subtotal: 400000, costRate24k: rate });
+    expect(m.assumed).toBe(false);
+    expect(m.costedShare).toBe(1);
+    expect(m.cost).toBeCloseTo(361293.75, 2);
+  });
+  it('with diamonds or stones in the price, stays at 10% — their cost is written nowhere', () => {
+    for (const extra of [{ hasDiamonds: true }, { diamondDetails: '0.5ct round' }, { stoneDetails: '4 rubies' }, { stoneWeightG: 0.4 }, { hasStones: true }]) {
+      const m = invoiceMargin({ items: [{ metalType: 'gold', karat: '18k', metalWeightG: 4, itemTotal: 500000, isCustomPrice: true, ...extra }], subtotal: 500000, costRate24k: rate });
+      expect(m.costedShare).toBe(0);
+      expect(m.percent).toBeCloseTo(10, 6);
+    }
+  });
+  it('a piece priced by weight with stones is still costed (its charges are on it)', () => {
+    const m = invoiceMargin({ items: [{ metalType: 'gold', karat: '21k', metalWeightG: 10, itemTotal: 440000, stoneChargesIfAny: 50000, stoneDetails: '4 rubies' }], subtotal: 440000, costRate24k: rate });
+    expect(m.costedShare).toBe(1);
+  });
+  it('an order at a fixed price with diamonds stays at 10%', () => {
+    const m = orderMargin({ items: [{ metalType: 'gold', karat: '18k', estimatedWeightG: 4, isManualPrice: true, manualPrice: 500000, hasDiamonds: true }], costRate24k: rate });
+    expect(m.costedShare).toBe(0);
+  });
+});

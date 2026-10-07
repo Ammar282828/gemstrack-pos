@@ -444,6 +444,9 @@ export interface InvoiceItem {
   diamondDetails?: string;
   isCustomPrice?: boolean;
   isManualPrice?: boolean;
+  /** Kept on a fixed-price line, whose charges are 0: what tells the margin there are stones in its price. */
+  hasDiamonds?: boolean;
+  hasStones?: boolean;
   itemCategory?: string;
   size?: string; // Optional ring/bracelet size carried from product or order
   platingType?: string;  // 925 silver only
@@ -2676,11 +2679,12 @@ export const useAppStore = create<AppState>()(
                 secondaryMetalType: undefined, // These fields are not on InvoiceItem
                 secondaryMetalKarat: undefined,
                 secondaryMetalWeightG: undefined,
-                hasStones: !!item.stoneChargesIfAny,
+                // A fixed-price line's charges are 0, so its own flags and details say what is set in it.
+                hasStones: !!(item.stoneChargesIfAny || item.hasStones || item.stoneDetails?.trim()),
                 stoneWeightG: item.stoneWeightG,
                 wastagePercentage: item.wastagePercentage,
                 makingCharges: item.makingCharges,
-                hasDiamonds: !!item.diamondChargesIfAny,
+                hasDiamonds: !!(item.diamondChargesIfAny || item.hasDiamonds || item.diamondDetails?.trim()),
                 diamondCharges: item.diamondChargesIfAny,
                 stoneCharges: item.stoneChargesIfAny,
                 miscCharges: item.miscChargesIfAny,
@@ -2832,7 +2836,12 @@ export const useAppStore = create<AppState>()(
                     if (cartItem.stoneDetails) itemToAdd.stoneDetails = cartItem.stoneDetails;
                     if (cartItem.diamondDetails) itemToAdd.diamondDetails = cartItem.diamondDetails;
                     if (cartItem.size) itemToAdd.size = cartItem.size;
-                    if (cartItem.isCustomPrice) itemToAdd.isCustomPrice = true;
+                    if (cartItem.isCustomPrice) {
+                        itemToAdd.isCustomPrice = true;
+                        // The price holds whatever is set in it: kept so the margin knows (lib/margin.ts).
+                        if (cartItem.hasDiamonds) itemToAdd.hasDiamonds = true;
+                        if (cartItem.hasStones) itemToAdd.hasStones = true;
+                    }
                     if (cartItem.metalType === 'silver' && Number(cartItem.silverRatePerGram) > 0) itemToAdd.silverRatePerGram = Number(cartItem.silverRatePerGram);
                     if (cartItem.platingType) itemToAdd.platingType = cartItem.platingType;
                     if (cartItem.platingNote) itemToAdd.platingNote = cartItem.platingNote;
@@ -3954,7 +3963,8 @@ export const useAppStore = create<AppState>()(
                 categoryId: '',
                 metalType: originalItem.metalType,
                 karat: originalItem.karat,
-                metalWeightG: finalizedData.isManualPrice ? 0 : finalizedData.finalWeightG,
+                // A fixed price keeps its weight too: it prints, and costs the margin (2026-10-07).
+                metalWeightG: Number(finalizedData.finalWeightG) || 0,
                 stoneWeightG: originalItem.stoneWeightG,
                 quantity: 1,
                 unitPrice: itemPrice,
@@ -3970,6 +3980,8 @@ export const useAppStore = create<AppState>()(
                 diamondDetails: originalItem.diamondDetails,
                 ...(originalItem.size && { size: originalItem.size }),
                 ...(finalizedData.isManualPrice && { isManualPrice: true }),
+                ...(finalizedData.isManualPrice && originalItem.hasDiamonds && { hasDiamonds: true }),
+                ...(finalizedData.isManualPrice && originalItem.hasStones && { hasStones: true }),
                 ...(originalItem.itemCategory && { itemCategory: originalItem.itemCategory }),
                 ...(originalItem.adminNote && { adminNote: originalItem.adminNote }),
                 // Silver's plating was left behind, so a Mina order's "21K gold plating,

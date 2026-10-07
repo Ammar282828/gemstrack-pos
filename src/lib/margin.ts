@@ -53,6 +53,10 @@ export interface MarginLine {
   diamondCharges?: number;
   /** A gold coin is pure metal, sold near the 24k rate: costed at its own karat, not jewellery's. */
   isCoin?: boolean;
+  /** Sold at a fixed price rather than built from the rate. */
+  fixedPrice?: boolean;
+  /** Diamonds or stones are set in it. */
+  setWithStones?: boolean;
 }
 
 export interface Margin {
@@ -72,7 +76,11 @@ export function lineCost(l: MarginLine, rate24k: number): { cost: number; costed
   const qty = n(l.quantity) || 1;
   const price = n(l.price);
   const weight = n(l.weightG);
-  if (COST_RATTI_LESS === null || !(rate24k > 0) || l.metalType !== 'gold' || !(weight > 0)) {
+  // A fixed price with diamonds or stones in it: their cost is inside the price and written nowhere, so
+  // costing it from the gold alone would read a diamond ring as 90% profit. Taken at 10%, as before it
+  // had a weight (2026-10-07: fixed-price pieces can carry their weight). Plain gold at a fixed price
+  // is costed from its gold like any other.
+  if (COST_RATTI_LESS === null || !(rate24k > 0) || l.metalType !== 'gold' || !(weight > 0) || (l.fixedPrice && l.setWithStones)) {
     return { cost: price * (1 - ASSUMED_MARGIN), costed: false };
   }
   const net = Math.max(0, weight - n(l.stoneWeightG));
@@ -111,8 +119,13 @@ export function marginOf(lines: MarginLine[], revenue: number, rate24k?: number 
 
 const GOLD_COIN_CATEGORY = 'cat017';
 
+/** Diamonds or stones in a piece, as any of the shapes records it. */
+const setWithStones = (it: { hasDiamonds?: boolean; hasStones?: boolean; stoneDetails?: string; diamondDetails?: string; stoneWeightG?: number }) =>
+  !!(it.hasDiamonds || it.hasStones || String(it.stoneDetails || '').trim() || String(it.diamondDetails || '').trim() || n(it.stoneWeightG) > 0);
+
 type InvoiceLike = {
-  items?: { metalType?: string; karat?: string; metalWeightG?: number; stoneWeightG?: number; quantity?: number; itemTotal?: number; stoneChargesIfAny?: number; diamondChargesIfAny?: number; categoryId?: string }[];
+  items?: { metalType?: string; karat?: string; metalWeightG?: number; stoneWeightG?: number; quantity?: number; itemTotal?: number; stoneChargesIfAny?: number; diamondChargesIfAny?: number; categoryId?: string;
+    isCustomPrice?: boolean; isManualPrice?: boolean; hasDiamonds?: boolean; hasStones?: boolean; stoneDetails?: string; diamondDetails?: string }[];
   subtotal?: number; discountAmount?: number; costRate24k?: number;
 };
 
@@ -122,13 +135,15 @@ export function invoiceMargin(inv: InvoiceLike): Margin {
     metalType: it.metalType, karat: it.karat, weightG: it.metalWeightG, stoneWeightG: it.stoneWeightG,
     quantity: it.quantity, price: n(it.itemTotal), stoneCharges: it.stoneChargesIfAny, diamondCharges: it.diamondChargesIfAny,
     isCoin: it.categoryId === GOLD_COIN_CATEGORY,
+    fixedPrice: !!(it.isCustomPrice || it.isManualPrice), setWithStones: setWithStones(it),
   }));
   const value = n(inv.subtotal) || lines.reduce((s, l) => s + l.price, 0);
   return marginOf(lines, value - n(inv.discountAmount), inv.costRate24k);
 }
 
 type OrderLike = {
-  items?: { metalType?: string; karat?: string; estimatedWeightG?: number; stoneWeightG?: number; isManualPrice?: boolean; manualPrice?: number; totalEstimate?: number; stoneCharges?: number; diamondCharges?: number; hasDiamonds?: boolean }[];
+  items?: { metalType?: string; karat?: string; estimatedWeightG?: number; stoneWeightG?: number; isManualPrice?: boolean; manualPrice?: number; totalEstimate?: number; stoneCharges?: number; diamondCharges?: number; hasDiamonds?: boolean;
+    hasStones?: boolean; stoneDetails?: string; diamondDetails?: string }[];
   subtotal?: number; discountAmount?: number; costRate24k?: number;
 };
 
@@ -140,6 +155,7 @@ export function orderMargin(order: OrderLike, prices?: number[]): Margin {
     // A fixed price holds whatever stones it has; the charges only exist when it is priced by weight.
     stoneCharges: it.isManualPrice ? 0 : it.stoneCharges,
     diamondCharges: it.isManualPrice || !it.hasDiamonds ? 0 : it.diamondCharges,
+    fixedPrice: !!it.isManualPrice, setWithStones: setWithStones(it),
   }));
   const value = prices ? lines.reduce((s, l) => s + l.price, 0) : (n(order.subtotal) || lines.reduce((s, l) => s + l.price, 0));
   return marginOf(lines, value - n(order.discountAmount), order.costRate24k);
