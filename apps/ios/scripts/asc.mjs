@@ -103,7 +103,14 @@ async function plan(mode) {
     try { token(); } catch (e) {
       throw new Error(`ASC_PRIVATE_KEY is not a readable .p8 key (${e.message}). Paste the whole AuthKey_….p8 file's text into the secret.`);
     }
+    // A house whose native app (apps/iphone) can sign in has moved on: the shell no longer uploads for it,
+    // so TestFlight never offers a 1.0 shell build beside the native 2.0.
+    const native = JSON.parse(fs.readFileSync(path.join(dir, '..', 'iphone', 'houses.json'), 'utf8'));
     for (const [name, h] of Object.entries(houses)) {
+      if (String(native[name]?.firebase?.iosAppId || '').includes(':ios:')) {
+        say(`::notice::${h.storeName}: the native app (apps/iphone) replaces this shell; not uploaded.`);
+        continue;
+      }
       await bundleIdFor(h, true);
       const app = await appFor(h);
       if (!app) {

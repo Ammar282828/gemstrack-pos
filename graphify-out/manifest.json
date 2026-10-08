@@ -60,9 +60,9 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1790533461.66305,
-    "seen": 1790854750.370649,
-    "ast_hash": "58f8c3a943818c13d42b9de5d13054dd",
+    "mtime": 1791489994.5268679,
+    "seen": 1791493812.3233864,
+    "ast_hash": "e957d6e5bedc476abaa4717c1862add9",
     "semantic_hash": ""
   },
   "postcss.config.mjs": {
@@ -774,9 +774,9 @@
     "semantic_hash": ""
   },
   "src/app/api/karigar/complete/route.ts": {
-    "mtime": 1790533461.677597,
-    "seen": 1790854750.3711936,
-    "ast_hash": "07626eb4993d30dc3569aba189cf3ff2",
+    "mtime": 1791489364.4870775,
+    "seen": 1791493812.323635,
+    "ast_hash": "ba78e5e3899bb393ca3dbb0dd168497f",
     "semantic_hash": ""
   },
   "src/app/api/karigar/me/route.ts": {
@@ -936,9 +936,9 @@
     "semantic_hash": ""
   },
   "src/app/api/shopify/webhooks/orders/route.ts": {
-    "mtime": 1791322000.755095,
-    "seen": 1791322481.7997723,
-    "ast_hash": "08cb88422c372d80d466c5ec461f02f9",
+    "mtime": 1791489388.6497943,
+    "seen": 1791493812.32368,
+    "ast_hash": "ba9d0fe39e8d1c5572c41d9e3cc08d31",
     "semantic_hash": ""
   },
   "src/app/api/shopify/webhooks/products/route.ts": {
@@ -954,9 +954,9 @@
     "semantic_hash": ""
   },
   "src/app/api/staff/write/route.ts": {
-    "mtime": 1791105769.21565,
-    "seen": 1791106473.1431634,
-    "ast_hash": "cc2c1d4c795c4679fa5a049cb29f1170",
+    "mtime": 1791491903.1312296,
+    "seen": 1791493812.323683,
+    "ast_hash": "c13969c444d815ccdc917d3f9aaa90c5",
     "semantic_hash": ""
   },
   "src/app/api/tcs/route.ts": {
@@ -1326,15 +1326,15 @@
     "semantic_hash": ""
   },
   "src/components/auth/google-auth-gate.tsx": {
-    "mtime": 1791484960.369925,
-    "seen": 1791485457.9845412,
-    "ast_hash": "462424741f046a3841a12cba74c65439",
+    "mtime": 1791492603.087532,
+    "seen": 1791493812.3238006,
+    "ast_hash": "73816c646f04af898080d9322ff1782d",
     "semantic_hash": ""
   },
   "src/components/cart/bill-scanner.tsx": {
-    "mtime": 1790705205.2296743,
-    "seen": 1790854750.3716054,
-    "ast_hash": "aea3fed7a634f4b836ce9b18f2ac88e6",
+    "mtime": 1791492894.290727,
+    "seen": 1791493812.3238013,
+    "ast_hash": "98991d6c108e7a98e2f3bf84ec5582d7",
     "semantic_hash": ""
   },
   "src/components/cart/edit-cart-item-dialog.tsx": {
@@ -1392,9 +1392,9 @@
     "semantic_hash": ""
   },
   "src/components/layout/app-layout.tsx": {
-    "mtime": 1791197665.1760948,
-    "seen": 1791198358.0527542,
-    "ast_hash": "23f35aede931639500a74134868b3c8f",
+    "mtime": 1791492606.274176,
+    "seen": 1791493812.3238175,
+    "ast_hash": "1dca7602696101cd06bee7234a95f106",
     "semantic_hash": ""
   },
   "src/components/layout/main-app.tsx": {
@@ -1410,9 +1410,9 @@
     "semantic_hash": ""
   },
   "src/components/order/order-scanner.tsx": {
-    "mtime": 1790690881.23415,
-    "seen": 1790854750.371643,
-    "ast_hash": "822d8a2ec04355a64fc960c189fadf2e",
+    "mtime": 1791492908.5906296,
+    "seen": 1791493812.3238254,
+    "ast_hash": "4b58c9c53e5f9a0e12c90b06be1020d2",
     "semantic_hash": ""
   },
   "src/components/order/website-order-panel.tsx": {
@@ -2034,9 +2034,9 @@
     "semantic_hash": ""
   },
   "src/lib/store.ts": {
-    "mtime": 1791411459.9302347,
-    "seen": 1791413964.541561,
-    "ast_hash": "5b3e0b6fdff9fa234cb1682dee34d4ca",
+    "mtime": 1791493648.1874628,
+    "seen": 1791493812.324271,
+    "ast_hash": "7c21b4e4edc66ae4639befeea5db7395",
     "semantic_hash": ""
   },
   "src/lib/theme-cache.ts": {
@@ -2184,9 +2184,9 @@
     "semantic_hash": ""
   },
   "src/lib/website/notify.ts": {
-    "mtime": 1791115686.7458286,
-    "seen": 1791115855.9763768,
-    "ast_hash": "ba81af41a64f1d21625bb7719a2c8dd8",
+    "mtime": 1791489356.339778,
+    "seen": 1791493812.3243215,
+    "ast_hash": "83346145de63e04a1c0bbcbef42dd462",
     "semantic_hash": ""
   },
   "src/lib/website/pricing.test.ts": {
@@ -2856,9 +2856,9 @@
     "semantic_hash": ""
   },
   "src/components/shared/photo-pick.tsx": {
-    "mtime": 1790533461.6975987,
-    "seen": 1790854750.3716764,
-    "ast_hash": "807e18bbaf9e71793d5892d456226348",
+    "mtime": 1791492888.3524728,
+    "seen": 1791493812.3238466,
+    "ast_hash": "b85dcf7521cfb476af97ee49e0c86204",
     "semantic_hash": ""
   },
   "src/lib/photo-file.ts": {
@@ -3924,9 +3924,9 @@
     "semantic_hash": ""
   },
   "src/lib/notifications/reports.ts": {
-    "mtime": 1790872853.1641,
-    "seen": 1790873362.4430852,
-    "ast_hash": "df881866d61c28f8b42218166b73195c",
+    "mtime": 1791489655.43827,
+    "seen": 1791493812.3240561,
+    "ast_hash": "0a3882ca625a4765c2c65c7715a4f7d0",
     "semantic_hash": ""
   },
   "src/lib/notifications/schedule.test.ts": {
@@ -4170,9 +4170,9 @@
     "semantic_hash": ""
   },
   "src/app/settings/alerts/page.tsx": {
-    "mtime": 1790805874.7664778,
-    "seen": 1790854750.3714628,
-    "ast_hash": "65ef280276bb244cbd5c963d0412ecbe",
+    "mtime": 1791489746.0137491,
+    "seen": 1791493812.3237607,
+    "ast_hash": "db77618c5526353fcc68a1555019582c",
     "semantic_hash": ""
   },
   "src/app/settings/data/page.tsx": {
@@ -4272,9 +4272,9 @@
     "semantic_hash": ""
   },
   "src/lib/owed.ts": {
-    "mtime": 1791015442.3192334,
-    "seen": 1791104013.434247,
-    "ast_hash": "3d50378a8fe7bb3cb9d8976f691e7d42",
+    "mtime": 1791489675.8777528,
+    "seen": 1791493812.3241894,
+    "ast_hash": "688c7e87f02986a57b97211c9395e77f",
     "semantic_hash": ""
   },
   "src/app/invoices/[id]/edit/page.tsx": {
@@ -4536,9 +4536,9 @@
     "semantic_hash": ""
   },
   "src/components/shared/delete-code-dialog.tsx": {
-    "mtime": 1790870340.7159753,
-    "seen": 1790871596.0029309,
-    "ast_hash": "e7aacf95f645c462a232054837b3a440",
+    "mtime": 1791492865.2340047,
+    "seen": 1791493812.3238409,
+    "ast_hash": "9f97de45b9c999e74d4056197a7f32de",
     "semantic_hash": ""
   },
   "src/lib/delete-code-server.ts": {
@@ -4614,9 +4614,9 @@
     "semantic_hash": ""
   },
   "src/lib/notifications/send-alert.ts": {
-    "mtime": 1790872673.949388,
-    "seen": 1790873362.443088,
-    "ast_hash": "5a3b32a2b2b604b250d30903279d3f00",
+    "mtime": 1791489348.8550158,
+    "seen": 1791493812.3240592,
+    "ast_hash": "923a170bbe5c9ca917148d0dac5f8498",
     "semantic_hash": ""
   },
   "src/lib/notifications/send-doc.ts": {
@@ -5046,9 +5046,9 @@
     "semantic_hash": ""
   },
   "src/app/api/shopify/_order-mirror.ts": {
-    "mtime": 1791322339.8957894,
-    "seen": 1791322481.79971,
-    "ast_hash": "36fc7cfee338e56cd2fe7eeaf48b5742",
+    "mtime": 1791489384.4171135,
+    "seen": 1791493812.3236606,
+    "ast_hash": "d52517f0f9e8ede3dd1f9655daedbe81",
     "semantic_hash": ""
   },
   "src/lib/shopify-mirror.test.ts": {
@@ -5100,14 +5100,14 @@
     "semantic_hash": ""
   },
   "apps/ios/houses.json": {
-    "mtime": 1791484636.9177713,
-    "seen": 1791485457.9839609,
-    "ast_hash": "d0639e5cccda6378d74aad5b46ca0583",
+    "mtime": 1791487372.4025764,
+    "seen": 1791493812.323213,
+    "ast_hash": "b1ea461114a636bce78f4753a526f001",
     "semantic_hash": ""
   },
   "apps/ios/ios/App/App/AppDelegate.swift": {
-    "mtime": 1789138889.0,
-    "seen": 1791485457.9839633,
+    "mtime": 1791489634.729898,
+    "seen": 1791493812.3232164,
     "ast_hash": "66cf80b6a9ef034e815c7d0135b97e36",
     "semantic_hash": ""
   },
@@ -5160,9 +5160,9 @@
     "semantic_hash": ""
   },
   "apps/ios/ios/App/App/ERP.swift": {
-    "mtime": 1791484946.6669114,
-    "seen": 1791485457.9839773,
-    "ast_hash": "e94ffeecb20c172987cc672d0cb093d9",
+    "mtime": 1791489634.729898,
+    "seen": 1791493812.3232422,
+    "ast_hash": "435293e4f03b82e54aff99c1089483a5",
     "semantic_hash": ""
   },
   "apps/ios/ios/App/App/SceneDelegate.swift": {
@@ -5184,15 +5184,15 @@
     "semantic_hash": ""
   },
   "apps/ios/package.json": {
-    "mtime": 1791484286.6621258,
-    "seen": 1791485457.9839826,
+    "mtime": 1791489634.73296,
+    "seen": 1791493812.323249,
     "ast_hash": "d03f651b3ad9b35ace183754f79bec3d",
     "semantic_hash": ""
   },
   "apps/ios/scripts/asc.mjs": {
-    "mtime": 1791485210.7345645,
-    "seen": 1791485457.9839838,
-    "ast_hash": "300213523c353469381cb7ffa1db5f2b",
+    "mtime": 1791492737.0935388,
+    "seen": 1791493812.3232505,
+    "ast_hash": "4717fdc0bc9c18e44e57fbb23217df48",
     "semantic_hash": ""
   },
   "apps/ios/scripts/house.mjs": {
@@ -5202,21 +5202,21 @@
     "semantic_hash": ""
   },
   "src/lib/native-app.test.ts": {
-    "mtime": 1791484991.2954466,
-    "seen": 1791485457.984846,
-    "ast_hash": "b5ae17c7b2a213e11e001a48e73f14a0",
+    "mtime": 1791492939.011905,
+    "seen": 1791493812.3240407,
+    "ast_hash": "72d3242bc1089b91fdd4fe75743f7478",
     "semantic_hash": ""
   },
   "src/lib/native-app.ts": {
-    "mtime": 1791484946.6658812,
-    "seen": 1791485457.9848473,
-    "ast_hash": "328218a9a1dfa62470efeabd4371542d",
+    "mtime": 1791492842.1076941,
+    "seen": 1791493812.3240418,
+    "ast_hash": "b8b2fe002b5179a914efb7af3274b047",
     "semantic_hash": ""
   },
   ".github/workflows/ios.yml": {
-    "mtime": 1791485336.6399274,
-    "seen": 1791485457.985113,
-    "ast_hash": "6204ce24941fcc93f9f2a0944be264f8",
+    "mtime": 1791487844.8699117,
+    "seen": 1791493812.3243701,
+    "ast_hash": "bd8791985906c4e99c6ac0b8a317beb9",
     "semantic_hash": ""
   },
   "apps/ios/README.md": {
@@ -5250,9 +5250,9 @@
     "semantic_hash": ""
   },
   "docs/features/iphone-app.md": {
-    "mtime": 1791485363.4754689,
-    "seen": 1791485457.9851396,
-    "ast_hash": "65602b9a3966f440161a756c5b90e3dd",
+    "mtime": 1791493043.8174837,
+    "seen": 1791493812.3243983,
+    "ast_hash": "972989f7bc40d60132dd454fa680343a",
     "semantic_hash": ""
   },
   "apps/ios/ios/App/App/Assets.xcassets/AppIcon-mina.appiconset/icon-1024.png": {
@@ -5319,6 +5319,966 @@
     "mtime": 1789138889.0,
     "seen": 1791485457.9851668,
     "ast_hash": "958532b95c3e7d4997327dc977b80600",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Auth/GoogleAuth.swift": {
+    "mtime": 1791491976.3851202,
+    "seen": 1791493812.3232543,
+    "ast_hash": "52d44a4f31468ca760d5b9f19fa12b18",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Auth/Keychain.swift": {
+    "mtime": 1791490271.22761,
+    "seen": 1791493812.3232558,
+    "ast_hash": "7190936a7bb6fed60d0968d9b533a366",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Auth/Session.swift": {
+    "mtime": 1791491976.3845534,
+    "seen": 1791493812.3232565,
+    "ast_hash": "937c1d992f1be32e258f609e7f0c63b5",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Config/House.swift": {
+    "mtime": 1791492509.774422,
+    "seen": 1791493812.3232577,
+    "ast_hash": "ac868df4601179660932bae77071aaaf",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Config/Theme.swift": {
+    "mtime": 1791490244.8116486,
+    "seen": 1791493812.323259,
+    "ast_hash": "ed8d4793a966c421d7e8e95d09299695",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Data/Book.swift": {
+    "mtime": 1791493355.4598675,
+    "seen": 1791493812.3232603,
+    "ast_hash": "ac02520d2360610f5a930ec7726d11fa",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Data/Demo.swift": {
+    "mtime": 1791491283.0010579,
+    "seen": 1791493812.3232617,
+    "ast_hash": "08b74ed0eab27c2c51fe09b90559108d",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Data/ERPAPI.swift": {
+    "mtime": 1791492005.4919028,
+    "seen": 1791493812.3232627,
+    "ast_hash": "afcd9d82dbd353ce32d21290b9a218e5",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Data/FirestoreSource.swift": {
+    "mtime": 1791491976.385566,
+    "seen": 1791493812.3232644,
+    "ast_hash": "996496836b997c505998917b3f870803",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Device/DeviceLinks.swift": {
+    "mtime": 1791490485.6890104,
+    "seen": 1791493812.323265,
+    "ast_hash": "215d8ebc1977da870a88f3b5d3e7ea14",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Device/DocumentScanner.swift": {
+    "mtime": 1791492810.2411487,
+    "seen": 1791493812.323266,
+    "ast_hash": "3e210821ea4e6714a54a3e41e5b362bd",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Device/FaceIDVault.swift": {
+    "mtime": 1791492777.7411468,
+    "seen": 1791493812.323267,
+    "ast_hash": "eab3561d6bf7bc3bdd3d14c76592fb2b",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Device/SpeechEngine.swift": {
+    "mtime": 1791490458.0572011,
+    "seen": 1791493812.3232687,
+    "ast_hash": "be2f7bdc49748c75aef5b3a14b11b19a",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/ERPApp.swift": {
+    "mtime": 1791491300.705413,
+    "seen": 1791493812.3232698,
+    "ast_hash": "fa948a46664c71144a7b78f87da7da9d",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Nav/MoreView.swift": {
+    "mtime": 1791492980.2682261,
+    "seen": 1791493812.3232713,
+    "ast_hash": "5189c34357d991d22cd3d12eca73be83",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Nav/NavIcon.swift": {
+    "mtime": 1791490329.0381334,
+    "seen": 1791493812.323272,
+    "ast_hash": "a0326f48b3f1b9a0d69583360328f85a",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Nav/NavMap.swift": {
+    "mtime": 1791491416.743843,
+    "seen": 1791493812.323273,
+    "ast_hash": "637cdc11417a780c645592785274f8e6",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Nav/RootView.swift": {
+    "mtime": 1791493343.4923623,
+    "seen": 1791493812.3232737,
+    "ast_hash": "d6ecf4d8a103c80a3083cd61f4be15d5",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Nav/ScreenRegistry.swift": {
+    "mtime": 1791492573.2534442,
+    "seen": 1791493812.323275,
+    "ast_hash": "a1e4a6686ce35d9ade11de1245bec8a9",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/AppIcon-mina.appiconset/Contents.json": {
+    "mtime": 1791490209.9021337,
+    "seen": 1791493812.3232763,
+    "ast_hash": "91595bc94e25b23d3d6d8b1ed42003ce",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/AppIcon-taheri.appiconset/Contents.json": {
+    "mtime": 1791490209.9020014,
+    "seen": 1791493812.323277,
+    "ast_hash": "91595bc94e25b23d3d6d8b1ed42003ce",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/Contents.json": {
+    "mtime": 1791490209.9018936,
+    "seen": 1791493812.3232787,
+    "ast_hash": "31cc68f34934a99c0b0c1bebde56309c",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/Launch-mina.colorset/Contents.json": {
+    "mtime": 1791490209.9022071,
+    "seen": 1791493812.3232799,
+    "ast_hash": "5077b80616f63ec01ffc9442c38cbf24",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/Launch-taheri.colorset/Contents.json": {
+    "mtime": 1791490209.9021719,
+    "seen": 1791493812.323281,
+    "ast_hash": "bbc95bc824dad55d379bd8ac34737ff6",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/LaunchMark-mina.imageset/Contents.json": {
+    "mtime": 1791490209.9024496,
+    "seen": 1791493812.3232822,
+    "ast_hash": "cb493a74302a9cd16ece51f0d8835f28",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/LaunchMark-taheri.imageset/Contents.json": {
+    "mtime": 1791490209.902308,
+    "seen": 1791493812.3232832,
+    "ast_hash": "cb493a74302a9cd16ece51f0d8835f28",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/demo.json": {
+    "mtime": 1791493491.043871,
+    "seen": 1791493812.3232841,
+    "ast_hash": "7ecc79a6174798444eb60ce09ceb433e",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/nav-mina.json": {
+    "mtime": 1791493722.177203,
+    "seen": 1791493812.3232853,
+    "ast_hash": "750727797c46b0ec95f6bcea71eedeb9",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/nav-taheri.json": {
+    "mtime": 1791493720.1692028,
+    "seen": 1791493812.323286,
+    "ast_hash": "b8ce6ab0fa6a97bc89075933e2d87264",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Customers/AddCustomer.swift": {
+    "mtime": 1791493302.4472237,
+    "seen": 1791493812.3232872,
+    "ast_hash": "323346809937ec97b5b9871f6b33a8bf",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Customers/CustomerKit.swift": {
+    "mtime": 1791493090.4891653,
+    "seen": 1791493812.3232887,
+    "ast_hash": "fc52482028ceece3d015f4bdcb590949",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Customers/CustomerScreen.swift": {
+    "mtime": 1791493485.2674913,
+    "seen": 1791493812.3232899,
+    "ast_hash": "e048b14d55ee2f88c21ff36d388d3581",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Customers/CustomersList.swift": {
+    "mtime": 1791493136.7423978,
+    "seen": 1791493812.3232908,
+    "ast_hash": "ac72589e68648e279fd104dd14d89daf",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Customers/CustomersRoutes.swift": {
+    "mtime": 1791493224.4451733,
+    "seen": 1791493812.3232915,
+    "ast_hash": "d409a5f421d0b098463e5a05fa419f8d",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Home/Dashboard.swift": {
+    "mtime": 1791493280.764747,
+    "seen": 1791493812.3232927,
+    "ast_hash": "6a518a487d067afa04576a49209f6292",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Home/DashboardFigures.swift": {
+    "mtime": 1791493485.2645562,
+    "seen": 1791493812.323294,
+    "ast_hash": "78914d134cfa58a5fc7ca424059c60ea",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Home/DashboardParts.swift": {
+    "mtime": 1791493178.3731706,
+    "seen": 1791493812.323295,
+    "ast_hash": "8d57dad6d6eaa5fc382bce8533e7c21b",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Home/HomeRoutes.swift": {
+    "mtime": 1791493236.053174,
+    "seen": 1791493812.3232963,
+    "ast_hash": "28855fe7a2accd854d0721cf25c7b059",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Home/TodaysCashScreen.swift": {
+    "mtime": 1791493264.5230174,
+    "seen": 1791493812.323297,
+    "ast_hash": "ce9868e1880417fbe65403214c129915",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Invoices/InvoiceScreen.swift": {
+    "mtime": 1791493197.0240202,
+    "seen": 1791493812.3232982,
+    "ast_hash": "f34c94d09186f949cbb835d4582f9d7d",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Invoices/InvoiceSupport.swift": {
+    "mtime": 1791493061.8731637,
+    "seen": 1791493812.3232994,
+    "ast_hash": "0fece4a794f0df8d4c1f1173951ceb4f",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Invoices/InvoicesList.swift": {
+    "mtime": 1791493100.0771658,
+    "seen": 1791493812.3233004,
+    "ast_hash": "8d3acd51f30bad80d021d8e1a1f6b026",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Invoices/InvoicesRoutes.swift": {
+    "mtime": 1791493201.3491719,
+    "seen": 1791493812.323301,
+    "ast_hash": "e0cdd767ee6a45dd0a280e41016afebc",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/NativeScreens.swift": {
+    "mtime": 1791493496.0981183,
+    "seen": 1791493812.3233016,
+    "ast_hash": "51c412b2266f51572e2bdd20d5bb1f53",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Orders/OrderCard.swift": {
+    "mtime": 1791493222.3411732,
+    "seen": 1791493812.323303,
+    "ast_hash": "f79be39d883f12be42a64a3812d412c2",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Orders/OrderOnlineSection.swift": {
+    "mtime": 1791493296.1011775,
+    "seen": 1791493812.3233037,
+    "ast_hash": "5379d98b8ed7d98fbdf0e516f3c813ad",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Orders/OrderPieces.swift": {
+    "mtime": 1791493278.791498,
+    "seen": 1791493812.3233047,
+    "ast_hash": "4b0be1f0a24b5be810be5902e798a26c",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Orders/OrderScreen.swift": {
+    "mtime": 1791493358.5219305,
+    "seen": 1791493812.323306,
+    "ast_hash": "2ed08d8c0f10fc33426ea1760409a1f1",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Orders/OrdersHub.swift": {
+    "mtime": 1791493358.5214255,
+    "seen": 1791493812.323307,
+    "ast_hash": "826891d137497236a335db5005eb07da",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Orders/OrdersLogic.swift": {
+    "mtime": 1791493203.4872172,
+    "seen": 1791493812.323308,
+    "ast_hash": "68ea266fe05122d6602e6ca16b44c25d",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Orders/OrdersRoutes.swift": {
+    "mtime": 1791493364.7051816,
+    "seen": 1791493812.3233094,
+    "ast_hash": "690dbad69f14faaa5a584648b0bddd9a",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Orders/OrdersSupport.swift": {
+    "mtime": 1791493049.5891628,
+    "seen": 1791493812.3233106,
+    "ast_hash": "b8579214697c5c8f4de2d1fbe6616fec",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Rates/RateSheet.swift": {
+    "mtime": 1791492325.0337996,
+    "seen": 1791493812.3233116,
+    "ast_hash": "0c5cb4e09d5b7fb6ee0ba8dcda5b0560",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Screens/Settings/PhoneSettings.swift": {
+    "mtime": 1791492974.4036698,
+    "seen": 1791493812.3233125,
+    "ast_hash": "ed10bc305cecc20f28d42f5f45d0b400",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/UI/Kit.swift": {
+    "mtime": 1791492051.1331036,
+    "seen": 1791493812.3233137,
+    "ast_hash": "0ccff795e9158cecda1421d0a7ca2f0f",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Web/WebBridge.swift": {
+    "mtime": 1791492829.4543517,
+    "seen": 1791493812.3233144,
+    "ast_hash": "395cbaff4ddc15d468f43f4a1c8ad70b",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Web/WebScreen.swift": {
+    "mtime": 1791490428.314504,
+    "seen": 1791493812.3233154,
+    "ast_hash": "dfd4910276c39e18e3d44514cd90fd95",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Package.swift": {
+    "mtime": 1791490060.5520282,
+    "seen": 1791493812.3233163,
+    "ast_hash": "b6113701e1b566a1e1ccf38090e550ac",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/CashIn.swift": {
+    "mtime": 1791492400.7455382,
+    "seen": 1791493812.323317,
+    "ast_hash": "419557cd7747ac939fb0c8e837e38e38",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/Exchange.swift": {
+    "mtime": 1791492400.7445266,
+    "seen": 1791493812.3233178,
+    "ast_hash": "92877a6b4c53fbc2d6d8fa504f65d3e3",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/Financials.swift": {
+    "mtime": 1791493379.9811826,
+    "seen": 1791493812.3233185,
+    "ast_hash": "b37e01078153ff8f0ecec1991d820614",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/InvoiceCredit.swift": {
+    "mtime": 1791492400.7420332,
+    "seen": 1791493812.3233194,
+    "ast_hash": "1619f103917af413b6e2e4857d4e7cc8",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/JSCompat.swift": {
+    "mtime": 1791492258.4213092,
+    "seen": 1791493812.3233204,
+    "ast_hash": "3eb67e79f69bf7a0a228a8226e7e7199",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/Margin.swift": {
+    "mtime": 1791492400.7450786,
+    "seen": 1791493812.323321,
+    "ast_hash": "f2dc608170bcaa1829fbc6cbb71f99e0",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/Materials.swift": {
+    "mtime": 1791492400.7448008,
+    "seen": 1791493812.323322,
+    "ast_hash": "e27ed1cd6ce924611780d5179c84e450",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/Money.swift": {
+    "mtime": 1791490060.5579758,
+    "seen": 1791493812.3233235,
+    "ast_hash": "5bcc4fbe5d5d5bb3d5113586f834523b",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/OrderFinalize.swift": {
+    "mtime": 1791493397.0171835,
+    "seen": 1791493812.3233247,
+    "ast_hash": "cab2622f9b828e26302ddaddec27a755",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/OrderPayment.swift": {
+    "mtime": 1791492400.7426217,
+    "seen": 1791493812.3233259,
+    "ast_hash": "2ad20c484dfe3962f694b664dd4b0205",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/OrderStage.swift": {
+    "mtime": 1791492400.7435822,
+    "seen": 1791493812.3233268,
+    "ast_hash": "183f993f0d46e997e127afed16b0f68a",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/OrderTiming.swift": {
+    "mtime": 1791492400.743829,
+    "seen": 1791493812.323328,
+    "ast_hash": "22d7e94ffb13725f1ea2d11c32ce03c1",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/Owed.swift": {
+    "mtime": 1791492400.7433238,
+    "seen": 1791493812.3233287,
+    "ast_hash": "97a84830e0cf5575f8c880c25bb66993",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/Pricing.swift": {
+    "mtime": 1791493354.313181,
+    "seen": 1791493812.3233294,
+    "ast_hash": "c5192b5f2809100e40453503fbe41c33",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/RatesLogic.swift": {
+    "mtime": 1791492400.744054,
+    "seen": 1791493812.3233306,
+    "ast_hash": "73df3785e82c05ab9602c231142cac70",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/SaleValue.swift": {
+    "mtime": 1791492400.745308,
+    "seen": 1791493812.3233318,
+    "ast_hash": "ed512819858a98f25065817267c6f92e",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/TodaysCash.swift": {
+    "mtime": 1791492400.745783,
+    "seen": 1791493812.3233328,
+    "ast_hash": "40216496b4b389fdff88ba94b6c68b37",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Logic/WalkIn.swift": {
+    "mtime": 1791492400.7429695,
+    "seen": 1791493812.323334,
+    "ast_hash": "65b894ab18692d87ba0bbdb2d57c9087",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/Collections.swift": {
+    "mtime": 1791490303.3767395,
+    "seen": 1791493812.3233347,
+    "ast_hash": "2b9575785c88537458f40064b915bff2",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/Customer.swift": {
+    "mtime": 1791490400.2435174,
+    "seen": 1791493812.3233356,
+    "ast_hash": "a1f24463387762242b15980498a3fb9c",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/Enums.swift": {
+    "mtime": 1791490303.3749328,
+    "seen": 1791493812.3233376,
+    "ast_hash": "1ab817f645bac686022269e1766bcea1",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/Expense.swift": {
+    "mtime": 1791490423.5984006,
+    "seen": 1791493812.3233385,
+    "ast_hash": "ab098c6d74e9a7d9029ff4820e950ba5",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/GivenItem.swift": {
+    "mtime": 1791490423.6020544,
+    "seen": 1791493812.3233395,
+    "ast_hash": "2cac386a0d3666bfc076c61891971350",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/Hisaab.swift": {
+    "mtime": 1791490423.5917249,
+    "seen": 1791493812.3233407,
+    "ast_hash": "c5e5aba2119104f741e654dfc434c69e",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/Invoice.swift": {
+    "mtime": 1791490346.049812,
+    "seen": 1791493812.3233414,
+    "ast_hash": "b948478ce1b1ca53d5b55d82f2b30046",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/Karigar.swift": {
+    "mtime": 1791490400.2470248,
+    "seen": 1791493812.3233426,
+    "ast_hash": "3abe78c6fbf9b3e86f7b33a34f6b8103",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/ModelSupport.swift": {
+    "mtime": 1791490303.3689997,
+    "seen": 1791493812.3233442,
+    "ast_hash": "d294fdc6f0f97a40d38f1d8c7515520b",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/Order.swift": {
+    "mtime": 1791490373.2381616,
+    "seen": 1791493812.323345,
+    "ast_hash": "17bcdcd9b1add570b8140e98e7400062",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/Payment.swift": {
+    "mtime": 1791491480.7403266,
+    "seen": 1791493812.3233457,
+    "ast_hash": "f650977368e8666900b98cfc4462d578",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/Product.swift": {
+    "mtime": 1791490400.245397,
+    "seen": 1791493812.3233466,
+    "ast_hash": "cd4d61442f62456b3f5c3deaa57effce",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/Rates.swift": {
+    "mtime": 1791490346.049949,
+    "seen": 1791493812.3233476,
+    "ast_hash": "fef20c266c52467e8abfc8db1d5c5155",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/Repair.swift": {
+    "mtime": 1791490423.5930068,
+    "seen": 1791493812.3233485,
+    "ast_hash": "7d74874323ba1f30229634fcc9131c67",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Models/Settings.swift": {
+    "mtime": 1791490445.149008,
+    "seen": 1791493812.3233495,
+    "ast_hash": "fe848455cbdd232acaa632cb3996560d",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Support/DocJSON.swift": {
+    "mtime": 1791491100.5912712,
+    "seen": 1791493812.3233502,
+    "ast_hash": "5bc13a113c190c458f93cf1197a6306e",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Support/ERPDate.swift": {
+    "mtime": 1791490060.556509,
+    "seen": 1791493812.3233514,
+    "ast_hash": "6a407ccc5ac85fa55b501cf18a34da20",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Sources/ERPCore/Support/Lenient.swift": {
+    "mtime": 1791490060.554811,
+    "seen": 1791493812.3233523,
+    "ast_hash": "234826ba6750bad6c3dca77ad6bd5ba8",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/CashInTests.swift": {
+    "mtime": 1791491991.2491,
+    "seen": 1791493812.3233533,
+    "ast_hash": "b4cd5016e95cd2977c78b9858a7e571c",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/DocJSONTests.swift": {
+    "mtime": 1791491100.595324,
+    "seen": 1791493812.3233547,
+    "ast_hash": "74ccafae17a40cc09feddff80284d678",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/ExchangeTests.swift": {
+    "mtime": 1791491890.9621904,
+    "seen": 1791493812.3233557,
+    "ast_hash": "575577ba4b167c3e5db1997a442a064f",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/FinancialsTests.swift": {
+    "mtime": 1791493577.6451943,
+    "seen": 1791493812.323357,
+    "ast_hash": "ad4d70abbb48a9e1b55b1e9b052f57a3",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/InvoiceCreditTests.swift": {
+    "mtime": 1791491799.2893915,
+    "seen": 1791493812.3233583,
+    "ast_hash": "da8ee021b745bad4d6b90a13df3a8a9e",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/JSCompatTests.swift": {
+    "mtime": 1791492427.4866126,
+    "seen": 1791493812.323359,
+    "ast_hash": "81c205dd529d9048d270d8dde14726ac",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/MarginTests.swift": {
+    "mtime": 1791491949.4434967,
+    "seen": 1791493812.3233597,
+    "ast_hash": "19f080a8df818f1012c884b14e2db0a1",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/MaterialsTests.swift": {
+    "mtime": 1791491949.4416912,
+    "seen": 1791493812.323361,
+    "ast_hash": "a480030533b264471c85da765a5a8bb6",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/ModelsTests.swift": {
+    "mtime": 1791490525.8370128,
+    "seen": 1791493812.323362,
+    "ast_hash": "88dd7087e763d49e51342fa484d2c6a0",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/MoneyTests.swift": {
+    "mtime": 1791490089.1769578,
+    "seen": 1791493812.323363,
+    "ast_hash": "35a16f694438517eb94e27a073e6b23a",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/OrderFinalizeTests.swift": {
+    "mtime": 1791493577.650203,
+    "seen": 1791493812.3233638,
+    "ast_hash": "8479443edff9381902200b57ffe373fa",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/OrderPaymentTests.swift": {
+    "mtime": 1791491799.2930884,
+    "seen": 1791493812.323365,
+    "ast_hash": "4bf8af263cc49dc36e5c4a085a246a0b",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/OrderStageTests.swift": {
+    "mtime": 1791491799.2999105,
+    "seen": 1791493812.3233657,
+    "ast_hash": "9c2d304213212443aeeba3e36b247411",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/OrderTimingTests.swift": {
+    "mtime": 1791491799.3016381,
+    "seen": 1791493812.3233664,
+    "ast_hash": "aad5d592c9388a06e810f696c07d95ec",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/OwedTests.swift": {
+    "mtime": 1791491799.291109,
+    "seen": 1791493812.3233674,
+    "ast_hash": "11bf2c2adb863bb2354fa6d6ca8498bc",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/PricingTests.swift": {
+    "mtime": 1791493532.025236,
+    "seen": 1791493812.3233685,
+    "ast_hash": "c8a1d68fbc12271c75bffb1cfe8adb29",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/RatesTests.swift": {
+    "mtime": 1791491907.226215,
+    "seen": 1791493812.3233693,
+    "ast_hash": "5fd383d3d0566b9be1bbf2afa6585441",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/SaleValueTests.swift": {
+    "mtime": 1791491949.4451895,
+    "seen": 1791493812.3233705,
+    "ast_hash": "e25aa2bc975f60116ea2c84572f9e881",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/TodaysCashTests.swift": {
+    "mtime": 1791492361.2324913,
+    "seen": 1791493812.3233714,
+    "ast_hash": "b3ec88b422dfef2cbda608a16b4e2067",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Packages/ERPCore/Tests/ERPCoreTests/WalkInTests.swift": {
+    "mtime": 1791491890.957094,
+    "seen": 1791493812.3233724,
+    "ast_hash": "f325ee55ccb5a9d0d3dc3cfc89c31f94",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Shared/ERPWidgetViews.swift": {
+    "mtime": 1791490209.904375,
+    "seen": 1791493812.323373,
+    "ast_hash": "e977640464d47aded015efa6ae25a2bb",
+    "semantic_hash": ""
+  },
+  "apps/iphone/Widget/ERPWidget.swift": {
+    "mtime": 1791490209.906409,
+    "seen": 1791493812.3233738,
+    "ast_hash": "8215171ef554390e1dc8c27d1dc39d25",
+    "semantic_hash": ""
+  },
+  "apps/iphone/houses.json": {
+    "mtime": 1791490154.5129907,
+    "seen": 1791493812.3233745,
+    "ast_hash": "f24a23164adac3989638299b5a3847f8",
+    "semantic_hash": ""
+  },
+  "apps/iphone/scripts/house.mjs": {
+    "mtime": 1791490186.7319283,
+    "seen": 1791493812.323376,
+    "ast_hash": "177d2fdfb3713d57607130efd483d03d",
+    "semantic_hash": ""
+  },
+  "scripts/nav-export.mjs": {
+    "mtime": 1791489994.5034308,
+    "seen": 1791493812.3234887,
+    "ast_hash": "b22e7bbdb9874fc1b516a40252558c23",
+    "semantic_hash": ""
+  },
+  "src/app/api/app/me/route.ts": {
+    "mtime": 1791490132.4341345,
+    "seen": 1791493812.3236172,
+    "ast_hash": "31190f0eacb370c3aa8a3332c1dea62e",
+    "semantic_hash": ""
+  },
+  "src/app/api/app/write/route.ts": {
+    "mtime": 1791493696.6264143,
+    "seen": 1791493812.3236184,
+    "ast_hash": "ec78d64cdb7fdf77bab7dc3cf9191c29",
+    "semantic_hash": ""
+  },
+  "src/app/api/push/devices/route.ts": {
+    "mtime": 1791489330.2330153,
+    "seen": 1791493812.3236554,
+    "ast_hash": "8179bfbe2d148216bcc04ddc295900ab",
+    "semantic_hash": ""
+  },
+  "src/app/api/push/key/route.ts": {
+    "mtime": 1791489330.2351344,
+    "seen": 1791493812.3236566,
+    "ast_hash": "89108ccfa92d402b0ea400cd3e33b7a3",
+    "semantic_hash": ""
+  },
+  "src/app/api/push/test/route.ts": {
+    "mtime": 1791489388.6525435,
+    "seen": 1791493812.3236573,
+    "ast_hash": "0665aaa99f11909c5c87b4367392826b",
+    "semantic_hash": ""
+  },
+  "src/app/api/widget/key/route.ts": {
+    "mtime": 1791489675.8819065,
+    "seen": 1791493812.323713,
+    "ast_hash": "9215fe75ebf4614b794c12820db56a9a",
+    "semantic_hash": ""
+  },
+  "src/app/api/widget/summary/route.ts": {
+    "mtime": 1791489675.88341,
+    "seen": 1791493812.3237145,
+    "ast_hash": "1b2d9e7abd688d7c1057ad0ddcdb84d9",
+    "semantic_hash": ""
+  },
+  "src/components/settings/iphone-push-card.tsx": {
+    "mtime": 1791489726.8289654,
+    "seen": 1791493812.323835,
+    "ast_hash": "4199470d9b6b7d9ac6aed567709a62bd",
+    "semantic_hash": ""
+  },
+  "src/lib/nav-export.test.ts": {
+    "mtime": 1791490148.658813,
+    "seen": 1791493812.3240426,
+    "ast_hash": "e7482ecf8659384fe667ba8101f03af0",
+    "semantic_hash": ""
+  },
+  "src/lib/nav-export.ts": {
+    "mtime": 1791489994.4969811,
+    "seen": 1791493812.3240435,
+    "ast_hash": "ee979271dadd1256d6ce5ed3ad496317",
+    "semantic_hash": ""
+  },
+  "src/lib/push/apns-key.ts": {
+    "mtime": 1791489253.8875132,
+    "seen": 1791493812.3242006,
+    "ast_hash": "914d195fa2fe02421ba74b97a4683226",
+    "semantic_hash": ""
+  },
+  "src/lib/push/apns.ts": {
+    "mtime": 1791489276.2956748,
+    "seen": 1791493812.3242018,
+    "ast_hash": "f8dcf1a8081514ed5752549cdcaafc39",
+    "semantic_hash": ""
+  },
+  "src/lib/push/gate.ts": {
+    "mtime": 1791489330.2314377,
+    "seen": 1791493812.3242028,
+    "ast_hash": "0e15bf9066ec64e988dd2350d6931ae4",
+    "semantic_hash": ""
+  },
+  "src/lib/push/push.test.ts": {
+    "mtime": 1791489765.479069,
+    "seen": 1791493812.3242037,
+    "ast_hash": "4504e00eb90c9096b5e8d89c2c195836",
+    "semantic_hash": ""
+  },
+  "src/lib/push/send.ts": {
+    "mtime": 1791489765.478878,
+    "seen": 1791493812.3242052,
+    "ast_hash": "3a945c18263a35ff5fabe3f1db002ec6",
+    "semantic_hash": ""
+  },
+  "src/lib/push/store.ts": {
+    "mtime": 1791489289.5529394,
+    "seen": 1791493812.324206,
+    "ast_hash": "f9051dcf0026392e89b0c427b2c7d272",
+    "semantic_hash": ""
+  },
+  "src/lib/repairs.ts": {
+    "mtime": 1791493603.2560196,
+    "seen": 1791493812.3242114,
+    "ast_hash": "62720dae58f98683f722ce213d6f9b21",
+    "semantic_hash": ""
+  },
+  "src/lib/widget/server.ts": {
+    "mtime": 1791489675.8802056,
+    "seen": 1791493812.3243449,
+    "ast_hash": "6b1e88ffdaa0d551c5963550619bcd25",
+    "semantic_hash": ""
+  },
+  "src/lib/widget/summary.test.ts": {
+    "mtime": 1791489765.4829376,
+    "seen": 1791493812.3243458,
+    "ast_hash": "ed50274383c1a74eef3453a5ee1ee56b",
+    "semantic_hash": ""
+  },
+  "src/lib/widget/summary.ts": {
+    "mtime": 1791489655.4335308,
+    "seen": 1791493812.3243468,
+    "ast_hash": "9f810a0d9415e99d9733f7a8b2108f40",
+    "semantic_hash": ""
+  },
+  "src/lib/writes/create-invoice.test.ts": {
+    "mtime": 1791493233.3051739,
+    "seen": 1791493812.324351,
+    "ast_hash": "7dd6b246c948b76d949d202e06878449",
+    "semantic_hash": ""
+  },
+  "src/lib/writes/create-invoice.ts": {
+    "mtime": 1791493170.65317,
+    "seen": 1791493812.3243518,
+    "ast_hash": "fda83068b0b28845d0cc76f285e880cd",
+    "semantic_hash": ""
+  },
+  "src/lib/writes/order-advance.ts": {
+    "mtime": 1791491699.7330825,
+    "seen": 1791493812.3243563,
+    "ast_hash": "8a5cd72b848d3da6b69ee9dc85a321aa",
+    "semantic_hash": ""
+  },
+  "src/lib/writes/order-status.ts": {
+    "mtime": 1791491775.674371,
+    "seen": 1791493812.324357,
+    "ast_hash": "6eb1d841a9be1bdf8f35f717f5d6f4a5",
+    "semantic_hash": ""
+  },
+  "src/lib/writes/order-writes.test.ts": {
+    "mtime": 1791492217.7801204,
+    "seen": 1791493812.3243582,
+    "ast_hash": "730b99b1fea73cdb5d24f4f399a97262",
+    "semantic_hash": ""
+  },
+  "src/lib/writes/rates.ts": {
+    "mtime": 1791492161.831139,
+    "seen": 1791493812.3243592,
+    "ast_hash": "c691bebb0ab14ce21a9fbfa5c73c5f88",
+    "semantic_hash": ""
+  },
+  "src/lib/writes/repairs.test.ts": {
+    "mtime": 1791493686.0225942,
+    "seen": 1791493812.32436,
+    "ast_hash": "764270f9c28aca9736b81da7bfef4a67",
+    "semantic_hash": ""
+  },
+  "src/lib/writes/repairs.ts": {
+    "mtime": 1791493638.3571978,
+    "seen": 1791493812.3243608,
+    "ast_hash": "ee0ddd111c1c7e6429eda20bdb876df5",
+    "semantic_hash": ""
+  },
+  ".github/workflows/iphone-native.yml": {
+    "mtime": 1791493343.4929478,
+    "seen": 1791493812.324371,
+    "ast_hash": "c5c5a08769f0c93b28497872e999d7fe",
+    "semantic_hash": ""
+  },
+  "apps/ios/RELEASES.md": {
+    "mtime": 1791487643.8147123,
+    "seen": 1791493812.3243797,
+    "ast_hash": "00b9d3f9883cb49052b54e375aee5eb2",
+    "semantic_hash": ""
+  },
+  "apps/iphone/CONVENTIONS.md": {
+    "mtime": 1791493575.093194,
+    "seen": 1791493812.3243852,
+    "ast_hash": "75e3066dc858a9bf0430a35629471ac7",
+    "semantic_hash": ""
+  },
+  "apps/iphone/RELEASES.md": {
+    "mtime": 1791492737.0907502,
+    "seen": 1791493812.3243866,
+    "ast_hash": "25d968baa11c3dcb7754ed2350805aea",
+    "semantic_hash": ""
+  },
+  "apps/iphone/project.yml": {
+    "mtime": 1791490186.8529928,
+    "seen": 1791493812.3243873,
+    "ast_hash": "14e2c91c1daedeeb7e20416d2adbe15b",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/AppIcon-mina.appiconset/icon-1024.png": {
+    "mtime": 1791490209.9020565,
+    "seen": 1791493812.3244257,
+    "ast_hash": "46826054bf4e1248d6444b86ac743273",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/AppIcon-taheri.appiconset/icon-1024.png": {
+    "mtime": 1791490209.9019608,
+    "seen": 1791493812.3244264,
+    "ast_hash": "6b3309c2cf33c8973e004fe74f5b7531",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/LaunchMark-mina.imageset/mark@1x.png": {
+    "mtime": 1791490209.9023855,
+    "seen": 1791493812.3244276,
+    "ast_hash": "6e803abaf62b01a53c6d06b1a270bab2",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/LaunchMark-mina.imageset/mark@2x.png": {
+    "mtime": 1791490209.9024093,
+    "seen": 1791493812.3244286,
+    "ast_hash": "a4b5765bbac911ff774e4a6cd92b4ddd",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/LaunchMark-mina.imageset/mark@3x.png": {
+    "mtime": 1791490209.9024284,
+    "seen": 1791493812.3244295,
+    "ast_hash": "f1b10d2e98ff05ba03026e5010bd1722",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/LaunchMark-taheri.imageset/mark@1x.png": {
+    "mtime": 1791490209.902247,
+    "seen": 1791493812.3244302,
+    "ast_hash": "d48ee58e9c14bcea0080c0b7116dcca8",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/LaunchMark-taheri.imageset/mark@2x.png": {
+    "mtime": 1791490209.902264,
+    "seen": 1791493812.3244312,
+    "ast_hash": "45eaa8fa6111c40805be5a4a01aec6be",
+    "semantic_hash": ""
+  },
+  "apps/iphone/App/Resources/Assets.xcassets/LaunchMark-taheri.imageset/mark@3x.png": {
+    "mtime": 1791490209.902291,
+    "seen": 1791493812.324432,
+    "ast_hash": "9d9e148bedb76d51e09f4dc06feb2373",
     "semantic_hash": ""
   }
 }
