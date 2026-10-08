@@ -7,7 +7,7 @@ name: iPhone app
 #   Store Connect and its Google iOS client in houses.json), else a simulator check.
 # - Every other month: a fresh TestFlight build, before the last one's 90 days run out.
 # - By hand ("Run workflow"): mode check = the simulator check, testflight = upload; testers =
-#   emails to invite.
+#   emails to invite. From a cloud session, which cannot press it: a line in apps/ios/RELEASES.md.
 # macOS minutes count ten to one against the account's Actions minutes, which the deploys use too:
 # it builds only when the shell changes, never for a change to the ERP.
 
@@ -55,7 +55,7 @@ jobs:
         if: github.event_name == 'push'
         run: |
           if git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" > "$RUNNER_TEMP/changed" 2>/dev/null; then
-            grep -qE '^apps/ios/(ios|www)/|^apps/ios/(package(-lock)?\.json|houses\.json)$' "$RUNNER_TEMP/changed" && echo native=true || echo native=false
+            grep -qE '^apps/ios/(ios|www)/|^apps/ios/(package(-lock)?\.json|houses\.json|RELEASES\.md)$' "$RUNNER_TEMP/changed" && echo native=true || echo native=false
           else
             echo native=true
           fi >> "$GITHUB_OUTPUT"

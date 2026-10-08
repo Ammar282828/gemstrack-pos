@@ -22,7 +22,8 @@ app only (the least role TestFlight takes); they accept Apple's email and the ne
   houses to TestFlight, each once it is ready (its app made in App Store
   Connect — Apple's API cannot make one — and its Google iOS client in houses.json), else a simulator check;
 - every other month → a fresh build before the last one's 90 days end;
-- "Run workflow" → `check` (simulator) or `testflight`, and emails to make testers.
+- "Run workflow" → `check` (simulator) or `testflight`, and emails to make testers. A cloud session cannot press
+  it (403): it adds a line to `apps/ios/RELEASES.md` and pushes.
 The simulator check builds Taheri, runs `apps/ios/ci/probe.html` in the app (what the web view offers, the app's
 own plugin answering, Google's sheet, the share sheet) and photographs the ERP light and dark; the pictures are in
 the run's artifact and, small, in its log. macOS minutes count ten to one against the account's Actions minutes,
