@@ -31,10 +31,25 @@ struct ScreenRoute {
 enum ScreenRegistry {
     static var routes: [ScreenRoute] { NativeScreens.all }
 
-    static func hasNative(_ path: String) -> Bool { routes.contains { $0.matches(path) } }
+    static func hasNative(_ path: String) -> Bool { !wantsWeb(path) && routes.contains { $0.matches(path) } }
+
+    /// `?web=1` asks for the ERP's own page even where a native screen exists: a native screen's
+    /// "Open in the ERP" (edit, refund, delete, print: what is not native yet).
+    static func wantsWeb(_ path: String) -> Bool {
+        URLComponents(string: path)?.queryItems?.contains { $0.name == "web" && $0.value == "1" } ?? false
+    }
+
+    /// The path without `web=1`, for the page itself.
+    static func withoutWebFlag(_ path: String) -> String {
+        guard var c = URLComponents(string: path) else { return path }
+        c.queryItems = c.queryItems?.filter { $0.name != "web" }
+        if c.queryItems?.isEmpty == true { c.queryItems = nil }
+        return c.string ?? path
+    }
 
     @MainActor
     static func view(for path: String) -> AnyView {
+        if wantsWeb(path) { return AnyView(WebScreen(path: withoutWebFlag(path))) }
         if let r = routes.first(where: { $0.matches(path) }) { return r.make(path) }
         return AnyView(WebScreen(path: path))
     }

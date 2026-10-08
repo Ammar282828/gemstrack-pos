@@ -3,6 +3,7 @@
 //
 //   node scripts/asc.mjs plan <auto|check|testflight>   which houses can go to TestFlight → $GITHUB_OUTPUT
 //   node scripts/asc.mjs sign <house> <dir>             a signing certificate and profile for one build → $GITHUB_ENV
+//   node scripts/asc.mjs sign-native <house> <dir>      the same for the native app (apps/iphone) and its widget, with push
 //   node scripts/asc.mjs testers <house> [emails]       the house's "Shop" testers, the account holder first
 //   node scripts/asc.mjs revoke                         the build's certificate and profile, gone again
 //   node scripts/asc.mjs key-file <path>                the key as a proper .p8, for xcodebuild's upload
@@ -124,10 +125,8 @@ async function plan(mode) {
   console.log(`simulator=${out.simulator}`);
 }
 
-/** A distribution certificate and an App Store profile for this one build. */
-async function sign(name, outDir) {
-  const h = houses[name];
-  if (!h) throw new Error(`no house ${name}`);
+/** A distribution certificate for this one build, as a .p12 in outDir; revoked at the end of the run. */
+async function newCertificate(outDir) {
   fs.mkdirSync(outDir, { recursive: true });
   const file = (f) => path.join(outDir, f);
   const ssl = (...args) => execFileSync('/usr/bin/openssl', args, { stdio: ['ignore', 'pipe', 'inherit'] });
@@ -145,9 +144,12 @@ async function sign(name, outDir) {
   say(`::add-mask::${p12Password}`);
   ssl('pkcs12', '-export', '-inkey', file('key.pem'), '-in', file('cert.pem'), '-out', file('dist.p12'), '-passout', `pass:${p12Password}`);
   fs.rmSync(file('key.pem'));
+  console.log(`P12_PASSWORD=${p12Password}`);
+  return cert;
+}
 
-  const bundle = await bundleIdFor(h, true);
-  const profileName = `ERP build ${name} ${process.env.GITHUB_RUN_ID || Date.now()}`;
+/** An App Store profile for one bundle ID and the build's certificate, written to outDir/<fileName>. */
+async function newProfile(bundle, cert, profileName, outDir, fileName) {
   const profile = (await api('POST', '/v1/profiles', {
     data: {
       type: 'profiles',
@@ -158,22 +160,66 @@ async function sign(name, outDir) {
       },
     },
   })).data;
-  console.log(`ASC_PROFILE_ID=${profile.id}`);
   const content = Buffer.from(profile.attributes.profileContent, 'base64');
-  fs.writeFileSync(file('profile.mobileprovision'), content);
+  fs.writeFileSync(path.join(outDir, fileName), content);
   // The plist inside the signed profile is plain text: the team is read from it.
   const team = /<key>TeamIdentifier<\/key>\s*<array>\s*<string>([A-Z0-9]+)<\/string>/.exec(content.toString('latin1'))?.[1];
   if (!team) throw new Error('No team in the provisioning profile');
+  return { profile, team };
+}
+
+/** A distribution certificate and an App Store profile for this one build. */
+async function sign(name, outDir) {
+  const h = houses[name];
+  if (!h) throw new Error(`no house ${name}`);
+  const cert = await newCertificate(outDir);
+  const bundle = await bundleIdFor(h, true);
+  const profileName = `ERP build ${name} ${process.env.GITHUB_RUN_ID || Date.now()}`;
+  const { profile, team } = await newProfile(bundle, cert, profileName, outDir, 'profile.mobileprovision');
+  console.log(`ASC_PROFILE_ID=${profile.id}`);
   console.log(`TEAM_ID=${team}`);
   console.log(`PROFILE_UUID=${profile.attributes.uuid}`);
   console.log(`PROFILE_NAME=${profileName}`);
-  console.log(`P12_PASSWORD=${p12Password}`);
   say(`Signing for ${h.storeName}: team ${team}, profile "${profileName}"`);
 }
 
+/** Switch a capability on for a bundle ID, once (Apple refuses a second). */
+async function capability(bundle, type) {
+  const have = (await api('GET', `/v1/bundleIds/${bundle.id}/bundleIdCapabilities?limit=50`)).data
+    .some((c) => c.attributes.capabilityType === type);
+  if (have) return;
+  say(`Turning on ${type} for ${bundle.attributes.identifier}`);
+  await api('POST', '/v1/bundleIdCapabilities', {
+    data: { type: 'bundleIdCapabilities', attributes: { capabilityType: type }, relationships: { bundleId: { data: { type: 'bundleIds', id: bundle.id } } } },
+  });
+}
+
+/**
+ * The native app (apps/iphone): the same app record as the shell (one bundle ID per house), now with
+ * notifications, and its home-screen widget under "<bundle ID>.widget". One certificate signs both.
+ */
+async function signNative(name, outDir) {
+  const nativeHouses = JSON.parse(fs.readFileSync(path.join(dir, '..', 'iphone', 'houses.json'), 'utf8'));
+  const h = nativeHouses[name];
+  if (!h) throw new Error(`no house ${name} in apps/iphone/houses.json`);
+  const cert = await newCertificate(outDir);
+  const app = await bundleIdFor({ bundleId: h.bundleId, storeName: h.storeName }, true);
+  await capability(app, 'PUSH_NOTIFICATIONS');
+  const widget = await bundleIdFor({ bundleId: `${h.bundleId}.widget`, storeName: `${h.storeName} widget` }, true);
+  const run = process.env.GITHUB_RUN_ID || Date.now();
+  const a = await newProfile(app, cert, `ERP ${name} app ${run}`, outDir, 'app.mobileprovision');
+  const w = await newProfile(widget, cert, `ERP ${name} widget ${run}`, outDir, 'widget.mobileprovision');
+  console.log(`ASC_PROFILE_IDS=${a.profile.id},${w.profile.id}`);
+  console.log(`TEAM_ID=${a.team}`);
+  console.log(`APP_PROFILE_NAME=${a.profile.attributes.name}`);
+  console.log(`WIDGET_PROFILE_NAME=${w.profile.attributes.name}`);
+  say(`Signing ${h.storeName} (native): team ${a.team}, the app and its widget`);
+}
+
 async function revoke() {
-  const { ASC_CERT_ID, ASC_PROFILE_ID } = process.env;
-  for (const [kind, id] of [['profiles', ASC_PROFILE_ID], ['certificates', ASC_CERT_ID]]) {
+  const { ASC_CERT_ID, ASC_PROFILE_ID, ASC_PROFILE_IDS } = process.env;
+  const profiles = [ASC_PROFILE_ID, ...String(ASC_PROFILE_IDS || '').split(',')].filter(Boolean);
+  for (const [kind, id] of [...profiles.map((p) => ['profiles', p]), ['certificates', ASC_CERT_ID]]) {
     if (!id) continue;
     try { await api('DELETE', `/v1/${kind}/${id}`); say(`Removed ${kind} ${id}`); }
     catch (e) { say(`::warning::Could not remove ${kind} ${id}: ${e.message}`); }
@@ -255,6 +301,7 @@ try {
   if (cmd === 'plan') await plan(args[0] || 'auto');
   else if (!haveKey) throw new Error('The App Store Connect key is not in the repository secrets (ASC_ISSUER_ID, ASC_KEY_ID, ASC_PRIVATE_KEY).');
   else if (cmd === 'sign') await sign(args[0], args[1]);
+  else if (cmd === 'sign-native') await signNative(args[0], args[1]);
   else if (cmd === 'revoke') await revoke();
   else if (cmd === 'key-file') { fs.mkdirSync(path.dirname(args[0]), { recursive: true }); fs.writeFileSync(args[0], ASC_PRIVATE_KEY, { mode: 0o600 }); }
   else if (cmd === 'testers') await testers(args[0], String(args[1] || '').split(/[\s,;]+/).filter(Boolean));

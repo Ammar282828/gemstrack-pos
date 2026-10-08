@@ -30,6 +30,7 @@ import { devRole, captureDevRole } from '@/lib/dev-role';
 import { writeDeviceTheme } from '@/lib/theme-cache';
 import { RateChip, RateSheet } from '@/components/rates/rate-chip';
 import { useOnlineWaiting } from '@/lib/website/online-client';
+import { inNativeApp } from '@/lib/native-app';
 
 // The sidebar, the top bar's tabs and the palette all come from one registry (lib/nav.ts): a page is
 // added there or it is nowhere, and nav.test.ts fails when they drift.
@@ -85,9 +86,6 @@ function SidebarSearch() {
     </SidebarMenu>
   );
 }
-
-/** The ERP page is inside the native iPhone app, which says so in its user agent. */
-const inNativeShell = () => typeof navigator !== 'undefined' && /\bERPNative\//.test(navigator.userAgent);
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -158,7 +156,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // A page inside the native iPhone app (apps/iphone WebScreen): the app draws the bars, the menus
   // and search itself, so the page is only itself. The microphone and the rate form stay.
-  if (inNativeShell()) {
+  if (inNativeApp()) {
     return (
       <SidebarProvider defaultOpen={false}>
         <VoiceBubble />

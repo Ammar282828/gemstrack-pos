@@ -34,6 +34,12 @@ export function appBridge(): AppBridge | null {
 
 export const inApp = (): boolean => appBridge() !== null;
 
+/**
+ * The native iPhone app (apps/iphone), not the Capacitor shell: its pages are single screens inside
+ * the app's own bars and sign-in ("ERPNative/1" in the user agent, Web/WebScreen.swift).
+ */
+export const inNativeApp = (): boolean => typeof navigator !== 'undefined' && /\bERPNative\//.test(navigator.userAgent);
+
 /** The app adds "ERPApp/1 (<house>)" to its user agent (apps/ios/scripts/house.mjs): the server's way to tell. */
 export const isAppUserAgent = (ua: string | null | undefined): boolean => /\bERPApp\/\d/.test(String(ua ?? ''));
 

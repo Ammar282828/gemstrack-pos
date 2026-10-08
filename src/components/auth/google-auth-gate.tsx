@@ -18,7 +18,7 @@ import { STORE_CONFIG } from '@/lib/store-config';
 import { roleForEmail } from '@/lib/roles';
 import { captureDevRole } from '@/lib/dev-role';
 import { appSignInAdvice, chromeIntent, embeddedBrowser, signInAdvice, type EmbeddedBrowser } from '@/lib/sign-in-trouble';
-import { AppSignInError, googleIdTokenFromApp, inApp as inIphoneApp, isAppUserAgent } from '@/lib/native-app';
+import { AppSignInError, googleIdTokenFromApp, inApp as inIphoneApp, inNativeApp, isAppUserAgent } from '@/lib/native-app';
 import dynamic from 'next/dynamic';
 
 // Loaded lazily so the store app's bundle is not pulled in for karigars.
@@ -244,6 +244,17 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     await firebaseSignOut(auth);
   };
+
+  // Inside the native iPhone app the person has already signed in to the app: its pages sign in
+  // with the app's Google token by themselves, once, with no button (the app refreshes the token
+  // without asking). A refusal or a failure shows the usual screen.
+  const triedApp = React.useRef(false);
+  useEffect(() => {
+    if (isLoading || user || triedApp.current || !inNativeApp() || !inIphoneApp()) return;
+    triedApp.current = true;
+    void handleSignIn();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, user]);
 
   // Dev-only, and only with ?dev=1 — see useDevBypass.
   if (devBypass) {

@@ -6,6 +6,8 @@ name: iPhone app (native)
 # - ERPCore (the models and the ERP's rules in Swift) is tested on Linux: no Mac minutes.
 # - The app is built for the simulator on macOS and opened in its demo (made-up books, no sign-in),
 #   one screenshot per tab, light and dark, printed small into the log for a reader without the artifact.
+# - A line added to apps/iphone/RELEASES.md (a cloud session cannot press Run workflow) sends each house
+#   whose Firebase iOS app is registered (houses.json firebase.iosAppId) to TestFlight instead.
 # macOS minutes count ten to one against the Actions minutes the deploys use: it runs only for a push
 # that changes apps/iphone, never for a change to the ERP.
 
@@ -14,6 +16,11 @@ on:
     branches: ['claude/**']
     paths: ['apps/iphone/**', '.github/workflows/iphone-native.yml']
   workflow_dispatch:
+    inputs:
+      testflight:
+        description: Send the houses that are ready to TestFlight
+        type: boolean
+        default: false
 
 concurrency:
   group: iphone-native-${{ github.ref }}
@@ -35,8 +42,35 @@ jobs:
         working-directory: apps/iphone/Packages/ERPCore
         run: swift test 2>&1 | tail -40
 
+  plan:
+    if: github.repository == 'Ammar282828/taheri-pos'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      release: ${{ steps.plan.outputs.release }}
+      houses: ${{ steps.plan.outputs.houses }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - id: plan
+        run: |
+          release=false
+          if [ "${{ inputs.testflight }}" = "true" ]; then release=true
+          elif [ "${{ github.event_name }}" = "push" ] && git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" 2>/dev/null | grep -qx 'apps/iphone/RELEASES.md'; then release=true; fi
+          houses=$(node -e '
+            const h = require("./apps/iphone/houses.json");
+            const ready = Object.keys(h).filter((k) => String(h[k].firebase?.iosAppId || "").includes(":ios:"));
+            for (const k of Object.keys(h)) if (!ready.includes(k)) console.error(`::notice::${h[k].storeName}: no Firebase iOS app in apps/iphone/houses.json yet (firebase.iosAppId), so it cannot sign in. Not uploaded.`);
+            console.log(JSON.stringify(ready));')
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          echo "houses=$houses" >> "$GITHUB_OUTPUT"
+          echo "release=$release houses=$houses"
+
   app:
-    needs: core
+    needs: [core, plan]
+    # A release compiles in its upload: the simulator check would spend the same Mac minutes twice.
+    if: needs.plan.outputs.release != 'true'
     runs-on: macos-26
     timeout-minutes: 35
     defaults:
@@ -115,3 +149,98 @@ jobs:
             ${{ runner.temp }}/shots
             ${{ runner.temp }}/build.log
           retention-days: 14
+
+  testflight:
+    needs: [core, plan]
+    if: needs.plan.outputs.release == 'true' && needs.plan.outputs.houses != '[]'
+    runs-on: macos-26
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        house: ${{ fromJSON(needs.plan.outputs.houses) }}
+    defaults:
+      run:
+        working-directory: apps/iphone
+    env:
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: A certificate, and profiles for the app and its widget
+        run: node ../ios/scripts/asc.mjs sign-native "${{ matrix.house }}" "$RUNNER_TEMP/signing" >> "$GITHUB_ENV"
+      - name: Into a keychain of its own
+        run: |
+          KC="$RUNNER_TEMP/erp.keychain-db"; KCPW=$(openssl rand -hex 16)
+          echo "::add-mask::$KCPW"
+          echo "KEYCHAIN=$KC" >> "$GITHUB_ENV"
+          security create-keychain -p "$KCPW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KCPW" "$KC"
+          curl -fsSL -o "$RUNNER_TEMP/wwdr.cer" https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer
+          security import "$RUNNER_TEMP/wwdr.cer" -k "$KC" -T /usr/bin/codesign || true
+          security import "$RUNNER_TEMP/signing/dist.p12" -k "$KC" -P "$P12_PASSWORD" -f pkcs12 -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KCPW" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          for d in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$d"
+            for p in app widget; do
+              U=$(security cms -D -i "$RUNNER_TEMP/signing/$p.mobileprovision" | plutil -extract UUID raw -)
+              cp "$RUNNER_TEMP/signing/$p.mobileprovision" "$d/$U.mobileprovision"
+            done
+          done
+          node ../ios/scripts/asc.mjs key-file "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+      - name: Dress and archive
+        run: |
+          node scripts/house.mjs "${{ matrix.house }}" --sign "$TEAM_ID" "$APP_PROFILE_NAME" "$WIDGET_PROFILE_NAME"
+          xcodegen generate --spec project.yml
+          BUILD=$(date -u +%Y%m%d.%H%M)
+          echo "Build 2.0 ($BUILD)"
+          set +e
+          xcodebuild archive -project ERP.xcodeproj -scheme ERP -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/ERP.xcarchive" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm" -skipPackagePluginValidation -skipMacroValidation \
+            CURRENT_PROJECT_VERSION="$BUILD" OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN" > "$RUNNER_TEMP/archive.log" 2>&1
+          status=$?
+          set -e
+          grep -E ': (error|fatal error):|error: ' "$RUNNER_TEMP/archive.log" | sort -u | head -80 || true
+          tail -15 "$RUNNER_TEMP/archive.log"
+          [ $status -eq 0 ] && test -d "$RUNNER_TEMP/ERP.xcarchive"
+      - name: Upload to TestFlight
+        run: |
+          BUNDLE=$(node -p "require('./houses.json')['${{ matrix.house }}'].bundleId")
+          cat > "$RUNNER_TEMP/export.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key><dict>
+              <key>$BUNDLE</key><string>$APP_PROFILE_NAME</string>
+              <key>$BUNDLE.widget</key><string>$WIDGET_PROFILE_NAME</string>
+            </dict>
+            <key>testFlightInternalTestingOnly</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>uploadSymbols</key><true/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/ERP.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/export.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "::notice::${{ matrix.house }}: the native app (2.0) is uploaded; TestFlight offers it once Apple has processed it (about 10 to 30 minutes)"
+      - name: Revoke this build's certificate and profiles
+        if: always()
+        run: |
+          node ../ios/scripts/asc.mjs revoke || true
+          [ -n "$KEYCHAIN" ] && security delete-keychain "$KEYCHAIN" || true
+          rm -rf "$RUNNER_TEMP/keys" "$RUNNER_TEMP/signing"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: native-archive-log-${{ matrix.house }}
+          path: ${{ runner.temp }}/archive.log
+          retention-days: 7

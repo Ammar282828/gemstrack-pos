@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseCore
+import ERPCore
 
 /// Which house this build is, from Info.plist (written from apps/iphone/houses.json).
 enum House {
@@ -16,6 +17,11 @@ enum House {
         let g = value("ERPSharedKeychainGroup")
         return g.isEmpty || g.hasPrefix(".") || g.contains("$(") ? nil : g
     }()
+
+    /// How the shop's own margin is worked out (lib/margin.ts, the house's COST_RATTI_LESS and
+    /// STORE_EST_MARGIN): Taheri costs a sale at 24K less 6 ratti, else 10%; Mina has no costing, 40%.
+    /// Shop screens only: a customer never sees a margin.
+    static let margin: MarginSettings = id == "mina" ? .mina : .taheri
 
     /// Launched with `-ERPDemo YES` (the simulator check): made-up data, no sign-in, no Firebase.
     static let isDemo = UserDefaults.standard.bool(forKey: "ERPDemo")
