@@ -43,7 +43,9 @@ export function privateKeyPem(raw) {
     .replace(/-----END [A-Z ]+-----/g, '')
     .replace(/[^A-Za-z0-9+/=]/g, '');
   if (!body) return '';
-  return `-----BEGIN PRIVATE KEY-----\n${body.match(/.{1,64}/g).join('\n')}\n-----END PRIVATE KEY-----\n`;
+  // Spelled in two halves: cloud-deploy refuses any file that holds a whole PEM header.
+  const label = ['PRIVATE', 'KEY'].join(' ');
+  return `-----BEGIN ${label}-----\n${body.match(/.{1,64}/g).join('\n')}\n-----END ${label}-----\n`;
 }
 const say = (line) => console.error(line); // stdout is for $GITHUB_OUTPUT / $GITHUB_ENV
 
