@@ -68,6 +68,75 @@ export async function googleIdTokenFromApp(): Promise<string> {
   }
 }
 
+// ── What the phone can do ──────────────────────────────────────────────────────────────────
+
+let featuresOnce: Promise<string[]> | null = null;
+
+/**
+ * What the app can do for a page ("scan", "faceID", …): asked once, so a page can choose its control
+ * before a tap. A file input opened after an asynchronous call has lost the tap, and iOS refuses it.
+ * The Capacitor shell answers without features; a browser has none.
+ */
+export function appFeatures(): Promise<string[]> {
+  const cap = appBridge();
+  if (!cap) return Promise.resolve([]);
+  featuresOnce ??= cap.nativePromise<{ features?: string[] }>('ERPNative', 'info', {})
+    .then((r) => (Array.isArray(r?.features) ? r.features.map(String) : []))
+    .catch(() => []);
+  return featuresOnce;
+}
+
+/** Forget the answer (tests). */
+export function resetAppFeatures(): void { featuresOnce = null; }
+
+const appError = (e: unknown) => {
+  const err = e as { code?: string; message?: string };
+  return new AppSignInError(err?.code || 'failed', err?.message || 'The app could not do that');
+};
+
+/** Paper through Apple's document scanner (squared, light evened), as JPEG files; [] if cancelled. */
+export async function scanPaperFromApp(): Promise<File[]> {
+  const cap = appBridge();
+  if (!cap) throw new AppSignInError('unsupported', 'Not in the app');
+  try {
+    const r = await cap.nativePromise<{ pages?: { data: string; name: string }[] }>('ERPNative', 'scanDocument', {});
+    return (r?.pages ?? []).map((p) => {
+      const bytes = Uint8Array.from(atob(p.data), (c) => c.charCodeAt(0));
+      return new File([bytes], p.name || 'Scan.jpg', { type: 'image/jpeg' });
+    });
+  } catch (e) {
+    if ((e as { code?: string })?.code === 'cancelled') return [];
+    throw appError(e);
+  }
+}
+
+/** A secret this phone keeps behind Face ID (the delete code): saved, read after a face, forgotten. */
+export const appSecret = {
+  async has(key: string): Promise<boolean> {
+    const cap = appBridge();
+    if (!cap) return false;
+    try { return !!(await cap.nativePromise<{ has?: boolean }>('ERPNative', 'secretHas', { key }))?.has; } catch { return false; }
+  },
+  async save(key: string, value: string): Promise<boolean> {
+    const cap = appBridge();
+    if (!cap) return false;
+    try { await cap.nativePromise('ERPNative', 'secretSave', { key, value }); return true; } catch { return false; }
+  },
+  /** The secret after Face ID; null when none is kept or the face was not given. */
+  async read(key: string, reason: string): Promise<string | null> {
+    const cap = appBridge();
+    if (!cap) return null;
+    try {
+      const r = await cap.nativePromise<{ value?: string | null }>('ERPNative', 'secretRead', { key, reason });
+      return typeof r?.value === 'string' && r.value ? r.value : null;
+    } catch { return null; }
+  },
+  async forget(key: string): Promise<void> {
+    const cap = appBridge();
+    if (cap) await cap.nativePromise('ERPNative', 'secretDelete', { key }).catch(() => undefined);
+  },
+};
+
 // ── Files out ────────────────────────────────────────────────────────────────────────────────
 
 const EXT: Record<string, string> = {

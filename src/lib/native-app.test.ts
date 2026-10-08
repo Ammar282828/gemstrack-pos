@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appSpeechRecognition, blobToBase64, downloadHref, fileNameFromUrl, isAppUserAgent, safeFileName, type AppBridge } from './native-app';
+import { appFeatures, appSecret, appSpeechRecognition, blobToBase64, downloadHref, fileNameFromUrl, isAppUserAgent, resetAppFeatures, safeFileName, scanPaperFromApp, type AppBridge } from './native-app';
 import { appSignInAdvice, embeddedBrowser } from './sign-in-trouble';
 
 const APP_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 ERPApp/1 (taheri)';
@@ -116,5 +116,65 @@ describe('live words from the app', () => {
     }
     // no-speech restarts in live.ts; audio-capture stops it.
     expect(errors).toEqual(['no-speech', 'no-speech', 'audio-capture']);
+  });
+});
+
+describe('what the phone can do for a page', () => {
+  /** A fake app on `window`, answering only what it is given. */
+  function fakeApp(answers: Record<string, (o: Record<string, unknown>) => unknown>) {
+    const calls: string[] = [];
+    const bridge: AppBridge = {
+      isNativePlatform: () => true,
+      nativePromise: async <T,>(plugin: string, method: string, options?: Record<string, unknown>) => {
+        calls.push(`${plugin}.${method}`);
+        const answer = answers[method];
+        if (!answer) throw Object.assign(new Error('not here'), { code: 'unimplemented' });
+        return answer(options || {}) as T;
+      },
+      addListener: () => ({ remove: () => undefined }),
+    };
+    (globalThis as unknown as { window: unknown }).window = { Capacitor: bridge };
+    resetAppFeatures();
+    return calls;
+  }
+
+  it('asks the app once what it can do, and a browser nothing', async () => {
+    (globalThis as unknown as { window?: unknown }).window = undefined;
+    resetAppFeatures();
+    expect(await appFeatures()).toEqual([]);
+    const calls = fakeApp({ info: () => ({ features: ['scan', 'faceID'] }) });
+    expect(await appFeatures()).toEqual(['scan', 'faceID']);
+    expect(await appFeatures()).toEqual(['scan', 'faceID']);
+    expect(calls).toEqual(['ERPNative.info']);
+  });
+
+  it('the shell, which has no features, offers none', async () => {
+    fakeApp({ info: () => ({ bundleId: 'x' }) });
+    expect(await appFeatures()).toEqual([]);
+  });
+
+  it('turns scanned pages into files, and a closed scanner into none', async () => {
+    fakeApp({ scanDocument: () => ({ pages: [{ data: btoa('jpeg-bytes'), name: 'Scan 1.jpg' }] }) });
+    const files = await scanPaperFromApp();
+    expect(files.map((f) => [f.name, f.type, f.size])).toEqual([['Scan 1.jpg', 'image/jpeg', 10]]);
+    fakeApp({ scanDocument: () => { throw Object.assign(new Error('Cancelled'), { code: 'cancelled' }); } });
+    expect(await scanPaperFromApp()).toEqual([]);
+  });
+
+  it('keeps a secret behind Face ID, and reads null when there is none or no face', async () => {
+    const kept: Record<string, string> = {};
+    fakeApp({
+      secretSave: (o) => { kept[String(o.key)] = String(o.value); return { saved: true }; },
+      secretHas: (o) => ({ has: String(o.key) in kept }),
+      secretRead: (o) => ({ value: kept[String(o.key)] ?? null }),
+      secretDelete: (o) => { delete kept[String(o.key)]; return {}; },
+    });
+    expect(await appSecret.has('delete-code')).toBe(false);
+    expect(await appSecret.read('delete-code', 'Delete')).toBeNull();
+    expect(await appSecret.save('delete-code', '4321')).toBe(true);
+    expect(await appSecret.has('delete-code')).toBe(true);
+    expect(await appSecret.read('delete-code', 'Delete')).toBe('4321');
+    await appSecret.forget('delete-code');
+    expect(await appSecret.has('delete-code')).toBe(false);
   });
 });

@@ -162,7 +162,7 @@ export function BillScanner({
         {/* The camera for a bill on the counter; the Photos library for one already saved
             or sent on WhatsApp. */}
         {!photo && !busy && (
-          <PhotoPick onFiles={(files) => void scan(files[0])} takeLabel="Take a photo of the bill"
+          <PhotoPick paper onFiles={(files) => void scan(files[0])} takeLabel="Take a photo of the bill"
             pickLabel="From Photos" pickHint="A bill already on this phone or computer" />
         )}
 
@@ -184,7 +184,7 @@ export function BillScanner({
             <div className="space-y-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={photo} alt="The bill that was read" className="w-full rounded-lg border" />
-              <PhotoPick variant="buttons" onFiles={(files) => void scan(files[0])} takeLabel="Retake" pickLabel="From Photos" />
+              <PhotoPick paper variant="buttons" onFiles={(files) => void scan(files[0])} takeLabel="Retake" pickLabel="From Photos" />
             </div>
 
             <div className="space-y-4">

@@ -18,7 +18,7 @@
  * page means.
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import {
   resolveDraft, reconcileSlip, exchangeValue, slipLinePrice, hasHisaab, TOLA_G,
@@ -35,6 +35,7 @@ import { Camera, Check, Images, Loader2, TriangleAlert, X } from 'lucide-react';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { readablePhoto } from '@/lib/photo-file';
 import { isWalkInName } from '@/lib/walk-in';
+import { appFeatures, scanPaperFromApp } from '@/lib/native-app';
 
 /**
  * Bigger than the sample-image limits elsewhere in the app, and deliberately so. Those
@@ -82,8 +83,20 @@ export function OrderScanner({
   const [error, setError] = useState<string | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+  // In the iPhone app, Apple's document scanner instead of the camera: the slip squared and evenly
+  // lit, every page in one go (components/shared/photo-pick.tsx, `paper`).
+  const [scanner, setScanner] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void appFeatures().then((f) => { if (live) setScanner(f.includes('scan')); });
+    return () => { live = false; };
+  }, []);
 
   const reset = () => { setPhotos([]); setDraft(null); setError(null); };
+  const takePhoto = () => {
+    if (!scanner) { cameraRef.current?.click(); return; }
+    void scanPaperFromApp().then((files) => { if (files.length) void addFilesRef.current(files); }).catch(() => undefined);
+  };
 
   /** Read the whole set. Called with the full list, so a removed photo is really gone. */
   const scan = useCallback(async (set: Photo[]) => {
@@ -110,6 +123,7 @@ export function OrderScanner({
     }
   }, [customers, karigars]);
 
+  const addFilesRef = useRef<(files: File[]) => Promise<void>>(async () => undefined);
   const addFiles = useCallback(async (picked: File[]) => {
     if (picked.length === 0) return;
     setError(null);
@@ -125,6 +139,7 @@ export function OrderScanner({
       setError(err instanceof Error ? err.message : 'Could not read that photo.');
     }
   }, [photos, scan]);
+  addFilesRef.current = addFiles;
 
   const remove = (i: number) => {
     const next = photos.filter((_, j) => j !== i);
@@ -172,7 +187,7 @@ export function OrderScanner({
           <div className="grid gap-3 sm:grid-cols-2">
             <button
               type="button"
-              onClick={() => cameraRef.current?.click()}
+              onClick={() => takePhoto()}
               className="flex flex-col items-center gap-3 rounded-lg border border-dashed p-8 hover:bg-accent/50"
             >
               <Camera className="h-8 w-8 text-muted-foreground" />
@@ -231,7 +246,7 @@ export function OrderScanner({
               ))}
               {photos.length < MAX_PHOTOS && (
                 <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" onClick={() => cameraRef.current?.click()}>
+                  <Button variant="outline" size="sm" onClick={() => takePhoto()}>
                     <Camera className="mr-2 h-4 w-4" /> Take another
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => galleryRef.current?.click()}>
