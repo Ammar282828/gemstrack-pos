@@ -137,7 +137,11 @@ jobs:
           }
           i=1
           for tab in home orders invoices customers search; do shot "$i-$tab" light -ERPDemoTab "$tab"; i=$((i+1)); done
-          shot "$i-home-dark" dark -ERPDemoTab home
+          shot "$i-home-dark" dark -ERPDemoTab home; i=$((i+1))
+          # The places behind the lists, from the demo's made-up books.
+          for page in /invoices/INV-D0002 /orders/ORD-D0002 /customers/CUST-D06 /today; do
+            shot "$i-$(echo "$page" | tr '/' '-' | sed 's/^-//')" light -ERPDemoTab home -ERPDemoOpen "$page"; i=$((i+1))
+          done
           xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate "process == \"ERP\" AND messageType >= 16" 2>/dev/null | tail -40 || true
           for f in "$OUT"/*.png; do
             sips -Z 640 -s format jpeg -s formatOptions 55 "$f" --out "${f%.png}.jpg" >/dev/null
