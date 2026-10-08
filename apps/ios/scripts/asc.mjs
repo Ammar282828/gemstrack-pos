@@ -221,37 +221,31 @@ async function testers(name, emails) {
       continue;
     }
     const find = async () => (await api('GET', `/v1/betaTesters?filter[email]=${q(email)}&limit=5`)).data[0];
-    const addTo = async (tester) => {
-      try { await api('POST', `/v1/betaGroups/${group.id}/relationships/betaTesters`, { data: [{ type: 'betaTesters', id: tester.id }] }); }
-      catch (e) { if (e.status !== 409) throw e; }
-    };
-    try {
-      let tester = await find();
-      if (tester) await addTo(tester);
-      else {
-        try {
-          await api('POST', '/v1/betaTesters', {
-            data: {
-              type: 'betaTesters',
-              attributes: { email, firstName: user.attributes.firstName || email, lastName: user.attributes.lastName || '' },
-              relationships: { betaGroups: { data: [{ type: 'betaGroups', id: group.id }] } },
-            },
-          });
-        } catch (e) {
-          // The other house's run made this tester a moment ago (2026-10-08: both ran at once and
-          // Mina's took the 409 for "already in"): find it and put it in this group too.
-          if (e.status !== 409 || !(tester = await find())) throw e;
-          await addTo(tester);
-        }
-      }
-      // Said only once Apple's own list for the group shows it.
-      const members = (await api('GET', `/v1/betaGroups/${group.id}/betaTesters?limit=200`)).data;
-      say(members.some((t) => t.attributes.email?.toLowerCase() === email)
-        ? `${email} tests ${h.storeName}`
-        : `::warning::${email} is not in ${h.storeName}'s testers yet`);
-    } catch (e) {
-      say(`::warning::Could not add ${email} to ${h.storeName}'s testers: ${e.message}`);
+    const inGroup = async () => (await api('GET', `/v1/betaGroups/${group.id}/betaTesters?limit=200`)).data
+      .some((t) => t.attributes.email?.toLowerCase() === email);
+    const create = () => api('POST', '/v1/betaTesters', {
+      data: {
+        type: 'betaTesters',
+        attributes: { email, firstName: user.attributes.firstName || email, lastName: user.attributes.lastName || '' },
+        relationships: { betaGroups: { data: [{ type: 'betaGroups', id: group.id }] } },
+      },
+    });
+    // Each way Apple offers, until its own list for the group shows the tester. 2026-10-08: both
+    // houses' runs added the account holder at once, and Mina's group took the 409 and stayed empty.
+    const tries = [
+      ['group', async () => { const t = await find(); if (!t) throw Object.assign(new Error('no tester yet'), { status: 404 }); await api('POST', `/v1/betaGroups/${group.id}/relationships/betaTesters`, { data: [{ type: 'betaTesters', id: t.id }] }); }],
+      ['tester', create],
+      ['tester-groups', async () => { const t = await find(); if (!t) throw Object.assign(new Error('no tester yet'), { status: 404 }); await api('POST', `/v1/betaTesters/${t.id}/relationships/betaGroups`, { data: [{ type: 'betaGroups', id: group.id }] }); }],
+    ];
+    let done = await inGroup();
+    for (const [how, run] of tries) {
+      if (done) break;
+      try { await run(); } catch (e) { say(`  ${how}: ${e.message}`); }
+      await new Promise((r) => setTimeout(r, 1500));
+      done = await inGroup();
+      if (done) say(`  added by ${how}`);
     }
+    say(done ? `${email} tests ${h.storeName}` : `::warning::${email} is not in ${h.storeName}'s testers yet`);
   }
 }
 
