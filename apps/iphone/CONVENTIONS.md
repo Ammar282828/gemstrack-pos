@@ -34,3 +34,14 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
 6. **Words.** The ERP's own words (docs/decisions.md "The name ERP", "Customer copy"): "Owed to you",
    "In the drawer", "Taken by", "hisaab", "karigar". Never "Najmi Market" or "Saddar".
 7. **Comments say why**, in the ERP's voice, briefly, as in `src/lib`.
+8. **Screens and their places.** A group lives in `App/Screens/<Group>/` with `<Group>Routes.swift`, and adds
+   one term to `NativeScreens.all`. A screen never makes its own `NavigationStack` (each tab, and the create
+   sheet, already has one that resolves `Route`s); it links with `NavigationLink(value: Route(path:))`. A
+   native screen sets its own title. `?web=1` on any path opens the ERP's page even where a native screen
+   exists (edit, refund, delete, print); a path the ERP serves at its own address (`/customers/<id>/edit`)
+   falls through by itself.
+9. **Reading the books.** `@Environment(Book.self)`, `.need()` on every shelf read, `shelf.items` /
+   `shelf.item(id)` (both observed). Owners' shelves are Firestore, live; staff's are the stripped server
+   copy: never show the hisaab, expenses, costs or margins to anyone but an owner.
+10. **Writing.** Only `ERPAPI.shared.write(op, fields)` (`/api/app/write`), which runs the browser's own
+   `src/lib/writes/*`. A new kind of change gets its shared write there first, used by the browser too.
