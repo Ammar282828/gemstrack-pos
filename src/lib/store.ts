@@ -205,6 +205,7 @@ import { recordOrderAdvance as writeOrderAdvance } from '@/lib/writes/order-adva
 import { rateChangeLog, rateConfirmLog } from '@/lib/writes/rates';
 import { createInvoice as createInvoiceWrite } from '@/lib/writes/create-invoice';
 import { addExpense as writeAddExpense } from '@/lib/writes/expenses';
+import { addGivenItem as writeAddGiven, markGivenItemReturned as writeGivenReturned } from '@/lib/writes/given';
 import { addRepair as writeAddRepair, recordRepairPayment as writeRepairPayment, setRepairStatus as writeRepairStatus } from '@/lib/writes/repairs';
 import { alertsOnStatus, orderStatusPatch, pieceDonePatch, pieceGivenPatch, pieceKarigarPatch } from '@/lib/writes/order-status';
 import { STORE_CONFIG } from '@/lib/store-config';
@@ -4116,10 +4117,8 @@ export const useAppStore = create<AppState>()(
       addGivenItem: async (data) => {
         if (get().settings.databaseLocked) return null;
         try {
-          // cleanObject: an unlinked recipient arrives as recipientId: undefined, which addDoc refuses.
-          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.GIVEN_ITEMS), cleanObject(data));
-          await addActivityLog('given.create', `Given item: ${data.description}`, `To: ${data.recipientName}`, docRef.id);
-          return { id: docRef.id, ...data };
+          // The one copy (lib/writes/given.ts), which the iPhone app runs on the server too.
+          return await writeAddGiven(clientPort, data, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
         } catch (error) {
           console.error('[GemsTrack Store addGivenItem] Error:', error);
           throw error;
@@ -4154,8 +4153,7 @@ export const useAppStore = create<AppState>()(
         if (get().settings.databaseLocked) return;
         const item = get().givenItems.find(g => g.id === id);
         try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.GIVEN_ITEMS, id), { status: 'returned', returnedDate }, { merge: true });
-          await addActivityLog('given.returned', `Item returned: ${item?.description || id}`, `From: ${item?.recipientName || ''}`, id);
+          await writeGivenReturned(clientPort, id, returnedDate, item, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
         } catch (error) {
           console.error(`[GemsTrack Store markGivenItemReturned] Error:`, error);
           throw error;

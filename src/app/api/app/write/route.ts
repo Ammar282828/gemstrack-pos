@@ -26,6 +26,7 @@ import { createOrder } from '@/lib/writes/create-order';
 import { addRepair, recordRepairPayment, setRepairStatus, type NewRepair } from '@/lib/writes/repairs';
 import { REPAIR_STATUSES, type RepairStatus } from '@/lib/repairs';
 import { addExpense } from '@/lib/writes/expenses';
+import { addGivenItem, markGivenItemReturned } from '@/lib/writes/given';
 import { mainRate } from '@/lib/rates';
 import { personFor } from '@/lib/people';
 import { STORE_CONFIG } from '@/lib/store-config';
@@ -51,6 +52,8 @@ const OPS: Record<string, ('owner' | 'staff')[]> = {
   setRepairStatus: ['owner'],
   recordRepairPayment: ['owner'],
   addExpense: ['owner'],
+  addGivenItem: ['owner'],
+  markGivenReturned: ['owner'],
 };
 
 const text = (v: unknown) => String(v ?? '').trim();
@@ -219,6 +222,32 @@ export async function POST(req: NextRequest) {
           ...(text(body.karigarId) && { karigarId: text(body.karigarId) }),
         }, { log });
         return NextResponse.json({ ok: true, expense, followUps });
+      }
+
+      case 'addGivenItem': {
+        const description = text(body.description);
+        const recipientName = text(body.recipientName);
+        const recipientType = text(body.recipientType);
+        if (!description || !recipientName || !['karigar', 'customer', 'other'].includes(recipientType)) {
+          return NextResponse.json({ error: 'What was given, and to whom, are needed.' }, { status: 400 });
+        }
+        const item = await addGivenItem(adminPort, {
+          date: text(body.date) || new Date().toISOString(),
+          description, recipientName, recipientType: recipientType as never,
+          ...(text(body.recipientId) && { recipientId: text(body.recipientId) }),
+          ...(text(body.notes) && { notes: text(body.notes) }),
+          status: 'out',
+        } as never, { log });
+        return NextResponse.json({ ok: true, item, followUps });
+      }
+
+      case 'markGivenReturned': {
+        const id = text(body.id);
+        if (!id) return NextResponse.json({ error: 'Bad request' }, { status: 400 });
+        const snap = await adminDb.collection('given_items').doc(id).get();
+        if (!snap.exists) return NextResponse.json({ error: 'No such item' }, { status: 404 });
+        await markGivenItemReturned(adminPort, id, text(body.returnedDate) || new Date().toISOString(), snap.data() as never, { log });
+        return NextResponse.json({ ok: true, id, followUps });
       }
 
       case 'setRates': {
