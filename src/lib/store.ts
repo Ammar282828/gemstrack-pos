@@ -4305,6 +4305,11 @@ export const calculateProductCosts = (
         goldRatePerGram22k: rates.goldRatePerGram22k || 0,
         goldRatePerGram24k: rates.goldRatePerGram24k || 0,
         palladiumRatePerGram: rates.palladiumRatePerGram || 0,
+        // The per-karat palladium rates, as the sale is saved with them (lib/writes/create-invoice.ts):
+        // left out here, an 18k or 12k piece showed at the flat rate on the sale screen and was billed
+        // at its own (found 2026-10-08, porting pricing to the iPhone app).
+        ...(Number(rates.palladiumRatePerGram18k) > 0 && { palladiumRatePerGram18k: Number(rates.palladiumRatePerGram18k) }),
+        ...(Number(rates.palladiumRatePerGram12k) > 0 && { palladiumRatePerGram12k: Number(rates.palladiumRatePerGram12k) }),
         platinumRatePerGram: rates.platinumRatePerGram || 0,
         silverRatePerGram: rates.silverRatePerGram || 0,
     };
