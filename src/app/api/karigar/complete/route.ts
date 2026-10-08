@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { resolveKarigar } from '@/lib/karigar-auth';
+import { pushToShop } from '@/lib/push/send';
+
+/** The shop's iPhones hear when a piece is done (lib/push/send.ts); once per piece. */
+function pushDone(karigar: string, piece: string, ref: string, url: string, key: string) {
+  return pushToShop({ kind: 'karigar', title: `${karigar} finished a piece`, body: [piece, ref].filter(Boolean).join(' · '), url, key });
+}
 
 /**
  * Lets a karigar mark their OWN piece done (or undo it).
@@ -34,6 +40,10 @@ export async function POST(req: NextRequest) {
           : { status: 'pending' },
         { merge: true },
       );
+      if (completed) {
+        const j = snap.data() as Record<string, unknown>;
+        await pushDone(identity.name, String(j.description || j.title || j.item || 'A piece'), String(j.orderId || ''), '/workshop', jobId);
+      }
       return NextResponse.json({ ok: true });
     }
 
@@ -67,6 +77,7 @@ export async function POST(req: NextRequest) {
         entityId: orderId,
         timestamp: new Date().toISOString(),
       });
+      if (completed) await pushDone(identity.name, String(item.description || item.name || `Piece ${idx + 1}`), orderId, `/orders/${encodeURIComponent(orderId)}`, jobId);
 
       return NextResponse.json({ ok: true });
     }

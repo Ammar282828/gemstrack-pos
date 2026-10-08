@@ -19,9 +19,19 @@ import { isPosPushedOrder, paymentLinkInvoiceId, type ShopifyTransaction } from 
 import { mirrorShopifyOrder, type ShopifyMirrorResult } from '@/lib/writes/invoice-payment';
 import { shopifyRequest } from './_lib';
 
+/** Who and how much, for the shop's notification (lib/push/send.ts). */
+export interface OrderGist { name: string; customer: string; total: string }
+
 export type OrderMirrorOutcome =
-  | { skipped: 'gone' | 'pos-push' | 'not-imported'; order?: string }
-  | (ShopifyMirrorResult & { order: string });
+  | { skipped: 'gone' | 'pos-push' | 'not-imported'; order?: string; gist?: OrderGist }
+  | (ShopifyMirrorResult & { order: string; gist?: OrderGist });
+
+function gistOf(order: { order_number?: number | string; total_price?: string | number; currency?: string; customer?: { first_name?: string; last_name?: string } | null; billing_address?: { name?: string } | null }): OrderGist {
+  const c = order.customer;
+  const customer = [c?.first_name, c?.last_name].filter(Boolean).join(' ') || order.billing_address?.name || '';
+  const total = `${order.currency || 'PKR'} ${Math.round(Number(order.total_price) || 0).toLocaleString('en-PK')}`;
+  return { name: `#${order.order_number}`, customer, total };
+}
 
 /** The ERP invoice for this Shopify order, or why there is none. */
 export async function invoiceForShopifyOrder(order: { id: number | string; order_number?: number | string; note?: string | null; tags?: string | null }):
@@ -67,9 +77,10 @@ export async function mirrorShopifyOrderById(shop: string, token: string, orderI
   const order = await fetchShopifyOrder(shop, token, orderId);
   if (!order) return { skipped: 'gone' };
   const name = `#${order.order_number}`;
+  const gist = gistOf(order);
   const target = await invoiceForShopifyOrder(order);
-  if ('skipped' in target) return { skipped: target.skipped, order: name };
+  if ('skipped' in target) return { skipped: target.skipped, order: name, gist };
   const transactions = await fetchShopifyTransactions(shop, token, String(order.id));
   const result = await mirrorShopifyOrder(adminPort, target.invoiceId, order, transactions, target.extra, { log }, { voidWhenCancelled: target.webSale });
-  return result ? { ...result, order: name } : { skipped: 'not-imported', order: name };
+  return result ? { ...result, order: name, gist } : { skipped: 'not-imported', order: name, gist };
 }

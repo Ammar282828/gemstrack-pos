@@ -19,6 +19,7 @@ import { orderDoc, paymentDoc, saleDoc, testDoc, type OrderAlert } from './alert
 import { sendDoc } from './send-doc';
 import type { AlertDoc } from './doc';
 import type { NotifSettings } from './schedule';
+import { pushDoc } from '@/lib/push/send';
 
 export type LiveEvent = 'sale' | 'payment' | 'order' | 'order-status' | 'test';
 
@@ -122,7 +123,28 @@ async function claim(key: string, r: AlertRequest, by: string): Promise<boolean>
   });
 }
 
+/**
+ * The same alert on the shop's iPhones (lib/push/send.ts): each phone has its own switches, so
+ * WhatsApp's below (numbers, on/off, per alert) do not decide it.
+ */
+async function pushLiveAlert(r: AlertRequest, now: Date): Promise<void> {
+  if (r.event === 'test') return;
+  try {
+    const doc = await build(r, null, now);
+    if (typeof doc === 'string') return;
+    const id = String(r.id);
+    await pushDoc(doc, {
+      kind: r.event === 'sale' ? 'sales' : r.event === 'payment' ? 'payments' : 'orders',
+      url: r.event === 'sale' || r.event === 'payment' ? `/invoices/${encodeURIComponent(id)}` : `/orders/${encodeURIComponent(id)}`,
+      key: [r.event, id, r.status, r.payment?.date, r.payment?.amount].filter(Boolean).join('_'),
+    });
+  } catch (e) {
+    console.error('[alert push]', r.event, r.id, e instanceof Error ? e.message : e);
+  }
+}
+
 export async function sendLiveAlert(r: AlertRequest, by: string, now = new Date()): Promise<AlertResult> {
+  await pushLiveAlert(r, now);
   const s = await readNotifSettings();
   const saved = (s?.notifPhones ?? []).map(String).filter(Boolean);
   let phones = saved;

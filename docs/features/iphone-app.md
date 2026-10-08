@@ -55,5 +55,25 @@ browser):
 - **Status bar.** Follows the ERP's palette (the shop's or this phone's choice, not the phone's own light or
   dark): the root layout tells the app the colour it gives the browser bar.
 
-**Left for later.** Push notifications (an APNs key and a sender in the ERP), Face ID for the delete code, the
-service worker (WKWebView has one only with App-Bound Domains).
+**Notifications** (2026-10-08). `lib/push`: the ERP speaks to Apple's push service itself (HTTP/2, token auth),
+no Firebase Messaging. Sent beside the WhatsApp alerts, from the same events and with the same words (an AlertDoc's
+title and headline): a sale, a payment (and a website transfer slip, and a payment Shopify took), a new order (the
+counter, the website, a new Shopify order as it arrives), an order finished or cancelled, online orders waiting or let
+go, and a karigar marking a piece done (`/api/karigar/complete`, which never alerted). To every phone an owner signed in
+on (`push_devices`), unless that phone switched the kind off; WhatsApp's switches do not decide it. Once per event
+(`push_sent`); a development server only logs. The Apple key (one APNs key serves both houses) is uploaded in Settings →
+Alerts and kept in `app_private/apns`, sealed under a key drawn from CRON_SECRET: Taheri's Firestore rules are still
+open and Secret Manager is not writable from the ERP.
+
+**The widget's figures** (`/api/widget/summary`, `lib/widget`): the house's rate, the drawer (Today's cash), Owed to
+you (with hisaab) and orders and repairs due, from the ERP's own functions, worked out at most every 15 minutes. Read
+with a key of the phone's own (`/api/widget/key`, kept by hash in `widget_keys`) that opens nothing else.
+
+**Going fully native** (owner, 2026-10-08: "rewrite the app and make the app fully native"). `apps/iphone`, SwiftUI,
+replaces this shell under the same bundle IDs. Reads straight from Firestore with Apple's Firebase SDK (live, and on the
+phone when offline); every write that moves money goes through the ERP's server routes (`/api/staff/write` and its
+like), so the rules for balances, hisaab and advances stay in one place. Screens arrive in phases; until a screen's
+native version lands it opens as the web page inside the app.
+
+**Left for the native app.** Push registration on the phone, the widget, Face ID for the delete code, the document
+scanner, offline opening.

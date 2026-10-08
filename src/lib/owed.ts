@@ -22,7 +22,7 @@
 import { saleCustomerKey, WALK_IN_ENTITY } from '@/lib/walk-in';
 
 type OwedInvoice = { id: string; status?: string; balanceDue?: number; customerId?: string | null; customerName?: string | null; createdAt?: string };
-type LedgerRow = { entityId?: string; entityType?: string; cashDebit?: number; cashCredit?: number; linkedInvoiceId?: string | null };
+export type LedgerRow = { entityId?: string; entityType?: string; cashDebit?: number; cashCredit?: number; linkedInvoiceId?: string | null };
 
 /** An invoice that is still owed money on. */
 export const isOwing = (inv: OwedInvoice | null | undefined): boolean =>

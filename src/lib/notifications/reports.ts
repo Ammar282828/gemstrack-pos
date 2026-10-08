@@ -9,7 +9,7 @@ import {
   type KarigarBalance, type Row,
 } from './report-docs';
 
-const rows = async (name: string): Promise<Row[]> =>
+export const rows = async (name: string): Promise<Row[]> =>
   (await adminDb.collection(name).get()).docs.map(d => ({ id: d.id, ...d.data() }));
 
 /**
@@ -31,7 +31,7 @@ async function karigarBalances(): Promise<KarigarBalance[]> {
   return [...by.values()].filter(b => Math.abs(b.cash) >= 1 || Math.abs(b.gold) >= 0.01);
 }
 
-async function theDayRows() {
+export async function theDayRows() {
   const [orders, invoices, expenses, repairs, extraRevenues] = await Promise.all([
     rows('orders'), rows('invoices'), rows('expenses'), rows('repairs'), rows('additional_revenue'),
   ]);

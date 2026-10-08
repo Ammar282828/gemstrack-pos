@@ -108,13 +108,16 @@ export async function trySend(to: string | null | undefined, body: string): Prom
 export async function trySendShopDoc(build: () => Promise<import('@/lib/notifications/doc').AlertDoc> | import('@/lib/notifications/doc').AlertDoc, label: string): Promise<string | null> {
   if (process.env.WEBSITE_NOTIFY === 'off') { console.log('[website notify: off] shop', label); return 'notifications off'; }
   try {
-    const [{ sendDoc }, { readNotifSettings }] = await Promise.all([import('@/lib/notifications/send-doc'), import('@/lib/notifications/dispatch')]);
+    const [{ sendDoc }, { readNotifSettings }, { pushDoc }] = await Promise.all([import('@/lib/notifications/send-doc'), import('@/lib/notifications/dispatch'), import('@/lib/push/send')]);
+    const doc = await build();
+    // The shop's iPhones too (lib/push/send.ts), whatever the WhatsApp settings: once per event.
+    await pushDoc(doc, { url: '/orders', key: `${doc.kind}_${label}_${doc.headline}` });
     const s = await readNotifSettings().catch(() => null);
     const saved = s?.notifEnabled ? (s.notifPhones ?? []).map(String).filter(Boolean) : [];
     const own = shopNumber();
     const to = saved.length ? saved : own ? [own] : [];
     if (!to.length) return 'no recipient';
-    const r = await sendDoc(await build(), to);
+    const r = await sendDoc(doc, to);
     return r.sent ? null : r.failed.join('; ') || 'not sent';
   } catch (e) {
     return e instanceof Error ? e.message : String(e);
