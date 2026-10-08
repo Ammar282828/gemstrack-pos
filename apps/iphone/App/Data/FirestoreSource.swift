@@ -1,4 +1,5 @@
 import Foundation
+import FirebaseCore
 import FirebaseFirestore
 import ERPCore
 
@@ -15,6 +16,21 @@ enum FirestoreSource {
         s.cacheSettings = PersistentCacheSettings(sizeBytes: NSNumber(value: 512 * 1024 * 1024))
         s.dispatchQueue = queue
         Firestore.firestore().settings = s
+    }
+
+    /// Signing out forgets the books on this phone: the client is shut, its copy on disk erased, and a
+    /// fresh one set up as at launch, so the next person to sign in starts from nothing.
+    @MainActor
+    static func forget() async {
+        guard !House.isDemo, FirebaseApp.app() != nil else { return }
+        let db = Firestore.firestore()
+        do {
+            try await db.terminate()
+            try await db.clearPersistence()
+        } catch {
+            print("[firestore] could not clear the phone's copy:", error.localizedDescription)
+        }
+        configure()
     }
 
     /// SDK values JSON cannot hold, as text the models read (dates as ISO, as the ERP writes its own).

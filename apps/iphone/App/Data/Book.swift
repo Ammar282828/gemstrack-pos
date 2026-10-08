@@ -188,6 +188,10 @@ final class Single<T: Decodable>: Resettable {
 /// Staff and marketing: the ERP's server, polled (store.ts attachStaffPoll, 25 s).
 enum ServerShelf {
     static let every: Duration = .seconds(25)
+    /// Bumped after every change the phone makes: each poller stops waiting and reads again.
+    @MainActor private static var nudges = 0
+
+    @MainActor static func wake() { nudges += 1 }
 
     @MainActor
     static func poll<T: Decodable>(name: String, single: Bool, deliver: @escaping @MainActor (Delivery<T>) -> Void) -> () -> Void {
@@ -209,7 +213,11 @@ enum ServerShelf {
                 } catch {
                     deliver(.failed(error.localizedDescription))
                 }
-                try? await Task.sleep(for: every)
+                // Wait out the interval, unless a change made on this phone asks for the books now.
+                let seen = nudges
+                for _ in 0..<25 where !Task.isCancelled && nudges == seen {
+                    try? await Task.sleep(for: .seconds(1))
+                }
             }
         }
         return { task.cancel() }

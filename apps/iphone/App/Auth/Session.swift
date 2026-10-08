@@ -14,7 +14,41 @@ final class Session {
         let email: String
         let role: String
         let karigar: Karigar?
+        /// The house's own settings (/api/app/me `shop`); missing from an answer cached by an older build.
+        var shop: Shop?
         struct Karigar: Codable { let id: String; let name: String }
+    }
+
+    /// What the web reads from its build (lib/store-config.ts) and the screens must follow, per house.
+    struct Shop: Codable, Equatable {
+        /// The shop's own name ("TAHERI"), for what goes to a customer or a karigar: never "… ERP".
+        var name: String
+        /// This account's counter name, when it has one on the house's list (lib/people.ts).
+        var person: String?
+        /// The counter names "Taken by" offers (STORE_TAKEN_BY).
+        var takenBy: [String]
+        var expenseCategories: [String]
+        /// Partners pay expenses and draw (STORE_PARTNERSHIP, House of Mina).
+        var partnership: Bool
+        /// The website takes orders, so online orders wait to be confirmed (STORE_WEBSITE_SELLING).
+        var websiteSelling: Bool
+        /// An invoice is named after its customer ("Invoice - <name>") (STORE_INVOICE_BY_CUSTOMER).
+        var invoiceByCustomer: Bool
+        var invoiceWhatsappPdf: Bool
+        /// Sizes on an order are offered to the customer's profile (STORE_SIZE_TO_PROFILE).
+        var sizeToProfile: Bool
+
+        /// Before the ERP has answered (the demo, an old cached answer): nothing assumed beyond the house.
+        static var fallback: Shop {
+            Shop(name: House.id == "mina" ? "MINA" : "TAHERI", person: nil, takenBy: [], expenseCategories: [],
+                 partnership: House.id == "mina", websiteSelling: House.id != "mina", invoiceByCustomer: House.id != "mina",
+                 invoiceWhatsappPdf: House.id != "mina", sizeToProfile: House.id != "mina")
+        }
+
+        static let demo = Shop(name: "DEMO", person: "Demo", takenBy: ["Demo", "Counter Two", "Counter Three"],
+                               expenseCategories: ["Shop", "Utilities", "Karigar", "Rent", "Partner Drawings", "Partner Salary", "Other"],
+                               partnership: House.id == "mina", websiteSelling: House.id != "mina", invoiceByCustomer: House.id != "mina",
+                               invoiceWhatsappPdf: House.id != "mina", sizeToProfile: House.id != "mina")
     }
 
     /// The last answer, for opening with no connection: the role is the server's, never assumed.
@@ -30,12 +64,14 @@ final class Session {
 
     var role: String { me?.role ?? "none" }
     var isOwner: Bool { role == "owner" }
+    /// The house's settings for the screens (see Shop).
+    var shop: Shop { me?.shop ?? .fallback }
 
     init() { Task { await start() } }
 
     func start() async {
         if House.isDemo {
-            me = Me(email: "owner@example.com", role: "owner", karigar: nil)
+            me = Me(email: "owner@example.com", role: "owner", karigar: nil, shop: .demo)
             Book.shared.signedIn(role: "owner")
             state = .signedIn
             return
@@ -92,6 +128,8 @@ final class Session {
         GoogleAuth.shared.signOut()
         Self.lastMe = nil
         Book.shared.signedOut()
+        // The owner's books stay on no phone after sign-out: Firestore's copy on disk is erased too.
+        Task { await FirestoreSource.forget() }
         me = nil
         state = .signedOut
     }

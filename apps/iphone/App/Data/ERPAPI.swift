@@ -67,12 +67,35 @@ final class ERPAPI {
     func write(_ op: String, _ fields: [String: Any]) async throws -> [String: Any] {
         var body = fields
         body["op"] = op
+        body["requestId"] = requestId(for: body)
         let out = try await send("/api/app/write", body)
+        // Staff read the books every 25 seconds: fetch them now, so the balance just paid is never
+        // left on screen to be paid again.
+        ServerShelf.wake()
         for f in out["followUps"] as? [[String: Any]] ?? [] {
             guard let path = f["path"] as? String, path.hasPrefix("/api/"), let b = f["body"] as? [String: Any] else { continue }
             Task { _ = try? await self.send(path, b) }
         }
         return out
+    }
+
+    /// The same change asked for again within half a minute (a double tap, the sheet opened again over
+    /// a balance not yet refreshed, a retry after the line dropped) goes with the same name, and the ERP
+    /// records it once (/api/app/write refuses a name it has seen). A second, genuinely separate payment
+    /// of the same amount is entered after that.
+    private var recent: [String: (id: String, at: Date)] = [:]
+
+    private func requestId(for body: [String: Any]) -> String {
+        let now = Date()
+        recent = recent.filter { now.timeIntervalSince($0.value.at) < 30 }
+        // "When" is not part of what the change is: two taps a second apart are the same payment.
+        var what = body
+        for k in ["date", "createdAt", "at", "now"] { what[k] = nil }
+        let key = (try? JSONSerialization.data(withJSONObject: what, options: [.sortedKeys]))
+            .map { String(decoding: $0, as: UTF8.self) } ?? UUID().uuidString
+        let id = recent[key]?.id ?? UUID().uuidString
+        recent[key] = (id, now)
+        return id
     }
 
     @discardableResult

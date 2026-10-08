@@ -18,6 +18,9 @@ vi.mock('@/lib/firebase-admin', () => ({
           id: key,
           get: async () => ({ exists: !!col(c)[key], data: () => col(c)[key] }),
           set: async (d: Record<string, unknown>, o?: { merge?: boolean }) => put(c, key, d, o?.merge),
+          // Firestore's create: refused (ALREADY_EXISTS, code 6) when the document is there.
+          create: async (d: Record<string, unknown>) => { if (col(c)[key]) throw Object.assign(new Error('exists'), { code: 6 }); put(c, key, d); },
+          delete: async () => { delete col(c)[key]; },
         };
       },
       add: async (d: Record<string, unknown>) => { const id = `auto${++ids}`; put(c, id, d); return { id }; },
@@ -258,5 +261,40 @@ describe('the rest of the book', () => {
   it('every follow-up the app is told to send is one of the ERP\'s own routes', async () => {
     const r = await call({ op: 'setOrderStatus', orderId: 'ORD-000001', status: 'Cancelled' });
     for (const f of r.body.followUps!) expect(f.path.startsWith('/api/')).toBe(true);
+  });
+});
+
+describe('the same change sent twice', () => {
+  it('records a payment once: a double tap, or a retry after the line dropped, is refused', async () => {
+    const pay = { op: 'recordPayment', invoiceId: 'INV-000001', amount: 40_000, method: 'Cash', requestId: 'req-demo-0001' };
+    const first = await call(pay);
+    expect(first.status).toBe(200);
+    const again = await call(pay);
+    expect(again.status).toBe(409);
+    expect(again.body.duplicate).toBe(true);
+    expect((data.invoices['INV-000001'].paymentHistory as unknown[]).length).toBe(1);
+    expect(data.invoices['INV-000001'].amountPaid).toBe(40_000);
+  });
+
+  it('a refused change gives its name back, so the corrected one goes through', async () => {
+    const bad = await call({ op: 'recordPayment', invoiceId: 'INV-000001', amount: 0, requestId: 'req-demo-0002' });
+    expect(bad.status).toBe(400);
+    expect(data.app_requests?.['req-demo-0002']).toBeUndefined();
+    const good = await call({ op: 'recordPayment', invoiceId: 'INV-000001', amount: 5_000, requestId: 'req-demo-0002' });
+    expect(good.status).toBe(200);
+  });
+
+  it('an order sent twice is one order', async () => {
+    const order = { op: 'createOrder', requestId: 'req-demo-0003', order: { items: [{ description: 'Demo ring', metalType: 'gold', karat: '21k', estimatedWeightG: 4 }], subtotal: 1, grandTotal: 1, customerName: 'Walk-in Customer' } };
+    put('app_settings', 'global', { lastOrderNumber: 2 }, true);
+    expect((await call(order)).status).toBe(200);
+    expect((await call(order)).status).toBe(409);
+    expect(Object.keys(data.orders).filter((k) => k.startsWith('ORD-0000')).length).toBe(3);
+  });
+
+  it('a request name that is not one is ignored, never trusted as a key', async () => {
+    const r = await call({ op: 'recordPayment', invoiceId: 'INV-000001', amount: 1_000, requestId: '../settings/global' });
+    expect(r.status).toBe(200);
+    expect(data.app_requests).toBeUndefined();
   });
 });
