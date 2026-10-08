@@ -734,6 +734,16 @@
    "description": "Electricity",
    "amount": 38500,
    "paidBy": "business"
+  },
+  {
+   "id": "EXP-D9",
+   "date": "@d-1 16:00",
+   "category": "Karigar",
+   "description": "Making charges, demo ring",
+   "amount": 12000,
+   "paidBy": "business",
+   "karigarId": "KAR-D1",
+   "batchId": "KB-D1"
   }
  ],
  "repairs": [
@@ -846,6 +856,28 @@
    "ratesUpdatedAt": "@d-0 09:30",
    "ratesUpdatedBy": "Demo Owner",
    "shopName": "Demo Shop"
+  }
+ ],
+ "karigar_batches": [
+  {
+   "id": "KB-D1",
+   "karigarId": "KAR-D1",
+   "label": "This month",
+   "startDate": "@day-20"
+  },
+  {
+   "id": "KB-D2",
+   "karigarId": "KAR-D1",
+   "label": "Last month",
+   "startDate": "@day-50",
+   "closedDate": "@day-21",
+   "totalPaid": 64000
+  },
+  {
+   "id": "KB-D3",
+   "karigarId": "KAR-D2",
+   "label": "Current",
+   "startDate": "@day-12"
   }
  ]
 }

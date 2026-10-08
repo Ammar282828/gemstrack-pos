@@ -220,6 +220,8 @@ export async function POST(req: NextRequest) {
           description, amount,
           ...(paidBy === 'ammar' || paidBy === 'mina' || paidBy === 'business' ? { paidBy } : {}),
           ...(text(body.karigarId) && { karigarId: text(body.karigarId) }),
+          // The karigar's hisaab it is filed under, as the expense form's "Hisaab" field.
+          ...(text(body.karigarId) && text(body.batchId) && { batchId: text(body.batchId) }),
         }, { log });
         return NextResponse.json({ ok: true, expense, followUps });
       }

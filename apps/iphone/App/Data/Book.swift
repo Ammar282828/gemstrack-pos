@@ -34,9 +34,10 @@ final class Book {
     let repairs = Shelf<Repair>(Collections.repairs) { $0.receivedAt > $1.receivedAt }
     let givenItems = Shelf<GivenItem>(Collections.givenItems) { $0.date > $1.date }
     let karigarJobs = Shelf<KarigarJob>(Collections.karigarJobs) { $0.id > $1.id }
+    let karigarBatches = Shelf<KarigarBatch>(Collections.karigarBatches) { $0.startDate > $1.startDate }
     let settings = Single<Settings>(Collections.settings, Collections.globalSettingsDoc)
 
-    private var all: [any Resettable] { [orders, invoices, customers, karigars, hisaab, expenses, revenue, products, repairs, givenItems, karigarJobs, settings] }
+    private var all: [any Resettable] { [orders, invoices, customers, karigars, hisaab, expenses, revenue, products, repairs, givenItems, karigarJobs, karigarBatches, settings] }
 
     /// Who is reading, once the ERP has said (Session.loadMe). Shelves already filled for someone
     /// else start again.

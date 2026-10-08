@@ -91,3 +91,33 @@ public struct KarigarJob: Decodable, Identifiable, Hashable {
         notes = c.string(.notes)
     }
 }
+
+/// One of a karigar's hisaabs, a run of work and payments settled together ("March 2026"):
+/// Firestore `karigar_batches/<id>` (src/lib/store.ts `KarigarBatch`). Expenses paid to the karigar
+/// are filed under one by `Expense.batchId`.
+/// Surprising: no `closedDate` means the hisaab is still open, and a karigar normally has one open.
+public struct KarigarBatch: Decodable, Identifiable, Hashable {
+    public let id: String
+    public let karigarId: String
+    public let label: String
+    /// ISO.
+    public let startDate: String
+    /// ISO; nil while open.
+    public let closedDate: String?
+    /// Written when the hisaab is closed.
+    public let totalPaid: Double?
+
+    public var isOpen: Bool { closedDate == nil }
+
+    private enum K: String, CodingKey { case id, karigarId, label, startDate, closedDate, totalPaid }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: K.self)
+        id = c.string(.id) ?? ""
+        karigarId = c.string(.karigarId, default: "")
+        label = c.string(.label, default: "")
+        startDate = c.string(.startDate, default: "")
+        closedDate = c.string(.closedDate)
+        totalPaid = c.double(.totalPaid)
+    }
+}

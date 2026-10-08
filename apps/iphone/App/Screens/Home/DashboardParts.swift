@@ -21,7 +21,7 @@ struct DashSection<Content: View>: View {
             VStack(spacing: 0) { content() }
                 .padding(.horizontal, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.background.secondary, in: .rect(cornerRadius: 18))
+                .background(Theme.card, in: .rect(cornerRadius: 18))
         }
     }
 
@@ -212,7 +212,7 @@ struct DashMonthStrip: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background.secondary, in: .rect(cornerRadius: 18))
+        .background(Theme.card, in: .rect(cornerRadius: 18))
     }
 
     private func stat(_ label: String, _ value: Double, _ tint: Color) -> some View {

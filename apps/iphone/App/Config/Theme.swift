@@ -7,12 +7,14 @@ import SwiftUI
 /// - House of Mina: its wordmark's maroon in light (`.brand-mina.theme-default`), the catalogue's dusty
 ///   rose on wine in dark (`.dark .brand-mina`).
 ///
-/// The colours live in the asset catalogue (Accent-<house>, Ground-<house>) with a light and a dark
-/// value each, so they follow the phone's appearance as the ERP does (decision "Light and dark").
-/// Content stays on the system's own cards over the house's ground; glass takes its tint from the accent.
+/// The colours live in the asset catalogue (Accent-<house>, Ground-<house>, Card-<house>) with a light
+/// and a dark value each, so they follow the phone's appearance as the ERP does (decision "Light and
+/// dark"). Cards and list rows take the house's `--card` (Taheri's teal-black, Mina's wine in dark;
+/// white, warm for Mina's cream, in light), never the system's grey; glass takes its tint from the accent.
 enum Theme {
     static let accent = Color("Accent-\(House.id)")
     static let ground = Color("Ground-\(House.id)")
+    static let card = Color("Card-\(House.id)")
 }
 
 extension Color {
@@ -23,6 +25,16 @@ extension Color {
         guard s.count == 6, let v = UInt64(s, radix: 16) else { return nil }
         self.init(red: Double((v >> 16) & 0xFF) / 255, green: Double((v >> 8) & 0xFF) / 255, blue: Double(v & 0xFF) / 255)
     }
+}
+
+/// A list's rows on the house's card colour (apply to each Section, or to the List's content).
+struct HouseRows: ViewModifier {
+    func body(content: Content) -> some View { content.listRowBackground(Theme.card) }
+}
+
+extension View {
+    /// Rows on the house's card colour: `Section { … }.houseRows()`.
+    func houseRows() -> some View { modifier(HouseRows()) }
 }
 
 /// A screen on the house's ground: the list's own background hidden so the ground shows behind its cards.

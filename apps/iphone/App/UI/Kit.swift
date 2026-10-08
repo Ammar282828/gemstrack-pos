@@ -39,7 +39,7 @@ struct FigureTile: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(.background.secondary, in: .rect(cornerRadius: 18))
+        .background(Theme.card, in: .rect(cornerRadius: 18))
     }
 }
 
