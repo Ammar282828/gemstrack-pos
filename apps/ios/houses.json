@@ -1,0 +1,20 @@
+{
+  "taheri": {
+    "bundleId": "shop.taheri.erp",
+    "storeName": "Taheri ERP",
+    "homeName": "Taheri ERP",
+    "url": "https://erp.taheri.shop",
+    "hosts": ["erp.taheri.shop", "pos.taheri.shop"],
+    "ground": "#0A1111",
+    "googleClientId": ""
+  },
+  "mina": {
+    "bundleId": "store.houseofmina.erp",
+    "storeName": "House of Mina ERP",
+    "homeName": "Mina ERP",
+    "url": "https://erp.houseofmina.store",
+    "hosts": ["erp.houseofmina.store", "pos.houseofmina.store"],
+    "ground": "#FAF7F2",
+    "googleClientId": ""
+  }
+}

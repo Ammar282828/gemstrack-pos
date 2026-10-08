@@ -1,0 +1,16 @@
+{
+  "name": "erp-ios",
+  "private": true,
+  "description": "The ERP as an iPhone app (Capacitor): a native shell around the live ERP, one per house. See README.md.",
+  "scripts": {
+    "house": "node scripts/house.mjs",
+    "sync": "cap sync ios"
+  },
+  "dependencies": {
+    "@capacitor/cli": "8.5.2",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/filesystem": "8.1.3",
+    "@capacitor/ios": "8.5.2",
+    "@capacitor/share": "8.0.2"
+  }
+}

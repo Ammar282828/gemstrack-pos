@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>probe</title>
+<style>body{font:12px/1.35 ui-monospace,monospace;margin:0;padding:max(12px,env(safe-area-inset-top)) 12px 12px;white-space:pre-wrap;word-break:break-all}</style>
+</head><body>probing…
+<script>
+// The simulator check (.github/workflows/ios.yml): what the app's web view gives a page, and the
+// app's own pieces answering. First launch: the report, then Google sign-in's sheet. Second: the share sheet.
+(async () => {
+  const cap = window.Capacitor;
+  const step = Number(localStorage.getItem('probe-step') || 0);
+  localStorage.setItem('probe-step', String(step + 1));
+  const post = (path, body) => fetch(path, { method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body, null, 2) }).catch(() => {});
+  const err = (e) => `${e && e.code || ''} ${e && e.message || e}`.trim();
+  if (step === 0) {
+    const r = { ua: navigator.userAgent, capacitor: !!cap, native: !!(cap && cap.isNativePlatform && cap.isNativePlatform()), platform: cap && cap.getPlatform && cap.getPlatform() };
+    r.speech = { SpeechRecognition: 'SpeechRecognition' in window, webkitSpeechRecognition: 'webkitSpeechRecognition' in window };
+    let files = null; try { files = navigator.canShare ? navigator.canShare({ files: [new File(['%PDF'], 'a.pdf', { type: 'application/pdf' })] }) : null; } catch (e) { files = String(e); }
+    r.webShare = { share: typeof navigator.share, canShare: typeof navigator.canShare, files };
+    r.media = { MediaRecorder: typeof MediaRecorder, getUserMedia: typeof (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) };
+    r.storage = { indexedDB: typeof indexedDB, serviceWorker: 'serviceWorker' in navigator, localStorage: typeof localStorage };
+    for (const [k, m, o] of [['info', 'ERPNative/info', {}], ['chrome', 'ERPNative/chrome', { background: '#0A1111', dark: true }],
+      ['write', 'Filesystem/writeFile', { path: 'shared/probe/probe.pdf', data: 'JVBERi0xLjQK', directory: 'CACHE', recursive: true }]]) {
+      const [p, f] = m.split('/');
+      try { r[k] = (await cap.nativePromise(p, f, o)) || 'ok'; } catch (e) { r[k] = 'ERROR ' + err(e); }
+    }
+    document.body.textContent = JSON.stringify(r, null, 2);
+    await post('/report', r);
+    setTimeout(() => cap.nativePromise('ERPNative', 'googleSignIn', {}).then((x) => post('/signin', x), (e) => post('/signin', 'ERROR ' + err(e))), 1500);
+  } else {
+    try {
+      const { uri } = await cap.nativePromise('Filesystem', 'writeFile', { path: 'shared/probe/Invoice - probe.pdf', data: 'JVBERi0xLjQK', directory: 'CACHE', recursive: true });
+      document.body.textContent = 'sharing ' + uri;
+      cap.nativePromise('Share', 'share', { files: [uri], title: 'Invoice - probe.pdf' }).then((x) => post('/share', x), (e) => post('/share', 'ERROR ' + err(e)));
+    } catch (e) { post('/share', 'ERROR ' + err(e)); }
+  }
+})();
+</script>
+</body></html>

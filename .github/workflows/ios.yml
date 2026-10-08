@@ -1,0 +1,238 @@
+name: iPhone app
+
+# The ERP's iPhone app (apps/ios, docs/features/iphone-app.md): a native shell around the live ERP,
+# one app per house. The ERP itself reaches the phones with every deploy; this builds the shell.
+#
+# - A change under apps/ios: both houses to TestFlight, once each is ready (its app made in App
+#   Store Connect and its Google iOS client in houses.json), else a simulator check.
+# - Every other month: a fresh TestFlight build, before the last one's 90 days run out.
+# - By hand ("Run workflow"): mode check = the simulator check, testflight = upload; testers =
+#   emails to invite.
+# macOS minutes count ten to one against the account's Actions minutes, which the deploys use too:
+# it builds only when the shell changes, never for a change to the ERP.
+
+on:
+  push:
+    branches: ['claude/**', main]
+    paths: ['apps/ios/**', '.github/workflows/ios.yml']
+  schedule:
+    - cron: '23 4 1 */2 *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: auto, check (simulator only) or testflight
+        type: choice
+        options: [auto, check, testflight]
+        default: auto
+      testers:
+        description: Emails to make TestFlight testers (comma-separated)
+        type: string
+        default: ''
+
+concurrency:
+  group: iphone-app
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    # gemstrack-pos carries this file too (the same history); the app is built from here only.
+    if: github.repository == 'Ammar282828/taheri-pos'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      upload: ${{ steps.plan.outputs.upload }}
+      simulator: ${{ steps.plan.outputs.simulator }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: plan
+        env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: node apps/ios/scripts/asc.mjs plan "${{ inputs.mode || 'auto' }}" >> "$GITHUB_OUTPUT"
+
+  simulator:
+    needs: plan
+    if: needs.plan.outputs.simulator == 'true'
+    runs-on: macos-26
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: apps/ios
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - name: Dress as Taheri and sync
+        run: |
+          node scripts/house.mjs taheri
+          npx cap sync ios
+      - name: Build for the simulator
+        run: |
+          xcodebuild -version
+          set -o pipefail
+          xcodebuild build -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO | tee "$RUNNER_TEMP/build.log" | grep -E '(error|warning: .*ERP\.swift|BUILD)' || true
+          test -d "$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/App.app"
+      - name: Boot a phone
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          d = json.load(sys.stdin)["devices"]
+          phones = [(rt, x) for rt, xs in d.items() if "iOS" in rt for x in xs if x["name"].startswith("iPhone")]
+          phones.sort(key=lambda p: [int(n) for n in p[0].rsplit("iOS-", 1)[-1].split("-") if n.isdigit()])
+          print(phones[-1][1]["udid"]); print(phones[-1][1]["name"], phones[-1][0], file=sys.stderr)')
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+      - name: Probe the web view and the app's own pieces
+        run: |
+          set -x
+          OUT="$RUNNER_TEMP/shots"; mkdir -p "$OUT"
+          APP="$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/App.app"
+          PROBE="$RUNNER_TEMP/Probe.app"; cp -R "$APP" "$PROBE"
+          python3 - "$PROBE/capacitor.config.json" <<'PY'
+          import json, sys
+          p = sys.argv[1]; c = json.load(open(p))
+          c["server"] = {"url": "http://127.0.0.1:8080/probe.html", "cleartext": True}
+          json.dump(c, open(p, "w"))
+          PY
+          plutil -insert NSAppTransportSecurity -json '{"NSAllowsArbitraryLoads":true,"NSAllowsLocalNetworking":true}' "$PROBE/Info.plist"
+          plutil -replace ERPGoogleClientID -string "123456789012-probe.apps.googleusercontent.com" "$PROBE/Info.plist"
+          python3 ci/probe-server.py "$OUT" & sleep 1
+          xcrun simctl install "$UDID" "$PROBE"
+          xcrun simctl launch "$UDID" shop.taheri.erp; sleep 8
+          xcrun simctl io "$UDID" screenshot "$OUT/1-probe-signin.png"
+          xcrun simctl terminate "$UDID" shop.taheri.erp || true
+          xcrun simctl launch "$UDID" shop.taheri.erp; sleep 6
+          xcrun simctl io "$UDID" screenshot "$OUT/2-probe-share.png"
+          xcrun simctl terminate "$UDID" shop.taheri.erp || true
+          for f in "$OUT"/*.txt; do echo "== $f"; cat "$f"; done
+      - name: The ERP in the app, light and dark
+        run: |
+          OUT="$RUNNER_TEMP/shots"
+          APP="$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/App.app"
+          xcrun simctl uninstall "$UDID" shop.taheri.erp || true
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl ui "$UDID" appearance light
+          xcrun simctl launch "$UDID" shop.taheri.erp; sleep 15
+          xcrun simctl io "$UDID" screenshot "$OUT/3-erp-light.png"
+          xcrun simctl terminate "$UDID" shop.taheri.erp || true
+          xcrun simctl ui "$UDID" appearance dark
+          xcrun simctl launch "$UDID" shop.taheri.erp; sleep 12
+          xcrun simctl io "$UDID" screenshot "$OUT/4-erp-dark.png"
+          # The screenshots small, in the log too, for a reader without the artifact.
+          for f in "$OUT"/*.png; do
+            sips -Z 640 -s format jpeg -s formatOptions 55 "$f" --out "${f%.png}.jpg" >/dev/null
+            echo "----BEGIN $(basename "${f%.png}")----"; base64 -i "${f%.png}.jpg" | fold -w 120; echo "----END----"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iphone-simulator
+          path: |
+            ${{ runner.temp }}/shots
+            ${{ runner.temp }}/build.log
+          retention-days: 14
+
+  testflight:
+    needs: plan
+    if: needs.plan.outputs.upload != '[]' && needs.plan.outputs.upload != ''
+    runs-on: macos-26
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        house: ${{ fromJSON(needs.plan.outputs.upload) }}
+    defaults:
+      run:
+        working-directory: apps/ios
+    env:
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - name: A certificate and profile for this build
+        run: node scripts/asc.mjs sign "${{ matrix.house }}" "$RUNNER_TEMP/signing" >> "$GITHUB_ENV"
+      - name: Into a keychain of its own
+        run: |
+          KC="$RUNNER_TEMP/erp.keychain-db"; KCPW=$(openssl rand -hex 16)
+          echo "::add-mask::$KCPW"
+          echo "KEYCHAIN=$KC" >> "$GITHUB_ENV"
+          security create-keychain -p "$KCPW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KCPW" "$KC"
+          curl -fsSL -o "$RUNNER_TEMP/wwdr.cer" https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer
+          security import "$RUNNER_TEMP/wwdr.cer" -k "$KC" -T /usr/bin/codesign || true
+          security import "$RUNNER_TEMP/signing/dist.p12" -k "$KC" -P "$P12_PASSWORD" -f pkcs12 -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KCPW" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KC"
+          for d in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$d"; cp "$RUNNER_TEMP/signing/profile.mobileprovision" "$d/$PROFILE_UUID.mobileprovision"
+          done
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s\n' "$ASC_PRIVATE_KEY" > "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+      - name: Dress, sync, archive
+        run: |
+          node scripts/house.mjs "${{ matrix.house }}" --sign "$TEAM_ID" "$PROFILE_NAME"
+          npx cap sync ios
+          BUILD=$(date -u +%Y%m%d.%H%M)
+          echo "Build $BUILD"
+          set -o pipefail
+          xcodebuild archive -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            CURRENT_PROJECT_VERSION="$BUILD" MARKETING_VERSION=1.0 OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN" \
+            | tee "$RUNNER_TEMP/archive.log" | grep -E '(error|BUILD|ARCHIVE)' || true
+          test -d "$RUNNER_TEMP/App.xcarchive"
+      - name: Upload to TestFlight
+        run: |
+          BUNDLE=$(node -p "require('./houses.json')['${{ matrix.house }}'].bundleId")
+          cat > "$RUNNER_TEMP/export.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key><dict><key>$BUNDLE</key><string>$PROFILE_NAME</string></dict>
+            <key>testFlightInternalTestingOnly</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>uploadSymbols</key><true/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/export.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "::notice::${{ matrix.house }}: uploaded; TestFlight offers it once Apple has processed it (about 10 to 30 minutes)"
+      - name: Testers
+        if: success()
+        run: node scripts/asc.mjs testers "${{ matrix.house }}" "${{ inputs.testers }}" || echo "::warning::Testers not updated"
+      - name: Revoke this build's certificate and profile
+        if: always()
+        run: |
+          node scripts/asc.mjs revoke || true
+          [ -n "$KEYCHAIN" ] && security delete-keychain "$KEYCHAIN" || true
+          rm -rf "$RUNNER_TEMP/keys" "$RUNNER_TEMP/signing"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: archive-log-${{ matrix.house }}
+          path: ${{ runner.temp }}/archive.log
+          retention-days: 7

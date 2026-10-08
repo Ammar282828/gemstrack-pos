@@ -1,0 +1,4 @@
+node_modules
+# Written by `npm run house <taheri|mina>` before each build
+capacitor.config.json
+www/offline.html

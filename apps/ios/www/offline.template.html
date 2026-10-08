@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{NAME}}</title>
+<style>
+  :root { color-scheme: light dark; --bg: #ffffff; --fg: #111111; --muted: #666666; --accent: {{GROUND}}; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #000000; --fg: #f2f2f2; --muted: #9a9a9a; } }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg);
+    font: 17px/1.45 -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+  main { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px; box-sizing: border-box; text-align: center; gap: 12px; }
+  h1 { font-size: 22px; margin: 0; }
+  p { margin: 0; color: var(--muted); max-width: 300px; }
+  button { margin-top: 12px; font: inherit; font-weight: 600; padding: 12px 28px; border-radius: 12px; border: 0;
+    background: var(--fg); color: var(--bg); }
+  button:active { opacity: .8; }
+</style>
+</head>
+<body>
+<main>
+  <h1>No connection</h1>
+  <p>{{NAME}} needs the internet to open. It tries again by itself when the phone is back online.</p>
+  <button type="button" id="retry">Try again</button>
+</main>
+<script>
+  // Written by scripts/house.mjs: shown by Capacitor (server.errorPath) when the ERP did not load.
+  var ERP = '{{URL}}';
+  function retry() { location.replace(ERP); }
+  document.getElementById('retry').addEventListener('click', retry);
+  window.addEventListener('online', retry);
+  setInterval(function () { if (navigator.onLine) retry(); }, 15000);
+</script>
+</body>
+</html>

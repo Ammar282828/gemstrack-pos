@@ -1110,9 +1110,9 @@
     "semantic_hash": ""
   },
   "src/app/layout.tsx": {
-    "mtime": 1790870346.6836188,
-    "seen": 1790871596.0027876,
-    "ast_hash": "11904eb0ab8adc8021ce41ffe42e079d",
+    "mtime": 1791484968.5226932,
+    "seen": 1791485457.9844651,
+    "ast_hash": "271edbca86fa51186dc6587e730698ac",
     "semantic_hash": ""
   },
   "src/app/links/page.tsx": {
@@ -1326,9 +1326,9 @@
     "semantic_hash": ""
   },
   "src/components/auth/google-auth-gate.tsx": {
-    "mtime": 1791413757.2040794,
-    "seen": 1791413964.5411258,
-    "ast_hash": "1d0be045a0f2a0707a6052ea8c10ea5d",
+    "mtime": 1791484960.369925,
+    "seen": 1791485457.9845412,
+    "ast_hash": "462424741f046a3841a12cba74c65439",
     "semantic_hash": ""
   },
   "src/components/cart/bill-scanner.tsx": {
@@ -2268,9 +2268,9 @@
     "semantic_hash": ""
   },
   "tsconfig.json": {
-    "mtime": 1790533461.716571,
-    "seen": 1790854750.37261,
-    "ast_hash": "8b7c21c99a3d2e740ad1d2545629ece1",
+    "mtime": 1791484996.5541713,
+    "seen": 1791485457.985108,
+    "ast_hash": "04cf3b5c37ea1df5a7563639482f1ed2",
     "semantic_hash": ""
   },
   "vitest.config.ts": {
@@ -2286,9 +2286,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1791413938.9727702,
-    "seen": 1791413964.5417109,
-    "ast_hash": "d0dcfbce812cc939063bb159fd49b85f",
+    "mtime": 1791485401.4814935,
+    "seen": 1791485457.985116,
+    "ast_hash": "fe10a4c1b23b3d0c4b5559ecf293e177",
     "semantic_hash": ""
   },
   "README.md": {
@@ -4092,9 +4092,9 @@
     "semantic_hash": ""
   },
   "scripts/make-icons.mjs": {
-    "mtime": 1790807452.62259,
-    "seen": 1790854750.3709161,
-    "ast_hash": "3ec7d86d7574d297aea58b2fcaaf6613",
+    "mtime": 1791484808.217473,
+    "seen": 1791485457.9841187,
+    "ast_hash": "04ce51cf8b620d147a4fc54a01784169",
     "semantic_hash": ""
   },
   "src/app/manifest.ts": {
@@ -4116,50 +4116,50 @@
     "semantic_hash": ""
   },
   "public/icons/mina/apple-touch-icon.png": {
-    "mtime": 1790807452.6215465,
-    "seen": 1790854750.3727546,
+    "mtime": 1791484808.8954358,
+    "seen": 1791485457.9851792,
     "ast_hash": "410386ac78d5fd8a10932012ee3166e9",
     "semantic_hash": ""
   },
   "public/icons/mina/icon-192.png": {
-    "mtime": 1790807452.6216602,
-    "seen": 1790854750.3727574,
+    "mtime": 1791484808.7434359,
+    "seen": 1791485457.9851801,
     "ast_hash": "7e82c152807a400931cca0bc32112d0c",
     "semantic_hash": ""
   },
   "public/icons/mina/icon-512.png": {
-    "mtime": 1790807452.6216602,
-    "seen": 1790854750.3727598,
+    "mtime": 1791484808.827436,
+    "seen": 1791485457.9851809,
     "ast_hash": "730c240a6c814240bc4afe443aacb7d5",
     "semantic_hash": ""
   },
   "public/icons/mina/maskable-512.png": {
-    "mtime": 1790807452.6216602,
-    "seen": 1790854750.372763,
+    "mtime": 1791484808.963436,
+    "seen": 1791485457.985182,
     "ast_hash": "3fe372f1264bf520aff64dd4e15858fb",
     "semantic_hash": ""
   },
   "public/icons/taheri/apple-touch-icon.png": {
-    "mtime": 1790807452.6216602,
-    "seen": 1790854750.3727658,
+    "mtime": 1791484808.5994358,
+    "seen": 1791485457.9851828,
     "ast_hash": "21655e8f6c80e24a026521e2f6f87fd4",
     "semantic_hash": ""
   },
   "public/icons/taheri/icon-192.png": {
-    "mtime": 1790807452.6224525,
-    "seen": 1790854750.3727758,
+    "mtime": 1791484808.5794358,
+    "seen": 1791485457.9851837,
     "ast_hash": "503a4ec452bd2de4bb79f6c4ab0999c3",
     "semantic_hash": ""
   },
   "public/icons/taheri/icon-512.png": {
-    "mtime": 1790807452.62259,
-    "seen": 1790854750.3727782,
+    "mtime": 1791484808.591436,
+    "seen": 1791485457.9851844,
     "ast_hash": "9b8f8e93ef02d812a89f2febf4e58690",
     "semantic_hash": ""
   },
   "public/icons/taheri/maskable-512.png": {
-    "mtime": 1790807452.62259,
-    "seen": 1790854750.3727834,
+    "mtime": 1791484808.6194358,
+    "seen": 1791485457.9851856,
     "ast_hash": "b98680153566a55651b6813321f26e5c",
     "semantic_hash": ""
   },
@@ -4320,9 +4320,9 @@
     "semantic_hash": ""
   },
   "docs/decisions.md": {
-    "mtime": 1791413899.9226737,
-    "seen": 1791413964.5417187,
-    "ast_hash": "ac822274b7316ffd482cdb21faefbd6f",
+    "mtime": 1791413996.7563415,
+    "seen": 1791485457.9851303,
+    "ast_hash": "fa83980a96de49b22a617db29650a384",
     "semantic_hash": ""
   },
   "docs/features/ad-studio.md": {
@@ -4518,9 +4518,9 @@
     "semantic_hash": ""
   },
   "src/lib/sign-in-trouble.ts": {
-    "mtime": 1790868823.2084236,
-    "seen": 1790869085.6694195,
-    "ast_hash": "0d40e4e848d97d9b0259b67a871a2e1a",
+    "mtime": 1791484960.3687506,
+    "seen": 1791485457.984931,
+    "ast_hash": "2c6c3efc1c782a4accb903c3e9779090",
     "semantic_hash": ""
   },
   "scripts/set-delete-code.mjs": {
@@ -5091,6 +5091,234 @@
     "mtime": 1791411459.9262347,
     "seen": 1791413964.541401,
     "ast_hash": "6dd1b58b5e28ef7eb3d93780720162d2",
+    "semantic_hash": ""
+  },
+  "apps/ios/ci/probe-server.py": {
+    "mtime": 1791485264.7182882,
+    "seen": 1791485457.9839582,
+    "ast_hash": "921a10445481d267f7d2cdb2e1dbb86c",
+    "semantic_hash": ""
+  },
+  "apps/ios/houses.json": {
+    "mtime": 1791484636.9177713,
+    "seen": 1791485457.9839609,
+    "ast_hash": "d0639e5cccda6378d74aad5b46ca0583",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/AppDelegate.swift": {
+    "mtime": 1789138889.0,
+    "seen": 1791485457.9839633,
+    "ast_hash": "66cf80b6a9ef034e815c7d0135b97e36",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/AppIcon-mina.appiconset/Contents.json": {
+    "mtime": 1791484809.167436,
+    "seen": 1791485457.9839654,
+    "ast_hash": "91595bc94e25b23d3d6d8b1ed42003ce",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/AppIcon-taheri.appiconset/Contents.json": {
+    "mtime": 1791484809.019436,
+    "seen": 1791485457.9839668,
+    "ast_hash": "91595bc94e25b23d3d6d8b1ed42003ce",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/Contents.json": {
+    "mtime": 1789138889.0,
+    "seen": 1791485457.9839683,
+    "ast_hash": "31cc68f34934a99c0b0c1bebde56309c",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/Launch-mina.colorset/Contents.json": {
+    "mtime": 1791484809.1689532,
+    "seen": 1791485457.9839704,
+    "ast_hash": "5077b80616f63ec01ffc9442c38cbf24",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/Launch-taheri.colorset/Contents.json": {
+    "mtime": 1791484809.0259187,
+    "seen": 1791485457.9839723,
+    "ast_hash": "bbc95bc824dad55d379bd8ac34737ff6",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/LaunchMark-mina.imageset/Contents.json": {
+    "mtime": 1791484809.3594358,
+    "seen": 1791485457.983974,
+    "ast_hash": "cb493a74302a9cd16ece51f0d8835f28",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/LaunchMark-taheri.imageset/Contents.json": {
+    "mtime": 1791484809.0376482,
+    "seen": 1791485457.9839752,
+    "ast_hash": "cb493a74302a9cd16ece51f0d8835f28",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/Splash.imageset/Contents.json": {
+    "mtime": 1789138889.0,
+    "seen": 1791485457.9839761,
+    "ast_hash": "1162e1cddd7ea769bcacdd1aa7b4ac72",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/ERP.swift": {
+    "mtime": 1791484946.6669114,
+    "seen": 1791485457.9839773,
+    "ast_hash": "e94ffeecb20c172987cc672d0cb093d9",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/SceneDelegate.swift": {
+    "mtime": 1791484699.0667896,
+    "seen": 1791485457.9839787,
+    "ast_hash": "48b1da0626365a5c557b241c133548ec",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/CapApp-SPM/Package.swift": {
+    "mtime": 1791484311.5674064,
+    "seen": 1791485457.98398,
+    "ast_hash": "534e738b848fe1678fbc4b976a3166b8",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift": {
+    "mtime": 1789138889.0,
+    "seen": 1791485457.9839816,
+    "ast_hash": "0d92cb44a62bc3f2d73464a2e4f9a890",
+    "semantic_hash": ""
+  },
+  "apps/ios/package.json": {
+    "mtime": 1791484286.6621258,
+    "seen": 1791485457.9839826,
+    "ast_hash": "d03f651b3ad9b35ace183754f79bec3d",
+    "semantic_hash": ""
+  },
+  "apps/ios/scripts/asc.mjs": {
+    "mtime": 1791485210.7345645,
+    "seen": 1791485457.9839838,
+    "ast_hash": "300213523c353469381cb7ffa1db5f2b",
+    "semantic_hash": ""
+  },
+  "apps/ios/scripts/house.mjs": {
+    "mtime": 1791485225.3481548,
+    "seen": 1791485457.9839852,
+    "ast_hash": "089529d19fcc1c528c6d6ce94c81c048",
+    "semantic_hash": ""
+  },
+  "src/lib/native-app.test.ts": {
+    "mtime": 1791484991.2954466,
+    "seen": 1791485457.984846,
+    "ast_hash": "b5ae17c7b2a213e11e001a48e73f14a0",
+    "semantic_hash": ""
+  },
+  "src/lib/native-app.ts": {
+    "mtime": 1791484946.6658812,
+    "seen": 1791485457.9848473,
+    "ast_hash": "328218a9a1dfa62470efeabd4371542d",
+    "semantic_hash": ""
+  },
+  ".github/workflows/ios.yml": {
+    "mtime": 1791485336.6399274,
+    "seen": 1791485457.985113,
+    "ast_hash": "6204ce24941fcc93f9f2a0944be264f8",
+    "semantic_hash": ""
+  },
+  "apps/ios/README.md": {
+    "mtime": 1791485366.831469,
+    "seen": 1791485457.9851222,
+    "ast_hash": "10eef3fead197949ba9d0c8650d076cd",
+    "semantic_hash": ""
+  },
+  "apps/ios/ci/probe.html": {
+    "mtime": 1791485264.715463,
+    "seen": 1791485457.9851234,
+    "ast_hash": "94aaff57d86a7fe606f2a3484bae475d",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/CapApp-SPM/README.md": {
+    "mtime": 1789138889.0,
+    "seen": 1791485457.985124,
+    "ast_hash": "d256f6b5922d4249607779141357d565",
+    "semantic_hash": ""
+  },
+  "apps/ios/www/index.html": {
+    "mtime": 1791484679.741978,
+    "seen": 1791485457.9851253,
+    "ast_hash": "8a9a7e9f8ffd0efa10754901f579d1be",
+    "semantic_hash": ""
+  },
+  "apps/ios/www/offline.template.html": {
+    "mtime": 1791484679.5794282,
+    "seen": 1791485457.9851265,
+    "ast_hash": "6cb758e5404f2062cdffc00f4291797b",
+    "semantic_hash": ""
+  },
+  "docs/features/iphone-app.md": {
+    "mtime": 1791485363.4754689,
+    "seen": 1791485457.9851396,
+    "ast_hash": "65602b9a3966f440161a756c5b90e3dd",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/AppIcon-mina.appiconset/icon-1024.png": {
+    "mtime": 1791484809.163436,
+    "seen": 1791485457.9851575,
+    "ast_hash": "46826054bf4e1248d6444b86ac743273",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/AppIcon-taheri.appiconset/icon-1024.png": {
+    "mtime": 1791484809.019436,
+    "seen": 1791485457.9851584,
+    "ast_hash": "6b3309c2cf33c8973e004fe74f5b7531",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/LaunchMark-mina.imageset/mark@1x.png": {
+    "mtime": 1791484809.2210355,
+    "seen": 1791485457.9851594,
+    "ast_hash": "6e803abaf62b01a53c6d06b1a270bab2",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/LaunchMark-mina.imageset/mark@2x.png": {
+    "mtime": 1791484809.2826765,
+    "seen": 1791485457.9851604,
+    "ast_hash": "a4b5765bbac911ff774e4a6cd92b4ddd",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/LaunchMark-mina.imageset/mark@3x.png": {
+    "mtime": 1791484809.3594358,
+    "seen": 1791485457.9851615,
+    "ast_hash": "f1b10d2e98ff05ba03026e5010bd1722",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/LaunchMark-taheri.imageset/mark@1x.png": {
+    "mtime": 1791484809.029471,
+    "seen": 1791485457.9851623,
+    "ast_hash": "d48ee58e9c14bcea0080c0b7116dcca8",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/LaunchMark-taheri.imageset/mark@2x.png": {
+    "mtime": 1791484809.0333855,
+    "seen": 1791485457.9851632,
+    "ast_hash": "45eaa8fa6111c40805be5a4a01aec6be",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/LaunchMark-taheri.imageset/mark@3x.png": {
+    "mtime": 1791484809.0371804,
+    "seen": 1791485457.985164,
+    "ast_hash": "9d9e148bedb76d51e09f4dc06feb2373",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png": {
+    "mtime": 1789138889.0,
+    "seen": 1791485457.985165,
+    "ast_hash": "958532b95c3e7d4997327dc977b80600",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png": {
+    "mtime": 1789138889.0,
+    "seen": 1791485457.985166,
+    "ast_hash": "958532b95c3e7d4997327dc977b80600",
+    "semantic_hash": ""
+  },
+  "apps/ios/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png": {
+    "mtime": 1789138889.0,
+    "seen": 1791485457.9851668,
+    "ast_hash": "958532b95c3e7d4997327dc977b80600",
     "semantic_hash": ""
   }
 }

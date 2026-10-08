@@ -19,14 +19,14 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
   Neither is called origin.
 - **`main` is the working branch.** Taheri deploys from `taheri-next`, Mina from `hom`'s `main`; both are
   pushed *from* `main` (see below). Every push to a deploy branch rolls out automatically
-  (~5 min; `gcloud builds list --region us-central1 --project <project>` shows it).
-- Never trigger builds by hand (REST/console): they jam the queue, and a stale site looks like a bug.
+  (~5 min; `gcloud builds list --region us-central1`).
+- Never trigger builds by hand (REST/console): they jam the queue.
 
 ## Running locally
 
 - **Node 20**, not the Mac's default: launch config "POS (node 20)" (`PATH=/opt/homebrew/opt/node@20/bin:$PATH npm run dev`, port 3000), or per house
   "Taheri (node 20)" (port 3000) / "Mina (node 20)" (port 3001). On Node 26 Google auth fails ("Premature close"). The per-house
-  configs drop the second laptop's `GOOGLE_APPLICATION_CREDENTIALS` (a missing file), which breaks every Google call.
+  configs drop the second laptop's `GOOGLE_APPLICATION_CREDENTIALS` (a missing file that breaks every Google call).
 - The app is behind Google sign-in, locally and in **both** houses since 2026-09-30 (Taheri ran
   `NEXT_PUBLIC_OPEN_ACCESS=1` with open Firestore rules from 2026-09-07; owner: "taheri being open to all is a bit
   dangerous"). Don't reintroduce the open-access flag.
@@ -36,17 +36,15 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 
 - `apphosting.yaml` holds every env var. A `secret:` it declares **must exist in Secret Manager and
   be readable by the three App Hosting service accounts** (mirror `CRON_SECRET`'s IAM) *before* it is
-  declared, or the rollout fails. Names are case-sensitive: the upload secret is `website-upload-secret`.
-  A variable with `value: ""` also fails the rollout — write
-  a word the code reads as off (`"none"`, `"0"`).
+  declared, or the rollout fails. Names are case-sensitive (`website-upload-secret`).
+  A variable with `value: ""` also fails the rollout: write a word the code reads as off (`"none"`, `"0"`).
 - **Taheri's backend also has console `overrideEnv`** (19 variables; docs/features/two-houses.md) and **they beat the YAML**. Read them with the App Hosting REST API
   (`GET …/projects/gemstrack-pos/locations/us-central1/backends/studio`, field `overrideEnv`); what a build actually used
   is `builds/<id>` → `config.env`. Mina's backend has none.
 - Firebase CLI login is broken on the owner's Mac. Use **`gcloud`** (authenticated as the owner):
   `gcloud secrets …`, `gcloud builds list`, `gcloud run revisions list` — all `--project gemstrack-pos --region us-central1`.
   Never print a secret value; compare `sha256` of trimmed values instead.
-- Hostinger is reachable over SSH with the deploy key `~/.ssh/taheri_deploy`
-  (port 65002, user in `taheri-site/.github/workflows/deploy.yml`). **The key exists only on the owner's Mac.**
+- Hostinger: SSH with `~/.ssh/taheri_deploy` (port 65002, user in `taheri-site/.github/workflows/deploy.yml`). **Only on the owner's Mac.**
 - **A bare 503 is the server dying**, not a route (routes answer JSON): out of memory kills every request on it.
   `gcloud logging read 'textPayload:"Memory limit of"'`. 1 GiB since 2026-10-01 — [why](docs/features/ad-studio.md#out-of-memory).
 - The owner is a Firebase/GCP Owner but lacks `iam.serviceAccounts.signBlob`, so `createCustomToken` fails from a laptop;
@@ -92,7 +90,7 @@ Claude Code runs these repos in the cloud too, with no Mac.
   A secret added later needs `roles/secretmanager.secretAccessor` for it on that secret too. It cannot create or list secrets.
   **gcloud in a cloud session:** the environment sets `CLOUDSDK_AUTH_ACCESS_TOKEN` to a placeholder ("proxy-injected") that
   beats the activated account, so every call answers UNAUTHENTICATED — run gcloud as `env -u CLOUDSDK_AUTH_ACCESS_TOKEN gcloud …`
-  (2026-09-29). Node's Google libraries read the ADC file and are unaffected.
+  Node's Google libraries (the ADC file) are unaffected.
 - **Every session starts** with `scripts/cloud/session-start.sh` (the SessionStart hook in `.claude/settings.json`, only when
   `CLAUDE_CODE_REMOTE=true`; hooks run in single-repo sessions only, so run it by hand in a multi-repo one): the key becomes the
   machine's default Google credentials (and gcloud's), Node 20 goes first on PATH, and `.env.taheri.local` / `.env.mina.local`
@@ -119,7 +117,7 @@ Claude Code runs these repos in the cloud too, with no Mac.
   `gcloud iam service-accounts keys list --iam-account firebase-adminsdk-fbsvc@hom-pos-52710474-ceeea.iam.gserviceaccount.com --project hom-pos-52710474-ceeea --managed-by=user`,
   then `… keys delete <KEY_ID>`. It bypasses Firestore rules. The second laptop's Mina `.env.local` may use that key.
   cloud-deploy now refuses a tree with a PEM private key in it (a push from a Mac is not checked).
-- Scripts' `client_id`/`client_secret` is the Firebase CLI's public OAuth client.
+- Scripts' `client_id`/`client_secret`: the Firebase CLI's public client.
 - **Taheri's Firestore is open until the owner publishes `firestore.rules`** in the Firebase console (never the CLI from here): see [Taheri sign-in](docs/decisions.md#taheri-sign-in).
 
 ## Where the rest is written down
@@ -230,6 +228,9 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 **Ad studio** (`docs/features/ad-studio.md`)
 - [Ad studio](docs/features/ad-studio.md#ad-studio) — [five tabs](docs/features/ad-studio.md#five-tabs), both houses; [any shape](docs/features/ad-studio.md#any-shape)
 - [Board](docs/features/ad-studio.md#board) — endless canvas, Let it cook, MCP agent (`/api/studio/mcp`), Use it; a weekly board Mondays 9:00
+
+**iPhone app** (`docs/features/iphone-app.md`)
+- [iPhone app](docs/features/iphone-app.md#iphone-app) — `apps/ios`, Capacitor over the live ERP; TestFlight by `ios.yml`
 
 ## graphify
 

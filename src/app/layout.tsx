@@ -16,6 +16,8 @@ import { DeleteCodeDialog } from '@/components/shared/delete-code-dialog';
 import { STORE_CONFIG, STORE_BRAND, STORE_THEME_COLOR, STORE_ICONS, STORE_LINKS_PAGE, LINKS_DRESS, isLinksHost, storeLinksUrl } from '@/lib/store-config';
 import { readCachedTheme, writeCachedTheme, LIGHT_THEME, readDeviceTheme, DEVICE_THEME_EVENT, applyThemeToDocument, readCachedUiStyle, writeCachedUiStyle, applyUiStyleToDocument } from '@/lib/theme-cache';
 import { warmPdfLogo } from '@/lib/pdf-logo';
+import { installAppBridges, tellAppChrome } from '@/lib/native-app';
+import { toast } from '@/hooks/use-toast';
 
 // Google's own latin Inter, kept in the repo (src/fonts) so the build never fetches from Google —
 // see src/app/website/post/fonts.ts for why.
@@ -88,6 +90,11 @@ function AppBody({ children }: { children: React.ReactNode }) {
   // logo load was being paid inside that window. See pdf-logo.ts.
   React.useEffect(() => { warmPdfLogo(); }, []);
 
+  // In the iPhone app: files, the share sheet and live words go through the phone (lib/native-app.ts).
+  React.useEffect(() => {
+    installAppBridges((message) => toast({ title: 'Not shared', description: message, variant: 'destructive' }));
+  }, []);
+
   // This device's own mode (the sun/moon in the top bar), when it has one, wins over
   // the shop's; see theme-cache.ts.
   const [deviceTheme, setDeviceTheme] = React.useState<string | null>(() => readDeviceTheme());
@@ -118,7 +125,10 @@ function AppBody({ children }: { children: React.ReactNode }) {
   useIsomorphicLayoutEffect(() => {
     applyThemeToDocument(shownTheme);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', onLinksPage ? LINKS_DRESS.ground : shownTheme === LIGHT_THEME ? '#FCFCFD' : STORE_THEME_COLOR);
+    const bar = onLinksPage ? LINKS_DRESS.ground : shownTheme === LIGHT_THEME ? '#FCFCFD' : STORE_THEME_COLOR;
+    if (meta) meta.setAttribute('content', bar);
+    // The iPhone app's status bar, which no meta tag reaches.
+    tellAppChrome(bar, onLinksPage || shownTheme !== LIGHT_THEME);
   }, [shownTheme, onLinksPage]);
 
   // The same class on the server and on every client render: the theme is put on the

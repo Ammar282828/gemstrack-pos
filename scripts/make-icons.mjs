@@ -1,6 +1,7 @@
 // Each house's icons: the browser tab, the phone's home screen, an installed app.
 //
 //   node scripts/make-icons.mjs      → public/icons/<brand>/…  (commit what it writes)
+//                                      and the iPhone app's: apps/ios/ios/App/App/Assets.xcassets
 //
 // Taheri: the t monogram (public/brand/taheri-t.svg, the same mark as taheri.shop's icon and the
 // Meta app's) in white on taheri.shop's ground #0A1111. House of Mina: the interlocking monogram
@@ -31,6 +32,13 @@ async function icon(brand, size, { radius = 0, scale = 0.7 } = {}) {
   const { ground } = HOUSES[brand];
   const r = Math.round(size * radius);
   const base = sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${r}" ry="${r}" fill="${ground}"/></svg>`));
+  const mark = await markPng(brand, size, scale);
+  const m = await sharp(mark).metadata();
+  return base.composite([{ input: mark, left: Math.round((size - m.width) / 2), top: Math.round((size - m.height) / 2) }]).png().toBuffer();
+}
+
+/** The house's mark alone, transparent around it, sized for a `size` px square at `scale`. */
+async function markPng(brand, size, scale) {
   let mark;
   if (brand === 'taheri') {
     // scale = the t's height against the side.
@@ -40,10 +48,9 @@ async function icon(brand, size, { radius = 0, scale = 0.7 } = {}) {
     // scale = the monogram's width against the side. Small sizes take the bold cut.
     const src = size <= 64 ? pub('brand', 'mina-monogram-bold.png') : pub('brand', 'mina-monogram.png');
     const w = Math.round(size * scale);
-    mark = await sharp(await sharp(src).trim().toBuffer()).resize({ width: w }).png().toBuffer();
+    mark = await sharp(await sharp(src).trim().toBuffer()).resize({ width: w, kernel: 'lanczos3' }).png().toBuffer();
   }
-  const m = await sharp(mark).metadata();
-  return base.composite([{ input: mark, left: Math.round((size - m.width) / 2), top: Math.round((size - m.height) / 2) }]).png().toBuffer();
+  return mark;
 }
 
 /** A .ico holding PNGs (every browser since IE11 reads PNG entries). */
@@ -76,4 +83,36 @@ for (const brand of Object.keys(HOUSES)) {
   await fs.writeFile(path.join(dir, 'apple-touch-icon.png'), await icon(brand, 180, phone));
   await fs.writeFile(path.join(dir, 'maskable-512.png'), await icon(brand, 512, brand === 'taheri' ? { scale: 0.52 } : { scale: 0.62 }));
   console.log(`${brand}: favicon.ico (16/32/48), icon-192, icon-512, apple-touch-icon, maskable-512`);
+}
+
+// The iPhone app (apps/ios): its icon, a 1024 full-bleed square with no transparency (App Store
+// Connect refuses an icon with an alpha channel; iOS rounds it), and the launch screen's ground
+// and mark (Info.plist UILaunchScreen, chosen per house by scripts/house.mjs).
+const XC = path.join(ROOT, 'apps', 'ios', 'ios', 'App', 'App', 'Assets.xcassets');
+const xcInfo = { author: 'xcode', version: 1 };
+const writeJson = (file, data) => fs.writeFile(file, JSON.stringify(data, null, 2) + '\n');
+const rgb = (hex) => [1, 3, 5].map((i) => `0x${hex.slice(i, i + 2).toUpperCase()}`);
+for (const brand of Object.keys(HOUSES)) {
+  const phone = brand === 'taheri' ? { scale: 0.62 } : { scale: 0.74 };
+  const iconDir = path.join(XC, `AppIcon-${brand}.appiconset`);
+  await fs.mkdir(iconDir, { recursive: true });
+  await fs.writeFile(path.join(iconDir, 'icon-1024.png'), await sharp(await icon(brand, 1024, phone)).flatten({ background: HOUSES[brand].ground }).removeAlpha().png().toBuffer());
+  await writeJson(path.join(iconDir, 'Contents.json'), { images: [{ filename: 'icon-1024.png', idiom: 'universal', platform: 'ios', size: '1024x1024' }], info: xcInfo });
+
+  const colorDir = path.join(XC, `Launch-${brand}.colorset`);
+  await fs.mkdir(colorDir, { recursive: true });
+  const [red, green, blue] = rgb(HOUSES[brand].ground);
+  await writeJson(path.join(colorDir, 'Contents.json'), { colors: [{ color: { 'color-space': 'srgb', components: { alpha: '1.000', red, green, blue } }, idiom: 'universal' }], info: xcInfo });
+
+  // The mark at 120 pt across the middle of the launch screen, as the home-screen icon has it.
+  const markDir = path.join(XC, `LaunchMark-${brand}.imageset`);
+  await fs.mkdir(markDir, { recursive: true });
+  const images = [];
+  for (const scale of [1, 2, 3]) {
+    const file = `mark@${scale}x.png`;
+    await fs.writeFile(path.join(markDir, file), await markPng(brand, 120 * scale, brand === 'taheri' ? 0.62 : 0.74));
+    images.push({ filename: file, idiom: 'universal', scale: `${scale}x` });
+  }
+  await writeJson(path.join(markDir, 'Contents.json'), { images, info: xcInfo });
+  console.log(`${brand}: iPhone app icon (1024), launch colour and mark`);
 }

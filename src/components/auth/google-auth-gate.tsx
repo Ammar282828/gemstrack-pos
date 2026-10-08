@@ -4,6 +4,7 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { auth, db } from '@/lib/firebase';
 import {
   GoogleAuthProvider,
+  signInWithCredential,
   signInWithPopup,
   onAuthStateChanged,
   signOut as firebaseSignOut,
@@ -16,7 +17,8 @@ import { Loader2, LogIn, Copy, ExternalLink } from 'lucide-react';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { roleForEmail } from '@/lib/roles';
 import { captureDevRole } from '@/lib/dev-role';
-import { chromeIntent, embeddedBrowser, signInAdvice, type EmbeddedBrowser } from '@/lib/sign-in-trouble';
+import { appSignInAdvice, chromeIntent, embeddedBrowser, signInAdvice, type EmbeddedBrowser } from '@/lib/sign-in-trouble';
+import { AppSignInError, googleIdTokenFromApp, inApp as inIphoneApp, isAppUserAgent } from '@/lib/native-app';
 import dynamic from 'next/dynamic';
 
 // Loaded lazily so the store app's bundle is not pulled in for karigars.
@@ -75,7 +77,8 @@ function parseUserAgent(ua: string): { browser: string; os: string } {
   let browser = 'Unknown Browser';
   let os = 'Unknown OS';
 
-  if (/Edg\//.test(ua)) browser = 'Edge';
+  if (isAppUserAgent(ua)) browser = 'ERP app';
+  else if (/Edg\//.test(ua)) browser = 'Edge';
   else if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) browser = 'Chrome';
   else if (/Firefox\//.test(ua)) browser = 'Firefox';
   else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
@@ -118,7 +121,7 @@ function reportSignIn(stage: 'start' | 'failed' | 'refused' | 'check-failed', ex
   try {
     const inApp = embeddedBrowser(navigator.userAgent);
     const standalone = window.matchMedia?.('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
-    const body = JSON.stringify({ stage, inApp: inApp?.app ?? '', standalone, host: window.location.host, ...extra });
+    const body = JSON.stringify({ stage, inApp: inIphoneApp() ? 'ERP app' : inApp?.app ?? '', standalone, host: window.location.host, ...extra });
     fetch('/api/auth/trouble', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => undefined);
   } catch { /* never in the way of signing in */ }
 }
@@ -216,13 +219,18 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
     reportSignIn('start');
     const opened = Date.now();
     try {
-      await signInWithPopup(auth, googleProvider);
+      if (inIphoneApp()) {
+        // The iPhone app: Google signs in through the phone's own sheet, and Firebase takes its token.
+        await signInWithCredential(auth, GoogleAuthProvider.credential(await googleIdTokenFromApp()));
+      } else {
+        await signInWithPopup(auth, googleProvider);
+      }
     } catch (err: any) {
       // Every failure is reported, a closed window too: Google's window closing without handing
       // the sign-in back reads as "closed by user", and that was the one nobody could see.
       const openFor = Math.round((Date.now() - opened) / 1000);
       reportSignIn('failed', { code: `${err?.code || String(err?.message || '').slice(0, 50)} after ${openFor}s` });
-      const advice = signInAdvice(err?.code, inApp);
+      const advice = err instanceof AppSignInError ? appSignInAdvice(err.code, err.message) : signInAdvice(err?.code, inApp);
       if (advice) setError(advice);
       else if (err?.code === 'auth/popup-closed-by-user' && openFor >= 8) {
         // Open long enough to have chosen an account: say so, rather than showing the button again as if nothing happened.

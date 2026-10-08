@@ -9,6 +9,8 @@
  * WebView, an iPhone app's own web view): the page has to be opened in Chrome or Safari.
  */
 
+import { isAppUserAgent } from '@/lib/native-app';
+
 export interface EmbeddedBrowser {
   /** "Instagram", "Facebook"… or "this app" when only the kind of view gives it away. */
   app: string;
@@ -29,6 +31,8 @@ const NAMED: [RegExp, string][] = [
 export function embeddedBrowser(ua: string | null | undefined): EmbeddedBrowser | null {
   const s = String(ua ?? '');
   if (!s) return null;
+  // The ERP's own iPhone app is a web view too, but signs in through the phone (lib/native-app.ts).
+  if (isAppUserAgent(s)) return null;
   const platform = /Android/i.test(s) ? 'android' : /iPhone|iPad|iPod/i.test(s) ? 'ios' : 'other';
   const named = NAMED.find(([re]) => re.test(s));
   if (named) return { app: named[1], platform };
@@ -75,5 +79,19 @@ export function signInAdvice(code: string | null | undefined, inApp: EmbeddedBro
       return inApp
         ? `Sign-in failed — Google doesn't work inside ${inApp.app}. Open this page in ${inApp.platform === 'ios' ? 'Safari' : 'Chrome'}.`
         : `Sign-in failed${code ? ` (${code.replace(/^auth\//, '')})` : ''}. Please try again.`;
+  }
+}
+
+/** What to tell the person when the iPhone app's own sign-in (lib/native-app.ts) fails; null when nothing. */
+export function appSignInAdvice(code: string | null | undefined, message?: string): string | null {
+  switch (code) {
+    case 'cancelled':
+      return null; // they closed the sheet themselves
+    case 'not-configured':
+      return "This build of the app can't sign in to Google yet. Use the ERP in Safari until the next update.";
+    case 'network':
+      return 'No connection to Google. Check the internet and try again.';
+    default:
+      return `Sign-in failed${message ? ` (${message})` : ''}. Please try again.`;
   }
 }
