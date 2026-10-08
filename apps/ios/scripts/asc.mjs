@@ -5,6 +5,7 @@
 //   node scripts/asc.mjs sign <house> <dir>             a signing certificate and profile for one build → $GITHUB_ENV
 //   node scripts/asc.mjs testers <house> [emails]       the house's "Shop" testers, the account holder first
 //   node scripts/asc.mjs revoke                         the build's certificate and profile, gone again
+//   node scripts/asc.mjs key-file <path>                the key as a proper .p8, for xcodebuild's upload
 //
 // The signing certificate lives for one build: made at the start, revoked at the end. Nothing
 // private is kept anywhere but the key Apple issued, and revoking it touches nothing already
@@ -18,8 +19,32 @@ import { execFileSync } from 'node:child_process';
 
 const dir = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const houses = JSON.parse(fs.readFileSync(path.join(dir, 'houses.json'), 'utf8'));
-const { ASC_ISSUER_ID, ASC_KEY_ID, ASC_PRIVATE_KEY } = process.env;
+const { ASC_ISSUER_ID, ASC_KEY_ID } = process.env;
+const ASC_PRIVATE_KEY = privateKeyPem(process.env.ASC_PRIVATE_KEY);
 const haveKey = !!(ASC_ISSUER_ID && ASC_KEY_ID && ASC_PRIVATE_KEY);
+
+/**
+ * The .p8 however it was pasted into GitHub's secret box: the whole file, only the long middle
+ * part, its lines run together, or the file base64'd. A secret box takes text, not a file
+ * (owner, 2026-10-08: "cant enter files here"), so each of those has to work.
+ */
+export function privateKeyPem(raw) {
+  let text = String(raw || '').trim();
+  if (!text) return '';
+  if (!text.includes('-----BEGIN')) {
+    // The whole file base64'd decodes to text with the header in it.
+    try {
+      const decoded = Buffer.from(text.replace(/\s+/g, ''), 'base64').toString('utf8');
+      if (decoded.includes('-----BEGIN')) text = decoded;
+    } catch { /* not that */ }
+  }
+  const body = text
+    .replace(/-----BEGIN [A-Z ]+-----/g, '')
+    .replace(/-----END [A-Z ]+-----/g, '')
+    .replace(/[^A-Za-z0-9+/=]/g, '');
+  if (!body) return '';
+  return `-----BEGIN PRIVATE KEY-----\n${body.match(/.{1,64}/g).join('\n')}\n-----END PRIVATE KEY-----\n`;
+}
 const say = (line) => console.error(line); // stdout is for $GITHUB_OUTPUT / $GITHUB_ENV
 
 function token() {
@@ -27,7 +52,7 @@ function token() {
   const now = Math.floor(Date.now() / 1000);
   const head = b64({ alg: 'ES256', kid: ASC_KEY_ID.trim(), typ: 'JWT' });
   const body = b64({ iss: ASC_ISSUER_ID.trim(), iat: now, exp: now + 15 * 60, aud: 'appstoreconnect-v1' });
-  const sig = crypto.sign('sha256', Buffer.from(`${head}.${body}`), { key: ASC_PRIVATE_KEY.trim(), dsaEncoding: 'ieee-p1363' });
+  const sig = crypto.sign('sha256', Buffer.from(`${head}.${body}`), { key: ASC_PRIVATE_KEY, dsaEncoding: 'ieee-p1363' });
   return `${head}.${body}.${sig.toString('base64url')}`;
 }
 
@@ -72,6 +97,9 @@ async function plan(mode) {
     say('::notice::No App Store Connect key in the repository secrets yet: building for the simulator only.');
     out.simulator = true;
   } else if (mode !== 'check') {
+    try { token(); } catch (e) {
+      throw new Error(`ASC_PRIVATE_KEY is not a readable .p8 key (${e.message}). Paste the whole AuthKey_….p8 file's text into the secret.`);
+    }
     for (const [name, h] of Object.entries(houses)) {
       await bundleIdFor(h, true);
       const app = await appFor(h);
@@ -214,6 +242,7 @@ try {
   else if (!haveKey) throw new Error('The App Store Connect key is not in the repository secrets (ASC_ISSUER_ID, ASC_KEY_ID, ASC_PRIVATE_KEY).');
   else if (cmd === 'sign') await sign(args[0], args[1]);
   else if (cmd === 'revoke') await revoke();
+  else if (cmd === 'key-file') { fs.mkdirSync(path.dirname(args[0]), { recursive: true }); fs.writeFileSync(args[0], ASC_PRIVATE_KEY, { mode: 0o600 }); }
   else if (cmd === 'testers') await testers(args[0], String(args[1] || '').split(/[\s,;]+/).filter(Boolean));
   else throw new Error(`unknown command ${cmd}`);
 } catch (e) {

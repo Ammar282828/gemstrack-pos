@@ -18,7 +18,8 @@ app's internal group "Shop" (every build) and invites anyone else as a **Marketi
 app only (the least role TestFlight takes); they accept Apple's email and the next build reaches them.
 
 **Built by GitHub, not a Mac.** `.github/workflows/ios.yml`, on `macos-26`:
-- a push that changes `apps/ios` → both houses to TestFlight, each once it is ready (its app made in App Store
+- a push that changes the app (`apps/ios/ios`, `www`, `houses.json`, its packages; not only its scripts) → both
+  houses to TestFlight, each once it is ready (its app made in App Store
   Connect — Apple's API cannot make one — and its Google iOS client in houses.json), else a simulator check;
 - every other month → a fresh build before the last one's 90 days end;
 - "Run workflow" → `check` (simulator) or `testflight`, and emails to make testers.
@@ -28,7 +29,9 @@ the run's artifact and, small, in its log. macOS minutes count ten to one agains
 which the deploys share, so nothing builds for an ERP-only change.
 
 **Signing.** The repository secrets `ASC_ISSUER_ID`, `ASC_KEY_ID`, `ASC_PRIVATE_KEY` (the .p8) are an App Store
-Connect team key with **Admin** access. Each build makes its own distribution certificate and App Store profile
+Connect team key with **Admin** access. A secret box takes text, not a file: the .p8's text is pasted, whole or
+only its middle, lines joined or not (`asc.mjs privateKeyPem` puts it back together; a key it cannot read fails the
+plan job by name). Each build makes its own distribution certificate and App Store profile
 through the API, signs in a keychain of its own and revokes both at the end (`asc.mjs sign` / `revoke`). No
 private key is kept anywhere; revoking touches nothing already uploaded, as Apple re-signs what TestFlight hands
 out. The owner gets Apple's "certificate revoked" email per build.
