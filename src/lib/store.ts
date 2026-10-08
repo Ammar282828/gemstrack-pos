@@ -198,9 +198,11 @@ import { clientPort } from '@/lib/db-client-port';
 import { recordInvoicePayment, removeInvoicePayment } from '@/lib/writes/invoice-payment';
 import { type ExchangeEntry, exchangeTotal, invoiceExchangeFields, orderExchanges } from '@/lib/exchange';
 import { orderAdvancePayments, withoutOrderAdvance } from '@/lib/order-payment';
-import { statusAfterUntick, statusFromPieces } from '@/lib/order-stage';
+import { statusFromPieces } from '@/lib/order-stage';
 import { isWalkInName, shouldCreateCustomer } from '@/lib/walk-in';
 import { createOrder } from '@/lib/writes/create-order';
+import { recordOrderAdvance as writeOrderAdvance } from '@/lib/writes/order-advance';
+import { alertsOnStatus, orderStatusPatch, pieceDonePatch } from '@/lib/writes/order-status';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { canHoldCredit, creditDescription, inCredit, isCreditRow } from '@/lib/invoice-credit';
 export type { OverheadItem, OverheadPlan };
@@ -3641,17 +3643,15 @@ export const useAppStore = create<AppState>()(
           // Completing an order completes every piece in it — nobody ticks the
           // per-item boxes one by one, and leaving them unticked makes finished
           // work linger as "pending" on the Workshop dashboard forever.
+          // The patch is lib/writes/order-status.ts's, the rule every path writes.
           const existing = get().orders.find(o => o.id === orderId);
-          const items = Array.isArray(existing?.items) ? existing!.items : [];
-          const needsTicking = status === 'Completed' && items.some(i => !i.isCompleted);
-          const payload: Record<string, unknown> = { status };
-          if (needsTicking) payload.items = items.map(i => ({ ...i, isCompleted: true }));
+          const { patch: payload, ticked } = orderStatusPatch({ status: existing?.status ?? status, items: existing?.items, invoiceId: existing?.invoiceId }, status);
 
           await setDoc(orderDocRef, payload, { merge: true });
           await addActivityLog('order.update', `Order ${orderId} status changed`, `New status: ${status}`, orderId);
-          if (needsTicking) {
+          if (ticked) {
             await addActivityLog('order.update', `All items marked complete on ${orderId}`,
-              `${items.filter(i => !i.isCompleted).length} item(s) auto-completed`, orderId);
+              `${ticked} item(s) auto-completed`, orderId);
           }
           // Cancelled / Refunded → drop the Shopify draft. Other statuses just update.
           if (status === 'Cancelled' || status === 'Refunded') {
@@ -3662,7 +3662,7 @@ export const useAppStore = create<AppState>()(
           console.log(`[GemsTrack Store updateOrderStatus] Successfully updated status for order ${orderId}.`);
 
           // The WhatsApp alert for an order completed, cancelled or refunded (Settings decides whether).
-          if (status === 'Completed' || status === 'Cancelled' || status === 'Refunded') notifyAlert({ event: 'order-status', id: orderId, status });
+          if (alertsOnStatus(status)) notifyAlert({ event: 'order-status', id: orderId, status });
         } catch (error) {
           console.error(`[GemsTrack Store updateOrderStatus] Error updating status for order ${orderId}:`, error);
           throw error;
@@ -3676,16 +3676,13 @@ export const useAppStore = create<AppState>()(
           console.error(`Order with ID ${orderId} not found.`);
           throw new Error("Order not found");
         }
-        const updatedItems = order.items.map((item, i) =>
-          i === itemIndex ? { ...item, isCompleted } : item
-        );
-        // The last piece finished finishes the order; a piece unticked on a finished one sends it back.
-        const invoiced = !!order.invoiceId;
-        const nextStatus = isCompleted ? statusFromPieces(order.status, updatedItems, invoiced) : statusAfterUntick(order.status, invoiced);
+        // The last piece finished finishes the order; a piece unticked on a finished one sends it back
+        // (lib/writes/order-status.ts, the rule every path writes).
+        const { patch, nextStatus } = pieceDonePatch(order, itemIndex, isCompleted);
 
         try {
           const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
-          await setDoc(orderDocRef, { items: updatedItems, ...(nextStatus && { status: nextStatus }) }, { merge: true });
+          await setDoc(orderDocRef, patch, { merge: true });
           console.log(`Successfully updated item #${itemIndex} status for order ${orderId}.`);
           if (nextStatus) {
             addActivityLog('order.update', `${orderId} → ${nextStatus}`, nextStatus === 'Completed' ? 'Every piece is finished' : `${order.items[itemIndex]?.description || `Item ${itemIndex + 1}`} is not finished`, orderId);
@@ -4202,51 +4199,12 @@ export const useAppStore = create<AppState>()(
       },
       recordOrderAdvance: async (orderId, amount, notes, method) => {
         if (get().settings.databaseLocked) return null;
-        const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
-
         try {
-            const updatedOrder = await runTransaction(db, async (transaction) => {
-                const orderDoc = await transaction.get(orderRef);
-                if (!orderDoc.exists()) {
-                    throw new Error("Order not found!");
-                }
-                const orderData = orderDoc.data() as Order;
-                // Once invoiced, money is taken on the invoice only (the owner, 2026-10-06: "its only from
-                // invoice"): an advance here would sit on the order, after its advances became the
-                // invoice's payments, and the invoice would never see it.
-                if (orderData.invoiceId) {
-                    throw new Error(`${orderId} is invoiced as ${orderData.invoiceId} — take the payment on the invoice.`);
-                }
-                
-                const currentAdvance = Number(orderData.advancePayment) || 0;
-                const newAdvancePayment = currentAdvance + amount;
-                // The balance as the order form works it out: less the discount too, which
-                // this used to leave out, so a discounted order showed more owing after an advance.
-                const newGrandTotal = orderData.subtotal - (Number(orderData.discountAmount) || 0) - newAdvancePayment - (orderData.advanceInExchangeValue || 0);
-                // Each advance is kept with its day and how it was paid, and becomes a payment of
-                // its own on the invoice (generateInvoiceFromOrder).
-                const advance: Payment = cleanObject({
-                    amount, date: new Date().toISOString(),
-                    ...(notes?.trim() && { notes: notes.trim() }),
-                    ...(method && { method }),
-                });
-                const advances = [...(orderData.advances || []), advance];
-
-                transaction.update(orderRef, {
-                    advancePayment: newAdvancePayment,
-                    grandTotal: newGrandTotal,
-                    advances,
-                });
-                
-                // No hisaab entry here — the advance is captured as cashCredit when
-                // the order is finalized to an invoice, avoiding double-counting.
-
-                return { ...orderData, advancePayment: newAdvancePayment, grandTotal: newGrandTotal, advances } as Order;
-            });
+            // The one copy (lib/writes/order-advance.ts), which the iPhone app runs on the server too.
+            const updatedOrder = await writeOrderAdvance(clientPort, { orderId, amount, notes, method }, {
+              log: (action, title, detail, ref) => addActivityLog(action as LogEventType, title, detail, ref ?? ''),
+            }) as unknown as Order;
             syncOrderShopify(orderId, 'upsert');
-            if (updatedOrder) {
-              await addActivityLog('order.update', `Advance recorded for Order ${orderId}`, `Amount: ${amount.toLocaleString()}${method ? ` (${method})` : ''}${notes?.trim() ? ` | ${notes.trim()}` : ''}`, orderId);
-            }
             return updatedOrder;
         } catch (error) {
             console.error(`Error recording advance for order ${orderId}:`, error);

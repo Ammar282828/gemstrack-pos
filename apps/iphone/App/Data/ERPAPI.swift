@@ -44,6 +44,21 @@ final class ERPAPI {
         try JSONDecoder().decode(T.self, from: try await data(path, method: "POST", json: json))
     }
 
+    /// A change to the books (/api/app/write): the ERP runs its own shared write, then names what
+    /// the browser would do next (the WhatsApp alert, a Shopify sync). Those are sent here without
+    /// waiting, so a slow PDF never holds the sale up.
+    @discardableResult
+    func write(_ op: String, _ fields: [String: Any]) async throws -> [String: Any] {
+        var body = fields
+        body["op"] = op
+        let out = try await send("/api/app/write", body)
+        for f in out["followUps"] as? [[String: Any]] ?? [] {
+            guard let path = f["path"] as? String, path.hasPrefix("/api/"), let b = f["body"] as? [String: Any] else { continue }
+            Task { _ = try? await self.send(path, b) }
+        }
+        return out
+    }
+
     @discardableResult
     func send(_ path: String, method: String = "POST", _ json: [String: Any] = [:]) async throws -> [String: Any] {
         let d = try await data(path, method: method, json: json)

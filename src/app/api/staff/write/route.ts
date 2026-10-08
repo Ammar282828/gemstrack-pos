@@ -20,6 +20,7 @@ import { roleForEmail } from '@/lib/roles';
 import { adminPort } from '@/lib/db-admin-port';
 import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
 import { createOrder } from '@/lib/writes/create-order';
+import { setOrderStatus, type SettableStatus } from '@/lib/writes/order-status';
 
 /** Firestore rejects undefined; the client has cleanObject, this is its twin. */
 function stripUndefined<T extends object>(o: T): T {
@@ -47,7 +48,7 @@ function previewAsStaff(req: NextRequest, role: string): boolean {
 }
 
 
-const ORDER_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled', 'Refunded'];
+import { ORDER_STATUSES } from '@/lib/writes/order-status';
 
 type Body = { op?: string; [k: string]: unknown };
 
@@ -87,28 +88,20 @@ export async function POST(req: NextRequest) {
       case 'updateOrderStatus': {
         const orderId = String(body.orderId || '');
         const status = String(body.status || '');
-        if (!orderId || !ORDER_STATUSES.includes(status)) {
+        if (!orderId || !(ORDER_STATUSES as readonly string[]).includes(status)) {
           return NextResponse.json({ error: 'Bad request' }, { status: 400 });
         }
         // A refund is "Refund order" (the invoice undone, stock back, the delete code), never a relabel.
         if (status === 'Refunded') return NextResponse.json({ error: 'Refund an order from its page (Refund order).' }, { status: 400 });
 
-        const ref = adminDb.collection('orders').doc(orderId);
-        const snap = await ref.get();
-        if (!snap.exists) return NextResponse.json({ error: 'No such order' }, { status: 404 });
-
-        // Completing an order completes every piece in it — the same rule the
-        // client applies, so an order finished at the counter does not linger
-        // on the Workshop board with unticked items.
-        const items = Array.isArray(snap.data()?.items) ? snap.data()!.items : [];
-        const needsTicking = status === 'Completed' && items.some((i: { isCompleted?: boolean }) => !i.isCompleted);
-        const payload: Record<string, unknown> = { status };
-        if (needsTicking) {
-          payload.items = items.map((i: Record<string, unknown>) => ({ ...i, isCompleted: true }));
+        // The rule every path writes (lib/writes/order-status.ts): completing an order completes
+        // every piece in it, so an order finished at the counter does not linger on the Workshop board.
+        try {
+          await setOrderStatus(adminPort, { orderId, status: status as SettableStatus }, { log });
+        } catch (e) {
+          if (e instanceof Error && e.message === 'No such order') return NextResponse.json({ error: 'No such order' }, { status: 404 });
+          throw e;
         }
-
-        await ref.set(payload, { merge: true });
-        await log('order.update', `Order ${orderId} status changed`, `New status: ${status}`, orderId);
         return NextResponse.json({ ok: true, orderId, status });
       }
 

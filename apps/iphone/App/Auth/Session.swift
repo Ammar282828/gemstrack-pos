@@ -104,7 +104,7 @@ final class Session {
 
     static func say(_ error: Error) -> String {
         let ns = error as NSError
-        if ns.domain == AuthErrorDomain, let code = AuthErrorCode.Code(rawValue: ns.code) {
+        if ns.domain == AuthErrorDomain, let code = AuthErrorCode(rawValue: ns.code) {
             switch code {
             case .networkError: return "No connection to Google. Check the internet and try again."
             case .adminRestrictedOperation: return "This Google account hasn't been let in yet: the shop has to allow new sign-ins first."
