@@ -44,6 +44,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       upload: ${{ steps.plan.outputs.upload }}
+      ready: ${{ steps.plan.outputs.ready }}
       simulator: ${{ steps.plan.outputs.simulator }}
       native: ${{ steps.changed.outputs.native }}
     steps:
@@ -68,6 +69,29 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
         run: node apps/ios/scripts/asc.mjs plan "${{ inputs.mode || 'auto' }}" >> "$GITHUB_OUTPUT"
+
+  # Who tests each house's app: the account holder and anyone named. On Linux, on every run (no Mac
+  # minutes), one house after the other: the group gives them every build, so it needs no build first.
+  testers:
+    needs: plan
+    if: needs.plan.outputs.ready != '[]' && needs.plan.outputs.ready != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          READY: ${{ needs.plan.outputs.ready }}
+          TESTERS: ${{ inputs.testers }}
+        run: |
+          for h in $(node -p "JSON.parse(process.env.READY).join(' ')"); do
+            node apps/ios/scripts/asc.mjs testers "$h" "$TESTERS" || echo "::warning::$h: testers not updated"
+          done
 
   simulator:
     needs: plan
@@ -232,9 +256,6 @@ jobs:
             -exportPath "$RUNNER_TEMP/export" \
             -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
           echo "::notice::${{ matrix.house }}: uploaded; TestFlight offers it once Apple has processed it (about 10 to 30 minutes)"
-      - name: Testers
-        if: success()
-        run: node scripts/asc.mjs testers "${{ matrix.house }}" "${{ inputs.testers }}" || echo "::warning::Testers not updated"
       - name: Revoke this build's certificate and profile
         if: always()
         run: |

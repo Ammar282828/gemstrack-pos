@@ -94,7 +94,7 @@ async function appFor(h) {
 
 /** Which houses go to TestFlight this run, and whether the simulator check runs. */
 async function plan(mode) {
-  const out = { upload: [], simulator: mode === 'check' };
+  const out = { upload: [], ready: [], simulator: mode === 'check' };
   if (!haveKey) {
     say('::notice::No App Store Connect key in the repository secrets yet: building for the simulator only.');
     out.simulator = true;
@@ -109,6 +109,7 @@ async function plan(mode) {
         say(`::notice::${h.storeName}: no app in App Store Connect yet. Apps → + → New App: iOS, name "${h.storeName}", bundle ID ${h.bundleId}, SKU ${h.bundleId}.`);
         continue;
       }
+      out.ready.push(name);
       if (!h.googleClientId) {
         say(`::notice::${h.storeName}: no Google iOS client ID in apps/ios/houses.json yet, so the app could not sign in. Not uploaded.`);
         continue;
@@ -119,6 +120,7 @@ async function plan(mode) {
     // code: the simulator check would spend Mac minutes proving nothing new. The upload compiles too.
   }
   console.log(`upload=${JSON.stringify(out.upload)}`);
+  console.log(`ready=${JSON.stringify(out.ready)}`);
   console.log(`simulator=${out.simulator}`);
 }
 
@@ -218,23 +220,37 @@ async function testers(name, emails) {
       }
       continue;
     }
-    const existing = (await api('GET', `/v1/betaTesters?filter[email]=${q(email)}&limit=5`)).data[0];
+    const find = async () => (await api('GET', `/v1/betaTesters?filter[email]=${q(email)}&limit=5`)).data[0];
+    const addTo = async (tester) => {
+      try { await api('POST', `/v1/betaGroups/${group.id}/relationships/betaTesters`, { data: [{ type: 'betaTesters', id: tester.id }] }); }
+      catch (e) { if (e.status !== 409) throw e; }
+    };
     try {
-      if (existing) {
-        await api('POST', `/v1/betaGroups/${group.id}/relationships/betaTesters`, { data: [{ type: 'betaTesters', id: existing.id }] });
-      } else {
-        await api('POST', '/v1/betaTesters', {
-          data: {
-            type: 'betaTesters',
-            attributes: { email, firstName: user.attributes.firstName || email, lastName: user.attributes.lastName || '' },
-            relationships: { betaGroups: { data: [{ type: 'betaGroups', id: group.id }] } },
-          },
-        });
+      let tester = await find();
+      if (tester) await addTo(tester);
+      else {
+        try {
+          await api('POST', '/v1/betaTesters', {
+            data: {
+              type: 'betaTesters',
+              attributes: { email, firstName: user.attributes.firstName || email, lastName: user.attributes.lastName || '' },
+              relationships: { betaGroups: { data: [{ type: 'betaGroups', id: group.id }] } },
+            },
+          });
+        } catch (e) {
+          // The other house's run made this tester a moment ago (2026-10-08: both ran at once and
+          // Mina's took the 409 for "already in"): find it and put it in this group too.
+          if (e.status !== 409 || !(tester = await find())) throw e;
+          await addTo(tester);
+        }
       }
-      say(`${email} tests ${h.storeName}`);
+      // Said only once Apple's own list for the group shows it.
+      const members = (await api('GET', `/v1/betaGroups/${group.id}/betaTesters?limit=200`)).data;
+      say(members.some((t) => t.attributes.email?.toLowerCase() === email)
+        ? `${email} tests ${h.storeName}`
+        : `::warning::${email} is not in ${h.storeName}'s testers yet`);
     } catch (e) {
-      if (e.status === 409) say(`${email} already tests ${h.storeName}`);
-      else say(`::warning::Could not add ${email} to ${h.storeName}'s testers: ${e.message}`);
+      say(`::warning::Could not add ${email} to ${h.storeName}'s testers: ${e.message}`);
     }
   }
 }
