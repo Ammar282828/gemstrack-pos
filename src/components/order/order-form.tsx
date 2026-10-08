@@ -15,7 +15,7 @@ import { SizePicker } from '@/components/shared/size-picker';
 import { KarigarPicker } from '@/components/karigar/karigar-picker';
 import { DeliveryFields, EMPTY_DELIVERY, knownAddressesFor } from '@/components/shared/delivery-fields';
 import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel, karatsFor, metalHasKarat } from '@/lib/materials';
-import { useAppStore, Settings, KaratValue, DeliveryInfo, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, CUSTOMER_SOURCES, TAKEN_BY, CUSTOMER_SOURCE_LABELS, PAYMENT_TYPES } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, DeliveryInfo, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, CUSTOMER_SOURCES, TAKEN_BY, CUSTOMER_SOURCE_LABELS, PAYMENT_TYPES } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -58,7 +58,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { OrderScanner } from '@/components/order/order-scanner';
 import { wastagePercentOf } from '@/lib/vision/wastage';
 import { CostRateField, MarginFigure, SHOP_MARGIN_ON } from '@/components/shared/shop-margin';
-import { orderMargin } from '@/lib/margin';
+import { orderEstimate, orderItemPrice, pricedOrderItems, type OrderFormItem } from '@/lib/order-estimate';
 import {
   exchangeValue, describeExchange, reconcileSlip, hasHisaab, karatFor, metalFor,
 } from '@/lib/vision/order-draft';
@@ -78,27 +78,6 @@ declare module 'jspdf' {
 }
 
 
-/**
- * Karat only means something for gold. The blank-item template seeds '21k' so
- * the select has a value if the user switches metal to gold — but if the item
- * is saved as silver/platinum/palladium that leftover must not be persisted,
- * or it shows up as a meaningless "21K" everywhere the item is displayed.
- */
-function stripMeaninglessKarat<T extends { metalType?: string; karat?: unknown }>(item: T): T {
-  const o = item as Record<string, unknown>;
-  let next: Record<string, unknown> = o;
-  // Karat only means something for gold.
-  if (o.metalType !== 'gold') {
-    const { karat, ...rest } = next;
-    next = rest;
-  }
-  // Plating only applies to silver — don't persist it on a gold piece.
-  if (o.metalType !== 'silver') {
-    const { platingType, platingNote, nickelFree, ...rest } = next;
-    next = rest;
-  }
-  return next as T;
-}
 
 // Schema for a single custom order item
 const orderItemSchema = z.object({
@@ -618,25 +597,12 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
       .then(() => toast({ title: `Saved to ${name}'s profile`, description: `${words[0].toUpperCase()}${words.slice(1)}.` }));
   };
 
-  /** Price one item, exactly the way the subtotal below does. */
-  const priceOfItem = React.useCallback((item: OrderFormData['items'][number], rates: Partial<Settings>) => {
-    if (item.isManualPrice) return Number(item.manualPrice) || 0;
-    if (!item.estimatedWeightG || item.estimatedWeightG <= 0) return 0;
-    return calculateProductCosts({
-      categoryId: '',
-      metalType: item.metalType, karat: item.karat, metalWeightG: item.estimatedWeightG,
-      wastagePercentage: item.metalType === 'silver' ? 0 : item.wastagePercentage,
-      makingCharges: item.makingCharges, hasDiamonds: item.hasDiamonds,
-      diamondCharges: item.diamondCharges, stoneCharges: item.stoneCharges, miscCharges: 0,
-      stoneWeightG: item.stoneWeightG, hasStones: item.hasStones,
-    }, rates).totalPrice;
-  }, []);
+  /** Price one item, exactly the way the subtotal below does (lib/order-estimate.ts). */
+  const priceOfItem = React.useCallback((item: OrderFormData['items'][number], rates: Partial<Settings>) =>
+    orderItemPrice(item as OrderFormItem, rates), []);
 
   const liveEstimate = useMemo(() => {
-    let subtotal = 0;
-    // Each piece's price as it stands, in order, for the shop's margin.
-    const prices: number[] = [];
-    const ratesForCalc = { 
+    const ratesForCalc = {
         goldRatePerGram18k: formValues.goldRate18k || 0,
         goldRatePerGram21k: formValues.goldRate21k || 0,
         palladiumRatePerGram18k: formValues.palladiumRate18k || 0,
@@ -647,41 +613,14 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         platinumRatePerGram: settings.platinumRatePerGram,
         silverRatePerGram: settings.silverRatePerGram,
     };
-
-    (formValues.items || []).forEach((item, i) => {
-        prices[i] = 0;
-        if (item.isManualPrice) {
-            prices[i] = Number(item.manualPrice) || 0;
-            subtotal += prices[i];
-            return;
-        }
-
-        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage, metalType, stoneWeightG, hasStones } = item;
-        if (!estimatedWeightG || estimatedWeightG <= 0) return;
-
-        const productForCalc = {
-          categoryId: '',
-          metalType, karat, metalWeightG: estimatedWeightG,
-          wastagePercentage: metalType === 'silver' ? 0 : wastagePercentage,
-          makingCharges, hasDiamonds,
-          diamondCharges, stoneCharges, miscCharges: 0,
-          stoneWeightG: stoneWeightG,
-          hasStones: hasStones,
-        };
-
-        const costs = calculateProductCosts(productForCalc, ratesForCalc);
-        prices[i] = costs.totalPrice;
-        subtotal += costs.totalPrice;
-    });
-
-    // Never more than the subtotal — a discount cannot turn a sale into a debt.
-    const discount = Math.max(0, Math.min(subtotal, Number(formValues.discountAmount) || 0));
-    const totalAdvance = (Number(formValues.advancePayment) || 0) + (Number(formValues.advanceInExchangeValue) || 0);
-    const grandTotal = subtotal - discount - totalAdvance;
-
-    const margin = (formValues.items || []).length
-      ? orderMargin({ items: formValues.items, discountAmount: discount, costRate24k: Number(formValues.costRate24k) || 0 }, prices)
-      : null;
+    // The money, worked out once for the form and the iPhone app alike (lib/order-estimate.ts).
+    const { subtotal, discount, grandTotal, margin } = orderEstimate({
+      items: (formValues.items || []) as OrderFormItem[],
+      discountAmount: formValues.discountAmount,
+      advancePayment: formValues.advancePayment,
+      advanceInExchangeValue: formValues.advanceInExchangeValue,
+      costRate24k: formValues.costRate24k,
+    }, ratesForCalc);
     return { subtotal, discount, grandTotal, margin };
   }, [formValues, settings]);
   liveTotal.current = liveEstimate.grandTotal;
@@ -727,22 +666,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         silverRatePerGram: prior?.silverRatePerGram ?? settings.silverRatePerGram,
     };
 
-    const enrichedItems: OrderItem[] = data.items.map((item) => {
-        if (item.isManualPrice) {
-            return stripMeaninglessKarat({ ...item, metalCost: 0, wastageCost: 0, totalEstimate: item.manualPrice || 0 });
-        }
-        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage, isCompleted, metalType, hasStones, stoneWeightG, karigarId } = item;
-        const productForCalc = {
-          categoryId: '',
-          metalType, karat, metalWeightG: estimatedWeightG,
-          wastagePercentage: metalType === 'silver' ? 0 : wastagePercentage,
-          makingCharges, hasDiamonds,
-          diamondCharges, stoneCharges, miscCharges: 0,
-          hasStones, stoneWeightG
-        };
-        const costs = calculateProductCosts(productForCalc, ratesForOrder);
-        return stripMeaninglessKarat({ ...item, isCompleted: isCompleted, metalType: item.metalType, karigarId: karigarId, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice });
-    });
+    const enrichedItems: OrderItem[] = pricedOrderItems(data.items as OrderFormItem[], ratesForOrder);
 
     if (isEditMode && order) {
         const isWalkIn = data.customerId === WALK_IN_CUSTOMER_VALUE;

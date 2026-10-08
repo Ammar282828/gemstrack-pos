@@ -12,6 +12,7 @@
  */
 
 import type { MetalType, KaratValue } from './materials';
+import type { Product, Settings } from './store';
 
 /** Gold with no karat recorded is priced as 21k — the shop's common case. */
 export const DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL: KaratValue = '21k';
@@ -205,3 +206,31 @@ export function calculateProductPrice(product: {
 }): number {
   return _calculateProductCostsInternal(product, rates).totalPrice;
 }
+
+/**
+ * A piece's price at a set of rates as a screen holds them (any may be missing or 0). Was store.ts's;
+ * here so code without the store (the order estimate, the server) prices the same way.
+ */
+export const calculateProductCosts = (
+  product: Omit<Product, 'sku' | 'qrCodeDataUrl' | 'imageUrl' | 'name'> & {
+    categoryId?: string;
+    name?: string;
+  },
+  rates: Partial<Settings>
+) => {
+    const fullRates = {
+        goldRatePerGram18k: rates.goldRatePerGram18k || 0,
+        goldRatePerGram21k: rates.goldRatePerGram21k || 0,
+        goldRatePerGram22k: rates.goldRatePerGram22k || 0,
+        goldRatePerGram24k: rates.goldRatePerGram24k || 0,
+        palladiumRatePerGram: rates.palladiumRatePerGram || 0,
+        // The per-karat palladium rates, as the sale is saved with them (lib/writes/create-invoice.ts):
+        // left out here, an 18k or 12k piece showed at the flat rate on the sale screen and was billed
+        // at its own (found 2026-10-08, porting pricing to the iPhone app).
+        ...(Number(rates.palladiumRatePerGram18k) > 0 && { palladiumRatePerGram18k: Number(rates.palladiumRatePerGram18k) }),
+        ...(Number(rates.palladiumRatePerGram12k) > 0 && { palladiumRatePerGram12k: Number(rates.palladiumRatePerGram12k) }),
+        platinumRatePerGram: rates.platinumRatePerGram || 0,
+        silverRatePerGram: rates.silverRatePerGram || 0,
+    };
+  return _calculateProductCostsInternal(product, fullRates);
+};
