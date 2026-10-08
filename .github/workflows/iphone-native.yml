@@ -143,10 +143,35 @@ jobs:
             shot "$i-$(echo "$page" | tr '/' '-' | sed 's/^-//')" light -ERPDemoTab home -ERPDemoOpen "$page"; i=$((i+1))
           done
           xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate "process == \"ERP\" AND messageType >= 16" 2>/dev/null | tail -40 || true
-          for f in "$OUT"/*.png; do
-            sips -Z 640 -s format jpeg -s formatOptions 55 "$f" --out "${f%.png}.jpg" >/dev/null
-            echo "----BEGIN $(basename "${f%.png}")----"; base64 -i "${f%.png}.jpg" | fold -w 120; echo "----END----"
-          done
+      - name: House of Mina too (its colours and words)
+        run: |
+          OUT="$RUNNER_TEMP/shots"
+          node scripts/house.mjs mina
+          xcodegen generate --spec project.yml >/dev/null
+          set +e
+          xcodebuild build -project ERP.xcodeproj -scheme ERP -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm" \
+            -skipPackagePluginValidation -skipMacroValidation ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO > "$RUNNER_TEMP/build-mina.log" 2>&1
+          status=$?
+          set -e
+          grep -E ': (error|fatal error):' "$RUNNER_TEMP/build-mina.log" | sed "s|$GITHUB_WORKSPACE/||" | sort -u | head -40
+          [ $status -eq 0 ] || exit $status
+          APP="$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/ERP.app"
+          ID=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Info.plist")
+          xcrun simctl install "$UDID" "$APP"
+          for look in light dark; do for tab in home orders; do
+            xcrun simctl ui "$UDID" appearance "$look"
+            xcrun simctl terminate "$UDID" "$ID" 2>/dev/null || true
+            xcrun simctl launch "$UDID" "$ID" -ERPDemo YES -ERPDemoTab "$tab" >/dev/null; sleep 5
+            xcrun simctl io "$UDID" screenshot "$OUT/mina-$tab-$look.png" >/dev/null 2>&1
+          done; done
+      - name: Small copies for the artifact
+        if: always()
+        run: |
+          OUT="$RUNNER_TEMP/shots"
+          for f in "$OUT"/*.png; do sips -Z 640 -s format jpeg -s formatOptions 55 "$f" --out "${f%.png}.jpg" >/dev/null; done
       - uses: actions/upload-artifact@v4
         if: always()
         with:

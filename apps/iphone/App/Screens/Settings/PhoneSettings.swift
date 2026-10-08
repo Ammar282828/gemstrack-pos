@@ -19,6 +19,7 @@ struct PhoneSettings: View {
     @State private var saving = false
     @State private var error: String?
     @State private var widgetLinked = ERPWidgetLink.load() != nil
+    @State private var lockOn = AppLock.shared.enabled
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -49,6 +50,15 @@ struct PhoneSettings: View {
                 Text("The shop's WhatsApp alerts are set in the ERP's Settings → Alerts.")
             }
             if let error { Section { Text(error).foregroundStyle(.red) } }
+
+            Section {
+                Toggle("Lock with Face ID", isOn: Binding(get: { lockOn }, set: { lockOn = $0; AppLock.shared.enabled = $0 }))
+                    .disabled(!AppLock.available)
+            } footer: {
+                Text(AppLock.available
+                     ? "Asks for Face ID or the passcode when the app is opened after a minute away. The app switcher never shows the books."
+                     : "Set a passcode on this phone to lock the app.")
+            }
 
             Section {
                 LabeledContent("Home-screen widget", value: widgetLinked ? "Linked" : "Not linked")

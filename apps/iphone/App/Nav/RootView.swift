@@ -106,11 +106,20 @@ struct PlaceScreen: View {
             // A native screen names itself (and a hub keeps its large title); an ERP page is named from the map.
             .modifier(WebTitle(title: ScreenRegistry.hasNative(current) ? nil : (title ?? "")))
             .modifier(TabsMenu(tabs: tabs, chosen: $chosen))
+            // Native screens sit on the house's ground; an ERP page brings its own (the same palette).
+            .modifier(OptionalGround(on: ScreenRegistry.hasNative(current)))
             .toolbar {
                 if isRoot && session.isOwner {
                     ToolbarItem(placement: .topBarLeading) { RateChip() }
                 }
             }
+    }
+}
+
+private struct OptionalGround: ViewModifier {
+    let on: Bool
+    func body(content: Content) -> some View {
+        if on { content.modifier(HouseGround()) } else { content }
     }
 }
 

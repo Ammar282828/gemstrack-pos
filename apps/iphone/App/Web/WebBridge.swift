@@ -37,6 +37,13 @@ final class WebBridge: NSObject, WKScriptMessageHandlerWithReply {
 
     @MainActor
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage, replyHandler: @escaping (Any?, String?) -> Void) {
+        // Only the ERP's own page may ask the phone for anything. A frame inside it (an Instagram or Meta
+        // preview, a video) can reach this handler too, and must never get the Google sign-in, the delete
+        // code kept behind Face ID, a file or the share sheet.
+        let origin = message.frameInfo.securityOrigin
+        guard message.frameInfo.isMainFrame, origin.protocol == "https", origin.host == House.serverURL.host, origin.port == 0 || origin.port == 443 else {
+            return replyHandler(nil, "forbidden|Not this page's to ask")
+        }
         guard let body = message.body as? [String: Any], let plugin = body["plugin"] as? String, let method = body["method"] as? String else {
             return replyHandler(nil, "invalid|Not a call")
         }

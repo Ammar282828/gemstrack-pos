@@ -7,13 +7,24 @@ import FirebaseCore
 struct ERPApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var session = Session()
+    @State private var lock = AppLock.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
-            RootGate()
-                .environment(session)
-                .environment(Book.shared)
-                .tint(Theme.accent)
+            ZStack {
+                RootGate()
+                    .environment(session)
+                    .environment(Book.shared)
+                if lock.locked || lock.covered { LockCover(lock: lock) }
+            }
+            .tint(Theme.accent)
+            .animation(.easeOut(duration: 0.2), value: lock.locked || lock.covered)
+            .onChange(of: scenePhase) { _, phase in lock.phase(phase, signedIn: session.state == .signedIn) }
+            // A cold start of a signed-in app asks for the face too; a fresh sign-in does not.
+            .onChange(of: session.state) { old, new in
+                if old == .starting && new == .signedIn { lock.launched(signedIn: true) }
+            }
         }
     }
 }

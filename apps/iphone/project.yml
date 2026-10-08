@@ -37,6 +37,7 @@ targets:
         INFOPLIST_FILE: App/Info.plist
         CODE_SIGN_ENTITLEMENTS: App/App.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: $(ERP_APPICON)
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: Accent-$(ERP_HOUSE)
         PROVISIONING_PROFILE_SPECIFIER: $(ERP_APP_PROFILE)
     dependencies:
       - package: Firebase
