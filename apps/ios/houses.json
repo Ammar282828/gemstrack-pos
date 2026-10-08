@@ -4,17 +4,23 @@
     "storeName": "Taheri ERP",
     "homeName": "Taheri ERP",
     "url": "https://erp.taheri.shop",
-    "hosts": ["erp.taheri.shop", "pos.taheri.shop"],
+    "hosts": [
+      "erp.taheri.shop",
+      "pos.taheri.shop"
+    ],
     "ground": "#0A1111",
-    "googleClientId": ""
+    "googleClientId": "948018742883-9jb931ki5kuhckfo4c6400k1mh5ucpg0.apps.googleusercontent.com"
   },
   "mina": {
     "bundleId": "store.houseofmina.erp",
     "storeName": "House of Mina ERP",
     "homeName": "Mina ERP",
     "url": "https://erp.houseofmina.store",
-    "hosts": ["erp.houseofmina.store", "pos.houseofmina.store"],
+    "hosts": [
+      "erp.houseofmina.store",
+      "pos.houseofmina.store"
+    ],
     "ground": "#FAF7F2",
-    "googleClientId": ""
+    "googleClientId": "288366939838-dpvb39065ba49p7854bk87n0377t4n7n.apps.googleusercontent.com"
   }
 }

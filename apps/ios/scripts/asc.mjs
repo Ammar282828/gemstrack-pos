@@ -115,7 +115,8 @@ async function plan(mode) {
       }
       out.upload.push(name);
     }
-    if (!out.upload.length && mode === 'auto') out.simulator = true;
+    // With the key in place a house not ready yet is waiting on its app or its client, not on the
+    // code: the simulator check would spend Mac minutes proving nothing new. The upload compiles too.
   }
   console.log(`upload=${JSON.stringify(out.upload)}`);
   console.log(`simulator=${out.simulator}`);

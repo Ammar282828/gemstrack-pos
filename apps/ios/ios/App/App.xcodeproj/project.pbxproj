@@ -307,7 +307,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ERP_APPICON = "AppIcon-taheri";
 				ERP_DISPLAY_NAME = "Taheri ERP";
-				ERP_GOOGLE_CLIENT_ID = "";
+				ERP_GOOGLE_CLIENT_ID = "948018742883-9jb931ki5kuhckfo4c6400k1mh5ucpg0.apps.googleusercontent.com";
 				ERP_LAUNCH_COLOR = "Launch-taheri";
 				ERP_LAUNCH_MARK = "LaunchMark-taheri";
 				INFOPLIST_FILE = App/Info.plist;
@@ -333,7 +333,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ERP_APPICON = "AppIcon-taheri";
 				ERP_DISPLAY_NAME = "Taheri ERP";
-				ERP_GOOGLE_CLIENT_ID = "";
+				ERP_GOOGLE_CLIENT_ID = "948018742883-9jb931ki5kuhckfo4c6400k1mh5ucpg0.apps.googleusercontent.com";
 				ERP_LAUNCH_COLOR = "Launch-taheri";
 				ERP_LAUNCH_MARK = "LaunchMark-taheri";
 				INFOPLIST_FILE = App/Info.plist;
