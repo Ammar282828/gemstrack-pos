@@ -202,6 +202,7 @@ import { statusFromPieces } from '@/lib/order-stage';
 import { isWalkInName, shouldCreateCustomer } from '@/lib/walk-in';
 import { createOrder } from '@/lib/writes/create-order';
 import { recordOrderAdvance as writeOrderAdvance } from '@/lib/writes/order-advance';
+import { rateChangeLog, rateConfirmLog } from '@/lib/writes/rates';
 import { alertsOnStatus, orderStatusPatch, pieceDonePatch } from '@/lib/writes/order-status';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { canHoldCredit, creditDescription, inCredit, isCreditRow } from '@/lib/invoice-credit';
@@ -1241,24 +1242,10 @@ function signedInName(): string {
   return personFor(email) || email || 'unknown';
 }
 
-const pkr = (n: unknown) => (typeof n === 'number' ? Math.round(n).toLocaleString('en-PK') : '—');
-const RATE_LABEL: Record<RateKey, string> = {
-  goldRatePerGram24k: '24K', goldRatePerGram22k: '22K', goldRatePerGram21k: '21K', goldRatePerGram18k: '18K',
-  palladiumRatePerGram: 'Palladium', palladiumRatePerGram18k: 'Palladium 18K', palladiumRatePerGram12k: 'Palladium 12K',
-  platinumRatePerGram: 'Platinum', silverRatePerGram: 'Silver',
-};
-
-/** One activity-log line per rate change: the house's main rate old → new, the rest in the details. */
+// The log's words are lib/writes/rates.ts's, which the iPhone app's rate sheet writes through too.
 async function logRateChange(moved: RateKey[], before: Partial<Settings>, after: Partial<Settings>, source?: string) {
-  const main = mainRate(STORE_CONFIG.defaultMetal);
-  const line = (k: RateKey) => `${RATE_LABEL[k]} ${pkr(before[k])} → ${pkr(after[k] ?? before[k])}`;
-  const others = moved.filter(k => k !== main.key);
-  await addActivityLog(
-    'rates.update',
-    moved.includes(main.key) ? `Rate set: ${line(main.key)}` : `Rates set: ${others.map(k => RATE_LABEL[k]).join(', ')}`,
-    [`By ${after.ratesUpdatedBy || 'unknown'}`, source && `from ${source}`, others.length ? others.map(line).join(' · ') : ''].filter(Boolean).join(' · '),
-    'rates',
-  );
+  const { title, detail } = rateChangeLog(moved, before, after, mainRate(STORE_CONFIG.defaultMetal).key, source);
+  await addActivityLog('rates.update', title, detail, 'rates');
 }
 
 /** Thrown when an Extra revenue row belongs to a repair and must be changed there. */
@@ -2046,8 +2033,8 @@ export const useAppStore = create<AppState>()(
           set((state) => { state.settings = before; });
           throw error;
         }
-        const main = mainRate(STORE_CONFIG.defaultMetal);
-        await addActivityLog('rates.update', `Rate confirmed: ${RATE_LABEL[main.key]} ${pkr(before[main.key])}, unchanged`, `By ${stamp.ratesUpdatedBy}`, 'rates');
+        const { title, detail } = rateConfirmLog(before, mainRate(STORE_CONFIG.defaultMetal).key, stamp.ratesUpdatedBy);
+        await addActivityLog('rates.update', title, detail, 'rates');
       },
 
       addCategory: (title) => set((state) => {

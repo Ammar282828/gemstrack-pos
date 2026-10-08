@@ -20,6 +20,10 @@ import { normalizePhoneNumber } from '@/lib/utils';
 import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
 import { recordOrderAdvance } from '@/lib/writes/order-advance';
 import { alertsOnStatus, ORDER_STATUSES, setOrderPieceDone, setOrderStatus, type SettableStatus } from '@/lib/writes/order-status';
+import { cleanRates, setRates } from '@/lib/writes/rates';
+import { mainRate } from '@/lib/rates';
+import { personFor } from '@/lib/people';
+import { STORE_CONFIG } from '@/lib/store-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +37,7 @@ const OPS: Record<string, ('owner' | 'staff')[]> = {
   addCustomer: ['owner', 'staff'],
   recordOrderAdvance: ['owner'],
   setPieceDone: ['owner'],
+  setRates: ['owner'],
 };
 
 const text = (v: unknown) => String(v ?? '').trim();
@@ -106,6 +111,17 @@ export async function POST(req: NextRequest) {
         if (!orderId || !Number.isInteger(index)) return NextResponse.json({ error: 'Bad request' }, { status: 400 });
         const out = await setOrderPieceDone(adminPort, { orderId, index, done: body.done === true },
           { log, notify: id => alert({ event: 'order-status', id, status: 'Completed' }) });
+        return NextResponse.json({ ok: true, ...out, followUps });
+      }
+
+      case 'setRates': {
+        // Unchanged figures still stamp the day: the website sells only at a rate set in the last 36 hours.
+        const out = await setRates(adminPort, {
+          rates: cleanRates((body.rates as Record<string, unknown>) || {}),
+          by: personFor(email) || email,
+          mainKey: mainRate(STORE_CONFIG.defaultMetal).key,
+          source: 'the iPhone app',
+        }, { log });
         return NextResponse.json({ ok: true, ...out, followUps });
       }
 

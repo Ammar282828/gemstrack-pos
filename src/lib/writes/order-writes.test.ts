@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DbPort, TxCtx } from '@/lib/db-port';
 import { orderStatusPatch, pieceDonePatch, setOrderPieceDone, setOrderStatus } from './order-status';
 import { recordOrderAdvance } from './order-advance';
+import { cleanRates, setRates } from './rates';
 
 /** An in-memory database with Firestore's merge, for the order writes. */
 function fakeDb(seed: Record<string, Record<string, Record<string, unknown>>>) {
@@ -24,7 +25,15 @@ function fakeDb(seed: Record<string, Record<string, Record<string, unknown>>>) {
     async get(c, id) { const d = col(c)[id]; return d ? ({ ...d, id } as never) : null; },
     async add() { return 'x'; },
     async update(c, id, d) { col(c)[id] = { ...col(c)[id], ...d }; },
-    batch() { return { set() {}, update() {}, delete() {}, async commit() {} }; },
+    batch() {
+      const writes: (() => void)[] = [];
+      return {
+        set(c, id, d, merge) { writes.push(() => { col(c)[id] = merge ? { ...col(c)[id], ...d } : { ...d }; }); },
+        update(c, id, d) { writes.push(() => { col(c)[id] = { ...col(c)[id], ...d }; }); },
+        delete(c, id) { writes.push(() => { delete col(c)[id]; }); },
+        async commit() { writes.forEach(w => w()); },
+      };
+    },
     newId() { return 'n'; },
   };
   return { db, data };
@@ -83,5 +92,33 @@ describe('order advance', () => {
   it('is refused once the order is invoiced', async () => {
     const { db } = fakeDb({ orders: { 'ORD-4': { subtotal: 1, invoiceId: 'INV-9' } } });
     await expect(recordOrderAdvance(db, { orderId: 'ORD-4', amount: 1 })).rejects.toThrow(/take the payment on the invoice/);
+  });
+});
+
+describe('setting the rates', () => {
+  const now = new Date('2026-10-08T04:30:00.000Z');
+
+  it('writes only the rates that moved, stamped, and logs the main rate old to new', async () => {
+    const { db, data } = fakeDb({ app_settings: { global: { goldRatePerGram21k: 33_000, goldRatePerGram24k: 38_000, silverRatePerGram: 450 } } });
+    const logs: string[] = [];
+    const out = await setRates(db, { rates: cleanRates({ goldRatePerGram21k: '33500', goldRatePerGram24k: 38_000, silverRatePerGram: '', bogus: 9 }), by: 'Demo', mainKey: 'goldRatePerGram21k', now },
+      { log: (_a, title) => { logs.push(title); } });
+    expect(out.moved).toEqual(['goldRatePerGram21k']);
+    expect(data.app_settings.global).toEqual({ goldRatePerGram21k: 33_500, goldRatePerGram24k: 38_000, silverRatePerGram: 450, ratesUpdatedAt: now.toISOString(), ratesUpdatedBy: 'Demo' });
+    expect(logs[0]).toMatch(/^Rate set: 21K 33,000 → 33,500/);
+  });
+
+  it('an unchanged rate is still stamped, as confirmed', async () => {
+    const { db, data } = fakeDb({ app_settings: { global: { goldRatePerGram21k: 33_000 } } });
+    const logs: string[] = [];
+    const out = await setRates(db, { rates: { goldRatePerGram21k: 33_000 }, by: 'Demo', mainKey: 'goldRatePerGram21k', now }, { log: (_a, title) => { logs.push(title); } });
+    expect(out.moved).toEqual([]);
+    expect(data.app_settings.global.ratesUpdatedAt).toBe(now.toISOString());
+    expect(logs[0]).toMatch(/^Rate confirmed: 21K 33,000, unchanged/);
+  });
+
+  it('refuses while the database is locked', async () => {
+    const { db } = fakeDb({ app_settings: { global: { databaseLocked: true } } });
+    await expect(setRates(db, { rates: { goldRatePerGram21k: 1 }, by: 'Demo', mainKey: 'goldRatePerGram21k' })).rejects.toThrow(/locked/);
   });
 });
