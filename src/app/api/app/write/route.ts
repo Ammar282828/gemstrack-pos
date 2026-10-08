@@ -21,7 +21,8 @@ import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
 import { recordOrderAdvance } from '@/lib/writes/order-advance';
 import { alertsOnStatus, ORDER_STATUSES, setOrderPieceDone, setOrderStatus, type SettableStatus } from '@/lib/writes/order-status';
 import { cleanRates, setRates } from '@/lib/writes/rates';
-import { createInvoice, type SaleInput, type SaleLine } from '@/lib/writes/create-invoice';
+import { cleanObject, createInvoice, type SaleInput, type SaleLine } from '@/lib/writes/create-invoice';
+import { createOrder } from '@/lib/writes/create-order';
 import { mainRate } from '@/lib/rates';
 import { personFor } from '@/lib/people';
 import { STORE_CONFIG } from '@/lib/store-config';
@@ -40,6 +41,7 @@ const OPS: Record<string, ('owner' | 'staff')[]> = {
   setPieceDone: ['owner'],
   setRates: ['owner'],
   createInvoice: ['owner'],
+  createOrder: ['owner', 'staff'],
 };
 
 const text = (v: unknown) => String(v ?? '').trim();
@@ -141,6 +143,26 @@ export async function POST(req: NextRequest) {
           costRate24k: Number(body.costRate24k) || undefined,
         }, { log, notify: (id) => alert({ event: 'sale', id }) });
         return NextResponse.json({ ok: true, invoice, followUps });
+      }
+
+      case 'createOrder': {
+        // The same createOrder the browser and the shop floor run: one numbering, one rate snapshot.
+        const order = body.order as Record<string, unknown> | undefined;
+        if (!order || !Array.isArray(order.items) || order.items.length === 0) {
+          return NextResponse.json({ error: 'An order needs at least one piece.' }, { status: 400 });
+        }
+        const created = await createOrder(adminPort, order as never, {
+          // A new customer as the browser makes one (store.ts addCustomer).
+          createCustomer: async (c) => {
+            const id = `cust-${Date.now()}`;
+            await adminDb.collection('customers').doc(id).set({ id, name: c.name, phone: normalizePhoneNumber(c.phone) || '', email: '', address: '' });
+            await log('customer.create', `Created customer: ${c.name}`, `ID: ${id}`, id);
+            return { id, name: c.name };
+          },
+          normalizePhone: (v) => normalizePhoneNumber(v),
+          clean: cleanObject,
+        }, { log, notify: (id) => alert({ event: 'order', id }) });
+        return NextResponse.json({ ok: true, order: created, followUps });
       }
 
       case 'setRates': {
