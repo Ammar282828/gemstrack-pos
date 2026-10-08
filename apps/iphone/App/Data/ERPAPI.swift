@@ -17,7 +17,12 @@ final class ERPAPI {
     func data(_ path: String, method: String = "GET", json: [String: Any]? = nil) async throws -> Data {
         // The demo has no server and no Firebase: every call answers as if offline.
         if House.isDemo || FirebaseApp.app() == nil { throw Failure(status: 0, message: "Not connected to the ERP in the demo.") }
-        var request = URLRequest(url: URL(string: path, relativeTo: House.serverURL)!)
+        // The sign-in token goes to the house's own ERP and nowhere else, whatever path is passed in.
+        guard let url = URL(string: path, relativeTo: House.serverURL)?.absoluteURL,
+              url.scheme == "https", url.host == House.serverURL.host else {
+            throw Failure(status: 0, message: "Not an address of this ERP.")
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = method
         request.timeoutInterval = 60
         if let token = try? await Auth.auth().currentUser?.getIDToken() {
