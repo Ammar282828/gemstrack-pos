@@ -230,11 +230,12 @@ async function testers(name, emails) {
         relationships: { betaGroups: { data: [{ type: 'betaGroups', id: group.id }] } },
       },
     });
-    // Each way Apple offers, until its own list for the group shows the tester. 2026-10-08: both
-    // houses' runs added the account holder at once, and Mina's group took the 409 and stayed empty.
+    // Each way Apple offers, until its own list for the group shows the tester. Creating the tester
+    // with the group comes first: for an internal group Apple refuses the group's own relationship
+    // ("409 Tester(s) cannot be assigned", 2026-10-08), which left Mina's group empty the first time.
     const tries = [
-      ['group', async () => { const t = await find(); if (!t) throw Object.assign(new Error('no tester yet'), { status: 404 }); await api('POST', `/v1/betaGroups/${group.id}/relationships/betaTesters`, { data: [{ type: 'betaTesters', id: t.id }] }); }],
       ['tester', create],
+      ['group', async () => { const t = await find(); if (!t) throw Object.assign(new Error('no tester yet'), { status: 404 }); await api('POST', `/v1/betaGroups/${group.id}/relationships/betaTesters`, { data: [{ type: 'betaTesters', id: t.id }] }); }],
       ['tester-groups', async () => { const t = await find(); if (!t) throw Object.assign(new Error('no tester yet'), { status: 404 }); await api('POST', `/v1/betaTesters/${t.id}/relationships/betaGroups`, { data: [{ type: 'betaGroups', id: group.id }] }); }],
     ];
     let done = await inGroup();
