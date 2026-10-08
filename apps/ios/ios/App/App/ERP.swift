@@ -241,7 +241,7 @@ public class ERPNativePlugin: CAPPlugin, CAPBridgedPlugin {
         // The page may be recording at the same time (the voice note Gemini reads): share the
         // microphone, never take it, and never end the session under it.
         if session.category != .playAndRecord {
-            try session.setCategory(.playAndRecord, mode: .default, options: [.mixWithOthers, .defaultToSpeaker, .allowBluetooth])
+            try session.setCategory(.playAndRecord, mode: .default, options: [.mixWithOthers, .defaultToSpeaker])
         }
         try session.setActive(true)
 
