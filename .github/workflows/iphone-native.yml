@@ -139,8 +139,13 @@ jobs:
           for tab in home orders invoices customers search; do shot "$i-$tab" light -ERPDemoTab "$tab"; i=$((i+1)); done
           shot "$i-home-dark" dark -ERPDemoTab home; i=$((i+1))
           # The places behind the lists, from the demo's made-up books.
-          for page in /invoices/INV-D0002 /orders/ORD-D0002 /customers/CUST-D06 /today; do
+          for page in /invoices/INV-D0002 /orders/ORD-D0002 /customers/CUST-D06 /today \
+                      /new /invoices/new /orders/add /products /repairs /workshop /karigars/KAR-D1 /given \
+                      /expenses /hisaab /analytics /analytics/sales; do
             shot "$i-$(echo "$page" | tr '/' '-' | sed 's/^-//')" light -ERPDemoTab home -ERPDemoOpen "$page"; i=$((i+1))
+          done
+          for page in /workshop /expenses /analytics; do
+            shot "$i-$(echo "$page" | tr '/' '-' | sed 's/^-//')-dark" dark -ERPDemoTab home -ERPDemoOpen "$page"; i=$((i+1))
           done
           xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate "process == \"ERP\" AND messageType >= 16" 2>/dev/null | tail -40 || true
       - name: House of Mina too (its colours and words)
@@ -167,6 +172,13 @@ jobs:
             xcrun simctl launch "$UDID" "$ID" -ERPDemo YES -ERPDemoTab "$tab" >/dev/null; sleep 5
             xcrun simctl io "$UDID" screenshot "$OUT/mina-$tab-$look.png" >/dev/null 2>&1
           done; done
+          # Mina's own words and options: silver, "paid by" on expenses, its analytics.
+          for page in /invoices/new /expenses /analytics; do
+            xcrun simctl ui "$UDID" appearance light
+            xcrun simctl terminate "$UDID" "$ID" 2>/dev/null || true
+            xcrun simctl launch "$UDID" "$ID" -ERPDemo YES -ERPDemoTab home -ERPDemoOpen "$page" >/dev/null; sleep 5
+            xcrun simctl io "$UDID" screenshot "$OUT/mina$(echo "$page" | tr '/' '-').png" >/dev/null 2>&1
+          done
       - name: Small copies for the artifact
         if: always()
         run: |

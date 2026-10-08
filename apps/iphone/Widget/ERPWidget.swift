@@ -31,9 +31,11 @@ struct ERPProvider: TimelineProvider {
 
     private func fetch(_ done: @escaping (ERPSummary?) -> Void) {
         guard let link = ERPWidgetLink.load(), let url = URL(string: link.url + "/api/widget/summary") else { done(nil); return }
-        var request = URLRequest(url: url, timeoutInterval: 20)
+        guard url.scheme == "https" else { done(nil); return }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
         request.setValue("Widget \(link.key)", forHTTPHeaderField: "Authorization")
-        URLSession.shared.dataTask(with: request) { data, response, _ in
+        // The figures are kept once, below, and never in the HTTP cache.
+        URLSession(configuration: .ephemeral).dataTask(with: request) { data, response, _ in
             guard (response as? HTTPURLResponse)?.statusCode == 200, let data = data,
                   let summary = try? JSONDecoder().decode(ERPSummary.self, from: data) else { done(nil); return }
             UserDefaults.standard.set(data, forKey: cacheKey)

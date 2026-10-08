@@ -879,5 +879,39 @@
    "label": "Current",
    "startDate": "@day-12"
   }
+ ],
+ "given_items": [
+  {
+   "id": "GIV-D1",
+   "date": "@d-3 12:00",
+   "description": "Old bangle to melt, 18.2 g",
+   "recipientType": "karigar",
+   "recipientName": "Ustad Demo",
+   "recipientId": "KAR-D1",
+   "status": "out"
+  },
+  {
+   "id": "GIV-D2",
+   "date": "@d-9 15:30",
+   "description": "Ring for sizing",
+   "recipientType": "customer",
+   "recipientName": "Demo Customer",
+   "status": "returned",
+   "returnedDate": "@d-6 11:00"
+  }
+ ],
+ "additional_revenue": [
+  {
+   "id": "REV-D1",
+   "date": "@d-1 13:00",
+   "description": "Polish and clean, demo ring",
+   "amount": 2500
+  },
+  {
+   "id": "REV-D2",
+   "date": "@d-12 17:00",
+   "description": "Old gold bought back, margin",
+   "amount": 18000
+  }
  ]
 }

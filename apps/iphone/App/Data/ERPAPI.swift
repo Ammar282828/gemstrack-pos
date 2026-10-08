@@ -32,7 +32,8 @@ final class ERPAPI {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONSerialization.data(withJSONObject: json)
         }
-        let (data, response) = try await URLSession.shared.data(for: request)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        let (data, response) = try await Self.session.data(for: request, delegate: StayOnHost.shared)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {
             let said = ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["error"] as? String
@@ -40,6 +41,16 @@ final class ERPAPI {
         }
         return data
     }
+
+    /// The books' answers are never written to the phone's HTTP cache (staff's copy of the books
+    /// comes this way), and no cookie or credential outlives the app: an ephemeral session.
+    private static let session: URLSession = {
+        let c = URLSessionConfiguration.ephemeral
+        c.urlCache = nil
+        c.requestCachePolicy = .reloadIgnoringLocalCacheData
+        c.httpCookieAcceptPolicy = .never
+        return URLSession(configuration: c)
+    }()
 
     func get<T: Decodable>(_ path: String, as type: T.Type = T.self) async throws -> T {
         try JSONDecoder().decode(T.self, from: try await data(path))
@@ -68,5 +79,18 @@ final class ERPAPI {
     func send(_ path: String, method: String = "POST", _ json: [String: Any] = [:]) async throws -> [String: Any] {
         let d = try await data(path, method: method, json: json)
         return ((try? JSONSerialization.jsonObject(with: d)) as? [String: Any]) ?? [:]
+    }
+}
+
+/// A redirect off the ERP's own host (or off https) is refused, so the Authorization header never
+/// follows one somewhere else.
+final class StayOnHost: NSObject, URLSessionTaskDelegate, Sendable {
+    static let shared = StayOnHost()
+    private let host = House.serverURL.host
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest) async -> URLRequest? {
+        guard let url = request.url, url.scheme == "https", url.host == host else { return nil }
+        return request
     }
 }
