@@ -195,6 +195,22 @@ describe('a new sale from the phone', () => {
     expect(data.app_settings.global.lastInvoiceNumber).toBe(1);
   });
 
+  it('a piece described at the counter (never stock) sells, once', async () => {
+    const oneOff = { ...RING, sku: 'NEW-T9', name: 'Demo one-off ring' };
+    const r = await call(sale({ cart: [oneOff] }));
+    expect(r.status).toBe(200);
+    expect(data.sold_products['NEW-T9']).toBeDefined();
+    // The same save again (a dropped line, a second tap) is not a second sale.
+    const again = await call(sale({ cart: [oneOff] }));
+    expect(again.status).toBe(409);
+    expect(String(again.body.error)).toContain('Demo one-off ring (already sold)');
+  });
+
+  it('a made-up SKU that is not a one-off is still refused', async () => {
+    const r = await call(sale({ cart: [{ ...RING, sku: 'FAKE-1' }] }));
+    expect(r.status).toBe(409);
+  });
+
   it('a stale counter is refused rather than writing over an invoice', async () => {
     put('app_settings', 'global', { lastInvoiceNumber: 0 }, true);
     const r = await call(sale());

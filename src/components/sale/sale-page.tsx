@@ -655,14 +655,18 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
     
     const ratesForInvoice: Partial<Settings> = {
         ...(cartMetalInfo.metals.has('gold') && {
-            palladiumRatePerGram18k: parseFloat(rateInputs.palladium18k) || settings.palladiumRatePerGram18k,
-        palladiumRatePerGram12k: parseFloat(rateInputs.palladium12k) || settings.palladiumRatePerGram12k,
-        goldRatePerGram18k: parseFloat(rateInputs.gold18k) || settings.goldRatePerGram18k,
+            goldRatePerGram18k: parseFloat(rateInputs.gold18k) || settings.goldRatePerGram18k,
             goldRatePerGram21k: parseFloat(rateInputs.gold21k) || settings.goldRatePerGram21k,
             goldRatePerGram22k: parseFloat(rateInputs.gold22k) || settings.goldRatePerGram22k,
             goldRatePerGram24k: parseFloat(rateInputs.gold24k) || settings.goldRatePerGram24k,
         }),
-        ...(cartMetalInfo.metals.has('palladium') && { palladiumRatePerGram: parseFloat(rateInputs.palladium) || settings.palladiumRatePerGram }),
+        // Palladium's own 18K and 12K rates go with palladium, not with gold: a sale of palladium alone
+        // was saved at the flat rate while the screen priced it at the karat's (no sale was affected).
+        ...(cartMetalInfo.metals.has('palladium') && {
+            palladiumRatePerGram: parseFloat(rateInputs.palladium) || settings.palladiumRatePerGram,
+            palladiumRatePerGram18k: parseFloat(rateInputs.palladium18k) || settings.palladiumRatePerGram18k,
+            palladiumRatePerGram12k: parseFloat(rateInputs.palladium12k) || settings.palladiumRatePerGram12k,
+        }),
         ...(cartMetalInfo.metals.has('platinum') && { platinumRatePerGram: parseFloat(rateInputs.platinum) || settings.platinumRatePerGram }),
         ...(cartMetalInfo.metals.has('silver') && { silverRatePerGram: parseFloat(rateInputs.silver) || settings.silverRatePerGram }),
     };

@@ -26,6 +26,7 @@ import { createOrder } from '@/lib/writes/create-order';
 import { addRepair, recordRepairPayment, setRepairStatus, type NewRepair } from '@/lib/writes/repairs';
 import { REPAIR_STATUSES, type RepairStatus } from '@/lib/repairs';
 import { addExpense } from '@/lib/writes/expenses';
+import { isOneOffSku } from '@/lib/sku';
 import { addGivenItem, markGivenItemReturned } from '@/lib/writes/given';
 import { mainRate } from '@/lib/rates';
 import { personFor } from '@/lib/people';
@@ -137,8 +138,11 @@ export async function POST(req: NextRequest) {
         const cart = Array.isArray(body.cart) ? (body.cart as SaleLine[]).filter((l) => l && typeof l.sku === 'string' && l.sku) : [];
         if (!cart.length) return NextResponse.json({ error: 'The sale has no pieces.' }, { status: 400 });
         // A phone's stock can be seconds old: a piece sold meanwhile is refused, never sold twice.
-        const stock = await Promise.all(cart.map((l) => adminDb.collection('products').doc(l.sku).get()));
-        const gone = cart.filter((_, i) => !stock[i].exists).map((l) => l.sku);
+        // A piece described at the counter for this bill (NEW-…, lib/sku.ts) was never stock; it is
+        // refused only once sold, so a save sent again after a dropped line is not a second sale.
+        const stock = await Promise.all(cart.map((l) => adminDb.collection(isOneOffSku(l.sku) ? 'sold_products' : 'products').doc(l.sku).get()));
+        const gone = cart.filter((l, i) => isOneOffSku(l.sku) ? stock[i].exists : !stock[i].exists)
+          .map((l) => isOneOffSku(l.sku) ? `${l.name || 'a new piece'} (already sold)` : l.sku);
         if (gone.length) return NextResponse.json({ error: `No longer in stock: ${gone.join(', ')}.` }, { status: 409 });
         const customer = (body.customer || {}) as SaleInput['customer'];
         const invoice = await createInvoice(adminPort, {
