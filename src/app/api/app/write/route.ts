@@ -23,6 +23,8 @@ import { alertsOnStatus, ORDER_STATUSES, setOrderPieceDone, setOrderStatus, type
 import { cleanRates, setRates } from '@/lib/writes/rates';
 import { cleanObject, createInvoice, type SaleInput, type SaleLine } from '@/lib/writes/create-invoice';
 import { createOrder } from '@/lib/writes/create-order';
+import { addRepair, recordRepairPayment, setRepairStatus, type NewRepair } from '@/lib/writes/repairs';
+import { REPAIR_STATUSES, type RepairStatus } from '@/lib/repairs';
 import { mainRate } from '@/lib/rates';
 import { personFor } from '@/lib/people';
 import { STORE_CONFIG } from '@/lib/store-config';
@@ -42,6 +44,9 @@ const OPS: Record<string, ('owner' | 'staff')[]> = {
   setRates: ['owner'],
   createInvoice: ['owner'],
   createOrder: ['owner', 'staff'],
+  addRepair: ['owner'],
+  setRepairStatus: ['owner'],
+  recordRepairPayment: ['owner'],
 };
 
 const text = (v: unknown) => String(v ?? '').trim();
@@ -163,6 +168,38 @@ export async function POST(req: NextRequest) {
           clean: cleanObject,
         }, { log, notify: (id) => alert({ event: 'order', id }) });
         return NextResponse.json({ ok: true, order: created, followUps });
+      }
+
+      case 'addRepair': {
+        const r = (body.repair || {}) as NewRepair;
+        const pieces = Array.isArray(r.pieces) ? r.pieces.filter((p) => p && text(p.item)) : [];
+        if (!pieces.length) return NextResponse.json({ error: 'A repair needs at least one piece.' }, { status: 400 });
+        const repair = await addRepair(adminPort, {
+          ...r, pieces,
+          customerName: text(r.customerName) || 'Walk-in Customer',
+          advance: Number(r.advance) > 0 ? Number(r.advance) : undefined,
+        }, {}, { log });
+        return NextResponse.json({ ok: true, repair, followUps });
+      }
+
+      case 'setRepairStatus': {
+        const id = text(body.repairId);
+        const status = text(body.status) as RepairStatus;
+        if (!id || !(REPAIR_STATUSES as readonly string[]).includes(status)) return NextResponse.json({ error: 'Bad request' }, { status: 400 });
+        await setRepairStatus(adminPort, id, status, {}, { log });
+        return NextResponse.json({ ok: true, repairId: id, status, followUps });
+      }
+
+      case 'recordRepairPayment': {
+        const id = text(body.repairId);
+        const amount = Number(body.amount);
+        if (!id || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: 'A positive amount is required.' }, { status: 400 });
+        await recordRepairPayment(adminPort, id, {
+          amount, date: text(body.date) || new Date().toISOString(),
+          ...(text(body.method) && { method: text(body.method) as never }),
+          ...(text(body.note) && { note: text(body.note) }),
+        }, { log });
+        return NextResponse.json({ ok: true, repairId: id, followUps });
       }
 
       case 'setRates': {

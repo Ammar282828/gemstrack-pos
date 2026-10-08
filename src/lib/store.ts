@@ -204,6 +204,7 @@ import { createOrder } from '@/lib/writes/create-order';
 import { recordOrderAdvance as writeOrderAdvance } from '@/lib/writes/order-advance';
 import { rateChangeLog, rateConfirmLog } from '@/lib/writes/rates';
 import { createInvoice as createInvoiceWrite } from '@/lib/writes/create-invoice';
+import { addRepair as writeAddRepair, recordRepairPayment as writeRepairPayment, setRepairStatus as writeRepairStatus } from '@/lib/writes/repairs';
 import { alertsOnStatus, orderStatusPatch, pieceDonePatch } from '@/lib/writes/order-status';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { canHoldCredit, creditDescription, inCredit, isCreditRow } from '@/lib/invoice-credit';
@@ -865,14 +866,10 @@ export interface AdditionalRevenue {
  * Revenue in the same transaction, so the dashboard and analytics count it
  * without knowing repairs exist.
  */
-export const REPAIR_STATUSES = ['received', 'ready', 'collected', 'cancelled'] as const;
-export type RepairStatus = typeof REPAIR_STATUSES[number];
-export const REPAIR_STATUS_LABELS: Record<RepairStatus, string> = {
-  received: 'In the shop',
-  ready: 'Ready',
-  collected: 'Collected',
-  cancelled: 'Cancelled',
-};
+// The statuses and their labels, and the ticket's sums, are lib/repairs.ts's (the server writes repairs too).
+export { REPAIR_STATUSES, REPAIR_STATUS_LABELS, repairTotal, repairPaid, repairBalance, repairSummary } from '@/lib/repairs';
+import { REPAIR_STATUS_LABELS, repairSummary, type RepairStatus } from '@/lib/repairs';
+export type { RepairStatus } from '@/lib/repairs';
 
 export interface RepairPiece {
   item: string;              // "Gold ring"
@@ -908,20 +905,6 @@ export interface Repair {
   /** For the shop only. Never printed, never sent. */
   internalNote?: string;
 }
-
-export const repairTotal = (r: Pick<Repair, 'pieces'>): number =>
-  (r.pieces || []).reduce((s, p) => s + (Number(p.price) || 0), 0);
-export const repairPaid = (r: Pick<Repair, 'payments'>): number =>
-  (r.payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
-/** What the customer still owes on the ticket. */
-export const repairBalance = (r: Pick<Repair, 'pieces' | 'payments'>): number =>
-  Math.max(0, Math.round((repairTotal(r) - repairPaid(r)) * 100) / 100);
-/** "Gold ring" or "Gold ring + 2 more" — a ticket in a line. */
-export const repairSummary = (r: Pick<Repair, 'pieces'>): string => {
-  const ps = (r.pieces || []).filter((p) => p.item);
-  if (!ps.length) return 'Repair';
-  return ps.length === 1 ? ps[0].item : `${ps[0].item} + ${ps.length - 1} more`;
-};
 
 export type GivenItemStatus = 'out' | 'returned';
 export type GivenItemRecipientType = 'karigar' | 'customer' | 'other';
@@ -4217,40 +4200,16 @@ export const useAppStore = create<AppState>()(
       },
 
       // ── Repairs ──────────────────────────────────────────────────────────
-      addRepair: async ({ advance, advanceMethod, ...data }) => {
+      addRepair: async (data) => {
         if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
         // The highest number already on file is a floor for the counter, so a
         // settings document written before repairs existed cannot reissue one.
-        const onFile = get().repairs.reduce((m, r) => {
+        const floor = get().repairs.reduce((m, r) => {
           const n = Number(String(r.id).replace(/^REP-/, ''));
           return Number.isFinite(n) && n > m ? n : m;
         }, 0);
-        const now = new Date().toISOString();
-        const created = await runTransaction(db, async (tx) => {
-          const settingsRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
-          const snap = await tx.get(settingsRef);
-          const next = Math.max(Number(snap.data()?.lastRepairNumber) || 0, onFile) + 1;
-          const id = `REP-${String(next).padStart(6, '0')}`;
-          const repairRef = doc(db, FIRESTORE_COLLECTIONS.REPAIRS, id);
-          const clash = await tx.get(repairRef);
-          if (clash.exists()) throw new Error(`Repair ${id} already exists — the repair counter is behind. Try again.`);
-
-          const payments: RepairPayment[] = [];
-          if (advance && advance > 0) {
-            const revenueRef = doc(collection(db, FIRESTORE_COLLECTIONS.ADDITIONAL_REVENUE));
-            tx.set(revenueRef, {
-              date: now, amount: advance, repairId: id,
-              description: `Repair ${id} — advance: ${repairSummary(data)} (${data.customerName || 'walk-in'})`,
-            });
-            payments.push({ amount: advance, date: now, ...(advanceMethod ? { method: advanceMethod } : {}), revenueId: revenueRef.id, note: 'Advance' });
-          }
-          const repair: Repair = cleanObject({ ...data, id, payments, status: 'received' as RepairStatus, receivedAt: data.receivedAt || now });
-          tx.set(repairRef, repair);
-          tx.update(settingsRef, { lastRepairNumber: next });
-          return repair;
-        });
-        await addActivityLog('repair.create', `Repair ${created.id} received: ${repairSummary(created)}`, `From: ${created.customerName || 'walk-in'}`, created.id);
-        return created;
+        // The one copy (lib/writes/repairs.ts), which the iPhone app runs on the server too.
+        return writeAddRepair(clientPort, data, { floor }, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
       },
 
       updateRepair: async (id, data) => {
@@ -4265,31 +4224,12 @@ export const useAppStore = create<AppState>()(
 
       setRepairStatus: async (id, status) => {
         if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
-        const now = new Date().toISOString();
-        const stamp: Partial<Repair> =
-          status === 'ready' ? { readyAt: now }
-          : status === 'collected' ? { collectedAt: now }
-          : {};
-        await setDoc(doc(db, FIRESTORE_COLLECTIONS.REPAIRS, id), cleanObject({ status, ...stamp }), { merge: true });
-        await addActivityLog('repair.status', `Repair ${id}: ${REPAIR_STATUS_LABELS[status]}`, '', id);
+        await writeRepairStatus(clientPort, id, status, {}, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
       },
 
       recordRepairPayment: async (id, payment) => {
         if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
-        if (!(payment.amount > 0)) return;
-        await runTransaction(db, async (tx) => {
-          const repairRef = doc(db, FIRESTORE_COLLECTIONS.REPAIRS, id);
-          const snap = await tx.get(repairRef);
-          if (!snap.exists()) throw new Error(`Repair ${id} not found.`);
-          const repair = snap.data() as Repair;
-          const revenueRef = doc(collection(db, FIRESTORE_COLLECTIONS.ADDITIONAL_REVENUE));
-          tx.set(revenueRef, {
-            date: payment.date, amount: payment.amount, repairId: id,
-            description: `Repair ${id}: ${repairSummary(repair)} (${repair.customerName || 'walk-in'})`,
-          });
-          tx.update(repairRef, { payments: [...(repair.payments || []), cleanObject({ ...payment, revenueId: revenueRef.id })] });
-        });
-        await addActivityLog('repair.payment', `Repair ${id}: PKR ${payment.amount.toLocaleString()} received`, payment.method || '', id);
+        await writeRepairPayment(clientPort, id, payment, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
       },
 
       deleteRepair: async (id) => {
