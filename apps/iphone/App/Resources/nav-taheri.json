@@ -1,0 +1,770 @@
+{
+  "groups": [
+    {
+      "key": "home",
+      "label": ""
+    },
+    {
+      "key": "sales",
+      "label": "Sales"
+    },
+    {
+      "key": "workshop",
+      "label": "Workshop & stock"
+    },
+    {
+      "key": "marketing",
+      "label": "Marketing"
+    },
+    {
+      "key": "money",
+      "label": "Money"
+    }
+  ],
+  "newSale": {
+    "id": "new-sale",
+    "group": "sales",
+    "href": "/new",
+    "label": "New sale",
+    "icon": "CirclePlus",
+    "staff": true,
+    "keywords": [
+      "sale",
+      "sell",
+      "bill",
+      "new sale"
+    ]
+  },
+  "entries": [
+    {
+      "id": "home",
+      "group": "home",
+      "href": "/",
+      "label": "Home",
+      "icon": "House",
+      "staff": true,
+      "keywords": [
+        "dashboard"
+      ],
+      "tabs": [
+        {
+          "href": "/",
+          "label": "Dashboard",
+          "icon": "House",
+          "staff": true
+        },
+        {
+          "href": "/calendar",
+          "label": "Calendar",
+          "icon": "Calendar",
+          "staff": true,
+          "keywords": [
+            "due dates",
+            "activity"
+          ]
+        },
+        {
+          "href": "/today",
+          "label": "Today’s cash",
+          "icon": "Banknote",
+          "keywords": [
+            "cash",
+            "drawer",
+            "till",
+            "today",
+            "collected",
+            "daily cash"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "orders",
+      "group": "sales",
+      "href": "/orders",
+      "label": "Orders",
+      "icon": "ClipboardList",
+      "staff": true,
+      "keywords": [
+        "custom order",
+        "order",
+        "online order",
+        "website order",
+        "to confirm"
+      ],
+      "count": "online"
+    },
+    {
+      "id": "invoices",
+      "group": "sales",
+      "href": "/invoices",
+      "label": "Invoices",
+      "icon": "Receipt",
+      "staff": true,
+      "keywords": [
+        "bills",
+        "estimate",
+        "unpaid"
+      ],
+      "match": [
+        "/cart"
+      ]
+    },
+    {
+      "id": "repairs",
+      "group": "sales",
+      "href": "/repairs",
+      "label": "Repairs",
+      "icon": "Wrench",
+      "staff": true,
+      "keywords": [
+        "repair",
+        "fix"
+      ]
+    },
+    {
+      "id": "customers",
+      "group": "sales",
+      "href": "/customers",
+      "label": "Customers",
+      "icon": "Users",
+      "staff": true,
+      "keywords": [
+        "clients",
+        "people"
+      ]
+    },
+    {
+      "id": "drafts",
+      "group": "sales",
+      "href": "/drafts",
+      "label": "Drafts",
+      "icon": "FileClock",
+      "staff": true,
+      "keywords": [
+        "unfinished",
+        "saved"
+      ],
+      "count": "drafts"
+    },
+    {
+      "id": "workshop",
+      "group": "workshop",
+      "href": "/workshop",
+      "label": "Workshop",
+      "icon": "Hammer",
+      "staff": true,
+      "tabs": [
+        {
+          "href": "/workshop",
+          "label": "Jobs",
+          "heading": "Workshop",
+          "icon": "Hammer",
+          "staff": true,
+          "keywords": [
+            "bench",
+            "jobs",
+            "karigar work"
+          ]
+        },
+        {
+          "href": "/karigars",
+          "label": "Karigars",
+          "icon": "Briefcase",
+          "staff": true,
+          "keywords": [
+            "craftsmen",
+            "kaarigar"
+          ]
+        },
+        {
+          "href": "/given",
+          "label": "Given items",
+          "icon": "Package",
+          "staff": true,
+          "keywords": [
+            "given",
+            "gold given",
+            "issued"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stock",
+      "group": "workshop",
+      "href": "/products",
+      "label": "Stock",
+      "icon": "Boxes",
+      "keywords": [
+        "inventory",
+        "products",
+        "pieces"
+      ],
+      "tabs": [
+        {
+          "href": "/products",
+          "label": "Pieces",
+          "heading": "Stock",
+          "icon": "Gem",
+          "keywords": [
+            "stock",
+            "inventory",
+            "products"
+          ]
+        },
+        {
+          "href": "/products/bulk-add",
+          "label": "Add in bulk",
+          "icon": "Layers",
+          "keywords": [
+            "bulk",
+            "import pieces"
+          ]
+        },
+        {
+          "href": "/settings/printer",
+          "label": "Labels",
+          "icon": "Tag",
+          "keywords": [
+            "label designer",
+            "tags",
+            "printer",
+            "zebra",
+            "weprint",
+            "csv"
+          ]
+        },
+        {
+          "href": "/scan",
+          "label": "Scan",
+          "icon": "ScanLine",
+          "keywords": [
+            "scan",
+            "qr",
+            "barcode",
+            "tag"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "posts",
+      "group": "marketing",
+      "href": "/posts",
+      "label": "Posts",
+      "icon": "Send",
+      "staff": true,
+      "tabs": [
+        {
+          "href": "/posts",
+          "label": "Hub",
+          "heading": "Posts",
+          "icon": "LayoutGrid",
+          "staff": true,
+          "keywords": [
+            "from the website",
+            "website post",
+            "share a piece",
+            "new arrivals",
+            "queue",
+            "posted today",
+            "posting hub"
+          ],
+          "match": [
+            "/website/from-site"
+          ]
+        },
+        {
+          "href": "/website/post",
+          "label": "Post a piece",
+          "icon": "Camera",
+          "staff": true,
+          "keywords": [
+            "post",
+            "story",
+            "instagram",
+            "whatsapp",
+            "community",
+            "channel",
+            "new photos"
+          ]
+        },
+        {
+          "href": "/website/investments",
+          "label": "Investments",
+          "icon": "TrendingUp",
+          "staff": true,
+          "keywords": [
+            "investment",
+            "gold post"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "website",
+      "group": "marketing",
+      "href": "/website/photos",
+      "label": "Website",
+      "icon": "Globe",
+      "staff": true,
+      "tabs": [
+        {
+          "href": "/website/photos",
+          "label": "Add photos",
+          "icon": "ImagePlus",
+          "staff": true,
+          "keywords": [
+            "website",
+            "upload",
+            "photos"
+          ]
+        },
+        {
+          "href": "/website/edit",
+          "label": "Edit a piece",
+          "icon": "PenLine",
+          "staff": true,
+          "keywords": [
+            "website",
+            "edit",
+            "crop",
+            "photo",
+            "description",
+            "hide",
+            "overlay"
+          ]
+        },
+        {
+          "href": "/website/weights",
+          "label": "Photo weights",
+          "icon": "Scale",
+          "staff": true,
+          "keywords": [
+            "weights",
+            "website"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ads",
+      "group": "marketing",
+      "href": "/ads",
+      "label": "Ads",
+      "icon": "Megaphone",
+      "keywords": [
+        "meta",
+        "facebook",
+        "instagram ads",
+        "boost",
+        "ad spend"
+      ],
+      "tabs": [
+        {
+          "href": "/ads",
+          "label": "Overview",
+          "heading": "Ads",
+          "icon": "ChartColumn"
+        },
+        {
+          "href": "/ads/campaigns",
+          "label": "Campaigns",
+          "icon": "ListChecks",
+          "keywords": [
+            "campaigns",
+            "ad sets running"
+          ],
+          "match": [
+            "/ads/adset"
+          ]
+        },
+        {
+          "href": "/ads/studio",
+          "label": "Studio",
+          "icon": "Palette",
+          "keywords": [
+            "creative",
+            "design",
+            "canva",
+            "competitors",
+            "ad photos",
+            "drive",
+            "guide",
+            "ad studio"
+          ]
+        },
+        {
+          "href": "/ads/new",
+          "label": "New ad",
+          "icon": "Rocket",
+          "keywords": [
+            "boost",
+            "promote",
+            "advertise",
+            "meta ad"
+          ]
+        },
+        {
+          "href": "/ads/setup",
+          "label": "Setup",
+          "icon": "SlidersHorizontal",
+          "keywords": [
+            "connect",
+            "pixel",
+            "permissions",
+            "ad account"
+          ],
+          "match": [
+            "/ads/audiences",
+            "/ads/rules"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "href": "/ads/adset",
+          "label": "Ad sets",
+          "icon": "LayoutGrid",
+          "keywords": [
+            "ad set",
+            "audience test"
+          ]
+        },
+        {
+          "href": "/ads/audiences",
+          "label": "Audiences",
+          "icon": "UsersRound",
+          "keywords": [
+            "lookalike",
+            "custom audience"
+          ]
+        },
+        {
+          "href": "/ads/rules",
+          "label": "Rules",
+          "icon": "ListChecks",
+          "keywords": [
+            "automated rules"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "money",
+      "group": "money",
+      "href": "/expenses",
+      "label": "Money",
+      "icon": "Wallet",
+      "tabs": [
+        {
+          "href": "/expenses",
+          "label": "Expenses",
+          "icon": "Wallet",
+          "keywords": [
+            "money",
+            "spend",
+            "costs"
+          ]
+        },
+        {
+          "href": "/additional-revenue",
+          "label": "Extra revenue",
+          "icon": "Coins",
+          "keywords": [
+            "income",
+            "revenue",
+            "money"
+          ]
+        },
+        {
+          "href": "/overheads",
+          "label": "Overheads",
+          "icon": "Target",
+          "keywords": [
+            "overheads",
+            "rent",
+            "salaries",
+            "benchmark"
+          ]
+        },
+        {
+          "href": "/hisaab",
+          "label": "Hisaab",
+          "icon": "BookUser",
+          "keywords": [
+            "khata",
+            "ledger",
+            "accounts",
+            "owed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "analytics",
+      "group": "money",
+      "href": "/analytics",
+      "label": "Analytics",
+      "icon": "TrendingUp",
+      "keywords": [
+        "reports",
+        "sales report",
+        "monthly pdf"
+      ],
+      "tabs": [
+        {
+          "href": "/analytics",
+          "label": "Overview",
+          "heading": "Analytics",
+          "icon": "TrendingUp"
+        },
+        {
+          "href": "/analytics/sales",
+          "label": "Sales",
+          "icon": "ChartColumn",
+          "keywords": [
+            "by day",
+            "months",
+            "years",
+            "payments"
+          ]
+        },
+        {
+          "href": "/analytics/products",
+          "label": "Products",
+          "icon": "Gem",
+          "keywords": [
+            "best sellers",
+            "pieces sold"
+          ]
+        },
+        {
+          "href": "/analytics/customers",
+          "label": "Customers",
+          "icon": "Users",
+          "keywords": [
+            "top customers"
+          ]
+        },
+        {
+          "href": "/analytics/categories",
+          "label": "Categories",
+          "icon": "LayoutGrid"
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "id": "settings",
+    "group": "footer",
+    "href": "/settings",
+    "label": "Settings",
+    "icon": "Settings",
+    "keywords": [
+      "preferences"
+    ],
+    "tabs": [
+      {
+        "href": "/settings",
+        "label": "Shop",
+        "heading": "Settings",
+        "icon": "Settings",
+        "keywords": [
+          "shop details",
+          "theme",
+          "appearance",
+          "numbering",
+          "liquid glass"
+        ]
+      },
+      {
+        "href": "/settings/alerts",
+        "label": "Alerts",
+        "icon": "Bell",
+        "keywords": [
+          "notifications",
+          "whatsapp alerts",
+          "reports",
+          "monthly pdf"
+        ]
+      },
+      {
+        "href": "/settings/payment-methods",
+        "label": "Bank accounts",
+        "icon": "Landmark",
+        "keywords": [
+          "bank",
+          "iban",
+          "accounts",
+          "payment methods"
+        ]
+      },
+      {
+        "href": "/settings/integrations",
+        "label": "Integrations",
+        "icon": "Plug",
+        "keywords": [
+          "shopify",
+          "website selling",
+          "meta"
+        ]
+      },
+      {
+        "href": "/settings/data",
+        "label": "Data",
+        "icon": "Database",
+        "keywords": [
+          "backups",
+          "import",
+          "restore defaults",
+          "drafts"
+        ],
+        "match": [
+          "/settings/backups",
+          "/settings/recently-removed",
+          "/settings/contact-import",
+          "/settings/hisaab-import",
+          "/settings/import-taheri"
+        ]
+      },
+      {
+        "href": "/activity-log",
+        "label": "Activity",
+        "heading": "Activity",
+        "icon": "History",
+        "keywords": [
+          "activity log",
+          "history",
+          "who changed",
+          "sign-in",
+          "emergency lock",
+          "security"
+        ]
+      },
+      {
+        "href": "/settings/voice",
+        "label": "Voice",
+        "icon": "Mic",
+        "keywords": [
+          "microphone"
+        ]
+      }
+    ],
+    "pages": [
+      {
+        "href": "/settings/backups",
+        "label": "Backups",
+        "icon": "ArchiveRestore",
+        "keywords": [
+          "backup",
+          "export",
+          "restore"
+        ]
+      },
+      {
+        "href": "/settings/recently-removed",
+        "label": "Recently removed",
+        "icon": "RotateCcw",
+        "keywords": [
+          "deleted",
+          "trash",
+          "restore"
+        ]
+      },
+      {
+        "href": "/settings/contact-import",
+        "label": "Import contacts",
+        "icon": "Contact",
+        "keywords": [
+          "phone book",
+          "vcf"
+        ]
+      },
+      {
+        "href": "/settings/hisaab-import",
+        "label": "Import hisaab",
+        "icon": "Import",
+        "keywords": [
+          "ledger import"
+        ]
+      },
+      {
+        "href": "/settings/import-taheri",
+        "label": "Import Taheri Software book",
+        "icon": "Database"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "href": "/new",
+      "label": "New sale",
+      "icon": "CirclePlus",
+      "staff": true,
+      "keywords": [
+        "sell"
+      ]
+    },
+    {
+      "href": "/invoices/new",
+      "label": "New invoice",
+      "icon": "Receipt",
+      "staff": true,
+      "keywords": [
+        "bill",
+        "estimate"
+      ]
+    },
+    {
+      "href": "/orders/add",
+      "label": "New order",
+      "icon": "ClipboardList",
+      "staff": true,
+      "keywords": [
+        "custom order"
+      ]
+    },
+    {
+      "href": "/repairs?new=1",
+      "label": "New repair",
+      "icon": "Wrench",
+      "staff": true,
+      "keywords": [
+        "repair ticket"
+      ]
+    },
+    {
+      "href": "/customers/add",
+      "label": "New customer",
+      "icon": "Users",
+      "staff": true
+    },
+    {
+      "href": "/karigars/add",
+      "label": "New karigar",
+      "icon": "Briefcase"
+    },
+    {
+      "href": "/products/add",
+      "label": "New piece",
+      "icon": "Gem",
+      "keywords": [
+        "new product",
+        "add stock"
+      ]
+    },
+    {
+      "href": "/scan",
+      "label": "Scan a tag",
+      "icon": "ScanLine",
+      "staff": true,
+      "keywords": [
+        "scan",
+        "qr",
+        "barcode"
+      ]
+    }
+  ]
+}

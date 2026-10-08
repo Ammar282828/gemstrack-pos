@@ -86,6 +86,9 @@ function SidebarSearch() {
   );
 }
 
+/** The ERP page is inside the native iPhone app, which says so in its user agent. */
+const inNativeShell = () => typeof navigator !== 'undefined' && /\bERPNative\//.test(navigator.userAgent);
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -152,6 +155,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pageTabs = here?.tab && here.entry.tabs && here.entry.tabs.length > 1 ? here.entry.tabs : null;
 
   const logoToUse = STORE_LOGO_URL;
+
+  // A page inside the native iPhone app (apps/iphone WebScreen): the app draws the bars, the menus
+  // and search itself, so the page is only itself. The microphone and the rate form stay.
+  if (inNativeShell()) {
+    return (
+      <SidebarProvider defaultOpen={false}>
+        <VoiceBubble />
+        <RateSheet />
+        <div className="app-inset flex min-h-dvh w-full flex-col">
+          {!isOnline && (
+            <div className="flex items-center justify-center gap-2 px-4 py-2 bg-warning text-warning text-sm font-medium">
+              <WifiOff className="w-4 h-4 flex-shrink-0" />
+              You're offline — changes will sync when reconnected.
+            </div>
+          )}
+          <main className="flex-1 min-w-0 p-4 overflow-x-clip">{children}</main>
+        </div>
+      </SidebarProvider>
+    );
+  }
 
   return (
       <SidebarProvider defaultOpen={sidebarDefaultOpen}>

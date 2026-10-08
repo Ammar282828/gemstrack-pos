@@ -1,0 +1,71 @@
+# The native iPhone app (docs/features/iphone-app.md, CONVENTIONS.md). Generated into ERP.xcodeproj
+# by XcodeGen after `node scripts/house.mjs <house>` has written House.xcconfig. Never commit the
+# .xcodeproj: add files under App/, Shared/, Widget/ and they are in.
+name: ERP
+options:
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+configFiles:
+  Debug: House.xcconfig
+  Release: House.xcconfig
+packages:
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    exactVersion: 12.19.2
+  ERPCore:
+    path: Packages/ERPCore
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    MARKETING_VERSION: "2.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  App:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_NAME: ERP
+        PRODUCT_BUNDLE_IDENTIFIER: $(ERP_BUNDLE_ID)
+        INFOPLIST_FILE: App/Info.plist
+        CODE_SIGN_ENTITLEMENTS: App/App.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: $(ERP_APPICON)
+        PROVISIONING_PROFILE_SPECIFIER: $(ERP_APP_PROFILE)
+    dependencies:
+      - package: Firebase
+        product: FirebaseAuth
+      - package: Firebase
+        product: FirebaseFirestore
+      - package: ERPCore
+      - target: ERPWidget
+  ERPWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widget
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_NAME: ERPWidget
+        PRODUCT_BUNDLE_IDENTIFIER: $(ERP_BUNDLE_ID).widget
+        INFOPLIST_FILE: Widget/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Widget/ERPWidget.entitlements
+        PROVISIONING_PROFILE_SPECIFIER: $(ERP_WIDGET_PROFILE)
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+schemes:
+  ERP:
+    build:
+      targets:
+        App: all
+    run:
+      config: Debug
+    archive:
+      config: Release

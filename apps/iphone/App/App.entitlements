@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Notifications through Apple's production service (TestFlight and the App Store). -->
+	<key>aps-environment</key>
+	<string>production</string>
+	<!-- The app's own keychain first (Face ID's secrets stay its own), then the one it shares with the widget. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)$(ERP_BUNDLE_ID).app</string>
+		<string>$(AppIdentifierPrefix)$(ERP_BUNDLE_ID)</string>
+	</array>
+</dict>
+</plist>

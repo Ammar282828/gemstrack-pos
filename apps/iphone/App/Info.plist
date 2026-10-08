@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>$(ERP_DISPLAY_NAME)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(ERP_DISPLAY_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- The house this build is (apps/iphone/houses.json, scripts/house.mjs). App/Config/House.swift reads these. -->
+	<key>ERPHouse</key>
+	<string>$(ERP_HOUSE)</string>
+	<key>ERPStoreName</key>
+	<string>$(ERP_STORE_NAME)</string>
+	<key>ERPServerURL</key>
+	<string>$(ERP_SERVER_URL)</string>
+	<key>ERPMetal</key>
+	<string>$(ERP_METAL)</string>
+	<key>ERPAccent</key>
+	<string>$(ERP_ACCENT)</string>
+	<key>ERPGround</key>
+	<string>$(ERP_GROUND)</string>
+	<key>ERPGoogleClientID</key>
+	<string>$(ERP_GOOGLE_CLIENT_ID)</string>
+	<key>ERPFirebaseProjectID</key>
+	<string>$(ERP_FIREBASE_PROJECT_ID)</string>
+	<key>ERPFirebaseAPIKey</key>
+	<string>$(ERP_FIREBASE_API_KEY)</string>
+	<key>ERPFirebaseSenderID</key>
+	<string>$(ERP_FIREBASE_SENDER_ID)</string>
+	<key>ERPFirebaseStorageBucket</key>
+	<string>$(ERP_FIREBASE_STORAGE_BUCKET)</string>
+	<key>ERPFirebaseAppID</key>
+	<string>$(ERP_FIREBASE_APP_ID)</string>
+	<key>ERPSharedKeychainGroup</key>
+	<string>$(AppIdentifierPrefix)$(ERP_BUNDLE_ID)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>To photograph pieces, bills and slips for the ERP.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>To use Face ID instead of typing the delete code.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>To hear you when you speak to the ERP.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>To save invoices, stories and photos you share from the ERP.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>To add photos of pieces from your library.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>To show your words while you speak to the ERP.</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<true/>
+	</dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>$(ERP_LAUNCH_COLOR)</string>
+		<key>UIImageName</key>
+		<string>$(ERP_LAUNCH_MARK)</string>
+		<key>UIImageRespectsSafeAreaInsets</key>
+		<true/>
+	</dict>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>

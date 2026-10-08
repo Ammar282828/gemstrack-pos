@@ -1,0 +1,5 @@
+.build/
+*.xcodeproj/
+DerivedData/
+House.xcconfig
+Packages/ERPCore/.swiftpm/

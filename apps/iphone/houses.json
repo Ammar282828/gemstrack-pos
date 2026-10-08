@@ -1,0 +1,36 @@
+{
+  "taheri": {
+    "bundleId": "shop.taheri.erp",
+    "storeName": "Taheri ERP",
+    "homeName": "Taheri ERP",
+    "url": "https://erp.taheri.shop",
+    "metal": "gold",
+    "ground": "#0A1111",
+    "accent": "#BE9F76",
+    "googleClientId": "948018742883-9jb931ki5kuhckfo4c6400k1mh5ucpg0.apps.googleusercontent.com",
+    "firebase": {
+      "projectId": "gemstrack-pos",
+      "apiKey": "AIzaSyAl3W_9_Z9j0sR7rGIwwM1uiiXvOxGQ7IA",
+      "senderId": "948018742883",
+      "storageBucket": "gemstrack-pos.firebasestorage.app",
+      "iosAppId": ""
+    }
+  },
+  "mina": {
+    "bundleId": "store.houseofmina.erp",
+    "storeName": "House of Mina ERP",
+    "homeName": "Mina ERP",
+    "url": "https://erp.houseofmina.store",
+    "metal": "silver",
+    "ground": "#FAF7F2",
+    "accent": "#7A1F2B",
+    "googleClientId": "288366939838-dpvb39065ba49p7854bk87n0377t4n7n.apps.googleusercontent.com",
+    "firebase": {
+      "projectId": "hom-pos-52710474-ceeea",
+      "apiKey": "AIzaSyBJsDVAI_b7RvnSf-cpnSNLXQ-R0OH0qU4",
+      "senderId": "288366939838",
+      "storageBucket": "hom-pos-52710474-ceeea.firebasestorage.app",
+      "iosAppId": ""
+    }
+  }
+}
