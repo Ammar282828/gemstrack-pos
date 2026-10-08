@@ -231,6 +231,51 @@ struct SaleFigures {
     func price(of sku: String) -> Double { costs[sku]?.totalPrice ?? 0 }
 }
 
+// MARK: What is sent
+
+extension SaleDraft {
+    private func exchangeJSON(_ e: ExchangeEntry) -> [String: Any] {
+        var o: [String: Any] = ["description": e.description, "value": e.value]
+        if let k = e.karat, !k.isEmpty { o["karat"] = k }
+        if let w = e.weightG { o["weightG"] = w }
+        if let r = e.ratePerGram { o["ratePerGram"] = r }
+        return o
+    }
+
+    /// The sale as createInvoice takes it (the web's `generateInvoice` arguments): exactly the fields the
+    /// screen passes to `ERPAPI.shared.write("createInvoice", …)`. `qr` finds a piece's tag image on the
+    /// live shelf (sold_products keeps the whole document); a piece described for this bill has none.
+    func payload(_ f: SaleFigures, qr: (String) -> String?) -> [String: Any] {
+        func trimmed(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }
+        var out: [String: Any] = [:]
+        out["cart"] = lines.map { $0.payload(qr: qr($0.sku)) }
+        var customer: [String: Any] = ["name": f.who.name]
+        if let id = f.who.id { customer["id"] = id }
+        if !f.who.phone.isEmpty { customer["phone"] = f.who.phone }
+        out["customer"] = customer
+        out["rates"] = f.rateBook.forInvoice(metals: f.metals)
+        out["discountAmount"] = f.discount
+        out["exchanges"] = exchangesFromRows(exchanges.map { $0.core }).map { exchangeJSON($0) }
+        var paid: [[String: Any]] = []
+        for r in payments {
+            let amount = SaleNumber.value(r.amount)
+            if amount <= 0 { continue }
+            var p: [String: Any] = ["amount": amount, "method": r.method]
+            let ref = r.method == "Cash" ? "" : trimmed(r.reference)
+            if !ref.isEmpty { p["reference"] = ref }
+            paid.append(p)
+        }
+        out["payments"] = paid
+        if !trimmed(takenBy).isEmpty { out["takenBy"] = trimmed(takenBy) }
+        out["hideRates"] = hideRates
+        if !trimmed(internalNote).isEmpty { out["internalNote"] = trimmed(internalNote) }
+        if let d = delivery.payload { out["delivery"] = d }
+        let perGram = SaleNumber.value(costTola) / SALE_GRAMS_PER_TOLA
+        if perGram > 0 { out["costRate24k"] = perGram }
+        return out
+    }
+}
+
 // MARK: Lookups
 
 /// Finding pieces: by what is typed, by a scanned tag, and where a piece went when it is not in stock.
@@ -270,13 +315,17 @@ enum SaleLookup {
         return invoices.first { inv in inv.items.contains { $0.sku.caseInsensitiveCompare(t) == .orderedSame } }
     }
 
-    /// "No longer in stock: A, B." (the server's 409) to ["A", "B"].
-    static func gone(in message: String) -> [String] {
-        guard let r = message.range(of: "No longer in stock:") else { return [] }
-        return message[r.upperBound...]
+    /// What the server's 409 says (create-invoice route): "No longer in stock: A, B, Gold ring (already
+    /// sold)." A stock piece is named by its SKU; a piece described for this bill (NEW-…) is named by its
+    /// name and "(already sold)", because it was refused for being on an invoice already, i.e. this
+    /// sale was saved before. `gone` is the stock SKUs on the sale that are named, which can be taken off.
+    static func refusal(in message: String, lines: [SaleLine]) -> (gone: [String], alreadySold: Bool) {
+        guard let r = message.range(of: "No longer in stock:") else { return ([], false) }
+        let tokens = message[r.upperBound...]
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " .\n")) }
-            .filter { !$0.isEmpty }
+        let stock = Set(lines.filter { !$0.isOneOff }.map { $0.sku })
+        return (tokens.filter { stock.contains($0) }, message.contains("(already sold)"))
     }
 
     /// Every address this customer has been sent to, newest first, then the one on their page

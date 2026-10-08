@@ -150,15 +150,16 @@ enum WorkshopFocus: String, CaseIterable, Identifiable {
     }
 }
 
-/// How the pieces are laid out (the web's view and board mode, folded into one choice for a phone).
+/// How the pieces are laid out (the web's view and board mode, folded into one choice for a phone). The list
+/// is where the web opens (workshop/page.tsx `view`).
 enum WorkshopGrouping: String, CaseIterable, Identifiable {
-    case karigar, stage, list
+    case list, karigar, stage
     var id: String { rawValue }
     var title: String {
         switch self {
+        case .list: return "List"
         case .karigar: return "By karigar"
         case .stage: return "By stage"
-        case .list: return "List"
         }
     }
 }
@@ -556,6 +557,28 @@ enum WorkshopLogic {
     /// The pieces ordered so an order's pieces sit together.
     static func byOrder(_ jobs: [WorkshopJob]) -> [WorkshopJob] {
         groupJobsByOrder(jobs).flatMap { $0.jobs }
+    }
+
+    // MARK: Pay batches (karigars/page.tsx activeHisaabMap, karigars/[id]/page.tsx openBatch)
+
+    /// Each karigar's open pay batch, by karigar id: a batch with no `closedDate` is still open, and a karigar
+    /// normally has one (the newest is taken if he has more).
+    static func openBatches(_ batches: [KarigarBatch]) -> [String: KarigarBatch] {
+        var out: [String: KarigarBatch] = [:]
+        for b in batches where b.isOpen {
+            if let have = out[b.karigarId], startTime(have) >= startTime(b) { continue }
+            out[b.karigarId] = b
+        }
+        return out
+    }
+
+    private static func startTime(_ b: KarigarBatch) -> Double {
+        ERPDate.parse(b.startDate)?.timeIntervalSince1970 ?? 0
+    }
+
+    /// What has been paid to him inside one batch: his expenses filed under it.
+    static func paidInBatch(_ batch: KarigarBatch, expenses: [Expense]) -> Double {
+        expenses.reduce(0) { $0 + ($1.karigarId == batch.karigarId && $1.batchId == batch.id ? $1.amount : 0) }
     }
 
     // MARK: Words

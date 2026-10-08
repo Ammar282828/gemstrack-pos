@@ -25,6 +25,7 @@ struct WorkshopKarigarScreen: View {
                 if session.isOwner {
                     book.hisaab.need()
                     book.expenses.need()
+                    book.karigarBatches.need()
                 }
             }
     }
@@ -32,7 +33,7 @@ struct WorkshopKarigarScreen: View {
     private var loaded: Bool {
         let books = book.karigars.loaded && book.orders.loaded && book.invoices.loaded && book.karigarJobs.loaded && book.givenItems.loaded
         if !session.isOwner { return books }
-        return books && book.hisaab.loaded && book.expenses.loaded
+        return books && book.hisaab.loaded && book.expenses.loaded && book.karigarBatches.loaded
     }
 
     private var firstError: String? {
@@ -72,13 +73,16 @@ struct WorkshopKarigarScreen: View {
             hisaab: session.isOwner ? book.hisaab.items : []
         )
         let load = WorkshopLogic.groupByKarigar(jobs.filter { $0.karigarId == karigar.id }).first
+        // His open pay batch and what has been paid inside it so far (owners: the batches are the owner's books).
+        let batch = session.isOwner ? WorkshopLogic.openBatches(book.karigarBatches.items)[karigar.id] : nil
+        let paidSoFar = batch.map { WorkshopLogic.paidInBatch($0, expenses: book.expenses.items) } ?? 0
         return List {
-            profileSection(karigar)
-            nowSection(karigar, position)
+            profileSection(karigar, batch: batch)
+            nowSection(karigar, position, batch: batch, paidSoFar: paidSoFar)
             if !position.bench.isEmpty { benchSection(karigar, position) }
             if !position.given.isEmpty { givenSection(karigar, position) }
             stockJobsSection(karigar)
-            if session.isOwner { hisaabSection(karigar) }
+            if session.isOwner { hisaabSection(karigar, position) }
             if session.isOwner { erpSection(karigar) }
         }
         .listStyle(.insetGrouped)
@@ -86,7 +90,7 @@ struct WorkshopKarigarScreen: View {
             if let load, load.active > 0 {
                 ToolbarItem(placement: .primaryAction) {
                     // The web copies the list and opens WhatsApp to the karigar; the phone's share sheet does both.
-                    ShareLink(item: WorkshopLogic.shareText(load, shopName: House.storeName)) {
+                    ShareLink(item: WorkshopLogic.shareText(load, shopName: session.shop.name)) {
                         Label("Send list", systemImage: "square.and.arrow.up")
                     }
                 }
@@ -96,7 +100,7 @@ struct WorkshopKarigarScreen: View {
 
     // MARK: Who he is
 
-    private func profileSection(_ karigar: Karigar) -> some View {
+    private func profileSection(_ karigar: Karigar, batch: KarigarBatch?) -> some View {
         Section {
             if let contact = karigar.contact, !contact.isEmpty {
                 if let url = URL(string: "tel:" + WorkshopLogic.dialable(contact)) {
@@ -117,6 +121,13 @@ struct WorkshopKarigarScreen: View {
                 LabeledContent("Total paid (all time)") {
                     Text(Money.pkr(totalPaid(karigar))).monospacedDigit().foregroundStyle(Color.red)
                 }
+                LabeledContent("Active pay batch") {
+                    if let batch, !batch.label.isEmpty {
+                        Text(batch.label)
+                    } else {
+                        Text("None").foregroundStyle(.secondary)
+                    }
+                }
             }
         }
     }
@@ -128,7 +139,7 @@ struct WorkshopKarigarScreen: View {
 
     // MARK: Now
 
-    private func nowSection(_ karigar: Karigar, _ p: WorkshopPosition) -> some View {
+    private func nowSection(_ karigar: Karigar, _ p: WorkshopPosition, batch: KarigarBatch?, paidSoFar: Double) -> some View {
         let cash = p.cashBalance.rounded()
         return Section {
             NavigationLink(value: Route(path: "/workshop?karigar=" + WorkshopLogic.piece(karigar.id))) {
@@ -155,7 +166,7 @@ struct WorkshopKarigarScreen: View {
                 NavigationLink(value: Route(path: hisaabPath(karigar))) {
                     TwoLine(
                         title: cash > 0 ? "He holds of ours" : (cash < 0 ? "We owe him" : "Cash"),
-                        subtitle: "Hisaab cash",
+                        subtitle: cashHint(batch, paidSoFar),
                         trailing: cash == 0 ? "Square" : Money.pkr(abs(cash)),
                         trailingTint: cash < 0 ? Color.red : Color.primary
                     )
@@ -166,6 +177,12 @@ struct WorkshopKarigarScreen: View {
         } footer: {
             Text(nowFootnote)
         }
+    }
+
+    /// "March 2026: PKR 40,000 paid" while a pay batch is open, else just where the figure comes from.
+    private func cashHint(_ batch: KarigarBatch?, _ paidSoFar: Double) -> String {
+        guard let batch, !batch.label.isEmpty else { return "Hisaab cash" }
+        return "\(batch.label): \(Money.pkr(paidSoFar)) paid"
     }
 
     private func weighHint(_ p: WorkshopPosition) -> String {
@@ -295,12 +312,14 @@ struct WorkshopKarigarScreen: View {
 
     // MARK: Hisaab (owners only)
 
-    /// The gold khata's rows: gold given to him and pieces received back, and the cash beside them.
+    /// The gold khata (Gold Khata on the web): gold handed to him, pieces received back, what is still with him,
+    /// and its rows with the cash beside them.
     @ViewBuilder
-    private func hisaabSection(_ karigar: Karigar) -> some View {
+    private func hisaabSection(_ karigar: Karigar, _ p: WorkshopPosition) -> some View {
         let rows = book.hisaab.items.filter { $0.entityType == .karigar && $0.entityId == karigar.id }
         if !rows.isEmpty {
             Section {
+                khataTiles(p)
                 ForEach(rows.prefix(8)) { e in
                     hisaabRow(e)
                 }
@@ -310,8 +329,24 @@ struct WorkshopKarigarScreen: View {
                 }
             } header: {
                 Text("Hisaab")
+            } footer: {
+                Text("\(rows.count) entries · net = gold still with the karigar")
             }
         }
+    }
+
+    private func khataTiles(_ p: WorkshopPosition) -> some View {
+        let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+        let net = p.khataNet
+        let netTint: Color = net > 0.0005 ? Color.red : (net < -0.0005 ? Color.green : Color.primary)
+        return LazyVGrid(columns: columns, spacing: 10) {
+            FigureTile(label: "Given", value: WorkshopLogic.grams3(p.khataGiven))
+            FigureTile(label: "Received", value: WorkshopLogic.grams3(p.khataBack))
+            FigureTile(label: "Net (out)", value: WorkshopLogic.grams3(net), tint: netTint)
+        }
+        .padding(.vertical, 4)
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
     }
 
     private func hisaabRow(_ e: HisaabEntry) -> some View {

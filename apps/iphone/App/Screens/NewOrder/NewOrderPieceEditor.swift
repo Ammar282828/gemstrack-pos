@@ -118,17 +118,10 @@ struct NewOrderPieceEditor: View {
         }
     }
 
-    /// Changing the metal moves the karat onto one that metal is sold in (24k palladium cannot be chosen).
     private var metalBinding: Binding<String> {
         Binding(
             get: { piece.metal },
-            set: { next in
-                piece.metal = next
-                let options = karatsFor(MetalType(rawValue: next)).map { $0.rawValue }
-                if !options.isEmpty && !options.contains(piece.karat) {
-                    piece.karat = options.contains("21k") ? "21k" : (options.last ?? "")
-                }
-            }
+            set: { next in piece.setMetal(next) }
         )
     }
 
@@ -228,8 +221,8 @@ struct NewOrderPieceEditor: View {
         if takesWastageAndMaking(metal) {
             NewOrderWastageRow(
                 percent: $piece.wastage,
-                weight: NewOrderFormat.num(piece.weight),
-                stoneWeight: piece.hasStones ? NewOrderFormat.num(piece.stoneWeight) : 0
+                weight: piece.weightValue,
+                stoneWeight: piece.stoneWeightValue
             )
             NewOrderNumberRow(title: "Making (PKR)", text: $piece.making)
         }
@@ -373,8 +366,7 @@ struct NewOrderWastageRow: View {
         }
         .onChange(of: gramsText) { _, typed in
             guard gramsFocused else { return }
-            let pct = wastagePercentFor(NewOrderFormat.num(typed), weight, stoneWeight)
-            percent = NewOrderFormat.boxText(pct, digits: 8)
+            percent = NewOrderMath.wastageText(grams: typed, weight: weight, stoneWeight: stoneWeight)
         }
     }
 }

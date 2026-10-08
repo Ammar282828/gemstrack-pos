@@ -173,12 +173,31 @@ struct WorkshopJobRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 assignMenu
                 givenToggle
+                detailsLink
             }
             .padding(.top, 2)
         } else if !job.isDone {
             readOnlyControls
-        } else if job.hasGiven {
-            Text("Given " + ShopDate.say(job.givenAt)).font(.caption).foregroundStyle(.secondary)
+        } else if job.hasGiven || showsDetails {
+            VStack(alignment: .leading, spacing: 6) {
+                if job.hasGiven {
+                    Text("Given " + ShopDate.say(job.givenAt)).font(.caption).foregroundStyle(.secondary)
+                }
+                detailsLink
+            }
+        }
+    }
+
+    /// The making details (name, size, weight, instructions, sample picture) are edited on the ERP's Workshop page.
+    private var showsDetails: Bool { isOwner && job.source == .order }
+
+    @ViewBuilder
+    private var detailsLink: some View {
+        if showsDetails {
+            Button { actions.open(WorkshopPlace.workshopPage) } label: {
+                Label("Details in the ERP", systemImage: "arrow.up.right.square").font(.subheadline)
+            }
+            .buttonStyle(.borderless)
         }
     }
 
@@ -259,11 +278,11 @@ struct WorkshopJobRow: View {
         }
     }
 
-    /// Where an invoice's piece, or a stock job, is assigned and given out until the phone can.
+    /// Where an invoice's piece, or a stock job, is assigned and given out until the phone can: the ERP's Workshop
+    /// page (the invoice's own page has no such controls).
     private var webPlace: WorkshopPlace? {
         switch job.source {
-        case .invoice: return job.invoiceId.map { WorkshopPlace.invoice($0) }
-        case .manual: return WorkshopPlace.workshopPage
+        case .invoice, .manual: return WorkshopPlace.workshopPage
         case .order: return nil
         }
     }
@@ -284,6 +303,11 @@ struct WorkshopJobRow: View {
         if !job.isUnassigned && job.source != .manual {
             Button { actions.open(WorkshopPlace.karigar(job.karigarId)) } label: {
                 Label("Open " + job.karigarName, systemImage: "hammer")
+            }
+        }
+        if showsDetails {
+            Button { actions.open(WorkshopPlace.workshopPage) } label: {
+                Label("Details in the ERP", systemImage: "arrow.up.right.square")
             }
         }
         if canWrite && !busy {

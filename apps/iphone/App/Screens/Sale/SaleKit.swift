@@ -32,10 +32,10 @@ enum SaleKeyboard {
 /// Where the sale links to.
 enum SaleLinks {
     static let newSale = Route(path: "/invoices/new")
-    /// The ERP's own sale page, for what the phone does not do: a piece that was never in stock
-    /// (the server only sells what is on its shelf), editing an invoice, and reading a written bill.
-    static let webSale = Route(path: "/invoices/new?web=1")
+    /// The ERP's own pages, for what the phone does not do: reading a written bill (the AI scanner), and
+    /// putting a new piece in stock ("New piece"). Editing an invoice is its `/edit` page.
     static let webBill = Route(path: "/invoices/new?web=1&scan=bill")
+    static let newPiece = Route(path: "/products/add")
 
     /// A piece's page, which is the ERP's (`/products/<sku>`).
     static func piece(_ sku: String) -> Route {

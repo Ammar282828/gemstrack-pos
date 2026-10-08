@@ -24,6 +24,8 @@ vi.mock('@/lib/firebase-admin', () => ({
         };
       },
       add: async (d: Record<string, unknown>) => { const id = `auto${++ids}`; put(c, id, d); return { id }; },
+      get: async () => ({ docs: Object.entries(col(c)).map(([id, d]) => ({ id, data: () => d })) }),
+      select: () => ({ get: async () => ({ docs: Object.keys(col(c)).map((id) => ({ id, data: () => ({}) })) }) }),
     }),
   },
 }));
@@ -296,5 +298,51 @@ describe('the same change sent twice', () => {
     const r = await call({ op: 'recordPayment', invoiceId: 'INV-000001', amount: 1_000, requestId: '../settings/global' });
     expect(r.status).toBe(200);
     expect(data.app_requests).toBeUndefined();
+  });
+});
+
+describe('the hisaab put right, repairs numbered past what is held, sizes to the profile', () => {
+  it('syncHisaab books what an invoice owes, drops what it no longer does, and owners only', async () => {
+    put('hisaab', 'stale', { linkedInvoiceId: 'INV-000001', description: 'Outstanding balance for Invoice INV-000001', cashDebit: 1, cashCredit: 0 });
+    put('hisaab', 'orphan', { linkedInvoiceId: 'INV-GONE', description: 'Outstanding balance for Invoice INV-GONE', cashDebit: 5 });
+    put('hisaab', 'typed', { description: 'Typed by hand', cashDebit: 7 });
+    expect((await call({ op: 'syncHisaab' }, 'staff@example.com')).status).toBe(403);
+    const r = await call({ op: 'syncHisaab' });
+    expect(r.status).toBe(200);
+    expect(data.hisaab.stale).toMatchObject({ cashDebit: 100_000, cashCredit: 0 });
+    expect(data.hisaab.orphan).toBeUndefined();
+    expect(data.hisaab.typed).toBeDefined();
+    // Once every two minutes at most: each reads every invoice.
+    expect((await call({ op: 'syncHisaab' })).body.skipped).toBe(true);
+  });
+
+  it('a repair takes the number after the highest held, whatever the counter says', async () => {
+    put('repairs', 'REP-000041', { item: 'Demo' });
+    put('app_settings', 'global', { lastRepairNumber: 3 }, true);
+    const r = await call({ op: 'addRepair', repair: { pieces: [{ item: 'Demo chain', work: 'Solder' }], customerName: '  ' } });
+    expect(r.status).toBe(200);
+    expect((r.body.repair as { id: string }).id).toBe('REP-000042');
+    // Blank stays blank, as the browser saves it.
+    expect((r.body.repair as { customerName?: string }).customerName ?? '').toBe('');
+  });
+
+  it('setCustomerSizes keeps only the profile sizes, for a customer who exists', async () => {
+    put('customers', 'c1', { name: 'Demo One' });
+    const r = await call({ op: 'setCustomerSizes', customerId: 'c1', sizes: { ringSize: '14', bangleSize: ' ', name: 'Hacked' } }, 'staff@example.com');
+    expect(r.status).toBe(200);
+    expect(data.customers.c1).toEqual({ name: 'Demo One', ringSize: '14' });
+    expect((await call({ op: 'setCustomerSizes', customerId: 'nobody', sizes: { ringSize: '9' } })).status).toBe(409);
+  });
+});
+
+describe('a partner\'s salary', () => {
+  it('names the partner only on a Partner Salary, and only a real partner', async () => {
+    const pay = (over: Record<string, unknown>) => call({ op: 'addExpense', description: 'Demo salary', amount: 50_000, ...over });
+    const a = await pay({ category: 'Partner Salary', shareholderId: 'mina', paidBy: 'business' });
+    expect((a.body.expense as { shareholderId?: string }).shareholderId).toBe('mina');
+    const b = await pay({ category: 'Rent', shareholderId: 'mina' });
+    expect((b.body.expense as { shareholderId?: string }).shareholderId).toBeUndefined();
+    const c = await pay({ category: 'Partner Salary', shareholderId: 'someone' });
+    expect((c.body.expense as { shareholderId?: string }).shareholderId).toBeUndefined();
   });
 });

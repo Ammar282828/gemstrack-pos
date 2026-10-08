@@ -41,6 +41,18 @@ jobs:
       - name: ERPCore tests
         working-directory: apps/iphone/Packages/ERPCore
         run: swift test 2>&1 | tail -40
+      # The phone's New order and New sale, run as the screens run them: what they show and send must be
+      # what apps/iphone/contract/cases.json says, which the ERP's own tests hold to the web's money
+      # (src/app/api/app/write/contract.test.ts). A change to the money that leaves the file behind fails here.
+      - name: The phone's money, against the contract
+        working-directory: apps/iphone/Packages/Contract
+        run: |
+          swift run -q ContractCases > "$RUNNER_TEMP/cases.json"
+          if ! cmp -s "$RUNNER_TEMP/cases.json" ../../contract/cases.json; then
+            diff -u ../../contract/cases.json "$RUNNER_TEMP/cases.json" | head -80 || true
+            echo "::error::apps/iphone/contract/cases.json is out of date. In apps/iphone/Packages/Contract run: swift run -q ContractCases > ../../contract/cases.json, then the ERP's contract test, and commit both."
+            exit 1
+          fi
 
   plan:
     if: github.repository == 'Ammar282828/taheri-pos'

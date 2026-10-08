@@ -12,8 +12,12 @@ struct WorkshopBoard: View {
 
     @State private var filter: WorkshopFilter
     @State private var focus: WorkshopFocus = .all
-    @State private var grouping: WorkshopGrouping = .karigar
+    /// The list is where the web opens (workshop/page.tsx `view`).
+    @State private var grouping: WorkshopGrouping = .list
     @State private var showFree = false
+    /// Taken by starts once, on whoever is signed in (lib/people.ts), unless a link asked for a whole bench.
+    @State private var seeded = false
+    private let asksForWholeBench: Bool
     /// Pieces with a write in flight.
     @State private var busy: Set<String> = []
     @State private var failure: String?
@@ -23,6 +27,7 @@ struct WorkshopBoard: View {
     init(path: String) {
         var f = WorkshopFilter()
         f.karigarId = WorkshopLogic.queryValue("karigar", in: path) ?? ""
+        asksForWholeBench = !f.karigarId.isEmpty
         _filter = State(initialValue: f)
     }
 
@@ -41,7 +46,17 @@ struct WorkshopBoard: View {
             book.invoices.need()
             book.karigars.need()
             book.karigarJobs.need()
+            seedTakenBy()
         }
+    }
+
+    /// Whoever is signed in sees their own pieces first, Anyone one tap away; a karigar's whole bench opens on
+    /// Anyone, this once (hooks/use-me.ts `useMineFilter`). What is picked after holds while this screen is open.
+    private func seedTakenBy() {
+        if seeded { return }
+        seeded = true
+        if asksForWholeBench { return }
+        filter.takenBy = session.shop.person ?? ""
     }
 
     private var loaded: Bool {
@@ -431,13 +446,15 @@ struct WorkshopBoard: View {
     }
 
     private var filterMenu: some View {
-        let people = takenByNames
+        let people = session.shop.takenBy
         let live = workshopLive(book.karigars.items)
         return Menu {
-            Picker("Taken by", selection: $filter.takenBy) {
-                Text("Anyone").tag("")
-                ForEach(people, id: \.self) { p in
-                    Text(p).tag(p)
+            if !people.isEmpty {
+                Picker("Taken by", selection: $filter.takenBy) {
+                    Text("Anyone").tag("")
+                    ForEach(people, id: \.self) { p in
+                        Text(p).tag(p)
+                    }
                 }
             }
             Picker("Work", selection: $filter.type) {
@@ -459,18 +476,6 @@ struct WorkshopBoard: View {
         } label: {
             Label("Filter", systemImage: filter.menuCount > 0 ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
         }
-    }
-
-    /// Everyone who has taken an order or written an invoice.
-    private var takenByNames: [String] {
-        var names = Set<String>()
-        for o in book.orders.items {
-            if let t = o.takenBy, !t.isEmpty { names.insert(t) }
-        }
-        for i in book.invoices.items {
-            if let t = i.takenBy, !t.isEmpty { names.insert(t) }
-        }
-        return names.sorted()
     }
 
     /// What the phone cannot do yet: stock work is assigned, changed and deleted on the ERP's own page.

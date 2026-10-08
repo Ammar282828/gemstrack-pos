@@ -35,8 +35,9 @@ struct ExpenseSavedBanner: View {
 struct AddExpenseSheet: View {
     /// What the books already use, then "Other"; a new name can be typed.
     let categories: [String]
-    /// "Paid by" the partners, in the house that keeps partner ledgers.
-    let offersPartners: Bool
+    /// The house keeps partner ledgers (`session.shop.partnership`): "Paid by" a partner, and a
+    /// partner's salary.
+    let partnership: Bool
     /// Told once it is saved, with where it was filed.
     let onSaved: (ExpenseSavedNote) -> Void
 
@@ -48,6 +49,8 @@ struct AddExpenseSheet: View {
     @State private var what = ""
     @State private var amountText = ""
     @State private var paidBy = "business"
+    /// Which partner a "Partner Salary" paid: "" until chosen.
+    @State private var salaryFor = ""
     /// "" is not a karigar payment.
     @State private var karigarId = ""
     /// Nil until the hisaab picker is touched; until then the choice follows the karigar.
@@ -67,8 +70,15 @@ struct AddExpenseSheet: View {
 
     private var cleanedWhat: String { what.trimmingCharacters(in: .whitespacesAndNewlines) }
 
-    /// The web's schema: a category, a description, and an amount of at least 0.01.
-    private var canSave: Bool { amount >= 0.01 && !cleanedWhat.isEmpty && !chosenCategory.isEmpty && !saving }
+    /// A partner's wage: the business pays it, and the partner it paid is written on the row (the
+    /// Shareholders page's salary form), or his page leaves the expense out of his salaries.
+    private var isSalary: Bool { partnership && chosenCategory == MoneyPartners.salaryCategory }
+
+    /// The web's schema: a category, a description, and an amount of at least 0.01; a salary also says whose.
+    private var canSave: Bool {
+        if isSalary && salaryFor.isEmpty { return false }
+        return amount >= 0.01 && !cleanedWhat.isEmpty && !chosenCategory.isEmpty && !saving
+    }
 
     // MARK: The karigar and his hisaab
 
@@ -109,7 +119,11 @@ struct AddExpenseSheet: View {
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }
                 }
-                if offersPartners { paidBySection }
+                if isSalary {
+                    salarySection
+                } else if partnership {
+                    paidBySection
+                }
                 karigarSection
                 if let error {
                     Section { Text(error).foregroundStyle(.red) }
@@ -147,8 +161,7 @@ struct AddExpenseSheet: View {
         Section {
             Picker("Paid by", selection: $paidBy) {
                 Text("Business cash").tag("business")
-                Text("Ammar").tag("ammar")
-                Text("Mina").tag("mina")
+                ForEach(MoneyPartners.all) { (p: MoneyPartner) in Text(p.name).tag(p.id) }
             }
             .pickerStyle(.segmented)
         } header: {
@@ -157,6 +170,20 @@ struct AddExpenseSheet: View {
             if paidBy != "business" {
                 Text("Logged to \(paidBy == "ammar" ? "his" : "her") ledger as a loan to the business.")
             }
+        }
+    }
+
+    private var salarySection: some View {
+        Section {
+            Picker("Salary for", selection: $salaryFor) {
+                Text("Choose…").tag("")
+                ForEach(MoneyPartners.all) { (p: MoneyPartner) in Text(p.name).tag(p.id) }
+            }
+            .pickerStyle(.menu)
+        } header: {
+            Text("Partner salary")
+        } footer: {
+            Text("A wage is a cost of the business, so nothing goes on the partner's ledger.")
         }
     }
 
@@ -207,10 +234,15 @@ struct AddExpenseSheet: View {
         var fields: [String: Any] = [
             "date": ERPDate.iso(date),
             "category": chosenCategory,
-            "description": cleanedWhat,
+            "description": isSalary ? MoneyPartners.salaryDescription(partnerId: salaryFor, typed: cleanedWhat) : cleanedWhat,
             "amount": amount,
         ]
-        if offersPartners { fields["paidBy"] = paidBy }
+        if isSalary {
+            fields["paidBy"] = "business"
+            fields["shareholderId"] = salaryFor
+        } else if partnership {
+            fields["paidBy"] = paidBy
+        }
         if !karigarId.isEmpty { fields["karigarId"] = karigarId }
         if let filed { fields["batchId"] = filed }
         do {

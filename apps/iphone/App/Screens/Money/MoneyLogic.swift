@@ -210,6 +210,15 @@ struct MoneyDayRange: Equatable {
         return true
     }
 
+    /// A range the person picks (periodRange's `custom`; the extra revenue page's date filter): no
+    /// bound at all until a start is picked, then up to the end of the chosen last day, or of today.
+    static func custom(fromDay: String?, toDay: String?, now: Date = Date()) -> MoneyDayRange {
+        guard let from = fromDay, !from.isEmpty else { return MoneyDayRange(from: nil, to: nil) }
+        let today = ERPDate.karachiDay(now)
+        let to = (toDay ?? "").isEmpty ? today : (toDay ?? today)
+        return MoneyDayRange(from: from, to: to)
+    }
+
     /// "1 Oct – 8 Oct 2026", as the page's subtitle says it; nil for no bound.
     var caption: String? {
         guard let f = from, let t = to else { return nil }
@@ -253,9 +262,7 @@ enum ExpensePeriod: String, CaseIterable, Identifiable {
         case .thisYear:
             return MoneyDayRange(from: String(today.prefix(4)) + "-01-01", to: today)
         case .custom:
-            guard let from = customFrom, !from.isEmpty else { return MoneyDayRange(from: nil, to: nil) }
-            let to = (customTo ?? "").isEmpty ? today : (customTo ?? today)
-            return MoneyDayRange(from: from, to: to)
+            return MoneyDayRange.custom(fromDay: customFrom, toDay: customTo, now: now)
         }
     }
 
@@ -264,6 +271,24 @@ enum ExpensePeriod: String, CaseIterable, Identifiable {
         let year = Int(today.prefix(4)) ?? 0
         let month = Int(today.dropFirst(5).prefix(2)) ?? 1
         return month > 1 ? String(format: "%04d-%02d", year, month - 1) : String(format: "%04d-12", year - 1)
+    }
+}
+
+/// What the person chose for a custom span, kept as the dates the pickers hold: nothing at all until
+/// "From a date" is on, and no end means today. Shared by Expenses and Extra revenue.
+struct MoneyCustomRange: Equatable {
+    var useFrom = false
+    /// Offered as the first of this month once "From a date" is turned on.
+    var from: Date = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
+    var useTo = false
+    var to = Date()
+
+    /// The days the phone's own calendar shows.
+    var fromDay: String? { useFrom ? MoneyCalendar.pickedDay(from) : nil }
+    var toDay: String? { useFrom && useTo ? MoneyCalendar.pickedDay(to) : nil }
+
+    func range(now: Date = Date()) -> MoneyDayRange {
+        MoneyDayRange.custom(fromDay: fromDay, toDay: toDay, now: now)
     }
 }
 
@@ -378,6 +403,25 @@ enum ExpenseFigures {
         return s
     }
 
+    /// The expenses page's filter list (`filterCategories`): the house's own list (the ERP says it:
+    /// `session.shop.expenseCategories`, with the two partner names and "Other"), then any other name
+    /// an expense carries, sorted. With no house list (the demo, an old cached answer) the names the
+    /// books use, the most used first.
+    static func categories(shop: [String], expenses: [Expense]) -> [String] {
+        if shop.isEmpty { return categoriesByUse(expenses) }
+        let known = Set(shop)
+        var extra = Set<String>()
+        for e in expenses where !e.category.isEmpty && !known.contains(e.category) { extra.insert(e.category) }
+        return shop + extra.sorted()
+    }
+
+    /// What the Add expense form offers: the same, and with no house list "Other" last.
+    static func formCategories(shop: [String], expenses: [Expense]) -> [String] {
+        let all = categories(shop: shop, expenses: expenses)
+        if !shop.isEmpty { return all }
+        return all.filter { $0 != "Other" } + ["Other"]
+    }
+
     /// Every category an expense carries, the most used first (ties by name).
     static func categoriesByUse(_ expenses: [Expense]) -> [String] {
         var counts: [String: Int] = [:]
@@ -388,6 +432,30 @@ enum ExpenseFigures {
             if ca != cb { return ca > cb }
             return a.localizedCaseInsensitiveCompare(b) == .orderedAscending
         }
+    }
+}
+
+/// The two partners (lib/shareholders.ts SHAREHOLDERS), a constant of the code, not a collection:
+/// only a house that keeps partner ledgers (`session.shop.partnership`) offers them.
+struct MoneyPartner: Identifiable {
+    let id: String
+    let name: String
+}
+
+enum MoneyPartners {
+    static let all: [MoneyPartner] = [MoneyPartner(id: "ammar", name: "Ammar"), MoneyPartner(id: "mina", name: "Mina")]
+
+    /// lib/partnership.ts PARTNER_SALARY: read by name, with the partner it paid in `shareholderId`.
+    static let salaryCategory = "Partner Salary"
+
+    static func name(_ id: String?) -> String? {
+        all.first { $0.id == (id ?? "") }?.name
+    }
+
+    /// A salary row is described as the Shareholders page writes it: "Mina salary — <what it was for>".
+    static func salaryDescription(partnerId: String, typed: String) -> String {
+        let who = name(partnerId) ?? partnerId
+        return "\(who) salary \u{2014} \(typed.trimmingCharacters(in: .whitespacesAndNewlines))"
     }
 }
 

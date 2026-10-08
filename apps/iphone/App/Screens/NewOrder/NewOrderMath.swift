@@ -54,7 +54,20 @@ enum NewOrderMath {
         )
     }
 
+    // MARK: The book
+
+    /// Customers who are people: not removed, not the old "Walk-in Customer" records (lib/walk-in.ts).
+    static func people(_ all: [Customer]) -> [Customer] {
+        all.filter { ($0.deletedAt ?? "").isEmpty && !isWalkInName($0.name) }
+    }
+
     // MARK: One piece
+
+    /// Wastage typed in grams (the karigar's "6.500 + 0.650") as the percentage the order keeps: the grams
+    /// are on the metal less its stones (OrderFinalize), to eight places so it prices exactly those grams.
+    static func wastageText(grams typed: String, weight: Double, stoneWeight: Double) -> String {
+        NewOrderFormat.boxText(wastagePercentFor(num(typed), weight, stoneWeight), digits: 8)
+    }
 
     /// The piece as pricing reads it. Stone weight, diamond charges and a stone's weight count only
     /// while their boxes are ticked, so a figure typed and then unticked cannot sit hidden in a price.
@@ -66,8 +79,8 @@ enum NewOrderMath {
             categoryId: nil,
             metalType: metal,
             karat: metalHasKarat(metal) ? KaratValue(rawValue: p.karat) : nil,
-            metalWeightG: num(p.weight),
-            stoneWeightG: p.hasStones ? num(p.stoneWeight) : 0,
+            metalWeightG: p.weightValue,
+            stoneWeightG: p.stoneWeightValue,
             wastagePercentage: silver ? 0 : num(p.wastage),
             makingCharges: silver ? 0 : num(p.making),
             hasDiamonds: p.hasDiamonds,
@@ -134,7 +147,7 @@ enum NewOrderMath {
     }
 
     /// One piece as `onSubmit` builds it: the form's fields plus the estimate (`metalCost`, `wastageCost`,
-    /// `totalEstimate`), karat only for gold and plating only for silver (`stripMeaninglessKarat`). The
+    /// `totalEstimate`), karat only for a metal that has one and plating only for silver (`stripMeaninglessKarat`). The
     /// sample picture goes as a data URI; createOrder moves it to `order_photos` in the same commit
     /// (lib/order-photos.ts splitItemPhotos). The instructions for the karigar are the owner's.
     static func item(_ p: NewOrderPieceDraft, rates: PricingRates, owner: Bool, photo: Bool) -> [String: Any] {
@@ -151,7 +164,7 @@ enum NewOrderMath {
         o["stoneCharges"] = num(p.stones)
         o["hasDiamonds"] = p.hasDiamonds
         o["hasStones"] = p.hasStones
-        o["stoneWeightG"] = p.hasStones ? num(p.stoneWeight) : 0.0
+        o["stoneWeightG"] = p.stoneWeightValue
         o["sampleGiven"] = p.sampleGiven
         o["isCompleted"] = false
         o["isManualPrice"] = p.manual
@@ -163,7 +176,9 @@ enum NewOrderMath {
         put(&o, "referenceSku", p.referenceSku)
         put(&o, "size", p.size)
         put(&o, "karigarId", p.karigarId)
-        if metal == .gold { put(&o, "karat", p.karat) }
+        // Karat stays for any metal that has one (gold, and palladium's 18k and 12k, which price differently):
+        // lib/order-estimate.ts stripMeaninglessKarat.
+        if metalHasKarat(metal) { put(&o, "karat", p.karat) }
         if p.hasStones { put(&o, "stoneDetails", p.stoneDetails) }
         if p.hasDiamonds { put(&o, "diamondDetails", p.diamondDetails) }
         if silver {
@@ -233,6 +248,11 @@ enum NewOrderMath {
             if !typed.isEmpty { o["customerName"] = typed }
             if !phone.isEmpty { o["customerContact"] = phone }
         }
+    }
+
+    /// What the screen hands `ERPAPI.write("createOrder", …)`: the fields of the op, which are `{ order }`.
+    static func request(_ d: NewOrderDraft, settings: Settings, customers: [Customer], owner: Bool) -> [String: Any] {
+        ["order": order(d, settings: settings, customers: customers, owner: owner)]
     }
 
     /// The order exactly as `orderToSave` builds it (`createOrder`'s `order`).

@@ -13,10 +13,7 @@ extension SaleForm {
         // Typing a name lets go of a customer picked from the book, as the web's name box does.
         Binding(
             get: { draft.customerName },
-            set: { text in
-                draft.customerName = text
-                draft.customerId = nil
-            }
+            set: { text in draft.typeName(text) }
         )
     }
 
@@ -56,7 +53,7 @@ extension SaleForm {
         if line.metalWeightG > 0 { parts.append(SaleNumber.grams(line.metalWeightG) + "g") }
         if let size = line.size, !size.isEmpty { parts.append("Size \(size)") }
         // A key made up for one bill is not a stock number (lib/sku.ts stockSku).
-        if !line.isOneOff { parts.append(line.sku) }
+        if let stock = line.stockSku { parts.append(stock) }
         return parts.joined(separator: " · ")
     }
 
@@ -64,7 +61,7 @@ extension SaleForm {
         // A piece gone from the shelf since it went on the sale (sold at the counter, or on another phone).
         let gone = book.products.loaded && !line.isOneOff && book.products.item(line.sku) == nil
         return VStack(alignment: .leading, spacing: 4) {
-            TwoLine(title: line.name.isEmpty ? line.sku : line.name, subtitle: spec(line), trailing: Money.pkr(f.price(of: line.sku)))
+            TwoLine(title: line.name.isEmpty ? (line.stockSku ?? "New piece") : line.name, subtitle: spec(line), trailing: Money.pkr(f.price(of: line.sku)))
             if line.isCustomPrice {
                 Text("Fixed price: \(Money.pkr(line.customPrice ?? 0))").font(.caption).foregroundStyle(.orange)
             }
@@ -100,7 +97,7 @@ extension SaleForm {
         let results = SaleLookup.matches(query, in: book.products.items, excluding: taken)
         Section {
             if draft.lines.isEmpty {
-                Text("Search stock below, or scan a tag.").foregroundStyle(.secondary)
+                Text("Search stock below, scan a tag, or describe a new item.").foregroundStyle(.secondary)
             }
             ForEach(draft.lines) { line in lineButton(line, f) }
             HStack(spacing: 8) {
@@ -116,8 +113,11 @@ extension SaleForm {
                 Label(notice, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(.orange)
             }
             Button { scanning = true } label: { Label("Scan a tag", systemImage: "qrcode.viewfinder") }
-            NavigationLink(value: SaleLinks.webSale) {
-                Label("A piece that isn't in stock", systemImage: "square.and.pencil")
+            Button { startNewItem() } label: {
+                Label("New item", systemImage: "plus.circle")
+            }
+            NavigationLink(value: SaleLinks.newPiece) {
+                Label("New item, and keep it in stock", systemImage: "square.and.pencil")
             }
             NavigationLink(value: SaleLinks.webBill) {
                 Label("Read a written bill", systemImage: "camera.viewfinder")
@@ -126,7 +126,7 @@ extension SaleForm {
             Text("Pieces")
         } footer: {
             let n = draft.lines.count
-            Text("\(n) piece\(n == 1 ? "" : "s") on this bill. Tap a piece to edit it; swipe to remove it. A piece that isn't in stock and a written bill open the ERP's own sale page, which keeps its own sale.")
+            Text("\(n) piece\(n == 1 ? "" : "s") on this bill. Tap a piece to edit it; swipe to remove it. New item bills a piece that was never in stock, for this sale only. Putting a piece in stock and reading a written bill open the ERP's own pages.")
         }
     }
 
@@ -140,8 +140,8 @@ extension SaleForm {
     }
 
     var staleRateText: String {
-        let s = book.settings.value
-        let main = s.map { $0[keyPath: RateKeys.main.value] } ?? 0
+        let s: Settings? = book.settings.value
+        let main: Double = s?[keyPath: RateKeys.main.value] ?? 0
         return "The rate was not set today (\(RateKeys.main.label) \(Money.grouped(main)) · \(RateKeys.whenSet(s?.ratesUpdatedAt))). Tap to set it, or carry on."
     }
 
@@ -222,17 +222,8 @@ extension SaleForm {
                 guard let row = draft.exchanges.first(where: { $0.id == id }) else { return "" }
                 return exchangeText(row, field)
             },
-            set: { text in
-                guard let i = draft.exchanges.firstIndex(where: { $0.id == id }) else { return }
-                let next = applyExchangeRowChange(draft.exchanges[i].core, exchangePatch(field, text))
-                draft.exchanges[i] = SaleExchangeRow(next)
-            }
+            set: { text in draft.changeExchange(id, exchangePatch(field, text)) }
         )
-    }
-
-    private func removeExchange(_ id: String) {
-        draft.exchanges.removeAll { $0.id == id }
-        if draft.exchanges.isEmpty { draft.exchanges = [SaleExchangeRow.blank()] }
     }
 
     private func exchangeRow(_ row: SaleExchangeRow) -> some View {
@@ -284,10 +275,10 @@ extension SaleForm {
             ForEach(draft.exchanges) { row in
                 exchangeRow(row)
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) { removeExchange(row.id) } label: { Label("Remove", systemImage: "trash") }
+                        Button(role: .destructive) { draft.removeExchange(row.id) } label: { Label("Remove", systemImage: "trash") }
                     }
             }
-            Button { draft.exchanges.append(SaleExchangeRow.blank()) } label: {
+            Button { draft.addExchange() } label: {
                 Label("Add another exchange", systemImage: "plus")
             }
             if draft.exchanges.count > 1 && total > 0 {
@@ -311,20 +302,6 @@ extension SaleForm {
         }
     }
 
-    /// "Paid in full": the row takes whatever the others leave outstanding.
-    private func payRest(_ id: String, _ f: SaleFigures) {
-        let others = draft.payments.filter { $0.id != id }.reduce(0.0) { $0 + SaleNumber.value($1.amount) }
-        let rest = max(0, (f.total - others).rounded())
-        if let i = draft.payments.firstIndex(where: { $0.id == id }) {
-            draft.payments[i].amount = rest > 0 ? String(Int(rest)) : ""
-        }
-    }
-
-    private func removePayment(_ id: String) {
-        draft.payments.removeAll { $0.id == id }
-        if draft.payments.isEmpty { draft.payments = [SalePaymentRow()] }
-    }
-
     private func paymentRow(_ row: Binding<SalePaymentRow>, _ f: SaleFigures) -> some View {
         let single = draft.payments.count < 2
         return VStack(alignment: .leading, spacing: 8) {
@@ -332,7 +309,7 @@ extension SaleForm {
                 TextField("Amount (PKR)", text: row.amount)
                     .keyboardType(.numberPad)
                     .monospacedDigit()
-                Button(single ? "Paid in full" : "The rest") { payRest(row.wrappedValue.id, f) }
+                Button(single ? "Paid in full" : "The rest") { draft.payRest(row.wrappedValue.id, total: f.total) }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .disabled(!f.hasEstimate)
@@ -355,13 +332,10 @@ extension SaleForm {
             ForEach($draft.payments) { $row in
                 paymentRow($row, f)
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) { removePayment(row.id) } label: { Label("Remove", systemImage: "trash") }
+                        Button(role: .destructive) { draft.removePayment(row.id) } label: { Label("Remove", systemImage: "trash") }
                     }
             }
-            Button {
-                let next = draft.payments.last?.method == "Cash" ? "Card" : "Cash"
-                draft.payments.append(SalePaymentRow(method: next))
-            } label: {
+            Button { draft.addPayment() } label: {
                 Label("Add another payment", systemImage: "plus")
             }
             if f.hasEstimate && f.paidNow > 0 { balanceRow(f) }
@@ -591,10 +565,22 @@ extension SaleForm {
             if let failure {
                 VStack(spacing: 8) {
                     Text(failure).font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center)
+                    if alreadySold {
+                        // A new item is refused only once it is on an invoice: this sale was saved before
+                        // (a save sent again after the answer was lost), so there is nothing to take off.
+                        Text("This sale was already saved. Look for it in Invoices before saving it again.")
+                            .font(.footnote.weight(.semibold))
+                            .multilineTextAlignment(.center)
+                        NavigationLink(value: Route(path: "/invoices")) {
+                            Text("Open Invoices")
+                        }
+                        .buttonStyle(.glass)
+                    }
                     if !goneSkus.isEmpty {
                         Button("Take them off the sale") {
                             draft.lines.removeAll { goneSkus.contains($0.sku) }
                             goneSkus = []
+                            alreadySold = false
                             self.failure = nil
                         }
                         .buttonStyle(.glass)
@@ -627,46 +613,6 @@ extension SaleForm {
         .padding(.bottom, 8)
     }
 
-    private func exchangeJSON(_ e: ExchangeEntry) -> [String: Any] {
-        var o: [String: Any] = ["description": e.description, "value": e.value]
-        if let k = e.karat, !k.isEmpty { o["karat"] = k }
-        if let w = e.weightG { o["weightG"] = w }
-        if let r = e.ratePerGram { o["ratePerGram"] = r }
-        return o
-    }
-
-    private func trimmed(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }
-
-    /// The sale as createInvoice takes it (the web's `generateInvoice` arguments).
-    func payload(_ f: SaleFigures) -> [String: Any] {
-        var out: [String: Any] = [:]
-        out["cart"] = draft.lines.map { $0.payload(qr: book.products.item($0.sku)?.qrCodeDataUrl) }
-        var customer: [String: Any] = ["name": f.who.name]
-        if let id = f.who.id { customer["id"] = id }
-        if !f.who.phone.isEmpty { customer["phone"] = f.who.phone }
-        out["customer"] = customer
-        out["rates"] = f.rateBook.forInvoice(metals: f.metals)
-        out["discountAmount"] = f.discount
-        out["exchanges"] = exchangesFromRows(draft.exchanges.map { $0.core }).map { exchangeJSON($0) }
-        var payments: [[String: Any]] = []
-        for r in draft.payments {
-            let amount = SaleNumber.value(r.amount)
-            if amount <= 0 { continue }
-            var p: [String: Any] = ["amount": amount, "method": r.method]
-            let ref = r.method == "Cash" ? "" : trimmed(r.reference)
-            if !ref.isEmpty { p["reference"] = ref }
-            payments.append(p)
-        }
-        out["payments"] = payments
-        if !trimmed(draft.takenBy).isEmpty { out["takenBy"] = trimmed(draft.takenBy) }
-        out["hideRates"] = draft.hideRates
-        if !trimmed(draft.internalNote).isEmpty { out["internalNote"] = trimmed(draft.internalNote) }
-        if let delivery = draft.delivery.payload { out["delivery"] = delivery }
-        let perGram = SaleNumber.value(draft.costTola) / SALE_GRAMS_PER_TOLA
-        if perGram > 0 { out["costRate24k"] = perGram }
-        return out
-    }
-
     /// The new invoice reaches the phone's shelf a moment after the server writes it; wait for it
     /// (a few seconds at most) so the invoice page opens on the invoice, not on "not found".
     func waitForInvoice(_ id: String) async {
@@ -681,8 +627,9 @@ extension SaleForm {
         saving = true
         failure = nil
         goneSkus = []
+        alreadySold = false
         do {
-            let out = try await ERPAPI.shared.write("createInvoice", payload(f))
+            let out = try await ERPAPI.shared.write("createInvoice", draft.payload(f) { book.products.item($0)?.qrCodeDataUrl })
             let id = (out["invoice"] as? [String: Any])?["id"] as? String ?? ""
             SaleDraftStore.clear()
             draft = SaleDraft()
@@ -695,7 +642,11 @@ extension SaleForm {
         } catch let e as ERPAPI.Failure {
             // The ERP's own words, as they come: a piece sold meanwhile is a 409 that names it.
             failure = e.message
-            if e.status == 409 { goneSkus = SaleLookup.gone(in: e.message) }
+            if e.status == 409 {
+                let refused = SaleLookup.refusal(in: e.message, lines: draft.lines)
+                goneSkus = refused.gone
+                alreadySold = refused.alreadySold
+            }
         } catch {
             failure = error.localizedDescription
         }

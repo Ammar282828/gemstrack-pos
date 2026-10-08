@@ -178,6 +178,7 @@ async function deleteCollection(collectionName: string) {
 // Pricing lives in ./pricing so the server can use it too; re-exported here
 // because every existing caller imports it from the store.
 export { calculateProductPrice } from './pricing';
+import { planHisaabSync } from './writes/hisaab-sync';
 import { _calculateProductCostsInternal, calculateProductCosts, GOLD_COIN_CATEGORY_ID_INTERNAL, DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL } from './pricing';
 import { finalizedItemCosts, orderInvoiceRates, type FinalizedItem } from './order-finalize';
 
@@ -2943,179 +2944,30 @@ export const useAppStore = create<AppState>()(
       },
 
       syncHisaabOutstandingBalances: async () => {
+        // The plan is lib/writes/hisaab-sync.ts, shared with the server (the iPhone app's Hisaab asks for it).
         try {
           const [invoicesSnap, hisaabSnap, customersSnap] = await Promise.all([
             getDocs(collection(db, FIRESTORE_COLLECTIONS.INVOICES)),
             getDocs(collection(db, FIRESTORE_COLLECTIONS.HISAAB)),
             getDocs(collection(db, FIRESTORE_COLLECTIONS.CUSTOMERS)),
           ]);
-
-          // Build a name→{id, name} map for fuzzy customer matching on Shopify invoices with missing customerId.
-          // Never the placeholder: a walk-in invoice has no customerId on purpose, and matching
-          // its name would hang its balance on one of the old "Walk-in Customer" records.
-          const customerByName: Record<string, { id: string; name: string }> = {};
-          for (const d of customersSnap.docs) {
-            const cust = d.data() as any;
-            if (cust.name && !isWalkInName(cust.name)) customerByName[cust.name.toLowerCase().trim()] = { id: d.id, name: cust.name };
+          const plan = planHisaabSync(
+            invoicesSnap.docs.map(d => ({ ...(d.data() as Record<string, unknown>), id: d.id })),
+            hisaabSnap.docs.map(d => ({ ...(d.data() as Record<string, unknown>), id: d.id })),
+            customersSnap.docs.map(d => ({ ...(d.data() as Record<string, unknown>), id: d.id })),
+          );
+          const writes: ((b: ReturnType<typeof writeBatch>) => void)[] = [
+            ...plan.deletes.map(id => (b: ReturnType<typeof writeBatch>) => b.delete(doc(db, FIRESTORE_COLLECTIONS.HISAAB, id))),
+            ...plan.updates.map(u => (b: ReturnType<typeof writeBatch>) => b.update(doc(db, FIRESTORE_COLLECTIONS.HISAAB, u.id), u.patch)),
+            ...plan.creates.map(r => (b: ReturnType<typeof writeBatch>) => b.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), r)),
+          ];
+          // Firestore takes 500 writes a commit: a long-neglected book is put right in several.
+          for (let i = 0; i < writes.length; i += 450) {
+            const b = writeBatch(db);
+            writes.slice(i, i + 450).forEach(w => w(b));
+            await b.commit();
           }
-
-          // Build a map of invoiceId → invoice data for fast lookup
-          const invoiceMap: Record<string, any> = {};
-          for (const d of invoicesSnap.docs) {
-            invoiceMap[d.id] = { ...d.data(), id: d.id };
-          }
-
-          const allHisaabDocs = hisaabSnap.docs.map(d => ({ _ref: d.ref, ...(d.data() as any) }));
-
-          console.log(`[syncHisaab] Checking ${invoicesSnap.docs.length} invoices against ${hisaabSnap.docs.length} hisaab entries.`);
-
-          // Log all current hisaab entries so we can see what's actually in there
-          for (const h of allHisaabDocs) {
-            const invData = h.linkedInvoiceId ? invoiceMap[h.linkedInvoiceId] : null;
-            console.log(`[syncHisaab] Entry: ${h.entityName} | debit:${h.cashDebit} credit:${h.cashCredit} | linkedInvoice:${h.linkedInvoiceId || 'none'} | invoice.balanceDue:${invData ? invData.balanceDue : 'N/A'} | invoice.amountPaid:${invData ? invData.amountPaid : 'N/A'} | invoice.grandTotal:${invData ? invData.grandTotal : 'N/A'}`);
-          }
-
-          const batch = writeBatch(db);
-          let ops = 0;
-          const getOutstandingDescription = (invoiceId: string) => `Outstanding balance for Invoice ${invoiceId}`;
-
-          // Iterate over hisaab entries — for each entry linked to an invoice, validate it
-          // Group by invoiceId so we can handle duplicates
-          const linkedByInvoice: Record<string, typeof allHisaabDocs> = {};
-          for (const h of allHisaabDocs) {
-            if (!h.linkedInvoiceId) continue; // manual entries — leave untouched
-            if (!linkedByInvoice[h.linkedInvoiceId]) linkedByInvoice[h.linkedInvoiceId] = [];
-            linkedByInvoice[h.linkedInvoiceId].push(h);
-          }
-
-          for (const [invoiceId, linked] of Object.entries(linkedByInvoice)) {
-            const inv = invoiceMap[invoiceId];
-
-            // Invoice was deleted but hisaab entry remains — clean up
-            if (!inv) {
-              linked.forEach(h => { batch.delete(h._ref); ops++; });
-              console.log(`[syncHisaab] Deleted ${linked.length} orphaned entries for missing invoice ${invoiceId}.`);
-              continue;
-            }
-
-            const outstandingDebitEntries = linked.filter(h =>
-              (h.cashDebit ?? 0) > 0 && h.description === getOutstandingDescription(inv.id)
-            );
-            const excessAdvanceCreditEntries = linked.filter(h => isCreditRow(h, inv.id));
-            const resolvedCustomerId = inv.customerId || customerByName[inv.customerName?.toLowerCase().trim()]?.id || '';
-            const balanceDue = inv.status === 'Refunded' ? 0 : Number(inv.balanceDue ?? 0);
-
-            if (balanceDue > 0) {
-              if (excessAdvanceCreditEntries.length > 0) {
-                console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) removing ${excessAdvanceCreditEntries.length} stale excess-advance credit entr${excessAdvanceCreditEntries.length === 1 ? 'y' : 'ies'}.`);
-                excessAdvanceCreditEntries.forEach(h => { batch.delete(h._ref); ops++; });
-              }
-
-              if (outstandingDebitEntries.length === 0) {
-                if (resolvedCustomerId && resolvedCustomerId !== 'walk-in') {
-                  console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) outstanding ${balanceDue} — creating missing entry.`);
-                  const newRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
-                  batch.set(newRef, {
-                    entityId: resolvedCustomerId,
-                    entityType: 'customer',
-                    entityName: inv.customerName || 'Customer',
-                    date: inv.createdAt,
-                    description: getOutstandingDescription(inv.id),
-                    cashDebit: balanceDue,
-                    cashCredit: 0,
-                    goldDebitGrams: 0,
-                    goldCreditGrams: 0,
-                    linkedInvoiceId: inv.id,
-                  });
-                  ops++;
-                }
-              } else {
-                if (outstandingDebitEntries[0].cashDebit !== balanceDue) {
-                  console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) updating stale cashDebit ${outstandingDebitEntries[0].cashDebit} → ${balanceDue}.`);
-                  batch.update(outstandingDebitEntries[0]._ref, { cashDebit: balanceDue, cashCredit: 0 });
-                  ops++;
-                }
-                outstandingDebitEntries.slice(1).forEach(h => { batch.delete(h._ref); ops++; });
-              }
-              continue;
-            }
-
-            if (balanceDue < 0) {
-              if (outstandingDebitEntries.length > 0) {
-                console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) removing ${outstandingDebitEntries.length} stale outstanding entr${outstandingDebitEntries.length === 1 ? 'y' : 'ies'} after overpayment.`);
-                outstandingDebitEntries.forEach(h => { batch.delete(h._ref); ops++; });
-              }
-
-              const creditAmount = Math.abs(balanceDue);
-              if (excessAdvanceCreditEntries.length === 0) {
-                if (resolvedCustomerId && resolvedCustomerId !== 'walk-in') {
-                  console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) excess advance ${creditAmount} — creating missing credit entry.`);
-                  const newRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
-                  batch.set(newRef, {
-                    entityId: resolvedCustomerId,
-                    entityType: 'customer',
-                    entityName: inv.customerName || 'Customer',
-                    date: inv.createdAt,
-                    description: creditDescription(inv.id),
-                    cashDebit: 0,
-                    cashCredit: creditAmount,
-                    goldDebitGrams: 0,
-                    goldCreditGrams: 0,
-                    linkedInvoiceId: inv.id,
-                  });
-                  ops++;
-                }
-              } else {
-                if (excessAdvanceCreditEntries[0].cashCredit !== creditAmount) {
-                  console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) updating stale cashCredit ${excessAdvanceCreditEntries[0].cashCredit} → ${creditAmount}.`);
-                  batch.update(excessAdvanceCreditEntries[0]._ref, { cashDebit: 0, cashCredit: creditAmount });
-                  ops++;
-                }
-                excessAdvanceCreditEntries.slice(1).forEach(h => { batch.delete(h._ref); ops++; });
-              }
-              continue;
-            }
-
-            const staleAutoEntries = [...outstandingDebitEntries, ...excessAdvanceCreditEntries];
-            if (staleAutoEntries.length > 0) {
-              console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) settled, removing ${staleAutoEntries.length} stale auto-managed entr${staleAutoEntries.length === 1 ? 'y' : 'ies'}.`);
-              staleAutoEntries.forEach(h => { batch.delete(h._ref); ops++; });
-            }
-          }
-
-          // Second pass: catch invoices that have NO hisaab entry at all.
-          // These are typically Shopify-imported invoices that were never run through
-          // generateInvoice(), so no entry was ever created for them.
-          for (const inv of Object.values(invoiceMap)) {
-            if (linkedByInvoice[inv.id]) continue; // already handled above
-            if ((inv.balanceDue ?? 0) <= 0 || inv.status === 'Refunded') continue;
-            // For invoices with missing customerId (e.g. Shopify imports with unmatched names), try name-based lookup
-            const resolvedId = inv.customerId || customerByName[inv.customerName?.toLowerCase().trim()]?.id || '';
-            if (!resolvedId || resolvedId === 'walk-in') continue;
-
-            console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) has no hisaab entry — creating (balanceDue: ${inv.balanceDue}).`);
-            const newRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
-            batch.set(newRef, {
-              entityId: resolvedId,
-              entityType: 'customer',
-              entityName: inv.customerName || 'Customer',
-              date: inv.createdAt,
-              description: getOutstandingDescription(inv.id),
-              cashDebit: inv.balanceDue,
-              cashCredit: 0,
-              goldDebitGrams: 0,
-              goldCreditGrams: 0,
-              linkedInvoiceId: inv.id,
-            });
-            ops++;
-          }
-
-          if (ops > 0) {
-            await batch.commit();
-            console.log(`[syncHisaab] Done — applied ${ops} corrections.`);
-          } else {
-            console.log('[syncHisaab] Already in sync, nothing to do.');
-          }
+          console.log(writes.length ? `[syncHisaab] Done — applied ${writes.length} corrections.` : '[syncHisaab] Already in sync, nothing to do.');
         } catch (error) {
           console.error('[syncHisaab] Error:', error);
         }

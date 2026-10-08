@@ -13,10 +13,8 @@ struct ExpensesScreen: View {
     @State private var search = ""
     @State private var period: ExpensePeriod = .thisMonth
     @State private var grouping: ExpenseGrouping = .day
-    /// Custom range: from the first of this month to today until the person moves them.
-    @State private var customFrom = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
-    @State private var useCustomTo = false
-    @State private var customTo = Date()
+    /// Custom range: no bound until a start date is chosen (date-grouping.ts periodRange).
+    @State private var custom = MoneyCustomRange()
     /// "" is every category.
     @State private var category = ""
     @State private var adding = false
@@ -44,7 +42,7 @@ struct ExpensesScreen: View {
             }
         }
         .sheet(isPresented: $adding) {
-            AddExpenseSheet(categories: sheetCategories, offersPartners: offersPartners) { (saved: ExpenseSavedNote) in
+            AddExpenseSheet(categories: sheetCategories, partnership: session.shop.partnership) { (saved: ExpenseSavedNote) in
                 withAnimation { note = saved }
             }
         }
@@ -77,7 +75,7 @@ struct ExpensesScreen: View {
     @ViewBuilder
     private var content: some View {
         let now = Date()
-        let range = period.range(customFrom: customFromDay, customTo: customToDay, now: now)
+        let range = period.range(customFrom: custom.fromDay, customTo: custom.toDay, now: now)
         let scoped = scopedLines(range)
         let shown = category.isEmpty ? scoped : scoped.filter { $0.item.category == category }
         let groups = MoneyBuckets.group(shown, by: grouping, now: now, amount: { (e: Expense) -> Double in e.amount })
@@ -85,11 +83,11 @@ struct ExpensesScreen: View {
         List {
             if period == .custom {
                 Section {
-                    customRange
+                    MoneyRangeFields(filter: $custom)
                 } header: {
                     Text("Custom range")
                 } footer: {
-                    Text("Without an end date it runs to the end of today.")
+                    Text(custom.useFrom ? "Without an end date it runs to the end of today." : "Until a start date is chosen, every expense is shown.")
                 }
             }
             Section {
@@ -122,30 +120,10 @@ struct ExpensesScreen: View {
         .safeAreaInset(edge: .top, spacing: 0) { categoryChips(scoped) }
     }
 
-    /// The custom range's days as the person picked them on the phone's calendar.
-    private var customFromDay: String { MoneyCalendar.pickedDay(customFrom) }
-
-    /// Nil leaves the end at today: `endOfDay(to || now)`.
-    private var customToDay: String? { useCustomTo ? MoneyCalendar.pickedDay(customTo) : nil }
-
     /// "This month · 1 Oct – 8 Oct 2026".
     private func periodLine(_ range: MoneyDayRange) -> String {
         guard let caption = range.caption else { return period.title }
         return "\(period.title) · \(caption)"
-    }
-
-    private var customRange: some View {
-        let upper = max(Date(), customFrom)
-        return Group {
-            DatePicker("From", selection: $customFrom, in: ...Date(), displayedComponents: .date)
-                .onChange(of: customFrom) { _, picked in
-                    if customTo < picked { customTo = picked }
-                }
-            Toggle("End on a date", isOn: $useCustomTo)
-            if useCustomTo {
-                DatePicker("To", selection: $customTo, in: customFrom...upper, displayedComponents: .date)
-            }
-        }
     }
 
     /// Search and the period: everything but the category, so each chip can count what it would show.
@@ -238,18 +216,9 @@ struct ExpensesScreen: View {
         if !when.isEmpty { parts.append(when) }
         if !e.category.isEmpty { parts.append(e.category) }
         if let kid = e.karigarId, let name = book.karigars.item(kid)?.name, !name.isEmpty { parts.append(name) }
-        if let partner = partnerName(e.shareholderId) { parts.append(partner) }
+        if let partner = MoneyPartners.name(e.shareholderId) { parts.append(partner) }
         if let payer = payerName(e.paidBy) { parts.append("paid by \(payer)") }
         return parts.joined(separator: " · ")
-    }
-
-    /// The partner a salary row paid (lib/shareholders.ts SHAREHOLDERS).
-    private func partnerName(_ id: String?) -> String? {
-        switch id ?? "" {
-        case "mina": return "Mina"
-        case "ammar": return "Ammar"
-        default: return nil
-        }
     }
 
     /// Nil for the business: an expense with no `paidBy` is the business's.
@@ -264,28 +233,16 @@ struct ExpensesScreen: View {
 
     // MARK: Categories
 
-    /// Every category an expense carries, the most used first. The web lists the house's own list (a
-    /// build setting, NEXT_PUBLIC_STORE_EXPENSE_CATEGORIES) and then any other name an expense carries,
-    /// sorted; the app cannot read that list, so it offers what the books use.
-    private var usedCategories: [String] { ExpenseFigures.categoriesByUse(book.expenses.items) }
-
-    /// What the Add expense sheet offers: the same, then "Other" (always last in the web's list).
-    private var sheetCategories: [String] {
-        var out = usedCategories.filter { $0 != "Other" }
-        out.append("Other")
-        return out
+    /// The filter's list, as the web builds it: the house's own list (the ERP says it), then any other
+    /// name an expense carries, sorted. With no house list (the demo, an old cached answer) it offers
+    /// what the books use, the most used first.
+    private var usedCategories: [String] {
+        ExpenseFigures.categories(shop: session.shop.expenseCategories, expenses: book.expenses.items)
     }
 
-    /// The web offers "Paid by" the partners only in the house that keeps partner ledgers
-    /// (NEXT_PUBLIC_STORE_PARTNERSHIP: House of Mina); a house whose books already carry one has it too.
-    private var offersPartners: Bool {
-        if House.id == "mina" { return true }
-        return book.expenses.items.contains { e in
-            switch e.paidBy {
-            case .ammar, .mina: return true
-            default: return false
-            }
-        }
+    /// What the Add expense sheet offers.
+    private var sheetCategories: [String] {
+        ExpenseFigures.formCategories(shop: session.shop.expenseCategories, expenses: book.expenses.items)
     }
 
     @ViewBuilder

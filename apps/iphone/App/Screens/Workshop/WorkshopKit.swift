@@ -12,9 +12,6 @@ struct WorkshopPlace: Identifiable, Hashable {
     var title: String = ""
     var id: String { path }
 
-    static func invoice(_ id: String) -> WorkshopPlace {
-        WorkshopPlace(path: "/invoices/" + WorkshopLogic.piece(id) + "?web=1", title: id)
-    }
     static func order(_ id: String) -> WorkshopPlace {
         WorkshopPlace(path: "/orders/" + WorkshopLogic.piece(id))
     }

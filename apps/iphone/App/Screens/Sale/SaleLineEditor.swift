@@ -6,115 +6,30 @@ import ERPCore
 /// worked out by the same `calculateProductCosts` the sale uses, so what is shown here is what the
 /// invoice will say. Changes are for this sale only; the piece in stock is untouched.
 ///
+/// With `create` it is the web's "New item": a piece that was never in inventory, described to be
+/// billed on this sale only. The same fields, and the name is required before it can be added.
+///
 /// Unlike the web, a palladium piece keeps its karat when edited (the web's patch drops it for any
 /// metal but gold, which would price an 18k palladium piece at the flat rate).
 struct SaleLineEditor: View {
     let line: SaleLine
     let rates: PricingRates
+    var create = false
     let apply: (SaleLine) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var f: Fields
 
-    init(line: SaleLine, rates: PricingRates, apply: @escaping (SaleLine) -> Void) {
+    init(line: SaleLine, rates: PricingRates, create: Bool = false, apply: @escaping (SaleLine) -> Void) {
         self.line = line
         self.rates = rates
+        self.create = create
         self.apply = apply
         _f = State(initialValue: Fields(line))
     }
 
-    /// Everything the sheet edits, held as text so the fields stay editable (the web's `Draft`).
-    struct Fields {
-        var name: String
-        var categoryId: String
-        var size: String
-        var metalType: String
-        var karat: String
-        var weight: String
-        var hasStones: Bool
-        var stoneWeight: String
-        var wastage: String
-        var making: String
-        var hasDiamonds: Bool
-        var diamondCharges: String
-        var stoneCharges: String
-        var miscCharges: String
-        var stoneDetails: String
-        var diamondDetails: String
-        var billDescription: String
-        var platingType: String
-        var platingNote: String
-        var nickelFree: Bool
-        var silverRate: String
-        var fixed: Bool
-        var customPrice: String
-
-        init(_ l: SaleLine) {
-            name = l.name
-            categoryId = l.categoryId
-            size = l.size ?? ""
-            metalType = l.metalType
-            karat = l.karat ?? ""
-            weight = SaleNumber.text(l.metalWeightG)
-            // The reveal opens whenever there is stone or diamond data to show, so a figure that is in
-            // the price can never sit behind a closed switch.
-            hasStones = l.hasStones || l.stoneWeightG > 0 || !(l.stoneDetails ?? "").isEmpty
-            stoneWeight = SaleNumber.text(l.stoneWeightG)
-            wastage = SaleNumber.text(l.wastagePercentage)
-            making = SaleNumber.text(l.makingCharges)
-            hasDiamonds = l.hasDiamonds || l.diamondCharges > 0 || !(l.diamondDetails ?? "").isEmpty
-            diamondCharges = SaleNumber.text(l.diamondCharges)
-            stoneCharges = SaleNumber.text(l.stoneCharges)
-            miscCharges = SaleNumber.text(l.miscCharges)
-            stoneDetails = l.stoneDetails ?? ""
-            diamondDetails = l.diamondDetails ?? ""
-            billDescription = l.billDescription ?? ""
-            platingType = l.platingType ?? ""
-            platingNote = l.platingNote ?? ""
-            nickelFree = l.nickelFree
-            silverRate = SaleNumber.text(l.silverRatePerGram)
-            fixed = l.isCustomPrice
-            customPrice = SaleNumber.text(l.customPrice)
-        }
-
-        private func nilIfBlank(_ s: String) -> String? {
-            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
-            return t.isEmpty ? nil : t
-        }
-
-        /// The line with these edits (the web's `toPatch`).
-        func applied(to base: SaleLine) -> SaleLine {
-            var out = base
-            let silver = metalType == "silver"
-            out.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-            out.categoryId = categoryId
-            out.size = nilIfBlank(size)
-            out.metalType = metalType
-            // Karat only means something where the metal has one: a stray "21k" on silver is the
-            // phantom karat that used to print on 925 pieces.
-            out.karat = metalHasKarat(metalType) && !karat.isEmpty ? karat : nil
-            out.metalWeightG = SaleNumber.value(weight)
-            out.hasStones = hasStones
-            out.stoneWeightG = SaleNumber.value(stoneWeight)
-            out.wastagePercentage = SaleNumber.value(wastage)
-            out.makingCharges = SaleNumber.value(making)
-            out.hasDiamonds = hasDiamonds
-            out.diamondCharges = SaleNumber.value(diamondCharges)
-            out.stoneCharges = SaleNumber.value(stoneCharges)
-            out.miscCharges = SaleNumber.value(miscCharges)
-            out.stoneDetails = nilIfBlank(stoneDetails)
-            out.diamondDetails = nilIfBlank(diamondDetails)
-            out.billDescription = nilIfBlank(billDescription)
-            out.platingType = silver && !platingType.isEmpty ? platingType : nil
-            out.platingNote = silver && platingType == "Other" ? nilIfBlank(platingNote) : nil
-            out.nickelFree = silver ? nickelFree : false
-            let rate = SaleNumber.value(silverRate)
-            out.silverRatePerGram = silver && rate > 0 ? rate : nil
-            out.isCustomPrice = fixed
-            out.customPrice = fixed ? SaleNumber.value(customPrice) : nil
-            return out
-        }
-    }
+    /// Everything the sheet edits, as text (SaleModel.swift: the contract tests run the same code).
+    typealias Fields = SaleLineFields
 
     private var silver: Bool { f.metalType == "silver" }
 
@@ -134,21 +49,24 @@ struct SaleLineEditor: View {
             Form {
                 pieceSection
                 if silver { finishSection }
+                sizeSection
                 priceSection
                 stonesSection
                 billSection
                 totalSection
             }
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(line.isOneOff ? "Edit piece" : line.sku)
+            .navigationTitle(create ? "New item" : (line.stockSku ?? "Edit piece"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Apply") {
+                    Button(create ? "Add to bill" : "Apply") {
                         apply(f.applied(to: line))
                         dismiss()
                     }
+                    // A new item needs a name before it can go on the bill (the web's dialog, mode "create").
+                    .disabled(create && f.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
@@ -171,7 +89,7 @@ struct SaleLineEditor: View {
     // MARK: Sections
 
     private var pieceSection: some View {
-        Section("The piece") {
+        Section {
             Picker("Category", selection: $f.categoryId) {
                 Text("Not set").tag("")
                 ForEach(SaleCategories.all) { c in Text(c.title).tag(c.id) }
@@ -189,8 +107,51 @@ struct SaleLineEditor: View {
                     ForEach(karatOptions, id: \.self) { k in Text(karatLabel(k)).tag(k) }
                 }
             }
-            TextField("Size", text: $f.size, prompt: Text("Optional, e.g. 10 Indian / 5 US"))
+        } header: {
+            Text("The piece")
+        } footer: {
+            if create {
+                Text("Describe the piece you are billing. It goes on this invoice only: your stock is untouched.")
+            }
         }
+    }
+
+    // MARK: Size
+
+    /// A category with a scale picks its size from it, as the web's SizePicker does (a set with two parts
+    /// keeps "Ring: 10 · Bangle: 2.4" in one string); any other category takes the size as typed.
+    @ViewBuilder
+    private var sizeSection: some View {
+        if let scale = NewOrderSizes.scale(for: f.categoryId) {
+            Section {
+                if scale.multi {
+                    ForEach(scale.parts) { part in
+                        NewOrderSizeField(title: part.label, options: part.options, value: partBinding(scale, part))
+                    }
+                } else if let only = scale.parts.first {
+                    NewOrderSizeField(title: "Size", options: only.options, value: $f.size)
+                }
+            } header: {
+                Text("Size")
+            } footer: {
+                Text(scale.multi ? scale.label + ". Leave either blank if not applicable." : scale.label)
+            }
+        } else {
+            Section("Size") {
+                TextField("Size", text: $f.size, prompt: Text("Optional"))
+            }
+        }
+    }
+
+    private func partBinding(_ scale: NewOrderSizes.Scale, _ part: NewOrderSizes.Part) -> Binding<String> {
+        Binding(
+            get: { NewOrderSizes.parse(f.size, legacyKey: scale.legacyPartKey)[part.key] ?? "" },
+            set: { typed in
+                var parsed = NewOrderSizes.parse(f.size, legacyKey: scale.legacyPartKey)
+                parsed[part.key] = typed
+                f.size = NewOrderSizes.compose(parsed, order: scale.parts.map { $0.key })
+            }
+        )
     }
 
     private var finishSection: some View {
@@ -276,7 +237,7 @@ struct SaleLineEditor: View {
                     .contentTransition(.numericText(value: preview))
             }
         } footer: {
-            Text("These changes apply to this sale only, not to the piece in stock.")
+            Text(create ? "This piece is on this sale only." : "These changes apply to this sale only, not to the piece in stock.")
         }
     }
 }

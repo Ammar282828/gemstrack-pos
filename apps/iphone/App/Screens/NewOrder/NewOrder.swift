@@ -46,7 +46,7 @@ struct NewOrder: View {
 
     /// Customers who are people: not removed, not the old "Walk-in Customer" records (lib/walk-in.ts).
     private var people: [Customer] {
-        book.customers.items.filter { ($0.deletedAt ?? "").isEmpty && !isWalkInName($0.name) }
+        NewOrderMath.people(book.customers.items)
     }
 
     private var karigars: [Karigar] {
@@ -78,8 +78,7 @@ struct NewOrder: View {
     /// The rates start as today's, once; a draft that is continued keeps the rates it was quoted at.
     private func seedRates() {
         guard loaded, !draft.ratesSeeded, let s = book.settings.value else { return }
-        draft.rates = NewOrderMath.todaysRates(s)
-        draft.ratesSeeded = true
+        draft.seedRates(from: s)
     }
 
     /// The web offers the house's people list; the app has none yet, so: the names already used on recent
@@ -237,10 +236,7 @@ struct NewOrder: View {
     }
 
     private func duplicatePiece(_ id: UUID) {
-        guard let i = draft.pieces.firstIndex(where: { $0.id == id }) else { return }
-        var copy = draft.pieces[i]
-        copy.id = UUID()
-        draft.pieces.insert(copy, at: i + 1)
+        draft.duplicatePiece(id)
     }
 
     private func removePiece(_ id: UUID) {
@@ -356,9 +352,9 @@ struct NewOrder: View {
         }
         saving = true
         defer { saving = false }
-        let order = NewOrderMath.order(draft, settings: settings, customers: people, owner: session.isOwner)
+        let request = NewOrderMath.request(draft, settings: settings, customers: people, owner: session.isOwner)
         do {
-            let out = try await ERPAPI.shared.write("createOrder", ["order": order])
+            let out = try await ERPAPI.shared.write("createOrder", request)
             guard let made = out["order"] as? [String: Any], let id = made["id"] as? String, !id.isEmpty else {
                 throw ERPAPI.Failure(status: 0, message: "The ERP saved the order but didn't say its number. Look for it in Orders.")
             }

@@ -25,7 +25,9 @@ enum SaleNumber {
         f.locale = Locale(identifier: "en_US_POSIX")
         f.numberStyle = .decimal
         f.usesGroupingSeparator = false
-        f.maximumFractionDigits = 4
+        // Every digit a figure has, as the web's String(n) keeps them: a piece opened in the line editor and
+        // applied unchanged must not move (a weight of 3.45678 g is not 3.4568).
+        f.maximumFractionDigits = 10
         f.minimumFractionDigits = 0
         return f
     }()
@@ -129,6 +131,43 @@ struct SaleLine: Codable, Equatable, Identifiable {
         shopifyVariantId = p.shopifyVariantId
     }
 
+    /// A blank line, for billing a piece that was never in inventory (edit-cart-item-dialog.tsx
+    /// `blankCartItem`): the house's own metal, 21k when that is gold, and the opening wastage of the
+    /// order and product forms (10% on gold, nothing on silver). Priced from its weight and the rate
+    /// unless somebody says otherwise.
+    init(blankFor metal: String, sku: String) {
+        self.sku = sku
+        name = ""
+        categoryId = ""
+        metalType = metal
+        karat = metal == "gold" ? "21k" : nil
+        metalWeightG = 0
+        hasStones = false
+        stoneWeightG = 0
+        wastagePercentage = metal == "silver" ? 0 : 10
+        makingCharges = 0
+        hasDiamonds = false
+        diamondCharges = 0
+        stoneCharges = 0
+        miscCharges = 0
+        isCustomPrice = false
+        customPrice = 0
+        nickelFree = false
+    }
+
+    /// `NEW-` plus `Date.now().toString(36).toUpperCase()`: the milliseconds since 1970 in base 36. The
+    /// key tells the sale's lines apart; it is not a stock number (lib/sku.ts). `avoiding` keeps two new
+    /// items on one bill from sharing a key.
+    static func newItemSku(now: Date = Date(), avoiding taken: Set<String> = []) -> String {
+        var ms = UInt64(max(0, (now.timeIntervalSince1970 * 1000).rounded(.down)))
+        var out = "NEW-" + String(ms, radix: 36, uppercase: true)
+        while taken.contains(out) {
+            ms += 1
+            out = "NEW-" + String(ms, radix: 36, uppercase: true)
+        }
+        return out
+    }
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         sku = try c.decode(String.self, forKey: .sku)
@@ -193,6 +232,9 @@ struct SaleLine: Codable, Equatable, Identifiable {
 
     /// A key made up for one bill (NEW-…, BILL-…), not a stock number (lib/sku.ts).
     var isOneOff: Bool { SaleLookup.isOneOff(sku) }
+
+    /// The SKU worth showing a person, or nothing (lib/sku.ts `stockSku`).
+    var stockSku: String? { isOneOff ? nil : sku }
 
     /// The piece as the ERP's createInvoice takes it: the full product document, plus this sale's
     /// edits (`isCustomPrice` and the price fields), as the web's cart sends it. `qr` is the live
@@ -408,6 +450,159 @@ enum SaleDraftStore {
         d.lines.append(SaleLine(product))
         save(d)
         return true
+    }
+}
+
+/// Everything the line editor edits, held as text so the fields stay editable (the web's `Draft` in
+/// edit-cart-item-dialog.tsx), and the line with those edits applied (its `toPatch`). Pure, so the
+/// contract tests (apps/iphone/Packages/Contract) edit a sale's lines through the very code the sheet runs.
+struct SaleLineFields {
+    var name: String
+    var categoryId: String
+    var size: String
+    var metalType: String
+    var karat: String
+    var weight: String
+    var hasStones: Bool
+    var stoneWeight: String
+    var wastage: String
+    var making: String
+    var hasDiamonds: Bool
+    var diamondCharges: String
+    var stoneCharges: String
+    var miscCharges: String
+    var stoneDetails: String
+    var diamondDetails: String
+    var billDescription: String
+    var platingType: String
+    var platingNote: String
+    var nickelFree: Bool
+    var silverRate: String
+    var fixed: Bool
+    var customPrice: String
+
+    init(_ l: SaleLine) {
+        name = l.name
+        categoryId = l.categoryId
+        size = l.size ?? ""
+        metalType = l.metalType
+        karat = l.karat ?? ""
+        weight = SaleNumber.text(l.metalWeightG)
+        // The reveal opens whenever there is stone or diamond data to show, so a figure that is in
+        // the price can never sit behind a closed switch.
+        hasStones = l.hasStones || l.stoneWeightG > 0 || !(l.stoneDetails ?? "").isEmpty
+        stoneWeight = SaleNumber.text(l.stoneWeightG)
+        wastage = SaleNumber.text(l.wastagePercentage)
+        making = SaleNumber.text(l.makingCharges)
+        hasDiamonds = l.hasDiamonds || l.diamondCharges > 0 || !(l.diamondDetails ?? "").isEmpty
+        diamondCharges = SaleNumber.text(l.diamondCharges)
+        stoneCharges = SaleNumber.text(l.stoneCharges)
+        miscCharges = SaleNumber.text(l.miscCharges)
+        stoneDetails = l.stoneDetails ?? ""
+        diamondDetails = l.diamondDetails ?? ""
+        billDescription = l.billDescription ?? ""
+        platingType = l.platingType ?? ""
+        platingNote = l.platingNote ?? ""
+        nickelFree = l.nickelFree
+        silverRate = SaleNumber.text(l.silverRatePerGram)
+        fixed = l.isCustomPrice
+        customPrice = SaleNumber.text(l.customPrice)
+    }
+
+    private func nilIfBlank(_ s: String) -> String? {
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
+    }
+
+    /// The line with these edits (the web's `toPatch`).
+    func applied(to base: SaleLine) -> SaleLine {
+        var out = base
+        let silver = metalType == "silver"
+        out.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        out.categoryId = categoryId
+        out.size = nilIfBlank(size)
+        out.metalType = metalType
+        // Karat only means something where the metal has one: a stray "21k" on silver is the
+        // phantom karat that used to print on 925 pieces.
+        out.karat = metalHasKarat(metalType) && !karat.isEmpty ? karat : nil
+        out.metalWeightG = SaleNumber.value(weight)
+        out.hasStones = hasStones
+        out.stoneWeightG = SaleNumber.value(stoneWeight)
+        out.wastagePercentage = SaleNumber.value(wastage)
+        out.makingCharges = SaleNumber.value(making)
+        out.hasDiamonds = hasDiamonds
+        out.diamondCharges = SaleNumber.value(diamondCharges)
+        out.stoneCharges = SaleNumber.value(stoneCharges)
+        out.miscCharges = SaleNumber.value(miscCharges)
+        out.stoneDetails = nilIfBlank(stoneDetails)
+        out.diamondDetails = nilIfBlank(diamondDetails)
+        out.billDescription = nilIfBlank(billDescription)
+        out.platingType = silver && !platingType.isEmpty ? platingType : nil
+        out.platingNote = silver && platingType == "Other" ? nilIfBlank(platingNote) : nil
+        out.nickelFree = silver ? nickelFree : false
+        let rate = SaleNumber.value(silverRate)
+        out.silverRatePerGram = silver && rate > 0 ? rate : nil
+        out.isCustomPrice = fixed
+        out.customPrice = fixed ? SaleNumber.value(customPrice) : nil
+        return out
+    }
+}
+
+// MARK: What the screen does to the draft
+
+/// The draft's changes, as the screen makes them (pure, so the contract tests build a sale the way the
+/// screen does and not by hand).
+extension SaleDraft {
+    /// A customer picked from the book, or nil for a walk-in. A customer with no number keeps the one typed.
+    mutating func pick(_ c: Customer?) {
+        guard let c else {
+            customerId = nil
+            customerName = ""
+            customerPhone = ""
+            return
+        }
+        customerId = c.id
+        customerName = c.name
+        if let p = c.phone, !p.isEmpty { customerPhone = p }
+    }
+
+    /// Typing a name lets go of a customer picked from the book, as the web's name box does.
+    mutating func typeName(_ text: String) {
+        customerName = text
+        customerId = nil
+    }
+
+    /// A change to one exchange row: ERPCore's rule (grams × rate refills the amount until one is typed).
+    mutating func changeExchange(_ id: String, _ patch: ExchangeRowPatch) {
+        guard let i = exchanges.firstIndex(where: { $0.id == id }) else { return }
+        exchanges[i] = SaleExchangeRow(applyExchangeRowChange(exchanges[i].core, patch))
+    }
+
+    mutating func addExchange() { exchanges.append(SaleExchangeRow.blank()) }
+
+    mutating func removeExchange(_ id: String) {
+        exchanges.removeAll { $0.id == id }
+        if exchanges.isEmpty { exchanges = [SaleExchangeRow.blank()] }
+    }
+
+    /// Another payment row: the other method from the last one, as the web offers.
+    mutating func addPayment() {
+        payments.append(SalePaymentRow(method: payments.last?.method == "Cash" ? "Card" : "Cash"))
+    }
+
+    mutating func removePayment(_ id: String) {
+        payments.removeAll { $0.id == id }
+        if payments.isEmpty { payments = [SalePaymentRow()] }
+    }
+
+    /// "Paid in full" / "The rest": the row takes whatever the other rows leave outstanding of `total`,
+    /// in whole rupees (sale-page.tsx `payRestWith`).
+    mutating func payRest(_ id: String, total: Double) {
+        let others = payments.filter { $0.id != id }.reduce(0.0) { $0 + SaleNumber.value($1.amount) }
+        let rest = max(0, (total - others).rounded())
+        if let i = payments.firstIndex(where: { $0.id == id }) {
+            payments[i].amount = rest > 0 ? String(Int(rest)) : ""
+        }
     }
 }
 

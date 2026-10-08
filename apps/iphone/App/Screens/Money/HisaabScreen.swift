@@ -46,15 +46,16 @@ enum HisaabKind: String, CaseIterable, Identifiable {
     }
 }
 
+/// By name is the web's order (hisaab/page.tsx sorts by name); who owes first is the phone's extra.
 enum HisaabOrder: String, CaseIterable, Identifiable {
-    case owesFirst, name
+    case name, owesFirst
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .owesFirst: return "Who owes you first"
         case .name: return "By name"
+        case .owesFirst: return "Who owes you first"
         }
     }
 }
@@ -69,7 +70,10 @@ struct HisaabScreen: View {
     @State private var search = ""
     @State private var chip: HisaabChip = .all
     @State private var kind: HisaabKind = .everyone
-    @State private var order: HisaabOrder = .owesFirst
+    @State private var order: HisaabOrder = .name
+    /// The Hisaab page re-checks the books' outstanding balances on every visit (syncHisaabOutstandingBalances);
+    /// once per opening of this list is the same.
+    @State private var synced = false
 
     var body: some View {
         if session.isOwner {
@@ -102,7 +106,17 @@ struct HisaabScreen: View {
             book.invoices.need()
             book.customers.need()
             book.karigars.need()
+            syncOnce()
         }
+    }
+
+    /// The ERP brings each customer's invoice balance rows up to date (an owner's write); the screen
+    /// never waits for it, and the shelves show what it changed by themselves. Offline, or in the demo,
+    /// it just does not happen.
+    private func syncOnce() {
+        if synced { return }
+        synced = true
+        Task { _ = try? await ERPAPI.shared.write("syncHisaab", [:]) }
     }
 
     // MARK: Content
@@ -155,8 +169,8 @@ struct HisaabScreen: View {
         return out
     }
 
-    /// Who owes the shop first, the biggest debt first, then those the shop owes, the biggest first;
-    /// or by name, as the web lists them.
+    /// By name, as the web lists them; or who owes the shop first, the biggest debt first, then those
+    /// the shop owes, the biggest first.
     private func ordered(_ list: [HisaabAccount]) -> [HisaabAccount] {
         switch order {
         case .name:
@@ -250,7 +264,7 @@ struct HisaabScreen: View {
     }
 
     private var filterMenu: some View {
-        let filtering = kind != .everyone || order != .owesFirst
+        let filtering = kind != .everyone || order != .name
         return Menu {
             Picker("Order", selection: $order) {
                 ForEach(HisaabOrder.allCases) { (o: HisaabOrder) in Text(o.title).tag(o) }
@@ -272,8 +286,6 @@ private struct HisaabAccountRow: View {
     let account: HisaabAccount
     /// A customer's card lists the invoices that are owing; the walk-in's are rows of their own.
     let listInvoices: Bool
-
-    private static let invoicesShown = 3
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -326,15 +338,11 @@ private struct HisaabAccountRow: View {
             .foregroundStyle(.secondary)
     }
 
+    /// Every invoice still owing, as the web's card lists them.
     private var invoices: some View {
-        let list = Array(account.unpaid.prefix(Self.invoicesShown))
-        let more = account.unpaid.count - list.count
-        return VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 2) {
             Divider().padding(.vertical, 2)
-            ForEach(list) { inv in HisaabUnpaidLine(invoice: inv) }
-            if more > 0 {
-                Text("and \(more) more").font(.caption).foregroundStyle(.secondary)
-            }
+            ForEach(account.unpaid) { inv in HisaabUnpaidLine(invoice: inv) }
         }
     }
 }

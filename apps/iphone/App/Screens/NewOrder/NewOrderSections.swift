@@ -21,12 +21,7 @@ struct NewOrderCustomerSection: View {
     private var nameBinding: Binding<String> {
         Binding(
             get: { draft.customerName },
-            set: { typed in
-                if typed != draft.customerName {
-                    draft.customerName = typed
-                    draft.customerId = ""
-                }
-            }
+            set: { typed in draft.typeCustomerName(typed) }
         )
     }
 
@@ -119,11 +114,7 @@ struct NewOrderCustomerSection: View {
     }
 
     private func pick(_ c: Customer) {
-        draft.customerName = c.name
-        draft.customerId = c.id
-        if let phone = c.phone, !phone.isEmpty { draft.customerPhone = phone }
-        // The order's source starts as the customer's own, if none was chosen.
-        if draft.source.isEmpty, let s = c.source { draft.source = s.rawValue }
+        draft.choose(c)
         nameFocused = false
     }
 }
@@ -364,9 +355,7 @@ struct NewOrderExchangeSection: View {
     private var total: Double { exchangeRowsTotal(draft.exchanges.map { $0.row }) }
 
     private func apply(_ id: String, _ patch: ExchangeRowPatch) {
-        draft.exchanges = draft.exchanges.map { x in
-            x.id == id ? NewOrderExchangeDraft(applyExchangeRowChange(x.row, patch)) : x
-        }
+        draft.patchExchange(id, patch)
     }
 
     private func text(

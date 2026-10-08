@@ -221,6 +221,65 @@ struct NewOrderDraft: Codable, Equatable {
     }
 }
 
+// MARK: What the form does to the draft
+
+// These are what the form's controls do, kept here and not in the views so the contract cases
+// (apps/iphone/Packages/Contract) fill a draft through the very same code the screen runs.
+
+extension NewOrderPieceDraft {
+    /// The weight as typed, and the stones' weight while its box is ticked (a figure left in an unticked box
+    /// is not in the price). Pricing, the wastage grams and the payload all read these two.
+    var weightValue: Double { NewOrderFormat.num(weight) }
+    var stoneWeightValue: Double { hasStones ? NewOrderFormat.num(stoneWeight) : 0 }
+
+    /// Changing the metal moves the karat onto one that metal is sold in (24k palladium cannot be chosen).
+    mutating func setMetal(_ next: String) {
+        metal = next
+        let options = karatsFor(MetalType(rawValue: next)).map { $0.rawValue }
+        if !options.isEmpty && !options.contains(karat) {
+            karat = options.contains("21k") ? "21k" : (options.last ?? "")
+        }
+    }
+}
+
+extension NewOrderDraft {
+    /// The rates start as today's, once; a draft that is continued keeps the rates it was quoted at.
+    mutating func seedRates(from settings: Settings) {
+        rates = NewOrderMath.todaysRates(settings)
+        ratesSeeded = true
+    }
+
+    /// Typing makes it a new customer again (the web's autocomplete does the same): only a pick from the
+    /// list is a customer on file.
+    mutating func typeCustomerName(_ typed: String) {
+        guard typed != customerName else { return }
+        customerName = typed
+        customerId = ""
+    }
+
+    /// A pick from the list: their name and number, and the order's source starts as theirs if none was chosen.
+    mutating func choose(_ c: Customer) {
+        customerName = c.name
+        customerId = c.id
+        if let phone = c.phone, !phone.isEmpty { customerPhone = phone }
+        if source.isEmpty, let s = c.source { source = s.rawValue }
+    }
+
+    /// A change to one exchange row; grams × rate refills the amount unless it was typed (ERPCore).
+    mutating func patchExchange(_ id: String, _ patch: ExchangeRowPatch) {
+        exchanges = exchanges.map { x in
+            x.id == id ? NewOrderExchangeDraft(applyExchangeRowChange(x.row, patch)) : x
+        }
+    }
+
+    mutating func duplicatePiece(_ id: UUID) {
+        guard let i = pieces.firstIndex(where: { $0.id == id }) else { return }
+        var copy = pieces[i]
+        copy.id = UUID()
+        pieces.insert(copy, at: i + 1)
+    }
+}
+
 // MARK: On the phone
 
 /// One serial queue, so a write that was already on its way can never land after a newer one (or after

@@ -45,15 +45,19 @@ struct WorkshopKarigarsList: View {
             book.orders.need()
             book.invoices.need()
             book.karigarJobs.need()
+            // The pay batches are the owner's books: the staff's copy comes without them.
+            if session.isOwner { book.karigarBatches.need() }
         }
     }
 
     private var loaded: Bool {
-        book.karigars.loaded && book.orders.loaded && book.invoices.loaded && book.karigarJobs.loaded
+        let books = book.karigars.loaded && book.orders.loaded && book.invoices.loaded && book.karigarJobs.loaded
+        return session.isOwner ? books && book.karigarBatches.loaded : books
     }
 
     private var firstError: String? {
-        book.karigars.error ?? book.orders.error ?? book.invoices.error ?? book.karigarJobs.error
+        let books = book.karigars.error ?? book.orders.error ?? book.invoices.error ?? book.karigarJobs.error
+        return session.isOwner ? books ?? book.karigarBatches.error : books
     }
 
     // MARK: The list
@@ -68,7 +72,9 @@ struct WorkshopKarigarsList: View {
             invoices: book.invoices.items
         )
         let loads = loadsById(jobs)
-        list(live, loads)
+        // Who has a hisaab open, and under what name (karigars/page.tsx activeHisaabMap).
+        let batches = session.isOwner ? WorkshopLogic.openBatches(book.karigarBatches.items) : [:]
+        list(live, loads, batches)
     }
 
     private func loadsById(_ jobs: [WorkshopJob]) -> [String: WorkshopLoad] {
@@ -77,17 +83,17 @@ struct WorkshopKarigarsList: View {
         return out
     }
 
-    private func list(_ live: [Karigar], _ loads: [String: WorkshopLoad]) -> some View {
+    private func list(_ live: [Karigar], _ loads: [String: WorkshopLoad], _ batches: [String: KarigarBatch]) -> some View {
         let matched = live.filter { matches($0) }
         let working = matched
             .filter { (loads[$0.id]?.active ?? 0) > 0 }
             .sorted { busier($0, $1, loads) }
         let free = matched.filter { (loads[$0.id]?.active ?? 0) == 0 }
         return List {
-            figures(live, loads)
+            figures(live, loads, batches)
             showPicker
-            if show != .free { section("Working", hint: "busiest first", people: working, loads) }
-            if show != .working { section("Free", hint: "nothing on the bench", people: free, loads) }
+            if show != .free { section("Working", hint: "busiest first", people: working, loads, batches) }
+            if show != .working { section("Free", hint: "nothing on the bench", people: free, loads, batches) }
         }
         .listStyle(.insetGrouped)
         .overlay {
@@ -115,7 +121,7 @@ struct WorkshopKarigarsList: View {
 
     // MARK: Figures
 
-    private func figures(_ live: [Karigar], _ loads: [String: WorkshopLoad]) -> some View {
+    private func figures(_ live: [Karigar], _ loads: [String: WorkshopLoad], _ batches: [String: KarigarBatch]) -> some View {
         var pieces = 0
         var critical = 0
         var grams = 0.0
@@ -133,7 +139,11 @@ struct WorkshopKarigarsList: View {
                 FigureTile(label: "Working now", value: "\(working)", detail: "of \(live.count) on file")
                 FigureTile(label: "Pieces out", value: "\(pieces)", detail: grams > 0 ? WorkshopLogic.number(grams, digits: 0) + "g of metal" : nil)
                 FigureTile(label: "Over \(WorkshopLogic.criticalDays) days", value: "\(critical)", tint: critical > 0 ? Color.red : Color.primary)
-                FigureTile(label: "Free", value: "\(live.count - working)", detail: "nothing on the bench")
+                if session.isOwner {
+                    FigureTile(label: "Open hisaabs", value: "\(batches.count)")
+                } else {
+                    FigureTile(label: "Free", value: "\(live.count - working)", detail: "nothing on the bench")
+                }
             }
             .padding(.vertical, 4)
             .listRowInsets(EdgeInsets())
@@ -156,11 +166,11 @@ struct WorkshopKarigarsList: View {
     // MARK: Sections and rows
 
     @ViewBuilder
-    private func section(_ title: String, hint: String, people: [Karigar], _ loads: [String: WorkshopLoad]) -> some View {
+    private func section(_ title: String, hint: String, people: [Karigar], _ loads: [String: WorkshopLoad], _ batches: [String: KarigarBatch]) -> some View {
         if !people.isEmpty {
             Section {
                 ForEach(people) { k in
-                    row(k, loads[k.id])
+                    row(k, loads[k.id], batches[k.id])
                 }
             } header: {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -174,10 +184,16 @@ struct WorkshopKarigarsList: View {
         }
     }
 
-    private func row(_ k: Karigar, _ load: WorkshopLoad?) -> some View {
+    private func row(_ k: Karigar, _ load: WorkshopLoad?, _ batch: KarigarBatch?) -> some View {
         NavigationLink(value: Route(path: WorkshopLogic.karigarPath(k.id))) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(k.name).font(.headline)
+                HStack(spacing: 8) {
+                    Text(k.name).font(.headline).lineLimit(1)
+                    // The open hisaab by name: "Active hisaab" on the web.
+                    if let batch, !batch.label.isEmpty {
+                        StatusBadge(batch.label, color: Color.accentColor)
+                    }
+                }
                 bench(load)
                 if let contact = k.contact, !contact.isEmpty {
                     Label(contact, systemImage: "phone").font(.caption).foregroundStyle(.secondary)

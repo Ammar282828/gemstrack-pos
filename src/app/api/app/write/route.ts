@@ -27,6 +27,8 @@ import { addRepair, recordRepairPayment, setRepairStatus, type NewRepair } from 
 import { REPAIR_STATUSES, type RepairStatus } from '@/lib/repairs';
 import { addExpense } from '@/lib/writes/expenses';
 import { isOneOffSku } from '@/lib/sku';
+import { planHisaabSync } from '@/lib/writes/hisaab-sync';
+import { SHAREHOLDERS } from '@/lib/shareholders';
 import { addGivenItem, markGivenItemReturned } from '@/lib/writes/given';
 import { mainRate } from '@/lib/rates';
 import { personFor } from '@/lib/people';
@@ -55,7 +57,16 @@ const OPS: Record<string, ('owner' | 'staff')[]> = {
   addExpense: ['owner'],
   addGivenItem: ['owner'],
   markGivenReturned: ['owner'],
+  // The web's Hisaab page puts the book right on every visit (lib/writes/hisaab-sync.ts).
+  syncHisaab: ['owner'],
+  // Sizes from an order, offered to the customer's profile (decision "Sizes to the profile").
+  setCustomerSizes: ['owner', 'staff'],
 };
+
+/** The last hisaab sync on this server: one every two minutes is plenty, and each reads every invoice. */
+let lastHisaabSync = 0;
+
+const SIZE_FIELDS = new Set(['ringSize', 'bangleSize', 'braceletSize']);
 
 const text = (v: unknown) => String(v ?? '').trim();
 
@@ -203,11 +214,19 @@ export async function POST(req: NextRequest) {
           const r = (body.repair || {}) as NewRepair;
           const pieces = Array.isArray(r.pieces) ? r.pieces.filter((p) => p && text(p.item)) : [];
           if (!pieces.length) return NextResponse.json({ error: 'A repair needs at least one piece.' }, { status: 400 });
+          // The highest number on file is a floor for the counter, as the browser's addRepair has it, so a
+          // settings document from before repairs existed cannot reissue a number.
+          const held = await adminDb.collection('repairs').select().get();
+          const floor = held.docs.reduce((m, d) => {
+            const n = Number(String(d.id).replace(/^REP-/, ''));
+            return Number.isFinite(n) && n > m ? n : m;
+          }, 0);
           const repair = await addRepair(adminPort, {
             ...r, pieces,
-            customerName: text(r.customerName) || 'Walk-in Customer',
+            // Blank stays blank, as the browser saves it: the walk-in wording is the screens' to say.
+            customerName: text(r.customerName),
             advance: Number(r.advance) > 0 ? Number(r.advance) : undefined,
-          }, {}, { log });
+          }, { floor }, { log });
           return NextResponse.json({ ok: true, repair, followUps });
         }
 
@@ -244,6 +263,8 @@ export async function POST(req: NextRequest) {
             ...(text(body.karigarId) && { karigarId: text(body.karigarId) }),
             // The karigar's hisaab it is filed under, as the expense form's "Hisaab" field.
             ...(text(body.karigarId) && text(body.batchId) && { batchId: text(body.batchId) }),
+            // A partner's salary names the partner, as the Shareholders page files it (lib/shareholders.ts).
+            ...(text(body.category) === 'Partner Salary' && SHAREHOLDERS.some((p) => p.id === text(body.shareholderId)) && { shareholderId: text(body.shareholderId) }),
           }, { log });
           return NextResponse.json({ ok: true, expense, followUps });
         }
@@ -302,6 +323,37 @@ export async function POST(req: NextRequest) {
           const givenAt = body.given === true ? (text(body.givenAt) || new Date().toISOString()) : null;
           const out = await setOrderPieceGiven(adminPort, { orderId, index, givenAt });
           return NextResponse.json({ ok: true, ...out, followUps });
+        }
+
+        case 'syncHisaab': {
+          if (Date.now() - lastHisaabSync < 120_000) return NextResponse.json({ ok: true, skipped: true, followUps });
+          lastHisaabSync = Date.now();
+          const [inv, hs, cs] = await Promise.all(['invoices', 'hisaab', 'customers'].map((c) => adminDb.collection(c).get()));
+          const all = (snap: typeof inv) => snap.docs.map((d) => ({ ...(d.data() as Record<string, unknown>), id: d.id }));
+          const plan = planHisaabSync(all(inv), all(hs), all(cs));
+          const writes: ((b: ReturnType<typeof adminPort.batch>) => void)[] = [
+            ...plan.deletes.map((id) => (b: ReturnType<typeof adminPort.batch>) => b.delete('hisaab', id)),
+            ...plan.updates.map((u) => (b: ReturnType<typeof adminPort.batch>) => b.update('hisaab', u.id, u.patch)),
+            ...plan.creates.map((r) => (b: ReturnType<typeof adminPort.batch>) => b.set('hisaab', adminPort.newId('hisaab'), r as unknown as Record<string, unknown>)),
+          ];
+          for (let i = 0; i < writes.length; i += 450) {
+            const b = adminPort.batch();
+            writes.slice(i, i + 450).forEach((w) => w(b));
+            await b.commit();
+          }
+          return NextResponse.json({ ok: true, deleted: plan.deletes.length, updated: plan.updates.length, created: plan.creates.length, followUps });
+        }
+
+        case 'setCustomerSizes': {
+          const customerId = text(body.customerId);
+          const sizes = Object.fromEntries(Object.entries((body.sizes || {}) as Record<string, unknown>)
+            .filter(([k, v]) => SIZE_FIELDS.has(k) && text(v)).map(([k, v]) => [k, text(v)]));
+          if (!customerId || !Object.keys(sizes).length) return NextResponse.json({ error: 'A customer and a size are needed.' }, { status: 400 });
+          const ref = adminDb.collection('customers').doc(customerId);
+          if (!(await ref.get()).exists) return NextResponse.json({ error: 'No such customer.' }, { status: 409 });
+          await ref.set(sizes, { merge: true });
+          await log('customer.update', 'Sizes saved to the profile', Object.entries(sizes).map(([k, v]) => `${k}: ${v}`).join(', '), customerId);
+          return NextResponse.json({ ok: true, sizes, followUps });
         }
 
         case 'addCustomer': {

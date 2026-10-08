@@ -10,6 +10,8 @@ struct ExtraRevenueScreen: View {
     @Environment(Session.self) private var session
 
     @State private var search = ""
+    /// The date filter, none until a start date is chosen (additional-revenue/page.tsx `dateRange`).
+    @State private var dates = MoneyCustomRange()
     @State private var openWeb = false
 
     var body: some View {
@@ -47,6 +49,13 @@ struct ExtraRevenueScreen: View {
         let months = MoneyMonths.group(shown, amount: { (r: AdditionalRevenue) -> Double in r.amount })
         List {
             Section {
+                MoneyRangeFields(filter: $dates)
+            } header: {
+                Text("Dates")
+            } footer: {
+                Text(dates.useFrom ? "Without an end date it runs to the end of today." : "Until a start date is chosen, every entry is shown.")
+            }
+            Section {
                 figures(shown)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
@@ -68,12 +77,18 @@ struct ExtraRevenueScreen: View {
         .listStyle(.insetGrouped)
     }
 
+    /// The dates, then the search over descriptions. The web's range ends at midnight of the last day
+    /// it names (`end: dateRange.to ?? new Date()`), which drops that day's later entries (a repair's
+    /// money, taken at its own time); here the last day counts to its end, as on Expenses.
     private func lines() -> [MoneyLine<AdditionalRevenue>] {
         let needle = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        let range = dates.range()
         var out: [MoneyLine<AdditionalRevenue>] = []
         for r in book.revenue.items {
+            let day = MoneyMonths.day(r.date)
+            if !range.contains(day) { continue }
             if !needle.isEmpty && !r.description.localizedCaseInsensitiveContains(needle) { continue }
-            out.append(MoneyLine(item: r, day: MoneyMonths.day(r.date)))
+            out.append(MoneyLine(item: r, day: day))
         }
         return out
     }
@@ -82,7 +97,7 @@ struct ExtraRevenueScreen: View {
         ContentUnavailableView(
             "No revenue entries found",
             systemImage: "chart.line.uptrend.xyaxis",
-            description: Text(search.isEmpty ? "Add a revenue entry to begin." : "Try adjusting your search.")
+            description: Text(search.isEmpty && !dates.useFrom ? "Add a revenue entry to begin." : "Try adjusting your search or filters.")
         )
     }
 
