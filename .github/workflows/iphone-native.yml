@@ -100,7 +100,7 @@ jobs:
             xcrun simctl io "$UDID" screenshot "$OUT/$name.png" >/dev/null 2>&1
           }
           i=1
-          for tab in home orders invoices customers more search; do shot "$i-$tab" light -ERPDemoTab "$tab"; i=$((i+1)); done
+          for tab in home orders invoices customers search; do shot "$i-$tab" light -ERPDemoTab "$tab"; i=$((i+1)); done
           shot "$i-home-dark" dark -ERPDemoTab home
           xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate "process == \"ERP\" AND messageType >= 16" 2>/dev/null | tail -40 || true
           for f in "$OUT"/*.png; do

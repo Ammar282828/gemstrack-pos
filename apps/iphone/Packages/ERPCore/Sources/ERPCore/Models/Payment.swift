@@ -15,6 +15,15 @@ public struct Payment: Decodable, Hashable {
 
     private enum K: String, CodingKey { case amount, date, notes, method, reference }
 
+    /// For the rules that make payments (`orderAdvancePayments`), not for decoding.
+    public init(amount: Double, date: String, notes: String? = nil, method: PaymentType? = nil, reference: String? = nil) {
+        self.amount = amount
+        self.date = date
+        self.notes = notes
+        self.method = method
+        self.reference = reference
+    }
+
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: K.self)
         amount = c.double(.amount, default: 0)
@@ -41,6 +50,15 @@ public struct ExchangeEntry: Decodable, Hashable {
     public let value: Double
 
     private enum K: String, CodingKey { case description, karat, weightG, ratePerGram, value }
+
+    /// For the rules that build rows (`orderExchanges`, `exchangesFromRows`), not for decoding.
+    public init(description: String, karat: String? = nil, weightG: Double? = nil, ratePerGram: Double? = nil, value: Double) {
+        self.description = description
+        self.karat = karat
+        self.weightG = weightG
+        self.ratePerGram = ratePerGram
+        self.value = value
+    }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: K.self)

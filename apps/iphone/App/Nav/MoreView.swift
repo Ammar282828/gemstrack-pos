@@ -1,54 +1,58 @@
 import SwiftUI
 
-/// Every place the ERP has, in its own groups (src/lib/nav.ts): the sidebar, as a list.
-struct MoreView: View {
-    @Environment(Session.self) private var session
-    let map: NavMap
-
-    var body: some View {
-        List {
-            ForEach(map.groups.filter { !$0.label.isEmpty }, id: \.key) { g in
-                let entries = map.entries.filter { $0.group == g.key }
-                if !entries.isEmpty {
-                    Section(g.label) {
-                        ForEach(entries) { e in
-                            NavigationLink(value: Route(path: e.href)) {
-                                Label(e.label, systemImage: NavIcon.symbol(for: e.icon))
-                            }
-                        }
-                    }
-                }
-            }
-            if session.isOwner {
-                Section {
-                    NavigationLink(value: Route(path: map.settings.href)) {
-                        Label(map.settings.label, systemImage: NavIcon.symbol(for: map.settings.icon))
-                    }
-                }
-            }
-            Section {
-                LabeledContent("Signed in", value: session.me?.email ?? "")
-                Button("Sign out", role: .destructive) { session.signOut() }
-            } footer: {
-                Text("\(House.storeName) · \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""))")
-            }
-        }
-        .navigationTitle("More")
-    }
-}
-
-/// The ERP's palette: every place by its name or the words people use for it.
+/// Every place the ERP has, in its own groups (src/lib/nav.ts), when nothing is typed; the places
+/// that match, by name or by the words people use for them, when something is.
 struct SearchView: View {
+    @Environment(Session.self) private var session
     let map: NavMap
     @State private var text = ""
 
     var body: some View {
         let q = text.trimmingCharacters(in: .whitespaces).lowercased()
-        let places = map.allPlaces.filter { item in
-            q.isEmpty || item.place.label.lowercased().contains(q) || (item.place.keywords ?? []).contains { $0.lowercased().contains(q) }
+        List {
+            if q.isEmpty { everything } else { results(q) }
+        }
+        .navigationTitle("Everything")
+        .searchable(text: $text, prompt: "Places in the ERP")
+    }
+
+    @ViewBuilder
+    private var everything: some View {
+        ForEach(map.groups.filter { !$0.label.isEmpty }, id: \.key) { g in
+            let entries = map.entries.filter { $0.group == g.key }
+            if !entries.isEmpty {
+                Section(g.label) {
+                    ForEach(entries) { e in
+                        NavigationLink(value: Route(path: e.href)) { Label(e.label, systemImage: NavIcon.symbol(for: e.icon)) }
+                    }
+                }
+            }
+        }
+        if session.isOwner {
+            Section {
+                NavigationLink(value: Route(path: map.settings.href)) {
+                    Label(map.settings.label, systemImage: NavIcon.symbol(for: map.settings.icon))
+                }
+            }
+        }
+        Section {
+            LabeledContent("Signed in", value: session.me?.email ?? "")
+            Button("Sign out", role: .destructive) { session.signOut() }
+        } footer: {
+            Text("\(House.storeName) · \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""))")
+        }
+    }
+
+    @ViewBuilder
+    private func results(_ q: String) -> some View {
+        let hits = map.allPlaces.filter { item in
+            item.place.label.lowercased().contains(q) || (item.place.keywords ?? []).contains { $0.lowercased().contains(q) }
                 || (item.entry?.label.lowercased().contains(q) ?? false)
         }
-        List(places) { item in
+        if hits.isEmpty {
+            ContentUnavailableView.search(text: text)
+        }
+        ForEach(hits) { item in
             NavigationLink(value: Route(path: item.place.href)) {
                 Label {
                     VStack(alignment: .leading, spacing: 1) {
@@ -58,8 +62,6 @@ struct SearchView: View {
                 } icon: { Image(systemName: NavIcon.symbol(for: item.place.icon)) }
             }
         }
-        .navigationTitle("Search")
-        .searchable(text: $text, prompt: "Places in the ERP")
     }
 }
 

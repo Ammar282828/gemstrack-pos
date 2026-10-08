@@ -21,8 +21,7 @@ struct RootGate: View {
     }
 }
 
-/// The app: the shop's four most-used places as tabs, everything else under More, the ERP's whole
-/// map under Search, and New sale / New order / Scan always one tap away above the tab bar.
+/// The app: the shop's four most-used places as tabs, the ERP's whole map under Search, and New sale / New order / Scan always one tap away above the tab bar.
 /// Liquid Glass comes with the system's TabView, toolbars and sheets (CONVENTIONS.md rule 4).
 struct RootView: View {
     @Environment(Session.self) private var session
@@ -41,9 +40,9 @@ struct RootView: View {
                     PlaceStack(root: e.href)
                 }
             }
-            Tab("More", systemImage: "square.grid.2x2", value: "more") {
-                NavigationStack { MoreView(map: map) .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) } }
-            }
+            // Search is also the way to everything else: idle, it lists the ERP's whole map (the web's
+            // sidebar) with Settings and the account; typed into, it finds any place by name or by the
+            // words people use. An iPhone shows five tabs at most, and a sixth would fold both away.
             Tab("Search", systemImage: "magnifyingglass", value: "search", role: .search) {
                 NavigationStack { SearchView(map: map) .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) } }
             }
@@ -67,7 +66,7 @@ struct PlaceStack: View {
     let root: String
     var body: some View {
         NavigationStack {
-            PlaceScreen(path: root)
+            PlaceScreen(path: root, isRoot: true)
                 .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
         }
     }
@@ -77,6 +76,9 @@ struct PlaceStack: View {
 /// screen for the chosen tab, native or the ERP page.
 struct PlaceScreen: View {
     let path: String
+    /// A tab's first screen: it carries the rate chip, as every page of the ERP does in its top bar.
+    var isRoot = false
+    @Environment(Session.self) private var session
     @State private var chosen: String?
 
     var body: some View {
@@ -92,6 +94,11 @@ struct PlaceScreen: View {
             .navigationTitle(title ?? "")
             .navigationBarTitleDisplayMode(.inline)
             .modifier(TabsMenu(tabs: tabs, chosen: $chosen))
+            .toolbar {
+                if isRoot && session.isOwner {
+                    ToolbarItem(placement: .topBarLeading) { RateChip() }
+                }
+            }
     }
 }
 
