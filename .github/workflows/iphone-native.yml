@@ -1,0 +1,117 @@
+name: iPhone app (native)
+
+# The native iPhone app (apps/iphone, docs/features/iphone-app.md): SwiftUI, one app per house.
+# It replaces the Capacitor shell in apps/ios once it reaches TestFlight; until then this only checks it.
+#
+# - ERPCore (the models and the ERP's rules in Swift) is tested on Linux: no Mac minutes.
+# - The app is built for the simulator on macOS and opened in its demo (made-up books, no sign-in),
+#   one screenshot per tab, light and dark, printed small into the log for a reader without the artifact.
+# macOS minutes count ten to one against the Actions minutes the deploys use: it runs only for a push
+# that changes apps/iphone, never for a change to the ERP.
+
+on:
+  push:
+    branches: ['claude/**']
+    paths: ['apps/iphone/**', '.github/workflows/iphone-native.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: iphone-native-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    # gemstrack-pos carries this file too (the same history); the app is checked from here only.
+    if: github.repository == 'Ammar282828/taheri-pos'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: swift:6.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: ERPCore tests
+        working-directory: apps/iphone/Packages/ERPCore
+        run: swift test 2>&1 | tail -40
+
+  app:
+    needs: core
+    runs-on: macos-26
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: apps/iphone
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: XcodeGen
+        run: command -v xcodegen || brew install xcodegen
+      - name: Dress as Taheri and make the project
+        run: |
+          node scripts/house.mjs taheri
+          xcodegen generate --spec project.yml
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/spm
+          key: spm-${{ hashFiles('apps/iphone/project.yml') }}
+      - name: Build for the simulator
+        run: |
+          xcodebuild -version
+          set +e
+          xcodebuild build -project ERP.xcodeproj -scheme ERP -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm" \
+            -skipPackagePluginValidation -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO > "$RUNNER_TEMP/build.log" 2>&1
+          status=$?
+          set -e
+          # Every error once, with its file and line, then the tail for anything else.
+          echo "::group::errors"; grep -E ': (error|fatal error):' "$RUNNER_TEMP/build.log" | sed "s|$GITHUB_WORKSPACE/||" | sort -u | head -150; echo "::endgroup::"
+          grep -E ': warning: ' "$RUNNER_TEMP/build.log" | grep -v '/SourcePackages/\|/spm/' | sed "s|$GITHUB_WORKSPACE/||" | sort -u | head -60 || true
+          tail -25 "$RUNNER_TEMP/build.log"
+          exit $status
+      - name: Boot a phone
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          d = json.load(sys.stdin)["devices"]
+          phones = [(rt, x) for rt, xs in d.items() if "iOS" in rt for x in xs if x["name"].startswith("iPhone") and "Pro" in x["name"] and "Max" not in x["name"]]
+          phones.sort(key=lambda p: [int(n) for n in p[0].rsplit("iOS-", 1)[-1].split("-") if n.isdigit()])
+          print(phones[-1][1]["udid"]); print(phones[-1][1]["name"], phones[-1][0], file=sys.stderr)')
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 || true
+      - name: The demo, tab by tab
+        run: |
+          OUT="$RUNNER_TEMP/shots"; mkdir -p "$OUT"
+          APP="$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/ERP.app"
+          ID=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Info.plist")
+          xcrun simctl install "$UDID" "$APP"
+          shot() { # name appearance [launch arguments…]
+            local name=$1 look=$2; shift 2
+            xcrun simctl ui "$UDID" appearance "$look"
+            xcrun simctl terminate "$UDID" "$ID" 2>/dev/null || true
+            xcrun simctl launch "$UDID" "$ID" -ERPDemo YES "$@" >/dev/null
+            sleep 5
+            xcrun simctl io "$UDID" screenshot "$OUT/$name.png" >/dev/null 2>&1
+          }
+          i=1
+          for tab in home orders invoices customers more search; do shot "$i-$tab" light -ERPDemoTab "$tab"; i=$((i+1)); done
+          shot "$i-home-dark" dark -ERPDemoTab home
+          xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate "process == \"ERP\" AND messageType >= 16" 2>/dev/null | tail -40 || true
+          for f in "$OUT"/*.png; do
+            sips -Z 640 -s format jpeg -s formatOptions 55 "$f" --out "${f%.png}.jpg" >/dev/null
+            echo "----BEGIN $(basename "${f%.png}")----"; base64 -i "${f%.png}.jpg" | fold -w 120; echo "----END----"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iphone-native
+          path: |
+            ${{ runner.temp }}/shots
+            ${{ runner.temp }}/build.log
+          retention-days: 14

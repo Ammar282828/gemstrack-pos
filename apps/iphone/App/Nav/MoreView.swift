@@ -48,7 +48,7 @@ struct SearchView: View {
             q.isEmpty || item.place.label.lowercased().contains(q) || (item.place.keywords ?? []).contains { $0.lowercased().contains(q) }
                 || (item.entry?.label.lowercased().contains(q) ?? false)
         }
-        List(places, id: \.place.id) { item in
+        List(places) { item in
             NavigationLink(value: Route(path: item.place.href)) {
                 Label {
                     VStack(alignment: .leading, spacing: 1) {

@@ -48,7 +48,7 @@ final class WebBridge: NSObject, WKScriptMessageHandlerWithReply {
         case ("ERPNative", "info"):
             let info = Bundle.main.infoDictionary ?? [:]
             ok(["bundleId": Bundle.main.bundleIdentifier ?? "", "version": info["CFBundleShortVersionString"] ?? "", "build": info["CFBundleVersion"] ?? "",
-                "googleSignIn": true, "speech": true, "features": [String]()])
+                "googleSignIn": true, "speech": true, "features": [String]()] as [String: Any])
         case ("ERPNative", "googleSignIn"):
             Task { @MainActor in
                 do { let t = try await GoogleAuth.shared.idToken(); ok(["idToken": t.idToken, "accessToken": t.accessToken]) }

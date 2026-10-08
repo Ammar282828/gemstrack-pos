@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import FirebaseCore
 import Observation
 
 /// Who is signed in and what they are to this house (the ERP says: /api/app/me). Owners get the
@@ -35,6 +36,7 @@ final class Session {
     func start() async {
         if House.isDemo {
             me = Me(email: "owner@example.com", role: "owner", karigar: nil)
+            Book.shared.signedIn(role: "owner")
             state = .signedIn
             return
         }
@@ -43,6 +45,7 @@ final class Session {
     }
 
     func signIn() async {
+        guard FirebaseApp.app() != nil else { state = .needsSetup; return }
         state = .signingIn
         error = nil
         do {
@@ -67,12 +70,14 @@ final class Session {
             }
             self.me = me
             Self.lastMe = me
+            Book.shared.signedIn(role: me.role)
             state = .signedIn
             if me.role == "owner" { await DeviceLinks.afterSignIn() }
         } catch {
             // No answer (offline, or the server restarting): stay signed in as the ERP last said.
             if let last = Self.lastMe, last.email.lowercased() == Auth.auth().currentUser?.email?.lowercased() {
                 me = last
+                Book.shared.signedIn(role: last.role)
                 state = .signedIn
             } else {
                 self.error = Self.say(error)
@@ -83,9 +88,10 @@ final class Session {
 
     func signOut() {
         Task { await DeviceLinks.beforeSignOut() }
-        try? Auth.auth().signOut()
+        if FirebaseApp.app() != nil { try? Auth.auth().signOut() }
         GoogleAuth.shared.signOut()
         Self.lastMe = nil
+        Book.shared.signedOut()
         me = nil
         state = .signedOut
     }

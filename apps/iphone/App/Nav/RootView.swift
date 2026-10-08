@@ -26,7 +26,8 @@ struct RootGate: View {
 /// Liquid Glass comes with the system's TabView, toolbars and sheets (CONVENTIONS.md rule 4).
 struct RootView: View {
     @Environment(Session.self) private var session
-    @State private var tab = "home"
+    // The simulator check opens each tab in turn (`-ERPDemoTab orders`).
+    @State private var tab = UserDefaults.standard.string(forKey: "ERPDemoTab") ?? "home"
     @State private var creating: Route?
 
     private var map: NavMap { NavMap.current.visible(to: session.role) }

@@ -1,0 +1,848 @@
+{
+ "customers": [
+  {
+   "id": "CUST-D01",
+   "name": "Sana Demo",
+   "phone": "+923000000101",
+   "source": "walkin",
+   "createdAt": "@d-40 12:00",
+   "ringSize": "14"
+  },
+  {
+   "id": "CUST-D02",
+   "name": "Bilal Example",
+   "phone": "+923000000102",
+   "source": "referral",
+   "createdAt": "@d-47 12:00"
+  },
+  {
+   "id": "CUST-D03",
+   "name": "Hira Sample",
+   "phone": "+923000000103",
+   "source": "social_media",
+   "createdAt": "@d-54 12:00"
+  },
+  {
+   "id": "CUST-D04",
+   "name": "Omar Placeholder",
+   "phone": "+923000000104",
+   "source": "website",
+   "createdAt": "@d-61 12:00",
+   "ringSize": "14"
+  },
+  {
+   "id": "CUST-D05",
+   "name": "Zara Testcase",
+   "phone": "+923000000105",
+   "source": "walkin",
+   "createdAt": "@d-68 12:00"
+  },
+  {
+   "id": "CUST-D06",
+   "name": "Kamran Mock",
+   "phone": "+923000000106",
+   "source": "referral",
+   "createdAt": "@d-75 12:00"
+  },
+  {
+   "id": "CUST-D07",
+   "name": "Ayla Fixture",
+   "phone": "+923000000107",
+   "source": "social_media",
+   "createdAt": "@d-82 12:00",
+   "ringSize": "14"
+  },
+  {
+   "id": "CUST-D08",
+   "name": "Faris Dummy",
+   "phone": "+923000000108",
+   "source": "other",
+   "createdAt": "@d-89 12:00"
+  }
+ ],
+ "orders": [
+  {
+   "id": "ORD-D0001",
+   "createdAt": "@d-0 11:20",
+   "status": "Pending",
+   "items": [
+    {
+     "itemCategory": "Ring",
+     "description": "Plain band, matte finish",
+     "karat": "21k",
+     "metalType": "gold",
+     "estimatedWeightG": 4.2,
+     "stoneWeightG": 0,
+     "hasStones": false,
+     "wastagePercentage": 8,
+     "makingCharges": 6000,
+     "diamondCharges": 0,
+     "stoneCharges": 0,
+     "sampleGiven": false,
+     "hasDiamonds": false,
+     "isCompleted": false,
+     "isManualPrice": false
+    }
+   ],
+   "ratesApplied": {
+    "goldRatePerGram24k": 38500,
+    "goldRatePerGram22k": 35300,
+    "goldRatePerGram21k": 33700,
+    "goldRatePerGram18k": 28900,
+    "palladiumRatePerGram": 0,
+    "platinumRatePerGram": 0,
+    "silverRatePerGram": 480
+   },
+   "subtotal": 168000,
+   "advancePayment": 20000,
+   "advanceMethod": "Cash",
+   "advances": [],
+   "grandTotal": 148000,
+   "customerId": "CUST-D01",
+   "customerName": "Sana Demo",
+   "customerContact": "+923000000101",
+   "takenBy": "Demo Owner",
+   "exchanges": [],
+   "promisedDate": "@day+12"
+  },
+  {
+   "id": "ORD-D0002",
+   "createdAt": "@d-1 16:05",
+   "status": "In Progress",
+   "items": [
+    {
+     "itemCategory": "Bangle",
+     "description": "Bangle pair with filigree",
+     "karat": "21k",
+     "metalType": "gold",
+     "estimatedWeightG": 22.5,
+     "stoneWeightG": 0,
+     "hasStones": false,
+     "wastagePercentage": 8,
+     "makingCharges": 6000,
+     "diamondCharges": 0,
+     "stoneCharges": 0,
+     "sampleGiven": false,
+     "hasDiamonds": false,
+     "isCompleted": false,
+     "isManualPrice": false,
+     "givenAt": "@d-1 18:00",
+     "karigarId": "KAR-D1"
+    },
+    {
+     "itemCategory": "Earrings",
+     "description": "Matching studs",
+     "karat": "21k",
+     "metalType": "gold",
+     "estimatedWeightG": 3.1,
+     "stoneWeightG": 0,
+     "hasStones": false,
+     "wastagePercentage": 8,
+     "makingCharges": 6000,
+     "diamondCharges": 0,
+     "stoneCharges": 0,
+     "sampleGiven": false,
+     "hasDiamonds": false,
+     "isCompleted": false,
+     "isManualPrice": false,
+     "givenAt": "@d-1 18:00",
+     "karigarId": "KAR-D1"
+    }
+   ],
+   "ratesApplied": {
+    "goldRatePerGram24k": 38500,
+    "goldRatePerGram22k": 35300,
+    "goldRatePerGram21k": 33700,
+    "goldRatePerGram18k": 28900,
+    "palladiumRatePerGram": 0,
+    "platinumRatePerGram": 0,
+    "silverRatePerGram": 480
+   },
+   "subtotal": 910000,
+   "advancePayment": 150000,
+   "advanceMethod": "Cash",
+   "advances": [],
+   "grandTotal": 760000,
+   "customerId": "CUST-D02",
+   "customerName": "Bilal Example",
+   "customerContact": "+923000000102",
+   "takenBy": "Demo Owner",
+   "exchanges": [],
+   "promisedDate": "@day+3"
+  },
+  {
+   "id": "ORD-D0003",
+   "createdAt": "@d-6 13:40",
+   "status": "In Progress",
+   "items": [
+    {
+     "itemCategory": "Pendant",
+     "description": "Pendant with initial",
+     "karat": "21k",
+     "metalType": "gold",
+     "estimatedWeightG": 5.4,
+     "stoneWeightG": 0,
+     "hasStones": false,
+     "wastagePercentage": 8,
+     "makingCharges": 6000,
+     "diamondCharges": 0,
+     "stoneCharges": 0,
+     "sampleGiven": false,
+     "hasDiamonds": false,
+     "isCompleted": true,
+     "isManualPrice": false,
+     "givenAt": "@d-5 10:00",
+     "karigarId": "KAR-D2"
+    },
+    {
+     "itemCategory": "Chain",
+     "description": "Chain 18 inch",
+     "karat": "21k",
+     "metalType": "gold",
+     "estimatedWeightG": 7.0,
+     "stoneWeightG": 0,
+     "hasStones": false,
+     "wastagePercentage": 8,
+     "makingCharges": 6000,
+     "diamondCharges": 0,
+     "stoneCharges": 0,
+     "sampleGiven": false,
+     "hasDiamonds": false,
+     "isCompleted": false,
+     "isManualPrice": false,
+     "givenAt": "@d-5 10:00",
+     "karigarId": "KAR-D2"
+    }
+   ],
+   "ratesApplied": {
+    "goldRatePerGram24k": 38500,
+    "goldRatePerGram22k": 35300,
+    "goldRatePerGram21k": 33700,
+    "goldRatePerGram18k": 28900,
+    "palladiumRatePerGram": 0,
+    "platinumRatePerGram": 0,
+    "silverRatePerGram": 480
+   },
+   "subtotal": 425000,
+   "advancePayment": 60000,
+   "advanceMethod": "Cash",
+   "advances": [],
+   "grandTotal": 365000,
+   "customerId": "CUST-D03",
+   "customerName": "Hira Sample",
+   "customerContact": "+923000000103",
+   "takenBy": "Demo Owner",
+   "exchanges": [],
+   "promisedDate": "@day-1"
+  },
+  {
+   "id": "ORD-D0004",
+   "createdAt": "@d-9 10:15",
+   "status": "Completed",
+   "items": [
+    {
+     "itemCategory": "Ring",
+     "description": "Signet ring",
+     "karat": "21k",
+     "metalType": "gold",
+     "estimatedWeightG": 8.8,
+     "stoneWeightG": 0,
+     "hasStones": false,
+     "wastagePercentage": 8,
+     "makingCharges": 6000,
+     "diamondCharges": 0,
+     "stoneCharges": 0,
+     "sampleGiven": false,
+     "hasDiamonds": false,
+     "isCompleted": true,
+     "isManualPrice": false,
+     "givenAt": "@d-8 12:00",
+     "karigarId": "KAR-D1"
+    }
+   ],
+   "ratesApplied": {
+    "goldRatePerGram24k": 38500,
+    "goldRatePerGram22k": 35300,
+    "goldRatePerGram21k": 33700,
+    "goldRatePerGram18k": 28900,
+    "palladiumRatePerGram": 0,
+    "platinumRatePerGram": 0,
+    "silverRatePerGram": 480
+   },
+   "subtotal": 332000,
+   "advancePayment": 100000,
+   "advanceMethod": "Bank Transfer",
+   "advances": [],
+   "grandTotal": 232000,
+   "customerId": "CUST-D04",
+   "customerName": "Omar Placeholder",
+   "customerContact": "+923000000104",
+   "takenBy": "Demo Owner",
+   "exchanges": [],
+   "promisedDate": "@day-2"
+  },
+  {
+   "id": "ORD-D0005",
+   "createdAt": "@d-14 17:30",
+   "status": "Pending",
+   "items": [
+    {
+     "itemCategory": "Nose Pin",
+     "description": "Nose pin, tiny",
+     "karat": "21k",
+     "metalType": "gold",
+     "estimatedWeightG": 0.6,
+     "stoneWeightG": 0,
+     "hasStones": false,
+     "wastagePercentage": 8,
+     "makingCharges": 2500,
+     "diamondCharges": 0,
+     "stoneCharges": 0,
+     "sampleGiven": false,
+     "hasDiamonds": false,
+     "isCompleted": false,
+     "isManualPrice": false
+    }
+   ],
+   "ratesApplied": {
+    "goldRatePerGram24k": 38500,
+    "goldRatePerGram22k": 35300,
+    "goldRatePerGram21k": 33700,
+    "goldRatePerGram18k": 28900,
+    "palladiumRatePerGram": 0,
+    "platinumRatePerGram": 0,
+    "silverRatePerGram": 480
+   },
+   "subtotal": 26000,
+   "advancePayment": 5000,
+   "advanceMethod": "Cash",
+   "advances": [],
+   "grandTotal": 21000,
+   "customerId": "CUST-D05",
+   "customerName": "Zara Testcase",
+   "customerContact": "+923000000105",
+   "takenBy": "Demo Owner",
+   "exchanges": [],
+   "promisedDate": "@day+20"
+  },
+  {
+   "id": "ORD-D0006",
+   "createdAt": "@d-20 12:50",
+   "status": "Cancelled",
+   "items": [
+    {
+     "itemCategory": "Kara",
+     "description": "Kara, heavy",
+     "karat": "21k",
+     "metalType": "gold",
+     "estimatedWeightG": 30.0,
+     "stoneWeightG": 0,
+     "hasStones": false,
+     "wastagePercentage": 8,
+     "makingCharges": 6000,
+     "diamondCharges": 0,
+     "stoneCharges": 0,
+     "sampleGiven": false,
+     "hasDiamonds": false,
+     "isCompleted": false,
+     "isManualPrice": false
+    }
+   ],
+   "ratesApplied": {
+    "goldRatePerGram24k": 38500,
+    "goldRatePerGram22k": 35300,
+    "goldRatePerGram21k": 33700,
+    "goldRatePerGram18k": 28900,
+    "palladiumRatePerGram": 0,
+    "platinumRatePerGram": 0,
+    "silverRatePerGram": 480
+   },
+   "subtotal": 1050000,
+   "advancePayment": 0,
+   "advanceMethod": "Cash",
+   "advances": [],
+   "grandTotal": 1050000,
+   "customerId": "CUST-D06",
+   "customerName": "Kamran Mock",
+   "customerContact": "+923000000106",
+   "takenBy": "Demo Owner",
+   "exchanges": []
+  }
+ ],
+ "invoices": [
+  {
+   "id": "INV-D0001",
+   "customerId": "CUST-D07",
+   "customerName": "Ayla Fixture",
+   "customerContact": "+923000000107",
+   "items": [
+    {
+     "sku": "RNG-D101",
+     "name": "Stackable band",
+     "categoryId": "Ring",
+     "metalType": "gold",
+     "karat": "21k",
+     "metalWeightG": 3.9,
+     "stoneWeightG": 0,
+     "quantity": 1,
+     "unitPrice": 148500,
+     "itemTotal": 148500,
+     "metalCost": 131430,
+     "wastageCost": 10514,
+     "makingCharges": 6000,
+     "diamondChargesIfAny": 0,
+     "stoneChargesIfAny": 0
+    }
+   ],
+   "subtotal": 148500,
+   "discountAmount": 0,
+   "exchanges": [],
+   "grandTotal": 148500,
+   "amountPaid": 148500,
+   "balanceDue": 0,
+   "createdAt": "@d-0 12:10",
+   "ratesApplied": {
+    "goldRatePerGram24k": 38500,
+    "goldRatePerGram22k": 35300,
+    "goldRatePerGram21k": 33700,
+    "goldRatePerGram18k": 28900,
+    "palladiumRatePerGram": 0,
+    "platinumRatePerGram": 0,
+    "silverRatePerGram": 480
+   },
+   "takenBy": "Demo Owner",
+   "paymentHistory": [
+    {
+     "amount": 148500,
+     "date": "@d-0 12:10",
+     "method": "Card"
+    }
+   ]
+  },
+  {
+   "id": "INV-D0002",
+   "customerId": "CUST-D01",
+   "customerName": "Sana Demo",
+   "customerContact": "+923000000101",
+   "items": [
+    {
+     "sku": "ERG-D204",
+     "name": "Drop earrings",
+     "categoryId": "Earrings",
+     "metalType": "gold",
+     "karat": "21k",
+     "metalWeightG": 6.2,
+     "stoneWeightG": 0,
+     "quantity": 1,
+     "unitPrice": 236000,
+     "itemTotal": 236000,
+     "metalCost": 208940,
+     "wastageCost": 16715,
+     "makingCharges": 6000,
+     "diamondChargesIfAny": 0,
+     "stoneChargesIfAny": 0
+    }
+   ],
+   "subtotal": 240000,
+   "discountAmount": 4000,
+   "exchanges": [],
+   "grandTotal": 236000,
+   "amountPaid": 150000,
+   "balanceDue": 86000,
+   "createdAt": "@d-0 15:45",
+   "ratesApplied": {
+    "goldRatePerGram24k": 38500,
+    "goldRatePerGram22k": 35300,
+    "goldRatePerGram21k": 33700,
+    "goldRatePerGram18k": 28900,
+    "palladiumRatePerGram": 0,
+    "platinumRatePerGram": 0,
+    "silverRatePerGram": 480
+   },
+   "takenBy": "Demo Owner",
+   "paymentHistory": [
+    {
+     "amount": 150000,
+     "date": "@d-0 15:45",
+     "method": "Cash"
+    }
+   ]
+  },
+  {
+   "id": "INV-D0003",
+   "customerId": "CUST-D04",
+   "customerName": "Omar Placeholder",
+   "customerContact": "+923000000104",
+   "items": [
+    {
+     "sku": "RNG-D088",
+     "name": "Signet ring",
+     "categoryId": "Ring",
+     "metalType": "gold",
+     "karat": "21k",
+     "metalWeightG": 8.8,
+     "stoneWeightG": 0,
+     "quantity": 1,
+     "unitPrice": 332000,
+     "itemTotal": 332000,
+     "metalCost": 296560,
+     "wastageCost": 23725,
+     "makingCharges": 6000,
+     "diamondChargesIfAny": 0,
+     "stoneChargesIfAny": 0
+    }
+   ],
+   "subtotal": 332000,
+   "discountAmount": 0,
+   "exchanges": [],
+   "grandTotal": 332000,
+   "amountPaid": 332000,
+   "balanceDue": 0,
+   "createdAt": "@d-2 11:00",
+   "ratesApplied": {
+    "goldRatePerGram24k": 38500,
+    "goldRatePerGram22k": 35300,
+    "goldRatePerGram21k": 33700,
+    "goldRatePerGram18k": 28900,
+    "palladiumRatePerGram": 0,
+    "platinumRatePerGram": 0,
+    "silverRatePerGram": 480
+   },
+   "takenBy": "Demo Owner",
+   "paymentHistory": [
+    {
+     "amount": 332000,
+     "date": "@d-2 11:00",
+     "method": "Bank Transfer"
+    }
+   ],
+   "sourceOrderId": "ORD-D0004"
+  },
+  {
+   "id": "INV-D0004",
+   "customerId": "CUST-D08",
+   "customerName": "Faris Dummy",
+   "customerContact": "+923000000108",
+   "items": [
+    {
+     "sku": "BNG-D017",
+     "name": "Bangle, single",
+     "categoryId": "Bangle",
+     "metalType": "gold",
+     "karat": "21k",
+     "metalWeightG": 11.4,
+     "stoneWeightG": 0,
+     "quantity": 1,
+     "unitPrice": 431000,
+     "itemTotal": 431000,
+     "metalCost": 384180,
+     "wastageCost": 30734,
+     "makingCharges": 6000,
+     "diamondChargesIfAny": 0,
+     "stoneChargesIfAny": 0
+    }
+   ],
+   "subtotal": 431000,
+   "discountAmount": 0,
+   "exchanges": [],
+   "grandTotal": 431000,
+   "amountPaid": 300000,
+   "balanceDue": 131000,
+   "createdAt": "@d-4 18:20",
+   "ratesApplied": {
+    "goldRatePerGram24k": 38500,
+    "goldRatePerGram22k": 35300,
+    "goldRatePerGram21k": 33700,
+    "goldRatePerGram18k": 28900,
+    "palladiumRatePerGram": 0,
+    "platinumRatePerGram": 0,
+    "silverRatePerGram": 480
+   },
+   "takenBy": "Demo Owner",
+   "paymentHistory": [
+    {
+     "amount": 300000,
+     "date": "@d-4 18:20",
+     "method": "Cash"
+    }
+   ]
+  },
+  {
+   "id": "INV-D0005",
+   "customerId": "CUST-D02",
+   "customerName": "Bilal Example",
+   "customerContact": "+923000000102",
+   "items": [
+    {
+     "sku": "PND-D051",
+     "name": "Locket pendant",
+     "categoryId": "Pendant",
+     "metalType": "gold",
+     "karat": "21k",
+     "metalWeightG": 4.4,
+     "stoneWeightG": 0,
+     "quantity": 1,
+     "unitPrice": 169000,
+     "itemTotal": 169000,
+     "metalCost": 148280,
+     "wastageCost": 11862,
+     "makingCharges": 6000,
+     "diamondChargesIfAny": 0,
+     "stoneChargesIfAny": 0
+    }
+   ],
+   "subtotal": 169000,
+   "discountAmount": 0,
+   "exchanges": [],
+   "grandTotal": 169000,
+   "amountPaid": 169000,
+   "balanceDue": 0,
+   "createdAt": "@d-11 14:00",
+   "ratesApplied": {
+    "goldRatePerGram24k": 38500,
+    "goldRatePerGram22k": 35300,
+    "goldRatePerGram21k": 33700,
+    "goldRatePerGram18k": 28900,
+    "palladiumRatePerGram": 0,
+    "platinumRatePerGram": 0,
+    "silverRatePerGram": 480
+   },
+   "takenBy": "Demo Owner",
+   "paymentHistory": [
+    {
+     "amount": 169000,
+     "date": "@d-11 14:00",
+     "method": "Cash"
+    }
+   ]
+  },
+  {
+   "id": "INV-D0006",
+   "customerId": "CUST-D05",
+   "customerName": "Zara Testcase",
+   "customerContact": "+923000000105",
+   "items": [
+    {
+     "sku": "CHN-D009",
+     "name": "Rope chain",
+     "categoryId": "Chain",
+     "metalType": "gold",
+     "karat": "21k",
+     "metalWeightG": 9.6,
+     "stoneWeightG": 0,
+     "quantity": 1,
+     "unitPrice": 358000,
+     "itemTotal": 358000,
+     "metalCost": 323520,
+     "wastageCost": 25882,
+     "makingCharges": 6000,
+     "diamondChargesIfAny": 0,
+     "stoneChargesIfAny": 0
+    }
+   ],
+   "subtotal": 358000,
+   "discountAmount": 0,
+   "exchanges": [],
+   "grandTotal": 358000,
+   "amountPaid": 250000,
+   "balanceDue": 108000,
+   "createdAt": "@d-26 13:30",
+   "ratesApplied": {
+    "goldRatePerGram24k": 38500,
+    "goldRatePerGram22k": 35300,
+    "goldRatePerGram21k": 33700,
+    "goldRatePerGram18k": 28900,
+    "palladiumRatePerGram": 0,
+    "platinumRatePerGram": 0,
+    "silverRatePerGram": 480
+   },
+   "takenBy": "Demo Owner",
+   "paymentHistory": [
+    {
+     "amount": 250000,
+     "date": "@d-26 13:30",
+     "method": "Cheque"
+    }
+   ]
+  }
+ ],
+ "karigars": [
+  {
+   "id": "KAR-D1",
+   "name": "Ustad Demo",
+   "phone": "+923000000201",
+   "createdAt": "@d-300 10:00"
+  },
+  {
+   "id": "KAR-D2",
+   "name": "Karigar Example",
+   "phone": "+923000000202",
+   "createdAt": "@d-200 10:00"
+  }
+ ],
+ "hisaab": [
+  {
+   "id": "HSB-D1",
+   "entityId": "CUST-D06",
+   "entityType": "customer",
+   "entityName": "Kamran Mock",
+   "date": "@d-30 12:00",
+   "description": "Old balance",
+   "cashDebit": 45000,
+   "cashCredit": 0,
+   "goldDebitGrams": 0,
+   "goldCreditGrams": 0
+  },
+  {
+   "id": "HSB-D2",
+   "entityId": "CUST-D06",
+   "entityType": "customer",
+   "entityName": "Kamran Mock",
+   "date": "@d-3 12:00",
+   "description": "Part payment",
+   "cashDebit": 0,
+   "cashCredit": 15000,
+   "goldDebitGrams": 0,
+   "goldCreditGrams": 0
+  },
+  {
+   "id": "HSB-D3",
+   "entityId": "KAR-D1",
+   "entityType": "karigar",
+   "entityName": "Ustad Demo",
+   "date": "@d-1 18:00",
+   "description": "Gold given for ORD-D0002",
+   "cashDebit": 0,
+   "cashCredit": 0,
+   "goldDebitGrams": 25.6,
+   "goldCreditGrams": 0
+  }
+ ],
+ "expenses": [
+  {
+   "id": "EXP-D1",
+   "date": "@d-0 10:00",
+   "category": "Shop",
+   "description": "Tea and biscuits",
+   "amount": 1800,
+   "paidBy": "business"
+  },
+  {
+   "id": "EXP-D2",
+   "date": "@d-2 10:00",
+   "category": "Utilities",
+   "description": "Electricity",
+   "amount": 38500,
+   "paidBy": "business"
+  }
+ ],
+ "repairs": [
+  {
+   "id": "REP-D1",
+   "customerId": "CUST-D03",
+   "customerName": "Hira Sample",
+   "customerContact": "+923000000103",
+   "status": "received",
+   "receivedAt": "@d-2 13:00",
+   "promisedDate": "@day+2",
+   "pieces": [
+    {
+     "description": "Chain clasp",
+     "charge": 1500
+    }
+   ],
+   "payments": []
+  },
+  {
+   "id": "REP-D2",
+   "customerId": "CUST-D05",
+   "customerName": "Zara Testcase",
+   "customerContact": "+923000000105",
+   "status": "ready",
+   "receivedAt": "@d-5 12:00",
+   "readyAt": "@d-1 17:00",
+   "pieces": [
+    {
+     "description": "Ring resize to 13",
+     "charge": 2500
+    },
+    {
+     "description": "Polish",
+     "charge": 800
+    }
+   ],
+   "payments": [
+    {
+     "amount": 1000,
+     "date": "@d-5 12:00",
+     "method": "Cash"
+    }
+   ]
+  }
+ ],
+ "products": [
+  {
+   "sku": "RNG-D110",
+   "name": "Twist band",
+   "categoryId": "Ring",
+   "metalType": "gold",
+   "karat": "21k",
+   "metalWeightG": 3.4,
+   "wastagePercentage": 8,
+   "makingCharges": 5500,
+   "hasStones": false,
+   "stoneWeightG": 0,
+   "hasDiamonds": false,
+   "diamondCharges": 0,
+   "stoneCharges": 0,
+   "miscCharges": 0
+  },
+  {
+   "sku": "ERG-D220",
+   "name": "Hoop earrings",
+   "categoryId": "Earrings",
+   "metalType": "gold",
+   "karat": "21k",
+   "metalWeightG": 5.1,
+   "wastagePercentage": 10,
+   "makingCharges": 7000,
+   "hasStones": false,
+   "stoneWeightG": 0,
+   "hasDiamonds": false,
+   "diamondCharges": 0,
+   "stoneCharges": 0,
+   "miscCharges": 0
+  },
+  {
+   "sku": "BNG-D030",
+   "name": "Bangle, carved",
+   "categoryId": "Bangle",
+   "metalType": "gold",
+   "karat": "22k",
+   "metalWeightG": 14.2,
+   "wastagePercentage": 9,
+   "makingCharges": 12000,
+   "hasStones": false,
+   "stoneWeightG": 0,
+   "hasDiamonds": false,
+   "diamondCharges": 0,
+   "stoneCharges": 0,
+   "miscCharges": 0
+  }
+ ],
+ "app_settings": [
+  {
+   "id": "global",
+   "goldRatePerGram24k": 38500,
+   "goldRatePerGram22k": 35300,
+   "goldRatePerGram21k": 33700,
+   "goldRatePerGram18k": 28900,
+   "palladiumRatePerGram": 0,
+   "platinumRatePerGram": 0,
+   "silverRatePerGram": 480,
+   "ratesUpdatedAt": "@d-0 09:30",
+   "ratesUpdatedBy": "Demo Owner",
+   "shopName": "Demo Shop"
+  }
+ ]
+}

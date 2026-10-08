@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseAuth
+import FirebaseCore
 
 /// The ERP's server routes, as the signed-in person (their Firebase ID token). Every write that
 /// moves money goes this way (CONVENTIONS.md rule 1): the rules live once, in the ERP.
@@ -14,6 +15,8 @@ final class ERPAPI {
     }
 
     func data(_ path: String, method: String = "GET", json: [String: Any]? = nil) async throws -> Data {
+        // The demo has no server and no Firebase: every call answers as if offline.
+        if House.isDemo || FirebaseApp.app() == nil { throw Failure(status: 0, message: "Not connected to the ERP in the demo.") }
         var request = URLRequest(url: URL(string: path, relativeTo: House.serverURL)!)
         request.httpMethod = method
         request.timeoutInterval = 60

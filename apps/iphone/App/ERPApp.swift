@@ -12,6 +12,7 @@ struct ERPApp: App {
         WindowGroup {
             RootGate()
                 .environment(session)
+                .environment(Book.shared)
                 .tint(Theme.accent)
         }
     }
@@ -21,6 +22,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         if !House.isDemo, let options = House.firebaseOptions {
             FirebaseApp.configure(options: options)
+            FirestoreSource.configure()
         }
         return true
     }

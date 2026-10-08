@@ -70,13 +70,20 @@ struct NavMap: Decodable {
     }
 
     /// Everything, flat: for search.
-    var allPlaces: [(place: NavPlace, entry: NavEntry?)] {
-        var out: [(NavPlace, NavEntry?)] = actions.map { ($0, nil) }
+    var allPlaces: [NavHit] {
+        var out: [NavHit] = actions.map { NavHit(place: $0, entry: nil) }
         for e in [newSale] + entries + [settings] {
-            out.append((e.place, e))
-            for t in (e.tabs ?? []) + (e.pages ?? []) where t.href != e.href { out.append((t, e)) }
+            out.append(NavHit(place: e.place, entry: e))
+            for t in (e.tabs ?? []) + (e.pages ?? []) where t.href != e.href { out.append(NavHit(place: t, entry: e)) }
         }
         var seen = Set<String>()
-        return out.filter { seen.insert($0.0.href + $0.0.label).inserted }
+        return out.filter { seen.insert($0.id).inserted }
     }
+}
+
+/// A place found by search, with the entry it sits under.
+struct NavHit: Identifiable {
+    let place: NavPlace
+    let entry: NavEntry?
+    var id: String { place.href + "|" + place.label }
 }
