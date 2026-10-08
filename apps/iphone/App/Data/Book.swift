@@ -106,7 +106,12 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
         stop = Book.shared.attach(name) { [weak self] (d: Delivery<T>) in self?.take(d) }
     }
 
-    func item(_ id: String) -> T? { byId[id] }
+    /// One document by id. Reads `items` first so a screen showing one document redraws when it changes
+    /// (the lookup table itself is not observed).
+    func item(_ id: String) -> T? {
+        _ = items.count
+        return byId[id]
+    }
 
     func reset() {
         stop?()

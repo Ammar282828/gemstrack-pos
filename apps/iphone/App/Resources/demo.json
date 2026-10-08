@@ -747,8 +747,9 @@
    "promisedDate": "@day+2",
    "pieces": [
     {
-     "description": "Chain clasp",
-     "charge": 1500
+     "item": "Chain",
+     "work": "Clasp replaced",
+     "price": 1500
     }
    ],
    "payments": []
@@ -763,12 +764,14 @@
    "readyAt": "@d-1 17:00",
    "pieces": [
     {
-     "description": "Ring resize to 13",
-     "charge": 2500
+     "item": "Ring",
+     "work": "Resize to 13",
+     "price": 2500
     },
     {
-     "description": "Polish",
-     "charge": 800
+     "item": "Ring",
+     "work": "Polish",
+     "price": 800
     }
    ],
    "payments": [
