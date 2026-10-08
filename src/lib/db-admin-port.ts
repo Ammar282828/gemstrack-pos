@@ -1,5 +1,6 @@
 /** DbPort over the Admin SDK, for the server-side staff write path. */
 
+import admin from 'firebase-admin';
 import { adminDb } from '@/lib/firebase-admin';
 import type { DbPort, TxCtx, BatchCtx } from '@/lib/db-port';
 
@@ -44,4 +45,6 @@ export const adminPort: DbPort = {
     };
   },
   newId: (c) => adminDb.collection(c).doc().id,
+  timestamp: (d) => admin.firestore.Timestamp.fromDate(d),
+  serverTime: () => admin.firestore.FieldValue.serverTimestamp(),
 };

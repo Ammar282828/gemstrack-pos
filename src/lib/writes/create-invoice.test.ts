@@ -30,6 +30,8 @@ function fakeDb(seed: Record<string, Record<string, Record<string, unknown>>>) {
     async update(c, id, d) { col(c)[id] = { ...col(c)[id], ...d }; },
     batch() { return { set() {}, update() {}, delete() {}, async commit() {} }; },
     newId() { return `h${++ids}`; },
+    timestamp: (d: Date) => ({ ts: d.toISOString() }),
+    serverTime: () => 'server-time',
   };
   return { db, data, stats };
 }

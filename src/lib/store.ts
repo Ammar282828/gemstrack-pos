@@ -204,8 +204,9 @@ import { createOrder } from '@/lib/writes/create-order';
 import { recordOrderAdvance as writeOrderAdvance } from '@/lib/writes/order-advance';
 import { rateChangeLog, rateConfirmLog } from '@/lib/writes/rates';
 import { createInvoice as createInvoiceWrite } from '@/lib/writes/create-invoice';
+import { addExpense as writeAddExpense } from '@/lib/writes/expenses';
 import { addRepair as writeAddRepair, recordRepairPayment as writeRepairPayment, setRepairStatus as writeRepairStatus } from '@/lib/writes/repairs';
-import { alertsOnStatus, orderStatusPatch, pieceDonePatch } from '@/lib/writes/order-status';
+import { alertsOnStatus, orderStatusPatch, pieceDonePatch, pieceGivenPatch, pieceKarigarPatch } from '@/lib/writes/order-status';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { canHoldCredit, creditDescription, inCredit, isCreditRow } from '@/lib/invoice-credit';
 export type { OverheadItem, OverheadPlan };
@@ -3406,18 +3407,11 @@ export const useAppStore = create<AppState>()(
         if (!order) throw new Error('Order not found');
 
         const clearing = !karigarId || karigarId === 'none';
-        const updatedItems = order.items.map((item, i) => {
-          if (i !== itemIndex) return item;
-          const next = { ...item };
-          if (clearing) delete next.karigarId; else next.karigarId = karigarId;
-          return next;
-        });
-
-        const nextStatus = get()._statusAfterAssign(order, updatedItems);
+        // The rule every path writes (lib/writes/order-status.ts pieceKarigarPatch).
+        const { patch, nextStatus } = pieceKarigarPatch(order, itemIndex, karigarId);
 
         try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId),
-            { items: updatedItems, ...(nextStatus && { status: nextStatus }) }, { merge: true });
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId), patch, { merge: true });
           const name = clearing ? 'Unassigned' : (get().karigars.find(k => k.id === karigarId)?.name || karigarId);
           await addActivityLog('order.update', `Karigar assigned on ${orderId}`,
             `${order.items[itemIndex]?.description || `Item ${itemIndex + 1}`} → ${name}`, orderId);
@@ -3537,14 +3531,8 @@ export const useAppStore = create<AppState>()(
         if (get().settings.databaseLocked) return;
         const order = get().orders.find(o => o.id === orderId);
         if (!order) throw new Error('Order not found');
-        const updatedItems = order.items.map((item, i) => {
-          if (i !== itemIndex) return item;
-          const next: OrderItem = { ...item };
-          if (givenAt) next.givenAt = givenAt; else delete next.givenAt;
-          return next;
-        });
         try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId), { items: updatedItems }, { merge: true });
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId), pieceGivenPatch(order, itemIndex, givenAt).patch, { merge: true });
         } catch (error) {
           console.error(`Error updating given state for order ${orderId}:`, error);
           throw error;
@@ -3965,35 +3953,10 @@ export const useAppStore = create<AppState>()(
       addExpense: async (expenseData) => {
         if(get().settings.databaseLocked) return null;
         try {
-          // If a partner fronted the cash, create a matching loan entry on
-          // their ledger first so we can store its id alongside the expense.
-          let ledgerEntryId: string | undefined;
-          const paidBy = expenseData.paidBy;
-          if (paidBy === 'ammar' || paidBy === 'mina') {
-            const ledger = paidBy === 'ammar' ? 'ammar_ledger' : 'mina_ledger';
-            const ledgerDoc = await addDoc(collection(db, ledger), {
-              type: 'payment',
-              category: 'loan',
-              description: `Expense paid: ${expenseData.description}`,
-              amount: expenseData.amount,
-              date: Timestamp.fromDate(new Date(expenseData.date)),
-              createdAt: serverTimestamp(),
-              linkedExpenseId: 'pending', // patched after expense create
-            });
-            ledgerEntryId = ledgerDoc.id;
-          }
-
-          const persisted: Omit<Expense, 'id'> = { ...expenseData, ...(ledgerEntryId && { ledgerEntryId }) };
-          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.EXPENSES), persisted);
-
-          // Backfill the linkedExpenseId on the ledger entry now that we know it
-          if (ledgerEntryId && (paidBy === 'ammar' || paidBy === 'mina')) {
-            const ledger = paidBy === 'ammar' ? 'ammar_ledger' : 'mina_ledger';
-            await setDoc(doc(db, ledger, ledgerEntryId), { linkedExpenseId: docRef.id }, { merge: true });
-          }
-
-          await addActivityLog('expense.create', `Added expense: ${expenseData.description}`, `Category: ${expenseData.category} | Amount: ${expenseData.amount.toLocaleString()}${paidBy && paidBy !== 'business' ? ` | Paid by: ${paidBy}` : ''}`, docRef.id);
-          return { id: docRef.id, ...persisted } as Expense;
+          // The one copy (lib/writes/expenses.ts): the expense and a partner's ledger row in one commit.
+          return await writeAddExpense(clientPort, expenseData, {
+            log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? ''),
+          });
         } catch (error) {
           console.error("[GemsTrack Store addExpense] Error adding expense:", error);
           return null;

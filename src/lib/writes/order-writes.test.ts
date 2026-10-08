@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { DbPort, TxCtx } from '@/lib/db-port';
-import { orderStatusPatch, pieceDonePatch, setOrderPieceDone, setOrderStatus } from './order-status';
+import { orderStatusPatch, pieceDonePatch, pieceGivenPatch, pieceKarigarPatch, setOrderPieceDone, setOrderPieceGiven, setOrderPieceKarigar, setOrderStatus } from './order-status';
 import { recordOrderAdvance } from './order-advance';
 import { cleanRates, setRates } from './rates';
+import { addExpense } from './expenses';
 
 /** An in-memory database with Firestore's merge, for the order writes. */
 function fakeDb(seed: Record<string, Record<string, Record<string, unknown>>>) {
@@ -35,6 +36,8 @@ function fakeDb(seed: Record<string, Record<string, Record<string, unknown>>>) {
       };
     },
     newId() { return 'n'; },
+    timestamp: (d: Date) => ({ ts: d.toISOString() }),
+    serverTime: () => 'server-time',
   };
   return { db, data };
 }
@@ -120,5 +123,56 @@ describe('setting the rates', () => {
   it('refuses while the database is locked', async () => {
     const { db } = fakeDb({ app_settings: { global: { databaseLocked: true } } });
     await expect(setRates(db, { rates: { goldRatePerGram21k: 1 }, by: 'Demo', mainKey: 'goldRatePerGram21k' })).rejects.toThrow(/locked/);
+  });
+});
+
+describe('the workshop: karigars and pieces given out', () => {
+  it('the last piece given a karigar moves a Pending order on; clearing one never moves it', () => {
+    const order = { status: 'Pending', items: [{ description: 'A', karigarId: 'k1' }, { description: 'B' }] };
+    const p = pieceKarigarPatch(order, 1, 'k2');
+    expect(p.nextStatus).toBe('In Progress');
+    expect(p.items[1]).toEqual({ description: 'B', karigarId: 'k2' });
+    const cleared = pieceKarigarPatch(order, 0, 'none');
+    expect(cleared.items[0]).toEqual({ description: 'A' });
+    expect(cleared.nextStatus).toBeNull();
+    // Only a Pending order moves.
+    expect(pieceKarigarPatch({ ...order, status: 'Completed' }, 1, 'k2').nextStatus).toBeNull();
+  });
+
+  it('given out is a time, and taking it back removes it', () => {
+    const order = { status: 'In Progress', items: [{ description: 'A', givenAt: '2026-10-01T00:00:00.000Z' }] };
+    expect(pieceGivenPatch(order, 0, null).patch).toEqual({ items: [{ description: 'A' }] });
+    expect(pieceGivenPatch(order, 0, '2026-10-08T00:00:00.000Z').patch).toEqual({ items: [{ description: 'A', givenAt: '2026-10-08T00:00:00.000Z' }] });
+  });
+
+  it('runs on the server the same way', async () => {
+    const { db, data } = fakeDb({ orders: { 'ORD-9': { status: 'Pending', items: [{ description: 'A' }] } } });
+    const out = await setOrderPieceKarigar(db, { orderId: 'ORD-9', index: 0, karigarId: 'k1', karigarName: 'Demo Karigar' });
+    expect(out.status).toBe('In Progress');
+    expect(data.orders['ORD-9']).toMatchObject({ status: 'In Progress', items: [{ description: 'A', karigarId: 'k1' }] });
+    await setOrderPieceGiven(db, { orderId: 'ORD-9', index: 0, givenAt: '2026-10-08T00:00:00.000Z' });
+    expect((data.orders['ORD-9'].items as { givenAt?: string }[])[0].givenAt).toBe('2026-10-08T00:00:00.000Z');
+    await expect(setOrderPieceGiven(db, { orderId: 'ORD-9', index: 5, givenAt: null })).rejects.toThrow(/not on this order/);
+  });
+});
+
+describe('an expense', () => {
+  it('a partner-fronted expense and its ledger row point at each other, in one commit', async () => {
+    const { db, data } = fakeDb({});
+    const e = await addExpense(db, { date: '2026-10-08T10:00:00.000Z', category: 'Shop', description: 'Demo tea', amount: 1_200, paidBy: 'ammar' });
+    const ledgerId = e.ledgerEntryId!;
+    expect(data.expenses[e.id]).toMatchObject({ description: 'Demo tea', amount: 1_200, ledgerEntryId: ledgerId });
+    expect(data.ammar_ledger[ledgerId]).toEqual({
+      type: 'payment', category: 'loan', description: 'Expense paid: Demo tea', amount: 1_200,
+      date: { ts: '2026-10-08T10:00:00.000Z' }, createdAt: 'server-time', linkedExpenseId: e.id,
+    });
+  });
+
+  it('the business paying writes no ledger row', async () => {
+    const { db, data } = fakeDb({});
+    const e = await addExpense(db, { date: '2026-10-08T10:00:00.000Z', category: 'Shop', description: 'Demo bulb', amount: 300, paidBy: 'business' });
+    expect(e.ledgerEntryId).toBeUndefined();
+    expect(data.ammar_ledger).toBeUndefined();
+    expect(data.mina_ledger).toBeUndefined();
   });
 });

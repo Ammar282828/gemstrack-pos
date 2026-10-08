@@ -34,6 +34,8 @@ function fakeDb(seed: Record<string, Record<string, Record<string, unknown>>>) {
       };
     },
     newId() { return `r${++ids}`; },
+    timestamp: (d: Date) => ({ ts: d.toISOString() }),
+    serverTime: () => 'server-time',
   };
   return { db, data };
 }

@@ -2,7 +2,7 @@
 
 import {
   doc, collection, getDoc, getDocs, query, where, addDoc, updateDoc,
-  runTransaction, writeBatch,
+  runTransaction, writeBatch, Timestamp, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { DbPort, TxCtx, BatchCtx } from '@/lib/db-port';
@@ -48,4 +48,6 @@ export const clientPort: DbPort = {
     };
   },
   newId: (c) => doc(collection(db, c)).id,
+  timestamp: (d) => Timestamp.fromDate(d),
+  serverTime: () => serverTimestamp(),
 };

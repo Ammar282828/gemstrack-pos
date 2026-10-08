@@ -31,6 +31,8 @@ function fakeDb(seed: Record<string, Record<string, Record<string, unknown>>>) {
     async update(c, id, d) { stats.directWrites++; col(c)[id] = { ...col(c)[id], ...d }; },
     batch() { stats.batches++; return { set() {}, update() {}, delete() {}, async commit() {} }; },
     newId() { return `new${++ids}`; },
+    timestamp: (d: Date) => ({ ts: d.toISOString() }),
+    serverTime: () => 'server-time',
   };
   return { db, data, stats };
 }

@@ -78,3 +78,61 @@ export async function setOrderPieceDone(db: DbPort, input: { orderId: string; in
   }
   return { orderId, index, done, status: nextStatus };
 }
+
+/**
+ * A piece given to a karigar, or taken off one ("none" or nothing clears it). A Pending order whose
+ * every piece now has a karigar has been handed out, so it moves itself to In Progress; nothing
+ * else moves (store.ts _statusAfterAssign, the rule of lib/order-stage.ts).
+ */
+export function pieceKarigarPatch<P extends Piece>(order: OrderLike<P>, index: number, karigarId: string | null | undefined): { patch: Record<string, unknown>; nextStatus: 'In Progress' | 'Completed' | null; items: P[] } {
+  const clearing = !karigarId || karigarId === 'none';
+  const items = (Array.isArray(order.items) ? order.items : []).map((item, i) => {
+    if (i !== index) return item;
+    const next = { ...item };
+    if (clearing) delete next.karigarId; else next.karigarId = karigarId;
+    return next;
+  });
+  // Only the assignment's own step: a karigar given never finishes an order by itself.
+  const nextStatus = (order.status === 'Pending' && statusFromPieces(order.status, items.map((i) => ({ ...i, isCompleted: false })), !!order.invoiceId)) || null;
+  return { patch: { items, ...(nextStatus && { status: nextStatus }) }, nextStatus, items };
+}
+
+/** When a piece physically went to the karigar (ISO), or not yet (null). */
+export function pieceGivenPatch<P extends Piece & { givenAt?: string }>(order: OrderLike<P>, index: number, givenAt: string | null | undefined): { patch: Record<string, unknown> } {
+  const items = (Array.isArray(order.items) ? order.items : []).map((item, i) => {
+    if (i !== index) return item;
+    const next = { ...item };
+    if (givenAt) next.givenAt = givenAt; else delete next.givenAt;
+    return next;
+  });
+  return { patch: { items } };
+}
+
+export async function setOrderPieceKarigar(db: DbPort, input: { orderId: string; index: number; karigarId: string | null; karigarName?: string }, fx: SideEffects = {}) {
+  const { orderId, index, karigarId } = input;
+  const out = await db.runTransaction(async (tx) => {
+    const order = await tx.get<OrderLike>(ORDERS, orderId);
+    if (!order) throw new Error('No such order');
+    const items = Array.isArray(order.items) ? order.items : [];
+    if (!Number.isInteger(index) || index < 0 || index >= items.length) throw new Error('That piece is not on this order any more.');
+    const p = pieceKarigarPatch(order, index, karigarId);
+    tx.set(ORDERS, orderId, p.patch, true);
+    return { nextStatus: p.nextStatus, description: String(items[index]?.description || `Item ${index + 1}`) };
+  });
+  const name = !karigarId || karigarId === 'none' ? 'Unassigned' : (input.karigarName || karigarId);
+  void Promise.resolve(fx.log?.('order.update', `Karigar assigned on ${orderId}`, `${out.description} → ${name}`, orderId)).catch(() => undefined);
+  if (out.nextStatus) void Promise.resolve(fx.log?.('order.update', `${orderId} → ${out.nextStatus}`, 'Every piece now has a karigar', orderId)).catch(() => undefined);
+  return { orderId, index, status: out.nextStatus };
+}
+
+export async function setOrderPieceGiven(db: DbPort, input: { orderId: string; index: number; givenAt: string | null }) {
+  const { orderId, index, givenAt } = input;
+  await db.runTransaction(async (tx) => {
+    const order = await tx.get<OrderLike<Piece & { givenAt?: string }>>(ORDERS, orderId);
+    if (!order) throw new Error('No such order');
+    const items = Array.isArray(order.items) ? order.items : [];
+    if (!Number.isInteger(index) || index < 0 || index >= items.length) throw new Error('That piece is not on this order any more.');
+    tx.set(ORDERS, orderId, pieceGivenPatch(order, index, givenAt).patch, true);
+  });
+  return { orderId, index, givenAt };
+}

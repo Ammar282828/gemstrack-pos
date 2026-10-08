@@ -19,12 +19,13 @@ import { roleForEmail } from '@/lib/roles';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
 import { recordOrderAdvance } from '@/lib/writes/order-advance';
-import { alertsOnStatus, ORDER_STATUSES, setOrderPieceDone, setOrderStatus, type SettableStatus } from '@/lib/writes/order-status';
+import { alertsOnStatus, ORDER_STATUSES, setOrderPieceDone, setOrderPieceGiven, setOrderPieceKarigar, setOrderStatus, type SettableStatus } from '@/lib/writes/order-status';
 import { cleanRates, setRates } from '@/lib/writes/rates';
 import { cleanObject, createInvoice, type SaleInput, type SaleLine } from '@/lib/writes/create-invoice';
 import { createOrder } from '@/lib/writes/create-order';
 import { addRepair, recordRepairPayment, setRepairStatus, type NewRepair } from '@/lib/writes/repairs';
 import { REPAIR_STATUSES, type RepairStatus } from '@/lib/repairs';
+import { addExpense } from '@/lib/writes/expenses';
 import { mainRate } from '@/lib/rates';
 import { personFor } from '@/lib/people';
 import { STORE_CONFIG } from '@/lib/store-config';
@@ -41,12 +42,15 @@ const OPS: Record<string, ('owner' | 'staff')[]> = {
   addCustomer: ['owner', 'staff'],
   recordOrderAdvance: ['owner'],
   setPieceDone: ['owner'],
+  setPieceKarigar: ['owner'],
+  setPieceGiven: ['owner'],
   setRates: ['owner'],
   createInvoice: ['owner'],
   createOrder: ['owner', 'staff'],
   addRepair: ['owner'],
   setRepairStatus: ['owner'],
   recordRepairPayment: ['owner'],
+  addExpense: ['owner'],
 };
 
 const text = (v: unknown) => String(v ?? '').trim();
@@ -202,6 +206,21 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, repairId: id, followUps });
       }
 
+      case 'addExpense': {
+        const amount = Number(body.amount);
+        const description = text(body.description);
+        if (!description || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: 'A description and a positive amount are needed.' }, { status: 400 });
+        const paidBy = text(body.paidBy);
+        const expense = await addExpense(adminPort, {
+          date: text(body.date) || new Date().toISOString(),
+          category: text(body.category) || 'Other',
+          description, amount,
+          ...(paidBy === 'ammar' || paidBy === 'mina' || paidBy === 'business' ? { paidBy } : {}),
+          ...(text(body.karigarId) && { karigarId: text(body.karigarId) }),
+        }, { log });
+        return NextResponse.json({ ok: true, expense, followUps });
+      }
+
       case 'setRates': {
         // Unchanged figures still stamp the day: the website sells only at a rate set in the last 36 hours.
         const out = await setRates(adminPort, {
@@ -210,6 +229,25 @@ export async function POST(req: NextRequest) {
           mainKey: mainRate(STORE_CONFIG.defaultMetal).key,
           source: 'the iPhone app',
         }, { log });
+        return NextResponse.json({ ok: true, ...out, followUps });
+      }
+
+      case 'setPieceKarigar': {
+        const orderId = text(body.orderId);
+        const index = Number(body.index);
+        if (!orderId || !Number.isInteger(index)) return NextResponse.json({ error: 'Bad request' }, { status: 400 });
+        const karigarId = text(body.karigarId) || null;
+        const karigar = karigarId && karigarId !== 'none' ? await adminDb.collection('karigars').doc(karigarId).get() : null;
+        const out = await setOrderPieceKarigar(adminPort, { orderId, index, karigarId, karigarName: karigar?.data()?.name }, { log });
+        return NextResponse.json({ ok: true, ...out, followUps });
+      }
+
+      case 'setPieceGiven': {
+        const orderId = text(body.orderId);
+        const index = Number(body.index);
+        if (!orderId || !Number.isInteger(index)) return NextResponse.json({ error: 'Bad request' }, { status: 400 });
+        const givenAt = body.given === true ? (text(body.givenAt) || new Date().toISOString()) : null;
+        const out = await setOrderPieceGiven(adminPort, { orderId, index, givenAt });
         return NextResponse.json({ ok: true, ...out, followUps });
       }
 

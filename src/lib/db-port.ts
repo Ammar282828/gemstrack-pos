@@ -51,6 +51,12 @@ export interface DbPort {
   batch(): BatchCtx;
   /** A fresh document id without writing anything. */
   newId(collection: string): string;
+  /**
+   * Firestore's own time values, for the few documents read back as Timestamps (the partners'
+   * ledgers). Everything else in the books keeps dates as ISO text.
+   */
+  timestamp(d: Date): unknown;
+  serverTime(): unknown;
 }
 
 /**
