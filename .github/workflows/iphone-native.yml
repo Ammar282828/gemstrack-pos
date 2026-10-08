@@ -57,7 +57,8 @@ jobs:
         run: |
           release=false
           if [ "${{ inputs.testflight }}" = "true" ]; then release=true
-          elif [ "${{ github.event_name }}" = "push" ] && git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" 2>/dev/null | grep -qx 'apps/iphone/RELEASES.md'; then release=true; fi
+          # A new line in the list asks for a build; making or rewording the file does not.
+          elif [ "${{ github.event_name }}" = "push" ] && git diff "${{ github.event.before }}" "${{ github.sha }}" -- apps/iphone/RELEASES.md 2>/dev/null | grep -q '^+- '; then release=true; fi
           houses=$(node -e '
             const h = require("./apps/iphone/houses.json");
             const ready = Object.keys(h).filter((k) => String(h[k].firebase?.iosAppId || "").includes(":ios:"));
@@ -70,7 +71,8 @@ jobs:
   app:
     needs: [core, plan]
     # A release compiles in its upload: the simulator check would spend the same Mac minutes twice.
-    if: needs.plan.outputs.release != 'true'
+    # With no house ready to upload, the check runs instead, so a push is never left uncompiled.
+    if: needs.plan.outputs.release != 'true' || needs.plan.outputs.houses == '[]'
     runs-on: macos-26
     timeout-minutes: 35
     defaults:

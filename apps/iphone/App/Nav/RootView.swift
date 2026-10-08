@@ -52,7 +52,15 @@ struct RootView: View {
             CreateBar(map: map) { creating = Route(path: $0) }
         }
         .sheet(item: $creating) { r in
-            NavigationStack { PlaceScreen(path: r.path) }
+            NavigationStack {
+                PlaceScreen(path: r.path)
+                    .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close", systemImage: "xmark") { creating = nil }
+                        }
+                    }
+            }
         }
         // A tapped notification opens its page over whatever is showing.
         .onChange(of: AppRouter.shared.open) { _, r in
@@ -91,14 +99,26 @@ struct PlaceScreen: View {
             ?? (entry?.href == ScreenRoute.bare(current) ? (entry?.heading ?? entry?.label) : nil)
         ScreenRegistry.view(for: current)
             .id(current)
-            .navigationTitle(title ?? "")
-            .navigationBarTitleDisplayMode(.inline)
+            // A native screen names itself (and a hub keeps its large title); an ERP page is named from the map.
+            .modifier(WebTitle(title: ScreenRegistry.hasNative(current) ? nil : (title ?? "")))
             .modifier(TabsMenu(tabs: tabs, chosen: $chosen))
             .toolbar {
                 if isRoot && session.isOwner {
                     ToolbarItem(placement: .topBarLeading) { RateChip() }
                 }
             }
+    }
+}
+
+private struct WebTitle: ViewModifier {
+    let title: String?
+
+    func body(content: Content) -> some View {
+        if let title {
+            content.navigationTitle(title).navigationBarTitleDisplayMode(.inline)
+        } else {
+            content
+        }
     }
 }
 

@@ -1,0 +1,103 @@
+import SwiftUI
+import UserNotifications
+import WidgetKit
+
+/// This phone's own settings (owners): which notifications it gets (lib/push, kept on the server per
+/// phone, so the ERP's Settings → Alerts switches for WhatsApp are not touched), and the home-screen
+/// widget's link. Settings for the whole shop stay the ERP's (/settings).
+struct PhoneSettings: View {
+    private static let kinds: [(id: String, title: String, detail: String)] = [
+        ("sales", "Sales", "A new sale"),
+        ("payments", "Payments", "A payment on an invoice, a transfer slip from the website, a payment on Shopify"),
+        ("orders", "Orders", "A new order, one finished or cancelled, online orders waiting"),
+        ("karigar", "Karigars", "A karigar marking a piece done"),
+    ]
+
+    @State private var allowed: UNAuthorizationStatus = .notDetermined
+    @State private var off: Set<String> = []
+    @State private var loaded = false
+    @State private var saving = false
+    @State private var error: String?
+    @State private var widgetLinked = ERPWidgetLink.load() != nil
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        Form {
+            Section {
+                switch allowed {
+                case .denied:
+                    Label("Notifications are off for this app", systemImage: "bell.slash")
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                    }
+                case .notDetermined:
+                    Button("Turn on notifications") { Task { await Push.shared.register(); await refresh() } }
+                default:
+                    ForEach(Self.kinds, id: \.id) { k in
+                        Toggle(isOn: binding(k.id)) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(k.title)
+                                Text(k.detail).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        .disabled(!loaded || saving)
+                    }
+                }
+            } header: {
+                Text("Notifications on this phone")
+            } footer: {
+                Text("The shop's WhatsApp alerts are set in the ERP's Settings → Alerts.")
+            }
+            if let error { Section { Text(error).foregroundStyle(.red) } }
+
+            Section {
+                LabeledContent("Home-screen widget", value: widgetLinked ? "Linked" : "Not linked")
+                Button(widgetLinked ? "Link again" : "Link the widget") {
+                    Task {
+                        ERPWidgetLink.clear()
+                        await WidgetLinker.link()
+                        widgetLinked = ERPWidgetLink.load() != nil
+                    }
+                }
+            } footer: {
+                Text("Add it from the home screen: touch and hold, then Edit → Add Widget → \(House.storeName).")
+            }
+        }
+        .navigationTitle("This phone")
+        .task { await refresh() }
+    }
+
+    private func binding(_ kind: String) -> Binding<Bool> {
+        Binding(get: { !off.contains(kind) }, set: { on in
+            var next = off
+            if on { next.remove(kind) } else { next.insert(kind) }
+            Task { await save(next) }
+        })
+    }
+
+    private func refresh() async {
+        allowed = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+        if allowed == .authorized || allowed == .provisional {
+            off = Set(await Push.shared.kindsOff())
+            loaded = true
+        }
+    }
+
+    private func save(_ next: Set<String>) async {
+        let before = off
+        off = next
+        saving = true
+        error = nil
+        do {
+            try await Push.shared.setKindsOff(Array(next).sorted())
+        } catch {
+            off = before
+            self.error = error.localizedDescription
+        }
+        saving = false
+    }
+}
+
+enum SettingsRoutes {
+    static var all: [ScreenRoute] { [.exact("/app/phone") { PhoneSettings() }] }
+}

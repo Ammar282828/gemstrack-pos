@@ -36,6 +36,9 @@ struct SearchView: View {
             }
         }
         Section {
+            if session.isOwner {
+                NavigationLink(value: Route(path: "/app/phone")) { Label("This phone", systemImage: "iphone") }
+            }
             LabeledContent("Signed in", value: session.me?.email ?? "")
             Button("Sign out", role: .destructive) { session.signOut() }
         } footer: {

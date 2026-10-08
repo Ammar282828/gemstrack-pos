@@ -21,6 +21,7 @@ import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
 import { recordOrderAdvance } from '@/lib/writes/order-advance';
 import { alertsOnStatus, ORDER_STATUSES, setOrderPieceDone, setOrderStatus, type SettableStatus } from '@/lib/writes/order-status';
 import { cleanRates, setRates } from '@/lib/writes/rates';
+import { createInvoice, type SaleInput, type SaleLine } from '@/lib/writes/create-invoice';
 import { mainRate } from '@/lib/rates';
 import { personFor } from '@/lib/people';
 import { STORE_CONFIG } from '@/lib/store-config';
@@ -38,6 +39,7 @@ const OPS: Record<string, ('owner' | 'staff')[]> = {
   recordOrderAdvance: ['owner'],
   setPieceDone: ['owner'],
   setRates: ['owner'],
+  createInvoice: ['owner'],
 };
 
 const text = (v: unknown) => String(v ?? '').trim();
@@ -114,6 +116,33 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, ...out, followUps });
       }
 
+      case 'createInvoice': {
+        // A new sale (editing one stays the ERP's page for now). The pieces are the phone's copies of
+        // the stock, perhaps re-priced by hand, as the browser's cart holds them.
+        if (body.existingInvoiceId) return NextResponse.json({ error: 'Edit a sale from its page in the ERP.' }, { status: 400 });
+        const cart = Array.isArray(body.cart) ? (body.cart as SaleLine[]).filter((l) => l && typeof l.sku === 'string' && l.sku) : [];
+        if (!cart.length) return NextResponse.json({ error: 'The sale has no pieces.' }, { status: 400 });
+        // A phone's stock can be seconds old: a piece sold meanwhile is refused, never sold twice.
+        const stock = await Promise.all(cart.map((l) => adminDb.collection('products').doc(l.sku).get()));
+        const gone = cart.filter((_, i) => !stock[i].exists).map((l) => l.sku);
+        if (gone.length) return NextResponse.json({ error: `No longer in stock: ${gone.join(', ')}.` }, { status: 409 });
+        const customer = (body.customer || {}) as SaleInput['customer'];
+        const invoice = await createInvoice(adminPort, {
+          cart,
+          customer: { ...(text(customer.id) && { id: text(customer.id) }), name: text(customer.name) || 'Walk-in Customer', ...(text(customer.phone) && { phone: text(customer.phone) }) },
+          rates: (body.rates || {}) as SaleInput['rates'],
+          discountAmount: Number(body.discountAmount) || 0,
+          exchanges: Array.isArray(body.exchanges) ? (body.exchanges as SaleInput['exchanges']) : [],
+          delivery: body.delivery as SaleInput['delivery'],
+          takenBy: text(body.takenBy) || undefined,
+          hideRates: body.hideRates === true,
+          internalNote: text(body.internalNote) || undefined,
+          payments: Array.isArray(body.payments) ? (body.payments as SaleInput['payments']) : [],
+          costRate24k: Number(body.costRate24k) || undefined,
+        }, { log, notify: (id) => alert({ event: 'sale', id }) });
+        return NextResponse.json({ ok: true, invoice, followUps });
+      }
+
       case 'setRates': {
         // Unchanged figures still stamp the day: the website sells only at a rate set in the last 36 hours.
         const out = await setRates(adminPort, {
@@ -146,6 +175,6 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Not saved.';
     console.error('[/api/app/write]', op, message);
-    return NextResponse.json({ error: message }, { status: /not found|no such|invoiced|not on this order/i.test(message) ? 409 : 500 });
+    return NextResponse.json({ error: message }, { status: /not found|no such|invoiced|not on this order|already exists|more than the invoice/i.test(message) ? 409 : 500 });
   }
 }

@@ -69,11 +69,27 @@ open and Secret Manager is not writable from the ERP.
 you (with hisaab) and orders and repairs due, from the ERP's own functions, worked out at most every 15 minutes. Read
 with a key of the phone's own (`/api/widget/key`, kept by hash in `widget_keys`) that opens nothing else.
 
-**Going fully native** (owner, 2026-10-08: "rewrite the app and make the app fully native"). `apps/iphone`, SwiftUI,
-replaces this shell under the same bundle IDs. Reads straight from Firestore with Apple's Firebase SDK (live, and on the
-phone when offline); every write that moves money goes through the ERP's server routes (`/api/staff/write` and its
-like), so the rules for balances, hisaab and advances stay in one place. Screens arrive in phases; until a screen's
-native version lands it opens as the web page inside the app.
-
-**Left for the native app.** Push registration on the phone, the widget, Face ID for the delete code, the document
-scanner, offline opening.
+**Going fully native** (owner, 2026-10-08: "rewrite the app and make the app fully native … follow latest apple liquid
+glass design … keep ALL my erp features"). `apps/iphone` (SwiftUI, iOS 26) replaces this shell under the same bundle IDs
+as version 2.0; `apps/iphone/CONVENTIONS.md` is its rulebook.
+- **One brain.** Reads come from Firestore through Apple's Firebase SDK (`Data/Book.swift`): owners live, with a 512 MB
+  copy on the phone for opening offline; staff and marketing poll `/api/staff/collections` (they have no Firestore
+  access), as the web store does. Every write goes through `/api/app/write`, which runs the same `lib/writes/*` the
+  browser runs (payment, advance, order status, piece done, rates, new customer) and names its follow-ups (the WhatsApp
+  alert, a Shopify cancel) for the app to send without waiting.
+- **The rules in Swift.** `Packages/ERPCore` (Foundation only, tested on Linux): the store's models, decoded leniently
+  (a number stored as text, a list stored as a map, an unknown status kept), and `src/lib`'s display rules ported case
+  for case (owed, today's cash, cash in, sale value, order stage and timing, exchange, credit, walk-in, rates, margin).
+- **Every ERP place.** The menus are `lib/nav.ts` exported per house (`npm run nav:export`; a test fails when stale).
+  A path with a native screen opens it; any other path, or `?web=1`, opens the ERP page inside the app, without its
+  sidebar and top bar ("ERPNative/" in the user agent), signed in by itself with the app's Google token.
+- **Liquid Glass** on the control layer only: four tabs (Home, Orders, Invoices, Customers) and Search, which is also the
+  whole map, Settings and the account (an iPhone shows five tabs; a sixth folded two away); New sale · Order · Scan as the
+  tab bar's accessory; the rate chip on each tab's first screen for owners.
+- **The phone.** Face ID keeps the delete code (offered once a typed code is accepted; the server still checks it),
+  Apple's document scanner reads paper for the bill and order-slip readers, notifications per kind (Search → This
+  phone), the home-screen widget.
+- **Checks and builds** (`.github/workflows/iphone-native.yml`): ERPCore's tests on Linux; a simulator build and a
+  screenshot of each tab in the demo (`-ERPDemo YES`, made-up data in `Resources/demo.json`) for a push that changes
+  `apps/iphone`; a line in `apps/iphone/RELEASES.md` sends each house to TestFlight once its Firebase iOS app ID is in
+  `apps/iphone/houses.json` (`firebase.iosAppId`, from Firebase console → Project settings → Add app → iOS).
