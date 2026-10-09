@@ -27,7 +27,10 @@ app only (the least role TestFlight takes); they accept Apple's email and the ne
 The simulator check builds Taheri, runs `apps/ios/ci/probe.html` in the app (what the web view offers, the app's
 own plugin answering, Google's sheet, the share sheet) and photographs the ERP light and dark; the pictures are in
 the run's artifact and, small, in its log. macOS minutes count ten to one against the account's Actions minutes,
-which the deploys share, so nothing builds for an ERP-only change.
+which the deploys share, so nothing builds for an ERP-only change. When they run out (first on 2026-10-09,
+after a day of `[ui]` rounds), every job fails within seconds with no steps and no log, cloud-deploy's included:
+no cloud session can ship to either house until the owner raises the Actions budget (github.com/settings/billing)
+or the month turns. Then a run page's "Re-run all jobs" picks up; a cloud session cannot re-run (403).
 
 **Signing.** The repository secrets `ASC_ISSUER_ID`, `ASC_KEY_ID`, `ASC_PRIVATE_KEY` (the .p8) are an App Store
 Connect team key with **Admin** access. A secret box takes text, not a file: the .p8's text is pasted, whole or
