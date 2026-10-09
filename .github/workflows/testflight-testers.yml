@@ -1,0 +1,52 @@
+name: TestFlight testers
+
+# Who tests a house's iPhone app (docs/features/iphone-app.md): its "Shop" group in TestFlight, every build.
+# A tester is an App Store Connect user with the least role TestFlight takes (Marketing), seeing that house's
+# app only (apps/ios/scripts/asc.mjs testers). Apple emails them an invitation; once they accept, the next
+# run adds them to the group (the daily one below, or another by hand), and every build reaches them.
+#
+# - By hand ("Run workflow", or a cloud session through the API): the house and the emails. The emails are
+#   typed in, never committed: gemstrack-pos, which carries this history, is public.
+# - Daily: each house's sweep, so whoever accepted since is added without their email being typed again.
+
+on:
+  workflow_dispatch:
+    inputs:
+      house:
+        description: Whose app
+        type: choice
+        options: [taheri, mina]
+        required: true
+      emails:
+        description: Emails to make testers (comma-separated)
+        type: string
+        required: true
+  schedule:
+    - cron: '17 5 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  testers:
+    # gemstrack-pos carries this file too; the key is here only.
+    if: github.repository == 'Ammar282828/taheri-pos'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          HOUSE: ${{ inputs.house }}
+          EMAILS: ${{ inputs.emails }}
+        run: |
+          if [ -n "$HOUSE" ]; then
+            node apps/ios/scripts/asc.mjs testers "$HOUSE" "$EMAILS"
+          else
+            for h in taheri mina; do node apps/ios/scripts/asc.mjs testers "$h" "" || echo "::warning::$h: testers not swept"; done
+          fi

@@ -4,7 +4,7 @@
 //   node scripts/asc.mjs plan <auto|check|testflight>   which houses can go to TestFlight → $GITHUB_OUTPUT
 //   node scripts/asc.mjs sign <house> <dir>             a signing certificate and profile for one build → $GITHUB_ENV
 //   node scripts/asc.mjs sign-native <house> <dir>      the same for the native app (apps/iphone) and its widget, with push
-//   node scripts/asc.mjs testers <house> [emails]       the house's "Shop" testers, the account holder first
+//   node scripts/asc.mjs testers <house> [emails]       the house's "Shop" testers: the account holder, the emails, and anyone accepted since
 //   node scripts/asc.mjs revoke                         the build's certificate and profile, gone again
 //   node scripts/asc.mjs key-file <path>                the key as a proper .p8, for xcodebuild's upload
 //
@@ -264,7 +264,7 @@ async function testers(name, emails) {
     const user = users.find((u) => u.attributes.username?.toLowerCase() === email);
     if (!user) {
       // Internal testers are App Store Connect users: invited with the least role TestFlight takes,
-      // seeing this house's app only. They are added to the group by the next build after accepting.
+      // seeing this house's app only. Once they accept, the next run (the daily sweep below) adds them.
       if (!invited.some((i) => i.attributes.email?.toLowerCase() === email)) {
         await api('POST', '/v1/userInvitations', {
           data: {
@@ -273,12 +273,25 @@ async function testers(name, emails) {
             relationships: { visibleApps: { data: [{ type: 'apps', id: app.id }] } },
           },
         });
-        say(`Invited ${email} to App Store Connect (Marketing, ${h.storeName} only): they accept the email, then the next build reaches them`);
+        say(`Invited ${email} to App Store Connect (Marketing, ${h.storeName} only): they accept Apple's email, then the next run adds them`);
       } else {
         say(`${email} has not accepted the App Store Connect invitation yet`);
       }
       continue;
     }
+    await join(email, user);
+  }
+  // Whoever was let in for this app alone and has accepted since joins the group too, without their email
+  // being typed again (the daily run of .github/workflows/testflight-testers.yml).
+  for (const user of users) {
+    const email = user.attributes.username?.toLowerCase();
+    if (!email || wanted.includes(email) || user.attributes.allAppsVisible) continue;
+    if (!(user.attributes.roles || []).includes('MARKETING')) continue;
+    const apps = (await api('GET', `/v1/users/${user.id}/visibleApps?limit=50`)).data;
+    if (apps.some((a) => a.id === app.id)) await join(email, user);
+  }
+
+  async function join(email, user) {
     const find = async () => (await api('GET', `/v1/betaTesters?filter[email]=${q(email)}&limit=5`)).data[0];
     const inGroup = async () => (await api('GET', `/v1/betaGroups/${group.id}/betaTesters?limit=200`)).data
       .some((t) => t.attributes.email?.toLowerCase() === email);
@@ -298,6 +311,7 @@ async function testers(name, emails) {
       ['tester-groups', async () => { const t = await find(); if (!t) throw Object.assign(new Error('no tester yet'), { status: 404 }); await api('POST', `/v1/betaTesters/${t.id}/relationships/betaGroups`, { data: [{ type: 'betaGroups', id: group.id }] }); }],
     ];
     let done = await inGroup();
+    if (done) { say(`${email} tests ${h.storeName}`); return; }
     for (const [how, run] of tries) {
       if (done) break;
       try { await run(); } catch (e) { say(`  ${how}: ${e.message}`); }
