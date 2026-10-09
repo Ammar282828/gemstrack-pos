@@ -26,6 +26,7 @@ final class ERPUITests: XCTestCase {
         "/orders/ORD-D0002/edit", "/invoices/INV-D0002/edit", "/orders/ORD-D0002/finalize",
         "/customers/CUST-D06/edit", "/karigars/add", "/karigars/KAR-D1/edit",
         "/drafts", "/calendar", "/activity-log", "/my-work?preview=KAR-D1",
+        "/products/add", "/products/RNG-D110/edit",
         "/settings", "/app/settings/shop", "/settings/alerts", "/settings/payment-methods", "/settings/data",
         "/posts", "/marketing/pieces", "/marketing/website", "/ads", "/ads/campaigns",
     ]

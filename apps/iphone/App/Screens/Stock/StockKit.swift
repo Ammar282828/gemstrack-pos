@@ -23,14 +23,30 @@ enum StockKit {
         "/products/" + encode(sku) + (web ? "?web=1" : "")
     }
 
-    /// The ERP serves the edit form at its own address; it has no native screen, so it falls through.
+    /// The product form for a piece (StockPieceForm). "?web=1" after it is the ERP's own form, which takes the photo.
     static func editPath(_ sku: String) -> String { "/products/" + encode(sku) + "/edit" }
+
+    /// "/products/<sku>/edit" → the SKU, decoded (src/app/products/[sku]/edit). Nil for any other path.
+    static func editSku(fromPath path: String) -> String? {
+        let bare = ScreenRoute.bare(path)
+        guard bare.hasPrefix("/products/"), bare.hasSuffix("/edit") else { return nil }
+        let middle = bare.dropFirst("/products/".count)
+        guard middle.count > "/edit".count else { return nil }
+        let sku = String(middle.dropLast("/edit".count))
+        guard !sku.isEmpty, !sku.contains("/") else { return nil }
+        return sku.removingPercentEncoding ?? sku
+    }
+
+    /// "/products/add?voice=1": a new piece the ERP's voice assistant filled in, kept in that page's own memory.
+    static func fromVoice(_ path: String) -> Bool {
+        URLComponents(string: path)?.queryItems?.contains { $0.name == "voice" && $0.value == "1" } ?? false
+    }
 
     static let addPath = "/products/add"
     static let bulkAddPath = "/products/bulk-add"
     static let newSalePath = "/invoices/new"
 
-    /// Pages under /products/ that are not a piece: the ERP's own forms.
+    /// Pages under /products/ that are not a piece: the forms (adding is native, bulk adding the ERP's).
     static let ownPages: Set<String> = [addPath, bulkAddPath]
 
     /// A title for an ERP page opened from here (a native screen names itself; a web page does not).
@@ -302,12 +318,27 @@ enum StockImageDecoder {
 // MARK: Opening the ERP's own pages
 
 extension View {
-    /// Pushes an ERP page (the sale form, the edit form, a piece's own page with Delete) when `go` is
-    /// set. A web page has no title of its own here, so one is given.
+    /// Pushes a place when `go` is set: the sale, the product form, or an ERP page (a piece's own page
+    /// with Delete).
     func stockDestination(_ go: Binding<Route?>) -> some View {
         navigationDestination(item: go) { (r: Route) in
-            ScreenRegistry.view(for: r.path)
-                .navigationTitle(StockKit.title(forPath: r.path))
+            StockDestination(path: r.path)
+        }
+    }
+}
+
+/// A native screen names itself and sits on the house's ground, as a tab's places do (RootView's
+/// PlaceScreen); an ERP page has no title of its own here, so one is given.
+private struct StockDestination: View {
+    let path: String
+
+    var body: some View {
+        if ScreenRegistry.hasNative(path) {
+            ScreenRegistry.view(for: path)
+                .modifier(HouseGround())
+        } else {
+            ScreenRegistry.view(for: path)
+                .navigationTitle(StockKit.title(forPath: path))
                 .navigationBarTitleDisplayMode(.inline)
         }
     }

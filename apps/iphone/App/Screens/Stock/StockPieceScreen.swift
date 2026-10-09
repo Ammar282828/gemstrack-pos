@@ -2,9 +2,10 @@ import SwiftUI
 import ERPCore
 
 /// One piece in stock (src/app/products/[sku]/page.tsx): its photo, what it sells for at today's
-/// rates and how that adds up, and what it is made of. Selling it opens the sale form; printing its
-/// tag, editing and deleting (which asks for the delete code) are the ERP's own pages. A piece that
-/// has left the stock reads "Sold", with the invoice it went out on.
+/// rates and how that adds up, and what it is made of. Selling it opens the sale form and Edit the
+/// native product form (StockPieceForm); printing its tag and deleting it (which asks for the delete
+/// code) are the ERP's own pages. A piece that has left the stock reads "Sold", with the invoice it
+/// went out on.
 struct StockPieceScreen: View {
     let sku: String
 
@@ -183,17 +184,20 @@ struct StockPieceScreen: View {
         }
     }
 
-    // MARK: The ERP's own pages
+    // MARK: Edit, and the ERP's own pages
 
-    /// Print tag, Edit and Delete are the ERP's pages: its label printer takes the tag's QR and CSV,
-    /// the form is its own, and Delete asks for the delete code there. Owners only (Stock is theirs).
+    /// Edit is the native product form. Print tag and Delete are the ERP's page: its label printer takes
+    /// the tag's QR and CSV, and Delete asks for the delete code there. Owners only (Stock is theirs).
+    @ViewBuilder
     private func erpSection(_ p: Product) -> some View {
+        Section {
+            NavigationLink(value: Route(path: StockKit.editPath(p.sku))) {
+                Label("Edit", systemImage: "pencil")
+            }
+        }
         Section {
             NavigationLink(value: Route(path: StockKit.piecePath(p.sku, web: true))) {
                 Label("Print tag", systemImage: "printer")
-            }
-            NavigationLink(value: Route(path: StockKit.editPath(p.sku))) {
-                Label("Edit", systemImage: "pencil")
             }
             NavigationLink(value: Route(path: StockKit.piecePath(p.sku, web: true))) {
                 Label("Delete", systemImage: "trash").foregroundStyle(.red)

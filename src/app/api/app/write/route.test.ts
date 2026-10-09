@@ -95,7 +95,7 @@ beforeEach(() => {
 
 const OPS = ['recordPayment', 'recordOrderAdvance', 'setOrderStatus', 'setPieceDone', 'setPieceKarigar', 'setPieceGiven', 'addCustomer',
   'setRates', 'createInvoice', 'createOrder', 'addRepair', 'setRepairStatus', 'recordRepairPayment', 'addExpense', 'addGivenItem', 'markGivenReturned', 'updateSettings', 'updateOrder',
-  'updateCustomer', 'addKarigar', 'updateKarigar', 'finalizeOrder'];
+  'updateCustomer', 'addKarigar', 'updateKarigar', 'finalizeOrder', 'addProduct', 'updateProduct'];
 const STAFF_MAY = ['recordPayment', 'setOrderStatus', 'addCustomer', 'createOrder'];
 
 describe('who may write', () => {

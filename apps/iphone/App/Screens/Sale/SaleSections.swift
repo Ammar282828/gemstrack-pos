@@ -114,7 +114,7 @@ extension SaleForm {
             Text("Pieces")
         } footer: {
             let n = draft.lines.count
-            Text("\(n) piece\(n == 1 ? "" : "s") on this bill. Tap a piece to edit it; swipe to remove it. New item bills a piece that was never in stock, for this sale only. Putting a piece in stock and reading a written bill open the ERP's own pages.")
+            Text("\(n) piece\(n == 1 ? "" : "s") on this bill. Tap a piece to edit it; swipe to remove it. New item bills a piece that was never in stock, for this sale only; New item, and keep it in stock puts it in stock first. Reading a written bill opens the ERP's own page.")
         }
     }
 
