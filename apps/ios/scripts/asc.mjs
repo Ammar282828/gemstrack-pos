@@ -192,13 +192,19 @@ async function sign(name, outDir) {
 
 /** Switch a capability on for a bundle ID, once (Apple refuses a second). */
 async function capability(bundle, type) {
-  const have = (await api('GET', `/v1/bundleIds/${bundle.id}/bundleIdCapabilities?limit=50`)).data
+  // This relationship takes no `limit` (Apple answers 400 to one); a bundle ID has a handful at most.
+  const have = (await api('GET', `/v1/bundleIds/${bundle.id}/bundleIdCapabilities`)).data
     .some((c) => c.attributes.capabilityType === type);
   if (have) return;
   say(`Turning on ${type} for ${bundle.attributes.identifier}`);
-  await api('POST', '/v1/bundleIdCapabilities', {
-    data: { type: 'bundleIdCapabilities', attributes: { capabilityType: type }, relationships: { bundleId: { data: { type: 'bundleIds', id: bundle.id } } } },
-  });
+  try {
+    await api('POST', '/v1/bundleIdCapabilities', {
+      data: { type: 'bundleIdCapabilities', attributes: { capabilityType: type }, relationships: { bundleId: { data: { type: 'bundleIds', id: bundle.id } } } },
+    });
+  } catch (e) {
+    // Already on (switched on in the portal meanwhile) is what was wanted.
+    if (!/409|already/i.test(String(e.message))) throw e;
+  }
 }
 
 /**
