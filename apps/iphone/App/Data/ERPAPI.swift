@@ -14,7 +14,9 @@ final class ERPAPI {
         var errorDescription: String? { message }
     }
 
-    func data(_ path: String, method: String = "GET", json: [String: Any]? = nil) async throws -> Data {
+    /// `timeout` is how long the ERP may take to answer: a minute, save for a send to WhatsApp that the server
+    /// lets run for five (a queued piece's photos to every group, one after another).
+    func data(_ path: String, method: String = "GET", json: [String: Any]? = nil, timeout: TimeInterval = 60) async throws -> Data {
         // The demo has no server and no Firebase: every call answers as if offline.
         if House.isDemo || FirebaseApp.app() == nil { throw Failure(status: 0, message: "Not connected to the ERP in the demo.") }
         // The sign-in token goes to the house's own ERP and nowhere else, whatever path is passed in.
@@ -24,7 +26,7 @@ final class ERPAPI {
         }
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.timeoutInterval = 60
+        request.timeoutInterval = timeout
         if let token = try? await Auth.auth().currentUser?.getIDToken() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
@@ -99,8 +101,8 @@ final class ERPAPI {
     }
 
     @discardableResult
-    func send(_ path: String, method: String = "POST", _ json: [String: Any] = [:]) async throws -> [String: Any] {
-        let d = try await data(path, method: method, json: json)
+    func send(_ path: String, method: String = "POST", _ json: [String: Any] = [:], timeout: TimeInterval = 60) async throws -> [String: Any] {
+        let d = try await data(path, method: method, json: json, timeout: timeout)
         return ((try? JSONSerialization.jsonObject(with: d)) as? [String: Any]) ?? [:]
     }
 }

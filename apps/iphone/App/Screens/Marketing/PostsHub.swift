@@ -2,14 +2,19 @@ import SwiftUI
 import ERPCore
 
 /// Posts → Hub (src/app/posts/page.tsx): what went out today, where Taheri's gold post is, what waits in
-/// the queue, and the website's pieces. Reading is native. Everything that makes or sends a post (Post a
-/// piece's designer and story editor, the tray with its captions, Investments, the queue's Send and
-/// Spread) is the ERP's own page: a row here opens it in the app, and Send is never one tap from a list.
+/// the queue, and the website's pieces. A queued piece opens natively to be sent, held, timed or removed
+/// (PostQueueSheet: where it goes is said in full before it goes). What makes a post (Post a piece's
+/// designer and story editor, the tray with its captions, Investments) and spreading the queue over a day
+/// are the ERP's own pages, opened in the app.
 struct PostsHub: View {
     @Environment(Session.self) private var session
     private var store: PostsStore { PostsStore.shared }
     @State private var showAllToday = false
     @State private var go: Route?
+    /// A queued piece opened to send, hold, time or remove (PostQueueSheet).
+    @State private var opened: Opened?
+
+    struct Opened: Identifiable { let id: String }
 
     private var hasPostPiece: Bool { MarketingKit.has("/website/post", role: session.role) }
     private var hasInvestments: Bool { MarketingKit.has("/website/investments", role: session.role) }
@@ -32,6 +37,7 @@ struct PostsHub: View {
         .navigationBarTitleDisplayMode(.large)
         .navigationDestination(item: $go) { (r: Route) in PlaceScreen(path: r.path) }
         .refreshable { await store.load(gold: hasInvestments) }
+        .sheet(item: $opened) { (o: Opened) in PostQueueSheet(id: o.id) }
         .task { await store.load(gold: hasInvestments) }
     }
 
@@ -178,21 +184,27 @@ struct PostsHub: View {
         if !items.isEmpty {
             Section {
                 ForEach(items) { (e: PostQueueEntry) in queueRow(e) }
-                MarketingLink(title: "Send now, give a time, spread over the day", subtitle: "In the ERP", symbol: "clock", path: MarketingKit.postsWeb)
+                MarketingLink(title: "Spread the queue over the day", subtitle: "In the ERP", symbol: "clock", path: MarketingKit.postsWeb)
             } header: {
                 Text("In the queue")
             }
         }
     }
 
+    /// Opens the piece: where it goes, word for word, and Send now, Hold, a time or Remove.
     private func queueRow(_ e: PostQueueEntry) -> some View {
-        HStack(spacing: 12) {
-            StockImage(imageUrl: e.thumb, name: e.headline, key: e.id, decodeDataURI: true)
-                .frame(width: 44, height: 44)
-                .clipShape(.rect(cornerRadius: 10))
-            TwoLine(title: e.headline.isEmpty ? "A piece" : e.headline, subtitle: queueNote(e))
-            queueBadge(e)
+        Button { opened = Opened(id: e.id) } label: {
+            HStack(spacing: 12) {
+                StockImage(imageUrl: e.thumb, name: e.headline, key: e.id, decodeDataURI: true)
+                    .frame(width: 44, height: 44)
+                    .clipShape(.rect(cornerRadius: 10))
+                TwoLine(title: e.headline.isEmpty ? "A piece" : e.headline, subtitle: queueNote(e))
+                queueBadge(e)
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+            }
+            .contentShape(.rect)
         }
+        .buttonStyle(.plain)
     }
 
     private func queueNote(_ e: PostQueueEntry) -> String {

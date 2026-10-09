@@ -171,6 +171,41 @@ final class PostsStore {
         }
     }
 
+    // MARK: The queue's actions (the web hub's own routes; the sending itself is the server's, once)
+
+    /// A WhatsApp destination's name, as the counter knows it.
+    func placeLabel(_ key: String) -> String {
+        if key == "channel" { return "Channel" }
+        return audience.groups.first { (g: PostAudience.Place) in g.key == key }?.label ?? key
+    }
+
+    func refreshQueue() async { await loadQueue() }
+
+    /// "Send now" (POST /queue/:id/send). Only what has not gone is sent, so a second press after a failure
+    /// never posts a group twice. The server may take minutes over many groups. True when everything went.
+    func sendNow(_ id: String) async throws -> Bool {
+        let out = try await ERPAPI.shared.send("/api/website/post/queue/\(id)/send", [:], timeout: 310)
+        await loadQueue()
+        return (out["ok"] as? Bool) ?? false
+    }
+
+    /// Hold it, or give it a time (PATCH /queue/:id).
+    func hold(_ id: String) async throws {
+        _ = try await ERPAPI.shared.send("/api/website/post/queue/\(id)", method: "PATCH", ["action": "hold"])
+        await loadQueue()
+    }
+
+    func schedule(_ id: String, at: Date) async throws {
+        _ = try await ERPAPI.shared.send("/api/website/post/queue/\(id)", method: "PATCH", ["action": "schedule", "dueAt": at.ISO8601Format()])
+        await loadQueue()
+    }
+
+    /// Out of the queue, with its photos (DELETE /queue/:id). Nothing that already went is taken back.
+    func remove(_ id: String) async throws {
+        _ = try await ERPAPI.shared.send("/api/website/post/queue/\(id)", method: "DELETE")
+        await loadQueue()
+    }
+
     /// A queued piece's places in words: "Website, Instagram story, Announcements, Channel".
     func queueWhere(_ e: PostQueueEntry) -> String {
         var places: [String] = []

@@ -112,9 +112,45 @@ struct PostQueueEntry: Decodable, Identifiable, Hashable {
     let units: Int
     let done: Int
     let lastError: String?
+    /// What the send sheet shows before anything goes: the caption, the website's collection and photo names,
+    /// how many photos each place gets, and each send ("site-0", "featured", "instagram", "wa:<key>:<n>"), with
+    /// what has gone and what failed (queue.ts `units`, `done`, `errors`).
+    let caption: String
+    let websiteCollection: String
+    let websiteNames: [String]
+    let websiteFeatured: Bool
+    let sitePhotos: Int
+    let waPhotos: Int
+    let unitKeys: [String]
+    let doneKeys: Set<String>
+    let unitErrors: [String: String]
 
     private enum K: String, CodingKey {
-        case id, status, dueAt, createdAt, sentAt, headline, thumb, website, instagram, whatsapp, units, done, errors
+        case id, status, dueAt, createdAt, sentAt, headline, thumb, website, instagram, whatsapp, units, done, errors, caption, counts
+    }
+
+    private struct Site: Decodable {
+        let collection: String
+        let names: [String]
+        let featured: Bool
+        private enum S: String, CodingKey { case collection, names, featured }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: S.self)
+            collection = c.string(.collection, default: "")
+            names = c.strings(.names)
+            featured = c.bool(.featured, default: false)
+        }
+    }
+
+    private struct Counts: Decodable {
+        let site: Int
+        let wa: Int
+        private enum N: String, CodingKey { case site, wa }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: N.self)
+            site = Int(c.double(.site, default: 0))
+            wa = Int(c.double(.wa, default: 0))
+        }
     }
 
     private struct Failed: Decodable {
@@ -138,11 +174,24 @@ struct PostQueueEntry: Decodable, Identifiable, Hashable {
         toWebsite = ((try? c.decodeNil(forKey: .website)) ?? true) == false
         toInstagram = c.bool(.instagram, default: false)
         whatsapp = c.strings(.whatsapp)
-        units = c.list(.units, of: LenientString.self).count
+        unitKeys = c.list(.units, of: LenientString.self).map { (u: LenientString) in u.value }
+        units = unitKeys.count
         let finished = (try? c.decodeIfPresent([String: Lossy<LenientString>].self, forKey: .done)) ?? [:]
+        doneKeys = Set(finished.keys)
         done = finished.count
         let problems = (try? c.decodeIfPresent([String: Lossy<Failed>].self, forKey: .errors)) ?? [:]
+        var said: [String: String] = [:]
+        for (unit, f) in problems { if let m = f.value?.message, !m.isEmpty { said[unit] = m } }
+        unitErrors = said
         lastError = problems.values.compactMap { (f: Lossy<Failed>) in f.value?.message }.first
+        caption = c.string(.caption, default: "")
+        let site = c.object(.website, of: Site.self)
+        websiteCollection = site?.collection ?? ""
+        websiteNames = site?.names ?? []
+        websiteFeatured = site?.featured ?? false
+        let counts = c.object(.counts, of: Counts.self)
+        sitePhotos = counts?.site ?? 0
+        waPhotos = counts?.wa ?? 0
     }
 }
 

@@ -3,8 +3,9 @@ import ERPCore
 
 /// Ads → Campaigns (src/app/ads/campaigns/page.tsx): every campaign with its ad sets and their ads,
 /// each with its status and the range's numbers against the time before, and the web's run / pause
-/// switch (turning one on asks first, since it spends). Budget, end date, audience, rename, duplicate,
-/// archive and delete, and an ad's previews, stay the ERP's page: one tap opens it.
+/// switch (turning one on asks first, since it spends), and the budget and end date (AdsBudgetSheet, which
+/// shows the money before and after and asks). Audience, rename, duplicate, archive and delete, and an
+/// ad's previews, stay the ERP's page: one tap opens it.
 struct AdsCampaignsScreen: View {
     @Environment(Session.self) private var session
 
@@ -18,6 +19,7 @@ struct AdsCampaignsScreen: View {
     @State private var asking: Target?
     @State private var failure: String?
     @State private var go: Route?
+    @State private var budgeting: AdsBudgetTarget?
 
     enum Filter: String, CaseIterable, Identifiable {
         case all = "All", running = "Running", paused = "Paused", problems = "Problems"
@@ -67,6 +69,9 @@ struct AdsCampaignsScreen: View {
             Button("Run") { Task { await setRunning(t, running: true) } }
         } message: { (t: Target) in
             Text("\(t.name) will start spending its budget.")
+        }
+        .sheet(item: $budgeting) { (t: AdsBudgetTarget) in
+            AdsBudgetSheet(target: t) { await load() }
         }
         .alert("Meta didn't take that", isPresented: failureShown) {
             Button("OK") { failure = nil }
@@ -179,7 +184,7 @@ struct AdsCampaignsScreen: View {
                 }
                 ForEach(list) { (c: AdCampaign) in campaignSection(c, cur) }
                 Section {
-                    MarketingLink(title: "Budget, end dates, audiences", subtitle: "Change, duplicate, archive or delete in the ERP", symbol: "slider.horizontal.3", path: "/ads/campaigns?web=1")
+                    MarketingLink(title: "Audiences, names, copies", subtitle: "Change, duplicate, archive or delete in the ERP", symbol: "slider.horizontal.3", path: "/ads/campaigns?web=1")
                 }
             }
             .houseRows()
@@ -207,7 +212,6 @@ struct AdsCampaignsScreen: View {
         let bits: [String] = [
             AdsObjective.label(c.objective),
             "\(c.adsets.count) ad set\(c.adsets.count == 1 ? "" : "s")",
-            budget(c.dailyBudget, c.lifetimeBudget, cur),
             c.stopTime.map { (t: String) in "ends \(ShopDate.say(t))" } ?? "",
         ].filter { (s: String) in !s.isEmpty }
         return HStack(alignment: .top, spacing: 12) {
@@ -215,6 +219,11 @@ struct AdsCampaignsScreen: View {
                 Text(c.name).font(.headline).lineLimit(2)
                 AdsStatusBadge(status: c.effectiveStatus)
                 Text(bits.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
+                let b = budget(c.dailyBudget, c.lifetimeBudget, cur)
+                if !b.isEmpty {
+                    budgetButton(AdsBudgetTarget(level: "campaign", id: c.id, name: c.name, daily: c.dailyBudget,
+                                                 lifetime: c.lifetimeBudget, end: c.stopTime, currency: cur), b)
+                }
                 numbers(c.metrics, goal: goal, before: c.previous, cur)
                 issues(c.issues)
             }
@@ -234,7 +243,10 @@ struct AdsCampaignsScreen: View {
                         if let learning = s.learning { Text(learning).font(.caption).foregroundStyle(.orange) }
                     }
                     let b = budget(s.dailyBudget, s.lifetimeBudget, cur)
-                    if !b.isEmpty { Text(b).font(.caption).foregroundStyle(.secondary) }
+                    if !b.isEmpty {
+                        budgetButton(AdsBudgetTarget(level: "adset", id: s.id, name: s.name, daily: s.dailyBudget,
+                                                     lifetime: s.lifetimeBudget, end: s.endTime, currency: cur), b)
+                    }
                     numbers(s.metrics, goal: s.optimizationGoal, before: nil, cur)
                     issues(s.issues)
                 }
@@ -289,6 +301,18 @@ struct AdsCampaignsScreen: View {
             }
         }
     }
+
+    /// The budget in words, as a button: it opens the budget and end date to change.
+    private func budgetButton(_ t: AdsBudgetTarget, _ words: String) -> some View {
+        Button { budgeting = t } label: {
+            Label(words, systemImage: "pencil.circle").font(.caption.weight(.medium))
+        }
+        .buttonStyle(.borderless)
+        .disabled(!mayChange)
+    }
+
+    /// Who may change the money: the same as the server's ads gate.
+    private var mayChange: Bool { session.role == "owner" || session.role == "marketing" }
 
     private func budget(_ daily: Double?, _ lifetime: Double?, _ cur: String) -> String {
         if let daily, daily > 0 { return "\(AdsFormat.money(daily, cur)) a day" }

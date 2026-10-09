@@ -237,6 +237,20 @@ enum AdsAPI {
     static func setRunning(level: String, id: String, running: Bool) async throws {
         _ = try await ERPAPI.shared.send("/api/ads/object/\(id)", ["level": level, "action": "status", "status": running ? "ACTIVE" : "PAUSED"])
     }
+
+    /// A campaign's or ad set's budget, in the account's own money (the route turns it into Meta's units): a day's,
+    /// or the whole run's. The same route as the web's budget box, recorded in `ads_log`.
+    static func setBudget(level: String, id: String, daily: Double?, lifetime: Double?) async throws {
+        var body: [String: Any] = ["level": level, "action": "budget"]
+        if let daily { body["daily"] = daily } else if let lifetime { body["lifetime"] = lifetime }
+        _ = try await ERPAPI.shared.send("/api/ads/object/\(id)", body)
+    }
+
+    /// When it stops (a campaign's stop time, an ad set's end time); nil runs it with no end.
+    static func setEnd(level: String, id: String, end: Date?) async throws {
+        let when: Any = end.map { (d: Date) in d.ISO8601Format() } ?? NSNull()
+        _ = try await ERPAPI.shared.send("/api/ads/object/\(id)", ["level": level, "action": "schedule", "end": when])
+    }
 }
 
 /// A date "2026-10-01" at local noon, for a chart's day axis (UTC midnight would slip a day in some zones).
