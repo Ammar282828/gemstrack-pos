@@ -2,15 +2,14 @@
 
 "use client";
 
+import { authedFetch } from '@/lib/voice/authed-fetch';
 import { OrderPhoto } from '@/components/order/order-photo';
 import React, { useState, useEffect, useRef } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { whatsAppLink } from '@/lib/whatsapp';
 import { describePlating } from '@/lib/materials';
-import { itemCellHeight, drawItemCell } from '@/lib/invoice-item-cell';
-import { buildOrderItemBlocks, drawOrderTotals } from '@/lib/order-slip';
-import { fitText } from '@/lib/pdf-text';
-import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
+import { generateOrderSlipPDF } from '@/lib/order-slip-pdf';
+import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
 import { METAL_TYPES as metalTypeValues, describeMetal, describeDelivery } from '@/lib/materials';
 import { categorySingular } from '@/lib/categories';
 import { KarigarAssign, KarigarBulkAssign } from '@/components/karigar/karigar-assign';
@@ -32,8 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw, Truck, PackageSearch, ExternalLink, Trash2, Lock, ShoppingBag, MoreHorizontal } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
-import { cn, normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
-import { loadPdfLogo } from '@/lib/pdf-logo';
+import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -64,8 +62,6 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PageBack } from '@/components/shared/page-back';
@@ -73,15 +69,7 @@ import { PromiseLine } from '@/components/shared/promise-line';
 import { PhoneField } from '@/components/ui/phone-field';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
 import { deleteErrorText } from '@/lib/delete-code';
-
-/** Shared by the table and by alignHeadCell, which needs the same object. */
-const SLIP_COLUMNS = {
-  0: { cellWidth: 7, halign: 'center' },
-  1: { cellWidth: 'auto' },
-  2: { cellWidth: 28, halign: 'right' },
-} as const;
 
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -280,8 +268,9 @@ export default function OrderDetailPage() {
     finalizeAsked.current = true;
     if (!order.invoiceId) setIsFinalizeDialogOpen(true);
   }, [doParam, order]);
-  // ?do=slip: the iPhone app's Print slip. The slip is drawn here, the one builder, and the app hands
-  // the PDF to the phone's share sheet (print, Files, WhatsApp): lib/native-app.ts, savePDF.
+  // ?do=slip: an older iPhone app's Print slip (today's fetches it from /api/app/pdf/order-slip/<id>). The
+  // slip is drawn by the one builder (lib/order-slip-pdf.ts) and handed to the phone's share sheet
+  // (print, Files, WhatsApp): lib/native-app.ts, savePDF.
   const slipAsked = useRef(false);
   const [isAdvanceDialogOpen, setIsAdvanceDialogOpen] = useState(false);
   const [isRevertDialogOpen, setIsRevertDialogOpen] = useState(false);
@@ -340,7 +329,7 @@ export default function OrderDetailPage() {
     if (!order?.tcsConsignmentNo) return;
     setIsTracking(true);
     try {
-      const res = await fetch('/api/tcs', {
+      const res = await authedFetch('/api/tcs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'track', consignmentNo: order.tcsConsignmentNo }),
@@ -509,140 +498,11 @@ export default function OrderDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doParam, order, settings]);
 
+  // The one slip builder (lib/order-slip-pdf.ts), as the orders list and the invoices page print it:
+  // this page's copy of it was folded in so the server draws the same slip for the iPhone app.
   const buildOrderSlip = async () => {
     if (!order || typeof window === 'undefined' || !settings) return;
-    const iOSWin = openPDFWindowForIOS();
-
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a5'
-    });
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 10;
-    
-    // Once per session, not once per print — see pdf-logo.ts.
-    const pdfLogo = await loadPdfLogo();
-    const logoDataUrl: string | null = pdfLogo?.dataUrl ?? null;
-    const logoFormat: string = pdfLogo?.format ?? 'PNG';
-
-        const drawHeader = (pageNum: number) => drawDocHeader(doc, {
-      pageWidth, pageHeight, margin, title: 'Workshop order slip',
-      logoDataUrl, logoFormat, logoAspect: STORE_LOGO_ASPECT, pageNum,
-    });
-
-    drawHeader(1);
-
-    // Order info section
-    let infoY = 28;
-    doc.setFontSize(7).setTextColor(100).setFont("helvetica", "bold");
-    doc.text('ORDER DETAILS:', margin, infoY);
-    doc.setLineWidth(0.2);
-    doc.line(margin, infoY + 1.5, pageWidth - margin, infoY + 1.5);
-    infoY += 6;
-
-    doc.setFont("helvetica", "normal").setTextColor(0).setFontSize(8.5);
-    // The money moved to a totals block under the table, the way the invoice
-    // does it, so the whole width is the left column now. Still capped: jsPDF
-    // will draw a long name straight off the page.
-    const leftW = pageWidth - margin * 2;
-    fitText(doc, `Order ID: ${order.id}`, margin, infoY, leftW);
-    fitText(doc, `Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, infoY + 5, leftW);
-    fitText(doc, `Customer: ${order.customerName || 'Walk-in'}`, margin, infoY + 10, leftW);
-    // What the customer was told, printed so the slip can be held to it.
-    // The rule under this block follows whatever the last line turned out to
-    // be. A silver order has no gold-rate line and most have no promised date
-    // yet, and a fixed offset left a hand's width of blank above the table.
-    let lastLine = infoY + 10;
-    if (order.promisedDate) {
-      lastLine += 5;
-      fitText(doc, `Promised: ${format(parseISO(order.promisedDate), 'PP')}`, margin, lastLine, leftW);
-    }
-
-    const rates = order.ratesApplied;
-    const usedKarats = new Set(order.items.filter(i => i.metalType === 'gold').map(i => i.karat).filter(Boolean));
-    let ratesApplied: string[] = [];
-    // hideRates: the slip is priced at these rates and just does not say so.
-    if (usedKarats.size > 0 && !order.hideRates) {
-        if (usedKarats.has('24k') && rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
-        if (usedKarats.has('22k') && rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
-        if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
-        if (usedKarats.has('18k') && rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
-    }
-    if (ratesApplied.length > 0) {
-        doc.setFontSize(6.5).setTextColor(150);
-        doc.text(`Gold Rates (PKR): ${ratesApplied.join(' | ')}`, margin, (lastLine += 5), { maxWidth: leftW });
-    }
-
-
-    const infoBottom = lastLine + 5;
-
-    doc.setLineWidth(0.3);
-    doc.line(margin, infoBottom, pageWidth - margin, infoBottom);
-
-    let finalY = infoBottom + 7;
-
-    // Items, drawn the way the invoice draws them.
-    //
-    // This was a flat `detailLines.join('\n')` dropped into one autoTable
-    // cell, so the category, the piece, the metal and the bench instructions
-    // all came out at the same size and weight — with the category shouting in
-    // caps above the thing being made. The same hand-drawn cell the invoice
-    // uses gives it a hierarchy: the piece leads, its specification sits under
-    // it in grey, and what has to be set into it is darker because that is
-    // what the karigar is actually reading.
-    const itemBlocks = buildOrderItemBlocks(order);
-    const tableRows: any[][] = order.items.map((item, idx) => [idx + 1, '', `PKR ${(item.totalEstimate || 0).toLocaleString()}`]);
-    // Must match columnStyles below; see itemCellHeight on why this cannot be
-    // read from the cell at parse time.
-    const slipDescWidth = pageWidth - margin * 2 - 7 - 28;
-
-    doc.autoTable({
-        head: [['#', 'Piece & Instructions', 'Est. Price']],
-        body: tableRows,
-        startY: finalY,
-        ...tableStyles(margin),
-        columnStyles: SLIP_COLUMNS,
-        didParseCell: (data: any) => {
-            alignHeadCell(data, SLIP_COLUMNS);
-            if (data.section === 'body' && data.column.index === 1) {
-                const block = itemBlocks[data.row.index];
-                if (block) {
-                    data.cell.text = [];
-                    data.cell.styles.minCellHeight = itemCellHeight(doc, block, slipDescWidth);
-                }
-            }
-        },
-        didDrawCell: (data: any) => {
-            if (data.section === 'body' && data.column.index === 1) {
-                const block = itemBlocks[data.row.index];
-                if (block) drawItemCell(doc, block, data.cell, slipDescWidth);
-            }
-            drawRowRule(doc, data, 2, { margin, pageWidth });
-        },
-        didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
-            if (data.pageNumber > 1) {
-                doc.setPage(data.pageNumber);
-                data.settings.startY = 30;
-            }
-            drawHeader(data.pageNumber);
-        },
-    });
-
-    finalY = doc.lastAutoTable.finalY || finalY;
-
-    // The money, laid out the way the invoice lays it out.
-    drawOrderTotals(doc, order, { pageWidth, pageHeight, margin, onNewPage: drawHeader, startY: finalY + 8 });
-
-    drawDocFooter(doc, {
-      pageWidth, pageHeight, margin,
-      linksQr: document.getElementById('links-qr-code') as HTMLCanvasElement | null,
-    whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
-      instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
-    });
-
-    await savePDF(doc, `OrderSlip-${order.id}.pdf`, iOSWin);
+    await generateOrderSlipPDF(order, settings);
   };
 
 

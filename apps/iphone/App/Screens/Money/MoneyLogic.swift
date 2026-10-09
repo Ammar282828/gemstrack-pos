@@ -22,11 +22,14 @@ enum MoneyPaths {
         s.addingPercentEncoding(withAllowedCharacters: componentSafe) ?? s
     }
 
-    /// The ERP's own pages for what is not native yet (edit, delete, add): `?web=1` asks for the
-    /// ERP page even where a native screen exists.
+    /// The ERP's own pages for what is not native (the expense report's PDF, the Hisaab page's own
+    /// tools): `?web=1` asks for the ERP page even where a native screen exists.
     static let expensesWeb = "/expenses?web=1"
     static let revenueWeb = "/additional-revenue?web=1"
     static let hisaabWeb = "/hisaab?web=1"
+
+    /// The partners' page: a drawing is changed there, with its withdrawal (lib/writes/expense-admin.ts).
+    static let shareholders = "/shareholders"
 
     /// A repair opens as a sheet on the Repairs list (src/app/additional-revenue/page.tsx RepairLink).
     static func repair(_ id: String) -> String { "/repairs?id=" + component(id) }
@@ -447,6 +450,10 @@ enum MoneyPartners {
 
     /// lib/partnership.ts PARTNER_SALARY: read by name, with the partner it paid in `shareholderId`.
     static let salaryCategory = "Partner Salary"
+
+    /// lib/partnership.ts PARTNER_DRAWINGS: money a partner took out, written with a withdrawal on that
+    /// partner's ledger. The Shareholders page changes the two together; Expenses leaves it to that page.
+    static let drawingsCategory = "Partner Drawings"
 
     static func name(_ id: String?) -> String? {
         all.first { $0.id == (id ?? "") }?.name

@@ -36,10 +36,10 @@ struct NewChooser: View {
                 NavigationLink(value: Route(path: "/scan")) {
                     Label("Scan a tag", systemImage: "qrcode.viewfinder")
                 }
-                NavigationLink(value: SaleLinks.webBill) {
+                NavigationLink(value: SaleLinks.readBill) {
                     Label("Read a written bill", systemImage: "camera.viewfinder")
                 }
-                NavigationLink(value: Route(path: "/orders/add?web=1&scan=parchi")) {
+                NavigationLink(value: Route(path: "/orders/add?scan=parchi")) {
                     Label("Scan a parchi", systemImage: "doc.text.viewfinder")
                 }
             }

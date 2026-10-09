@@ -16,9 +16,11 @@ struct OrdersWebTarget: Hashable, Identifiable {
 
     /// The order's own ERP page: edit, give out, finalize, refund, delete.
     static func orderPage(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)", title: id) }
+    /// The workshop slip, native: drawn on the ERP's server by the one builder (lib/order-slip-pdf.ts), shown
+    /// here and printed or shared from the share sheet (NewOrderRoutes `slipScreen`). The ERP's page still
+    /// draws it for `?do=slip`, for an app from before.
+    static func slip(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)/slip", title: "Slip \(id)", native: true) }
     /// Finalize & invoice, native (OrderFinalizeScreen; the web's page reads ?do=finalize for the same dialog).
-    /// The workshop slip, drawn by the order's ERP page (the one builder) into the phone's share sheet (?do=slip).
-    static func slip(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)?do=slip", title: "Slip \(id)") }
     static func finalize(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)/finalize", title: id, native: true) }
     /// New order's form on the order on file (NewOrderEdit).
     static func edit(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)/edit", title: "Edit \(id)", native: true) }

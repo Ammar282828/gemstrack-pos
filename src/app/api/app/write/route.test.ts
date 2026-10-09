@@ -97,7 +97,14 @@ const OPS = ['recordPayment', 'recordOrderAdvance', 'setOrderStatus', 'setPieceD
   'setRates', 'createInvoice', 'createOrder', 'addRepair', 'setRepairStatus', 'recordRepairPayment', 'addExpense', 'addGivenItem', 'markGivenReturned', 'updateSettings', 'updateOrder',
   'updateCustomer', 'addKarigar', 'updateKarigar', 'finalizeOrder', 'addProduct', 'updateProduct',
   'setInvoiceCustomer', 'saveOverheadPlan', 'addShareholderEntry', 'deleteShareholderEntry', 'deletePartnerSalary',
-  'setWorkingCapitalFloor', 'restoreRemoved', 'purgeRemoved'];
+  'setWorkingCapitalFloor', 'restoreRemoved', 'purgeRemoved',
+  'addProducts', 'removeCustomer', 'mergeCustomers', 'addHisaabEntry', 'deleteHisaabEntry', 'updateRepair', 'deleteRepair',
+  'updateExpense', 'deleteExpense', 'addExtraRevenue', 'updateExtraRevenue', 'deleteExtraRevenue',
+  'undoOrderInvoice', 'refundOrder', 'deleteOrder', 'updateInvoiceDiscount', 'deleteInvoicePayment', 'refundInvoicePartial', 'deleteInvoice',
+  'startPayBatch', 'settlePayBatch', 'deletePayBatch', 'addSilverEntry', 'deleteSilverEntry', 'removeKarigar', 'addStockJob',
+  'setStockJobStatus', 'setStockJobGiven', 'updateStockJobDetails', 'deleteStockJob', 'setInvoicePieceKarigar', 'setInvoicePieceDone',
+  'setInvoicePieceGiven', 'updateGivenItem', 'deleteGivenItem',
+  'forgetVoiceAlias', 'saveLabelLayout', 'reAddSoldProduct', 'deleteLatestProducts', 'importContacts', 'importHisaab'];
 const STAFF_MAY = ['recordPayment', 'setOrderStatus', 'addCustomer', 'createOrder'];
 
 describe('who may write', () => {

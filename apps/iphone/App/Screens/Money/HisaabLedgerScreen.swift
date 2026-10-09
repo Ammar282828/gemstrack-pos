@@ -2,15 +2,22 @@ import SwiftUI
 import ERPCore
 
 /// Money → Hisaab → one person (src/app/hisaab/[entityId]/page.tsx): what they owe the shop or the
-/// shop owes them, and every row of their ledger by date with the balance as it stood. Read only:
-/// "You gave", "You got" and Delete ask for the delete code, so they are the ERP's page; so are the
-/// ledger PDF and the WhatsApp reminder.
+/// shop owes them, and every row of their ledger by date with the balance as it stood.
+///
+/// "You gave" and "You got" write a row (HisaabEntrySheet; `addHisaabEntry`), and a swipe deletes one: the ERP
+/// asks for the delete code with the delete (`deleteHisaabEntry`, lib/writes/hisaab-entries.ts). Both are for a
+/// customer or karigar who is on file, as the web's page is: a walk-in's balance has no page to write on.
+/// The ledger PDF is built by the ERP's page in the browser (jsPDF, no server copy), so Print opens that page,
+/// and so does the WhatsApp reminder.
 struct HisaabLedgerScreen: View {
     /// "/hisaab/<id>?type=customer|karigar".
     let path: String
 
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
+    @State private var adding: HisaabEntryMode?
+    @State private var deletion: OwnerDeletion?
+    @State private var note: OwnerNote?
 
     private var entityId: String { MoneyPaths.ledgerID(fromPath: path) ?? "" }
 
@@ -52,8 +59,16 @@ struct HisaabLedgerScreen: View {
             ContentUnavailableView("Not found", systemImage: "person.crop.circle.badge.questionmark", description: Text("It may have been deleted."))
                 .navigationTitle("Hisaab")
         } else {
-            ledger(name: name, id: id, isCustomer: isCustomer, rows: rows)
+            ledger(name: name, id: id, isCustomer: isCustomer, rows: rows, onFile: onFile(id: id, isCustomer: isCustomer, customer: customer, karigar: karigar))
         }
+    }
+
+    /// Whether the person is a live record the web's page would find: a removed one, and a walk-in, are not, and
+    /// the web writes nothing on them.
+    private func onFile(id: String, isCustomer: Bool, customer: Customer?, karigar: Karigar?) -> Bool {
+        if id == WALK_IN_ENTITY { return false }
+        if isCustomer { return customer.map { !CustomerKit.isRemoved($0) } ?? false }
+        return karigar.map { ($0.deletedAt ?? "").isEmpty } ?? false
     }
 
     /// `?type=` says which book the person is in; without it the rows, then the records, decide.
@@ -81,9 +96,10 @@ struct HisaabLedgerScreen: View {
     // MARK: The ledger
 
     @ViewBuilder
-    private func ledger(name: String, id: String, isCustomer: Bool, rows: [HisaabEntry]) -> some View {
+    private func ledger(name: String, id: String, isCustomer: Bool, rows: [HisaabEntry], onFile: Bool) -> some View {
         let result = HisaabLedger.page(rows)
-        let addPath = MoneyPaths.ledger(id, isCustomer: isCustomer, web: true)
+        // The ERP's own page: the ledger PDF and the WhatsApp reminder are built there, in the browser.
+        let printPath = MoneyPaths.ledger(id, isCustomer: isCustomer, web: true)
         List {
             Section {
                 tiles(result)
@@ -98,27 +114,79 @@ struct HisaabLedgerScreen: View {
                 } else {
                     ForEach(result.lines) { line in
                         lineRow(line, showGold: result.hasGold)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                if onFile {
+                                    Button(role: .destructive) { askToDelete(line.entry) } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                            }
                     }
                 }
             } header: {
                 Text("Transactions · \(result.lines.count)")
+            } footer: {
+                if onFile && !result.lines.isEmpty {
+                    Text("Swipe a transaction to delete it. It asks for the delete code.")
+                }
+            }
+            if onFile {
+                Section {
+                    Button { adding = .gave } label: {
+                        Label("You gave", systemImage: "arrow.up")
+                    }
+                    Button { adding = .got } label: {
+                        Label("You got", systemImage: "arrow.down")
+                    }
+                } footer: {
+                    Text("Writes a row in their hisaab, dated today.")
+                }
             }
             Section {
-                NavigationLink(value: Route(path: addPath)) {
-                    Label("Add an entry, print or remind", systemImage: "safari")
+                NavigationLink(value: Route(path: printPath)) {
+                    Label("Print the ledger or send a reminder", systemImage: "printer")
                 }
             } footer: {
-                Text("“You gave”, “You got” and Delete ask for the delete code, so they stay on the ERP's page.")
+                Text("The ledger PDF and the WhatsApp reminder are made on the ERP's own page.")
             }
         }
         .listStyle(.insetGrouped)
         .navigationTitle(name.isEmpty ? "Hisaab" : name)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                NavigationLink(value: Route(path: addPath)) {
-                    Label("Add entry", systemImage: "plus")
+            if onFile {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button { adding = .gave } label: { Label("You gave", systemImage: "arrow.up") }
+                        Button { adding = .got } label: { Label("You got", systemImage: "arrow.down") }
+                    } label: {
+                        Label("Add entry", systemImage: "plus")
+                    }
                 }
             }
+        }
+        .sheet(item: $adding) { (mode: HisaabEntryMode) in
+            HisaabEntrySheet(mode: mode, personId: id, personName: name, isCustomer: isCustomer) { (saved: OwnerNote) in
+                withAnimation { note = saved }
+            }
+        }
+        .sheet(item: $deletion) { (d: OwnerDeletion) in
+            OwnerDeleteCodeSheet(deletion: d) {
+                withAnimation { note = OwnerNote(title: "Transaction deleted") }
+            }
+        }
+        .ownerNote($note)
+    }
+
+    /// The web's confirmation, then the delete code with the delete. A row that follows an invoice's balance is
+    /// put back by the ERP while the invoice still owes, so the sheet says so.
+    private func askToDelete(_ entry: HisaabEntry) {
+        let said = entry.description.isEmpty ? "No description" : entry.description
+        var detail = "Delete this transaction? \u{201C}\(said)\u{201D}"
+        if let invoice = entry.linkedInvoiceId, !invoice.isEmpty {
+            detail += " It follows the balance of invoice \(invoice), so the ERP writes it again while the invoice still owes."
+        }
+        deletion = OwnerDeletion(what: "Delete this ledger entry", detail: detail) { code in
+            _ = try await ERPAPI.shared.write("deleteHisaabEntry", ["entryId": entry.id, "deleteCode": code])
         }
     }
 

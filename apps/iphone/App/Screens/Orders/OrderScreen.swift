@@ -2,8 +2,11 @@ import SwiftUI
 import ERPCore
 
 /// One order (src/app/orders/[id]/page.tsx): who it is for, where it stands, its pieces with their
-/// karigars, and the money. Setting the status, ticking a piece done and recording an advance are
-/// native; edit, give out, finalize, refund and delete are the ERP's own page, one tap away.
+/// karigars, and the money. Setting the status, ticking a piece done, recording an advance, editing,
+/// finalizing, the slip, cancelling or unlocking the invoice, refunding, deleting (behind the delete code),
+/// booking and tracking the courier and sending the customer an update are native (OrderUndoSheets,
+/// OrderCourierSheet, OrderTrackingSheet, OrderLeopardsSheet, OrderNotifySheet); giving a piece out is the
+/// ERP's own page, one tap away.
 struct OrderScreen: View {
     let id: String
 
@@ -16,6 +19,11 @@ struct OrderScreen: View {
     @State private var updatingStatus = false
     @State private var ticking: Int?
     @State private var failure: String?
+    @State private var undo: OrderUndoAsk?
+    @State private var booking = false
+    @State private var tracking = false
+    @State private var leopardsOpen = false
+    @State private var notifying = false
 
     var body: some View {
         // New order is the ERP's own page, and "/orders/" + "add" reaches this screen as an order id.
@@ -38,6 +46,7 @@ struct OrderScreen: View {
         .navigationTitle(id)
         .navigationBarTitleDisplayMode(.inline)
         .ordersWebDestination($web)
+        .orderUndo($undo, open: $web)
         .ordersFailureAlert($failure)
         .onAppear {
             book.orders.need()
@@ -51,7 +60,7 @@ struct OrderScreen: View {
             headerSection(order)
             if OrdersLogic.hasInvoice(order) { invoiceSection(order) }
             if OrdersLogic.isOnline(order) {
-                OrderOnlineSection(order: order) { target in web = target }
+                OrderOnlineSection(order: order, openWeb: { web = $0 }, leopards: { leopardsOpen = true })
             }
             piecesSection(order)
             if !OrdersLogic.hasInvoice(order) { moneySection(order) }
@@ -61,6 +70,10 @@ struct OrderScreen: View {
         .listStyle(.insetGrouped)
         .toolbar { orderToolbar(order) }
         .sheet(isPresented: $advancing) { advanceSheet(order) }
+        .sheet(isPresented: $booking) { OrderCourierSheet(order: order) }
+        .sheet(isPresented: $tracking) { OrderTrackingSheet(order: order) }
+        .sheet(isPresented: $leopardsOpen) { OrderLeopardsSheet(order: order) }
+        .sheet(isPresented: $notifying) { OrderNotifySheet(order: order) }
         .confirmationDialog("Cancel order \(order.id)?", isPresented: $confirmCancel, titleVisibility: .visible) {
             Button("Cancel order", role: .destructive) { setStatus(order, "Cancelled") }
             Button("Keep it", role: .cancel) {}
@@ -211,13 +224,18 @@ struct OrderScreen: View {
                 }
                 invoiceBalance(inv)
             }
-            Button { web = .orderPage(order.id) } label: {
-                Label("Cancel the invoice or unlock the order in the ERP", systemImage: "lock.open")
+            if OrderActions.canUndoInvoice(order, isOwner: session.isOwner) {
+                Button(role: .destructive) { undo = OrderUndo.undoInvoice(order) } label: {
+                    Label("Cancel invoice", systemImage: "arrow.uturn.backward")
+                }
+                Button { undo = OrderUndo.unlockAndEdit(order) } label: {
+                    Label("Unlock & edit", systemImage: "lock.open")
+                }
             }
         } header: {
             Text("Invoice")
         } footer: {
-            Text("The order is locked. To change it, revert the invoice in the ERP.")
+            Text("The order is locked; to change it, revert the invoice first.")
         }
     }
 
@@ -353,7 +371,24 @@ struct OrderScreen: View {
                 }
                 // The workshop slip: printed, saved or sent from the share sheet.
                 Button { web = .slip(order.id) } label: { Label("Print slip", systemImage: "printer") }
-                // The whole page: edit, give out, finalize, refund, delete.
+                Button { notifying = true } label: { Label("Send to customer", systemImage: "message") }
+                if let cn = OrderActions.tcsConsignment(order) {
+                    Button { tracking = true } label: { Label("Track \(cn)", systemImage: "shippingbox") }
+                }
+                if OrderActions.canBookCourier(order, isOwner: session.isOwner) {
+                    Button { booking = true } label: { Label("Book courier", systemImage: "truck.box") }
+                }
+                if session.isOwner { Divider() }
+                if OrderActions.canRefund(order, isOwner: session.isOwner) {
+                    Button(role: .destructive) { undo = OrderUndo.refund(order) } label: { Label("Refund order", systemImage: "arrow.uturn.backward") }
+                }
+                if session.isOwner, let why = OrderActions.deleteBlocked(order) {
+                    Button {} label: { Label(why, systemImage: "trash") }.disabled(true)
+                } else if OrderActions.canDelete(order, isOwner: session.isOwner) {
+                    Button(role: .destructive) { undo = OrderUndo.delete(order) } label: { Label("Delete order", systemImage: "trash") }
+                }
+                Divider()
+                // Giving a piece out, and anything else the page has.
                 Button { web = .orderPage(order.id) } label: { Label("Open in the ERP", systemImage: "globe") }
             } label: {
                 Label("More", systemImage: "ellipsis.circle")

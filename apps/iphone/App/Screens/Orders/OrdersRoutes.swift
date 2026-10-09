@@ -6,6 +6,8 @@ enum OrdersRoutes {
     static var all: [ScreenRoute] {
         [
             .exact("/orders") { OrdersHub() },
+            // Before the item route, which would take "online" for an order's id.
+            .exact("/orders/online") { OnlineOrdersScreen() },
             .item("/orders/") { id in OrderScreen(id: id) },
         ]
     }

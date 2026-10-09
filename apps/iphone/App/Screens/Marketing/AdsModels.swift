@@ -52,8 +52,10 @@ struct AdAccount: Decodable, Hashable {
     let amountSpent: Double
     let spendCap: Double?
     let funding: String?
+    /// Meta's smallest daily budget for the account, in its currency (New ad's floor).
+    let minDailyBudget: Double?
 
-    private enum K: String, CodingKey { case id, name, currency, status, amountSpent, spendCap, funding }
+    private enum K: String, CodingKey { case id, name, currency, status, amountSpent, spendCap, funding, minDailyBudget }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: K.self)
@@ -64,6 +66,7 @@ struct AdAccount: Decodable, Hashable {
         amountSpent = c.double(.amountSpent, default: 0)
         spendCap = c.double(.spendCap)
         funding = c.string(.funding)
+        minDailyBudget = c.double(.minDailyBudget)
     }
 }
 

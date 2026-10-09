@@ -1,16 +1,15 @@
-"use client";
-
 /**
- * The workshop order slip as a PDF, from anywhere that has an order.
+ * The workshop order slip as a PDF, from anywhere that has an order: the one builder.
  *
  * Lifted out of the invoices page so the orders list can print one per row without
- * opening the order first. Everything about it is unchanged: it pre-opens the iOS
- * window in the tap, draws the slip, and hands it to savePDF, which shares or
- * downloads as the device allows.
+ * opening the order first, and the order page's own copy folded into it (2026-10-09), so
+ * the server draws the same slip too (lib/app-pdf.ts: the iPhone app's Print slip).
  *
- * The footer's QR is read off a hidden <QRCode id="links-qr-code"> canvas that the
- * calling page renders; a page that has not rendered one gets a slip with no code
- * rather than an error -- see drawDocFooter.
+ * drawOrderSlipPdf takes its pictures and its way of writing a day as inputs
+ * (pdf-inputs.ts) and touches no page. generateOrderSlipPDF is the browser's: it pre-opens
+ * the iOS window in the tap, reads the page's logo and its hidden <QRCode> canvases, draws
+ * the slip and hands it to savePDF, which shares or downloads as the device allows. A page
+ * that has not rendered the canvases gets a slip with no code rather than an error.
  */
 
 import jsPDF from 'jspdf';
@@ -18,9 +17,9 @@ import 'jspdf-autotable';
 import { format, parseISO } from 'date-fns';
 import type { Order, Settings } from '@/lib/store';
 import { openPDFWindowForIOS, savePDF } from '@/lib/utils';
-import { loadPdfLogo } from '@/lib/pdf-logo';
 import { fitText } from '@/lib/pdf-text';
-import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell } from '@/lib/pdf-chrome';
+import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell } from '@/lib/pdf-chrome';
+import { browserPdfImages, drawFooter, type PdfDates, type PdfImages } from '@/lib/pdf-inputs';
 import { drawItemCell, itemCellHeight } from '@/lib/invoice-item-cell';
 import { buildOrderItemBlocks, drawOrderTotals } from '@/lib/order-slip';
 import { STORE_LOGO_ASPECT } from '@/lib/store-config';
@@ -35,20 +34,32 @@ declare module 'jspdf' {
   }
 }
 
-export async function generateOrderSlipPDF(order: Order, settings: Settings) {
-  if (typeof window === 'undefined') return;
-  const iOSWin = openPDFWindowForIOS();
+export interface OrderSlipOptions {
+  images: PdfImages;
+  /** How days are written; the device's way when left out (the server passes Karachi's). */
+  dates?: PdfDates;
+}
+
+/** "OrderSlip-ORD-000123.pdf", wherever it is saved from. */
+export const orderSlipFileName = (order: Pick<Order, 'id'>) => `OrderSlip-${order.id}.pdf`;
+
+/**
+ * The slip, not yet saved, from what it is given. What it prints is the order it is handed:
+ * staff are handed theirs without the bench's internal notes or the rates (lib/staff-view.ts),
+ * as their browser holds it.
+ */
+export function drawOrderSlipPdf(order: Order, opts: OrderSlipOptions): jsPDF {
+  const { images, dates } = opts;
+  const day = dates?.medium ?? ((iso: string) => format(parseISO(iso), 'PP'));
   const pdfDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
   const pageHeight = pdfDoc.internal.pageSize.getHeight();
   const pageWidth = pdfDoc.internal.pageSize.getWidth();
   const margin = 10;
 
-  // Once per session, not once per print — see pdf-logo.ts.
-  const pdfLogo = await loadPdfLogo();
-  const logoDataUrl: string | null = pdfLogo?.dataUrl ?? null;
-  const logoFormat: string = pdfLogo?.format ?? 'PNG';
+  const logoDataUrl: string | null = images.logo?.dataUrl ?? null;
+  const logoFormat: string = images.logo?.format ?? 'PNG';
 
-    const drawHeader = (pageNum: number) => drawDocHeader(pdfDoc, {
+  const drawHeader = (pageNum: number) => drawDocHeader(pdfDoc, {
     pageWidth, pageHeight, margin, title: 'Workshop order slip',
     logoDataUrl, logoFormat, logoAspect: STORE_LOGO_ASPECT, pageNum,
   });
@@ -65,7 +76,7 @@ export async function generateOrderSlipPDF(order: Order, settings: Settings) {
   // will draw a long name straight off the page.
   const leftW = pageWidth - margin * 2;
   fitText(pdfDoc, `Order ID: ${order.id}`, margin, infoY, leftW);
-  fitText(pdfDoc, `Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, infoY + 5, leftW);
+  fitText(pdfDoc, `Date: ${day(order.createdAt)}`, margin, infoY + 5, leftW);
   fitText(pdfDoc, `Customer: ${order.customerName || 'Walk-in'}`, margin, infoY + 10, leftW);
   // What the customer was told, printed so the slip can be held to it.
   // The rule under this block follows whatever the last line turned out to
@@ -74,25 +85,29 @@ export async function generateOrderSlipPDF(order: Order, settings: Settings) {
   let lastLine = infoY + 10;
   if (order.promisedDate) {
     lastLine += 5;
-    fitText(pdfDoc, `Promised: ${format(parseISO(order.promisedDate), 'PP')}`, margin, lastLine, leftW);
+    fitText(pdfDoc, `Promised: ${day(order.promisedDate)}`, margin, lastLine, leftW);
   }
 
-  const rates = order.ratesApplied as Record<string, number>;
+  // Staff's copy of an order has no rates (roles.ts), so a gold order's slip used to stop on
+  // them; it prints without the line instead.
+  const rates = (order.ratesApplied || {}) as Record<string, number>;
   const usedKarats = new Set(order.items.filter(i => i.metalType === 'gold').map(i => i.karat).filter(Boolean));
   const ratesApplied: string[] = [];
   // hideRates: the slip is priced at these rates and just does not say so.
   if (!order.hideRates) {
-  if (usedKarats.has('24k') && rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
-  if (usedKarats.has('22k') && rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
-  if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
-  if (usedKarats.has('18k') && rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
+    if (usedKarats.has('24k') && rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
+    if (usedKarats.has('22k') && rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
+    if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
+    if (usedKarats.has('18k') && rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
   }
   if (ratesApplied.length > 0) { pdfDoc.setFontSize(6.5).setTextColor(150); pdfDoc.text(`Gold Rates (PKR): ${ratesApplied.join(' | ')}`, margin, (lastLine += 5), { maxWidth: leftW }); }
-
 
   const infoBottom = lastLine + 5;
   pdfDoc.setLineWidth(0.3).line(margin, infoBottom, pageWidth - margin, infoBottom);
 
+  // Items, drawn the way the invoice draws them: the piece leads, its specification sits
+  // under it in grey, and what has to be set into it is darker because that is what the
+  // karigar is actually reading.
   const itemBlocks = buildOrderItemBlocks(order);
   const tableRows: any[][] = order.items.map((item, i) => [i + 1, '', `PKR ${(item.totalEstimate || 0).toLocaleString()}`]);
   // Must match columnStyles below; see itemCellHeight on why this cannot be
@@ -126,14 +141,22 @@ export async function generateOrderSlipPDF(order: Order, settings: Settings) {
   });
 
   // The money, laid out the way the invoice lays it out.
-  drawOrderTotals(pdfDoc, order, { pageWidth, pageHeight, margin, onNewPage: drawHeader, startY: (pdfDoc.lastAutoTable.finalY || infoBottom) + 8 });
-
-  drawDocFooter(pdfDoc, {
-    pageWidth, pageHeight, margin,
-    linksQr: document.getElementById('links-qr-code') as HTMLCanvasElement | null,
-    whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
-    instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
+  drawOrderTotals(pdfDoc, order, {
+    pageWidth, pageHeight, margin, onNewPage: drawHeader, startY: (pdfDoc.lastAutoTable.finalY || infoBottom) + 8,
+    day: dates?.dayMonthYear,
   });
 
-  await savePDF(pdfDoc, `OrderSlip-${order.id}.pdf`, iOSWin);
+  drawFooter(pdfDoc, { pageWidth, pageHeight, margin }, images);
+  return pdfDoc;
+}
+
+/** The browser's Print slip: the page's logo and codes, then the share sheet or a download. */
+export async function generateOrderSlipPDF(order: Order, _settings?: Settings) {
+  if (typeof window === 'undefined') return;
+  // Opened before any await, or iOS treats the later open as a pop-up.
+  const iOSWin = openPDFWindowForIOS();
+  // The logo once per session, not once per print — see pdf-logo.ts.
+  const images = await browserPdfImages();
+  const pdfDoc = drawOrderSlipPdf(order, { images });
+  await savePDF(pdfDoc, orderSlipFileName(order), iOSWin);
 }

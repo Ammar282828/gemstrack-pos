@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The Stock group: the list of pieces (/products), one piece (/products/<sku>), and the product form,
-/// adding a piece (/products/add) and editing one (/products/<sku>/edit). Adding in bulk
-/// (/products/bulk-add) and the label printer (/settings/printer) stay the ERP's own pages. "?web=1" on
+/// adding a piece (/products/add) and editing one (/products/<sku>/edit), and adding many at once
+/// (/products/bulk-add); the label designer is Settings, Labels (/settings/printer, LabelSettings). "?web=1" on
 /// any of these opens the ERP's page (a piece's Delete and Print tag, the form's photo).
 enum StockRoutes {
     static var all: [ScreenRoute] {
@@ -22,11 +22,14 @@ enum StockRoutes {
             matches: { path in StockKit.editSku(fromPath: path) != nil },
             make: { path in AnyView(StockPieceForm(sku: StockKit.editSku(fromPath: path) ?? "")) }
         )
+        // Adding in bulk is a form of its own, not a piece called "bulk-add".
+        let bulk = ScreenRoute.exact(StockKit.bulkAddPath) { StockBulkAdd() }
         // The forms first, then the piece.
         return [
             ScreenRoute.exact("/products") { StockList() },
             add,
             edit,
+            bulk,
             pieceNotAForm,
         ]
     }

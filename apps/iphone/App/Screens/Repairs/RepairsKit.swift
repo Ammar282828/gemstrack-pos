@@ -12,7 +12,7 @@ struct RepairsOpen: Identifiable {
     var seed: Repair?
 }
 
-/// An ERP page to open inside the sheet's own stack (Edit and Delete: not native).
+/// An ERP page to open inside the sheet's own stack (Print receipt: the ERP's page draws the PDF).
 struct RepairsWebTarget: Hashable, Identifiable {
     let path: String
     var id: String { path }
@@ -106,6 +106,23 @@ enum RepairsKit {
         while s.hasSuffix("0") { s.removeLast() }
         if s.hasSuffix(".") { s.removeLast() }
         return s + " g"
+    }
+
+    /// A figure back in the form's box: up to `decimals` places, none trailing; nothing or 0 is blank
+    /// (sale-flow fields show 0 as blank).
+    static func typed(_ v: Double?, decimals: Int) -> String {
+        guard let v, v > 0 else { return "" }
+        var s = String(format: "%.\(decimals)f", v)
+        while s.contains(".") && s.hasSuffix("0") { s.removeLast() }
+        if s.hasSuffix(".") { s.removeLast() }
+        return s
+    }
+
+    /// "Today · Cash · Advance": a payment taken on a ticket, in a line.
+    static func paymentWords(_ p: RepairPayment) -> String {
+        [ShopDate.say(p.date), p.method?.rawValue ?? "", p.note ?? ""]
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
     }
 
     /// Karachi's day, `n` days on from now (the form's quick dates).
@@ -271,7 +288,7 @@ enum RepairsKit {
         return URL(string: "https://wa.me/\(number)?text=\(text)")
     }
 
-    /// The ERP's own page for a ticket (its edit form opens from this link; the card has Delete).
+    /// The ERP's own page for a ticket (it opens the ticket; the card under it has Print).
     static func webPath(_ id: String) -> String {
         let safe = id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? id
         return "/repairs?id=\(safe)&web=1"

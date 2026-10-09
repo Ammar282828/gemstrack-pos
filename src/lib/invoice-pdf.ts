@@ -1,11 +1,13 @@
-"use client";
-
 /**
  * The customer's invoice, on paper.
  *
  * One builder for the three places that print one — the invoices list, the
  * post-sale screen in the cart, and the customer's own link — where there
- * used to be three near-identical copies drifting apart by a line each.
+ * used to be three near-identical copies drifting apart by a line each. The
+ * server draws with it too (lib/app-pdf.ts: the iPhone app's PDF and the shop
+ * line's WhatsApp send), so the drawing takes its pictures and its way of
+ * writing a day as inputs (pdf-inputs.ts) and touches no page: drawInvoicePdf.
+ * buildInvoicePdf and saveInvoicePdf are the browser's, with the page's own.
  *
  * `perPiece` prints a multi-item invoice as one invoice per piece, each on
  * its own page: the same number, "Piece 2 of 3" beside the date, and only
@@ -21,14 +23,17 @@ import 'jspdf-autotable';
 import { metalLabel, describeSettings, describeDelivery } from '@/lib/materials';
 import { categorySingular } from '@/lib/categories';
 import { STORE_INVOICE_BY_CUSTOMER, STORE_LOGO_ASPECT } from '@/lib/store-config';
-import { staticCategories, type Invoice, type InvoiceItem, type Customer } from '@/lib/store';
+// The categories from their own module, not the store's re-export: the store is the browser's
+// (Firebase, zustand) and the server builds from here too.
+import { staticCategories } from '@/lib/categories';
+import type { Invoice, InvoiceItem, Customer } from '@/lib/store';
 import { openPDFWindowForIOS, savePDF } from '@/lib/utils';
-import { loadPdfLogo } from '@/lib/pdf-logo';
+import { browserPdfImages, drawFooter, type PdfDates, type PdfImages } from '@/lib/pdf-inputs';
 import { stockSku } from '@/lib/sku';
 import { format } from 'date-fns';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { drawItemCell, itemCellHeight, type ItemBlock, wastageLine } from '@/lib/invoice-item-cell';
-import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
+import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
 import { describeExchangeEntry } from '@/lib/exchange';
 import { invoiceFileName, invoiceTitle } from '@/lib/invoice-share';
 import { balanceLine } from '@/lib/invoice-credit';
@@ -54,6 +59,10 @@ export interface InvoicePdfOptions {
   customer?: Customer | null;
   /** One invoice per piece, each on its own page. */
   perPiece?: boolean;
+  /** The wordmark and the footer's codes. buildInvoicePdf reads the page's own when none are given. */
+  images?: PdfImages;
+  /** How days are written; the device's way when left out (the server passes Karachi's). */
+  dates?: PdfDates;
 }
 
 const itemsOf = (inv: Invoice): InvoiceItem[] =>
@@ -124,6 +133,10 @@ interface Chrome {
   margin: number;
   logoDataUrl: string | null;
   logoFormat: string;
+  images: PdfImages;
+  /** The invoice's "Date:", and a payment's. */
+  day: (iso: string) => string;
+  paidDay: (iso: string) => string;
 }
 
 /** The customer block: name, address, phone, email — whatever is on file. */
@@ -177,7 +190,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
 
   const details = [
     `Estimate #: ${inv.id}`,
-    `Date: ${new Date(inv.createdAt).toLocaleDateString()}`,
+    `Date: ${chrome.day(inv.createdAt)}`,
     ...(inv.piece ? [`Piece ${inv.piece.index} of ${inv.piece.count}`] : []),
   ];
   doc.text(details.join('\n'), pageWidth / 2, infoY, { lineHeightFactor: 1.4 });
@@ -293,7 +306,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
     doc.autoTable({
       head: [['Date', 'How', 'Notes', 'Amount']],
       body: inv.paymentHistory.map(p => [
-        format(new Date(p.date), 'PP'),
+        chrome.paidDay(p.date),
         [p.method, p.reference].filter(Boolean).join(' · ') || '—',
         p.notes || 'Payment received',
         pkr(p.amount),
@@ -337,27 +350,27 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
     closing: inv.amountPaid > 0 ? { label: balanceLine(inv.balanceDue).state === 'credit' ? 'Credit to Customer' : 'Balance Due', value: pkr(Math.abs(inv.balanceDue)) } : undefined,
   });
 
-  // The QR codes are canvases the printing page renders off-screen under
-  // these ids; a page without them prints the footer without codes.
-  drawDocFooter(doc, {
-    pageWidth, pageHeight, margin,
-    linksQr: document.getElementById('links-qr-code') as HTMLCanvasElement | null,
-    whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
-    instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
-  });
+  // The codes are the caller's (pdf-inputs.ts): in the browser, canvases the printing page renders
+  // off-screen; a page without them prints the footer without codes.
+  drawFooter(doc, { pageWidth, pageHeight, margin }, chrome.images);
 }
 
-/** The finished document, not yet saved. */
-export async function buildInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions = {}): Promise<jsPDF> {
+/**
+ * The finished document, not yet saved, from what it is given: no page, no fetch, so the server
+ * draws the same paper (lib/app-pdf.ts).
+ */
+export function drawInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions & { images: PdfImages }): jsPDF {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
-  // Once per session, not once per print — see pdf-logo.ts.
-  const pdfLogo = await loadPdfLogo();
+  const { images, dates } = opts;
   const chrome: Chrome = {
     pageWidth: doc.internal.pageSize.getWidth(),
     pageHeight: doc.internal.pageSize.getHeight(),
     margin: 10,
-    logoDataUrl: pdfLogo?.dataUrl ?? null,
-    logoFormat: pdfLogo?.format ?? 'PNG',
+    logoDataUrl: images.logo?.dataUrl ?? null,
+    logoFormat: images.logo?.format ?? 'PNG',
+    images,
+    day: dates?.short ?? (iso => new Date(iso).toLocaleDateString()),
+    paidDay: dates?.medium ?? (iso => format(new Date(iso), 'PP')),
   };
   // What a PDF viewer, and WhatsApp's preview of the file, shows as its name.
   if (STORE_INVOICE_BY_CUSTOMER) doc.setProperties({ title: invoiceTitle(invoice) });
@@ -369,6 +382,24 @@ export async function buildInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions 
   return doc;
 }
 
+/** The finished document, not yet saved: in the browser, with the page's logo and codes unless given. */
+export async function buildInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions = {}): Promise<jsPDF> {
+  // The logo once per session, not once per print — see pdf-logo.ts.
+  const images = opts.images ?? await browserPdfImages();
+  return drawInvoicePdf(invoice, { ...opts, images });
+}
+
+/**
+ * The file's name. Taheri: "Invoice - <customer>", never the number (lib/invoice-share.ts);
+ * House of Mina: the number. `perPiece` only counts on an invoice of more than one piece.
+ */
+export function invoicePdfFileName(invoice: Invoice, opts: { perPiece?: boolean } = {}): string {
+  const perPiece = !!opts.perPiece && itemsOf(invoice).length > 1;
+  return STORE_INVOICE_BY_CUSTOMER
+    ? invoiceFileName(invoice, { perPiece })
+    : perPiece ? `Invoice-${invoice.id}-per-piece.pdf` : `Invoice-${invoice.id}.pdf`;
+}
+
 /** Build and hand the file to the browser (or iOS share sheet). */
 export async function saveInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions = {}): Promise<void> {
   if (typeof window === 'undefined') return;
@@ -376,12 +407,7 @@ export async function saveInvoicePdf(invoice: Invoice, opts: InvoicePdfOptions =
   const iOSWin = openPDFWindowForIOS();
   try {
     const doc = await buildInvoicePdf(invoice, opts);
-    // Taheri: "Invoice - <customer>", never the number (lib/invoice-share.ts).
-    const perPiece = !!opts.perPiece && itemsOf(invoice).length > 1;
-    const name = STORE_INVOICE_BY_CUSTOMER
-      ? invoiceFileName(invoice, { perPiece })
-      : perPiece ? `Invoice-${invoice.id}-per-piece.pdf` : `Invoice-${invoice.id}.pdf`;
-    await savePDF(doc, name, iOSWin);
+    await savePDF(doc, invoicePdfFileName(invoice, opts), iOSWin);
   } catch (e) {
     iOSWin?.close();
     throw e;

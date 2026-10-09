@@ -210,6 +210,7 @@ import { recordOrderAdvance as writeOrderAdvance } from '@/lib/writes/order-adva
 import { rateChangeLog, rateConfirmLog } from '@/lib/writes/rates';
 import { createInvoice as createInvoiceWrite } from '@/lib/writes/create-invoice';
 import { addExpense as writeAddExpense } from '@/lib/writes/expenses';
+import { mergeCustomers as writeMergeCustomers } from '@/lib/writes/customer-admin';
 import { addGivenItem as writeAddGiven, markGivenItemReturned as writeGivenReturned } from '@/lib/writes/given';
 import { addKarigar as writeAddKarigar, updateCustomer as writeUpdateCustomer, updateKarigar as writeUpdateKarigar } from '@/lib/writes/people';
 import { addRepair as writeAddRepair, recordRepairPayment as writeRepairPayment, setRepairStatus as writeRepairStatus } from '@/lib/writes/repairs';
@@ -2289,65 +2290,10 @@ export const useAppStore = create<AppState>()(
       mergeCustomers: async (keepId, deleteId) => {
         if(get().settings.databaseLocked) return { updatedDocs: 0 };
         await requireDeleteCode(`Merge, and delete customer ${get().customers.find(c => c.id === deleteId)?.name || deleteId}`);
-        const keepCustomer = get().customers.find(c => c.id === keepId);
-        const deleteCustomer = get().customers.find(c => c.id === deleteId);
-        if (!keepCustomer || !deleteCustomer) throw new Error('One or both customers not found');
-
-        let updatedDocs = 0;
-        const BATCH_LIMIT = 490;
-
-        const flushBatch = async (batch: ReturnType<typeof writeBatch>) => {
-          await batch.commit();
-        };
-
-        let batch = writeBatch(db);
-        let opCount = 0;
-
-        const addOp = async (op: () => void) => {
-          op();
-          opCount++;
-          if (opCount >= BATCH_LIMIT) {
-            await flushBatch(batch);
-            batch = writeBatch(db);
-            opCount = 0;
-          }
-        };
-
-        // Update invoices
-        const invoicesSnap = await getDocs(query(collection(db, FIRESTORE_COLLECTIONS.INVOICES), where('customerId', '==', deleteId)));
-        for (const d of invoicesSnap.docs) {
-          await addOp(() => batch.update(d.ref, { customerId: keepId, customerName: keepCustomer.name }));
-          updatedDocs++;
-        }
-
-        // Update orders
-        const ordersSnap = await getDocs(query(collection(db, FIRESTORE_COLLECTIONS.ORDERS), where('customerId', '==', deleteId)));
-        for (const d of ordersSnap.docs) {
-          await addOp(() => batch.update(d.ref, { customerId: keepId, customerName: keepCustomer.name }));
-          updatedDocs++;
-        }
-
-        // Update hisaab entries
-        const hisaabSnap = await getDocs(query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), where('entityId', '==', deleteId), where('entityType', '==', 'customer')));
-        for (const d of hisaabSnap.docs) {
-          await addOp(() => batch.update(d.ref, { entityId: keepId, entityName: keepCustomer.name }));
-          updatedDocs++;
-        }
-
-        // Update given items
-        const givenSnap = await getDocs(query(collection(db, FIRESTORE_COLLECTIONS.GIVEN_ITEMS), where('recipientId', '==', deleteId)));
-        for (const d of givenSnap.docs) {
-          await addOp(() => batch.update(d.ref, { recipientId: keepId, recipientName: keepCustomer.name }));
-          updatedDocs++;
-        }
-
-        // Delete the duplicate customer
-        await addOp(() => batch.delete(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, deleteId)));
-
-        if (opCount > 0) await flushBatch(batch);
-
-        await addActivityLog('customer.delete', `Merged customer "${deleteCustomer.name}" into "${keepCustomer.name}"`, `Deleted ID: ${deleteId}, Kept ID: ${keepId}, Updated ${updatedDocs} records`, keepId);
-
+        // The one copy (lib/writes/customer-admin.ts), which the iPhone app runs on the server too: the
+        // duplicate's invoices, orders, repairs, hisaab and given items move, and the kept record takes the
+        // details only the duplicate had.
+        const { updatedDocs } = await writeMergeCustomers(clientPort, keepId, deleteId, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
         return { updatedDocs };
       },
 

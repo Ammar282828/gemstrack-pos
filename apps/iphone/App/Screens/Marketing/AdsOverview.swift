@@ -6,7 +6,8 @@ import ERPCore
 /// against the same length of time before, day by day, the ads that spent most, who saw them, and what
 /// Meta has flagged. Read from /api/ads/overview, which answers owners and marketing accounts. The one
 /// thing done here is the web's own: pause a flagged ad set, or run a paused one again (asked first,
-/// since it spends). Studio, New ad, Setup and the ads' own pages stay the ERP's.
+/// since it spends). New ad and Setup are native (AdsNewAd.swift, AdsSetup.swift); Studio and the ads' own pages
+/// stay the ERP's.
 struct AdsOverviewScreen: View {
     @Environment(Session.self) private var session
 

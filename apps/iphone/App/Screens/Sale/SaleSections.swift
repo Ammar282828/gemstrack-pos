@@ -107,14 +107,17 @@ extension SaleForm {
             NavigationLink(value: SaleLinks.newPiece) {
                 Label("New item, and keep it in stock", systemImage: "square.and.pencil")
             }
-            NavigationLink(value: SaleLinks.webBill) {
+            // The AI bill reader (SaleScanScreen): the ERP's own reader, its lines put on this sale.
+            NavigationLink {
+                SaleScanScreen(draft: $draft, keep: edit == nil)
+            } label: {
                 Label("Read a written bill", systemImage: "camera.viewfinder")
             }
         } header: {
             Text("Pieces")
         } footer: {
             let n = draft.lines.count
-            Text("\(n) piece\(n == 1 ? "" : "s") on this bill. Tap a piece to edit it; swipe to remove it. New item bills a piece that was never in stock, for this sale only; New item, and keep it in stock puts it in stock first. Reading a written bill opens the ERP's own page.")
+            Text("\(n) piece\(n == 1 ? "" : "s") on this bill. Tap a piece to edit it; swipe to remove it. New item bills a piece that was never in stock, for this sale only; New item, and keep it in stock puts it in stock first. Read a written bill puts a photographed bill's lines on the sale for you to check.")
         }
     }
 
@@ -678,7 +681,8 @@ extension SaleForm {
             return
         }
         // Decided before the save, from the shop's rates as they stand now.
-        let kept = draft.ratesToWriteBack(f, current: book.settings.value)
+        // A rate a written bill set is the bill's, never today's (SaleScanHeld).
+        let kept = SaleScanHeld.unheld(draft.ratesToWriteBack(f, current: book.settings.value), in: draft)
         do {
             let out = try await ERPAPI.shared.write("createInvoice", draft.payload(f) { book.products.item($0)?.qrCodeDataUrl })
             let id = (out["invoice"] as? [String: Any])?["id"] as? String ?? ""

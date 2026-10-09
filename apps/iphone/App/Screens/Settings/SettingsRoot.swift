@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// `/settings`: who is signed in, then the shop's settings in the iPhone Settings app's grouping.
-/// Each row opens its own screen; the ones that stay the ERP's pages (activity, voice) open inside the app.
+/// Each row opens its own screen, the web's tabs in its order; Backups and the imports are under Data, Labels
+/// under Integrations (and Stock), as on the web.
 struct SettingsRoot: View {
     @Environment(Session.self) private var session
     @State private var signingOut = false

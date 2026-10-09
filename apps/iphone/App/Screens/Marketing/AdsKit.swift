@@ -102,6 +102,18 @@ enum AdsStatusWords {
         if let known = account[status] { return (known.0, known.1) }
         return ("Status \(status)", .idle)
     }
+
+    /// What to do about an account's trouble (shape.ts ACCOUNT_STATUS `fix`).
+    static func accountFix(_ status: Int) -> String? {
+        switch status {
+        case 2: return "Meta has disabled this ad account. Open Account Quality in Meta Business Suite to see why and request a review."
+        case 3: return "A payment failed. Settle the balance in Ads Manager → Billing, and ads start again."
+        case 7: return "Meta is reviewing the account; ads wait until it finishes."
+        case 9: return "A payment is overdue. Pay it in Ads Manager → Billing before the grace period ends."
+        case 101: return "This ad account is closed. Choose another one on Setup."
+        default: return nil
+        }
+    }
 }
 
 /// What the ads achieved, in the shop's words (shape.ts RESULT_FOR_GOAL, actionLabel, headlineActions).

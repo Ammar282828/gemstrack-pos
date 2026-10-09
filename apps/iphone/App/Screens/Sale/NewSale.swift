@@ -16,10 +16,12 @@ import ERPCore
 /// sale page's own shape, so the counter can finish it (WorkDraftSync, SaleWebDraft). "Start over" empties both.
 struct NewSale: View {
     @Environment(Session.self) private var session
+    /// Opened from the New chooser's Read a written bill: the reader comes up over the form, once.
+    var readsBill = false
 
     var body: some View {
         if session.isOwner {
-            SaleForm()
+            SaleForm(startsReading: readsBill)
         } else {
             ownersOnly
         }
@@ -49,6 +51,10 @@ struct SaleForm: View {
     /// Edit invoice (SaleEdit): the invoice on file in this form. Nothing is kept on the phone or in Drafts,
     /// there is no starting over, and Save writes the invoice under its own number.
     var edit: SaleEdit? = nil
+    /// The AI bill reader opens over the form when it first shows (NewSale.readsBill).
+    var startsReading = false
+    @State var readerOpened = false
+    @State var readingBill = false
     /// The invoice has been put in the form, once (a change arriving meanwhile must not undo what is typed).
     @State var editLoaded = false
 
@@ -192,6 +198,9 @@ struct SaleForm: View {
         .navigationDestination(item: $openOrder) { r in
             ScreenRegistry.view(for: r.path)
         }
+        .navigationDestination(isPresented: $readingBill) {
+            SaleScanScreen(draft: $draft, keep: true)
+        }
     }
 
     /// The counter name Taken by starts on: this account's, when it has one on the house's list.
@@ -221,6 +230,10 @@ struct SaleForm: View {
             draft.takenBy = defaultTaker
         }
         takenByStarted = true
+        if startsReading && !readerOpened {
+            readerOpened = true
+            readingBill = true
+        }
     }
 
     /// The sale in Drafts as the web's sale page holds it, a moment after the last change (`now` as the screen

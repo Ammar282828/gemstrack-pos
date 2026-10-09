@@ -5,6 +5,9 @@ import ERPCore
 /// what they owe (the list's own figure, lib/owed.ts), their repairs, and a hisaab for owners.
 /// A removed customer is not shown (store.ts splitRemoved): the web says "not found"; this says
 /// they were removed, since Settings > Recently removed puts them back.
+///
+/// Remove is native for an owner (`removeCustomer`, lib/writes/customer-admin.ts): it hides the customer, and
+/// the ERP checks the delete code with it. The sheet says what stays with them first.
 struct CustomerScreen: View {
     let id: String
     @Environment(Book.self) private var book
@@ -12,6 +15,8 @@ struct CustomerScreen: View {
     @Environment(\.openURL) private var openURL
     /// A customer just made on this phone, shown until the shelf brings them (staff poll every 25 seconds).
     private let seed: Customer?
+    @State private var deletion: OwnerDeletion?
+    @State private var note: OwnerNote?
 
     init(id: String, seed: Customer? = nil) {
         self.id = id
@@ -59,6 +64,10 @@ struct CustomerScreen: View {
                 }
             }
         }
+        .sheet(item: $deletion) { (d: OwnerDeletion) in
+            OwnerDeleteCodeSheet(deletion: d) {}
+        }
+        .ownerNote($note)
         .task {
             book.customers.need()
             book.invoices.need()
@@ -108,16 +117,36 @@ struct CustomerScreen: View {
             ordersSection(f.orders)
             repairsSection(f.repairs)
             if session.isOwner { hisaabSection(f.hisaab, id: f.customer.id) }
-            Section {
-                // Removing asks for the delete code, which only the ERP's page takes.
-                NavigationLink(value: Route(path: CustomerKit.path(f.customer.id, suffix: "?web=1"))) {
-                    Label("Remove this customer", systemImage: "person.badge.minus")
+            // Removing is an owner's, as the web's direct write is.
+            if session.isOwner {
+                Section {
+                    Button(role: .destructive) { askToRemove(f) } label: {
+                        Label("Remove this customer", systemImage: "person.badge.minus")
+                    }
+                } footer: {
+                    Text("Removing hides them; their invoices, orders and hisaab stay, and Settings, then Recently removed, puts them back. It asks for the delete code.")
                 }
-            } footer: {
-                Text("Removing hides them; their invoices, orders and hisaab stay. It asks for the delete code, so it opens on the ERP's own page.")
             }
         }
         .listStyle(.insetGrouped)
+    }
+
+    /// Says what stays with them before it asks for the code (the web's confirmation), then hides them.
+    private func askToRemove(_ f: Facts) {
+        let c = f.customer
+        let name = CustomerKit.shown(c)
+        let stays = CustomerMergeCounts(invoices: f.invoices.count, orders: f.orders.count, hisaab: f.hisaab.count, given: 0).sentence
+        var detail = stays == "nothing"
+            ? "\(name) will be hidden from the lists."
+            : "\(name) will be hidden from the lists. Their \(stays) stay where they are."
+        if f.owing.total > 0.5 { detail += " They still owe \(Money.pkr(f.owing.total))." }
+        detail += " Settings, then Recently removed, puts them back."
+        deletion = OwnerDeletion(what: "Delete customer \(name)", detail: detail, final: false) { code in
+            _ = try await ERPAPI.shared.write("removeCustomer", ["customerId": c.id, "deleteCode": code])
+            withAnimation {
+                note = OwnerNote(title: "\(name) removed", detail: "Settings, then Recently removed, puts them back.")
+            }
+        }
     }
 
     // MARK: Who, and how to reach them

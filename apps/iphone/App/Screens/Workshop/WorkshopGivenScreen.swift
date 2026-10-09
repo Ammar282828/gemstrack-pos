@@ -2,9 +2,9 @@ import SwiftUI
 import ERPCore
 
 /// Given items (src/app/given/page.tsx): samples, repairs, anything given to karigars or customers, and whether it
-/// has come back. Owners record a new one (+) and mark one returned (swipe, or "Got back"); both are writes through
-/// the ERP (`addGivenItem`, `markGivenReturned`). Editing and deleting an entry stay the ERP's own page: the delete
-/// asks for the code there.
+/// has come back. Owners record a new one (+), mark one returned (swipe, or "Got back"), edit one (its date, what it
+/// is, who has it, a note) and delete one (the delete code); each is a write through the ERP (`addGivenItem`,
+/// `markGivenReturned`, `updateGivenItem`, `deleteGivenItem`).
 struct WorkshopGivenScreen: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -12,6 +12,9 @@ struct WorkshopGivenScreen: View {
     @State private var query = ""
     @State private var filter: Filter = .all
     @State private var adding = false
+    @State private var editing: GivenItem?
+    @State private var deletion: OwnerDeletion?
+    @State private var note: OwnerNote?
     /// Items with a write in flight.
     @State private var busy: Set<String> = []
     @State private var failure: String?
@@ -38,8 +41,19 @@ struct WorkshopGivenScreen: View {
         .searchable(text: $query, prompt: "Item or recipient")
         .toolbar { givenToolbar }
         .sheet(isPresented: $adding) {
-            WorkshopGivenSheet(karigars: workshopLive(book.karigars.items), customers: book.customers.items.filter { ($0.deletedAt ?? "").isEmpty })
+            WorkshopGivenSheet(karigars: workshopLive(book.karigars.items), customers: liveCustomers)
         }
+        .sheet(item: $editing) { (item: GivenItem) in
+            WorkshopGivenSheet(karigars: workshopLive(book.karigars.items), customers: liveCustomers, item: item) {
+                withAnimation { note = OwnerNote(title: "Updated", detail: "Item updated.") }
+            }
+        }
+        .sheet(item: $deletion) { (d: OwnerDeletion) in
+            OwnerDeleteCodeSheet(deletion: d) {
+                withAnimation { note = OwnerNote(title: "Deleted") }
+            }
+        }
+        .ownerNote($note)
         .workshopPlaceDestination($opened)
         .workshopFailureAlert($failure)
         .onAppear {
@@ -51,6 +65,8 @@ struct WorkshopGivenScreen: View {
             }
         }
     }
+
+    private var liveCustomers: [Customer] { book.customers.items.filter { ($0.deletedAt ?? "").isEmpty } }
 
     // MARK: The list
 
@@ -167,6 +183,18 @@ struct WorkshopGivenScreen: View {
                 }
                 .tint(.green)
             }
+            if session.isOwner {
+                Button(role: .destructive) { askDelete(item) } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        }
+        .swipeActions(edge: .leading) {
+            if session.isOwner {
+                Button { editing = item } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+            }
         }
         .contextMenu {
             if canReturn(item) {
@@ -180,8 +208,11 @@ struct WorkshopGivenScreen: View {
                 }
             }
             if session.isOwner {
-                Button { opened = WorkshopPlace.givenPage } label: {
-                    Label("Edit or delete in the ERP", systemImage: "arrow.up.right.square")
+                Button { editing = item } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                Button(role: .destructive) { askDelete(item) } label: {
+                    Label("Delete", systemImage: "trash")
                 }
             }
         }
@@ -266,20 +297,21 @@ struct WorkshopGivenScreen: View {
                     Label("Record item given", systemImage: "plus")
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    // Edit and delete (which asks for the code) are not native yet.
-                    Button { opened = WorkshopPlace.givenPage } label: {
-                        Label("Edit or delete an entry in the ERP", systemImage: "arrow.up.right.square")
-                    }
-                } label: {
-                    Label("More", systemImage: "ellipsis.circle")
-                }
-            }
         }
     }
 
     // MARK: Writes
+
+    /// The web's "Delete this entry?": the entry goes for good; nothing else is touched.
+    private func askDelete(_ item: GivenItem) {
+        let who = item.recipientName.isEmpty ? "" : " \u{2014} given to \(item.recipientName)."
+        deletion = OwnerDeletion(
+            what: "Delete given item \"\(item.description.isEmpty ? item.id : item.description)\"",
+            detail: "\u{201C}\(item.description)\u{201D}\(who.isEmpty ? "." : who)"
+        ) { code in
+            _ = try await ERPAPI.shared.write("deleteGivenItem", ["id": item.id, "deleteCode": code])
+        }
+    }
 
     private func markReturned(_ item: GivenItem) {
         if busy.contains(item.id) { return }
@@ -299,10 +331,16 @@ struct WorkshopGivenScreen: View {
 
 /// The form of the Given page: the date, what it is, who it went to, and a note. The recipient is picked from the
 /// karigars or customers or typed; a name that is exactly one live karigar's or customer's is linked by id, so a
-/// customer merge and the karigar's page can find it (lib/given.ts `resolveRecipientId`).
+/// customer merge and the karigar's page can find it (lib/given.ts `resolveRecipientId`). With an `item` it is
+/// "Edit Given Item": its fields to start from, and an edit whose name no longer resolves to one clears the old link,
+/// as the web's does. Whether it came back is not changed by an edit.
 struct WorkshopGivenSheet: View {
     let karigars: [Karigar]
     let customers: [Customer]
+    /// The entry being edited; nil records a new one.
+    var item: GivenItem? = nil
+    /// Told once an edit is saved.
+    var onSaved: () -> Void = {}
 
     @Environment(\.dismiss) private var dismiss
 
@@ -318,6 +356,27 @@ struct WorkshopGivenSheet: View {
     @State private var error: String?
 
     private let types: [GivenItemRecipientType] = [.karigar, .customer, .other]
+
+    init(karigars: [Karigar], customers: [Customer], item: GivenItem? = nil, onSaved: @escaping () -> Void = {}) {
+        self.karigars = karigars
+        self.customers = customers
+        self.item = item
+        self.onSaved = onSaved
+        if let item {
+            _date = State(initialValue: ERPDate.parse(item.date) ?? Date())
+            _what = State(initialValue: item.description)
+            // A type the form does not know is offered as Other.
+            let known: GivenItemRecipientType
+            switch item.recipientType {
+            case .karigar: known = .karigar
+            case .customer: known = .customer
+            case .other, .unknown: known = .other
+            }
+            _type = State(initialValue: known)
+            _name = State(initialValue: item.recipientName)
+            _notes = State(initialValue: item.notes ?? "")
+        }
+    }
 
     private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var canSave: Bool {
@@ -344,7 +403,7 @@ struct WorkshopGivenSheet: View {
                 }
                 .houseRows()
             }
-            .navigationTitle("Record item given")
+            .navigationTitle(item == nil ? "Record item given" : "Edit Given Item")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -457,12 +516,20 @@ struct WorkshopGivenSheet: View {
         ]
         if let rid = recipientId() { fields["recipientId"] = rid }
         let note = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !note.isEmpty { fields["notes"] = note }
+        // An edit writes the note even when blank, as the web's does, and sending no id clears the old link.
+        if item != nil || !note.isEmpty { fields["notes"] = note }
+        let sent = fields
+        let editing = item
         saving = true
         error = nil
         Task { @MainActor in
             do {
-                _ = try await ERPAPI.shared.write("addGivenItem", fields)
+                if let editing {
+                    _ = try await ERPAPI.shared.write("updateGivenItem", ["id": editing.id, "item": sent])
+                    onSaved()
+                } else {
+                    _ = try await ERPAPI.shared.write("addGivenItem", sent)
+                }
                 dismiss()
             } catch {
                 self.error = error.localizedDescription

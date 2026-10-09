@@ -159,6 +159,41 @@ enum InvoiceFacts {
         return lines.joined(separator: "\n")
     }
 
+    // MARK: The PDF (lib/invoice-pdf.ts, drawn on the ERP's server: /api/app/pdf/invoice)
+
+    /// The ERP route that draws the invoice Print saves; `perPiece`, one invoice per piece, each on its own page.
+    static func pdfPath(_ id: String, perPiece: Bool = false) -> String {
+        "/api/app/pdf/invoice/" + encode(id) + (perPiece ? "?perPiece=1" : "")
+    }
+
+    /// The file's name as the browser saves it (invoice-pdf.ts `invoicePdfFileName`): "Invoice - <customer>.pdf"
+    /// where invoices are named after the customer (`byCustomer`, Taheri), "Invoice-<number>.pdf" elsewhere; per
+    /// piece only names a bill of more than one piece.
+    static func pdfFileName(_ inv: Invoice, byCustomer: Bool, perPiece: Bool = false) -> String {
+        let split = perPiece && inv.items.count > 1
+        if !byCustomer { return "Invoice-" + inv.id + (split ? "-per-piece.pdf" : ".pdf") }
+        return shareTitle(inv, byCustomer: true) + (split ? " (per piece).pdf" : ".pdf")
+    }
+
+    /// The PDF screen for an invoice (PDFDocumentScreen).
+    static func pdfTarget(_ inv: Invoice, byCustomer: Bool, perPiece: Bool = false) -> InvoicePDFTarget {
+        InvoicePDFTarget(path: pdfPath(inv.id, perPiece: perPiece),
+                         fileName: pdfFileName(inv, byCustomer: byCustomer, perPiece: perPiece),
+                         title: perPiece ? "\(inv.id) per piece" : inv.id)
+    }
+
+    /// Taheri's Send on WhatsApp from the phone: the ERP draws the PDF Print saves and sends it from the shop's
+    /// line through the browser's own send (/api/app/pdf/invoice/[id]/whatsapp → /api/invoices/[id]/whatsapp),
+    /// which notes it on the invoice. Answers the file's name and the number it went to.
+    @MainActor
+    static func sendPDF(_ inv: Invoice, to phone: String) async throws -> (fileName: String, to: String) {
+        // The send asks WAHA first whether the number is on WhatsApp, then sends: the ERP gives it two minutes.
+        let out = try await ERPAPI.shared.send(pdfPath(inv.id) + "/whatsapp", ["to": phone], timeout: 130)
+        // Staff read the books every 25 seconds: fetch them now, so "sent" shows under the button.
+        ServerShelf.wake()
+        return (out["fileName"] as? String ?? "The PDF", out["to"] as? String ?? phone)
+    }
+
     // MARK: Send on WhatsApp (invoice-viewer.tsx)
 
     /// The number the ERP page's WhatsApp box starts with: the invoice's own, else its customer's, as the ERP
@@ -180,6 +215,14 @@ enum InvoiceFacts {
         if number.isEmpty { return nil }
         return URL(string: "https://wa.me/\(number)?text=\(component(text))")
     }
+}
+
+/// An invoice's PDF to open (PDFDocumentScreen): one invoice, or one per piece.
+struct InvoicePDFTarget: Hashable, Identifiable {
+    let path: String
+    let fileName: String
+    let title: String
+    var id: String { path }
 }
 
 /// A change that has landed, said for a few seconds over the invoice like the web's toast.

@@ -223,8 +223,9 @@ struct OrderNextStepRow: View {
     private var primary: some View {
         switch stage {
         case .transfer:
+            // The order's own page has the transfer's moves (OrderOnlineSection).
             stepButton(slipIn ? "Slip in: check" : "Check transfer", symbol: "banknote", prominent: slipIn) {
-                actions.openWeb(.orderPage(order.id))
+                actions.openWeb(OrdersWebTarget(path: "/orders/\(order.id)", title: order.id, native: true))
             }
         case .new:
             stepButton("Give out", symbol: "person.badge.plus", prominent: true) {

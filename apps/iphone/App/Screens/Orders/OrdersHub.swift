@@ -292,7 +292,7 @@ struct OrdersHub: View {
         if session.shop.websiteSelling {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Button { web = OrdersWebTarget(path: "/orders", title: "Orders") } label: {
+                    NavigationLink(value: Route(path: "/orders/online")) {
                         Label("Online orders to confirm", systemImage: "globe")
                     }
                 } label: {

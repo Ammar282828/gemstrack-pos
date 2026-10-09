@@ -15,6 +15,16 @@ struct OwnerDeletion: Identifiable {
     let detail: String
     /// The ERP's write, sent with the code; it throws the ERP's words when refused.
     let run: (_ code: String) async throws -> Void
+    /// False for a removal Settings, Recently removed can put back (a customer, a karigar): the sheet then
+    /// does not say it can't be undone.
+    var final = true
+
+    init(what: String, detail: String, final: Bool = true, run: @escaping (_ code: String) async throws -> Void) {
+        self.what = what
+        self.detail = detail
+        self.final = final
+        self.run = run
+    }
 }
 
 /// The delete code (decision "Delete code"): four digits the ERP's server checks with the delete itself,
@@ -61,7 +71,7 @@ struct OwnerDeleteCodeSheet: View {
                 } header: {
                     Text(deletion.what).textCase(nil)
                 } footer: {
-                    Text(deletion.detail.isEmpty ? "This can't be undone. Enter the code to go ahead." : "\(deletion.detail) This can't be undone. Enter the code to go ahead.")
+                    Text(([deletion.detail, deletion.final ? "This can't be undone." : "", "Enter the code to go ahead."]).filter { !$0.isEmpty }.joined(separator: " "))
                 }
                 if let error {
                     Section { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }

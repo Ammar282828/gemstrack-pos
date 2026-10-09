@@ -17,8 +17,8 @@ struct StockRowModel: Identifiable {
 /// Stock: every piece in the shop, what each sells for at today's rates, and what they come to
 /// (src/app/products/page.tsx). Owners' screen by the ERP's own choice (nav.ts: staff read pieces
 /// to sell them, but Stock is where pieces are priced, edited and removed). Adding and editing a piece
-/// are the native product form (StockPieceForm); bulk adding, deleting and the label printer stay the
-/// ERP's pages.
+/// are the native product form (StockPieceForm), adding many at once is StockBulkAdd; deleting and the
+/// label printer stay the ERP's pages.
 struct StockList: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session

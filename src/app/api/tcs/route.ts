@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyRequestEmail } from '@/lib/karigar-auth';
+import { roleForEmail } from '@/lib/roles';
 
 const getBaseUrl = () =>
   process.env.TCS_USE_SANDBOX === 'true'
@@ -56,6 +58,12 @@ async function getTcsTokens(): Promise<{ bearerToken: string; accessToken: strin
 }
 
 export async function POST(req: NextRequest) {
+  // The shop's TCS account: signed in, and only the shop. Tracking is the shop floor's too; booking,
+  // cancelling and labels are the owners' (2026-10-09: the route answered anyone).
+  const email = await verifyRequestEmail(req);
+  if (!email) return NextResponse.json({ error: 'Sign in again.' }, { status: 401 });
+  const role = roleForEmail(email);
+  if (role !== 'owner' && role !== 'staff') return NextResponse.json({ error: 'Not yours to use.' }, { status: 403 });
   try {
     // Validate server credentials are configured
     const { TCS_USERNAME, TCS_PASSWORD } = process.env;
@@ -72,6 +80,9 @@ export async function POST(req: NextRequest) {
     const validActions = ['book', 'track', 'cancel', 'print_label'];
     if (!action || !validActions.includes(action)) {
       return NextResponse.json({ error: `Invalid action. Must be one of: ${validActions.join(', ')}` }, { status: 400 });
+    }
+    if (action !== 'track' && role !== 'owner') {
+      return NextResponse.json({ error: 'Only an owner can book or cancel a consignment.' }, { status: 403 });
     }
 
     const { bearerToken, accessToken } = await getTcsTokens();

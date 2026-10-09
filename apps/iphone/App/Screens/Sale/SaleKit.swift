@@ -34,7 +34,8 @@ enum SaleLinks {
     static let newSale = Route(path: "/invoices/new")
     /// The ERP's own pages, for what the phone does not do: reading a written bill (the AI scanner), and
     /// putting a new piece in stock ("New piece"). Editing an invoice is its `/edit` page.
-    static let webBill = Route(path: "/invoices/new?web=1&scan=bill")
+    /// New sale with the AI bill reader open over it (SaleScanScreen).
+    static let readBill = Route(path: "/invoices/new?scan=bill")
     static let newPiece = Route(path: "/products/add")
 
     /// A piece's page, which is the ERP's (`/products/<sku>`).

@@ -18,10 +18,9 @@ struct WorkshopPlace: Identifiable, Hashable {
     static func karigar(_ id: String) -> WorkshopPlace {
         WorkshopPlace(path: WorkshopLogic.karigarPath(id))
     }
-    /// The ERP's own Workshop page, where stock work is assigned, changed and deleted.
+    /// The ERP's own Workshop page, where an order's or a sold piece's making details (its name, size, sample
+    /// picture and instructions) are changed: the one thing on the board the phone does not do yet.
     static let workshopPage = WorkshopPlace(path: "/workshop?web=1", title: "Workshop")
-    /// The ERP's own Given page, where an entry is edited or deleted.
-    static let givenPage = WorkshopPlace(path: "/given?web=1", title: "Given items")
 }
 
 private struct WorkshopPlaceView: View {
@@ -119,9 +118,50 @@ struct WorkshopChoices {
 struct WorkshopActions {
     let done: (WorkshopJob, Bool) -> Void
     let given: (WorkshopJob, Bool) -> Void
-    /// "none" clears the karigar.
+    /// "none" clears the karigar (an order's or a sold piece's; a stock job keeps the karigar it was written for).
     let assign: (WorkshopJob, String) -> Void
+    /// A stock job's status: Pending, In Progress, Completed.
+    let status: (WorkshopJob, KarigarJobStatus) -> Void
+    /// A stock job's making details, in a sheet.
+    let details: (WorkshopJob) -> Void
+    /// A stock job deleted, once the delete code is typed.
+    let delete: (WorkshopJob) -> Void
     let open: (WorkshopPlace) -> Void
+}
+
+/// A stock job's status in the Workshop's words (STATUS_LABEL).
+enum WorkshopStatusWords {
+    static let choices: [KarigarJobStatus] = [.pending, .inProgress, .completed]
+
+    static func say(_ s: KarigarJobStatus) -> String {
+        switch s {
+        case .pending: return "Pending"
+        case .inProgress: return "In Progress"
+        case .completed: return "Completed"
+        case .unknown(let raw): return raw
+        }
+    }
+
+    static func symbol(_ s: KarigarJobStatus) -> String {
+        switch s {
+        case .completed: return "checkmark.circle"
+        case .inProgress: return "circle.dotted"
+        default: return "circle"
+        }
+    }
+}
+
+/// A figure typed in a form: digits and one dot (the web's number box), `places` decimals at most. Nil when empty.
+enum WorkshopFigure {
+    static func read(_ raw: String, places: Int = 3) -> Double? {
+        MoneyParse.amount(raw, maxDecimals: places)
+    }
+
+    /// A stored figure for a field: no trailing zeros, nothing for none.
+    static func field(_ v: Double?) -> String {
+        guard let v, v != 0 else { return "" }
+        return WorkshopLogic.number(v)
+    }
 }
 
 /// A karigar who is on the books: removal hides (`deletedAt`), as the web store's live list does.

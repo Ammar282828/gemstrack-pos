@@ -2,9 +2,10 @@ import SwiftUI
 import ERPCore
 
 /// Money → Extra revenue (src/app/additional-revenue/page.tsx): income not tied to an order or
-/// invoice, month by month with each month's total. Read only: adding, editing and deleting ask
-/// for the delete code or a form the phone does not have yet, so they are the ERP's page. Money
-/// taken on a repair ticket opens that ticket, as the web's "Change this on the repair" does.
+/// invoice, month by month with each month's total. Adding, editing and deleting are native (the
+/// page's form; a swipe or a long press on a row), and Delete asks for the delete code, which the ERP
+/// checks with the delete itself. Money taken on a repair ticket opens that ticket instead, as the
+/// web's "Change this on the repair" does: it changes there, and goes when the ticket is deleted.
 struct ExtraRevenueScreen: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -12,7 +13,10 @@ struct ExtraRevenueScreen: View {
     @State private var search = ""
     /// The date filter, none until a start date is chosen (additional-revenue/page.tsx `dateRange`).
     @State private var dates = MoneyCustomRange()
-    @State private var openWeb = false
+    @State private var adding = false
+    @State private var editing: AdditionalRevenue?
+    @State private var deletion: OwnerDeletion?
+    @State private var note: OwnerNote?
 
     var body: some View {
         if session.isOwner {
@@ -30,14 +34,21 @@ struct ExtraRevenueScreen: View {
         .searchable(text: $search, prompt: "Search by description")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                NavigationLink(value: Route(path: MoneyPaths.revenueWeb)) {
-                    Label("Add extra revenue", systemImage: "plus")
-                }
+                Button { adding = true } label: { Label("Add extra revenue", systemImage: "plus") }
             }
         }
-        .navigationDestination(isPresented: $openWeb) {
-            PlaceScreen(path: MoneyPaths.revenueWeb)
+        .sheet(isPresented: $adding) {
+            RevenueEditSheet(editing: nil) { (saved: OwnerNote) in withAnimation { note = saved } }
         }
+        .sheet(item: $editing) { (r: AdditionalRevenue) in
+            RevenueEditSheet(editing: r) { (saved: OwnerNote) in withAnimation { note = saved } }
+        }
+        .sheet(item: $deletion) { (d: OwnerDeletion) in
+            OwnerDeleteCodeSheet(deletion: d) {
+                withAnimation { note = OwnerNote(title: "Deleted", detail: "Revenue entry deleted.") }
+            }
+        }
+        .ownerNote($note)
         .task { book.revenue.need() }
     }
 
@@ -147,12 +158,26 @@ struct ExtraRevenueScreen: View {
         } else {
             TwoLine(title: r.description, subtitle: when, trailing: Money.pkr(r.amount))
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button { openWeb = true } label: { Label("Edit or delete", systemImage: "pencil") }
+                    Button(role: .destructive) { askDelete(r) } label: { Label("Delete", systemImage: "trash") }
+                    Button { editing = r } label: { Label("Edit", systemImage: "pencil") }
                         .tint(.blue)
                 }
                 .contextMenu {
-                    Button { openWeb = true } label: { Label("Edit or delete on the ERP's page", systemImage: "safari") }
+                    Button { editing = r } label: { Label("Edit", systemImage: "pencil") }
+                    Button(role: .destructive) { askDelete(r) } label: { Label("Delete", systemImage: "trash") }
                 }
+        }
+    }
+
+    /// The web's "Delete revenue entry?" and the code, in one sheet; the ERP checks the code with the
+    /// delete (`deleteExtraRevenue`), in the store's own words for it.
+    private func askDelete(_ r: AdditionalRevenue) {
+        let id = r.id
+        deletion = OwnerDeletion(
+            what: "Delete this extra revenue",
+            detail: "This will permanently delete \u{201C}\(r.description)\u{201D} (\(Money.pkr(r.amount)))."
+        ) { code in
+            _ = try await ERPAPI.shared.write("deleteExtraRevenue", ["revenueId": id, "deleteCode": code])
         }
     }
 }

@@ -9,8 +9,8 @@ import ERPCore
 ///
 /// The order in progress stays on this phone, and in Drafts, if the screen closes (NewOrderDraftStore,
 /// WorkDraftSync), until it is saved or started over. A piece can start from one in stock (Add from stock);
-/// sizes are offered to the customer's profile once the order is saved (NewOrderSizeAsk). The AI slip reader and
-/// the voice order stay on the ERP's page ("Read a slip").
+/// sizes are offered to the customer's profile once the order is saved (NewOrderSizeAsk). "Read a slip" reads a parchi
+/// with the ERP's AI reader into this form (NewOrderScanScreen); the voice order stays on the ERP's page.
 ///
 /// Edit order (/orders/<id>/edit) is this same form opened on the order on file (NewOrderEdit): nothing is kept
 /// on the phone or in Drafts, there is no starting over, and Save writes the changes (`updateOrder`), owners only
@@ -22,6 +22,10 @@ struct NewOrder: View {
 
     /// The order being edited, or nil for a new one.
     private let edit: NewOrderEdit?
+    /// Opened from the New chooser's Scan a parchi: the slip reader comes up over the form, once.
+    private let readsSlip: Bool
+    @State private var readerOpened = false
+    @State private var readingSlip = false
 
     @State private var draft = NewOrderDraft.fresh()
     /// The phone's copy has been read (and not before: an unread draft must never be overwritten).
@@ -37,10 +41,14 @@ struct NewOrder: View {
     @State private var confirmReset = false
     @State private var pickingStock = false
 
-    init() { edit = nil }
+    init(readsSlip: Bool = false) {
+        edit = nil
+        self.readsSlip = readsSlip
+    }
 
     init(edit: NewOrderEdit) {
         self.edit = edit
+        readsSlip = false
         _draft = State(initialValue: edit.draft)
         _loaded = State(initialValue: true)
     }
@@ -59,6 +67,7 @@ struct NewOrder: View {
         }
         .onAppear { start() }
         .sheet(item: $sizeAsk) { ask in NewOrderSizeAskSheet(ask: ask) }
+        .navigationDestination(isPresented: $readingSlip) { NewOrderScanScreen(draft: $draft) }
     }
 
     // MARK: Reading
@@ -104,6 +113,10 @@ struct NewOrder: View {
         }
         seedRates()
         settleTakenBy()
+        if readsSlip && !readerOpened && created == nil {
+            readerOpened = true
+            readingSlip = true
+        }
     }
 
     /// The order kept on this phone is in Drafts too: one saved or thrown away at the counter since is not this
@@ -196,11 +209,12 @@ struct NewOrder: View {
         .navigationTitle(edit.map { "Edit \($0.orderId)" } ?? "New order")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            // The AI slip reader and the voice order stay on the ERP's page; ?web=1 opens it even though
-            // /orders/add has a native screen, and the page reads scan=parchi to open the reader at once.
+            // The AI slip reader (NewOrderScanScreen): the ERP's own reader, its answer laid into this draft.
             if edit == nil {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(value: Route(path: "/orders/add?web=1&scan=parchi")) {
+                    NavigationLink {
+                        NewOrderScanScreen(draft: $draft)
+                    } label: {
                         Label("Read a slip", systemImage: "doc.text.viewfinder")
                             .labelStyle(.titleAndIcon)
                     }

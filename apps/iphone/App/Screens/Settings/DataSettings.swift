@@ -2,7 +2,8 @@ import SwiftUI
 import ERPCore
 
 /// Settings → Data (src/app/settings/data): drafts, backups, what was removed, the imports and the
-/// shop's defaults. Backups, restores and imports move whole collections, so they stay the ERP's pages.
+/// shop's defaults. Backups and the contact and hisaab imports are native (BackupSettings, ContactImportSettings,
+/// HisaabImportSettings); a backup's Restore and the Taheri Software book's one-off import stay the ERP's pages.
 struct DataSettings: View {
     var body: some View {
         SettingsGate(title: "Data") { DataForm(settings: $0) }

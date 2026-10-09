@@ -2,9 +2,11 @@ import SwiftUI
 import ERPCore
 
 /// One ticket, as a sheet on the list (the ERP has no /repairs/<id>: its page opens a ticket in a dialog).
-/// What is on it: its pieces, the money, where it stands and who has it. Ready, Collected and Take
-/// payment are native and owners'; Edit and Delete are the ERP's own page (the delete asks for the
-/// delete code), one tap away in the menu. It has its own NavigationStack, as a sheet must.
+/// What is on it: its pieces, the money, where it stands and who has it. Ready, Collected, Take payment,
+/// Edit, Cancel and Delete are native and owners' (the ERP lets only an owner write a repair); Delete asks
+/// for the delete code, which the ERP checks with the delete, and takes the money paid out of Extra
+/// revenue with the ticket. Print receipt is the ERP's page: the receipt is drawn in the browser
+/// (src/lib/repair-pdf.ts, jsPDF and the page's QR codes). It has its own NavigationStack, as a sheet must.
 struct RepairsSheet: View {
     let id: String
     /// What the ERP answered when the ticket was written, until the shelf has it.
@@ -16,6 +18,10 @@ struct RepairsSheet: View {
 
     @State private var desk = RepairsDesk()
     @State private var web: RepairsWebTarget?
+    @State private var editing = false
+    @State private var deletion: OwnerDeletion?
+    /// The ticket is gone: the sheet leaves once the code sheet has.
+    @State private var deleted = false
 
     private var current: Repair? { book.repairs.item(id) ?? seed }
 
@@ -25,12 +31,41 @@ struct RepairsSheet: View {
                 .navigationTitle(id)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { sheetToolbar }
-                // The customer's page, and the ERP's own pages for Edit and Delete.
+                // The customer's page, and the ERP's own page for Print receipt.
                 .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                 .navigationDestination(item: $web) { target in PlaceScreen(path: target.path) }
         }
         .repairsDesk(desk)
+        .sheet(isPresented: $editing) {
+            if let r = current { RepairsForm(editing: r) { _, _ in } }
+        }
+        .sheet(isPresented: deletionShown, onDismiss: afterDeletion) {
+            if let d = deletion {
+                OwnerDeleteCodeSheet(deletion: d) { deleted = true }
+            }
+        }
         .onAppear { book.repairs.need() }
+    }
+
+    private var deletionShown: Binding<Bool> {
+        Binding(get: { deletion != nil }, set: { if !$0 { deletion = nil } })
+    }
+
+    private func afterDeletion() {
+        if deleted { dismiss() }
+    }
+
+    /// The web's "cancel or delete?": Delete removes the ticket for good, and the money paid on it comes
+    /// out of Extra revenue with it. Said before the code is asked for.
+    private func askDelete(_ r: Repair) {
+        let id = r.id
+        let paid = RepairsKit.repairPaid(r)
+        var detail = "\(RepairsKit.repairSummary(r)) \u{2014} \(RepairsKit.customer(r)). Delete removes it for good"
+        detail += paid > 0 ? ", and the \(Money.pkr(paid)) paid comes out of Extra revenue with it." : "."
+        if r.status == .received || r.status == .ready { detail += " Cancel repair keeps the record instead." }
+        deletion = OwnerDeletion(what: "Delete repair \(id)", detail: detail) { code in
+            _ = try await ERPAPI.shared.write("deleteRepair", ["repairId": id, "deleteCode": code])
+        }
     }
 
     @ViewBuilder
@@ -74,23 +109,23 @@ struct RepairsSheet: View {
     }
 
     /// Print receipt is the ERP's page for this ticket (it draws the PDF), open to everyone who can read
-    /// the ticket; Edit and Delete are the same page, owners'; Cancel keeps the record.
+    /// the ticket; Edit, Cancel and Delete are native and owners'. Cancel keeps the record.
     private var ticketMenu: some View {
         let cancellable = current.map { $0.status == .received || $0.status == .ready } ?? false
         return Menu {
             Button { web = RepairsWebTarget(path: RepairsKit.webPath(id)) } label: {
                 Label("Print receipt", systemImage: "printer")
             }
-            if session.isOwner {
-                Button { web = RepairsWebTarget(path: RepairsKit.webPath(id)) } label: {
+            if session.isOwner, let r = current {
+                Button { editing = true } label: {
                     Label("Edit", systemImage: "pencil")
                 }
-                if cancellable, let r = current {
+                if cancellable {
                     Button(role: .destructive) { desk.askCancel(r) } label: {
                         Label("Cancel repair", systemImage: "xmark.circle")
                     }
                 }
-                Button(role: .destructive) { web = RepairsWebTarget(path: RepairsKit.webPath(id)) } label: {
+                Button(role: .destructive) { askDelete(r) } label: {
                     Label("Delete", systemImage: "trash")
                 }
             }

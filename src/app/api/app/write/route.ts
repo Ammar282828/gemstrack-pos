@@ -42,6 +42,15 @@ import { PEOPLE_OPS, runPeopleOp } from './ops-people';
 import { STOCK_OPS, runStockOp } from './ops-stock';
 import { INVOICE_OPS, runInvoiceOp } from './ops-invoices';
 import { MONEY_OPS, runMoneyOp } from './ops-money';
+import { STOCK2_OPS, runStock2Op } from './ops-stock2';
+import { CUSTOMER_OPS, runCustomerOp } from './ops-customers';
+import { HISAAB_OPS, runHisaabOp } from './ops-hisaab';
+import { REPAIR_OPS, runRepairOp } from './ops-repairs';
+import { LEDGER_OPS, runLedgerOp } from './ops-ledger';
+import { ORDER_OPS, runOrderOp } from './ops-orders';
+import { INVOICE_ACTION_OPS, runInvoiceActionOp } from './ops-invoice-actions';
+import { WORKSHOP_OPS, runWorkshopOp } from './ops-workshop';
+import { SETTINGS2_OPS, runSettings2Op } from './ops-settings2';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,6 +93,15 @@ const GROUPS: { roles: OpRoles; run: OpHandler }[] = [
   { roles: STOCK_OPS, run: runStockOp },
   { roles: INVOICE_OPS, run: runInvoiceOp },
   { roles: MONEY_OPS, run: runMoneyOp },
+  { roles: STOCK2_OPS, run: runStock2Op },
+  { roles: CUSTOMER_OPS, run: runCustomerOp },
+  { roles: HISAAB_OPS, run: runHisaabOp },
+  { roles: REPAIR_OPS, run: runRepairOp },
+  { roles: LEDGER_OPS, run: runLedgerOp },
+  { roles: ORDER_OPS, run: runOrderOp },
+  { roles: INVOICE_ACTION_OPS, run: runInvoiceActionOp },
+  { roles: WORKSHOP_OPS, run: runWorkshopOp },
+  { roles: SETTINGS2_OPS, run: runSettings2Op },
 ];
 
 const OPS: OpRoles = Object.assign({}, OWN_OPS, ...GROUPS.map((g) => g.roles));

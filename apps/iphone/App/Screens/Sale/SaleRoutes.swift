@@ -5,16 +5,21 @@ import ERPCore
 ///
 /// "/invoices/new" is a path the Invoices group's item route already leaves out ("new" is not an
 /// invoice id), so the two never meet. `?web=1` on any of these opens the ERP's own page instead
-/// (ScreenRegistry.wantsWeb), which is how the phone links to what it does not do: editing an
-/// invoice, the AI bill scanner, and billing a piece that was never in stock.
+/// (ScreenRegistry.wantsWeb). "/invoices/new?scan=bill" opens the AI bill reader over the new sale.
 enum SaleRoutes {
     static var all: [ScreenRoute] {
         [
             .exact("/new") { NewChooser() },
-            .exact("/invoices/new") { NewSale() },
+            // "?scan=bill" (the New chooser's Read a written bill) opens the bill reader over the new sale.
+            ScreenRoute(matches: { ScreenRoute.bare($0) == "/invoices/new" }, make: { p in AnyView(NewSale(readsBill: asks(p, scan: "bill"))) }),
             .exact("/scan") { ScanTag() },
             ScreenRoute(matches: { editId($0) != nil }, make: { p in AnyView(SaleEditLoader(id: editId(p) ?? "")) }),
         ]
+    }
+
+    /// A path's `scan=` asking for one of the AI readers ("bill", "parchi").
+    static func asks(_ path: String, scan: String) -> Bool {
+        URLComponents(string: path)?.queryItems?.contains { $0.name == "scan" && $0.value == scan } ?? false
     }
 
     /// "/invoices/<id>/edit" → the id (the invoice page's Edit, src/app/invoices/[id]/edit).

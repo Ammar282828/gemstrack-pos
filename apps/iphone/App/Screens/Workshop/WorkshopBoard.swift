@@ -3,9 +3,10 @@ import ERPCore
 
 /// The Workshop board (src/app/workshop/page.tsx): every piece on the bench, by karigar or by stage, what is
 /// overdue, what has nobody on it, what has not left the shop. Pieces come from orders, from stock jobs and from
-/// invoices (a Shopify sale is an invoice, and any invoice line handed to a karigar). The three things an owner does
-/// to an order's piece (pick the karigar, tick it Given, tick it Done) are writes through the ERP; the same on an
-/// invoice's piece is the ERP's page for now.
+/// invoices (a Shopify sale is an invoice, and any invoice line handed to a karigar). What an owner does to a piece
+/// is a write through the ERP: pick the karigar, tick it Given, tick it Done (an order's piece or a sold one); and
+/// stock work is assigned (+), its status set, its making details changed and deleted (the delete code), as on the
+/// web's page. An order's or a sold piece's making details stay the ERP's page.
 struct WorkshopBoard: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -22,6 +23,10 @@ struct WorkshopBoard: View {
     @State private var busy: Set<String> = []
     @State private var failure: String?
     @State private var opened: WorkshopPlace?
+    @State private var assigning: WorkshopStockJobAsk?
+    @State private var editing: KarigarJob?
+    @State private var deletion: OwnerDeletion?
+    @State private var note: OwnerNote?
 
     /// `?karigar=<id>` (the karigar page's "On his bench") opens on his whole bench.
     init(path: String) {
@@ -41,6 +46,22 @@ struct WorkshopBoard: View {
         .toolbar { boardToolbar }
         .workshopPlaceDestination($opened)
         .workshopFailureAlert($failure)
+        .sheet(item: $assigning) { (ask: WorkshopStockJobAsk) in
+            WorkshopStockJobSheet(karigars: workshopLive(book.karigars.items), presetKarigarId: ask.karigarId) { (saved: OwnerNote) in
+                withAnimation { note = saved }
+            }
+        }
+        .sheet(item: $editing) { (job: KarigarJob) in
+            WorkshopJobDetailsSheet(job: job) { (saved: OwnerNote) in
+                withAnimation { note = saved }
+            }
+        }
+        .sheet(item: $deletion) { (d: OwnerDeletion) in
+            OwnerDeleteCodeSheet(deletion: d) {
+                withAnimation { note = OwnerNote(title: "Job deleted") }
+            }
+        }
+        .ownerNote($note)
         .onAppear {
             book.orders.need()
             book.invoices.need()
@@ -370,6 +391,9 @@ struct WorkshopBoard: View {
             done: { job, done in setDone(job, done) },
             given: { job, given in setGiven(job, given) },
             assign: { job, karigarId in setKarigar(job, karigarId) },
+            status: { job, status in setStatus(job, status) },
+            details: { job in openDetails(job) },
+            delete: { job in askDelete(job) },
             open: { place in opened = place }
         )
     }
@@ -441,6 +465,12 @@ struct WorkshopBoard: View {
     private var boardToolbar: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) { filterMenu }
         if session.isOwner {
+            ToolbarItem(placement: .topBarTrailing) {
+                // The karigar in focus is the one the work goes to, as the web's "Assign" on his card.
+                Button { assigning = WorkshopStockJobAsk(karigarId: filter.karigarId) } label: {
+                    Label("Assign stock work", systemImage: "plus")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) { moreMenu }
         }
     }
@@ -478,11 +508,11 @@ struct WorkshopBoard: View {
         }
     }
 
-    /// What the phone cannot do yet: stock work is assigned, changed and deleted on the ERP's own page.
+    /// The Workshop's other places.
     private var moreMenu: some View {
         Menu {
-            Button { opened = WorkshopPlace.workshopPage } label: {
-                Label("Assign stock work in the ERP", systemImage: "plus.circle")
+            Button { assigning = WorkshopStockJobAsk(karigarId: filter.karigarId) } label: {
+                Label("Assign stock work", systemImage: "plus.circle")
             }
             Button { opened = WorkshopPlace(path: "/karigars") } label: {
                 Label("Karigars", systemImage: "person.2")
@@ -530,25 +560,83 @@ struct WorkshopBoard: View {
         }
     }
 
+    /// Done: an order's piece (its order moves on when every piece is), a sold piece (it leaves the board), or a
+    /// stock job (Completed, or back to Pending).
     private func setDone(_ job: WorkshopJob, _ done: Bool) {
-        guard let orderId = job.orderId, let index = job.itemIndex else { return }
-        write(job, "setPieceDone", ["orderId": orderId, "index": index, "done": done])
+        switch WorkshopLogic.writeTarget(job) {
+        case .order(let id, let index):
+            write(job, "setPieceDone", ["orderId": id, "index": index, "done": done])
+        case .invoice(let id, let index):
+            write(job, "setInvoicePieceDone", ["invoiceId": id, "index": index, "done": done])
+        case .stock(let id):
+            write(job, "setStockJobStatus", ["jobId": id, "status": done ? KarigarJobStatus.completed.rawValue : KarigarJobStatus.pending.rawValue])
+        case nil:
+            return
+        }
     }
 
     private func setGiven(_ job: WorkshopJob, _ given: Bool) {
-        guard let orderId = job.orderId, let index = job.itemIndex else { return }
         // Nobody to have given it to: refused here as on the web.
         if job.isUnassigned && given {
             failure = "Nobody is on this piece yet, so there is no one to have given it to. Assign a karigar first."
             return
         }
-        write(job, "setPieceGiven", ["orderId": orderId, "index": index, "given": given])
+        switch WorkshopLogic.writeTarget(job) {
+        case .order(let id, let index):
+            write(job, "setPieceGiven", ["orderId": id, "index": index, "given": given])
+        case .invoice(let id, let index):
+            write(job, "setInvoicePieceGiven", ["invoiceId": id, "index": index, "given": given])
+        case .stock(let id):
+            write(job, "setStockJobGiven", ["jobId": id, "given": given])
+        case nil:
+            return
+        }
     }
 
     private func setKarigar(_ job: WorkshopJob, _ karigarId: String) {
-        guard let orderId = job.orderId, let index = job.itemIndex else { return }
-        write(job, "setPieceKarigar", ["orderId": orderId, "index": index, "karigarId": karigarId])
+        switch WorkshopLogic.writeTarget(job) {
+        case .order(let id, let index):
+            write(job, "setPieceKarigar", ["orderId": id, "index": index, "karigarId": karigarId])
+        case .invoice(let id, let index):
+            write(job, "setInvoicePieceKarigar", ["invoiceId": id, "index": index, "karigarId": karigarId])
+        case .stock, nil:
+            // A stock job is written for its karigar; the web offers no reassigning it either.
+            return
+        }
     }
+
+    private func setStatus(_ job: WorkshopJob, _ status: KarigarJobStatus) {
+        guard case .stock(let id) = WorkshopLogic.writeTarget(job) else { return }
+        write(job, "setStockJobStatus", ["jobId": id, "status": status.rawValue])
+    }
+
+    /// The job as it is on file: the sheet edits its own fields (the board's line merges the instructions).
+    private func openDetails(_ job: WorkshopJob) {
+        guard case .stock(let id) = WorkshopLogic.writeTarget(job) else { return }
+        if let held = book.karigarJobs.item(id) {
+            editing = held
+        } else {
+            failure = "This job is no longer on file."
+        }
+    }
+
+    /// The web's "Delete this job?": the job goes from the Workshop and his page; nothing else is touched.
+    private func askDelete(_ job: WorkshopJob) {
+        guard case .stock(let id) = WorkshopLogic.writeTarget(job) else { return }
+        let who = job.isUnassigned ? "" : " It comes off \(job.karigarName)'s bench."
+        deletion = OwnerDeletion(
+            what: "Delete this karigar job",
+            detail: "\u{201C}\(job.description)\u{201D} will be removed.\(who)"
+        ) { code in
+            _ = try await ERPAPI.shared.write("deleteStockJob", ["jobId": id, "deleteCode": code])
+        }
+    }
+}
+
+/// Assign Stock Work asked for, with the karigar it goes to when one is in focus ("" for none).
+struct WorkshopStockJobAsk: Identifiable {
+    let id = UUID()
+    let karigarId: String
 }
 
 /// The one karigar's cells: only those that say something, and no zero printed as a muted 0.

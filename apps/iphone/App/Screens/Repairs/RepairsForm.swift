@@ -10,15 +10,20 @@ struct RepairsDraftPiece: Identifiable {
     var price = ""
 }
 
-/// New repair (the form in src/app/repairs/page.tsx, new ticket): who it is for, the pieces left to be
-/// mended, when they will be ready, an advance if one is taken, and (out of the way on the web, one
-/// section here) the karigar, who took it and a note for the shop. A walk-in is a ticket with no name.
+/// New repair, or Edit on a ticket (the form in src/app/repairs/page.tsx): who it is for, the pieces left
+/// to be mended, when they will be ready, an advance if one is taken (a new ticket only), and (out of the
+/// way on the web, one section here) the karigar, who took it and a note for the shop. A walk-in is a
+/// ticket with no name.
 ///
-/// Saving is `addRepair` (owners only): the ERP numbers the ticket REP-000001 on, writes any advance to
-/// Extra revenue in the same commit, and answers with the ticket. The form then leaves and the list
-/// opens that ticket's sheet. The receipt prints from the ERP's page, not from here.
+/// Saving a new ticket is `addRepair` (owners only): the ERP numbers it REP-000001 on, writes any advance
+/// to Extra revenue in the same commit, and answers with the ticket. The form then leaves and the list
+/// opens that ticket's sheet. Saving an edit is `updateRepair` (lib/writes/repair-admin.ts): the whole
+/// form, as the web's Save sends it, a field left empty removed from the ticket; the money taken, the
+/// status and the number are the ticket's own and stay. The receipt prints from the ERP's page.
 struct RepairsForm: View {
-    /// The new ticket's id, and the ticket as the ERP answered it.
+    /// The ticket being edited; nil takes a new one in.
+    var editing: Repair? = nil
+    /// The ticket's id, and the ticket as the ERP answered it.
     let onSaved: (String, Repair?) -> Void
 
     @Environment(Book.self) private var book
@@ -40,6 +45,8 @@ struct RepairsForm: View {
     @State private var method = "Cash"
     @State private var saving = false
     @State private var error: String?
+    /// An edit is filled from its ticket once, as the form opens.
+    @State private var filled = false
 
     var body: some View {
         NavigationStack {
@@ -47,7 +54,11 @@ struct RepairsForm: View {
                 customerSection
                 piecesSection
                 whenSection
-                advanceSection
+                if let r = editing {
+                    paidSection(r)
+                } else {
+                    advanceSection
+                }
                 shopSection
                 if let error {
                     Section { Text(error).foregroundStyle(.red) }
@@ -55,7 +66,7 @@ struct RepairsForm: View {
                 }
                 .houseRows()
             }
-            .navigationTitle("New repair")
+            .navigationTitle(editing.map { "Repair \($0.id)" } ?? "New repair")
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
             .disabled(saving)
@@ -75,8 +86,31 @@ struct RepairsForm: View {
             book.karigars.need()
             book.repairs.need()
             book.orders.need()
-            seedTakenBy()
+            if let r = editing { fill(from: r) } else { seedTakenBy() }
         }
+    }
+
+    /// The ticket as it is on file, in the form's own boxes (the web's form opens with them filled).
+    private func fill(from r: Repair) {
+        if filled { return }
+        filled = true
+        takenBySeeded = true
+        customerId = RepairsKit.filled(r.customerId)
+        name = r.customerName
+        phone = r.customerContact ?? ""
+        let drafts = r.pieces.map { (p: RepairPiece) -> RepairsDraftPiece in
+            RepairsDraftPiece(item: p.item, work: p.work, weight: RepairsKit.typed(p.weightG, decimals: 3), price: RepairsKit.typed(p.price, decimals: 2))
+        }
+        pieces = drafts.isEmpty ? [RepairsDraftPiece()] : drafts
+        if let day = RepairsKit.filled(r.promisedDate), let d = ERPDate.parse(day) {
+            hasDate = true
+            promised = d
+        } else {
+            hasDate = false
+        }
+        karigarId = r.karigarId ?? ""
+        takenBy = r.takenBy ?? ""
+        note = r.internalNote ?? ""
     }
 
     /// New work starts on whoever is signed in (docs/decisions.md "Signed-in defaults"), when they are on the
@@ -106,8 +140,10 @@ struct RepairsForm: View {
         }
     }
 
+    /// Removed karigars are left out, save the one an edited ticket is already with.
     private var karigars: [Karigar] {
-        book.karigars.items.filter { (k: Karigar) -> Bool in RepairsKit.filled(k.deletedAt) == nil }
+        let current = editing?.karigarId ?? ""
+        return book.karigars.items.filter { (k: Karigar) -> Bool in RepairsKit.filled(k.deletedAt) == nil || k.id == current }
     }
 
     private var total: Double {
@@ -273,6 +309,24 @@ struct RepairsForm: View {
         }
     }
 
+    // MARK: Money taken (an edit)
+
+    /// What was paid on the ticket so far: the edit never changes it (Take payment does), as on the web.
+    @ViewBuilder
+    private func paidSection(_ r: Repair) -> some View {
+        if !r.payments.isEmpty {
+            Section {
+                ForEach(r.payments.indices, id: \.self) { i in
+                    LabeledContent(RepairsKit.paymentWords(r.payments[i]), value: Money.pkr(r.payments[i].amount))
+                }
+            } header: {
+                Text("Paid so far")
+            } footer: {
+                Text("Money taken stays as it is. A new payment is Take payment on the ticket.")
+            }
+        }
+    }
+
     // MARK: The shop
 
     private var shopSection: some View {
@@ -297,7 +351,7 @@ struct RepairsForm: View {
     /// a filter). Typing is for a house that has not named its counter people.
     @ViewBuilder
     private var takenByRow: some View {
-        let names = session.shop.takenBy
+        let names = takenByNames
         if names.isEmpty {
             TextField("Taken by", text: $takenBy)
                 .textInputAutocapitalization(.words)
@@ -316,12 +370,34 @@ struct RepairsForm: View {
         }
     }
 
+    /// The house's counter names, and an edited ticket's own name if it is not on the list (any longer),
+    /// so the picker shows it rather than nothing.
+    private var takenByNames: [String] {
+        var names = session.shop.takenBy
+        if names.isEmpty { return names }
+        if let own = RepairsKit.filled(editing?.takenBy), !names.contains(own) { names.append(own) }
+        return names
+    }
+
     // MARK: Save
 
     private func save() async {
         if !canSave { return }
         saving = true
         error = nil
+        if let r = editing {
+            do {
+                let out = try await ERPAPI.shared.write("updateRepair", ["repairId": r.id, "repair": payload()])
+                let doc = out["repair"] as? [String: Any] ?? [:]
+                onSaved(r.id, DocJSON.decode(Repair.self, id: r.id, data: doc))
+                saving = false
+                dismiss()
+            } catch {
+                self.error = error.localizedDescription
+                saving = false
+            }
+            return
+        }
         do {
             let out = try await ERPAPI.shared.write("addRepair", ["repair": payload()])
             let doc = out["repair"] as? [String: Any] ?? [:]
@@ -365,7 +441,8 @@ struct RepairsForm: View {
         if !by.isEmpty { repair["takenBy"] = by }
         let remark = RepairsKit.trimmed(note)
         if !remark.isEmpty { repair["internalNote"] = remark }
-        if advanceAmount > 0 {
+        // An advance is taken at intake only; an edit's money stays as it is.
+        if editing == nil && advanceAmount > 0 {
             repair["advance"] = advanceAmount
             repair["advanceMethod"] = method
         }

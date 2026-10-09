@@ -616,10 +616,10 @@ struct DashFigures {
                                 opensRates: true))
         }
 
-        // An online order nobody has looked at: the customer is waiting for the bank details. The native
-        // Orders hub has no inbox, so the row opens the ERP's own Orders page, which has.
+        // An online order nobody has looked at: the customer is waiting for the bank details. The row opens
+        // the online inbox (OnlineOrdersScreen), where each is confirmed or declined.
         if onlineWaiting > 0 {
-            add("/orders?web=1", .danger, onlineWaiting == 1 ? "An online order to confirm" : "\(onlineWaiting) online orders to confirm",
+            add("/orders/online", .danger, onlineWaiting == 1 ? "An online order to confirm" : "\(onlineWaiting) online orders to confirm",
                 "From taheri.shop · they get the bank details when you confirm")
         }
 

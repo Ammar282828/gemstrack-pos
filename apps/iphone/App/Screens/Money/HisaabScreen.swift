@@ -62,7 +62,8 @@ enum HisaabOrder: String, CaseIterable, Identifiable {
 
 /// Money → Hisaab (src/app/hisaab/page.tsx): customers' and karigars' outstanding accounts, what the
 /// shop will get and what it will give. Every figure is debit less credit over a person's rows, as the
-/// web works it. Opening a person shows their ledger; adding an entry and deleting one stay the ERP's page.
+/// web works it. Opening a person shows their ledger, where entries are written and deleted (HisaabLedgerScreen);
+/// Add entry here chooses the account first (HisaabAccountPicker). The summary PDF is the ERP's page.
 struct HisaabScreen: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -74,6 +75,10 @@ struct HisaabScreen: View {
     /// The Hisaab page re-checks the books' outstanding balances on every visit (syncHisaabOutstandingBalances);
     /// once per opening of this list is the same.
     @State private var synced = false
+    @State private var picking = false
+    /// Where the account picker sends us once it has closed, and the place pushed for it.
+    @State private var pending: Route?
+    @State private var go: Route?
 
     var body: some View {
         if session.isOwner {
@@ -96,10 +101,21 @@ struct HisaabScreen: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { filterMenu }
             ToolbarItem(placement: .primaryAction) {
-                NavigationLink(value: Route(path: MoneyPaths.hisaabWeb)) {
+                Button { picking = true } label: {
                     Label("Add entry", systemImage: "plus")
                 }
             }
+        }
+        .sheet(isPresented: $picking, onDismiss: {
+            if let next = pending {
+                pending = nil
+                go = next
+            }
+        }) {
+            HisaabAccountPicker { (route: Route) in pending = route }
+        }
+        .navigationDestination(item: $go) { (r: Route) in
+            HisaabDestination(path: r.path)
         }
         .task {
             book.hisaab.need()
@@ -147,10 +163,10 @@ struct HisaabScreen: View {
             }
             Section {
                 NavigationLink(value: Route(path: MoneyPaths.hisaabWeb)) {
-                    Label("Add an entry or export the report", systemImage: "safari")
+                    Label("Export the summary report", systemImage: "square.and.arrow.up")
                 }
             } footer: {
-                Text("Adding an entry and deleting one ask for the delete code, so they stay on the ERP's page.")
+                Text("The summary PDF is made on the ERP's own page. To add an entry, tap + and choose the account.")
             }
         }
         .listStyle(.insetGrouped)
@@ -366,5 +382,15 @@ private struct HisaabUnpaidLine: View {
 
     private var figures: String {
         "\(Money.pkr(invoice.amountPaid)) / \(Money.grouped(invoice.grandTotal)) · \(Money.pkr(invoice.balanceDue)) due"
+    }
+}
+
+/// A place pushed from the account picker: a native screen sits on the house's ground, as a tab's places do.
+private struct HisaabDestination: View {
+    let path: String
+
+    var body: some View {
+        ScreenRegistry.view(for: path)
+            .modifier(HouseGround())
     }
 }

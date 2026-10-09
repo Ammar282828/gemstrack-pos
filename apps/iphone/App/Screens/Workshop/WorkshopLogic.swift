@@ -69,6 +69,12 @@ struct WorkshopJob: Identifiable {
     var hasGiven: Bool { !(givenAt ?? "").isEmpty }
 }
 
+/// A metal the Assign Stock Work form offers.
+struct WorkshopMetal: Identifiable, Hashable {
+    let id: String
+    let title: String
+}
+
 /// One karigar's whole bench (`KarigarWorkload`): the counts the board and the list show.
 struct WorkshopLoad: Identifiable {
     let karigarId: String
@@ -561,11 +567,11 @@ enum WorkshopLogic {
 
     // MARK: Pay batches (karigars/page.tsx activeHisaabMap, karigars/[id]/page.tsx openBatch)
 
-    /// Each karigar's open pay batch, by karigar id: a batch with no `closedDate` is still open, and a karigar
-    /// normally has one (the newest is taken if he has more).
+    /// Each karigar's open pay batch, by karigar id: a batch with no `closedDate` is still open (ERPCore
+    /// KarigarPay.isOpen, lib/karigar-pay.ts), and a karigar normally has one (the newest is taken if he has more).
     static func openBatches(_ batches: [KarigarBatch]) -> [String: KarigarBatch] {
         var out: [String: KarigarBatch] = [:]
-        for b in batches where b.isOpen {
+        for b in batches where KarigarPay.isOpen(b) {
             if let have = out[b.karigarId], startTime(have) >= startTime(b) { continue }
             out[b.karigarId] = b
         }
@@ -576,10 +582,46 @@ enum WorkshopLogic {
         ERPDate.parse(b.startDate)?.timeIntervalSince1970 ?? 0
     }
 
-    /// What has been paid to him inside one batch: his expenses filed under it.
+    /// What has been paid to him inside one batch: his expenses filed under it (the total settling writes).
     static func paidInBatch(_ batch: KarigarBatch, expenses: [Expense]) -> Double {
-        expenses.reduce(0) { $0 + ($1.karigarId == batch.karigarId && $1.batchId == batch.id ? $1.amount : 0) }
+        KarigarPay.batchTotal(batch, expenses: expenses)
     }
+
+    // MARK: What a piece's write names (the ERP's ops)
+
+    /// Where a piece on the bench is kept, so the right write changes it: an order's piece, an invoice's piece, or a
+    /// stock job (its karigar_jobs id, the board's id without "job:"). Nil for a piece with neither.
+    enum WriteTarget: Equatable {
+        case order(id: String, index: Int)
+        case invoice(id: String, index: Int)
+        case stock(id: String)
+    }
+
+    static func writeTarget(_ job: WorkshopJob) -> WriteTarget? {
+        switch job.source {
+        case .order:
+            guard let id = job.orderId, let i = job.itemIndex else { return nil }
+            return .order(id: id, index: i)
+        case .invoice:
+            guard let id = job.invoiceId, let i = job.itemIndex else { return nil }
+            return .invoice(id: id, index: i)
+        case .manual:
+            guard job.id.hasPrefix("job:") else { return nil }
+            let id = String(job.id.dropFirst(4))
+            return id.isEmpty ? nil : .stock(id: id)
+        }
+    }
+
+    /// The categories the Assign Stock Work form offers, in the list's order (categories.ts staticCategories).
+    static var categoryIds: [String] {
+        categoryTitles.keys.sorted()
+    }
+
+    /// The Assign Stock Work form's metals, its words for them.
+    static let stockMetals: [WorkshopMetal] = [
+        WorkshopMetal(id: "gold", title: "Gold"), WorkshopMetal(id: "silver", title: "Silver"),
+        WorkshopMetal(id: "platinum", title: "Platinum"), WorkshopMetal(id: "palladium", title: "Palladium"),
+    ]
 
     // MARK: Words
 

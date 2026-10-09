@@ -13,7 +13,8 @@
 
 import type jsPDF from 'jspdf';
 import type { Order } from '@/lib/store';
-import { staticCategories, categorySingular } from '@/lib/store';
+// From their own module, not the store's re-export: the server draws the slip too (order-slip-pdf.ts).
+import { staticCategories, categorySingular } from '@/lib/categories';
 import { describeMetal, describeSettings } from '@/lib/materials';
 import type { ItemBlock } from '@/lib/invoice-item-cell';
 import { drawTotals, type TotalRow } from '@/lib/pdf-chrome';
@@ -87,9 +88,14 @@ export function buildOrderItemBlocks(order: Order): ItemBlock[] {
 export function drawOrderTotals(
   doc: jsPDF,
   order: Order,
-  opts: { pageWidth: number; pageHeight: number; margin: number; startY: number; onNewPage?: (n: number) => void },
+  opts: {
+    pageWidth: number; pageHeight: number; margin: number; startY: number; onNewPage?: (n: number) => void;
+    /** An advance's day ("9 Oct 2026"); the device's clock when left out, Karachi's from the server. */
+    day?: (iso: string) => string;
+  },
 ): number {
   const { pageWidth, pageHeight, margin, startY, onNewPage } = opts;
+  const day = opts.day ?? ((iso: string) => format(parseISO(iso), 'd MMM yyyy'));
   const cash = order.advancePayment || 0;
   const inKind = order.advanceInExchangeValue || 0;
   const discount = order.discountAmount || 0;
@@ -115,7 +121,7 @@ export function drawOrderTotals(
   const advances = orderAdvancePayments(order, '');
   if (advances.length > 1 || advances.some(a => a.method)) {
     for (const a of advances) {
-      const when = format(parseISO(a.date), 'd MMM yyyy');
+      const when = day(a.date);
       const note = a.notes?.replace(/^: /, '').trim();
       after.push({ label: `Advance ${when}${a.method ? ` · ${a.method}` : ''}${a.reference ? ` ${a.reference}` : ''}${note ? ` · ${note}` : ''}`, value: `- ${money(a.amount)}` });
     }

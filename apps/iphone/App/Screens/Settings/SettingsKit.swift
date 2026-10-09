@@ -137,6 +137,48 @@ struct SettingToggle: View {
     }
 }
 
+/// Files in and out of the settings screens: an import's file picked in Files (`.fileImporter`), and a file the
+/// ERP made (a backup, a tag's CSV) handed to the share sheet, where it can be saved to Files or sent.
+enum SettingsFiles {
+    /// The picked file's text. Files hands over a file outside the app, readable only while it says so.
+    static func text(at url: URL) throws -> String {
+        let open = url.startAccessingSecurityScopedResource()
+        defer { if open { url.stopAccessingSecurityScopedResource() } }
+        return String(decoding: try Data(contentsOf: url), as: UTF8.self)
+    }
+
+    /// The file written under its own name in the phone's temporary folder, for `ShareLink(item:)`.
+    static func save(_ data: Data, named name: String) throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("erp-settings", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let safe = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: "..", with: "-")
+        let url = dir.appendingPathComponent(safe.isEmpty ? "file" : safe)
+        try data.write(to: url, options: .atomic)
+        return url
+    }
+}
+
+/// A settings screen that is not drawn from the settings document: owners only, as every settings page is.
+struct SettingsOwnersOnly<Content: View>: View {
+    let title: String
+    private let content: () -> Content
+    @Environment(Session.self) private var session
+
+    init(title: String, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title
+        self.content = content
+    }
+
+    var body: some View {
+        if session.isOwner {
+            content()
+        } else {
+            ContentUnavailableView("Owners only", systemImage: "lock", description: Text("Settings are the owners’."))
+                .navigationTitle(title)
+        }
+    }
+}
+
 /// What went wrong with the last save, where the person is looking.
 struct SettingsErrorSection: View {
     let writer: SettingsWriter

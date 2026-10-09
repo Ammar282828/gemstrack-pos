@@ -46,7 +46,7 @@ enum StockKit {
     static let bulkAddPath = "/products/bulk-add"
     static let newSalePath = "/invoices/new"
 
-    /// Pages under /products/ that are not a piece: the forms (adding is native, bulk adding the ERP's).
+    /// Pages under /products/ that are not a piece: the forms (adding one, adding many).
     static let ownPages: Set<String> = [addPath, bulkAddPath]
 
     /// A title for an ERP page opened from here (a native screen names itself; a web page does not).

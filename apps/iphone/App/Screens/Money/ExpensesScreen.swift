@@ -2,10 +2,12 @@ import SwiftUI
 import ERPCore
 
 /// Money → Expenses (src/app/expenses/page.tsx): every expense in a period, grouped by day, week or
-/// month with a subtotal for each group, with the page's tiles, a category filter and search. Adding
-/// is native; Edit and Delete ask for the delete code, so they stay the ERP's page (a swipe on a row
-/// opens it). The period and the grouping are two different questions, as on the web: how far back
-/// to look, and how coarsely to bucket what is there.
+/// month with a subtotal for each group, with the page's tiles, a category filter and search. Adding,
+/// editing and deleting are native (a swipe or a long press on a row): Delete asks for the delete code,
+/// which the ERP checks with the delete itself. A partner's drawing is the Shareholders page's, where it
+/// goes with its withdrawal, so its row points there instead. The report PDF is drawn by the ERP's page.
+/// The period and the grouping are two different questions, as on the web: how far back to look, and
+/// how coarsely to bucket what is there.
 struct ExpensesScreen: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -18,7 +20,10 @@ struct ExpensesScreen: View {
     /// "" is every category.
     @State private var category = ""
     @State private var adding = false
+    @State private var editing: Expense?
+    @State private var deletion: OwnerDeletion?
     @State private var openWeb = false
+    @State private var openShareholders = false
     @State private var note: ExpenseSavedNote?
 
     var body: some View {
@@ -46,8 +51,21 @@ struct ExpensesScreen: View {
                 withAnimation { note = saved }
             }
         }
+        .sheet(item: $editing) { (e: Expense) in
+            ExpenseEditSheet(expense: e, categories: sheetCategories, partnership: session.shop.partnership) { (saved: ExpenseSavedNote) in
+                withAnimation { note = saved }
+            }
+        }
+        .sheet(item: $deletion) { (d: OwnerDeletion) in
+            OwnerDeleteCodeSheet(deletion: d) {
+                withAnimation { note = ExpenseSavedNote(title: "Expense deleted", detail: "The record has been removed.") }
+            }
+        }
         .navigationDestination(isPresented: $openWeb) {
             PlaceScreen(path: MoneyPaths.expensesWeb)
+        }
+        .navigationDestination(isPresented: $openShareholders) {
+            PlaceScreen(path: MoneyPaths.shareholders)
         }
         .overlay(alignment: .bottom) {
             if let note {
@@ -110,10 +128,10 @@ struct ExpensesScreen: View {
             }
             Section {
                 Button { openWeb = true } label: {
-                    Label("Edit or delete an expense", systemImage: "safari")
+                    Label("Expense report (PDF)", systemImage: "doc.richtext")
                 }
             } footer: {
-                Text("Editing and deleting ask for the delete code, so they stay on the ERP's page.")
+                Text("The report is drawn by the ERP's page, for the period and filters chosen there.")
             }
         }
         .listStyle(.insetGrouped)
@@ -200,11 +218,31 @@ struct ExpensesScreen: View {
             trailing: Money.pkr(e.amount)
         )
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button { openWeb = true } label: { Label("Edit or delete", systemImage: "pencil") }
-                .tint(.blue)
+            if ExpenseEditing.isDrawing(e, partnership: session.shop.partnership) {
+                Button { openShareholders = true } label: { Label("Shareholders", systemImage: "person.2") }
+                    .tint(.indigo)
+            } else {
+                Button(role: .destructive) { askDelete(e) } label: { Label("Delete", systemImage: "trash") }
+                Button { editing = e } label: { Label("Edit", systemImage: "pencil") }
+                    .tint(.blue)
+            }
         }
         .contextMenu {
-            Button { openWeb = true } label: { Label("Edit or delete on the ERP's page", systemImage: "safari") }
+            if ExpenseEditing.isDrawing(e, partnership: session.shop.partnership) {
+                Button { openShareholders = true } label: { Label("Change this on Shareholders", systemImage: "person.2") }
+            } else {
+                Button { editing = e } label: { Label("Edit", systemImage: "pencil") }
+                Button(role: .destructive) { askDelete(e) } label: { Label("Delete", systemImage: "trash") }
+            }
+        }
+    }
+
+    /// The web's "Delete this expense?" and the code, in one sheet: what goes is said before the code is
+    /// asked for. The ERP checks the code with the delete (`deleteExpense`).
+    private func askDelete(_ e: Expense) {
+        let id = e.id
+        deletion = OwnerDeletion(what: ExpenseEditing.deleteWhat(e), detail: "Delete this expense? \(ExpenseEditing.deleteDetail(e))") { code in
+            _ = try await ERPAPI.shared.write("deleteExpense", ["expenseId": id, "deleteCode": code])
         }
     }
 

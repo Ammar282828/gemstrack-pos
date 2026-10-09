@@ -12,6 +12,7 @@ struct CustomersList: View {
     @Environment(\.openURL) private var openURL
     @State private var search = ""
     @State private var showing: Showing = .everyone
+    @State private var merging = false
 
     init() {}
 
@@ -57,6 +58,9 @@ struct CustomersList: View {
                     Label("Add customer", systemImage: "plus")
                 }
             }
+        }
+        .sheet(isPresented: $merging) {
+            CustomerMergeSheet()
         }
         .task {
             book.customers.need()
@@ -133,12 +137,19 @@ struct CustomersList: View {
                 group("Recent", "bought in the last \(CustomerKit.dormantAfterMonths) months", shown.active, f.stats)
                 group("Quiet", "no sale in a year", shown.quiet, f.stats)
             }
-            Section {
-                NavigationLink(value: Route(path: "/customers?web=1")) {
-                    Label("Merge duplicates or clean up spam", systemImage: "person.2")
+            // Clearing up the book is an owner's: the web's merge and removals are browser writes the shop floor cannot make.
+            if session.isOwner {
+                Section {
+                    Button { merging = true } label: {
+                        Label("Merge duplicates", systemImage: "person.2")
+                    }
+                    // The spam finder (gibberish names and addresses with no number, history or address) stays the ERP's.
+                    NavigationLink(value: Route(path: "/customers?web=1")) {
+                        Label("Clean up spam", systemImage: "trash")
+                    }
+                } footer: {
+                    Text("Merging moves one customer's invoices, orders and hisaab to another, and asks for the delete code. Cleaning up spam opens on the ERP's own page.")
                 }
-            } footer: {
-                Text("These two open on the ERP's own page.")
             }
         }
         .listStyle(.insetGrouped)

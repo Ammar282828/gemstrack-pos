@@ -2,9 +2,11 @@ import SwiftUI
 import ERPCore
 
 /// One piece on the bench (src/components/karigar/job-card.tsx, the Workshop's JobRow): what it is, who has it,
-/// whether it has left the shop, and the three things an owner does to an order's piece: pick a karigar,
-/// tick it Given, tick it Done. Assigning, handing over and finishing are three different moments, and a name
-/// picked is not gold gone. A piece off an invoice or a stock job has no native write yet: it links to the ERP.
+/// whether it has left the shop, and what an owner does to it, each a write through the ERP. An order's piece and a
+/// sold piece (an invoice's line): pick a karigar, tick it Given, tick it Done. A stock job (written up by hand, for
+/// the shop's own stock, a repair or a sample) keeps the karigar it was written for: tick it Given, set its status,
+/// change its making details, delete it (the delete code). Assigning, handing over and finishing are three different
+/// moments, and a name picked is not gold gone. An order's or a sold piece's making details are the ERP's page.
 struct WorkshopJobRow: View {
     let job: WorkshopJob
     /// Name the karigar on the row (the stage and list layouts; the karigar layout already says it).
@@ -15,9 +17,20 @@ struct WorkshopJobRow: View {
     let choices: WorkshopChoices
     let actions: WorkshopActions
 
-    /// Only an order's piece can be changed from the phone, and only by an owner (the ERP refuses anyone else).
+    /// Only an owner changes a piece (the ERP refuses anyone else), and only one the ERP can find again.
     private var canWrite: Bool {
-        isOwner && job.source == .order && job.orderId != nil && job.itemIndex != nil
+        isOwner && WorkshopLogic.writeTarget(job) != nil
+    }
+
+    private var isStock: Bool { job.source == .manual }
+
+    /// The stock job's status in the ERP's words.
+    private var stockStatus: KarigarJobStatus {
+        switch job.status {
+        case .pending: return .pending
+        case .inProgress: return .inProgress
+        case .completed: return .completed
+        }
     }
 
     var body: some View {
@@ -43,6 +56,11 @@ struct WorkshopJobRow: View {
             }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if canWrite && !busy && isStock {
+                Button(role: .destructive) { actions.delete(job) } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
             if canWrite && !busy && !job.isDone && !job.isUnassigned {
                 Button { actions.given(job, !job.hasGiven) } label: {
                     Label(job.hasGiven ? "Not given" : "Given", systemImage: "shippingbox")
@@ -169,7 +187,22 @@ struct WorkshopJobRow: View {
 
     @ViewBuilder
     private var controls: some View {
-        if canWrite && !job.isDone {
+        if canWrite && isStock {
+            // A stock job's controls stay while it is done too (the web's): its status can go back, it can be deleted.
+            VStack(alignment: .leading, spacing: 6) {
+                if !job.isDone && !job.isUnassigned { givenToggle }
+                HStack(spacing: 8) {
+                    statusMenu
+                    Button { actions.details(job) } label: {
+                        Label("Details", systemImage: "pencil").font(.subheadline)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(busy)
+                }
+            }
+            .padding(.top, 2)
+        } else if canWrite && !job.isDone {
             // Who has it, and whether it has gone: nothing else on the card. A piece with nobody yet has nothing to
             // hand over, so no switch; the ERP's details are in the card's menu.
             VStack(alignment: .leading, spacing: 6) {
@@ -184,8 +217,31 @@ struct WorkshopJobRow: View {
         }
     }
 
-    /// The making details (name, size, weight, instructions, sample picture) are edited on the ERP's Workshop page.
-    private var showsDetails: Bool { isOwner && job.source == .order }
+    /// An order's or a sold piece's making details (name, size, weight, instructions, sample picture) are edited on
+    /// the ERP's Workshop page; a stock job's are the Details sheet.
+    private var showsDetails: Bool { isOwner && !isStock }
+
+    private var statusMenu: some View {
+        Menu {
+            ForEach(WorkshopStatusWords.choices, id: \.rawValue) { s in
+                Button {
+                    if s != stockStatus { actions.status(job, s) }
+                } label: {
+                    if s == stockStatus {
+                        Label(WorkshopStatusWords.say(s), systemImage: "checkmark")
+                    } else {
+                        Label(WorkshopStatusWords.say(s), systemImage: WorkshopStatusWords.symbol(s))
+                    }
+                }
+            }
+        } label: {
+            Label(WorkshopStatusWords.say(stockStatus), systemImage: WorkshopStatusWords.symbol(stockStatus))
+                .font(.subheadline)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .disabled(busy)
+    }
 
     private var assignMenu: some View {
         let assigned = !job.isUnassigned
@@ -239,8 +295,7 @@ struct WorkshopJobRow: View {
         return "Given to karigar"
     }
 
-    /// A piece the phone cannot change: who has it and whether it went, with the way into the ERP for those
-    /// who can change it there.
+    /// A piece the phone does not change (staff's view): who has it and whether it went.
     @ViewBuilder
     private var readOnlyControls: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -255,26 +310,7 @@ struct WorkshopJobRow: View {
                 }
             }
             .font(.subheadline)
-            if isOwner, let place = webPlace {
-                Button { actions.open(place) } label: {
-                    Label(webWords, systemImage: "arrow.up.right.square").font(.subheadline)
-                }
-                .buttonStyle(.borderless)
-            }
         }
-    }
-
-    /// Where an invoice's piece, or a stock job, is assigned and given out until the phone can: the ERP's Workshop
-    /// page (the invoice's own page has no such controls).
-    private var webPlace: WorkshopPlace? {
-        switch job.source {
-        case .invoice, .manual: return WorkshopPlace.workshopPage
-        case .order: return nil
-        }
-    }
-
-    private var webWords: String {
-        job.source == .invoice ? "Assign or give out in the ERP" : "Update or delete in the ERP"
     }
 
     // MARK: Long press
@@ -286,7 +322,7 @@ struct WorkshopJobRow: View {
                 Label("Open " + (job.invoiceId ?? job.orderId ?? ""), systemImage: "doc.text")
             }
         }
-        if !job.isUnassigned && job.source != .manual {
+        if !job.isUnassigned {
             Button { actions.open(WorkshopPlace.karigar(job.karigarId)) } label: {
                 Label("Open " + job.karigarName, systemImage: "hammer")
             }
@@ -303,6 +339,14 @@ struct WorkshopJobRow: View {
             if !job.isDone && !job.isUnassigned {
                 Button { actions.given(job, !job.hasGiven) } label: {
                     Label(job.hasGiven ? "Mark not given" : "Mark given", systemImage: "shippingbox")
+                }
+            }
+            if isStock {
+                Button { actions.details(job) } label: {
+                    Label("Details", systemImage: "pencil")
+                }
+                Button(role: .destructive) { actions.delete(job) } label: {
+                    Label("Delete job", systemImage: "trash")
                 }
             }
         }

@@ -3,10 +3,11 @@ import ERPCore
 
 /// An invoice, for the shop (src/components/invoice/invoice-viewer.tsx): its pieces and figures,
 /// payments, taking a payment, the customer's page to share, and who it was for (named or changed
-/// here, set-customer-dialog.tsx). The PDF is the ERP page's own (lib/invoice-pdf.ts draws it in the
-/// browser, and the server has no copy): Print and Taheri's WhatsApp send open that page doing it
-/// (`?do=print`, `?do=share`), and House of Mina's link goes from here. Edit, the discount, refund and
-/// delete open the ERP's own page (they need its delete code).
+/// here, set-customer-dialog.tsx). The PDF is the one Print saves (lib/invoice-pdf.ts), drawn on the ERP's
+/// server and shown here (PDFDocumentScreen), to print or share; Taheri's WhatsApp send has the server draw
+/// and send it from the shop's line, and House of Mina's link goes from here. Edit is New sale's own form;
+/// the discount, deleting a payment, a refund and deleting the invoice are native sheets (InvoiceAction*,
+/// owners, the last three behind the delete code).
 struct InvoiceScreen: View {
     let id: String
 
@@ -20,7 +21,13 @@ struct InvoiceScreen: View {
     @State private var confirmingSend = false
     /// House of Mina's: the number and the words, then WhatsApp on this phone.
     @State private var sendingLink = false
+    /// Taheri's PDF on its way from the shop's line, and the ERP's words when it could not go.
+    @State private var sendingPDF = false
+    @State private var sendFailed: String?
+    @State private var pdf: InvoicePDFTarget?
     @State private var note: InvoiceNote?
+    @State private var acting: InvoiceAct?
+    @Environment(\.dismiss) private var dismiss
 
     private var canPay: Bool { InvoiceFacts.mayTakePayments(role: session.role) }
 
@@ -86,6 +93,9 @@ struct InvoiceScreen: View {
                 .navigationTitle(inv.id)
                 .navigationBarTitleDisplayMode(.inline)
         }
+        .navigationDestination(item: $pdf) { t in
+            PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
+        }
         .invoicePaymentSheet(for: $paying)
         .sheet(isPresented: $settingCustomer) {
             InvoiceCustomerSheet(invoice: inv) { (saved: InvoiceNote) in
@@ -95,15 +105,39 @@ struct InvoiceScreen: View {
         .sheet(isPresented: $sendingLink) {
             InvoiceWhatsAppSheet(invoice: inv, phone: whatsAppPhone(inv))
         }
+        .sheet(item: $acting) { a in
+            switch a {
+            case .discount: InvoiceActionDiscountSheet(invoice: inv, onDone: acted)
+            case .payment: InvoiceActionPaymentSheet(invoice: inv, onDone: acted)
+            case .refund: InvoiceActionRefundSheet(invoice: inv, onDone: acted)
+            case .delete: InvoiceActionDeleteSheet(invoice: inv, onDone: acted)
+            }
+        }
         .confirmationDialog(sendTitle(inv), isPresented: $confirmingSend, titleVisibility: .visible) {
-            Button(inv.sentOnWhatsApp == nil ? "Send the PDF" : "Send it again") { openWeb(inv, doing: "share") }
+            Button(inv.sentOnWhatsApp == nil ? "Send the PDF" : "Send it again") { Task { await sendPDF(inv) } }
             // The ERP page's box takes another number; its Send goes to whatever is typed there.
             Button("Another number…") { openWeb(inv) }
         } message: {
             Text(sendWords(inv))
         }
+        // As the web's error toast: the shop's line could not send, so the link can go from this phone instead.
+        .alert("Could not send the PDF", isPresented: sendFailedShown) {
+            if InvoiceFacts.shareURL(inv) != nil {
+                Button("Send a link") { sendingLink = true }
+            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(sendFailed ?? "")
+        }
         .overlay(alignment: .top) {
-            if let note {
+            if sendingPDF {
+                Label("Sending the PDF…", systemImage: "paperplane")
+                    .font(.footnote.weight(.medium))
+                    .padding(.horizontal, 14).padding(.vertical, 7)
+                    .glassEffect(.regular, in: .capsule)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            } else if let note {
                 InvoiceNoteBanner(note: note)
                     .padding(.horizontal)
                     .padding(.top, 8)
@@ -408,10 +442,10 @@ struct InvoiceScreen: View {
     }
 
     /// The ERP page's Send via WhatsApp, by house (STORE_INVOICE_WHATSAPP_PDF). Taheri sends the PDF itself from
-    /// the shop's line: the page draws it (Print's PDF), the ERP sends it and notes the send on the invoice, so it
-    /// is asked first and then done there, as the voice assistant does it. With no number on file the page opens
-    /// for one to be typed. House of Mina writes the message and the customer's link into WhatsApp here, unless the
-    /// invoice predates its link's key, which the page makes as it sends.
+    /// the shop's line: the ERP draws it (Print's PDF) and sends it and notes the send on the invoice, so it is
+    /// asked first and then done from here (InvoiceFacts.sendPDF). With no number on file, or for another number,
+    /// the page opens for one to be typed. House of Mina writes the message and the customer's link into WhatsApp
+    /// here, unless the invoice predates its link's key, which the page makes as it sends.
     private func sendOnWhatsApp(_ inv: Invoice) {
         if session.shop.invoiceWhatsappPdf {
             if CustomerKit.whatsAppNumber(whatsAppPhone(inv)).isEmpty { openWeb(inv) } else { confirmingSend = true }
@@ -422,6 +456,27 @@ struct InvoiceScreen: View {
         }
     }
 
+    /// invoice-viewer.tsx `handleSendWhatsApp`: sent, said as its toast says it; refused, the ERP's words.
+    private func sendPDF(_ inv: Invoice) async {
+        guard !sendingPDF else { return }
+        withAnimation { sendingPDF = true }
+        defer { withAnimation { sendingPDF = false } }
+        do {
+            let sent = try await InvoiceFacts.sendPDF(inv, to: whatsAppPhone(inv))
+            let name = InvoiceFacts.customerName(inv, walkIn: "")
+            withAnimation {
+                note = InvoiceNote(title: "Sent to \(name.isEmpty ? sent.to : name)",
+                                   detail: "\(sent.fileName) — on WhatsApp, from the shop's number.")
+            }
+        } catch {
+            sendFailed = error.localizedDescription
+        }
+    }
+
+    private var sendFailedShown: Binding<Bool> {
+        Binding(get: { sendFailed != nil }, set: { if !$0 { sendFailed = nil } })
+    }
+
     private func sendTitle(_ inv: Invoice) -> String {
         let to = whatsAppPhone(inv)
         return inv.sentOnWhatsApp == nil ? "Send the PDF to \(to)?" : "Send the PDF to \(to) again?"
@@ -429,7 +484,7 @@ struct InvoiceScreen: View {
 
     /// What happens, and that it went before (the web shows the send under its button so nobody sends twice).
     private func sendWords(_ inv: Invoice) -> String {
-        var s = "From the shop's own WhatsApp, with what is owed written under it. The ERP's page draws the PDF and sends it."
+        var s = "From the shop's own WhatsApp, with what is owed written under it: the PDF Print saves, drawn and sent by the ERP."
         if let sent = inv.sentOnWhatsApp {
             s += " Already sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))."
         }
@@ -444,8 +499,16 @@ struct InvoiceScreen: View {
             }
             Divider()
         }
-        // The PDF Print saves, drawn by the ERP's page and handed to the share sheet (Print, Files, AirDrop).
-        Button { openWeb(inv, doing: "print") } label: { Label("Print / PDF", systemImage: "printer") }
+        // The PDF Print saves, drawn on the ERP's server and shown here: Print, Files, AirDrop from its share sheet.
+        Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer) } label: {
+            Label("Print / PDF", systemImage: "printer")
+        }
+        // The split button's other half (print-button.tsx): one invoice per piece, for pieces bought for several people.
+        if inv.items.count > 1 {
+            Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer, perPiece: true) } label: {
+                Label("Print per piece", systemImage: "doc.on.doc")
+            }
+        }
         Button { sendOnWhatsApp(inv) } label: {
             Label(inv.sentOnWhatsApp == nil ? "Send on WhatsApp" : "Send again on WhatsApp", systemImage: "message")
         }
@@ -457,16 +520,27 @@ struct InvoiceScreen: View {
                     Label(unnamed(inv) ? "Name the customer" : "Change the customer", systemImage: "person.crop.circle")
                 }
             }
-            Button { openWeb(inv) } label: { Label("Change the discount", systemImage: "percent") }
+            Button { act(.discount, inv) } label: { Label("Change the discount", systemImage: "percent") }
         }
         if !inv.paymentHistory.isEmpty {
-            Button(role: .destructive) { openWeb(inv) } label: { Label("Delete a payment", systemImage: "banknote") }
+            Button(role: .destructive) { act(.payment, inv) } label: { Label("Delete a payment", systemImage: "banknote") }
         }
         Divider()
         if inv.status != .refunded {
-            Button(role: .destructive) { openWeb(inv) } label: { Label("Refund", systemImage: "arrow.uturn.backward") }
+            Button(role: .destructive) { act(.refund, inv) } label: { Label("Refund", systemImage: "arrow.uturn.backward") }
         }
-        Button(role: .destructive) { openWeb(inv) } label: { Label("Delete", systemImage: "trash") }
+        Button(role: .destructive) { act(.delete, inv) } label: { Label("Delete", systemImage: "trash") }
+    }
+
+    /// An owner's sheet; the shop floor keeps the ERP's page, which says it is an owner's (the server refuses
+    /// staff either way).
+    private func act(_ a: InvoiceAct, _ inv: Invoice) {
+        if session.isOwner { acting = a } else { openWeb(inv) }
+    }
+
+    /// After a sheet: its note on the page, or back to the list when the invoice is gone.
+    private func acted(_ o: InvoiceActionOutcome) {
+        if o.removed { dismiss() } else { withAnimation { note = o.note } }
     }
 }
 
@@ -652,4 +726,10 @@ private struct InvoiceMarginRow: View {
         }
         return s
     }
+}
+
+/// The invoice's own actions, each a sheet (InvoiceAction*).
+enum InvoiceAct: String, Identifiable {
+    case discount, payment, refund, delete
+    var id: String { rawValue }
 }
