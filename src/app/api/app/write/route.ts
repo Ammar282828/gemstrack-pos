@@ -301,7 +301,8 @@ export async function POST(req: NextRequest) {
             rates: cleanRates((body.rates as Record<string, unknown>) || {}),
             by: personFor(email) || email,
             mainKey: mainRate(STORE_CONFIG.defaultMetal).key,
-            source: 'the iPhone app',
+            // gold.pk when the rates were filled from it (the rate sheet's button), else the app itself.
+            source: text(body.source) === 'gold.pk' ? 'gold.pk' : 'the iPhone app',
           }, { log });
           return NextResponse.json({ ok: true, ...out, followUps });
         }
