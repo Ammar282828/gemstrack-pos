@@ -23,6 +23,8 @@ final class ERPUITests: XCTestCase {
         "/expenses", "/additional-revenue", "/hisaab", "/hisaab/KAR-D1?type=karigar",
         "/analytics", "/analytics/sales", "/analytics/products", "/analytics/customers", "/analytics/categories",
         "/invoices/INV-D0002", "/orders/ORD-D0002", "/customers/CUST-D06", "/app/phone",
+        "/settings", "/app/settings/shop", "/settings/alerts", "/settings/payment-methods", "/settings/data",
+        "/posts", "/marketing/pieces", "/marketing/website", "/ads", "/ads/campaigns",
     ]
 
     func testEveryPlaceOpensAndTheAppStaysUp() {

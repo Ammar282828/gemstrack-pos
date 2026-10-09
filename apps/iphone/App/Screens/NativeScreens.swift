@@ -19,6 +19,8 @@ enum NativeScreens {
             WorkshopRoutes.all,
             MoneyRoutes.all,
             AnalyticsRoutes.all,
+            // Posts, the website's pieces and the Ads overview and campaigns; the heavy editors stay the ERP's pages.
+            MarketingRoutes.all,
         ].flatMap { $0 }
     }
 }

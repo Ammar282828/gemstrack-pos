@@ -5768,8 +5768,8 @@
         "typedRates" : [
 
         ],
-        "walkInCustomerName" : "",
-        "walkInCustomerPhone" : ""
+        "walkInCustomerName" : "Sana Demo",
+        "walkInCustomerPhone" : "+923000000101"
       },
       "house" : "taheri",
       "name" : "a named customer pays part by card",
@@ -5931,8 +5931,8 @@
         "typedRates" : [
 
         ],
-        "walkInCustomerName" : "",
-        "walkInCustomerPhone" : ""
+        "walkInCustomerName" : "Bilal Example",
+        "walkInCustomerPhone" : "+923000000102"
       },
       "house" : "taheri",
       "name" : "a named customer overpays, so the credit is held",
@@ -6583,8 +6583,8 @@
         "typedRates" : [
 
         ],
-        "walkInCustomerName" : "",
-        "walkInCustomerPhone" : ""
+        "walkInCustomerName" : "Sana Demo",
+        "walkInCustomerPhone" : "+923000000101"
       },
       "house" : "taheri",
       "name" : "two exchange rows",
@@ -6784,8 +6784,8 @@
         "typedRates" : [
 
         ],
-        "walkInCustomerName" : "",
-        "walkInCustomerPhone" : ""
+        "walkInCustomerName" : "Bilal Example",
+        "walkInCustomerPhone" : "+923000000102"
       },
       "house" : "taheri",
       "name" : "an exchange worth more than the pieces, for a named customer",
@@ -6972,8 +6972,8 @@
         "typedRates" : [
 
         ],
-        "walkInCustomerName" : "",
-        "walkInCustomerPhone" : ""
+        "walkInCustomerName" : "Sana Demo",
+        "walkInCustomerPhone" : "+923000000101"
       },
       "house" : "taheri",
       "name" : "three payments by three methods",
@@ -8272,8 +8272,8 @@
         "typedRates" : [
 
         ],
-        "walkInCustomerName" : "",
-        "walkInCustomerPhone" : ""
+        "walkInCustomerName" : "Sana Demo",
+        "walkInCustomerPhone" : "+923000000101"
       },
       "house" : "taheri",
       "name" : "paise in the total, part paid",
@@ -8885,8 +8885,8 @@
         "typedRates" : [
 
         ],
-        "walkInCustomerName" : "",
-        "walkInCustomerPhone" : ""
+        "walkInCustomerName" : "Bilal Example",
+        "walkInCustomerPhone" : "+923000000102"
       },
       "house" : "taheri",
       "name" : "a one-crore piece",
@@ -10375,8 +10375,8 @@
         "typedRates" : [
 
         ],
-        "walkInCustomerName" : "",
-        "walkInCustomerPhone" : ""
+        "walkInCustomerName" : "Sana Demo",
+        "walkInCustomerPhone" : "+923000000101"
       },
       "house" : "taheri",
       "name" : "every optional field of a sale",
@@ -10794,8 +10794,8 @@
         "typedRates" : [
 
         ],
-        "walkInCustomerName" : "",
-        "walkInCustomerPhone" : ""
+        "walkInCustomerName" : "Sana Demo",
+        "walkInCustomerPhone" : "+923000000101"
       },
       "house" : "mina",
       "name" : "silver and gold mixed",
@@ -11887,8 +11887,8 @@
         "typedRates" : [
 
         ],
-        "walkInCustomerName" : "",
-        "walkInCustomerPhone" : ""
+        "walkInCustomerName" : "Bilal Example",
+        "walkInCustomerPhone" : "+923000000102"
       },
       "house" : "mina",
       "name" : "a named customer overpays a silver sale",
