@@ -86,6 +86,13 @@ as version 2.0; `apps/iphone/CONVENTIONS.md` is its rulebook.
 - **Every ERP place.** The menus are `lib/nav.ts` exported per house (`npm run nav:export`; a test fails when stale).
   A path with a native screen opens it; any other path, or `?web=1`, opens the ERP page inside the app, without its
   sidebar and top bar ("ERPNative/" in the user agent), signed in by itself with the app's Google token.
+- **What is still the ERP's page** (2026-10-09, after every operational page went native): the designers (Post a piece's
+  story and square, the Ad studio, re-making a site photo on Edit a piece); PDFs still drawn only in the browser (the
+  hisaab ledger and its reminder, the expense report, the repair receipt; the invoice and the workshop slip are drawn
+  on the server, `/api/app/pdf/*`, and shown natively); an order's Give out and a sold piece's workshop details (sample
+  photo, admin note); a stock piece's photo; the voice order; Backups' Restore (a mass merge with no undo, kept to the
+  browser's rules) and the one-off Taheri book import; the customers' spam finder; Ads' Facebook Connect (opens Safari:
+  the callback checks a cookie the app's session cannot hold).
 - **Liquid Glass** on the control layer only: four tabs (Home, Orders, Invoices, Customers) and Search, which is also the
   whole map, Settings and the account (an iPhone shows five tabs; a sixth folded two away); New sale · Order · Scan as the
   tab bar's accessory; the rate chip on each tab's first screen for owners.

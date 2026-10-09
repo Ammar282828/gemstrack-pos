@@ -81,18 +81,18 @@ extension AdsAPI {
     // MARK: Who sees it
 
     static func places(_ q: String) async throws -> [AdsPlace] {
-        try await ERPAPI.shared.get("/api/ads/search?type=place&q=\(AdsQuery.escape(q))", as: AdsResults<AdsPlace>.self).results
+        try await ERPAPI.shared.get("/api/ads/search?type=place&q=\(AdsQuery.escape(q))", as: AdsSearchResults<AdsPlace>.self).results
             .filter { (p: AdsPlace) in !p.key.isEmpty }
     }
 
     static func interests(_ q: String) async throws -> [AdsInterestHit] {
-        try await ERPAPI.shared.get("/api/ads/search?type=interest&q=\(AdsQuery.escape(q))", as: AdsResults<AdsInterestHit>.self).results
+        try await ERPAPI.shared.get("/api/ads/search?type=interest&q=\(AdsQuery.escape(q))", as: AdsSearchResults<AdsInterestHit>.self).results
             .filter { (i: AdsInterestHit) in !i.id.isEmpty }
     }
 
     static func suggestions(_ names: [String]) async throws -> [AdsInterestHit] {
         let list = AdsQuery.escape(names.joined(separator: ","))
-        return try await ERPAPI.shared.get("/api/ads/search?type=suggest&names=\(list)", as: AdsResults<AdsInterestHit>.self).results
+        return try await ERPAPI.shared.get("/api/ads/search?type=suggest&names=\(list)", as: AdsSearchResults<AdsInterestHit>.self).results
             .filter { (i: AdsInterestHit) in !i.id.isEmpty }
     }
 

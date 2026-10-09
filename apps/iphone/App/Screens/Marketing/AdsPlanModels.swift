@@ -590,7 +590,7 @@ struct AdsTemplate: Decodable {
 // MARK: Who sees it
 
 /// Search results (/api/ads/search), read leniently.
-struct AdsResults<T: Decodable>: Decodable {
+struct AdsSearchResults<T: Decodable>: Decodable {
     let results: [T]
 
     private enum K: String, CodingKey { case results }
