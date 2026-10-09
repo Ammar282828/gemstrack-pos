@@ -41,6 +41,7 @@ import type { OpHandler, OpRoles } from './op-context';
 import { PEOPLE_OPS, runPeopleOp } from './ops-people';
 import { STOCK_OPS, runStockOp } from './ops-stock';
 import { INVOICE_OPS, runInvoiceOp } from './ops-invoices';
+import { MONEY_OPS, runMoneyOp } from './ops-money';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,6 +83,7 @@ const GROUPS: { roles: OpRoles; run: OpHandler }[] = [
   { roles: PEOPLE_OPS, run: runPeopleOp },
   { roles: STOCK_OPS, run: runStockOp },
   { roles: INVOICE_OPS, run: runInvoiceOp },
+  { roles: MONEY_OPS, run: runMoneyOp },
 ];
 
 const OPS: OpRoles = Object.assign({}, OWN_OPS, ...GROUPS.map((g) => g.roles));

@@ -5,7 +5,7 @@ import SwiftUI
 /// `/hisaab/<id>` carries `?type=customer|karigar`, which the screen reads itself (`exact` would drop
 /// the query), so that route matches the bare path and hands the whole path to the screen. `?web=1`
 /// (add an entry, delete, print) never reaches these: the registry opens the ERP's page first.
-/// `/overheads` stays the ERP's own page.
+/// `/overheads` is the Owner group's (OverheadsScreen).
 enum MoneyRoutes {
     static var all: [ScreenRoute] {
         let ledger = ScreenRoute(
