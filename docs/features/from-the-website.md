@@ -34,7 +34,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   (name, weight, facts, 🌐 the piece's link, then `NEXT_PUBLIC_STORE_POST_FOOTER` or "Ask for today's price" + numbers; Mina also
   `_POST_TAGLINE`), **Write with AI** for both houses (`/api/website/site-pieces/caption`: the model writes only a line and the facts, in
   the house's voice with its own community posts as examples; the POS builds the frame), a **weight overlay** (stampPhoto, on by default
-  only where the site photo doesn't show the weight — `weightSource !== 'label'`), and where it goes: any of the community's groups
+  only where the site photo doesn't show the weight — `weightSource !== 'label'`; a weight typed for one of taheri.shop's photographs that has none is saved to the site when the piece is sent or queued, as Website → Weights saves it, never over a weight the site has — `lib/website/site-weight.ts`, 2026-10-09), and where it goes: any of the community's groups
   (`WHATSAPP_POST_GROUPS`, Label=chat id; Taheri: Announcements, Diamonds, Gemstones, Investments, Exclusives, Watches), the channel, or
   **Both** — `/api/website/post` with `targets` (keys, never chat ids; Post a Piece sends with `targets` too since 2026-09-25).
   Mina's POS got the page as a port onto its branch (c045a60; recorded in main with a `-s ours` merge, the other session's way).

@@ -32,11 +32,16 @@ import { siteDetailsLine } from '@/lib/social/site-design';
 import { STORE_BRAND, STORE_MARK_SVG, STORE_META_ADS, STORE_POST_FOOTER, STORE_POST_METAL, STORE_POST_PIECE, STORE_POST_TAGLINE, STORE_SITE_EDIT, STORE_WHATSAPP_NUMBERS } from '@/lib/store-config';
 import { FONTS } from '@/app/website/post/fonts';
 import { PieceDesignPanel, usePieceDesign } from './piece-design';
+import { validWeight, weightForSite } from '@/lib/website/site-weight';
 
 export interface Piece {
   id: string; name: string; url: string; image: string; thumb: string; collection: string; weightGrams: number | null; weightOnPhoto: boolean; facts: string[]; about: string; added: number | null; newArrival: boolean;
   /** The catalogue's photo before it was marked, which a design starts from (Mina). */
   photoSource: string | null; sourceMarked: boolean; hidden?: boolean;
+  /** taheri.shop's own photographs ("attributes"), whose weights the counter keeps; the catalogue's ("pieces"). */
+  source?: 'attributes' | 'pieces';
+  /** A new upload not yet on the site's list: it has no page and takes no weight yet. */
+  drop?: boolean;
 }
 export interface IgStatus { configured: boolean; connected: boolean; username: string | null }
 
@@ -48,10 +53,14 @@ export interface CardHandle {
   going: () => string;
   /** A small copy of what goes, when it isn't the website's own photo. */
   preview: () => string | null;
+  /** The weight typed for a piece the website has none for: sending saves it there too (null otherwise). */
+  newWeight: () => number | null;
 }
 
-/** A weight as typed ("3.84", "12") — a positive number, or nothing. */
-export const validWeight = (w: string) => /^\d+(\.\d+)?$/.test(w.trim()) && Number(w) > 0;
+
+
+// A weight as typed, and whether the website should keep it (lib/website/site-weight.ts).
+export { validWeight } from '@/lib/website/site-weight';
 const daysAgo = (iso: string) => Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
 export const agoLabel = (iso: string) => { const d = daysAgo(iso); return d <= 0 ? 'posted today' : d === 1 ? 'posted yesterday' : `posted ${d} days ago`; };
 export const slugOf = (p: Pick<Piece, 'url'>) => p.url.split('/').filter(Boolean).pop()?.replace(/[^\w-]+/g, '-').slice(0, 100) || 'piece';
@@ -112,9 +121,9 @@ export function PieceCard({ piece, shown, siteName, posted, photo, token, ig, lo
 
   // The hub reads the card through this, so it always gets what the card shows now.
   const self = useRef<CardHandle>(null!);
-  self.current = { caption: () => caption, outgoing, going: () => going, preview: () => goingPhoto };
+  self.current = { caption: () => caption, outgoing, going: () => going, preview: () => goingPhoto, newWeight: () => weightForSite(p, weight) };
   useEffect(() => {
-    onRegister(p.id, { caption: () => self.current.caption(), outgoing: () => self.current.outgoing(), going: () => self.current.going(), preview: () => self.current.preview() });
+    onRegister(p.id, { caption: () => self.current.caption(), outgoing: () => self.current.outgoing(), going: () => self.current.going(), preview: () => self.current.preview(), newWeight: () => self.current.newWeight() });
     return () => onRegister(p.id, null);
   }, [p.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -244,6 +253,9 @@ export function PieceCard({ piece, shown, siteName, posted, photo, token, ig, lo
               ? overlay ? 'This photo already shows its weight — with this on it shows twice.' : 'This photo already shows its weight.'
               : overlay && !validWeight(weight) ? 'Type the weight to put it on.' : 'Top-left, in the catalogue’s own lettering. It also goes in the caption.'}
           </p>
+          {weightForSite(p, weight) !== null && (
+            <p className="text-[11px] font-medium text-primary">{siteName} has no weight for this piece: sending saves {weightForSite(p, weight)}g to it too.</p>
+          )}
         </div>
         <div>
           <p className="font-semibold leading-tight">{p.name}</p>

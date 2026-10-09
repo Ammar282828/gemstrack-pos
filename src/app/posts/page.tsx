@@ -262,6 +262,22 @@ function PostsHub() {
   const noun = (k: number) => (k === 1 ? 'piece' : 'pieces');
   const canSend = !!audience.community && targets.length > 0 && n > 0 && !busy;
 
+  /**
+   * A weight typed on a card for a piece taheri.shop has none for (CardHandle.newWeight), kept on the site as Website →
+   * Weights keeps it (2026-10-09, owner: "if I add the weight to it, does it automatically also add the weight to that
+   * image on the website?" — it didn't). The post has gone either way: a weight that could not be saved is said, not fatal.
+   */
+  const keepWeight = async (p: Piece, card: CardHandle): Promise<'saved' | 'failed' | null> => {
+    const grams = card.newWeight();
+    if (grams === null) return null;
+    try {
+      const res = await fetch('/api/website/pieces', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify({ key: p.id, weightGrams: grams }) });
+      if (!res.ok) return 'failed';
+      setPieces(prev => prev?.map(x => (x.id === p.id ? { ...x, weightGrams: grams } : x)) ?? prev);
+      return 'saved';
+    } catch { return 'failed'; }
+  };
+
   /** Every piece in the tray, one after another, each to the chosen places. Stops at the first that fails. */
   const send = async () => {
     const ids = picked.filter(id => cards.current.has(id) && byId.has(id));
@@ -269,6 +285,8 @@ function PostsHub() {
     const done: string[] = [];
     let stopped: { name: string; title: string; fix: string } | null = null;
     const partly: string[] = [];
+    const weighed: string[] = [];
+    const unweighed: string[] = [];
     for (const id of ids) {
       const p = byId.get(id)!, card = cards.current.get(id)!;
       setStates(s => ({ ...s, [id]: { s: 'sending' } }));
@@ -286,6 +304,8 @@ function PostsHub() {
         // Some places took it and some didn't: it has gone, so it leaves the tray (sending it again would post twice).
         const missed = results.filter(r => !r.ok);
         if (missed.length) partly.push(`${p.name} didn’t go to ${listOf(missed.map(r => labelOf(r.key)))}: ${missed[0].error}`);
+        const kept = await keepWeight(p, card);
+        if (kept === 'saved') weighed.push(p.name); else if (kept === 'failed') unweighed.push(p.name);
         done.push(id);
         setStates(s => { const { [id]: _, ...rest } = s; return rest; });
       } catch (e) {
@@ -309,6 +329,8 @@ function PostsHub() {
     } else if (done.length) {
       toast({ title: `Sent ${done.length} ${noun(done.length)} to ${where}`, description: done.length === 1 ? `${byId.get(done[0])?.name}, with its link.` : 'Each with its own caption and link.' });
     }
+    if (weighed.length) toast({ title: `Weight saved on ${siteName}`, description: `${listOf(weighed)} now ${weighed.length === 1 ? 'shows its' : 'show their'} weight on the website.` });
+    if (unweighed.length) toast({ title: `The weight wasn’t saved on ${siteName}`, description: `${listOf(unweighed)}: add it in Website → Weights.`, variant: 'destructive' });
   };
 
   /** Into the queue, to send later or spread over the day: each piece exactly as its card makes it now. */
@@ -328,6 +350,8 @@ function PostsHub() {
         });
         setStates(s => { const { [id]: _, ...rest } = s; return rest; });
         if (!ok) break;
+        // Queued is as good as typed in for good: the website keeps the weight now, not when the post goes.
+        await keepWeight(p, card);
         done.push(id);
       } catch (e) {
         setStates(s => ({ ...s, [id]: { s: 'failed', error: e instanceof Error ? e.message : String(e) } }));
