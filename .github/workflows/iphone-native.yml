@@ -160,6 +160,21 @@ jobs:
             shot "$i-$(echo "$page" | tr '/' '-' | sed 's/^-//')-dark" dark -ERPDemoTab home -ERPDemoOpen "$page"; i=$((i+1))
           done
           xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate "process == \"ERP\" AND messageType >= 16" 2>/dev/null | tail -40 || true
+      # Every place opened, the sheets used most, and launch and scrolling timed at today's size and at
+      # ten times the books (UITests/). Minutes on the Mac are dear: only when a commit asks, with "[ui]".
+      - name: UI flows and speed
+        if: contains(github.event.head_commit.message, '[ui]')
+        run: |
+          set +e
+          xcodebuild test -project ERP.xcodeproj -scheme ERP -destination "id=$UDID" \
+            -derivedDataPath "$RUNNER_TEMP/dd" -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm" \
+            -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$RUNNER_TEMP/uitest.log" 2>&1
+          status=$?
+          set -e
+          grep -E "Test Case .* (passed|failed)|error:|measured \[|XCTAssert" "$RUNNER_TEMP/uitest.log" | sed "s|$GITHUB_WORKSPACE/||" | head -120
+          tail -8 "$RUNNER_TEMP/uitest.log"
+          cp "$RUNNER_TEMP/uitest.log" "$RUNNER_TEMP/shots/uitest.log" || true
+          exit $status
       - name: House of Mina too (its colours and words)
         run: |
           OUT="$RUNNER_TEMP/shots"
@@ -223,6 +238,13 @@ jobs:
       ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v4
+      # Before anything is signed: a missing tool must not cost a certificate.
+      - name: XcodeGen
+        run: command -v xcodegen || brew install xcodegen
+      - uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/spm
+          key: spm-${{ hashFiles('apps/iphone/project.yml') }}
       - name: A certificate, and profiles for the app and its widget
         run: node ../ios/scripts/asc.mjs sign-native "${{ matrix.house }}" "$RUNNER_TEMP/signing" >> "$GITHUB_ENV"
       - name: Into a keychain of its own
