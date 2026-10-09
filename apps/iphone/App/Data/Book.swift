@@ -54,13 +54,17 @@ final class Book {
     func attach<T: Decodable>(_ name: String, docId: String? = nil, deliver: @escaping @MainActor (Delivery<T>) -> Void) -> () -> Void {
         switch source {
         case .demo:
-            let docs = Demo.docs(name)
-            if let docId {
-                deliver(.all(docs.filter { ($0["id"] as? String) == docId }.compactMap { DocJSON.decode(T.self, id: docId, data: $0) }, offline: false))
-            } else {
-                deliver(.all(docs.compactMap { d in DocJSON.decode(T.self, id: d["id"] as? String ?? "", data: d) }, offline: false))
+            // Decoded off the main thread, as the owners' Firestore answers are: thousands of documents
+            // (`-ERPDemoScale`) must not hold up the first frame.
+            let task = Task.detached(priority: .userInitiated) {
+                let docs = Demo.docs(name)
+                let items: [T] = docId.map { id in
+                    docs.filter { ($0["id"] as? String) == id }.compactMap { DocJSON.decode(T.self, id: id, data: $0) }
+                } ?? docs.compactMap { d in DocJSON.decode(T.self, id: d["id"] as? String ?? "", data: d) }
+                guard !Task.isCancelled else { return }
+                await MainActor.run { deliver(.all(items, offline: false)) }
             }
-            return {}
+            return { task.cancel() }
         case .server:
             return ServerShelf.poll(name: name == Collections.settings ? "settings" : name, single: docId != nil, deliver: deliver)
         case .firestore:
@@ -91,6 +95,9 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
     /// The last answer came from the phone's copy, not the server (no connection).
     private(set) var offline = false
     private(set) var error: String?
+    /// Goes up on every change to the items: a screen keys what it works out from them on this (Memo), so
+    /// a figure is reckoned once per change of the books, not once per drawing of the screen.
+    private(set) var revision = 0
 
     private let before: (T, T) -> Bool
     @ObservationIgnored private var byId: [String: T] = [:]
@@ -119,6 +126,7 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
         stop = nil
         byId = [:]
         items = []
+        revision += 1
         loaded = false
         offline = false
         error = nil
@@ -132,7 +140,23 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
         case .changes(let upserts, let removed, let off):
             for x in upserts { byId[x.id] = x }
             for id in removed { byId[id] = nil }
-            publish(off)
+            // A handful of documents changed (a payment, a status): placed where they sort, rather than
+            // sorting the whole collection again on the main thread.
+            if loaded, upserts.count + removed.count <= 32 {
+                let gone = Set(upserts.map(\.id)).union(removed)
+                var next = items.filter { !gone.contains($0.id) }
+                for x in upserts {
+                    var lo = 0, hi = next.count
+                    while lo < hi { let mid = (lo + hi) / 2; if before(next[mid], x) { lo = mid + 1 } else { hi = mid } }
+                    next.insert(x, at: lo)
+                }
+                items = next
+                revision += 1
+                offline = off
+                error = nil
+            } else {
+                publish(off)
+            }
         case .failed(let message):
             // Keep what is on screen: a dropped connection is no reason to blank the list being read.
             error = message
@@ -142,6 +166,7 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
 
     private func publish(_ off: Bool) {
         items = byId.values.sorted(by: before)
+        revision += 1
         offline = off
         loaded = true
         error = nil
@@ -199,13 +224,16 @@ enum ServerShelf {
             while !Task.isCancelled {
                 do {
                     let data = try await ERPAPI.shared.data("/api/staff/collections?name=\(name)")
-                    let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
-                    if single {
-                        let doc = json["doc"] as? [String: Any] ?? [:]
-                        deliver(.all(DocJSON.decode(T.self, id: doc["id"] as? String ?? "global", data: doc).map { [$0] } ?? [], offline: false))
-                    } else {
-                        deliver(.all(DocJSON.decodeList(T.self, from: json["docs"] as? [Any] ?? []), offline: false))
-                    }
+                    // Read and decoded off the main thread: staff's whole copy arrives every 25 seconds.
+                    let items: [T] = await Task.detached(priority: .userInitiated) {
+                        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+                        if single {
+                            let doc = json["doc"] as? [String: Any] ?? [:]
+                            return DocJSON.decode(T.self, id: doc["id"] as? String ?? "global", data: doc).map { [$0] } ?? []
+                        }
+                        return DocJSON.decodeList(T.self, from: json["docs"] as? [Any] ?? [])
+                    }.value
+                    deliver(.all(items, offline: false))
                 } catch let e as ERPAPI.Failure where e.status == 403 {
                     // Not this person's to read (a marketing account and the books): an empty shelf, not an error.
                     deliver(.all([], offline: false))
@@ -221,5 +249,21 @@ enum ServerShelf {
             }
         }
         return { task.cancel() }
+    }
+}
+
+/// A figure worked out from the books, kept until one of the things it was worked out from changes
+/// (`Shelf.revision`, a day, a setting). Held in a screen's `@State`; reading it does not redraw anything.
+@MainActor
+final class Memo<Value> {
+    private var key: [Int]?
+    private var value: Value?
+
+    func callAsFunction(_ key: [Int], _ make: () -> Value) -> Value {
+        if let value, self.key == key { return value }
+        let made = make()
+        self.key = key
+        value = made
+        return made
     }
 }

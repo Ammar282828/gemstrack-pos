@@ -66,15 +66,30 @@ struct CustomersList: View {
         }
     }
 
+    /// What each customer owes and has bought, reckoned once per change of the books, not per keystroke
+    /// in the search (which only narrows the list).
+    private struct Reckoned {
+        let live: [Customer]
+        let owed: Owed
+        let stats: [String: CustomerKit.Stats]
+        let lifetime: Double
+    }
+
+    @State private var reckoned = Memo<Reckoned>()
+
     private func figures() -> Figures {
-        let live = book.customers.items.filter { !CustomerKit.isRemoved($0) }
-        let owed = CustomerKit.owed(invoices: book.invoices.items, customers: book.customers.items, ledger: ledger)
-        let stats = CustomerKit.stats(invoices: book.invoices.items, orders: book.orders.items, owed: owed)
-        let matched = live.filter { CustomerKit.matches($0, search) }
-        var lifetime = 0.0
-        for c in live { lifetime += stats[c.id]?.spent ?? 0 }
-        return Figures(customerCount: live.count, owed: owed, stats: stats,
-                       groups: CustomerKit.groups(matched, stats: stats), lifetime: lifetime, matchedCount: matched.count)
+        let key = [book.customers.revision, book.invoices.revision, book.orders.revision, book.hisaab.revision, session.isOwner ? 1 : 0]
+        let r = reckoned(key) {
+            let live = book.customers.items.filter { !CustomerKit.isRemoved($0) }
+            let owed = CustomerKit.owed(invoices: book.invoices.items, customers: book.customers.items, ledger: ledger)
+            let stats = CustomerKit.stats(invoices: book.invoices.items, orders: book.orders.items, owed: owed)
+            var lifetime = 0.0
+            for c in live { lifetime += stats[c.id]?.spent ?? 0 }
+            return Reckoned(live: live, owed: owed, stats: stats, lifetime: lifetime)
+        }
+        let matched = r.live.filter { CustomerKit.matches($0, search) }
+        return Figures(customerCount: r.live.count, owed: r.owed, stats: r.stats,
+                       groups: CustomerKit.groups(matched, stats: r.stats), lifetime: r.lifetime, matchedCount: matched.count)
     }
 
     private func visible(_ g: CustomerKit.Groups) -> CustomerKit.Groups {

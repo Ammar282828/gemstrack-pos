@@ -71,7 +71,18 @@ struct Dashboard: View {
         return core && book.hisaab.loaded && book.expenses.loaded && book.revenue.loaded
     }
 
+    /// Reckoned once per change of the books it reads (or of the minute), never per drawing: the timer,
+    /// the online count and the rate chip redraw this screen far more often than the books change.
+    @State private var figures = Memo<DashFigures>()
+
     private func makeFigures() -> DashFigures {
+        let key = [book.orders.revision, book.invoices.revision, book.revenue.revision, book.expenses.revision,
+                   book.karigars.revision, book.karigarJobs.revision, book.repairs.revision, book.customers.revision,
+                   book.hisaab.revision, Int(now.timeIntervalSince1970 / 60)]
+        return figures(key) { reckonFigures() }
+    }
+
+    private func reckonFigures() -> DashFigures {
         DashFigures(
             orders: book.orders.items, invoices: book.invoices.items,
             revenues: book.revenue.items, expenses: book.expenses.items,
