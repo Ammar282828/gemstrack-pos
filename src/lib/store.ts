@@ -209,7 +209,6 @@ import { rateChangeLog, rateConfirmLog } from '@/lib/writes/rates';
 import { createInvoice as createInvoiceWrite } from '@/lib/writes/create-invoice';
 import { addExpense as writeAddExpense } from '@/lib/writes/expenses';
 import { addGivenItem as writeAddGiven, markGivenItemReturned as writeGivenReturned } from '@/lib/writes/given';
-import { addKarigar as writeAddKarigar, updateCustomer as writeUpdateCustomer, updateKarigar as writeUpdateKarigar } from '@/lib/writes/people';
 import { addRepair as writeAddRepair, recordRepairPayment as writeRepairPayment, setRepairStatus as writeRepairStatus } from '@/lib/writes/repairs';
 import { alertsOnStatus, orderStatusPatch, pieceDonePatch, pieceGivenPatch, pieceKarigarPatch } from '@/lib/writes/order-status';
 import { STORE_CONFIG } from '@/lib/store-config';
@@ -2294,12 +2293,15 @@ export const useAppStore = create<AppState>()(
       },
       updateCustomer: async (id, updatedCustomerData) => {
         if(get().settings.databaseLocked) return;
-        console.log(`[GemsTrack Store updateCustomer] Attempting to update customer ID ${id} with:`, updatedCustomerData);
+        // Normalize phone to E.164 (with country code, default +92) on every save so
+        // numbers stay consistent regardless of which form did the edit.
+        const dataToWrite = updatedCustomerData.phone !== undefined
+          ? { ...updatedCustomerData, phone: normalizePhoneNumber(updatedCustomerData.phone) }
+          : updatedCustomerData;
+        console.log(`[GemsTrack Store updateCustomer] Attempting to update customer ID ${id} with:`, dataToWrite);
         try {
-          // The one copy (lib/writes/people.ts), which the iPhone app runs on the server too. It makes the
-          // phone E.164 (with country code, default +92) on every save so numbers stay consistent
-          // regardless of which form did the edit.
-          await writeUpdateCustomer(clientPort, id, updatedCustomerData, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), dataToWrite, { merge: true });
+          await addActivityLog('customer.update', `Updated customer: ${updatedCustomerData.name}`, `ID: ${id}`, id);
           if (typeof window !== 'undefined' && !id.startsWith('shopify-')) {
             if (PUSH_TO_SHOPIFY) postShopify('/api/shopify/push/customer', { customerId: id });
           }
@@ -2436,11 +2438,13 @@ export const useAppStore = create<AppState>()(
 
       addKarigar: async (karigarData) => {
         if(get().settings.databaseLocked) return null;
-        console.log("[GemsTrack Store addKarigar] Attempting to add karigar:", karigarData);
+        const newKarigarId = `karigar-${Date.now()}-${Math.random().toString(36).substring(2,7)}`;
+        const newKarigar: Karigar = { ...karigarData, id: newKarigarId };
+        console.log("[GemsTrack Store addKarigar] Attempting to add karigar:", newKarigar);
         try {
-          // The one copy (lib/writes/people.ts), which the iPhone app runs on the server too.
-          const newKarigar = await writeAddKarigar(clientPort, karigarData, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
-          console.log("[GemsTrack Store addKarigar] Karigar added successfully:", newKarigar.id);
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, newKarigarId), newKarigar);
+          await addActivityLog('karigar.create', `Created karigar: ${newKarigar.name}`, `ID: ${newKarigarId}`, newKarigarId);
+          console.log("[GemsTrack Store addKarigar] Karigar added successfully:", newKarigarId);
           return newKarigar;
         } catch (error) {
           console.error("[GemsTrack Store addKarigar] Error adding karigar to Firestore:", error);
@@ -2451,8 +2455,8 @@ export const useAppStore = create<AppState>()(
         if(get().settings.databaseLocked) return;
         console.log(`[GemsTrack Store updateKarigar] Attempting to update karigar ID ${id} with:`, updatedKarigarData);
          try {
-          // The one copy (lib/writes/people.ts), which the iPhone app runs on the server too.
-          await writeUpdateKarigar(clientPort, id, updatedKarigarData, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, id), updatedKarigarData, { merge: true });
+          await addActivityLog('karigar.update', `Updated karigar: ${updatedKarigarData.name}`, `ID: ${id}`, id);
           console.log(`[GemsTrack Store updateKarigar] Karigar ID ${id} updated successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store updateKarigar] Error updating karigar ID ${id} in Firestore:`, error);
