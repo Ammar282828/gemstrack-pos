@@ -6,3 +6,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-09: the first native 2.0 for both houses. Every screen is native (Home, Today's cash, Orders, New order, Invoices, New sale, Scan a tag, Customers, Repairs, Stock, Workshop, Expenses, Hisaab, Analytics), with everything else as the ERP's own page inside the app. Face ID lock, the widget and push.
 - 2026-10-09: again, with the signing fix (Apple refused a `limit` on a bundle ID's capabilities).
 - 2026-10-09: again, now that the TestFlight job installs XcodeGen before it archives.
+- 2026-10-09: the audit build. Every web flow's options checked against the app (palladium karats kept, rates to four places, sizes to the profile, expense batches and partner salaries, hisaab kept in step), a payment tapped twice is taken once, the house's filled buttons readable in dark mode, and a launch at ten times the books in 2 s (was 26 s).
