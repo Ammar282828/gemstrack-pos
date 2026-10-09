@@ -131,4 +131,8 @@ jobs run only by hand.
      Post-Actions → TestFlight Internal Testing, group "Shop".
   5. Add **Taheri UI check**: Start Conditions the same with `apps/iphone/CHECKS.md`; Actions → Test, scheme ERP,
      an iPhone simulator on the latest iOS.
-  6. `sh apps/iphone/scripts/xcode-cloud-setup.sh mina`, then steps 2 to 4 again: **Mina release**.
+  6. `sh apps/iphone/scripts/xcode-cloud-setup.sh mina`, then steps 2 to 4 again: **Mina release**. Mina's project is
+     `ERPMina.xcodeproj` (`project-mina.yml`, project.yml under another name): Xcode Cloud keeps one product per
+     project file, so a Mina workflow made on `ERP.xcodeproj` joins Taheri's product and builds Taheri's app.
+  - The Mac's clone needs a remote called `origin` on taheri-pos (Xcode Cloud reads it; `hom` sorts first
+     otherwise and is gemstrack-pos, where no `claude/` branch lives).

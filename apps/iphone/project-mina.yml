@@ -1,0 +1,5 @@
+# House of Mina's project for Xcode Cloud (docs/features/iphone-app.md "Xcode Cloud"): project.yml under
+# another name. Xcode Cloud keeps one product per project file, so Mina's app needs a file of its own
+# (ERPMina.xcodeproj) or its workflows land on Taheri's product and build Taheri's app.
+include: [project.yml]
+name: ERPMina
