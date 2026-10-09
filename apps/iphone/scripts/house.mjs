@@ -1,6 +1,11 @@
 // Dress the native iPhone app as one house before generating the project:
 //
 //   node scripts/house.mjs <taheri|mina> [--sign <team> <app profile> <widget profile>]
+//   node scripts/house.mjs <taheri|mina> --auto [team] [build number]
+//
+// --sign is GitHub's TestFlight job (a certificate and profiles made for the one build); --auto is Xcode
+// Cloud's and a Mac's (automatic signing: Xcode Cloud signs in the cloud for the team it is given,
+// ci_scripts/ci_post_clone.sh), with the build number Xcode Cloud counts.
 //
 // Writes House.xcconfig (read by every target, project.yml configFiles) from houses.json, and
 // prints the same values KEY=VALUE for $GITHUB_ENV. Then `xcodegen` makes ERP.xcodeproj.
@@ -14,6 +19,7 @@ const name = process.argv[2];
 const h = houses[name];
 if (!h) { console.error(`usage: node scripts/house.mjs <${Object.keys(houses).join('|')}> [--sign team appProfile widgetProfile]`); process.exit(1); }
 const sign = process.argv[3] === '--sign' ? { team: process.argv[4], app: process.argv[5], widget: process.argv[6] } : null;
+const auto = process.argv[3] === '--auto' ? { team: process.argv[4] || '', build: process.argv[5] || '' } : null;
 
 const s = {
   ERP_HOUSE: name,
@@ -42,5 +48,11 @@ if (sign) {
   text += `CODE_SIGN_STYLE = Manual\nDEVELOPMENT_TEAM = ${sign.team}\nCODE_SIGN_IDENTITY = Apple Distribution\n`;
   text += `ERP_APP_PROFILE = ${sign.app}\nERP_WIDGET_PROFILE = ${sign.widget}\n`;
 }
+if (auto) {
+  text += `CODE_SIGN_STYLE = Automatic\n`;
+  if (auto.team) text += `DEVELOPMENT_TEAM = ${auto.team}\n`;
+}
+// The build number: Xcode Cloud's count, else 1 (GitHub's job sets its own on the command line).
+text += `CURRENT_PROJECT_VERSION = ${auto?.build || '1'}\n`;
 fs.writeFileSync(path.join(dir, 'House.xcconfig'), text);
 for (const [k, v] of Object.entries(s)) console.log(`${k}=${v}`);

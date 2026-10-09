@@ -3,13 +3,13 @@ name: iPhone app (native)
 # The native iPhone app (apps/iphone, docs/features/iphone-app.md): SwiftUI, one app per house.
 # It replaces the Capacitor shell in apps/ios once it reaches TestFlight; until then this only checks it.
 #
-# - ERPCore (the models and the ERP's rules in Swift) is tested on Linux: no Mac minutes.
-# - The app is built for the simulator on macOS and opened in its demo (made-up books, no sign-in),
-#   one screenshot per tab, light and dark, printed small into the log for a reader without the artifact.
-# - A line added to apps/iphone/RELEASES.md (a cloud session cannot press Run workflow) sends each house
-#   whose Firebase iOS app is registered (houses.json firebase.iosAppId) to TestFlight instead.
-# macOS minutes count ten to one against the Actions minutes the deploys use: it runs only for a push
-# that changes apps/iphone, never for a change to the ERP.
+# - ERPCore (the models and the ERP's rules in Swift) is tested on Linux on every push: no Mac minutes.
+# - The Mac jobs (the simulator build, the demo's screenshots and UI flows, TestFlight) run only by hand
+#   ("Run workflow"). Xcode Cloud does that work since 2026-10-09, inside the Apple Developer membership's
+#   free hours (apps/iphone/ci_scripts, docs/features/iphone-app.md "Xcode Cloud"): a new line in
+#   apps/iphone/RELEASES.md sends both houses to TestFlight, one in apps/iphone/CHECKS.md runs the UI tests.
+#   macOS minutes here count ten to one against the Actions minutes the web deploys need, and spent the
+#   month's allowance in one day.
 
 on:
   push:
@@ -67,9 +67,10 @@ jobs:
       - id: plan
         run: |
           release=false
-          if [ "${{ inputs.testflight }}" = "true" ]; then release=true
-          # A new line in the list asks for a build; making or rewording the file does not.
-          elif [ "${{ github.event_name }}" = "push" ] && git diff "${{ github.event.before }}" "${{ github.sha }}" -- apps/iphone/RELEASES.md 2>/dev/null | grep -q '^+- '; then release=true; fi
+          # Since 2026-10-09 Xcode Cloud builds the releases (a new line in apps/iphone/RELEASES.md) and the
+          # UI checks (apps/iphone/CHECKS.md): GitHub's Mac minutes cost ten to one and spent the month's
+          # allowance in a day. Here they run only by hand ("Run workflow"), testflight ticked or not.
+          if [ "${{ inputs.testflight }}" = "true" ]; then release=true; fi
           houses=$(node -e '
             const h = require("./apps/iphone/houses.json");
             const ready = Object.keys(h).filter((k) => String(h[k].firebase?.iosAppId || "").includes(":ios:"));
@@ -83,7 +84,7 @@ jobs:
     needs: [core, plan]
     # A release compiles in its upload: the simulator check would spend the same Mac minutes twice.
     # With no house ready to upload, the check runs instead, so a push is never left uncompiled.
-    if: needs.plan.outputs.release != 'true' || needs.plan.outputs.houses == '[]'
+    if: github.event_name == 'workflow_dispatch' && (needs.plan.outputs.release != 'true' || needs.plan.outputs.houses == '[]')
     concurrency:
       group: iphone-native-app-${{ github.ref }}
       cancel-in-progress: true

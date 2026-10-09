@@ -99,7 +99,36 @@ as version 2.0; `apps/iphone/CONVENTIONS.md` is its rulebook.
 - **The phone.** Face ID keeps the delete code (offered once a typed code is accepted; the server still checks it),
   Apple's document scanner reads paper for the bill and order-slip readers, notifications per kind (Search → This
   phone), the home-screen widget.
-- **Checks and builds** (`.github/workflows/iphone-native.yml`): ERPCore's tests on Linux; a simulator build and a
-  screenshot of each tab in the demo (`-ERPDemo YES`, made-up data in `Resources/demo.json`) for a push that changes
-  `apps/iphone`; a line in `apps/iphone/RELEASES.md` sends each house to TestFlight once its Firebase iOS app ID is in
-  `apps/iphone/houses.json` (`firebase.iosAppId`, from Firebase console → Project settings → Add app → iOS).
+- **Checks and builds** (`.github/workflows/iphone-native.yml`): ERPCore's tests on Linux on every push; the
+  simulator build, a screenshot of each tab in the demo (`-ERPDemo YES`, made-up data in `Resources/demo.json`) and
+  TestFlight only by hand since 2026-10-09, when Xcode Cloud took them over (below). A house reaches TestFlight once
+  its Firebase iOS app ID is in `apps/iphone/houses.json` (`firebase.iosAppId`, Firebase console → Project settings →
+  Add app → iOS).
+
+### Xcode Cloud
+
+**Xcode Cloud** builds the native app since 2026-10-09 (owner: "cant you switch to something free"): GitHub's Mac
+minutes count ten to one and spent the month's Actions allowance in one day, which also stops the web deploys.
+Apple's Developer Program includes 25 Xcode Cloud hours a month; a release of both houses takes about 20
+minutes of them, a UI check about 15. `iphone-native.yml` keeps ERPCore's Linux tests on every push; its Mac
+jobs run only by hand.
+- **How a build starts.** A new line in `apps/iphone/RELEASES.md` on a `claude/` branch: each house's "release"
+  workflow archives and hands the build to TestFlight's internal "Shop" group. A new line in
+  `apps/iphone/CHECKS.md`: the "UI check" workflow runs `ERPUITests` in the simulator. The result shows on the
+  commit in GitHub (the "Xcode Cloud" check) and in App Store Connect → the app → Xcode Cloud.
+- **How it builds.** `apps/iphone/ci_scripts/ci_post_clone.sh`: the house from the product's bundle ID
+  (`houses.json`), `house.mjs --auto <team> <build number>` (automatic signing, Xcode Cloud's build number;
+  2.1 from the first such build, as its numbers count from 1), XcodeGen, then the packages resolved (Xcode Cloud
+  builds only from a Package.resolved, which a generated project lacks).
+- **The one-time setup, on the Mac** (the owner, about ten minutes):
+  1. `git pull`, then `sh apps/iphone/scripts/xcode-cloud-setup.sh taheri`: Xcode opens the Taheri app.
+  2. Target ERP → Signing & Capabilities: tick *Automatically manage signing* and pick the team (also for
+     ERPWidget).
+  3. Integrate → Create Workflow… → the app → let Xcode Cloud reach GitHub (it installs Apple's app on
+     `Ammar282828/taheri-pos`).
+  4. Edit the workflow into **Taheri release**: Start Conditions → Branch Changes, branches beginning `claude/`,
+     Files and Folders `apps/iphone/RELEASES.md`; Actions → Archive, iOS, TestFlight (Internal Testing Only);
+     Post-Actions → TestFlight Internal Testing, group "Shop".
+  5. Add **Taheri UI check**: Start Conditions the same with `apps/iphone/CHECKS.md`; Actions → Test, scheme ERP,
+     an iPhone simulator on the latest iOS.
+  6. `sh apps/iphone/scripts/xcode-cloud-setup.sh mina`, then steps 2 to 4 again: **Mina release**.

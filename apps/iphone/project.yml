@@ -19,8 +19,9 @@ settings:
   base:
     SWIFT_VERSION: "5.0"
     SWIFT_STRICT_CONCURRENCY: minimal
-    MARKETING_VERSION: "2.0"
-    CURRENT_PROJECT_VERSION: "1"
+    # 2.1 from the first Xcode Cloud build (2026-10-09): its build numbers count from 1, and 2.0's were dates.
+    MARKETING_VERSION: "2.1"
+    # CURRENT_PROJECT_VERSION is House.xcconfig's (scripts/house.mjs): Xcode Cloud's build number there.
     TARGETED_DEVICE_FAMILY: "1,2"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 targets:
