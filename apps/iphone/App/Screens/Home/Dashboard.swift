@@ -2,12 +2,13 @@ import SwiftUI
 import Observation
 import ERPCore
 
-/// Home: the morning glance (src/app/page.tsx, redrawn 2026-09-27; docs/decisions.md "Dashboard").
-/// Four figures say how the shop stands: taken today, this month against last, owed to you, on the
-/// bench. Then three lists, each a thing the counter needs to know: what needs a decision (worst
-/// first), what is due to customers (by the date they were promised), and the latest sales. The
-/// 30-day line sits quietly at the bottom. Nothing to press but the rows themselves; New sale is
-/// the app's bar.
+/// Home: the morning glance (src/app/page.tsx, redrawn 2026-09-27; docs/decisions.md "Dashboard"; on the
+/// ledger since 2026-10-09). Today first, large: what was taken, how many invoices, the week as bars. Under it
+/// three small cards say how the shop stands: this month against last, owed to you, on the bench. Then three
+/// lists, each a thing the counter needs to know: what needs a decision (worst first, each led by what it is
+/// about), what is due to customers (by the date they were promised, as a calendar leaf), and the latest
+/// sales (who, and whether paid). The 30-day line sits quietly at the bottom. Nothing to press but the cards
+/// and rows themselves; New sale is the app's bar.
 ///
 /// Every figure is ERPCore's rule (DashboardFigures.swift gathers them, it re-derives none). The web
 /// page has no role check, so staff see what the web shows them from the books they can read: no
@@ -16,6 +17,8 @@ struct Dashboard: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
     @Environment(\.scenePhase) private var scenePhase
+    /// At the largest text sizes the three cards stand one under another rather than squeezed side by side.
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// The instant the page is worked out against; it turns over at Karachi's midnight on a screen left open.
     @State private var now = Date()
@@ -23,8 +26,6 @@ struct Dashboard: View {
     @State private var rateSheet = false
     /// Online orders waiting to be confirmed, and whether selling waits on today's rate (the server says).
     private var inbox: OnlineInbox { .shared }
-
-    private static let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
     var body: some View {
         ShelfState(loaded: ready, error: book.orders.error ?? book.invoices.error, offline: book.orders.offline) {
@@ -104,30 +105,36 @@ struct Dashboard: View {
         let selling = session.shop.websiteSelling
         let needs = f.needs(onlineWaiting: selling ? inbox.waiting : 0, ratePause: selling ? inbox.ratePause : nil)
         return ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(DashDate.longDay(now)).font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4)
-                tiles(f)
+            VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 10) {
+                    dateLine
+                    hero(f)
+                    stats(f)
+                }
                 needsSection(needs)
                 dueSection(f)
                 salesSection(f)
-                monthStrip(f)
+                monthSection(f)
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.top, 4)
+            .padding(.bottom, 24)
         }
+        .background(Theme.ground.ignoresSafeArea())
     }
 
-    // MARK: The four figures
-
-    private func tiles(_ f: DashFigures) -> some View {
-        LazyVGrid(columns: Self.columns, spacing: 10) {
-            linked("/invoices") { takenToday(f) }
-            // Analytics and the hisaab are the owners' books.
-            linked(session.isOwner ? "/analytics" : nil) { thisMonth(f) }
-            linked(session.isOwner && f.owedInHisaab > 0 ? "/hisaab" : "/invoices") { owedTile(f) }
-            linked("/workshop") { onTheBench(f) }
-        }
+    /// "FRIDAY 9 OCTOBER", under the shop's name.
+    private var dateLine: some View {
+        Text(DashDate.dayLabel(now))
+            .font(.caption.weight(.semibold))
+            .tracking(0.8)
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+            .padding(.horizontal, 4)
+            .accessibilityLabel(DashDate.longDay(now))
     }
+
+    // MARK: Today and the three cards
 
     @ViewBuilder
     private func linked<C: View>(_ path: String?, @ViewBuilder _ label: () -> C) -> some View {
@@ -139,72 +146,122 @@ struct Dashboard: View {
         }
     }
 
-    private func takenToday(_ f: DashFigures) -> some View {
-        let n = f.todayInvoiceCount
-        return FigureTile(label: "Taken today", value: Money.pkrLac(f.todayRevenue),
-                          detail: "\(n) invoice\(n == 1 ? "" : "s") today",
-                          tint: f.todayRevenue > 0 ? .green : .primary)
+    /// Taken today, as the web's headline links it: the invoices.
+    private func hero(_ f: DashFigures) -> some View {
+        linked("/invoices") {
+            DashHero(amount: f.todayRevenue, invoices: f.todayInvoiceCount,
+                     lastSale: f.lastSaleToday.map { DashDate.clock(iso: $0.createdAt) },
+                     week: f.week, linked: true)
+        }
     }
 
-    private func thisMonth(_ f: DashFigures) -> some View {
-        let detail = f.lastMonthRevenue > 0 ? "Last month \(Money.pkrLac(f.lastMonthRevenue))" : DashDate.monthName(now)
-        return FigureTile(label: "This month", value: Money.pkrLac(f.monthRevenue), detail: detail)
+    @ViewBuilder
+    private func stats(_ f: DashFigures) -> some View {
+        if typeSize.isAccessibilitySize {
+            VStack(spacing: 10) { statCards(f) }
+        } else {
+            HStack(alignment: .top, spacing: 10) { statCards(f) }
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
-    private func owedTile(_ f: DashFigures) -> some View {
+    @ViewBuilder
+    private func statCards(_ f: DashFigures) -> some View {
+        // Analytics and the hisaab are the owners' books.
+        let monthPath: String? = session.isOwner ? "/analytics" : nil
+        linked(monthPath) { thisMonth(f, linked: monthPath != nil) }
+        linked(session.isOwner && f.owedInHisaab > 0 ? "/hisaab" : "/invoices") { owedCard(f) }
+        linked("/workshop") { onTheBench(f) }
+    }
+
+    private func thisMonth(_ f: DashFigures, linked: Bool) -> some View {
+        DashStat(label: "This month", linked: linked) {
+            DashStatAmount(amount: f.monthRevenue)
+            DashMonthChange(ratio: f.monthAgainstLast, now: now)
+        }
+    }
+
+    /// Owed is amber, never red: money still to come is not an alarm.
+    private func owedCard(_ f: DashFigures) -> some View {
         let owing = f.totalOutstanding > 0
-        var detail = "\(f.unpaid.count) unpaid"
-        if f.owedInHisaab > 0 { detail += " · \(Money.lacCrore(f.owedInHisaab)) hisaab" }
-        return FigureTile(label: "Owed to you", value: owing ? Money.pkrLac(f.totalOutstanding) : "Nil",
-                          detail: detail, tint: owing ? .red : .primary)
+        let n = f.unpaid.count
+        return DashStat(label: "Owed to you", linked: true) {
+            if owing {
+                DashStatAmount(amount: f.totalOutstanding, tint: Tone.owed.color)
+            } else {
+                DashStatValue(text: "Nil")
+            }
+            DashStatNote(text: "\(n) unpaid")
+            if f.owedInHisaab > 0 {
+                DashStatNote(text: "\(Money.lacCrore(f.owedInHisaab)) in hisaab", tint: Color.secondary)
+            }
+        }
     }
 
     private func onTheBench(_ f: DashFigures) -> some View {
         let n = f.activeJobs
         let critical = f.criticalJobs.count
-        return FigureTile(label: "On the bench", value: "\(n) piece\(n == 1 ? "" : "s")",
-                          detail: critical > 0 ? "\(critical) sitting \(DashBench.criticalDays)+ days" : "Nothing overdue",
-                          tint: critical > 0 ? .red : .primary)
+        return DashStat(label: "On the bench", linked: true) {
+            DashStatValue(text: "\(n) piece\(n == 1 ? "" : "s")")
+            if critical > 0 {
+                DashStatNote(text: "\(critical) sitting \(DashBench.criticalDays)+ days", tint: Tone.late.color)
+            } else {
+                DashStatNote(text: "Nothing overdue")
+            }
+        }
     }
 
     // MARK: The three lists
 
     private func needsSection(_ needs: [DashNeed]) -> some View {
-        DashSection(title: "Needs you", symbol: "exclamationmark.triangle",
-                    symbolTint: needs.isEmpty ? Color.secondary : Color.red, count: needs.count) {
-            if needs.isEmpty {
-                DashEmpty(text: "Nothing late, unpaid or waiting.", symbol: "checkmark.circle")
-            } else {
-                DashRows(items: needs) { (n: DashNeed) in
-                    DashNeedRow(need: n, onRates: session.isOwner ? { rateSheet = true } : nil)
+        VStack(alignment: .leading, spacing: 8) {
+            DashHeader(title: "Needs you", count: needs.count)
+            Group {
+                if needs.isEmpty {
+                    DashAllClear()
+                } else {
+                    DashNeedList(needs: needs, onRates: session.isOwner ? { rateSheet = true } : nil)
                 }
             }
+            .dashRowsCard()
         }
     }
 
     private func dueSection(_ f: DashFigures) -> some View {
-        DashSection(title: "Due to customers", symbol: "calendar.badge.clock", count: f.due.count, allPath: "/orders") {
-            if f.due.isEmpty {
-                DashEmpty(text: "No open orders or repairs.")
-            } else {
-                DashRows(items: f.due) { (d: DashDue) in DashDueRow(due: d) }
+        VStack(alignment: .leading, spacing: 8) {
+            DashHeader(title: "Due to customers", count: f.due.count, allPath: "/orders", allLabel: "All orders")
+            Group {
+                if f.due.isEmpty {
+                    DashEmpty(text: "No open orders or repairs.")
+                } else {
+                    DashRows(items: f.due, inset: DashDueRow.leaf + 12) { (d: DashDue) in DashDueRow(due: d) }
+                }
             }
+            .dashRowsCard()
         }
     }
 
     private func salesSection(_ f: DashFigures) -> some View {
-        DashSection(title: "Recent sales", symbol: "receipt", allPath: "/invoices") {
-            if f.recentInvoices.isEmpty {
-                DashEmpty(text: "No sales yet.")
-            } else {
-                DashRows(items: f.recentInvoices) { (i: Invoice) in DashSaleRow(invoice: i) }
+        VStack(alignment: .leading, spacing: 8) {
+            DashHeader(title: "Recent sales", allPath: "/invoices", allLabel: "All invoices")
+            Group {
+                if f.recentInvoices.isEmpty {
+                    DashEmpty(text: "No sales yet.")
+                } else {
+                    DashRows(items: f.recentInvoices, inset: DashSaleRow.monogram + 12) { (i: Invoice) in DashSaleRow(invoice: i) }
+                }
             }
+            .dashRowsCard()
         }
     }
 
-    private func monthStrip(_ f: DashFigures) -> some View {
-        linked(session.isOwner ? "/analytics" : nil) {
-            DashMonthStrip(figures: f, showCosts: session.isOwner)
+    private func monthSection(_ f: DashFigures) -> some View {
+        let path: String? = session.isOwner ? "/analytics" : nil
+        return VStack(alignment: .leading, spacing: 8) {
+            DashHeader(title: "Last 30 days")
+            linked(path) {
+                DashMonthCard(figures: f, showCosts: session.isOwner, linked: path != nil)
+            }
         }
     }
 

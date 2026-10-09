@@ -2,8 +2,9 @@ import SwiftUI
 import ERPCore
 
 /// One piece of an order, as the bench and the counter both need it (src/app/orders/[id]/page.tsx):
-/// what it is, every specification the order captured, who has it and whether it has left the shop,
-/// the instructions for the karigar, and its price. The tick is the web's "Mark as Complete".
+/// what it is, every specification the order captured (one line of facts, not a table), who has it and
+/// whether it has left the shop, the instructions for the karigar, and its price. The tick is the web's
+/// "Mark as Complete".
 struct OrderPieceRow: View {
     let index: Int
     let item: OrderItem
@@ -22,7 +23,7 @@ struct OrderPieceRow: View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 8) {
                 heading
-                factList
+                factLine
                 karigarLine
                 notes
                 price
@@ -30,7 +31,7 @@ struct OrderPieceRow: View {
             Spacer(minLength: 0)
             tick
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
     }
 
     // MARK: What it is
@@ -40,73 +41,77 @@ struct OrderPieceRow: View {
             if let category = OrdersLogic.categorySingular(item.itemCategory) {
                 Text(category.uppercased())
                     .font(.caption2.weight(.semibold))
+                    .tracking(0.6)
                     .foregroundStyle(.secondary)
             }
             Text(item.description.isEmpty ? "Piece \(index + 1)" : item.description)
                 .font(.headline)
-                .strikethrough(item.isCompleted)
+                .foregroundStyle(item.isCompleted ? Color.secondary : Color.primary)
         }
+        .accessibilityElement(children: .combine)
     }
 
-    private struct Fact: Identifiable {
-        let label: String
-        let value: String
-        var id: String { label }
-    }
-
-    private var facts: [Fact] {
-        var rows: [Fact] = []
+    /// "21K Gold · Est. 12.5 g · 8% wastage · Size 14 · White Rhodium": what the order captured, in the order
+    /// the bench reads it. The percentage stays here and on the slip; an invoice shows grams (decision
+    /// "Wastage in grams").
+    private var facts: [String] {
+        var out: [String] = []
         let metal = describeMetal(item.metalType, item.karat)
-        if !metal.isEmpty { rows.append(Fact(label: "Metal", value: metal)) }
+        if !metal.isEmpty { out.append(metal) }
         if !item.isManualPrice && item.estimatedWeightG > 0 {
-            rows.append(Fact(label: "Est. weight", value: OrdersLogic.grams(item.estimatedWeightG)))
+            out.append("Est. " + OrdersLogic.grams(item.estimatedWeightG))
             if item.metalType != .silver && item.wastagePercentage > 0 {
-                rows.append(Fact(label: "Wastage", value: OrdersLogic.number(item.wastagePercentage, maxDigits: 2) + "%"))
+                out.append(OrdersLogic.number(item.wastagePercentage, maxDigits: 2) + "% wastage")
             }
         }
-        if let size = item.size, !size.isEmpty { rows.append(Fact(label: "Size", value: size)) }
-        if let finish = describePlating(item) { rows.append(Fact(label: "Finish", value: finish)) }
-        if item.stoneWeightG > 0 { rows.append(Fact(label: "Stone weight", value: OrdersLogic.grams(item.stoneWeightG))) }
-        if let sku = item.referenceSku, !sku.isEmpty { rows.append(Fact(label: "Ref SKU", value: sku)) }
-        if item.sampleGiven { rows.append(Fact(label: "Sample", value: "Provided by customer")) }
-        if item.isManualPrice {
-            rows.append(Fact(label: "Price", value: Money.pkr(item.manualPrice ?? item.totalEstimate ?? 0)))
-        }
-        return rows
+        if let size = item.size?.trimmingCharacters(in: .whitespacesAndNewlines), !size.isEmpty { out.append("Size " + size) }
+        if let finish = describePlating(item) { out.append(finish) }
+        if item.stoneWeightG > 0 { out.append("Stones " + OrdersLogic.grams(item.stoneWeightG)) }
+        if let sku = item.referenceSku, !sku.isEmpty { out.append("Ref " + sku) }
+        if item.sampleGiven { out.append("Sample from the customer") }
+        if item.isManualPrice { out.append("Fixed at " + Money.pkr(item.manualPrice ?? item.totalEstimate ?? 0)) }
+        return out
     }
 
-    private var factList: some View {
-        VStack(spacing: 2) {
-            ForEach(facts) { f in
-                HStack(alignment: .firstTextBaseline) {
-                    Text(f.label).foregroundStyle(.secondary)
-                    Spacer(minLength: 12)
-                    Text(f.value).multilineTextAlignment(.trailing)
-                }
+    @ViewBuilder
+    private var factLine: some View {
+        let all = facts
+        if !all.isEmpty {
+            Text(all.joined(separator: " · "))
                 .font(.subheadline)
-            }
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
     // MARK: Who has it
 
+    /// "given yesterday", "given Tue 6 Oct", or not yet: the gold leaving the shop is its own moment.
     private var givenWords: String {
-        if let given = item.givenAt, !given.isEmpty { return "given " + ShopDate.say(given) }
-        return "not given yet"
+        guard let given = item.givenAt, !given.isEmpty else { return "not given yet" }
+        let said = ShopDate.say(given)
+        return "given " + (["Today", "Yesterday", "Tomorrow"].contains(said) ? said.lowercased() : said)
     }
 
+    /// Amber while nobody has it: work to hand out, not a promise missed. A finished piece with no karigar
+    /// (made in the shop) says nothing.
+    @ViewBuilder
     private var karigarLine: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "hammer").foregroundStyle(.secondary)
-            if let karigar {
-                Text(karigar).fontWeight(.medium)
-                Text("· " + givenWords)
-                    .foregroundStyle(item.givenAt == nil ? Color.orange : Color.secondary)
-            } else {
-                Text("No karigar yet").foregroundStyle(.orange)
+        if karigar != nil || !item.isCompleted {
+            HStack(spacing: 6) {
+                Image(systemName: "hammer")
+                    .foregroundStyle(karigar == nil ? Tone.owed.color : Color.secondary)
+                if let karigar {
+                    Text(karigar).fontWeight(.medium)
+                    Text("· " + givenWords)
+                        .foregroundStyle(item.givenAt == nil ? Tone.owed.color : Color.secondary)
+                } else {
+                    Text("Not given out").foregroundStyle(Tone.owed.color)
+                }
             }
+            .font(.subheadline)
+            .accessibilityElement(children: .combine)
         }
-        .font(.subheadline)
     }
 
     // MARK: Stones, diamonds and the instructions
@@ -121,7 +126,7 @@ struct OrderPieceRow: View {
         }
         // Owners only: the staff's copy of the order comes without it (roles.ts).
         if let a = clean(item.adminNote) {
-            noteBox("Instructions for the karigar (never printed)", a, symbol: "lock.fill", tint: .orange)
+            noteBox("Instructions for the karigar (never printed)", a, symbol: "lock.fill", tint: Tone.owed.color)
         }
     }
 
@@ -211,14 +216,14 @@ struct OrderPieceRow: View {
             } label: {
                 Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
-                    .foregroundStyle(item.isCompleted ? Color.green : Color.secondary)
+                    .foregroundStyle(item.isCompleted ? Tone.settled.color : Color.secondary)
             }
             .buttonStyle(.borderless)
             .accessibilityLabel(item.isCompleted ? "Done. Tap to mark not done." : "Mark as complete")
         } else if item.isCompleted {
             Image(systemName: "checkmark.circle.fill")
                 .font(.title2)
-                .foregroundStyle(.green)
+                .foregroundStyle(Tone.settled.color)
                 .accessibilityLabel("Done")
         }
     }

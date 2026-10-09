@@ -374,13 +374,16 @@ struct PaymentSheet: View {
     }
 }
 
-/// A row taken by whoever is signed in: tinted, with a bar down its left edge, and left in its place in
-/// the list rather than sorted to the top (src/lib/utils.ts `mineRowClass`; the owner, 2026-10-05).
+/// A row taken by whoever is signed in, left in its place in the list rather than sorted to the top
+/// (src/lib/utils.ts `mineRowClass`; the owner, 2026-10-05): a short bar of the house's accent at its
+/// leading edge. The whole row tinted, as it was until 2026-10-09, made a day's card look like a warning;
+/// the rows of the redesigned lists also say "You" (MineTag).
 struct MineRowBackground: View {
     var body: some View {
         Theme.card
-            .overlay(Theme.accent.opacity(0.07))
-            .overlay(alignment: .leading) { Theme.accent.frame(width: 3) }
+            .overlay(alignment: .leading) {
+                Capsule().fill(Theme.accent).frame(width: 3).padding(.vertical, 10)
+            }
     }
 }
 

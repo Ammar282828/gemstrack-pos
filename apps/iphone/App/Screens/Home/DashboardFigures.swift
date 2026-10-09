@@ -401,6 +401,10 @@ struct DashDue: Identifiable {
 struct DashNeed: Identifiable {
     enum Tone { case danger, warn, plain }
 
+    /// What the row is about, so Home can lead it with its own symbol (the web's rows tell them apart by
+    /// their words alone). Set where the row is made; it decides nothing.
+    enum Kind { case rate, online, late, bench, unassigned, unpaid, repairReady, birthday, anniversary, other }
+
     let id: String
     let path: String
     let tone: Tone
@@ -409,6 +413,7 @@ struct DashNeed: Identifiable {
     var amount: Double?
     /// The row asks for today's rate: an owner's opens the rate form here, not the ERP's page at `path`.
     var opensRates = false
+    var kind: Kind = .other
 }
 
 struct DashDay: Identifiable {
@@ -602,8 +607,9 @@ struct DashFigures {
     /// Everything actually waiting on a decision, worst first: grouped, not enumerated (page.tsx `tasks`).
     func needs(onlineWaiting: Int, ratePause: DashRatePause?) -> [DashNeed] {
         var out: [DashNeed] = []
-        func add(_ path: String, _ tone: DashNeed.Tone, _ title: String, _ detail: String, amount: Double? = nil) {
-            out.append(DashNeed(id: "\(out.count)|\(path)", path: path, tone: tone, title: title, detail: detail, amount: amount))
+        func add(_ path: String, _ tone: DashNeed.Tone, _ title: String, _ detail: String, amount: Double? = nil,
+                 kind: DashNeed.Kind = .other) {
+            out.append(DashNeed(id: "\(out.count)|\(path)", path: path, tone: tone, title: title, detail: detail, amount: amount, kind: kind))
         }
 
         // taheri.shop sells only at a rate set in the last 36 hours.
@@ -613,22 +619,22 @@ struct DashFigures {
             out.append(DashNeed(id: "\(out.count)|/settings?tab=rates", path: "/settings?tab=rates", tone: .danger,
                                 title: "Set today's gold rate — online selling is paused",
                                 detail: last.isEmpty ? "The rate chip at the top" : "Last set \(last) · the rate chip at the top",
-                                opensRates: true))
+                                opensRates: true, kind: .rate))
         }
 
         // An online order nobody has looked at: the customer is waiting for the bank details. The row opens
         // the online inbox (OnlineOrdersScreen), where each is confirmed or declined.
         if onlineWaiting > 0 {
             add("/orders/online", .danger, onlineWaiting == 1 ? "An online order to confirm" : "\(onlineWaiting) online orders to confirm",
-                "From taheri.shop · they get the bank details when you confirm")
+                "From taheri.shop · they get the bank details when you confirm", kind: .online)
         }
 
         let late = lateDue
         if let worst = late.first {
             if late.count == 1 {
-                add(worst.path, .danger, "\(worst.customer)’s \(worst.isRepair ? "repair" : "order") is late", timingLabel(worst.timing))
+                add(worst.path, .danger, "\(worst.customer)’s \(worst.isRepair ? "repair" : "order") is late", timingLabel(worst.timing), kind: .late)
             } else {
-                add(worst.path, .danger, "\(late.count) promises past their date", "Longest: \(worst.customer), \(timingLabel(worst.timing))")
+                add(worst.path, .danger, "\(late.count) promises past their date", "Longest: \(worst.customer), \(timingLabel(worst.timing))", kind: .late)
             }
         }
 
@@ -636,28 +642,29 @@ struct DashFigures {
 
         let shown = unpaid.prefix(3)
         for inv in shown {
-            add(DashPath.invoice(inv.id), .warn, DashText.name(inv.customerName), "Unpaid since \(DashDate.dayMonth(iso: inv.createdAt))", amount: inv.balanceDue)
+            add(DashPath.invoice(inv.id), .warn, DashText.name(inv.customerName), "Unpaid since \(DashDate.dayMonth(iso: inv.createdAt))",
+                amount: inv.balanceDue, kind: .unpaid)
         }
         let rest = unpaid.dropFirst(3)
         if !rest.isEmpty {
             let sum = rest.reduce(0.0) { (acc: Double, inv: Invoice) -> Double in acc + inv.balanceDue }
-            add("/invoices", .warn, "\(rest.count) more unpaid", "Smaller balances", amount: sum)
+            add("/invoices", .warn, "\(rest.count) more unpaid", "Smaller balances", amount: sum, kind: .unpaid)
         }
 
         for r in readyWaiting.prefix(3) {
             add(DashPath.repair(r.id), .warn, "\(DashText.name(r.customerName))’s repair is ready",
-                "Waiting to be collected since \(DashDate.dayMonth(iso: r.readyAt))")
+                "Waiting to be collected since \(DashDate.dayMonth(iso: r.readyAt))", kind: .repairReady)
         }
 
         for o in occasions.prefix(4) {
             add(DashPath.customer(o.customerId), o.inDays <= 1 ? .warn : .plain, o.customerName,
-                "\(o.isBirthday ? "Birthday" : "Anniversary") \(o.when)")
+                "\(o.isBirthday ? "Birthday" : "Anniversary") \(o.when)", kind: o.isBirthday ? .birthday : .anniversary)
         }
         return out
     }
 
     /// One row per karigar with overdue pieces (the four worst), then the work nobody has.
-    private func addBenchNeeds(_ add: (String, DashNeed.Tone, String, String, Double?) -> Void) {
+    private func addBenchNeeds(_ add: (String, DashNeed.Tone, String, String, Double?, DashNeed.Kind) -> Void) {
         var order: [String] = []
         var groups: [String: BenchGroup] = [:]
         for j in criticalJobs where !j.isUnassigned {
@@ -672,11 +679,51 @@ struct DashFigures {
         for g in ranked.prefix(4) {
             let path = karigarIds.contains(g.id) ? DashPath.karigar(g.id) : "/workshop"
             let detail = g.count == 1 ? "1 piece, \(g.oldest) days on the bench" : "\(g.count) pieces overdue · longest \(g.oldest) days"
-            add(path, .danger, g.name, detail, nil)
+            add(path, .danger, g.name, detail, nil, .bench)
         }
         if !unassignedJobs.isEmpty {
             let n = unassignedJobs.count
-            add("/workshop", .danger, "\(n) unassigned piece\(n == 1 ? "" : "s")", "Nobody is making these yet", nil)
+            add("/workshop", .danger, "\(n) unassigned piece\(n == 1 ? "" : "s")", "Nobody is making these yet", nil, .unassigned)
         }
     }
+}
+
+// MARK: What the redrawn Home reads (2026-10-09)
+
+// Slices and comparisons of the figures above, for the page's hero and its three cards. Each reads only
+// what DashFigures already holds; none is a new rule for money.
+
+extension DashFigures {
+    /// The last seven days of the 30-day line, today last: the bars under "Taken today".
+    var week: [DashDay] { Array(days.suffix(7)) }
+
+    /// This month so far against the whole of last month (1.12 is 12% more); nil with nothing last month to
+    /// compare. Month to date against a full month, so it is short of 1 for most of a month: the page says
+    /// "62% of Sep" then, not "−38%".
+    var monthAgainstLast: Double? {
+        guard lastMonthRevenue > 0.5 else { return nil }
+        return monthRevenue / lastMonthRevenue
+    }
+
+    /// The newest sale rung up today (Karachi's day), for "last sale 3:45 pm"; a refund is not a sale.
+    /// The invoices come newest first, so the first one older than today ends the search.
+    var lastSaleToday: Invoice? {
+        let start = DashDate.startOfDay(now)
+        for inv in recentInvoices {
+            guard let at = DashDate.parseISO(inv.createdAt) else { continue }
+            if at < start { return nil }
+            if inv.status != .refunded { return inv }
+        }
+        return nil
+    }
+}
+
+extension DashDate {
+    private static let shortMonthFormat = formatter("MMM")
+
+    /// "Sep".
+    static func shortMonth(_ d: Date) -> String { shortMonthFormat.string(from: d) }
+
+    /// The month before `d`'s, for "62% of Sep".
+    static func lastMonth(_ d: Date) -> Date { adding(months: -1, to: d) }
 }

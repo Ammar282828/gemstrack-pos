@@ -35,19 +35,45 @@ enum InvoiceFacts {
     /// glance (the Awaiting payment section is oldest first for the same reason), not a rule.
     static let staleDays = 30
 
-    /// The colour of an invoice's balance: owed in orange, red once it is old, credit green.
-    static func tone(_ inv: Invoice, now: Date = Date()) -> Color {
-        if inv.status == .refunded { return Color.secondary }
+    /// The tone of an invoice's balance (Ledger.swift): owed amber, red once it is old, credit teal, settled green,
+    /// a refund quiet.
+    static func balanceTone(_ inv: Invoice, now: Date = Date()) -> Tone {
+        if inv.status == .refunded { return .quiet }
         switch balanceLine(inv.balanceDue).state {
         case .due:
-            guard let made = ERPDate.parse(inv.createdAt) else { return Color.orange }
-            let age = now.timeIntervalSince(made)
-            return age > Double(staleDays) * 86_400 ? Color.red : Color.orange
+            guard let made = ERPDate.parse(inv.createdAt) else { return .owed }
+            return now.timeIntervalSince(made) > Double(staleDays) * 86_400 ? .late : .owed
         case .credit:
-            return Color.green
+            return .credit
         case .paid:
-            return Color.secondary
+            return .settled
         }
+    }
+
+    /// What was sold, as the counter remembers a sale: the first piece's name, and "+2 more" for the rest.
+    /// A line with no name says its category, else its stock number.
+    static func whatSold(_ inv: Invoice) -> String? {
+        guard let first = inv.items.first else { return nil }
+        var name = first.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.isEmpty { name = OrdersLogic.categorySingular(first.itemCategory) ?? first.sku }
+        if name.isEmpty { name = "1 piece" }
+        let more = inv.items.count - 1
+        return more > 0 ? "\(name) +\(more) more" : name
+    }
+
+    private static let clock: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_GB")
+        f.timeZone = ERPDate.karachi
+        f.dateFormat = "h:mm a"
+        f.amSymbol = "am"
+        f.pmSymbol = "pm"
+        return f
+    }()
+
+    /// "3:45 pm", Karachi's: a row under its day's heading needs only the time.
+    static func time(_ iso: String) -> String {
+        ERPDate.parse(iso).map { clock.string(from: $0) } ?? ""
     }
 
     /// Who may take a payment (/api/app/write recordPayment): owners and staff.
@@ -261,5 +287,183 @@ extension View {
                 try await InvoiceFacts.record(inv, amount: amount, method: method, reference: reference)
             }
         }
+    }
+}
+
+// MARK: The balance, as one pill
+
+/// Where an invoice's balance stands, the one badge a row carries: "Paid", "PKR 86,000 due" (red once it is
+/// old), "PKR 3,000 credit", "Refunded" (invoice-credit.ts `balanceLine`, never a negative balance).
+struct InvoiceBalancePill: View {
+    let invoice: Invoice
+
+    var body: some View {
+        let line = balanceLine(invoice.balanceDue)
+        let tone = InvoiceFacts.balanceTone(invoice)
+        if invoice.status == .refunded {
+            Pill("Refunded", tone: .quiet)
+        } else {
+            switch line.state {
+            case .due: Pill("\(Money.pkr(line.amount)) due", tone: tone)
+            case .credit: Pill("\(Money.pkr(line.amount)) credit", tone: .credit)
+            case .paid: Pill("Paid", tone: .settled)
+            }
+        }
+    }
+}
+
+// MARK: Send on WhatsApp, from the page or a swipe
+
+/// The ERP page's Send via WhatsApp, by house (STORE_INVOICE_WHATSAPP_PDF), the same from the invoice page and
+/// from a swipe on the list: set `invoice` and it runs. Taheri sends the PDF itself from the shop's line: the ERP
+/// draws it (Print's PDF), sends it and notes the send on the invoice, so it is asked first and then done from
+/// here (InvoiceFacts.sendPDF). With no number on file, or for another number, the ERP's page opens (`web`) for one
+/// to be typed. House of Mina writes the message and the customer's link into WhatsApp on this phone
+/// (InvoiceWhatsAppSheet), unless the invoice predates its link's key, which the page makes as it sends.
+private struct InvoiceWhatsAppSend: ViewModifier {
+    @Binding var invoice: Invoice?
+    @Binding var web: Route?
+    let sent: (InvoiceNote) -> Void
+
+    @Environment(Book.self) private var book
+    @Environment(Session.self) private var session
+    /// Taheri's send from the shop's line, asked first: it really sends.
+    @State private var confirming: Invoice?
+    /// House of Mina's: the number and the words, then WhatsApp on this phone.
+    @State private var linking: Invoice?
+    /// Taheri's PDF on its way from the shop's line, and the ERP's words when it could not go.
+    @State private var sendingPDF = false
+    @State private var failedOn: Invoice?
+    @State private var failure: String?
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: invoice) { _, picked in
+                guard let picked else { return }
+                invoice = nil
+                start(picked)
+            }
+            .confirmationDialog(confirming.map(title) ?? "", isPresented: confirmingShown,
+                                titleVisibility: .visible, presenting: confirming) { (inv: Invoice) in
+                Button(inv.sentOnWhatsApp == nil ? "Send the PDF" : "Send it again") { Task { await sendPDF(inv) } }
+                // The ERP page's box takes another number; its Send goes to whatever is typed there.
+                Button("Another number…") { openWeb(inv) }
+            } message: { (inv: Invoice) in
+                Text(words(inv))
+            }
+            // As the web's error toast: the shop's line could not send, so the link can go from this phone instead.
+            .alert("Could not send the PDF", isPresented: failureShown) {
+                if let inv = failedOn, InvoiceFacts.shareURL(inv) != nil {
+                    Button("Send a link") { linking = inv }
+                }
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(failure ?? "")
+            }
+            .sheet(item: $linking) { (inv: Invoice) in
+                InvoiceWhatsAppSheet(invoice: inv, phone: phone(inv))
+            }
+            .overlay(alignment: .top) {
+                if sendingPDF {
+                    Label("Sending the PDF…", systemImage: "paperplane")
+                        .font(.footnote.weight(.medium))
+                        .padding(.horizontal, 14).padding(.vertical, 7)
+                        .glassEffect(.regular, in: .capsule)
+                        .padding(.top, 8)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+    }
+
+    /// The number the ERP page's box starts with: the invoice's, else its customer's.
+    private func phone(_ inv: Invoice) -> String {
+        InvoiceFacts.whatsAppPhone(inv, customer: inv.customerId.flatMap { book.customers.item($0) })
+    }
+
+    private func openWeb(_ inv: Invoice, doing: String? = nil) {
+        web = Route(path: InvoiceFacts.path(inv.id, web: true, doing: doing))
+    }
+
+    private func start(_ inv: Invoice) {
+        if session.shop.invoiceWhatsappPdf {
+            if CustomerKit.whatsAppNumber(phone(inv)).isEmpty { openWeb(inv) } else { confirming = inv }
+        } else if InvoiceFacts.shareURL(inv) == nil {
+            openWeb(inv, doing: "share")
+        } else {
+            linking = inv
+        }
+    }
+
+    /// invoice-viewer.tsx `handleSendWhatsApp`: sent, said as its toast says it; refused, the ERP's words.
+    private func sendPDF(_ inv: Invoice) async {
+        guard !sendingPDF else { return }
+        withAnimation { sendingPDF = true }
+        defer { withAnimation { sendingPDF = false } }
+        do {
+            let out = try await InvoiceFacts.sendPDF(inv, to: phone(inv))
+            let name = InvoiceFacts.customerName(inv, walkIn: "")
+            sent(InvoiceNote(title: "Sent to \(name.isEmpty ? out.to : name)",
+                             detail: "\(out.fileName) — on WhatsApp, from the shop's number."))
+        } catch {
+            failedOn = inv
+            failure = error.localizedDescription
+        }
+    }
+
+    private var confirmingShown: Binding<Bool> {
+        Binding(get: { confirming != nil }, set: { (on: Bool) in if !on { confirming = nil } })
+    }
+
+    private var failureShown: Binding<Bool> {
+        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil; failedOn = nil } })
+    }
+
+    private func title(_ inv: Invoice) -> String {
+        let to = phone(inv)
+        return inv.sentOnWhatsApp == nil ? "Send the PDF to \(to)?" : "Send the PDF to \(to) again?"
+    }
+
+    /// What happens, and that it went before (the web shows the send under its button so nobody sends twice).
+    private func words(_ inv: Invoice) -> String {
+        var s = "From the shop's own WhatsApp, with what is owed written under it: the PDF Print saves, drawn and sent by the ERP."
+        if let sent = inv.sentOnWhatsApp {
+            s += " Already sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))."
+        }
+        return s
+    }
+}
+
+/// A change that has landed, over the top of the screen for a few seconds, like the web's toast.
+private struct InvoiceNoteOverlay: ViewModifier {
+    @Binding var note: InvoiceNote?
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .top) {
+                if let note {
+                    InvoiceNoteBanner(note: note)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .task(id: note) {
+                guard note != nil else { return }
+                try? await Task.sleep(for: .seconds(4))
+                if !Task.isCancelled { withAnimation { note = nil } }
+            }
+    }
+}
+
+extension View {
+    /// Send on WhatsApp for whichever invoice `invoice` is set to (InvoiceWhatsAppSend); `web` opens the ERP's page
+    /// where a number has to be typed, `sent` says it went.
+    func invoiceWhatsAppSend(_ invoice: Binding<Invoice?>, web: Binding<Route?>, sent: @escaping (InvoiceNote) -> Void) -> some View {
+        modifier(InvoiceWhatsAppSend(invoice: invoice, web: web, sent: sent))
+    }
+
+    /// The note of a change that has landed, said for a few seconds and then gone.
+    func invoiceNoteBanner(_ note: Binding<InvoiceNote?>) -> some View {
+        modifier(InvoiceNoteOverlay(note: note))
     }
 }

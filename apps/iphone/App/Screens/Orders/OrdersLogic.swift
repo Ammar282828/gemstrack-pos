@@ -7,9 +7,10 @@ import ERPCore
 
 /// How the hub is broken up (orders/page.tsx `groupBy`): by day to start with (the owner, 2026-10-05),
 /// or by stage, which is the hub proper, or by week or month. The calendar ones are the Invoices
-/// list's, so a day, a week and a month are named and cut the same on both.
+/// list's, so a day, a week and a month are named and cut the same on both. Due is the phone's own
+/// (2026-10-09): the open orders by how soon each was promised, Late first.
 enum OrdersGrouping: String, CaseIterable, Identifiable {
-    case stage, day, week, month
+    case stage, day, week, month, due
 
     var id: String { rawValue }
 
@@ -20,16 +21,80 @@ enum OrdersGrouping: String, CaseIterable, Identifiable {
         case .day: return "Day"
         case .week: return "Week"
         case .month: return "Month"
+        case .due: return "Due"
         }
     }
 
-    /// The calendar cut, nil for Stage.
+    /// The calendar cut, nil for Stage and Due.
     var calendar: InvoiceGrouping? {
         switch self {
-        case .stage: return nil
+        case .stage, .due: return nil
         case .day: return .day
         case .week: return .week
         case .month: return .month
+        }
+    }
+
+    /// The switcher's first segment: the calendar cut in use, Day unless Week or Month was picked from the menu.
+    var calendarCut: OrdersGrouping { calendar == nil ? .day : self }
+}
+
+/// The Due view's sections, in the order they are chased. "This week" is the bench week the ERP calls
+/// urgent (URGENT_WINDOW_DAYS), so a card in it carries the same amber promise as anywhere else.
+enum OrdersDueBucket: String, CaseIterable {
+    case late, today, week, later, undated
+
+    var title: String {
+        switch self {
+        case .late: return "Late"
+        case .today: return "Today"
+        case .week: return "This week"
+        case .later: return "Later"
+        case .undated: return "No date"
+        }
+    }
+
+    var hint: String {
+        switch self {
+        case .late: return "past the day promised"
+        case .today: return "promised for today"
+        case .week: return "in the next \(URGENT_WINDOW_DAYS) days: start them now"
+        case .later: return "more than a week away"
+        case .undated: return "no day promised: oldest first"
+        }
+    }
+}
+
+/// What an order asks for next (components/order/next-step.tsx): the one reading the hub's cards and the
+/// order page's bar both use.
+///   Awaiting transfer  Check transfer (the transfer's moves: the slips, Transfer received, Let it lapse)
+///   Not started        Give out (the ERP's page: the karigar pickers)
+///   With karigars      Mark ready (Completed, every piece ticked)
+///   Ready to hand over Finalize & invoice
+///   Invoiced           the invoice: money is taken there only (decision "Orders hub", 2026-10-06)
+enum OrderNextStep: Equatable {
+    case checkTransfer(slipIn: Bool)
+    case giveOut
+    case markReady
+    case finalize
+    case invoice(id: String, owed: Double)
+
+    var title: String {
+        switch self {
+        case .checkTransfer(let slipIn): return slipIn ? "Slip in: check" : "Check transfer"
+        case .giveOut: return "Give out"
+        case .markReady: return "Mark ready"
+        case .finalize: return "Finalize & invoice"
+        case .invoice(let id, let owed): return owed > 0.5 ? "Open \(id) · \(Money.pkr(owed)) due" : "Open \(id)"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .checkTransfer: return "banknote"
+        case .giveOut: return "person.badge.plus"
+        case .markReady: return "checkmark.circle"
+        case .finalize, .invoice: return "doc.text"
         }
     }
 }
@@ -66,6 +131,30 @@ enum OrdersLogic {
         !(order.invoiceId ?? "").isEmpty
     }
 
+    /// The order's one next step; nil once it is closed, or paid and done with no invoice to point at.
+    /// `owed` is what its invoice still has owing.
+    static func nextStep(_ order: Order, stage: OrderStage, owed: Double) -> OrderNextStep? {
+        if let id = order.invoiceId, !id.isEmpty { return .invoice(id: id, owed: owed) }
+        switch stage {
+        case .transfer: return .checkTransfer(slipIn: order.website?.paymentStatus == .slipSent)
+        case .new: return .giveOut
+        case .karigar: return .markReady
+        case .ready: return .finalize
+        case .payment, .done, .closed: return nil
+        }
+    }
+
+    /// The Advance beside the step: an owner's (the ERP refuses anyone else), on an order still being made.
+    static func offersAdvance(_ order: Order, stage: OrderStage, isOwner: Bool) -> Bool {
+        isOwner && making(stage) && canAdvance(order)
+    }
+
+    /// Still to be handed over: not invoiced, not cancelled or refunded. A finished piece not yet invoiced
+    /// still has its promise to keep.
+    static func isOpen(_ order: Order) -> Bool {
+        !hasInvoice(order) && order.status != .cancelled && order.status != .refunded
+    }
+
     /// Online orders are the ones placed on the website and confirmed by a person.
     static func isOnline(_ order: Order) -> Bool {
         order.source == .website && order.website != nil
@@ -83,6 +172,45 @@ enum OrdersLogic {
     static func owed(_ order: Order, _ owedOn: [String: Double]) -> Double {
         guard let id = order.invoiceId, !id.isEmpty else { return 0 }
         return owedOn[id] ?? 0
+    }
+
+    /// What the customer still owes on the order as the list shows it: the order's own balance (its
+    /// `grandTotal`) until it is invoiced, then what the invoice still has owing. Below zero is credit.
+    static func stillOwed(_ order: Order, invoiceOwed: Double) -> Double {
+        hasInvoice(order) ? invoiceOwed : order.grandTotal
+    }
+
+    // MARK: The Due view
+
+    static func dueBucket(_ t: OrderTiming) -> OrdersDueBucket {
+        // An order with no day promised is undated here, whatever the age rule calls it.
+        guard t.due != nil else { return .undated }
+        switch t.state {
+        case .late: return .late
+        case .today: return .today
+        case .upcoming: return -t.daysLate <= URGENT_WINDOW_DAYS ? .week : .later
+        case .noPromise: return .undated
+        }
+    }
+
+    /// The open orders by how soon they were promised: in each section the soonest promise first (so the
+    /// latest of the late), and the undated oldest first, as they have waited longest.
+    static func dueGroups(_ orders: [Order], now: Date) -> [(bucket: OrdersDueBucket, orders: [Order])] {
+        var members: [OrdersDueBucket: [(order: Order, due: Date?)]] = [:]
+        for o in orders where isOpen(o) {
+            let t = orderTiming(o, now: now)
+            members[dueBucket(t), default: []].append((o, t.due))
+        }
+        return OrdersDueBucket.allCases.compactMap { b in
+            guard let rows = members[b], !rows.isEmpty else { return nil }
+            let sorted = rows.sorted { a, c in
+                if let da = a.due, let dc = c.due, da != dc { return da < dc }
+                let ta = takenAt(a.order), tc = takenAt(c.order)
+                if ta != tc { return ta < tc }
+                return a.order.id < c.order.id
+            }
+            return (b, sorted.map(\.order))
+        }
     }
 
     // MARK: Whose it is
@@ -289,6 +417,60 @@ enum OrdersLogic {
         if names.isEmpty { return order.items.isEmpty ? "No pieces" : "\(order.items.count) piece\(order.items.count == 1 ? "" : "s")" }
         let shown = names.prefix(3).joined(separator: ", ")
         return names.count > 3 ? shown + " and \(names.count - 3) more" : shown
+    }
+
+    /// The card's one line about what the order is: its summary, else its first piece, and how many
+    /// more pieces there are beside it ("3 pieces", "+2 more").
+    static func cardWhat(_ order: Order) -> (text: String, extra: String?) {
+        let count = order.items.count
+        if let s = order.summary?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty {
+            return (s, count > 1 ? "\(count) pieces" : nil)
+        }
+        let names = order.items.map { $0.description.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        guard let first = names.first else {
+            return (count == 0 ? "No pieces" : "\(count) piece\(count == 1 ? "" : "s")", nil)
+        }
+        return (first, count > 1 ? "+\(count - 1) more" : nil)
+    }
+
+    private static let dueDayFormat: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_GB")
+        f.timeZone = ERPDate.karachi
+        f.dateFormat = "EEE d MMM"
+        return f
+    }()
+
+    /// "Thu 12 Oct", the promised day as the cards and the order page say it.
+    static func dueDay(_ d: Date) -> String { dueDayFormat.string(from: d) }
+
+    /// The order page's promise in words: "Due today", "Due Mon 12 Oct · in 3 days", "Due Wed 7 Oct · 2 days
+    /// late"; how far off it is only while the order is still being chased (promise-line.tsx).
+    static func promiseLine(_ order: Order, now: Date) -> String {
+        let p = promise(order, now: now)
+        let t = orderTiming(order, now: now)
+        if p.undated {
+            // The ERP's age rule still counts an old undated order as late; say how old, quietly.
+            return isActiveOrder(order) && t.state == .late ? "No day promised · " + timingLabel(t) : "No day promised"
+        }
+        if t.state == .today { return "Due today" }
+        var s = t.due.map { "Due " + dueDay($0) } ?? "No day promised"
+        if p.chase, !p.label.isEmpty, t.state != .today { s += " · " + p.label }
+        return s
+    }
+
+    /// A number as the shop writes one: "0300 1234567", "+92 300 1234567"; anything else as it was typed.
+    static func phoneWords(_ phone: String?) -> String {
+        let raw = (phone ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard raw.allSatisfy({ ($0.isASCII && $0.isNumber) || $0 == " " || $0 == "-" || $0 == "+" }) else { return raw }
+        let d = digits(raw)
+        if d.count == 12, d.hasPrefix("92"), d.dropFirst(2).hasPrefix("3"), !raw.hasPrefix("0") {
+            return "+92 \(d.dropFirst(2).prefix(3)) \(d.dropFirst(5))"
+        }
+        if d.count == 11, d.hasPrefix("03") {
+            return "\(d.prefix(4)) \(d.dropFirst(4))"
+        }
+        return raw
     }
 
     // MARK: Margin (shop screens only)

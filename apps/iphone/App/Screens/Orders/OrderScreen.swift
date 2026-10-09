@@ -7,6 +7,12 @@ import ERPCore
 /// booking and tracking the courier and sending the customer an update are native (OrderUndoSheets,
 /// OrderCourierSheet, OrderTrackingSheet, OrderLeopardsSheet, OrderNotifySheet); giving a piece out is the
 /// ERP's own page, one tap away.
+///
+/// The page reads as the ledger (App/UI/Ledger.swift, 2026-10-09): first who it is for and how to reach them,
+/// when it was promised and how far it has come; then the money as Total · Paid · Due (what is owed stands
+/// out, not the total); the pieces; the quieter facts last. The order's next step is the bar at its foot, as an
+/// invoice's Take payment is, with an Advance beside it while the order is being made. The ⋯ menu keeps
+/// everything else.
 struct OrderScreen: View {
     let id: String
 
@@ -24,6 +30,10 @@ struct OrderScreen: View {
     @State private var tracking = false
     @State private var leopardsOpen = false
     @State private var notifying = false
+    /// The bar's Check transfer: the transfer's own sheet, as the online section's Transfer received opens it.
+    @State private var checkingTransfer = false
+    /// What that sheet said once the transfer was booked.
+    @State private var told: OnlineTold?
 
     var body: some View {
         // New order is the ERP's own page, and "/orders/" + "add" reaches this screen as an order id.
@@ -56,24 +66,39 @@ struct OrderScreen: View {
     }
 
     private func detail(_ order: Order) -> some View {
-        List { Group {
-            headerSection(order)
-            if OrdersLogic.hasInvoice(order) { invoiceSection(order) }
+        let invoice = invoiceOf(order)
+        // What the invoice still has owing, by the hub's own rule (isOwing), so the stage reads the same on both.
+        let owed = invoice.map { isOwing($0) ? $0.balanceDue : 0 } ?? 0
+        let stage = stageOf(order, owedOnInvoice: owed)
+        let now = Date()
+        return List { Group {
+            heroSection(order, stage: stage, now: now)
+            if OrdersLogic.hasInvoice(order) {
+                invoiceSection(order, invoice: invoice, owed: owed)
+            } else {
+                moneySection(order)
+            }
+            if let told { toldSection(told) }
             if OrdersLogic.isOnline(order) {
                 OrderOnlineSection(order: order, openWeb: { web = $0 }, leopards: { leopardsOpen = true })
             }
             piecesSection(order)
-            if !OrdersLogic.hasInvoice(order) { moneySection(order) }
+            detailsSection(order)
             }
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .modifier(HouseGround())
+        .safeAreaBar(edge: .bottom, spacing: 0) { actionBar(order, stage: stage, owed: owed) }
         .toolbar { orderToolbar(order) }
         .sheet(isPresented: $advancing) { advanceSheet(order) }
         .sheet(isPresented: $booking) { OrderCourierSheet(order: order) }
         .sheet(isPresented: $tracking) { OrderTrackingSheet(order: order) }
         .sheet(isPresented: $leopardsOpen) { OrderLeopardsSheet(order: order) }
         .sheet(isPresented: $notifying) { OrderNotifySheet(order: order) }
+        .sheet(isPresented: $checkingTransfer) {
+            OnlineMoveSheet(order: order, kind: .paid) { t in told = t }
+        }
         .confirmationDialog("Cancel order \(order.id)?", isPresented: $confirmCancel, titleVisibility: .visible) {
             Button("Cancel order", role: .destructive) { setStatus(order, "Cancelled") }
             Button("Keep it", role: .cancel) {}
@@ -82,253 +107,155 @@ struct OrderScreen: View {
         }
     }
 
-    // MARK: Header
+    private func invoiceOf(_ order: Order) -> Invoice? {
+        guard let invoiceId = order.invoiceId, !invoiceId.isEmpty else { return nil }
+        return book.invoices.items.first(where: { $0.id == invoiceId })
+    }
+
+    // MARK: Who, when, how far
 
     @ViewBuilder
-    private func headerSection(_ order: Order) -> some View {
+    private func heroSection(_ order: Order, stage: OrderStage, now: Date) -> some View {
+        let phone = (order.customerContact ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         Section {
-            titleBlock(order)
-            customerRow(order)
-            contactRow(order)
-            statusRow(order)
-            LabeledContent("Promised") {
-                OrdersPromiseText(order: order, now: Date(), font: .subheadline)
+            whoRow(order, phone: phone)
+                .listRowSeparator(.hidden)
+            if !CustomerKit.dialable(phone).isEmpty {
+                ContactActions(phone: phone)
+                    .padding(.bottom, 4)
+                    .listRowSeparator(.hidden)
             }
-            factRows(order)
+            promiseRow(order, now: now)
+                .listRowSeparator(.hidden)
+            standingRow(order, stage: stage)
         }
     }
 
-    private func titleBlock(_ order: Order) -> some View {
-        // Who and how much, as the invoice's page opens: the number is in the title.
-        VStack(spacing: 8) {
-            Initials(name: OrdersLogic.customerName(order), size: 52)
-            Text(Money.pkr(order.grandTotal))
-                .font(.system(.largeTitle, design: .rounded).weight(.bold))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-            HStack(spacing: 6) {
-                if OrdersLogic.isOnline(order) { OrdersOnlineBadge() }
-                OrdersPaymentBadge(order: order)
+    /// The customer's name opens their page, as it did on the old Customer row.
+    @ViewBuilder
+    private func whoRow(_ order: Order, phone: String) -> some View {
+        if let cid = order.customerId, !cid.isEmpty {
+            NavigationLink(value: Route(path: "/customers/\(cid)")) {
+                who(order, phone: phone)
             }
-            Text("Taken " + ShopDate.say(order.createdAt))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            let rates = OrdersLogic.rateLine(order)
+        } else {
+            who(order, phone: phone)
+        }
+    }
+
+    private func who(_ order: Order, phone: String) -> some View {
+        let name = OrdersLogic.customerName(order)
+        let online = OrdersLogic.isOnline(order)
+        return HStack(spacing: 14) {
+            Monogram(name: name, size: 56)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(name)
+                    .font(.system(.title2, design: .serif).weight(.semibold))
+                    .lineLimit(2)
+                if !phone.isEmpty || online {
+                    HStack(spacing: 8) {
+                        if !phone.isEmpty {
+                            Text(OrdersLogic.phoneWords(phone))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                                .lineLimit(1)
+                        }
+                        if online { OrdersOnlineBadge() }
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// The promised day as a leaf, and how it is going: red once late, amber on the day and inside the bench
+    /// week (with "Urgent"), quiet once the order is finished (components/shared/promise-line.tsx).
+    private func promiseRow(_ order: Order, now: Date) -> some View {
+        let t = orderTiming(order, now: now)
+        let p = OrdersLogic.promise(order, now: now)
+        let tone = p.tone
+        return HStack(spacing: 12) {
+            DateLeaf(date: t.due, tone: tone)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(OrdersLogic.promiseLine(order, now: now))
+                    .font(.subheadline.weight(tone == .quiet ? .regular : .semibold))
+                    .foregroundStyle(tone == .late ? tone.color : (p.undated ? Color.secondary : Color.primary))
+                    .monospacedDigit()
+                if p.urgent && t.state != .late {
+                    Pill("Urgent", tone: .owed)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Booked → Making → Ready → Invoiced; a cancelled or refunded order says so instead.
+    @ViewBuilder
+    private func standingRow(_ order: Order, stage: OrderStage) -> some View {
+        if stage == .closed {
+            HStack {
+                Pill(order.status.rawValue.isEmpty ? "Closed" : order.status.rawValue, tone: .quiet)
+                Spacer(minLength: 0)
+            }
+        } else {
+            StageTrack(stage: stage, labels: true)
+                .padding(.vertical, 4)
+        }
+    }
+
+    // MARK: Money, while it is the order's
+
+    @ViewBuilder
+    private func moneySection(_ order: Order) -> some View {
+        let subtotal = OrdersLogic.subtotal(order)
+        let discount = OrdersLogic.discount(order)
+        let exchangeValue = OrdersLogic.exchangeValue(order)
+        let lines = OrdersLogic.advanceLines(order)
+        let exchanges = orderExchanges(order)
+        let rates = OrdersLogic.rateLine(order)
+        Section {
+            // The page's own sums, so the three always add up: the pieces less the discount, what has come in
+            // (the cash advances and the gold taken in exchange), and the balance due (OrdersLogic.balance).
+            MoneySplit(total: subtotal - discount, paid: order.advancePayment + exchangeValue,
+                       due: OrdersLogic.balance(order), paidLabel: "Advance")
+                .padding(.vertical, 6)
             if !rates.isEmpty {
                 Text(rates)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 6)
-    }
-
-    @ViewBuilder
-    private func customerRow(_ order: Order) -> some View {
-        let name = OrdersLogic.customerName(order)
-        if let cid = order.customerId, !cid.isEmpty {
-            NavigationLink(value: Route(path: "/customers/\(cid)")) {
-                LabeledContent("Customer", value: name)
-            }
-        } else {
-            LabeledContent("Customer", value: name)
-        }
-    }
-
-    @ViewBuilder
-    private func contactRow(_ order: Order) -> some View {
-        if let phone = order.customerContact, !phone.isEmpty {
-            LabeledContent("Contact") {
-                if let url = URL(string: "tel:" + OrdersLogic.dialable(phone)) {
-                    Link(phone, destination: url)
-                } else {
-                    Text(phone)
-                }
-            }
-        }
-    }
-
-    /// The status is a menu: Pending, In Progress, Completed, Cancelled. Never a bare Refunded
-    /// (Refund order in the ERP does a refund). Cancel asks first.
-    private func statusRow(_ order: Order) -> some View {
-        LabeledContent("Status") {
-            if updatingStatus {
-                ProgressView()
-            } else {
-                Menu {
-                    ForEach(OrdersLogic.settableStatuses, id: \.self) { s in
-                        Button { choose(order, s) } label: {
-                            if s == order.status.rawValue { Label(s, systemImage: "checkmark") } else { Text(s) }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        StatusBadge(order: order.status)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-    }
-
-    /// What the form captured and the bench and the counter both need: who took the order, how they
-    /// found us, where it goes, any notes.
-    @ViewBuilder
-    private func factRows(_ order: Order) -> some View {
-        if let by = order.takenBy, !by.isEmpty {
-            LabeledContent("Taken by", value: by)
-        }
-        if let source = order.source {
-            LabeledContent("Found us via", value: OrdersLogic.sourceLabel(source))
-        }
-        let shipTo = describeDelivery(order.delivery)
-        if !shipTo.isEmpty {
-            LabeledContent("Deliver to") {
-                Text(shipTo.joined(separator: "\n")).multilineTextAlignment(.trailing)
-            }
-        }
-        if let notes = order.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Notes").font(.caption).foregroundStyle(.secondary)
-                Text(notes)
-            }
-        }
-    }
-
-    // MARK: Invoiced: the order is locked, the money is the invoice's
-
-    @ViewBuilder
-    private func invoiceSection(_ order: Order) -> some View {
-        let invoiceId = order.invoiceId ?? ""
-        let invoice = book.invoices.items.first(where: { $0.id == invoiceId })
-        Section {
-            NavigationLink(value: Route(path: "/invoices/\(invoiceId)")) {
-                Label("Invoiced as \(invoiceId)", systemImage: "doc.text")
-            }
-            if let inv = invoice {
-                LabeledContent("Subtotal", value: Money.pkr(inv.subtotal))
-                if inv.discountAmount > 0 {
-                    LabeledContent("Discount") {
-                        Text("- " + Money.pkr(inv.discountAmount)).foregroundStyle(.red)
-                    }
-                }
-                LabeledContent("Grand total", value: Money.pkr(inv.grandTotal))
-                if inv.amountPaid > 0 {
-                    LabeledContent("Paid") {
-                        Text(Money.pkr(inv.amountPaid)).foregroundStyle(.green)
-                    }
-                }
-                invoiceBalance(inv)
-            }
-            if OrderActions.canUndoInvoice(order, isOwner: session.isOwner) {
-                Button(role: .destructive) { undo = OrderUndo.undoInvoice(order) } label: {
-                    Label("Cancel invoice", systemImage: "arrow.uturn.backward")
-                }
-                Button { undo = OrderUndo.unlockAndEdit(order) } label: {
-                    Label("Unlock & edit", systemImage: "lock.open")
-                }
-            }
-        } header: {
-            Text("Invoice")
-        } footer: {
-            Text("The order is locked; to change it, revert the invoice first.")
-        }
-    }
-
-    private func invoiceBalance(_ inv: Invoice) -> some View {
-        let line = balanceLine(inv.balanceDue)
-        return LabeledContent(line.label) {
-            MoneyText(amount: line.amount, exact: true)
-                .font(.title3.weight(.bold))
-        }
-    }
-
-    // MARK: Pieces
-
-    private func piecesSection(_ order: Order) -> some View {
-        let invoiced = OrdersLogic.hasInvoice(order)
-        let counts = pieceCounts(order.items)
-        return Section {
-            ForEach(order.items.indices, id: \.self) { i in
-                OrderPieceRow(
-                    index: i,
-                    item: order.items[i],
-                    karigar: karigarName(order.items[i]),
-                    canTick: session.isOwner && !invoiced,
-                    busy: ticking == i,
-                    showBreakdown: session.isOwner
-                ) { done in
-                    tick(order, i, done)
-                }
-            }
-            if counts.unassigned > 0 && !invoiced {
-                Button { web = .orderPage(order.id) } label: {
-                    Label("Give out: \(counts.unassigned) without a karigar", systemImage: "person.badge.plus")
-                }
-            }
-        } header: {
-            HStack {
-                Text("Pieces (\(counts.total))")
-                Spacer()
-                Text("\(counts.done) of \(counts.total) done")
-            }
-        }
-    }
-
-    private func karigarName(_ item: OrderItem) -> String? {
-        guard OrdersLogic.hasKarigar(item), let kid = item.karigarId else { return nil }
-        return book.karigars.items.first(where: { $0.id == kid })?.name ?? "Karigar " + kid
-    }
-
-    // MARK: Money
-
-    @ViewBuilder
-    private func moneySection(_ order: Order) -> some View {
-        let discount = OrdersLogic.discount(order)
-        let exchangeValue = OrdersLogic.exchangeValue(order)
-        let lines = OrdersLogic.advanceLines(order)
-        let exchanges = orderExchanges(order)
-        Section("Money") {
-            LabeledContent("Subtotal", value: Money.pkr(OrdersLogic.subtotal(order)))
-            if discount > 0 {
-                LabeledContent("Discount") {
-                    Text("- " + Money.pkr(discount)).foregroundStyle(.red)
-                }
-            }
-            LabeledContent("Advance paid") {
-                Text("- " + Money.pkr(order.advancePayment)).foregroundStyle(.red)
-            }
-            // Each advance with its day and how it was paid: these become the invoice's payments. One
-            // advance is the "Advance paid" line above, so it is listed only when there are several.
+            LabeledContent("Pieces", value: Money.pkr(subtotal))
+            if discount > 0 { deduction("Discount", discount) }
+            if order.advancePayment > 0 { deduction("Advance paid", order.advancePayment) }
+            // Each advance with its day and how it was paid: these become the invoice's payments. One advance is
+            // the "Advance paid" line above, so it is listed only when there are several.
             if lines.count > 1 {
                 ForEach(lines) { l in advanceLine(l) }
             }
-            if exchangeValue > 0 {
-                LabeledContent("Taken in exchange") {
-                    Text("- " + Money.pkr(exchangeValue)).foregroundStyle(.red)
-                }
-            }
+            if exchangeValue > 0 { deduction("Taken in exchange", exchangeValue) }
             ForEach(Array(exchanges.enumerated()), id: \.offset) { pair in
                 exchangeLine(pair.element, showValue: exchanges.count > 1)
-            }
-            LabeledContent("Balance due") {
-                MoneyText(amount: OrdersLogic.balance(order), exact: true)
-                    .font(.title3.weight(.bold))
             }
             // The shop's margin: owners and staff, never a customer, never in a house that does not cost by
             // gold, and blurred until tapped (docs/decisions.md "Margin").
             if OrdersLogic.marginIsOn(House.margin) {
                 OrdersMarginRow(order: order)
             }
-            if session.isOwner && OrdersLogic.canAdvance(order) {
-                Button { advancing = true } label: {
-                    Label("Record an advance", systemImage: "creditcard")
-                }
-            }
+        } header: {
+            LedgerHeading(title: "Money")
+        }
+    }
+
+    /// A sum taken off the pieces: quiet, with a real minus. Red is for what is late, never for a discount.
+    private func deduction(_ label: String, _ amount: Double) -> some View {
+        LabeledContent(label) {
+            Text("\u{2212} " + Money.pkr(amount))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -351,6 +278,262 @@ struct OrderScreen: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
+    }
+
+    // MARK: Invoiced: the order is locked, the money is the invoice's
+
+    @ViewBuilder
+    private func invoiceSection(_ order: Order, invoice: Invoice?, owed: Double) -> some View {
+        let invoiceId = order.invoiceId ?? ""
+        let rates = OrdersLogic.rateLine(order)
+        Section {
+            if let inv = invoice {
+                MoneySplit(total: inv.grandTotal, paid: inv.amountPaid, due: inv.balanceDue)
+                    .padding(.vertical, 6)
+            }
+            if !rates.isEmpty {
+                Text(rates)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            NavigationLink(value: Route(path: "/invoices/\(invoiceId)")) {
+                HStack {
+                    Label("Invoiced · \(invoiceId)", systemImage: "doc.text")
+                    Spacer(minLength: 8)
+                    if owed > 0.5 {
+                        Text(Money.pkr(owed) + " owed")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Tone.owed.color)
+                            .monospacedDigit()
+                    }
+                }
+            }
+            if let inv = invoice, inv.discountAmount > 0 {
+                LabeledContent("Pieces", value: Money.pkr(inv.subtotal))
+                deduction("Discount", inv.discountAmount)
+            }
+            if OrderActions.canUndoInvoice(order, isOwner: session.isOwner) {
+                Button(role: .destructive) { undo = OrderUndo.undoInvoice(order) } label: {
+                    Label("Cancel invoice", systemImage: "arrow.uturn.backward")
+                }
+                Button { undo = OrderUndo.unlockAndEdit(order) } label: {
+                    Label("Unlock & edit", systemImage: "lock.open")
+                }
+            }
+        } header: {
+            LedgerHeading(title: "Money")
+        } footer: {
+            Text("The order is locked; to change it, revert the invoice first.")
+        }
+    }
+
+    /// What the bar's Check transfer said once the transfer was booked, as the online section says it.
+    private func toldSection(_ t: OnlineTold) -> some View {
+        Section {
+            Label(t.words, systemImage: t.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .font(.subheadline)
+                .foregroundStyle(t.ok ? Tone.settled.color : Tone.owed.color)
+        }
+    }
+
+    // MARK: Pieces
+
+    private func piecesSection(_ order: Order) -> some View {
+        let invoiced = OrdersLogic.hasInvoice(order)
+        let counts = pieceCounts(order.items)
+        return Section {
+            ForEach(order.items.indices, id: \.self) { i in
+                OrderPieceRow(
+                    index: i,
+                    item: order.items[i],
+                    karigar: karigarName(order.items[i]),
+                    canTick: session.isOwner && !invoiced,
+                    busy: ticking == i,
+                    showBreakdown: session.isOwner
+                ) { done in
+                    tick(order, i, done)
+                }
+            }
+            if order.items.isEmpty {
+                Text("No pieces on this order.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            if counts.unassigned > 0 && !invoiced {
+                Button { web = .orderPage(order.id) } label: {
+                    Label("Give out: \(counts.unassigned) without a karigar", systemImage: "person.badge.plus")
+                }
+            }
+        } header: {
+            LedgerHeading(title: "Pieces", count: counts.total,
+                          trailing: counts.total > 0 ? "\(counts.done) of \(counts.total) done" : nil)
+        }
+    }
+
+    private func karigarName(_ item: OrderItem) -> String? {
+        guard OrdersLogic.hasKarigar(item), let kid = item.karigarId else { return nil }
+        return book.karigars.items.first(where: { $0.id == kid })?.name ?? "Karigar " + kid
+    }
+
+    // MARK: Details: the quieter facts
+
+    /// What the form captured and the bench and the counter both need: the status, who took the order and
+    /// when, how they found us, where it goes, any notes.
+    @ViewBuilder
+    private func detailsSection(_ order: Order) -> some View {
+        let taken = ShopDate.say(order.createdAt, withTime: true)
+        let shipTo = describeDelivery(order.delivery)
+        Section {
+            statusRow(order)
+            if let by = order.takenBy, !by.isEmpty {
+                LabeledContent("Taken by", value: by)
+            }
+            if !taken.isEmpty {
+                LabeledContent("Taken on", value: taken)
+            }
+            if let source = order.source {
+                LabeledContent("Found us via", value: OrdersLogic.sourceLabel(source))
+            }
+            if !shipTo.isEmpty {
+                LabeledContent("Deliver to") {
+                    Text(shipTo.joined(separator: "\n")).multilineTextAlignment(.trailing)
+                }
+            }
+            if let notes = order.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Notes").font(.caption).foregroundStyle(.secondary)
+                    Text(notes)
+                }
+            }
+        } header: {
+            LedgerHeading(title: "Details")
+        }
+    }
+
+    /// The status is a menu: Pending, In Progress, Completed, Cancelled. Never a bare Refunded
+    /// (Refund order in the ERP does a refund). Cancel asks first.
+    private func statusRow(_ order: Order) -> some View {
+        LabeledContent("Status") {
+            if updatingStatus {
+                ProgressView()
+            } else {
+                Menu {
+                    ForEach(OrdersLogic.settableStatuses, id: \.self) { s in
+                        Button { choose(order, s) } label: {
+                            if s == order.status.rawValue { Label(s, systemImage: "checkmark") } else { Text(s) }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Pill(order.status.rawValue.isEmpty ? "No status" : order.status.rawValue,
+                             tone: OrdersTone.status(order.status))
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityLabel("Status: \(order.status.rawValue)")
+            }
+        }
+    }
+
+    // MARK: The bar: the next step
+
+    /// The order's next step at the foot of the page (OrdersLogic.nextStep, as the hub's card has it), as an
+    /// invoice's Take payment: one filled button, and an Advance beside it while the order is being made
+    /// (owners). Nothing for a cancelled or refunded order, or for one invoiced and paid.
+    @ViewBuilder
+    private func actionBar(_ order: Order, stage: OrderStage, owed: Double) -> some View {
+        let step = barStep(order, stage: stage, owed: owed)
+        let advance = OrdersLogic.offersAdvance(order, stage: stage, isOwner: session.isOwner)
+        if stage != .closed && (step != nil || advance) {
+            GlassEffectContainer(spacing: 10) {
+                HStack(spacing: 10) {
+                    if let step {
+                        stepButton(order, step)
+                        if advance {
+                            Button { advancing = true } label: { Label("Advance", systemImage: "creditcard") }
+                                .buttonStyle(.glass)
+                                .controlSize(.large)
+                                .accessibilityLabel("Record an advance")
+                        }
+                    } else {
+                        Button { advancing = true } label: {
+                            Label("Record an advance", systemImage: "creditcard")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.houseProminent)
+                        .controlSize(.large)
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+        }
+    }
+
+    /// The hub's step, less what the foot of this page should not offer: an invoice only while it is owed (a
+    /// paid one is the money card's link), the transfer only to the accounts the server lets move it
+    /// (lib/website/staff-gate.ts).
+    private func barStep(_ order: Order, stage: OrderStage, owed: Double) -> OrderNextStep? {
+        guard let step = OrdersLogic.nextStep(order, stage: stage, owed: owed) else { return nil }
+        switch step {
+        case .invoice(_, let due): return due > 0.5 ? step : nil
+        case .checkTransfer: return session.role == "owner" || session.role == "staff" ? step : nil
+        default: return step
+        }
+    }
+
+    private func invoiceToOpen(_ step: OrderNextStep) -> String? {
+        if case let .invoice(id, _) = step { return id }
+        return nil
+    }
+
+    @ViewBuilder
+    private func stepButton(_ order: Order, _ step: OrderNextStep) -> some View {
+        if let invoiceId = invoiceToOpen(step) {
+            NavigationLink(value: Route(path: "/invoices/\(invoiceId)")) {
+                Label(step.title, systemImage: step.symbol)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.houseProminent)
+            .controlSize(.large)
+        } else {
+            Button { run(order, step) } label: {
+                Group {
+                    if updatingStatus && step == .markReady {
+                        ProgressView()
+                    } else {
+                        Label(step.title, systemImage: step.symbol)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.houseProminent)
+            .controlSize(.large)
+            .disabled(updatingStatus)
+        }
+    }
+
+    private func run(_ order: Order, _ step: OrderNextStep) {
+        switch step {
+        case .checkTransfer:
+            // "Only once you see it in the bank": the sheet says what it books and what the customer is told.
+            checkingTransfer = true
+        case .giveOut:
+            // The karigar pickers are the ERP's page.
+            web = .orderPage(order.id)
+        case .markReady:
+            setStatus(order, "Completed")
+        case .finalize:
+            web = .finalize(order.id)
+        case .invoice:
+            break
+        }
     }
 
     // MARK: Toolbar and sheets

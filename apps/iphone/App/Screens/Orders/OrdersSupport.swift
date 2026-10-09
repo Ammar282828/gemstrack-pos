@@ -63,91 +63,37 @@ private struct OrdersFailureAlert: ViewModifier {
     }
 }
 
-/// Paid / Partial / Unpaid, from the one number that already knows (lib/order-payment.ts).
-struct OrdersPaymentBadge: View {
-    let order: Order
-
-    var body: some View {
-        let status = getOrderPaymentStatus(order)
-        StatusBadge(status.rawValue, color: color(status))
-    }
-
-    private func color(_ s: PaymentStatus) -> Color {
-        switch s {
-        case .paid: return .green
-        case .partial: return .orange
-        case .unpaid: return .red
-        }
-    }
-}
-
-/// "Online": an order that came from the website and was confirmed by a person.
+/// "Online": an order that came from the website and was confirmed by a person. A quiet label rather than a
+/// capsule, so a card keeps to one badge (App/UI/Ledger.swift).
 struct OrdersOnlineBadge: View {
     var body: some View {
         Label("Online", systemImage: "globe")
             .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .foregroundStyle(.blue)
-            .background(Color.blue.opacity(0.12), in: .capsule)
+            .foregroundStyle(Tone.working.color)
+            .lineLimit(1)
     }
 }
 
-/// The promised date and how it is going, in the web's colours: red when late, orange on the day,
-/// red for a bench week, quiet otherwise (components/shared/promise-line.tsx).
-struct OrdersPromiseText: View {
-    let order: Order
-    let now: Date
-    var font: Font = .caption
-
-    var body: some View {
-        let p = OrdersLogic.promise(order, now: now)
-        if p.undated {
-            Text("no due date").font(font).foregroundStyle(.secondary)
-        } else {
-            HStack(spacing: 6) {
-                if p.urgent {
-                    Text("URGENT")
-                        .font(.system(size: 9, weight: .bold))
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .foregroundStyle(.white)
-                        .background(Color.red, in: .rect(cornerRadius: 3))
-                }
-                Text(line(p))
-                    .font(font)
-                    .fontWeight(emphasised(p) ? .semibold : .regular)
-                    .foregroundStyle(tone(p))
-                    .monospacedDigit()
-            }
+/// The colours the Orders screens give what they say, from the ledger's tones only.
+enum OrdersTone {
+    /// The status picker's pill: amber while waiting to start, blue with the karigars, green once finished.
+    static func status(_ s: OrderStatus) -> Tone {
+        switch s {
+        case .pending: return .owed
+        case .inProgress: return .working
+        case .completed: return .settled
+        case .cancelled, .refunded, .unknown: return .quiet
         }
     }
+}
 
-    private func line(_ p: OrdersLogic.Promise) -> String {
-        var s: String
-        if p.state == .today {
-            s = "due today"
-        } else {
-            s = "due " + day(order.promisedDate)
-            if p.showsLabel, !p.label.isEmpty { s += " · " + p.label }
-        }
-        return s
-    }
-
-    /// "Sat 10 Oct", or the word when it is today's, tomorrow's or yesterday's.
-    private func day(_ iso: String?) -> String {
-        let said = ShopDate.say(iso)
-        return ["Today", "Tomorrow", "Yesterday"].contains(said) ? said.lowercased() : said
-    }
-
-    private func emphasised(_ p: OrdersLogic.Promise) -> Bool {
-        p.chase && (p.state == .late || p.state == .today)
-    }
-
-    private func tone(_ p: OrdersLogic.Promise) -> Color {
-        if p.chase && p.state == .late { return .red }
-        if p.chase && p.state == .today { return .orange }
-        return p.urgent ? .red : .secondary
+extension OrdersLogic.Promise {
+    /// The web's colours for a promise (components/shared/promise-line.tsx): red once late, amber on the day and
+    /// inside the bench week, quiet once the order is finished or when nothing was promised.
+    var tone: Tone {
+        if chase && state == .late { return .late }
+        if chase && state == .today { return .owed }
+        return urgent ? .owed : .quiet
     }
 }
 
@@ -181,6 +127,6 @@ struct OrdersMarginRow: View {
 
     private func tone(_ m: Margin) -> Color {
         if m.assumed { return .secondary }
-        return m.percent < 0 ? .red : .green
+        return m.percent < 0 ? Tone.late.color : Tone.settled.color
     }
 }

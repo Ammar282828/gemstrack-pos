@@ -54,11 +54,51 @@ enum InvoiceChip: String, CaseIterable, Identifiable {
 struct InvoiceSection: Identifiable {
     let id: String
     let title: String
+    /// A word under the heading when nothing is owed on it ("Oldest first"); "" for none.
     let hint: String
-    let danger: Bool
     let rows: [Invoice]
     let billed: Double
     let owed: Double
+}
+
+/// The three figures at the head of the list: billed today, billed this month, still owed. Each is a tap to
+/// the invoices it counts (today's, this month's, the Unpaid chip).
+struct InvoiceSummary {
+    enum Figure { case today, month, owed }
+
+    var today = 0.0
+    var todayCount = 0
+    var month = 0.0
+    var monthCount = 0
+    var owed = 0.0
+    var owedCount = 0
+
+    /// Billed as the sections bill (each invoice's grand total, as the web's list sums a day), and owed by the
+    /// ERP's one rule (lib/owed.ts `owedToYou`, invoices alone: the list has no hisaab).
+    static func of(_ rows: [Invoice], now: Date) -> InvoiceSummary {
+        var s = InvoiceSummary()
+        let today = ERPDate.karachiDay(now)
+        let month = String(today.prefix(7))
+        // Reading a date is the slow part at ten times the books: anything stamped well before this month is passed
+        // over by its text ("2026-08-…" sorts before the floor), and only the rest is read as Karachi's day.
+        let floor = String(ERPDate.iso(now.addingTimeInterval(-35 * 86_400)).prefix(10))
+        for inv in rows {
+            if String(inv.createdAt.prefix(10)) < floor { continue }
+            guard let made = ERPDate.parse(inv.createdAt) else { continue }
+            let day = ERPDate.karachiDay(made)
+            guard day.hasPrefix(month) else { continue }
+            s.month += inv.grandTotal
+            s.monthCount += 1
+            if day == today {
+                s.today += inv.grandTotal
+                s.todayCount += 1
+            }
+        }
+        let owed = owedToYou(rows)
+        s.owed = owed.total
+        s.owedCount = owed.invoices.count
+        return s
+    }
 }
 
 /// Karachi's days, weeks (from Monday) and months: what the shop means by "today" and "this week".
@@ -111,6 +151,31 @@ enum InvoiceCalendar {
         }
     }
 
+    private static let dayOfYear = formatter("EEEE d MMM yyyy")
+    private static let shortDayOfYear = formatter("d MMM yyyy")
+    private static let monthOnly = formatter("MMMM")
+
+    /// A section's heading in the ledger (Invoices, 2026-10-09): "Today", "Yesterday", "Wednesday 7 Oct", "This
+    /// week", "Week of 28 Sep", "October"; the year only when it is not this one, so a heading never wraps.
+    static func heading(_ d: Date, by grouping: InvoiceGrouping, now: Date) -> String {
+        let thisYear = karachi.isDate(d, equalTo: now, toGranularity: .year)
+        switch grouping {
+        case .month:
+            let start = karachi.dateInterval(of: .month, for: d)?.start ?? d
+            return (thisYear ? monthOnly : monthName).string(from: start)
+        case .week:
+            let start = karachi.dateInterval(of: .weekOfYear, for: d)?.start ?? d
+            if karachi.isDate(start, equalTo: now, toGranularity: .weekOfYear) { return "This week" }
+            let sameYear = karachi.isDate(start, equalTo: now, toGranularity: .year)
+            return "Week of " + (sameYear ? shortDay : shortDayOfYear).string(from: start)
+        case .day, .status:
+            let key = ERPDate.karachiDay(d)
+            if key == ERPDate.karachiDay(now) { return "Today" }
+            if key == ERPDate.karachiDay(now.addingTimeInterval(-86_400)) { return "Yesterday" }
+            return (thisYear ? dayName : dayOfYear).string(from: d)
+        }
+    }
+
     /// The day a date picker shows, as "yyyy-MM-dd": the phone's own calendar (the 6th is the 6th wherever
     /// the phone is), whatever time of day the picker holds.
     static func day(picked: Date) -> String {
@@ -143,7 +208,9 @@ enum InvoiceCalendar {
     }
 }
 
-/// Every invoice, and what is still owed on it (src/app/invoices/page.tsx).
+/// Every invoice, and what is still owed on it (src/app/invoices/page.tsx), as the ledger (Ledger.swift): the
+/// chips and the three figures scroll with the list, so the large title stays clear; a day's heading says what it
+/// billed and what is still owed on it; a row leads with who, says what was sold, and carries one pill.
 struct InvoicesList: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -161,6 +228,10 @@ struct InvoicesList: View {
     @State private var rangeTo: String?
     @State private var pickingRange = false
     @State private var paying: Invoice?
+    /// Send on WhatsApp from a swipe: the invoice page's own send (InvoiceWhatsAppSend).
+    @State private var sending: Invoice?
+    @State private var pdf: InvoicePDFTarget?
+    @State private var note: InvoiceNote?
     /// The ERP's own page for what has no native screen yet.
     @State private var web: Route?
 
@@ -172,11 +243,13 @@ struct InvoicesList: View {
             content(all)
         }
         .navigationTitle("Invoices")
-        .searchable(text: $search, prompt: "Customer, phone, invoice or SKU")
+        .searchable(text: $search, prompt: "Customer, phone, piece, invoice or SKU")
         .toolbar {
             ToolbarItem(placement: .primaryAction) { filterMenu(all) }
         }
         .invoicePaymentSheet(for: $paying)
+        .invoiceWhatsAppSend($sending, web: $web) { sent in withAnimation { note = sent } }
+        .invoiceNoteBanner($note)
         .sheet(isPresented: $pickingRange) {
             InvoiceRangeSheet(from: rangeFrom, to: rangeTo) { from, to in
                 rangeFrom = from
@@ -187,6 +260,9 @@ struct InvoicesList: View {
             ScreenRegistry.view(for: r.path)
                 .navigationTitle("Invoices")
                 .navigationBarTitleDisplayMode(.inline)
+        }
+        .navigationDestination(item: $pdf) { t in
+            PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
         }
         .task {
             book.invoices.need()
@@ -202,7 +278,18 @@ struct InvoicesList: View {
         let shown = scoped.filter { chip.matches($0) }
         let groups = sections(shown)
         List {
-            Section { subtitle(all) }.houseRows()
+            // The chips and the figures are the list's first rows (a bar pinned over the list greyed the large title out).
+            Section {
+                ChipRow {
+                    ForEach(visibleChips(scoped)) { c in
+                        FilterChip(title: c.title, count: scoped.filter { c.matches($0) }.count, chosen: c == chip) {
+                            withAnimation { chip = c }
+                        }
+                    }
+                }
+                summaryCard(all)
+            }
+            .chipRowInList()
             if groups.isEmpty {
                 Section { emptyState }.houseRows()
             } else {
@@ -216,31 +303,55 @@ struct InvoicesList: View {
             }
         }
         .listStyle(.insetGrouped)
-        .safeAreaBar(edge: .top, spacing: 0) { chipRow(scoped) }
     }
 
-    /// What the whole book is owed, whatever the filters show (the dashboard's "Owed to you", invoices only: lib/owed.ts).
-    @ViewBuilder
-    private func subtitle(_ all: [Invoice]) -> some View {
-        let owed = owedToYou(all)
-        let count = owed.invoices.count
-        // The figure, not a sentence about it: what the book is owed, whatever the filters show.
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Owed to you").font(.subheadline).foregroundStyle(.secondary)
-                Text(owed.total > 0 ? Money.pkr(owed.total) : "Nothing owed")
-                    .font(.system(.title2, design: .rounded).weight(.bold))
-                    .foregroundStyle(owed.total > 0 ? Color.red : Color.secondary)
-                    .monospacedDigit()
-            }
-            Spacer(minLength: 8)
-            if owed.total > 0 {
-                Text("\(count) invoice\(count == 1 ? "" : "s")")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+    // MARK: The three figures
+
+    /// Billed today, billed this month, still owed: the whole book's, or the chosen person's (Taken by), whatever
+    /// else is filtered, so the figures hold still while the list below them is searched.
+    private func summaryCard(_ all: [Invoice]) -> some View {
+        let base = takenBy.isEmpty ? all : all.filter { $0.takenBy == takenBy }
+        let s = InvoiceSummary.of(base, now: Date())
+        return HStack(alignment: .top, spacing: 4) {
+            InvoiceSummaryFigure(label: "Today", amount: s.today, count: s.todayCount,
+                                 tone: .primary, chosen: chosen(.today)) { pick(.today) }
+            InvoiceSummaryFigure(label: "This month", amount: s.month, count: s.monthCount,
+                                 tone: .primary, chosen: chosen(.month)) { pick(.month) }
+            InvoiceSummaryFigure(label: "Owed", amount: s.owed, count: s.owedCount,
+                                 tone: s.owed > 0 ? Tone.owed.color : .secondary, chosen: chosen(.owed)) { pick(.owed) }
+        }
+        .ledgerCard(padding: 8)
+    }
+
+    private var todayKey: String { ERPDate.karachiDay(Date()) }
+    private var monthKey: String { String(todayKey.prefix(7)) }
+
+    /// Whether the list is showing what a figure counts.
+    private func chosen(_ f: InvoiceSummary.Figure) -> Bool {
+        switch f {
+        case .today: return month.isEmpty && rangeFrom == todayKey && (rangeTo == nil || rangeTo == todayKey)
+        case .month: return month == monthKey && rangeFrom == nil
+        case .owed: return chip == .unpaid
+        }
+    }
+
+    /// A figure tapped shows what it counts, through the filters the list already has; tapped again, lets go.
+    private func pick(_ f: InvoiceSummary.Figure) {
+        let again = chosen(f)
+        withAnimation {
+            switch f {
+            case .today:
+                month = ""
+                rangeFrom = again ? nil : todayKey
+                rangeTo = nil
+            case .month:
+                rangeFrom = nil
+                rangeTo = nil
+                month = again ? "" : monthKey
+            case .owed:
+                chip = again ? .all : .unpaid
             }
         }
-        .padding(.vertical, 2)
     }
 
     private var emptyState: some View {
@@ -253,16 +364,27 @@ struct InvoicesList: View {
     }
 
     private func row(_ inv: Invoice) -> some View {
-        InvoiceListRow(invoice: inv)
+        InvoiceListRow(invoice: inv, mine: isMine(inv), dated: grouping != .day)
+            // The bill to the customer: the commonest thing after a sale, the same send as the invoice page's.
+            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                Button { sending = inv } label: { Label("Send on WhatsApp", systemImage: "message") }
+                    .tint(Tone.working.color)
+            }
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 if canPay && isOwing(inv) {
                     Button { paying = inv } label: { Label("Take payment", systemImage: "banknote") }
-                        .tint(.green)
+                        .tint(Tone.settled.color)
                 }
             }
             .contextMenu {
                 if canPay && isOwing(inv) {
                     Button { paying = inv } label: { Label("Take payment", systemImage: "banknote") }
+                }
+                Button { sending = inv } label: {
+                    Label(inv.sentOnWhatsApp == nil ? "Send on WhatsApp" : "Send again on WhatsApp", systemImage: "message")
+                }
+                Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer) } label: {
+                    Label("Print / PDF", systemImage: "printer")
                 }
             }
             // The signed-in person's own sales are lit where they stand, not sorted or filtered (2026-10-05).
@@ -285,37 +407,6 @@ struct InvoicesList: View {
                 return true
             }
         }
-    }
-
-    private func chipRow(_ scoped: [Invoice]) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(visibleChips(scoped)) { c in
-                    chipButton(c, count: scoped.filter { c.matches($0) }.count)
-                }
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 6)
-        }
-    }
-
-    @ViewBuilder
-    private func chipButton(_ c: InvoiceChip, count: Int) -> some View {
-        if c == chip {
-            Button { chip = c } label: { chipLabel(c, count: count) }
-                .buttonStyle(.houseProminent)
-        } else {
-            Button { chip = c } label: { chipLabel(c, count: count) }
-                .buttonStyle(.glass)
-        }
-    }
-
-    private func chipLabel(_ c: InvoiceChip, count: Int) -> some View {
-        HStack(spacing: 5) {
-            Text(c.title)
-            Text("\(count)").font(.caption).monospacedDigit().opacity(0.7)
-        }
-        .font(.subheadline.weight(.medium))
     }
 
     private func filterMenu(_ all: [Invoice]) -> some View {
@@ -382,11 +473,11 @@ struct InvoicesList: View {
         return out
     }
 
-    /// Customer, phone, invoice id or a piece's SKU.
+    /// Customer, phone, invoice id, a piece's SKU or its name ("drop earrings": the counter remembers what was sold).
     private func matches(_ inv: Invoice, query q: String, digits: String, phones: [String: String]) -> Bool {
         if inv.id.localizedCaseInsensitiveContains(q) { return true }
         if inv.customerName.localizedCaseInsensitiveContains(q) { return true }
-        if inv.items.contains(where: { $0.sku.localizedCaseInsensitiveContains(q) }) { return true }
+        if inv.items.contains(where: { $0.sku.localizedCaseInsensitiveContains(q) || $0.name.localizedCaseInsensitiveContains(q) }) { return true }
         if digits.count >= 3 {
             let own = inv.customerContact ?? ""
             let theirs = inv.customerId.flatMap { phones[$0] } ?? ""
@@ -402,24 +493,22 @@ struct InvoicesList: View {
         if grouping == .status { return statusSections(rows) }
         let now = Date()
         var order: [String] = []
-        var info: [String: InvoiceCalendar.Bucket] = [:]
+        var titles: [String: String] = [:]
         var members: [String: [Invoice]] = [:]
         for inv in rows {
-            let b: InvoiceCalendar.Bucket
+            let key: String
             if let d = ERPDate.parse(inv.createdAt) {
-                b = InvoiceCalendar.bucket(d, by: grouping, now: now)
+                key = InvoiceCalendar.bucket(d, by: grouping, now: now).key
+                if titles[key] == nil { titles[key] = InvoiceCalendar.heading(d, by: grouping, now: now) }
             } else {
-                b = InvoiceCalendar.Bucket(key: "undated", title: "No date", hint: "")
+                key = "undated"
+                if titles[key] == nil { titles[key] = "No date" }
             }
-            if info[b.key] == nil {
-                info[b.key] = b
-                order.append(b.key)
-            }
-            members[b.key, default: []].append(inv)
+            if members[key] == nil { order.append(key) }
+            members[key, default: []].append(inv)
         }
         return order.map { key in
-            let b = info[key]!
-            return makeSection(id: key, title: b.title, hint: b.hint, danger: false, rows: members[key] ?? [])
+            makeSection(id: key, title: titles[key] ?? "", hint: "", rows: members[key] ?? [])
         }
     }
 
@@ -428,112 +517,140 @@ struct InvoicesList: View {
         let owing = rows.filter { isOwing($0) }.sorted { $0.createdAt < $1.createdAt }
         let settled = rows.filter { !isOwing($0) }
         var out: [InvoiceSection] = []
-        if !owing.isEmpty { out.append(makeSection(id: "owing", title: "Awaiting payment", hint: "oldest first", danger: true, rows: owing)) }
-        if !settled.isEmpty { out.append(makeSection(id: "settled", title: "Settled", hint: "nothing outstanding", danger: false, rows: settled)) }
+        if !owing.isEmpty { out.append(makeSection(id: "owing", title: "Awaiting payment", hint: "Oldest first", rows: owing)) }
+        if !settled.isEmpty { out.append(makeSection(id: "settled", title: "Settled", hint: "Nothing outstanding", rows: settled)) }
         return out
     }
 
-    private func makeSection(id: String, title: String, hint: String, danger: Bool, rows: [Invoice]) -> InvoiceSection {
+    private func makeSection(id: String, title: String, hint: String, rows: [Invoice]) -> InvoiceSection {
         var billed = 0.0
         var owed = 0.0
         for inv in rows {
             billed += inv.grandTotal
             if isOwing(inv) { owed += inv.balanceDue }
         }
-        return InvoiceSection(id: id, title: title, hint: hint, danger: danger, rows: rows, billed: billed, owed: owed)
+        return InvoiceSection(id: id, title: title, hint: hint, rows: rows, billed: billed, owed: owed)
     }
 }
 
-/// A section's title, what it holds and what is still owed on it.
+/// One of the three figures: its word, the sum in lac, how many invoices; lit while the list shows what it counts.
+private struct InvoiceSummaryFigure: View {
+    let label: String
+    let amount: Double
+    let count: Int
+    let tone: Color
+    let chosen: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(label.uppercased())
+                    .font(.caption2.weight(.semibold))
+                    .tracking(0.6)
+                    .foregroundStyle(chosen ? Theme.accent : Color.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    if amount > 0.5 {
+                        Text("PKR").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
+                    }
+                    Text(amount > 0.5 ? HeroAmount.figure(amount, lac: true) : "Nil")
+                        .font(.system(.headline, design: .serif).weight(.semibold))
+                        .foregroundStyle(amount > 0.5 ? tone : Color.secondary)
+                        .monospacedDigit()
+                        .contentTransition(.numericText(value: amount))
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                Text("\(count) invoice\(count == 1 ? "" : "s")")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 8)
+            .background(chosen ? Theme.accent.opacity(0.12) : Color.clear, in: .rect(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        // Its own tap: three buttons in one list row each answer for themselves.
+        .buttonStyle(.borderless)
+        .accessibilityAddTraits(chosen ? .isSelected : [])
+    }
+}
+
+/// A section's heading: its day, how many, what it billed; under it what is still owed on it.
 private struct InvoiceSectionHeader: View {
     let section: InvoiceSection
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(section.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(section.danger ? Color.red : Color.primary)
-                Text(detail).font(.caption2).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 1) {
-                MoneyText(amount: section.billed)
-                    .font(.subheadline.weight(.semibold))
-                if section.owed > 0 {
-                    Text("\(Money.pkr(section.owed)) owed")
-                        .font(.caption2.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(.red)
-                }
+        VStack(alignment: .leading, spacing: 2) {
+            LedgerHeading(title: section.title, count: section.rows.count, trailing: Money.pkrLac(section.billed))
+            if section.owed > 0.5 {
+                Text(section.hint.isEmpty ? "\(Money.pkr(section.owed)) still owed" : "\(section.hint) · \(Money.pkr(section.owed)) still owed")
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(Tone.owed.color)
+            } else if !section.hint.isEmpty {
+                Text(section.hint).font(.caption).foregroundStyle(.secondary)
             }
         }
         .textCase(nil)
-        .foregroundStyle(.primary)
-    }
-
-    private var detail: String {
-        let n = section.rows.count
-        let count = "\(n) invoice\(n == 1 ? "" : "s")"
-        return section.hint.isEmpty ? count : "\(section.hint) · \(count)"
+        .padding(.bottom, 2)
     }
 }
 
-/// One invoice: who it was for and when, what it came to, and where its balance stands.
+/// One invoice: who it was for, what was sold, its number and time, what it came to and where its balance stands.
 private struct InvoiceListRow: View {
     let invoice: Invoice
+    /// Taken by whoever is signed in.
+    let mine: Bool
+    /// Grouped by more than a day: the row says its day, not only its time.
+    let dated: Bool
 
     var body: some View {
         NavigationLink(value: Route(path: InvoiceFacts.path(invoice.id))) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                Monogram(name: invoice.customerName, size: 38)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(InvoiceFacts.customerName(invoice))
-                        .font(.body.weight(.medium))
-                        .lineLimit(1)
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    if isShopify {
-                        StatusBadge("Shopify", color: .green)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(InvoiceFacts.customerName(invoice))
+                            .font(.headline)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        RowAmount(amount: invoice.grandTotal)
+                    }
+                    HStack(alignment: .center, spacing: 8) {
+                        Text(InvoiceFacts.whatSold(invoice) ?? "No pieces")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        InvoiceBalancePill(invoice: invoice)
+                    }
+                    HStack(spacing: 6) {
+                        Text(reference)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                        if mine { MineTag() }
                     }
                 }
-                Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 3) {
-                    MoneyText(amount: invoice.grandTotal, exact: true)
-                        .font(.subheadline.weight(.semibold))
-                    balance
-                }
             }
+            .padding(.vertical, 2)
+            .accessibilityElement(children: .combine)
         }
     }
 
-    private var isShopify: Bool { (invoice.source ?? "").hasPrefix("shopify") }
-
-    private var subtitle: String {
-        let when = ShopDate.say(invoice.createdAt)
-        return when.isEmpty ? invoice.id : "\(invoice.id) · \(when)"
-    }
-
-    /// Owed in orange (red once it is old), credit green, a refunded sale named as such.
-    @ViewBuilder
-    private var balance: some View {
-        let line = balanceLine(invoice.balanceDue)
-        if invoice.status == .refunded {
-            StatusBadge("Refunded", color: .purple)
-        } else if line.state == .due {
-            Text("\(Money.pkr(line.amount)) owed")
-                .font(.caption.weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(InvoiceFacts.tone(invoice))
-        } else if line.state == .credit {
-            Text("Credit \(Money.pkr(line.amount))")
-                .font(.caption.weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(.green)
-        } else {
-            Text("Paid").font(.caption).foregroundStyle(.green)
-        }
+    /// "INV-000123 · 3:45 pm" under its day's heading, "INV-000123 · Tue 6 Oct" under a week's; "· Shopify" for an import.
+    private var reference: String {
+        var parts = [invoice.id]
+        let when = dated ? ShopDate.say(invoice.createdAt) : InvoiceFacts.time(invoice.createdAt)
+        if !when.isEmpty { parts.append(when) }
+        if (invoice.source ?? "").hasPrefix("shopify") { parts.append("Shopify") }
+        return parts.joined(separator: " · ")
     }
 }
 
