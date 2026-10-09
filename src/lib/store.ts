@@ -205,6 +205,7 @@ import { isWalkInName, shouldCreateCustomer } from '@/lib/walk-in';
 import { createOrder } from '@/lib/writes/create-order';
 import { orderEditPatch } from '@/lib/writes/update-order';
 import { finalizeHisaabRow, invoiceFromOrder } from '@/lib/writes/finalize-order';
+import { setInvoiceCustomer as writeInvoiceCustomer } from '@/lib/writes/invoice-customer';
 import { recordOrderAdvance as writeOrderAdvance } from '@/lib/writes/order-advance';
 import { rateChangeLog, rateConfirmLog } from '@/lib/writes/rates';
 import { createInvoice as createInvoiceWrite } from '@/lib/writes/create-invoice';
@@ -2759,36 +2760,16 @@ export const useAppStore = create<AppState>()(
 
       setInvoiceCustomer: async (invoiceId, who) => {
         if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
-        const name = who.name.trim();
-        if (!name || isWalkInName(name)) throw new Error('Type the customer’s name, or pick them from the list.');
         // A quarter of invoices were re-saved after the sale, a quarter of those only to change who
         // it was for (the audit of 2026-10-04): a full edit re-priced everything to change one name.
-        // This changes the name, the customer and the ledger line it owes on, nothing else.
-        const invoiceRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
-        const linked = await getDocs(query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), where('linkedInvoiceId', '==', invoiceId)));
-        const out = await runTransaction(db, async (transaction) => {
-          const snap = await transaction.get(invoiceRef);
-          if (!snap.exists()) throw new Error(`Invoice ${invoiceId} not found.`);
-          const inv = snap.data() as Omit<Invoice, 'id'>;
-          let customerId = who.customerId;
-          let customerName = name;
-          if (customerId) {
-            const c = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerId));
-            if (c.exists()) customerName = (c.data() as Customer).name || name; else customerId = undefined;
-          }
-          if (!customerId) {
-            customerId = `cust-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-            transaction.set(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerId), { name, phone: who.phone?.trim() || '', address: '', email: '' });
-          }
-          const patch = { customerId, customerName, ...(who.phone?.trim() ? { customerContact: who.phone.trim() } : {}) };
-          transaction.update(invoiceRef, patch);
-          for (const row of linked.docs) transaction.update(row.ref, { entityId: customerId, entityName: customerName, entityType: 'customer' });
-          return { before: inv.customerName || 'Walk-in', invoice: { id: invoiceId, ...inv, ...patch } as Invoice };
+        // This changes the name, the customer and the ledger line it owes on, nothing else:
+        // lib/writes/invoice-customer.ts, the one copy the iPhone app runs on the server too.
+        const invoice = await writeInvoiceCustomer(clientPort, invoiceId, who, {
+          log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? ''),
+          syncInvoiceShopify,
         });
-        addActivityLog('invoice.update', `Customer set on invoice ${invoiceId}`, `${out.before} → ${out.invoice.customerName}`, invoiceId);
-        set(state => ({ generatedInvoices: state.generatedInvoices.map(i => i.id === invoiceId ? { ...i, ...out.invoice } : i) }) as Partial<AppState>);
-        syncInvoiceShopify(invoiceId, 'upsert');
-        return out.invoice;
+        set(state => ({ generatedInvoices: state.generatedInvoices.map(i => i.id === invoiceId ? { ...i, ...invoice } : i) }) as Partial<AppState>);
+        return invoice;
       },
       updateInvoiceDiscount: async (invoiceId, newDiscountAmount) => {
         if (get().settings.databaseLocked) return null;

@@ -2,8 +2,11 @@ import SwiftUI
 import ERPCore
 
 /// An invoice, for the shop (src/components/invoice/invoice-viewer.tsx): its pieces and figures,
-/// payments, taking a payment, and the customer's page to share. Print, send on WhatsApp, edit,
-/// refund and delete open the ERP's own page (they need its PDF and its delete code).
+/// payments, taking a payment, the customer's page to share, and who it was for (named or changed
+/// here, set-customer-dialog.tsx). The PDF is the ERP page's own (lib/invoice-pdf.ts draws it in the
+/// browser, and the server has no copy): Print and Taheri's WhatsApp send open that page doing it
+/// (`?do=print`, `?do=share`), and House of Mina's link goes from here. Edit, the discount, refund and
+/// delete open the ERP's own page (they need its delete code).
 struct InvoiceScreen: View {
     let id: String
 
@@ -12,6 +15,12 @@ struct InvoiceScreen: View {
 
     @State private var paying: Invoice?
     @State private var web: Route?
+    @State private var settingCustomer = false
+    /// Taheri's send from the shop's line, asked first: it really sends.
+    @State private var confirmingSend = false
+    /// House of Mina's: the number and the words, then WhatsApp on this phone.
+    @State private var sendingLink = false
+    @State private var note: InvoiceNote?
 
     private var canPay: Bool { InvoiceFacts.mayTakePayments(role: session.role) }
 
@@ -78,6 +87,35 @@ struct InvoiceScreen: View {
                 .navigationBarTitleDisplayMode(.inline)
         }
         .invoicePaymentSheet(for: $paying)
+        .sheet(isPresented: $settingCustomer) {
+            InvoiceCustomerSheet(invoice: inv) { (saved: InvoiceNote) in
+                withAnimation { note = saved }
+            }
+        }
+        .sheet(isPresented: $sendingLink) {
+            InvoiceWhatsAppSheet(invoice: inv, phone: whatsAppPhone(inv))
+        }
+        .confirmationDialog(sendTitle(inv), isPresented: $confirmingSend, titleVisibility: .visible) {
+            Button(inv.sentOnWhatsApp == nil ? "Send the PDF" : "Send it again") { openWeb(inv, doing: "share") }
+            // The ERP page's box takes another number; its Send goes to whatever is typed there.
+            Button("Another number…") { openWeb(inv) }
+        } message: {
+            Text(sendWords(inv))
+        }
+        .overlay(alignment: .top) {
+            if let note {
+                InvoiceNoteBanner(note: note)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        // Said for a few seconds, like the web's toast, then gone.
+        .task(id: note) {
+            guard note != nil else { return }
+            try? await Task.sleep(for: .seconds(4))
+            if !Task.isCancelled { withAnimation { note = nil } }
+        }
     }
 
     private func titleView(_ inv: Invoice) -> some View {
@@ -357,7 +395,46 @@ struct InvoiceScreen: View {
         return name.isEmpty || isWalkInName(name)
     }
 
-    private func openWeb(_ inv: Invoice) { web = Route(path: InvoiceFacts.path(inv.id, web: true)) }
+    /// The ERP's own page for this invoice; `doing` is what it does as it opens (InvoiceFacts.path).
+    private func openWeb(_ inv: Invoice, doing: String? = nil) {
+        web = Route(path: InvoiceFacts.path(inv.id, web: true, doing: doing))
+    }
+
+    // MARK: Send on WhatsApp
+
+    /// The number the ERP page's box starts with: the invoice's, else its customer's.
+    private func whatsAppPhone(_ inv: Invoice) -> String {
+        InvoiceFacts.whatsAppPhone(inv, customer: inv.customerId.flatMap { book.customers.item($0) })
+    }
+
+    /// The ERP page's Send via WhatsApp, by house (STORE_INVOICE_WHATSAPP_PDF). Taheri sends the PDF itself from
+    /// the shop's line: the page draws it (Print's PDF), the ERP sends it and notes the send on the invoice, so it
+    /// is asked first and then done there, as the voice assistant does it. With no number on file the page opens
+    /// for one to be typed. House of Mina writes the message and the customer's link into WhatsApp here, unless the
+    /// invoice predates its link's key, which the page makes as it sends.
+    private func sendOnWhatsApp(_ inv: Invoice) {
+        if session.shop.invoiceWhatsappPdf {
+            if CustomerKit.whatsAppNumber(whatsAppPhone(inv)).isEmpty { openWeb(inv) } else { confirmingSend = true }
+        } else if InvoiceFacts.shareURL(inv) == nil {
+            openWeb(inv, doing: "share")
+        } else {
+            sendingLink = true
+        }
+    }
+
+    private func sendTitle(_ inv: Invoice) -> String {
+        let to = whatsAppPhone(inv)
+        return inv.sentOnWhatsApp == nil ? "Send the PDF to \(to)?" : "Send the PDF to \(to) again?"
+    }
+
+    /// What happens, and that it went before (the web shows the send under its button so nobody sends twice).
+    private func sendWords(_ inv: Invoice) -> String {
+        var s = "From the shop's own WhatsApp, with what is owed written under it. The ERP's page draws the PDF and sends it."
+        if let sent = inv.sentOnWhatsApp {
+            s += " Already sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))."
+        }
+        return s
+    }
 
     @ViewBuilder
     private func menuItems(_ inv: Invoice) -> some View {
@@ -367,12 +444,18 @@ struct InvoiceScreen: View {
             }
             Divider()
         }
-        Button { openWeb(inv) } label: { Label("Print / PDF", systemImage: "printer") }
-        Button { openWeb(inv) } label: { Label("Send on WhatsApp", systemImage: "message") }
+        // The PDF Print saves, drawn by the ERP's page and handed to the share sheet (Print, Files, AirDrop).
+        Button { openWeb(inv, doing: "print") } label: { Label("Print / PDF", systemImage: "printer") }
+        Button { sendOnWhatsApp(inv) } label: {
+            Label(inv.sentOnWhatsApp == nil ? "Send on WhatsApp" : "Send again on WhatsApp", systemImage: "message")
+        }
         Button { web = Route(path: InvoiceFacts.editPath(inv.id)) } label: { Label("Edit", systemImage: "pencil") }
         if inv.status != .refunded {
-            Button { openWeb(inv) } label: {
-                Label(unnamed(inv) ? "Name the customer" : "Change the customer", systemImage: "person.crop.circle")
+            // The store's own Firestore write on the web, which the shop floor cannot make: an owner's.
+            if session.isOwner {
+                Button { settingCustomer = true } label: {
+                    Label(unnamed(inv) ? "Name the customer" : "Change the customer", systemImage: "person.crop.circle")
+                }
             }
             Button { openWeb(inv) } label: { Label("Change the discount", systemImage: "percent") }
         }

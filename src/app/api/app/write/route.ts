@@ -40,6 +40,7 @@ import { STORE_CONFIG } from '@/lib/store-config';
 import type { OpHandler, OpRoles } from './op-context';
 import { PEOPLE_OPS, runPeopleOp } from './ops-people';
 import { STOCK_OPS, runStockOp } from './ops-stock';
+import { INVOICE_OPS, runInvoiceOp } from './ops-invoices';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,6 +81,7 @@ const OWN_OPS: Record<string, ('owner' | 'staff')[]> = {
 const GROUPS: { roles: OpRoles; run: OpHandler }[] = [
   { roles: PEOPLE_OPS, run: runPeopleOp },
   { roles: STOCK_OPS, run: runStockOp },
+  { roles: INVOICE_OPS, run: runInvoiceOp },
 ];
 
 const OPS: OpRoles = Object.assign({}, OWN_OPS, ...GROUPS.map((g) => g.roles));

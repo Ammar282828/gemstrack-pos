@@ -18,9 +18,14 @@ enum InvoiceFacts {
     }
 
     /// "/invoices/INV-000123": the invoice page. `web` asks for the ERP's own page (a native
-    /// screen's "Open in the ERP": print, send, refund, delete).
-    static func path(_ id: String, web: Bool = false) -> String {
-        "/invoices/" + encode(id) + (web ? "?web=1" : "")
+    /// screen's "Open in the ERP": print, send, refund, delete). `doing` is what that page does as it
+    /// opens, once (invoice-viewer.tsx `?do=`, the voice assistant's): "print" draws the PDF Print saves
+    /// and hands it to the phone's share sheet; "share" sends it on WhatsApp.
+    static func path(_ id: String, web: Bool = false, doing: String? = nil) -> String {
+        var query: [String] = []
+        if web { query.append("web=1") }
+        if let doing { query.append("do=" + doing) }
+        return "/invoices/" + encode(id) + (query.isEmpty ? "" : "?" + query.joined(separator: "&"))
     }
 
     /// The sale form on an invoice (components/sale/sale-page.tsx), which has no native screen.
@@ -125,14 +130,16 @@ enum InvoiceFacts {
     }
 
     /// The words that go with the link: who it is for and what is owed. Where invoices are named after
-    /// the customer (`byCustomer`, Taheri) they carry no number; elsewhere (House of Mina) they are the
-    /// counter's own ("estimate", its ID, what is owed). `shopName` is the shop's, never "… ERP".
+    /// the customer (`byCustomer`, Taheri) they carry no number (invoice-share.ts `invoiceWhatsAppCaption`,
+    /// "is at the link below"); elsewhere (House of Mina) they are the counter's own (the viewer's
+    /// `estimateMessage`: "estimate", its ID, what is owed, and the name as the bill has it). `shopName` is
+    /// the shop's, never "… ERP".
     static func shareMessage(_ inv: Invoice, shopName: String, byCustomer: Bool) -> String {
-        let name = inv.customerName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let who = name.isEmpty || isWalkInName(name) ? "Customer" : name
         let line = balanceLine(inv.balanceDue)
         if !byCustomer {
-            var m = "Dear \(who),\n\nHere is your estimate from \(shopName).\n\n*Estimate ID:* \(inv.id)\n*Total Amount:* PKR \(twoPlaces(inv.grandTotal))\n"
+            // `inv.customerName || 'Customer'`: a walk-in's bill reads "Dear Walk-in Customer", as the web's does.
+            let named = inv.customerName.isEmpty ? "Customer" : inv.customerName
+            var m = "Dear \(named),\n\nHere is your estimate from \(shopName).\n\n*Estimate ID:* \(inv.id)\n*Total Amount:* PKR \(twoPlaces(inv.grandTotal))\n"
             if inv.amountPaid > 0 {
                 m += "*Amount Paid:* PKR \(twoPlaces(inv.amountPaid))\n*Balance Due:* PKR \(twoPlaces(inv.balanceDue))\n\n"
             } else {
@@ -140,6 +147,8 @@ enum InvoiceFacts {
             }
             return m + "Thank you for your business."
         }
+        let name = clean(inv.customerName)
+        let who = name.isEmpty || isWalkInName(name) ? "Customer" : name
         var lines = ["Dear \(who),", "", "Your invoice from \(shopName) is at the link below.", "", "*Total:* \(Money.pkr(inv.grandTotal))"]
         if inv.amountPaid > 0 {
             lines.append("*Paid:* \(Money.pkr(inv.amountPaid))")
@@ -148,6 +157,53 @@ enum InvoiceFacts {
         lines.append("")
         lines.append("Thank you for your business.")
         return lines.joined(separator: "\n")
+    }
+
+    // MARK: Send on WhatsApp (invoice-viewer.tsx)
+
+    /// The number the ERP page's WhatsApp box starts with: the invoice's own, else its customer's, as the ERP
+    /// keeps numbers (+92…).
+    static func whatsAppPhone(_ inv: Invoice, customer: Customer?) -> String {
+        let own = inv.customerContact ?? ""
+        return pakistanE164(own.isEmpty ? (customer?.phone ?? "") : own)
+    }
+
+    /// What goes on WhatsApp from the phone (`openWhatsAppWithLink`): the words, then the customer's link,
+    /// bare where invoices are named after the customer (Taheri), after "View estimate: " elsewhere.
+    static func whatsAppText(_ inv: Invoice, link: URL, shopName: String, byCustomer: Bool) -> String {
+        shareMessage(inv, shopName: shopName, byCustomer: byCustomer) + "\n\n" + (byCustomer ? "" : "View estimate: ") + link.absoluteString
+    }
+
+    /// wa.me with the number and the words written in (lib/whatsapp.ts `whatsAppLink`); nil without a usable number.
+    static func whatsAppURL(phone: String, text: String) -> URL? {
+        let number = CustomerKit.whatsAppNumber(phone)
+        if number.isEmpty { return nil }
+        return URL(string: "https://wa.me/\(number)?text=\(component(text))")
+    }
+}
+
+/// A change that has landed, said for a few seconds over the invoice like the web's toast.
+struct InvoiceNote: Equatable, Identifiable {
+    let id = UUID()
+    let title: String
+    let detail: String
+}
+
+struct InvoiceNoteBanner: View {
+    let note: InvoiceNote
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(note.title).font(.subheadline.weight(.semibold))
+                Text(note.detail).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .glassEffect(.regular, in: .rect(cornerRadius: 20))
     }
 }
 
