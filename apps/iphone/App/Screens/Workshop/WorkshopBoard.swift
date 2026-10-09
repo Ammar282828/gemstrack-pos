@@ -410,7 +410,7 @@ struct WorkshopBoard: View {
         let title = count > 0 ? "\(f.title) \(count)" : f.title
         if focus == f {
             Button(title) { focus = f }
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.houseProminent)
         } else {
             Button(title) { focus = f }
                 .buttonStyle(.glass)

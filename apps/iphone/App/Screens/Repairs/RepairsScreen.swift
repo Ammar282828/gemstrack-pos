@@ -93,10 +93,12 @@ struct RepairsScreen: View {
         let shown = q.isEmpty ? all : all.filter { RepairsKit.matches($0, q) }
         let groups = RepairsKit.groups(shown)
         let now = Date()
-        List {
+        List { Group {
             ForEach(groups) { g in
                 groupSection(g, now: now, forceOpen: !q.isEmpty)
             }
+            }
+            .houseRows()
         }
         .listStyle(.insetGrouped)
         .overlay {
@@ -201,7 +203,7 @@ struct RepairsScreen: View {
 
     @ViewBuilder
     private func leadingSwipe(_ r: Repair) -> some View {
-        if r.status == .ready, let url = RepairsKit.whatsAppURL(for: r) {
+        if r.status == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
             Button { openURL(url) } label: { Label("Tell them", systemImage: "message") }
                 .tint(.green)
         }
@@ -215,7 +217,7 @@ struct RepairsScreen: View {
         if session.isOwner && r.status == .ready {
             Button { desk.collect(r) } label: { Label("Collected", systemImage: "shippingbox") }
         }
-        if r.status == .ready, let url = RepairsKit.whatsAppURL(for: r) {
+        if r.status == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
             Button { openURL(url) } label: { Label("Tell them it's ready", systemImage: "message") }
         }
         if session.isOwner && r.status != .cancelled && RepairsKit.repairBalance(r) > 0 {

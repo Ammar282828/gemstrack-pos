@@ -23,7 +23,7 @@ struct PhoneSettings: View {
     @Environment(\.openURL) private var openURL
 
     var body: some View {
-        Form {
+        Form { Group {
             Section {
                 switch allowed {
                 case .denied:
@@ -72,6 +72,8 @@ struct PhoneSettings: View {
             } footer: {
                 Text("Add it from the home screen: touch and hold, then Edit → Add Widget → \(House.storeName).")
             }
+            }
+            .houseRows()
         }
         .navigationTitle("This phone")
         .task { await refresh() }

@@ -90,7 +90,7 @@ struct SaleCustomerPicker: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            List { Group {
                 Section {
                     Button { pick(nil); dismiss() } label: {
                         Label("Walk-in", systemImage: "figure.walk")
@@ -106,6 +106,8 @@ struct SaleCustomerPicker: View {
                         .buttonStyle(.plain)
                     }
                 }
+                }
+                .houseRows()
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Customer")

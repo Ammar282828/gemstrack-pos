@@ -102,7 +102,7 @@ struct AddExpenseSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            Form { Group {
                 Section("When and what") {
                     DatePicker("Date", selection: $date, in: ...Date(), displayedComponents: .date)
                     categoryPicker
@@ -128,6 +128,8 @@ struct AddExpenseSheet: View {
                 if let error {
                     Section { Text(error).foregroundStyle(.red) }
                 }
+                }
+                .houseRows()
             }
             .navigationTitle("Add expense")
             .navigationBarTitleDisplayMode(.inline)

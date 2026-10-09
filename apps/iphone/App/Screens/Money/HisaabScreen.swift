@@ -248,7 +248,7 @@ struct HisaabScreen: View {
     private func chipButton(_ c: HisaabChip, count: Int) -> some View {
         if c == chip {
             Button { chip = c } label: { chipLabel(c, count: count) }
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.houseProminent)
         } else {
             Button { chip = c } label: { chipLabel(c, count: count) }
                 .buttonStyle(.glass)

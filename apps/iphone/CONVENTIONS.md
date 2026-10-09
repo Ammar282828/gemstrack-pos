@@ -42,6 +42,14 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
    falls through by itself.
 9. **Reading the books.** `@Environment(Book.self)`, `.need()` on every shelf read, `shelf.items` /
    `shelf.item(id)` (both observed). Owners' shelves are Firestore, live; staff's are the stripped server
-   copy: never show the hisaab, expenses, costs or margins to anyone but an owner.
+   copy: never show the hisaab, expenses or costs to anyone but an owner. The shop's margin ("We earn") is for
+   owners and staff, never a customer, and blurred until tapped (decision "Margin", shop-margin.tsx).
 10. **Writing.** Only `ERPAPI.shared.write(op, fields)` (`/api/app/write`), which runs the browser's own
    `src/lib/writes/*`. A new kind of change gets its shared write there first, used by the browser too.
+   Each change is named (ERPAPI) and the ERP records a name once, so a double tap is never a double payment.
+11. **The house's settings** (counter names, expense categories, partnership, website selling, the shop's
+   name) come from `session.shop` (/api/app/me), never guessed from the books or from `House.id`. Anything a
+   customer or a karigar reads says `session.shop.name`, never `House.storeName` ("… ERP").
+12. **The look.** Screens sit on `HouseGround`; cards and tiles on `Theme.card`; list sections take
+   `.houseRows()`; a filled button is `.buttonStyle(.houseProminent)` (its words in `Theme.onAccent`, as the
+   web's --primary-foreground), never the system's white on the house's light dark-mode accent.

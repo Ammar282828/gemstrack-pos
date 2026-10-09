@@ -62,7 +62,6 @@ struct NewOrderPieceEditor: View {
     @Binding var piece: NewOrderPieceDraft
     let number: Int
     let rates: PricingRates
-    let isOwner: Bool
     let karigars: [Karigar]
     let onDuplicate: () -> Void
     let onRemove: () -> Void
@@ -74,7 +73,7 @@ struct NewOrderPieceEditor: View {
     private var silver: Bool { metal == .silver }
 
     var body: some View {
-        Form {
+        Form { Group {
             thePiece
             sizeBox
             priceBox
@@ -82,6 +81,8 @@ struct NewOrderPieceEditor: View {
             referencesBox
             totalBox
             actionsBox
+            }
+            .houseRows()
         }
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Piece \(number)")
@@ -255,14 +256,12 @@ struct NewOrderPieceEditor: View {
 
     private var workshopBox: some View {
         Section {
-            if isOwner {
-                VStack(alignment: .leading, spacing: 6) {
-                    Label("Instructions for the karigar", systemImage: "lock.fill")
-                        .font(.subheadline)
-                        .foregroundStyle(.orange)
-                    TextField("Instructions", text: $piece.adminNote, prompt: Text("Stones, plating, sizing, or other specifications"), axis: .vertical)
-                        .lineLimit(2...6)
-                }
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Instructions for the karigar", systemImage: "lock.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.orange)
+                TextField("Instructions", text: $piece.adminNote, prompt: Text("Stones, plating, sizing, or other specifications"), axis: .vertical)
+                    .lineLimit(2...6)
             }
             Picker("Karigar", selection: $piece.karigarId) {
                 Text("No karigar yet").tag("")
@@ -273,9 +272,7 @@ struct NewOrderPieceEditor: View {
         } header: {
             Text("For the workshop")
         } footer: {
-            if isOwner {
-                Text("The instructions are never printed on a customer estimate or invoice.")
-            }
+            Text("The instructions are never printed on a customer estimate or invoice.")
         }
     }
 

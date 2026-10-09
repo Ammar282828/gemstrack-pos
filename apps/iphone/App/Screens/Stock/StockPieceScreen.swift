@@ -35,11 +35,13 @@ struct StockPieceScreen: View {
         let settings: Settings? = book.settings.value
         let rates: PricingRates? = StockKit.rates(settings) ?? (p.isCustomPrice ? PricingRates() : nil)
         let costs: ProductCosts? = rates.map { StockKit.costs(p, $0) }
-        return List {
+        return List { Group {
             heroSection(p)
             priceSection(p, costs, settings)
             if !p.isCustomPrice { specsSection(p) }
             if session.isOwner { erpSection(p) }
+            }
+            .houseRows()
         }
         .listStyle(.insetGrouped)
         .safeAreaInset(edge: .bottom, spacing: 0) { sellBar(p) }
@@ -53,7 +55,7 @@ struct StockPieceScreen: View {
         } label: {
             Label("Sell", systemImage: "cart").frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glassProminent)
+        .buttonStyle(.houseProminent)
         .controlSize(.large)
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
@@ -240,7 +242,7 @@ private struct StockSoldView: View {
     }
 
     private func soldList(_ sales: [Invoice]) -> some View {
-        List {
+        List { Group {
             Section {
                 VStack(spacing: 6) {
                     Image(systemName: "checkmark.seal").font(.largeTitle).foregroundStyle(.green)
@@ -257,6 +259,8 @@ private struct StockSoldView: View {
                     }
                 }
             }
+            }
+            .houseRows()
         }
         .listStyle(.insetGrouped)
     }

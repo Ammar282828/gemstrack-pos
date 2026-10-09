@@ -412,13 +412,14 @@ struct SaleDraft: Codable, Equatable {
         delivery = c.saleField(.delivery, SaleDelivery())
     }
 
-    /// Nothing worth keeping: a blank sale is not stored.
+    /// Nothing worth keeping: a blank sale is not stored. Taken by alone does not count: it only starts on
+    /// the signed-in person (the web's drafts ignore their default fields too, SALE_DEFAULT_FIELDS).
     var isBlank: Bool {
         let blank = { (s: String) in s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         return lines.isEmpty && customerId == nil && blank(customerName) && blank(customerPhone)
             && rates.isEmpty && blank(discount) && exchanges.allSatisfy { $0.isBlank }
             && payments.allSatisfy { blank($0.amount) && blank($0.reference) }
-            && blank(takenBy) && !hideRates && blank(internalNote) && blank(costTola) && delivery.isBlank
+            && !hideRates && blank(internalNote) && blank(costTola) && delivery.isBlank
     }
 }
 

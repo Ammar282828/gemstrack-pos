@@ -22,6 +22,7 @@ struct RepairsForm: View {
     let onSaved: (String, Repair?) -> Void
 
     @Environment(Book.self) private var book
+    @Environment(Session.self) private var session
     @Environment(\.dismiss) private var dismiss
 
     @State private var customerId: String?
@@ -32,6 +33,8 @@ struct RepairsForm: View {
     @State private var promised = RepairsKit.days(adding: 7)
     @State private var karigarId = ""
     @State private var takenBy = ""
+    /// "Taken by" starts on the signed-in person once, as the form opens; after that it is the person's to change.
+    @State private var takenBySeeded = false
     @State private var note = ""
     @State private var advance = ""
     @State private var method = "Cash"
@@ -40,7 +43,7 @@ struct RepairsForm: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            Form { Group {
                 customerSection
                 piecesSection
                 whenSection
@@ -49,6 +52,8 @@ struct RepairsForm: View {
                 if let error {
                     Section { Text(error).foregroundStyle(.red) }
                 }
+                }
+                .houseRows()
             }
             .navigationTitle("New repair")
             .navigationBarTitleDisplayMode(.inline)
@@ -70,7 +75,19 @@ struct RepairsForm: View {
             book.karigars.need()
             book.repairs.need()
             book.orders.need()
+            seedTakenBy()
         }
+    }
+
+    /// New work starts on whoever is signed in (docs/decisions.md "Signed-in defaults"), when they are on the
+    /// house's list; Not set is one tap away, since a device handed across the counter must not credit
+    /// everything to whoever signed in.
+    private func seedTakenBy() {
+        if takenBySeeded { return }
+        takenBySeeded = true
+        guard let person = session.shop.person, !person.isEmpty else { return }
+        let names = session.shop.takenBy
+        if names.isEmpty || names.contains(person) { takenBy = person }
     }
 
     // MARK: What can be saved
@@ -266,6 +283,22 @@ struct RepairsForm: View {
                     Text(k.name).tag(k.id)
                 }
             }
+            takenByRow
+            TextField("Note for the shop", text: $note, axis: .vertical)
+                .lineLimit(2...5)
+        } header: {
+            Text("Karigar, taken by, note")
+        } footer: {
+            Text("The note is for the shop only: it is never printed or sent.")
+        }
+    }
+
+    /// The house's counter names, one to pick (the web's list: a name typed three ways is three people to
+    /// a filter). Typing is for a house that has not named its counter people.
+    @ViewBuilder
+    private var takenByRow: some View {
+        let names = session.shop.takenBy
+        if names.isEmpty {
             TextField("Taken by", text: $takenBy)
                 .textInputAutocapitalization(.words)
             if !recentNames.isEmpty {
@@ -275,12 +308,11 @@ struct RepairsForm: View {
                     }
                 }
             }
-            TextField("Note for the shop", text: $note, axis: .vertical)
-                .lineLimit(2...5)
-        } header: {
-            Text("Karigar, taken by, note")
-        } footer: {
-            Text("The note is for the shop only: it is never printed or sent.")
+        } else {
+            Picker("Taken by", selection: $takenBy) {
+                Text("Not set").tag("")
+                ForEach(names, id: \.self) { n in Text(n).tag(n) }
+            }
         }
     }
 
@@ -306,8 +338,9 @@ struct RepairsForm: View {
         }
     }
 
-    /// `addRepair`'s `repair`: a blank name is the ERP's to make a walk-in, an empty piece is dropped,
-    /// and a piece with only the work typed is called "Piece", as the web does.
+    /// `addRepair`'s `repair`: a blank name stays blank, as the web saves `name.trim()` (the screens say
+    /// "Walk-in" for it; nothing writes that word), an empty piece is dropped, and a piece with only the
+    /// work typed is called "Piece", as the web does.
     private func payload() -> [String: Any] {
         var kept: [[String: Any]] = []
         for p in pieces {
@@ -357,7 +390,7 @@ struct RepairsCustomerPicker: View {
     }
 
     var body: some View {
-        List {
+        List { Group {
             ForEach(shown) { c in
                 Button {
                     onPick(c)
@@ -368,6 +401,8 @@ struct RepairsCustomerPicker: View {
                 }
                 .buttonStyle(.plain)
             }
+            }
+            .houseRows()
         }
         .listStyle(.insetGrouped)
         .overlay {

@@ -14,7 +14,7 @@ struct NewOrderChip: View {
 
     var body: some View {
         if on {
-            Button(title, action: action).buttonStyle(.glassProminent)
+            Button(title, action: action).buttonStyle(.houseProminent)
         } else {
             Button(title, action: action).buttonStyle(.glass)
         }

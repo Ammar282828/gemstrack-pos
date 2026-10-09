@@ -113,7 +113,7 @@ struct AddCustomer: View {
     // MARK: The form
 
     private var form: some View {
-        Form {
+        Form { Group {
             Section {
                 TextField("Full name", text: $name, prompt: Text("Optional"))
                     .textContentType(.name)
@@ -176,6 +176,8 @@ struct AddCustomer: View {
             if let error {
                 Section { Text(error).foregroundStyle(.red) }
             }
+            }
+            .houseRows()
         }
         .disabled(saving)
     }
@@ -215,7 +217,7 @@ struct AddCustomer: View {
                 Button { opened = s.id } label: {
                     Text("Open \(s.name)").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.houseProminent)
                 .controlSize(.large)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)

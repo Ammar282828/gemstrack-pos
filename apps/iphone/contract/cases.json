@@ -1185,6 +1185,7 @@
           "id" : "cust-test-0001",
           "name" : "Hina Mockwell",
           "phone" : "+923005550142",
+          "ringSize" : "10",
           "source" : "referral"
         },
         {
@@ -1207,7 +1208,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 211224.08125,
+          "grandTotal" : 819529.46875,
           "items" : [
             {
               "description" : "Test repeat ring",
@@ -1217,16 +1218,40 @@
               "hasStones" : true,
               "isCompleted" : false,
               "isManualPrice" : false,
+              "itemCategory" : "cat001",
               "karat" : "21k",
               "makingCharges" : 2800,
               "manualPrice" : 0,
               "metalCost" : 189476.4375,
               "metalType" : "gold",
               "sampleGiven" : false,
+              "size" : "11",
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
               "totalEstimate" : 211224.08125,
               "wastageCost" : 18947.64375,
+              "wastagePercentage" : 10
+            },
+            {
+              "description" : "Test repeat bangle",
+              "diamondCharges" : 0,
+              "estimatedWeightG" : 14.5,
+              "hasDiamonds" : false,
+              "hasStones" : true,
+              "isCompleted" : false,
+              "isManualPrice" : false,
+              "itemCategory" : "cat007",
+              "karat" : "22k",
+              "makingCharges" : 5200,
+              "manualPrice" : 0,
+              "metalCost" : 548277.625,
+              "metalType" : "gold",
+              "sampleGiven" : false,
+              "size" : "2.4",
+              "stoneCharges" : 0,
+              "stoneWeightG" : 0,
+              "totalEstimate" : 608305.3875,
+              "wastageCost" : 54827.762500000004,
               "wastagePercentage" : 10
             }
           ],
@@ -1243,7 +1268,7 @@
             "silverRatePerGram" : 312.5
           },
           "source" : "referral",
-          "subtotal" : 211224.08125
+          "subtotal" : 819529.46875
         }
       },
       "settings" : {
@@ -1265,8 +1290,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 211224.08125,
-        "subtotal" : 211224.08125
+        "grandTotal" : 819529.46875,
+        "subtotal" : 819529.46875
       },
       "stock" : {
 
@@ -1279,6 +1304,7 @@
           "id" : "cust-test-0001",
           "name" : "Hina Mockwell",
           "phone" : "+923005550142",
+          "ringSize" : "10",
           "source" : "referral"
         },
         {
@@ -1983,7 +2009,7 @@
 
       ],
       "house" : "taheri",
-      "name" : "owner: the 24K rate for our margin, a note for the karigar and a photo",
+      "name" : "the 24K rate for our margin, a note for the karigar and a photo",
       "send" : {
         "order" : {
           "advanceInExchangeDescription" : "",
@@ -2063,24 +2089,30 @@
     },
     {
       "customers" : [
-
+        {
+          "id" : "cust-test-0002",
+          "name" : "Omar Samplani",
+          "phone" : "+923215550177"
+        }
       ],
       "house" : "taheri",
-      "name" : "staff: a 24K rate and a note left in the draft are not sent",
+      "name" : "staff: the 24K rate and the karigar's note go with the order",
       "send" : {
         "order" : {
           "advanceInExchangeDescription" : "",
           "advanceInExchangeValue" : 0,
           "advancePayment" : 0,
-          "customerName" : "Test Margin",
+          "costRate24k" : 41109.39643347051,
+          "customerName" : "Test Staff Customer",
           "discountAmount" : 0,
           "exchanges" : [
 
           ],
-          "grandTotal" : 321598.6,
+          "grandTotal" : 1174513.32625,
           "items" : [
             {
-              "description" : "Test ring with a photo",
+              "adminNote" : "Set the stone low",
+              "description" : "Test staff ring",
               "diamondCharges" : 0,
               "estimatedWeightG" : 8,
               "hasDiamonds" : false,
@@ -2098,6 +2130,27 @@
               "totalEstimate" : 321598.6,
               "wastageCost" : 28872.600000000002,
               "wastagePercentage" : 10
+            },
+            {
+              "adminNote" : "Polish after setting",
+              "description" : "Test staff bangle",
+              "diamondCharges" : 0,
+              "estimatedWeightG" : 20.5,
+              "hasDiamonds" : false,
+              "hasStones" : true,
+              "isCompleted" : false,
+              "isManualPrice" : false,
+              "karat" : "22k",
+              "makingCharges" : 8000,
+              "manualPrice" : 0,
+              "metalCost" : 775151.125,
+              "metalType" : "gold",
+              "sampleGiven" : false,
+              "stoneCharges" : 0,
+              "stoneWeightG" : 0,
+              "totalEstimate" : 852914.72625,
+              "wastageCost" : 69763.60124999999,
+              "wastagePercentage" : 9
             }
           ],
           "promisedDate" : "2026-10-22",
@@ -2112,7 +2165,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 321598.6
+          "subtotal" : 1174513.32625
         }
       },
       "settings" : {
@@ -2134,8 +2187,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 321598.6,
-        "subtotal" : 321598.6
+        "grandTotal" : 1174513.32625,
+        "subtotal" : 1174513.32625
       },
       "stock" : {
 
@@ -2148,6 +2201,7 @@
           "id" : "cust-test-0001",
           "name" : "Hina Mockwell",
           "phone" : "+923005550142",
+          "ringSize" : "10",
           "source" : "referral"
         }
       ],
@@ -2242,6 +2296,161 @@
         "discount" : 5000,
         "grandTotal" : 231548.8625,
         "subtotal" : 261548.8625
+      },
+      "stock" : {
+
+      }
+    },
+    {
+      "customers" : [
+        {
+          "address" : "12 Test Lane, Sample Town",
+          "id" : "cust-test-0001",
+          "name" : "Hina Mockwell",
+          "phone" : "+923005550142",
+          "ringSize" : "10",
+          "source" : "referral"
+        }
+      ],
+      "house" : "taheri",
+      "name" : "an order made from a sale",
+      "send" : {
+        "order" : {
+          "advanceInExchangeDescription" : "",
+          "advanceInExchangeValue" : 0,
+          "advanceMethod" : "Cash",
+          "advancePayment" : 40000,
+          "customerContact" : "+923005550142",
+          "customerId" : "cust-test-0001",
+          "customerName" : "Hina Mockwell",
+          "discountAmount" : 0,
+          "exchanges" : [
+
+          ],
+          "grandTotal" : 389345.786275,
+          "items" : [
+            {
+              "description" : "Test stock ring",
+              "diamondCharges" : 0,
+              "estimatedWeightG" : 6.35,
+              "hasDiamonds" : false,
+              "hasStones" : true,
+              "isCompleted" : false,
+              "isManualPrice" : false,
+              "itemCategory" : "cat001",
+              "karat" : "22k",
+              "makingCharges" : 4200,
+              "manualPrice" : 0,
+              "metalCost" : 224982.88749999998,
+              "metalType" : "gold",
+              "referenceSku" : "RIN-000321",
+              "sampleGiven" : false,
+              "size" : "11",
+              "stoneCharges" : 1800,
+              "stoneWeightG" : 0.4,
+              "totalEstimate" : 251231.34737499998,
+              "wastageCost" : 20248.459874999997,
+              "wastagePercentage" : 9
+            },
+            {
+              "description" : "Test described pendant",
+              "diamondCharges" : 0,
+              "estimatedWeightG" : 5.5,
+              "hasDiamonds" : false,
+              "hasStones" : false,
+              "isCompleted" : false,
+              "isManualPrice" : true,
+              "karat" : "21k",
+              "makingCharges" : 0,
+              "manualPrice" : 96500,
+              "metalCost" : 0,
+              "metalType" : "gold",
+              "sampleGiven" : false,
+              "stoneCharges" : 0,
+              "stoneWeightG" : 0,
+              "totalEstimate" : 96500,
+              "wastageCost" : 0,
+              "wastagePercentage" : 10
+            },
+            {
+              "description" : "Test palladium band",
+              "diamondCharges" : 0,
+              "estimatedWeightG" : 7.1,
+              "hasDiamonds" : false,
+              "hasStones" : false,
+              "isCompleted" : false,
+              "isManualPrice" : false,
+              "karat" : "18k",
+              "makingCharges" : 2000,
+              "manualPrice" : 0,
+              "metalCost" : 66102.06499999999,
+              "metalType" : "palladium",
+              "referenceSku" : "PAL-000044",
+              "sampleGiven" : false,
+              "stoneCharges" : 0,
+              "stoneWeightG" : 0,
+              "totalEstimate" : 72068.1889,
+              "wastageCost" : 3966.123899999999,
+              "wastagePercentage" : 6
+            },
+            {
+              "description" : "Test silver cuff",
+              "diamondCharges" : 0,
+              "estimatedWeightG" : 28.5,
+              "hasDiamonds" : false,
+              "hasStones" : false,
+              "isCompleted" : false,
+              "isManualPrice" : false,
+              "makingCharges" : 0,
+              "manualPrice" : 0,
+              "metalCost" : 8906.25,
+              "metalType" : "silver",
+              "nickelFree" : false,
+              "referenceSku" : "BRA-000012",
+              "sampleGiven" : false,
+              "stoneCharges" : 640,
+              "stoneWeightG" : 0,
+              "totalEstimate" : 9546.25,
+              "wastageCost" : 0,
+              "wastagePercentage" : 0
+            }
+          ],
+          "promisedDate" : "2026-10-22",
+          "ratesApplied" : {
+            "goldRatePerGram18k" : 30937.5,
+            "goldRatePerGram21k" : 36090.75,
+            "goldRatePerGram22k" : 37812.25,
+            "goldRatePerGram24k" : 41250.5,
+            "palladiumRatePerGram" : 8125.4,
+            "palladiumRatePerGram12k" : 6205.35,
+            "palladiumRatePerGram18k" : 9310.15,
+            "platinumRatePerGram" : 11480,
+            "silverRatePerGram" : 312.5
+          },
+          "subtotal" : 429345.786275
+        }
+      },
+      "settings" : {
+        "databaseLocked" : false,
+        "goldRatePerGram18k" : 30937.5,
+        "goldRatePerGram21k" : 36090.75,
+        "goldRatePerGram22k" : 37812.25,
+        "goldRatePerGram24k" : 41250.5,
+        "lastInvoiceNumber" : 2210,
+        "lastOrderNumber" : 4177,
+        "palladiumRatePerGram" : 8125.4,
+        "palladiumRatePerGram12k" : 6205.35,
+        "palladiumRatePerGram18k" : 9310.15,
+        "platinumRatePerGram" : 11480,
+        "shopAddress" : "1 Test Street",
+        "shopContact" : "0300-0000000",
+        "shopName" : "Test Jewellers",
+        "silverRatePerGram" : 312.5
+      },
+      "shown" : {
+        "discount" : 0,
+        "grandTotal" : 389345.786275,
+        "subtotal" : 429345.786275
       },
       "stock" : {
 
@@ -2568,6 +2777,7 @@
           "id" : "cust-test-0001",
           "name" : "Hina Mockwell",
           "phone" : "+923005550142",
+          "ringSize" : "10",
           "source" : "referral"
         }
       ],
@@ -2742,6 +2952,109 @@
         "discount" : 0,
         "grandTotal" : 22287.6,
         "subtotal" : 22287.6
+      },
+      "stock" : {
+
+      }
+    },
+    {
+      "customers" : [
+
+      ],
+      "house" : "mina",
+      "name" : "an order made from a sale",
+      "send" : {
+        "order" : {
+          "advanceInExchangeDescription" : "",
+          "advanceInExchangeValue" : 0,
+          "advancePayment" : 0,
+          "customerContact" : "0301 5550188",
+          "customerName" : "Test Silver Buyer",
+          "discountAmount" : 0,
+          "exchanges" : [
+
+          ],
+          "grandTotal" : 99286.62,
+          "items" : [
+            {
+              "description" : "Test silver bangle",
+              "diamondCharges" : 0,
+              "estimatedWeightG" : 45.25,
+              "hasDiamonds" : false,
+              "hasStones" : false,
+              "isCompleted" : false,
+              "isManualPrice" : false,
+              "itemCategory" : "cat007",
+              "makingCharges" : 0,
+              "manualPrice" : 0,
+              "metalCost" : 13473.1875,
+              "metalType" : "silver",
+              "nickelFree" : true,
+              "platingType" : "White Rhodium",
+              "referenceSku" : "BNG-000007",
+              "sampleGiven" : false,
+              "size" : "2.4",
+              "stoneCharges" : 0,
+              "stoneWeightG" : 0,
+              "totalEstimate" : 13473.1875,
+              "wastageCost" : 0,
+              "wastagePercentage" : 0
+            },
+            {
+              "description" : "Test gold stud",
+              "diamondCharges" : 0,
+              "estimatedWeightG" : 2.15,
+              "hasDiamonds" : false,
+              "hasStones" : false,
+              "isCompleted" : false,
+              "isManualPrice" : false,
+              "karat" : "21k",
+              "makingCharges" : 1500,
+              "manualPrice" : 0,
+              "metalCost" : 76648.575,
+              "metalType" : "gold",
+              "sampleGiven" : false,
+              "stoneCharges" : 0,
+              "stoneWeightG" : 0,
+              "totalEstimate" : 85813.4325,
+              "wastageCost" : 7664.8575,
+              "wastagePercentage" : 10
+            }
+          ],
+          "promisedDate" : "2026-10-22",
+          "ratesApplied" : {
+            "goldRatePerGram18k" : 30600.75,
+            "goldRatePerGram21k" : 35650.5,
+            "goldRatePerGram22k" : 37400,
+            "goldRatePerGram24k" : 40800.25,
+            "palladiumRatePerGram" : 7900,
+            "palladiumRatePerGram12k" : 0,
+            "palladiumRatePerGram18k" : 0,
+            "platinumRatePerGram" : 11200,
+            "silverRatePerGram" : 297.75
+          },
+          "subtotal" : 99286.62
+        }
+      },
+      "settings" : {
+        "databaseLocked" : false,
+        "goldRatePerGram18k" : 30600.75,
+        "goldRatePerGram21k" : 35650.5,
+        "goldRatePerGram22k" : 37400,
+        "goldRatePerGram24k" : 40800.25,
+        "lastInvoiceNumber" : 655,
+        "lastOrderNumber" : 912,
+        "palladiumRatePerGram" : 7900,
+        "platinumRatePerGram" : 11200,
+        "shopAddress" : "2 Sample Road",
+        "shopContact" : "0301-0000000",
+        "shopName" : "Test Silver House",
+        "silverRatePerGram" : 297.75
+      },
+      "shown" : {
+        "discount" : 0,
+        "grandTotal" : 99286.62,
+        "subtotal" : 99286.62
       },
       "stock" : {
 
@@ -4786,6 +5099,99 @@
           "miscCharges" : 0,
           "name" : "Price with paise",
           "sku" : "PD-9",
+          "stoneCharges" : 0,
+          "stoneWeightG" : 0,
+          "wastagePercentage" : 0
+        }
+      }
+    },
+    {
+      "customers" : [
+
+      ],
+      "house" : "taheri",
+      "name" : "paid in full when the total has paise that round up",
+      "send" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "customPrice" : 12345.6,
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : true,
+            "karat" : "21k",
+            "makingCharges" : 0,
+            "metalType" : "gold",
+            "metalWeightG" : 0,
+            "miscCharges" : 0,
+            "name" : "Price with paise, up",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "PU-9",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          }
+        ],
+        "customer" : {
+          "name" : "Walk-in Customer"
+        },
+        "discountAmount" : 0,
+        "exchanges" : [
+
+        ],
+        "hideRates" : false,
+        "payments" : [
+          {
+            "amount" : 12346,
+            "method" : "Cash"
+          }
+        ],
+        "rates" : {
+          "goldRatePerGram18k" : 28900,
+          "goldRatePerGram21k" : 33700,
+          "goldRatePerGram22k" : 35300,
+          "goldRatePerGram24k" : 38500,
+          "palladiumRatePerGram12k" : 9000,
+          "palladiumRatePerGram18k" : 15000
+        }
+      },
+      "settings" : {
+        "goldRatePerGram18k" : 28900,
+        "goldRatePerGram21k" : 33700,
+        "goldRatePerGram22k" : 35300,
+        "goldRatePerGram24k" : 38500,
+        "lastInvoiceNumber" : 120,
+        "palladiumRatePerGram" : 12000,
+        "palladiumRatePerGram12k" : 9000,
+        "palladiumRatePerGram18k" : 15000,
+        "platinumRatePerGram" : 21000,
+        "shopName" : "Demo Gold Shop",
+        "silverRatePerGram" : 480
+      },
+      "shown" : {
+        "balanceDue" : -0.3999999999996362,
+        "discount" : 0,
+        "grandTotal" : 12345.6,
+        "paid" : 12346,
+        "subtotal" : 12345.6
+      },
+      "stock" : {
+        "PU-9" : {
+          "categoryId" : "cat001",
+          "customPrice" : 12345.6,
+          "diamondCharges" : 0,
+          "hasDiamonds" : false,
+          "hasStones" : false,
+          "isCustomPrice" : true,
+          "karat" : "21k",
+          "makingCharges" : 0,
+          "metalType" : "gold",
+          "metalWeightG" : 0,
+          "miscCharges" : 0,
+          "name" : "Price with paise, up",
+          "sku" : "PU-9",
           "stoneCharges" : 0,
           "stoneWeightG" : 0,
           "wastagePercentage" : 0

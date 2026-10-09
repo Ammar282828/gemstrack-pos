@@ -116,7 +116,8 @@ enum NewOrderMath {
     }
 
     /// What the web's schema refuses (`orderFormSchema`), in its words; nil when the order can be saved.
-    static func problem(_ d: NewOrderDraft) -> String? {
+    /// `takenBy` is the house's list of counter names: the name must be on it (empty list: any name).
+    static func problem(_ d: NewOrderDraft, takenBy: [String] = []) -> String? {
         if d.pieces.isEmpty { return "Add at least one piece to the order." }
         for (i, p) in d.pieces.enumerated() {
             let who = "Piece \(i + 1)"
@@ -132,6 +133,9 @@ enum NewOrderMath {
             if num(d.rates["goldRatePerGram" + k] ?? "") <= 0 {
                 return "A positive gold rate is required for each gold karat type present in the order."
             }
+        }
+        if !takenBy.isEmpty && !trim(d.takenBy).isEmpty && !takenBy.contains(trim(d.takenBy)) {
+            return "Taken by: Choose a name from the list"
         }
         if num(d.discount) < 0 || num(d.advance) < 0 { return "The discount and the advance can't be negative." }
         // The web drops a delivery with no address without a word; the phone says so.
@@ -149,8 +153,9 @@ enum NewOrderMath {
     /// One piece as `onSubmit` builds it: the form's fields plus the estimate (`metalCost`, `wastageCost`,
     /// `totalEstimate`), karat only for a metal that has one and plating only for silver (`stripMeaninglessKarat`). The
     /// sample picture goes as a data URI; createOrder moves it to `order_photos` in the same commit
-    /// (lib/order-photos.ts splitItemPhotos). The instructions for the karigar are the owner's.
-    static func item(_ p: NewOrderPieceDraft, rates: PricingRates, owner: Bool, photo: Bool) -> [String: Any] {
+    /// (lib/order-photos.ts splitItemPhotos). The instructions for the karigar go from owners and staff alike
+    /// (staff write it; the ERP gives it back to owners only, roles.ts).
+    static func item(_ p: NewOrderPieceDraft, rates: PricingRates, photo: Bool) -> [String: Any] {
         let metal = MetalType(rawValue: p.metal)
         let silver = metal == .silver
         let costs: ProductCosts = p.manual ? ProductCosts(totalPrice: num(p.manualPrice)) : calculateProductCosts(priced(p), rates)
@@ -186,7 +191,7 @@ enum NewOrderMath {
             if p.platingType == "Other" { put(&o, "platingNote", p.platingNote) }
             o["nickelFree"] = p.nickelFree
         }
-        if owner { put(&o, "adminNote", p.adminNote) }
+        put(&o, "adminNote", p.adminNote)
         if photo, let data = p.photo {
             o["sampleImageDataUri"] = "data:image/jpeg;base64," + data.base64EncodedString()
         }
@@ -251,16 +256,16 @@ enum NewOrderMath {
     }
 
     /// What the screen hands `ERPAPI.write("createOrder", …)`: the fields of the op, which are `{ order }`.
-    static func request(_ d: NewOrderDraft, settings: Settings, customers: [Customer], owner: Bool) -> [String: Any] {
-        ["order": order(d, settings: settings, customers: customers, owner: owner)]
+    static func request(_ d: NewOrderDraft, settings: Settings, customers: [Customer]) -> [String: Any] {
+        ["order": order(d, settings: settings, customers: customers)]
     }
 
     /// The order exactly as `orderToSave` builds it (`createOrder`'s `order`).
-    static func order(_ d: NewOrderDraft, settings: Settings, customers: [Customer], owner: Bool) -> [String: Any] {
+    static func order(_ d: NewOrderDraft, settings: Settings, customers: [Customer]) -> [String: Any] {
         let rates = formRates(d, settings)
         let t = totals(d, settings)
         var o: [String: Any] = [:]
-        o["items"] = d.pieces.map { item($0, rates: rates, owner: owner, photo: true) }
+        o["items"] = d.pieces.map { item($0, rates: rates, photo: true) }
         o["ratesApplied"] = ratesApplied(rates)
         if d.hideRates { o["hideRates"] = true }
         put(&o, "takenBy", d.takenBy)
@@ -271,7 +276,8 @@ enum NewOrderMath {
         o["advanceInExchangeDescription"] = ex.advanceInExchangeDescription
         o["advanceInExchangeValue"] = NewOrderFormat.finite(ex.advanceInExchangeValue)
         let perGram = costRatePerGram(d)
-        if owner && perGram > 0 { o["costRate24k"] = perGram }
+        // The shop's own 24k rate for its margin: owners and staff, never the customer (decisions.md "Margin").
+        if perGram > 0 { o["costRate24k"] = perGram }
         o["subtotal"] = NewOrderFormat.finite(t.subtotal)
         o["discountAmount"] = NewOrderFormat.finite(t.discount)
         o["grandTotal"] = NewOrderFormat.finite(t.balance)
@@ -297,16 +303,16 @@ enum NewOrderMath {
         return o
     }
 
-    // MARK: The shop's margin (owners)
+    // MARK: The shop's margin (owners and staff)
 
-    /// SHOP-ONLY: what the shop earns on this order as it stands, from ERPCore's `orderMargin` over the
+    /// SHOP-ONLY (owners and staff): what the shop earns on this order as it stands, from ERPCore's `orderMargin` over the
     /// order read back as an Order (the live prices stand in for the saved ones). Never on anything a
     /// customer sees.
     static func margin(_ d: NewOrderDraft, _ settings: Settings?, _ t: Totals) -> Margin? {
         guard let settings else { return nil }
         let rates = formRates(d, settings)
         var doc: [String: Any] = [:]
-        doc["items"] = d.pieces.map { item($0, rates: rates, owner: true, photo: false) }
+        doc["items"] = d.pieces.map { item($0, rates: rates, photo: false) }
         doc["subtotal"] = NewOrderFormat.finite(t.subtotal)
         doc["discountAmount"] = NewOrderFormat.finite(t.discount)
         let perGram = costRatePerGram(d)

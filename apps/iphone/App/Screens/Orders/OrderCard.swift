@@ -21,6 +21,8 @@ struct OrderCardRows: View {
     let owed: Double
     let now: Date
     let isOwner: Bool
+    /// Taken by the signed-in person: the card is lit in place (docs/decisions.md "Signed-in defaults").
+    let mine: Bool
     let busy: Bool
     let actions: OrderCardActions
 
@@ -41,6 +43,7 @@ struct OrderCardRows: View {
             OrderCardHead(order: order, now: now, greyed: greyed)
         }
         .listRowSeparator(hasStep ? .hidden : .automatic, edges: .bottom)
+        .mineRow(mine)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) { swipe }
         .contextMenu { menu }
 
@@ -48,6 +51,8 @@ struct OrderCardRows: View {
             OrderNextStepRow(order: order, stage: stage, owed: owed, canAdvance: canAdvance, busy: busy, actions: actions)
                 .listRowSeparator(.hidden, edges: .top)
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 10, trailing: 16))
+                // Its own row, so it is lit with the card above it.
+                .mineRow(mine)
         }
     }
 

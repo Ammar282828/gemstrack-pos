@@ -164,36 +164,167 @@ enum PaymentMethods {
     static let all = ["Cash", "Card", "Bank Transfer", "Cheque"]
 }
 
-/// Taking money: an invoice's payment or an order's advance. The amount is typed in rupees and
-/// shown back in lac as it is typed; the write is the ERP's (`save`), and the sheet stays open with
-/// the ERP's own words if it refuses.
+/// Whom a payment on an invoice is for, so the sheet can say what happens to money over the balance
+/// (components/invoice/record-payment-dialog.tsx). Left off for advances and repairs, which have no hisaab.
+struct PaymentCustomer {
+    /// The name on the bill; empty for a sale to nobody in particular.
+    let name: String
+    /// A named customer holds the extra as credit on their hisaab; a walk-in cannot (lib/invoice-credit.ts canHoldCredit).
+    let canHoldCredit: Bool
+}
+
+/// The sheet's numbers and words, kept apart from the view so they read the same wherever they are used.
+enum PaymentText {
+    /// What was typed, as rupees and paise. Thousands commas are dropped; on a phone set to a region that
+    /// types its decimal point as a comma ("1500,4") a comma followed by one or two digits is the
+    /// decimal point, since a thousands comma always has three.
+    static func amount(_ text: String) -> Double? {
+        var t = text.trimmingCharacters(in: .whitespaces)
+        if !t.contains("."), let comma = t.lastIndex(of: ",") {
+            let after = t.distance(from: comma, to: t.endIndex) - 1
+            if after == 1 || after == 2 { t.replaceSubrange(comma...comma, with: ".") }
+        }
+        t = t.replacingOccurrences(of: ",", with: "")
+        guard !t.isEmpty, let v = Double(t), v.isFinite, v >= 0 else { return nil }
+        return (v * 100).rounded() / 100
+    }
+
+    /// A balance for the amount field: up to two decimals, no grouping, no trailing zeros ("1500.4").
+    static func field(_ v: Double) -> String {
+        var s = String(format: "%.2f", v)
+        while s.hasSuffix("0") { s.removeLast() }
+        if s.hasSuffix(".") { s.removeLast() }
+        return s
+    }
+
+    /// "PKR 1,500" for whole rupees, "PKR 1,500.4" when paise are owed: Money.pkr would round them away.
+    static func pkr(_ v: Double) -> String {
+        if abs(v - v.rounded()) < 0.005 { return Money.pkr(v) }
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.locale = Locale(identifier: "en_US")
+        f.minimumFractionDigits = 0
+        f.maximumFractionDigits = 2
+        return "PKR " + (f.string(from: NSNumber(value: v)) ?? String(v))
+    }
+
+    /// What the reference box is for, by how it was paid (the web's labels).
+    static func referenceLabel(_ method: String) -> String {
+        switch method {
+        case "Cheque": return "Cheque no."
+        case "Card": return "Last 4 digits"
+        case "Bank Transfer": return "Reference"
+        default: return "Note"
+        }
+    }
+}
+
+/// Taking money: an invoice's payment or an order's advance. The amount is typed in rupees (paise
+/// allowed) and shown back in lac as it is typed; the write is the ERP's (`save`), and the sheet stays
+/// open with the ERP's own words if it refuses.
 struct PaymentSheet: View {
     let title: String
     /// What is still owed, offered as the amount with one tap.
     var owed: Double?
     var askReference = true
-    let save: (_ amount: Double, _ method: String, _ reference: String) async throws -> Void
+    /// Set for an invoice: money over the balance is a named customer's credit, and a walk-in's is refused.
+    var customer: PaymentCustomer?
+    /// Set for an advance: the note it is written with, which can be changed but not left bare.
+    var noteDefault: String?
+
+    private let commit: (_ amount: Double, _ method: String, _ reference: String, _ note: String) async throws -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var amountText = ""
+    /// The balance as the books keep it, while the field still shows what "All that's owed" put there:
+    /// 1500.4 is sent as 1500.4, never as the 1,500 the label would round it to.
+    @State private var pinned: Pinned?
     @State private var method = "Cash"
     @State private var reference = ""
+    @State private var note: String
     @State private var saving = false
     @State private var error: String?
 
-    private var amount: Double { Double(amountText.replacingOccurrences(of: ",", with: "")) ?? 0 }
+    private struct Pinned {
+        let text: String
+        let value: Double
+    }
+
+    /// An invoice's payment, a repair's, or anything else with a reference and no note.
+    init(title: String, owed: Double? = nil, askReference: Bool = true, customer: PaymentCustomer? = nil,
+         save: @escaping (_ amount: Double, _ method: String, _ reference: String) async throws -> Void) {
+        self.title = title
+        self.owed = owed
+        self.askReference = askReference
+        self.customer = customer
+        self.noteDefault = nil
+        self.commit = { amount, method, reference, _ in try await save(amount, method, reference) }
+        _note = State(initialValue: "")
+    }
+
+    /// An advance on an order: no reference, a note instead (order-dialogs.tsx RecordAdvanceDialog).
+    init(title: String, owed: Double? = nil, note: String,
+         save: @escaping (_ amount: Double, _ method: String, _ note: String) async throws -> Void) {
+        self.title = title
+        self.owed = owed
+        self.askReference = false
+        self.customer = nil
+        self.noteDefault = note
+        self.commit = { amount, method, _, note in try await save(amount, method, note) }
+        _note = State(initialValue: note)
+    }
+
+    private var amount: Double {
+        if let pinned, pinned.text == amountText { return pinned.value }
+        return PaymentText.amount(amountText) ?? 0
+    }
+
+    /// What the invoice still asks for; nothing once it is paid.
+    private var balance: Double { max(0, owed ?? 0) }
+
+    /// Rupees over the balance, as the web counts them: rounded, and only for an invoice.
+    private var over: Double {
+        guard customer != nil, amount > 0 else { return 0 }
+        return (amount - balance).rounded()
+    }
+
+    /// Why Save is closed, in the web's words; nil when it is open.
+    private var problem: String? {
+        if let customer, over > 0, !customer.canHoldCredit {
+            return "More than the balance of \(PaymentText.pkr(balance)). Credit needs a customer: name who this invoice is for first."
+        }
+        if noteDefault != nil, amount > 0, note.trimmingCharacters(in: .whitespacesAndNewlines).count < 3 {
+            return "Please add a brief note for the payment."
+        }
+        return nil
+    }
+
+    private var creditNote: String? {
+        guard let customer, customer.canHoldCredit, over > 0 else { return nil }
+        let who = customer.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return "\(Money.pkr(over)) over the balance stays as credit on \(who.isEmpty ? "the customer" : who)'s hisaab."
+    }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     TextField("Amount in rupees", text: $amountText)
-                        .keyboardType(.numberPad)
+                        .keyboardType(.decimalPad)
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }
                     if let owed, owed > 0 {
-                        Button("All that's owed: \(Money.pkr(owed))") { amountText = String(Int(owed.rounded())) }
+                        Button("All that's owed: \(PaymentText.pkr(owed))") {
+                            amountText = PaymentText.field(owed)
+                            pinned = Pinned(text: amountText, value: owed)
+                        }
+                    }
+                } footer: {
+                    if let problem {
+                        Text(problem).foregroundStyle(.red)
+                    } else if let creditNote {
+                        Text(creditNote).foregroundStyle(.green)
                     }
                 }
                 Section("How it was paid") {
@@ -202,7 +333,10 @@ struct PaymentSheet: View {
                     }
                     .pickerStyle(.segmented)
                     if askReference && method != "Cash" {
-                        TextField("Reference (optional)", text: $reference)
+                        TextField(PaymentText.referenceLabel(method), text: $reference, prompt: Text("Optional"))
+                    }
+                    if noteDefault != nil {
+                        TextField("Note", text: $note, prompt: Text("e.g. Second advance payment"))
                     }
                 }
                 if let error {
@@ -221,7 +355,9 @@ struct PaymentSheet: View {
                             saving = true
                             error = nil
                             do {
-                                try await save(amount, method, reference)
+                                // A cash payment has no reference to carry, whatever was typed before it was switched.
+                                try await commit(amount, method, method == "Cash" ? "" : reference,
+                                                 note.trimmingCharacters(in: .whitespacesAndNewlines))
                                 dismiss()
                             } catch {
                                 self.error = error.localizedDescription
@@ -229,10 +365,29 @@ struct PaymentSheet: View {
                             saving = false
                         }
                     }
-                    .disabled(amount <= 0 || saving)
+                    .disabled(amount <= 0 || problem != nil || saving)
                 }
             }
         }
         .presentationDetents([.medium, .large])
+    }
+}
+
+/// A row taken by whoever is signed in: tinted, with a bar down its left edge, and left in its place in
+/// the list rather than sorted to the top (src/lib/utils.ts `mineRowClass`; the owner, 2026-10-05).
+struct MineRowBackground: View {
+    var body: some View {
+        Theme.card
+            .overlay(Theme.accent.opacity(0.07))
+            .overlay(alignment: .leading) { Theme.accent.frame(width: 3) }
+    }
+}
+
+extension View {
+    /// A list row on the house's card colour, lit when it is the signed-in person's own.
+    func mineRow(_ mine: Bool) -> some View {
+        listRowBackground(Group {
+            if mine { MineRowBackground() } else { Theme.card }
+        })
     }
 }

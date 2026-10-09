@@ -5,6 +5,35 @@ import ERPCore
 // checked on Linux with the package. The ERP's own rules stay in ERPCore; what is here is only the
 // reading of them for a phone: which words, which order, which row.
 
+/// How the hub is broken up (orders/page.tsx `groupBy`): by day to start with (the owner, 2026-10-05),
+/// or by stage, which is the hub proper, or by week or month. The calendar ones are the Invoices
+/// list's, so a day, a week and a month are named and cut the same on both.
+enum OrdersGrouping: String, CaseIterable, Identifiable {
+    case stage, day, week, month
+
+    var id: String { rawValue }
+
+    /// The web lists Stage first, then the graduations (GRADUATIONS: Day, Week, Month).
+    var title: String {
+        switch self {
+        case .stage: return "Stage"
+        case .day: return "Day"
+        case .week: return "Week"
+        case .month: return "Month"
+        }
+    }
+
+    /// The calendar cut, nil for Stage.
+    var calendar: InvoiceGrouping? {
+        switch self {
+        case .stage: return nil
+        case .day: return .day
+        case .week: return .week
+        case .month: return .month
+        }
+    }
+}
+
 enum OrdersLogic {
     // MARK: Statuses
 
@@ -14,6 +43,9 @@ enum OrdersLogic {
 
     /// The hub's status filter: the ERP's ORDER_STATUSES, all of them (it filters, it does not write).
     static let filterStatuses = ["Pending", "In Progress", "Completed", "Cancelled", "Refunded"]
+
+    /// The hub's payment filter: Any payment, then these (getOrderPaymentStatus).
+    static let filterPayments = ["Paid", "Partial", "Unpaid"]
 
     /// Cancelling asks first, on the list and on the order page alike.
     static let cancelWords = "It leaves the Workshop and its Shopify draft is cancelled. It can be set back to Pending later."
@@ -51,6 +83,20 @@ enum OrdersLogic {
     static func owed(_ order: Order, _ owedOn: [String: Double]) -> Double {
         guard let id = order.invoiceId, !id.isEmpty else { return 0 }
         return owedOn[id] ?? 0
+    }
+
+    // MARK: Whose it is
+
+    /// Taken by the signed-in person, whose rows are lit in place (docs/decisions.md "Signed-in defaults").
+    /// Nobody is lit when this account has no counter name.
+    static func isMine(_ order: Order, person: String?) -> Bool {
+        guard let person, !person.isEmpty, let by = order.takenBy else { return false }
+        return by == person
+    }
+
+    /// When the order was taken, for newest first; an order with no readable date sorts last.
+    static func takenAt(_ order: Order) -> Date {
+        ERPDate.parse(order.createdAt) ?? .distantPast
     }
 
     // MARK: Search
@@ -112,11 +158,11 @@ enum OrdersLogic {
 
     // MARK: Money, as the order page works it out
 
-    /// Always from the pieces, so it agrees with their estimates (the order page, 2026-10-04); the stored
-    /// subtotal stands in for an order whose pieces carry no estimate.
+    /// Always from the pieces, so it agrees with their estimates (the order page, 2026-10-04), and never
+    /// from the stored subtotal: the page sums `totalEstimate` and nothing else, so a piece without an
+    /// estimate counts for nothing there, and the balance must read the same here.
     static func subtotal(_ order: Order) -> Double {
-        let live = order.items.reduce(0) { $0 + ($1.totalEstimate ?? 0) }
-        return live > 0 ? live : order.subtotal
+        order.items.reduce(0) { $0 + ($1.totalEstimate ?? 0) }
     }
 
     static func discount(_ order: Order) -> Double { order.discountAmount ?? 0 }
@@ -198,7 +244,8 @@ enum OrdersLogic {
         }
     }
 
-    /// TODO(logic): port categorySingular (categories.ts): "Ring" for cat001; the id itself when unknown.
+    /// categorySingular (lib/categories.ts): "Ring" for cat001; the id itself when unknown, as the web's
+    /// `categorySingular(id) || id` shows it. Both the order page and the invoice page read it.
     static func categorySingular(_ id: String?) -> String? {
         guard let id, !id.isEmpty else { return nil }
         let names: [String: String] = [
@@ -247,6 +294,7 @@ enum OrdersLogic {
     // MARK: Margin (shop screens only)
 
     /// A house that does not cost by gold (Mina) shows no margin at all (shop-margin.tsx SHOP_MARGIN_ON).
+    /// Everyone else in the shop sees it, owner or staff, blurred until tapped; never a customer.
     static func marginIsOn(_ settings: MarginSettings) -> Bool { settings.rattiLess != nil }
 
     /// What the owner reads when the figure is tapped (shop-margin.tsx MarginFigure).

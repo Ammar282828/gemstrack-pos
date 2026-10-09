@@ -58,7 +58,7 @@ struct WorkshopGivenScreen: View {
     private var content: some View {
         let all = book.givenItems.items
         let shown = all.filter { matches($0) }
-        List {
+        List { Group {
             summarySection(all)
             filterSection
             if !shown.isEmpty {
@@ -70,6 +70,8 @@ struct WorkshopGivenScreen: View {
                     Text("Samples, repairs, or anything given to karigars or customers.")
                 }
             }
+            }
+            .houseRows()
         }
         .listStyle(.insetGrouped)
         .overlay {
@@ -126,7 +128,7 @@ struct WorkshopGivenScreen: View {
     private func chip(_ f: Filter) -> some View {
         if filter == f {
             Button(f.title) { filter = f }
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.houseProminent)
         } else {
             Button(f.title) { filter = f }
                 .buttonStyle(.glass)
@@ -324,7 +326,7 @@ struct WorkshopGivenSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            Form { Group {
                 Section("Date given") {
                     DatePicker("Date given", selection: $date, in: ...Date(), displayedComponents: .date)
                 }
@@ -339,6 +341,8 @@ struct WorkshopGivenSheet: View {
                 if let error {
                     Section { Text(error).foregroundStyle(Color.red) }
                 }
+                }
+                .houseRows()
             }
             .navigationTitle("Record item given")
             .navigationBarTitleDisplayMode(.inline)

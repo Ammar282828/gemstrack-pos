@@ -9,8 +9,10 @@ struct SearchView: View {
 
     var body: some View {
         let q = text.trimmingCharacters(in: .whitespaces).lowercased()
-        List {
+        List { Group {
             if q.isEmpty { everything } else { results(q) }
+            }
+            .houseRows()
         }
         .navigationTitle("Everything")
         .searchable(text: $text, prompt: "Places in the ERP")
@@ -28,10 +30,11 @@ struct SearchView: View {
                 }
             }
         }
-        if session.isOwner {
+        // The map is already this person's: Settings is in it for owners only.
+        if let settings = map.settings {
             Section {
-                NavigationLink(value: Route(path: map.settings.href)) {
-                    Label(map.settings.label, systemImage: NavIcon.symbol(for: map.settings.icon))
+                NavigationLink(value: Route(path: settings.href)) {
+                    Label(settings.label, systemImage: NavIcon.symbol(for: settings.icon))
                 }
             }
         }
@@ -94,7 +97,7 @@ struct SignInView: View {
                     .frame(maxWidth: 280)
                     .padding(.vertical, 6)
                 }
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.houseProminent)
                 .controlSize(.large)
                 .disabled(session.state == .signingIn)
             }

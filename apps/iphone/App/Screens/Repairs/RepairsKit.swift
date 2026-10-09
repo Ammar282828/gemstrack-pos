@@ -244,8 +244,9 @@ enum RepairsKit {
         return "92" + digits
     }
 
-    /// The page's "Tell them" message, word for word.
-    static func readyMessage(_ r: Repair) -> String {
+    /// The page's "Tell them" message, word for word. `shopName` is the shop's own (session.shop.name),
+    /// since the customer reads it: never the app's "… ERP".
+    static func readyMessage(_ r: Repair, shopName: String) -> String {
         var greeting = "Assalam o Alaikum"
         if let name = filled(r.customerName), !isWalkInName(name) { greeting += " " + name }
         let what: String
@@ -254,19 +255,19 @@ enum RepairsKit {
         } else {
             what = "your \(r.pieces.count) pieces are"
         }
-        var text = "\(greeting), \(what) ready for collection at \(House.storeName) (repair \(r.id))."
+        var text = "\(greeting), \(what) ready for collection at \(shopName) (repair \(r.id))."
         let owing = repairBalance(r)
         if owing > 0 { text += " Balance: \(Money.pkr(owing))." }
         return text + " Please bring your receipt."
     }
 
     /// wa.me with the message, for a ticket that is Ready and has a number.
-    static func whatsAppURL(for r: Repair) -> URL? {
+    static func whatsAppURL(for r: Repair, shopName: String) -> URL? {
         let number = whatsAppNumber(r.customerContact)
         if number.isEmpty { return nil }
         // encodeURIComponent leaves these alone.
         let keep = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.!~*'()")
-        let text = readyMessage(r).addingPercentEncoding(withAllowedCharacters: keep) ?? ""
+        let text = readyMessage(r, shopName: shopName).addingPercentEncoding(withAllowedCharacters: keep) ?? ""
         return URL(string: "https://wa.me/\(number)?text=\(text)")
     }
 

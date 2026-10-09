@@ -372,20 +372,23 @@ extension SaleForm {
 
     // MARK: 7. For the shop: taken by, rates off the bill, a note, the margin
 
+    /// The house's counter names (STORE_TAKEN_BY), counted and filtered on: "Ammar" typed three ways is three
+    /// people to a filter. Free text only when the house has no list.
+    @ViewBuilder
     var takenByRow: some View {
-        LabeledContent("Taken by") {
-            HStack(spacing: 8) {
+        let names = session.shop.takenBy
+        if names.isEmpty {
+            LabeledContent("Taken by") {
                 TextField("Not set", text: $draft.takenBy)
                     .multilineTextAlignment(.trailing)
                     .textInputAutocapitalization(.words)
-                if !people.isEmpty {
-                    Menu {
-                        Button("Not set") { draft.takenBy = "" }
-                        ForEach(people, id: \.self) { p in Button(p) { draft.takenBy = p } }
-                    } label: {
-                        Image(systemName: "person.2")
-                    }
-                }
+            }
+        } else {
+            Picker("Taken by", selection: $draft.takenBy) {
+                Text("Not set").tag("")
+                ForEach(names, id: \.self) { n in Text(n).tag(n) }
+                // A name kept in a saved sale that the list has dropped since stays selectable.
+                if !draft.takenBy.isEmpty && !names.contains(draft.takenBy) { Text(draft.takenBy).tag(draft.takenBy) }
             }
         }
     }
@@ -554,6 +557,40 @@ extension SaleForm {
         } header: {
             Text("Totals")
         }
+        orderSection()
+    }
+
+    /// The same pieces can go to the workshop as an order instead (sale-page.tsx "Create order",
+    /// /orders/add?fromCart=1): the order form opens on them, and the sale is cleared when the order saves.
+    @ViewBuilder
+    func orderSection() -> some View {
+        Section {
+            Button {
+                // An order half typed on this phone is not thrown away without asking.
+                if NewOrderDraftStore.orderInProgress { confirmingOrder = true } else { createOrder() }
+            } label: {
+                Label("Create order", systemImage: "list.clipboard")
+            }
+            .disabled(draft.lines.isEmpty)
+        } footer: {
+            Text("Invoice bills it now. Order sends it to the workshop first, with an advance if taken.")
+        }
+    }
+
+    func createOrder() {
+        NewOrderDraftStore.startFromSale(draft)
+        openOrder = Route(path: "/orders/add")
+    }
+
+    /// A rate typed on the sale becomes the shop's, after the invoice is saved and never before (the invoice
+    /// is priced from the rates in hand), as the web does. It is not waited for: if it does not go, the
+    /// sale is still saved and a line says so.
+    func keepRates(_ rates: [String: Double]) async {
+        do {
+            try await ERPAPI.shared.write("setRates", ["rates": rates])
+        } catch {
+            ratesNote = "The sale is saved. The rate you typed was not kept for next time (\(error.localizedDescription)): set it from the rate chip."
+        }
     }
 
     // MARK: Save
@@ -605,7 +642,7 @@ extension SaleForm {
                 }
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.glassProminent)
+            .buttonStyle(.houseProminent)
             .controlSize(.large)
             .disabled(!f.canSave || saving)
         }
@@ -628,9 +665,12 @@ extension SaleForm {
         failure = nil
         goneSkus = []
         alreadySold = false
+        // Decided before the save, from the shop's rates as they stand now.
+        let kept = draft.ratesToWriteBack(f, current: book.settings.value)
         do {
             let out = try await ERPAPI.shared.write("createInvoice", draft.payload(f) { book.products.item($0)?.qrCodeDataUrl })
             let id = (out["invoice"] as? [String: Any])?["id"] as? String ?? ""
+            if let kept { Task { await keepRates(kept) } }
             SaleDraftStore.clear()
             draft = SaleDraft()
             if id.isEmpty {

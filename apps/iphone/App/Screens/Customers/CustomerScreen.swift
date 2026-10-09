@@ -361,8 +361,9 @@ private struct CustHisaabRow: View {
 
     private var subtitle: String {
         var parts = [ShopDate.say(entry.date)]
-        if entry.goldDebitGrams > 0 { parts.append("gave \(CustomerKit.grams(entry.goldDebitGrams)) g gold") }
-        if entry.goldCreditGrams > 0 { parts.append("got \(CustomerKit.grams(entry.goldCreditGrams)) g gold") }
+        // The house's own metal: the hisaab's "gold" columns hold silver in House of Mina (STORE_METAL_WORD).
+        if entry.goldDebitGrams > 0 { parts.append("gave \(CustomerKit.grams(entry.goldDebitGrams)) g \(House.metal)") }
+        if entry.goldCreditGrams > 0 { parts.append("got \(CustomerKit.grams(entry.goldCreditGrams)) g \(House.metal)") }
         if let inv = CustomerKit.filled(entry.linkedInvoiceId) { parts.append("invoice \(inv)") }
         return parts.joined(separator: " · ")
     }

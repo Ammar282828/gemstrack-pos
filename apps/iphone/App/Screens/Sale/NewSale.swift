@@ -43,6 +43,7 @@ struct NewSale: View {
 @MainActor
 struct SaleForm: View {
     @Environment(Book.self) var book
+    @Environment(Session.self) var session
 
     @State var draft = SaleDraft()
     @State var query = ""
@@ -64,12 +65,19 @@ struct SaleForm: View {
     /// Exchange rows whose weight and rate are open.
     @State var openedExchange: Set<String> = []
     @State var marginShown = false
-    @State var people: [String] = []
+    /// Taken by starts on this account's counter name once, for a new sale (decisions.md "Signed-in defaults").
+    @State var takenByStarted = false
+    /// The rates typed on the sale, sent back to the shop's after the sale saved, did not go: said quietly.
+    @State var ratesNote: String?
+    /// The order form, opened from this sale's pieces.
+    @State var openOrder: Route?
+    @State var confirmingOrder = false
 
     var body: some View {
         Group {
             if let id = made {
                 InvoiceScreen(id: id)
+                    .overlay(alignment: .top) { ratesNoteBanner }
             } else if !book.settings.loaded {
                 ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -81,7 +89,23 @@ struct SaleForm: View {
             book.products.need()
             book.customers.need()
             book.invoices.need()
-            book.orders.need()
+        }
+    }
+
+    /// A line over the invoice when a rate typed on the sale could not be kept as the shop's (the web's toast).
+    @ViewBuilder
+    private var ratesNoteBanner: some View {
+        if let note = ratesNote {
+            Text(note)
+                .font(.footnote.weight(.medium))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .glassEffect(.regular, in: .rect(cornerRadius: 16))
+                .padding(.horizontal, 16).padding(.top, 6)
+                .task {
+                    try? await Task.sleep(for: .seconds(8))
+                    ratesNote = nil
+                }
         }
     }
 
@@ -89,7 +113,7 @@ struct SaleForm: View {
 
     private var page: some View {
         let f = SaleFigures(draft: draft, settings: book.settings.value, customers: book.customers.items, marginSettings: House.margin)
-        return Form {
+        return Form { Group {
             customerSection(f)
             piecesSection(f)
             ratesSection(f)
@@ -99,6 +123,8 @@ struct SaleForm: View {
             shopSection(f)
             deliverySection(f)
             totalsSection(f)
+            }
+            .houseRows()
         }
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle("New sale")
@@ -132,18 +158,38 @@ struct SaleForm: View {
         } message: {
             Text("This empties the sale on this phone: the pieces, the customer and everything typed.")
         }
+        .confirmationDialog("Replace the order in progress?", isPresented: $confirmingOrder, titleVisibility: .visible) {
+            Button("Replace it", role: .destructive) { createOrder() }
+        } message: {
+            Text("An order is half typed on this phone. Making one from these pieces replaces it.")
+        }
         // This phone's own unfinished sale, written as it is typed. The scan screen can add a piece
         // to it while this one waits underneath, so it is read again whenever the screen appears.
-        .onAppear {
-            if let stored = SaleDraftStore.load(), stored != draft { draft = stored }
-        }
+        .onAppear { appeared() }
         .onChange(of: draft) { _, d in SaleDraftStore.save(d) }
         .onChange(of: query) { _, _ in notice = nil }
-        .task(id: book.invoices.items.count &+ book.orders.items.count) {
-            var taken: [(String?, String)] = book.invoices.items.map { (inv: Invoice) -> (String?, String) in (inv.takenBy, inv.createdAt) }
-            taken += book.orders.items.map { (order: Order) -> (String?, String) in (order.takenBy, order.createdAt) }
-            people = SaleLookup.recentPeople(taken: taken)
+        // "Create order": the order form opens on this sale's pieces (NewOrderDraftStore.startFromSale).
+        .navigationDestination(item: $openOrder) { r in
+            ScreenRegistry.view(for: r.path)
         }
+    }
+
+    /// The counter name Taken by starts on: this account's, when it has one on the house's list.
+    var defaultTaker: String { session.shop.person ?? "" }
+
+    /// Every time the screen shows: this phone's unfinished sale is read again (the scan screen can add a
+    /// piece to it while this one waits underneath). A sale cleared elsewhere (an order made from its
+    /// pieces) starts afresh. A brand-new sale starts Taken by on the signed-in person, once.
+    func appeared() {
+        if let stored = SaleDraftStore.load() {
+            if stored != draft { draft = stored }
+        } else if !draft.isBlank {
+            draft = SaleDraft()
+            draft.takenBy = defaultTaker
+        } else if !takenByStarted {
+            draft.takenBy = defaultTaker
+        }
+        takenByStarted = true
     }
 
     // MARK: Actions
@@ -220,6 +266,7 @@ struct SaleForm: View {
     func startOver() {
         SaleDraftStore.clear()
         draft = SaleDraft()
+        draft.takenBy = defaultTaker
         query = ""
         notice = nil
         failure = nil

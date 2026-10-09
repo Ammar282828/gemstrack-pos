@@ -87,7 +87,7 @@ struct LockCover: View {
                     } label: {
                         Label("Unlock", systemImage: "faceid").padding(.horizontal, 12).padding(.vertical, 4)
                     }
-                    .buttonStyle(.glassProminent)
+                    .buttonStyle(.houseProminent)
                     .controlSize(.large)
                     .disabled(lock.unlocking)
                 }

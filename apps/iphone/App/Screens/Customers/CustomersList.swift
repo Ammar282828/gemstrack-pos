@@ -143,7 +143,7 @@ struct CustomersList: View {
 
     @ViewBuilder private func chip(_ option: Showing) -> some View {
         if option == showing {
-            Button(option.rawValue) { showing = option }.buttonStyle(.glassProminent)
+            Button(option.rawValue) { showing = option }.buttonStyle(.houseProminent)
         } else {
             Button(option.rawValue) { showing = option }.buttonStyle(.glass)
         }

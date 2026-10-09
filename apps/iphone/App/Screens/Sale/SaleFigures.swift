@@ -276,6 +276,31 @@ extension SaleDraft {
     }
 }
 
+// MARK: Rates typed on the sale
+
+extension SaleDraft {
+    /// The rates typed on this sale that become the shop's rates once the invoice is saved (sale-page.tsx
+    /// `keptRates`, ERPCore's `ratesToKeep`): only a NEW sale writes back, only boxes typed by hand, only for
+    /// a metal the bill carries, only a real rate that differs from the shop's stored one. Decided before
+    /// the save, from the shop's rates as they stood. Keys are the settings' own names (`setRates`).
+    /// The phone has no edit of an invoice and no bill scanner, so a typed box is the only way a rate is held.
+    func ratesToWriteBack(_ f: SaleFigures, current: Settings?) -> [String: Double]? {
+        guard let current else { return nil }
+        var typed = Set<RateInputKey>()
+        var inputs: [RateInputKey: String] = [:]
+        for (name, text) in rates {
+            guard let key = RateInputKey(rawValue: name) else { continue }
+            typed.insert(key)
+            inputs[key] = text
+        }
+        let metals = Set(f.metals.map { MetalType(rawValue: $0) })
+        guard let kept = ratesToKeep(isNew: true, typed: typed, inputs: inputs, metals: metals, current: current.rates) else { return nil }
+        var out: [String: Double] = [:]
+        for (key, value) in kept { out[key.rawValue] = value }
+        return out
+    }
+}
+
 // MARK: Lookups
 
 /// Finding pieces: by what is typed, by a scanned tag, and where a piece went when it is not in stock.
@@ -343,20 +368,6 @@ enum SaleLookup {
         }
         take(customerAddress)
         return out
-    }
-
-    /// Names already used in "Taken by" on invoices and orders in the last 60 days: the app has no
-    /// list of the house's people yet (NEXT_PUBLIC_STORE_PEOPLE is the web's build variable).
-    /// `taken` is (takenBy, createdAt) for each invoice and order.
-    static func recentPeople(taken: [(String?, String)], now: Date = Date(), days: Double = 60) -> [String] {
-        let since = now.addingTimeInterval(-days * 86_400)
-        var names = Set<String>()
-        for (by, at) in taken {
-            let name = (by ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            if name.isEmpty { continue }
-            if let d = ERPDate.parse(at), d >= since { names.insert(name) }
-        }
-        return names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 }
 

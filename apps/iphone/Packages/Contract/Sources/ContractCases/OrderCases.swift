@@ -47,7 +47,7 @@ enum OrderCases {
 
     static let hina: [String: Any] = [
         "id": "cust-test-0001", "name": "Hina Mockwell", "phone": "+923005550142",
-        "source": "referral", "address": "12 Test Lane, Sample Town",
+        "source": "referral", "address": "12 Test Lane, Sample Town", "ringSize": "10",
     ]
     static let omar: [String: Any] = [
         "id": "cust-test-0002", "name": "Omar Samplani", "phone": "+923215550177",
@@ -61,13 +61,21 @@ enum OrderCases {
         _ name: String,
         settings: [String: Any],
         customers: [[String: Any]] = [],
-        owner: Bool = true,
         refusedByForm: Bool = false,
+        fromSale sale: SaleDraft? = nil,
         _ fill: (inout NewOrderDraft, Settings, [Customer]) -> Void
     ) -> ContractCase {
         let shop: Settings = decode(Settings.self, "global", settings)
         let book: [Customer] = customers.map { decode(Customer.self, $0["id"] as? String ?? "", $0) }
         var d = NewOrderDraft.fresh()
+        if let sale {
+            // "Create order" on the sale: the draft the New order screen opens on is what the phone stored.
+            NewOrderDraftStore.startFromSale(sale)
+            guard let started = NewOrderDraftStore.load() else { fatalError("order case '\(name)': nothing was stored from the sale") }
+            NewOrderDraftStore.clear()
+            expect(started.fromSale, name, "the draft is not marked as from the sale")
+            d = started
+        }
         d.seedRates(from: shop)
         d.promised = "2026-10-22"
         fill(&d, shop, book)
@@ -81,7 +89,7 @@ enum OrderCases {
         }
 
         let totals = NewOrderMath.totals(d, shop)
-        let send = NewOrderMath.request(d, settings: shop, customers: NewOrderMath.people(book), owner: owner)
+        let send = NewOrderMath.request(d, settings: shop, customers: NewOrderMath.people(book))
         expect(JSONSerialization.isValidJSONObject(send), name, "the request is not JSON")
         return ContractCase(
             name: name, house: House.id, send: send,
@@ -108,6 +116,14 @@ enum OrderCases {
         p.weight = weight
         p.wastage = wastage
         p.making = making
+    }
+
+    /// A line of the sale: a piece as the sale holds it (a stock piece, or one described for the bill).
+    private static func line(_ sku: String, _ name: String, metal: String, _ fill: (inout SaleLine) -> Void) -> SaleLine {
+        var l = SaleLine(blankFor: metal, sku: sku)
+        l.name = name
+        fill(&l)
+        return l
     }
 
     // What was sent, read back.
@@ -303,13 +319,29 @@ enum OrderCases {
         }
 
         do {
+            var offered: [String] = []
             let c = make("an existing customer chosen", settings: taheriSettings, customers: [hina, omar]) { d, _, book in
                 guard let chosen = book.first(where: { $0.id == "cust-test-0001" }) else { fatalError("no customer") }
                 d.choose(chosen)
-                add(&d, "Test repeat ring") { p in gold(&p, "21k", weight: "5.25", making: "2800") }
+                add(&d, "Test repeat ring") { p in
+                    p.category = "cat001"
+                    p.size = "11"
+                    gold(&p, "21k", weight: "5.25", making: "2800")
+                }
+                add(&d, "Test repeat bangle") { p in
+                    p.category = "cat007"
+                    p.size = "2.4"
+                    gold(&p, "22k", weight: "14.5", making: "5200")
+                }
+                // The profile says ring 10 and holds no bangle size: both are offered once the order is saved.
+                offered = NewOrderSizes.offer(d, customerId: chosen.id, profile: chosen, houseWants: true)
+                    .map { "\($0.field.rawValue)=\($0.value)" }
+                expect(NewOrderSizes.offer(d, customerId: chosen.id, profile: chosen, houseWants: false).isEmpty,
+                       "an existing customer chosen", "a house that keeps no sizes was offered some")
             }
             let o = sent(c)
             expect((o["customerId"] as? String) == "cust-test-0001" && (o["source"] as? String) == "referral", c.name, "the chosen customer was not sent")
+            expect(offered == ["ringSize=11", "bangleSize=2.4"], c.name, "the sizes on offer are wrong: \(offered)")
             cases.append(c)
         }
 
@@ -405,7 +437,7 @@ enum OrderCases {
         }
 
         do {
-            let c = make("owner: the 24K rate for our margin, a note for the karigar and a photo", settings: taheriSettings) { d, _, _ in
+            let c = make("the 24K rate for our margin, a note for the karigar and a photo", settings: taheriSettings) { d, _, _ in
                 d.customerName = "Test Margin"
                 add(&d, "Test ring with a photo") { p in
                     gold(&p, "21k", weight: "8", making: "4000")
@@ -422,24 +454,31 @@ enum OrderCases {
         }
 
         do {
-            // A phone that was an owner's a moment ago: the draft still holds the owner's 24k rate and note.
-            let c = make("staff: a 24K rate and a note left in the draft are not sent", settings: taheriSettings, owner: false) { d, _, _ in
-                d.customerName = "Test Margin"
-                add(&d, "Test ring with a photo") { p in
+            // Staff write the karigar's instructions and the 24k rate for the margin as owners do (decisions.md "Margin":
+            // owners and staff, never the customer). The contract's route test signs in as an owner; what is held here
+            // is that the order carries both whoever sends it.
+            let c = make("staff: the 24K rate and the karigar's note go with the order", settings: taheriSettings, customers: [omar]) { d, _, _ in
+                d.typeCustomerName("Test Staff Customer")
+                add(&d, "Test staff ring") { p in
                     gold(&p, "21k", weight: "8", making: "4000")
                     p.adminNote = "Set the stone low"
                 }
+                add(&d, "Test staff bangle") { p in
+                    gold(&p, "22k", weight: "20.5", wastage: "9", making: "8000")
+                    p.adminNote = "Polish after setting"
+                }
                 d.costTola = "479500"
             }
-            expect(sent(c)["costRate24k"] == nil, c.name, "staff sent the 24k rate")
-            expect(sentItems(c)[0]["adminNote"] == nil, c.name, "staff sent the owner's note")
+            expect(close(sent(c)["costRate24k"] as? Double, 479_500 / 11.664), c.name, "the 24k rate was not sent")
+            expect(sentItems(c).map { $0["adminNote"] as? String } == ["Set the stone low", "Polish after setting"], c.name, "the notes were not sent")
             cases.append(c)
         }
 
         do {
             let c = make("everything the form can carry", settings: taheriSettings, customers: [hina]) { d, _, book in
                 d.choose(book[0])
-                d.takenBy = "Test Clerk"
+                // Started on the signed-in person, from the house's list; a name off the list is let go.
+                d.settleTakenBy(person: "Test Clerk", list: ["Test Clerk", "Test Counter"])
                 d.hideRates = true
                 d.notes = "  Wanted for a wedding, call before Friday  "
                 d.deliver = true
@@ -461,11 +500,80 @@ enum OrderCases {
                 d.discount = "5000"
                 d.advance = "25000"
                 d.advanceMethod = ""
+                // A name that is not on the house's list is not saved (the web refines it against TAKEN_BY).
+                var probe = d
+                probe.takenBy = "Someone Typed"
+                expect(NewOrderMath.problem(probe, takenBy: ["Test Clerk", "Test Counter"]) == "Taken by: Choose a name from the list",
+                       "everything the form can carry", "a name off the list was accepted")
+                expect(NewOrderMath.problem(d, takenBy: ["Test Clerk", "Test Counter"]) == nil, "everything the form can carry", "the person on the list was refused")
             }
             let o = sent(c)
+            expect((o["takenBy"] as? String) == "Test Clerk", c.name, "Taken by did not start on the signed-in person")
+            var stale = NewOrderDraft.fresh()
+            stale.takenBy = "Someone Typed"
+            stale.settleTakenBy(person: "Test Clerk", list: ["Test Clerk", "Test Counter"])
+            expect(stale.takenBy == "Test Clerk", c.name, "a name off the list was kept")
+            var quiet = NewOrderDraft.fresh()
+            quiet.settleTakenBy(person: "Test Clerk", list: ["Test Clerk"])
+            expect(quiet.isBlank, c.name, "a default Taken by made the order worth keeping")
             expect(o["advanceMethod"] == nil, c.name, "a method was sent for an advance that was not recorded")
             expect((o["notes"] as? String) == "Wanted for a wedding, call before Friday", c.name, "notes were not trimmed")
             expect((o["delivery"] as? [String: Any])?["charge"] != nil, c.name, "the delivery was not sent")
+            cases.append(c)
+        }
+
+        do {
+            // "Create order" on a sale of four pieces: a stock piece, a piece described for the bill at a fixed price (with
+            // its weight kept), palladium 18k, and silver. The customer comes with them.
+            var sale = SaleDraft()
+            sale.customerId = "cust-test-0001"
+            sale.customerName = "Hina Mockwell"
+            sale.customerPhone = "+923005550142"
+            sale.discount = "5000"
+            sale.lines = [
+                line("RIN-000321", "Test stock ring", metal: "gold") { l in
+                    l.categoryId = "cat001"
+                    l.karat = "22k"
+                    l.metalWeightG = 6.35
+                    l.hasStones = true
+                    l.stoneWeightG = 0.4
+                    l.wastagePercentage = 9
+                    l.makingCharges = 4200
+                    l.stoneCharges = 1800
+                    l.size = "11"
+                },
+                line("NEW-TEST01", "Test described pendant", metal: "gold") { l in
+                    l.karat = "21k"
+                    l.metalWeightG = 5.5
+                    l.isCustomPrice = true
+                    l.customPrice = 96500
+                },
+                line("PAL-000044", "Test palladium band", metal: "palladium") { l in
+                    l.karat = "18k"
+                    l.metalWeightG = 7.1
+                    l.wastagePercentage = 6
+                    l.makingCharges = 2000
+                },
+                line("BRA-000012", "Test silver cuff", metal: "silver") { l in
+                    l.metalWeightG = 28.5
+                    l.wastagePercentage = 0
+                    l.stoneCharges = 640
+                },
+            ]
+            let c = make("an order made from a sale", settings: taheriSettings, customers: [hina], fromSale: sale) { d, _, _ in
+                // What the counter adds on the order form: an advance. The sale's discount and payments stay on the sale.
+                d.advance = "40000"
+                d.advanceMethod = "Cash"
+            }
+            let o = sent(c)
+            let items = sentItems(c)
+            expect(items.count == 4, c.name, "the sale's four pieces were not sent")
+            expect((o["customerId"] as? String) == "cust-test-0001", c.name, "the sale's customer was not sent")
+            expect((items[0]["referenceSku"] as? String) == "RIN-000321" && items[1]["referenceSku"] == nil, c.name, "a stock number is the reference, a bill's own key is not")
+            expect((items[1]["isManualPrice"] as? Bool) == true && close(items[1]["estimatedWeightG"] as? Double, 5.5)
+                   && close(items[1]["manualPrice"] as? Double, 96500), c.name, "the fixed price lost its weight")
+            expect((items[2]["karat"] as? String) == "18k" && items[3]["karat"] == nil, c.name, "palladium lost its karat")
+            expect(o["discountAmount"] as? Double == 0, c.name, "the sale's discount went with the pieces")
             cases.append(c)
         }
 
@@ -570,6 +678,33 @@ enum OrderCases {
             }
             let items = sentItems(c)
             expect(close(items[0]["diamondCharges"] as? Double, 18000) && close(items[1]["diamondCharges"] as? Double, 0), c.name, "diamond charges are wrong")
+            cases.append(c)
+        }
+
+        do {
+            var sale = SaleDraft()
+            sale.customerName = "Test Silver Buyer"
+            sale.customerPhone = "0301 5550188"
+            sale.lines = [
+                line("BNG-000007", "Test silver bangle", metal: "silver") { l in
+                    l.categoryId = "cat007"
+                    l.metalWeightG = 45.25
+                    l.size = "2.4"
+                    l.platingType = "White Rhodium"
+                    l.nickelFree = true
+                },
+                line("NEW-TEST02", "Test gold stud", metal: "gold") { l in
+                    l.karat = "21k"
+                    l.metalWeightG = 2.15
+                    l.wastagePercentage = 10
+                    l.makingCharges = 1500
+                },
+            ]
+            let c = make("an order made from a sale", settings: minaSettings, fromSale: sale) { _, _, _ in }
+            let items = sentItems(c)
+            expect(items.count == 2 && items[0]["karat"] == nil && (items[1]["karat"] as? String) == "21k", c.name, "the sale's pieces are wrong")
+            expect((items[0]["platingType"] as? String) == "White Rhodium" && items[1]["platingType"] == nil, c.name, "plating is wrong")
+            expect(sent(c)["customerId"] == nil && (sent(c)["customerName"] as? String) == "Test Silver Buyer", c.name, "the sale's typed customer was not sent")
             cases.append(c)
         }
 

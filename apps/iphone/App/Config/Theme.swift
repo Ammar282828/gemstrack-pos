@@ -15,6 +15,26 @@ enum Theme {
     static let accent = Color("Accent-\(House.id)")
     static let ground = Color("Ground-\(House.id)")
     static let card = Color("Card-\(House.id)")
+    /// Words on the accent (a filled button): white on the deep light-mode accents, and the house's dark
+    /// ground on its light dark-mode gold and rose, as the web's --primary-foreground (white there reads
+    /// at under 2.5:1).
+    static let onAccent = Color("OnAccent-\(House.id)")
+}
+
+/// The app's filled button: the system's prominent glass in the house accent, with the words in the
+/// colour the accent carries (Theme.onAccent) rather than the system's white.
+struct HouseProminentStyle: PrimitiveButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button(role: configuration.role, action: configuration.trigger) {
+            configuration.label.foregroundStyle(Theme.onAccent)
+        }
+        .buttonStyle(.glassProminent)
+    }
+}
+
+extension PrimitiveButtonStyle where Self == HouseProminentStyle {
+    /// `.buttonStyle(.houseProminent)` wherever a screen would use `.glassProminent`.
+    static var houseProminent: HouseProminentStyle { HouseProminentStyle() }
 }
 
 extension Color {

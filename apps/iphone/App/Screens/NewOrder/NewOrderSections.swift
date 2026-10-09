@@ -11,8 +11,9 @@ struct NewOrderCustomerSection: View {
     @Binding var draft: NewOrderDraft
     /// Customers who are people: not removed, not the old "Walk-in Customer" records.
     let people: [Customer]
-    /// The names already used for "Taken by" lately.
-    let takenNames: [String]
+    /// The house's counter names (`Session.Shop.takenBy`, STORE_TAKEN_BY). "Taken by" is one of them; free text
+    /// only where the house has no list.
+    let takenBy: [String]
 
     @FocusState private var nameFocused: Bool
 
@@ -67,21 +68,21 @@ struct NewOrderCustomerSection: View {
         }
     }
 
+    /// Counted by name, so the list is fixed and "Ammar" typed three ways is not three people to a filter
+    /// (taken-by-picker.tsx). It starts on the signed-in person, and always shows who it is.
+    @ViewBuilder
     private var takenByRow: some View {
-        LabeledContent("Taken by") {
-            HStack(spacing: 6) {
+        if takenBy.isEmpty {
+            LabeledContent("Taken by") {
                 TextField("Taken by", text: $draft.takenBy, prompt: Text("Not set"))
                     .multilineTextAlignment(.trailing)
                     .textInputAutocapitalization(.words)
-                if !takenNames.isEmpty {
-                    Menu {
-                        ForEach(takenNames, id: \.self) { n in
-                            Button(n) { draft.takenBy = n }
-                        }
-                        Button("Not set") { draft.takenBy = "" }
-                    } label: {
-                        Image(systemName: "chevron.up.chevron.down").font(.footnote)
-                    }
+            }
+        } else {
+            Picker("Taken by", selection: $draft.takenBy) {
+                Text("Not set").tag("")
+                ForEach(takenBy, id: \.self) { name in
+                    Text(name).tag(name)
                 }
             }
         }
@@ -507,7 +508,7 @@ struct NewOrderDeliverySection: View {
 
 // MARK: The shop's margin
 
-/// SHOP-ONLY, owners (shop-margin.tsx): the 24k rate now, and what the order earns, blurred until tapped: the
+/// SHOP-ONLY, owners and staff (shop-margin.tsx): the 24k rate now, and what the order earns, blurred until tapped: the
 /// counter turns its screen to show a customer the bill, and a margin beside the total is the one thing they
 /// must not read off it. The figure is not worked out until it is tapped. A house that does not cost by gold
 /// (Mina) has none.
@@ -574,7 +575,7 @@ struct NewOrderMarginSection: View {
         return "Without it the margin is taken as \(assumedPercent)%."
     }
 
-    /// What the owner reads when the figure is tapped (shop-margin.tsx MarginFigure).
+    /// What is read when the figure is tapped (shop-margin.tsx MarginFigure).
     private var words: String {
         guard let m = margin() else { return "—" }
         if m.assumed { return "≈ \(percentLabel(m)) (no 24k rate given: assumed)" }

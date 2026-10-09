@@ -101,7 +101,7 @@
    "customerId": "CUST-D01",
    "customerName": "Sana Demo",
    "customerContact": "+923000000101",
-   "takenBy": "Demo Owner",
+   "takenBy": "Demo",
    "exchanges": [],
    "promisedDate": "@day+12"
   },
@@ -166,7 +166,7 @@
    "customerId": "CUST-D02",
    "customerName": "Bilal Example",
    "customerContact": "+923000000102",
-   "takenBy": "Demo Owner",
+   "takenBy": "Demo",
    "exchanges": [],
    "promisedDate": "@day+3"
   },
@@ -277,7 +277,7 @@
    "customerId": "CUST-D04",
    "customerName": "Omar Placeholder",
    "customerContact": "+923000000104",
-   "takenBy": "Demo Owner",
+   "takenBy": "Demo",
    "exchanges": [],
    "promisedDate": "@day-2"
   },
@@ -321,7 +321,7 @@
    "customerId": "CUST-D05",
    "customerName": "Zara Testcase",
    "customerContact": "+923000000105",
-   "takenBy": "Demo Owner",
+   "takenBy": "Demo",
    "exchanges": [],
    "promisedDate": "@day+20"
   },
@@ -410,7 +410,7 @@
     "platinumRatePerGram": 0,
     "silverRatePerGram": 480
    },
-   "takenBy": "Demo Owner",
+   "takenBy": "Demo",
    "paymentHistory": [
     {
      "amount": 148500,
@@ -459,7 +459,7 @@
     "platinumRatePerGram": 0,
     "silverRatePerGram": 480
    },
-   "takenBy": "Demo Owner",
+   "takenBy": "Demo",
    "paymentHistory": [
     {
      "amount": 150000,
@@ -558,7 +558,7 @@
     "platinumRatePerGram": 0,
     "silverRatePerGram": 480
    },
-   "takenBy": "Demo Owner",
+   "takenBy": "Demo",
    "paymentHistory": [
     {
      "amount": 300000,
@@ -607,7 +607,7 @@
     "platinumRatePerGram": 0,
     "silverRatePerGram": 480
    },
-   "takenBy": "Demo Owner",
+   "takenBy": "Demo",
    "paymentHistory": [
     {
      "amount": 169000,

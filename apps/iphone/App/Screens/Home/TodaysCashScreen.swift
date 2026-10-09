@@ -9,10 +9,8 @@ import ERPCore
 /// The view is TodaysCashScreen, not TodaysCash: ERPCore already has a TodaysCash (the result), and
 /// a second type of that name in the app would hide it from every other screen.
 ///
-/// Owners only on the web's menu, but the page itself has no role check, so anyone who reaches it
-/// sees what the web shows them: the sums over the books they can read. Staff hold no expenses or
-/// extra revenue, so for them "Paid out" is nothing and the drawer is the cash in; a line under the
-/// page says so.
+/// Owners only, as on the web's menu (nav.ts has no `staff` on Today's cash): the drawer is worked out from
+/// expenses and extra revenue, which are the owners' books. Anyone else is told so and nothing is read for them.
 struct TodaysCashScreen: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -20,30 +18,32 @@ struct TodaysCashScreen: View {
     @State private var now = Date()
 
     var body: some View {
-        ShelfState(loaded: ready, error: book.invoices.error ?? book.orders.error, offline: book.invoices.offline) {
-            page(todaysCash(invoices: book.invoices.items, orders: book.orders.items, repairs: book.repairs.items,
-                            extraRevenues: book.revenue.items, expenses: book.expenses.items, now: now))
+        Group {
+            if session.isOwner {
+                ShelfState(loaded: ready, error: book.invoices.error ?? book.orders.error, offline: book.invoices.offline) {
+                    page(todaysCash(invoices: book.invoices.items, orders: book.orders.items, repairs: book.repairs.items,
+                                    extraRevenues: book.revenue.items, expenses: book.expenses.items, now: now))
+                }
+                .onAppear { needAll() }
+                .task { await keepTime() }
+            } else {
+                ContentUnavailableView("Owners only", systemImage: "lock")
+            }
         }
         .navigationTitle("Today’s cash")
-        .onAppear { needAll() }
-        .onChange(of: session.role) { _, _ in needAll() }
-        .task { await keepTime() }
     }
 
     private func needAll() {
+        guard session.isOwner else { return }
         book.invoices.need()
         book.orders.need()
         book.repairs.need()
-        if session.isOwner {
-            book.revenue.need()
-            book.expenses.need()
-        }
+        book.revenue.need()
+        book.expenses.need()
     }
 
     private var ready: Bool {
-        let core = book.invoices.loaded && book.orders.loaded && book.repairs.loaded
-        if !session.isOwner { return core }
-        return core && book.revenue.loaded && book.expenses.loaded
+        book.invoices.loaded && book.orders.loaded && book.repairs.loaded && book.revenue.loaded && book.expenses.loaded
     }
 
     /// Re-read once a minute, so a page left open turns over at Karachi's midnight.
@@ -88,13 +88,6 @@ struct TodaysCashScreen: View {
                     Text("Paid out")
                 } footer: {
                     Text("Expenses carry no method, so every one the business paid today counts as leaving the drawer; one a partner paid out of pocket does not.")
-                }
-            }
-            if !session.isOwner {
-                Section {
-                    Text("Expenses and extra revenue are the owners’ books, so this is the cash in from sales, orders and repairs only.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
             }
         }

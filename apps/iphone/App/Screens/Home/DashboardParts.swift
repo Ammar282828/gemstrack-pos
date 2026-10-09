@@ -4,7 +4,8 @@ import ERPCore
 
 // The dashboard's pieces (src/app/page.tsx: Panel, TaskRow, DueRow, RecentInvoiceRow, the 30-day link).
 // Content sits on the system's own backgrounds; nothing here is glass (CONVENTIONS.md rule 4).
-// There are no buttons: every row is a link to the place it names, and New sale is the app's bar.
+// There are no buttons: every row is a link to the place it names (an owner's "Set today's rate" opens the
+// rate form instead), and New sale is the app's bar.
 
 /// A titled group of rows on a quiet card, with the web's "All" link when there is a list to open.
 struct DashSection<Content: View>: View {
@@ -82,6 +83,8 @@ struct DashEmpty: View {
 /// One thing waiting on a decision.
 struct DashNeedRow: View {
     let need: DashNeed
+    /// Opens the rate form for a row that asks for today's rate. Nil (anyone but an owner) leaves it a link to its ERP page.
+    var onRates: (() -> Void)?
 
     private var dot: Color {
         switch need.tone {
@@ -92,23 +95,28 @@ struct DashNeedRow: View {
     }
 
     var body: some View {
-        NavigationLink(value: Route(path: need.path)) {
-            HStack(spacing: 12) {
-                Circle().fill(dot).frame(width: 7, height: 7)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(need.title).font(.subheadline.weight(.medium)).lineLimit(2).multilineTextAlignment(.leading)
-                    Text(need.detail).font(.caption).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 8)
-                if let amount = need.amount {
-                    Text(Money.pkrLac(amount)).font(.caption.weight(.semibold)).monospacedDigit()
-                }
-                Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)
-            }
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
+        if need.opensRates, let onRates {
+            Button(action: onRates) { content }.buttonStyle(.plain)
+        } else {
+            NavigationLink(value: Route(path: need.path)) { content }.buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+    }
+
+    private var content: some View {
+        HStack(spacing: 12) {
+            Circle().fill(dot).frame(width: 7, height: 7)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(need.title).font(.subheadline.weight(.medium)).lineLimit(2).multilineTextAlignment(.leading)
+                Text(need.detail).font(.caption).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.leading)
+            }
+            Spacer(minLength: 8)
+            if let amount = need.amount {
+                Text(Money.pkrLac(amount)).font(.caption.weight(.semibold)).monospacedDigit()
+            }
+            Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
     }
 }
 

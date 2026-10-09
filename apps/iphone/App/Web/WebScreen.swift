@@ -91,13 +91,22 @@ private struct WebView: UIViewRepresentable {
             guard let url = action.request.url else { return decisionHandler(.allow) }
             let mine = url.host == House.serverURL.host || ["about", "blob", "data"].contains(url.scheme ?? "")
             if mine || action.targetFrame?.isMainFrame == false { return decisionHandler(.allow) }
-            UIApplication.shared.open(url)
+            Self.openOutside(url)
             decisionHandler(.cancel)
         }
 
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-            if let url = action.request.url { UIApplication.shared.open(url) }
+            if let url = action.request.url { Self.openOutside(url) }
             return nil
+        }
+
+        /// What leaves the ERP for another app: a web page, a call, a mail, a text or WhatsApp, as the ERP's
+        /// own links are. Any other scheme (another app's private link) is never followed from a page.
+        private static let outside: Set<String> = ["https", "http", "tel", "mailto", "sms", "whatsapp"]
+
+        private static func openOutside(_ url: URL) {
+            guard let scheme = url.scheme?.lowercased(), outside.contains(scheme) else { return }
+            UIApplication.shared.open(url)
         }
 
         func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping (WKPermissionDecision) -> Void) {

@@ -111,6 +111,28 @@ enum InvoiceCalendar {
         }
     }
 
+    /// The day a date picker shows, as "yyyy-MM-dd": the phone's own calendar (the 6th is the 6th wherever
+    /// the phone is), whatever time of day the picker holds.
+    static func day(picked: Date) -> String {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: picked)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 1, c.day ?? 1)
+    }
+
+    /// A "yyyy-MM-dd" day as a date for a picker to show, in the phone's own calendar.
+    static func picked(day: String?) -> Date? {
+        guard let day, day.count == 10 else { return nil }
+        let parts = day.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        return Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+    }
+
+    /// "1 Oct – 8 Oct 2026", or "From 1 Oct 2026" while the end is open (up to today).
+    static func caption(from: String, to: String?) -> String {
+        guard let start = ERPDate.parse(from) else { return from }
+        guard let to, let end = ERPDate.parse(to) else { return "From " + fullDay.string(from: start) }
+        return shortDay.string(from: start) + " – " + fullDay.string(from: end)
+    }
+
     /// "2026-10" as the shop's month filter keeps it.
     static func monthKey(_ iso: String) -> String? {
         ERPDate.parse(iso).map { String(ERPDate.karachiDay($0).prefix(7)) }
@@ -133,7 +155,14 @@ struct InvoicesList: View {
     @State private var takenBy = ""
     /// "" is all time, else "yyyy-MM".
     @State private var month = ""
+    /// A span of days, "yyyy-MM-dd": from the first to the last, or to today while the end is open.
+    /// Nothing without a start, as the web's date picker has it (invoices/page.tsx).
+    @State private var rangeFrom: String?
+    @State private var rangeTo: String?
+    @State private var pickingRange = false
     @State private var paying: Invoice?
+    /// The ERP's own page for what has no native screen yet.
+    @State private var web: Route?
 
     private var canPay: Bool { InvoiceFacts.mayTakePayments(role: session.role) }
 
@@ -148,6 +177,17 @@ struct InvoicesList: View {
             ToolbarItem(placement: .primaryAction) { filterMenu(all) }
         }
         .invoicePaymentSheet(for: $paying)
+        .sheet(isPresented: $pickingRange) {
+            InvoiceRangeSheet(from: rangeFrom, to: rangeTo) { from, to in
+                rangeFrom = from
+                rangeTo = from == nil ? nil : to
+            }
+        }
+        .navigationDestination(item: $web) { r in
+            ScreenRegistry.view(for: r.path)
+                .navigationTitle("Invoices")
+                .navigationBarTitleDisplayMode(.inline)
+        }
         .task {
             book.invoices.need()
             book.customers.need()
@@ -162,9 +202,9 @@ struct InvoicesList: View {
         let shown = scoped.filter { chip.matches($0) }
         let groups = sections(shown)
         List {
-            Section { subtitle(all) }
+            Section { subtitle(all) }.houseRows()
             if groups.isEmpty {
-                Section { emptyState }
+                Section { emptyState }.houseRows()
             } else {
                 ForEach(groups) { group in
                     Section {
@@ -199,7 +239,7 @@ struct InvoicesList: View {
     }
 
     private var emptyState: some View {
-        let filtering = !search.isEmpty || !takenBy.isEmpty || !month.isEmpty || chip != .all
+        let filtering = !search.isEmpty || !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || chip != .all
         return ContentUnavailableView(
             "Nothing found",
             systemImage: "doc.text.magnifyingglass",
@@ -220,6 +260,13 @@ struct InvoicesList: View {
                     Button { paying = inv } label: { Label("Take payment", systemImage: "banknote") }
                 }
             }
+            // The signed-in person's own sales are lit where they stand, not sorted or filtered (2026-10-05).
+            .mineRow(isMine(inv))
+    }
+
+    private func isMine(_ inv: Invoice) -> Bool {
+        guard let person = session.shop.person, !person.isEmpty, let by = inv.takenBy else { return false }
+        return by == person
     }
 
     // MARK: Chips and the filter menu
@@ -251,7 +298,7 @@ struct InvoicesList: View {
     private func chipButton(_ c: InvoiceChip, count: Int) -> some View {
         if c == chip {
             Button { chip = c } label: { chipLabel(c, count: count) }
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.houseProminent)
         } else {
             Button { chip = c } label: { chipLabel(c, count: count) }
                 .buttonStyle(.glass)
@@ -269,7 +316,7 @@ struct InvoicesList: View {
     private func filterMenu(_ all: [Invoice]) -> some View {
         let people = Array(Set(all.compactMap { $0.takenBy }.filter { !$0.isEmpty })).sorted()
         let months = Array(Set(all.compactMap { InvoiceCalendar.monthKey($0.createdAt) })).sorted(by: >)
-        let filtering = !takenBy.isEmpty || !month.isEmpty
+        let filtering = !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil
         return Menu {
             Picker("Group by", selection: $grouping) {
                 ForEach(InvoiceGrouping.allCases) { g in Text(g.title).tag(g) }
@@ -282,6 +329,16 @@ struct InvoicesList: View {
                 Text("All time").tag("")
                 ForEach(months, id: \.self) { m in Text(InvoiceCalendar.monthLabel(m)).tag(m) }
             }
+            // Any span of days, on top of a month (the web's date range picker).
+            Button { pickingRange = true } label: {
+                Label(rangeFrom.map { InvoiceCalendar.caption(from: $0, to: rangeTo) } ?? "Date range", systemImage: "calendar")
+            }
+            if rangeFrom != nil {
+                Button { rangeFrom = nil; rangeTo = nil } label: { Label("Clear the date range", systemImage: "xmark.circle") }
+            }
+            Divider()
+            // Import Shopify CSV and the payment links are the ERP's own page.
+            Button { web = Route(path: "/invoices?web=1") } label: { Label("Open in the ERP", systemImage: "globe") }
         } label: {
             Label("Filter", systemImage: filtering ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
         }
@@ -289,11 +346,21 @@ struct InvoicesList: View {
 
     // MARK: Filtering and grouping
 
-    /// Search, Taken by and Month: everything but the chip, so the chips can count what they would show.
+    /// Search, Taken by, Month and the date range: everything but the chip, so the chips can count what
+    /// they would show.
     private func scope(_ all: [Invoice]) -> [Invoice] {
         var out = all
         if !takenBy.isEmpty { out = out.filter { $0.takenBy == takenBy } }
         if !month.isEmpty { out = out.filter { InvoiceCalendar.monthKey($0.createdAt) == month } }
+        if let start = rangeFrom {
+            // The last day included; open, it runs to the end of today (isWithinInterval, invoices/page.tsx).
+            let end = rangeTo ?? ERPDate.karachiDay(Date())
+            out = out.filter { inv in
+                guard let made = ERPDate.parse(inv.createdAt) else { return false }
+                let day = ERPDate.karachiDay(made)
+                return day >= start && day <= end
+            }
+        }
         let q = search.trimmingCharacters(in: .whitespacesAndNewlines)
         if !q.isEmpty {
             // The customer's own number, for an invoice that does not carry one.
@@ -462,5 +529,57 @@ private struct InvoiceListRow: View {
         } else {
             Text("Paid").font(.caption).foregroundStyle(.green)
         }
+    }
+}
+
+/// Pick the days to look at: from a first day to a last, or from a first day up to today. Cleared from
+/// the filter menu. A sheet of its own, so it has its own stack (the web uses a popover calendar).
+private struct InvoiceRangeSheet: View {
+    let apply: (_ from: String?, _ to: String?) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var from: Date
+    @State private var until: Date
+    @State private var hasEnd: Bool
+
+    init(from: String?, to: String?, apply: @escaping (_ from: String?, _ to: String?) -> Void) {
+        self.apply = apply
+        let start = InvoiceCalendar.picked(day: from) ?? Date()
+        _from = State(initialValue: start)
+        _until = State(initialValue: InvoiceCalendar.picked(day: to) ?? start)
+        _hasEnd = State(initialValue: to != nil)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    DatePicker("From", selection: $from, displayedComponents: .date)
+                    Toggle("Up to a last day", isOn: $hasEnd.animation())
+                    if hasEnd {
+                        DatePicker("To", selection: $until, in: from..., displayedComponents: .date)
+                    }
+                } footer: {
+                    Text(hasEnd ? "Both days are included." : "Everything from that day up to today.")
+                }
+            }
+            .navigationTitle("Date range")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(role: .cancel) { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(role: .confirm) {
+                        let start = InvoiceCalendar.day(picked: from)
+                        // A last day set before the first reads as that one day.
+                        let end = hasEnd ? max(start, InvoiceCalendar.day(picked: until)) : nil
+                        apply(start, end)
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }

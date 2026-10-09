@@ -1,4 +1,5 @@
 import SwiftUI
+import Observation
 import ERPCore
 
 /// Home: the morning glance (src/app/page.tsx, redrawn 2026-09-27; docs/decisions.md "Dashboard").
@@ -18,9 +19,10 @@ struct Dashboard: View {
 
     /// The instant the page is worked out against; it turns over at Karachi's midnight on a screen left open.
     @State private var now = Date()
+    /// "Set today's gold rate" opens the rate form here, for owners, rather than the ERP's page.
+    @State private var rateSheet = false
     /// Online orders waiting to be confirmed, and whether selling waits on today's rate (the server says).
-    @State private var onlineWaiting = 0
-    @State private var ratePause: DashRatePause?
+    private var inbox: OnlineInbox { .shared }
 
     private static let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
@@ -32,10 +34,15 @@ struct Dashboard: View {
         .onAppear { needAll() }
         .onChange(of: session.role) { _, _ in needAll() }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { now = Date() }
+            if phase == .active {
+                now = Date()
+                Task { await askOnline() }
+            }
         }
         .task { await keepTime() }
-        .task { await keepOnline() }
+        // The count itself is polled once for the whole app (RootView); coming here asks again at once.
+        .task { await askOnline() }
+        .sheet(isPresented: $rateSheet) { RateSheet() }
     }
 
     // MARK: Shelves
@@ -82,7 +89,9 @@ struct Dashboard: View {
     // MARK: The page
 
     private func page(_ f: DashFigures) -> some View {
-        let needs = f.needs(onlineWaiting: onlineWaiting, ratePause: ratePause)
+        // A house whose website does not sell has no online orders to confirm and no rate to pause on.
+        let selling = session.shop.websiteSelling
+        let needs = f.needs(onlineWaiting: selling ? inbox.waiting : 0, ratePause: selling ? inbox.ratePause : nil)
         return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text(DashDate.longDay(now)).font(.subheadline).foregroundStyle(.secondary).padding(.horizontal, 4)
@@ -155,7 +164,9 @@ struct Dashboard: View {
             if needs.isEmpty {
                 DashEmpty(text: "Nothing late, unpaid or waiting.", symbol: "checkmark.circle")
             } else {
-                DashRows(items: needs) { (n: DashNeed) in DashNeedRow(need: n) }
+                DashRows(items: needs) { (n: DashNeed) in
+                    DashNeedRow(need: n, onRates: session.isOwner ? { rateSheet = true } : nil)
+                }
             }
         }
     }
@@ -196,23 +207,46 @@ struct Dashboard: View {
         }
     }
 
-    /// The count of online orders to confirm and the rate pause, as the web's sidebar polls them (every two minutes).
-    /// A house that does not sell online answers zero; the demo and a dropped connection leave what is shown.
-    private func keepOnline() async {
+    /// Ask the server for the online-orders count now, in a house whose website sells (the web's
+    /// sidebar asks the same way on focus).
+    private func askOnline() async {
+        if session.shop.websiteSelling { await inbox.refresh() }
+    }
+}
+
+/// Online orders waiting to be confirmed, and whether selling waits on today's rate (/api/website/online?count=1),
+/// as the web's sidebar polls them every two minutes (lib/website/online-client.ts: one poll serves the
+/// sidebar and the dashboard). One loop for the whole app, run by RootView; the dashboard's "Needs you"
+/// and the Orders tab's badge both read it. A house that does not sell online answers zero; the demo and a
+/// dropped connection leave what is shown.
+@MainActor
+@Observable
+final class OnlineInbox {
+    static let shared = OnlineInbox()
+
+    private(set) var waiting = 0
+    private(set) var ratePause: DashRatePause?
+    @ObservationIgnored private var asking = false
+
+    /// Ask now, then every two minutes, until the task is cancelled.
+    func keep() async {
         while !Task.isCancelled {
-            await loadOnline()
+            await refresh()
             try? await Task.sleep(for: .seconds(120))
         }
     }
 
-    private func loadOnline() async {
+    /// One question at a time: a second ask while one is out is the same answer.
+    func refresh() async {
+        guard !asking else { return }
+        asking = true
+        defer { asking = false }
         guard let data = try? await ERPAPI.shared.data("/api/website/online?count=1"),
               let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return }
-        onlineWaiting = (json["waiting"] as? Int) ?? 0
-        if (json["pausedForRates"] as? Bool) == true {
-            ratePause = DashRatePause(ratesUpdatedAt: json["ratesUpdatedAt"] as? String)
-        } else {
-            ratePause = nil
-        }
+        let count = (json["waiting"] as? Int) ?? 0
+        let pause: DashRatePause? = (json["pausedForRates"] as? Bool) == true
+            ? DashRatePause(ratesUpdatedAt: json["ratesUpdatedAt"] as? String) : nil
+        if waiting != count { waiting = count }
+        if ratePause != pause { ratePause = pause }
     }
 }

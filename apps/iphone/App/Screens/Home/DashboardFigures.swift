@@ -407,6 +407,8 @@ struct DashNeed: Identifiable {
     let title: String
     let detail: String
     var amount: Double?
+    /// The row asks for today's rate: an owner's opens the rate form here, not the ERP's page at `path`.
+    var opensRates = false
 }
 
 struct DashDay: Identifiable {
@@ -416,7 +418,7 @@ struct DashDay: Identifiable {
 }
 
 /// taheri.shop's selling is on but paused for an old rate (the server says: /api/website/online?count=1).
-struct DashRatePause {
+struct DashRatePause: Equatable {
     let ratesUpdatedAt: String?
 }
 
@@ -607,13 +609,17 @@ struct DashFigures {
         // taheri.shop sells only at a rate set in the last 36 hours.
         if let ratePause {
             let last = DashDate.dayMonth(iso: ratePause.ratesUpdatedAt)
-            add("/settings?tab=rates", .danger, "Set today's gold rate — online selling is paused",
-                last.isEmpty ? "The rate chip at the top" : "Last set \(last) · the rate chip at the top")
+            // An owner's row opens the rate form; anyone else's keeps the web's link.
+            out.append(DashNeed(id: "\(out.count)|/settings?tab=rates", path: "/settings?tab=rates", tone: .danger,
+                                title: "Set today's gold rate — online selling is paused",
+                                detail: last.isEmpty ? "The rate chip at the top" : "Last set \(last) · the rate chip at the top",
+                                opensRates: true))
         }
 
-        // An online order nobody has looked at: the customer is waiting for the bank details.
+        // An online order nobody has looked at: the customer is waiting for the bank details. The native
+        // Orders hub has no inbox, so the row opens the ERP's own Orders page, which has.
         if onlineWaiting > 0 {
-            add("/orders", .danger, onlineWaiting == 1 ? "An online order to confirm" : "\(onlineWaiting) online orders to confirm",
+            add("/orders?web=1", .danger, onlineWaiting == 1 ? "An online order to confirm" : "\(onlineWaiting) online orders to confirm",
                 "From taheri.shop · they get the bank details when you confirm")
         }
 

@@ -83,27 +83,60 @@ enum InvoiceFacts {
         return URL(string: "\(origin)/view-invoice/\(component(inv.id))?t=\(component(key))")
     }
 
-    // TODO(logic): port invoiceTitle / invoiceWhatsAppCaption (lib/invoice-share.ts) and the viewer's estimateMessage.
-    /// "Invoice - Fatima Hussain": the customer is never given the number as its name
-    /// (decisions: Invoice PDF). A walk-in has no name to give.
-    static func shareTitle(_ inv: Invoice) -> String {
-        let name = inv.customerName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if name.isEmpty || isWalkInName(name) { return "Invoice" }
-        return "Invoice - \(name)"
+    // MARK: What goes out with the link (lib/invoice-share.ts, the viewer's estimateMessage)
+
+    /// Characters no phone or computer allows in a file's name, and runs of spaces (invoice-share.ts `clean`).
+    private static func clean(_ s: String) -> String {
+        let blocked = Set("\\/:*?\"<>|")
+        let spaced = String(s.map { c in
+            blocked.contains(c) || (c.asciiValue.map { $0 < 0x20 } ?? false) ? " " : c
+        })
+        return spaced.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
     }
 
-    /// The words that go with the link: who it is for and what is owed. Taheri's carry no number;
-    /// House of Mina's are the counter's own ("estimate", its ID, what is owed).
-    static func shareMessage(_ inv: Invoice, shopName: String) -> String {
+    private static let karachiDay: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_GB")
+        f.timeZone = ERPDate.karachi
+        f.dateFormat = "d MMM yyyy"
+        return f
+    }()
+
+    /// The subject of a share. Where an invoice is named after its customer (`byCustomer`,
+    /// STORE_INVOICE_BY_CUSTOMER: Taheri): "Invoice - Fatima Hussain", never the number, and a walk-in
+    /// (no name to give) carries its day instead: "Invoice - 5 Oct 2026". Elsewhere (House of Mina) the
+    /// file is "Invoice-<number>", as invoice-pdf.ts names it.
+    static func shareTitle(_ inv: Invoice, byCustomer: Bool) -> String {
+        if !byCustomer { return "Invoice-" + inv.id }
+        let name = String(clean(inv.customerName).prefix(80))
+        if !name.isEmpty && !isWalkInName(name) { return "Invoice - \(name)" }
+        guard let made = ERPDate.parse(inv.createdAt) else { return "Invoice" }
+        return "Invoice - " + karachiDay.string(from: made)
+    }
+
+    /// toLocaleString(undefined, { minimumFractionDigits: 2 }): 12,345.00, as the estimate says it.
+    private static func twoPlaces(_ n: Double) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.locale = Locale(identifier: "en_US")
+        f.minimumFractionDigits = 2
+        f.maximumFractionDigits = 3
+        return f.string(from: NSNumber(value: n)) ?? String(n)
+    }
+
+    /// The words that go with the link: who it is for and what is owed. Where invoices are named after
+    /// the customer (`byCustomer`, Taheri) they carry no number; elsewhere (House of Mina) they are the
+    /// counter's own ("estimate", its ID, what is owed). `shopName` is the shop's, never "… ERP".
+    static func shareMessage(_ inv: Invoice, shopName: String, byCustomer: Bool) -> String {
         let name = inv.customerName.trimmingCharacters(in: .whitespacesAndNewlines)
         let who = name.isEmpty || isWalkInName(name) ? "Customer" : name
         let line = balanceLine(inv.balanceDue)
-        if House.id == "mina" {
-            var m = "Dear \(who),\n\nHere is your estimate from \(shopName).\n\n*Estimate ID:* \(inv.id)\n*Total Amount:* \(Money.pkr(inv.grandTotal))\n"
+        if !byCustomer {
+            var m = "Dear \(who),\n\nHere is your estimate from \(shopName).\n\n*Estimate ID:* \(inv.id)\n*Total Amount:* PKR \(twoPlaces(inv.grandTotal))\n"
             if inv.amountPaid > 0 {
-                m += "*Amount Paid:* \(Money.pkr(inv.amountPaid))\n*Balance Due:* \(Money.pkr(inv.balanceDue))\n\n"
+                m += "*Amount Paid:* PKR \(twoPlaces(inv.amountPaid))\n*Balance Due:* PKR \(twoPlaces(inv.balanceDue))\n\n"
             } else {
-                m += "*Amount Due:* \(Money.pkr(inv.grandTotal))\n\n"
+                m += "*Amount Due:* PKR \(twoPlaces(inv.grandTotal))\n\n"
             }
             return m + "Thank you for your business."
         }
@@ -123,7 +156,9 @@ extension View {
     /// with a refusal showing keeps the sheet open with the ERP's own words.
     func invoicePaymentSheet(for invoice: Binding<Invoice?>) -> some View {
         sheet(item: invoice) { inv in
-            PaymentSheet(title: "Take payment · \(inv.id)", owed: inv.balanceDue > 0.5 ? inv.balanceDue : nil) { amount, method, reference in
+            // Money over the balance is a named customer's credit; a walk-in's is refused (invoice-credit.ts).
+            PaymentSheet(title: "Take payment · \(inv.id)", owed: inv.balanceDue > 0.5 ? inv.balanceDue : nil,
+                         customer: PaymentCustomer(name: inv.customerName, canHoldCredit: canHoldCredit(inv.customerId))) { amount, method, reference in
                 try await InvoiceFacts.record(inv, amount: amount, method: method, reference: reference)
             }
         }

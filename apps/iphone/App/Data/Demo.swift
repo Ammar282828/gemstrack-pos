@@ -14,7 +14,31 @@ enum Demo {
         return json.compactMapValues { ($0 as? [Any])?.compactMap { resolve($0) as? [String: Any] } }
     }()
 
-    static func docs(_ collection: String) -> [[String: Any]] { collections[collection] ?? [] }
+    static func docs(_ collection: String) -> [[String: Any]] { scaled[collection] ?? collections[collection] ?? [] }
+
+    /// `-ERPDemoScale N`: every list N times over, each copy with ids of its own, so the screens can be
+    /// timed at many times the real books (the UI tests: 1,000 makes some 6,000 invoices and orders and
+    /// 8,000 customers). The settings stay one document.
+    private static let scale = max(1, UserDefaults.standard.integer(forKey: "ERPDemoScale"))
+
+    private static let scaled: [String: [[String: Any]]] = {
+        guard scale > 1 else { return [:] }
+        var out: [String: [[String: Any]]] = [:]
+        for (name, docs) in collections where name != Collections.settings {
+            var list: [[String: Any]] = []
+            list.reserveCapacity(docs.count * scale)
+            for k in 0..<scale {
+                for d in docs {
+                    guard k > 0 else { list.append(d); continue }
+                    var c = d
+                    for key in ["id", "sku"] { if let v = d[key] as? String { c[key] = "\(v)-\(k)" } }
+                    list.append(c)
+                }
+            }
+            out[name] = list
+        }
+        return out
+    }()
 
     private static func resolve(_ v: Any) -> Any {
         switch v {

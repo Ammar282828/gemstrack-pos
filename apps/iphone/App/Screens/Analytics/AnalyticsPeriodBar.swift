@@ -9,7 +9,7 @@ struct AnaChip: View {
 
     var body: some View {
         if selected {
-            Button(title, action: action).buttonStyle(.glassProminent)
+            Button(title, action: action).buttonStyle(.houseProminent)
         } else {
             Button(title, action: action).buttonStyle(.glass)
         }

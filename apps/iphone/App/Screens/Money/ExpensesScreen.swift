@@ -268,7 +268,7 @@ struct ExpensesScreen: View {
     private func chip(_ title: String, count: Int, selected: Bool, action: @escaping () -> Void) -> some View {
         if selected {
             Button(action: action) { chipLabel(title, count: count) }
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.houseProminent)
         } else {
             Button(action: action) { chipLabel(title, count: count) }
                 .buttonStyle(.glass)

@@ -49,11 +49,13 @@ struct RepairsSheet: View {
     }
 
     private func detail(_ r: Repair) -> some View {
-        List {
+        List { Group {
             headerSection(r)
             piecesSection(r)
             moneySection(r)
             detailsSection(r)
+            }
+            .houseRows()
         }
         .listStyle(.insetGrouped)
         .safeAreaInset(edge: .bottom) {
@@ -68,25 +70,29 @@ struct RepairsSheet: View {
         ToolbarItem(placement: .cancellationAction) {
             Button("Close", systemImage: "xmark") { dismiss() }
         }
-        if session.isOwner {
-            ToolbarItem(placement: .primaryAction) { ownerMenu }
-        }
+        ToolbarItem(placement: .primaryAction) { ticketMenu }
     }
 
-    /// Edit and Delete are the ERP's page for this ticket; Cancel keeps the record.
-    private var ownerMenu: some View {
+    /// Print receipt is the ERP's page for this ticket (it draws the PDF), open to everyone who can read
+    /// the ticket; Edit and Delete are the same page, owners'; Cancel keeps the record.
+    private var ticketMenu: some View {
         let cancellable = current.map { $0.status == .received || $0.status == .ready } ?? false
         return Menu {
             Button { web = RepairsWebTarget(path: RepairsKit.webPath(id)) } label: {
-                Label("Edit", systemImage: "pencil")
+                Label("Print receipt", systemImage: "printer")
             }
-            if cancellable, let r = current {
-                Button(role: .destructive) { desk.askCancel(r) } label: {
-                    Label("Cancel repair", systemImage: "xmark.circle")
+            if session.isOwner {
+                Button { web = RepairsWebTarget(path: RepairsKit.webPath(id)) } label: {
+                    Label("Edit", systemImage: "pencil")
                 }
-            }
-            Button(role: .destructive) { web = RepairsWebTarget(path: RepairsKit.webPath(id)) } label: {
-                Label("Delete", systemImage: "trash")
+                if cancellable, let r = current {
+                    Button(role: .destructive) { desk.askCancel(r) } label: {
+                        Label("Cancel repair", systemImage: "xmark.circle")
+                    }
+                }
+                Button(role: .destructive) { web = RepairsWebTarget(path: RepairsKit.webPath(id)) } label: {
+                    Label("Delete", systemImage: "trash")
+                }
             }
         } label: {
             Label("More", systemImage: "ellipsis.circle")
@@ -143,7 +149,7 @@ struct RepairsSheet: View {
     /// The page's "Tell them": the ready message, on WhatsApp, for a Ready ticket with a number.
     @ViewBuilder
     private func tellThemRow(_ r: Repair) -> some View {
-        if r.status == .ready, let url = RepairsKit.whatsAppURL(for: r) {
+        if r.status == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
             Link(destination: url) {
                 Label("Tell them it's ready", systemImage: "message")
             }
@@ -291,7 +297,7 @@ struct RepairsSheet: View {
         Button(action: action) {
             Label(title, systemImage: symbol).frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glassProminent)
+        .buttonStyle(.houseProminent)
         .controlSize(.large)
         .disabled(busy)
     }

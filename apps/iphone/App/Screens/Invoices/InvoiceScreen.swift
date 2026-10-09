@@ -15,9 +15,10 @@ struct InvoiceScreen: View {
 
     private var canPay: Bool { InvoiceFacts.mayTakePayments(role: session.role) }
 
-    /// The margin is the shop's own (owners; lib/margin.ts), and Mina's silver is not costed that
-    /// way: its web page shows none (NEXT_PUBLIC_STORE_COST_RATTI_LESS "none").
-    private var showsMargin: Bool { session.isOwner && House.margin.rattiLess != nil }
+    /// The margin is the shop's own (lib/margin.ts): owners and staff see it, blurred until tapped, and
+    /// never a customer (docs/decisions.md "Margin"). Mina's silver is not costed that way: its web page
+    /// shows none (NEXT_PUBLIC_STORE_COST_RATTI_LESS "none").
+    private var showsMargin: Bool { House.margin.rattiLess != nil }
 
     var body: some View {
         let invoice = book.invoices.items.first { $0.id == id }
@@ -35,7 +36,6 @@ struct InvoiceScreen: View {
         .task {
             book.invoices.need()
             book.customers.need()
-            book.settings.need()
         }
     }
 
@@ -54,7 +54,7 @@ struct InvoiceScreen: View {
     // MARK: The page
 
     private func detail(_ inv: Invoice) -> some View {
-        List {
+        List { Group {
             headerSection(inv)
             shopSection(inv)
             deliverySection(inv)
@@ -63,6 +63,8 @@ struct InvoiceScreen: View {
             totalsSection(inv)
             paymentsSection(inv)
             sentSection(inv)
+            }
+            .houseRows()
         }
         .listStyle(.insetGrouped)
         .safeAreaInset(edge: .bottom, spacing: 0) { paymentBar(inv) }
@@ -150,7 +152,7 @@ struct InvoiceScreen: View {
 
     // MARK: For the shop
 
-    /// The note nobody but the shop reads, and the shop's margin (owners; blurred until tapped).
+    /// The note nobody but the shop reads, and the shop's margin (owners and staff; blurred until tapped).
     @ViewBuilder
     private func shopSection(_ inv: Invoice) -> some View {
         let note = (inv.internalNote ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -315,7 +317,7 @@ struct InvoiceScreen: View {
                 Label("Take payment · \(Money.pkr(inv.balanceDue))", systemImage: "banknote")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.glassProminent)
+            .buttonStyle(.houseProminent)
             .controlSize(.large)
             .padding(.horizontal)
             .padding(.bottom, 8)
@@ -329,8 +331,9 @@ struct InvoiceScreen: View {
     private func toolbarButtons(_ inv: Invoice) -> some View {
         if let url = InvoiceFacts.shareURL(inv) {
             ShareLink(item: url,
-                      subject: Text(InvoiceFacts.shareTitle(inv)),
-                      message: Text(InvoiceFacts.shareMessage(inv, shopName: shopName))) {
+                      subject: Text(InvoiceFacts.shareTitle(inv, byCustomer: session.shop.invoiceByCustomer)),
+                      message: Text(InvoiceFacts.shareMessage(inv, shopName: session.shop.name,
+                                                              byCustomer: session.shop.invoiceByCustomer))) {
                 Label("Share the customer's page", systemImage: "square.and.arrow.up")
             }
         }
@@ -339,11 +342,6 @@ struct InvoiceScreen: View {
         } label: {
             Label("More", systemImage: "ellipsis.circle")
         }
-    }
-
-    private var shopName: String {
-        let named = (book.settings.value?.shopName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        return named.isEmpty ? House.storeName : named
     }
 
     /// A sale to nobody in particular: the ERP page offers "Name them" (decisions: Name a sale).
@@ -437,12 +435,11 @@ private struct InvoicePieceRow: View {
         .padding(.vertical, 2)
     }
 
-    /// The category in words, when the piece carries one. A raw id ("cat001") is not worth showing.
+    /// The category in words ("Ring" for cat001), or what the piece carries when it is not one of the
+    /// ERP's own (invoice-viewer.tsx: `categorySingular(id) || id`).
     private var category: String? {
-        // TODO(logic): port categorySingular (lib/categories.ts) to name cat001 "Ring".
         guard let c = item.itemCategory?.trimmingCharacters(in: .whitespacesAndNewlines), !c.isEmpty else { return nil }
-        if c.hasPrefix("cat"), c.dropFirst(3).allSatisfy({ $0.isNumber }) { return nil }
-        return c
+        return OrdersLogic.categorySingular(c)
     }
 
     /// Metal and karat, weight, size, finish, stone weight, and the stock number when it is one.
@@ -510,7 +507,7 @@ private struct InvoicePaymentRow: View {
     }
 }
 
-/// What the shop earns on this sale (lib/margin.ts), for owners only and blurred until tapped: the
+/// What the shop earns on this sale (lib/margin.ts), for owners and staff and blurred until tapped: the
 /// counter turns its screen to show a customer the bill, and a margin beside the total is the one
 /// thing they must not read. The figure is not worked out until then, and it is in nothing that is
 /// printed, shared or linked.

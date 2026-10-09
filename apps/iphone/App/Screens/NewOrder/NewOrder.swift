@@ -20,11 +20,12 @@ struct NewOrder: View {
     @State private var loaded = false
     @State private var restored = false
     @State private var editing: NewOrderPieceRef?
-    @State private var takenNames: [String] = []
     @State private var saving = false
     @State private var failure: String?
     @State private var failureTitle = "The order wasn't saved"
     @State private var created: String?
+    /// The sizes on offer to the customer's profile once the order is saved.
+    @State private var sizeAsk: NewOrderSizeAsk?
     @State private var confirmReset = false
 
     init() {}
@@ -40,6 +41,7 @@ struct NewOrder: View {
             }
         }
         .onAppear { start() }
+        .sheet(item: $sizeAsk) { ask in NewOrderSizeAskSheet(ask: ask) }
     }
 
     // MARK: Reading
@@ -73,33 +75,19 @@ struct NewOrder: View {
             loaded = true
         }
         seedRates()
+        settleTakenBy()
+    }
+
+    /// "Taken by" starts on the signed-in person (their counter name on the house's list), once.
+    private func settleTakenBy() {
+        guard loaded, let shop = session.me?.shop else { return }
+        draft.settleTakenBy(person: shop.person, list: shop.takenBy)
     }
 
     /// The rates start as today's, once; a draft that is continued keeps the rates it was quoted at.
     private func seedRates() {
         guard loaded, !draft.ratesSeeded, let s = book.settings.value else { return }
         draft.seedRates(from: s)
-    }
-
-    /// The web offers the house's people list; the app has none yet, so: the names already used on recent
-    /// orders and invoices (the last 60 days), and free text.
-    private func recentNames() -> [String] {
-        let cutoff = Date().addingTimeInterval(-60 * 86_400)
-        var names = Set<String>()
-        // Both shelves are newest first, so the walk stops at the first one older than the window.
-        for o in book.orders.items {
-            guard let d = ERPDate.parse(o.createdAt) else { continue }
-            if d < cutoff { break }
-            let t = NewOrderFormat.trim(o.takenBy ?? "")
-            if !t.isEmpty { names.insert(t) }
-        }
-        for i in book.invoices.items {
-            guard let d = ERPDate.parse(i.createdAt) else { continue }
-            if d < cutoff { break }
-            let t = NewOrderFormat.trim(i.takenBy ?? "")
-            if !t.isEmpty { names.insert(t) }
-        }
-        return names.sorted()
     }
 
     // MARK: The form
@@ -126,9 +114,9 @@ struct NewOrder: View {
 
     /// The form, its bar and its toolbar.
     private func screen(_ totals: NewOrderMath.Totals, _ settings: Settings?) -> some View {
-        Form {
+        Form { Group {
             if restored { restoredBanner }
-            NewOrderCustomerSection(draft: $draft, people: people, takenNames: takenNames)
+            NewOrderCustomerSection(draft: $draft, people: people, takenBy: session.shop.takenBy)
             NewOrderPromisedSection(draft: $draft)
             piecesSection(totals)
             NewOrderRatesSection(draft: $draft, settings: settings)
@@ -136,6 +124,8 @@ struct NewOrder: View {
             NewOrderPaymentSection(draft: $draft)
             NewOrderExchangeSection(draft: $draft)
             tail(totals, settings)
+            }
+            .houseRows()
         }
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle("New order")
@@ -161,10 +151,8 @@ struct NewOrder: View {
             draft: draft,
             loaded: loaded,
             settingsValue: book.settings.value,
-            counts: book.orders.items.count + book.invoices.items.count,
             keep: { keepNow() },
-            seed: { seedRates() },
-            names: { takenNames = recentNames() }
+            seed: { seedRates() }
         )
     }
 
@@ -179,8 +167,13 @@ struct NewOrder: View {
 
     private var restoredBanner: some View {
         Section {
-            Label("Your order in progress is back. It was kept on this phone.", systemImage: "arrow.uturn.backward.circle")
-                .font(.subheadline)
+            if draft.fromSale {
+                Label("These are the pieces of your sale. Once this order is saved they leave the sale.", systemImage: "arrow.right.circle")
+                    .font(.subheadline)
+            } else {
+                Label("Your order in progress is back. It was kept on this phone.", systemImage: "arrow.uturn.backward.circle")
+                    .font(.subheadline)
+            }
             if draft.photosLeftOut {
                 Label("The sample photos were too many to keep: add them again.", systemImage: "exclamationmark.triangle")
                     .font(.subheadline)
@@ -259,7 +252,6 @@ struct NewOrder: View {
                 piece: pieceBinding(id),
                 number: i + 1,
                 rates: NewOrderMath.formRates(draft, book.settings.value),
-                isOwner: session.isOwner,
                 karigars: karigars,
                 onDuplicate: { duplicatePiece(id) },
                 onRemove: { removePiece(id) }
@@ -275,7 +267,8 @@ struct NewOrder: View {
     private func tail(_ totals: NewOrderMath.Totals, _ settings: Settings?) -> some View {
         NewOrderNotesSection(draft: $draft)
         NewOrderDeliverySection(draft: $draft, addressOnFile: addressOnFile)
-        if session.isOwner && House.margin.rattiLess != nil {
+        // The shop's own figure: owners and staff, never the customer (decisions.md "Margin").
+        if House.margin.rattiLess != nil {
             NewOrderMarginSection(draft: $draft, settings: settings) {
                 NewOrderMath.margin(draft, settings, totals)
             }
@@ -296,6 +289,7 @@ struct NewOrder: View {
         restored = false
         editing = nil
         seedRates()
+        settleTakenBy()
     }
 
     // MARK: Saving
@@ -323,12 +317,23 @@ struct NewOrder: View {
                 }
                 .frame(minWidth: 120)
             }
-            .buttonStyle(.glassProminent)
+            .buttonStyle(.houseProminent)
             .controlSize(.large)
             .disabled(saving)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+    }
+
+    /// Sizes on the order that the customer's profile doesn't hold are offered once, over the order's own page.
+    /// The customer is the one the ERP names on the order (a new one it has just made, or the one on file).
+    private func offerSizes(_ made: [String: Any]) {
+        let customerId = made["customerId"] as? String
+        let profile = customerId.flatMap { book.customers.item($0) }
+        let rows = NewOrderSizes.offer(draft, customerId: customerId, profile: profile, houseWants: session.shop.sizeToProfile)
+        guard let customerId, !rows.isEmpty else { return }
+        let name = (made["customerName"] as? String) ?? profile?.name ?? "the customer"
+        sizeAsk = NewOrderSizeAsk(customerId: customerId, name: name, rows: rows)
     }
 
     private func tell(_ title: String, _ message: String) {
@@ -346,24 +351,30 @@ struct NewOrder: View {
             tell("The order can't be saved yet", "The shop's rates haven't loaded. Check the connection and try again.")
             return
         }
-        if let problem = NewOrderMath.problem(draft) {
+        if let problem = NewOrderMath.problem(draft, takenBy: session.shop.takenBy) {
             tell("The order can't be saved yet", problem)
             return
         }
         saving = true
         defer { saving = false }
-        let request = NewOrderMath.request(draft, settings: settings, customers: people, owner: session.isOwner)
+        let request = NewOrderMath.request(draft, settings: settings, customers: people)
         do {
             let out = try await ERPAPI.shared.write("createOrder", request)
             guard let made = out["order"] as? [String: Any], let id = made["id"] as? String, !id.isEmpty else {
                 throw ERPAPI.Failure(status: 0, message: "The ERP saved the order but didn't say its number. Look for it in Orders.")
             }
             NewOrderDraftStore.clear()
+            // Made from the sale in progress: the pieces are the order's now, and leaving them on the sale would
+            // bill the same pieces a second time (the web clears the cart).
+            if draft.fromSale { SaleDraftStore.clear() }
+            offerSizes(made)
             // Blank, so a keep that was already on its way writes nothing back.
             draft = NewOrderDraft.fresh()
             created = id
         } catch let e as ERPAPI.Failure {
-            tell("The order wasn't saved", e.message)
+            // The ERP has seen this very order already (a second tap, a retry): it is made, not lost.
+            let seen = e.status == 409 && e.message.hasPrefix("This was already sent")
+            tell(seen ? "Already sent" : "The order wasn't saved", e.message)
         } catch {
             // No answer is not "no": the order may have gone through, and saving again would make a second.
             tell("The order wasn't saved", error.localizedDescription + "\n\nIf the connection dropped, the order may have been saved. Check Orders before saving it again.")
@@ -373,16 +384,14 @@ struct NewOrder: View {
 
 /// The order stays on this phone while it is typed (NewOrderDraftStore): written a moment after the last
 /// key, and at once when the app leaves or the screen goes. It also seeds the rates when the shop's settings
-/// arrive, and works out the "Taken by" names when the books change. Its own modifier so the form's chain of
+/// arrive. Its own modifier so the form's chain of
 /// modifiers stays short for the compiler.
 struct NewOrderKeeping: ViewModifier {
     let draft: NewOrderDraft
     let loaded: Bool
     let settingsValue: Settings?
-    let counts: Int
     let keep: () -> Void
     let seed: () -> Void
-    let names: () -> Void
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -397,7 +406,6 @@ struct NewOrderKeeping: ViewModifier {
                 if phase != .active { keep() }
             }
             .onChange(of: settingsValue) { _, _ in seed() }
-            .task(id: counts) { names() }
             .onDisappear { keep() }
     }
 }

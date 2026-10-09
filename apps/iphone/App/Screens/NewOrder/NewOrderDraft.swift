@@ -50,7 +50,7 @@ struct NewOrderPieceDraft: Codable, Equatable, Identifiable {
     /// Fixed price instead of weight × rate (the web's `isManualPrice`).
     var manual = false
     var manualPrice = ""
-    /// Owners only: staff never read it back (roles.ts STAFF_HIDDEN_FIELDS).
+    /// Written by owners and staff; the ERP gives it back to owners only (roles.ts STAFF_HIDDEN_FIELDS).
     var adminNote = ""
     /// The sample picture, JPEG, at most about 120 KB (NewOrderPhotoCodec).
     var photo: Data?
@@ -143,6 +143,9 @@ struct NewOrderDraft: Codable, Equatable {
     /// A `CUSTOMER_SOURCES` word, or "" for not specified.
     var source = ""
     var takenBy = ""
+    /// What "Taken by" was started on (the signed-in person), once; nil until it has been. A name that is only
+    /// this default is not something typed, so it does not make the order worth keeping.
+    var takenByDefault: String?
     /// yyyy-MM-dd in Karachi, or "" for no date.
     var promised = ""
     var notes = ""
@@ -165,10 +168,13 @@ struct NewOrderDraft: Codable, Equatable {
     var deliveryNotes = ""
     var deliveryCharge = ""
     var deliveryExpected = ""
-    /// The 24k rate now, per tola, for the shop's margin (owners).
+    /// The 24k rate now, per tola, for the shop's margin (owners and staff).
     var costTola = ""
     /// The photos were too many to keep on the phone with the rest.
     var photosLeftOut = false
+    /// The pieces came from the sale in progress ("Create order" on New sale); once this order is saved the
+    /// sale's own copy goes (the web clears the cart: leaving them behind would bill the same pieces twice).
+    var fromSale = false
 
     init() {}
 
@@ -179,6 +185,7 @@ struct NewOrderDraft: Codable, Equatable {
         customerPhone = c.orderField(.customerPhone, "")
         source = c.orderField(.source, "")
         takenBy = c.orderField(.takenBy, "")
+        takenByDefault = try? c.decodeIfPresent(String.self, forKey: .takenByDefault)
         promised = c.orderField(.promised, "")
         notes = c.orderField(.notes, "")
         hideRates = c.orderField(.hideRates, false)
@@ -199,6 +206,7 @@ struct NewOrderDraft: Codable, Equatable {
         deliveryExpected = c.orderField(.deliveryExpected, "")
         costTola = c.orderField(.costTola, "")
         photosLeftOut = c.orderField(.photosLeftOut, false)
+        fromSale = c.orderField(.fromSale, false)
         if exchanges.isEmpty { exchanges = [.blank()] }
     }
 
@@ -215,7 +223,8 @@ struct NewOrderDraft: Codable, Equatable {
     var isBlank: Bool {
         if !pieces.isEmpty || deliver || hideRates { return false }
         if !NewOrderFormat.trim(customerName).isEmpty || !customerPhone.isEmpty { return false }
-        if !source.isEmpty || !takenBy.isEmpty || !notes.isEmpty { return false }
+        if !source.isEmpty || !notes.isEmpty { return false }
+        if !takenBy.isEmpty && takenBy != takenByDefault { return false }
         if !discount.isEmpty || !advance.isEmpty || !costTola.isEmpty { return false }
         return exchanges.allSatisfy { $0.isBlank }
     }
@@ -272,11 +281,92 @@ extension NewOrderDraft {
         }
     }
 
+    /// "Taken by" starts on the signed-in person, once, for a new order (decisions.md "Signed-in defaults";
+    /// order-form.tsx `takenBy: me`): only a default, always shown and changeable. It is a name from the house's
+    /// list, and a name that is not on the list (an old draft's free text) is let go when the house has a list.
+    mutating func settleTakenBy(person: String?, list: [String]) {
+        if !list.isEmpty && !takenBy.isEmpty && !list.contains(takenBy) { takenBy = "" }
+        guard takenByDefault == nil else { return }
+        var name = NewOrderFormat.trim(person ?? "")
+        if !list.isEmpty && !list.contains(name) { name = "" }
+        takenByDefault = name
+        if takenBy.isEmpty { takenBy = name }
+    }
+
     mutating func duplicatePiece(_ id: UUID) {
         guard let i = pieces.firstIndex(where: { $0.id == id }) else { return }
         var copy = pieces[i]
         copy.id = UUID()
         pieces.insert(copy, at: i + 1)
+    }
+}
+
+// MARK: From a sale
+
+// "Create order" on the sale sends the same basket to the bench instead of the till
+// (sale-page.tsx: /orders/add?fromCart=1; order-form.tsx `cartItemToOrderItem`): the pieces become the
+// order's pieces, and the person it is for comes with them. What stays with the sale is the sale's own: its
+// discount, exchange, payments, typed rates and notes (the web carries none of them either), and the piece's
+// picture and miscellaneous charge, which an order has no place for.
+
+extension NewOrderPieceDraft {
+    /// A line of the sale as a piece of the order. A fixed price keeps its weight. A piece described for one bill
+    /// (NEW-…) has no stock number, so it is no reference (lib/sku.ts stockSku). Palladium keeps its karat, which
+    /// the web's seed drops (and then prices at the flat rate).
+    init(fromSale line: SaleLine) {
+        self.init()
+        category = line.categoryId
+        description = line.name
+        metal = line.metalType.isEmpty ? House.metal : line.metalType
+        let karats = karatsFor(MetalType(rawValue: metal)).map { $0.rawValue }
+        if !karats.isEmpty {
+            let kept = line.karat ?? ""
+            karat = karats.contains(kept) ? kept : (metal == "gold" ? "21k" : (karats.last ?? ""))
+        }
+        weight = NewOrderFormat.boxText(line.metalWeightG, digits: 3)
+        hasStones = line.hasStones
+        stoneWeight = NewOrderFormat.boxText(line.stoneWeightG, digits: 3)
+        stoneDetails = line.stoneDetails ?? ""
+        hasDiamonds = line.hasDiamonds
+        diamond = NewOrderFormat.boxText(line.diamondCharges)
+        diamondDetails = line.diamondDetails ?? ""
+        wastage = NewOrderFormat.boxText(line.wastagePercentage, digits: 4)
+        making = NewOrderFormat.boxText(line.makingCharges)
+        stones = NewOrderFormat.boxText(line.stoneCharges)
+        size = line.size ?? ""
+        platingType = line.platingType ?? ""
+        platingNote = line.platingNote ?? ""
+        nickelFree = line.nickelFree
+        referenceSku = line.stockSku ?? ""
+        manual = line.isCustomPrice
+        manualPrice = line.isCustomPrice ? NewOrderFormat.boxText(line.customPrice ?? 0) : ""
+    }
+}
+
+extension NewOrderDraft {
+    /// A new order from the sale in progress: its pieces and its customer, marked as from the sale.
+    static func seeded(from sale: SaleDraft) -> NewOrderDraft {
+        var d = NewOrderDraft.fresh()
+        d.pieces = sale.lines.map { NewOrderPieceDraft(fromSale: $0) }
+        d.customerId = sale.customerId ?? ""
+        d.customerName = sale.customerName
+        d.customerPhone = sale.customerPhone
+        d.fromSale = true
+        return d
+    }
+}
+
+extension NewOrderDraftStore {
+    /// Seeds the phone's order draft from the sale (the New order screen takes it back as it opens). It replaces
+    /// an order that was in progress: check `orderInProgress` first to ask.
+    static func startFromSale(_ sale: SaleDraft) {
+        save(NewOrderDraft.seeded(from: sale), now: true)
+    }
+
+    /// An order of its own is half typed on this phone (not one already made from a sale).
+    static var orderInProgress: Bool {
+        guard let d = load() else { return false }
+        return !d.fromSale
     }
 }
 

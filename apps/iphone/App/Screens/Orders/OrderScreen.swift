@@ -47,7 +47,7 @@ struct OrderScreen: View {
     }
 
     private func detail(_ order: Order) -> some View {
-        List {
+        List { Group {
             headerSection(order)
             if OrdersLogic.hasInvoice(order) { invoiceSection(order) }
             if OrdersLogic.isOnline(order) {
@@ -55,6 +55,8 @@ struct OrderScreen: View {
             }
             piecesSection(order)
             if !OrdersLogic.hasInvoice(order) { moneySection(order) }
+            }
+            .houseRows()
         }
         .listStyle(.insetGrouped)
         .toolbar { orderToolbar(order) }
@@ -277,8 +279,11 @@ struct OrderScreen: View {
             LabeledContent("Advance paid") {
                 Text("- " + Money.pkr(order.advancePayment)).foregroundStyle(.red)
             }
-            // Each advance with its day and how it was paid: these become the invoice's payments.
-            ForEach(lines) { l in advanceLine(l) }
+            // Each advance with its day and how it was paid: these become the invoice's payments. One
+            // advance is the "Advance paid" line above, so it is listed only when there are several.
+            if lines.count > 1 {
+                ForEach(lines) { l in advanceLine(l) }
+            }
             if exchangeValue > 0 {
                 LabeledContent("Taken in exchange") {
                     Text("- " + Money.pkr(exchangeValue)).foregroundStyle(.red)
@@ -291,8 +296,9 @@ struct OrderScreen: View {
                 MoneyText(amount: OrdersLogic.balance(order), exact: true)
                     .font(.title3.weight(.bold))
             }
-            // The shop's margin: owners only, never in a house that does not cost by gold, blurred until tapped.
-            if session.isOwner && OrdersLogic.marginIsOn(House.margin) {
+            // The shop's margin: owners and staff, never a customer, never in a house that does not cost by
+            // gold, and blurred until tapped (docs/decisions.md "Margin").
+            if OrdersLogic.marginIsOn(House.margin) {
                 OrdersMarginRow(order: order)
             }
             if session.isOwner && OrdersLogic.canAdvance(order) {
@@ -349,12 +355,13 @@ struct OrderScreen: View {
 
     private func advanceSheet(_ order: Order) -> some View {
         let balance = OrdersLogic.balance(order)
-        return PaymentSheet(title: "Record an advance", owed: balance > 0 ? balance : nil, askReference: false) { amount, method, _ in
+        // The note is the web's own default; it can be changed, and needs three characters (order-dialogs.tsx).
+        return PaymentSheet(title: "Record an advance", owed: balance > 0 ? balance : nil, note: "Advance payment received") { amount, method, note in
             _ = try await ERPAPI.shared.write("recordOrderAdvance", [
                 "orderId": order.id,
                 "amount": amount,
                 "method": method,
-                "notes": "Advance payment received",
+                "notes": note,
             ])
         }
     }

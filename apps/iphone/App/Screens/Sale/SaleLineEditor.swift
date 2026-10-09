@@ -46,7 +46,7 @@ struct SaleLineEditor: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            Form { Group {
                 pieceSection
                 if silver { finishSection }
                 sizeSection
@@ -54,6 +54,8 @@ struct SaleLineEditor: View {
                 stonesSection
                 billSection
                 totalSection
+                }
+                .houseRows()
             }
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(create ? "New item" : (line.stockSku ?? "Edit piece"))

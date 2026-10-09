@@ -126,7 +126,7 @@ struct NewChooser: View {
         if primary {
             Image(systemName: symbol)
                 .font(.title3)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.onAccent)
                 .frame(width: 44, height: 44)
                 .background(.tint, in: .rect(cornerRadius: 12))
         } else {

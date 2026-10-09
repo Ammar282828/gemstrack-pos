@@ -61,6 +61,20 @@ targets:
         PROVISIONING_PROFILE_SPECIFIER: $(ERP_WIDGET_PROFILE)
         APPLICATION_EXTENSION_API_ONLY: YES
         SKIP_INSTALL: YES
+  # The demo driven as a person would (UITests/): every place opens and stays up, the sheets most used
+  # open, and launch and scrolling are timed, at today's size and at many times it (`-ERPDemoScale`).
+  ERPUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(ERP_BUNDLE_ID).uitests
+        TEST_TARGET_NAME: App
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: App
 schemes:
   ERP:
     build:
@@ -68,5 +82,9 @@ schemes:
         App: all
     run:
       config: Debug
+    test:
+      config: Debug
+      targets:
+        - ERPUITests
     archive:
       config: Release

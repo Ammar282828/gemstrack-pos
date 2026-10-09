@@ -137,13 +137,13 @@ struct ScanTag: View {
                 NavigationLink(value: SaleLinks.newSale) {
                     Text("Open the sale").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.houseProminent)
                 .controlSize(.large)
             } else {
                 Button { addToSale(p) } label: {
                     Label("Add to a new sale", systemImage: "cart.badge.plus").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.houseProminent)
                 .controlSize(.large)
             }
         }

@@ -196,7 +196,7 @@ struct StockList: View {
     private func chipButton(_ title: String, count: Int, id: String?) -> some View {
         if category == id {
             Button { category = id } label: { chipLabel(title, count: count) }
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.houseProminent)
         } else {
             Button { category = id } label: { chipLabel(title, count: count) }
                 .buttonStyle(.glass)

@@ -159,7 +159,7 @@ enum SaleCases {
             walkInPaysExactly(), walkInPaysPart(), namedPaysPart(), namedOverpays(), newCustomerTyped(), numberOnFile(),
             discountEqualToSubtotal(), twoExchangeRows(), exchangeBeyondThePieces(), threePayments(),
             oneOffByWeight(), oneOffAtFixedPrice(), repricedStock(), fourKarats(), decimalGrams(), paiseInTheTotal(),
-            paidInFullRoundsDown(), longDecimals(), oneCrore(), palladium18kAlone(), palladiumWithoutKarat(), goldCoin(),
+            paidInFullRoundsDown(), paidInFullRoundsUp(), longDecimals(), oneCrore(), palladium18kAlone(), palladiumWithoutKarat(), goldCoin(),
             aRateTypedOnTheSale(), metalsMixed(), stonesAndSecondMetal(), goldWithoutKarat(), everyShopField(),
         ]
     }
@@ -348,6 +348,16 @@ enum SaleCases {
         r.add(product("PD-9", "Price with paise", ["isCustomPrice": true, "customPrice": 12345.4]))
         r.payInFull()
         return r.build("paid in full when the total has paise that round down")
+    }
+
+    /// "Paid in full" pays whole rupees: when the paise round up, the 40 paise over are settled, not credit
+    /// (under half a rupee either way is settled, lib/invoice-credit inCredit): the invoice says -0.40 and
+    /// the books hold nothing for it.
+    private static func paidInFullRoundsUp() -> ContractCase {
+        var r = Rig(shop: taheriShop)
+        r.add(product("PU-9", "Price with paise, up", ["isCustomPrice": true, "customPrice": 12345.6]))
+        r.payInFull()
+        return r.build("paid in full when the total has paise that round up")
     }
 
     /// A piece weighed and charged to more decimals than anyone types: the line editor keeps every digit.

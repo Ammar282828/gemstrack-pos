@@ -96,3 +96,142 @@ enum NewOrderSizes {
             .joined(separator: " · ")
     }
 }
+
+// MARK: Sizes to the profile
+
+// A size on an order is offered to the customer's profile (decisions.md "Sizes to the profile", the owner,
+// 2026-10-05: "show a popup to save the size in the customer bio for the future if the customer size is not
+// already in their bio. If it is in the bio then no popup"). Ported from src/lib/customer-sizes.ts.
+//
+// On the web the question comes a moment after a size is picked. On the phone it is asked once, after the
+// order is saved: by then a new customer exists, and the pieces are final. Only when the house wants it
+// (`Session.Shop.sizeToProfile`, STORE_SIZE_TO_PROFILE: Taheri's, not Mina's).
+
+/// The three sizes a customer's profile holds (Customer.ringSize, bangleSize, braceletSize).
+enum NewOrderProfileField: String, CaseIterable, Hashable {
+    case ringSize, bangleSize, braceletSize
+
+    /// PROFILE_SIZE_LABEL.
+    var label: String {
+        switch self {
+        case .ringSize: return "Ring size"
+        case .bangleSize: return "Bangle size"
+        case .braceletSize: return "Bracelet size"
+        }
+    }
+
+    /// What the profile holds now.
+    func current(in c: Customer?) -> String? {
+        let text: String?
+        switch self {
+        case .ringSize: text = c?.ringSize
+        case .bangleSize: text = c?.bangleSize
+        case .braceletSize: text = c?.braceletSize
+        }
+        let t = NewOrderFormat.trim(text ?? "")
+        return t.isEmpty ? nil : t
+    }
+}
+
+/// One size the profile could keep.
+struct NewOrderSizeSuggestion: Identifiable, Equatable {
+    let field: NewOrderProfileField
+    /// The size on the order.
+    let value: String
+    /// What the profile holds now, if anything.
+    let current: String?
+    /// For not asking twice: customer, field and value.
+    let key: String
+    var id: String { field.rawValue }
+}
+
+extension NewOrderSizes {
+    /// Single-size categories, by what they measure (customer-sizes.ts SINGLE).
+    private static let singleField: [String: NewOrderProfileField] = [
+        "cat001": .ringSize, "cat018": .ringSize, "cat009": .ringSize, "cat010": .ringSize,
+        "cat013": .ringSize, "cat016": .ringSize,
+        "cat007": .bangleSize,
+        "cat005": .braceletSize, "cat019": .braceletSize,
+    ]
+
+    /// The part names a multi-part size is written with ("Ring: 10 · Bangle: 2.4").
+    private static let partField: [String: NewOrderProfileField] = [
+        "Ring": .ringSize, "Bangle": .bangleSize, "Bracelet": .braceletSize,
+    ]
+
+    /// The profile sizes a piece's size gives, in the order its parts are written: ring 12, or ring 10 and
+    /// bangle 2.4, or none (a chain's length is none of them).
+    static func profileSizes(category: String, size: String) -> [(field: NewOrderProfileField, value: String)] {
+        let value = NewOrderFormat.trim(size)
+        if category.isEmpty || value.isEmpty { return [] }
+        guard let s = scale(for: category) else { return [] }
+        if s.multi {
+            let parsed = parse(value, legacyKey: s.legacyPartKey)
+            return s.parts.compactMap { part -> (field: NewOrderProfileField, value: String)? in
+                guard let field = partField[part.key], let v = parsed[part.key] else { return nil }
+                let t = NewOrderFormat.trim(v)
+                return t.isEmpty ? nil : (field: field, value: t)
+            }
+        }
+        if let field = singleField[category] { return [(field: field, value: value)] }
+        return []
+    }
+
+    /// Sizes compare as the counter writes them: "12", " 12 ", "12.0" are one size, "US 6" and "us 6" one, and a
+    /// bracelet's inches with or without the mark (7, 7", 7 in, 7 inches) one (`sameSize`).
+    static func same(_ a: String?, _ b: String?) -> Bool { normal(a) == normal(b) }
+
+    private static func normal(_ s: String?) -> String {
+        let t = NewOrderFormat.trim(s ?? "").lowercased()
+            .split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+        // A number, then nothing, or a mark for inches.
+        for mark in ["inches", "inch", "in", "''", "\""] where t.hasSuffix(mark) {
+            let head = NewOrderFormat.trim(String(t.dropLast(mark.count)))
+            if !head.isEmpty, head.allSatisfy({ $0.isNumber || $0 == "." }), let n = Double(head) { return NewOrderFormat.trimmed(n, digits: 6) }
+        }
+        if !t.isEmpty, t.allSatisfy({ $0.isNumber || $0 == "." }), let n = Double(t) { return NewOrderFormat.trimmed(n, digits: 6) }
+        return t
+    }
+
+    /// What the order's pieces give that the profile doesn't hold yet: one per field, the last piece's size where
+    /// two differ (`sizeSuggestions`). `who` keys a decision to its customer.
+    static func suggestions(
+        who: String,
+        profile: Customer?,
+        items: [(category: String, size: String)],
+        decided: Set<String> = []
+    ) -> [NewOrderSizeSuggestion] {
+        var order: [NewOrderProfileField] = []
+        var latest: [NewOrderProfileField: String] = [:]
+        for item in items {
+            for (field, value) in profileSizes(category: item.category, size: item.size) {
+                if latest[field] == nil { order.append(field) }
+                latest[field] = value
+            }
+        }
+        var out: [NewOrderSizeSuggestion] = []
+        for field in order {
+            guard let value = latest[field] else { continue }
+            let current = field.current(in: profile)
+            if let current, same(current, value) { continue }
+            let key = "\(who)|\(field.rawValue)|\(NewOrderFormat.trim(value).lowercased())"
+            if decided.contains(key) { continue }
+            out.append(NewOrderSizeSuggestion(field: field, value: value, current: current, key: key))
+        }
+        return out
+    }
+
+    /// The offer after a save: the sizes on the order's pieces that the customer's profile doesn't hold. Nothing
+    /// for a walk-in (no customer id), or where the house doesn't keep sizes on the profile.
+    static func offer(_ d: NewOrderDraft, customerId: String?, profile: Customer?, houseWants: Bool) -> [NewOrderSizeSuggestion] {
+        guard houseWants, let customerId, !customerId.isEmpty else { return [] }
+        return suggestions(who: customerId, profile: profile, items: d.pieces.map { (category: $0.category, size: $0.size) })
+    }
+
+    /// The fields of `setCustomerSizes` for the ones chosen.
+    static func request(customerId: String, chosen: [NewOrderSizeSuggestion]) -> [String: Any] {
+        var sizes: [String: Any] = [:]
+        for s in chosen { sizes[s.field.rawValue] = s.value }
+        return ["customerId": customerId, "sizes": sizes]
+    }
+}
