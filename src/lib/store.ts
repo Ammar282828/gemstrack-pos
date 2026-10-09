@@ -203,11 +203,13 @@ import { orderAdvancePayments, withoutOrderAdvance } from '@/lib/order-payment';
 import { statusFromPieces } from '@/lib/order-stage';
 import { isWalkInName, shouldCreateCustomer } from '@/lib/walk-in';
 import { createOrder } from '@/lib/writes/create-order';
+import { orderEditPatch } from '@/lib/writes/update-order';
 import { recordOrderAdvance as writeOrderAdvance } from '@/lib/writes/order-advance';
 import { rateChangeLog, rateConfirmLog } from '@/lib/writes/rates';
 import { createInvoice as createInvoiceWrite } from '@/lib/writes/create-invoice';
 import { addExpense as writeAddExpense } from '@/lib/writes/expenses';
 import { addGivenItem as writeAddGiven, markGivenItemReturned as writeGivenReturned } from '@/lib/writes/given';
+import { addKarigar as writeAddKarigar, updateCustomer as writeUpdateCustomer, updateKarigar as writeUpdateKarigar } from '@/lib/writes/people';
 import { addRepair as writeAddRepair, recordRepairPayment as writeRepairPayment, setRepairStatus as writeRepairStatus } from '@/lib/writes/repairs';
 import { alertsOnStatus, orderStatusPatch, pieceDonePatch, pieceGivenPatch, pieceKarigarPatch } from '@/lib/writes/order-status';
 import { STORE_CONFIG } from '@/lib/store-config';
@@ -2292,15 +2294,12 @@ export const useAppStore = create<AppState>()(
       },
       updateCustomer: async (id, updatedCustomerData) => {
         if(get().settings.databaseLocked) return;
-        // Normalize phone to E.164 (with country code, default +92) on every save so
-        // numbers stay consistent regardless of which form did the edit.
-        const dataToWrite = updatedCustomerData.phone !== undefined
-          ? { ...updatedCustomerData, phone: normalizePhoneNumber(updatedCustomerData.phone) }
-          : updatedCustomerData;
-        console.log(`[GemsTrack Store updateCustomer] Attempting to update customer ID ${id} with:`, dataToWrite);
+        console.log(`[GemsTrack Store updateCustomer] Attempting to update customer ID ${id} with:`, updatedCustomerData);
         try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), dataToWrite, { merge: true });
-          await addActivityLog('customer.update', `Updated customer: ${updatedCustomerData.name}`, `ID: ${id}`, id);
+          // The one copy (lib/writes/people.ts), which the iPhone app runs on the server too. It makes the
+          // phone E.164 (with country code, default +92) on every save so numbers stay consistent
+          // regardless of which form did the edit.
+          await writeUpdateCustomer(clientPort, id, updatedCustomerData, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
           if (typeof window !== 'undefined' && !id.startsWith('shopify-')) {
             if (PUSH_TO_SHOPIFY) postShopify('/api/shopify/push/customer', { customerId: id });
           }
@@ -2437,13 +2436,11 @@ export const useAppStore = create<AppState>()(
 
       addKarigar: async (karigarData) => {
         if(get().settings.databaseLocked) return null;
-        const newKarigarId = `karigar-${Date.now()}-${Math.random().toString(36).substring(2,7)}`;
-        const newKarigar: Karigar = { ...karigarData, id: newKarigarId };
-        console.log("[GemsTrack Store addKarigar] Attempting to add karigar:", newKarigar);
+        console.log("[GemsTrack Store addKarigar] Attempting to add karigar:", karigarData);
         try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, newKarigarId), newKarigar);
-          await addActivityLog('karigar.create', `Created karigar: ${newKarigar.name}`, `ID: ${newKarigarId}`, newKarigarId);
-          console.log("[GemsTrack Store addKarigar] Karigar added successfully:", newKarigarId);
+          // The one copy (lib/writes/people.ts), which the iPhone app runs on the server too.
+          const newKarigar = await writeAddKarigar(clientPort, karigarData, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
+          console.log("[GemsTrack Store addKarigar] Karigar added successfully:", newKarigar.id);
           return newKarigar;
         } catch (error) {
           console.error("[GemsTrack Store addKarigar] Error adding karigar to Firestore:", error);
@@ -2454,8 +2451,8 @@ export const useAppStore = create<AppState>()(
         if(get().settings.databaseLocked) return;
         console.log(`[GemsTrack Store updateKarigar] Attempting to update karigar ID ${id} with:`, updatedKarigarData);
          try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, id), updatedKarigarData, { merge: true });
-          await addActivityLog('karigar.update', `Updated karigar: ${updatedKarigarData.name}`, `ID: ${id}`, id);
+          // The one copy (lib/writes/people.ts), which the iPhone app runs on the server too.
+          await writeUpdateKarigar(clientPort, id, updatedKarigarData, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
           console.log(`[GemsTrack Store updateKarigar] Karigar ID ${id} updated successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store updateKarigar] Error updating karigar ID ${id} in Firestore:`, error);
@@ -3111,28 +3108,11 @@ export const useAppStore = create<AppState>()(
         if(get().settings.databaseLocked) return;
         const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
         const existing = get().orders.find(o => o.id === orderId);
-        // The pieces move the order on (lib/order-stage.ts): all with karigars → In Progress, all finished → Completed.
-        const movedTo = existing && Array.isArray(updatedOrderData.items)
-          ? statusFromPieces(updatedOrderData.status ?? existing.status, updatedOrderData.items, !!(updatedOrderData.invoiceId ?? existing.invoiceId))
-          : null;
-        // More advance typed into the form is money taken today: it joins the list of advances with
-        // today's date, as "Record an advance" does. Left out, orderAdvancePayments dated it to the
-        // day the order was made — on the invoice and in Today's cash (found 2026-10-04).
-        let addedAdvance: Payment | null = null;
-        if (existing && typeof updatedOrderData.advancePayment === 'number' && !('advances' in updatedOrderData)) {
-          const before = Number(existing.advancePayment) || 0;
-          const after = Number(updatedOrderData.advancePayment) || 0;
-          const listed = (existing.advances || []).reduce((n, p) => n + (Number(p.amount) || 0), 0);
-          if (after > before + 0.5 && listed <= before + 0.5) {
-            addedAdvance = cleanObject({
-              amount: Math.round((after - before) * 100) / 100, date: new Date().toISOString(), notes: 'Added in the order form',
-              // The form's "Paid by" names this money only when there was no advance before it.
-              ...(before <= 0.5 && updatedOrderData.advanceMethod ? { method: updatedOrderData.advanceMethod } : {}),
-            }) as Payment;
-            updatedOrderData = { ...updatedOrderData, advances: [...(existing.advances || []), addedAdvance] };
-          }
-        }
-        if (movedTo) updatedOrderData = { ...updatedOrderData, status: movedTo };
+        // The pieces move the order on, and more advance typed into the form is money taken today:
+        // lib/writes/update-order.ts, the rule the iPhone app's edit writes too.
+        const edited = orderEditPatch(existing as never, updatedOrderData as never, new Date().toISOString(), cleanObject);
+        const { addedAdvance, movedTo } = edited;
+        updatedOrderData = edited.patch as Partial<Order>;
         // A new sample photo becomes a document of its own, in the same commit (lib/order-photos.ts):
         // the order itself stays a few KB however many photos it has.
         const split = Array.isArray(updatedOrderData.items) ? splitItemPhotos(updatedOrderData.items) : null;

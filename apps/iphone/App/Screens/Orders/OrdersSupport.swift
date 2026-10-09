@@ -10,22 +10,29 @@ import ERPCore
 struct OrdersWebTarget: Hashable, Identifiable {
     let path: String
     let title: String
+    /// A place with a native screen of its own (Edit order): the registry's screen, not the ERP's page.
+    var native = false
     var id: String { path }
 
     /// The order's own ERP page: edit, give out, finalize, refund, delete.
     static func orderPage(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)", title: id) }
     /// The same page with the Finalize & invoice dialog open (the page reads ?do=finalize).
     static func finalize(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)?do=finalize", title: id) }
-    static func edit(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)/edit", title: "Edit \(id)") }
+    /// New order's form on the order on file (NewOrderEdit).
+    static func edit(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)/edit", title: "Edit \(id)", native: true) }
 }
 
 extension View {
     /// The destination for an `OrdersWebTarget` set by a button.
     func ordersWebDestination(_ target: Binding<OrdersWebTarget?>) -> some View {
         navigationDestination(item: target) { t in
-            WebScreen(path: t.path)
-                .navigationTitle(t.title)
-                .navigationBarTitleDisplayMode(.inline)
+            if t.native {
+                ScreenRegistry.view(for: t.path)
+            } else {
+                WebScreen(path: t.path)
+                    .navigationTitle(t.title)
+                    .navigationBarTitleDisplayMode(.inline)
+            }
         }
     }
 

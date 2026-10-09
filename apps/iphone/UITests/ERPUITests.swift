@@ -23,6 +23,7 @@ final class ERPUITests: XCTestCase {
         "/expenses", "/additional-revenue", "/hisaab", "/hisaab/KAR-D1?type=karigar",
         "/analytics", "/analytics/sales", "/analytics/products", "/analytics/customers", "/analytics/categories",
         "/invoices/INV-D0002", "/orders/ORD-D0002", "/customers/CUST-D06", "/app/phone",
+        "/orders/ORD-D0002/edit", "/invoices/INV-D0002/edit",
         "/settings", "/app/settings/shop", "/settings/alerts", "/settings/payment-methods", "/settings/data",
         "/posts", "/marketing/pieces", "/marketing/website", "/ads", "/ads/campaigns",
     ]
@@ -102,6 +103,20 @@ final class ERPUITests: XCTestCase {
     }
 
     func testANewSaleOffersTheBookAsTheNameIsTyped() { pickByTyping("/invoices/new", tab: "invoices") }
+
+    /// Edit order and Edit invoice are the New forms opened on what is on file, saved as changes.
+    private func editOpens(_ place: String, tab: String) {
+        let app = demo(["-ERPDemoTab", tab, "-ERPDemoOpen", place])
+        app.launch()
+        let save = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Save changes'")).firstMatch
+        XCTAssertTrue(save.waitForExistence(timeout: 10), "\(place) opens the form with Save changes")
+        XCTAssertFalse(app.buttons["Start over"].exists, "\(place) has no Start over: the record on file is the copy")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    func testEditingAnOrderOpensItsForm() { editOpens("/orders/ORD-D0002/edit", tab: "orders") }
+
+    func testEditingAnInvoiceOpensItsForm() { editOpens("/invoices/INV-D0002/edit", tab: "invoices") }
 
     func testANewOrderOffersTheBookAsTheNameIsTyped() { pickByTyping("/orders/add", tab: "orders") }
 

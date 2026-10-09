@@ -347,7 +347,8 @@ struct OrderScreen: View {
                 if !OrdersLogic.hasInvoice(order) && (order.status == .completed || order.status == .inProgress) {
                     Button { web = .finalize(order.id) } label: { Label("Finalize & invoice", systemImage: "doc.text") }
                 }
-                if !OrdersLogic.hasInvoice(order) {
+                // Changing an order is an owner's, as in the browser.
+                if session.isOwner && !OrdersLogic.hasInvoice(order) {
                     Button { web = .edit(order.id) } label: { Label("Edit order", systemImage: "pencil") }
                 }
                 // The whole page: edit, give out, finalize, refund, delete.

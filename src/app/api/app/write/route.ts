@@ -24,6 +24,7 @@ import { cleanRates, setRates } from '@/lib/writes/rates';
 import { cleanSettingsPatch } from '@/lib/writes/settings';
 import { cleanObject, createInvoice, type SaleInput, type SaleLine } from '@/lib/writes/create-invoice';
 import { createOrder } from '@/lib/writes/create-order';
+import { updateOrder } from '@/lib/writes/update-order';
 import { addRepair, recordRepairPayment, setRepairStatus, type NewRepair } from '@/lib/writes/repairs';
 import { REPAIR_STATUSES, type RepairStatus } from '@/lib/repairs';
 import { addExpense } from '@/lib/writes/expenses';
@@ -52,6 +53,8 @@ const OPS: Record<string, ('owner' | 'staff')[]> = {
   setRates: ['owner'],
   createInvoice: ['owner'],
   createOrder: ['owner', 'staff'],
+  // The browser's edit writes Firestore itself, which staff cannot: an owner's, as there.
+  updateOrder: ['owner'],
   addRepair: ['owner'],
   setRepairStatus: ['owner'],
   recordRepairPayment: ['owner'],
@@ -70,6 +73,16 @@ const OPS: Record<string, ('owner' | 'staff')[]> = {
 let lastHisaabSync = 0;
 
 const SIZE_FIELDS = new Set(['ringSize', 'bangleSize', 'braceletSize']);
+
+/** What Edit order may change on an order: the form's fields (order-form.tsx's edit path), nothing else. */
+const ORDER_EDIT_FIELDS = [
+  'customerId', 'customerName', 'customerContact', 'source', 'promisedDate', 'takenBy', 'notes', 'hideRates',
+  'advancePayment', 'advanceMethod', 'exchanges', 'advanceInExchangeDescription', 'advanceInExchangeValue',
+  'ratesApplied', 'costRate24k', 'subtotal', 'discountAmount', 'grandTotal', 'delivery',
+] as const;
+/** Fields an edit may clear (null), as the form's edit path clears them. */
+const ORDER_CLEARABLE = new Set(['customerId', 'advanceMethod', 'costRate24k', 'delivery', 'promisedDate', 'source', 'takenBy']);
+const ORDER_MONEY = new Set(['advancePayment', 'advanceInExchangeValue', 'costRate24k', 'subtotal', 'discountAmount', 'grandTotal']);
 
 const text = (v: unknown) => String(v ?? '').trim();
 
@@ -164,21 +177,31 @@ export async function POST(req: NextRequest) {
         }
 
         case 'createInvoice': {
-          // A new sale (editing one stays the ERP's page for now). The pieces are the phone's copies of
-          // the stock, perhaps re-priced by hand, as the browser's cart holds them.
-          if (body.existingInvoiceId) return NextResponse.json({ error: 'Edit a sale from its page in the ERP.' }, { status: 400 });
+          // A new sale, or an invoice edited (the sale page's edit: the same write, keeping its number, its
+          // payments and its date). The pieces are the phone's copies of the stock, perhaps re-priced by hand,
+          // as the browser's cart holds them.
+          const editing = text(body.existingInvoiceId);
           const cart = Array.isArray(body.cart) ? (body.cart as SaleLine[]).filter((l) => l && typeof l.sku === 'string' && l.sku) : [];
           if (!cart.length) return NextResponse.json({ error: 'The sale has no pieces.' }, { status: 400 });
+          // The invoice's own pieces are sold already, to it: an edit keeps them without asking the stock.
+          const onInvoice = new Set<string>();
+          if (editing) {
+            const held = await adminDb.collection('invoices').doc(editing).get();
+            if (!held.exists) return NextResponse.json({ error: `Invoice ${editing} not found.` }, { status: 404 });
+            const lines = held.data()?.items;
+            for (const l of (Array.isArray(lines) ? lines : Object.values(lines || {})) as { sku?: string }[]) if (l?.sku) onInvoice.add(l.sku);
+          }
           // A phone's stock can be seconds old: a piece sold meanwhile is refused, never sold twice.
           // A piece described at the counter for this bill (NEW-…, lib/sku.ts) was never stock; it is
           // refused only once sold, so a save sent again after a dropped line is not a second sale.
           const stock = await Promise.all(cart.map((l) => adminDb.collection(isOneOffSku(l.sku) ? 'sold_products' : 'products').doc(l.sku).get()));
-          const gone = cart.filter((l, i) => isOneOffSku(l.sku) ? stock[i].exists : !stock[i].exists)
+          const gone = cart.filter((l, i) => !onInvoice.has(l.sku) && (isOneOffSku(l.sku) ? stock[i].exists : !stock[i].exists))
             .map((l) => isOneOffSku(l.sku) ? `${l.name || 'a new piece'} (already sold)` : l.sku);
           if (gone.length) return NextResponse.json({ error: `No longer in stock: ${gone.join(', ')}.` }, { status: 409 });
           const customer = (body.customer || {}) as SaleInput['customer'];
           const invoice = await createInvoice(adminPort, {
             cart,
+            ...(editing && { existingInvoiceId: editing }),
             customer: { ...(text(customer.id) && { id: text(customer.id) }), name: text(customer.name) || 'Walk-in Customer', ...(text(customer.phone) && { phone: text(customer.phone) }) },
             rates: (body.rates || {}) as SaleInput['rates'],
             discountAmount: Number(body.discountAmount) || 0,
@@ -211,6 +234,44 @@ export async function POST(req: NextRequest) {
             clean: cleanObject,
           }, { log, notify: (id) => alert({ event: 'order', id }) });
           return NextResponse.json({ ok: true, order: created, followUps });
+        }
+
+        case 'updateOrder': {
+          // Edit order: the order form's "Save Changes" (lib/writes/update-order.ts, the browser's own write).
+          const orderId = text(body.orderId);
+          const sent = (body.order || {}) as Record<string, unknown>;
+          const items = Array.isArray(sent.items) ? (sent.items as Record<string, unknown>[]).filter((i) => i && typeof i === 'object') : [];
+          if (!orderId || !items.length) return NextResponse.json({ error: 'An order needs at least one piece.' }, { status: 400 });
+          const onFile = await adminDb.collection('orders').doc(orderId).get();
+          if (!onFile.exists) return NextResponse.json({ error: `Order ${orderId} not found.` }, { status: 404 });
+          const stored = (onFile.data()?.items || []) as Record<string, unknown>[];
+          const edit: Record<string, unknown> = {};
+          for (const key of ORDER_EDIT_FIELDS) {
+            if (!(key in sent)) continue;
+            const v = sent[key];
+            if (v === null) { if (ORDER_CLEARABLE.has(key)) edit[key] = null; continue; }
+            if (ORDER_MONEY.has(key)) {
+              const n = Number(v);
+              if (!Number.isFinite(n) || n < 0) return NextResponse.json({ error: `${key} must be a figure of 0 or more.` }, { status: 400 });
+              edit[key] = n;
+            } else edit[key] = v;
+          }
+          // The phone sends each piece with the index it had: the form's fields go over the stored piece, so
+          // what the form does not show (finished, given, its sample photo) stays as it was. A new picture
+          // replaces the old one (createOrder's splitItemPhotos files it).
+          edit.items = items.map((raw) => {
+            const { editIndex, ...piece } = raw;
+            const at = Number(editIndex);
+            const base: Record<string, unknown> = Number.isInteger(at) && at >= 0 && at < stored.length ? { ...stored[at] } : { isCompleted: false };
+            if (typeof piece.sampleImageDataUri === 'string' && piece.sampleImageDataUri) delete base.samplePhotoId;
+            const merged: Record<string, unknown> = { ...base, ...piece };
+            // A karigar taken off in the form: the field goes (null would read as a karigar named "null").
+            if (piece.karigarId === null) delete merged.karigarId;
+            return merged;
+          });
+          const out = await updateOrder(adminPort, { orderId, edit: edit as never }, { clean: cleanObject },
+            { log, notifyStatus: (id, status) => alert({ event: 'order-status', id, status }) });
+          return NextResponse.json({ ok: true, order: out, followUps });
         }
 
         case 'addRepair': {

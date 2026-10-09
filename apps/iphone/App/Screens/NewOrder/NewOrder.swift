@@ -11,9 +11,17 @@ import ERPCore
 /// WorkDraftSync), until it is saved or started over. A piece can start from one in stock (Add from stock);
 /// sizes are offered to the customer's profile once the order is saved (NewOrderSizeAsk). The AI slip reader and
 /// the voice order stay on the ERP's page ("Read a slip").
+///
+/// Edit order (/orders/<id>/edit) is this same form opened on the order on file (NewOrderEdit): nothing is kept
+/// on the phone or in Drafts, there is no starting over, and Save writes the changes (`updateOrder`), owners only
+/// as in the browser.
 struct NewOrder: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
+    @Environment(\.dismiss) private var dismiss
+
+    /// The order being edited, or nil for a new one.
+    private let edit: NewOrderEdit?
 
     @State private var draft = NewOrderDraft.fresh()
     /// The phone's copy has been read (and not before: an unread draft must never be overwritten).
@@ -29,12 +37,20 @@ struct NewOrder: View {
     @State private var confirmReset = false
     @State private var pickingStock = false
 
-    init() {}
+    init() { edit = nil }
+
+    init(edit: NewOrderEdit) {
+        self.edit = edit
+        _draft = State(initialValue: edit.draft)
+        _loaded = State(initialValue: true)
+    }
 
     var body: some View {
         Group {
             if let created {
                 NewOrderLanding(id: created)
+            } else if edit != nil && session.role != "owner" {
+                ContentUnavailableView("Only an owner can change an order", systemImage: "lock", description: Text("Ask an owner to make the change, or add a note on the order."))
             } else if session.role == "owner" || session.role == "staff" {
                 form
             } else {
@@ -107,7 +123,7 @@ struct NewOrder: View {
     /// The order in Drafts as the web's form holds it, a moment after the last change (`now` as the screen or
     /// the app goes), so it can be finished at the counter (WorkDraftSync).
     private func sync(now: Bool = false) {
-        guard loaded, created == nil else { return }
+        guard loaded, created == nil, edit == nil else { return }
         let d = draft
         let settings = book.settings.value
         WorkDraftSync.order.push(blank: d.isBlank, enabled: settings?.autoDraftForms ?? true, now: now) {
@@ -121,7 +137,7 @@ struct NewOrder: View {
 
     /// "Taken by" starts on the signed-in person (their counter name on the house's list), once.
     private func settleTakenBy() {
-        guard loaded, let shop = session.me?.shop else { return }
+        guard loaded, edit == nil, let shop = session.me?.shop else { return }
         draft.settleTakenBy(person: shop.person, list: shop.takenBy)
     }
 
@@ -157,6 +173,12 @@ struct NewOrder: View {
     private func screen(_ totals: NewOrderMath.Totals, _ settings: Settings?) -> some View {
         Form { Group {
             if restored { restoredBanner }
+            if edit?.invoiced == true {
+                Section {
+                    Label("This order is on an invoice already. The invoice keeps its own copy of the pieces and the money: change those on the invoice.", systemImage: "doc.text")
+                        .font(.subheadline)
+                }
+            }
             NewOrderCustomerSection(draft: $draft, people: people, takenBy: session.shop.takenBy) {
                 CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: book.customers.items)
             }
@@ -171,15 +193,17 @@ struct NewOrder: View {
             .houseRows()
         }
         .scrollDismissesKeyboard(.interactively)
-        .navigationTitle("New order")
+        .navigationTitle(edit.map { "Edit \($0.orderId)" } ?? "New order")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                // The AI slip reader and the voice order stay on the ERP's page; ?web=1 opens it even though
-                // /orders/add has a native screen, and the page reads scan=parchi to open the reader at once.
-                NavigationLink(value: Route(path: "/orders/add?web=1&scan=parchi")) {
-                    Label("Read a slip", systemImage: "doc.text.viewfinder")
-                        .labelStyle(.titleAndIcon)
+            // The AI slip reader and the voice order stay on the ERP's page; ?web=1 opens it even though
+            // /orders/add has a native screen, and the page reads scan=parchi to open the reader at once.
+            if edit == nil {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(value: Route(path: "/orders/add?web=1&scan=parchi")) {
+                        Label("Read a slip", systemImage: "doc.text.viewfinder")
+                            .labelStyle(.titleAndIcon)
+                    }
                 }
             }
         }
@@ -192,7 +216,8 @@ struct NewOrder: View {
     private var keeping: NewOrderKeeping {
         NewOrderKeeping(
             draft: draft,
-            loaded: loaded,
+            // An edit is never kept on the phone or in Drafts: the order on file is the copy.
+            loaded: loaded && edit == nil,
             settingsValue: book.settings.value,
             keep: { keepNow() },
             sync: { sync() },
@@ -201,7 +226,7 @@ struct NewOrder: View {
     }
 
     private func keepNow() {
-        guard loaded, created == nil else { return }
+        guard loaded, created == nil, edit == nil else { return }
         NewOrderDraftStore.save(draft, now: true)
         sync(now: true)
     }
@@ -333,7 +358,7 @@ struct NewOrder: View {
             }
         }
         NewOrderTotalsSection(totals: totals, pieces: draft.pieces.count)
-        if !draft.isBlank {
+        if edit == nil && !draft.isBlank {
             Section {
                 Button("Start over", role: .destructive) { confirmReset = true }
             } footer: {
@@ -375,7 +400,7 @@ struct NewOrder: View {
                     if saving {
                         ProgressView()
                     } else {
-                        Text("Save order")
+                        Text(edit == nil ? "Save order" : "Save changes")
                     }
                 }
                 .frame(minWidth: 120)
@@ -420,6 +445,19 @@ struct NewOrder: View {
         }
         saving = true
         defer { saving = false }
+        if let edit {
+            // The form's edit path: the ERP lays these fields over the order on file and its pieces.
+            let request = NewOrderMath.editRequest(draft, edit: edit, settings: settings, customers: people)
+            do {
+                _ = try await ERPAPI.shared.write("updateOrder", request)
+                dismiss()
+            } catch let e as ERPAPI.Failure {
+                tell("The changes weren't saved", e.message)
+            } catch {
+                tell("The changes weren't saved", error.localizedDescription + "\n\nIf the connection dropped, the changes may have been saved. Check the order before saving again.")
+            }
+            return
+        }
         let request = NewOrderMath.request(draft, settings: settings, customers: people)
         do {
             let out = try await ERPAPI.shared.write("createOrder", request)

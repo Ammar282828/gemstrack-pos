@@ -94,7 +94,7 @@ beforeEach(() => {
 });
 
 const OPS = ['recordPayment', 'recordOrderAdvance', 'setOrderStatus', 'setPieceDone', 'setPieceKarigar', 'setPieceGiven', 'addCustomer',
-  'setRates', 'createInvoice', 'createOrder', 'addRepair', 'setRepairStatus', 'recordRepairPayment', 'addExpense', 'addGivenItem', 'markGivenReturned', 'updateSettings'];
+  'setRates', 'createInvoice', 'createOrder', 'addRepair', 'setRepairStatus', 'recordRepairPayment', 'addExpense', 'addGivenItem', 'markGivenReturned', 'updateSettings', 'updateOrder'];
 const STAFF_MAY = ['recordPayment', 'setOrderStatus', 'addCustomer', 'createOrder'];
 
 describe('who may write', () => {
@@ -180,6 +180,61 @@ describe('orders', () => {
   });
 });
 
+describe('editing an order from the phone', () => {
+  const editOf = (order: Record<string, unknown>) => ({ op: 'updateOrder', orderId: 'ORD-000001', order });
+  const pieces = [
+    { editIndex: 0, description: 'A, resized', karigarId: null },
+    { editIndex: 1, description: 'B' },
+  ];
+
+  it('owners only; needs pieces and an order that is there', async () => {
+    expect((await call(editOf({ items: pieces }), 'staff@example.com')).status).toBe(403);
+    expect((await call(editOf({ items: [] }))).status).toBe(400);
+    expect((await call({ op: 'updateOrder', orderId: 'ORD-404', order: { items: pieces } })).status).toBe(404);
+    expect((await call(editOf({ items: pieces, grandTotal: -5 }))).status).toBe(400);
+  });
+
+  it("lays the form's fields over each stored piece, keeps what the form does not show, and ignores unknown fields", async () => {
+    put('orders', 'ORD-000001', { items: [{ description: 'A', isCompleted: false, karigarId: 'KAR-1', samplePhotoId: 'photo-1' }, { description: 'B', isCompleted: true, givenAt: '2026-10-01' }] }, true);
+    const r = await call(editOf({ items: pieces, customerName: 'Demo Two', grandTotal: 40_000, invoiceId: 'INV-X', status: 'Completed', promisedDate: null }));
+    expect(r.status).toBe(200);
+    const o = data.orders['ORD-000001'];
+    expect(o.items).toEqual([
+      { description: 'A, resized', isCompleted: false, samplePhotoId: 'photo-1' },
+      { description: 'B', isCompleted: true, givenAt: '2026-10-01' },
+    ]);
+    expect(o.customerName).toBe('Demo Two');
+    expect(o.grandTotal).toBe(40_000);
+    // Not the form's to set: an invoice link or a bare status.
+    expect(o.invoiceId).toBeUndefined();
+    expect(o.status).toBe('In Progress');
+    expect(o.promisedDate).toBeNull();
+  });
+
+  it('more advance than before is money taken today, listed with its method', async () => {
+    const r = await call(editOf({ items: pieces, advancePayment: 10_000, advanceMethod: 'Bank Transfer' }));
+    expect(r.status).toBe(200);
+    const advances = data.orders['ORD-000001'].advances as { amount: number; method?: string; notes?: string }[];
+    expect(advances).toHaveLength(1);
+    expect(advances[0]).toMatchObject({ amount: 10_000, method: 'Bank Transfer', notes: 'Added in the order form' });
+  });
+
+  it('every piece finished completes the order and raises its alert', async () => {
+    const r = await call(editOf({ items: [{ editIndex: 0, description: 'A', isCompleted: true }, { editIndex: 1, description: 'B' }] }));
+    expect(data.orders['ORD-000001'].status).toBe('Completed');
+    expect(r.body.followUps).toEqual([{ path: '/api/notifications/alert', body: { event: 'order-status', id: 'ORD-000001', status: 'Completed' } }]);
+  });
+
+  it('a new picture replaces the old one, filed in order_photos', async () => {
+    put('orders', 'ORD-000001', { items: [{ description: 'A', samplePhotoId: 'photo-old' }] }, true);
+    await call(editOf({ items: [{ editIndex: 0, description: 'A', sampleImageDataUri: 'data:image/jpeg;base64,AAAA' }] }));
+    const item = (data.orders['ORD-000001'].items as Record<string, unknown>[])[0];
+    expect(item.samplePhotoId).not.toBe('photo-old');
+    expect(item.sampleImageDataUri).toBeUndefined();
+    expect(data.order_photos[item.samplePhotoId as string]).toMatchObject({ orderId: 'ORD-000001' });
+  });
+});
+
 describe('a new sale from the phone', () => {
   const sale = (over: Record<string, unknown> = {}) => ({ op: 'createInvoice', cart: [RING], customer: { name: 'Walk-in Customer' }, rates: { goldRatePerGram21k: 30_000 }, discountAmount: 0, ...over });
 
@@ -226,9 +281,38 @@ describe('a new sale from the phone', () => {
 
   it('no pieces, an edit, or a walk-in paying past the total is refused', async () => {
     expect((await call(sale({ cart: [] }))).status).toBe(400);
-    expect((await call(sale({ existingInvoiceId: 'INV-000001' }))).status).toBe(400);
+    expect((await call(sale({ existingInvoiceId: 'INV-404' }))).status).toBe(404);
     expect((await call(sale({ payments: [{ amount: 999_999 }] }))).status).toBe(409);
     expect(data.products['RNG-T1']).toBeDefined();
+  });
+});
+
+describe('editing an invoice from the phone', () => {
+  it("keeps its number, its date and its payments; its own pieces pass, another sold piece does not", async () => {
+    put('invoices', 'INV-000001', {
+      items: [{ sku: 'RNG-T1', name: 'Demo ring', unitPrice: 137_000, itemTotal: 137_000, quantity: 1 }],
+      grandTotal: 137_000, amountPaid: 10_000, balanceDue: 127_000, createdAt: '2026-10-01T10:00:00.000Z',
+      customerId: 'c1', customerName: 'Demo One', paymentHistory: [{ amount: 10_000, date: '2026-10-01T10:00:00.000Z' }],
+    });
+    // The ring is the invoice's: sold, out of stock.
+    put('sold_products', 'RNG-T1', RING);
+    delete data.products['RNG-T1'];
+    const edit = (extra: Record<string, unknown>) => ({
+      op: 'createInvoice', existingInvoiceId: 'INV-000001', cart: [{ ...RING }],
+      customer: { id: 'c1', name: 'Demo One' }, rates: { goldRatePerGram21k: 30_000 }, ...extra,
+    });
+    const r = await call(edit({ discountAmount: 2_000 }));
+    expect(r.status).toBe(200);
+    const inv = data.invoices['INV-000001'];
+    expect(inv.createdAt).toBe('2026-10-01T10:00:00.000Z');
+    expect(inv.amountPaid).toBe(10_000);
+    expect(inv.discountAmount).toBe(2_000);
+    expect((data.app_settings.global as { lastInvoiceNumber: number }).lastInvoiceNumber).toBe(1);
+    // A piece sold to someone else meanwhile is still refused by name.
+    put('sold_products', 'RNG-T2', { ...RING, sku: 'RNG-T2' });
+    const other = await call(edit({ cart: [{ ...RING }, { ...RING, sku: 'RNG-T2' }] }));
+    expect(other.status).toBe(409);
+    expect(String(other.body.error)).toContain('RNG-T2');
   });
 });
 

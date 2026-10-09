@@ -552,16 +552,19 @@ extension SaleForm {
     /// /orders/add?fromCart=1): the order form opens on them, and the sale is cleared when the order saves.
     @ViewBuilder
     func orderSection() -> some View {
-        Section {
-            Button {
-                // An order half typed on this phone is not thrown away without asking.
-                if NewOrderDraftStore.orderInProgress { confirmingOrder = true } else { createOrder() }
-            } label: {
-                Label("Create order", systemImage: "list.clipboard")
+        // A sale already billed is not turned into an order.
+        if edit == nil {
+            Section {
+                Button {
+                    // An order half typed on this phone is not thrown away without asking.
+                    if NewOrderDraftStore.orderInProgress { confirmingOrder = true } else { createOrder() }
+                } label: {
+                    Label("Create order", systemImage: "list.clipboard")
+                }
+                .disabled(draft.lines.isEmpty)
+            } footer: {
+                Text("Invoice bills it now. Order sends it to the workshop first, with an advance if taken.")
             }
-            .disabled(draft.lines.isEmpty)
-        } footer: {
-            Text("Invoice bills it now. Order sends it to the workshop first, with an advance if taken.")
         }
     }
 
@@ -626,7 +629,8 @@ extension SaleForm {
             Button { Task { await save(f) } } label: {
                 HStack(spacing: 8) {
                     if saving { ProgressView() }
-                    Text(f.hasEstimate ? "Save sale · \(Money.pkr(f.total))" : "Save sale")
+                    Text(edit != nil ? (f.hasEstimate ? "Save changes · \(Money.pkr(f.total))" : "Save changes")
+                         : (f.hasEstimate ? "Save sale · \(Money.pkr(f.total))" : "Save sale"))
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -653,6 +657,26 @@ extension SaleForm {
         failure = nil
         goneSkus = []
         alreadySold = false
+        if let edit {
+            // The sale page's edit: the same write under the invoice's own number. Its rates are its own, held,
+            // never the shop's (an edit writes no rate back).
+            do {
+                _ = try await ERPAPI.shared.write("createInvoice", draft.editPayload(f, invoiceId: edit.invoiceId) { book.products.item($0)?.qrCodeDataUrl })
+                saving = false
+                dismiss()
+            } catch let e as ERPAPI.Failure {
+                failure = e.message
+                if e.status == 409 {
+                    let refused = SaleLookup.refusal(in: e.message, lines: draft.lines)
+                    goneSkus = refused.gone
+                    alreadySold = refused.alreadySold
+                }
+            } catch {
+                failure = error.localizedDescription
+            }
+            saving = false
+            return
+        }
         // Decided before the save, from the shop's rates as they stand now.
         let kept = draft.ratesToWriteBack(f, current: book.settings.value)
         do {

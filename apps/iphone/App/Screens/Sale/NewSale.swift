@@ -44,6 +44,13 @@ struct NewSale: View {
 struct SaleForm: View {
     @Environment(Book.self) var book
     @Environment(Session.self) var session
+    @Environment(\.dismiss) var dismiss
+
+    /// Edit invoice (SaleEdit): the invoice on file in this form. Nothing is kept on the phone or in Drafts,
+    /// there is no starting over, and Save writes the invoice under its own number.
+    var edit: SaleEdit? = nil
+    /// The invoice has been put in the form, once (a change arriving meanwhile must not undo what is typed).
+    @State var editLoaded = false
 
     @State var draft = SaleDraft()
     @State var query = ""
@@ -113,6 +120,15 @@ struct SaleForm: View {
     private var page: some View {
         let f = SaleFigures(draft: draft, settings: book.settings.value, customers: book.customers.items, marginSettings: House.margin)
         return Form { Group {
+            if let edit {
+                Section {
+                    Label(edit.paidBefore > 0
+                          ? "\(Money.pkr(edit.paidBefore)) paid before stays on \(edit.invoiceId). A payment added below is taken now. A piece taken off stays sold."
+                          : "Nothing is paid on \(edit.invoiceId) yet. A payment added below is taken now. A piece taken off stays sold.",
+                          systemImage: "pencil.and.list.clipboard")
+                        .font(.subheadline)
+                }
+            }
             customerSection(f)
             piecesSection(f)
             ratesSection(f)
@@ -126,12 +142,14 @@ struct SaleForm: View {
             .houseRows()
         }
         .scrollDismissesKeyboard(.interactively)
-        .navigationTitle("New sale")
+        .navigationTitle(edit.map { "Edit \($0.invoiceId)" } ?? "New sale")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button("Start over", role: .destructive) { confirmingReset = true }
-                    .disabled(draft.isBlank)
+            if edit == nil {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Start over", role: .destructive) { confirmingReset = true }
+                        .disabled(draft.isBlank)
+                }
             }
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -163,10 +181,12 @@ struct SaleForm: View {
         // to it while this one waits underneath, so it is read again whenever the screen appears.
         .onAppear { appeared() }
         .onChange(of: draft) { _, d in
+            // An edit is never kept on the phone or in Drafts: the invoice on file is the copy.
+            guard edit == nil else { return }
             SaleDraftStore.save(d)
             sync(d)
         }
-        .onDisappear { if made == nil { sync(draft, now: true) } }
+        .onDisappear { if made == nil && edit == nil { sync(draft, now: true) } }
         .onChange(of: query) { _, _ in notice = nil }
         // "Create order": the order form opens on this sale's pieces (NewOrderDraftStore.startFromSale).
         .navigationDestination(item: $openOrder) { r in
@@ -181,6 +201,13 @@ struct SaleForm: View {
     /// piece to it while this one waits underneath). A sale cleared elsewhere (an order made from its
     /// pieces) starts afresh. A brand-new sale starts Taken by on the signed-in person, once.
     func appeared() {
+        if let edit {
+            if !editLoaded {
+                draft = edit.draft
+                editLoaded = true
+            }
+            return
+        }
         if let stored = SaleDraftStore.load() {
             var kept = stored
             // A sale begun from Scan a tag has no Taken by yet: it starts on the signed-in person, as every new one.
