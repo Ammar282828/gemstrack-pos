@@ -94,7 +94,8 @@ beforeEach(() => {
 });
 
 const OPS = ['recordPayment', 'recordOrderAdvance', 'setOrderStatus', 'setPieceDone', 'setPieceKarigar', 'setPieceGiven', 'addCustomer',
-  'setRates', 'createInvoice', 'createOrder', 'addRepair', 'setRepairStatus', 'recordRepairPayment', 'addExpense', 'addGivenItem', 'markGivenReturned', 'updateSettings', 'updateOrder'];
+  'setRates', 'createInvoice', 'createOrder', 'addRepair', 'setRepairStatus', 'recordRepairPayment', 'addExpense', 'addGivenItem', 'markGivenReturned', 'updateSettings', 'updateOrder',
+  'updateCustomer', 'addKarigar', 'updateKarigar', 'finalizeOrder'];
 const STAFF_MAY = ['recordPayment', 'setOrderStatus', 'addCustomer', 'createOrder'];
 
 describe('who may write', () => {
@@ -232,6 +233,48 @@ describe('editing an order from the phone', () => {
     expect(item.samplePhotoId).not.toBe('photo-old');
     expect(item.sampleImageDataUri).toBeUndefined();
     expect(data.order_photos[item.samplePhotoId as string]).toMatchObject({ orderId: 'ORD-000001' });
+  });
+});
+
+describe('finalizing an order from the phone', () => {
+  const ORDER = {
+    status: 'In Progress', customerId: 'c1', customerName: 'Demo One', createdAt: '2026-10-01T10:00:00.000Z',
+    ratesApplied: { goldRatePerGram21k: 20_000 }, advancePayment: 30_000,
+    advances: [{ amount: 30_000, date: '2026-10-01T10:00:00.000Z', method: 'Cash' }],
+    items: [{ description: 'Demo ring', metalType: 'gold', karat: '21k', estimatedWeightG: 5, stoneWeightG: 0, wastagePercentage: 10, makingCharges: 2_000 }],
+  };
+  const fin = (extra: Record<string, unknown> = {}) => ({
+    op: 'finalizeOrder', orderId: 'ORD-000003',
+    items: [{ description: 'Demo ring', metalType: 'gold', karat: '21k', finalWeightG: 5.5, finalWastagePercentage: 10, finalMakingCharges: 2_000, finalDiamondCharges: 0, finalStoneCharges: 0 }],
+    additionalDiscount: 1_000, ...extra,
+  });
+
+  it('owners only; figures checked; the pieces must match the order', async () => {
+    put('orders', 'ORD-000003', ORDER);
+    expect((await call(fin(), 'staff@example.com')).status).toBe(403);
+    expect((await call(fin({ items: [] }))).status).toBe(400);
+    expect((await call(fin({ additionalDiscount: -5 }))).status).toBe(400);
+    expect((await call(fin({ items: [{ finalWeightG: 0 }] }))).status).toBe(400);
+    expect((await call(fin({ items: [{ finalWeightG: 1 }, { finalWeightG: 1 }] }))).status).toBe(409);
+    expect(data.orders['ORD-000003'].invoiceId).toBeUndefined();
+  });
+
+  it('prices at the booked rate and the typed figures, carries the advance as a payment, and links the order', async () => {
+    put('orders', 'ORD-000003', ORDER);
+    const r = await call(fin());
+    expect(r.status).toBe(200);
+    const inv = r.body.invoice as Record<string, unknown>;
+    // 5.5 g at 20,000 = 110,000; wastage 10% = 11,000; making 2,000.
+    expect(inv.subtotal).toBe(123_000);
+    expect(inv.grandTotal).toBe(122_000);
+    expect(inv.amountPaid).toBe(30_000);
+    expect(inv.balanceDue).toBe(92_000);
+    expect(inv.id).toBe('INV-000002');
+    expect(data.orders['ORD-000003']).toMatchObject({ status: 'Completed', invoiceId: 'INV-000002', grandTotal: 92_000 });
+    expect((data.app_settings.global as { lastInvoiceNumber: number }).lastInvoiceNumber).toBe(2);
+    expect(Object.values(data.hisaab ?? {})).toEqual([expect.objectContaining({ linkedInvoiceId: 'INV-000002', cashDebit: 92_000 })]);
+    // Twice is refused: undoing an invoice is the delete code's.
+    expect((await call(fin())).status).toBe(409);
   });
 });
 

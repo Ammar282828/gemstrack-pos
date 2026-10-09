@@ -12,8 +12,8 @@ struct RootGate: View {
             SignInView()
         case .signedIn:
             if session.role == "karigar" {
-                // A karigar's own work portal (the ERP's /my-work, shown at its root for them).
-                NavigationStack { WebScreen(path: "/") }
+                // A karigar's own work, native (MyWorkScreen reads the portal's /api/karigar/me; the ERP's /my-work).
+                NavigationStack { MyWorkScreen(path: "/my-work") }
             } else {
                 RootView()
             }

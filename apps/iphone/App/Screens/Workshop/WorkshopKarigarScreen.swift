@@ -4,8 +4,8 @@ import ERPCore
 /// A karigar (src/app/karigars/[id]/page.tsx): opens on Now, what he holds of ours and what we owe him
 /// (docs/decisions.md "One screen per question", lib/karigar-position.ts): his bench, the pieces' estimated weight
 /// beside the gold khata (two measures, never summed), what has been handed to him and not come back, and the
-/// hisaab cash. Read only. The hisaab, the khata and what has been paid are the owner's: the staff's copy of the
-/// books comes without them. Edit, pay and the pay batches are the ERP's own page.
+/// hisaab cash. Read only, save for Edit (the karigar form, owners). The hisaab, the khata and what has been paid are
+/// the owner's: the staff's copy of the books comes without them. Pay and the pay batches are the ERP's own page.
 struct WorkshopKarigarScreen: View {
     let id: String
 
@@ -375,7 +375,7 @@ struct WorkshopKarigarScreen: View {
 
     // MARK: What stays on the web
 
-    /// Edit, pay and the pay batches have no native screen yet; these open the ERP's own pages.
+    /// Edit is the karigar form; pay and the pay batches have no native screen yet and open the ERP's own pages.
     private func erpSection(_ karigar: Karigar) -> some View {
         Section {
             NavigationLink(value: Route(path: "/karigars/" + WorkshopLogic.piece(karigar.id) + "/edit")) {

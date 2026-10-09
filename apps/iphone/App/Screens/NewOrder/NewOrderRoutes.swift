@@ -13,10 +13,24 @@ enum NewOrderRoutes {
             matches: { p in editId(p) != nil },
             make: { p in AnyView(NewOrderEditLoader(id: editId(p) ?? "")) }
         )
+        let finalize = ScreenRoute(
+            matches: { p in finalizeId(p) != nil },
+            make: { p in AnyView(OrderFinalizeScreen(id: finalizeId(p) ?? "")) }
+        )
         return [
             .exact("/orders/add") { NewOrder() },
             edit,
+            finalize,
         ]
+    }
+
+    /// "/orders/<id>/finalize" → the id: Finalize & invoice (the web's ?do=finalize dialog), native.
+    static func finalizeId(_ path: String) -> String? {
+        let bare = ScreenRoute.bare(path)
+        guard bare.hasPrefix("/orders/"), bare.hasSuffix("/finalize") else { return nil }
+        let id = String(bare.dropFirst("/orders/".count).dropLast("/finalize".count))
+        guard !id.isEmpty, !id.contains("/") else { return nil }
+        return id.removingPercentEncoding ?? id
     }
 
     /// "/orders/<id>/edit" → the id.

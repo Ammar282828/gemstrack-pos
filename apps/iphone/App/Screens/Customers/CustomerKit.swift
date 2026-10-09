@@ -9,8 +9,8 @@ enum CustomerKit {
     // MARK: Paths
 
     /// "/customers/CUST-1" is the customer "CUST-1". Nil for the list, for "add", for a deeper page
-    /// (".../edit" has no native screen and opens as the ERP's own), and for a path that asks for
-    /// the ERP's page with "?web=1" (ScreenRoute.bare drops a query, so the screen has to look).
+    /// (".../edit" is `editId`'s), and for a path that asks for the ERP's page with "?web=1"
+    /// (ScreenRoute.bare drops a query, so the screen has to look).
     static func id(fromPath path: String) -> String? {
         if asksForWeb(path) { return nil }
         let prefix = "/customers/"
@@ -18,6 +18,19 @@ enum CustomerKit {
         guard bare.hasPrefix(prefix) else { return nil }
         let rest = String(bare.dropFirst(prefix.count))
         guard !rest.isEmpty, !rest.contains("/"), rest != "add" else { return nil }
+        return rest.removingPercentEncoding ?? rest
+    }
+
+    /// "/customers/CUST-1/edit" is the edit form of the customer "CUST-1". Nil for any other path, and for one
+    /// that asks for the ERP's page with "?web=1".
+    static func editId(fromPath path: String) -> String? {
+        if asksForWeb(path) { return nil }
+        let prefix = "/customers/"
+        let suffix = "/edit"
+        let bare = ScreenRoute.bare(path)
+        guard bare.hasPrefix(prefix), bare.hasSuffix(suffix) else { return nil }
+        let rest = String(bare.dropFirst(prefix.count).dropLast(suffix.count))
+        guard !rest.isEmpty, !rest.contains("/") else { return nil }
         return rest.removingPercentEncoding ?? rest
     }
 
@@ -74,6 +87,14 @@ enum CustomerKit {
     static func filled(_ s: String?) -> String? {
         let t = trim(s)
         return t.isEmpty ? nil : t
+    }
+
+    /// The web's `z.string().email()`, loosely: something, an @, something with a dot. Blank is fine (the field is optional).
+    static func validEmail(_ email: String) -> Bool {
+        let e = trim(email)
+        if e.isEmpty { return true }
+        let parts = e.split(separator: "@", omittingEmptySubsequences: false)
+        return parts.count == 2 && !parts[0].isEmpty && parts[1].contains(".") && !e.contains(" ")
     }
 
     /// Removal hides, it does not destroy (store.ts splitRemoved): a customer with a `deletedAt` is out of every list.

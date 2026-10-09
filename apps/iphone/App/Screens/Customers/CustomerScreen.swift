@@ -51,8 +51,8 @@ struct CustomerScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                if let c = customer, !CustomerKit.isRemoved(c) {
-                    // The ERP's own edit form: the sizes, dates and notes are more than a native form carries yet.
+                // Editing a profile is an owner's: the shop floor has no write to it, in the ERP or here.
+                if let c = customer, !CustomerKit.isRemoved(c), session.isOwner {
                     NavigationLink(value: Route(path: CustomerKit.path(c.id, suffix: "/edit"))) {
                         Text("Edit")
                     }

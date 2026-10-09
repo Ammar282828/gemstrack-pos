@@ -657,8 +657,8 @@ enum WorkshopLogic {
 
     static func karigarPath(_ id: String) -> String { "/karigars/" + piece(id) }
 
-    /// "/karigars/KAR-1" is the karigar "KAR-1". Nil for the list, for "add" (the ERP's own form), for a deeper
-    /// page (".../edit" has no native screen) and for a path that asks for the ERP's page with "?web=1".
+    /// "/karigars/KAR-1" is the karigar "KAR-1". Nil for the list, for "add" (the karigar form's), for a deeper
+    /// page (".../edit" is `karigarEditId`'s) and for a path that asks for the ERP's page with "?web=1".
     static func karigarId(fromPath path: String) -> String? {
         if ScreenRegistry.wantsWeb(path) { return nil }
         let prefix = "/karigars/"
@@ -666,6 +666,19 @@ enum WorkshopLogic {
         guard bare.hasPrefix(prefix) else { return nil }
         let rest = String(bare.dropFirst(prefix.count))
         guard !rest.isEmpty, !rest.contains("/"), rest != "add" else { return nil }
+        return rest.removingPercentEncoding ?? rest
+    }
+
+    /// "/karigars/KAR-1/edit" is the edit form of the karigar "KAR-1". Nil for any other path, and for one that
+    /// asks for the ERP's page with "?web=1".
+    static func karigarEditId(fromPath path: String) -> String? {
+        if ScreenRegistry.wantsWeb(path) { return nil }
+        let prefix = "/karigars/"
+        let suffix = "/edit"
+        let bare = ScreenRoute.bare(path)
+        guard bare.hasPrefix(prefix), bare.hasSuffix(suffix) else { return nil }
+        let rest = String(bare.dropFirst(prefix.count).dropLast(suffix.count))
+        guard !rest.isEmpty, !rest.contains("/") else { return nil }
         return rest.removingPercentEncoding ?? rest
     }
 

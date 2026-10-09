@@ -3,7 +3,7 @@ import ERPCore
 
 /// New customer (src/components/customer/customer-form.tsx, add mode). The ERP's server takes a
 /// name, number, email, address and source (`addCustomer`); the form's second number, city,
-/// sizes, dates and notes are the ERP's own edit form, offered once they are saved.
+/// sizes, dates and notes are the edit form's (EditCustomer), offered once they are saved.
 ///
 /// Like the web form, a name is optional: left blank it becomes "Customer - <number>", or
 /// "Unnamed Customer" (the server refuses a nameless customer). Unlike a sale, this never makes a
@@ -14,6 +14,7 @@ import ERPCore
 /// the tab bar) or a pushed page (Customers' plus), and dismissing would be wrong for the second.
 struct AddCustomer: View {
     @Environment(Book.self) private var book
+    @Environment(Session.self) private var session
     @Environment(\.dismiss) private var dismiss
 
     @State private var name = ""
@@ -51,13 +52,7 @@ struct AddCustomer: View {
 
     private var walkIn: Bool { !shouldCreateCustomer(id: nil, name: nameToSave) }
 
-    /// The web's `z.string().email()`, loosely: something, an @, something with a dot.
-    private var emailOK: Bool {
-        let e = CustomerKit.trim(email)
-        if e.isEmpty { return true }
-        let parts = e.split(separator: "@", omittingEmptySubsequences: false)
-        return parts.count == 2 && !parts[0].isEmpty && parts[1].contains(".") && !e.contains(" ")
-    }
+    private var emailOK: Bool { CustomerKit.validEmail(email) }
 
     private var canSave: Bool { !saving && !walkIn && emailOK }
 
@@ -102,8 +97,9 @@ struct AddCustomer: View {
         .navigationDestination(item: $opened) { customerId in
             CustomerScreen(id: customerId, seed: saved?.customer)
         }
+        // The edit form, over the customer just saved: the shelf may not have them yet, so they come along.
         .navigationDestination(item: $editing) { target in
-            WebScreen(path: CustomerKit.path(target.id, suffix: "/edit"))
+            EditCustomer(id: target.id, seed: saved?.customer)
         }
         .sensoryFeedback(.success, trigger: saved)
         .interactiveDismissDisabled(saving)
@@ -199,7 +195,8 @@ struct AddCustomer: View {
                 .listRowBackground(Color.clear)
             }
             Section {
-                if !s.id.isEmpty {
+                // Editing a profile is an owner's (the shop floor has no write to it, in the ERP or here).
+                if !s.id.isEmpty && session.isOwner {
                     Button { editing = EditTarget(id: s.id) } label: {
                         Label("Add sizes, birthday and notes", systemImage: "ruler")
                     }
@@ -208,7 +205,9 @@ struct AddCustomer: View {
                     Label("Add another customer", systemImage: "person.badge.plus")
                 }
             } footer: {
-                Text("Sizes, dates and notes are filled in on the ERP's own edit page.")
+                if session.isOwner {
+                    Text("The second number, city, sizes, dates and notes are filled in on the edit page.")
+                }
             }
         }
         .listStyle(.insetGrouped)

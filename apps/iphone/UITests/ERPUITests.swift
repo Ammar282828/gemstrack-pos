@@ -23,7 +23,9 @@ final class ERPUITests: XCTestCase {
         "/expenses", "/additional-revenue", "/hisaab", "/hisaab/KAR-D1?type=karigar",
         "/analytics", "/analytics/sales", "/analytics/products", "/analytics/customers", "/analytics/categories",
         "/invoices/INV-D0002", "/orders/ORD-D0002", "/customers/CUST-D06", "/app/phone",
-        "/orders/ORD-D0002/edit", "/invoices/INV-D0002/edit",
+        "/orders/ORD-D0002/edit", "/invoices/INV-D0002/edit", "/orders/ORD-D0002/finalize",
+        "/customers/CUST-D06/edit", "/karigars/add", "/karigars/KAR-D1/edit",
+        "/drafts", "/calendar", "/activity-log", "/my-work?preview=KAR-D1",
         "/settings", "/app/settings/shop", "/settings/alerts", "/settings/payment-methods", "/settings/data",
         "/posts", "/marketing/pieces", "/marketing/website", "/ads", "/ads/campaigns",
     ]

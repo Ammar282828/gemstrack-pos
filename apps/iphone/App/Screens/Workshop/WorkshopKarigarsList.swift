@@ -3,7 +3,7 @@ import ERPCore
 
 /// The karigars (src/app/karigars/page.tsx): not a phone book but a list of what each one is holding right now.
 /// Working first, the busiest and most overdue on top, then the free ones; each row says how many pieces are on
-/// the bench and how many are overdue. A new karigar is the ERP's own form.
+/// the bench and how many are overdue. A new karigar is the karigar form (owners).
 struct WorkshopKarigarsList: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -33,7 +33,7 @@ struct WorkshopKarigarsList: View {
         .toolbar {
             if session.isOwner {
                 ToolbarItem(placement: .primaryAction) {
-                    // A new karigar stays the ERP's own page for now.
+                    // The karigar form: an owner's, as the ERP's menu has it.
                     NavigationLink(value: Route(path: "/karigars/add")) {
                         Label("Add karigar", systemImage: "plus")
                     }

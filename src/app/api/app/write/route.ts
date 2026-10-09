@@ -25,6 +25,8 @@ import { cleanSettingsPatch } from '@/lib/writes/settings';
 import { cleanObject, createInvoice, type SaleInput, type SaleLine } from '@/lib/writes/create-invoice';
 import { createOrder } from '@/lib/writes/create-order';
 import { updateOrder } from '@/lib/writes/update-order';
+import { finalizeOrder } from '@/lib/writes/finalize-order';
+import type { FinalizedItem } from '@/lib/order-finalize';
 import { addRepair, recordRepairPayment, setRepairStatus, type NewRepair } from '@/lib/writes/repairs';
 import { REPAIR_STATUSES, type RepairStatus } from '@/lib/repairs';
 import { addExpense } from '@/lib/writes/expenses';
@@ -35,6 +37,8 @@ import { addGivenItem, markGivenItemReturned } from '@/lib/writes/given';
 import { mainRate } from '@/lib/rates';
 import { personFor } from '@/lib/people';
 import { STORE_CONFIG } from '@/lib/store-config';
+import type { OpHandler, OpRoles } from './op-context';
+import { PEOPLE_OPS, runPeopleOp } from './ops-people';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +46,7 @@ type Body = { op?: string } & Record<string, unknown>;
 type FollowUp = { path: string; body: Record<string, unknown> };
 
 /** Who may run each operation: as the browser allows it today. */
-const OPS: Record<string, ('owner' | 'staff')[]> = {
+const OWN_OPS: Record<string, ('owner' | 'staff')[]> = {
   recordPayment: ['owner', 'staff'],
   setOrderStatus: ['owner', 'staff'],
   addCustomer: ['owner', 'staff'],
@@ -55,6 +59,8 @@ const OPS: Record<string, ('owner' | 'staff')[]> = {
   createOrder: ['owner', 'staff'],
   // The browser's edit writes Firestore itself, which staff cannot: an owner's, as there.
   updateOrder: ['owner'],
+  // Finalize & invoice: the order page's dialog, a browser write staff cannot make either.
+  finalizeOrder: ['owner'],
   addRepair: ['owner'],
   setRepairStatus: ['owner'],
   recordRepairPayment: ['owner'],
@@ -68,6 +74,13 @@ const OPS: Record<string, ('owner' | 'staff')[]> = {
   // Settings → Shop, Alerts, Bank accounts, Data: only the fields lib/writes/settings.ts names.
   updateSettings: ['owner'],
 };
+
+/** The groups of operations kept in files of their own (ops-<group>.ts): their roles and their handlers. */
+const GROUPS: { roles: OpRoles; run: OpHandler }[] = [
+  { roles: PEOPLE_OPS, run: runPeopleOp },
+];
+
+const OPS: OpRoles = Object.assign({}, OWN_OPS, ...GROUPS.map((g) => g.roles));
 
 /** The last hisaab sync on this server: one every two minutes is plenty, and each reads every invoice. */
 let lastHisaabSync = 0;
@@ -274,6 +287,43 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ ok: true, order: out, followUps });
         }
 
+        case 'finalizeOrder': {
+          // Finalize & invoice (lib/writes/finalize-order.ts, the browser's own): each piece at the figures typed.
+          const orderId = text(body.orderId);
+          const raw = Array.isArray(body.items) ? (body.items as Record<string, unknown>[]) : [];
+          if (!orderId || !raw.length) return NextResponse.json({ error: 'An order and its pieces are needed.' }, { status: 400 });
+          const figure = (v: unknown) => { const n = Number(v ?? 0); return Number.isFinite(n) && n >= 0 ? n : NaN; };
+          const items: FinalizedItem[] = [];
+          for (const it of raw) {
+            const f = {
+              finalWeightG: figure(it?.finalWeightG), finalMakingCharges: figure(it?.finalMakingCharges),
+              finalDiamondCharges: figure(it?.finalDiamondCharges), finalStoneCharges: figure(it?.finalStoneCharges),
+              finalManualPrice: figure(it?.finalManualPrice),
+              finalWastagePercentage: it?.finalWastagePercentage == null ? undefined : figure(it.finalWastagePercentage),
+            };
+            if (Object.values(f).some((v) => typeof v === 'number' && Number.isNaN(v))) {
+              return NextResponse.json({ error: 'Every weight and charge must be a figure of 0 or more.' }, { status: 400 });
+            }
+            const manual = it?.isManualPrice === true;
+            if (!manual && f.finalWeightG <= 0) return NextResponse.json({ error: 'Weight must be a positive number.' }, { status: 400 });
+            items.push({
+              description: text(it?.description), metalType: it?.metalType as FinalizedItem['metalType'],
+              ...(text(it?.karat) && { karat: text(it?.karat) as FinalizedItem['karat'] }),
+              ...f, isManualPrice: manual,
+            } as FinalizedItem);
+          }
+          const discount = figure(body.additionalDiscount);
+          if (Number.isNaN(discount)) return NextResponse.json({ error: 'Discount cannot be negative.' }, { status: 400 });
+          const before = (await adminDb.collection('orders').doc(orderId).get()).data() as { shopifyDraftOrderId?: string } | undefined;
+          const invoice = await finalizeOrder(adminPort, {
+            orderId, items, additionalDiscount: discount,
+            costRate24k: Number(body.costRate24k) > 0 ? Number(body.costRate24k) : undefined,
+          }, { clean: cleanObject }, { log });
+          // The order's Shopify draft goes, as the browser cancels it: the invoice is the record now.
+          if (before?.shopifyDraftOrderId) followUps.push({ path: '/api/shopify/sync/order', body: { orderId, action: 'cancel' } });
+          return NextResponse.json({ ok: true, invoice, followUps });
+        }
+
         case 'addRepair': {
           const r = (body.repair || {}) as NewRepair;
           const pieces = Array.isArray(r.pieces) ? r.pieces.filter((p) => p && text(p.item)) : [];
@@ -450,11 +500,16 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ ok: true, customer, followUps });
         }
       }
+      for (const g of GROUPS) {
+        if (!(op in g.roles)) continue;
+        const res = await g.run(op, body, { email, log, alert, followUps });
+        if (res) return res;
+      }
       return NextResponse.json({ error: 'Unknown operation', op }, { status: 400 });
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Not saved.';
       console.error('[/api/app/write]', op, message);
-      return NextResponse.json({ error: message }, { status: /not found|no such|invoiced|not on this order|already exists|more than the invoice/i.test(message) ? 409 : 500 });
+      return NextResponse.json({ error: message }, { status: /not found|no such|invoiced|not on this order|already exists|more than the invoice|has changed since/i.test(message) ? 409 : 500 });
     }
   };
 

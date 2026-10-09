@@ -16,8 +16,8 @@ struct OrdersWebTarget: Hashable, Identifiable {
 
     /// The order's own ERP page: edit, give out, finalize, refund, delete.
     static func orderPage(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)", title: id) }
-    /// The same page with the Finalize & invoice dialog open (the page reads ?do=finalize).
-    static func finalize(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)?do=finalize", title: id) }
+    /// Finalize & invoice, native (OrderFinalizeScreen; the web's page reads ?do=finalize for the same dialog).
+    static func finalize(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)/finalize", title: id, native: true) }
     /// New order's form on the order on file (NewOrderEdit).
     static func edit(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)/edit", title: "Edit \(id)", native: true) }
 }

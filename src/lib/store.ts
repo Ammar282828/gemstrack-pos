@@ -204,11 +204,13 @@ import { statusFromPieces } from '@/lib/order-stage';
 import { isWalkInName, shouldCreateCustomer } from '@/lib/walk-in';
 import { createOrder } from '@/lib/writes/create-order';
 import { orderEditPatch } from '@/lib/writes/update-order';
+import { finalizeHisaabRow, invoiceFromOrder } from '@/lib/writes/finalize-order';
 import { recordOrderAdvance as writeOrderAdvance } from '@/lib/writes/order-advance';
 import { rateChangeLog, rateConfirmLog } from '@/lib/writes/rates';
 import { createInvoice as createInvoiceWrite } from '@/lib/writes/create-invoice';
 import { addExpense as writeAddExpense } from '@/lib/writes/expenses';
 import { addGivenItem as writeAddGiven, markGivenItemReturned as writeGivenReturned } from '@/lib/writes/given';
+import { addKarigar as writeAddKarigar, updateCustomer as writeUpdateCustomer, updateKarigar as writeUpdateKarigar } from '@/lib/writes/people';
 import { addRepair as writeAddRepair, recordRepairPayment as writeRepairPayment, setRepairStatus as writeRepairStatus } from '@/lib/writes/repairs';
 import { alertsOnStatus, orderStatusPatch, pieceDonePatch, pieceGivenPatch, pieceKarigarPatch } from '@/lib/writes/order-status';
 import { STORE_CONFIG } from '@/lib/store-config';
@@ -2293,15 +2295,12 @@ export const useAppStore = create<AppState>()(
       },
       updateCustomer: async (id, updatedCustomerData) => {
         if(get().settings.databaseLocked) return;
-        // Normalize phone to E.164 (with country code, default +92) on every save so
-        // numbers stay consistent regardless of which form did the edit.
-        const dataToWrite = updatedCustomerData.phone !== undefined
-          ? { ...updatedCustomerData, phone: normalizePhoneNumber(updatedCustomerData.phone) }
-          : updatedCustomerData;
-        console.log(`[GemsTrack Store updateCustomer] Attempting to update customer ID ${id} with:`, dataToWrite);
+        console.log(`[GemsTrack Store updateCustomer] Attempting to update customer ID ${id} with:`, updatedCustomerData);
         try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), dataToWrite, { merge: true });
-          await addActivityLog('customer.update', `Updated customer: ${updatedCustomerData.name}`, `ID: ${id}`, id);
+          // The one copy (lib/writes/people.ts), which the iPhone app runs on the server too. It makes the
+          // phone E.164 (with country code, default +92) on every save so numbers stay consistent
+          // regardless of which form did the edit.
+          await writeUpdateCustomer(clientPort, id, updatedCustomerData, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
           if (typeof window !== 'undefined' && !id.startsWith('shopify-')) {
             if (PUSH_TO_SHOPIFY) postShopify('/api/shopify/push/customer', { customerId: id });
           }
@@ -2438,13 +2437,11 @@ export const useAppStore = create<AppState>()(
 
       addKarigar: async (karigarData) => {
         if(get().settings.databaseLocked) return null;
-        const newKarigarId = `karigar-${Date.now()}-${Math.random().toString(36).substring(2,7)}`;
-        const newKarigar: Karigar = { ...karigarData, id: newKarigarId };
-        console.log("[GemsTrack Store addKarigar] Attempting to add karigar:", newKarigar);
+        console.log("[GemsTrack Store addKarigar] Attempting to add karigar:", karigarData);
         try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, newKarigarId), newKarigar);
-          await addActivityLog('karigar.create', `Created karigar: ${newKarigar.name}`, `ID: ${newKarigarId}`, newKarigarId);
-          console.log("[GemsTrack Store addKarigar] Karigar added successfully:", newKarigarId);
+          // The one copy (lib/writes/people.ts), which the iPhone app runs on the server too.
+          const newKarigar = await writeAddKarigar(clientPort, karigarData, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
+          console.log("[GemsTrack Store addKarigar] Karigar added successfully:", newKarigar.id);
           return newKarigar;
         } catch (error) {
           console.error("[GemsTrack Store addKarigar] Error adding karigar to Firestore:", error);
@@ -2455,8 +2452,8 @@ export const useAppStore = create<AppState>()(
         if(get().settings.databaseLocked) return;
         console.log(`[GemsTrack Store updateKarigar] Attempting to update karigar ID ${id} with:`, updatedKarigarData);
          try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, id), updatedKarigarData, { merge: true });
-          await addActivityLog('karigar.update', `Updated karigar: ${updatedKarigarData.name}`, `ID: ${id}`, id);
+          // The one copy (lib/writes/people.ts), which the iPhone app runs on the server too.
+          await writeUpdateKarigar(clientPort, id, updatedKarigarData, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
           console.log(`[GemsTrack Store updateKarigar] Karigar ID ${id} updated successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store updateKarigar] Error updating karigar ID ${id} in Firestore:`, error);
@@ -3503,107 +3500,9 @@ export const useAppStore = create<AppState>()(
       generateInvoiceFromOrder: async (order, finalizedItems, additionalDiscount, costRate24k) => {
         if (get().settings.databaseLocked) return null;
         const { settings } = get();
-        let finalSubtotal = 0;
-        const ratesForInvoice = orderInvoiceRates(order, settings);
-
-        const finalInvoiceItems: InvoiceItem[] = [];
-        order.items.forEach((originalItem, index) => {
-            const finalizedData = finalizedItems[index]; // Use index for reliability
-            if (!finalizedData) {
-                console.error(`Could not find finalized data for item index: ${index}`);
-                throw new Error(`Finalized data for item "${originalItem.description}" not found.`);
-            }
-
-            // The figures typed in Finalize & invoice — weight, wastage, making, stones, diamonds —
-            // priced exactly as the dialog showed them (lib/order-finalize.ts).
-            const itemCosts = finalizedItemCosts(originalItem, finalizedData, ratesForInvoice);
-            const itemPrice = itemCosts.price;
-
-            finalSubtotal += itemPrice;
-
-            const numericPart = String(order.id).replace(/^ORD-/, '');
-            const itemToAdd: InvoiceItem = {
-                sku: `ORD-${numericPart}-${index + 1}`,
-                name: originalItem.description,
-                categoryId: '',
-                metalType: originalItem.metalType,
-                karat: originalItem.karat,
-                // A fixed price keeps its weight too: it prints, and costs the margin (2026-10-07).
-                metalWeightG: Number(finalizedData.finalWeightG) || 0,
-                stoneWeightG: originalItem.stoneWeightG,
-                quantity: 1,
-                unitPrice: itemPrice,
-                itemTotal: itemPrice,
-                metalCost: itemCosts.metalCost,
-                wastageCost: itemCosts.wastageCost,
-                wastagePercentage: itemCosts.wastagePercentage,
-                makingCharges: itemCosts.makingCharges,
-                diamondChargesIfAny: itemCosts.diamondCharges,
-                stoneChargesIfAny: itemCosts.stoneCharges,
-                miscChargesIfAny: 0,
-                stoneDetails: originalItem.stoneDetails,
-                diamondDetails: originalItem.diamondDetails,
-                ...(originalItem.size && { size: originalItem.size }),
-                ...(finalizedData.isManualPrice && { isManualPrice: true }),
-                ...(finalizedData.isManualPrice && originalItem.hasDiamonds && { hasDiamonds: true }),
-                ...(finalizedData.isManualPrice && originalItem.hasStones && { hasStones: true }),
-                ...(originalItem.itemCategory && { itemCategory: originalItem.itemCategory }),
-                ...(originalItem.adminNote && { adminNote: originalItem.adminNote }),
-                // Silver's plating was left behind, so a Mina order's "21K gold plating,
-                // nickel-free" vanished from its invoice.
-                ...(originalItem.platingType && { platingType: originalItem.platingType }),
-                ...(originalItem.platingNote && { platingNote: originalItem.platingNote }),
-                ...(originalItem.nickelFree && { nickelFree: true }),
-            };
-            finalInvoiceItems.push(cleanObject(itemToAdd));
-        });
-
-        // Everything the order settled is carried over as what it is (the owner, 2026-09-25):
-        // gold taken in exchange is the invoice's exchange, row for row, and comes off its
-        // total like an exchange at the counter; each cash advance is a payment of its own,
-        // with the day it was taken and how. (Until now the exchange and the advances were
-        // lumped into one "Advance from Order" payment.)
-        const totalDiscount = additionalDiscount;
-        const exchanges = orderExchanges(order);
-        const grandTotal = finalSubtotal - totalDiscount - exchangeTotal(exchanges);
-
-        const paymentHistory: Payment[] = orderAdvancePayments(order).map(p => cleanObject(p));
-        const amountPaid = paymentHistory.reduce((sum, p) => sum + p.amount, 0);
-        const balanceDue = grandTotal - amountPaid;
-
-        const baseInvoiceData: Omit<Invoice, 'id'> = {
-            items: finalInvoiceItems,
-            subtotal: finalSubtotal,
-            discountAmount: totalDiscount,
-            grandTotal: grandTotal,
-            amountPaid: amountPaid,
-            balanceDue: balanceDue,
-            createdAt: new Date().toISOString(),
-            ratesApplied: ratesForInvoice,
-            paymentHistory: paymentHistory,
-            customerId: order.customerId,
-            customerName: order.customerName || 'Walk-in Customer',
-            customerContact: order.customerContact,
-            ...(order.source && { acquisitionSource: order.source }),
-            sourceOrderId: order.id,
-            ...(order.hideRates ? { hideRates: true } : {}),
-            ...(Number(costRate24k) > 0 ? { costRate24k: Number(costRate24k) } : {}),
-            ...invoiceExchangeFields(exchanges),
-            ...(order.takenBy ? { takenBy: order.takenBy } : {}),
-            // The order's notes are the shop's; on the invoice they are its note for the shop,
-            // which is never printed.
-            ...(order.notes?.trim() ? { internalNote: order.notes.trim() } : {}),
-            // The address the customer gave when ordering is the address it
-            // ships to. Without this the invoice was raised with no delivery
-            // details at all and they had to be typed in again.
-            ...(order.delivery?.required && order.delivery.address?.trim()
-              ? { delivery: order.delivery } : {}),
-            // Carry forward: if this order had previously been linked to a Shopify
-            // order (and was reverted to be re-finalized), preserve the link so the
-            // upsert handler reuses the same Shopify order instead of creating a new one.
-            ...(order.shopifyOrderId && { shopifyOrderId: order.shopifyOrderId }),
-            ...(order.shopifyOrderNumber && { shopifyOrderNumber: order.shopifyOrderNumber }),
-        };
+        // The invoice the order becomes, priced as the dialog showed it: lib/writes/finalize-order.ts, the one
+        // copy the iPhone app's Finalize runs on the server too.
+        const baseInvoiceData = invoiceFromOrder(order, finalizedItems, additionalDiscount, costRate24k, settings, new Date().toISOString(), cleanObject);
 
         try {
             const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
@@ -3638,7 +3537,7 @@ export const useAppStore = create<AppState>()(
                 transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
                 transaction.update(doc(db, FIRESTORE_COLLECTIONS.ORDERS, order.id), {
                     status: 'Completed',
-                    grandTotal: balanceDue,
+                    grandTotal: newInvoice.balanceDue,
                     invoiceId: invoiceId,
                     // The Shopify link now lives on the invoice; clear it from the order.
                     ...(order.shopifyOrderId && { shopifyOrderId: deleteField(), shopifyOrderNumber: deleteField() }),
@@ -3648,21 +3547,8 @@ export const useAppStore = create<AppState>()(
 
                 // The ledger in the same commit (it was an add after the transaction): what the
                 // customer still owes, or the advance that came to more than the bill.
-                if (newInvoice.balanceDue !== 0) {
-                    const owes = newInvoice.balanceDue > 0;
-                    transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), {
-                        entityId: newInvoice.customerId || 'walk-in',
-                        entityType: 'customer',
-                        entityName: newInvoice.customerName || 'Walk-in Customer',
-                        date: newInvoice.createdAt,
-                        description: owes ? `Outstanding balance for Invoice ${invoiceId}` : creditDescription(invoiceId),
-                        cashDebit: owes ? newInvoice.balanceDue : 0,
-                        cashCredit: owes ? 0 : Math.abs(newInvoice.balanceDue),
-                        goldDebitGrams: 0,
-                        goldCreditGrams: 0,
-                        linkedInvoiceId: invoiceId,
-                    });
-                }
+                const row = finalizeHisaabRow(newInvoice);
+                if (row) transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), row);
 
                 return newInvoice;
             });
