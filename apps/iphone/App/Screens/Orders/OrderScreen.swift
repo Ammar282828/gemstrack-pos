@@ -351,6 +351,8 @@ struct OrderScreen: View {
                 if session.isOwner && !OrdersLogic.hasInvoice(order) {
                     Button { web = .edit(order.id) } label: { Label("Edit order", systemImage: "pencil") }
                 }
+                // The workshop slip: printed, saved or sent from the share sheet.
+                Button { web = .slip(order.id) } label: { Label("Print slip", systemImage: "printer") }
                 // The whole page: edit, give out, finalize, refund, delete.
                 Button { web = .orderPage(order.id) } label: { Label("Open in the ERP", systemImage: "globe") }
             } label: {

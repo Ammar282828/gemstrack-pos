@@ -280,6 +280,9 @@ export default function OrderDetailPage() {
     finalizeAsked.current = true;
     if (!order.invoiceId) setIsFinalizeDialogOpen(true);
   }, [doParam, order]);
+  // ?do=slip: the iPhone app's Print slip. The slip is drawn here, the one builder, and the app hands
+  // the PDF to the phone's share sheet (print, Files, WhatsApp): lib/native-app.ts, savePDF.
+  const slipAsked = useRef(false);
   const [isAdvanceDialogOpen, setIsAdvanceDialogOpen] = useState(false);
   const [isRevertDialogOpen, setIsRevertDialogOpen] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
@@ -497,6 +500,14 @@ export default function OrderDetailPage() {
       });
     }
   };
+
+  useEffect(() => {
+    if (doParam !== 'slip' || slipAsked.current || !order || !settings) return;
+    slipAsked.current = true;
+    void handlePrintOrderSlip();
+    // handlePrintOrderSlip reads the order and settings it is given; asked once per visit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doParam, order, settings]);
 
   const buildOrderSlip = async () => {
     if (!order || typeof window === 'undefined' || !settings) return;
