@@ -22,9 +22,8 @@ on:
         type: boolean
         default: false
 
-concurrency:
-  group: iphone-native-${{ github.ref }}
-  cancel-in-progress: true
+# A newer push cancels the simulator check it makes stale (the app job), never a TestFlight upload: a
+# release, once signing has begun, finishes (the testflight job queues per house instead).
 
 permissions:
   contents: read
@@ -85,6 +84,9 @@ jobs:
     # A release compiles in its upload: the simulator check would spend the same Mac minutes twice.
     # With no house ready to upload, the check runs instead, so a push is never left uncompiled.
     if: needs.plan.outputs.release != 'true' || needs.plan.outputs.houses == '[]'
+    concurrency:
+      group: iphone-native-app-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: macos-26
     timeout-minutes: 35
     defaults:
@@ -223,6 +225,9 @@ jobs:
   testflight:
     needs: [core, plan]
     if: needs.plan.outputs.release == 'true' && needs.plan.outputs.houses != '[]'
+    concurrency:
+      group: iphone-native-testflight-${{ matrix.house }}
+      cancel-in-progress: false
     runs-on: macos-26
     timeout-minutes: 45
     strategy:
