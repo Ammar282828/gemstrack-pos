@@ -1496,7 +1496,7 @@
           "advanceInExchangeValue" : 448700.5,
           "advanceMethod" : "Bank Transfer",
           "advancePayment" : 150000,
-          "customerContact" : "0333 5550123",
+          "customerContact" : "+923335550123",
           "customerName" : "Test Exchanger",
           "discountAmount" : 0,
           "exchanges" : [
@@ -1913,7 +1913,7 @@
           "advanceInExchangeDescription" : "",
           "advanceInExchangeValue" : 0,
           "advancePayment" : 0,
-          "customerContact" : "0312 5550101",
+          "customerContact" : "+923125550101",
           "customerName" : "Zarmeena Testani",
           "discountAmount" : 0,
           "exchanges" : [
@@ -2254,7 +2254,7 @@
           "advanceInExchangeDescription" : "",
           "advanceInExchangeValue" : 0,
           "advancePayment" : 0,
-          "customerContact" : "0300-5550142",
+          "customerContact" : "+923005550142",
           "customerId" : "cust-test-0001",
           "customerName" : "Hina Mockwell",
           "discountAmount" : 0,
@@ -5084,7 +5084,7 @@
           "advanceInExchangeDescription" : "",
           "advanceInExchangeValue" : 0,
           "advancePayment" : 0,
-          "customerContact" : "0301 5550188",
+          "customerContact" : "+923015550188",
           "customerName" : "Test Silver Buyer",
           "discountAmount" : 0,
           "exchanges" : [
@@ -6117,7 +6117,7 @@
         ],
         "customer" : {
           "name" : "Nadia Example",
-          "phone" : "0300 0000555"
+          "phone" : "+923000000555"
         },
         "discountAmount" : 0,
         "exchanges" : [
@@ -11243,7 +11243,7 @@
         ],
         "customer" : {
           "name" : "Farah Example",
-          "phone" : "0300 0000888"
+          "phone" : "+923000000888"
         },
         "discountAmount" : 1500,
         "exchanges" : [

@@ -109,7 +109,3 @@ struct PhoneSettings: View {
         saving = false
     }
 }
-
-enum SettingsRoutes {
-    static var all: [ScreenRoute] { [.exact("/app/phone") { PhoneSettings() }] }
-}

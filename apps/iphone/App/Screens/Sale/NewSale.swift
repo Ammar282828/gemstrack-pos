@@ -182,7 +182,10 @@ struct SaleForm: View {
     /// pieces) starts afresh. A brand-new sale starts Taken by on the signed-in person, once.
     func appeared() {
         if let stored = SaleDraftStore.load() {
-            if stored != draft { draft = stored }
+            var kept = stored
+            // A sale begun from Scan a tag has no Taken by yet: it starts on the signed-in person, as every new one.
+            if kept.takenBy.isEmpty && !takenByStarted { kept.takenBy = defaultTaker }
+            if kept != draft { draft = kept }
             if !stored.isBlank { Task { await stillOurs() } }
         } else if !draft.isBlank {
             draft = SaleDraft()

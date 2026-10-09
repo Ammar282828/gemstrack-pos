@@ -14,10 +14,11 @@ extension SaleDraft {
     func webValues(subtotal: Double) -> [String: Any] {
         var o: [String: Any] = [:]
         let picked = !(customerId ?? "").isEmpty
-        // A customer on file is picked by id; a name or number typed for someone new is the walk-in fields.
+        // A customer on file is picked by id. The name box holds the name either way, as the web's does once a
+        // customer is picked (customer-autocomplete.tsx), so the counter sees who it is for.
         if picked { o["selectedCustomerId"] = customerId }
-        o["walkInCustomerName"] = picked ? "" : customerName
-        o["walkInCustomerPhone"] = picked ? "" : customerPhone
+        o["walkInCustomerName"] = customerName
+        o["walkInCustomerPhone"] = customerPhone
         o["discountAmountInput"] = discount.isEmpty ? "0" : discount
         o["exchangeRows"] = exchanges.map { x -> [String: Any] in
             ["id": x.id, "description": x.description, "karat": x.karat, "weightG": x.weightG,

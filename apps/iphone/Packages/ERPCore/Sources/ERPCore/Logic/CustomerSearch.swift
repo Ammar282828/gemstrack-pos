@@ -99,3 +99,24 @@ public enum CustomerSearch {
         return people(all).filter { fold($0.name).split(separator: " ").joined(separator: " ") == q }
     }
 }
+
+/// A number as the ERP keeps it: +92… (phone-field.tsx `toE164`/`fromPasted` with Pakistan as the country, for the
+/// shapes the counter types). "0300 1234567", "923001234567", "0092…", "+92 0300…" and a bare "3001234567" all
+/// become "+923001234567"; anything else (a foreign number with its +, a number still being typed) stays as typed,
+/// spaces and dashes aside.
+public func pakistanE164(_ raw: String) -> String {
+    var t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        .filter { !" -().'".contains($0) }
+    if t.isEmpty { return "" }
+    if t.hasPrefix("00") { t = "+" + t.dropFirst(2) }
+    // The code typed twice, pasted from a chat: "+92+92…".
+    while t.hasPrefix("+92+92") { t = String(t.dropFirst(3)) }
+    // A trunk zero inside an international number.
+    if t.hasPrefix("+920") { t = "+92" + t.dropFirst(4) }
+    let digits = t.filter(\.isNumber)
+    if t.hasPrefix("+") { return "+" + digits }
+    if digits.count == 11 && digits.hasPrefix("0") { return "+92" + digits.dropFirst() }
+    if digits.count == 12 && digits.hasPrefix("92") { return "+" + digits }
+    if digits.count == 10 && digits.hasPrefix("3") { return "+92" + digits }
+    return t
+}

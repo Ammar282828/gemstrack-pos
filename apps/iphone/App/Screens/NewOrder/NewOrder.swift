@@ -7,10 +7,10 @@ import ERPCore
 /// and the totals as the web works them out. Saved through the ERP's own shared write (`createOrder`,
 /// lib/writes/create-order.ts): it numbers the order and stamps the rates, exactly as the browser's does.
 ///
-/// The order in progress stays on this phone if the screen closes (NewOrderDraftStore), until it is
-/// saved or started over. The AI slip reader and the voice order stay on the ERP's page ("Read a slip").
-/// Not here: Add from inventory and the offer to save a size to the customer's profile (both are the
-/// ERP's page; the app has no write that updates a customer yet).
+/// The order in progress stays on this phone, and in Drafts, if the screen closes (NewOrderDraftStore,
+/// WorkDraftSync), until it is saved or started over. A piece can start from one in stock (Add from stock);
+/// sizes are offered to the customer's profile once the order is saved (NewOrderSizeAsk). The AI slip reader and
+/// the voice order stay on the ERP's page ("Read a slip").
 struct NewOrder: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -27,6 +27,7 @@ struct NewOrder: View {
     /// The sizes on offer to the customer's profile once the order is saved.
     @State private var sizeAsk: NewOrderSizeAsk?
     @State private var confirmReset = false
+    @State private var pickingStock = false
 
     init() {}
 
@@ -55,10 +56,20 @@ struct NewOrder: View {
         book.karigars.items.filter { ($0.deletedAt ?? "").isEmpty }
     }
 
-    private var addressOnFile: String? {
-        guard !draft.customerId.isEmpty, let c = book.customers.item(draft.customerId) else { return nil }
-        let a = NewOrderFormat.trim(c.address ?? "")
-        return a.isEmpty ? nil : a
+    /// The customer's saved address, then every address their orders and invoices were delivered to, once each.
+    private var knownAddresses: [String] {
+        guard !draft.customerId.isEmpty else { return [] }
+        var out: [String] = []
+        var seen = Set<String>()
+        func take(_ raw: String?) {
+            let a = NewOrderFormat.trim(raw ?? "")
+            if a.isEmpty || !seen.insert(a.lowercased()).inserted { return }
+            out.append(a)
+        }
+        take(book.customers.item(draft.customerId)?.address)
+        for o in book.orders.items where o.customerId == draft.customerId { take(o.delivery?.address) }
+        for i in book.invoices.items where i.customerId == draft.customerId { take(i.delivery?.address) }
+        return out
     }
 
     private func start() {
@@ -248,11 +259,25 @@ struct NewOrder: View {
             Button(action: addPiece) {
                 Label("Add a piece", systemImage: "plus.circle.fill")
             }
+            Button { pickingStock = true } label: {
+                Label("Add from stock", systemImage: "shippingbox")
+            }
+            .sheet(isPresented: $pickingStock) {
+                NewOrderStockPicker { p in addFromStock(p) }
+            }
         } header: {
             Text("Pieces")
         } footer: {
             NewOrderPiecesFooter(count: draft.pieces.count)
         }
+    }
+
+    /// A piece in stock as the start of one to be made (the web's "Add from Inventory"): everything copied, its SKU
+    /// the reference, and it opens to be changed.
+    private func addFromStock(_ p: Product) {
+        let piece = NewOrderPieceDraft(fromSale: SaleLine(p))
+        draft.pieces.append(piece)
+        editing = NewOrderPieceRef(id: piece.id)
     }
 
     /// A new piece opens at once: it is what you came to fill in.
@@ -300,7 +325,7 @@ struct NewOrder: View {
     @ViewBuilder
     private func tail(_ totals: NewOrderMath.Totals, _ settings: Settings?) -> some View {
         NewOrderNotesSection(draft: $draft)
-        NewOrderDeliverySection(draft: $draft, addressOnFile: addressOnFile)
+        NewOrderDeliverySection(draft: $draft, knownAddresses: { knownAddresses })
         // The shop's own figure: owners and staff, never the customer (decisions.md "Margin").
         if House.margin.rattiLess != nil {
             NewOrderMarginSection(draft: $draft, settings: settings) {

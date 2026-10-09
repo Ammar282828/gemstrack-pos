@@ -247,11 +247,11 @@ enum NewOrderMath {
             o["customerId"] = id
             if !trim(r.name).isEmpty { o["customerName"] = trim(r.name) }
             let contact = phone.isEmpty ? trim(r.phone) : phone
-            if !contact.isEmpty { o["customerContact"] = contact }
+            if !contact.isEmpty { o["customerContact"] = pakistanE164(contact) }
         } else {
             let typed = isWalkInName(d.customerName) ? "" : trim(d.customerName)
             if !typed.isEmpty { o["customerName"] = typed }
-            if !phone.isEmpty { o["customerContact"] = phone }
+            if !phone.isEmpty { o["customerContact"] = pakistanE164(phone) }
         }
     }
 

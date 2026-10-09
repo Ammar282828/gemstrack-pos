@@ -220,7 +220,7 @@ extension SaleForm {
             HStack(spacing: 10) {
                 TextField("What it is (e.g. old ring)", text: exchangeBinding(row.id, .description))
                 TextField("Amount", text: exchangeBinding(row.id, .value))
-                    .keyboardType(.numberPad)
+                    .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
                     .frame(width: 110)
@@ -240,7 +240,7 @@ extension SaleForm {
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                     TextField("Rate / g", text: exchangeBinding(row.id, .ratePerGram))
-                        .keyboardType(.numberPad)
+                        .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                 }
                 if computed {
@@ -295,7 +295,7 @@ extension SaleForm {
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 TextField("Amount (PKR)", text: row.amount)
-                    .keyboardType(.numberPad)
+                    .keyboardType(.decimalPad)
                     .monospacedDigit()
                 Button(single ? "Paid in full" : "The rest") { draft.payRest(row.wrappedValue.id, total: f.total) }
                     .buttonStyle(.bordered)

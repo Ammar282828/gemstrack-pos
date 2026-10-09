@@ -420,8 +420,9 @@ struct NewOrderNotesSection: View {
 /// "Is this being delivered?" Off by default, because most pieces are collected from the shop.
 struct NewOrderDeliverySection: View {
     @Binding var draft: NewOrderDraft
-    /// The address the customer on file has, offered, never filled in by itself.
-    let addressOnFile: String?
+    /// The customer's saved address and every one they have had pieces delivered to (delivery-fields.tsx
+    /// `knownAddresses`): offered, never filled in by itself.
+    let knownAddresses: () -> [String]
 
     private var expectedOn: Binding<Bool> {
         Binding(
@@ -448,19 +449,36 @@ struct NewOrderDeliverySection: View {
 
     @ViewBuilder
     private var fields: some View {
-        if let on = addressOnFile, on != NewOrderFormat.trim(draft.deliveryAddress) {
-            Button("Use their address on file") { draft.deliveryAddress = on }
+        let offered = knownAddresses().filter { $0 != NewOrderFormat.trim(draft.deliveryAddress) }
+        if offered.count == 1, let only = offered.first {
+            Button("Use their address on file") { draft.deliveryAddress = only }
                 .buttonStyle(.borderless)
+        } else if offered.count > 1 {
+            Menu {
+                ForEach(offered, id: \.self) { a in
+                    Button(a) { draft.deliveryAddress = a }
+                }
+            } label: {
+                Label("Addresses on file (\(offered.count))", systemImage: "mappin.and.ellipse")
+            }
         }
         TextField("Address", text: $draft.deliveryAddress, prompt: Text("House / flat, street, area"), axis: .vertical)
             .lineLimit(2...4)
-        TextField("City", text: $draft.deliveryCity, prompt: Text("Karachi"))
-        TextField("Receiver's name", text: $draft.deliveryName, prompt: Text("If not the customer"))
-            .textInputAutocapitalization(.words)
-        TextField("Receiver's phone", text: $draft.deliveryPhone, prompt: Text("Optional"))
-            .keyboardType(.phonePad)
+        LabeledContent("City") {
+            TextField("City", text: $draft.deliveryCity, prompt: Text("Karachi"))
+        }
+        LabeledContent("Receiver") {
+            TextField("Receiver's name", text: $draft.deliveryName, prompt: Text("If not the customer"))
+                .textInputAutocapitalization(.words)
+        }
+        LabeledContent("Receiver's phone") {
+            TextField("Receiver's phone", text: $draft.deliveryPhone, prompt: Text("Optional"))
+                .keyboardType(.phonePad)
+        }
         NewOrderNumberRow(title: "Delivery charge (PKR)", text: $draft.deliveryCharge, prompt: "0 if free")
-        TextField("Instructions", text: $draft.deliveryNotes, prompt: Text("Landmark, timing, gate code"))
+        LabeledContent("Instructions") {
+            TextField("Instructions", text: $draft.deliveryNotes, prompt: Text("Landmark, timing, gate"))
+        }
         Toggle("Expected on a day", isOn: expectedOn)
         if !draft.deliveryExpected.isEmpty {
             DatePicker("Expected", selection: expectedDate, displayedComponents: .date)

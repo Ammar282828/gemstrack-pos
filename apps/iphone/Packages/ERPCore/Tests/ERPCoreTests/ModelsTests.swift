@@ -411,6 +411,17 @@ final class ModelsTests: XCTestCase {
         XCTAssertTrue(s.autoDraftForms, "drafts default on")
     }
 
+    /// The app's settings screens read a shop with no document yet as `{}` (Settings.blank).
+    func testSettingsEmptyDocument() throws {
+        let s = try decode(Settings.self, "{}")
+        XCTAssertEqual(s.id, "global")
+        XCTAssertEqual(s.shopName, "")
+        XCTAssertTrue(s.paymentMethods.isEmpty)
+        XCTAssertTrue(s.notifPhones.isEmpty)
+        XCTAssertFalse(s.notifEnabled)
+        XCTAssertTrue(s.autoDraftForms)
+    }
+
     func testSettingsMessy() throws {
         // Rates and counters as strings, phones as numbers, payment methods as a map, switches as odd values.
         let s = try decode(Settings.self, """

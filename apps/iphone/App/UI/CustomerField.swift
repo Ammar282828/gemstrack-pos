@@ -77,6 +77,12 @@ struct CustomerField: View {
                 }
             }
         }
+        // The number kept as the ERP keeps it (+92…), as the web's phone box does, once the counter moves on.
+        .onChange(of: focus) { old, new in
+            guard old == .phone, new != .phone else { return }
+            let kept = pakistanE164(phone)
+            if kept != phone { phone = kept }
+        }
         .animation(.snappy(duration: 0.22), value: focus)
         .animation(.snappy(duration: 0.22), value: name)
     }

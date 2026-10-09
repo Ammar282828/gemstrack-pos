@@ -21,6 +21,7 @@ import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
 import { recordOrderAdvance } from '@/lib/writes/order-advance';
 import { alertsOnStatus, ORDER_STATUSES, setOrderPieceDone, setOrderPieceGiven, setOrderPieceKarigar, setOrderStatus, type SettableStatus } from '@/lib/writes/order-status';
 import { cleanRates, setRates } from '@/lib/writes/rates';
+import { cleanSettingsPatch } from '@/lib/writes/settings';
 import { cleanObject, createInvoice, type SaleInput, type SaleLine } from '@/lib/writes/create-invoice';
 import { createOrder } from '@/lib/writes/create-order';
 import { addRepair, recordRepairPayment, setRepairStatus, type NewRepair } from '@/lib/writes/repairs';
@@ -61,6 +62,8 @@ const OPS: Record<string, ('owner' | 'staff')[]> = {
   syncHisaab: ['owner'],
   // Sizes from an order, offered to the customer's profile (decision "Sizes to the profile").
   setCustomerSizes: ['owner', 'staff'],
+  // Settings → Shop, Alerts, Bank accounts, Data: only the fields lib/writes/settings.ts names.
+  updateSettings: ['owner'],
 };
 
 /** The last hisaab sync on this server: one every two minutes is plenty, and each reads every invoice. */
@@ -355,6 +358,18 @@ export async function POST(req: NextRequest) {
           await ref.set(sizes, { merge: true });
           await log('customer.update', 'Sizes saved to the profile', Object.entries(sizes).map(([k, v]) => `${k}: ${v}`).join(', '), customerId);
           return NextResponse.json({ ok: true, sizes, followUps });
+        }
+
+        case 'updateSettings': {
+          // A list of what may change, not of what may not: the rates, the lock, the counters and every
+          // key are never here (setRates and the ERP's own screens keep them).
+          const cleaned = cleanSettingsPatch(body.patch);
+          if (!cleaned.ok) return NextResponse.json({ error: cleaned.error }, { status: 400 });
+          // Only the delta, merged: a field the phone did not send is never put back to an old value.
+          await adminDb.collection('app_settings').doc('global').set(cleaned.patch, { merge: true });
+          // The names of what changed, never the values (bank numbers, phones).
+          await log('settings.update', 'Settings changed', `${Object.keys(cleaned.patch).join(', ')} · by ${personFor(email) || email}`);
+          return NextResponse.json({ ok: true, changed: Object.keys(cleaned.patch), followUps });
         }
 
         case 'addCustomer': {

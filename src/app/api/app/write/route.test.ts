@@ -94,7 +94,7 @@ beforeEach(() => {
 });
 
 const OPS = ['recordPayment', 'recordOrderAdvance', 'setOrderStatus', 'setPieceDone', 'setPieceKarigar', 'setPieceGiven', 'addCustomer',
-  'setRates', 'createInvoice', 'createOrder', 'addRepair', 'setRepairStatus', 'recordRepairPayment', 'addExpense', 'addGivenItem', 'markGivenReturned'];
+  'setRates', 'createInvoice', 'createOrder', 'addRepair', 'setRepairStatus', 'recordRepairPayment', 'addExpense', 'addGivenItem', 'markGivenReturned', 'updateSettings'];
 const STAFF_MAY = ['recordPayment', 'setOrderStatus', 'addCustomer', 'createOrder'];
 
 describe('who may write', () => {
@@ -344,5 +344,87 @@ describe('a partner\'s salary', () => {
     expect((b.body.expense as { shareholderId?: string }).shareholderId).toBeUndefined();
     const c = await pay({ category: 'Partner Salary', shareholderId: 'someone' });
     expect((c.body.expense as { shareholderId?: string }).shareholderId).toBeUndefined();
+  });
+});
+
+describe('the shop\'s settings from the phone', () => {
+  const patch = (p: Record<string, unknown>, email = 'owner@example.com') => call({ op: 'updateSettings', patch: p }, email);
+
+  it('an owner changes the whitelisted fields, merged, and the log names them without their values', async () => {
+    const r = await patch({
+      shopName: '  Demo Jewellers ', shopAddress: '1 Example Road', shopContact: '0300 0000000', theme: 'default', uiStyle: 'glass',
+      autoDraftForms: false, notifEnabled: true, notifNewInvoice: true, notifDailyReportTime: '21:30',
+      notifPhones: ['+92 300 0000001', 923000000001, '923000000002'],
+      paymentMethods: [{ id: 'pm-1', bankName: ' Demo Bank ', accountName: 'Demo Jewellers', accountNumber: '0000-1', iban: '' }, { id: 'pm-2', bankName: 'B', accountName: 'N', accountNumber: '2', iban: 'PK00DEMO' }],
+    });
+    expect(r.status).toBe(200);
+    expect(data.app_settings.global).toMatchObject({
+      lastInvoiceNumber: 1, goldRatePerGram21k: 30_000,
+      shopName: 'Demo Jewellers', shopAddress: '1 Example Road', theme: 'default', uiStyle: 'glass', autoDraftForms: false,
+      notifEnabled: true, notifNewInvoice: true, notifDailyReportTime: '21:30',
+      notifPhones: ['923000000001', '923000000002'],
+      paymentMethods: [{ id: 'pm-1', bankName: 'Demo Bank', accountName: 'Demo Jewellers', accountNumber: '0000-1' }, { id: 'pm-2', bankName: 'B', accountName: 'N', accountNumber: '2', iban: 'PK00DEMO' }],
+    });
+    expect((data.app_settings.global.paymentMethods as Record<string, unknown>[])[0]).not.toHaveProperty('iban');
+    const entry = Object.values(data.activity_log).find((e) => e.action === 'settings.update');
+    expect(entry).toMatchObject({ by: 'owner@example.com', via: 'iphone-app' });
+    expect(JSON.stringify(entry)).not.toContain('0000-1');
+    expect(JSON.stringify(entry)).not.toContain('923000000001');
+  });
+
+  it('staff, marketing and strangers are refused, and nothing changes', async () => {
+    for (const who of ['staff@example.com', 'mkt@example.com', 'stranger@example.com']) {
+      expect((await patch({ shopName: 'Hacked' }, who)).status, who).toBe(403);
+    }
+    expect(data.app_settings.global).not.toHaveProperty('shopName');
+  });
+
+  it('drops what is not on the list: rates, the lock, counters, tokens, anything unknown', async () => {
+    const r = await patch({
+      shopName: 'Demo', goldRatePerGram21k: 1, silverRatePerGram: 1, databaseLocked: true, lastInvoiceNumber: 0, lastOrderNumber: 0,
+      lastRepairNumber: 0, shopifyAccessToken: 'x', deleteCode: '1234', firebaseConfig: { apiKey: 'x' }, allowedDeviceIds: ['d'], ratesUpdatedAt: 'now', somethingNew: 1,
+    });
+    expect(r.status).toBe(200);
+    expect(r.body.changed).toEqual(['shopName']);
+    expect(data.app_settings.global).toEqual({ lastInvoiceNumber: 1, goldRatePerGram21k: 30_000, shopName: 'Demo' });
+  });
+
+  it('a patch with nothing allowed in it is refused', async () => {
+    for (const p of [{ databaseLocked: true }, { lastInvoiceNumber: 5 }, {}, null, 'shopName', ['shopName']]) {
+      expect((await call({ op: 'updateSettings', patch: p })).status, JSON.stringify(p)).toBe(400);
+    }
+    expect((await call({ op: 'updateSettings' })).status).toBe(400);
+    expect(data.app_settings.global).toEqual({ lastInvoiceNumber: 1, goldRatePerGram21k: 30_000 });
+  });
+
+  it('wrong types are refused whole, not half-saved', async () => {
+    const bad: Record<string, unknown>[] = [
+      { shopName: '' }, { shopName: '   ' }, { shopName: 5 }, { shopName: 'x'.repeat(81) }, { shopAddress: 'x'.repeat(301) }, { shopContact: {} },
+      { theme: 'forest' }, { uiStyle: 'neon' },
+      { autoDraftForms: 'yes' }, { notifEnabled: 1 }, { notifNewOrder: null },
+      { notifDailyReportTime: '25:00' }, { notifEndOfDayTime: '9:00' }, { notifDailyChecklistTime: 900 },
+      { notifPhones: 'x' }, { notifPhones: ['123'] }, { notifPhones: ['1'.repeat(16)] }, { notifPhones: [null] }, { notifPhones: Array.from({ length: 21 }, (_, i) => `92300000${1000 + i}`) },
+      { paymentMethods: {} }, { paymentMethods: [null] }, { paymentMethods: [{ id: 'a', bankName: 'B', accountName: '', accountNumber: '1' }] },
+      { paymentMethods: [{ id: 'a b', bankName: 'B', accountName: 'N', accountNumber: '1' }] },
+      { paymentMethods: [{ bankName: 'B', accountName: 'N', accountNumber: '1' }] },
+      { paymentMethods: [{ id: 'a', bankName: 'B', accountName: 'N', accountNumber: '1' }, { id: 'a', bankName: 'B', accountName: 'N', accountNumber: '2' }] },
+      { paymentMethods: [{ id: 'a', bankName: 'B', accountName: 'N', accountNumber: 12345 }] },
+    ];
+    for (const b of bad) {
+      expect((await patch({ shopAddress: 'ok', ...b })).status, JSON.stringify(b)).toBe(400);
+    }
+    expect(data.app_settings.global).toEqual({ lastInvoiceNumber: 1, goldRatePerGram21k: 30_000 });
+  });
+
+  it('removing every bank account and every number is allowed', async () => {
+    put('app_settings', 'global', { paymentMethods: [{ id: 'pm-1' }], notifPhones: ['923000000001'] }, true);
+    expect((await patch({ paymentMethods: [], notifPhones: [] })).status).toBe(200);
+    expect(data.app_settings.global).toMatchObject({ paymentMethods: [], notifPhones: [] });
+  });
+
+  it('the owner\'s lock stops it', async () => {
+    put('app_settings', 'global', { databaseLocked: true }, true);
+    expect((await patch({ shopName: 'Demo' })).status).toBe(423);
+    expect(data.app_settings.global).not.toHaveProperty('shopName');
   });
 });

@@ -77,3 +77,19 @@ final class CustomerSearchTests: XCTestCase {
         XCTAssertEqual(CustomerSearch.exact("sana d", in: book), [])
     }
 }
+
+/// phone-field.tsx's toE164 and fromPasted, for the shapes the counter types. Made-up numbers.
+final class PakistanE164Tests: XCTestCase {
+    func testEveryLocalShapeBecomesPlusNinetyTwo() {
+        for typed in ["0300 0000101", "03000000101", "923000000101", "+92 300 0000101", "+92 0300 0000101",
+                      "0092 300 0000101", "3000000101", "+92+92 3000000101", "(0300) 000-0101"] {
+            XCTAssertEqual(pakistanE164(typed), "+923000000101", typed)
+        }
+    }
+
+    func testAForeignNumberAndOneStillBeingTypedAreLeftAlone() {
+        XCTAssertEqual(pakistanE164("+44 20 7946 0000"), "+442079460000")
+        XCTAssertEqual(pakistanE164("0300 12"), "030012")
+        XCTAssertEqual(pakistanE164("  "), "")
+    }
+}

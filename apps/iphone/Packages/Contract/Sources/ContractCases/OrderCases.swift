@@ -316,7 +316,7 @@ enum OrderCases {
             }
             let o = sent(c)
             expect(o["customerId"] == nil && (o["customerName"] as? String) == "Zarmeena Testani"
-                   && (o["customerContact"] as? String) == "0312 5550101", c.name, "the new customer was not sent as typed")
+                   && (o["customerContact"] as? String) == "+923125550101", c.name, "the new customer was not sent, with the number as the ERP keeps it")
             cases.append(c)
         }
 

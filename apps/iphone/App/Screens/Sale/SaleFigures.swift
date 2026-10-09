@@ -251,7 +251,7 @@ extension SaleDraft {
         out["cart"] = lines.map { $0.payload(qr: qr($0.sku)) }
         var customer: [String: Any] = ["name": f.who.name]
         if let id = f.who.id { customer["id"] = id }
-        if !f.who.phone.isEmpty { customer["phone"] = f.who.phone }
+        if !f.who.phone.isEmpty { customer["phone"] = pakistanE164(f.who.phone) }
         out["customer"] = customer
         out["rates"] = f.rateBook.forInvoice(metals: f.metals)
         out["discountAmount"] = f.discount
