@@ -11,6 +11,7 @@ import {
   buildWorkshopJobs, groupByKarigar, formatJobListForShare, groupJobsByOrder,
   WorkshopJob, KarigarWorkload, UNASSIGNED_ID, WARN_DAYS, CRITICAL_DAYS,
 } from '@/lib/workshop';
+import { detailsTarget } from '@/lib/workshop-details';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { KarigarAssign } from '@/components/karigar/karigar-assign';
 import { KarigarGlance } from '@/components/karigar/karigar-glance';
@@ -399,7 +400,8 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
   // Shown as it was while the dialog closes (hooks/use-lingering.ts): it rendered nothing and vanished.
   const job = useLingering(jobNow);
   const updateOrderItemDetails = useAppStore(s => s.updateOrderItemDetails);
-  const updateKarigarJob = useAppStore(s => s.updateKarigarJob);
+  const updateInvoiceItemDetails = useAppStore(s => s.updateInvoiceItemDetails);
+  const updateKarigarJobDetails = useAppStore(s => s.updateKarigarJobDetails);
   const { toast } = useToast();
 
   const [name, setName] = useState('');
@@ -436,8 +438,10 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
     }
     setSaving(true);
     try {
-      if (job.source === 'order' && job.orderId && job.itemIndex !== undefined) {
-        await updateOrderItemDetails(job.orderId, job.itemIndex, {
+      const target = detailsTarget(job);
+      if (!target) throw new Error('Unknown job');
+      if (target.kind === 'order') {
+        await updateOrderItemDetails(target.orderId, target.itemIndex, {
           description: name, size, referenceSku: ref,
           // Instructions are consolidated into adminNote; the legacy
           // stone/diamond fields are cleared so nothing renders twice.
@@ -445,11 +449,14 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
           ...(sampleChanged && { sampleImageDataUri: sample }),
           ...(weight !== '' && { estimatedWeightG: Number(weight) }),
         });
+      } else if (target.kind === 'invoice') {
+        // Its weight is what the bill was priced from, so it is not changed from here.
+        await updateInvoiceItemDetails(target.invoiceId, target.itemIndex, {
+          name, size, adminNote: instructions, stoneDetails: '', diamondDetails: '',
+        });
       } else {
-        await updateKarigarJob(job.id.replace(/^job:/, ''), {
-          ...(name.trim() && { description: name.trim() }),
-          size: size.trim() || undefined,
-          notes: instructions.trim() || undefined,
+        await updateKarigarJobDetails(target.jobId, {
+          description: name, size, notes: instructions,
           ...(weight !== '' && { weightG: Number(weight) }),
         });
       }
@@ -488,7 +495,8 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
             </div>
             <div>
               <Label className="text-xs">Weight (g)</Label>
-              <AmountInput value={weight} onValueChange={v => setWeight(v === undefined ? '' : String(v))} placeholder="0.000"  aria-label="Weight (g)"/>
+              <AmountInput value={weight} onValueChange={v => setWeight(v === undefined ? '' : String(v))} placeholder="0.000"
+                disabled={job.source === 'invoice'}  aria-label="Weight (g)"/>
             </div>
             <div>
               <Label className="text-xs">Ref SKU</Label>

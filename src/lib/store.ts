@@ -1,6 +1,7 @@
 import { STORE_TAKEN_BY } from './store-config';
 
 import { ORDER_PHOTOS, splitItemPhotos } from '@/lib/order-photos';
+import { withItemDetails, type InvoiceItemDetails } from '@/lib/workshop-details';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { staticCategories, categoryTitle, categorySingular, type Category } from './categories';
@@ -1441,6 +1442,10 @@ export interface AppState {
     description?: string; size?: string; stoneDetails?: string; diamondDetails?: string;
     adminNote?: string; referenceSku?: string; estimatedWeightG?: number; sampleImageDataUri?: string;
   }) => Promise<void>;
+  /** A sold piece's making details, from the Workshop: its name and size (both print on the bill) and the instructions. */
+  updateInvoiceItemDetails: (invoiceId: string, itemIndex: number, patch: InvoiceItemDetails) => Promise<void>;
+  /** A hand-made job's details. A blank size or instructions is removed, which updateKarigarJob cannot do. */
+  updateKarigarJobDetails: (id: string, patch: { description?: string; size?: string; notes?: string; weightG?: number }) => Promise<void>;
   assignOrderItemsToKarigar: (orderId: string, karigarId: string, onlyUnassigned?: boolean) => Promise<void>;
   /** Internal: the status a Pending order should take once every piece is assigned. */
   _statusAfterAssign: (order: Order, items: OrderItem[]) => OrderStatus | null;
@@ -3333,6 +3338,35 @@ export const useAppStore = create<AppState>()(
           console.error(`Error updating item details for ${orderId}:`, error);
           throw error;
         }
+      },
+
+      updateInvoiceItemDetails: async (invoiceId, itemIndex, patch) => {
+        if (get().settings.databaseLocked) return;
+        const inv = get().generatedInvoices.find(i => i.id === invoiceId);
+        if (!inv) throw new Error('Invoice not found');
+        const items = (Array.isArray(inv.items) ? inv.items : Object.values(inv.items || {})) as InvoiceItem[];
+        const updated = withItemDetails(items, itemIndex, patch);
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), { items: updated }, { merge: true });
+          await addActivityLog('invoice.update', `Making details updated on ${invoiceId}`,
+            `${items[itemIndex]?.name || `Item ${itemIndex + 1}`}`, invoiceId);
+        } catch (error) {
+          console.error(`Error updating item details for ${invoiceId}:`, error);
+          throw error;
+        }
+      },
+
+      updateKarigarJobDetails: async (id, patch) => {
+        if (get().settings.databaseLocked) return;
+        const blankOr = (v?: string) => (v ?? '').trim() || deleteField();
+        const data: Record<string, string | number | ReturnType<typeof deleteField>> = {};
+        if (patch.description !== undefined && patch.description.trim()) data.description = patch.description.trim();
+        if ('size' in patch) data.size = blankOr(patch.size);
+        if ('notes' in patch) data.notes = blankOr(patch.notes);
+        if (patch.weightG !== undefined) data.weightG = Number(patch.weightG) || 0;
+        // updateDoc, not a merge: a job that does not exist is an error, never a new document.
+        await updateDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGAR_JOBS, id), data);
+        await addActivityLog('job.update', `Updated workshop job`, `ID: ${id}`, id);
       },
 
       /** Assign a karigar to a sold item — resizing, replating, repairs, and
