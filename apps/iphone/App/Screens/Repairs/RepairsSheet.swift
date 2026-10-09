@@ -58,7 +58,7 @@ struct RepairsSheet: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
-        .safeAreaInset(edge: .bottom) {
+        .safeAreaBar(edge: .bottom) {
             if session.isOwner && RepairsKit.hasActions(r) { actionBar(r) }
         }
     }

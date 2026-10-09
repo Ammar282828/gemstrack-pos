@@ -93,7 +93,7 @@ struct WorkshopBoard: View {
         .overlay {
             if focused.isEmpty { emptyState(snap) }
         }
-        .safeAreaInset(edge: .top, spacing: 0) {
+        .safeAreaBar(edge: .top, spacing: 0) {
             controlBar(snap)
         }
     }

@@ -159,6 +159,16 @@ struct PlaceScreen: View {
                 if isRoot {
                     ToolbarItem(placement: .topBarLeading) { RateChip() }
                 }
+                // The account, top right of Home as the system's own apps keep it: Settings (owners; anyone else
+                // signs out from Search).
+                if isRoot && bare == "/" && session.isOwner {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink(value: Route(path: "/settings")) {
+                            Initials(name: session.shop.person ?? session.me?.email ?? "", size: 32)
+                        }
+                        .accessibilityLabel("Settings")
+                    }
+                }
             }
     }
 }

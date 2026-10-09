@@ -81,7 +81,7 @@ struct OrdersHub: View {
         .overlay {
             if groups.isEmpty { emptyState }
         }
-        .safeAreaInset(edge: .top, spacing: 0) {
+        .safeAreaBar(edge: .top, spacing: 0) {
             filterBar(scoped: scoped, shown: shown.count, total: all.count)
         }
     }

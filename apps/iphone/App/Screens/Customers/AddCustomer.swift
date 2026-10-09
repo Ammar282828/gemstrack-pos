@@ -212,7 +212,7 @@ struct AddCustomer: View {
             }
         }
         .listStyle(.insetGrouped)
-        .safeAreaInset(edge: .bottom) {
+        .safeAreaBar(edge: .bottom) {
             if !s.id.isEmpty {
                 Button { opened = s.id } label: {
                     Text("Open \(s.name)").frame(maxWidth: .infinity)

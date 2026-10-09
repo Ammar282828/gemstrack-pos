@@ -13,43 +13,23 @@ struct NewChooser: View {
 
     var body: some View {
         List {
-            Section {
-                Text("What is this? You add the pieces once you have picked.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
-            }
-
             if let draft = inProgress, !draft.lines.isEmpty {
                 Section { progressRow(draft) } footer: {
                     Text("Kept on this phone, and in Drafts for the counter.")
                 }
             }
 
+            // One line each, as the system's own "New" menus put it.
             Section {
-                NavigationLink(value: Route(path: "/drafts")) {
-                    Label("Drafts", systemImage: "tray.full")
-                }
-            } footer: {
-                Text("Orders and sales not yet saved, from every device in the shop.")
+                choice(path: "/invoices/new", icon: "doc.text.fill", title: "Sale", tint: Theme.accent,
+                       blurb: "Buying now: pieces, payment, the invoice")
+                choice(path: "/orders/add", icon: "list.clipboard.fill", title: "Order", tint: .indigo,
+                       blurb: "To be made: sizes, an advance, the workshop")
+                choice(path: "/repairs?new=1", icon: "wrench.and.screwdriver.fill", title: "Repair", tint: .teal,
+                       blurb: "Brought in to be fixed: pieces, price, ready-by")
+            } header: {
+                Text("What is it?")
             }
-
-            choice(
-                path: "/invoices/new", icon: "doc.text", title: "Sale", primary: true,
-                blurb: "The customer is buying now.",
-                points: ["Add each piece with its details and price", "Take payment in full or leave a balance", "Prints an invoice and records the sale"]
-            )
-            choice(
-                path: "/orders/add", icon: "list.clipboard", title: "Order", primary: false,
-                blurb: "A piece to be made, delivered later.",
-                points: ["Describe what is being made, with sizes and instructions", "Take an advance now, the balance on delivery", "Goes to the workshop and can be assigned to a karigar"]
-            )
-            choice(
-                path: "/repairs?new=1", icon: "wrench.and.screwdriver", title: "Repair", primary: false,
-                blurb: "A piece brought in to be fixed.",
-                points: ["One customer, any number of pieces", "What to do, a price and a ready-by date", "In the shop → Ready → Collected"]
-            )
 
             // The other ways in. Reading a written bill and a parchi are the ERP's AI scanners: its pages.
             Section("Other ways in") {
@@ -63,9 +43,17 @@ struct NewChooser: View {
                     Label("Scan a parchi", systemImage: "doc.text.viewfinder")
                 }
             }
+
+            Section {
+                NavigationLink(value: Route(path: "/drafts")) {
+                    Label("Drafts", systemImage: "tray.full")
+                }
+            } footer: {
+                Text("Orders and sales not yet saved, from every device in the shop.")
+            }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("New sale")
+        .navigationTitle("New")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { inProgress = SaleDraftStore.load() }
         .task { book.settings.need() }
@@ -97,44 +85,25 @@ struct NewChooser: View {
         }
     }
 
-    private func choice(path: String, icon: String, title: String, primary: Bool, blurb: String, points: [String]) -> some View {
-        Section {
-            NavigationLink(value: Route(path: path)) {
-                HStack(alignment: .top, spacing: 14) {
-                    iconTile(icon, primary: primary)
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(title).font(.title2.weight(.bold))
-                        Text(blurb).font(.subheadline).foregroundStyle(.secondary)
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(points, id: \.self) { p in
-                                HStack(alignment: .top, spacing: 8) {
-                                    Text("•").foregroundStyle(.tint)
-                                    Text(p).font(.footnote).foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        .padding(.top, 2)
-                    }
+    /// An icon in its own colour, the title and one line: Settings' and Files' rows.
+    private func choice(path: String, icon: String, title: String, tint: Color, blurb: String) -> some View {
+        NavigationLink(value: Route(path: path)) {
+            HStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 36)
+                    .background(tint.gradient, in: .rect(cornerRadius: 9))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.headline)
+                    Text(blurb)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                 }
-                .padding(.vertical, 6)
             }
-        }
-    }
-
-    @ViewBuilder
-    private func iconTile(_ symbol: String, primary: Bool) -> some View {
-        if primary {
-            Image(systemName: symbol)
-                .font(.title3)
-                .foregroundStyle(Theme.onAccent)
-                .frame(width: 44, height: 44)
-                .background(.tint, in: .rect(cornerRadius: 12))
-        } else {
-            Image(systemName: symbol)
-                .font(.title3)
-                .foregroundStyle(.primary)
-                .frame(width: 44, height: 44)
-                .background(.quaternary, in: .rect(cornerRadius: 12))
+            .padding(.vertical, 4)
         }
     }
 }

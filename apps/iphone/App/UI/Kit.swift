@@ -28,7 +28,7 @@ struct FigureTile: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
             Text(value)
-                .font(.title2.weight(.semibold))
+                .font(.system(.title2, design: .rounded).weight(.bold))
                 .foregroundStyle(tint)
                 .monospacedDigit()
                 .lineLimit(1)
@@ -37,9 +37,10 @@ struct FigureTile: View {
                 Text(detail).font(.caption).foregroundStyle(.tertiary).lineLimit(2)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // Tiles side by side stand the same height whether or not they carry a line under the figure.
+        .frame(maxWidth: .infinity, minHeight: 92, alignment: .topLeading)
         .padding(14)
-        .background(Theme.card, in: .rect(cornerRadius: 18))
+        .background(Theme.card, in: .rect(cornerRadius: 22))
     }
 }
 

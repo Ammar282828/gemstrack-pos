@@ -154,7 +154,7 @@ struct HisaabScreen: View {
             }
         }
         .listStyle(.insetGrouped)
-        .safeAreaInset(edge: .top, spacing: 0) { chipRow(scoped) }
+        .safeAreaBar(edge: .top, spacing: 0) { chipRow(scoped) }
     }
 
     /// Search and the kind of person: everything but the side, so each chip can count what it would show.

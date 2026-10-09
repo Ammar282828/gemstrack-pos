@@ -146,7 +146,9 @@ struct NewOrder: View {
     private func screen(_ totals: NewOrderMath.Totals, _ settings: Settings?) -> some View {
         Form { Group {
             if restored { restoredBanner }
-            NewOrderCustomerSection(draft: $draft, people: people, takenBy: session.shop.takenBy)
+            NewOrderCustomerSection(draft: $draft, people: people, takenBy: session.shop.takenBy) {
+                CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: book.customers.items)
+            }
             NewOrderPromisedSection(draft: $draft)
             piecesSection(totals)
             NewOrderRatesSection(draft: $draft, settings: settings)
@@ -171,7 +173,7 @@ struct NewOrder: View {
             }
         }
         .newOrderKeyboardDone()
-        .safeAreaInset(edge: .bottom) { saveBar(totals) }
+        .safeAreaBar(edge: .bottom) { saveBar(totals) }
         .navigationDestination(item: $editing) { ref in editor(ref.id) }
     }
 
@@ -329,14 +331,17 @@ struct NewOrder: View {
 
     /// THE action of the screen: one glass button, with the balance beside it.
     private func saveBar(_ totals: NewOrderMath.Totals) -> some View {
-        HStack(spacing: 14) {
+        // The balance rides in its own glass beside the button, so it reads over whatever scrolls beneath.
+        HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Balance due").font(.caption).foregroundStyle(.secondary)
+                Text("Balance due").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
                 MoneyText(amount: totals.balance, exact: true)
                     .font(.headline)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
+            .padding(.horizontal, 16).padding(.vertical, 8)
+            .glassEffect(.regular, in: .capsule)
             Spacer(minLength: 8)
             Button {
                 Task { await save() }

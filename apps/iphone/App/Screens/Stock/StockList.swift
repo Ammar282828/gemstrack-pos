@@ -74,7 +74,7 @@ struct StockList: View {
             case .grid: gridView(all, shown)
             }
         }
-        .safeAreaInset(edge: .top, spacing: 0) { chipRow(all) }
+        .safeAreaBar(edge: .top, spacing: 0) { chipRow(all) }
     }
 
     /// Category and search, then each piece priced at today's rates.

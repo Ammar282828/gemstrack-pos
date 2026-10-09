@@ -9,14 +9,6 @@ import ERPCore
 extension SaleForm {
     // MARK: 1. Customer
 
-    var nameBinding: Binding<String> {
-        // Typing a name lets go of a customer picked from the book, as the web's name box does.
-        Binding(
-            get: { draft.customerName },
-            set: { text in draft.typeName(text) }
-        )
-    }
-
     func customerNote(_ f: SaleFigures) -> String {
         if draft.customerId != nil { return "\(f.who.name) is on file: the sale goes on their account." }
         if f.who.id != nil { return "That number is on file as \(f.who.name): the sale goes to them." }
@@ -27,18 +19,17 @@ extension SaleForm {
     @ViewBuilder
     func customerSection(_ f: SaleFigures) -> some View {
         Section {
-            Button { pickingCustomer = true } label: {
-                Label("Pick from the book", systemImage: "person.crop.circle.badge.checkmark")
-            }
-            TextField("Name", text: nameBinding, prompt: Text("Type the customer's name"))
-                .textContentType(.name)
-                .textInputAutocapitalization(.words)
-            TextField("Contact number", text: $draft.customerPhone, prompt: Text("Optional"))
-                .keyboardType(.phonePad)
-                .textContentType(.telephoneNumber)
-            if draft.customerId != nil || !draft.customerName.isEmpty || !draft.customerPhone.isEmpty {
-                Button("Make it a walk-in", role: .destructive) { pickCustomer(nil) }
-            }
+            // The book is offered as the name is typed, as on the web (customer-autocomplete.tsx); a number typed
+            // first finds its customer too. Typing again lets go of a pick.
+            CustomerField(
+                name: draft.customerName,
+                pickedId: draft.customerId,
+                phone: $draft.customerPhone,
+                book: book.customers.items,
+                recent: { CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: book.customers.items) },
+                type: { draft.typeName($0) },
+                pick: { pickCustomer($0) }
+            )
         } header: {
             Text("Customer")
         } footer: {
@@ -96,9 +87,6 @@ extension SaleForm {
         let taken = Set(draft.lines.map { $0.sku })
         let results = SaleLookup.matches(query, in: book.products.items, excluding: taken)
         Section {
-            if draft.lines.isEmpty {
-                Text("Search stock below, scan a tag, or describe a new item.").foregroundStyle(.secondary)
-            }
             ForEach(draft.lines) { line in lineButton(line, f) }
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)

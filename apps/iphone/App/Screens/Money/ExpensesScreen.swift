@@ -117,7 +117,7 @@ struct ExpensesScreen: View {
             }
         }
         .listStyle(.insetGrouped)
-        .safeAreaInset(edge: .top, spacing: 0) { categoryChips(scoped) }
+        .safeAreaBar(edge: .top, spacing: 0) { categoryChips(scoped) }
     }
 
     /// "This month · 1 Oct – 8 Oct 2026".

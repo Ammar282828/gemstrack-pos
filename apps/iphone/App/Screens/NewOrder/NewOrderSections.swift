@@ -14,23 +14,8 @@ struct NewOrderCustomerSection: View {
     /// The house's counter names (`Session.Shop.takenBy`, STORE_TAKEN_BY). "Taken by" is one of them; free text
     /// only where the house has no list.
     let takenBy: [String]
-
-    @FocusState private var nameFocused: Bool
-
-    /// Typing makes it a new customer again (the web's autocomplete does the same): only a pick from
-    /// the list is a customer on file.
-    private var nameBinding: Binding<String> {
-        Binding(
-            get: { draft.customerName },
-            set: { typed in draft.typeCustomerName(typed) }
-        )
-    }
-
-    private var suggestions: [Customer] {
-        let q = NewOrderFormat.trim(draft.customerName)
-        guard nameFocused, draft.customerId.isEmpty, !q.isEmpty else { return [] }
-        return Array(people.filter { $0.name.localizedCaseInsensitiveContains(q) }.prefix(5))
-    }
+    /// The last people served, offered before a name is typed (CustomerField).
+    var recent: () -> [Customer] = { [] }
 
     /// A typed number already on file is that customer (lib/walk-in.ts): said here, so it is no surprise.
     private var numberMatch: Customer? {
@@ -43,15 +28,24 @@ struct NewOrderCustomerSection: View {
     var body: some View {
         Section {
             takenByRow
-            TextField("Customer name", text: nameBinding, prompt: Text("Walk-in if left empty"))
-                .textInputAutocapitalization(.words)
-                .focused($nameFocused)
-            ForEach(suggestions) { c in
-                suggestionRow(c)
-            }
-            if !draft.customerId.isEmpty { onFileRow }
-            TextField("Phone", text: $draft.customerPhone, prompt: Text("Optional"))
-                .keyboardType(.phonePad)
+            // The book is offered as the name is typed (customer-autocomplete.tsx); typing again lets go of a pick.
+            CustomerField(
+                name: draft.customerName,
+                pickedId: draft.customerId.isEmpty ? nil : draft.customerId,
+                phone: $draft.customerPhone,
+                book: people,
+                recent: recent,
+                type: { draft.typeCustomerName($0) },
+                pick: { c in
+                    if let c {
+                        draft.choose(c)
+                    } else {
+                        draft.customerName = ""
+                        draft.customerId = ""
+                        draft.customerPhone = ""
+                    }
+                }
+            )
             if let match = numberMatch {
                 Label("This number is \(match.name)'s: the order goes to them.", systemImage: "person.crop.circle.badge.checkmark")
                     .font(.footnote)
@@ -86,37 +80,6 @@ struct NewOrderCustomerSection: View {
                 }
             }
         }
-    }
-
-    private func suggestionRow(_ c: Customer) -> some View {
-        Button { pick(c) } label: {
-            HStack {
-                Image(systemName: "person").foregroundStyle(.secondary)
-                Text(c.name)
-                Spacer(minLength: 8)
-                if let phone = c.phone, !phone.isEmpty {
-                    Text(phone).font(.footnote).foregroundStyle(.secondary).monospacedDigit()
-                }
-            }
-            .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var onFileRow: some View {
-        HStack {
-            Label("On file", systemImage: "person.crop.circle.badge.checkmark")
-                .foregroundStyle(.green)
-            Spacer()
-            Button("Not them") { draft.customerId = "" }
-                .buttonStyle(.borderless)
-        }
-        .font(.subheadline)
-    }
-
-    private func pick(_ c: Customer) {
-        draft.choose(c)
-        nameFocused = false
     }
 }
 

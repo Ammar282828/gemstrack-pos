@@ -78,6 +78,25 @@ final class ERPUITests: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
+    /// Typing a name offers the book there and then, and a tap makes it that customer (customer-autocomplete.tsx).
+    private func pickByTyping(_ place: String, tab: String) {
+        let app = demo(["-ERPDemoTab", tab, "-ERPDemoOpen", place])
+        app.launch()
+        let name = app.textFields.matching(NSPredicate(format: "placeholderValue == 'Search or type a new name'")).firstMatch
+        XCTAssertTrue(name.waitForExistence(timeout: 8), "\(place) has the customer's name box")
+        name.tap()
+        name.typeText("san")
+        let offer = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Sana Demo'")).firstMatch
+        XCTAssertTrue(offer.waitForExistence(timeout: 4), "\(place) offers Sana Demo while 'san' is typed")
+        offer.tap()
+        XCTAssertTrue(app.buttons["Change"].waitForExistence(timeout: 4), "\(place) shows the customer picked, with Change")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    func testANewSaleOffersTheBookAsTheNameIsTyped() { pickByTyping("/invoices/new", tab: "invoices") }
+
+    func testANewOrderOffersTheBookAsTheNameIsTyped() { pickByTyping("/orders/add", tab: "orders") }
+
     // MARK: Speed
 
     /// A List draws as a collection view, a scroll of cards as a scroll view: whichever the screen has.

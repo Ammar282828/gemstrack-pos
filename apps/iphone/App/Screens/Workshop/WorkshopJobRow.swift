@@ -170,36 +170,22 @@ struct WorkshopJobRow: View {
     @ViewBuilder
     private var controls: some View {
         if canWrite && !job.isDone {
+            // Who has it, and whether it has gone: nothing else on the card. A piece with nobody yet has nothing to
+            // hand over, so no switch; the ERP's details are in the card's menu.
             VStack(alignment: .leading, spacing: 6) {
                 assignMenu
-                givenToggle
-                detailsLink
+                if !job.isUnassigned { givenToggle }
             }
             .padding(.top, 2)
         } else if !job.isDone {
             readOnlyControls
-        } else if job.hasGiven || showsDetails {
-            VStack(alignment: .leading, spacing: 6) {
-                if job.hasGiven {
-                    Text("Given " + ShopDate.say(job.givenAt)).font(.caption).foregroundStyle(.secondary)
-                }
-                detailsLink
-            }
+        } else if job.hasGiven {
+            Text("Given " + ShopDate.say(job.givenAt)).font(.caption).foregroundStyle(.secondary)
         }
     }
 
     /// The making details (name, size, weight, instructions, sample picture) are edited on the ERP's Workshop page.
     private var showsDetails: Bool { isOwner && job.source == .order }
-
-    @ViewBuilder
-    private var detailsLink: some View {
-        if showsDetails {
-            Button { actions.open(WorkshopPlace.workshopPage) } label: {
-                Label("Details in the ERP", systemImage: "arrow.up.right.square").font(.subheadline)
-            }
-            .buttonStyle(.borderless)
-        }
-    }
 
     private var assignMenu: some View {
         let assigned = !job.isUnassigned

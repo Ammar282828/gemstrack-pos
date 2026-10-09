@@ -67,7 +67,7 @@ struct InvoiceScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
-        .safeAreaInset(edge: .bottom, spacing: 0) { paymentBar(inv) }
+        .safeAreaBar(edge: .bottom, spacing: 0) { paymentBar(inv) }
         .toolbar {
             ToolbarItem(placement: .principal) { titleView(inv) }
             ToolbarItemGroup(placement: .primaryAction) { toolbarButtons(inv) }
@@ -82,7 +82,7 @@ struct InvoiceScreen: View {
 
     private func titleView(_ inv: Invoice) -> some View {
         VStack(spacing: 0) {
-            Text(inv.id).font(.headline.monospaced())
+            Text(inv.id).font(.headline).monospacedDigit()
             Text(InvoiceFacts.customerName(inv, walkIn: "Walk-in Customer"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -95,15 +95,22 @@ struct InvoiceScreen: View {
     @ViewBuilder
     private func headerSection(_ inv: Invoice) -> some View {
         Section {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(inv.id).font(.title2.weight(.bold).monospaced())
+            // The number is in the title already: the head of the page is who and how much, as Wallet shows a payment.
+            VStack(spacing: 8) {
+                Initials(name: InvoiceFacts.customerName(inv, walkIn: "Walk-in"), size: 52)
+                Text(Money.pkr(inv.grandTotal))
+                    .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
                 HStack(spacing: 6) {
                     balanceBadge(inv)
                     if inv.status == .refunded { StatusBadge("Refunded", color: .purple) }
                     if (inv.source ?? "").hasPrefix("shopify") { StatusBadge("Shopify", color: .green) }
                 }
             }
-            .padding(.vertical, 2)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
             customerRow(inv)
             let when = ShopDate.say(inv.createdAt, withTime: true)
             if !when.isEmpty { LabeledContent("Date", value: when) }

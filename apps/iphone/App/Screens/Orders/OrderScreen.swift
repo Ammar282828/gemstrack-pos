@@ -86,16 +86,19 @@ struct OrderScreen: View {
     }
 
     private func titleBlock(_ order: Order) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(order.id)
-                    .font(.title2.weight(.bold))
-                    .monospacedDigit()
+        // Who and how much, as the invoice's page opens: the number is in the title.
+        VStack(spacing: 8) {
+            Initials(name: OrdersLogic.customerName(order), size: 52)
+            Text(Money.pkr(order.grandTotal))
+                .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            HStack(spacing: 6) {
                 if OrdersLogic.isOnline(order) { OrdersOnlineBadge() }
-                Spacer(minLength: 4)
                 OrdersPaymentBadge(order: order)
             }
-            Text(OrdersLogic.customerName(order) + " · taken " + ShopDate.say(order.createdAt))
+            Text("Taken " + ShopDate.say(order.createdAt))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             let rates = OrdersLogic.rateLine(order)
@@ -105,6 +108,8 @@ struct OrderScreen: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 6)
     }
 
     @ViewBuilder

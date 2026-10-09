@@ -19,6 +19,9 @@ struct ERPApp: App {
                 if lock.locked || lock.covered { LockCover(lock: lock) }
             }
             .tint(Theme.accent)
+            // Dates the way the shop writes them ("23 Oct 2026"), in the pickers as in ShopDate, whatever the
+            // phone's region; the clock stays the phone's own.
+            .environment(\.locale, Locale(identifier: "en_PK"))
             .animation(.easeOut(duration: 0.2), value: lock.locked || lock.covered)
             .onChange(of: scenePhase) { _, phase in lock.phase(phase, signedIn: session.state == .signedIn) }
             // A cold start of a signed-in app asks for the face too; a fresh sign-in does not.

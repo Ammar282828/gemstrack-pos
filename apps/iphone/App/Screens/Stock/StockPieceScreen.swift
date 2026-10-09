@@ -44,7 +44,7 @@ struct StockPieceScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
-        .safeAreaInset(edge: .bottom, spacing: 0) { sellBar(p) }
+        .safeAreaBar(edge: .bottom, spacing: 0) { sellBar(p) }
     }
 
     /// Sell puts the piece on the sale in progress (the New sale screen's own draft, as Scan does) and opens it.

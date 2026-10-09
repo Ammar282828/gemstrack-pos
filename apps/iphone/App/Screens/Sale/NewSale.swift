@@ -51,7 +51,6 @@ struct SaleForm: View {
     @State var editing: SaleLine?
     /// A piece being described that is not on the sale yet.
     @State var newItem: SaleLine?
-    @State var pickingCustomer = false
     @State var scanning = false
     @State var rateSheet = false
     @State var confirmingReset = false
@@ -139,10 +138,7 @@ struct SaleForm: View {
                 Button("Done") { SaleKeyboard.dismiss() }
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) { saveBar(f) }
-        .sheet(isPresented: $pickingCustomer) {
-            SaleCustomerPicker { c in pickCustomer(c) }
-        }
+        .safeAreaBar(edge: .bottom, spacing: 0) { saveBar(f) }
         .sheet(item: $editing) { line in
             SaleLineEditor(line: line, rates: f.rateBook.pricing) { changed in replace(line.sku, with: changed) }
         }

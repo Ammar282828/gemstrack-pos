@@ -216,26 +216,31 @@ struct InvoicesList: View {
             }
         }
         .listStyle(.insetGrouped)
-        .safeAreaInset(edge: .top, spacing: 0) { chipRow(scoped) }
+        .safeAreaBar(edge: .top, spacing: 0) { chipRow(scoped) }
     }
 
-    /// "Every invoice, and what is still owed on it", with the whole book's figure whatever the
-    /// filters show (the dashboard's "Owed to you", invoices only: lib/owed.ts).
+    /// What the whole book is owed, whatever the filters show (the dashboard's "Owed to you", invoices only: lib/owed.ts).
     @ViewBuilder
     private func subtitle(_ all: [Invoice]) -> some View {
         let owed = owedToYou(all)
         let count = owed.invoices.count
-        VStack(alignment: .leading, spacing: 3) {
-            Text("Every invoice, and what is still owed on it.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            if owed.total > 0 {
-                Text("\(Money.pkr(owed.total)) owed on \(count) invoice\(count == 1 ? "" : "s")")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.red)
+        // The figure, not a sentence about it: what the book is owed, whatever the filters show.
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Owed to you").font(.subheadline).foregroundStyle(.secondary)
+                Text(owed.total > 0 ? Money.pkr(owed.total) : "Nothing owed")
+                    .font(.system(.title2, design: .rounded).weight(.bold))
+                    .foregroundStyle(owed.total > 0 ? Color.red : Color.secondary)
                     .monospacedDigit()
             }
+            Spacer(minLength: 8)
+            if owed.total > 0 {
+                Text("\(count) invoice\(count == 1 ? "" : "s")")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
+        .padding(.vertical, 2)
     }
 
     private var emptyState: some View {
