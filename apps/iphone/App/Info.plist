@@ -98,5 +98,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- taheri.shop's weight face (WeightLabel.jsx), so Photo weights' preview reads as the site draws it. -->
+	<key>UIAppFonts</key>
+	<array>
+		<string>FuturaLT-Light.ttf</string>
+	</array>
 </dict>
 </plist>

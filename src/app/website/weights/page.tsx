@@ -27,11 +27,27 @@ import { useToast } from '@/hooks/use-toast';
 import { Scale, ChevronLeft, ChevronRight, Loader2, Check, Search, X, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_WEBSITE_WEIGHTS } from '@/lib/store-config';
+import { weightFace } from './fonts';
 
 interface Piece {
   key: string; collection: string; file: string; thumb: string;
   weightGrams: number | null; source: 'label' | 'pos' | null; labelWeightGrams: number | null;
   enteredBy: string | null; enteredAt: string | null;
+  /** When it reached the site (ms): the list comes newest first. */
+  added?: number | null;
+  /** Uploaded since the site last rebuilt its list: shown on the site, weight and all, until then. */
+  drop?: boolean;
+}
+
+/** "Added today", "Added 7 Oct": when a photo reached the site. */
+function addedWords(ms?: number | null): string {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const day = (x: Date) => x.toLocaleDateString('en-GB', { timeZone: 'Asia/Karachi' });
+  const now = new Date();
+  if (day(d) === day(now)) return 'Added today';
+  if (day(d) === day(new Date(now.getTime() - 86_400_000))) return 'Added yesterday';
+  return 'Added ' + d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Karachi' });
 }
 
 async function authed(): Promise<Record<string, string>> {
@@ -173,7 +189,7 @@ function PhotoWeightsPage() {
               // The site's own geometry (WeightLabel.jsx): Futura LT Light at
               // 143/3000 of the width, 120 in, baseline at 100 + 143 × 1.1.
               <svg aria-hidden="true" viewBox="0 0 3000 3000" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 w-full h-full pointer-events-none select-none">
-                <text x="120" y={100 + 143 * 1.1} fontFamily='"Futura LT", Futura, "Century Gothic", system-ui, sans-serif' fontWeight="300" fontSize="143" letterSpacing="2" fill="#fff">
+                <text x="120" y={100 + 143 * 1.1} fontFamily={weightFace.style.fontFamily} fontWeight="300" fontSize="143" letterSpacing="2" fill="#fff">
                   {(value || String(current.weightGrams)).replace(/[^\d.]/g, '')}g
                 </text>
               </svg>
@@ -187,6 +203,11 @@ function PhotoWeightsPage() {
             <div>
               <p className="text-xs uppercase tracking-wider text-muted-foreground">{current.collection}</p>
               <p className="text-lg font-medium leading-tight">{current.file}</p>
+              {(current.drop || current.added) && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {[addedWords(current.added), current.drop ? 'new upload: on the site, not yet on its list' : ''].filter(Boolean).join(' · ')}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground tabular-nums mt-1">{index + 1} of {queue.length} in this list</p>
             </div>
             <div>

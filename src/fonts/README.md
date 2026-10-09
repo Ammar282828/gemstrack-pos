@@ -9,3 +9,7 @@ and ad faces).
 Inter, Figtree, Sofia Sans Extra Condensed, Bodoni Moda, Cormorant Garamond,
 Playfair Display, Great Vibes, Montserrat, Cinzel and Newsreader are all under
 the SIL Open Font License 1.1 (https://openfontlicense.org), © their authors.
+
+`futura-lt-light.woff2` is taheri.shop's own weight face (its `WeightLabel`), the same file as
+`public/fonts/futura-lt-light.woff2` (the canvas stamp loads that one by URL): loaded with `next/font/local` in
+`src/app/website/weights/fonts.ts` for Photo weights' preview.

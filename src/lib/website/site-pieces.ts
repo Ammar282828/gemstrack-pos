@@ -130,6 +130,19 @@ async function dropsOf(site: string): Promise<Drop[]> {
   return (d?.images ?? []).filter(i => typeof i?.p === 'string' && typeof i.thumb === 'string' && typeof i.full === 'string');
 }
 
+/**
+ * taheri.shop's new uploads not on its list yet, each under the key it keeps once listed ("…/DSC09213.jpg" →
+ * "…/DSC09213.webp"), with its thumbnail and when it was added (ms). Photo weights shows them, newest first, and
+ * takes their weight: the site draws a counter weight on such a photo until its next rebuild (posOnlyWeights).
+ */
+export async function listDrops(site: string): Promise<{ key: string; name: string; thumb: string; added: number | null }[]> {
+  const abs = (u: string) => (/^https?:\/\//.test(u) ? u : `${site}${u.startsWith('/') ? '' : '/'}${u}`);
+  return (await dropsOf(site)).map(dr => {
+    const key = dr.p.replace(/\.[^./]+$/, '.webp');
+    return { key, name: key.split('/').pop()!.replace(/\.webp$/i, ''), thumb: abs(dr.thumb), added: typeof dr.t === 'number' && dr.t > 0 ? dr.t * 1000 : null };
+  });
+}
+
 async function fromAttributes(site: string): Promise<Listed[]> {
   // Never the counter's weights cached: a weight typed a moment ago shows at once.
   const [catalog, pos, drops] = await Promise.all([getCatalogAttributes({ own: true }), getPieceWeights(true).catch(() => ({})), dropsOf(site)]);

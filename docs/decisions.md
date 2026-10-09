@@ -589,6 +589,12 @@ A fourth role beside owner, staff and karigar (`lib/roles.ts`), named by `NEXT_P
 ### Weight preview
 
 - Photo Weights' preview draws the weight with the overlay tool's geometry (Futura LT Light, 143/3000 of the width, inset 120/3000).
+- The face is really loaded (2026-10-09, owner: "the font does not look like Futura Lite"): the page named "Futura LT" without
+  loading it, so a phone drew its own Futura Medium or Century Gothic. Now `next/font/local` (`website/weights/fonts.ts`), and the
+  iPhone app bundles it (`App/Resources/Fonts/FuturaLT-Light.ttf`, UIAppFonts) at the same proportions.
+- **Newest first, new uploads included** (same day, owner: "it's not showing me the latest rings… show me the newest stuff
+  first"): `/api/website/pieces` lists by the site's `added`, and with them the uploads the site hasn't listed yet (its drop
+  folder, `listDrops`), whose weight is saved under the key each keeps once listed; the site draws it until its next rebuild.
 
 ### Shop outage
 

@@ -180,13 +180,19 @@ struct WebsiteWeightsScreen: View {
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(.rect(cornerRadius: 14))
                 .overlay(alignment: .topLeading) {
-                    // Where the site draws it (WeightLabel.jsx: 120/3000 in, 143/3000 high), so what is typed shows where it lands.
+                    // As the site draws it (WeightLabel.jsx): Futura LT Light (bundled, App/Resources/Fonts) at 143/3000 of
+                    // the photo's width, 120/3000 in, its baseline at (100 + 143 × 1.1)/3000 — so what is typed shows
+                    // where it lands, at its size, in its face.
                     if p.source != "label", let shown = preview(p) {
-                        Text(shown + "g")
-                            .font(.system(size: 16, weight: .light))
-                            .foregroundStyle(.white)
-                            .padding(.leading, 14)
-                            .padding(.top, 13)
+                        GeometryReader { geo in
+                            let w = geo.size.width
+                            Text(shown + "g")
+                                .font(.custom("FuturaLT-Light", fixedSize: w * 143 / 3000))
+                                .tracking(w * 2 / 3000)
+                                .foregroundStyle(.white)
+                                .offset(x: w * 120 / 3000, y: w * 114 / 3000)
+                        }
+                        .allowsHitTesting(false)
                     }
                 }
                 .overlay(alignment: .topTrailing) {
