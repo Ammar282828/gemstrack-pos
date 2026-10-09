@@ -251,7 +251,7 @@ struct OrderNextStepRow: View {
     private func stepButton(_ title: String, symbol: String, prominent: Bool, action: @escaping () -> Void) -> some View {
         if prominent {
             Button(action: action) { Label(title, systemImage: symbol) }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.houseProminent)
                 .controlSize(.small)
         } else {
             Button(action: action) { Label(title, systemImage: symbol) }
