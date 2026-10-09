@@ -21,10 +21,14 @@ echo "Dressing the app as $HOUSE (build ${CI_BUILD_NUMBER:-1}, team ${CI_TEAM_ID
 node scripts/house.mjs "$HOUSE" --auto "${CI_TEAM_ID:-}" "${CI_BUILD_NUMBER:-1}" >/dev/null
 xcodegen generate --spec project.yml
 
-# Xcode Cloud builds with package resolution switched off, from the project's Package.resolved: a project
-# made here has none, so the packages are resolved now (Firebase, ERPCore). As GitHub's build passed
-# -skipPackagePluginValidation and -skipMacroValidation, the packages' plugins and macros are trusted.
+# Xcode Cloud builds with package resolution switched off, only from the project's Package.resolved, and a
+# project made here has none: the committed one (apps/iphone/Package.resolved, Firebase's exact version and
+# everything it pulls in) is put where Xcode looks. Change Firebase's version in project.yml and this file is
+# remade: `swift package resolve` on a package with the same dependency, or Xcode's own after a local build.
+mkdir -p ERP.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+cp Package.resolved ERP.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+# As GitHub's build passed -skipPackagePluginValidation and -skipMacroValidation, the packages' plugins and
+# macros are trusted.
 defaults write com.apple.dt.Xcode IDESkipPackagePluginFingerprintValidatation -bool YES
 defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
-xcodebuild -resolvePackageDependencies -project ERP.xcodeproj -scheme ERP -skipPackagePluginValidation -skipMacroValidation >/dev/null
-echo "ERP.xcodeproj is made and its packages resolved"
+echo "ERP.xcodeproj is made, with its Package.resolved"

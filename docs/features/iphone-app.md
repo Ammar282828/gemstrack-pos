@@ -119,7 +119,7 @@ jobs run only by hand.
 - **How it builds.** `apps/iphone/ci_scripts/ci_post_clone.sh`: the house from the product's bundle ID
   (`houses.json`), `house.mjs --auto <team> <build number>` (automatic signing, Xcode Cloud's build number;
   2.1 from the first such build, as its numbers count from 1), XcodeGen, then the packages resolved (Xcode Cloud
-  builds only from a Package.resolved, which a generated project lacks).
+  builds only from a Package.resolved, which a generated project lacks: the committed `apps/iphone/Package.resolved` is copied in; remake it when Firebase's version changes).
 - **The one-time setup, on the Mac** (the owner, about ten minutes):
   1. `git pull`, then `sh apps/iphone/scripts/xcode-cloud-setup.sh taheri`: Xcode opens the Taheri app.
   2. Target ERP → Signing & Capabilities: tick *Automatically manage signing* and pick the team (also for
