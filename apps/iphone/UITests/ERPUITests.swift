@@ -91,7 +91,13 @@ final class ERPUITests: XCTestCase {
         let offer = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Sana Demo'")).firstMatch
         XCTAssertTrue(offer.waitForExistence(timeout: 4), "\(place) offers Sana Demo while 'san' is typed")
         offer.tap()
-        XCTAssertTrue(app.buttons["Change"].waitForExistence(timeout: 4), "\(place) shows the customer picked, with Change")
+        // The box gives way to the customer, with Change (found by its words: a list row may read as one element).
+        let change = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Change'")).firstMatch
+        let picked = change.waitForExistence(timeout: 4) && name.waitForNonExistence(timeout: 2)
+        if !picked { print(app.debugDescription) }
+        XCTAssertTrue(picked, "\(place) shows Sana Demo picked, with Change; the name box " +
+                      (name.exists ? "still holds '\(name.value as? String ?? "")'" : "is gone") +
+                      (change.exists ? "" : ", and nothing reads Change"))
         XCTAssertEqual(app.state, .runningForeground)
     }
 

@@ -24,6 +24,10 @@ struct CustomerField: View {
 
     private enum Field { case name, phone }
     @FocusState private var focus: Field?
+    /// The customer just picked. The name box gives way to them while it still has the keyboard, and on its way
+    /// out it writes back what it last held (the letters typed, or nothing for a recent customer), which would let
+    /// go of the pick: nothing it writes counts until Change, or the screen, lets go of them.
+    @State private var settled: String?
 
     private var picked: Customer? {
         guard let id = pickedId, !id.isEmpty else { return nil }
@@ -31,7 +35,7 @@ struct CustomerField: View {
     }
 
     private var nameBinding: Binding<String> {
-        Binding(get: { name }, set: { type($0) })
+        Binding(get: { name }, set: { if settled == nil { type($0) } })
     }
 
     private var typed: String { name.trimmingCharacters(in: .whitespaces) }
@@ -83,6 +87,9 @@ struct CustomerField: View {
             let kept = pakistanE164(phone)
             if kept != phone { phone = kept }
         }
+        .onChange(of: pickedId) { _, now in
+            if (now ?? "").isEmpty { settled = nil }
+        }
         .animation(.snappy(duration: 0.22), value: focus)
         .animation(.snappy(duration: 0.22), value: name)
     }
@@ -118,8 +125,9 @@ struct CustomerField: View {
 
     private func hitRow(_ hit: CustomerSearch.Hit, note: String?) -> some View {
         Button {
-            pick(hit.customer)
+            settled = hit.customer.id
             focus = nil
+            pick(hit.customer)
         } label: {
             HStack(spacing: 12) {
                 Initials(name: hit.customer.name)
@@ -152,6 +160,7 @@ struct CustomerField: View {
             }
             Spacer(minLength: 4)
             Button("Change") {
+                settled = nil
                 type("")
                 phone = ""
                 focus = .name

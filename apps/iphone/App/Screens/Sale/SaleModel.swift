@@ -569,6 +569,7 @@ extension SaleDraft {
 
     /// Typing a name lets go of a customer picked from the book, as the web's name box does.
     mutating func typeName(_ text: String) {
+        guard text != customerName else { return }
         customerName = text
         customerId = nil
     }
