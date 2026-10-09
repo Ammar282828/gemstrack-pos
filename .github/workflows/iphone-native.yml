@@ -163,9 +163,10 @@ jobs:
           done
           xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate "process == \"ERP\" AND messageType >= 16" 2>/dev/null | tail -40 || true
       # Every place opened, the sheets used most, and launch and scrolling timed at today's size and at
-      # ten times the books (UITests/). Minutes on the Mac are dear: only when a commit asks, with "[ui]".
+      # ten times the books (UITests/). Minutes on the Mac are dear: only when a commit in the push asks, with "[ui]".
       - name: UI flows and speed
-        if: contains(github.event.head_commit.message, '[ui]')
+        # Any commit in the push may ask, not only the last one.
+        if: contains(join(github.event.commits.*.message, ' '), '[ui]') || contains(github.event.head_commit.message, '[ui]')
         run: |
           set +e
           xcodebuild test -project ERP.xcodeproj -scheme ERP -destination "id=$UDID" \
