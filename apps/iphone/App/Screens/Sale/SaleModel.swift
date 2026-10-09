@@ -3,7 +3,7 @@ import ERPCore
 
 // The sale in progress, as the phone keeps it. The web keeps an unfinished sale in Firestore
 // (Drafts, components/drafts/use-work-drafts.ts) so it can be finished on another device; the phone
-// keeps its own copy in UserDefaults ("erp.saleDraft") and no more. Nothing here decides money:
+// keeps its own copy in UserDefaults ("erp.saleDraft") and sends the same to Drafts (SaleWebDraft). Nothing here decides money:
 // the prices, totals and credit come from ERPCore (Pricing, Exchange, WalkIn, InvoiceCredit) and the
 // server prices the sale again when it is saved.
 

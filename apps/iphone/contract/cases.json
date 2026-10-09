@@ -4,6 +4,60 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "Test Buyer",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test solitaire ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 8.25,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "itemCategory" : "cat001",
+            "karat" : "21k",
+            "makingCharges" : 4800,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 1250.75,
+            "stoneWeightG" : 0.35,
+            "wastagePercentage" : 12.5
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "21k by percentage, stones weighed out of the metal",
       "send" : {
@@ -85,6 +139,60 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test heavy bangle",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 12.4,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "itemCategory" : "cat007",
+            "karat" : "22k",
+            "makingCharges" : 6500,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0.8,
+            "wastagePercentage" : 9.9137931
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "wastage typed in grams",
       "send" : {
@@ -165,6 +273,93 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "Test Mixed",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 31250.55,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test 22k bangle",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 21.6,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 9000,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 8
+          },
+          {
+            "description" : "Test 18k pendant",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 3.9,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "18k",
+            "makingCharges" : 3500,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 15
+          },
+          {
+            "description" : "Test 24k chain",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 11.664,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "24k",
+            "makingCharges" : 0,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 3
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "22k, 18k and 24k in one order, one rate typed here",
       "send" : {
@@ -285,6 +480,76 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test fine ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 4.375,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 2375.5,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 333.33,
+            "stoneWeightG" : 0.125,
+            "wastagePercentage" : 7.5
+          },
+          {
+            "description" : "Test grain",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 0.005,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 0.5,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "4.375 g with decimals, and a 5 mg piece",
       "send" : {
@@ -384,6 +649,76 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test agreed necklace",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 9,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : true,
+            "karat" : "21k",
+            "makingCharges" : 0,
+            "manualPrice" : 185000.5,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test weighed ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 5.5,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 3000,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "a fixed-price piece with its weight left in",
       "send" : {
@@ -483,6 +818,76 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test not yet weighed",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 5000,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test weighed ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 3.2,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 2000,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "a piece with 0 weight (the form refuses to save it; the live total still agrees)",
       "send" : {
@@ -582,6 +987,62 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test ruby and diamond ring",
+            "diamondCharges" : 85000,
+            "diamondDetails" : "6 x test diamond",
+            "estimatedWeightG" : 10.2,
+            "hasDiamonds" : true,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "itemCategory" : "cat001",
+            "karat" : "22k",
+            "makingCharges" : 7500,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 12000,
+            "stoneDetails" : "1 x test ruby",
+            "stoneWeightG" : 1.2,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "stones and diamonds ticked",
       "send" : {
@@ -664,6 +1125,76 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test plain ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 7.7,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 3300,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test silver ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 9.5,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "makingCharges" : 0,
+            "manualPrice" : 0,
+            "metalType" : "silver",
+            "nickelFree" : false,
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "stones and diamonds unticked with values left in them",
       "send" : {
@@ -763,6 +1294,59 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 99999999,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test small ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 2.1,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 1500,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "a discount larger than the subtotal",
       "send" : {
@@ -842,6 +1426,68 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "Old chain · 22k · 11.2 g at 36,000\/g; Broken bangle",
+        "advanceInExchangeValue" : 448700.5,
+        "advanceMethod" : "Bank Transfer",
+        "advancePayment" : 150000,
+        "costRate24k" : 0,
+        "customerContact" : "0333 5550123",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "Test Exchanger",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "Old chain",
+            "id" : "exchangeRows-1",
+            "karat" : "22k",
+            "ratePerGram" : "36000",
+            "value" : "403200",
+            "valueTyped" : false,
+            "weightG" : "11.2"
+          },
+          {
+            "description" : "Broken bangle",
+            "id" : "exchangeRows-2",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "45500.5",
+            "valueTyped" : true,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test bridal set",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 15.5,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 14000,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 11
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "advance plus two exchange rows",
       "send" : {
@@ -934,6 +1580,59 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "Old ring",
+        "advanceInExchangeValue" : 20000,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 500000,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "Old ring",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "20000",
+            "valueTyped" : true,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test small pendant",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 1.8,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "18k",
+            "makingCharges" : 900,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "advance and exchange more than the pieces come to",
       "send" : {
@@ -1017,6 +1716,59 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "Walk-in Customer",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test counter ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 4.4,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 2000,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "a walk-in",
       "send" : {
@@ -1100,6 +1852,60 @@
           "phone" : "+923215550177"
         }
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "0312 5550101",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "Zarmeena Testani",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test new-customer ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 6.05,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 2500,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22",
+        "source" : "social_media"
+      },
       "house" : "taheri",
       "name" : "a new customer by name and number",
       "send" : {
@@ -1194,6 +2000,81 @@
           "phone" : "+923215550177"
         }
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "+923005550142",
+        "customerId" : "cust-test-0001",
+        "customerName" : "Hina Mockwell",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test repeat ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 5.25,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "itemCategory" : "cat001",
+            "karat" : "21k",
+            "makingCharges" : 2800,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "size" : "11",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test repeat bangle",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 14.5,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "itemCategory" : "cat007",
+            "karat" : "22k",
+            "makingCharges" : 5200,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "size" : "2.4",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22",
+        "source" : "referral"
+      },
       "house" : "taheri",
       "name" : "an existing customer chosen",
       "send" : {
@@ -1313,6 +2194,59 @@
           "phone" : "+923215550177"
         }
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "0300-5550142",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test typed-number ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 5.25,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 2800,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "a number already on file, typed instead of chosen",
       "send" : {
@@ -1395,6 +2329,212 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 12345.67,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test piece 1",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 2.5,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "18k",
+            "makingCharges" : 1000,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 8
+          },
+          {
+            "description" : "Test piece 2",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 3.875,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 1350,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test piece 3",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 5.25,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 1700,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 12.5
+          },
+          {
+            "description" : "Test piece 4",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 6.625,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "24k",
+            "makingCharges" : 2050,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 8
+          },
+          {
+            "description" : "Test piece 5",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 8,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "18k",
+            "makingCharges" : 2400,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test piece 6",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 9.375,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 2750,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 12.5
+          },
+          {
+            "description" : "Test piece 7",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 10.75,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 3100,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 8
+          },
+          {
+            "description" : "Test piece 8",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 12.125,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "24k",
+            "makingCharges" : 3450,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test piece 9",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 13.5,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "18k",
+            "makingCharges" : 3800,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 12.5
+          },
+          {
+            "description" : "Test piece 10",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 14.875,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 4150,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 8
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "ten pieces",
       "send" : {
@@ -1654,6 +2794,59 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Bank Transfer",
+        "advancePayment" : 2500000,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test 24k bullion bar",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 252.125,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "24k",
+            "makingCharges" : 15000,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 2.5
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "a piece over 1 crore",
       "send" : {
@@ -1734,6 +2927,76 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test palladium band",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 6.2,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "18k",
+            "makingCharges" : 2500,
+            "manualPrice" : 0,
+            "metalType" : "palladium",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test palladium ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 4.05,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "12k",
+            "makingCharges" : 2500,
+            "manualPrice" : 0,
+            "metalType" : "palladium",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "palladium 18k and 12k with their own rates",
       "send" : {
@@ -1833,6 +3096,59 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test flat palladium ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 7.3,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "18k",
+            "makingCharges" : 1800,
+            "manualPrice" : 0,
+            "metalType" : "palladium",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 0,
+        "palladiumRate18k" : 0,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "palladium with only the flat rate",
       "send" : {
@@ -1910,6 +3226,75 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test platinum band",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 6.8,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "makingCharges" : 6000,
+            "manualPrice" : 0,
+            "metalType" : "platinum",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 5
+          },
+          {
+            "description" : "Test silver bangle",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 42.5,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "makingCharges" : 0,
+            "manualPrice" : 0,
+            "metalType" : "silver",
+            "nickelFree" : false,
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "platinum and silver in a gold house",
       "send" : {
@@ -2008,6 +3393,61 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 41109.39643347051,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "Test Margin",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "adminNote" : "Set the stone low",
+            "description" : "Test ring with a photo",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 8,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 4000,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "sampleImageDataUri" : "data:image\/jpeg;base64,\/9j\/4AECAw==",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "the 24K rate for our margin, a note for the karigar and a photo",
       "send" : {
@@ -2095,6 +3535,78 @@
           "phone" : "+923215550177"
         }
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 41109.39643347051,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "Test Staff Customer",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "adminNote" : "Set the stone low",
+            "description" : "Test staff ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 8,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 4000,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "adminNote" : "Polish after setting",
+            "description" : "Test staff bangle",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 20.5,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 8000,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 9
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "staff: the 24K rate and the karigar's note go with the order",
       "send" : {
@@ -2205,6 +3717,72 @@
           "source" : "referral"
         }
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : null,
+        "advancePayment" : 25000,
+        "costRate24k" : 0,
+        "customerContact" : "+923005550142",
+        "customerId" : "cust-test-0001",
+        "customerName" : "Hina Mockwell",
+        "delivery" : {
+          "address" : "12 Test Lane, Sample Town",
+          "charge" : 350,
+          "city" : "Karachi",
+          "contactName" : "Test Receiver",
+          "contactPhone" : "0300 5550000",
+          "expectedDate" : "2026-10-20",
+          "notes" : "Gate code 0000",
+          "required" : true
+        },
+        "discountAmount" : 5000,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : true,
+        "items" : [
+          {
+            "description" : "Test wedding ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 6.5,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "itemCategory" : "cat001",
+            "karat" : "21k",
+            "karigarId" : "karigar-test-1",
+            "makingCharges" : 3500,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "referenceSku" : "RIN-000000",
+            "sampleGiven" : true,
+            "size" : "10.5",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "notes" : "  Wanted for a wedding, call before Friday  ",
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22",
+        "source" : "referral",
+        "takenBy" : "Test Clerk"
+      },
       "house" : "taheri",
       "name" : "everything the form can carry",
       "send" : {
@@ -2312,6 +3890,115 @@
           "source" : "referral"
         }
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 40000,
+        "costRate24k" : 0,
+        "customerContact" : "+923005550142",
+        "customerId" : "cust-test-0001",
+        "customerName" : "Hina Mockwell",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30937.5,
+        "goldRate21k" : 36090.75,
+        "goldRate22k" : 37812.25,
+        "goldRate24k" : 41250.5,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test stock ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 6.35,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "itemCategory" : "cat001",
+            "karat" : "22k",
+            "makingCharges" : 4200,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "referenceSku" : "RIN-000321",
+            "sampleGiven" : false,
+            "size" : "11",
+            "stoneCharges" : 1800,
+            "stoneWeightG" : 0.4,
+            "wastagePercentage" : 9
+          },
+          {
+            "description" : "Test described pendant",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 5.5,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCompleted" : false,
+            "isManualPrice" : true,
+            "karat" : "21k",
+            "makingCharges" : 0,
+            "manualPrice" : 96500,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test palladium band",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 7.1,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "18k",
+            "makingCharges" : 2000,
+            "manualPrice" : 0,
+            "metalType" : "palladium",
+            "referenceSku" : "PAL-000044",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 6
+          },
+          {
+            "description" : "Test silver cuff",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 28.5,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "makingCharges" : 0,
+            "manualPrice" : 0,
+            "metalType" : "silver",
+            "nickelFree" : false,
+            "referenceSku" : "BRA-000012",
+            "sampleGiven" : false,
+            "stoneCharges" : 640,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          }
+        ],
+        "palladiumRate12k" : 6205.35,
+        "palladiumRate18k" : 9310.15,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "taheri",
       "name" : "an order made from a sale",
       "send" : {
@@ -2460,6 +4147,76 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30600.75,
+        "goldRate21k" : 35650.5,
+        "goldRate22k" : 37400,
+        "goldRate24k" : 40800.25,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test silver bangle",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 37.5,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "makingCharges" : 0,
+            "manualPrice" : 0,
+            "metalType" : "silver",
+            "nickelFree" : false,
+            "sampleGiven" : false,
+            "stoneCharges" : 850,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test silver pendant",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 21.125,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "makingCharges" : 0,
+            "manualPrice" : 0,
+            "metalType" : "silver",
+            "nickelFree" : false,
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 18
+          }
+        ],
+        "palladiumRate12k" : 0,
+        "palladiumRate18k" : 0,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "mina",
       "name" : "silver: wastage and making are in the all-in rate",
       "send" : {
@@ -2557,6 +4314,76 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30600.75,
+        "goldRate21k" : 35650.5,
+        "goldRate22k" : 37400,
+        "goldRate24k" : 40800.25,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test gold ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 6.75,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 4200,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0.5,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test silver chain",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 55.25,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "makingCharges" : 0,
+            "manualPrice" : 0,
+            "metalType" : "silver",
+            "nickelFree" : false,
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 0,
+        "palladiumRate18k" : 0,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "mina",
       "name" : "a gold piece in a silver house",
       "send" : {
@@ -2654,6 +4481,96 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30600.75,
+        "goldRate21k" : 35650.5,
+        "goldRate22k" : 37400,
+        "goldRate24k" : 40800.25,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test rose ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 9.9,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "makingCharges" : 0,
+            "manualPrice" : 0,
+            "metalType" : "silver",
+            "nickelFree" : true,
+            "platingNote" : "Rose gold",
+            "platingType" : "Other",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test rhodium set",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 31.4,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "makingCharges" : 0,
+            "manualPrice" : 0,
+            "metalType" : "silver",
+            "nickelFree" : false,
+            "platingType" : "White Rhodium",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test changed piece",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 5.5,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 1000,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 0,
+        "palladiumRate18k" : 0,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "mina",
       "name" : "plating on silver",
       "send" : {
@@ -2781,6 +4698,60 @@
           "source" : "referral"
         }
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Card",
+        "advancePayment" : 30000,
+        "costRate24k" : 0,
+        "customerContact" : "+923005550142",
+        "customerId" : "cust-test-0001",
+        "customerName" : "Hina Mockwell",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 2500.5,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30600.75,
+        "goldRate21k" : 35650.5,
+        "goldRate22k" : 37400,
+        "goldRate24k" : 40800.25,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test silver set",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 120.5,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "makingCharges" : 0,
+            "manualPrice" : 0,
+            "metalType" : "silver",
+            "nickelFree" : false,
+            "sampleGiven" : false,
+            "stoneCharges" : 1200.25,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 0,
+        "palladiumRate18k" : 0,
+        "promisedDate" : "2026-10-22",
+        "source" : "referral"
+      },
       "house" : "mina",
       "name" : "silver with a discount and an advance",
       "send" : {
@@ -2863,6 +4834,77 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30600.75,
+        "goldRate21k" : 35650.5,
+        "goldRate22k" : 37400,
+        "goldRate24k" : 40800.25,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test diamond silver ring",
+            "diamondCharges" : 18000,
+            "diamondDetails" : "3 x test diamond",
+            "estimatedWeightG" : 7.2,
+            "hasDiamonds" : true,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "makingCharges" : 0,
+            "manualPrice" : 0,
+            "metalType" : "silver",
+            "nickelFree" : false,
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test plain silver ring",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 7.2,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "makingCharges" : 0,
+            "manualPrice" : 0,
+            "metalType" : "silver",
+            "nickelFree" : false,
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 0,
+        "palladiumRate18k" : 0,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "mina",
       "name" : "silver diamonds ticked and unticked",
       "send" : {
@@ -2961,6 +5003,80 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "0301 5550188",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "Test Silver Buyer",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30600.75,
+        "goldRate21k" : 35650.5,
+        "goldRate22k" : 37400,
+        "goldRate24k" : 40800.25,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test silver bangle",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 45.25,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "itemCategory" : "cat007",
+            "makingCharges" : 0,
+            "manualPrice" : 0,
+            "metalType" : "silver",
+            "nickelFree" : true,
+            "platingType" : "White Rhodium",
+            "referenceSku" : "BNG-000007",
+            "sampleGiven" : false,
+            "size" : "2.4",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          },
+          {
+            "description" : "Test gold stud",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 2.15,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 1500,
+            "manualPrice" : 0,
+            "metalType" : "gold",
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 0,
+        "palladiumRate18k" : 0,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "mina",
       "name" : "an order made from a sale",
       "send" : {
@@ -3064,6 +5180,76 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "advanceInExchangeDescription" : "",
+        "advanceInExchangeValue" : 0,
+        "advanceMethod" : "Cash",
+        "advancePayment" : 0,
+        "costRate24k" : 0,
+        "customerContact" : "",
+        "customerId" : "__WALK_IN__",
+        "customerName" : "",
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmount" : 0,
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "goldRate18k" : 30600.75,
+        "goldRate21k" : 35650.5,
+        "goldRate22k" : 37400,
+        "goldRate24k" : 40800.25,
+        "hideRates" : false,
+        "items" : [
+          {
+            "description" : "Test agreed silver tray",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 310,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : true,
+            "makingCharges" : 0,
+            "manualPrice" : 64000,
+            "metalType" : "silver",
+            "nickelFree" : false,
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "description" : "Test weighed silver spoon",
+            "diamondCharges" : 0,
+            "estimatedWeightG" : 0.375,
+            "hasDiamonds" : false,
+            "hasStones" : true,
+            "isCompleted" : false,
+            "isManualPrice" : false,
+            "makingCharges" : 0,
+            "manualPrice" : 0,
+            "metalType" : "silver",
+            "nickelFree" : false,
+            "sampleGiven" : false,
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "palladiumRate12k" : 0,
+        "palladiumRate18k" : 0,
+        "promisedDate" : "2026-10-22"
+      },
       "house" : "mina",
       "name" : "a fixed-price silver piece with its weight left in",
       "send" : {
@@ -3163,6 +5349,65 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 5000,
+            "metalType" : "gold",
+            "metalWeightG" : 4,
+            "miscCharges" : 0,
+            "name" : "Twist band",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "RNG-1001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "153280",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 153280,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "a walk-in pays exactly in cash",
       "send" : {
@@ -3253,6 +5498,84 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat002",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 7000,
+            "metalType" : "gold",
+            "metalWeightG" : 5.1,
+            "miscCharges" : 0,
+            "name" : "Hoop earrings",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "ERG-2001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "categoryId" : "cat007",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 9000,
+            "metalType" : "gold",
+            "metalWeightG" : 18.4,
+            "miscCharges" : 0,
+            "name" : "Carved bangle",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "BNG-3001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 6.5
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "100000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 896795.8,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "a walk-in pays part, the balance goes on the walk-in hisaab",
       "send" : {
@@ -3388,6 +5711,66 @@
           "phone" : "+923000000102"
         }
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat007",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 9000,
+            "metalType" : "gold",
+            "metalWeightG" : 18.4,
+            "miscCharges" : 0,
+            "name" : "Carved bangle",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "BNG-3001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 6.5
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "50000",
+            "id" : "salePayments-1",
+            "method" : "Card",
+            "reference" : "4321"
+          }
+        ],
+        "selectedCustomerId" : "CUST-D01",
+        "subtotal" : 700738.8,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "a named customer pays part by card",
       "send" : {
@@ -3491,6 +5874,66 @@
           "phone" : "+923000000102"
         }
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 5000,
+            "metalType" : "gold",
+            "metalWeightG" : 4,
+            "miscCharges" : 0,
+            "name" : "Twist band",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "RNG-1001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "178280",
+            "id" : "salePayments-1",
+            "method" : "Bank Transfer",
+            "reference" : "TRX-100234"
+          }
+        ],
+        "selectedCustomerId" : "CUST-D02",
+        "subtotal" : 153280,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "a named customer overpays, so the credit is held",
       "send" : {
@@ -3589,6 +6032,65 @@
           "phone" : "+923000000101"
         }
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat002",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 7000,
+            "metalType" : "gold",
+            "metalWeightG" : 5.1,
+            "miscCharges" : 0,
+            "name" : "Hoop earrings",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "ERG-2001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "60000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 196057,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "Nadia Example",
+        "walkInCustomerPhone" : "0300 0000555"
+      },
       "house" : "taheri",
       "name" : "a new customer typed by name and number",
       "send" : {
@@ -3690,6 +6192,65 @@
           "phone" : "+923000000102"
         }
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 5000,
+            "metalType" : "gold",
+            "metalWeightG" : 4,
+            "miscCharges" : 0,
+            "name" : "Twist band",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "RNG-1001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "20000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 153280,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : "0300 0000101"
+      },
       "house" : "taheri",
       "name" : "a number already on file is that customer",
       "send" : {
@@ -3782,6 +6343,66 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "customPrice" : 87650,
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : true,
+            "karat" : "21k",
+            "makingCharges" : 0,
+            "metalType" : "gold",
+            "metalWeightG" : 9.2,
+            "miscCharges" : 0,
+            "name" : "Antique piece",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "FX-1301",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "87650",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 87650,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "a discount equal to the subtotal",
       "send" : {
@@ -3877,6 +6498,94 @@
           "phone" : "+923000000101"
         }
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat007",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 9000,
+            "metalType" : "gold",
+            "metalWeightG" : 18.4,
+            "miscCharges" : 0,
+            "name" : "Carved bangle",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "BNG-3001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 6.5
+          },
+          {
+            "categoryId" : "cat002",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 7000,
+            "metalType" : "gold",
+            "metalWeightG" : 5.1,
+            "miscCharges" : 0,
+            "name" : "Hoop earrings",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "ERG-2001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "Old ring",
+            "id" : "exchangeRows-1",
+            "karat" : "22k",
+            "ratePerGram" : "30000",
+            "value" : "156000",
+            "valueTyped" : false,
+            "weightG" : "5.2"
+          },
+          {
+            "description" : "Broken chain",
+            "id" : "exchangeRows-2",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "40000",
+            "valueTyped" : true,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "100000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "selectedCustomerId" : "CUST-D01",
+        "subtotal" : 896795.8,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "two exchange rows",
       "send" : {
@@ -4018,6 +6727,66 @@
           "phone" : "+923000000102"
         }
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat004",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "24k",
+            "makingCharges" : 3000,
+            "metalType" : "gold",
+            "metalWeightG" : 2.5,
+            "miscCharges" : 0,
+            "name" : "Pendant",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "PND-6001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 5
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "Old set",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "300000",
+            "valueTyped" : true,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "selectedCustomerId" : "CUST-D02",
+        "subtotal" : 104062.5,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "an exchange worth more than the pieces, for a named customer",
       "send" : {
@@ -4115,6 +6884,97 @@
           "phone" : "+923000000101"
         }
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat007",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 9000,
+            "metalType" : "gold",
+            "metalWeightG" : 18.4,
+            "miscCharges" : 0,
+            "name" : "Carved bangle",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "BNG-3001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 6.5
+          },
+          {
+            "categoryId" : "cat002",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 7000,
+            "metalType" : "gold",
+            "metalWeightG" : 5.1,
+            "miscCharges" : 0,
+            "name" : "Hoop earrings",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "ERG-2001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "100000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          },
+          {
+            "amount" : "75000",
+            "id" : "salePayments-2",
+            "method" : "Card",
+            "reference" : "9921"
+          },
+          {
+            "amount" : "50000",
+            "id" : "salePayments-3",
+            "method" : "Bank Transfer",
+            "reference" : "TRX-884412"
+          }
+        ],
+        "selectedCustomerId" : "CUST-D01",
+        "subtotal" : 896795.8,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "three payments by three methods",
       "send" : {
@@ -4252,6 +7112,65 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat004",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 3500,
+            "metalType" : "gold",
+            "metalWeightG" : 6.25,
+            "miscCharges" : 0,
+            "name" : "Custom locket",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "NEW-MUBBS8A0",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 12
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "250600",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 250600,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "a one-off NEW- piece priced by weight",
       "send" : {
@@ -4327,6 +7246,86 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "",
+            "customPrice" : 98765,
+            "diamondCharges" : 0,
+            "diamondDetails" : "0.5ct round",
+            "hasDiamonds" : true,
+            "hasStones" : false,
+            "isCustomPrice" : true,
+            "karat" : "21k",
+            "makingCharges" : 0,
+            "metalType" : "gold",
+            "metalWeightG" : 8.5,
+            "miscCharges" : 0,
+            "name" : "Heirloom piece",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "NEW-MUBBS8A0",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 5000,
+            "metalType" : "gold",
+            "metalWeightG" : 4,
+            "miscCharges" : 0,
+            "name" : "Twist band",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "RNG-1001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "150000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 252045,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "a one-off NEW- piece at a fixed price, with a stock piece",
       "send" : {
@@ -4438,6 +7437,85 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "customPrice" : 99999,
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : true,
+            "karat" : "21k",
+            "makingCharges" : 5000,
+            "metalType" : "gold",
+            "metalWeightG" : 4,
+            "miscCharges" : 0,
+            "name" : "Twist band",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "RNG-1001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "categoryId" : "cat007",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 11250.5,
+            "metalType" : "gold",
+            "metalWeightG" : 19.05,
+            "miscCharges" : 0,
+            "name" : "Carved bangle",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "BNG-3001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 7
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "100000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 830787.05,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "re-priced stock pieces",
       "send" : {
@@ -4564,6 +7642,122 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat008",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "18k",
+            "makingCharges" : 4000,
+            "metalType" : "gold",
+            "metalWeightG" : 7.25,
+            "miscCharges" : 0,
+            "name" : "Eighteen",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "K18-1",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 9
+          },
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 2500,
+            "metalType" : "gold",
+            "metalWeightG" : 3.9,
+            "miscCharges" : 0,
+            "name" : "Twenty-one",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "K21-1",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "categoryId" : "cat007",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 6000,
+            "metalType" : "gold",
+            "metalWeightG" : 11.2,
+            "miscCharges" : 0,
+            "name" : "Twenty-two",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "K22-1",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 6
+          },
+          {
+            "categoryId" : "cat004",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "24k",
+            "makingCharges" : 1500,
+            "metalType" : "gold",
+            "metalWeightG" : 2.15,
+            "miscCharges" : 0,
+            "name" : "Twenty-four",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "K24-1",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 3
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "250000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 891295.1,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "18k, 21k, 22k and 24k pieces in one sale",
       "send" : {
@@ -4759,6 +7953,103 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat008",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 1234.5,
+            "metalType" : "gold",
+            "metalWeightG" : 3.456,
+            "miscCharges" : 0,
+            "name" : "Fine chain",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "DG-1",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 7.5
+          },
+          {
+            "categoryId" : "cat007",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 999.99,
+            "metalType" : "gold",
+            "metalWeightG" : 12.875,
+            "miscCharges" : 0,
+            "name" : "Heavy kara",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "DG-2",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 9.25
+          },
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "18k",
+            "makingCharges" : 150,
+            "metalType" : "gold",
+            "metalWeightG" : 0.123,
+            "miscCharges" : 0,
+            "name" : "Tiny stud",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "DG-3",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 12.5
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "50000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 611552.18125,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "decimal grams",
       "send" : {
@@ -4924,6 +8215,66 @@
           "phone" : "+923000000101"
         }
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 1250.5,
+            "metalType" : "gold",
+            "metalWeightG" : 4.337,
+            "miscCharges" : 0,
+            "name" : "Odd weight",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "PS-1",
+            "stoneCharges" : 333.33,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 6.75
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "100000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "selectedCustomerId" : "CUST-D01",
+        "subtotal" : 165013.91674999997,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "paise in the total, part paid",
       "send" : {
@@ -5016,6 +8367,66 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "customPrice" : 12345.4,
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : true,
+            "karat" : "21k",
+            "makingCharges" : 0,
+            "metalType" : "gold",
+            "metalWeightG" : 0,
+            "miscCharges" : 0,
+            "name" : "Price with paise",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "PD-9",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "12345",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 12345.4,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "paid in full when the total has paise that round down",
       "send" : {
@@ -5109,6 +8520,66 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "customPrice" : 12345.6,
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : true,
+            "karat" : "21k",
+            "makingCharges" : 0,
+            "metalType" : "gold",
+            "metalWeightG" : 0,
+            "miscCharges" : 0,
+            "name" : "Price with paise, up",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "PU-9",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "12346",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 12345.6,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "paid in full when the total has paise that round up",
       "send" : {
@@ -5202,6 +8673,66 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "description" : "Engraved",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 1234.56789,
+            "metalType" : "gold",
+            "metalWeightG" : 3.45678,
+            "miscCharges" : 0,
+            "name" : "Long decimals",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "LD-1",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 7.123456
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "100000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 131951.25163178303,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "a piece with long decimals, opened in the editor",
       "send" : {
@@ -5297,6 +8828,66 @@
           "phone" : "+923000000102"
         }
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat015",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 100000,
+            "metalType" : "gold",
+            "metalWeightG" : 268.5,
+            "miscCharges" : 0,
+            "name" : "Show piece",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "BIG-1401",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "10000000",
+            "id" : "salePayments-1",
+            "method" : "Bank Transfer",
+            "reference" : "TRX-770001"
+          }
+        ],
+        "selectedCustomerId" : "CUST-D02",
+        "subtotal" : 10053295,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "a one-crore piece",
       "send" : {
@@ -5390,6 +8981,65 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat009",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "18k",
+            "makingCharges" : 4000,
+            "metalType" : "palladium",
+            "metalWeightG" : 7.5,
+            "miscCharges" : 0,
+            "name" : "Palladium band",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "PD-7001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 5
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "60000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 122125,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "palladium 18k alone",
       "send" : {
@@ -5477,6 +9127,83 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 2000,
+            "metalType" : "palladium",
+            "metalWeightG" : 4.2,
+            "miscCharges" : 0,
+            "name" : "Palladium ring",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "PD-7002",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 5
+          },
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "12k",
+            "makingCharges" : 1000,
+            "metalType" : "palladium",
+            "metalWeightG" : 3.3,
+            "miscCharges" : 0,
+            "name" : "Palladium 12k",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "PD-7003",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "85620",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 85620,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "palladium without a karat takes the flat rate, with a 12k piece",
       "send" : {
@@ -5597,6 +9324,65 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat017",
+            "diamondCharges" : 9000,
+            "hasDiamonds" : true,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "24k",
+            "makingCharges" : 5000,
+            "metalType" : "gold",
+            "metalWeightG" : 11.664,
+            "miscCharges" : 300,
+            "name" : "One tola coin",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "COIN-5001",
+            "stoneCharges" : 700,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "449064",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 449064,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "a gold coin ignores making, wastage and stones",
       "send" : {
@@ -5687,6 +9473,84 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 5000,
+            "metalType" : "gold",
+            "metalWeightG" : 4,
+            "miscCharges" : 0,
+            "name" : "Twist band",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "RNG-1001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "categoryId" : "cat007",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "22k",
+            "makingCharges" : 9000,
+            "metalType" : "gold",
+            "metalWeightG" : 18.4,
+            "miscCharges" : 0,
+            "name" : "Carved bangle",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "BNG-3001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 6.5
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+          "gold21k" : "34250.50"
+        },
+        "salePayments" : [
+          {
+            "amount" : "70000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 856441,
+        "typedRates" : [
+          "gold21k"
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "a rate typed on the sale prices it",
       "send" : {
@@ -5812,6 +9676,120 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 5000,
+            "metalType" : "gold",
+            "metalWeightG" : 4,
+            "miscCharges" : 0,
+            "name" : "Twist band",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "RNG-1001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "categoryId" : "cat009",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 3000,
+            "metalType" : "platinum",
+            "metalWeightG" : 5.5,
+            "miscCharges" : 0,
+            "name" : "Platinum band",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "PT-8001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 8
+          },
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 6.2,
+            "miscCharges" : 0,
+            "name" : "Silver ring",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "silverRatePerGram" : 520,
+            "sku" : "SLV-9001",
+            "stoneCharges" : 300,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          },
+          {
+            "categoryId" : "cat008",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 18,
+            "miscCharges" : 0,
+            "name" : "Silver chain",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "SLV-9002",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "100000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 293184,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "gold, platinum and silver on one bill",
       "send" : {
@@ -6005,6 +9983,68 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 18000,
+            "hasDiamonds" : true,
+            "hasStones" : true,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 6000,
+            "metalType" : "gold",
+            "metalWeightG" : 10,
+            "miscCharges" : 0,
+            "name" : "Ruby ring",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "secondaryMetalKarat" : "18k",
+            "secondaryMetalType" : "gold",
+            "secondaryMetalWeightG" : 2,
+            "sku" : "STN-1101",
+            "stoneCharges" : 2500,
+            "stoneWeightG" : 1.5,
+            "wastagePercentage" : 9
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "150000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 401732.5,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "stones, diamonds and a second metal",
       "send" : {
@@ -6101,6 +10141,64 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 2000,
+            "metalType" : "gold",
+            "metalWeightG" : 5,
+            "miscCharges" : 0,
+            "name" : "Unmarked piece",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "NK-1201",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "187350",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 187350,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "gold with no karat is priced as 21k",
       "send" : {
@@ -6194,6 +10292,92 @@
           "phone" : "+923000000101"
         }
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 5000,
+            "metalType" : "gold",
+            "metalWeightG" : 4,
+            "miscCharges" : 0,
+            "name" : "Twist band",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "RNG-1001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          },
+          {
+            "categoryId" : "cat002",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 7000,
+            "metalType" : "gold",
+            "metalWeightG" : 5.1,
+            "miscCharges" : 0,
+            "name" : "Hoop earrings",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "ERG-2001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "costRate24k" : 38580.246913580246,
+        "delivery" : {
+          "address" : "Flat 12, Demo Street",
+          "charge" : 500,
+          "city" : "Karachi",
+          "contactName" : "Zara Example",
+          "contactPhone" : "0300 0000777",
+          "expectedDate" : "2026-10-20",
+          "notes" : "Gate 3, after 5 pm",
+          "required" : true
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : true,
+        "internalNote" : "  Resize the ring by Friday  ",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "80000",
+            "id" : "salePayments-1",
+            "method" : "Cheque",
+            "reference" : "CHQ-0042"
+          }
+        ],
+        "selectedCustomerId" : "CUST-D01",
+        "subtotal" : 349337,
+        "takenBy" : "Ammar",
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "taheri",
       "name" : "every optional field of a sale",
       "send" : {
@@ -6335,6 +10519,83 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 6,
+            "miscCharges" : 0,
+            "name" : "Silver ring",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "MS-1001",
+            "stoneCharges" : 300,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          },
+          {
+            "categoryId" : "cat005",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 14.2,
+            "miscCharges" : 0,
+            "name" : "Silver bracelet",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "silverRatePerGram" : 650,
+            "sku" : "MS-1002",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "5000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 12410,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "mina",
       "name" : "silver pieces, one at the shop's rate and one at its own",
       "send" : {
@@ -6458,6 +10719,84 @@
           "phone" : "+923000000101"
         }
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 6,
+            "miscCharges" : 0,
+            "name" : "Silver ring",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "MS-1001",
+            "stoneCharges" : 300,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          },
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "karat" : "21k",
+            "makingCharges" : 2500,
+            "metalType" : "gold",
+            "metalWeightG" : 1.8,
+            "miscCharges" : 0,
+            "name" : "Gold stud",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "MG-2001",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 10
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "30000",
+            "id" : "salePayments-1",
+            "method" : "Card",
+            "reference" : "5521"
+          }
+        ],
+        "selectedCustomerId" : "CUST-D01",
+        "subtotal" : 72406,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "mina",
       "name" : "silver and gold mixed",
       "send" : {
@@ -6585,6 +10924,85 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat004",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 3.75,
+            "miscCharges" : 0,
+            "name" : "Silver pendant",
+            "nickelFree" : true,
+            "platingType" : "White Rhodium",
+            "quantity" : 1,
+            "sku" : "MS-1003",
+            "stoneCharges" : 150,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          },
+          {
+            "categoryId" : "cat007",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 22.4,
+            "miscCharges" : 0,
+            "name" : "Silver bangle",
+            "nickelFree" : false,
+            "platingNote" : "Rose gold plating",
+            "platingType" : "Other",
+            "quantity" : 1,
+            "sku" : "MS-1004",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "12702",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 12702,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "mina",
       "name" : "plating",
       "send" : {
@@ -6704,6 +11122,83 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 6,
+            "miscCharges" : 0,
+            "name" : "Silver ring",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "MS-1001",
+            "stoneCharges" : 300,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          },
+          {
+            "categoryId" : "cat005",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 14.2,
+            "miscCharges" : 0,
+            "name" : "Silver bracelet",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "silverRatePerGram" : 650,
+            "sku" : "MS-1002",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "1,500",
+        "exchangeRows" : [
+          {
+            "description" : "Old silver ring",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "400",
+            "value" : "4000",
+            "valueTyped" : false,
+            "weightG" : "10"
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "5000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 12410,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "Farah Example",
+        "walkInCustomerPhone" : "0300 0000888"
+      },
       "house" : "mina",
       "name" : "a discount, a partial payment and an exchange",
       "send" : {
@@ -6828,6 +11323,83 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat006",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 31.4,
+            "miscCharges" : 0,
+            "name" : "Custom silver set",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "NEW-MUBBS8A0",
+            "stoneCharges" : 1200,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          },
+          {
+            "categoryId" : "",
+            "customPrice" : 7500,
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : true,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 12,
+            "miscCharges" : 0,
+            "name" : "Gifted piece, agreed price",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "NEW-MUBBS91S",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "10000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 23772,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "mina",
       "name" : "one-off silver pieces, by weight and at a fixed price",
       "send" : {
@@ -6916,6 +11488,84 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "customPrice" : 3200,
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : true,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 6,
+            "miscCharges" : 0,
+            "name" : "Silver ring",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "MS-1001",
+            "stoneCharges" : 300,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          },
+          {
+            "categoryId" : "cat005",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 14.25,
+            "miscCharges" : 0,
+            "name" : "Silver bracelet",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "silverRatePerGram" : 610,
+            "sku" : "MS-1002",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "4000",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 11892.5,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "mina",
       "name" : "silver pieces re-priced on the sale",
       "send" : {
@@ -7035,6 +11685,64 @@
       "customers" : [
 
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat001",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 6,
+            "miscCharges" : 0,
+            "name" : "Silver ring",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "sku" : "MS-1001",
+            "stoneCharges" : 300,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "3180",
+            "id" : "salePayments-1",
+            "method" : "Cash",
+            "reference" : ""
+          }
+        ],
+        "subtotal" : 3180,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "mina",
       "name" : "silver paid in full in cash",
       "send" : {
@@ -7122,6 +11830,66 @@
           "phone" : "+923000000102"
         }
       ],
+      "draft" : {
+        "cart" : [
+          {
+            "categoryId" : "cat005",
+            "diamondCharges" : 0,
+            "hasDiamonds" : false,
+            "hasStones" : false,
+            "isCustomPrice" : false,
+            "makingCharges" : 0,
+            "metalType" : "silver",
+            "metalWeightG" : 14.2,
+            "miscCharges" : 0,
+            "name" : "Silver bracelet",
+            "nickelFree" : false,
+            "quantity" : 1,
+            "silverRatePerGram" : 650,
+            "sku" : "MS-1002",
+            "stoneCharges" : 0,
+            "stoneWeightG" : 0,
+            "wastagePercentage" : 0
+          }
+        ],
+        "costRate24k" : null,
+        "delivery" : {
+          "address" : "",
+          "required" : false
+        },
+        "discountAmountInput" : "0",
+        "exchangeRows" : [
+          {
+            "description" : "",
+            "id" : "exchangeRows-1",
+            "karat" : "",
+            "ratePerGram" : "",
+            "value" : "",
+            "valueTyped" : false,
+            "weightG" : ""
+          }
+        ],
+        "hideRates" : false,
+        "internalNote" : "",
+        "rates" : {
+
+        },
+        "salePayments" : [
+          {
+            "amount" : "11230",
+            "id" : "salePayments-1",
+            "method" : "Bank Transfer",
+            "reference" : "TRX-30011"
+          }
+        ],
+        "selectedCustomerId" : "CUST-D02",
+        "subtotal" : 9230,
+        "typedRates" : [
+
+        ],
+        "walkInCustomerName" : "",
+        "walkInCustomerPhone" : ""
+      },
       "house" : "mina",
       "name" : "a named customer overpays a silver sale",
       "send" : {

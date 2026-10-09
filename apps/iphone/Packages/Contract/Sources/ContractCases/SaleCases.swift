@@ -146,7 +146,7 @@ private struct Rig {
         return ContractCase(
             name: name, house: House.id, send: send,
             shown: ["subtotal": f.subtotal, "discount": f.discount, "grandTotal": f.total, "paid": f.paidNow, "balanceDue": f.balance],
-            settings: shop, stock: stock, customers: customers
+            settings: shop, stock: stock, customers: customers, draft: draft.webValues(subtotal: f.subtotal)
         )
     }
 }

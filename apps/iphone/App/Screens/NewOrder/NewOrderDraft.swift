@@ -3,9 +3,9 @@ import ERPCore
 
 // The order in progress, as the phone keeps it. The web keeps an unfinished order in Firestore
 // (Drafts, decisions.md "Drafts") so it can be finished on another device; the phone keeps its own
-// copy in UserDefaults ("erp.orderDraft") and no more, so closing the screen, or the app, loses
-// nothing. Nothing here decides money: prices and totals come from ERPCore (NewOrderMath), and the
-// order is built exactly as the web's order form builds it.
+// copy in UserDefaults ("erp.orderDraft"), so closing the screen, or the app, loses nothing, and sends
+// the same to Drafts (NewOrderWebDraft). Nothing here decides money: prices and totals come from ERPCore
+// (NewOrderMath), and the order is built exactly as the web's order form builds it.
 //
 // Numbers stay text while they are typed (a box holding "5." must stay "5."). Words (metal, karat,
 // source) stay the ERP's own words so the draft is plain JSON.

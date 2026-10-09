@@ -71,11 +71,41 @@ struct NewOrder: View {
             if let saved = NewOrderDraftStore.load() {
                 draft = saved
                 restored = true
+                Task { await stillOurs() }
             }
             loaded = true
         }
         seedRates()
         settleTakenBy()
+    }
+
+    /// The order kept on this phone is in Drafts too: one saved or thrown away at the counter since is not this
+    /// phone's to save a second time, so it goes from here as well.
+    private func stillOurs() async {
+        guard await WorkDraftSync.order.stillThere() == false, created == nil else { return }
+        NewOrderDraftStore.clear()
+        WorkDraftSync.order.forget()
+        draft = NewOrderDraft.fresh()
+        restored = false
+        editing = nil
+        seedRates()
+        settleTakenBy()
+        tell("Finished on another device", "The order kept on this phone was saved or discarded from Drafts on another device, so it is cleared here. Look for it under Orders.")
+    }
+
+    /// The order in Drafts as the web's form holds it, a moment after the last change (`now` as the screen or
+    /// the app goes), so it can be finished at the counter (WorkDraftSync).
+    private func sync(now: Bool = false) {
+        guard loaded, created == nil else { return }
+        let d = draft
+        let settings = book.settings.value
+        WorkDraftSync.order.push(blank: d.isBlank, enabled: settings?.autoDraftForms ?? true, now: now) {
+            WorkDraftSync.Snapshot(
+                values: d.webValues(settings: settings),
+                total: NewOrderMath.totals(d, settings).balance,
+                customerName: d.customerName
+            )
+        }
     }
 
     /// "Taken by" starts on the signed-in person (their counter name on the house's list), once.
@@ -105,7 +135,7 @@ struct NewOrder: View {
                 Button("Start over", role: .destructive) { startOver() }
                 Button("Keep it", role: .cancel) {}
             } message: {
-                Text("Everything typed so far is cleared from this phone.")
+                Text("Everything typed so far is cleared from this phone and from Drafts.")
             }
             .interactiveDismissDisabled(saving)
             .sensoryFeedback(.success, trigger: created)
@@ -152,6 +182,7 @@ struct NewOrder: View {
             loaded: loaded,
             settingsValue: book.settings.value,
             keep: { keepNow() },
+            sync: { sync() },
             seed: { seedRates() }
         )
     }
@@ -159,6 +190,7 @@ struct NewOrder: View {
     private func keepNow() {
         guard loaded, created == nil else { return }
         NewOrderDraftStore.save(draft, now: true)
+        sync(now: true)
     }
 
     private var failureShown: Binding<Bool> {
@@ -278,13 +310,14 @@ struct NewOrder: View {
             Section {
                 Button("Start over", role: .destructive) { confirmReset = true }
             } footer: {
-                Text("Your order is kept on this phone until you save it or start over.")
+                Text("Your order is kept on this phone, and in Drafts for the counter, until you save it or start over.")
             }
         }
     }
 
     private func startOver() {
         NewOrderDraftStore.clear()
+        WorkDraftSync.order.drop()
         draft = NewOrderDraft.fresh()
         restored = false
         editing = nil
@@ -364,9 +397,13 @@ struct NewOrder: View {
                 throw ERPAPI.Failure(status: 0, message: "The ERP saved the order but didn't say its number. Look for it in Orders.")
             }
             NewOrderDraftStore.clear()
+            WorkDraftSync.order.drop()
             // Made from the sale in progress: the pieces are the order's now, and leaving them on the sale would
             // bill the same pieces a second time (the web clears the cart).
-            if draft.fromSale { SaleDraftStore.clear() }
+            if draft.fromSale {
+                SaleDraftStore.clear()
+                WorkDraftSync.sale.drop()
+            }
             offerSizes(made)
             // Blank, so a keep that was already on its way writes nothing back.
             draft = NewOrderDraft.fresh()
@@ -391,6 +428,8 @@ struct NewOrderKeeping: ViewModifier {
     let loaded: Bool
     let settingsValue: Settings?
     let keep: () -> Void
+    /// Drafts' copy, a second after this phone's (WorkDraftSync).
+    let sync: () -> Void
     let seed: () -> Void
 
     @Environment(\.scenePhase) private var scenePhase
@@ -401,6 +440,7 @@ struct NewOrderKeeping: ViewModifier {
                 guard loaded else { return }
                 do { try await Task.sleep(for: .milliseconds(700)) } catch { return }
                 NewOrderDraftStore.save(draft)
+                sync()
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase != .active { keep() }

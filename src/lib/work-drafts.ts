@@ -158,3 +158,39 @@ export function legacyAlreadySaved(
   if (!who) return false;
   return saved.some(r => (r.customerName || '').trim().toLowerCase() === who && Date.parse(r.createdAt) >= at);
 }
+
+/** A draft's id as newDraftId makes it: its kind, the time in base 36, a few letters. */
+export const DRAFT_ID_RE = /^(order|sale)-[0-9a-z]{6,12}-[0-9a-z]{1,8}$/;
+
+export type DraftWrite =
+  | { ok: true; id: string; doc: Omit<WorkDraft, 'id'> }
+  | { ok: false; error: string };
+
+/**
+ * A draft sent by the iPhone app (/api/app/drafts), as the web's forms write one: its kind and id, the form's
+ * values as they stand, and the card worked out here from them (summarizeOrder, summarizeSale), never taken on
+ * trust. `total` is the order's balance or the sale's subtotal as the phone shows it; `customerName` is the
+ * customer picked, for a sale's card. Too big and the photos are left out, as in the browser.
+ */
+export function draftWrite(body: Record<string, unknown>, now = new Date()): DraftWrite {
+  const id = typeof body.id === 'string' ? body.id : '';
+  const kind = body.kind === 'order' || body.kind === 'sale' ? body.kind : null;
+  if (!kind || !DRAFT_ID_RE.test(id) || !id.startsWith(`${kind}-`)) return { ok: false, error: 'Not a draft.' };
+  const data = body.data;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return { ok: false, error: 'A draft holds a form.' };
+  const { data: storable, leftOut } = toStorable(data as Record<string, unknown>);
+  if (JSON.stringify(storable).length > DRAFT_MAX_BYTES) return { ok: false, error: 'Too big to keep as a draft.' };
+  const total = Number(body.total);
+  const name = typeof body.customerName === 'string' ? body.customerName.trim().slice(0, 120) : '';
+  const summary = kind === 'order'
+    ? summarizeOrder(storable, Number.isFinite(total) ? total : 0)
+    : summarizeSale(storable, name);
+  const created = typeof body.createdAt === 'string' ? Date.parse(body.createdAt) : NaN;
+  // When it was begun, as the phone says; never later than now.
+  const createdAt = Number.isFinite(created) && created <= now.getTime() ? new Date(created).toISOString() : now.toISOString();
+  const device = typeof body.device === 'string' && body.device.trim() ? body.device.trim().slice(0, 40) : 'iPhone';
+  return {
+    ok: true, id,
+    doc: { kind, data: storable, ...summary, device, createdAt, updatedAt: now.toISOString(), ...(leftOut?.length ? { leftOut } : {}) },
+  };
+}

@@ -23,7 +23,7 @@ struct NewChooser: View {
 
             if let draft = inProgress, !draft.lines.isEmpty {
                 Section { progressRow(draft) } footer: {
-                    Text("Kept on this phone.")
+                    Text("Kept on this phone, and in Drafts for the counter.")
                 }
             }
 
@@ -32,7 +32,7 @@ struct NewChooser: View {
                     Label("Drafts", systemImage: "tray.full")
                 }
             } footer: {
-                Text("Orders and sales started on the ERP and not saved are in Drafts.")
+                Text("Orders and sales not yet saved, from every device in the shop.")
             }
 
             choice(

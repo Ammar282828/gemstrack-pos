@@ -180,6 +180,12 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   remembers its sale in `gemstrack:sale-draft` and carries its pieces, so `/invoices/new?draft=…` continues a sale on another
   device. Opening an invoice over a sale in progress keeps that sale in Drafts. The old `gemstrack:draft:` browser drafts
   are moved over once per device, minus those saved afterwards. Settings' switch (`autoDraftForms`) turns it all off.
+  A sale's draft keeps its held rate boxes (`rates`, `typedRates`), so it is priced at the rates it was quoted at.
+  **The iPhone app** (2026-10-09) keeps its own copy on the phone and writes the same work to Drafts, in the web form's
+  shape, through `/api/app/drafts` (no request claim or activity log: it is not the books); the contract cases hold a phone
+  draft opened at the counter to the figures the phone showed. A phone draft finished or discarded at the counter is
+  cleared from the phone when its screen next opens, so it is never saved twice. Drafts begun on the web open in the web
+  form inside the app (Drafts on the New screen).
 
 ### Order actions gate
 

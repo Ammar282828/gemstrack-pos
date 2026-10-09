@@ -12,8 +12,8 @@ import ERPCore
 /// What stays the ERP's page: editing an invoice, reading a written bill with the AI scanner, and
 /// adding a piece to stock. Owners only, as the ERP's write is.
 ///
-/// An unfinished sale is kept on this phone (UserDefaults "erp.saleDraft"); the web keeps its drafts
-/// in Firestore. "Start over" empties it.
+/// An unfinished sale is kept on this phone (UserDefaults "erp.saleDraft") and in the ERP's Drafts, in the
+/// sale page's own shape, so the counter can finish it (WorkDraftSync, SaleWebDraft). "Start over" empties both.
 struct NewSale: View {
     @Environment(Session.self) private var session
 
@@ -156,7 +156,7 @@ struct SaleForm: View {
         .confirmationDialog("Start over?", isPresented: $confirmingReset, titleVisibility: .visible) {
             Button("Start over", role: .destructive) { startOver() }
         } message: {
-            Text("This empties the sale on this phone: the pieces, the customer and everything typed.")
+            Text("This empties the sale on this phone and takes it out of Drafts: the pieces, the customer and everything typed.")
         }
         .confirmationDialog("Replace the order in progress?", isPresented: $confirmingOrder, titleVisibility: .visible) {
             Button("Replace it", role: .destructive) { createOrder() }
@@ -166,7 +166,11 @@ struct SaleForm: View {
         // This phone's own unfinished sale, written as it is typed. The scan screen can add a piece
         // to it while this one waits underneath, so it is read again whenever the screen appears.
         .onAppear { appeared() }
-        .onChange(of: draft) { _, d in SaleDraftStore.save(d) }
+        .onChange(of: draft) { _, d in
+            SaleDraftStore.save(d)
+            sync(d)
+        }
+        .onDisappear { if made == nil { sync(draft, now: true) } }
         .onChange(of: query) { _, _ in notice = nil }
         // "Create order": the order form opens on this sale's pieces (NewOrderDraftStore.startFromSale).
         .navigationDestination(item: $openOrder) { r in
@@ -183,6 +187,7 @@ struct SaleForm: View {
     func appeared() {
         if let stored = SaleDraftStore.load() {
             if stored != draft { draft = stored }
+            if !stored.isBlank { Task { await stillOurs() } }
         } else if !draft.isBlank {
             draft = SaleDraft()
             draft.takenBy = defaultTaker
@@ -190,6 +195,27 @@ struct SaleForm: View {
             draft.takenBy = defaultTaker
         }
         takenByStarted = true
+    }
+
+    /// The sale in Drafts as the web's sale page holds it, a moment after the last change (`now` as the screen
+    /// goes), so it can be finished at the counter (WorkDraftSync).
+    func sync(_ d: SaleDraft, now: Bool = false) {
+        let settings = book.settings.value
+        let customers = book.customers.items
+        WorkDraftSync.sale.push(blank: d.isBlank, enabled: settings?.autoDraftForms ?? true, now: now) {
+            let subtotal = SaleFigures(draft: d, settings: settings, customers: customers, marginSettings: House.margin).subtotal
+            return WorkDraftSync.Snapshot(values: d.webValues(subtotal: subtotal), total: subtotal, customerName: d.customerName)
+        }
+    }
+
+    /// The sale kept on this phone is in Drafts too: one invoiced or thrown away at the counter since is not
+    /// this phone's to bill a second time, so it goes from here as well.
+    func stillOurs() async {
+        guard await WorkDraftSync.sale.stillThere() == false, made == nil else { return }
+        SaleDraftStore.clear()
+        WorkDraftSync.sale.forget()
+        startOver()
+        failure = "The sale kept on this phone was invoiced or discarded from Drafts on another device, so it is cleared here. Look for it under Invoices."
     }
 
     // MARK: Actions
@@ -265,6 +291,7 @@ struct SaleForm: View {
 
     func startOver() {
         SaleDraftStore.clear()
+        WorkDraftSync.sale.drop()
         draft = SaleDraft()
         draft.takenBy = defaultTaker
         query = ""

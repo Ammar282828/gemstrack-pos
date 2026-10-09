@@ -489,8 +489,13 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
     walkInCustomerName, walkInCustomerPhone, discountAmountInput, exchangeRows, internalNote, salePayments,
     selectedCustomerId, takenBy, hideRates, delivery, costRate24k: costRate24k ?? null,
     cart: cartItemsFromStore, subtotal: estimatedInvoice?.subtotal ?? 0,
+    // The rate boxes held on this sale (typed, or read off a bill), and which were typed by hand: continued on
+    // another device, the sale is priced at the rates it was quoted at, not that day's.
+    rates: Object.fromEntries([...heldRates].map(k => [k, rateInputs[k]])),
+    typedRates: [...typedRates],
   }), [walkInCustomerName, walkInCustomerPhone, discountAmountInput, exchangeRows, internalNote, salePayments,
-       selectedCustomerId, takenBy, hideRates, delivery, costRate24k, cartItemsFromStore, estimatedInvoice?.subtotal]);
+       selectedCustomerId, takenBy, hideRates, delivery, costRate24k, cartItemsFromStore, estimatedInvoice?.subtotal,
+       heldRates, typedRates, rateInputs]);
   const saleCustomerName = selectedCustomerId && selectedCustomerId !== WALK_IN_CUSTOMER_VALUE
     ? customers.find(c => c.id === selectedCustomerId)?.name || '' : '';
   const saleDraft = useWorkDraft({
@@ -519,6 +524,15 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
     setHideRates(!!d.hideRates);
     setCostRate24k(Number(d.costRate24k) > 0 ? Number(d.costRate24k) : undefined);
     if (d.delivery && typeof d.delivery === 'object') setDelivery(d.delivery as DeliveryInfo);
+    // Its held rate boxes stay as they were; the rest follow the shop's rates. (A draft from before had none.)
+    const held = (d.rates && typeof d.rates === 'object' ? Object.entries(d.rates as Record<string, unknown>) : [])
+      .filter((e): e is [RateInputKey, string] => e[0] in INPUT_TO_RATE && typeof e[1] === 'string' && parseFloat(e[1]) > 0);
+    if (held.length) {
+      const typed = Array.isArray(d.typedRates) ? (d.typedRates as unknown[]) : [];
+      setRateInputs(prev => ({ ...prev, ...Object.fromEntries(held) }));
+      setHeldRates(new Set(held.map(([k]) => k)));
+      setTypedRates(new Set(held.map(([k]) => k).filter(k => typed.includes(k))));
+    }
     if (withCart && Array.isArray(d.cart)) { clearCart(); (d.cart as Product[]).forEach(p => addProductToCart(p)); }
   }, [clearCart, addProductToCart]);
   // On arrival: ?draft=… continues that sale here (the cart becomes its pieces); otherwise this

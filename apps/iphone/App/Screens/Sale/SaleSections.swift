@@ -672,6 +672,7 @@ extension SaleForm {
             let id = (out["invoice"] as? [String: Any])?["id"] as? String ?? ""
             if let kept { Task { await keepRates(kept) } }
             SaleDraftStore.clear()
+            WorkDraftSync.sale.drop()
             draft = SaleDraft()
             if id.isEmpty {
                 failure = "The sale was saved, but the ERP did not say its number. Look for it under Invoices."

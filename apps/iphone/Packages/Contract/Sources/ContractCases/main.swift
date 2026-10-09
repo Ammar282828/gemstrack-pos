@@ -15,10 +15,28 @@ struct ContractCase {
     var stock: [String: [String: Any]] = [:]
     /// The customers on the books the screen chose from.
     var customers: [[String: Any]] = []
+    /// The same work as a draft in Drafts, in the web form's own shape (NewOrderWebDraft, SaleWebDraft).
+    var draft: [String: Any] = [:]
 
     var json: [String: Any] {
-        ["name": name, "house": house, "send": send, "shown": shown, "settings": settings, "stock": stock, "customers": customers]
+        ["name": name, "house": house, "send": send, "shown": shown, "settings": settings, "stock": stock,
+         "customers": customers, "draft": steadyIds(draft)]
     }
+}
+
+/// A row's id is random (newExchangeRowId) and means nothing to the money: numbered by position, so the
+/// file comes out the same on every run (CI regenerates it and fails on a difference).
+func steadyIds(_ draft: [String: Any]) -> [String: Any] {
+    var d = draft
+    for key in ["exchangeRows", "salePayments"] {
+        guard let rows = d[key] as? [[String: Any]] else { continue }
+        d[key] = rows.enumerated().map { i, row in
+            var r = row
+            r["id"] = "\(key)-\(i + 1)"
+            return r
+        }
+    }
+    return d
 }
 
 /// Builds a model from a Firestore-shaped dictionary, as the shelves do.

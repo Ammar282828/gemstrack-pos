@@ -91,10 +91,12 @@ enum OrderCases {
         let totals = NewOrderMath.totals(d, shop)
         let send = NewOrderMath.request(d, settings: shop, customers: NewOrderMath.people(book))
         expect(JSONSerialization.isValidJSONObject(send), name, "the request is not JSON")
+        let draft = d.webValues(settings: shop)
+        expect(JSONSerialization.isValidJSONObject(draft), name, "the draft is not JSON")
         return ContractCase(
             name: name, house: House.id, send: send,
             shown: ["subtotal": totals.subtotal, "discount": totals.discount, "grandTotal": totals.balance],
-            settings: settings, customers: customers
+            settings: settings, customers: customers, draft: draft
         )
     }
 

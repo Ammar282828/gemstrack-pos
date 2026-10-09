@@ -7,3 +7,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-09: again, with the signing fix (Apple refused a `limit` on a bundle ID's capabilities).
 - 2026-10-09: again, now that the TestFlight job installs XcodeGen before it archives.
 - 2026-10-09: the audit build. Every web flow's options checked against the app (palladium karats kept, rates to four places, sizes to the profile, expense batches and partner salaries, hisaab kept in step), a payment tapped twice is taken once, the house's filled buttons readable in dark mode, and a launch at ten times the books in 2 s (was 26 s).
+- 2026-10-09: drafts across devices. An order or sale begun on the phone is in the ERP's Drafts too, in the web form's own shape, so it is finished at the counter at the figures the phone showed; one finished or discarded there is cleared from the phone, never saved twice.
