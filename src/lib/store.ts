@@ -928,6 +928,8 @@ export interface GivenItem {
   recipientType: GivenItemRecipientType;
   recipientName: string;  // free-text or resolved name
   recipientId?: string;   // karigarId or customerId if linked
+  /** Who at the shop handed it over (a TAKEN_BY name; the owner, 2026-10-10). Starts on the signed-in person. */
+  givenBy?: TakenBy;
   notes?: string;
   status: GivenItemStatus;
   returnedDate?: string;  // ISO – when it came back
@@ -3731,6 +3733,8 @@ export const useAppStore = create<AppState>()(
           // An explicit `recipientId: undefined` clears the link (the name no longer resolves).
           const write: Record<string, unknown> = { ...data };
           if ('recipientId' in data && data.recipientId === undefined) write.recipientId = deleteField();
+          // Likewise "Given by" set back to nobody.
+          if ('givenBy' in data && data.givenBy === undefined) write.givenBy = deleteField();
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.GIVEN_ITEMS, id), write, { merge: true });
           await addActivityLog('given.update', `Updated given item`, `ID: ${id}`, id);
         } catch (error) {

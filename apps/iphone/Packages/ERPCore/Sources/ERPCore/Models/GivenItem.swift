@@ -16,13 +16,15 @@ public struct GivenItem: Decodable, Identifiable, Hashable {
     public let recipientName: String
     /// The karigar's or customer's id, when linked.
     public let recipientId: String?
+    /// Who at the shop handed it over (a Taken by name; the owner, 2026-10-10). Older rows have none.
+    public let givenBy: String?
     public let notes: String?
     public let status: GivenItemStatus
     /// ISO; when it came back.
     public let returnedDate: String?
 
     private enum K: String, CodingKey {
-        case id, date, description, recipientType, recipientName, recipientId, notes, status, returnedDate
+        case id, date, description, recipientType, recipientName, recipientId, givenBy, notes, status, returnedDate
     }
 
     public init(from decoder: Decoder) throws {
@@ -33,6 +35,7 @@ public struct GivenItem: Decodable, Identifiable, Hashable {
         recipientType = c.word(.recipientType, default: .unknown(""))
         recipientName = c.string(.recipientName, default: "")
         recipientId = c.string(.recipientId)
+        givenBy = c.string(.givenBy)
         notes = c.string(.notes)
         status = c.word(.status, default: .unknown(""))
         returnedDate = c.string(.returnedDate)

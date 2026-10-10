@@ -32,7 +32,7 @@ import { siteDetailsLine } from '@/lib/social/site-design';
 import { STORE_BRAND, STORE_MARK_SVG, STORE_META_ADS, STORE_POST_FOOTER, STORE_POST_METAL, STORE_POST_PIECE, STORE_POST_TAGLINE, STORE_SITE_EDIT, STORE_WHATSAPP_NUMBERS } from '@/lib/store-config';
 import { FONTS } from '@/app/website/post/fonts';
 import { PieceDesignPanel, usePieceDesign } from './piece-design';
-import { validWeight, weightForSite } from '@/lib/website/site-weight';
+import { postOnlyWeight, validWeight, weightForSite } from '@/lib/website/site-weight';
 
 export interface Piece {
   id: string; name: string; url: string; image: string; thumb: string; collection: string; weightGrams: number | null; weightOnPhoto: boolean; facts: string[]; about: string; added: number | null; newArrival: boolean;
@@ -256,6 +256,17 @@ export function PieceCard({ piece, shown, siteName, posted, photo, token, ig, lo
           {weightForSite(p, weight) !== null && (
             <p className="text-[11px] font-medium text-primary">{siteName} has no weight for this piece: sending saves {weightForSite(p, weight)}g to it too.</p>
           )}
+          {/* The site's weight is the post's to start with; a different one is this post's alone. */}
+          {p.weightGrams ? (
+            postOnlyWeight(p.weightGrams, weight) ? (
+              <p className="flex flex-wrap items-center gap-x-2 text-[11px] font-medium text-primary">
+                For this post only: {siteName} keeps {p.weightGrams}g.
+                <button type="button" className="underline underline-offset-2" onClick={() => setWeight(String(p.weightGrams))}>Use {p.weightGrams}g</button>
+              </p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">From {siteName}: {p.weightGrams}g. Change it here for this post only.</p>
+            )
+          ) : null}
         </div>
         <div>
           <p className="font-semibold leading-tight">{p.name}</p>

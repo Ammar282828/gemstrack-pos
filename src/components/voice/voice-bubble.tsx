@@ -21,6 +21,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMe } from '@/hooks/use-me';
 import { useRouter } from 'next/navigation';
 import { useAppStore, type AppState } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
@@ -133,6 +134,8 @@ const NONE: never[] = [];
 
 export function VoiceBubble() {
   const router = useRouter();
+  // Who is speaking, at the counter: "Given by" on something given out by voice.
+  const me = useMe();
   const { toast } = useToast();
 
   const [phase, setPhase] = useState<Phase>('idle');
@@ -265,7 +268,8 @@ export function VoiceBubble() {
     go: (href: string) => router.push(href),
     handOff,
     now: new Date().toISOString(),
-  }), [router]);
+    me,
+  }), [router, me]);
 
   /** Ask the model what was meant: the recording, or words (the live words, or the box corrected). */
   const interpret = useCallback(async (heard: Heard) => {

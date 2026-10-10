@@ -25,6 +25,7 @@ import {
   type GivenEdit, type StockJobDetails, type StockJobMetal, type StockJobStatus,
 } from '@/lib/writes/workshop-admin';
 import type { OpHandler, OpRoles } from './op-context';
+import { STORE_TAKEN_BY } from '@/lib/store-config';
 
 /** Who may run each operation: as the browser allows it today. */
 export const WORKSHOP_OPS: OpRoles = {
@@ -267,7 +268,15 @@ export const runWorkshopOp: OpHandler = async (op, body, ctx) => {
         if (notes === null) return bad('Notes are text.');
         // Linked only to a karigar or a customer; an id that is not one is a link cleared.
         const recipientId = recipientType === 'other' ? '' : idOf(sent.recipientId);
-        const edit: GivenEdit = { date, description, recipientType, recipientName, notes, ...(recipientId && { recipientId }) };
+        // Given by: one of the shop's names, or cleared; an app that never sends it leaves it alone.
+        let givenBy: string | null | undefined;
+        if ('givenBy' in sent) {
+          const g = sent.givenBy;
+          if (g === null || g === '') givenBy = null;
+          else if (typeof g === 'string' && STORE_TAKEN_BY.includes(g.trim())) givenBy = g.trim();
+          else return bad('Given by is not one of the shop’s people.');
+        }
+        const edit: GivenEdit = { date, description, recipientType, recipientName, notes, ...(recipientId && { recipientId }), ...(givenBy !== undefined && { givenBy }) };
         return ok(await updateGivenItem(adminPort, { id, edit }, deps, fx));
       }
 

@@ -19,6 +19,7 @@ import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { CommandPalette, openCommandPalette } from '@/components/search/command-palette';
 import { VoiceBubble } from '@/components/voice/voice-bubble';
+import { NewBubble } from '@/components/layout/new-bubble';
 import { TeamNote } from '@/components/shared/team-note';
 import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LOGO_SIDEBAR_HEIGHT } from '@/lib/store-config';
 import Image from 'next/image';
@@ -136,6 +137,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     : null;
   useEffect(() => { if (marketingHome) router.replace(marketingHome); }, [marketingHome, router]);
 
+  // The page's tab in view on a phone's row: Hisaab, fifth of Money's, opened scrolled out of sight.
+  // Above the early return, as every hook here (docs/decisions.md#hooks).
+  useEffect(() => {
+    document.querySelector('.phone-tabs [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [pathname, isStoreHydrated]);
+
   if (!isStoreHydrated) return null;
 
   // Staff see only what they can actually reach. This is presentation, not
@@ -152,6 +159,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const entries: NavEntry[] = [...visibleGroups.flatMap(g => g.entries), ...(settingsEntry ? [settingsEntry] : [])];
   const here = locate(pathname, entries);
   const pageTabs = here?.tab && here.entry.tabs && here.entry.tabs.length > 1 ? here.entry.tabs : null;
+  // `phone`: the row under the bar, one segmented group filling the width (glass or not); otherwise the
+  // tabs beside the menu, underlined (or glass pills, globals.css .app-tabs).
+  const renderTabs = (className: string, phone: boolean) => pageTabs && (
+    <nav aria-label={`${here?.entry.label} pages`}
+      className={cn('app-tabs flex items-center gap-1', phone && 'phone-tabs h-9 rounded-full bg-muted p-[3px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', className)}>
+      {pageTabs.map(t => {
+        const on = t.href === here?.tab?.href;
+        return (
+          <Link
+            key={t.href}
+            href={t.href}
+            // Analytics' range rides in the query; its tabs carry it to the next page.
+            onClick={here?.entry.keepQuery ? (e) => { e.preventDefault(); router.push(`${t.href}${window.location.search}`); } : undefined}
+            aria-current={on ? 'page' : undefined}
+            className={cn(
+              'app-tab relative flex shrink-0 items-center whitespace-nowrap px-3 text-sm transition-colors',
+              // Up to three share the width evenly; more (Money's five) keep their own and scroll.
+              phone ? cn('h-full justify-center rounded-full', pageTabs.length <= 3 && 'flex-1') : 'h-full',
+              on ? 'font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
+              phone && on && 'bg-background shadow-sm',
+            )}
+          >
+            {t.label}
+            {on && !phone && <span aria-hidden className="tab-underline absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary" />}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 
   const logoToUse = STORE_LOGO_URL;
 
@@ -180,6 +216,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <CommandPalette />
         {/* The microphone floats over every screen. */}
         <VoiceBubble />
+        {/* Home's New: an invoice or an order, one tap from the first screen (owner, 2026-10-10). */}
+        {pathname === '/' && newSaleEntry && <NewBubble />}
         {/* The rate form, opened by the top bar's chip (or openRateSheet()). */}
         <RateSheet />
         <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
@@ -303,6 +341,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <p className="text-xs font-semibold truncate leading-tight">{user.displayName || user.email}</p>
                   {user.displayName && <p className="text-2xs text-muted-foreground truncate leading-tight">{user.email}</p>}
                 </div>
+                {/* The top bar's light/dark switch, which a phone's bar leaves out. */}
+                <span className="md:hidden"><ThemeToggle /></span>
                 <button
                   onClick={signOut}
                   title="Sign out"
@@ -324,42 +364,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset className="app-inset">
-          <header data-scrolled={scrolled || undefined} className="app-header sticky top-0 z-40 flex items-center gap-2 h-14 px-4 bg-background/80 backdrop-blur-sm border-b md:px-6">
+        <SidebarInset className={cn('app-inset', pageTabs && 'has-page-tabs')}>
+          <header data-scrolled={scrolled || undefined} className="app-header sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b">
+            <div className="flex h-14 items-center gap-2 px-4 md:px-6">
             {/* Was md:hidden, which meant the sidebar could collapse to icons
                 on paper but there was no way to trigger it on a desktop. On a
                 1280px screen the rail is a fifth of the width; collapsing it
                 is what makes the wide tables fit. Cmd/Ctrl+B also toggles. */}
             <SidebarTrigger className="glass-ctl" />
             <span className="hidden lg:inline text-2xs text-muted-foreground">⌘B</span>
-            {/* The page's siblings (lib/nav.ts): one sidebar entry, several pages. */}
-            {pageTabs && (
-              <nav aria-label={`${here?.entry.label} pages`} className="app-tabs ml-2 flex min-w-0 items-center gap-1 overflow-x-auto self-stretch">
-                {pageTabs.map(t => {
-                  const on = t.href === here?.tab?.href;
-                  return (
-                    <Link
-                      key={t.href}
-                      href={t.href}
-                      // Analytics' range rides in the query; its tabs carry it to the next page.
-                      onClick={here?.entry.keepQuery ? (e) => { e.preventDefault(); router.push(`${t.href}${window.location.search}`); } : undefined}
-                      aria-current={on ? 'page' : undefined}
-                      className={cn(
-                        'app-tab relative flex h-full shrink-0 items-center whitespace-nowrap px-3 text-sm transition-colors',
-                        on ? 'font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {t.label}
-                      {on && <span aria-hidden className="tab-underline absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary" />}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-            <div className="ml-auto -mr-1 flex shrink-0 items-center">
+            {/* The page's siblings (lib/nav.ts): one sidebar entry, several pages. Beside the menu from
+                md; on a phone their own row below, where they had been squeezed between the menu and
+                the rate, cut off mid-word (owner, 2026-10-10: "a weird tab bar on the top"). */}
+            {pageTabs && renderTabs('ml-2 hidden min-w-0 overflow-x-auto self-stretch md:flex', false)}
+            <div className="ml-auto -mr-1 flex shrink-0 items-center gap-1">
             {/* The shop's rate and when it was set, on every page. */}
             <RateChip />
-            <ThemeToggle />
+            {/* Light or dark: from md here; on a phone in the menu's footer, one control fewer up top. */}
+            <span className="hidden md:inline-flex"><ThemeToggle /></span>
             {/* On a phone the sidebar is behind a tap; search is one tap from here. */}
             <button
               type="button"
@@ -370,6 +392,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Search className="h-5 w-5" />
             </button>
             </div>
+            </div>
+            {pageTabs && (
+              <div className="flex h-11 items-start px-4 md:hidden">
+                {renderTabs('w-full overflow-x-auto', true)}
+              </div>
+            )}
           </header>
 
           {/* Offline banner */}
@@ -383,7 +411,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* overflow-x-clip, not overflow-auto: an overflow-auto <main> that never scrolls (the window does) is still the
               scroll box every `sticky` inside it measures against, so no column or toolbar ever stuck (found 2026-10-04).
               Clip keeps a wide page from widening the screen; tables scroll in their own wrapper (ui/table.tsx). */}
-          <main className="flex-1 min-w-0 p-4 overflow-x-clip md:p-6">
+          {/* pb-28 on a phone: the floating microphone (and Home's New bubble) never sit over the last row. */}
+          <main className="flex-1 min-w-0 p-4 pb-28 overflow-x-clip md:p-6">
             <TeamNote owner={role === 'owner'} />
             {children}
           </main>

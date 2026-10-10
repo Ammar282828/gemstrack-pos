@@ -41,10 +41,12 @@ struct WorkshopGivenScreen: View {
         .searchable(text: $query, prompt: "Item or recipient")
         .toolbar { givenToolbar }
         .sheet(isPresented: $adding) {
-            WorkshopGivenSheet(karigars: workshopLive(book.karigars.items), customers: liveCustomers)
+            WorkshopGivenSheet(karigars: workshopLive(book.karigars.items), customers: liveCustomers,
+                               takenBy: session.shop.takenBy, me: session.shop.person)
         }
         .sheet(item: $editing) { (item: GivenItem) in
-            WorkshopGivenSheet(karigars: workshopLive(book.karigars.items), customers: liveCustomers, item: item) {
+            WorkshopGivenSheet(karigars: workshopLive(book.karigars.items), customers: liveCustomers,
+                               takenBy: session.shop.takenBy, me: session.shop.person, item: item) {
                 withAnimation { note = OwnerNote(title: "Updated", detail: "Item updated.") }
             }
         }
@@ -222,11 +224,12 @@ struct WorkshopGivenScreen: View {
         session.isOwner && item.status == .out
     }
 
-    /// "3 Oct 2026 · Ustad Demo".
+    /// "3 Oct 2026 · Ustad Demo · by Ammar".
     private func recipientWords(_ item: GivenItem) -> String {
         let when = item.date.isEmpty ? "" : ShopDate.say(item.date)
         let who = item.recipientName.isEmpty ? "—" : item.recipientName
-        return when.isEmpty ? who : when + " · " + who
+        let by = (item.givenBy ?? "").isEmpty ? "" : " · by " + (item.givenBy ?? "")
+        return (when.isEmpty ? who : when + " · " + who) + by
     }
 
     private func icon(_ t: GivenItemRecipientType) -> String {
@@ -337,6 +340,10 @@ struct WorkshopGivenScreen: View {
 struct WorkshopGivenSheet: View {
     let karigars: [Karigar]
     let customers: [Customer]
+    /// The house's counter names (`Session.Shop.takenBy`): who at the shop gave it is one of them.
+    var takenBy: [String] = []
+    /// The signed-in person's counter name, where a new entry's "Given by" starts.
+    var me: String? = nil
     /// The entry being edited; nil records a new one.
     var item: GivenItem? = nil
     /// Told once an edit is saved.
@@ -352,16 +359,23 @@ struct WorkshopGivenSheet: View {
     @State private var pickedId: String?
     @State private var pickedName = ""
     @State private var notes = ""
+    /// Who at the shop handed it over; "" is nobody.
+    @State private var givenBy = ""
     @State private var saving = false
     @State private var error: String?
 
     private let types: [GivenItemRecipientType] = [.karigar, .customer, .other]
 
-    init(karigars: [Karigar], customers: [Customer], item: GivenItem? = nil, onSaved: @escaping () -> Void = {}) {
+    init(karigars: [Karigar], customers: [Customer], takenBy: [String] = [], me: String? = nil,
+         item: GivenItem? = nil, onSaved: @escaping () -> Void = {}) {
         self.karigars = karigars
         self.customers = customers
+        self.takenBy = takenBy
+        self.me = me
         self.item = item
         self.onSaved = onSaved
+        // A new entry starts on the signed-in person, as Taken by does; an edit on who it says.
+        _givenBy = State(initialValue: item?.givenBy ?? me ?? "")
         if let item {
             _date = State(initialValue: ERPDate.parse(item.date) ?? Date())
             _what = State(initialValue: item.description)
@@ -393,6 +407,9 @@ struct WorkshopGivenSheet: View {
                     TextField("e.g. Gold ring sample, Silver bangle repair", text: $what)
                 }
                 recipientSection
+                LedgerSection("Given by") {
+                    givenByRow
+                }
                 LedgerSection("Notes (optional)") {
                     TextField("Any extra details", text: $notes, axis: .vertical)
                         .lineLimit(2...4)
@@ -416,6 +433,28 @@ struct WorkshopGivenSheet: View {
             }
         }
         .presentationDetents([.large])
+    }
+
+    // MARK: Who gave it
+
+    /// One of the house's names (as New order's Taken by), or typed where the house has no list.
+    @ViewBuilder
+    private var givenByRow: some View {
+        if takenBy.isEmpty {
+            TextField("Given by", text: $givenBy, prompt: Text("Not set"))
+                .textInputAutocapitalization(.words)
+        } else {
+            Picker("Given by", selection: $givenBy) {
+                Text("Not set").tag("")
+                // An older entry's name that is no longer on the list is still shown as it is.
+                if !givenBy.isEmpty && !takenBy.contains(givenBy) {
+                    Text(givenBy).tag(givenBy)
+                }
+                ForEach(takenBy, id: \.self) { name in
+                    Text(name).tag(name)
+                }
+            }
+        }
     }
 
     // MARK: Who it went to
@@ -518,6 +557,9 @@ struct WorkshopGivenSheet: View {
         let note = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         // An edit writes the note even when blank, as the web's does, and sending no id clears the old link.
         if item != nil || !note.isEmpty { fields["notes"] = note }
+        // Who gave it: a new entry sends a name or nothing; an edit sends nobody as null, which clears it.
+        let by = givenBy.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !by.isEmpty { fields["givenBy"] = by } else if item != nil { fields["givenBy"] = NSNull() }
         let sent = fields
         let editing = item
         saving = true

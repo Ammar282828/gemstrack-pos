@@ -260,6 +260,18 @@ describe('given items', () => {
     expect(col('given_items').g1).toEqual({ date: '2026-10-02T05:00:00.000Z', description: 'Bangle sample', recipientType: 'other', recipientName: 'A neighbour', notes: '', status: 'out' });
   });
 
+  it('sets, keeps and clears who gave it, and only to one of the shop\'s people', async () => {
+    const base = { date: '2026-10-01T00:00:00.000Z', description: 'Ring sample', recipientType: 'karigar', recipientName: 'Ustad Demo', recipientId: 'k1', notes: '' };
+    expect((await run('updateGivenItem', { id: 'g1', item: { ...base, givenBy: 'Ammar' } }))?.status).toBe(200);
+    expect(col('given_items').g1.givenBy).toBe('Ammar');
+    // An app that never sends the field leaves it as it was.
+    expect((await run('updateGivenItem', { id: 'g1', item: base }))?.status).toBe(200);
+    expect(col('given_items').g1.givenBy).toBe('Ammar');
+    expect((await run('updateGivenItem', { id: 'g1', item: { ...base, givenBy: 'Bob' } }))?.status).toBe(400);
+    expect((await run('updateGivenItem', { id: 'g1', item: { ...base, givenBy: null } }))?.status).toBe(200);
+    expect(col('given_items').g1).not.toHaveProperty('givenBy');
+  });
+
   it('refuses an edit of the wrong shape', async () => {
     const ok = { date: '2026-10-02T05:00:00.000Z', description: 'x', recipientType: 'karigar', recipientName: 'y', notes: '' };
     for (const patch of [{ date: 'soon' }, { description: '' }, { recipientType: 'friend' }, { recipientName: ' ' }, { notes: 5 }]) {

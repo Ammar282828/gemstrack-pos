@@ -12,6 +12,7 @@ import { format, parseISO, startOfDay, isSameDay, isSameMonth, isValid } from 'd
 import { ClipboardList, FileText, Calendar as CalendarIcon, ArrowRight, X, CalendarClock } from 'lucide-react';
 import { isActiveOrder } from '@/lib/order-timing';
 import { cn } from '@/lib/utils';
+import { axisLac, pkrLac } from '@/lib/money';
 import Link from 'next/link';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -38,13 +39,12 @@ type EventsByDate = {
   };
 };
 
-/** Compact PKR for a calendar cell, which has room for about six characters. */
-function dayMoney(n: number): string {
-  if (n >= 999_500) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (n >= 1000) return `${Math.round(n / 1000)}k`;
-  return String(Math.round(n));
+/** A day's takings in the room a calendar cell has (about five characters, lac and crore as the shop
+ *  says them): 85k · 2.9L · 56L · 1.2Cr. From 10 lac the decimal goes, so a busy day is not cut to "56.…". */
+function dayLac(n: number): string {
+  const lac = n / 1e5;
+  return lac >= 10 && lac < 100 ? `${Math.round(lac)}L` : axisLac(n);
 }
-
 
 const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selectedDate: Date | undefined }> = ({ events, selectedDate }) => {
     if (!selectedDate) {
@@ -191,11 +191,11 @@ export default function CalendarPage() {
     return (
       <div className="flex flex-col gap-0.5 mt-0.5 w-full">
         {dayData && dayData.total > 0 && (
-          <span className="w-full text-2xs font-semibold leading-tight tabular-nums truncate">
-            {dayMoney(dayData.total)}
+          <span className="w-full text-[10px] font-semibold leading-tight tracking-tight tabular-nums truncate sm:text-2xs sm:tracking-normal">
+            {dayLac(dayData.total)}
           </span>
         )}
-        <span className="flex items-center gap-1 leading-none">
+        <span className="flex flex-wrap items-center gap-x-1 gap-y-0.5 leading-none">
           {dayData && dayData.invoices > 0 && (
             <span className="flex items-center gap-0.5 text-2xs text-success">
               <span className="h-1.5 w-1.5 rounded-full bg-success" />{dayData.invoices}
@@ -239,10 +239,11 @@ export default function CalendarPage() {
         {/* What the month on screen actually came to. */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
           {[
-            { label: format(month, 'MMMM yyyy'), value: `PKR ${monthSummary.total.toLocaleString()}`, tone: 'text-success' },
+            // Lac and crore (lib/money.ts): "PKR 29,612,…" was cut off on a phone.
+            { label: format(month, 'MMMM yyyy'), value: pkrLac(monthSummary.total), tone: 'text-success' },
             { label: 'Sales', value: String(monthSummary.sales) },
             { label: 'Orders', value: String(monthSummary.orders) },
-            { label: 'Avg. trading day', value: monthSummary.best ? `PKR ${Math.round(monthSummary.best).toLocaleString()}` : '—' },
+            { label: 'Avg. trading day', value: monthSummary.best ? pkrLac(monthSummary.best) : '—' },
           ].map(c => (
             <div key={c.label} className="rounded-lg border bg-card px-3 py-2 min-w-0">
               <p className="text-2xs uppercase tracking-wide text-muted-foreground truncate">{c.label}</p>
@@ -253,15 +254,16 @@ export default function CalendarPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2 overflow-hidden">
-            <CardContent className="p-2 sm:p-4">
+        {/* On a phone the card takes the page's gutter back: seven days in 393 points is tight. */}
+        <Card className="-mx-2 overflow-hidden sm:mx-0 lg:col-span-2">
+            <CardContent className="p-1.5 sm:p-4">
                  <Calendar
                     mode="single"
                     selected={selectedDate}
                     onSelect={handleDayClick}
                     month={month}
                     onMonthChange={setMonth}
-                    className="w-full"
+                    className="w-full p-0 sm:p-3"
                     classNames={{
                       months: "w-full",
                       month: "w-full space-y-3",
@@ -271,12 +273,19 @@ export default function CalendarPage() {
                       nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
                       nav_button_previous: "absolute left-1",
                       nav_button_next: "absolute right-1",
-                      table: "w-full border-collapse",
+                      // Block, not table: a <table> widens to its content's min-content whatever its rows say,
+                      // and that alone pushed Saturday 8px off an iPhone SE.
+                      table: "block w-full border-collapse",
+                      head: "block",
+                      tbody: "block",
                       head_row: "flex w-full",
-                      head_cell: "text-muted-foreground rounded-md flex-1 font-normal text-xs text-center pb-1",
+                      // Seven equal columns whatever a day holds (basis-0, min-w-0): sized by their content, a
+                      // busy day ("5.6M ●11 ●3") widened its column and a phone lost Friday and Saturday off
+                      // the card's edge, with no way to scroll to them (owner, 2026-10-10).
+                      head_cell: "text-muted-foreground rounded-md flex-1 basis-0 min-w-0 font-normal text-xs text-center pb-1",
                       row: "flex w-full mt-1 gap-0.5",
-                      cell: "flex-1 min-h-[70px] sm:min-h-[80px] rounded-md border border-border/40 p-0 relative hover:bg-accent/50 transition-colors cursor-pointer [&:has([aria-selected])]:bg-primary/10",
-                      day: "w-full h-full p-1.5 flex flex-col items-start text-sm font-normal aria-selected:opacity-100",
+                      cell: "flex-1 basis-0 min-w-0 overflow-hidden min-h-[64px] sm:min-h-[80px] rounded-md border border-border/40 p-0 relative hover:bg-accent/50 transition-colors cursor-pointer [&:has([aria-selected])]:bg-primary/10",
+                      day: "w-full h-full p-0.5 sm:p-1.5 flex flex-col items-start text-sm font-normal aria-selected:opacity-100",
                       day_selected: "bg-primary/10 text-foreground font-semibold rounded-md",
                       day_today: "border-primary border-2",
                       day_outside: "opacity-30",

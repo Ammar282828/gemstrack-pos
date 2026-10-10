@@ -392,7 +392,7 @@ export default function HisaabPage() {
             value={searchTerm}
             onChange={setSearchTerm}
             placeholder="Search by name…"
-            className="glass glass-toolbar mb-0 sticky top-14 z-10 bg-background/95 backdrop-blur-sm shadow-sm"
+            className="glass glass-toolbar mb-0 sticky top-[var(--app-header-h,3.5rem)] z-10 bg-background/95 backdrop-blur-sm shadow-sm"
             actions={
               <Button variant="outline" className="h-10 flex-shrink-0" onClick={handlePrintReport}>
                 <FileText className="mr-2 h-4 w-4" />Export PDF

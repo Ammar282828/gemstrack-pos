@@ -12,7 +12,12 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   the ones people learned — what changed is underneath). **One registry, `src/lib/nav.ts`:** the sidebar, the top-bar
   tabs, the Ctrl+K palette (same role rule and house flags) and `PageShell`'s headings all read it; `nav.test.ts` fails when
   a page under `src/app` is in no entry, an entry has no page, or two rows of a group share a name. Add a page there or it
-  is nowhere. **One tab row per screen** — no in-page `Tabs` under the top bar's.
+  is nowhere. **One tab row per screen** — no in-page `Tabs` under the top bar's. **On a phone** (2026-10-10, the owner:
+  "too cluttered on my phone with a weird tab bar on the top") the bar is menu · rate chip · search, and the tabs are their
+  own full-width segmented row under it (up to three share the width; more scroll, the page's centred); light/dark moves
+  into the menu's footer. From md the tabs sit beside the menu as before. Sticky toolbars use `--app-header-h`.
+  **Home's New** (same day): a "New" bubble beside the microphone opens New invoice / New order
+  (`components/layout/new-bubble.tsx`); the sidebar's New sale keeps the rest (repair, scan a tag, read a bill).
   ```
   [Search ⌘K] [New sale: Invoice · Order · Repair; Scan a tag · Read a written bill · Scan a parchi]   top bar: rate chip
   Home        Dashboard · Calendar · Today’s cash (owners)
@@ -504,6 +509,10 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
 
 ### Signed-in defaults
 
+- **Given by** (2026-10-10, owner: "when adding something to given items … also register who from taheri gave those items"):
+  a given item carries `givenBy`, a Taken by name, on the Given page (form, list, a filter), the iPhone app's Given items and
+  voice's "give something out". It starts on the signed-in person and is always shown and changeable; `/api/app/write`
+  takes only the house's names and falls back to the signed-in person, so an older app still records it.
 - **The ERP starts on whoever is signed in** (2026-09-30, owner: "taken by defaults to ammar when potatomasta is logged in /
   workshop filters to ammar / orders filter to ammar"): `NEXT_PUBLIC_STORE_PEOPLE` per house ("email=Name,…"; Taheri:
   potatomasta501=Ammar, unknownuser80=Mansoor, mmurtaza1970=Murtaza, hmurtaza55=Huzaifa, Mohammad has no account; Mina:

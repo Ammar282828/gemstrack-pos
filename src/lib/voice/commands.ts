@@ -54,6 +54,8 @@ export interface RunCtx {
   go: (href: string) => void;
   handOff: (kind: HandoffKind, payload: unknown) => void;
   now: string;
+  /** The speaker's counter name (lib/people.ts), for "Given by" and the like; absent if the account has none. */
+  me?: string;
 }
 
 export interface CommandDef {
@@ -621,6 +623,7 @@ export const COMMANDS: CommandDef[] = [
       const g = await x.s.addGivenItem({
         date: x.now, description: v.description, status: 'out',
         recipientType: p ? p.kind : 'other', recipientName: p?.name ?? v.to_name, ...(p ? { recipientId: p.id } : {}), ...(v.notes ? { notes: v.notes } : {}),
+        ...(x.me ? { givenBy: x.me } : {}),
       } as Omit<GivenItem, 'id'>);
       if (!g) throw new Error('Not saved.');
       return { said: `${v.description} given to ${p?.name ?? v.to_name}.`, href: '/given', made: { type: 'given', value: g }, undo: () => x.s.deleteGivenItem(g.id) };
