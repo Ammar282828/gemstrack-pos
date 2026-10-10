@@ -40,6 +40,7 @@ struct RootGate: View {
 /// Liquid Glass comes with the system's TabView, toolbars and sheets (CONVENTIONS.md rule 4).
 struct RootView: View {
     @Environment(Session.self) private var session
+    @Environment(\.horizontalSizeClass) private var sizeClass
     // The simulator check opens each tab in turn (`-ERPDemoTab orders`).
     @State private var tab = UserDefaults.standard.string(forKey: "ERPDemoTab") ?? "home"
     @State private var creating: Route?
@@ -51,6 +52,7 @@ struct RootView: View {
 
     /// The tabs before Search. Marketing has no dashboard: the ERP sends it to Posts, the first page it may open.
     private func tabEntries(_ map: NavMap) -> [NavEntry] {
+        if sizeClass == .regular { return map.entries }
         if session.role == "marketing" { return Array(map.entries.prefix(4)) }
         return Self.primary.compactMap { id in map.entries.first { $0.id == id } }
     }
@@ -100,6 +102,7 @@ struct RootView: View {
                 }
             }
         }
+        .tabViewStyle(.sidebarAdaptable)
         .sheet(isPresented: $voice) {
             NavigationStack {
                 NativeVoiceScreen { path in voice = false; creating = Route(path: path) }
@@ -115,6 +118,7 @@ struct RootView: View {
                         }
                     }
             }
+            .presentationSizing(.page)
         }
         // The one poll of the online-orders count (the dashboard and the Orders badge both read it).
         .task(id: watchesOnline) {

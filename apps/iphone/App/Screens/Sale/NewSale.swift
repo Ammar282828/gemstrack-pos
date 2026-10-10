@@ -65,6 +65,7 @@ struct SaleForm: View {
     /// A piece being described that is not on the sale yet.
     @State var newItem: SaleLine?
     @State var addingStock = false
+    @State var step: EntryStep = .customer
     @State var scanning = false
     @State var rateSheet = false
     @State var confirmingReset = false
@@ -126,7 +127,10 @@ struct SaleForm: View {
 
     private var page: some View {
         let f = SaleFigures(draft: draft, settings: book.settings.value, customers: book.customers.items, marginSettings: House.margin)
-        return Form { Group {
+        return TransactionWorkspace {
+          VStack(spacing: 0) {
+            EntrySteps(selection: $step)
+            Form { Group {
             if let edit {
                 Section {
                     Label(edit.paidBefore > 0
@@ -136,17 +140,51 @@ struct SaleForm: View {
                         .font(.subheadline)
                 }
             }
-            customerSection(f)
-            piecesSection(f)
-            ratesSection(f)
-            discountSection(f)
-            exchangeSection()
-            paymentSection(f)
-            shopSection(f)
-            deliverySection(f)
-            totalsSection(f)
+            switch step {
+            case .customer:
+                customerSection(f)
+            case .pieces:
+                piecesSection(f)
+                ratesSection(f)
+            case .payment:
+                discountSection(f)
+                exchangeSection()
+                paymentSection(f)
+            case .review:
+                Section {
+                    LabeledContent("Customer", value: f.who.name.isEmpty ? "Walk-in" : f.who.name)
+                    if !draft.customerPhone.isEmpty { LabeledContent("Phone", value: draft.customerPhone) }
+                    Button("Edit \(draft.lines.count) pieces") { step = .pieces }
+                    Button("Edit payment and exchange") { step = .payment }
+                } header: { LedgerHeading(title: "Review") }
+                if !draft.lines.isEmpty {
+                    Section {
+                        ForEach(draft.lines) { line in lineButton(line, f) }
+                    } header: { LedgerHeading(title: "Pieces") }
+                }
+                shopSection(f)
+                deliverySection(f)
+                totalsSection(f)
+            }
             }
             .houseRows()
+            }
+            .id(step)
+          }
+        } review: {
+            TransactionReview(customer: f.who.name, contact: draft.customerPhone,
+                pieces: draft.lines.enumerated().map { index, line in
+                    TransactionReviewRow(label: "\(index + 1). \(line.name)", value: f.hasEstimate ? Money.pkr(f.price(of: line.sku)) : "Pending rates")
+                }, figures: [
+                    TransactionReviewRow(label: "Subtotal", value: f.hasEstimate ? Money.pkr(f.subtotal) : "Pending rates"),
+                    TransactionReviewRow(label: "Discount", value: Money.pkr(f.discount)),
+                    TransactionReviewRow(label: "Exchange", value: Money.pkr(f.exchange)),
+                    TransactionReviewRow(label: "Paid now", value: Money.pkr(f.paidNow)),
+                    TransactionReviewRow(label: f.balance < 0 ? "Credit to customer" : "Balance due", value: f.hasEstimate ? Money.pkr(abs(f.balance)) : "Pending rates")
+                ])
+        } footer: {
+            if step == .review { saveBar(f) }
+            else { EntryContinue(selection: $step) }
         }
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle(edit.map { "Edit \($0.invoiceId)" } ?? "New sale")
@@ -163,7 +201,6 @@ struct SaleForm: View {
                 Button("Done") { SaleKeyboard.dismiss() }
             }
         }
-        .safeAreaBar(edge: .bottom, spacing: 0) { saveBar(f) }
         .sheet(item: $editing) { line in
             SaleLineEditor(line: line, rates: f.rateBook.pricing) { changed in replace(line.sku, with: changed) }
         }
@@ -347,5 +384,6 @@ struct SaleForm: View {
         goneSkus = []
         alreadySold = false
         openedExchange = []
+        step = .customer
     }
 }

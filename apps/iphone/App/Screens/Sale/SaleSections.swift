@@ -101,12 +101,10 @@ extension SaleForm {
                 Label(notice, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(.orange)
             }
             Button { scanning = true } label: { Label("Scan a tag", systemImage: "qrcode.viewfinder") }
-            Button { startNewItem() } label: {
-                Label("New item", systemImage: "plus.circle")
-            }
-            Button { addingStock = true } label: {
-                Label("New item, and keep it in stock", systemImage: "square.and.pencil")
-            }
+            Menu {
+                Button("For this bill only", systemImage: "plus.circle") { startNewItem() }
+                Button("Create in stock and add", systemImage: "shippingbox") { addingStock = true }
+            } label: { Label("New item", systemImage: "plus.circle") }
             // The AI bill reader (SaleScanScreen): the ERP's own reader, its lines put on this sale.
             NavigationLink {
                 SaleScanScreen(draft: $draft, keep: edit == nil)
@@ -117,7 +115,7 @@ extension SaleForm {
             LedgerHeading(title: "Pieces")
         } footer: {
             let n = draft.lines.count
-            Text("\(n) piece\(n == 1 ? "" : "s") on this bill. Tap a piece to edit it; swipe to remove it. New item bills a piece that was never in stock, for this sale only; New item, and keep it in stock puts it in stock first. Read a written bill puts a photographed bill's lines on the sale for you to check.")
+            Text("\(n) piece\(n == 1 ? "" : "s"). Tap to edit; swipe to remove.")
         }
     }
 

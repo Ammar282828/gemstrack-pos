@@ -46,6 +46,7 @@ struct SaleLineEditor: View {
 
     var body: some View {
         NavigationStack {
+            TransactionWorkspace {
             Form { Group {
                 pieceSection
                 if silver { finishSection }
@@ -57,6 +58,14 @@ struct SaleLineEditor: View {
                 }
                 .houseRows()
             }
+            } review: {
+                PieceInspector(title: f.name, rows: [
+                    .init(label: "Metal", value: describeMetal(f.metalType, f.karat)),
+                    .init(label: "Size", value: f.size),
+                    .init(label: "Weight", value: f.weight.isEmpty ? "—" : f.weight + " g"),
+                    .init(label: "On this bill", value: Money.pkr(preview))
+                ])
+            } footer: { EmptyView() }
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(create ? "New item" : (line.stockSku ?? "Edit piece"))
             .navigationBarTitleDisplayMode(.inline)
@@ -86,6 +95,7 @@ struct SaleLineEditor: View {
             }
         }
         .presentationDetents([.large])
+        .presentationSizing(.page)
     }
 
     // MARK: Sections

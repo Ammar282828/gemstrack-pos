@@ -26,6 +26,7 @@ enum SettingsRoutes {
             .exact("/settings/contact-import") { ContactImportSettings() },
             .exact("/settings/hisaab-import") { HisaabImportSettings() },
             .exact("/app/phone") { PhoneSettings() },
+            .exact("/app/widgets") { WidgetPreviewScreen() },
         ]
     }
 }

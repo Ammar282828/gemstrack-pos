@@ -83,6 +83,9 @@ final class ERPUITests: XCTestCase {
     func testANewOrderPricesAPiece() {
         let app = demo(["-ERPDemoTab", "orders", "-ERPDemoOpen", "/orders/add"])
         app.launch()
+        let pieces = app.buttons["Step 2 of 4: Pieces"]
+        XCTAssertTrue(pieces.waitForExistence(timeout: 8))
+        pieces.tap()
         let add = app.buttons["Add a piece"]
         XCTAssertTrue(add.waitForExistence(timeout: 8), "New order offers Add a piece")
         add.tap()
@@ -116,6 +119,9 @@ final class ERPUITests: XCTestCase {
     private func editOpens(_ place: String, tab: String) {
         let app = demo(["-ERPDemoTab", tab, "-ERPDemoOpen", place])
         app.launch()
+        let review = app.buttons["Step 4 of 4: Review"]
+        XCTAssertTrue(review.waitForExistence(timeout: 10))
+        review.tap()
         let save = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Save changes'")).firstMatch
         XCTAssertTrue(save.waitForExistence(timeout: 10), "\(place) opens the form with Save changes")
         XCTAssertFalse(app.buttons["Start over"].exists, "\(place) has no Start over: the record on file is the copy")
@@ -127,6 +133,29 @@ final class ERPUITests: XCTestCase {
     func testEditingAnInvoiceOpensItsForm() { editOpens("/invoices/INV-D0002/edit", tab: "invoices") }
 
     func testANewOrderOffersTheBookAsTheNameIsTyped() { pickByTyping("/orders/add", tab: "orders") }
+
+    /// Moving through the new flow must keep the customer's unsaved details in both forms.
+    func testEntryStepsKeepCustomerDetails() {
+        for place in ["/orders/add", "/invoices/new"] {
+            let app = demo(["-ERPDemoTab", "home", "-ERPDemoOpen", place])
+            app.launch()
+            let customer = app.buttons["Step 1 of 4: Customer"]
+            XCTAssertTrue(customer.waitForExistence(timeout: 10))
+            let name = app.textFields.matching(NSPredicate(format: "placeholderValue == 'Search or type a new name'")).firstMatch
+            if !name.exists && app.buttons["Change"].exists { app.buttons["Change"].tap() }
+            XCTAssertTrue(name.waitForExistence(timeout: 5))
+            name.tap()
+            name.typeText("Flow Check")
+            let entered = name.value as? String
+            for step in ["Step 2 of 4: Pieces", "Step 3 of 4: Payment", "Step 4 of 4: Review"] {
+                app.buttons[step].tap()
+                XCTAssertEqual(app.state, .runningForeground)
+            }
+            customer.tap()
+            XCTAssertEqual(name.value as? String, entered, "\(place) keeps the customer between steps")
+            app.terminate()
+        }
+    }
 
     // MARK: Speed
 

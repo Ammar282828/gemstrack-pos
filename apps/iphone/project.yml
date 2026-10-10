@@ -53,6 +53,7 @@ targets:
     sources:
       - path: Widget
       - path: Shared
+      - path: App/Resources/Assets.xcassets
     settings:
       base:
         PRODUCT_NAME: ERPWidget

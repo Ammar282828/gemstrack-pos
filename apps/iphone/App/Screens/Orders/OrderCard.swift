@@ -42,6 +42,7 @@ struct OrderCardRows: View {
     let mine: Bool
     let busy: Bool
     let actions: OrderCardActions
+    var standalone = false
 
     /// Invoiced, paid or not, is greyed (owner, 2026-10-06): the order's work is done and its money is the invoice's.
     private var greyed: Bool { OrdersLogic.hasInvoice(order) || stage == .done }
@@ -54,6 +55,26 @@ struct OrderCardRows: View {
     private var hasPhone: Bool { !CustomerKit.dialable(order.customerContact).isEmpty }
 
     var body: some View {
+      if standalone {
+        VStack(spacing: 12) {
+            NavigationLink(value: Route(path: "/orders/\(order.id)")) {
+                OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine)
+            }
+            .buttonStyle(.plain)
+            Divider()
+            HStack(spacing: 8) {
+                if let step {
+                    OrderNextStepRow(order: order, step: step, canAdvance: canAdvance, busy: busy, actions: actions, showsAdvanceMenu: false)
+                } else { Spacer(minLength: 0) }
+                Menu { menu } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }
+                    .buttonStyle(.borderless).accessibilityLabel("Actions for \(order.id)")
+            }
+        }
+        .padding(20)
+        .background(Theme.card, in: .rect(cornerRadius: 20))
+        .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(Theme.accent.opacity(mine ? 0.22 : 0.08), lineWidth: 1) }
+        .contextMenu { menu }
+      } else {
         NavigationLink(value: Route(path: "/orders/\(order.id)")) {
             OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine)
         }
@@ -71,6 +92,7 @@ struct OrderCardRows: View {
                 .listRowInsets(EdgeInsets(top: 4, leading: OrderCardMetrics.inset, bottom: 12, trailing: 16))
                 .listRowBackground(Theme.card)
         }
+      }
     }
 
     /// Swiped from the left: the customer, on the order's number.
@@ -249,6 +271,7 @@ struct OrderNextStepRow: View {
     let canAdvance: Bool
     let busy: Bool
     let actions: OrderCardActions
+    var showsAdvanceMenu = true
 
     /// The invoice an invoiced order's step points at, and what it still has owing.
     private var invoiced: (id: String, owed: Double)? {
@@ -265,7 +288,7 @@ struct OrderNextStepRow: View {
             HStack(spacing: 10) {
                 primary
                 Spacer(minLength: 0)
-                if canAdvance {
+                if canAdvance && showsAdvanceMenu {
                     Menu {
                         Button("Record an advance", systemImage: "creditcard") { actions.advance(order) }
                     } label: {

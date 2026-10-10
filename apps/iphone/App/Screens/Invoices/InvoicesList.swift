@@ -214,6 +214,7 @@ enum InvoiceCalendar {
 struct InvoicesList: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @State private var search = ""
     @State private var chip: InvoiceChip = .all
@@ -277,27 +278,42 @@ struct InvoicesList: View {
         let scoped = scope(all)
         let shown = scoped.filter { chip.matches($0) }
         let groups = sections(shown)
+        GeometryReader { geometry in
+          if geometry.size.width >= 760 && !typeSize.isAccessibilitySize {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 24) {
+                    listControls(scoped, all: all)
+                    ForEach(groups) { group in
+                        InvoiceSectionHeader(section: group)
+                        LazyVGrid(columns: [GridItem(group.rows.count == 1 ? .flexible() : .adaptive(minimum: 340), spacing: 20)], alignment: .leading, spacing: 20) {
+                            ForEach(group.rows) { inv in
+                                VStack(alignment: .leading, spacing: 12) {
+                                    row(inv).buttonStyle(.plain)
+                                    Divider()
+                                    HStack {
+                                        if canPay && isOwing(inv) {
+                                            Button("Take payment", systemImage: "banknote") { paying = inv }
+                                                .buttonStyle(.borderless).font(.subheadline.weight(.medium))
+                                                .frame(minHeight: 44)
+                                        }
+                                        Spacer()
+                                        Menu { invoiceActions(inv) } label: {
+                                            Image(systemName: "ellipsis").frame(width: 44, height: 44)
+                                        }.accessibilityLabel("Actions for \(inv.id)")
+                                    }
+                                }
+                                .padding(20).background(Theme.card, in: .rect(cornerRadius: 20))
+                            }
+                        }
+                    }
+                    if groups.isEmpty { emptyState }
+                }.padding(24)
+            }
+          } else {
         List {
             // The chips and the figures are the list's first rows (a bar pinned over the list greyed the large title out).
             Section {
-                ChipRow {
-                    ForEach([InvoiceChip.all, .unpaid, .paid]) { c in
-                        FilterChip(title: c.title, count: scoped.filter { c.matches($0) }.count, chosen: c == chip) {
-                            withAnimation { chip = c }
-                        }
-                    }
-                }
-                if !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || (chip != .all && chip != .unpaid && chip != .paid) {
-                    HStack {
-                        Text([chip == .all ? "" : chip.title, takenBy, month.isEmpty ? "" : InvoiceCalendar.monthLabel(month),
-                              rangeFrom.map { InvoiceCalendar.caption(from: $0, to: rangeTo) } ?? ""].filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Clear") { chip = .all; takenBy = ""; month = ""; rangeFrom = nil; rangeTo = nil }
-                            .font(.caption.weight(.semibold)).buttonStyle(.borderless)
-                    }
-                }
-                summaryCard(all)
+                listControls(scoped, all: all)
             }
             .chipRowInList()
             if groups.isEmpty {
@@ -313,6 +329,30 @@ struct InvoicesList: View {
             }
         }
         .listStyle(.insetGrouped)
+          }
+        }
+    }
+
+    @ViewBuilder
+    private func listControls(_ scoped: [Invoice], all: [Invoice]) -> some View {
+        ChipRow {
+            ForEach([InvoiceChip.all, .unpaid, .paid]) { c in
+                FilterChip(title: c.title, count: scoped.filter { c.matches($0) }.count, chosen: c == chip) {
+                    withAnimation { chip = c }
+                }
+            }
+        }
+        if !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || (chip != .all && chip != .unpaid && chip != .paid) {
+            HStack {
+                Text([chip == .all ? "" : chip.title, takenBy, month.isEmpty ? "" : InvoiceCalendar.monthLabel(month),
+                      rangeFrom.map { InvoiceCalendar.caption(from: $0, to: rangeTo) } ?? ""].filter { !$0.isEmpty }.joined(separator: " · "))
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("Clear") { chip = .all; takenBy = ""; month = ""; rangeFrom = nil; rangeTo = nil }
+                    .font(.caption.weight(.semibold)).buttonStyle(.borderless)
+            }
+        }
+        summaryCard(all)
     }
 
     // MARK: The three figures
@@ -399,6 +439,15 @@ struct InvoicesList: View {
                 }
             }
             .contextMenu {
+                invoiceActions(inv)
+            }
+            // The signed-in person's own sales are lit where they stand, not sorted or filtered (2026-10-05).
+            .listRowBackground(Theme.card)
+            .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
+    }
+
+    @ViewBuilder
+    private func invoiceActions(_ inv: Invoice) -> some View {
                 if canPay && isOwing(inv) {
                     Button { paying = inv } label: { Label("Take payment", systemImage: "banknote") }
                 }
@@ -408,10 +457,6 @@ struct InvoicesList: View {
                 Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer) } label: {
                     Label("Print / PDF", systemImage: "printer")
                 }
-            }
-            // The signed-in person's own sales are lit where they stand, not sorted or filtered (2026-10-05).
-            .listRowBackground(Theme.card)
-            .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
     }
 
     private func isMine(_ inv: Invoice) -> Bool {

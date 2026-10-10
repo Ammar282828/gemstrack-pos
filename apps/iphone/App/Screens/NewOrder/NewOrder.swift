@@ -41,6 +41,7 @@ struct NewOrder: View {
     @State private var savedEdit = false
     @State private var confirmReset = false
     @State private var pickingStock = false
+    @State private var step: EntryStep = .customer
 
     init(readsSlip: Bool = false) {
         edit = nil
@@ -187,7 +188,10 @@ struct NewOrder: View {
 
     /// The form, its bar and its toolbar.
     private func screen(_ totals: NewOrderMath.Totals, _ settings: Settings?) -> some View {
-        Form { Group {
+        TransactionWorkspace {
+          VStack(spacing: 0) {
+            EntrySteps(selection: $step)
+            Form { Group {
             if restored { restoredBanner }
             if edit?.invoiced == true {
                 Section {
@@ -195,18 +199,58 @@ struct NewOrder: View {
                         .font(.subheadline)
                 }
             }
-            NewOrderCustomerSection(draft: $draft, people: people, takenBy: session.shop.takenBy) {
-                CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: book.customers.items)
+            switch step {
+            case .customer:
+                NewOrderCustomerSection(draft: $draft, people: people, takenBy: session.shop.takenBy) {
+                    CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: book.customers.items)
+                }
+                NewOrderPromisedSection(draft: $draft)
+            case .pieces:
+                piecesSection(totals)
+                NewOrderRatesSection(draft: $draft, settings: settings)
+                NewOrderPrintedSection(draft: $draft)
+            case .payment:
+                NewOrderPaymentSection(draft: $draft)
+                NewOrderExchangeSection(draft: $draft)
+            case .review:
+                Section {
+                    LabeledContent("Customer", value: draft.customerName.isEmpty ? "Walk-in" : draft.customerName)
+                    if !draft.customerPhone.isEmpty { LabeledContent("Phone", value: draft.customerPhone) }
+                    LabeledContent("Promised for", value: draft.promised.isEmpty ? "No date" : ShopDate.say(draft.promised))
+                    Button("Edit \(draft.pieces.count) pieces") { step = .pieces }
+                    Button("Edit payment and exchange") { step = .payment }
+                } header: { LedgerHeading(title: "Review") }
+                if !draft.pieces.isEmpty {
+                    Section {
+                        ForEach(Array(draft.pieces.enumerated()), id: \.element.id) { index, piece in
+                            Button { editing = NewOrderPieceRef(id: piece.id) } label: {
+                                NewOrderPieceRow(piece: piece, number: index + 1, price: index < totals.prices.count ? totals.prices[index] : 0)
+                            }.buttonStyle(.plain)
+                        }
+                    } header: { LedgerHeading(title: "Pieces") }
+                }
+                tail(totals, settings)
             }
-            NewOrderPromisedSection(draft: $draft)
-            piecesSection(totals)
-            NewOrderRatesSection(draft: $draft, settings: settings)
-            NewOrderPrintedSection(draft: $draft)
-            NewOrderPaymentSection(draft: $draft)
-            NewOrderExchangeSection(draft: $draft)
-            tail(totals, settings)
             }
             .houseRows()
+            }
+            .id(step)
+          }
+        } review: {
+            TransactionReview(customer: draft.customerName, contact: draft.customerPhone,
+                pieces: draft.pieces.enumerated().map { index, p in
+                    TransactionReviewRow(label: "\(index + 1). \(p.description.isEmpty ? "Untitled piece" : p.description)",
+                                         value: Money.pkr(index < totals.prices.count ? totals.prices[index] : 0))
+                }, figures: [
+                    TransactionReviewRow(label: "Estimate", value: Money.pkr(totals.subtotal)),
+                    TransactionReviewRow(label: "Discount", value: Money.pkr(totals.discount)),
+                    TransactionReviewRow(label: "Advance", value: Money.pkr(totals.advance)),
+                    TransactionReviewRow(label: "Exchange", value: Money.pkr(totals.exchange)),
+                    TransactionReviewRow(label: totals.balance < 0 ? "Credit to customer" : "Balance due", value: Money.pkr(abs(totals.balance)))
+                ])
+        } footer: {
+            if step == .review { saveBar(totals) }
+            else { EntryContinue(selection: $step) }
         }
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle(edit.map { "Edit \($0.orderId)" } ?? "New order")
@@ -225,7 +269,6 @@ struct NewOrder: View {
             }
         }
         .newOrderKeyboardDone()
-        .safeAreaBar(edge: .bottom) { saveBar(totals) }
         .navigationDestination(item: $editing) { ref in editor(ref.id) }
     }
 
@@ -391,6 +434,7 @@ struct NewOrder: View {
         draft = NewOrderDraft.fresh()
         restored = false
         editing = nil
+        step = .customer
         seedRates()
         settleTakenBy()
     }

@@ -32,6 +32,7 @@ struct OrdersHub: View {
     @State private var cancelling: Order?
     @State private var web: OrdersWebTarget?
     @State private var failure: String?
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         ShelfState(
@@ -84,7 +85,27 @@ struct OrdersHub: View {
         let groups = makeSections(shown, owedOn: owedOn, now: now)
         // A search or a filter must reach the folded stages too, or its hits hide behind "Show".
         let forceOpen = filtering
-        List {
+        GeometryReader { geometry in
+          if geometry.size.width >= 760 && !typeSize.isAccessibilitySize {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 24) {
+                    controls()
+                    ForEach(groups) { g in
+                        VStack(alignment: .leading, spacing: 16) {
+                            groupHeading(g)
+                            if g.folds {
+                                DisclosureGroup(isExpanded: expansion(g.id, forceOpen: forceOpen)) {
+                                    cardGrid(g.orders, owedOn: owedOn, now: now)
+                                } label: { Text("\(g.orders.count) orders").font(.subheadline).foregroundStyle(.secondary) }
+                            } else { cardGrid(g.orders, owedOn: owedOn, now: now) }
+                        }
+                    }
+                    if groups.isEmpty { emptyState(nothingOpen: grouping == .due && !shown.isEmpty) }
+                }
+                .padding(24)
+            }
+          } else {
+            List {
             controls()
             ForEach(groups) { g in
                 section(g, owedOn: owedOn, now: now, forceOpen: forceOpen)
@@ -95,8 +116,10 @@ struct OrdersHub: View {
                 }
                 .listRowBackground(Color.clear)
             }
+            }
+            .listStyle(.insetGrouped)
+          }
         }
-        .listStyle(.insetGrouped)
     }
 
     /// Search, Month, Taken by and Payment: everything but the status chip, so the chips can count what
@@ -177,32 +200,54 @@ struct OrdersHub: View {
 
     @ViewBuilder
     private func section(_ g: OrdersSection, owedOn: [String: Double], now: Date, forceOpen: Bool) -> some View {
-        Section {
-            if g.folds {
+        if g.folds {
+            Section {
                 DisclosureGroup(isExpanded: expansion(g.id, forceOpen: forceOpen)) {
-                    cards(g.orders, owedOn: owedOn, now: now)
+                    VStack(spacing: 16) {
+                        ForEach(g.orders) { order in card(order, owedOn: owedOn, now: now, standalone: true) }
+                    }.padding(.top, 12)
                 } label: {
                     Text("\(g.orders.count) order\(g.orders.count == 1 ? "" : "s")")
                         .foregroundStyle(.secondary)
                 }
                 .houseRows()
-            } else {
-                cards(g.orders, owedOn: owedOn, now: now)
+                .listRowBackground(Theme.ground)
+            } header: { groupHeading(g) }
+        } else {
+            ForEach(Array(g.orders.enumerated()), id: \.element.id) { index, order in
+                Section {
+                    card(order, owedOn: owedOn, now: now)
+                } header: {
+                    if index == 0 { groupHeading(g) }
+                }
             }
-        } header: {
-            OrdersSectionHeader(
+        }
+    }
+
+    private func groupHeading(_ g: OrdersSection) -> some View {
+        OrdersSectionHeader(
                 title: g.title,
                 hint: g.hint,
                 count: g.orders.count,
                 value: g.orders.reduce(0) { $0 + $1.subtotal },
                 tone: g.tone
-            )
+        )
+    }
+
+    private func cardGrid(_ orders: [Order], owedOn: [String: Double], now: Date) -> some View {
+        LazyVGrid(columns: [GridItem(orders.count == 1 ? .flexible() : .adaptive(minimum: 340), spacing: 20, alignment: .top)], alignment: .leading, spacing: 20) {
+            ForEach(orders) { order in card(order, owedOn: owedOn, now: now, standalone: true) }
         }
     }
 
     @ViewBuilder
     private func cards(_ orders: [Order], owedOn: [String: Double], now: Date) -> some View {
         ForEach(orders) { order in
+            card(order, owedOn: owedOn, now: now)
+        }
+    }
+
+    private func card(_ order: Order, owedOn: [String: Double], now: Date, standalone: Bool = false) -> some View {
             OrderCardRows(
                 order: order,
                 stage: stageOf(order, owedOnInvoice: OrdersLogic.owed(order, owedOn)),
@@ -211,9 +256,9 @@ struct OrdersHub: View {
                 isOwner: session.isOwner,
                 mine: OrdersLogic.isMine(order, person: session.shop.person),
                 busy: busy.contains(order.id),
-                actions: actions
+                actions: actions,
+                standalone: standalone
             )
-        }
     }
 
     private func expansion(_ id: String, forceOpen: Bool) -> Binding<Bool> {

@@ -102,6 +102,9 @@ struct PhoneSettings: View {
 
             Section {
                 LabeledContent("Home-screen widget", value: widgetLinked ? "Linked" : "Not linked")
+                NavigationLink(value: Route(path: "/app/widgets")) {
+                    Label("Preview widgets", systemImage: "rectangle.on.rectangle")
+                }
                 Button(widgetLinked ? "Link again" : "Link the widget") {
                     Task {
                         ERPWidgetLink.clear()

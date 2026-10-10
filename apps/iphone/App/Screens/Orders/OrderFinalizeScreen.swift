@@ -68,7 +68,8 @@ struct OrderFinalizeScreen: View {
 
     private func form(_ order: Order, _ settings: Settings) -> some View {
         let f = OrderFinalizeMath.figures(order, rows: rows, discount: discount, settings: settings)
-        return Form { Group {
+        return TransactionWorkspace {
+          Form { Group {
             ForEach($rows) { $row in
                 pieceSection($row, price: row.index < f.prices.count ? f.prices[row.index] : 0)
             }
@@ -111,7 +112,15 @@ struct OrderFinalizeScreen: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .disabled(saving)
-        .safeAreaBar(edge: .bottom) {
+        } review: {
+            TransactionReview(customer: order.customerName ?? "", pieces: rows.enumerated().map { index, row in
+                .init(label: "\(index + 1). \(row.item.description)", value: Money.pkr(index < f.prices.count ? f.prices[index] : 0))
+            }, figures: [
+                .init(label: "Invoice total", value: Money.pkr(f.total)),
+                .init(label: "Advance paid", value: Money.pkr(f.advances)),
+                .init(label: f.balance < 0 ? "Credit to customer" : "Balance due", value: Money.pkr(abs(f.balance)))
+            ])
+        } footer: {
             Button {
                 if let problem = OrderFinalizeMath.problem(rows, discount: discount) {
                     failure = problem

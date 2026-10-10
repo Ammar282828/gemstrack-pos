@@ -13,6 +13,17 @@ struct IntegrationSettings: View {
 private struct IntegrationsForm: View {
     let settings: Settings
     @Environment(Session.self) private var session
+    @State private var shopify: ShopifyConnection?
+    @State private var shopifyFailure: String?
+
+    private struct ShopifyConnection: Decodable {
+        let configured: Bool
+        let connected: Bool?
+        let shop: String?
+        let shopName: String?
+        let lastSyncedAt: String?
+        let error: String?
+    }
 
     var body: some View {
         Form { Group {
@@ -26,17 +37,26 @@ private struct IntegrationsForm: View {
                 }
             }
 
-            if let domain = settings.shopifyStoreDomain, !domain.isEmpty {
                 Section {
-                    LabeledContent("Store", value: domain)
-                    LabeledContent("Last synced", value: settings.shopifyLastSyncedAt.map { ShopDate.say($0, withTime: true) } ?? "Not yet")
+                    if let shopify {
+                        LabeledContent("Status", value: !shopify.configured ? "Not configured" : (shopify.connected == true ? "Connected" : "Needs attention"))
+                        if let domain = shopify.shop { LabeledContent("Store", value: domain) }
+                        if shopify.configured {
+                            LabeledContent("Last synced", value: shopify.lastSyncedAt.map { ShopDate.say($0, withTime: true) } ?? "Not yet")
+                        }
+                        if let error = shopify.error { Text(error).font(.footnote).foregroundStyle(.secondary) }
+                    } else if let shopifyFailure {
+                        Text(shopifyFailure).font(.footnote).foregroundStyle(.secondary)
+                        Button("Check connection again") { Task { await checkShopify() } }
+                    } else {
+                        SkeletonLoading()
+                    }
                     NavigationLink(value: Route(path: "/settings/integrations?web=1")) {
                         Label("Connection and sync", systemImage: "arrow.triangle.2.circlepath")
                     }
                 } header: {
                     LedgerHeading(title: "Shopify")
                 }
-            }
 
             Section {
                 NavigationLink(value: Route(path: "/ads/setup")) {
@@ -56,5 +76,12 @@ private struct IntegrationsForm: View {
             }
             .houseRows()
         }
+        .task { await checkShopify() }
+    }
+
+    private func checkShopify() async {
+        shopifyFailure = nil
+        do { shopify = try await ERPAPI.shared.get("/api/shopify/status", as: ShopifyConnection.self) }
+        catch { shopifyFailure = error.localizedDescription }
     }
 }

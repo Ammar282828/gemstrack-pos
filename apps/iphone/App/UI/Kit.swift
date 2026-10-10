@@ -83,12 +83,14 @@ struct FigureGrid<Content: View>: View {
     var spacing: CGFloat = 12
     @ViewBuilder let content: () -> Content
     @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var availableWidth: CGFloat = 0
 
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing),
-                                 count: typeSize.isAccessibilitySize ? 1 : 2), spacing: spacing) {
+                                 count: typeSize.isAccessibilitySize ? 1 : max(2, min(4, Int(availableWidth / 240)))), spacing: spacing) {
             content()
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { availableWidth = $0 }
     }
 }
 

@@ -13,13 +13,16 @@ struct ERPEntry: TimelineEntry {
 struct ERPProvider: TimelineProvider {
     private let cacheKey = "erp.widget.last"
     private let cacheOwner = "erp.widget.owner"
+    private var sample: ERPSummary {
+        .sample(house: Bundle.main.object(forInfoDictionaryKey: "ERPAppName") as? String ?? "Taheri")
+    }
 
     func placeholder(in context: Context) -> ERPEntry {
-        ERPEntry(date: Date(), summary: .sample)
+        ERPEntry(date: Date(), summary: sample)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (ERPEntry) -> Void) {
-        if context.isPreview { completion(ERPEntry(date: Date(), summary: cached() ?? .sample)); return }
+        if context.isPreview { completion(ERPEntry(date: Date(), summary: cached() ?? sample)); return }
         fetch { completion(ERPEntry(date: Date(), summary: $0 ?? cached())) }
     }
 
@@ -66,6 +69,7 @@ struct ERPWidgetEntryView: View {
         switch family {
         case .systemSmall: return .small
         case .systemLarge: return .large
+        case .systemExtraLarge: return .extraLarge
         case .accessoryRectangular: return .rectangular
         case .accessoryInline: return .inline
         default: return .medium
@@ -76,7 +80,9 @@ struct ERPWidgetEntryView: View {
         let face = ERPWidgetFace(summary: entry.summary, size: size,
                                  appName: Bundle.main.object(forInfoDictionaryKey: "ERPAppName") as? String ?? "the ERP app")
         if #available(iOSApplicationExtension 17.0, *) {
-            face.containerBackground(.fill.tertiary, for: .widget)
+            face.containerBackground(for: .widget) {
+                ERPWidgetPaper(house: entry.summary?.house ?? (Bundle.main.object(forInfoDictionaryKey: "ERPAppName") as? String ?? ""))
+            }
         } else {
             face.padding()
         }
@@ -91,6 +97,6 @@ struct ERPWidget: Widget {
         }
         .configurationDisplayName("Today at the shop")
         .description("Revenue today and this month, with the shop’s pinned message.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge, .accessoryRectangular, .accessoryInline])
     }
 }

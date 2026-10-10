@@ -135,6 +135,7 @@ private struct StockPieceEditor: View {
     }
 
     private var form: some View {
+        TransactionWorkspace {
         Form { Group {
             pieceSection
             if f.silver { finishSection }
@@ -146,6 +147,14 @@ private struct StockPieceEditor: View {
             }
             .houseRows()
         }
+        } review: {
+            PieceInspector(title: f.name, rows: [
+                .init(label: "Metal", value: describeMetal(f.metalType, f.karat)),
+                .init(label: "Size", value: f.size),
+                .init(label: "Weight", value: f.weight.isEmpty ? "—" : f.weight + " g"),
+                .init(label: "At today's rates", value: todaysPrice.map(Money.pkr) ?? "Pending rates")
+            ])
+        } footer: { EmptyView() }
         .scrollDismissesKeyboard(.interactively)
         .newOrderKeyboardDone()
         .disabled(saving)

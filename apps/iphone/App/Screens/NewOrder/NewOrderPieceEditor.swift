@@ -74,6 +74,7 @@ struct NewOrderPieceEditor: View {
     private var silver: Bool { metal == .silver }
 
     var body: some View {
+        TransactionWorkspace {
         Form { Group {
             thePiece
             sizeBox
@@ -85,6 +86,14 @@ struct NewOrderPieceEditor: View {
             }
             .houseRows()
         }
+        } review: {
+            PieceInspector(title: piece.description, rows: [
+                .init(label: "Metal", value: describeMetal(piece.metal, piece.karat)),
+                .init(label: "Size", value: piece.size),
+                .init(label: "Weight", value: piece.weight.isEmpty ? "—" : piece.weight + " g"),
+                .init(label: "Estimate", value: Money.pkr(NewOrderMath.price(piece, rates)))
+            ])
+        } footer: { EmptyView() }
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Piece \(number)")
         .navigationBarTitleDisplayMode(.inline)
