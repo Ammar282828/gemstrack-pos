@@ -110,7 +110,8 @@ export const FilterBar: React.FC<{
           {/* Never folded. Two pages put an Export button in here, and one
               hidden behind a control labelled "filters" is a button nobody
               finds. Only `children` — which is always selects — folds. */}
-          {actions && <div className="flex gap-2 flex-shrink-0 [&_button]:h-9">{actions}</div>}
+          {/* Wraps on a phone: Invoices' grouping and date range ran off the right edge side by side. */}
+          {actions && <div className="flex flex-wrap gap-2 flex-shrink-0 sm:flex-nowrap [&_button]:h-9">{actions}</div>}
         </div>
         {footer}
       </CardContent>

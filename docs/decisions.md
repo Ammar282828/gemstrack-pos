@@ -12,7 +12,12 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   the ones people learned — what changed is underneath). **One registry, `src/lib/nav.ts`:** the sidebar, the top-bar
   tabs, the Ctrl+K palette (same role rule and house flags) and `PageShell`'s headings all read it; `nav.test.ts` fails when
   a page under `src/app` is in no entry, an entry has no page, or two rows of a group share a name. Add a page there or it
-  is nowhere. **One tab row per screen** — no in-page `Tabs` under the top bar's.
+  is nowhere. **One tab row per screen** — no in-page `Tabs` under the top bar's. **On a phone** (2026-10-10, the owner:
+  "too cluttered on my phone with a weird tab bar on the top") the bar is menu · rate chip · search, and the tabs are their
+  own full-width segmented row under it (up to three share the width; more scroll, the page's centred); light/dark moves
+  into the menu's footer. From md the tabs sit beside the menu as before. Sticky toolbars use `--app-header-h`.
+  **Home's New** (same day): a "New" bubble beside the microphone opens New invoice / New order
+  (`components/layout/new-bubble.tsx`); the sidebar's New sale keeps the rest (repair, scan a tag, read a bill).
   ```
   [Search ⌘K] [New sale: Invoice · Order · Repair; Scan a tag · Read a written bill · Scan a parchi]   top bar: rate chip
   Home        Dashboard · Calendar · Today’s cash (owners)

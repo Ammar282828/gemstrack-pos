@@ -809,3 +809,8 @@ html.ui-glass .glass-fab:active { transform: scale(0.94); }
   content-visibility: auto;
   contain-intrinsic-size: auto var(--cv-size, 240px);
 }
+
+/* The top bar's height, for anything sticky beneath it (Hisaab's toolbar): a phone page with sibling
+   tabs carries them as a second row (app-layout.tsx), 2.75rem under the 3.5rem bar. */
+.app-inset { --app-header-h: 3.5rem; }
+@media (max-width: 767px) { .app-inset.has-page-tabs { --app-header-h: 6.25rem; } }

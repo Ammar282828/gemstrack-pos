@@ -685,13 +685,15 @@ export default function DocumentsPage() {
         mine: !!me && (d as { takenBy?: string }).takenBy === me,
       });
 
+      // Wraps rather than squeezes: on a phone the figures took the row and the title, which could not
+      // shrink (a flex item's min-width), was drawn under them ("10 Oct 2PKR 135,000 owed").
       const heading = (s: typeof sections[number]) => (
-        <div className="flex items-baseline justify-between gap-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
           <div className="flex items-baseline gap-2 min-w-0">
-            <span className={cn('text-sm font-semibold truncate', s.danger && 'text-destructive')}>{s.title}</span>
+            <span className={cn('text-sm font-semibold truncate min-w-0', s.danger && 'text-destructive')}>{s.title}</span>
             {s.hint && <span className="text-2xs text-muted-foreground flex-shrink-0">{s.hint}</span>}
           </div>
-          <div className="flex items-baseline gap-2 flex-shrink-0">
+          <div className="ml-auto flex items-baseline gap-2 flex-shrink-0">
             <span className="text-2xs text-muted-foreground">{s.rows.length}</span>
             {s.owed > 0 && (
               <span className="text-sm font-semibold tabular-nums text-destructive">{pkr(s.owed)} owed</span>
@@ -762,9 +764,12 @@ export default function DocumentsPage() {
 
   return (
     <PageShell
-      subtitle={<>Every invoice and order, and what is still owed on it{owedAll.total > 0 && <> — <span className="text-destructive font-medium">{pkr(owedAll.total)} owed</span> on {owedAll.invoices.length} invoice{owedAll.invoices.length === 1 ? '' : 's'}</>}.</>}
+      // On a phone only what is owed; the sentence around it is for the desk.
+      subtitle={<><span className="hidden sm:inline">Every invoice and order, and what is still owed on it{owedAll.total > 0 && ' — '}</span>{owedAll.total > 0 && <><span className="text-destructive font-medium">{pkr(owedAll.total)} owed</span> on {owedAll.invoices.length} invoice{owedAll.invoices.length === 1 ? '' : 's'}</>}<span className="hidden sm:inline">.</span></>}
+      // A Shopify CSV is imported at a desk, never from a phone: the full-width button was the first
+      // thing under the title there.
       action={
-        <Button variant="outline" size="sm" className="flex-shrink-0"
+        <Button variant="outline" size="sm" className="hidden flex-shrink-0 sm:inline-flex"
           onClick={() => { setImportOpen(true); setImportFile(null); setImportPreview(null); setImportProgress([]); setImportDone(false); }}>
           <Upload className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Import Shopify CSV</span><span className="sm:hidden">Import</span>
         </Button>
