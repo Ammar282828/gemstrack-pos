@@ -29,6 +29,7 @@ struct WorkshopKarigarsList: View {
         }
         .navigationTitle("Karigars")
         .navigationBarTitleDisplayMode(.large)
+        .modifier(HouseGround())
         .searchable(text: $query, prompt: "Name or contact")
         .toolbar {
             if session.isOwner {
@@ -94,12 +95,12 @@ struct WorkshopKarigarsList: View {
             showPicker
             if show != .free { section("Working", hint: "busiest first", people: working, loads, batches) }
             if show != .working { section("Free", hint: "nothing on the bench", people: free, loads, batches) }
+            if (show == .working && working.isEmpty) || (show == .free && free.isEmpty) || matched.isEmpty {
+                Section { emptyState.listRowBackground(Color.clear) }
+            }
         }.houseRows()
         }
         .listStyle(.insetGrouped)
-        .overlay {
-            if matched.isEmpty { emptyState }
-        }
     }
 
     /// The one holding the most, and the most overdue, is the one to look at.
@@ -134,9 +135,8 @@ struct WorkshopKarigarsList: View {
             grams += l.totalWeightG
             if l.active > 0 { working += 1 }
         }
-        let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
         return Section {
-            LazyVGrid(columns: columns, spacing: 10) {
+            FigureGrid {
                 FigureTile(label: "Working now", value: "\(working)", detail: "of \(live.count) on file")
                 FigureTile(label: "Pieces out", value: "\(pieces)", detail: grams > 0 ? WorkshopLogic.number(grams, digits: 0) + "g of metal" : nil)
                 FigureTile(label: "Over \(WorkshopLogic.criticalDays) days", value: "\(critical)", tint: critical > 0 ? Color.red : Color.primary)
@@ -154,12 +154,14 @@ struct WorkshopKarigarsList: View {
 
     private var showPicker: some View {
         Section {
-            Picker("Show", selection: $show) {
-                ForEach(Show.allCases) { s in
-                    Text(s.title).tag(s)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Show.allCases) { s in
+                        FilterChip(title: s.title, chosen: show == s) { show = s }
+                    }
                 }
             }
-            .pickerStyle(.segmented)
+            .chipRowInList()
         }
         .listRowBackground(Color.clear)
     }
@@ -170,47 +172,46 @@ struct WorkshopKarigarsList: View {
     private func section(_ title: String, hint: String, people: [Karigar], _ loads: [String: WorkshopLoad], _ batches: [String: KarigarBatch]) -> some View {
         if !people.isEmpty {
             Section {
-                ForEach(people) { k in
+                WorkshopCards(items: people) { k in
                     row(k, loads[k.id], batches[k.id])
                 }
             } header: {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Color.primary)
-                    Text(hint).font(.caption2).foregroundStyle(.secondary)
-                    Spacer(minLength: 8)
-                    Text("\(people.count)").font(.caption).foregroundStyle(.secondary)
-                }
-                .textCase(nil)
+                LedgerHeading(title: title, count: people.count)
             }
         }
     }
 
     private func row(_ k: Karigar, _ load: WorkshopLoad?, _ batch: KarigarBatch?) -> some View {
         NavigationLink(value: Route(path: WorkshopLogic.karigarPath(k.id))) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Text(k.name).font(.headline).lineLimit(1)
-                    // The open hisaab by name: "Active hisaab" on the web.
-                    if let batch, !batch.label.isEmpty {
-                        StatusBadge(batch.label, color: Color.accentColor)
-                    }
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 8) {
+                    Text(k.name).font(.headline).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
                 }
                 bench(load)
+                if let batch, !batch.label.isEmpty {
+                    Label(batch.label, systemImage: "book.closed")
+                        .font(.caption).foregroundStyle(Theme.accent)
+                }
                 if let contact = k.contact, !contact.isEmpty {
                     Label(contact, systemImage: "phone").font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
+        .buttonStyle(.plain)
     }
 
     /// What this karigar is holding, in one line: "3 pieces · 1 over 14d · 2 late · 8.5g out", or Free.
     @ViewBuilder
     private func bench(_ load: WorkshopLoad?) -> some View {
         if let load, load.active > 0 {
-            HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(WorkshopLogic.pieces(load.active)).font(.subheadline.weight(.semibold)).monospacedDigit()
-                if load.critical > 0 { StatusBadge("\(load.critical) over \(WorkshopLogic.criticalDays)d", color: .red) }
-                if load.late > 0 { StatusBadge("\(load.late) late", color: .orange) }
+                FigureRow(spacing: 8) {
+                    if load.critical > 0 { StatusBadge("\(load.critical) over \(WorkshopLogic.criticalDays)d", color: .red) }
+                    if load.late > 0 { StatusBadge("\(load.late) late", color: .orange) }
+                }
                 if load.totalWeightG > 0 {
                     Text(WorkshopLogic.number(load.totalWeightG, digits: 1) + "g out")
                         .font(.caption)

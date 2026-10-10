@@ -123,6 +123,7 @@ struct WorkshopPaySheet: View {
                 .houseRows()
             }
             .navigationTitle("Record payment")
+            .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -234,6 +235,7 @@ struct WorkshopSilverSheet: View {
                 .houseRows()
             }
             .navigationTitle("Silver Transaction")
+            .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -307,6 +309,7 @@ struct WorkshopBatchStartSheet: View {
                 .houseRows()
             }
             .navigationTitle("Start a new pay batch")
+            .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -383,6 +386,7 @@ struct WorkshopSettleSheet: View {
                 .houseRows()
             }
             .navigationTitle("Settle pay batch")
+            .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

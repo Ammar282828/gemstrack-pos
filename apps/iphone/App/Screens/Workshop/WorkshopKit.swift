@@ -168,3 +168,36 @@ enum WorkshopFigure {
 func workshopLive(_ karigars: [Karigar]) -> [Karigar] {
     karigars.filter { ($0.deletedAt ?? "").isEmpty }
 }
+
+/// Each piece has its own surface. The queue uses the window's width, including an iPad in split view.
+struct WorkshopCards<Item: Identifiable, Content: View>: View {
+    let items: [Item]
+    var minimumWidth: CGFloat = 340
+    @ViewBuilder let content: (Item) -> Content
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var width: CGFloat = 0
+
+    private var columns: [GridItem] {
+        let count = typeSize.isAccessibilitySize ? 1 : max(1, min(3, Int((width + 16) / (minimumWidth + 16))))
+        return Array(repeating: GridItem(.flexible(), spacing: 16, alignment: .top), count: count)
+    }
+
+    var body: some View {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
+            ForEach(items) { item in
+                content(item)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(Theme.card, in: .rect(cornerRadius: 20))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 20)
+                            .strokeBorder(.primary.opacity(0.06), lineWidth: 1)
+                    }
+            }
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .listRowInsets(EdgeInsets())
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+    }
+}

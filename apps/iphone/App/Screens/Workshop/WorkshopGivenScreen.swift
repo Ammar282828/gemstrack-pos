@@ -38,6 +38,7 @@ struct WorkshopGivenScreen: View {
         }
         .navigationTitle("Given items")
         .navigationBarTitleDisplayMode(.large)
+        .modifier(HouseGround())
         .searchable(text: $query, prompt: "Item or recipient")
         .toolbar { givenToolbar }
         .sheet(isPresented: $adding) {
@@ -81,20 +82,19 @@ struct WorkshopGivenScreen: View {
             filterSection
             if !shown.isEmpty {
                 Section {
-                    ForEach(shown) { item in
+                    WorkshopCards(items: shown) { item in
                         row(item)
                     }
-                } footer: {
-                    Text("Samples, repairs, or anything given to karigars or customers.")
+                } header: {
+                    LedgerHeading(title: filter == .returned ? "Returned items" : "Items", count: shown.count)
                 }
+            } else {
+                Section { emptyState.listRowBackground(Color.clear) }
             }
             }
             .houseRows()
         }
         .listStyle(.insetGrouped)
-        .overlay {
-            if shown.isEmpty { emptyState }
-        }
     }
 
     private func matches(_ g: GivenItem) -> Bool {
@@ -113,12 +113,10 @@ struct WorkshopGivenScreen: View {
     private func summarySection(_ all: [GivenItem]) -> some View {
         let out = all.filter { $0.status == .out }.count
         let back = all.filter { $0.status == .returned }.count
-        let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
         return Section {
-            LazyVGrid(columns: columns, spacing: 10) {
+            FigureRow {
                 FigureTile(label: "Still out", value: "\(out)", tint: out > 0 ? Color.orange : Color.primary)
                 FigureTile(label: "Returned", value: "\(back)", tint: back > 0 ? Color.green : Color.primary)
-                FigureTile(label: "Total", value: "\(all.count)")
             }
             .padding(.vertical, 4)
             .listRowInsets(EdgeInsets())
@@ -129,39 +127,30 @@ struct WorkshopGivenScreen: View {
     private var filterSection: some View {
         Section {
             ScrollView(.horizontal, showsIndicators: false) {
-                GlassEffectContainer(spacing: 8) {
-                    HStack(spacing: 8) {
-                        ForEach(Filter.allCases) { f in
-                            chip(f)
-                        }
+                HStack(spacing: 8) {
+                    ForEach(Filter.allCases) { f in
+                        FilterChip(title: f.title, chosen: filter == f) { filter = f }
                     }
                 }
             }
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-            .listRowBackground(Color.clear)
-        }
-    }
-
-    @ViewBuilder
-    private func chip(_ f: Filter) -> some View {
-        if filter == f {
-            Button(f.title) { filter = f }
-                .buttonStyle(.houseProminent)
-        } else {
-            Button(f.title) { filter = f }
-                .buttonStyle(.glass)
+            .chipRowInList()
         }
     }
 
     // MARK: A row
 
     private func row(_ item: GivenItem) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(item.description).font(.headline).lineLimit(2)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 8) {
+                Text(item.description).font(.headline).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
-                statusBadge(item)
+                Menu { itemMenu(item) } label: {
+                    Image(systemName: "ellipsis").frame(width: 44, height: 44)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Actions for " + item.description)
             }
+            statusBadge(item)
             Label {
                 Text(recipientWords(item))
             } icon: {
@@ -177,7 +166,6 @@ struct WorkshopGivenScreen: View {
             }
         }
         .padding(.vertical, 4)
-        .opacity(item.status == .returned ? 0.6 : 1)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if canReturn(item) {
                 Button { markReturned(item) } label: {
@@ -198,7 +186,11 @@ struct WorkshopGivenScreen: View {
                 }
             }
         }
-        .contextMenu {
+        .contextMenu { itemMenu(item) }
+    }
+
+    @ViewBuilder
+    private func itemMenu(_ item: GivenItem) -> some View {
             if canReturn(item) {
                 Button { markReturned(item) } label: {
                     Label("Got back", systemImage: "checkmark.circle")
@@ -217,7 +209,6 @@ struct WorkshopGivenScreen: View {
                     Label("Delete", systemImage: "trash")
                 }
             }
-        }
     }
 
     private func canReturn(_ item: GivenItem) -> Bool {
@@ -273,9 +264,9 @@ struct WorkshopGivenScreen: View {
                 Button { markReturned(item) } label: {
                     Label("Got back", systemImage: "checkmark.circle")
                         .font(.subheadline)
+                        .frame(minHeight: 44)
                 }
                 .buttonStyle(.bordered)
-                .controlSize(.small)
                 .tint(.green)
             }
         }
@@ -421,6 +412,7 @@ struct WorkshopGivenSheet: View {
                 .houseRows()
             }
             .navigationTitle(item == nil ? "Record item given" : "Edit Given Item")
+            .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -433,6 +425,8 @@ struct WorkshopGivenSheet: View {
             }
         }
         .presentationDetents([.large])
+        .presentationSizing(.page)
+        .interactiveDismissDisabled(saving)
     }
 
     // MARK: Who gave it

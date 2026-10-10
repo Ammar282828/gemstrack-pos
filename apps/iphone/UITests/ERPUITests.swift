@@ -48,6 +48,77 @@ final class ERPUITests: XCTestCase {
         }
     }
 
+    func testWorkshopEmptyQueueKeepsFiltersReachable() {
+        let app = demo(["-ERPDemoTab", "home", "-ERPDemoOpen", "/workshop"])
+        app.launch()
+        let chips = app.scrollViews["workshop.focus"]
+        XCTAssertTrue(chips.waitForExistence(timeout: 8))
+        chips.swipeLeft()
+        let toGive = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'To give'")).firstMatch
+        XCTAssertTrue(toGive.waitForExistence(timeout: 5))
+        toGive.tap()
+        XCTAssertTrue(app.staticTexts["Everything assigned has been given"].waitForExistence(timeout: 5))
+        chips.swipeRight()
+        let all = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'All work'")).firstMatch
+        all.tap()
+        XCTAssertTrue(app.buttons["Actions for Plain band, matte finish"].waitForExistence(timeout: 5))
+    }
+
+    func testWorkshopJobMenuExposesItsActions() {
+        let app = demo(["-ERPDemoTab", "home", "-ERPDemoOpen", "/workshop"])
+        app.launch()
+        let actions = app.buttons["Actions for Plain band, matte finish"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 8))
+        actions.tap()
+        XCTAssertTrue(app.buttons["Open ORD-D0001"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Mark done"].exists)
+        XCTAssertTrue(app.buttons["Details in the ERP"].exists)
+    }
+
+    func testWorkshopAssignStockOpensItsNativeForm() {
+        let app = demo(["-ERPDemoTab", "home", "-ERPDemoOpen", "/workshop"])
+        app.launch()
+        let add = app.buttons["Assign stock work"]
+        XCTAssertTrue(add.waitForExistence(timeout: 8))
+        add.tap()
+        XCTAssertTrue(app.navigationBars["Assign Stock Work"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Assign"].exists)
+        XCTAssertFalse(app.buttons["Assign"].isEnabled, "Work and a karigar are required before assigning")
+        XCTAssertTrue(app.textFields["0.000"].exists)
+    }
+
+    func testWorkshopGivenItemHasAVisibleEditAction() {
+        let app = demo(["-ERPDemoTab", "home", "-ERPDemoOpen", "/given"])
+        app.launch()
+        let actions = app.buttons["Actions for Old bangle to melt, 18.2 g"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 8))
+        actions.tap()
+        let edit = app.buttons["Edit"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 5))
+        edit.tap()
+        XCTAssertTrue(app.navigationBars["Edit Given Item"].waitForExistence(timeout: 5))
+        scrollable(app).swipeUp()
+        let giver = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Given by'")).firstMatch
+        XCTAssertTrue(giver.waitForExistence(timeout: 5) || app.textFields["Given by"].exists)
+    }
+
+    func testWorkshopKarigarKeepsPaymentsReachable() {
+        let app = demo(["-ERPDemoTab", "home", "-ERPDemoOpen", "/karigars/KAR-D1"])
+        app.launch()
+        let accounts = app.buttons["Payments & khata"]
+        XCTAssertTrue(accounts.waitForExistence(timeout: 8))
+        accounts.tap()
+        let add = app.buttons["Add payment"]
+        let list = scrollable(app)
+        for _ in 0..<5 {
+            if add.exists && add.isHittable { break }
+            list.swipeUp()
+        }
+        XCTAssertTrue(add.exists, "The existing pay batch remains available")
+        XCTAssertTrue(app.buttons["Silver"].exists)
+        XCTAssertTrue(app.buttons["Settle"].exists)
+    }
+
     func testTheTabsAndTheSearch() {
         let app = demo()
         app.launch()

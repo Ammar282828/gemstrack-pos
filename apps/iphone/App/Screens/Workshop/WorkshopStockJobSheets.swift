@@ -50,6 +50,8 @@ struct WorkshopStockJobSheet: View {
                     .pickerStyle(.menu)
                     TextField("What are they making? e.g. 4 stacked rings, moti set repair", text: $what, axis: .vertical)
                         .lineLimit(1...3)
+                } header: {
+                    LedgerHeading(title: "Work & karigar")
                 } footer: {
                     Text("Pieces for your own inventory, not tied to a customer order. Also use this for repairs and samples.")
                 }
@@ -65,7 +67,7 @@ struct WorkshopStockJobSheet: View {
                         ForEach(WorkshopLogic.stockMetals) { (m: WorkshopMetal) in Text(m.title).tag(m.id) }
                     }
                     .pickerStyle(.menu)
-                }
+                } header: { LedgerHeading(title: "Piece") }
                 Section {
                     LabeledContent("Weight (g)") {
                         TextField("0.000", text: $weightText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
@@ -77,7 +79,7 @@ struct WorkshopStockJobSheet: View {
                         TextField("0", text: $makingText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                     }
                     TextField("Size, e.g. 12, 2.4, 7.5\"", text: $size)
-                }
+                } header: { LedgerHeading(title: "Specifications") }
                 LedgerSection("Notes") {
                     TextField("Instructions, stone details…", text: $notes, axis: .vertical)
                         .lineLimit(2...5)
@@ -89,6 +91,7 @@ struct WorkshopStockJobSheet: View {
                 .houseRows()
             }
             .navigationTitle("Assign Stock Work")
+            .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -101,6 +104,7 @@ struct WorkshopStockJobSheet: View {
             }
         }
         .presentationDetents([.large])
+        .presentationSizing(.page)
         .interactiveDismissDisabled(saving)
     }
 
@@ -194,6 +198,7 @@ struct WorkshopJobDetailsSheet: View {
                 .houseRows()
             }
             .navigationTitle("Making details")
+            .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -206,6 +211,7 @@ struct WorkshopJobDetailsSheet: View {
             }
         }
         .presentationDetents([.large])
+        .presentationSizing(.page)
         .interactiveDismissDisabled(saving)
     }
 

@@ -23,6 +23,7 @@ struct WorkshopJobRow: View {
     }
 
     private var isStock: Bool { job.source == .manual }
+    @State private var instructionsOpen = false
 
     /// The stock job's status in the ERP's words.
     private var stockStatus: KarigarJobStatus {
@@ -34,19 +35,35 @@ struct WorkshopJobRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            tick
-            VStack(alignment: .leading, spacing: 6) {
-                titleLine
-                badgeLine
-                referenceLine
-                specLine
-                notesBox
-                controls
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
+                    titleLine
+                    badgeLine
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Menu { menuItems } label: {
+                    Image(systemName: "ellipsis")
+                        .frame(width: 44, height: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Actions for " + job.description)
             }
+            referenceLine
+            if job.isOnline {
+                Label("Online sale", systemImage: "bag").font(.caption).foregroundStyle(.secondary)
+            }
+            if showKarigar && !job.isUnassigned && (job.isDone || (isStock && canWrite)) {
+                Label(job.karigarName, systemImage: "hammer").font(.subheadline).foregroundStyle(.secondary)
+            }
+            specLine
+            notesBox
+            Divider()
+            controls
+            if busy { SkeletonLoading("Updating job").frame(height: 20) }
         }
         .padding(.vertical, 4)
-        .opacity(job.isDone ? 0.6 : 1)
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             if canWrite && !busy {
                 Button { actions.done(job, !job.isDone) } label: {
@@ -71,55 +88,39 @@ struct WorkshopJobRow: View {
         .contextMenu { menuItems }
     }
 
-    // MARK: The tick
-
-    @ViewBuilder
-    private var tick: some View {
-        if busy {
-            SkeletonLoading().frame(width: 28, height: 28)
-        } else if canWrite {
-            Button {
-                actions.done(job, !job.isDone)
-            } label: {
-                Image(systemName: job.isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.title2)
-                    .foregroundStyle(job.isDone ? Color.green : Color.secondary)
-                    .frame(width: 28, height: 28)
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel(job.isDone ? "Done. Tap to mark not done." : "Mark as done")
-        } else {
-            Image(systemName: job.isDone ? "checkmark.circle.fill" : "circle")
-                .font(.title2)
-                .foregroundStyle(job.isDone ? Color.green : Color.secondary.opacity(0.5))
-                .frame(width: 28, height: 28)
-                .accessibilityLabel(job.isDone ? "Done" : "Not done")
-        }
-    }
-
     // MARK: What it is
 
     private var titleLine: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(job.description)
-                .font(.headline)
-                .strikethrough(job.isDone)
-            Spacer(minLength: 4)
+        Text(job.description)
+            .font(.headline)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var badgeLine: some View {
+        FigureRow(spacing: 8) {
+            Label(stageWords, systemImage: stageSymbol)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(stageTone)
             WorkshopAgeBadge(job: job)
         }
     }
 
-    private var badgeLine: some View {
-        HStack(spacing: 6) {
-            switch job.source {
-            case .manual: StatusBadge("Stock", color: .purple)
-            case .invoice: StatusBadge(job.isOnline ? "Online" : "Sold", color: job.isOnline ? .green : .secondary)
-            case .order: StatusBadge("Order", color: .secondary)
-            }
-            if showKarigar {
-                StatusBadge(job.karigarName, color: job.isUnassigned ? .red : .blue)
-            }
-        }
+    private var stageWords: String {
+        if job.isDone { return "Completed" }
+        if job.isUnassigned { return "Needs a karigar" }
+        return job.hasGiven ? "On the bench" : "Ready to give"
+    }
+
+    private var stageSymbol: String {
+        if job.isDone { return "checkmark.circle" }
+        if job.isUnassigned { return "person.badge.plus" }
+        return job.hasGiven ? "hammer" : "shippingbox"
+    }
+
+    private var stageTone: Color {
+        if job.isDone { return .green }
+        if job.isUnassigned { return .red }
+        return job.hasGiven ? Theme.accent : .orange
     }
 
     /// The order (or invoice) it came off, its customer, and who took it: "on every order in the Workshop".
@@ -130,9 +131,10 @@ struct WorkshopJobRow: View {
                 Button { actions.open(place) } label: {
                     HStack(spacing: 2) {
                         Text(job.invoiceId ?? job.orderId ?? "")
-                            .font(.subheadline.monospaced().weight(.semibold))
+                            .font(.caption.monospaced().weight(.medium))
                         Image(systemName: "chevron.right").font(.caption2.weight(.semibold))
                     }
+                    .frame(minHeight: 44, alignment: .leading)
                 }
                 .buttonStyle(.borderless)
                 Text(referenceWords)
@@ -140,6 +142,9 @@ struct WorkshopJobRow: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+        } else {
+            Label("Stock work", systemImage: "shippingbox")
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -168,18 +173,20 @@ struct WorkshopJobRow: View {
     @ViewBuilder
     private var notesBox: some View {
         if let notes = job.notes, !notes.isEmpty {
-            VStack(alignment: .leading, spacing: 2) {
-                Label("Instructions", systemImage: "lock.fill")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color.orange)
+            DisclosureGroup(isExpanded: $instructionsOpen) {
                 Text(notes)
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 8)
+            } label: {
+                Label("Instructions", systemImage: "note.text")
+                    .font(.subheadline.weight(.medium))
+                    .frame(minHeight: 44)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(8)
-            .background(Color.orange.opacity(0.1), in: .rect(cornerRadius: 8))
+            .padding(.horizontal, 12)
+            .background(Theme.ground, in: .rect(cornerRadius: 12))
         }
     }
 
@@ -189,15 +196,15 @@ struct WorkshopJobRow: View {
     private var controls: some View {
         if canWrite && isStock {
             // A stock job's controls stay while it is done too (the web's): its status can go back, it can be deleted.
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 12) {
                 if !job.isDone && !job.isUnassigned { givenToggle }
-                HStack(spacing: 8) {
+                FigureRow(spacing: 12) {
                     statusMenu
                     Button { actions.details(job) } label: {
                         Label("Details", systemImage: "pencil").font(.subheadline)
+                            .frame(minHeight: 44)
                     }
                     .buttonStyle(.bordered)
-                    .controlSize(.small)
                     .disabled(busy)
                 }
             }
@@ -205,15 +212,25 @@ struct WorkshopJobRow: View {
         } else if canWrite && !job.isDone {
             // Who has it, and whether it has gone: nothing else on the card. A piece with nobody yet has nothing to
             // hand over, so no switch; the ERP's details are in the card's menu.
-            VStack(alignment: .leading, spacing: 6) {
-                assignMenu
+            VStack(alignment: .leading, spacing: 12) {
+                FigureRow(spacing: 12) {
+                    assignMenu
+                    Spacer(minLength: 0)
+                    Button { actions.done(job, true) } label: {
+                        Label("Mark done", systemImage: "checkmark.circle")
+                            .font(.subheadline.weight(.medium)).frame(minHeight: 44)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(busy)
+                }
                 if !job.isUnassigned { givenToggle }
             }
             .padding(.top, 2)
         } else if !job.isDone {
             readOnlyControls
-        } else if job.hasGiven {
-            Text("Given " + ShopDate.say(job.givenAt)).font(.caption).foregroundStyle(.secondary)
+        } else {
+            Label(job.hasGiven ? "Given " + ShopDate.say(job.givenAt) : "Completed", systemImage: "checkmark.circle")
+                .font(.subheadline).foregroundStyle(.secondary)
         }
     }
 
@@ -237,9 +254,9 @@ struct WorkshopJobRow: View {
         } label: {
             Label(WorkshopStatusWords.say(stockStatus), systemImage: WorkshopStatusWords.symbol(stockStatus))
                 .font(.subheadline)
+                .frame(minHeight: 44)
         }
         .buttonStyle(.bordered)
-        .controlSize(.small)
         .disabled(busy)
     }
 
@@ -262,10 +279,10 @@ struct WorkshopJobRow: View {
         } label: {
             Label(assigned ? job.karigarName : "Assign karigar", systemImage: assigned ? "hammer" : "person.badge.plus")
                 .font(.subheadline)
-                .foregroundStyle(assigned ? Color.primary : Color.red)
+                .foregroundStyle(assigned ? Color.primary : Theme.accent)
+                .frame(minHeight: 44)
         }
         .buttonStyle(.bordered)
-        .controlSize(.small)
         .disabled(busy)
     }
 
@@ -286,6 +303,7 @@ struct WorkshopJobRow: View {
             Text(givenWords).foregroundStyle(job.hasGiven ? Color.secondary : Color.primary)
         }
         .font(.subheadline)
+        .frame(minHeight: 44)
         .disabled(job.isUnassigned || busy)
     }
 
@@ -299,13 +317,13 @@ struct WorkshopJobRow: View {
     @ViewBuilder
     private var readOnlyControls: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 6) {
                 Image(systemName: "hammer").foregroundStyle(.secondary)
                 if job.isUnassigned {
                     Text("No karigar yet").foregroundStyle(Color.red)
                 } else {
                     Text(job.karigarName).fontWeight(.medium)
-                    Text("· " + (job.hasGiven ? "given " + ShopDate.say(job.givenAt) : "not given yet"))
+                    Text(job.hasGiven ? "Given " + ShopDate.say(job.givenAt) : "Not given yet")
                         .foregroundStyle(job.hasGiven ? Color.secondary : Color.orange)
                 }
             }

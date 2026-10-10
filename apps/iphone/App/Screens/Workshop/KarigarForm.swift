@@ -35,6 +35,7 @@ struct KarigarForm: View {
         }
         .navigationTitle(id == nil ? "New karigar" : "Edit karigar")
         .navigationBarTitleDisplayMode(.inline)
+        .modifier(HouseGround())
         .task { book.karigars.need() }
     }
 

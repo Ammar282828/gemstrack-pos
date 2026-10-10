@@ -23,11 +23,13 @@ struct WorkshopKarigarScreen: View {
     @State private var note: OwnerNote?
     /// The settled batches and the direct payments opened to show their payments.
     @State private var expanded: Set<String> = []
+    @State private var showingAccounts = false
 
     var body: some View {
         content
             .navigationTitle(book.karigars.item(id)?.name ?? "Karigar")
             .navigationBarTitleDisplayMode(.large)
+            .modifier(HouseGround())
             .sheet(item: $ask) { (a: WorkshopPayAsk) in
                 paySheet(a)
             }
@@ -131,16 +133,29 @@ struct WorkshopKarigarScreen: View {
             : nil
         let silver = session.isOwner ? KarigarPay.silver(karigarId: karigar.id, rows: silverBook.silver.items) : nil
         return List { Group {
-            profileSection(karigar, pay: pay)
+            if session.isOwner {
+                Section {
+                    Picker("Karigar view", selection: $showingAccounts) {
+                        Text("Work").tag(false)
+                        Text("Payments & khata").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .chipRowInList()
+                }
+            }
             nowSection(karigar, position, open: pay?.open, silver: silver)
-            if !position.bench.isEmpty { benchSection(karigar, position) }
-            if !position.given.isEmpty { givenSection(karigar, position) }
-            stockJobsSection(karigar)
-            if session.isOwner { hisaabSection(karigar, position) }
-            if let pay { payBatchSection(karigar, pay) }
-            if let silver, !silver.rows.isEmpty { silverSection(karigar, silver) }
-            if let pay, !pay.settled.isEmpty { settledSection(pay) }
-            if let pay, !pay.direct.isEmpty { directSection(pay) }
+            if !showingAccounts || !session.isOwner {
+                if !position.bench.isEmpty { benchSection(karigar, position) }
+                if !position.given.isEmpty { givenSection(karigar, position) }
+                stockJobsSection(karigar)
+            } else {
+                hisaabSection(karigar, position)
+                if let pay { payBatchSection(karigar, pay) }
+                if let silver, !silver.rows.isEmpty { silverSection(karigar, silver) }
+                if let pay, !pay.settled.isEmpty { settledSection(pay) }
+                if let pay, !pay.direct.isEmpty { directSection(pay) }
+            }
+            profileSection(karigar, pay: showingAccounts ? pay : nil)
             if session.isOwner { erpSection(karigar) }
         }.houseRows()
         }
@@ -188,6 +203,8 @@ struct WorkshopKarigarScreen: View {
                     }
                 }
             }
+        } header: {
+            LedgerHeading(title: "Details")
         }
     }
 
@@ -333,7 +350,7 @@ struct WorkshopKarigarScreen: View {
         let mine = book.karigarJobs.items.filter { $0.karigarId == karigar.id }
         if !mine.isEmpty || session.isOwner {
             Section {
-                ForEach(mine.prefix(20)) { j in
+                ForEach(mine) { j in
                     stockJobRow(j)
                 }
                 if session.isOwner {
@@ -344,10 +361,6 @@ struct WorkshopKarigarScreen: View {
                 }
             } header: {
                 LedgerHeading(title: "His jobs")
-            } footer: {
-                if mine.count > 20 {
-                    Text("The latest 20 of \(mine.count). The rest are on the ERP's page.")
-                }
             }
         }
     }
