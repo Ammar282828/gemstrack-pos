@@ -160,6 +160,7 @@ struct WorkshopKarigarScreen: View {
         }.houseRows()
         }
         .listStyle(.insetGrouped)
+        .accessibilityIdentifier("workshop.karigar")
         .toolbar {
             if let load, load.active > 0 {
                 ToolbarItem(placement: .primaryAction) {

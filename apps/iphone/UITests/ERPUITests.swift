@@ -109,7 +109,8 @@ final class ERPUITests: XCTestCase {
         XCTAssertTrue(accounts.waitForExistence(timeout: 8))
         accounts.tap()
         let add = app.buttons["Add payment"]
-        let list = scrollable(app)
+        let list = app.descendants(matching: .any)["workshop.karigar"].firstMatch
+        XCTAssertTrue(list.waitForExistence(timeout: 5))
         for _ in 0..<5 {
             if add.exists && add.isHittable { break }
             list.swipeUp()
