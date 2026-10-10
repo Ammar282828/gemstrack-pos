@@ -14,7 +14,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
-import { STORE_INVESTMENTS, STORE_LINKS, STORE_SITE_EDIT, STORE_WEBSITE_FEATURED, STORE_WEBSITE_WEIGHTS } from '@/lib/store-config';
+import { STORE_INVESTMENTS, STORE_LINKS, STORE_SITE_EDIT, STORE_WEBSITE_FEATURED, STORE_WEBSITE_WEIGHTS, STORE_POST_METAL, STORE_POST_TAGLINE, STORE_POST_FOOTER, STORE_WHATSAPP_NUMBERS } from '@/lib/store-config';
+import { waNumberFromUrl } from '@/lib/social/caption';
 import { siteNameOf } from '@/lib/website/site-name';
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     site,
     siteName: siteNameOf(site),
+    posting: { metal: STORE_POST_METAL, tagline: STORE_POST_TAGLINE, footer: STORE_POST_FOOTER, whatsappNumbers: STORE_WHATSAPP_NUMBERS.length ? STORE_WHATSAPP_NUMBERS : [waNumberFromUrl(STORE_LINKS.whatsapp)].filter(Boolean), links: STORE_LINKS },
     featured: STORE_WEBSITE_FEATURED,
     weights: STORE_WEBSITE_WEIGHTS,
     edit: STORE_SITE_EDIT && !!site,

@@ -63,7 +63,7 @@ struct PaperPicker: View {
                 Label("From Photos", systemImage: "photo.on.rectangle")
             }
             .buttonStyle(.glass)
-            if loading { ProgressView() }
+            if loading { SkeletonLoading() }
         }
         .disabled(disabled || loading || room <= 0)
         .photosPicker(isPresented: $library, selection: $picked, maxSelectionCount: max(1, room), matching: .images)

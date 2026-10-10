@@ -32,7 +32,7 @@ struct PostPiecesScreen: View {
                     Button("Try again") { Task { await store.load() } }.buttonStyle(.glass)
                 }
             case .idle, .loading:
-                ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .loaded:
                 grid
             }
@@ -145,7 +145,7 @@ struct PostPieceScreen: View {
             } else if store.piecesPhase == .loaded {
                 ContentUnavailableView("That piece is not on the website any more", systemImage: "photo")
             } else {
-                ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle(store.piece(id)?.name ?? "Piece")
@@ -177,12 +177,12 @@ struct PostPieceScreen: View {
                     if p.newArrival { LabeledContent("New arrival", value: "Yes") }
                 }
                 if !p.facts.isEmpty {
-                    Section("Details") {
+                    LedgerSection("Details") {
                         ForEach(p.facts, id: \.self) { (f: String) in Text(f) }
                     }
                 }
                 if !p.about.isEmpty {
-                    Section("About") { Text(p.about) }
+                    LedgerSection("About") { Text(p.about) }
                 }
                 actions(p)
             }

@@ -90,11 +90,11 @@ struct WorkshopPaySheet: View {
                     TextField("Description", text: $what, axis: .vertical)
                         .lineLimit(1...3)
                 } header: {
-                    Text("Paying \(name)")
+                    LedgerHeading(title: "Paying \(name)")
                 } footer: {
                     Text("Added to \(batch.label).")
                 }
-                Section("Amount (PKR)") {
+                LedgerSection("Amount (PKR)") {
                     TextField("0.00", text: $amountText)
                         .keyboardType(.decimalPad)
                         .font(.title2.weight(.semibold))
@@ -109,7 +109,7 @@ struct WorkshopPaySheet: View {
                         }
                         .pickerStyle(.segmented)
                     } header: {
-                        Text("Paid by")
+                        LedgerHeading(title: "Paid by")
                     } footer: {
                         if let partner {
                             Text("Personal: logged to \(partner.name)'s ledger as a loan.")
@@ -223,7 +223,7 @@ struct WorkshopSilverSheet: View {
                         Text("Record silver received from \(name) with per-gram surcharge.")
                     }
                 }
-                Section("Notes (optional)") {
+                LedgerSection("Notes (optional)") {
                     TextField("e.g. March batch ring set", text: $notes, axis: .vertical)
                         .lineLimit(1...3)
                 }
@@ -296,7 +296,7 @@ struct WorkshopBatchStartSheet: View {
                         .submitLabel(.done)
                         .onSubmit { Task { await save() } }
                 } header: {
-                    Text("Pay batch name")
+                    LedgerHeading(title: "Pay batch name")
                 } footer: {
                     Text("Give it a name, e.g. \u{201C}March 2026\u{201D} or \u{201C}Gold Set Batch\u{201D}. Payments from his page are filed under it until it is settled.")
                 }
@@ -365,14 +365,14 @@ struct WorkshopSettleSheet: View {
                         Text(PaymentText.pkr(open.total)).monospacedDigit().fontWeight(.semibold)
                     }
                 } header: {
-                    Text("Closing")
+                    LedgerHeading(title: "Closing")
                 } footer: {
                     Text(consequence)
                 }
                 Section {
                     TextField("New hisaab name, e.g. April 2026", text: $carry)
                 } header: {
-                    Text("Carry over to new hisaab? (optional)")
+                    LedgerHeading(title: "Carry over to new hisaab? (optional)")
                 } footer: {
                     Text("Leave blank to settle without starting a new hisaab.")
                 }

@@ -100,11 +100,11 @@ struct CalendarScreen: View {
     /// The month on screen: its money, its sales and orders, and the average day that took anything.
     private func tiles(_ m: ShopCalendarMonth) -> some View {
         VStack(spacing: 10) {
-            HStack(alignment: .top, spacing: 10) {
+            FigureRow(alignment: .top, spacing: 10) {
                 FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkr(m.total), tint: .green)
                 FigureTile(label: "Sales", value: "\(m.sales)")
             }
-            HStack(alignment: .top, spacing: 10) {
+            FigureRow(alignment: .top, spacing: 10) {
                 FigureTile(label: "Orders", value: "\(m.orders)")
                 FigureTile(label: "Avg. trading day", value: m.perTradingDay > 0 ? Money.pkr(m.perTradingDay.rounded()) : "—")
             }

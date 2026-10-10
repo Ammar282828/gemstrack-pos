@@ -130,7 +130,7 @@ struct WorkshopKarigarScreen: View {
             ? KarigarPay.figures(karigarId: karigar.id, expenses: book.expenses.items, batches: book.karigarBatches.items)
             : nil
         let silver = session.isOwner ? KarigarPay.silver(karigarId: karigar.id, rows: silverBook.silver.items) : nil
-        return List {
+        return List { Group {
             profileSection(karigar, pay: pay)
             nowSection(karigar, position, open: pay?.open, silver: silver)
             if !position.bench.isEmpty { benchSection(karigar, position) }
@@ -142,6 +142,7 @@ struct WorkshopKarigarScreen: View {
             if let pay, !pay.settled.isEmpty { settledSection(pay) }
             if let pay, !pay.direct.isEmpty { directSection(pay) }
             if session.isOwner { erpSection(karigar) }
+        }.houseRows()
         }
         .listStyle(.insetGrouped)
         .toolbar {
@@ -226,7 +227,7 @@ struct WorkshopKarigarScreen: View {
                 }
             }
         } header: {
-            Text("Now")
+            LedgerHeading(title: "Now")
         } footer: {
             Text(nowFootnote(silver))
         }
@@ -279,7 +280,7 @@ struct WorkshopKarigarScreen: View {
                 }
             }
         } header: {
-            Text("On the bench")
+            LedgerHeading(title: "On the bench")
         }
     }
 
@@ -320,7 +321,7 @@ struct WorkshopKarigarScreen: View {
                 }
             }
         } header: {
-            Text("Handed to him, not back")
+            LedgerHeading(title: "Handed to him, not back")
         }
     }
 
@@ -342,7 +343,7 @@ struct WorkshopKarigarScreen: View {
                     }
                 }
             } header: {
-                Text("His jobs")
+                LedgerHeading(title: "His jobs")
             } footer: {
                 if mine.count > 20 {
                     Text("The latest 20 of \(mine.count). The rest are on the ERP's page.")
@@ -390,7 +391,7 @@ struct WorkshopKarigarScreen: View {
                         .foregroundStyle(Color.accentColor)
                 }
             } header: {
-                Text("Hisaab")
+                LedgerHeading(title: "Hisaab")
             } footer: {
                 Text("\(rows.count) entries · net = gold still with the karigar")
             }
@@ -482,7 +483,7 @@ struct WorkshopKarigarScreen: View {
                     Label("Start a pay batch", systemImage: "plus.circle")
                 }
             } header: {
-                Text("Pay batch")
+                LedgerHeading(title: "Pay batch")
             }
         }
     }
@@ -525,7 +526,7 @@ struct WorkshopKarigarScreen: View {
                 Label("Silver", systemImage: "plus")
             }
         } header: {
-            Text("Silver transactions")
+            LedgerHeading(title: "Silver transactions")
         } footer: {
             Text("\(WorkshopLogic.grams3(silver.grams)) received \u{00B7} \(PaymentText.pkr(silver.surcharge)) surcharge")
         }
@@ -569,7 +570,7 @@ struct WorkshopKarigarScreen: View {
                 }
             }
         } header: {
-            Text("Settled pay batches")
+            LedgerHeading(title: "Settled pay batches")
         }
     }
 
@@ -608,7 +609,7 @@ struct WorkshopKarigarScreen: View {
                 TwoLine(title: "Direct payments", subtitle: "Not part of any hisaab \u{00B7} \(n) payment\(n == 1 ? "" : "s")", trailing: PaymentText.pkr(pay.directTotal))
             }
         } header: {
-            Text("Direct payments")
+            LedgerHeading(title: "Direct payments")
         }
     }
 
@@ -637,7 +638,7 @@ struct WorkshopKarigarScreen: View {
                 }
             }
         } header: {
-            Text("Karigar")
+            LedgerHeading(title: "Karigar")
         }
     }
 

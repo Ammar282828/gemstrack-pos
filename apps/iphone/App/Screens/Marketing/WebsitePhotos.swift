@@ -55,7 +55,7 @@ struct WebsitePhotosScreen: View {
                     Button("Try again") { Task { await load() } }.buttonStyle(.glass)
                 }
             } else if collections == nil {
-                ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 page
             }
@@ -158,7 +158,7 @@ struct WebsitePhotosScreen: View {
             }
             .disabled(sending)
         } header: {
-            Text("Collection")
+            LedgerHeading(title: "Collection")
         } footer: {
             if isMaison {
                 Text("The houses' own pieces. Give each photograph its house and the model's official name, exactly as the house names it (“LOVE Bracelet, Classic”). The site shows it under its house, in 18k, with no gold-rate price. Several photographs of one piece: give them the same name.")
@@ -195,7 +195,7 @@ struct WebsitePhotosScreen: View {
                     }
             }
         } header: {
-            Text("Photographs · \(items.count)")
+            LedgerHeading(title: "Photographs · \(items.count)")
         } footer: {
             if failedCount > 0 && !sending { Text("Send again to retry the ones that failed.") }
         }
@@ -255,7 +255,7 @@ struct WebsitePhotosScreen: View {
             }
             if item.status == .uploading || item.retouching {
                 Rectangle().fill(Color.black.opacity(0.45))
-                ProgressView().tint(.white)
+                SkeletonLoading().tint(.white)
             }
         }
         .frame(width: 72, height: 72)

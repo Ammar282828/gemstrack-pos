@@ -206,18 +206,18 @@ struct WebsiteGoldScheduleSheet: View {
                     .font(.subheadline)
                     .buttonStyle(.borderless)
                 } header: {
-                    Text("Which days")
+                    LedgerHeading(title: "Which days")
                 }
                 Section {
                     ForEach(usable) { (t: WebsiteGoldStatus.Target) in partRow(t) }
                 } header: {
-                    Text("What goes, and when · Karachi time")
+                    LedgerHeading(title: "What goes, and when · Karachi time")
                 }
                 Section {
                     DatePicker("Still send it until", selection: lateBinding, displayedComponents: .hourAndMinute)
                         .environment(\.timeZone, ERPDate.karachi)
                 } header: {
-                    Text("If the post comes late")
+                    LedgerHeading(title: "If the post comes late")
                 } footer: {
                     Text("After that, a part that hasn't gone waits for someone to press Send.")
                 }
@@ -228,7 +228,7 @@ struct WebsiteGoldScheduleSheet: View {
                     }
                     .pickerStyle(.segmented)
                 } header: {
-                    Text("Each day")
+                    LedgerHeading(title: "Each day")
                 } footer: {
                     Text(d?.mode == "approve" ? "Each day's post waits until you press Approve on it; then it goes at its times." : "It goes at its times unless you hold the day.")
                 }
@@ -392,17 +392,17 @@ struct WebsiteGoldAddSheet: View {
                     } footer: {
                         Text(exists ? "\(WebsiteGoldTime.longDate(day)) is filed already: this replaces it, and anything sent stays marked as sent." : "Paste the post and the teaser, and attach the routine's two cards.")
                     }
-                    Section("The WhatsApp post") {
+                    LedgerSection("The WhatsApp post") {
                         TextField("The post", text: $post, axis: .vertical)
                             .font(.system(.footnote, design: .monospaced))
                             .lineLimit(6...20)
                     }
-                    Section("The teaser (optional)") {
+                    LedgerSection("The teaser (optional)") {
                         TextField("The teaser", text: $teaser, axis: .vertical)
                             .font(.system(.footnote, design: .monospaced))
                             .lineLimit(3...12)
                     }
-                    Section("Cards") {
+                    LedgerSection("Cards") {
                         cardRow("Square card (1080 × 1080)", thumb: squareThumb, has: square != nil) { pickingSquare = true } clear: {
                             square = nil
                             squareThumb = nil

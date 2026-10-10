@@ -194,7 +194,7 @@ struct AdsPhotoRow: View {
     private var state: some View {
         if photo.uploading {
             HStack(spacing: 6) {
-                ProgressView()
+                SkeletonLoading()
                 Text("Sending to Meta…")
             }
             .font(.caption)

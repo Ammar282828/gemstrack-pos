@@ -88,7 +88,7 @@ struct OrderCourierSheet: View {
                     if sent != nil { dismiss() } else { book() }
                 } label: {
                     HStack(spacing: 8) {
-                        if busy != nil { ProgressView() }
+                        if busy != nil { SkeletonLoading() }
                         Label(buttonWords, systemImage: sent != nil ? "checkmark" : "truck.box")
                     }
                     .frame(maxWidth: .infinity)

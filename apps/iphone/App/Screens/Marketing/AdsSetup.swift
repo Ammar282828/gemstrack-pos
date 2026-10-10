@@ -43,7 +43,7 @@ struct AdsSetupScreen: View {
             } else if let problem {
                 AdsNotReady(status: nil, problem: problem, retry: load)
             } else {
-                ProgressView("Checking…").frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading("Checking…").frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle("Setup")
@@ -217,7 +217,7 @@ struct AdsSetupScreen: View {
                     Label(l, systemImage: "exclamationmark.triangle.fill").font(.subheadline).foregroundStyle(.orange)
                 }
             } header: {
-                Text("Before every kind of ad can run")
+                LedgerHeading(title: "Before every kind of ad can run")
             }
         }
     }

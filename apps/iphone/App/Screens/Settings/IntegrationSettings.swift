@@ -34,7 +34,7 @@ private struct IntegrationsForm: View {
                         Label("Connection and sync", systemImage: "arrow.triangle.2.circlepath")
                     }
                 } header: {
-                    Text("Shopify")
+                    LedgerHeading(title: "Shopify")
                 }
             }
 
@@ -43,7 +43,7 @@ private struct IntegrationsForm: View {
                     Label("Ads › Setup", systemImage: "megaphone")
                 }
             } header: {
-                Text("Meta")
+                LedgerHeading(title: "Meta")
             } footer: {
                 Text("The Facebook login, ad account, Page, Instagram and pixel.")
             }

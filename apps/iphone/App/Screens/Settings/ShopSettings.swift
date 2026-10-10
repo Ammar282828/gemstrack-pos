@@ -62,7 +62,7 @@ private struct ShopForm: View {
                         .focused($focus, equals: .address)
                 }
             } header: {
-                Text("Shop details")
+                LedgerHeading(title: "Shop details")
             } footer: {
                 Text("Printed at the top of every invoice and order slip.")
             }
@@ -83,7 +83,7 @@ private struct ShopForm: View {
                     Text("Liquid Glass").tag("glass")
                 }
             } header: {
-                Text("Appearance")
+                LedgerHeading(title: "Appearance")
             } footer: {
                 Text("For every device that has not chosen its own, on the ERP’s web pages.")
             }
@@ -94,7 +94,7 @@ private struct ShopForm: View {
                 LabeledContent("Next repair", value: Self.next("REP", settings.lastRepairNumber ?? 0))
                 NavigationLink(value: Route(path: "/settings?web=1")) { Text("Change numbering") }
             } header: {
-                Text("Document numbering")
+                LedgerHeading(title: "Document numbering")
             } footer: {
                 Text("Changed only when moving from another system, in the ERP.")
             }

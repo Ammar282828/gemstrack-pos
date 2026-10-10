@@ -84,7 +84,7 @@ struct ActivityLogScreen: View {
                 }
                 WorkRangeFields(range: $range)
             } header: {
-                Text("Filters")
+                LedgerHeading(title: "Filters")
             } footer: {
                 if range.useFrom && !range.useTo {
                     Text("Without an end date the range runs to the end of today.")

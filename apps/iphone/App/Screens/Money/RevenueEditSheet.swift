@@ -34,12 +34,12 @@ struct RevenueEditSheet: View {
     var body: some View {
         NavigationStack {
             Form { Group {
-                Section("When and what") {
+                LedgerSection("When and what") {
                     DatePicker("Date", selection: $date, in: ...Date(), displayedComponents: .date)
                     TextField("Description, e.g. Commission from partner", text: $what, axis: .vertical)
                         .lineLimit(1...3)
                 }
-                Section("How much") {
+                LedgerSection("How much") {
                     TextField("Amount in rupees", text: $amountText)
                         .keyboardType(.decimalPad)
                         .font(.title2.weight(.semibold))

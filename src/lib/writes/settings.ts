@@ -22,6 +22,7 @@ const SETTINGS_TEXT: Record<string, { max: number; required?: boolean }> = {
   shopName: { max: 80, required: true },
   shopAddress: { max: 300 },
   shopContact: { max: 200 },
+  teamNote: { max: 600 },
 };
 
 const THEMES = ['default', 'taheri'];

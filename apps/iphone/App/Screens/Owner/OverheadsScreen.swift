@@ -129,7 +129,7 @@ private struct OverheadsBoard: View {
                         Label(loadError, systemImage: "exclamationmark.icloud").foregroundStyle(.secondary)
                         Button { Task { await load() } } label: { Label("Try again", systemImage: "arrow.clockwise") }
                     } header: {
-                        Text("Couldn't read the sheet")
+                        LedgerHeading(title: "Couldn't read the sheet")
                     }
                 }
                 thisMonthSection(target: target, earned: earned, p: p)
@@ -148,7 +148,7 @@ private struct OverheadsBoard: View {
         let met = p.shortfall == 0 && target > 0
         return Section {
             VStack(spacing: 10) {
-                HStack(alignment: .top, spacing: 10) {
+                FigureRow(alignment: .top, spacing: 10) {
                     FigureTile(label: "Needed this month", value: OwnerText.pkr(target), tint: Theme.accent)
                     FigureTile(label: "Revenue so far", value: OwnerText.pkr(earned))
                 }
@@ -193,7 +193,7 @@ private struct OverheadsBoard: View {
         Section {
             ForEach(rows) { (r: OverheadMonthRow) in monthRow(r) }
         } header: {
-            Text("Month by month")
+            LedgerHeading(title: "Month by month")
         } footer: {
             Text(summaryLine(s))
         }
@@ -252,7 +252,7 @@ private struct OverheadsBoard: View {
                 Text(OwnerText.pkr(target)).fontWeight(.bold).foregroundStyle(Theme.accent).monospacedDigit()
             }
         } header: {
-            Text("The sheet")
+            LedgerHeading(title: "The sheet")
         } footer: {
             Text("A benchmark, not a ledger. Nothing here is recorded as an expense or counted against profit \u{2014} enter the real payments in Expenses as they go out. Changes apply from \(Overheads.monthLabel(thisMonth)) onward; months already scored keep the target they were scored against.")
         }
@@ -291,7 +291,7 @@ private struct OverheadsBoard: View {
                 .disabled(saving)
                 Button { Task { await save() } } label: {
                     HStack(spacing: 8) {
-                        if saving { ProgressView() }
+                        if saving { SkeletonLoading() }
                         Text("Save from \(monthName)")
                     }
                     .frame(maxWidth: .infinity)

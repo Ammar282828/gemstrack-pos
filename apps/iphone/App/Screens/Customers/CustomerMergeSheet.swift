@@ -93,7 +93,7 @@ struct CustomerMergeSheet: View {
             if found == nil {
                 Section {
                     HStack(spacing: 10) {
-                        ProgressView()
+                        SkeletonLoading()
                         Text("Looking for duplicates…").foregroundStyle(.secondary)
                     }
                 }
@@ -179,7 +179,7 @@ struct CustomerMergeSheet: View {
             }
             .disabled(keep == nil || duplicate == nil || keepId == duplicateId)
         } header: {
-            Text("Manual merge")
+            LedgerHeading(title: "Manual merge")
         } footer: {
             Text("Search the customer to keep, then the duplicate. The duplicate's record is deleted for good.")
         }

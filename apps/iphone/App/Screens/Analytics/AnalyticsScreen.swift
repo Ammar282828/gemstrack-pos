@@ -185,7 +185,7 @@ struct AnaEmptyPage: View {
     let bar: AnaPeriodBar
 
     var body: some View {
-        List {
+        List { Group {
             Section {
                 bar
                     .listRowInsets(EdgeInsets())
@@ -203,6 +203,7 @@ struct AnaEmptyPage: View {
                 }
             }
             .listRowBackground(Color.clear)
+        }.houseRows()
         }
         .listStyle(.insetGrouped)
     }

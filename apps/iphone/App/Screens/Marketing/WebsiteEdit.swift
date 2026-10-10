@@ -33,7 +33,7 @@ struct WebsiteEditScreen: View {
                     Button("Try again") { Task { await store.load(fresh: true) } }.buttonStyle(.glass)
                 }
             case .idle, .loading:
-                ProgressView("Reading \(store.siteName)…").controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading("Reading \(store.siteName)…").controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .loaded:
                 grid
             }

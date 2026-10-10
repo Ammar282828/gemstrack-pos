@@ -31,7 +31,7 @@ extension SaleForm {
                 pick: { pickCustomer($0) }
             )
         } header: {
-            Text("Customer")
+            LedgerHeading(title: "Customer")
         } footer: {
             Text(customerNote(f))
         }
@@ -114,7 +114,7 @@ extension SaleForm {
                 Label("Read a written bill", systemImage: "camera.viewfinder")
             }
         } header: {
-            Text("Pieces")
+            LedgerHeading(title: "Pieces")
         } footer: {
             let n = draft.lines.count
             Text("\(n) piece\(n == 1 ? "" : "s") on this bill. Tap a piece to edit it; swipe to remove it. New item bills a piece that was never in stock, for this sale only; New item, and keep it in stock puts it in stock first. Read a written bill puts a photographed bill's lines on the sale for you to check.")
@@ -161,7 +161,7 @@ extension SaleForm {
                     Button("Back to today's rates") { draft.rates = [:] }
                 }
             } header: {
-                Text("Rates (PKR per gram)")
+                LedgerHeading(title: "Rates (PKR per gram)")
             } footer: {
                 Text("Used for this sale only. A rate typed here is not saved as today's rate: set that from the rate chip.")
             }
@@ -175,7 +175,7 @@ extension SaleForm {
         Section {
             SaleNumberField(label: "Amount (PKR)", text: $draft.discount)
         } header: {
-            Text("Discount")
+            LedgerHeading(title: "Discount")
         } footer: {
             if let problem = f.discountProblem { Text(problem).foregroundStyle(.red) }
         }
@@ -276,7 +276,7 @@ extension SaleForm {
                 LabeledContent("Exchange total") { Text(Money.pkr(total)).monospacedDigit() }
             }
         } header: {
-            Text("Exchange / trade-in")
+            LedgerHeading(title: "Exchange / trade-in")
         } footer: {
             Text("Gold or anything else the customer hands over, taken off the bill at an agreed value.")
         }
@@ -331,7 +331,7 @@ extension SaleForm {
             }
             if f.hasEstimate && f.paidNow > 0 { balanceRow(f) }
         } header: {
-            Text("Payment received")
+            LedgerHeading(title: "Payment received")
         } footer: {
             Text("Taken as the invoice is written and filed in its payment history. Leave it empty if nothing is paid yet: a payment can still be recorded after.")
         }
@@ -461,7 +461,7 @@ extension SaleForm {
             // Houses that cost a sale by its gold ask for the 24k rate now (lib/margin.ts); Mina's silver does not.
             if House.margin.rattiLess != nil { costRateRows(f) }
         } header: {
-            Text("For the shop")
+            LedgerHeading(title: "For the shop")
         } footer: {
             Text("Never printed on the bill or sent to the customer.")
         }
@@ -512,7 +512,7 @@ extension SaleForm {
                 TextField("Instructions", text: $draft.delivery.notes, prompt: Text("Landmark, timing, gate code"))
             }
         } header: {
-            Text("Delivery")
+            LedgerHeading(title: "Delivery")
         } footer: {
             Text("Off unless ticked: most sales are handed over at the counter.")
         }
@@ -546,7 +546,7 @@ extension SaleForm {
                 balanceRow(f)
             }
         } header: {
-            Text("Totals")
+            LedgerHeading(title: "Totals")
         }
         orderSection()
     }
@@ -631,7 +631,7 @@ extension SaleForm {
             }
             Button { Task { await save(f) } } label: {
                 HStack(spacing: 8) {
-                    if saving { ProgressView() }
+                    if saving { SkeletonLoading() }
                     Text(edit != nil ? (f.hasEstimate ? "Save changes · \(Money.pkr(f.total))" : "Save changes")
                          : (f.hasEstimate ? "Save sale · \(Money.pkr(f.total))" : "Save sale"))
                 }

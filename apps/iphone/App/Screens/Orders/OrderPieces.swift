@@ -209,7 +209,7 @@ struct OrderPieceRow: View {
     @ViewBuilder
     private var tick: some View {
         if busy {
-            ProgressView()
+            SkeletonLoading()
         } else if canTick {
             Button {
                 onTick(!item.isCompleted)

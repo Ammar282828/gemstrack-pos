@@ -19,8 +19,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
 import { graph, MetaAdsError } from '@/lib/ads/meta';
 import { requireAccount } from '@/lib/ads/settings';
-import { toMinor, type Level } from '@/lib/ads/shape';
-import { buildTargeting, mergeTargeting, type AudienceDraft } from '@/lib/ads/targeting';
+import { fromMinor, toMinor, type Level } from '@/lib/ads/shape';
+import { buildTargeting, mergeTargeting, parseTargeting, type AudienceDraft } from '@/lib/ads/targeting';
 import { logAds } from '@/lib/ads/log';
 
 export const dynamic = 'force-dynamic';
@@ -64,7 +64,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       ? 'name,status,effective_status,optimization_goal,billing_event,destination_type,daily_budget,lifetime_budget,start_time,end_time,targeting,promoted_object,bid_strategy,learning_stage_info,issues_info,campaign{id,name,objective}'
       : 'name,status,effective_status,objective,daily_budget,lifetime_budget,start_time,stop_time,buying_type,bid_strategy,issues_info';
     const obj = await graph<Record<string, unknown>>(id, { params: { fields } });
-    return NextResponse.json({ level, currency, [level]: obj }, { headers: noStore });
+    return NextResponse.json({ level, currency, [level]: obj,
+      audience: level === 'adset' ? parseTargeting(obj.targeting as Record<string, unknown> | undefined) : undefined,
+      budget: { daily: obj.daily_budget ? fromMinor(String(obj.daily_budget), currency) : null,
+        lifetime: obj.lifetime_budget ? fromMinor(String(obj.lifetime_budget), currency) : null },
+    }, { headers: noStore });
   } catch (e) {
     return adsFail(e, `object ${level}`);
   }

@@ -11,15 +11,20 @@ final class SpeechEngine {
     private let engine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
+    private var generation = UUID()
 
     init(emit: @escaping (String, [String: Any]) -> Void) { self.emit = emit }
 
     /// `done` gets nil when listening, or (code, message).
     func start(lang: String, done: @escaping ((String, String)?) -> Void) {
+        generation = UUID()
+        let id = generation
         SFSpeechRecognizer.requestAuthorization { status in
+            guard self.generation == id else { return }
             guard status == .authorized else { return DispatchQueue.main.async { done(("not-allowed", "Speech recognition is off for this app in Settings.")) } }
             AVAudioApplication.requestRecordPermission { granted in
                 DispatchQueue.main.async {
+                    guard self.generation == id else { return }
                     guard granted else { return done(("not-allowed", "The microphone is off for this app in Settings.")) }
                     do { try self.begin(lang: lang); done(nil) } catch { done(("audio-capture", error.localizedDescription)) }
                 }
@@ -54,6 +59,7 @@ final class SpeechEngine {
     }
 
     func stop(notify: Bool, error: Error? = nil) {
+        generation = UUID()
         guard request != nil else { return }
         if engine.isRunning { engine.stop() }
         engine.inputNode.removeTap(onBus: 0)

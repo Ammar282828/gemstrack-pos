@@ -14,6 +14,8 @@ struct AnaCustomersPage: View {
 
     @State private var search = ""
     @State private var sort = 0
+    @State private var showAll = false
+    @State private var showTop = false
 
     var body: some View {
         List {
@@ -36,16 +38,15 @@ struct AnaCustomersPage: View {
     private var topSection: some View {
         Section {
             if figures.topCustomers.isEmpty {
-                Text("No customer sales data available for the selected period.").foregroundStyle(.secondary)
+                Text("No customer sales in this period.").foregroundStyle(.secondary)
             } else {
-                ForEach(figures.topCustomers) { (c: AnaTopCustomer) in
+                ForEach(Array(figures.topCustomers.prefix(showTop ? figures.topCustomers.count : 3))) { (c: AnaTopCustomer) in
                     topRow(c)
                 }
+                if figures.topCustomers.count > 3 { Button(showTop ? "Show fewer" : "Show top 10") { showTop.toggle() } }
             }
         } header: {
-            Text("Top customers by sales")
-        } footer: {
-            Text("Top 10 for the selected period.")
+            LedgerHeading(title: "Top customers by sales")
         }
         .houseRows()
     }
@@ -74,17 +75,18 @@ struct AnaCustomersPage: View {
                 // Share is of the source-attributed revenue (not of the total, which also holds extra
                 // revenue that has no source), so the column adds up to 100%.
                 let total = sources.reduce(0.0) { (sum: Double, s: AnaSourceRow) -> Double in sum + s.revenue }
-                ForEach(sources) { (s: AnaSourceRow) in
-                    TwoLine(title: s.label, subtitle: sourceLine(s, total), trailing: Money.lacCrore(s.revenue))
-                }
                 if !figures.sourceTrend.isEmpty {
                     AnaSourceTrendChart(points: figures.sourceTrend)
                 }
+                DisclosureGroup("Source breakdown") {
+                ForEach(sources) { (s: AnaSourceRow) in
+                    TwoLine(title: s.label, subtitle: sourceLine(s, total), trailing: Money.lacCrore(s.revenue))
+                }
+                    Text("A sale’s source comes from the sale, then the customer. Missing sources are Unclassified.").font(.footnote).foregroundStyle(.secondary)
+                }
             }
         } header: {
-            Text("Acquisition source insights")
-        } footer: {
-            Text("Where revenue comes from by how the customer found the store: walk-in, referral, Taheri spillover and other. Sales with no source on the sale or on the customer are Unclassified.")
+            LedgerHeading(title: "Acquisition source insights")
         }
         .houseRows()
     }
@@ -122,12 +124,13 @@ struct AnaCustomersPage: View {
             if list.isEmpty {
                 Text("No customer data for this period.").foregroundStyle(.secondary)
             } else {
-                ForEach(list) { (c: AnaBreakdown.CustomerRow) in
+                ForEach(Array(list.prefix(showAll || !search.isEmpty ? list.count : 5))) { (c: AnaBreakdown.CustomerRow) in
                     row(c)
                 }
+                if list.count > 5 && search.isEmpty { Button(showAll ? "Show fewer" : "Show all · \(list.count)") { showAll.toggle() } }
             }
         } header: {
-            Text("Everyone who bought")
+            LedgerHeading(title: "Everyone who bought")
         }
         .houseRows()
     }

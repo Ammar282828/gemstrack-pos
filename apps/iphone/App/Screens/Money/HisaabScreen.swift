@@ -144,7 +144,7 @@ struct HisaabScreen: View {
         let onInvoices = owedToYou(book.invoices.items).total
         let scoped = scope(summary.accounts)
         let shown = ordered(scoped.filter { chip.matches($0) })
-        List {
+        List { Group {
             Section {
                 tiles(summary, onInvoices: onInvoices)
                     .listRowInsets(EdgeInsets())
@@ -168,6 +168,7 @@ struct HisaabScreen: View {
             } footer: {
                 Text("The summary PDF is made on the ERP's own page. To add an entry, tap + and choose the account.")
             }
+        }.houseRows()
         }
         .listStyle(.insetGrouped)
         .safeAreaBar(edge: .top, spacing: 0) { chipRow(scoped) }
@@ -220,7 +221,7 @@ struct HisaabScreen: View {
         getLines.append("On invoices: \(Money.pkr(onInvoices))")
         var giveLines: [String] = []
         if s.payableGold > 0 { giveLines.append("\(MoneyFormat.grams(s.payableGold)) \(MoneyWords.metal)") }
-        return HStack(alignment: .top, spacing: 10) {
+        return FigureRow(alignment: .top, spacing: 10) {
             FigureTile(label: "You will get", value: Money.pkr(s.receivable), detail: getLines.joined(separator: "\n"), tint: .green)
             FigureTile(label: "You will give", value: Money.pkr(s.payable), detail: giveLines.isEmpty ? nil : giveLines.joined(separator: "\n"), tint: .red)
         }
@@ -260,23 +261,8 @@ struct HisaabScreen: View {
         }
     }
 
-    @ViewBuilder
     private func chipButton(_ c: HisaabChip, count: Int) -> some View {
-        if c == chip {
-            Button { chip = c } label: { chipLabel(c, count: count) }
-                .buttonStyle(.houseProminent)
-        } else {
-            Button { chip = c } label: { chipLabel(c, count: count) }
-                .buttonStyle(.glass)
-        }
-    }
-
-    private func chipLabel(_ c: HisaabChip, count: Int) -> some View {
-        HStack(spacing: 5) {
-            Text(c.title)
-            Text("\(count)").font(.caption).monospacedDigit().opacity(0.7)
-        }
-        .font(.subheadline.weight(.medium))
+        FilterChip(title: c.title, count: count, chosen: c == chip) { chip = c }
     }
 
     private var filterMenu: some View {

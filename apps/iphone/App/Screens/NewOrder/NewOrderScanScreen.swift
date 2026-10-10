@@ -51,7 +51,7 @@ struct NewOrderScanScreen: View {
             if busy {
                 Section {
                     HStack(spacing: 12) {
-                        ProgressView()
+                        SkeletonLoading()
                         Text(photos.count > 1 ? "Reading \(photos.count) photos…" : "Reading it…")
                     }
                 } footer: {
@@ -62,7 +62,7 @@ struct NewOrderScanScreen: View {
                 Section {
                     Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
                 } header: {
-                    Text("Could not read that")
+                    LedgerHeading(title: "Could not read that")
                 }
             }
             if let reading, !busy { readingSections(reading) }
@@ -89,7 +89,7 @@ struct NewOrderScanScreen: View {
                 )
             }
         } header: {
-            Text("The slip")
+            LedgerHeading(title: "The slip")
         } footer: {
             Text(photos.isEmpty
                  ? "A parchi, front and back, or a picture of the piece: up to six, read together as one order. Nothing is saved here: the form is filled in for you to check."
@@ -105,7 +105,7 @@ struct NewOrderScanScreen: View {
             Section {
                 Label(unread, systemImage: "questionmark.circle").foregroundStyle(.orange)
             } header: {
-                Text("Could not make this out")
+                LedgerHeading(title: "Could not make this out")
             }
         }
         if !check.warnings.isEmpty {
@@ -114,7 +114,7 @@ struct NewOrderScanScreen: View {
                     Label(w, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 }
             } header: {
-                Text("The slip does not add up as read")
+                LedgerHeading(title: "The slip does not add up as read")
             } footer: {
                 Text("Nothing has been corrected: check the figures against the photo, and fix them on the form.")
             }
@@ -221,7 +221,7 @@ struct NewOrderScanScreen: View {
                 if let day = a.expectedDate, !day.isEmpty { LabeledContent("Wanted by", value: day) }
                 if let notes = a.notes, !notes.isEmpty { Text(notes).foregroundStyle(.secondary) }
             } header: {
-                Text("Foot of the slip")
+                LedgerHeading(title: "Foot of the slip")
             } footer: {
                 Text("The advance, the discount and the old gold go into their own boxes. The slip's totals are only checked: the form works out its own.")
             }

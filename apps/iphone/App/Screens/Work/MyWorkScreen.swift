@@ -49,7 +49,7 @@ struct MyWorkScreen: View {
         Group {
             switch phase {
             case .loading:
-                ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .noAccount:
                 noAccount
             case .failed(let message):
@@ -203,7 +203,7 @@ struct MyWorkScreen: View {
 
     /// To do, Late (a week or more) and Urgent (two weeks or more).
     private func figures(_ s: KarigarPortalSummary) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+        FigureRow(alignment: .top, spacing: 10) {
             FigureTile(label: "To do", value: "\(s.active)")
             FigureTile(label: "Late", value: "\(s.late)", tint: s.late > 0 ? .orange : .primary)
             FigureTile(label: "Urgent", value: "\(s.critical)", tint: s.critical > 0 ? .red : .primary)
@@ -320,7 +320,7 @@ struct MyWorkScreen: View {
     @ViewBuilder
     private func tick(_ j: KarigarPortalJob, readOnly: Bool) -> some View {
         if busy == j.id {
-            ProgressView().frame(width: 28, height: 28)
+            SkeletonLoading().frame(width: 28, height: 28)
         } else if readOnly {
             Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
                 .font(.title2)
@@ -367,7 +367,7 @@ struct MyWorkScreen: View {
     @ViewBuilder
     private func account(_ a: KarigarPortalAccount) -> some View {
         Section {
-            HStack(alignment: .top, spacing: 10) {
+            FigureRow(alignment: .top, spacing: 10) {
                 FigureTile(label: "Received", value: KarigarPortalRules.grams(a.goldGiven))
                 FigureTile(label: "Returned", value: KarigarPortalRules.grams(a.goldReceived))
                 FigureTile(label: "With you", value: KarigarPortalRules.grams(a.goldNet), tint: a.goldNet > 0 ? .red : .primary)

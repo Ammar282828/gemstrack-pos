@@ -305,7 +305,7 @@ struct NewOrder: View {
                 NewOrderStockPicker { p in addFromStock(p) }
             }
         } header: {
-            Text("Pieces")
+            LedgerHeading(title: "Pieces")
         } footer: {
             NewOrderPiecesFooter(count: draft.pieces.count)
         }
@@ -412,7 +412,7 @@ struct NewOrder: View {
             } label: {
                 Group {
                     if saving {
-                        ProgressView()
+                        SkeletonLoading()
                     } else {
                         Text(edit == nil ? "Save order" : "Save changes")
                     }
@@ -545,7 +545,7 @@ struct NewOrderLanding: View {
             OrderScreen(id: id)
         } else {
             VStack(spacing: 12) {
-                ProgressView().controlSize(.large)
+                SkeletonLoading().controlSize(.large)
                 Text("Opening \(id)…").foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

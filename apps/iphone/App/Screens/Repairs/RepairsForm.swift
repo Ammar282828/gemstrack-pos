@@ -201,7 +201,7 @@ struct RepairsForm: View {
                 .keyboardType(.phonePad)
                 .textContentType(.telephoneNumber)
         } header: {
-            Text("Customer")
+            LedgerHeading(title: "Customer")
         } footer: {
             Text(customerId == nil ? "Leave both blank for a walk-in." : "Linked to \(name) in the book.")
         }
@@ -238,7 +238,7 @@ struct RepairsForm: View {
                 }
             }
         } header: {
-            Text("Pieces")
+            LedgerHeading(title: "Pieces")
         } footer: {
             if !hasPiece { Text("What was brought in: \"gold ring\", \"chain\".") }
         }
@@ -281,7 +281,7 @@ struct RepairsForm: View {
                 }
             }
         } header: {
-            Text("When")
+            LedgerHeading(title: "When")
         }
     }
 
@@ -305,7 +305,7 @@ struct RepairsForm: View {
                 .pickerStyle(.segmented)
             }
         } header: {
-            Text("Advance taken now (optional)")
+            LedgerHeading(title: "Advance taken now (optional)")
         }
     }
 
@@ -320,7 +320,7 @@ struct RepairsForm: View {
                     LabeledContent(RepairsKit.paymentWords(r.payments[i]), value: Money.pkr(r.payments[i].amount))
                 }
             } header: {
-                Text("Paid so far")
+                LedgerHeading(title: "Paid so far")
             } footer: {
                 Text("Money taken stays as it is. A new payment is Take payment on the ticket.")
             }
@@ -341,7 +341,7 @@ struct RepairsForm: View {
             TextField("Note for the shop", text: $note, axis: .vertical)
                 .lineLimit(2...5)
         } header: {
-            Text("Karigar, taken by, note")
+            LedgerHeading(title: "Karigar, taken by, note")
         } footer: {
             Text("The note is for the shop only: it is never printed or sent.")
         }

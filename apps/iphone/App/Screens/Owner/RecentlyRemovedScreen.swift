@@ -86,14 +86,14 @@ private struct RecentlyRemovedList: View {
                 } else {
                     summarySection(customers, karigars, h)
                     if !customers.isEmpty {
-                        Section("Customers") {
+                        LedgerSection("Customers") {
                             ForEach(customers) { (c: Customer) in
                                 row(id: c.id, name: c.name, sub: c.phone, removedAt: c.deletedAt, kind: .customer, history: h[c.id])
                             }
                         }
                     }
                     if !karigars.isEmpty {
-                        Section("Karigars") {
+                        LedgerSection("Karigars") {
                             ForEach(karigars) { (k: Karigar) in
                                 row(id: k.id, name: k.name, sub: k.contact, removedAt: k.deletedAt, kind: .karigar, history: h[k.id])
                             }
@@ -113,7 +113,7 @@ private struct RecentlyRemovedList: View {
                 Task { await restore(customerIds: customers.map(\.id), karigarIds: karigars.map(\.id), key: "all", name: nil) }
             } label: {
                 HStack(spacing: 8) {
-                    if busy == "all" { ProgressView() }
+                    if busy == "all" { SkeletonLoading() }
                     Label("Put everything back", systemImage: "arrow.uturn.backward")
                 }
             }
@@ -179,7 +179,7 @@ private struct RecentlyRemovedList: View {
                     await restore(customerIds: kind == .customer ? [id] : [], karigarIds: kind == .karigar ? [id] : [], key: id, name: name)
                 }
             } label: {
-                if busy == id { ProgressView() } else { Text("Put back") }
+                if busy == id { SkeletonLoading() } else { Text("Put back") }
             }
             .buttonStyle(.glass)
             .disabled(busy != nil)

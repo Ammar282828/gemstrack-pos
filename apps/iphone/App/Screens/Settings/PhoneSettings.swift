@@ -13,12 +13,17 @@ struct PhoneSettings: View {
         ("karigar", "Karigars", "A karigar marking a piece done"),
     ]
 
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var providerStatus: String?
     @State private var allowed: UNAuthorizationStatus = .notDetermined
     @State private var off: Set<String> = []
     @State private var loaded = false
     @State private var saving = false
+    @State private var testing = false
+    @State private var testResult: String?
     @State private var error: String?
     @State private var widgetLinked = ERPWidgetLink.load() != nil
+    @AppStorage("deviceTheme") private var deviceTheme = ""
     @State private var lockOn = AppLock.shared.enabled
     @Environment(\.openURL) private var openURL
 
@@ -34,22 +39,57 @@ struct PhoneSettings: View {
                 case .notDetermined:
                     Button("Turn on notifications") { Task { await Push.shared.register(); await refresh() } }
                 default:
-                    ForEach(Self.kinds, id: \.id) { k in
+                    if !loaded {
+                        Label(Push.shared.registering ? "Registering this phone…" : "Phone not linked", systemImage: "bell.badge")
+                        Button("Register again") { Task { await Push.shared.register(); await refresh() } }
+                            .disabled(Push.shared.registering)
+                    } else {
+                        Label("This phone is linked", systemImage: "checkmark.circle")
+                    }
+                    if loaded { ForEach(Self.kinds, id: \.id) { k in
                         Toggle(isOn: binding(k.id)) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(k.title)
                                 Text(k.detail).font(.caption).foregroundStyle(.secondary)
                             }
                         }
-                        .disabled(!loaded || saving)
+                        .disabled(saving)
+                    } }
+                    if loaded {
+                        Button(testing ? "Sending…" : "Send a test notification") {
+                            Task {
+                                testing = true; testResult = nil; error = nil
+                                do {
+                                    try await Push.shared.sendTest()
+                                    testResult = "Apple accepted the test. Check this phone's notifications."
+                                } catch { self.error = error.localizedDescription }
+                                testing = false
+                            }
+                        }.disabled(testing || saving)
+                        if let testResult { Text(testResult).font(.caption).foregroundStyle(.secondary) }
                     }
                 }
+                if let providerStatus { Text(providerStatus).font(.caption).foregroundStyle(.secondary) }
+                if let problem = Push.shared.registrationError { Text(problem).font(.caption).foregroundStyle(.red) }
             } header: {
-                Text("Notifications on this phone")
+                LedgerHeading(title: "Notifications on this phone")
             } footer: {
                 Text("The shop's WhatsApp alerts are set in the ERP's Settings → Alerts.")
             }
             if let error { Section { Text(error).foregroundStyle(.red) } }
+
+
+            Section {
+                Picker("Appearance", selection: $deviceTheme) {
+                    Text("Follow the shop").tag("")
+                    Text("Light").tag("default")
+                    Text("Dark").tag("taheri")
+                }
+            } header: {
+                LedgerHeading(title: "Appearance")
+            } footer: {
+                Text("The theme for this phone. If not chosen, it follows the shop's appearance in the ERP.")
+            }
 
             Section {
                 Toggle("Lock with Face ID", isOn: Binding(get: { lockOn }, set: { lockOn = $0; AppLock.shared.enabled = $0 }))
@@ -77,6 +117,12 @@ struct PhoneSettings: View {
         }
         .navigationTitle("This phone")
         .task { await refresh() }
+        .onChange(of: Push.shared.registeredOnServer) { _, linked in
+            if linked { Task { await refresh() } }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await refresh() } }
+        }
     }
 
     private func binding(_ kind: String) -> Binding<Bool> {
@@ -89,10 +135,21 @@ struct PhoneSettings: View {
 
     private func refresh() async {
         allowed = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
-        if allowed == .authorized || allowed == .provisional {
-            off = Set(await Push.shared.kindsOff())
-            loaded = true
+        loaded = false
+        error = nil
+        if allowed == .authorized || allowed == .provisional || allowed == .ephemeral {
+            do {
+                off = Set(try await Push.shared.kindsOff())
+                loaded = true
+            } catch { self.error = error.localizedDescription }
         }
+        do {
+            let data = try await ERPAPI.shared.data("/api/push/key")
+            let status = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            providerStatus = status["readable"] as? Bool == true ? "Shop's Apple push key is configured."
+                : status["set"] as? Bool == true ? "Shop's Apple push key needs attention in Settings → Notifications."
+                : "Shop's Apple push key hasn't been configured in Settings → Notifications."
+        } catch { providerStatus = "Couldn't check the shop's Apple push configuration." }
     }
 
     private func save(_ next: Set<String>) async {

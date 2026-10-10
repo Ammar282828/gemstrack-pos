@@ -179,7 +179,7 @@ struct AdsAudiencesScreen: View {
 
     private func busyLabel(_ title: String, _ what: String, _ symbol: String) -> some View {
         HStack(spacing: 8) {
-            if busy == what { ProgressView() } else { Image(systemName: symbol) }
+            if busy == what { SkeletonLoading() } else { Image(systemName: symbol) }
             Text(title)
         }
     }
@@ -205,7 +205,7 @@ struct AdsAudiencesScreen: View {
                 Text("Only an owner can send the customer book to Meta.").foregroundStyle(.secondary)
             }
         } header: {
-            Text("\(session.shop.name)'s customers")
+            LedgerHeading(title: "\(session.shop.name)'s customers")
         } footer: {
             Text("Show ads to people who already buy from the shop, or leave them out of ads meant for new people. From the ERP's customer book: phones and emails are scrambled (SHA-256) on the server before anything goes to Meta, which only matches them to accounts.")
         }
@@ -256,7 +256,7 @@ struct AdsAudiencesScreen: View {
             }
             .disabled(origin.isEmpty)
         } header: {
-            Text("Lookalike")
+            LedgerHeading(title: "Lookalike")
         } footer: {
             Text("New people who resemble an audience above. 1% is the closest match; bigger reaches more people, less alike. Meta needs at least 100 matched people in the country to start from.")
         }
@@ -273,7 +273,7 @@ struct AdsAudiencesScreen: View {
                 MarketingReading(text: "Reading the audiences…")
             }
         } header: {
-            Text("In the ad account")
+            LedgerHeading(title: "In the ad account")
         }
     }
 
@@ -289,7 +289,7 @@ struct AdsAudiencesScreen: View {
             }
             Spacer(minLength: 8)
             if busy == a.id {
-                ProgressView()
+                SkeletonLoading()
             } else {
                 if a.kind == "Customer list" && isOwner {
                     Button { Task { await refresh(a) } } label: { Image(systemName: "arrow.clockwise") }

@@ -162,7 +162,7 @@ private struct LabelDesigner: View {
             } else if let failure, standard == nil, doc.loaded, saved == nil {
                 ContentUnavailableView("Couldn't load the tag", systemImage: "tag", description: Text(failure))
             } else {
-                ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle("Labels")
@@ -231,7 +231,7 @@ private struct LabelDesigner: View {
                     Button("Back to the standard tag") { change { $0 = standard } }
                 }
             } header: {
-                Text("Tag builder")
+                LedgerHeading(title: "Tag builder")
             } footer: {
                 Text("Design the tag and export pieces to CSV for a label printing app like WEPrint. \(edited || saving ? "Saving…" : saved != nil ? "Layout saved." : "")")
             }
@@ -276,7 +276,7 @@ private struct LabelDesigner: View {
                     .autocorrectionDisabled()
                 if !search.trimmingCharacters(in: .whitespaces).isEmpty {
                     if !book.products.loaded {
-                        ProgressView()
+                        SkeletonLoading()
                     } else if hits.isEmpty {
                         Text("No products found.").foregroundStyle(.secondary)
                     }
@@ -293,7 +293,7 @@ private struct LabelDesigner: View {
             }
             Button { Task { await makeCsv() } } label: {
                 HStack(spacing: 8) {
-                    if making { ProgressView() }
+                    if making { SkeletonLoading() }
                     Label("Download CSV for Selected Product", systemImage: "arrow.down.doc")
                 }
             }
@@ -304,7 +304,7 @@ private struct LabelDesigner: View {
                 }
             }
         } header: {
-            Text("Test & Export")
+            LedgerHeading(title: "Test & Export")
         } footer: {
             Text("Select a product to preview and export its data.")
         }

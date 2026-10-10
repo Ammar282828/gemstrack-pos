@@ -19,6 +19,7 @@ struct WorkshopBoard: View {
     /// Taken by starts once, on whoever is signed in (lib/people.ts), unless a link asked for a whole bench.
     @State private var seeded = false
     private let asksForWholeBench: Bool
+    private let orderId: String?
     /// Pieces with a write in flight.
     @State private var busy: Set<String> = []
     @State private var failure: String?
@@ -32,18 +33,29 @@ struct WorkshopBoard: View {
     init(path: String) {
         var f = WorkshopFilter()
         f.karigarId = WorkshopLogic.queryValue("karigar", in: path) ?? ""
-        asksForWholeBench = !f.karigarId.isEmpty
+        orderId = WorkshopLogic.queryValue("order", in: path)
+        asksForWholeBench = !f.karigarId.isEmpty || orderId != nil
         _filter = State(initialValue: f)
     }
 
     var body: some View {
+        Group {
+            if orderId == nil {
+                screen.searchable(text: $filter.query, prompt: "Item, karigar, customer, order")
+            } else {
+                screen
+            }
+        }
+    }
+
+    private var screen: some View {
         ShelfState(loaded: loaded, error: firstError, offline: book.orders.offline) {
             content
         }
-        .navigationTitle("Workshop")
+        .navigationTitle(orderId == nil ? "Workshop" : "Give out")
         .navigationBarTitleDisplayMode(.large)
-        .searchable(text: $filter.query, prompt: "Item, karigar, customer, order")
-        .toolbar { boardToolbar }
+        .toolbar { if orderId == nil { boardToolbar } }
+        .modifier(HouseGround())
         .workshopPlaceDestination($opened)
         .workshopFailureAlert($failure)
         .sheet(item: $assigning) { (ask: WorkshopStockJobAsk) in
@@ -93,12 +105,13 @@ struct WorkshopBoard: View {
     @ViewBuilder
     private var content: some View {
         let live = workshopLive(book.karigars.items)
-        let all = WorkshopLogic.buildJobs(
+        let jobs = WorkshopLogic.buildJobs(
             orders: book.orders.items,
             karigarJobs: book.karigarJobs.items,
             karigars: live,
             invoices: book.invoices.items
         )
+        let all = orderId.map { id in jobs.filter { $0.orderId == id } } ?? jobs
         let snap = WorkshopSnapshot(all: all, filter: filter)
         board(snap, live)
     }
@@ -107,15 +120,23 @@ struct WorkshopBoard: View {
         let focused = snap.focused(focus)
         let busyIds = Set(snap.all.filter { !$0.isDone }.map { $0.karigarId })
         let choices = WorkshopChoices(karigars: live, busyIds: busyIds)
-        return List {
+        return List { Group {
+            if let orderId {
+                Section {
+                    Text(orderId).font(.headline)
+                } footer: {
+                    Text("Choose a karigar, then mark the piece Given when it leaves the shop.")
+                }
+            }
             layout(snap, focused: focused, live: live, choices: choices)
+        }.houseRows()
         }
         .listStyle(.insetGrouped)
         .overlay {
             if focused.isEmpty { emptyState(snap) }
         }
         .safeAreaBar(edge: .top, spacing: 0) {
-            controlBar(snap)
+            if orderId == nil { controlBar(snap) }
         }
     }
 

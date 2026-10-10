@@ -360,7 +360,7 @@ struct OrderScreen: View {
                     .foregroundStyle(.secondary)
             }
             if counts.unassigned > 0 && !invoiced {
-                Button { web = .orderPage(order.id) } label: {
+                Button { web = .giveOut(order.id) } label: {
                     Label("Give out: \(counts.unassigned) without a karigar", systemImage: "person.badge.plus")
                 }
             }
@@ -415,7 +415,7 @@ struct OrderScreen: View {
     private func statusRow(_ order: Order) -> some View {
         LabeledContent("Status") {
             if updatingStatus {
-                ProgressView()
+                SkeletonLoading()
             } else {
                 Menu {
                     ForEach(OrdersLogic.settableStatuses, id: \.self) { s in
@@ -504,7 +504,7 @@ struct OrderScreen: View {
             Button { run(order, step) } label: {
                 Group {
                     if updatingStatus && step == .markReady {
-                        ProgressView()
+                        SkeletonLoading()
                     } else {
                         Label(step.title, systemImage: step.symbol)
                             .lineLimit(1)
@@ -525,8 +525,7 @@ struct OrderScreen: View {
             // "Only once you see it in the bank": the sheet says what it books and what the customer is told.
             checkingTransfer = true
         case .giveOut:
-            // The karigar pickers are the ERP's page.
-            web = .orderPage(order.id)
+            web = .giveOut(order.id)
         case .markReady:
             setStatus(order, "Completed")
         case .finalize:

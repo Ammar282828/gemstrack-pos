@@ -8,6 +8,7 @@ import ERPCore
 /// because a post to the groups and the channel cannot be taken back.
 struct PostQueueSheet: View {
     let id: String
+    var embedded = false
 
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingSend = false
@@ -22,25 +23,26 @@ struct PostQueueSheet: View {
     private var entry: PostQueueEntry? { store.queue.first { (e: PostQueueEntry) in e.id == id } }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if let e = entry {
-                    page(e)
-                } else {
-                    ContentUnavailableView("No longer in the queue", systemImage: "tray",
-                                           description: Text("It was sent, removed, or changed on another device."))
-                }
+        Group {
+            if embedded { content }
+            else {
+                NavigationStack {
+                    content.toolbar {
+                        ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
+                    }
+                }.presentationDetents([.large])
             }
-            .navigationTitle("In the queue")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
+        }.task { await store.refreshQueue() }
+    }
+
+    private var content: some View {
+        Group {
+            if let e = entry { page(e) }
+            else { ContentUnavailableView("No longer in the queue", systemImage: "tray", description: Text("It was sent, removed, or changed on another device.")) }
         }
-        .presentationDetents([.large])
-        .task { await store.refreshQueue() }
+        .modifier(HouseGround())
+        .navigationTitle("In the queue")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     // MARK: The page
@@ -57,12 +59,12 @@ struct PostQueueSheet: View {
             Section {
                 ForEach(places(e)) { (p: Place) in placeRow(p) }
             } header: {
-                Text("Where it goes")
+                LedgerHeading(title: "Where it goes")
             } footer: {
                 Text(e.toWebsite && !e.websiteNames.isEmpty ? "On the website as " + e.websiteNames.joined(separator: ", ") + "." : "")
             }
             if !e.caption.isEmpty {
-                Section("Caption") {
+                LedgerSection("Caption") {
                     Text(e.caption).textSelection(.enabled).font(.subheadline)
                 }
             }
@@ -72,7 +74,7 @@ struct PostQueueSheet: View {
         }
         .listStyle(.insetGrouped)
         .disabled(busy != nil)
-        .overlay { if busy != nil { ProgressView(busy ?? "").padding(20).glassEffect(.regular, in: .rect(cornerRadius: 18)) } }
+        .overlay { if busy != nil { SkeletonLoading(busy ?? "").padding(20).glassEffect(.regular, in: .rect(cornerRadius: 18)) } }
         .confirmationDialog("Send this now?", isPresented: $confirmingSend, titleVisibility: .visible) {
             Button("Send now") { Task { await send(e) } }
         } message: {
@@ -91,7 +93,7 @@ struct PostQueueSheet: View {
                 .frame(width: 84, height: 84)
                 .clipShape(.rect(cornerRadius: 14))
             VStack(alignment: .leading, spacing: 6) {
-                Text(e.headline.isEmpty ? "A piece" : e.headline).font(.headline).lineLimit(3)
+                Text(e.headline.isEmpty ? "A piece" : e.headline).font(.headline)
                 Text(statusWords(e)).font(.subheadline).foregroundStyle(e.status == "failed" ? Color.red : Color.secondary)
                 if e.units > 0 {
                     ProgressView(value: Double(e.done), total: Double(e.units))
@@ -154,7 +156,7 @@ struct PostQueueSheet: View {
         return HStack(spacing: 12) {
             Image(systemName: p.symbol)
                 .font(.body.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.onAccent)
                 .frame(width: 32, height: 32)
                 .background(Theme.accent.gradient, in: .rect(cornerRadius: 8))
             VStack(alignment: .leading, spacing: 2) {
@@ -162,7 +164,7 @@ struct PostQueueSheet: View {
                 Text(problem ?? p.detail)
                     .font(.caption)
                     .foregroundStyle(problem == nil ? Color.secondary : Color.red)
-                    .lineLimit(2)
+
             }
             Spacer(minLength: 6)
             if gone == p.units.count {

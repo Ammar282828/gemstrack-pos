@@ -106,7 +106,7 @@ struct WorkSamplePhoto: View {
                     .frame(maxHeight: 220)
                     .clipShape(.rect(cornerRadius: 10))
             } else if !failed {
-                ProgressView().frame(maxWidth: .infinity, minHeight: 60)
+                SkeletonLoading().frame(maxWidth: .infinity, minHeight: 60)
             }
         }
         .task(id: key) {

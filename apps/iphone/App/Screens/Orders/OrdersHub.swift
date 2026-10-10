@@ -85,7 +85,7 @@ struct OrdersHub: View {
         // A search or a filter must reach the folded stages too, or its hits hide behind "Show".
         let forceOpen = filtering
         List {
-            controls(scoped)
+            controls()
             ForEach(groups) { g in
                 section(g, owedOn: owedOn, now: now, forceOpen: forceOpen)
             }
@@ -245,11 +245,10 @@ struct OrdersHub: View {
         .padding(.top, 40)
     }
 
-    // MARK: The first rows: how the list is cut, and the status chips
+    // MARK: Grouping and active filters
 
-    /// Day · Stage · Due over the chips, scrolling with the list. The chips count what each would show,
-    /// All counting every order the search and the menu leave (the web's filteredOrders, orders/page.tsx).
-    private func controls(_ scoped: [Order]) -> some View {
+    /// The grouping stays visible; status and the other filters share the toolbar menu.
+    private func controls() -> some View {
         let cut = grouping.calendarCut
         return Section {
             Picker("Show by", selection: groupingChoice) {
@@ -260,16 +259,21 @@ struct OrdersHub: View {
             .pickerStyle(.segmented)
             .padding(.horizontal, 16)
             .chipRowInList()
-            ChipRow {
-                FilterChip(title: "All", count: scoped.count, chosen: statusFilter == "All") { statusFilter = "All" }
-                ForEach(OrdersLogic.filterStatuses, id: \.self) { s in
-                    let n = scoped.filter { $0.status.rawValue == s }.count
-                    if n > 0 || statusFilter == s {
-                        FilterChip(title: s, count: n, chosen: statusFilter == s) { statusFilter = s }
-                    }
+            if statusFilter != "All" || !month.isEmpty || !takenBy.isEmpty || payment != "All" {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text([statusFilter == "All" ? nil : statusFilter,
+                          month.isEmpty ? nil : InvoiceCalendar.monthLabel(month),
+                          takenBy.isEmpty ? nil : takenBy,
+                          payment == "All" ? nil : payment].compactMap { $0 }.joined(separator: " · "))
+                        .font(.footnote).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Button("Clear") { statusFilter = "All"; month = ""; takenBy = ""; payment = "All" }
+                        .font(.footnote.weight(.medium)).buttonStyle(.borderless)
                 }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
-            .chipRowInList()
         }
     }
 
@@ -279,8 +283,14 @@ struct OrdersHub: View {
         let months = Array(Set(all.compactMap { InvoiceCalendar.monthKey($0.createdAt) })).sorted(by: >)
         // The house's counter names (the web's Taken by list), not whoever happens to appear in the book.
         let people = session.shop.takenBy
-        let narrowed = !month.isEmpty || !takenBy.isEmpty || payment != "All"
+        let narrowed = statusFilter != "All" || !month.isEmpty || !takenBy.isEmpty || payment != "All"
         return Menu {
+            Picker("Status", selection: $statusFilter) {
+                Text("All orders (\(all.count))").tag("All")
+                ForEach(OrdersLogic.filterStatuses, id: \.self) { status in
+                    Text("\(status) (\(all.filter { $0.status.rawValue == status }.count))").tag(status)
+                }
+            }
             Picker("Group by", selection: groupingChoice) {
                 ForEach(OrdersGrouping.allCases) { g in Text(g.title).tag(g) }
             }
@@ -308,7 +318,6 @@ struct OrdersHub: View {
     @ToolbarContentBuilder
     private var hubToolbar: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
-            // New order stays the ERP's own page for now.
             NavigationLink(value: Route(path: "/orders/add")) {
                 Label("New order", systemImage: "plus")
             }

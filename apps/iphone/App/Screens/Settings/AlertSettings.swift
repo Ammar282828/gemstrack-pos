@@ -114,7 +114,7 @@ private struct AlertsForm: View {
             Button("Add number") { addNumber() }
                 .disabled(newNumber.trimmingCharacters(in: .whitespaces).isEmpty)
         } header: {
-            Text("Recipients")
+            LedgerHeading(title: "Recipients")
         } footer: {
             Text("A number from Pakistan can start with 0; any other with its country code.")
         }
@@ -134,7 +134,7 @@ private struct AlertsForm: View {
             DatePicker("End of day", selection: $times.endOfDay, displayedComponents: .hourAndMinute)
             DatePicker("Daily report", selection: $times.report, displayedComponents: .hourAndMinute)
         } header: {
-            Text("Times")
+            LedgerHeading(title: "Times")
         } footer: {
             Text("Karachi time. The checks, the weekly and the monthly reports go with the checklist.")
         }

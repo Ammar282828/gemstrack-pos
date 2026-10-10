@@ -9,6 +9,7 @@ struct AnaOverviewPage: View {
     let figures: AnaFigures
     let bar: AnaPeriodBar
     let showCosts: Bool
+    @State private var monthlyPDF = false
 
     var body: some View {
         List {
@@ -19,6 +20,7 @@ struct AnaOverviewPage: View {
                     .listRowSeparator(.hidden)
             }
             moneySection
+            trendSection
             countsSection
             goldSection
             coinsSection
@@ -27,11 +29,12 @@ struct AnaOverviewPage: View {
             staffNote
         }
         .listStyle(.insetGrouped)
+        .sheet(isPresented: $monthlyPDF) { AnaMonthlyReportSheet() }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 // The month's PDF is the ERP's own: any month, drawn by the server, the same document the 1st's WhatsApp report carries.
                 if showCosts {
-                    NavigationLink(value: Route(path: "/analytics?web=1")) {
+                    Button { monthlyPDF = true } label: {
                         Label("Monthly PDF", systemImage: "arrow.down.doc")
                     }
                 }
@@ -46,9 +49,13 @@ struct AnaOverviewPage: View {
             tiles
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
-        } footer: {
-            if showCosts { Text(estNote) }
-        }
+            DisclosureGroup("Revenue and profit details") {
+                LabeledContent("Invoices") { Text(Money.pkrLac(figures.invoiceSales)).monospacedDigit() }
+                LabeledContent("Orders") { Text(Money.pkrLac(figures.orderSales)).monospacedDigit() }
+                LabeledContent("Extra revenue") { Text(Money.pkrLac(figures.extraRevenue)).monospacedDigit() }
+                if showCosts { Text(estNote).font(.footnote).foregroundStyle(.secondary) }
+            }
+        }.houseRows()
     }
 
     private var tiles: some View {
@@ -58,20 +65,29 @@ struct AnaOverviewPage: View {
         let netDetail = f.totalSales > 0 ? "\(AnaFormat.fixed(netPct, 1))% margin" : "No revenue in period"
         let netTint: Color = net >= 0 ? Color.green : Color.red
         return VStack(spacing: 10) {
-            HStack(alignment: .top, spacing: 10) {
-                FigureTile(label: "Revenue", value: Money.pkrLac(f.totalSales), detail: revenueDetail, tint: Color.green)
+            FigureRow(alignment: .top, spacing: 10) {
+                FigureTile(label: "Revenue", value: Money.pkrLac(f.totalSales), detail: "Sales in this period", tint: Color.green)
                 if showCosts {
                     FigureTile(label: "Expenses", value: Money.pkrLac(f.totalExpenses), detail: "Paid out in this period", tint: Color.red)
                 }
             }
             if showCosts {
-                HStack(alignment: .top, spacing: 10) {
+                FigureRow(alignment: .top, spacing: 10) {
                     FigureTile(label: "Est. profit", value: Money.pkrLac(f.estProfit), detail: estDetail, tint: Theme.accent)
                     FigureTile(label: "Net profit", value: Money.pkrLac(net), detail: netDetail, tint: netTint)
                 }
             }
         }
         .padding(.vertical, 4)
+    }
+
+    @ViewBuilder private var trendSection: some View {
+        if !figures.salesOverTime.isEmpty {
+            LedgerSection("Revenue over time") {
+                AnaRevenueBars(days: figures.salesOverTime)
+                NavigationLink(value: Route(path: "/analytics/sales")) { Label("Sales details", systemImage: "chart.bar") }
+            }
+        }
     }
 
     /// "Invoices 4.5 lac · Orders 1 lac · Extra 10,000".
@@ -105,7 +121,7 @@ struct AnaOverviewPage: View {
 
     private var countsSection: some View {
         let f = figures
-        return Section("Orders and pieces") {
+        return LedgerSection("Orders and pieces", collapsible: true) {
             if f.totalUnpaid > 0 {
                 LabeledContent("Outstanding") {
                     Text(Money.pkrLac(f.totalUnpaid)).monospacedDigit().foregroundStyle(Color.orange)
@@ -142,6 +158,7 @@ struct AnaOverviewPage: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                DisclosureGroup("By karat") {
                 ForEach(f.goldByKarat) { (k: AnaKarat) in
                     LabeledContent(k.karat.uppercased()) {
                         VStack(alignment: .trailing, spacing: 2) {
@@ -152,10 +169,9 @@ struct AnaOverviewPage: View {
                         }
                     }
                 }
+                }
             } header: {
-                Text("Gold sold")
-            } footer: {
-                Text("The metal in the jewellery sold this period, by weight. Coins are counted separately below.")
+                LedgerHeading(title: "Gold sold")
             }
             .houseRows()
         }
@@ -173,6 +189,7 @@ struct AnaOverviewPage: View {
             Section {
                 if c.invoices > 0 {
                     TwoLine(title: "Coin revenue", subtitle: bills, trailing: Money.pkrLac(c.revenue))
+                    DisclosureGroup("Coin details") {
                     TwoLine(title: "Coins sold",
                             subtitle: c.grams > 0 ? AnaFormat.weight(c.grams) : "No weight recorded",
                             trailing: AnaFormat.count(c.coins))
@@ -185,13 +202,13 @@ struct AnaOverviewPage: View {
                                 trailing: Money.pkrLac(c.outstanding),
                                 trailingTint: Color.orange)
                     }
+                    Text("Coin figures are separate from jewellery revenue and profit.").font(.footnote).foregroundStyle(.secondary)
+                    }
                 } else {
                     Text("No coin bills in this period.").foregroundStyle(.secondary)
                 }
             } header: {
-                Text("Gold coins")
-            } footer: {
-                Text("Kept apart from everything above. A coin sells at the metal price plus a sliver, so counting it with jewellery inflates revenue, drags the average order, and applies the jewellery margin to money that never earned it.")
+                LedgerHeading(title: "Gold coins")
             }
             .houseRows()
         }
@@ -210,11 +227,6 @@ struct AnaOverviewPage: View {
         let netTint: Color = net >= 0 ? Color.green : Color.red
         return Section {
             TwoLine(title: "Cash in", trailing: Money.pkrLac(f.cashIn), trailingTint: Color.green)
-            ForEach(cashInParts) { (p: AnaCashPart) in
-                LabeledContent(p.label) { Text(Money.pkrLac(p.amount)).monospacedDigit() }
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
             if showCosts {
                 TwoLine(title: "Cash out", subtitle: "Every expense paid in this period",
                         trailing: Money.pkrLac(f.cashOut), trailingTint: Color.red)
@@ -222,15 +234,21 @@ struct AnaOverviewPage: View {
                         subtitle: net >= 0 ? "Business gained cash in this period" : "Business spent more cash than it took in",
                         trailing: netSign + Money.pkrLac(abs(net)), trailingTint: netTint)
             }
+            DisclosureGroup("Cash breakdown") {
+            ForEach(cashInParts) { (p: AnaCashPart) in
+                LabeledContent(p.label) { Text(Money.pkrLac(p.amount)).monospacedDigit() }
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
             if gap > 0 {
                 Text("\(Money.pkrLac(gap)) of recognised revenue is not yet collected: it sits as customer receivables and uninvoiced open orders. That gap is the difference between revenue (what was earned) and Cash in, leaving out gold taken off a bill (it is off the revenue too).")
                     .font(.footnote)
                     .foregroundStyle(Color.orange)
             }
+                Text("Cash flow counts money received and paid. Revenue also includes unpaid sales and open orders.").font(.footnote).foregroundStyle(.secondary)
+            }
         } header: {
-            Text("Cash flow")
-        } footer: {
-            Text("Actual money in and out during this period. Different from revenue above, which counts what you have earned, including future cash from open orders and unpaid invoices.")
+            LedgerHeading(title: "Cash flow")
         }
         .houseRows()
     }
@@ -261,14 +279,14 @@ struct AnaOverviewPage: View {
                     Text("No expenses recorded for the selected period.").foregroundStyle(.secondary)
                 } else {
                     AnaBarChart(bars: bars(rows), tint: Color.red.opacity(0.8))
-                    ForEach(rows) { (e: AnaExpenseCategory) in
-                        LabeledContent(e.category) { Text(Money.pkr(e.amount)).monospacedDigit() }
+                    DisclosureGroup("All categories · \(rows.count)") {
+                        ForEach(rows) { (e: AnaExpenseCategory) in
+                            LabeledContent(e.category) { Text(Money.pkr(e.amount)).monospacedDigit() }
+                        }
                     }
                 }
             } header: {
-                Text("Expenses by category")
-            } footer: {
-                Text("Spending distribution for the selected period.")
+                LedgerHeading(title: "Expenses by category")
             }
             .houseRows()
         }
@@ -287,5 +305,45 @@ struct AnaOverviewPage: View {
             }
             .houseRows()
         }
+    }
+}
+
+/// The server draws the same monthly document used by the ERP’s scheduled report.
+private struct AnaMonthlyReportSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var selected = 1
+    @State private var opened = false
+    private var months: [Date] {
+        let calendar = AnaDate.karachi
+        let start = calendar.date(from: calendar.dateComponents([.year, .month], from: Date())) ?? Date()
+        return (0..<24).compactMap { calendar.date(byAdding: .month, value: -$0, to: start) }
+    }
+    private func key(_ date: Date) -> String {
+        let c = AnaDate.karachi.dateComponents([.year, .month], from: date)
+        return String(format: "%04d-%02d", c.year ?? 2000, c.month ?? 1)
+    }
+    private func label(_ date: Date) -> String {
+        let formatter = DateFormatter(); formatter.calendar = AnaDate.karachi
+        formatter.timeZone = ERPDate.karachi; formatter.dateFormat = "MMMM yyyy"
+        return formatter.string(from: date)
+    }
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Picker("Month", selection: $selected) {
+                        ForEach(Array(months.enumerated()), id: \.offset) { index, month in
+                            Text(label(month) + (index == 0 ? " · so far" : "")).tag(index)
+                        }
+                    }
+                    Button("Open report") { opened = true }.buttonStyle(.houseProminent)
+                }.houseRows()
+            }
+            .modifier(HouseGround()).navigationTitle("Monthly PDF").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+            .sheet(isPresented: $opened) {
+                PDFDocumentScreen(path: "/api/reports/monthly?month=" + key(months[selected]), fileName: "monthly-report-" + key(months[selected]) + ".pdf", title: label(months[selected]))
+            }
+        }.presentationDetents([.medium, .large])
     }
 }

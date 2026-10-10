@@ -82,7 +82,7 @@ struct AdsAudienceSheet: View {
                     Text("Meta gave no estimate for this audience.").foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
-                if estimating && estimate != nil { ProgressView() }
+                if estimating && estimate != nil { SkeletonLoading() }
             }
         } footer: {
             Text(draft.words)
@@ -121,7 +121,7 @@ struct AdsAudienceSheet: View {
                 }
             }
         } header: {
-            Text("Where")
+            LedgerHeading(title: "Where")
         } footer: {
             Text("People who live in, or were recently in, these places. A city takes the people around it too.")
         }
@@ -241,7 +241,7 @@ struct AdsAudienceSheet: View {
             }
             .pickerStyle(.segmented)
         } header: {
-            Text("Ages and who")
+            LedgerHeading(title: "Ages and who")
         }
     }
 
@@ -275,7 +275,7 @@ struct AdsAudienceSheet: View {
             }
             interestHitRows
         } header: {
-            Text("Interests")
+            LedgerHeading(title: "Interests")
         } footer: {
             Text(draft.interests.isEmpty ? "None: Meta finds the people itself (often the cheapest)." : "Shown to people with any of these interests.")
         }
@@ -343,7 +343,7 @@ struct AdsAudienceSheet: View {
                 MarketingReading(text: "Reading the audiences…")
             }
         } header: {
-            Text("The shop's audiences")
+            LedgerHeading(title: "The shop's audiences")
         }
     }
 
@@ -415,7 +415,7 @@ struct AdsAudienceSheet: View {
                 }
             }
         } header: {
-            Text("Where it appears")
+            LedgerHeading(title: "Where it appears")
         } footer: {
             if draft.placements != "auto" && draft.igPositions.isEmpty {
                 Text("None chosen: Meta uses the feed, stories and reels.")

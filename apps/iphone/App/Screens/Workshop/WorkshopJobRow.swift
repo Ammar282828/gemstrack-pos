@@ -76,7 +76,7 @@ struct WorkshopJobRow: View {
     @ViewBuilder
     private var tick: some View {
         if busy {
-            ProgressView().frame(width: 28, height: 28)
+            SkeletonLoading().frame(width: 28, height: 28)
         } else if canWrite {
             Button {
                 actions.done(job, !job.isDone)
@@ -126,7 +126,7 @@ struct WorkshopJobRow: View {
     @ViewBuilder
     private var referenceLine: some View {
         if let place = referencePlace {
-            HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 6) {
                 Button { actions.open(place) } label: {
                     HStack(spacing: 2) {
                         Text(job.invoiceId ?? job.orderId ?? "")
@@ -138,7 +138,7 @@ struct WorkshopJobRow: View {
                 Text(referenceWords)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -175,7 +175,7 @@ struct WorkshopJobRow: View {
                 Text(notes)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(6)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(8)

@@ -162,7 +162,7 @@ private struct KarigarFormBody: View {
                 .textContentType(.name)
                 .textInputAutocapitalization(.words)
         } header: {
-            Text("Name")
+            LedgerHeading(title: "Name")
         } footer: {
             if !nameOK && !draft.name.isEmpty { Text("Name is required.").foregroundStyle(.red) }
         }
@@ -175,7 +175,7 @@ private struct KarigarFormBody: View {
                 .textContentType(.telephoneNumber)
             TextField("Second number", text: $draft.altPhone, prompt: Text("Workshop line, or a son's phone"))
         } header: {
-            Text("Phone")
+            LedgerHeading(title: "Phone")
         }
     }
 
@@ -187,7 +187,7 @@ private struct KarigarFormBody: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
         } header: {
-            Text("Google login")
+            LedgerHeading(title: "Google login")
         } footer: {
             if !emailOK {
                 Text("Enter a valid email.").foregroundStyle(.red)
@@ -202,7 +202,7 @@ private struct KarigarFormBody: View {
             TextField("Specialty", text: $draft.specialty, prompt: Text("What he makes: setting, polish, chain, meena"))
             TextField("Workshop", text: $draft.workshop, prompt: Text("Where the bench is"))
         } header: {
-            Text("Work")
+            LedgerHeading(title: "Work")
         }
     }
 
@@ -213,7 +213,7 @@ private struct KarigarFormBody: View {
                 .lineLimit(1...4)
                 .textContentType(.fullStreetAddress)
         } header: {
-            Text("Where")
+            LedgerHeading(title: "Where")
         }
     }
 
@@ -222,7 +222,7 @@ private struct KarigarFormBody: View {
             TextField("Notes", text: $draft.notes, prompt: Text("Any relevant notes, e.g. specialization, address, etc."), axis: .vertical)
                 .lineLimit(3...8)
         } header: {
-            Text("Notes")
+            LedgerHeading(title: "Notes")
         }
     }
 

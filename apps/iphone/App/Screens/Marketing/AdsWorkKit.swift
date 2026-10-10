@@ -257,7 +257,7 @@ struct AdsNotReady: View {
                 NavigationLink(value: Route(path: "/ads/setup")) { Text("Open Setup") }.buttonStyle(.glass)
             }
         } else {
-            ProgressView("Checking the Meta connection…").frame(maxWidth: .infinity, maxHeight: .infinity)
+            SkeletonLoading("Checking the Meta connection…").frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -338,7 +338,7 @@ struct AdsProblemsSection: View {
                     MarketingLink(title: "Open Setup", symbol: "slider.horizontal.3", path: "/ads/setup")
                 }
             } header: {
-                Text("Before it can be made")
+                LedgerHeading(title: "Before it can be made")
             }
         }
     }

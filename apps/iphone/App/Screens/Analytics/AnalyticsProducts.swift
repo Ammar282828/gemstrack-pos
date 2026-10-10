@@ -16,6 +16,8 @@ struct AnaProductsPage: View {
 
     @State private var search = ""
     @State private var sort = 0
+    @State private var showAll = false
+    @State private var showTop = false
 
     var body: some View {
         List {
@@ -38,16 +40,15 @@ struct AnaProductsPage: View {
     private var topSection: some View {
         Section {
             if figures.topProducts.isEmpty {
-                Text("No product sales data available for the selected period.").foregroundStyle(.secondary)
+                Text("No pieces sold in this period.").foregroundStyle(.secondary)
             } else {
-                ForEach(figures.topProducts) { (p: AnaTopProduct) in
+                ForEach(Array(figures.topProducts.prefix(showTop ? figures.topProducts.count : 3))) { (p: AnaTopProduct) in
                     TwoLine(title: p.name, subtitle: topLine(p), trailing: Money.lacCrore(p.revenue))
                 }
+                if figures.topProducts.count > 3 { Button(showTop ? "Show fewer" : "Show top 10") { showTop.toggle() } }
             }
         } header: {
-            Text("Top pieces by revenue")
-        } footer: {
-            Text("Top 10 for the selected period.")
+            LedgerHeading(title: "Top pieces by revenue")
         }
         .houseRows()
     }
@@ -72,9 +73,7 @@ struct AnaProductsPage: View {
                 Label("Sales by category in detail", systemImage: "chart.pie")
             }
         } header: {
-            Text("Sales by category")
-        } footer: {
-            Text("Revenue distribution for the selected period.")
+            LedgerHeading(title: "Sales by category")
         }
         .houseRows()
     }
@@ -111,12 +110,13 @@ struct AnaProductsPage: View {
             if list.isEmpty {
                 Text("No pieces sold in this period.").foregroundStyle(.secondary)
             } else {
-                ForEach(list) { (p: AnaBreakdown.ProductRow) in
+                ForEach(Array(list.prefix(showAll || !search.isEmpty ? list.count : 5))) { (p: AnaBreakdown.ProductRow) in
                     TwoLine(title: p.name, subtitle: rowLine(p), trailing: Money.lacCrore(p.revenue))
                 }
+                if list.count > 5 && search.isEmpty { Button(showAll ? "Show fewer" : "Show all · \(list.count)") { showAll.toggle() } }
             }
         } header: {
-            Text("Every piece sold")
+            LedgerHeading(title: "Every piece sold")
         } footer: {
             Text("Revenue here is each piece’s own total, before invoice discounts and trade-ins, so it runs higher than the Overview’s net figure.")
         }

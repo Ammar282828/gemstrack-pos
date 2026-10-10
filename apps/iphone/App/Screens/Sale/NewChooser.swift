@@ -12,7 +12,7 @@ struct NewChooser: View {
     @State private var inProgress: SaleDraft?
 
     var body: some View {
-        List {
+        List { Group {
             if let draft = inProgress, !draft.lines.isEmpty {
                 Section { progressRow(draft) } footer: {
                     Text("Kept on this phone, and in Drafts for the counter.")
@@ -28,11 +28,11 @@ struct NewChooser: View {
                 choice(path: "/repairs?new=1", icon: "wrench.and.screwdriver.fill", title: "Repair", tint: .teal,
                        blurb: "Brought in to be fixed: pieces, price, ready-by")
             } header: {
-                Text("What is it?")
+                LedgerHeading(title: "What is it?")
             }
 
             // The other ways in. Reading a written bill and a parchi are the ERP's AI scanners: its pages.
-            Section("Other ways in") {
+            LedgerSection("Other ways in") {
                 NavigationLink(value: Route(path: "/scan")) {
                     Label("Scan a tag", systemImage: "qrcode.viewfinder")
                 }
@@ -51,6 +51,7 @@ struct NewChooser: View {
             } footer: {
                 Text("Orders and sales not yet saved, from every device in the shop.")
             }
+        }.houseRows()
         }
         .listStyle(.insetGrouped)
         .navigationTitle("New")
@@ -91,7 +92,7 @@ struct NewChooser: View {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(tint == Theme.accent ? Theme.onAccent : .white)
                     .frame(width: 36, height: 36)
                     .background(tint.gradient, in: .rect(cornerRadius: 9))
                 VStack(alignment: .leading, spacing: 2) {

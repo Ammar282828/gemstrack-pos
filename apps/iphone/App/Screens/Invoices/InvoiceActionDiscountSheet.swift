@@ -102,7 +102,7 @@ struct InvoiceActionDiscountSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if saving {
-                        ProgressView()
+                        SkeletonLoading()
                     } else {
                         Button("Review") { confirming = true }
                             .disabled(after == nil || !changed)

@@ -236,7 +236,13 @@ struct AdsNewAdScreen: View {
             if budgetKind == "total" && days == nil { days = 7 }
             if let g = last.goal, l.goal(g)?.newAd == true { goalKey = g }
         }
-        if let from = AdsQuery.value("from", in: path) {
+        if let key = AdsQuery.value("studio", in: path), let handoff = StudioHandoffs.shared.ads.removeValue(forKey: key) {
+            kind = .photos
+            photos = handoff["photos"].array.enumerated().map { i, p in AdsPhoto(key: "studio-\(i)", hash: p.s("hash"), url: p.s("url"), thumb: p.s("url"), headline: p.s("headline"), link: p.s("link")) }
+            let v = handoff["vertical"]
+            if !v.s("hash").isEmpty { vertical = AdsPhoto(key: "studio-vertical", hash: v.s("hash"), url: v.s("url"), thumb: v.s("url")) }
+            text = handoff.s("text"); headline = handoff.s("headline"); link = handoff.s("link"); goalKey = handoff.s("goal", "whatsapp")
+        } else if let from = AdsQuery.value("from", in: path) {
             await startFrom(ad: from)
         } else if let piece = AdsQuery.value("piece", in: path), l.sitePieces {
             kind = .site
@@ -515,7 +521,7 @@ struct AdsNewAdScreen: View {
             }
             .pickerStyle(.segmented)
         } header: {
-            Text("1 · What to promote")
+            LedgerHeading(title: "1 · What to promote")
         } footer: {
             if let ig = s.settings?.instagramUsername { Text("It runs as @\(ig).") }
         }
@@ -649,7 +655,7 @@ struct AdsNewAdScreen: View {
                 Button { goalKey = g.key } label: { AdsGoalLabel(goal: g, chosen: g.key == goalKey) }
             }
         } header: {
-            Text("2 · What it's for")
+            LedgerHeading(title: "2 · What it's for")
         } footer: {
             goalNote
         }
@@ -721,7 +727,7 @@ struct AdsNewAdScreen: View {
                 }
             }
         } header: {
-            Text("3 · The words")
+            LedgerHeading(title: "3 · The words")
         }
     }
 
@@ -740,7 +746,7 @@ struct AdsNewAdScreen: View {
                 }
             }
         } header: {
-            Text("\(step(4)) · Who sees it")
+            LedgerHeading(title: "\(step(4)) · Who sees it")
         } footer: {
             if audience.places.isEmpty { Text("Choose where the ad shows.").foregroundStyle(.red) }
         }
@@ -793,7 +799,7 @@ struct AdsNewAdScreen: View {
                     .environment(\.timeZone, ERPDate.karachi)
             }
         } header: {
-            Text("\(step(5)) · Budget and dates (\(s.currency))")
+            LedgerHeading(title: "\(step(5)) · Budget and dates (\(s.currency))")
         } footer: {
             Text(budgetNote(s))
         }
@@ -848,7 +854,7 @@ struct AdsNewAdScreen: View {
         Section {
             Button { Task { await showPreview() } } label: {
                 HStack(spacing: 8) {
-                    if previewBusy { ProgressView() }
+                    if previewBusy { SkeletonLoading() }
                     Label(previewBusy ? "Asking Meta…" : "See it as Instagram will show it", systemImage: "eye")
                 }
             }
@@ -857,7 +863,7 @@ struct AdsNewAdScreen: View {
                 Text(previewError).font(.footnote).foregroundStyle(.red)
             }
         } header: {
-            Text("\(step(6)) · Preview")
+            LedgerHeading(title: "\(step(6)) · Preview")
         }
     }
 
@@ -871,7 +877,7 @@ struct AdsNewAdScreen: View {
             }
             .pickerStyle(.segmented)
         } header: {
-            Text("\(step(7)) · Make it")
+            LedgerHeading(title: "\(step(7)) · Make it")
         } footer: {
             Text(launch == "paused" ? "Look it over in Campaigns and switch it on there: nothing is spent until then."
                  : "It starts once Meta approves it (usually within the hour) and spends its budget from then.")
@@ -880,7 +886,7 @@ struct AdsNewAdScreen: View {
         Section {
             Button { Task { await review() } } label: {
                 HStack(spacing: 8) {
-                    if checking || sending { ProgressView() }
+                    if checking || sending { SkeletonLoading() }
                     Text(launch == "live" ? "Review and put it live" : "Review and make it, paused")
                 }
                 .frame(maxWidth: .infinity)

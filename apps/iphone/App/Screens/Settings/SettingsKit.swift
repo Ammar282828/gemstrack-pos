@@ -73,7 +73,7 @@ struct SettingsGate<Content: View>: View {
                     if let s = book.settings.value ?? Settings.blank {
                         content(s)
                     } else {
-                        ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                        SkeletonLoading().frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
             } else {
@@ -99,7 +99,7 @@ struct SettingsIcon: View {
     var body: some View {
         Image(systemName: symbol)
             .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(color == Theme.accent ? Theme.onAccent : .white)
             .frame(width: 29, height: 29)
             .background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }

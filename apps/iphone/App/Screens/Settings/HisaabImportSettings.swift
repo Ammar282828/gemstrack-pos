@@ -139,7 +139,7 @@ private struct HisaabImportPage: View {
             .font(.subheadline)
             .foregroundStyle(.secondary)
         } header: {
-            Text("Instructions & Required Format")
+            LedgerHeading(title: "Instructions & Required Format")
         } footer: {
             Text("Import historical transactions for a customer or karigar from a CSV file (e.g., exported from Easy Khata).")
         }
@@ -148,10 +148,10 @@ private struct HisaabImportPage: View {
     // MARK: 1. Upload CSV File
 
     private var fileSection: some View {
-        Section("1. Upload CSV File") {
+        LedgerSection("1. Upload CSV File") {
             Button { picking = true } label: {
                 HStack(spacing: 8) {
-                    if reading { ProgressView() }
+                    if reading { SkeletonLoading() }
                     Label(fileName.isEmpty ? "Choose File" : "Change File", systemImage: "doc.badge.plus")
                 }
             }
@@ -188,7 +188,7 @@ private struct HisaabImportPage: View {
     // MARK: 2. Select Person to Import For
 
     private var personSection: some View {
-        Section("2. Select Person to Import For") {
+        LedgerSection("2. Select Person to Import For") {
             Button { choosingPerson = true } label: {
                 HStack {
                     if let person {
@@ -228,7 +228,7 @@ private struct HisaabImportPage: View {
                 }
             }
         } header: {
-            Text("Preview Data (\(rows.count) rows)")
+            LedgerHeading(title: "Preview Data (\(rows.count) rows)")
         }
     }
 
@@ -238,7 +238,7 @@ private struct HisaabImportPage: View {
         Section {
             Button { Task { await runImport() } } label: {
                 HStack(spacing: 8) {
-                    if importing { ProgressView() }
+                    if importing { SkeletonLoading() }
                     Label(importing ? "Importing \(rows.count) Transactions..." : "Import for \(person?.name ?? "...")", systemImage: "square.and.arrow.down")
                 }
                 .frame(maxWidth: .infinity)

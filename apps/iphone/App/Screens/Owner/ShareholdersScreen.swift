@@ -160,7 +160,7 @@ private struct ShareholdersBoard: View {
         let share = t.revShare - t.expShare
         return Section {
             VStack(spacing: 10) {
-                HStack(alignment: .top, spacing: 10) {
+                FigureRow(alignment: .top, spacing: 10) {
                     FigureTile(label: "Revenue", value: ShareholderMoney.fmt(t.totalRevenue), tint: .green)
                     FigureTile(label: "Expenses", value: ShareholderMoney.fmt(t.totalExpenses))
                 }
@@ -379,7 +379,7 @@ private struct ShareholdersBoard: View {
                 Label(floorError, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
             }
         } header: {
-            Text("Distribution calculator")
+            LedgerHeading(title: "Distribution calculator")
         } footer: {
             Text("If there were cash to distribute, this is how it would flow \u{2014} loans repaid first, then the split.")
         }
@@ -417,7 +417,7 @@ private struct ShareholdersBoard: View {
                 Button {
                     Task { await saveFloor(parsed) }
                 } label: {
-                    if savingFloor { ProgressView() } else { Text("Save") }
+                    if savingFloor { SkeletonLoading() } else { Text("Save") }
                 }
                 .buttonStyle(.houseProminent)
                 .disabled(savingFloor)

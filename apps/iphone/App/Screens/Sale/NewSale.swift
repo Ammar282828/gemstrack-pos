@@ -91,7 +91,7 @@ struct SaleForm: View {
                 InvoiceScreen(id: id)
                     .overlay(alignment: .top) { ratesNoteBanner }
             } else if !book.settings.loaded {
-                ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 page
             }

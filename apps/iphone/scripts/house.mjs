@@ -38,7 +38,7 @@ const s = {
   ERP_FIREBASE_APP_ID: h.firebase.iosAppId || '',
   ERP_APPICON: `AppIcon-${name}`,
   ERP_LAUNCH_COLOR: `Launch-${name}`,
-  ERP_LAUNCH_MARK: `LaunchMark-${name}`,
+  ERP_LAUNCH_MARK: `LaunchLogo-${name}`,
 };
 // xcconfig reads "//" as a comment, so a URL's slashes are escaped with $() between them.
 const esc = (v) => String(v).replace(/\/\//g, '/$()/');

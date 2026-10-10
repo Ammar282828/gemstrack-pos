@@ -210,7 +210,7 @@ private struct ContactImportPage: View {
         Section {
             Button { picking = true } label: {
                 HStack(spacing: 8) {
-                    if reading { ProgressView() }
+                    if reading { SkeletonLoading() }
                     Label(fileName.isEmpty ? "Choose a .vcf file" : fileName, systemImage: "doc.badge.plus")
                 }
             }
@@ -223,7 +223,7 @@ private struct ContactImportPage: View {
                 .foregroundStyle(.red)
             }
         } header: {
-            Text("Choose the file")
+            LedgerHeading(title: "Choose the file")
         } footer: {
             Text("On iPhone: Contacts → select all → Share → Save to Files. Only entries marked TJ, HOM, TC or Karigar in the name are taken. The mark is stripped, so “Altaf TJ” is saved as Altaf. Nothing is written until you press Import.")
         }
@@ -263,7 +263,7 @@ private struct ContactImportPage: View {
 
     private func summarySection(_ p: SettingsContactPlan) -> some View {
         Section {
-            HStack(spacing: 10) {
+            FigureRow(spacing: 10) {
                 FigureTile(label: "Already saved", value: "\(p.summary.settled)")
                 FigureTile(label: "New", value: "\(willAdd)")
                 FigureTile(label: "Needs you", value: "\(p.summary.conflicts)")
@@ -271,7 +271,7 @@ private struct ContactImportPage: View {
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
         } header: {
-            Text("What would happen")
+            LedgerHeading(title: "What would happen")
         } footer: {
             Text("\(p.summary.cardsInFile) contacts in the file · \(p.summary.ignoredUntagged) personal contacts ignored\(p.summary.mergedDuplicates > 0 ? " · \(p.summary.mergedDuplicates) duplicate(s) merged" : "")")
         }
@@ -374,7 +374,7 @@ private struct ContactImportPage: View {
                 .opacity(off ? 0.45 : 1)
             }
         } header: {
-            Text("New")
+            LedgerHeading(title: "New")
         } footer: {
             Text("Nothing in the book matches these. Drop any you do not want.")
         }
@@ -388,7 +388,7 @@ private struct ContactImportPage: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         } header: {
-            Text("Already saved")
+            LedgerHeading(title: "Already saved")
         } footer: {
             Text("Name and number both match somebody you have. Skipped, no question asked.")
         }
@@ -402,7 +402,7 @@ private struct ContactImportPage: View {
             Spacer(minLength: 8)
             Button { Task { await runImport() } } label: {
                 HStack(spacing: 6) {
-                    if importing { ProgressView() }
+                    if importing { SkeletonLoading() }
                     Label("Import", systemImage: "square.and.arrow.down")
                 }
             }

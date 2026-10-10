@@ -34,7 +34,7 @@ struct PDFDocumentScreen: View {
                     Button("Try again") { self.failed = nil; attempt += 1 }.buttonStyle(.glass)
                 }
             } else {
-                ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .modifier(HouseGround())

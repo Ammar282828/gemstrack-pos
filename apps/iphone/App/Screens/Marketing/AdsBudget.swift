@@ -100,7 +100,7 @@ struct AdsBudgetSheet: View {
                             .monospacedDigit()
                     }
                 } header: {
-                    Text("Budget (\(target.currency))")
+                    LedgerHeading(title: "Budget (\(target.currency))")
                 } footer: {
                     budgetNote
                 }
@@ -113,7 +113,7 @@ struct AdsBudgetSheet: View {
                             .environment(\.timeZone, ERPDate.karachi)
                     }
                 } header: {
-                    Text("End")
+                    LedgerHeading(title: "End")
                 } footer: {
                     Text(isDaily ? "Off runs it until it is paused." : "A total budget is spent by its end date.")
                 }
@@ -130,7 +130,7 @@ struct AdsBudgetSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     if busy {
-                        ProgressView()
+                        SkeletonLoading()
                     } else {
                         Button("Review") { confirming = true }
                             .disabled(after == nil || !(budgetChanged || endChanged))

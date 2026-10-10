@@ -16,19 +16,23 @@ struct ERPSummary: Codable {
     let house: String
     /// When the ERP worked the figures out, as the shop reads a time ("4:05 pm").
     let updated: String
-    /// In the ERP's order: the rate, today's cash, owed to the shop, orders due.
+    /// Revenue today and this month first; supporting shop figures follow.
     let figures: [Figure]
+    var teamNote: String? = nil
+    var asOf: String? = nil
 
     static let sample = ERPSummary(house: "Taheri", updated: "4:05 pm", figures: [
+        Figure(label: "Made today", value: "Rs 3.12 lac", detail: "revenue"),
+        Figure(label: "This month", value: "Rs 28.4 lac", detail: "revenue"),
         Figure(label: "Gold 24k", value: "Rs 2.45 lac", detail: "a tola"),
         Figure(label: "Today's cash", value: "Rs 3.12 lac", detail: "in the drawer"),
         Figure(label: "Owed to you", value: "Rs 18.6 lac", detail: "41 customers"),
         Figure(label: "Orders due", value: "6", detail: "2 late"),
-    ])
+    ], teamNote: "Please confirm all collections before closing today.")
 }
 
 /// The widget's way into the ERP: the house's address and a key of its own, kept in a keychain
-/// group the app and the widget share. The key reads the four figures and nothing else
+/// group the app and the widget share. The key reads the widget summary only
 /// (/api/widget/summary), and the ERP can forget it.
 enum ERPWidgetLink {
     struct Link: Codable {
@@ -84,7 +88,7 @@ enum ERPWidgetLink {
 }
 
 enum ERPWidgetSize {
-    case small, medium, rectangular, inline
+    case small, medium, large, rectangular, inline
 }
 
 /// The widget's face. `size` is passed in, not read from WidgetKit's environment, so the app can
@@ -109,27 +113,36 @@ struct ERPWidgetFace: View {
                             Text(f.value).font(.caption.weight(.semibold)).monospacedDigit()
                         }
                     }
-                    Text(s.updated).font(.caption2).foregroundStyle(.secondary)
+                    Text(stamp(s)).font(.caption2).foregroundStyle(.secondary)
                 }
             case .small:
                 VStack(alignment: .leading, spacing: 6) {
                     Text(s.house.uppercased()).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1)
-                    figure(s.figures[0], big: true)
-                    if s.figures.count > 1 { figure(s.figures[1], big: false) }
+                    ForEach(Array(s.figures.prefix(2)), id: \.self) { f in figure(f, big: false, detail: false) }
+                    if let note = s.teamNote, !note.isEmpty { pinned(note, lines: 2) }
                     Spacer(minLength: 0)
-                    Text(s.updated).font(.caption2).foregroundStyle(.tertiary)
+                    Text(stamp(s)).font(.caption2).foregroundStyle(.tertiary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            case .medium:
-                VStack(alignment: .leading, spacing: 8) {
+            case .medium, .large:
+                VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        Text(s.house.uppercased()).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        Text(s.house.uppercased()).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1)
                         Spacer()
-                        Text(s.updated).font(.caption2).foregroundStyle(.tertiary)
+                        Text(stamp(s)).font(.caption2).foregroundStyle(.tertiary)
                     }
-                    LazyVGrid(columns: [GridItem(.flexible(), alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)],
-                              alignment: .leading, spacing: 10) {
-                        ForEach(Array(s.figures.prefix(4)), id: \.self) { f in figure(f, big: false) }
+                    HStack(alignment: .top, spacing: 18) {
+                        ForEach(Array(s.figures.prefix(2)), id: \.self) { f in
+                            figure(f, big: true, detail: false).frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    if let note = s.teamNote, !note.isEmpty { pinned(note, lines: size == .large ? 8 : 3) }
+                    if size == .large {
+                        Divider()
+                        LazyVGrid(columns: [GridItem(.flexible(), alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)],
+                                  alignment: .leading, spacing: 12) {
+                            ForEach(Array(s.figures.dropFirst(2)), id: \.self) { f in figure(f, big: false) }
+                        }
                     }
                     Spacer(minLength: 0)
                 }
@@ -149,8 +162,23 @@ struct ERPWidgetFace: View {
         }
     }
 
+    private func pinned(_ note: String, lines: Int) -> some View {
+        HStack(alignment: .top, spacing: 5) {
+            Image(systemName: "pin.fill").font(.caption2).foregroundStyle(.secondary)
+            Text(note).font(.caption).lineLimit(lines).frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func stamp(_ summary: ERPSummary) -> String {
+        guard let day = summary.asOf else { return summary.updated }
+        let formatter = DateFormatter()
+        formatter.timeZone = TimeZone(identifier: "Asia/Karachi")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return day == formatter.string(from: Date()) ? summary.updated : "\(day) · \(summary.updated)"
+    }
+
     @ViewBuilder
-    private func figure(_ f: ERPSummary.Figure, big: Bool) -> some View {
+    private func figure(_ f: ERPSummary.Figure, big: Bool, detail: Bool = true) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(f.label).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
             Text(f.value)
@@ -158,7 +186,7 @@ struct ERPWidgetFace: View {
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-            if let d = f.detail, !d.isEmpty {
+            if detail, let d = f.detail, !d.isEmpty {
                 Text(d).font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
             }
         }

@@ -30,7 +30,7 @@ struct OnlineMessageSection: View {
                     .foregroundStyle(.secondary)
             } else {
                 HStack(spacing: 10) {
-                    ProgressView()
+                    SkeletonLoading()
                     Text("Reading what is sent…").foregroundStyle(.secondary)
                 }
             }
@@ -89,7 +89,7 @@ private struct OnlineBottomButton: View {
 
     private var label: some View {
         HStack(spacing: 8) {
-            if busy { ProgressView() } else { Image(systemName: symbol) }
+            if busy { SkeletonLoading() } else { Image(systemName: symbol) }
             Text(title)
         }
         .frame(maxWidth: .infinity)
@@ -499,7 +499,7 @@ struct OnlineSlipSheet: View {
                 } else if let failure {
                     ContentUnavailableView("The slip did not open", systemImage: "exclamationmark.triangle", description: Text(failure))
                 } else {
-                    ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .navigationTitle("Slip " + ShopDate.say(slip.at, withTime: true))

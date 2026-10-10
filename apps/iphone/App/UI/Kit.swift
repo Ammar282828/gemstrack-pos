@@ -1,6 +1,26 @@
 import SwiftUI
 import ERPCore
 
+/// Static placeholders never obscure a page with a spinning activity indicator.
+struct SkeletonLoading: View {
+    @Environment(\.controlSize) private var size
+    private let label: String
+    init(_ label: String = "Loading") { self.label = label }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: size == .large ? 20 : 5) {
+            ForEach(0..<(size == .large ? 5 : 3), id: \.self) { index in
+                RoundedRectangle(cornerRadius: size == .large ? 12 : 4)
+                    .fill(.secondary.opacity(0.12))
+                    .frame(width: size == .large ? nil : (index == 1 ? 54 : 76), height: size == .large ? 64 : 5)
+            }
+        }
+        .padding(size == .large ? 20 : 0)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+    }
+}
+
 // The few pieces every native screen shares (CONVENTIONS.md rule 4): content on the system's own
 // lists and backgrounds, Liquid Glass only on controls that float over it. Screens build from these
 // so a figure, a status or a payment looks and behaves the same everywhere.
@@ -25,22 +45,50 @@ struct FigureTile: View {
     var tint: Color = .primary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label).font(.subheadline).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             Text(value)
-                .font(.system(.title2, design: .rounded).weight(.bold))
+                .font(.system(.title2, design: .serif).weight(.semibold))
                 .foregroundStyle(tint)
                 .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+                .fixedSize(horizontal: false, vertical: true)
             if let detail, !detail.isEmpty {
-                Text(detail).font(.caption).foregroundStyle(.tertiary).lineLimit(2)
+                Text(detail).font(.footnote).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        // Tiles side by side stand the same height whether or not they carry a line under the figure.
-        .frame(maxWidth: .infinity, minHeight: 92, alignment: .topLeading)
-        .padding(14)
-        .background(Theme.card, in: .rect(cornerRadius: 22))
+        // A tile grows with its words rather than clipping the detail or shrinking the amount.
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .ledgerCard()
+    }
+}
+
+/// Figures stay side by side at ordinary sizes and read top to bottom at accessibility sizes.
+struct FigureRow<Content: View>: View {
+    var alignment: VerticalAlignment = .top
+    var spacing: CGFloat = 12
+    @ViewBuilder let content: () -> Content
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: spacing))
+            : AnyLayout(HStackLayout(alignment: alignment, spacing: spacing))
+        layout { content() }
+    }
+}
+
+struct FigureGrid<Content: View>: View {
+    var spacing: CGFloat = 12
+    @ViewBuilder let content: () -> Content
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing),
+                                 count: typeSize.isAccessibilitySize ? 1 : 2), spacing: spacing) {
+            content()
+        }
     }
 }
 
@@ -88,7 +136,7 @@ struct ShelfState<Content: View>: View {
 
     var body: some View {
         if !loaded {
-            ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+            SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let error, !error.isEmpty, !offline {
             ContentUnavailableView("Couldn't read the books", systemImage: "exclamationmark.icloud", description: Text(error))
         } else {
@@ -112,19 +160,47 @@ struct TwoLine: View {
     var subtitle: String?
     var trailing: String?
     var trailingTint: Color = .primary
+    var trailingLabel: String?
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).lineLimit(1)
-                if let subtitle, !subtitle.isEmpty {
-                    Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    words
+                    amount
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    words.frame(maxWidth: .infinity, alignment: .leading)
+                    amount.fixedSize(horizontal: true, vertical: false)
                 }
             }
-            Spacer(minLength: 8)
-            if let trailing {
-                Text(trailing).font(.subheadline.weight(.semibold)).monospacedDigit().foregroundStyle(trailingTint)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var words: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).fontWeight(.medium)
+            if let subtitle, !subtitle.isEmpty {
+                Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
             }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder private var amount: some View {
+        if let trailing {
+            VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 4) {
+                Text(trailing).font(.subheadline.weight(.semibold))
+                    .monospacedDigit().foregroundStyle(trailingTint)
+                if let trailingLabel {
+                    Text(trailingLabel).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

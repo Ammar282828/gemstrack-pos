@@ -77,7 +77,7 @@ struct PostsHub: View {
                     }
                 }
             } header: {
-                Text("Needs a look")
+                LedgerHeading(title: "Needs a look")
             }
         }
     }
@@ -103,7 +103,7 @@ struct PostsHub: View {
                 }
             }
         } header: {
-            Text("Today")
+            LedgerHeading(title: "Today")
         } footer: {
             if let latest = today.first {
                 Text("\(today.count) out · last \(MarketingTime.clock(latest.at))")
@@ -160,7 +160,7 @@ struct PostsHub: View {
                     }
                 }
             } header: {
-                Text("Investments")
+                LedgerHeading(title: "Investments")
             }
         }
     }
@@ -186,7 +186,7 @@ struct PostsHub: View {
                 ForEach(items) { (e: PostQueueEntry) in queueRow(e) }
                 MarketingLink(title: "Spread the queue over the day", subtitle: "In the ERP", symbol: "clock", path: MarketingKit.postsWeb)
             } header: {
-                Text("In the queue")
+                LedgerHeading(title: "In the queue")
             }
         }
     }
@@ -244,7 +244,7 @@ struct PostsHub: View {
                 Text(message).foregroundStyle(.secondary)
                 Button("Try again") { Task { await store.load(gold: hasInvestments) } }
             } header: {
-                Text("From the website")
+                LedgerHeading(title: "From the website")
             }
         case .loaded:
             loadedSite

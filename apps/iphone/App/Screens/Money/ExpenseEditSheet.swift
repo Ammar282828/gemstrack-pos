@@ -96,7 +96,7 @@ struct ExpenseEditSheet: View {
     var body: some View {
         NavigationStack {
             Form { Group {
-                Section("When and what") {
+                LedgerSection("When and what") {
                     DatePicker("Date", selection: $date, in: ...Date(), displayedComponents: .date)
                     categoryPicker
                     if category == Self.typed {
@@ -105,7 +105,7 @@ struct ExpenseEditSheet: View {
                     TextField("Description", text: $what, axis: .vertical)
                         .lineLimit(1...3)
                 }
-                Section("How much") {
+                LedgerSection("How much") {
                     TextField("Amount in rupees", text: $amountText)
                         .keyboardType(.decimalPad)
                         .font(.title2.weight(.semibold))
@@ -162,7 +162,7 @@ struct ExpenseEditSheet: View {
             }
             .pickerStyle(.segmented)
         } header: {
-            Text("Paid by")
+            LedgerHeading(title: "Paid by")
         } footer: {
             if paidBy != "business" {
                 Text("Logged to \(paidBy == "ammar" ? "his" : "her") ledger as a loan to the business.")
@@ -178,7 +178,7 @@ struct ExpenseEditSheet: View {
             }
             .pickerStyle(.menu)
         } header: {
-            Text("Partner salary")
+            LedgerHeading(title: "Partner salary")
         } footer: {
             Text("A wage is a cost of the business, so nothing goes on the partner's ledger.")
         }
@@ -196,7 +196,7 @@ struct ExpenseEditSheet: View {
                 hisaabPicker
             }
         } header: {
-            Text("Karigar payment")
+            LedgerHeading(title: "Karigar payment")
         }
     }
 

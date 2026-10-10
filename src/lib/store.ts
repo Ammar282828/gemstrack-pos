@@ -267,6 +267,8 @@ export interface PaymentMethod {
 }
 
 export interface Settings extends GoldRates {
+  /** An owner's urgent message, shown to every signed-in person until cleared. */
+  teamNote?: string;
   /**
    * Palladium, flat. Kept because every existing product, order and invoice was priced
    * from it, and it remains the fallback when a piece carries no karat.

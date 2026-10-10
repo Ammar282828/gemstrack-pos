@@ -22,15 +22,12 @@ struct AnaCategoriesPage: View {
                 }
                 .houseRows()
             } else {
-                tableSection
                 shareSection
+                tableSection
             }
-            Section {
-                Text("Revenue here is each piece’s own total, before invoice discounts and trade-ins, so it runs higher than the Overview’s net figure.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            LedgerSection("About these figures", collapsible: true) {
+                Text("Revenue is before invoice discounts and trade-ins, so it can be higher than Overview.").font(.footnote).foregroundStyle(.secondary)
             }
-            .houseRows()
         }
         .listStyle(.insetGrouped)
     }
@@ -41,9 +38,7 @@ struct AnaCategoriesPage: View {
                 TwoLine(title: c.name, subtitle: line(c), trailing: Money.lacCrore(c.revenue))
             }
         } header: {
-            Text("By category")
-        } footer: {
-            Text("A detailed breakdown of each category’s performance.")
+            LedgerHeading(title: "By category")
         }
         .houseRows()
     }
@@ -59,9 +54,7 @@ struct AnaCategoriesPage: View {
         Section {
             AnaShareChart(rows: rows)
         } header: {
-            Text("Share of revenue")
-        } footer: {
-            Text("Share of total revenue by category.")
+            LedgerHeading(title: "Share of revenue")
         }
         .houseRows()
     }

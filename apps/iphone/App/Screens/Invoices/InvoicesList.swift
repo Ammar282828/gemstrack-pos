@@ -281,10 +281,20 @@ struct InvoicesList: View {
             // The chips and the figures are the list's first rows (a bar pinned over the list greyed the large title out).
             Section {
                 ChipRow {
-                    ForEach(visibleChips(scoped)) { c in
+                    ForEach([InvoiceChip.all, .unpaid, .paid]) { c in
                         FilterChip(title: c.title, count: scoped.filter { c.matches($0) }.count, chosen: c == chip) {
                             withAnimation { chip = c }
                         }
+                    }
+                }
+                if !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || (chip != .all && chip != .unpaid && chip != .paid) {
+                    HStack {
+                        Text([chip == .all ? "" : chip.title, takenBy, month.isEmpty ? "" : InvoiceCalendar.monthLabel(month),
+                              rangeFrom.map { InvoiceCalendar.caption(from: $0, to: rangeTo) } ?? ""].filter { !$0.isEmpty }.joined(separator: " · "))
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Clear") { chip = .all; takenBy = ""; month = ""; rangeFrom = nil; rangeTo = nil }
+                            .font(.caption.weight(.semibold)).buttonStyle(.borderless)
                     }
                 }
                 summaryCard(all)
@@ -312,15 +322,27 @@ struct InvoicesList: View {
     private func summaryCard(_ all: [Invoice]) -> some View {
         let base = takenBy.isEmpty ? all : all.filter { $0.takenBy == takenBy }
         let s = InvoiceSummary.of(base, now: Date())
-        return HStack(alignment: .top, spacing: 4) {
-            InvoiceSummaryFigure(label: "Today", amount: s.today, count: s.todayCount,
-                                 tone: .primary, chosen: chosen(.today)) { pick(.today) }
-            InvoiceSummaryFigure(label: "This month", amount: s.month, count: s.monthCount,
-                                 tone: .primary, chosen: chosen(.month)) { pick(.month) }
-            InvoiceSummaryFigure(label: "Owed", amount: s.owed, count: s.owedCount,
-                                 tone: s.owed > 0 ? Tone.owed.color : .secondary, chosen: chosen(.owed)) { pick(.owed) }
+        return DisclosureGroup("Invoice overview") {
+            VStack(spacing: 0) {
+                summaryRow("Today", amount: s.today, count: s.todayCount, figure: .today)
+                Divider().padding(.vertical, 10)
+                summaryRow("This month", amount: s.month, count: s.monthCount, figure: .month)
+                Divider().padding(.vertical, 10)
+                summaryRow("Owed to you", amount: s.owed, count: s.owedCount, figure: .owed)
+            }
+            .padding(.top, 14)
         }
-        .ledgerCard(padding: 8)
+        .font(.subheadline.weight(.semibold)).ledgerCard()
+    }
+
+    private func summaryRow(_ title: String, amount: Double, count: Int, figure: InvoiceSummary.Figure) -> some View {
+        Button { pick(figure) } label: {
+            TwoLine(title: title, subtitle: "\(count) invoice\(count == 1 ? "" : "s")",
+                    trailing: Money.pkr(amount), trailingTint: figure == .owed && amount > 0 ? Tone.owed.color : .primary)
+                .foregroundStyle(chosen(figure) ? Theme.accent : Color.primary)
+        }
+        .buttonStyle(.borderless)
+        .accessibilityAddTraits(chosen(figure) ? .isSelected : [])
     }
 
     private var todayKey: String { ERPDate.karachiDay(Date()) }
@@ -388,7 +410,8 @@ struct InvoicesList: View {
                 }
             }
             // The signed-in person's own sales are lit where they stand, not sorted or filtered (2026-10-05).
-            .mineRow(isMine(inv))
+            .listRowBackground(Theme.card)
+            .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
     }
 
     private func isMine(_ inv: Invoice) -> Bool {
@@ -412,8 +435,11 @@ struct InvoicesList: View {
     private func filterMenu(_ all: [Invoice]) -> some View {
         let people = Array(Set(all.compactMap { $0.takenBy }.filter { !$0.isEmpty })).sorted()
         let months = Array(Set(all.compactMap { InvoiceCalendar.monthKey($0.createdAt) })).sorted(by: >)
-        let filtering = !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil
+        let filtering = !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || chip != .all
         return Menu {
+            Picker("Status", selection: $chip) {
+                ForEach(visibleChips(all)) { c in Text(c.title).tag(c) }
+            }
             Picker("Group by", selection: $grouping) {
                 ForEach(InvoiceGrouping.allCases) { g in Text(g.title).tag(g) }
             }
@@ -431,6 +457,11 @@ struct InvoicesList: View {
             }
             if rangeFrom != nil {
                 Button { rangeFrom = nil; rangeTo = nil } label: { Label("Clear the date range", systemImage: "xmark.circle") }
+            }
+            if filtering {
+                Button("Clear filters", systemImage: "xmark.circle") {
+                    chip = .all; takenBy = ""; month = ""; rangeFrom = nil; rangeTo = nil
+                }
             }
             Divider()
             // Import Shopify CSV and the payment links are the ERP's own page.
@@ -533,53 +564,6 @@ struct InvoicesList: View {
     }
 }
 
-/// One of the three figures: its word, the sum in lac, how many invoices; lit while the list shows what it counts.
-private struct InvoiceSummaryFigure: View {
-    let label: String
-    let amount: Double
-    let count: Int
-    let tone: Color
-    let chosen: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(label.uppercased())
-                    .font(.caption2.weight(.semibold))
-                    .tracking(0.6)
-                    .foregroundStyle(chosen ? Theme.accent : Color.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    if amount > 0.5 {
-                        Text("PKR").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
-                    }
-                    Text(amount > 0.5 ? HeroAmount.figure(amount, lac: true) : "Nil")
-                        .font(.system(.headline, design: .serif).weight(.semibold))
-                        .foregroundStyle(amount > 0.5 ? tone : Color.secondary)
-                        .monospacedDigit()
-                        .contentTransition(.numericText(value: amount))
-                }
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                Text("\(count) invoice\(count == 1 ? "" : "s")")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 8)
-            .background(chosen ? Theme.accent.opacity(0.12) : Color.clear, in: .rect(cornerRadius: 14, style: .continuous))
-            .contentShape(Rectangle())
-        }
-        // Its own tap: three buttons in one list row each answer for themselves.
-        .buttonStyle(.borderless)
-        .accessibilityAddTraits(chosen ? .isSelected : [])
-    }
-}
-
 /// A section's heading: its day, how many, what it billed; under it what is still owed on it.
 private struct InvoiceSectionHeader: View {
     let section: InvoiceSection
@@ -611,35 +595,30 @@ private struct InvoiceListRow: View {
 
     var body: some View {
         NavigationLink(value: Route(path: InvoiceFacts.path(invoice.id))) {
-            HStack(alignment: .top, spacing: 12) {
-                Monogram(name: invoice.customerName, size: 38)
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(InvoiceFacts.customerName(invoice))
-                            .font(.headline)
-                            .lineLimit(1)
-                        Spacer(minLength: 8)
-                        RowAmount(amount: invoice.grandTotal)
-                    }
-                    HStack(alignment: .center, spacing: 8) {
-                        Text(InvoiceFacts.whatSold(invoice) ?? "No pieces")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                        Spacer(minLength: 8)
-                        InvoiceBalancePill(invoice: invoice)
-                    }
-                    HStack(spacing: 6) {
-                        Text(reference)
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                            .monospacedDigit()
-                            .lineLimit(1)
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 12) {
+                    Monogram(name: invoice.customerName, size: 38)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(InvoiceFacts.customerName(invoice)).font(.headline)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(reference).font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                         if mine { MineTag() }
                     }
+                    Spacer(minLength: 0)
+                }
+                if let sold = InvoiceFacts.whatSold(invoice), !sold.isEmpty {
+                    Text(sold).font(.subheadline).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    InvoiceBalancePill(invoice: invoice)
+                    Spacer(minLength: 0)
+                    Text(Money.pkr(invoice.grandTotal))
+                        .font(.system(.title3, design: .serif).weight(.semibold)).monospacedDigit()
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(.vertical, 2)
             .accessibilityElement(children: .combine)
         }
     }
@@ -683,7 +662,7 @@ private struct InvoiceRangeSheet: View {
                     }
                 } footer: {
                     Text(hasEnd ? "Both days are included." : "Everything from that day up to today.")
-                }
+                }.houseRows()
             }
             .navigationTitle("Date range")
             .navigationBarTitleDisplayMode(.inline)

@@ -335,8 +335,29 @@ struct LedgerHeading: View {
     var count: Int?
     var trailing: String?
     var tone: Tone = .quiet
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) {
+                    heading
+                    total
+                }
+            } else {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    heading
+                    Spacer(minLength: 8)
+                    total.fixedSize(horizontal: true, vertical: false)
+                }
+            }
+        }
+        .textCase(nil)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    private var heading: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(title)
                 .font(.system(.title3, design: .serif).weight(.semibold))
@@ -347,18 +368,58 @@ struct LedgerHeading: View {
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
-            Spacer(minLength: 8)
-            if let trailing {
-                Text(trailing)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-                    .lineLimit(1)
-            }
         }
-        .textCase(nil)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder private var total: some View {
+        if let trailing {
+            Text(trailing)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+    }
+}
+
+/// Secondary pages use the same headings and row surfaces as the main ledger.
+struct LedgerSection<Content: View, Footer: View>: View {
+    let title: String
+    var collapsible: Bool = false
+    @ViewBuilder let content: () -> Content
+    @ViewBuilder let footer: () -> Footer
+
+    init(_ title: String, collapsible: Bool = false, @ViewBuilder content: @escaping () -> Content) where Footer == EmptyView {
+        self.title = title
+        self.collapsible = collapsible
+        self.content = content
+        self.footer = { EmptyView() }
+    }
+
+    init(_ title: String, collapsible: Bool = false, @ViewBuilder content: @escaping () -> Content,
+         @ViewBuilder footer: @escaping () -> Footer) {
+        self.title = title
+        self.collapsible = collapsible
+        self.content = content
+        self.footer = footer
+    }
+
+    var body: some View {
+        Section {
+            if collapsible {
+                DisclosureGroup(title) {
+                    content()
+                    footer().font(.footnote).foregroundStyle(.secondary)
+                }
+            } else {
+                content()
+            }
+        } header: {
+            if !collapsible { LedgerHeading(title: title) }
+        } footer: {
+            if !collapsible { footer() }
+        }
+        .houseRows()
     }
 }
 
@@ -482,6 +543,7 @@ struct FilterChip: View {
             .foregroundStyle(chosen ? Theme.onAccent : Color.primary)
             .padding(.horizontal, 13)
             .padding(.vertical, 7)
+            .frame(minHeight: 44)
             .background(chosen ? Theme.accent : Theme.card, in: .capsule)
             .overlay(Capsule().strokeBorder(Color.secondary.opacity(chosen ? 0 : 0.18), lineWidth: 1))
         }

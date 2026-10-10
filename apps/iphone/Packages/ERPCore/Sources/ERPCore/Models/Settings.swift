@@ -31,6 +31,8 @@ public struct Settings: Decodable, Identifiable, Hashable {
     /// When the rates were last auto-fetched from gold.pk (ISO).
     public let goldRatesLastFetchedAt: String?
 
+    /// The shared urgent note; an empty string means there is no active notice.
+    public let teamNote: String
     public let shopName: String
     public let shopAddress: String
     public let shopContact: String
@@ -94,6 +96,7 @@ public struct Settings: Decodable, Identifiable, Hashable {
         case palladiumRatePerGram, palladiumRatePerGram18k, palladiumRatePerGram12k
         case platinumRatePerGram, silverRatePerGram
         case ratesUpdatedAt, ratesUpdatedBy, goldRatesLastFetchedAt
+        case teamNote
         case shopName, shopAddress, shopContact, shopLogoUrl, shopLogoUrlBlack
         case lastInvoiceNumber, lastOrderNumber, lastRepairNumber
         case paymentMethods, theme, uiStyle, databaseLocked, autoDraftForms
@@ -119,6 +122,7 @@ public struct Settings: Decodable, Identifiable, Hashable {
         ratesUpdatedAt = c.string(.ratesUpdatedAt)
         ratesUpdatedBy = c.string(.ratesUpdatedBy)
         goldRatesLastFetchedAt = c.string(.goldRatesLastFetchedAt)
+        teamNote = c.string(.teamNote, default: "")
         shopName = c.string(.shopName, default: "")
         shopAddress = c.string(.shopAddress, default: "")
         shopContact = c.string(.shopContact, default: "")

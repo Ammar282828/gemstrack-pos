@@ -87,7 +87,7 @@ struct NewOrderPhotoField: View {
                     }
                     .buttonStyle(.glass)
                 }
-                if busy { ProgressView() }
+                if busy { SkeletonLoading() }
             }
             if let problem {
                 Text(problem).font(.footnote).foregroundStyle(.red)

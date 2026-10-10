@@ -244,7 +244,7 @@ struct StockImage: View {
                 case .failure:
                     StockInitial(name: name)
                 default:
-                    ProgressView()
+                    SkeletonLoading()
                 }
             }
         } else {
@@ -269,7 +269,7 @@ private struct StockDataImage: View {
             } else if failed {
                 StockInitial(name: name)
             } else {
-                ProgressView()
+                SkeletonLoading()
             }
         }
         .task(id: key) {

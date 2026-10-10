@@ -50,7 +50,7 @@ struct WebsiteWeightsScreen: View {
                     Button("Try again") { Task { await load() } }.buttonStyle(.glass)
                 }
             } else {
-                ProgressView("Loading the catalogue…").controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading("Loading the catalogue…").controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle("Photo weights")
@@ -246,7 +246,7 @@ struct WebsiteWeightsScreen: View {
                 .disabled(index >= queue.count - 1)
             WebsiteFeatureButton(key: p.key, name: p.file)
         } header: {
-            Text("Weight")
+            LedgerHeading(title: "Weight")
         } footer: {
             if p.source == "label", let g = p.labelWeightGrams {
                 Text("The photo already shows \(WebsiteNumber.grams(g))g. A weight typed here is used for pricing instead; the photo keeps its own label.")
@@ -258,7 +258,7 @@ struct WebsiteWeightsScreen: View {
     }
 
     private var upcomingSection: some View {
-        Section("Coming up") {
+        LedgerSection("Coming up") {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(upcoming) { (u: Upcoming) in

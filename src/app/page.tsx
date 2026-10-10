@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { isBusinessCost } from '@/lib/partnership';
 import { upcomingOccasions, occasionWhen } from '@/lib/occasions';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
+import { revenueForPeriod } from '@/lib/analytics/revenue-period';
 import { useOnlineWaiting, useSellingPausedForRates } from '@/lib/website/online-client';
 import { awaitingTransfer, bookedAsSale } from '@/lib/order-stage';
 
@@ -203,14 +204,7 @@ export default function HomePage() {
     const ordersById = new Map(orders.map(o => [o.id, o]));
 
     // Revenue recognised on the source order's date (getInvoiceRevenueDate), between two instants.
-    const rev = (from: Date, to: Date = new Date(8.64e15)) => {
-      const inWindow = (d: Date) => d >= from && d < to;
-      return generatedInvoices.filter(i => i.status !== 'Refunded' && inWindow(parseISO(getInvoiceRevenueDate(i, ordersById))))
-        .reduce((s, i) => s + invoiceSaleValue(i), 0)
-      + orders.filter(o => bookedAsSale(o) && inWindow(parseISO(o.createdAt)))
-        .reduce((s, o) => s + (o.subtotal || 0), 0)
-      + additionalRevenues.filter(r => inWindow(parseISO(r.date))).reduce((s, r) => s + (r.amount || 0), 0);
-    };
+    const rev = (from: Date, to?: Date) => revenueForPeriod({ invoices: generatedInvoices, orders, extraRevenues: additionalRevenues }, from, to);
 
     const todayInvoices = generatedInvoices.filter(i =>
       i.status !== 'Refunded' && parseISO(getInvoiceRevenueDate(i, ordersById)) >= todayStart);

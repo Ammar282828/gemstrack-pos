@@ -1,16 +1,7 @@
 import SwiftUI
 
-/// The Marketing group: the Posts hub, the Ads overview and campaigns, and the Website menu, read natively.
-/// The Website pages are native too: Add photos, Edit a piece (its words; re-making the photo opens the ERP's
-/// square editor), Photo weights and Investments. So are Ads' New ad, Ad sets, Audiences, Rules and Setup (Ads*.swift,
-/// on the web's own /api/ads routes). What designs a post stays the ERP's own page, opened in the app by its path
-/// with no route here: Post a piece (/website/post) and Ads' Studio (and New ad handed a Studio ad, `?studio=`, whose
-/// pictures wait in the browser's own storage).
-/// "/posts?web=1" and "/ads/campaigns?web=1" open the web page where it does more (the tray that sends,
-/// the campaign menu that changes budgets).
-///
-/// The Website menu lives at /marketing/website, not at /website/photos, which is the real Add photos page.
-/// A piece's own screen carries its site key in the query (/marketing/piece?id=…), which `exact` would drop.
+/// Native Marketing screens use the ERP's existing authenticated routes.
+/// Studio's shared board remains available while its canvas is being ported.
 enum MarketingRoutes {
     static var all: [ScreenRoute] {
         let piece = ScreenRoute(
@@ -27,7 +18,7 @@ enum MarketingRoutes {
         )
         // New ad and the ad set designer read their query (?piece=, ?from=, ?campaign=, ?ads=).
         let newAd = ScreenRoute(
-            matches: { (path: String) in ScreenRoute.bare(path) == "/ads/new" && AdsQuery.value("studio", in: path) == nil },
+            matches: { (path: String) in ScreenRoute.bare(path) == "/ads/new" },
             make: { (path: String) in AnyView(AdsNewAdScreen(path: path)) }
         )
         let adSets = ScreenRoute(
@@ -36,10 +27,14 @@ enum MarketingRoutes {
         )
         return [
             .exact("/posts") { PostsHub() },
+            ScreenRoute(matches: { ScreenRoute.bare($0) == "/website/post" }, make: { AnyView(PostComposerScreen(path: $0)) }),
+            ScreenRoute(matches: { ScreenRoute.bare($0) == "/marketing/queue" }, make: { AnyView(PostQueueSheet(id: AdsQuery.value("id", in: $0) ?? "", embedded: true)) }),
             .exact(MarketingKit.piecesPath) { PostPiecesScreen() },
             piece,
             .exact("/ads") { AdsOverviewScreen() },
-            .exact("/ads/campaigns") { AdsCampaignsScreen() },
+            ScreenRoute(matches: { ScreenRoute.bare($0) == "/ads/campaigns" }, make: { AnyView(AdsCampaignsScreen(path: $0)) }),
+            ScreenRoute(matches: { ScreenRoute.bare($0) == "/ads/object" }, make: { AnyView(AdsObjectScreen(path: $0)) }),
+            ScreenRoute(matches: { ScreenRoute.bare($0) == "/ads/studio" }, make: { AnyView(StudioScreen(path: $0)) }),
             newAd,
             adSets,
             .exact("/ads/audiences") { AdsAudiencesScreen() },

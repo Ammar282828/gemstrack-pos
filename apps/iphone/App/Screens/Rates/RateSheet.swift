@@ -227,7 +227,7 @@ struct RateSheet: View {
                         Button { Task { await fillFromGoldPk() } } label: {
                             HStack {
                                 Label("Fill gold from gold.pk", systemImage: "globe")
-                                if filling { Spacer(); ProgressView() }
+                                if filling { Spacer(); SkeletonLoading() }
                             }
                         }
                         .disabled(filling || saving)

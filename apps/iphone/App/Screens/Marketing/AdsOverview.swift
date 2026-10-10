@@ -30,7 +30,7 @@ struct AdsOverviewScreen: View {
             } else if let problem {
                 failed(problem)
             } else {
-                ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle("Ads")
@@ -179,7 +179,7 @@ struct AdsOverviewScreen: View {
         let reachNote = AdsFormat.change(t.reach, b?.reach) ?? "\(AdsFormat.compact(t.impressions)) views"
         return Section {
             VStack(spacing: 10) {
-                HStack(spacing: 10) {
+                FigureRow(spacing: 10) {
                     FigureTile(label: "Spent", value: AdsFormat.money(t.spend, cur), detail: spentNote)
                     FigureTile(label: "People reached", value: AdsFormat.compact(t.reach), detail: reachNote)
                 }
@@ -217,7 +217,7 @@ struct AdsOverviewScreen: View {
                     LabeledContent(a.label) { Text(AdsFormat.count(a.value)).monospacedDigit() }
                 }
             } header: {
-                Text("What it brought")
+                LedgerHeading(title: "What it brought")
             }
         }
     }
@@ -268,7 +268,7 @@ struct AdsOverviewScreen: View {
 
     /// An ad's own page is the ERP's (its previews and Meta's review notes); the rest are native or ERP pages by path.
     private func openPath(_ href: String) -> String {
-        href.contains("?ad=") ? href + "&web=1" : href
+        href
     }
 
     // MARK: Month, days, top ads, who saw them
@@ -287,7 +287,7 @@ struct AdsOverviewScreen: View {
                 }
                 .tint(Theme.accent)
             } header: {
-                Text("This month")
+                LedgerHeading(title: "This month")
             }
         }
     }
@@ -313,7 +313,7 @@ struct AdsOverviewScreen: View {
                 .frame(height: 180)
                 .accessibilityLabel("Spend each day over the range")
             } header: {
-                Text("Day by day")
+                LedgerHeading(title: "Day by day")
             } footer: {
                 Text("Spend each day, in \(cur.uppercased()).")
             }
@@ -327,11 +327,11 @@ struct AdsOverviewScreen: View {
                 Text("No ad spent anything in \(AdsRange.label(rangeKey).lowercased()).").foregroundStyle(.secondary)
             } else {
                 ForEach(d.topAds) { (a: AdTop) in
-                    NavigationLink(value: Route(path: "/ads/campaigns?ad=\(a.id)&web=1")) { topAdRow(a, cur) }
+                    NavigationLink(value: Route(path: "/ads/campaigns?ad=\(a.id)")) { topAdRow(a, cur) }
                 }
             }
         } header: {
-            Text("The ads that spent most")
+            LedgerHeading(title: "The ads that spent most")
         }
     }
 

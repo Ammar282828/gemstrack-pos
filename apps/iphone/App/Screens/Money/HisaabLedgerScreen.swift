@@ -100,7 +100,7 @@ struct HisaabLedgerScreen: View {
         let result = HisaabLedger.page(rows)
         // The ERP's own page: the ledger PDF and the WhatsApp reminder are built there, in the browser.
         let printPath = MoneyPaths.ledger(id, isCustomer: isCustomer, web: true)
-        List {
+        List { Group {
             Section {
                 tiles(result)
                     .listRowInsets(EdgeInsets())
@@ -124,7 +124,7 @@ struct HisaabLedgerScreen: View {
                     }
                 }
             } header: {
-                Text("Transactions · \(result.lines.count)")
+                LedgerHeading(title: "Transactions · \(result.lines.count)")
             } footer: {
                 if onFile && !result.lines.isEmpty {
                     Text("Swipe a transaction to delete it. It asks for the delete code.")
@@ -149,6 +149,7 @@ struct HisaabLedgerScreen: View {
             } footer: {
                 Text("The ledger PDF and the WhatsApp reminder are made on the ERP's own page.")
             }
+        }.houseRows()
         }
         .listStyle(.insetGrouped)
         .navigationTitle(name.isEmpty ? "Hisaab" : name)
@@ -194,7 +195,7 @@ struct HisaabLedgerScreen: View {
     private func tiles(_ r: HisaabLedgerPage) -> some View {
         let getGold: String? = r.gold > 0 ? "\(MoneyFormat.grams(r.gold)) \(MoneyWords.metal)" : nil
         let giveGold: String? = r.gold < 0 ? "\(MoneyFormat.grams(abs(r.gold))) \(MoneyWords.metal)" : nil
-        return HStack(alignment: .top, spacing: 10) {
+        return FigureRow(alignment: .top, spacing: 10) {
             FigureTile(label: "You will get", value: Money.pkr(max(0, r.cash)), detail: getGold, tint: .green)
             FigureTile(label: "You will give", value: Money.pkr(abs(min(0, r.cash))), detail: giveGold, tint: .red)
         }

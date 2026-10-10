@@ -98,7 +98,7 @@ struct StockList: View {
     }
 
     private func listView(_ all: [Product], _ shown: [StockRowModel]) -> some View {
-        List {
+        List { Group {
             Section { header(all, shown) }
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 .listRowBackground(Color.clear)
@@ -111,6 +111,7 @@ struct StockList: View {
                     }
                 }
             }
+        }.houseRows()
         }
         .listStyle(.insetGrouped)
     }
@@ -148,7 +149,7 @@ struct StockList: View {
     /// "N pieces in stock" (the web's subtitle) and, for an owner, what they would sell for today.
     /// While a category or a search is on, both figures are of what is shown.
     private func header(_ all: [Product], _ shown: [StockRowModel]) -> some View {
-        HStack(spacing: 12) {
+        FigureRow(spacing: 12) {
             FigureTile(
                 label: "In stock",
                 value: "\(shown.count) piece\(shown.count == 1 ? "" : "s")",
@@ -193,24 +194,10 @@ struct StockList: View {
         }
     }
 
-    @ViewBuilder
     private func chipButton(_ title: String, count: Int, id: String?) -> some View {
-        if category == id {
-            Button { category = id } label: { chipLabel(title, count: count) }
-                .buttonStyle(.houseProminent)
-        } else {
-            Button { category = id } label: { chipLabel(title, count: count) }
-                .buttonStyle(.glass)
-        }
+        FilterChip(title: title, count: count, chosen: category == id) { category = id }
     }
 
-    private func chipLabel(_ title: String, count: Int) -> some View {
-        HStack(spacing: 5) {
-            Text(title)
-            Text("\(count)").font(.caption).monospacedDigit().opacity(0.7)
-        }
-        .font(.subheadline.weight(.medium))
-    }
 }
 
 // MARK: Rows
@@ -272,7 +259,7 @@ private struct StockRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(p.name).font(.body.weight(.medium)).lineLimit(2)
                     Text(p.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
-                    Text(detail(p)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(detail(p)).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 StockPrice(price: row.price).layoutPriority(1)

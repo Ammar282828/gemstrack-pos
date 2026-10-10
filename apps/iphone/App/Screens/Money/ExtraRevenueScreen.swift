@@ -58,11 +58,11 @@ struct ExtraRevenueScreen: View {
     private var content: some View {
         let shown = lines()
         let months = MoneyMonths.group(shown, amount: { (r: AdditionalRevenue) -> Double in r.amount })
-        List {
+        List { Group {
             Section {
                 MoneyRangeFields(filter: $dates)
             } header: {
-                Text("Dates")
+                LedgerHeading(title: "Dates")
             } footer: {
                 Text(dates.useFrom ? "Without an end date it runs to the end of today." : "Until a start date is chosen, every entry is shown.")
             }
@@ -84,6 +84,7 @@ struct ExtraRevenueScreen: View {
                     }
                 }
             }
+        }.houseRows()
         }
         .listStyle(.insetGrouped)
     }
@@ -116,7 +117,7 @@ struct ExtraRevenueScreen: View {
         var total = 0.0
         for line in shown { total += line.item.amount }
         let count = shown.count
-        return HStack(alignment: .top, spacing: 10) {
+        return FigureRow(alignment: .top, spacing: 10) {
             FigureTile(label: "Total revenue", value: Money.pkr(total), tint: Theme.accent)
             FigureTile(label: "Entries", value: "\(count)")
         }
@@ -127,17 +128,10 @@ struct ExtraRevenueScreen: View {
         let n = month.rows.count
         let count = "\(n) entr\(n == 1 ? "y" : "ies")"
         let detail = month.hint.isEmpty ? count : "\(month.hint) · \(count)"
-        return HStack(alignment: .firstTextBaseline, spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(month.title).font(.subheadline.weight(.semibold))
-                Text(detail).font(.caption2).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 8)
-            MoneyText(amount: month.total, exact: true)
-                .font(.subheadline.weight(.semibold))
+        return VStack(alignment: .leading, spacing: 6) {
+            LedgerHeading(title: month.title, trailing: Money.pkr(month.total))
+            Text(detail).font(.footnote).foregroundStyle(.secondary)
         }
-        .textCase(nil)
-        .foregroundStyle(.primary)
     }
 
     // MARK: Rows

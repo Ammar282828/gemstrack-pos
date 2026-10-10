@@ -68,7 +68,7 @@ enum OrdersDueBucket: String, CaseIterable {
 /// What an order asks for next (components/order/next-step.tsx): the one reading the hub's cards and the
 /// order page's bar both use.
 ///   Awaiting transfer  Check transfer (the transfer's moves: the slips, Transfer received, Let it lapse)
-///   Not started        Give out (the ERP's page: the karigar pickers)
+///   Not started        Give out (native workshop assignment for this order)
 ///   With karigars      Mark ready (Completed, every piece ticked)
 ///   Ready to hand over Finalize & invoice
 ///   Invoiced           the invoice: money is taken there only (decision "Orders hub", 2026-10-06)

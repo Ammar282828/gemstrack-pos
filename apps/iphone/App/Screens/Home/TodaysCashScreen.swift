@@ -57,7 +57,7 @@ struct TodaysCashScreen: View {
     // MARK: The page
 
     private func page(_ t: TodaysCash) -> some View {
-        List {
+        List { Group {
             Section {
                 tiles(t)
                     .listRowInsets(EdgeInsets())
@@ -90,6 +90,7 @@ struct TodaysCashScreen: View {
                     Text("Expenses carry no method, so every one the business paid today counts as leaving the drawer; one a partner paid out of pocket does not.")
                 }
             }
+        }.houseRows()
         }
         .listStyle(.insetGrouped)
     }

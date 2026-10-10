@@ -12,6 +12,7 @@ vi.mock('@/lib/store-config', () => ({
   STORE_WEBSITE_WEIGHTS: true,
   STORE_SITE_EDIT: true,
   STORE_INVESTMENTS: false,
+  STORE_POST_METAL: 'Silver', STORE_POST_TAGLINE: 'A sample house', STORE_POST_FOOTER: 'Made for you', STORE_WHATSAPP_NUMBERS: ['123456789'],
 }));
 
 const { GET } = await import('./route');
@@ -25,7 +26,7 @@ describe('/api/app/website', () => {
   it('the house’s website and which of its screens it has', async () => {
     expect(await call('staff@example.com')).toEqual({
       status: 200,
-      json: { site: 'https://www.example.shop', siteName: 'example.shop', featured: false, weights: true, edit: true, investments: false },
+      json: { site: 'https://www.example.shop', siteName: 'example.shop', posting: { metal: 'Silver', tagline: 'A sample house', footer: 'Made for you', whatsappNumbers: ['123456789'], links: { website: 'https://www.example.shop/' } }, featured: false, weights: true, edit: true, investments: false },
     });
   });
 

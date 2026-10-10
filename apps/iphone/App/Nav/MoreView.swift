@@ -78,7 +78,7 @@ struct SignInView: View {
     var body: some View {
         VStack(spacing: 28) {
             Spacer()
-            Image("LaunchMark-\(House.id)").resizable().scaledToFit().frame(width: 96, height: 96)
+            HouseLogo().padding(.horizontal, 32)
             VStack(spacing: 6) {
                 Text(House.storeName).font(.title.weight(.semibold))
                 Text("Sign in with the Gmail the shop has for you.").font(.subheadline).foregroundStyle(.secondary)
@@ -91,7 +91,7 @@ struct SignInView: View {
                     Task { await session.signIn() }
                 } label: {
                     HStack {
-                        if session.state == .signingIn { ProgressView() } else { Image(systemName: "person.crop.circle.badge.checkmark") }
+                        if session.state == .signingIn { SkeletonLoading() } else { Image(systemName: "person.crop.circle.badge.checkmark") }
                         Text("Sign in with Google")
                     }
                     .frame(maxWidth: 280)
@@ -107,6 +107,6 @@ struct SignInView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.ground.opacity(0.08).ignoresSafeArea())
+        .background(Theme.ground.ignoresSafeArea())
     }
 }

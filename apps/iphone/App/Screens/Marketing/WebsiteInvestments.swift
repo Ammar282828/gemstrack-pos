@@ -37,7 +37,7 @@ struct WebsiteInvestmentsScreen: View {
                     Button("Try again") { Task { await gold.load() } }.buttonStyle(.glass)
                 }
             case .idle, .loading:
-                ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .loaded:
                 page
             }
@@ -110,7 +110,7 @@ struct WebsiteInvestmentsScreen: View {
                             .buttonStyle(.plain)
                     }
                 } header: {
-                    Text("The fortnight")
+                    LedgerHeading(title: "The fortnight")
                 }
             }
             .houseRows()
@@ -164,7 +164,7 @@ struct WebsiteInvestmentsScreen: View {
                 Text("The schedule couldn't be read.").foregroundStyle(.secondary)
             }
         } header: {
-            Text("Automatic sending")
+            LedgerHeading(title: "Automatic sending")
         } footer: {
             if let s = gold.schedule { Text(checkedWords(s)) }
         }
@@ -322,7 +322,7 @@ struct WebsiteGoldDaySheet: View {
                         .lineLimit(6...24)
                     ShareLink(item: post) { Label("Share or copy the post", systemImage: "square.and.arrow.up") }
                 } header: {
-                    Text("Post · \(post.count) characters")
+                    LedgerHeading(title: "Post · \(post.count) characters")
                 } footer: {
                     if post.count > 1024 { Text("Too long for a caption: it goes under the card.") }
                 }
@@ -334,7 +334,7 @@ struct WebsiteGoldDaySheet: View {
                         ShareLink(item: teaser) { Label("Share or copy the teaser", systemImage: "square.and.arrow.up") }
                     }
                 } header: {
-                    Text("Teaser · for the main community")
+                    LedgerHeading(title: "Teaser · for the main community")
                 } footer: {
                     VStack(alignment: .leading, spacing: 4) {
                         if edited {
@@ -363,7 +363,7 @@ struct WebsiteGoldDaySheet: View {
     }
 
     private func cardsSection(_ d: WebsiteGoldPost) -> some View {
-        Section("Cards") {
+        LedgerSection("Cards") {
             HStack(alignment: .top, spacing: 12) {
                 card(d, kind: "square", label: "Square")
                 card(d, kind: "story", label: "Story")
@@ -411,7 +411,7 @@ struct WebsiteGoldDaySheet: View {
                 }
             }
         } header: {
-            Text("On the schedule")
+            LedgerHeading(title: "On the schedule")
         }
     }
 
@@ -429,7 +429,7 @@ struct WebsiteGoldDaySheet: View {
             }
             ForEach(targets) { (t: WebsiteGoldStatus.Target) in partRow(t, d) }
         } header: {
-            Text("Where it goes")
+            LedgerHeading(title: "Where it goes")
         } footer: {
             Text("Each part goes once. None of it can be unsent from here.")
         }

@@ -1,8 +1,8 @@
+import CryptoKit
 import WidgetKit
 import SwiftUI
 
-/// The home-screen and lock-screen widget: the rate, today's cash, what is owed to the shop and
-/// the orders due, from the ERP every half hour (/api/widget/summary, with the key the app
+/// Revenue today and this month, the shared pinned note and supporting shop figures, from the ERP every half hour (/api/widget/summary, with the key the app
 /// keeps in the shared keychain, ERPWidgetLink). The faces are Shared/ERPWidgetViews.swift.
 
 struct ERPEntry: TimelineEntry {
@@ -12,6 +12,7 @@ struct ERPEntry: TimelineEntry {
 
 struct ERPProvider: TimelineProvider {
     private let cacheKey = "erp.widget.last"
+    private let cacheOwner = "erp.widget.owner"
 
     func placeholder(in context: Context) -> ERPEntry {
         ERPEntry(date: Date(), summary: .sample)
@@ -38,14 +39,21 @@ struct ERPProvider: TimelineProvider {
         URLSession(configuration: .ephemeral).dataTask(with: request) { data, response, _ in
             guard (response as? HTTPURLResponse)?.statusCode == 200, let data = data,
                   let summary = try? JSONDecoder().decode(ERPSummary.self, from: data) else { done(nil); return }
+            guard ERPWidgetLink.load()?.key == link.key else { done(nil); return }
+            UserDefaults.standard.set(ownerHash(link), forKey: cacheOwner)
             UserDefaults.standard.set(data, forKey: cacheKey)
             done(summary)
         }.resume()
     }
 
+    private func ownerHash(_ link: ERPWidgetLink.Link) -> String {
+        SHA256.hash(data: Data((link.url + "|" + link.key).utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
     /// The last figures that came through, shown with their own time when the ERP cannot be reached.
     private func cached() -> ERPSummary? {
-        guard let data = UserDefaults.standard.data(forKey: cacheKey) else { return nil }
+        guard let link = ERPWidgetLink.load(), UserDefaults.standard.string(forKey: cacheOwner) == ownerHash(link),
+              let data = UserDefaults.standard.data(forKey: cacheKey) else { return nil }
         return try? JSONDecoder().decode(ERPSummary.self, from: data)
     }
 }
@@ -57,6 +65,7 @@ struct ERPWidgetEntryView: View {
     private var size: ERPWidgetSize {
         switch family {
         case .systemSmall: return .small
+        case .systemLarge: return .large
         case .accessoryRectangular: return .rectangular
         case .accessoryInline: return .inline
         default: return .medium
@@ -81,7 +90,7 @@ struct ERPWidget: Widget {
             ERPWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("Today at the shop")
-        .description("The rate, today's cash, what is owed and the orders due.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+        .description("Revenue today and this month, with the shop’s pinned message.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular, .accessoryInline])
     }
 }

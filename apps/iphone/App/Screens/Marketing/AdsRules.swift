@@ -201,13 +201,13 @@ struct AdsRulesScreen: View {
             }
             Button { making = true } label: {
                 HStack(spacing: 8) {
-                    if busy == "new" { ProgressView() }
+                    if busy == "new" { SkeletonLoading() }
                     Text("Make the rule")
                 }
             }
             .disabled(busy != nil || amountValue == nil || data == nil)
         } header: {
-            Text("A new rule")
+            LedgerHeading(title: "A new rule")
         } footer: {
             Text("Meta checks these itself around the clock and acts on every ad set in the account: the ERP doesn't need to be open.")
         }
@@ -233,7 +233,7 @@ struct AdsRulesScreen: View {
                         }
                         Spacer(minLength: 8)
                         if busy == r.id {
-                            ProgressView()
+                            SkeletonLoading()
                         } else {
                             Toggle("On", isOn: ruleSwitch(r)).labelsHidden().tint(Theme.accent).disabled(busy != nil)
                         }
@@ -246,7 +246,7 @@ struct AdsRulesScreen: View {
                 MarketingReading(text: "Reading the rules…")
             }
         } header: {
-            Text("Rules on the account")
+            LedgerHeading(title: "Rules on the account")
         } footer: {
             if let data, !data.rules.isEmpty { Text("Swipe a rule to delete it.") }
         }
@@ -268,7 +268,7 @@ struct AdsRulesScreen: View {
                 }
             }
         } header: {
-            Text("Changes made from the ERP")
+            LedgerHeading(title: "Changes made from the ERP")
         }
     }
 }

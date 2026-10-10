@@ -149,7 +149,7 @@ export const STAFF_HIDDEN_ITEM_FIELDS: readonly string[] = [
  * because they are printed on the estimate the customer walks out with.
  */
 export const STAFF_SETTINGS_FIELDS = [
-  'shopName', 'shopAddress', 'shopContact', 'shopLogoUrl', 'shopLogoUrlBlack',
+  'shopName', 'shopAddress', 'shopContact', 'shopLogoUrl', 'shopLogoUrlBlack', 'teamNote',
   'goldRatePerGram24k', 'goldRatePerGram22k', 'goldRatePerGram21k', 'goldRatePerGram18k',
   'silverRatePerGram', 'platinumRatePerGram', 'palladiumRatePerGram', 'palladiumRatePerGram18k', 'palladiumRatePerGram12k',
   // When and by whom the rate was last set, for the top bar's rate chip (lib/rates.ts).

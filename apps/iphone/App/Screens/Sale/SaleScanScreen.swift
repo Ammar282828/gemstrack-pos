@@ -49,7 +49,7 @@ struct SaleScanScreen: View {
             if busy {
                 Section {
                     HStack(spacing: 12) {
-                        ProgressView()
+                        SkeletonLoading()
                         Text("Reading it…")
                     }
                 } footer: {
@@ -60,7 +60,7 @@ struct SaleScanScreen: View {
                 Section {
                     Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
                 } header: {
-                    Text("Could not read that")
+                    LedgerHeading(title: "Could not read that")
                 }
             }
             if let reading, !busy { readingSections(reading) }
@@ -84,7 +84,7 @@ struct SaleScanScreen: View {
                 problem: { problem = $0 }
             )
         } header: {
-            Text("The bill")
+            LedgerHeading(title: "The bill")
         } footer: {
             Text(photo == nil
                  ? "A handwritten bill or estimate, with or without a breakdown, on the counter or already on this phone. The lines go on the sale for you to check: nothing is invoiced here."
@@ -99,7 +99,7 @@ struct SaleScanScreen: View {
             Section {
                 Label(unread, systemImage: "questionmark.circle").foregroundStyle(.orange)
             } header: {
-                Text("Could not make this out")
+                LedgerHeading(title: "Could not make this out")
             }
         }
         if let g = r.customer {
@@ -123,7 +123,7 @@ struct SaleScanScreen: View {
                     .buttonStyle(.plain)
             }
         } header: {
-            Text("\(r.kept.count) of \(lines.count) line\(lines.count == 1 ? "" : "s")")
+            LedgerHeading(title: "\(r.kept.count) of \(lines.count) line\(lines.count == 1 ? "" : "s")")
         } footer: {
             if bare > 0 {
                 Text("\(bare) line\(bare == 1 ? "" : "s") came without a weight, so \(bare == 1 ? "it is" : "they are") billed at the written figure and will not move if you change the rate. Tap a line to leave it off.")
@@ -188,7 +188,7 @@ struct SaleScanScreen: View {
                     .foregroundStyle(check.matches ? Color.secondary : Color.orange)
             }
         } header: {
-            Text("Foot of the bill")
+            LedgerHeading(title: "Foot of the bill")
         } footer: {
             Text(footNote(a, held: held))
         }

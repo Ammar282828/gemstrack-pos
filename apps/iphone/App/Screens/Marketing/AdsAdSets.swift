@@ -335,7 +335,7 @@ struct AdsAdSetsScreen: View {
                 Text("The account's campaigns didn't come: \(treeError)").font(.footnote).foregroundStyle(.red)
             }
         } header: {
-            Text("Campaign")
+            LedgerHeading(title: "Campaign")
         } footer: {
             if budgeted { Text("This campaign holds the budget; its ad sets share it.") }
         }
@@ -354,7 +354,7 @@ struct AdsAdSetsScreen: View {
                 postRows
             }
         } header: {
-            Text("Ads in them")
+            LedgerHeading(title: "Ads in them")
         } footer: {
             Text(adsKind == "copy" ? "\(adIds.count) chosen: a copy of each goes into every ad set." : "The post runs as it is in every ad set.")
         }
@@ -417,7 +417,7 @@ struct AdsAdSetsScreen: View {
         Section {
             Button { Task { await review() } } label: {
                 HStack(spacing: 8) {
-                    if checking || sending { ProgressView() }
+                    if checking || sending { SkeletonLoading() }
                     Text("Review: \(sets.count) ad set\(sets.count == 1 ? "" : "s") · \(adCount) ad\(adCount == 1 ? "" : "s")")
                 }
                 .frame(maxWidth: .infinity)
@@ -538,7 +538,7 @@ private struct AdsSetCard: View {
                 Button(role: .destructive, action: remove) { Label("Remove this ad set", systemImage: "trash") }
             }
         } header: {
-            Text("Ad set \(number)")
+            LedgerHeading(title: "Ad set \(number)")
         }
     }
 }

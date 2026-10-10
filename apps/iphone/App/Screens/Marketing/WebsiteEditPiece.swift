@@ -63,7 +63,7 @@ struct WebsiteEditPieceScreen: View {
                     Button("Try again") { Task { await load() } }.buttonStyle(.glass)
                 }
             } else {
-                ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle(piece?.words.name ?? "Edit a piece")
@@ -205,7 +205,7 @@ struct WebsiteEditPieceScreen: View {
                 }
             }
         } header: {
-            Text("What the website says")
+            LedgerHeading(title: "What the website says")
         }
     }
 
@@ -234,7 +234,7 @@ struct WebsiteEditPieceScreen: View {
                 Text("g").foregroundStyle(.secondary)
             }
         } header: {
-            Text("Weight")
+            LedgerHeading(title: "Weight")
         } footer: {
             Text(p.hasTags ? "Prices follow it; the site shows it on photos without one." : "For the photo and captions; the catalogue doesn't print weights.")
         }

@@ -1,23 +1,37 @@
+import WidgetKit
 import SwiftUI
+import Observation
 
 /// Signed in or not, owner or karigar: which app this person gets.
 struct RootGate: View {
     @Environment(Session.self) private var session
+    @Environment(Book.self) private var book
+    @AppStorage("deviceTheme") private var deviceTheme = ""
+
+    private var preferredScheme: ColorScheme? {
+        let theme = deviceTheme.isEmpty ? (book.settings.value?.theme ?? "") : deviceTheme
+        if theme == "default" { return .light }
+        if theme == "taheri" || theme == "slate" { return .dark }
+        return nil
+    }
 
     var body: some View {
-        switch session.state {
-        case .starting:
-            ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity).background(Theme.ground)
-        case .signedOut, .signingIn, .needsSetup:
-            SignInView()
-        case .signedIn:
-            if session.role == "karigar" {
-                // A karigar's own work, native (MyWorkScreen reads the portal's /api/karigar/me; the ERP's /my-work).
-                NavigationStack { MyWorkScreen(path: "/my-work") }
-            } else {
-                RootView()
+        Group {
+            switch session.state {
+            case .starting:
+                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity).background(Theme.ground)
+            case .signedOut, .signingIn, .needsSetup:
+                SignInView()
+            case .signedIn:
+                if session.role == "karigar" {
+                    // A karigar's own work, native (MyWorkScreen reads the portal's /api/karigar/me; the ERP's /my-work).
+                    NavigationStack { MyWorkScreen(path: "/my-work") }
+                } else {
+                    RootView()
+                }
             }
         }
+        .preferredColorScheme(preferredScheme)
     }
 }
 
@@ -29,6 +43,7 @@ struct RootView: View {
     // The simulator check opens each tab in turn (`-ERPDemoTab orders`).
     @State private var tab = UserDefaults.standard.string(forKey: "ERPDemoTab") ?? "home"
     @State private var creating: Route?
+    @State private var voice = false
 
     private var map: NavMap { NavMap.current.visible(to: session.role) }
     private static let primary = ["home", "orders", "invoices", "customers"]
@@ -64,7 +79,12 @@ struct RootView: View {
         TabView(selection: selection(entries)) {
             ForEach(entries) { e in
                 Tab(e.id == "home" ? "Home" : e.label, systemImage: NavIcon.symbol(for: e.icon), value: e.id) {
-                    PlaceStack(root: e.href)
+                    NavigationStack {
+                        PlaceScreen(path: e.href, isRoot: true)
+                            .modifier(CreateAccessory(map: map, shown: session.role != "marketing", voiceShown: session.isOwner,
+                                                      open: { creating = Route(path: $0) }, talk: { voice = true }))
+                            .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                    }
                 }
                 .badge(badge(for: e))
             }
@@ -72,11 +92,19 @@ struct RootView: View {
             // sidebar) with Settings and the account; typed into, it finds any place by name or by the
             // words people use. An iPhone shows five tabs at most, and a sixth would fold both away.
             Tab("Search", systemImage: "magnifyingglass", value: "search", role: .search) {
-                NavigationStack { SearchView(map: map) .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) } }
+                NavigationStack {
+                    SearchView(map: map).modifier(TeamNotePresentation())
+                        .modifier(CreateAccessory(map: map, shown: session.role != "marketing", voiceShown: session.isOwner,
+                                                  open: { creating = Route(path: $0) }, talk: { voice = true }))
+                        .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                }
             }
         }
-        .tabBarMinimizeBehavior(.onScrollDown)
-        .modifier(CreateAccessory(map: map, shown: session.role != "marketing") { creating = Route(path: $0) })
+        .sheet(isPresented: $voice) {
+            NavigationStack {
+                NativeVoiceScreen { path in voice = false; creating = Route(path: path) }
+            }
+        }
         .sheet(item: $creating) { r in
             NavigationStack {
                 PlaceScreen(path: r.path)
@@ -103,17 +131,44 @@ struct RootView: View {
     }
 }
 
-/// The bar above the tab bar, for the accounts that may create anything (not marketing).
+/// Two floating controls leave the page itself free of repeated shortcuts.
 private struct CreateAccessory: ViewModifier {
     let map: NavMap
     let shown: Bool
+    let voiceShown: Bool
     let open: (String) -> Void
+    let talk: () -> Void
 
     func body(content: Content) -> some View {
-        if shown {
-            content.tabViewBottomAccessory { CreateBar(map: map, open: open) }
-        } else {
-            content
+        content.safeAreaInset(edge: .bottom, spacing: 0) {
+            if shown {
+                GlassEffectContainer(spacing: 12) {
+                    HStack(spacing: 12) {
+                        Spacer(minLength: 0)
+                        if voiceShown {
+                            Button(action: talk) {
+                                Image(systemName: "mic.fill").font(.title3).frame(width: 52, height: 52)
+                            }
+                            .buttonStyle(.glass).buttonBorderShape(.circle)
+                            .accessibilityLabel("Voice assistant")
+                        }
+                        Menu {
+                            if let sale = map.newSale {
+                                Button("New sale", systemImage: "banknote") { open(sale.href) }
+                            }
+                            Button("New order", systemImage: "list.clipboard") { open("/orders/add") }
+                            Button("Scan", systemImage: "qrcode.viewfinder") { open("/scan") }
+                        } label: {
+                            Image(systemName: "plus").font(.title2.weight(.semibold)).frame(width: 52, height: 52)
+                                .foregroundStyle(Theme.onAccent)
+                        }
+                        .buttonStyle(.glassProminent).buttonBorderShape(.circle)
+                        .accessibilityLabel("Create: new sale, new order or scan")
+                    }
+                }
+                .padding(.horizontal, 20).padding(.vertical, 8)
+                .background(Theme.ground)
+            }
         }
     }
 }
@@ -155,6 +210,7 @@ struct PlaceScreen: View {
             .modifier(TabsMenu(tabs: tabs, chosen: $chosen))
             // Native screens sit on the house's ground; an ERP page brings its own (the same palette).
             .modifier(OptionalGround(on: ScreenRegistry.hasNative(current)))
+            .modifier(TeamNotePresentation())
             .toolbar {
                 if isRoot {
                     ToolbarItem(placement: .topBarLeading) { RateChip() }
@@ -209,31 +265,127 @@ private struct TabsMenu: ViewModifier {
     }
 }
 
-/// New sale, New order and Scan, always above the tab bar (the ERP's primary action and its
-/// palette's Create group). New sale is the owners': the server saves sales for them alone, so the
-/// map holds none for staff and the bar is Order and Scan.
-struct CreateBar: View {
-    let map: NavMap
-    let open: (String) -> Void
+/// Demo edits stay on this phone; real notes always use the shared settings write.
+@MainActor @Observable
+final class DemoTeamNote {
+    static let shared = DemoTeamNote()
+    var text: String?
+}
 
-    var body: some View {
-        HStack(spacing: 0) {
-            if let sale = map.newSale {
-                item("New sale", "plus.circle.fill", sale.href)
-                Divider().frame(height: 18)
+struct TeamNotePresentation: ViewModifier {
+    @Environment(Book.self) private var book
+    @Environment(Session.self) private var session
+    @State private var reading = false
+    @State private var editing = false
+    private var text: String { TeamNoteEditor.current(book) }
+
+    func body(content: Content) -> some View {
+        content
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if !text.isEmpty {
+                    HStack(alignment: .top, spacing: 12) {
+                        Button { reading = true } label: {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Label("Urgent note", systemImage: "pin.fill")
+                                    .font(.caption.weight(.semibold)).foregroundStyle(Theme.accent)
+                                Text(text).font(.subheadline).foregroundStyle(.primary)
+                                    .lineLimit(2).multilineTextAlignment(.leading)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens the full team note")
+                        if session.isOwner {
+                            Button("Edit note", systemImage: "pencil") { editing = true }
+                                .labelStyle(.iconOnly).frame(minWidth: 44, minHeight: 44)
+                        }
+                    }
+                    .padding(12)
+                    .background(Theme.card, in: .rect(cornerRadius: 16))
+                    .overlay(alignment: .leading) { Capsule().fill(Theme.accent).frame(width: 3).padding(.vertical, 12) }
+                    .padding(.horizontal, 16).padding(.vertical, 6)
+                    .background(Theme.ground)
+                }
             }
-            item("Order", "list.clipboard", "/orders/add")
-            Divider().frame(height: 18)
-            item("Scan", "qrcode.viewfinder", "/scan")
-        }
-        .font(.subheadline.weight(.semibold))
+            .task { book.settings.need() }
+            .sheet(isPresented: $editing) { TeamNoteEditor() }
+            .sheet(isPresented: $reading) {
+                NavigationStack {
+                    ScrollView { Text(text).frame(maxWidth: .infinity, alignment: .leading).padding(20) }
+                        .modifier(HouseGround())
+                        .navigationTitle("Urgent note").navigationBarTitleDisplayMode(.inline)
+                        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { reading = false } } }
+                }
+                .presentationDetents([.medium, .large])
+            }
+    }
+}
+
+struct TeamNoteEditor: View {
+    @Environment(Book.self) private var book
+    @Environment(Session.self) private var session
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+    @State private var loaded = false
+    @State private var saving = false
+    @State private var failure: String?
+
+    static func current(_ book: Book) -> String {
+        (House.isDemo ? DemoTeamNote.shared.text : nil) ?? book.settings.value?.teamNote ?? ""
     }
 
-    private func item(_ title: String, _ symbol: String, _ path: String) -> some View {
-        Button { open(path) } label: {
-            Label(title, systemImage: symbol).frame(maxWidth: .infinity)
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("What everyone needs to know", text: $text, axis: .vertical)
+                        .lineLimit(4...10)
+                        .disabled(saving)
+                } header: { LedgerHeading(title: "Team note") } footer: {
+                    Text("Visible to everyone until cleared. Up to 600 characters.")
+                }
+                .houseRows()
+                if !Self.current(book).isEmpty {
+                    Section {
+                        Button("Clear note", role: .destructive) { save("") }
+                            .disabled(saving)
+                    }.houseRows()
+                }
+                if let failure { Section { Text(failure).foregroundStyle(.red) }.houseRows() }
+            }
+            .modifier(HouseGround())
+            .navigationTitle("Urgent note").navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(saving) }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save(text.trimmingCharacters(in: .whitespacesAndNewlines)) }
+                        .disabled(!loaded || saving || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || text.count > 600 || !session.isOwner)
+                }
+            }
+            .onAppear { book.settings.need(); seed() }
+            .onChange(of: book.settings.loaded) { _, _ in seed() }
         }
-        .buttonStyle(.plain)
-        .padding(.vertical, 6)
+    }
+
+    private func seed() {
+        guard !loaded, House.isDemo || book.settings.loaded else { return }
+        text = Self.current(book); loaded = true
+    }
+
+    private func save(_ value: String) {
+        guard session.isOwner, loaded, !saving else { return }
+        saving = true
+        Task { @MainActor in
+            do {
+                if House.isDemo {
+                    DemoTeamNote.shared.text = value
+                } else {
+                    _ = try await ERPAPI.shared.write("updateSettings", ["patch": ["teamNote": value]])
+                }
+                WidgetCenter.shared.reloadAllTimelines()
+                dismiss()
+            } catch { failure = error.localizedDescription }
+            saving = false
+        }
     }
 }

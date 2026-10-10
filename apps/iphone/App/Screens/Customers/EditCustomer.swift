@@ -168,7 +168,7 @@ private struct EditCustomerForm: View {
                 .textContentType(.name)
                 .textInputAutocapitalization(.words)
         } header: {
-            Text("Name")
+            LedgerHeading(title: "Name")
         }
     }
 
@@ -180,7 +180,7 @@ private struct EditCustomerForm: View {
             TextField("Second number", text: $draft.altPhone, prompt: Text("Optional"))
                 .keyboardType(.phonePad)
         } header: {
-            Text("Phone")
+            LedgerHeading(title: "Phone")
         } footer: {
             Text("The spare slot. A contact import fills this rather than overwriting the number above.")
         }
@@ -194,7 +194,7 @@ private struct EditCustomerForm: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
         } header: {
-            Text("Email")
+            LedgerHeading(title: "Email")
         } footer: {
             if !emailOK { Text("That doesn't look like an email address.").foregroundStyle(.red) }
         }
@@ -208,7 +208,7 @@ private struct EditCustomerForm: View {
             TextField("City", text: $draft.city, prompt: Text("e.g. Karachi"))
             TextField("Country", text: $draft.country, prompt: Text("e.g. Pakistan"))
         } header: {
-            Text("Address")
+            LedgerHeading(title: "Address")
         }
     }
 
@@ -219,7 +219,7 @@ private struct EditCustomerForm: View {
             sizeRow("Bracelet", $draft.braceletSize, example: "e.g. 7 in")
             sizeRow("Chain", $draft.chainLength, example: "e.g. 18 in")
         } header: {
-            Text("Sizes")
+            LedgerHeading(title: "Sizes")
         } footer: {
             Text("What the shop needs before it can make anything. Written the way it is quoted at the counter, not forced into a number.")
         }
@@ -237,7 +237,7 @@ private struct EditCustomerForm: View {
             EditDayRow(title: "Birthday", day: $draft.birthday)
             EditDayRow(title: "Anniversary", day: $draft.anniversary)
         } header: {
-            Text("Dates")
+            LedgerHeading(title: "Dates")
         } footer: {
             Text("What the dashboard watches for, so a regular gets a message before the day rather than after it.")
         }
@@ -250,7 +250,7 @@ private struct EditCustomerForm: View {
             TextField("Notes", text: $draft.notes, prompt: Text("Anything worth remembering"), axis: .vertical)
                 .lineLimit(3...8)
         } header: {
-            Text("Preferences and notes")
+            LedgerHeading(title: "Preferences and notes")
         }
     }
 

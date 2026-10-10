@@ -105,18 +105,18 @@ struct CustomerScreen: View {
     }
 
     private func page(_ f: Facts) -> some View {
-        List {
+        List { Group {
             Section {
                 header(f.customer)
                     .listRowBackground(Color.clear)
             }
             owedSection(f.owing)
-            detailsSection(f.customer)
-            sizesSection(f.customer)
             invoicesSection(f.invoices)
             ordersSection(f.orders)
             repairsSection(f.repairs)
             if session.isOwner { hisaabSection(f.hisaab, id: f.customer.id) }
+            detailsSection(f.customer)
+            sizesSection(f.customer)
             // Removing is an owner's, as the web's direct write is.
             if session.isOwner {
                 Section {
@@ -127,6 +127,7 @@ struct CustomerScreen: View {
                     Text("Removing hides them; their invoices, orders and hisaab stay, and Settings, then Recently removed, puts them back. It asks for the delete code.")
                 }
             }
+        }.houseRows()
         }
         .listStyle(.insetGrouped)
     }
@@ -153,9 +154,10 @@ struct CustomerScreen: View {
 
     private func header(_ c: Customer) -> some View {
         VStack(spacing: 14) {
-            VStack(spacing: 4) {
+            VStack(spacing: 8) {
+                Monogram(name: CustomerKit.shown(c), size: 56)
                 Text(CustomerKit.shown(c))
-                    .font(.title2.weight(.semibold))
+                    .font(.system(.title2, design: .serif).weight(.semibold))
                     .multilineTextAlignment(.center)
                 if let phone = CustomerKit.filled(c.phone) {
                     Text(phone).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
@@ -190,7 +192,13 @@ struct CustomerScreen: View {
 
     @ViewBuilder private func owedSection(_ o: CustomerKit.Owing) -> some View {
         Section {
-            FigureTile(label: "Owed to you", value: Money.pkr(o.total), detail: owedDetail(o), tint: o.total > 0.5 ? .red : .primary)
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Owed to you").font(.subheadline).foregroundStyle(.secondary)
+                HeroAmount(amount: o.total)
+                Text(owedDetail(o)).font(.footnote).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+                .ledgerCard()
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
         }
@@ -211,17 +219,20 @@ struct CustomerScreen: View {
 
     private func detailsSection(_ c: Customer) -> some View {
         let address = [c.address, c.city, c.country].compactMap { CustomerKit.filled($0) }.joined(separator: ", ")
-        return Section("Details") {
-            LabeledContent("Phone", value: CustomerKit.filled(c.phone) ?? "—")
-            if let alt = CustomerKit.filled(c.altPhone) { LabeledContent("Second number", value: alt) }
-            LabeledContent("Email", value: CustomerKit.filled(c.email) ?? "—")
-            LabeledContent("Address", value: address.isEmpty ? "—" : address)
-            if let source = c.source { LabeledContent("Source", value: CustomerKit.sourceLabel(source)) }
-            if let birthday = CustomerKit.filled(c.birthday) { LabeledContent("Birthday", value: CustomerKit.day(birthday)) }
-            if let anniversary = CustomerKit.filled(c.anniversary) { LabeledContent("Anniversary", value: CustomerKit.day(anniversary)) }
-            if let preference = CustomerKit.filled(c.preference) { LabeledContent("Prefers", value: preference) }
-            if let notes = CustomerKit.filled(c.notes) { LabeledContent("Notes", value: notes) }
+        return Section {
+            DisclosureGroup("Customer details") {
+                if let phone = CustomerKit.filled(c.phone) { LabeledContent("Phone", value: phone) }
+                if let alt = CustomerKit.filled(c.altPhone) { LabeledContent("Second number", value: alt) }
+                if let email = CustomerKit.filled(c.email) { LabeledContent("Email", value: email) }
+                if !address.isEmpty { LabeledContent("Address", value: address) }
+                if let source = c.source { LabeledContent("Source", value: CustomerKit.sourceLabel(source)) }
+                if let birthday = CustomerKit.filled(c.birthday) { LabeledContent("Birthday", value: CustomerKit.day(birthday)) }
+                if let anniversary = CustomerKit.filled(c.anniversary) { LabeledContent("Anniversary", value: CustomerKit.day(anniversary)) }
+                if let preference = CustomerKit.filled(c.preference) { LabeledContent("Prefers", value: preference) }
+                if let notes = CustomerKit.filled(c.notes) { LabeledContent("Notes", value: notes) }
+            }
         }
+        .houseRows()
     }
 
     /// One line on the web ("Ring 14 · Bangle 2.6"): here a row each, and no section when none is on file.
@@ -231,7 +242,7 @@ struct CustomerScreen: View {
         let bracelet = CustomerKit.filled(c.braceletSize)
         let chain = CustomerKit.filled(c.chainLength)
         if ring != nil || bangle != nil || bracelet != nil || chain != nil {
-            Section("Sizes") {
+            LedgerSection("Sizes", collapsible: true) {
                 if let ring { LabeledContent("Ring", value: ring) }
                 if let bangle { LabeledContent("Bangle", value: bangle) }
                 if let bracelet { LabeledContent("Bracelet", value: bracelet) }
@@ -254,7 +265,7 @@ struct CustomerScreen: View {
                 }
             }
         } header: {
-            Text("Invoices · \(list.count)")
+            LedgerHeading(title: "Invoices · \(list.count)")
         }
     }
 
@@ -270,7 +281,7 @@ struct CustomerScreen: View {
                 }
             }
         } header: {
-            Text("Orders · \(list.count)")
+            LedgerHeading(title: "Orders · \(list.count)")
         }
     }
 
@@ -286,7 +297,7 @@ struct CustomerScreen: View {
                 }
             }
         } header: {
-            Text("Repairs · \(list.count)")
+            LedgerHeading(title: "Repairs · \(list.count)")
         }
     }
 
@@ -306,7 +317,7 @@ struct CustomerScreen: View {
                 Label(rows.count > Self.hisaabShown ? "All \(rows.count) rows in their hisaab" : "Open their hisaab", systemImage: "book.closed")
             }
         } header: {
-            Text("Hisaab")
+            LedgerHeading(title: "Hisaab")
         }
     }
 }

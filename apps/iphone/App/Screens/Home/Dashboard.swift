@@ -24,6 +24,10 @@ struct Dashboard: View {
     @State private var now = Date()
     /// "Set today's gold rate" opens the rate form here, for owners, rather than the ERP's page.
     @State private var rateSheet = false
+    @State private var noteSheet = false
+    @State private var allNeeds = false
+    @State private var allDue = false
+    @State private var allSales = false
     /// Online orders waiting to be confirmed, and whether selling waits on today's rate (the server says).
     private var inbox: OnlineInbox { .shared }
 
@@ -44,6 +48,14 @@ struct Dashboard: View {
         // The count itself is polled once for the whole app (RootView); coming here asks again at once.
         .task { await askOnline() }
         .sheet(isPresented: $rateSheet) { RateSheet() }
+        .sheet(isPresented: $noteSheet) { TeamNoteEditor() }
+        .toolbar {
+            if session.isOwner {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Team note", systemImage: "pin") { noteSheet = true }
+                }
+            }
+        }
     }
 
     // MARK: Shelves
@@ -155,14 +167,12 @@ struct Dashboard: View {
         }
     }
 
-    @ViewBuilder
     private func stats(_ f: DashFigures) -> some View {
-        if typeSize.isAccessibilitySize {
-            VStack(spacing: 10) { statCards(f) }
-        } else {
-            HStack(alignment: .top, spacing: 10) { statCards(f) }
-                .fixedSize(horizontal: false, vertical: true)
+        DisclosureGroup("Shop overview") {
+            VStack(spacing: 10) { statCards(f) }.padding(.top, 12)
         }
+        .font(.subheadline.weight(.semibold))
+        .ledgerCard()
     }
 
     @ViewBuilder
@@ -220,10 +230,11 @@ struct Dashboard: View {
                 if needs.isEmpty {
                     DashAllClear()
                 } else {
-                    DashNeedList(needs: needs, onRates: session.isOwner ? { rateSheet = true } : nil)
+                    DashNeedList(needs: allNeeds ? needs : Array(needs.prefix(3)), onRates: session.isOwner ? { rateSheet = true } : nil)
                 }
             }
             .dashRowsCard()
+            if needs.count > 3 { reveal($allNeeds, count: needs.count - 3) }
         }
     }
 
@@ -234,10 +245,11 @@ struct Dashboard: View {
                 if f.due.isEmpty {
                     DashEmpty(text: "No open orders or repairs.")
                 } else {
-                    DashRows(items: f.due, inset: DashDueRow.leaf + 12) { (d: DashDue) in DashDueRow(due: d) }
+                    DashRows(items: allDue ? f.due : Array(f.due.prefix(3)), inset: DashDueRow.leaf + 12) { (d: DashDue) in DashDueRow(due: d) }
                 }
             }
             .dashRowsCard()
+            if f.due.count > 3 { reveal($allDue, count: f.due.count - 3) }
         }
     }
 
@@ -248,21 +260,28 @@ struct Dashboard: View {
                 if f.recentInvoices.isEmpty {
                     DashEmpty(text: "No sales yet.")
                 } else {
-                    DashRows(items: f.recentInvoices, inset: DashSaleRow.monogram + 12) { (i: Invoice) in DashSaleRow(invoice: i) }
+                    DashRows(items: allSales ? f.recentInvoices : Array(f.recentInvoices.prefix(3)), inset: DashSaleRow.monogram + 12) { (i: Invoice) in DashSaleRow(invoice: i) }
                 }
             }
             .dashRowsCard()
+            if f.recentInvoices.count > 3 { reveal($allSales, count: f.recentInvoices.count - 3) }
         }
+    }
+
+    private func reveal(_ expanded: Binding<Bool>, count: Int) -> some View {
+        Button(expanded.wrappedValue ? "Show less" : "Show \(count) more") {
+            withAnimation { expanded.wrappedValue.toggle() }
+        }
+        .font(.subheadline.weight(.medium)).frame(minHeight: 44).padding(.horizontal, 4)
     }
 
     private func monthSection(_ f: DashFigures) -> some View {
         let path: String? = session.isOwner ? "/analytics" : nil
-        return VStack(alignment: .leading, spacing: 8) {
-            DashHeader(title: "Last 30 days")
+        return DisclosureGroup("Last 30 days") {
             linked(path) {
                 DashMonthCard(figures: f, showCosts: session.isOwner, linked: path != nil)
-            }
-        }
+            }.padding(.top, 12)
+        }.font(.subheadline.weight(.semibold)).ledgerCard()
     }
 
     // MARK: Time and the server

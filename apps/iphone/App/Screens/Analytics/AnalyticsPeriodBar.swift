@@ -8,11 +8,7 @@ struct AnaChip: View {
     let action: () -> Void
 
     var body: some View {
-        if selected {
-            Button(title, action: action).buttonStyle(.houseProminent)
-        } else {
-            Button(title, action: action).buttonStyle(.glass)
-        }
+        FilterChip(title: title, chosen: selected, action: action)
     }
 }
 
@@ -99,10 +95,12 @@ struct AnaCustomPeriod: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            Form { Group {
                 DatePicker("From", selection: $start, in: ...Date(), displayedComponents: .date)
                 DatePicker("To", selection: $end, in: start..., displayedComponents: .date)
+            }.houseRows()
             }
+            .modifier(HouseGround())
             .environment(\.calendar, AnaDate.karachi)
             .environment(\.timeZone, ERPDate.karachi)
             .onChange(of: start) { _, newStart in

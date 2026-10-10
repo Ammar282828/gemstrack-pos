@@ -110,7 +110,7 @@ struct SaleLineEditor: View {
                 }
             }
         } header: {
-            Text("The piece")
+            LedgerHeading(title: "The piece")
         } footer: {
             if create {
                 Text("Describe the piece you are billing. It goes on this invoice only: your stock is untouched.")
@@ -134,12 +134,12 @@ struct SaleLineEditor: View {
                     NewOrderSizeField(title: "Size", options: only.options, value: $f.size)
                 }
             } header: {
-                Text("Size")
+                LedgerHeading(title: "Size")
             } footer: {
                 Text(scale.multi ? scale.label + ". Leave either blank if not applicable." : scale.label)
             }
         } else {
-            Section("Size") {
+            LedgerSection("Size") {
                 TextField("Size", text: $f.size, prompt: Text("Optional"))
             }
         }
@@ -157,7 +157,7 @@ struct SaleLineEditor: View {
     }
 
     private var finishSection: some View {
-        Section("925 Sterling Silver finish") {
+        LedgerSection("925 Sterling Silver finish") {
             Picker("Plating", selection: $f.platingType) {
                 Text("No plating").tag("")
                 ForEach(SalePlating.all, id: \.self) { p in Text(p).tag(p) }
@@ -197,7 +197,7 @@ struct SaleLineEditor: View {
                 if silver { SaleNumberField(label: "Wastage (%)", text: $f.wastage) }
             }
         } header: {
-            Text("Price")
+            LedgerHeading(title: "Price")
         } footer: {
             if f.fixed {
                 Text("The weight is printed on the bill; the price stays as typed.")
@@ -206,7 +206,7 @@ struct SaleLineEditor: View {
     }
 
     private var stonesSection: some View {
-        Section("Diamonds and stones") {
+        LedgerSection("Diamonds and stones") {
             Toggle("Has diamonds", isOn: $f.hasDiamonds)
             if f.hasDiamonds {
                 // The charge only exists when the price is built from the rate; the details print either way.
@@ -226,7 +226,7 @@ struct SaleLineEditor: View {
             TextField("Description", text: $f.billDescription, prompt: Text("Additional details to appear on the invoice"), axis: .vertical)
                 .lineLimit(2...5)
         } header: {
-            Text("On the bill")
+            LedgerHeading(title: "On the bill")
         }
     }
 

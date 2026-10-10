@@ -40,7 +40,7 @@ struct OrderFinalizeScreen: View {
             } else if book.orders.loaded && order == nil {
                 ContentUnavailableView("No such order", systemImage: "questionmark.folder", description: Text("\(id) isn't in the book."))
             } else {
-                ProgressView()
+                SkeletonLoading()
             }
         }
         .navigationTitle(made == nil ? "Finalize & invoice" : (made ?? ""))
@@ -121,7 +121,7 @@ struct OrderFinalizeScreen: View {
                 }
             } label: {
                 HStack(spacing: 8) {
-                    if saving { ProgressView() }
+                    if saving { SkeletonLoading() }
                     Text("Finalize · \(Money.pkr(f.total))")
                 }
                 .frame(maxWidth: .infinity)

@@ -9,14 +9,16 @@
 
 import type { Invoice, Order, Repair, AdditionalRevenue, Expense } from '@/lib/store';
 import { mainRate, ratesSetToday, whenSet, type Rates } from '@/lib/rates';
-import { todaysCash } from '@/lib/analytics/todays-cash';
+import { revenueForPeriod } from '@/lib/analytics/revenue-period';
+import { karachiMonth, monthBounds } from '@/lib/reports/monthly';
+import { karachiDayPeriod, todaysCash } from '@/lib/analytics/todays-cash';
 import { owedToYou, type LedgerRow } from '@/lib/owed';
 import { isActiveOrder, orderTiming } from '@/lib/order-timing';
 import { awaitingTransfer } from '@/lib/order-stage';
 import { lacCrore } from '@/lib/money';
 
 export interface WidgetFigure { label: string; value: string; detail: string | null }
-export interface WidgetSummary { house: string; updated: string; figures: WidgetFigure[] }
+export interface WidgetSummary { house: string; updated: string; figures: WidgetFigure[]; asOf?: string; teamNote?: string }
 
 export interface WidgetRows {
   invoices: Invoice[];
@@ -25,6 +27,7 @@ export interface WidgetRows {
   extraRevenues: AdditionalRevenue[];
   expenses: Expense[];
   hisaab: LedgerRow[];
+  teamNote?: string;
   rates: Rates & { updatedAt?: string | null };
 }
 
@@ -49,10 +52,18 @@ export function widgetSummary(r: WidgetRows, house: string, metal: 'gold' | 'sil
   const late = timings.filter((t) => t.state === 'late').length;
   const today = timings.filter((t) => t.state === 'today').length;
 
+  const day = karachiDayPeriod(now).period;
+  const month = monthBounds(karachiMonth(now));
+  const todayRevenue = revenueForPeriod(r, day.from!, new Date(day.to!.getTime() + 1));
+  const monthRevenue = revenueForPeriod(r, month.from, new Date(month.to.getTime() + 1));
   return {
     house,
+    teamNote: String(r.teamNote ?? '').trim().slice(0, 600),
     updated: clock(now),
+    asOf: karachiDayPeriod(now).day,
     figures: [
+      { label: 'Made today', value: rs(todayRevenue), detail: 'revenue' },
+      { label: 'This month', value: rs(monthRevenue), detail: 'revenue' },
       {
         label: metal === 'silver' ? 'Silver' : `Gold ${main.label}`,
         value: rate ? `Rs ${Math.round(rate).toLocaleString('en-PK')}` : 'Not set',

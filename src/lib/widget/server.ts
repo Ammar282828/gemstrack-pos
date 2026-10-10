@@ -12,6 +12,7 @@ import { roleForEmail } from '@/lib/roles';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { loadRates } from '@/lib/website/config';
 import { rows, theDayRows } from '@/lib/notifications/reports';
+import { karachiDayPeriod } from '@/lib/analytics/todays-cash';
 import { widgetSummary, type WidgetRows, type WidgetSummary } from './summary';
 
 const KEYS = () => adminDb.collection('widget_keys');
@@ -37,19 +38,24 @@ export async function widgetKeyOwner(key: string): Promise<string | null> {
   return email;
 }
 
-let memo: { at: number; summary: WidgetSummary } | null = null;
+const SCHEMA = 2;
+let memo: { at: number; day: string; summary: WidgetSummary } | null = null;
 
 export async function currentWidgetSummary(now = new Date()): Promise<WidgetSummary> {
-  if (memo && now.getTime() - memo.at < FRESH_MS) return memo.summary;
-  const cached = (await CACHE().get()).data() as { at?: number; summary?: WidgetSummary } | undefined;
-  if (cached?.summary && cached.at && now.getTime() - cached.at < FRESH_MS) {
-    memo = { at: cached.at, summary: cached.summary };
-    return cached.summary;
+  const dayKey = karachiDayPeriod(now).day;
+  // A pin is urgent: don't hold it behind the financial figures' fifteen-minute cache.
+  const settings = await adminDb.collection('app_settings').doc('global').get();
+  const teamNote = String(settings.data()?.teamNote ?? '').trim().slice(0, 600);
+  if (memo && memo.day === dayKey && now.getTime() >= memo.at && now.getTime() - memo.at < FRESH_MS) return { ...memo.summary, teamNote };
+  const cached = (await CACHE().get()).data() as { at?: number; day?: string; schema?: number; summary?: WidgetSummary } | undefined;
+  if (cached?.schema === SCHEMA && cached.day === dayKey && cached.summary && cached.at && now.getTime() >= cached.at && now.getTime() - cached.at < FRESH_MS) {
+    memo = { at: cached.at, day: dayKey, summary: cached.summary };
+    return { ...cached.summary, teamNote };
   }
   const [day, hisaab, rates] = await Promise.all([theDayRows(), rows('hisaab'), loadRates()]);
   const input = { ...day, hisaab, rates } as unknown as WidgetRows;
   const summary = widgetSummary(input, STORE_CONFIG.name, STORE_CONFIG.defaultMetal, now);
-  memo = { at: now.getTime(), summary };
-  await CACHE().set({ at: now.getTime(), summary }).catch(() => undefined);
-  return summary;
+  memo = { at: now.getTime(), day: dayKey, summary };
+  await CACHE().set({ at: now.getTime(), day: dayKey, schema: SCHEMA, summary }).catch(() => undefined);
+  return { ...summary, teamNote };
 }

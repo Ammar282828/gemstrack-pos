@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { pushGate, isDeviceToken } from '@/lib/push/gate';
+import { readDevice } from '@/lib/push/store';
 import { pushToShop } from '@/lib/push/send';
 import { STORE_CONFIG } from '@/lib/store-config';
 
@@ -12,6 +13,8 @@ export async function POST(req: NextRequest) {
   if (typeof email !== 'string') return email;
   const body = await req.json().catch(() => null) as { token?: unknown } | null;
   if (!isDeviceToken(body?.token)) return NextResponse.json({ error: 'No phone named.' }, { status: 400 });
+  const device = await readDevice(body.token);
+  if (!device || device.email !== email) return NextResponse.json({ error: 'This phone is not registered to you.' }, { status: 403 });
   const r = await pushToShop({ kind: 'orders', title: 'Test notification', body: `${STORE_CONFIG.name}: notifications reach this iPhone.`, url: '/settings/alerts' }, { token: body.token });
   const said: Record<string, string> = {
     'no-key': 'No Apple push key is set yet: add it above.',

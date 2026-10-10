@@ -15,7 +15,8 @@ export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token');
   if (!isDeviceToken(token)) return NextResponse.json({ error: 'No phone named.' }, { status: 400 });
   const d = await readDevice(token);
-  return NextResponse.json({ registered: !!d && d.email === email, off: d?.off ?? [], kinds: PUSH_KINDS });
+  const owned = !!d && d.email === email;
+  return NextResponse.json({ registered: owned, off: owned ? d.off : [], kinds: PUSH_KINDS });
 }
 
 export async function POST(req: NextRequest) {

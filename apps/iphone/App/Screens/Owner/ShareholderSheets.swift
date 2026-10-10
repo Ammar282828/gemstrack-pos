@@ -106,7 +106,7 @@ struct ShareholderEntrySheet: View {
                 } footer: {
                     Text(move.explanation)
                 }
-                Section("Amount and date") {
+                LedgerSection("Amount and date") {
                     TextField("Amount (PKR)", text: $amountText)
                         .keyboardType(.decimalPad)
                         .font(.title2.weight(.semibold))

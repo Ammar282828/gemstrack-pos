@@ -89,11 +89,12 @@ struct WorkshopKarigarsList: View {
             .filter { (loads[$0.id]?.active ?? 0) > 0 }
             .sorted { busier($0, $1, loads) }
         let free = matched.filter { (loads[$0.id]?.active ?? 0) == 0 }
-        return List {
+        return List { Group {
             figures(live, loads, batches)
             showPicker
             if show != .free { section("Working", hint: "busiest first", people: working, loads, batches) }
             if show != .working { section("Free", hint: "nothing on the bench", people: free, loads, batches) }
+        }.houseRows()
         }
         .listStyle(.insetGrouped)
         .overlay {

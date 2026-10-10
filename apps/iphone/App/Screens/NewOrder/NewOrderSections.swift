@@ -58,7 +58,7 @@ struct NewOrderCustomerSection: View {
                 }
             }
         } header: {
-            Text("Order for")
+            LedgerHeading(title: "Order for")
         }
     }
 
@@ -130,7 +130,7 @@ struct NewOrderPromisedSection: View {
                 }
             }
         } header: {
-            Text("Promised for")
+            LedgerHeading(title: "Promised for")
         } footer: {
             Text("What the piece is chased against. Within \(URGENT_WINDOW_DAYS) days is marked urgent.")
         }
@@ -228,7 +228,7 @@ struct NewOrderRatesSection: View {
                         .buttonStyle(.borderless)
                 }
             } header: {
-                Text("Metal rates (PKR / gram)")
+                LedgerHeading(title: "Metal rates (PKR / gram)")
             } footer: {
                 Text(footer)
             }
@@ -276,7 +276,7 @@ struct NewOrderPaymentSection: View {
                 }
             }
         } header: {
-            Text("Payment")
+            LedgerHeading(title: "Payment")
         } footer: {
             Text("The discount is carried onto the invoice when this order is finalised.")
         }
@@ -310,7 +310,7 @@ struct NewOrderExchangeSection: View {
                 }
             }
         } header: {
-            Text("Exchange / trade-in")
+            LedgerHeading(title: "Exchange / trade-in")
         } footer: {
             Text("Old gold or a piece the customer hands over, taken off the bill at an agreed value.")
         }
@@ -410,7 +410,7 @@ struct NewOrderNotesSection: View {
             TextField("Notes", text: $draft.notes, prompt: Text("Anything the shop should remember"), axis: .vertical)
                 .lineLimit(2...6)
         } header: {
-            Text("Notes")
+            LedgerHeading(title: "Notes")
         } footer: {
             Text("Kept with the order and carried to its invoice as a note for the shop. Never printed.")
         }
@@ -443,7 +443,7 @@ struct NewOrderDeliverySection: View {
             Toggle("Deliver this", isOn: $draft.deliver)
             if draft.deliver { fields }
         } header: {
-            Text("Delivery")
+            LedgerHeading(title: "Delivery")
         }
     }
 
@@ -540,7 +540,7 @@ struct NewOrderMarginSection: View {
             .buttonStyle(.plain)
             .accessibilityLabel(shown ? "Hide our margin" : "Show our margin")
         } header: {
-            Text("Our margin (shop only)")
+            LedgerHeading(title: "Our margin (shop only)")
         } footer: {
             Text("Never printed, and never on anything the customer sees.")
         }
@@ -599,7 +599,7 @@ struct NewOrderTotalsSection: View {
                     .font(.title3.weight(.bold))
             }
         } header: {
-            Text("Totals")
+            LedgerHeading(title: "Totals")
         } footer: {
             if totals.balance < 0 {
                 Text("More has been taken than the pieces come to.")

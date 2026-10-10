@@ -26,49 +26,93 @@ final class AppRouter {
 }
 
 @MainActor
+@Observable
 final class Push: NSObject, UNUserNotificationCenterDelegate {
     static let shared = Push()
     private let tokenKey = "erp.pushToken"
+    private(set) var registeredOnServer = false
+    private(set) var registrationError: String?
+    private(set) var registering = false
+    private var registrationTask: Task<Void, Never>?
     private var token: String? {
         get { UserDefaults.standard.string(forKey: tokenKey) }
         set { UserDefaults.standard.set(newValue, forKey: tokenKey) }
     }
 
-    /// Asks once (iOS remembers the answer), then registers with Apple; the token arrives in AppDelegate.
+    /// iOS permission and the ERP's device record are separate; neither implies delivery.
     func register() async {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        guard (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) == true else { return }
-        UIApplication.shared.registerForRemoteNotifications()
+        registrationError = nil
+        do {
+            guard try await center.requestAuthorization(options: [.alert, .sound, .badge]) else { return }
+            registering = true
+            UIApplication.shared.registerForRemoteNotifications()
+            if let token { await link(token) }
+        } catch { didFail(error) }
     }
 
     func didRegister(token data: Data) {
         let hex = data.map { String(format: "%02x", $0) }.joined()
         token = hex
-        Task { try? await ERPAPI.shared.send("/api/push/devices", ["token": hex, "bundleId": Bundle.main.bundleIdentifier ?? "", "label": "iPhone"]) }
+        registrationTask?.cancel()
+        registrationTask = Task { await link(hex) }
     }
 
-    func didFail(_ error: Error) { print("[push] not registered:", error.localizedDescription) }
+    private func link(_ hex: String) async {
+        do {
+            try await ERPAPI.shared.send("/api/push/devices", ["token": hex, "bundleId": Bundle.main.bundleIdentifier ?? "", "label": UIDevice.current.model])
+            guard !Task.isCancelled else { return }
+            registeredOnServer = true
+            registrationError = nil
+        } catch {
+            guard !Task.isCancelled else { return }
+            registeredOnServer = false
+            registrationError = error.localizedDescription
+        }
+        registering = false
+    }
+
+    func didFail(_ error: Error) {
+        registering = false
+        registrationError = error.localizedDescription
+    }
 
     func unregister() async {
-        guard let t = token else { return }
-        _ = try? await ERPAPI.shared.send("/api/push/devices", method: "DELETE", ["token": t])
+        registrationTask?.cancel()
+        registrationTask = nil
+        if let t = token { _ = try? await ERPAPI.shared.send("/api/push/devices", method: "DELETE", ["token": t]) }
         token = nil
+        registeredOnServer = false
+        registering = false
+        registrationError = nil
     }
 
-    /// Which kinds this phone gets (Settings, natively): the server keeps the list.
-    func kindsOff() async -> [String] {
-        guard let t = token, let d = try? await ERPAPI.shared.data("/api/push/devices?token=\(t)"),
-              let j = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any] else { return [] }
+    func kindsOff() async throws -> [String] {
+        guard let t = token else { throw PushError.notRegistered }
+        let d = try await ERPAPI.shared.data("/api/push/devices?token=\(t)")
+        guard let j = try JSONSerialization.jsonObject(with: d) as? [String: Any], j["registered"] as? Bool == true else {
+            registeredOnServer = false
+            throw PushError.notRegistered
+        }
+        registeredOnServer = true
         return j["off"] as? [String] ?? []
     }
 
     func setKindsOff(_ off: [String]) async throws {
-        guard let t = token else { return }
+        guard registeredOnServer, let t = token else { throw PushError.notRegistered }
         try await ERPAPI.shared.send("/api/push/devices", ["token": t, "bundleId": Bundle.main.bundleIdentifier ?? "", "off": off])
     }
 
-    var isRegistered: Bool { token != nil }
+    func sendTest() async throws {
+        guard registeredOnServer, let token else { throw PushError.notRegistered }
+        try await ERPAPI.shared.send("/api/push/test", ["token": token])
+    }
+
+    private enum PushError: LocalizedError {
+        case notRegistered
+        var errorDescription: String? { "This phone isn't linked for notifications yet. Try registering it again." }
+    }
 
     // Shown while the app is open too, and a tap opens the page it names.
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {

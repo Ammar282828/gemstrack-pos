@@ -486,6 +486,17 @@ describe('a partner\'s salary', () => {
 describe('the shop\'s settings from the phone', () => {
   const patch = (p: Record<string, unknown>, email = 'owner@example.com') => call({ op: 'updateSettings', patch: p }, email);
 
+  it('publishes, replaces and clears the team note without changing rates or counters', async () => {
+    for (const note of ['Urgent: close at 6', 'Delivery arrived', '']) {
+      expect((await patch({ teamNote: note })).status).toBe(200);
+      expect(data.app_settings.global).toMatchObject({ teamNote: note, goldRatePerGram21k: 30000, lastInvoiceNumber: 1 });
+    }
+    expect((await patch({ teamNote: 'staff write' }, 'staff@example.com')).status).toBe(403);
+    expect((await patch({ teamNote: 'marketing write' }, 'mkt@example.com')).status).toBe(403);
+    expect((await patch({ teamNote: 'x'.repeat(601) })).status).toBe(400);
+    expect(data.app_settings.global.teamNote).toBe('');
+  });
+
   it('an owner changes the whitelisted fields, merged, and the log names them without their values', async () => {
     const r = await patch({
       shopName: '  Demo Jewellers ', shopAddress: '1 Example Road', shopContact: '0300 0000000', theme: 'default', uiStyle: 'glass',

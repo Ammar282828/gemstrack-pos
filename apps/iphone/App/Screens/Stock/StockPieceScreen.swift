@@ -88,7 +88,7 @@ struct StockPieceScreen: View {
     /// the weights, as the web does.
     @ViewBuilder
     private func priceSection(_ p: Product, _ costs: ProductCosts?, _ settings: Settings?) -> some View {
-        Section("Price") {
+        LedgerSection("Price") {
             VStack(spacing: 4) {
                 Text(p.isCustomPrice ? "Fixed price" : "At today's rates")
                     .font(.subheadline)
@@ -147,7 +147,7 @@ struct StockPieceScreen: View {
 
     @ViewBuilder
     private func specsSection(_ p: Product) -> some View {
-        Section("Details") {
+        LedgerSection("Details", collapsible: true) {
             LabeledContent("Metal", value: capitalised(p.metalType.rawValue))
             if p.metalType == .gold, let k = p.karat, !k.rawValue.isEmpty {
                 LabeledContent("Karat", value: k.rawValue.uppercased())
@@ -203,7 +203,7 @@ struct StockPieceScreen: View {
                 Label("Delete", systemImage: "trash").foregroundStyle(.red)
             }
         } header: {
-            Text("On the ERP's page")
+            LedgerHeading(title: "On the ERP's page")
         } footer: {
             Text("These open the ERP's own page. Delete asks for the delete code there.")
         }
@@ -226,7 +226,7 @@ private struct StockSoldView: View {
     @ViewBuilder
     private var content: some View {
         if !book.invoices.loaded {
-            ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+            SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             let sales: [Invoice] = book.invoices.items.filter { (inv: Invoice) -> Bool in
                 inv.items.contains { (item: InvoiceItem) -> Bool in item.sku == sku }

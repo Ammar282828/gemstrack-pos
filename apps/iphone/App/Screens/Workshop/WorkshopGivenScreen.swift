@@ -265,7 +265,7 @@ struct WorkshopGivenScreen: View {
         HStack {
             Spacer()
             if busy.contains(item.id) {
-                ProgressView()
+                SkeletonLoading()
             } else {
                 Button { markReturned(item) } label: {
                     Label("Got back", systemImage: "checkmark.circle")
@@ -386,14 +386,14 @@ struct WorkshopGivenSheet: View {
     var body: some View {
         NavigationStack {
             Form { Group {
-                Section("Date given") {
+                LedgerSection("Date given") {
                     DatePicker("Date given", selection: $date, in: ...Date(), displayedComponents: .date)
                 }
-                Section("Item / description") {
+                LedgerSection("Item / description") {
                     TextField("e.g. Gold ring sample, Silver bangle repair", text: $what)
                 }
                 recipientSection
-                Section("Notes (optional)") {
+                LedgerSection("Notes (optional)") {
                     TextField("Any extra details", text: $notes, axis: .vertical)
                         .lineLimit(2...4)
                 }
@@ -421,7 +421,7 @@ struct WorkshopGivenSheet: View {
     // MARK: Who it went to
 
     private var recipientSection: some View {
-        Section("Given to") {
+        LedgerSection("Given to") {
             Picker("Given to", selection: $type) {
                 ForEach(types, id: \.rawValue) { t in
                     Text(typeWords(t)).tag(t)

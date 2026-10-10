@@ -21,6 +21,17 @@ enum Theme {
     static let onAccent = Color("OnAccent-\(House.id)")
 }
 
+/// The same full logo as the ERP, with its original proportions and appearance-specific artwork.
+struct HouseLogo: View {
+    var body: some View {
+        Image("BrandLogo-\(House.id)")
+            .resizable()
+            .scaledToFit()
+            .frame(maxWidth: 256, maxHeight: 72)
+            .accessibilityLabel(House.storeName)
+    }
+}
+
 /// The app's filled button: the system's prominent glass in the house accent, with the words in the
 /// colour the accent carries (Theme.onAccent) rather than the system's white.
 struct HouseProminentStyle: PrimitiveButtonStyle {
@@ -62,6 +73,8 @@ struct HouseGround: ViewModifier {
     func body(content: Content) -> some View {
         content
             .scrollContentBackground(.hidden)
+            .environment(\.defaultMinListRowHeight, 56)
+            .listSectionSpacing(24)
             .background(Theme.ground.ignoresSafeArea())
     }
 }

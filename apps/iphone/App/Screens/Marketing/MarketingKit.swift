@@ -144,7 +144,7 @@ struct MarketingReading: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            ProgressView()
+            SkeletonLoading()
             Text(text).foregroundStyle(.secondary)
         }
     }

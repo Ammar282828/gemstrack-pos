@@ -197,7 +197,7 @@ private struct StockBulkEditor: View {
                 }
             }
         } header: {
-            Text("Shared by every piece")
+            LedgerHeading(title: "Shared by every piece")
         } footer: {
             Text("A piece is named “prefix suffix”. With neither, it is named from the category and its SKU.")
         }
@@ -211,7 +211,7 @@ private struct StockBulkEditor: View {
             }
             NewOrderNumberRow(title: "Misc (PKR)", text: $shared.miscCharges, prompt: "e.g. 250")
         } header: {
-            Text("Costs")
+            LedgerHeading(title: "Costs")
         } footer: {
             if shared.silver {
                 Text("Silver is priced by weight at the silver rate in settings, all-inclusive: no wastage or making.")
@@ -231,7 +231,7 @@ private struct StockBulkEditor: View {
                 NewOrderNumberRow(title: "Diamonds (PKR)", text: $shared.diamondCharges, prompt: "e.g. 50000")
             }
         } header: {
-            Text("Diamonds and stones")
+            LedgerHeading(title: "Diamonds and stones")
         } footer: {
             if shared.hasStones || shared.hasDiamonds {
                 Text("The same figures go on every piece.")
@@ -253,7 +253,7 @@ private struct StockBulkEditor: View {
                 Label("Add a row", systemImage: "plus")
             }
         } header: {
-            Text("Add weights")
+            LedgerHeading(title: "Add weights")
         } footer: {
             Text("Paste a list from a message or a sheet: every number in it becomes a piece.")
         }
@@ -268,7 +268,7 @@ private struct StockBulkEditor: View {
                 weightRow(index, row)
             }
         } header: {
-            Text("Weights to add · \(rows.count)")
+            LedgerHeading(title: "Weights to add · \(rows.count)")
         } footer: {
             Text("Swipe a row to take it out.")
         }
@@ -353,7 +353,7 @@ private struct StockBulkEditor: View {
         } label: {
             Group {
                 if saving {
-                    ProgressView()
+                    SkeletonLoading()
                 } else {
                     Text("Add \(rows.count) piece\(rows.count == 1 ? "" : "s")")
                 }
@@ -441,7 +441,7 @@ private struct StockBulkEditor: View {
                     }
                 }
             } header: {
-                Text("Added")
+                LedgerHeading(title: "Added")
             } footer: {
                 Text("Photos are added on each piece's ERP page.")
             }

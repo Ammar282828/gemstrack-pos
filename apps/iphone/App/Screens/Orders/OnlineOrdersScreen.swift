@@ -51,7 +51,7 @@ struct OnlineOrdersScreen: View {
         } else {
             switch store.phase {
             case .idle, .loading:
-                ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .failed(let message):
                 ContentUnavailableView {
                     Label("Couldn't read the online orders", systemImage: "exclamationmark.icloud")
@@ -202,7 +202,7 @@ struct OnlineOrdersScreen: View {
         if r.state == "confirming" {
             // Someone pressed Confirm a moment ago; the server holds it for them for two minutes.
             HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
+                SkeletonLoading().controlSize(.small)
                 Text("Being confirmed" + (OnlineOrdersLogic.who(r.claimedBy).map { " by \($0)" } ?? "") + "…")
                     .foregroundStyle(.secondary)
             }

@@ -80,7 +80,7 @@ struct LockCover: View {
         ZStack {
             Theme.ground.ignoresSafeArea()
             VStack(spacing: 24) {
-                Image("LaunchMark-\(House.id)").resizable().scaledToFit().frame(width: 88, height: 88)
+                HouseLogo().padding(.horizontal, 32)
                 if lock.locked {
                     Button {
                         Task { await lock.unlock() }

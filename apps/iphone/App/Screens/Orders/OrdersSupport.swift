@@ -14,8 +14,12 @@ struct OrdersWebTarget: Hashable, Identifiable {
     var native = false
     var id: String { path }
 
-    /// The order's own ERP page: edit, give out, finalize, refund, delete.
+    /// Explicit access to the order's full ERP page.
     static func orderPage(_ id: String) -> OrdersWebTarget { OrdersWebTarget(path: "/orders/\(id)", title: id) }
+    /// The native bench, limited to this order: assign a karigar and record the handover separately.
+    static func giveOut(_ id: String) -> OrdersWebTarget {
+        OrdersWebTarget(path: "/workshop?order=" + WorkshopLogic.piece(id), title: "Give out", native: true)
+    }
     /// The workshop slip, native: drawn on the ERP's server by the one builder (lib/order-slip-pdf.ts), shown
     /// here and printed or shared from the share sheet (NewOrderRoutes `slipScreen`). The ERP's page still
     /// draws it for `?do=slip`, for an app from before.
@@ -32,6 +36,7 @@ extension View {
         navigationDestination(item: target) { t in
             if t.native {
                 ScreenRegistry.view(for: t.path)
+                    .modifier(HouseGround())
             } else {
                 WebScreen(path: t.path)
                     .navigationTitle(t.title)

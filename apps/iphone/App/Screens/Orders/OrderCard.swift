@@ -6,9 +6,8 @@ import ERPCore
 // (components/order/next-step.tsx). Two rows rather than one, because a row that holds both a link
 // and buttons answers every tap with all of them; here each row has one kind of control.
 //
-// The card reads as the ledger does (App/UI/Ledger.swift, 2026-10-09): the person first, the promise
-// beside them, the stage as a track rather than a pair of coloured words, the money on the right, and the
-// order's number as the quiet line underneath, for finding it again.
+// The customer and order number lead. Status, money and the promise get separate space, so a narrow
+// phone never squeezes progress counts into ellipses. The detail page holds the complete stage track.
 
 /// Calling or writing to the customer from a card's swipe.
 enum OrderContactKind {
@@ -30,7 +29,6 @@ private enum OrderCardMetrics {
     static let inset: CGFloat = 16
     static let monogram: CGFloat = 40
     static let gap: CGFloat = 12
-    static var textColumn: CGFloat { inset + monogram + gap }
 }
 
 struct OrderCardRows: View {
@@ -60,9 +58,9 @@ struct OrderCardRows: View {
             OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine)
         }
         // The row's own leading inset, so the step row below lines up under the name on every width.
-        .listRowInsets(EdgeInsets(top: 10, leading: OrderCardMetrics.inset, bottom: step != nil ? 6 : 10, trailing: 16))
+        .listRowInsets(EdgeInsets(top: 16, leading: OrderCardMetrics.inset, bottom: 12, trailing: 16))
         .listRowSeparator(step != nil ? .hidden : .automatic, edges: .bottom)
-        .mineRow(mine)
+        .listRowBackground(Theme.card)
         .swipeActions(edge: .leading, allowsFullSwipe: false) { reach }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) { swipe }
         .contextMenu { menu }
@@ -70,9 +68,8 @@ struct OrderCardRows: View {
         if let step {
             OrderNextStepRow(order: order, step: step, canAdvance: canAdvance, busy: busy, actions: actions)
                 .listRowSeparator(.hidden, edges: .top)
-                .listRowInsets(EdgeInsets(top: 0, leading: OrderCardMetrics.textColumn, bottom: 12, trailing: 16))
-                // Its own row, so it is lit with the card above it.
-                .mineRow(mine)
+                .listRowInsets(EdgeInsets(top: 4, leading: OrderCardMetrics.inset, bottom: 12, trailing: 16))
+                .listRowBackground(Theme.card)
         }
     }
 
@@ -126,156 +123,120 @@ struct OrderCardRows: View {
     }
 }
 
-/// The card's face:
-///   who it is for                       the promise, when it presses
-///   what it is
-///   the stage track · pieces done        what is still owed
-///   ORD-… · Taken today · Online · You
+/// The card's summary. Complete piece, payment and contact details remain on the order.
 struct OrderCardHead: View {
     let order: Order
     let stage: OrderStage
-    /// What the order's invoice still has owing.
     let owed: Double
     let now: Date
     let greyed: Bool
     let mine: Bool
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        let name = OrdersLogic.customerName(order)
-        HStack(alignment: .top, spacing: OrderCardMetrics.gap) {
-            Monogram(name: name, size: OrderCardMetrics.monogram)
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(name)
+        let counts = pieceCounts(order.items)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                Monogram(name: OrdersLogic.customerName(order), size: 40)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(OrdersLogic.customerName(order))
                         .font(.headline)
-                        .lineLimit(1)
-                    Spacer(minLength: 6)
-                    // The promise keeps its words; a long name gives way first.
-                    promise.fixedSize()
+                        .foregroundStyle(greyed ? Color.secondary : Color.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 8) {
+                        Text(order.id).font(.caption).foregroundStyle(.secondary)
+                        if mine { MineTag() }
+                        if OrdersLogic.isOnline(order) { OrdersOnlineBadge() }
+                    }
                 }
-                whatLine
-                standing
-                quietLine
             }
+            let what = OrdersLogic.cardWhat(order)
+            Text(what.text + (what.extra.map { " · " + $0 } ?? ""))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+                : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
+            layout {
+                VStack(alignment: .leading, spacing: 5) {
+                    Label(stageTitle, systemImage: stageSymbol)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(stageTone.color)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if counts.total > 0 && !greyed {
+                        Text(counts.unassigned > 0 ? "\(counts.unassigned) unassigned" : "\(counts.done) of \(counts.total) done")
+                            .font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                money
+            }
+            promise
         }
-        .opacity(greyed ? 0.55 : 1)
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
     }
 
-    // MARK: When
+    private var stageTitle: String {
+        stage == .closed ? order.status.rawValue : (STAGES[stage]?.title ?? stage.rawValue)
+    }
 
-    /// Late, today or inside the bench week: a pill in the promise's tone. Otherwise the day, quietly, while the
-    /// order is still open; nothing once it is invoiced or closed (its promise is history).
-    @ViewBuilder
-    private var promise: some View {
-        let t = orderTiming(order, now: now)
-        let p = OrdersLogic.promise(order, now: now)
-        if OrdersLogic.isOpen(order), let due = t.due {
-            if p.chase && (t.state == .late || t.state == .today || p.urgent) {
-                let said = PromiseWords.say(t)
-                Pill(said.text, tone: said.tone)
-            } else {
-                Text("Due " + OrdersLogic.dueDay(due))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+    private var stageTone: Tone {
+        switch stage {
+        case .karigar: return .working
+        case .ready, .done: return .settled
+        case .transfer, .payment: return .owed
+        default: return .quiet
         }
     }
 
-    // MARK: What
-
-    private var whatLine: some View {
-        let what = OrdersLogic.cardWhat(order)
-        return HStack(spacing: 4) {
-            Text(what.text)
-                .lineLimit(1)
-            if let extra = what.extra {
-                Text(extra)
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-                    .fixedSize()
-            }
-        }
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-    }
-
-    // MARK: Where it stands, and what is owed
-
-    private var standing: some View {
-        let counts = pieceCounts(order.items)
-        return HStack(alignment: .center, spacing: 8) {
-            if stage == .closed {
-                Pill(order.status.rawValue.isEmpty ? "Closed" : order.status.rawValue, tone: .quiet)
-            } else {
-                StageTrack(stage: stage)
-                    .frame(width: 96)
-                if counts.total > 0 {
-                    Text("\(counts.done) of \(counts.total) done")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .lineLimit(1)
-                }
-                // Amber, not red: a piece nobody has yet is work to hand out, not a promise missed.
-                if counts.unassigned > 0 && !greyed && order.status != .completed {
-                    Text("\(counts.unassigned) unassigned")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(Tone.owed.color)
-                        .lineLimit(1)
-                }
-            }
-            Spacer(minLength: 8)
-            money.fixedSize()
+    private var stageSymbol: String {
+        switch stage {
+        case .karigar: return "hammer"
+        case .ready, .done: return "checkmark.circle"
+        case .transfer, .payment: return "creditcard"
+        case .closed: return "minus.circle"
+        case .new: return "circle.dotted"
         }
     }
 
-    /// The order's balance until it is invoiced, then what its invoice still asks for; Paid once nothing is
-    /// owed. A cancelled or refunded order owes nothing to show.
-    @ViewBuilder
-    private var money: some View {
+    @ViewBuilder private var promise: some View {
+        let timing = orderTiming(order, now: now)
+        let promise = OrdersLogic.promise(order, now: now)
+        if OrdersLogic.isOpen(order), let due = timing.due {
+            let urgent = promise.chase && (timing.state == .late || timing.state == .today || promise.urgent)
+            let words = PromiseWords.say(timing)
+            Label(urgent ? words.text : "Due " + OrdersLogic.dueDay(due), systemImage: "calendar")
+                .font(.footnote)
+                .foregroundStyle(urgent ? words.tone.color : Color.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder private var money: some View {
         if stage != .closed {
             let due = OrdersLogic.stillOwed(order, invoiceOwed: owed)
-            if due > 0.5 {
-                VStack(alignment: .trailing, spacing: 0) {
-                    RowAmount(amount: due)
-                    Text("due")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+            VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 3) {
+                if abs(due) > 0.5 {
+                    Text(Money.pkr(abs(due)))
+                        .font(.system(.title3, design: .serif).weight(.semibold))
+                        .foregroundStyle(due < 0 ? Tone.credit.color : Color.primary)
+                        .monospacedDigit()
+                    Text(due < 0 ? "In credit" : "Due")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("Paid").font(.subheadline.weight(.medium)).foregroundStyle(Tone.settled.color)
                 }
-            } else if due < -0.5 {
-                VStack(alignment: .trailing, spacing: 0) {
-                    RowAmount(amount: -due, tone: Tone.credit.color)
-                    Text("in credit")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                Pill("Paid", tone: .settled)
             }
-        }
-    }
-
-    // MARK: For finding it again
-
-    private var quietLine: some View {
-        HStack(spacing: 6) {
-            Text(order.id + " · Taken " + ShopDate.say(order.createdAt))
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .monospacedDigit()
-                .lineLimit(1)
-            if OrdersLogic.isOnline(order) { OrdersOnlineBadge() }
-            if mine { MineTag() }
+            .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: true)
         }
     }
 }
 
-/// The one thing to do next (OrdersLogic.nextStep), as one filled capsule, and an Advance beside it on any
-/// order still being made (owners). An invoiced order's step is a quiet link to its invoice: money is taken
-/// there only.
+/// One visible next action, with secondary money actions in the overflow menu. An invoiced order
+/// links to its invoice, where payments are taken.
 struct OrderNextStepRow: View {
     let order: Order
     let step: OrderNextStep
@@ -292,40 +253,40 @@ struct OrderNextStepRow: View {
     var body: some View {
         if let inv = invoiced {
             NavigationLink(value: Route(path: "/invoices/\(inv.id)")) {
-                invoiceLink(inv.id, owed: inv.owed)
+                invoiceLink(inv.id)
             }
         } else {
             HStack(spacing: 10) {
                 primary
                 Spacer(minLength: 0)
-                if canAdvance { advanceButton }
+                if canAdvance {
+                    Menu {
+                        Button("Record an advance", systemImage: "creditcard") { actions.advance(order) }
+                    } label: {
+                        Image(systemName: "ellipsis").frame(minWidth: 44, minHeight: 44)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("More order actions")
+                }
             }
         }
     }
 
-    private func invoiceLink(_ invoiceId: String, owed: Double) -> some View {
-        HStack {
-            Label("Invoiced · \(invoiceId)", systemImage: "doc.text")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 8)
-            if owed > 0.5 {
-                Text(Money.pkr(owed) + " owed")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Tone.owed.color)
-                    .monospacedDigit()
-            }
-        }
+    private func invoiceLink(_ invoiceId: String) -> some View {
+        Label("Invoice \(invoiceId)", systemImage: "doc.text")
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(Theme.accent)
     }
 
     @ViewBuilder
     private var primary: some View {
         if busy {
-            ProgressView().controlSize(.small)
+            SkeletonLoading().controlSize(.small)
         } else {
             Button(action: run) { Label(step.title, systemImage: step.symbol) }
-                .buttonStyle(.houseProminent)
-                .controlSize(.small)
+                .buttonStyle(.borderless)
+                .font(.subheadline.weight(.semibold))
+                .frame(minHeight: 44)
         }
     }
 
@@ -335,7 +296,7 @@ struct OrderNextStepRow: View {
             // The order's own page has the transfer's moves (OrderOnlineSection, and its bar's Check transfer).
             actions.openWeb(OrdersWebTarget(path: "/orders/\(order.id)", title: order.id, native: true))
         case .giveOut:
-            actions.openWeb(.orderPage(order.id))
+            actions.openWeb(.giveOut(order.id))
         case .markReady:
             actions.markReady(order)
         case .finalize:
@@ -345,11 +306,4 @@ struct OrderNextStepRow: View {
         }
     }
 
-    private var advanceButton: some View {
-        Button { actions.advance(order) } label: { Label("Advance", systemImage: "creditcard") }
-            .buttonStyle(.borderless)
-            .font(.footnote.weight(.medium))
-            .tint(.secondary)
-            .accessibilityLabel("Record an advance")
-    }
 }

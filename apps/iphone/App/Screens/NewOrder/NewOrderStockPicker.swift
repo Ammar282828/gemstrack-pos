@@ -35,7 +35,7 @@ struct NewOrderStockPicker: View {
                 }
                 .houseRows()
             }
-            .overlay { if !book.products.loaded { ProgressView() } }
+            .overlay { if !book.products.loaded { SkeletonLoading() } }
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "SKU or name")
             .navigationTitle("Add from stock")
             .navigationBarTitleDisplayMode(.inline)

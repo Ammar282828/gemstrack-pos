@@ -32,6 +32,21 @@ struct AnaBarChart: View {
     }
 }
 
+/// The same quiet bar treatment as Home, with daily figures still available in Sales.
+struct AnaRevenueBars: View {
+    let days: [AnaDay]
+    var body: some View {
+        Chart(days) { day in
+            BarMark(x: .value("Day", day.plotDate, unit: .day), y: .value("Revenue", day.sales / Money.lac))
+                .foregroundStyle(Theme.accent.gradient)
+                .cornerRadius(3)
+        }
+        .frame(height: 190)
+        .chartYAxisLabel("PKR lac")
+        .accessibilityLabel("Revenue each day in PKR lac")
+    }
+}
+
 /// Sales day by day over the period.
 struct AnaSalesChart: View {
     let days: [AnaDay]

@@ -115,7 +115,7 @@ struct AddCustomer: View {
                     .textContentType(.name)
                     .textInputAutocapitalization(.words)
             } header: {
-                Text("Name")
+                LedgerHeading(title: "Name")
             } footer: {
                 if walkIn {
                     Text("A walk-in is not a customer: a sale to nobody in particular is left without one.")
@@ -135,7 +135,7 @@ struct AddCustomer: View {
                     }
                 }
             } header: {
-                Text("Phone")
+                LedgerHeading(title: "Phone")
             }
 
             Section {
@@ -145,7 +145,7 @@ struct AddCustomer: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             } header: {
-                Text("Email")
+                LedgerHeading(title: "Email")
             } footer: {
                 if !emailOK { Text("That doesn't look like an email address.").foregroundStyle(.red) }
             }
@@ -155,7 +155,7 @@ struct AddCustomer: View {
                     .lineLimit(2...5)
                     .textContentType(.fullStreetAddress)
             } header: {
-                Text("Address")
+                LedgerHeading(title: "Address")
             }
 
             Section {

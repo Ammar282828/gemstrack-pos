@@ -137,7 +137,7 @@ private struct BackupPage: View {
                 if let listError {
                     Label(listError, systemImage: "exclamationmark.icloud").foregroundStyle(.secondary)
                 } else {
-                    HStack { Spacer(); ProgressView(); Spacer() }
+                    HStack { Spacer(); SkeletonLoading(); Spacer() }
                 }
             } else {
                 Button(selected.count == collections.count ? "Deselect all" : "Select all") {
@@ -165,7 +165,7 @@ private struct BackupPage: View {
                 if exporting { ProgressView(value: progress) }
                 Button { Task { await export() } } label: {
                     HStack(spacing: 8) {
-                        if exporting { ProgressView() }
+                        if exporting { SkeletonLoading() }
                         Label(exporting ? "Exporting… \(Int(progress * 100))%" : "Download Backup", systemImage: "doc.badge.arrow.up")
                     }
                 }
@@ -177,7 +177,7 @@ private struct BackupPage: View {
                 }
             }
         } header: {
-            Text("Export Backup")
+            LedgerHeading(title: "Export Backup")
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Download all your data as a JSON file you can store locally or import later.")
@@ -230,7 +230,7 @@ private struct BackupPage: View {
                 Label("Restore from Backup in the ERP", systemImage: "arrow.counterclockwise")
             }
         } header: {
-            Text("Restore from Backup")
+            LedgerHeading(title: "Restore from Backup")
         } footer: {
             Text("Upload a previously exported JSON backup. Documents are merged — existing records are updated, nothing is deleted. It writes over the live books, so it is done on the ERP’s own page.")
         }
@@ -251,7 +251,7 @@ private struct BackupPage: View {
                 .autocorrectionDisabled()
             if !search.trimmingCharacters(in: .whitespaces).isEmpty {
                 if !sold.loaded {
-                    HStack { Spacer(); ProgressView(); Spacer() }
+                    HStack { Spacer(); SkeletonLoading(); Spacer() }
                 } else if let error = sold.error, sold.items.isEmpty {
                     Label(error, systemImage: "exclamationmark.icloud").foregroundStyle(.secondary)
                 } else if soldHits.isEmpty {
@@ -263,7 +263,7 @@ private struct BackupPage: View {
                             Button {
                                 Task { await reAdd(p) }
                             } label: {
-                                if recovering == p.sku { ProgressView() } else { Label("Re-Add", systemImage: "plus.circle") }
+                                if recovering == p.sku { SkeletonLoading() } else { Label("Re-Add", systemImage: "plus.circle") }
                             }
                             .buttonStyle(.glass)
                             .disabled(recovering != nil)
@@ -272,7 +272,7 @@ private struct BackupPage: View {
                 }
             }
         } header: {
-            Text("Sold Product Recovery")
+            LedgerHeading(title: "Sold Product Recovery")
         } footer: {
             Text("Search for a sold product by its original SKU or name to re-add it to active inventory.")
         }
@@ -303,7 +303,7 @@ private struct BackupPage: View {
                 Link(destination: url) { Label("Open Firestore Console", systemImage: "arrow.up.right.square") }
             }
         } header: {
-            Text("Cloud Database Backups (PITR)")
+            LedgerHeading(title: "Cloud Database Backups (PITR)")
         } footer: {
             Text("Firestore’s Point-in-Time Recovery lets you restore to any minute in the last 7 days via the Google Cloud Console. Managed by Google Cloud.")
         }

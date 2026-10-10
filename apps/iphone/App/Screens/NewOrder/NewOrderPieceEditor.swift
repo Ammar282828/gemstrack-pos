@@ -88,6 +88,11 @@ struct NewOrderPieceEditor: View {
         .navigationTitle("Piece \(number)")
         .navigationBarTitleDisplayMode(.inline)
         .newOrderKeyboardDone()
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save product") { dismiss() }
+            }
+        }
         .confirmationDialog("Remove this piece?", isPresented: $confirmRemove, titleVisibility: .visible) {
             Button("Remove piece", role: .destructive) {
                 onRemove()
@@ -100,7 +105,7 @@ struct NewOrderPieceEditor: View {
     // MARK: The piece
 
     private var thePiece: some View {
-        Section("The piece") {
+        LedgerSection("The piece") {
             Picker("Category", selection: $piece.category) {
                 Text("None").tag("")
                 ForEach(NewOrderWords.categories) { c in
@@ -173,7 +178,7 @@ struct NewOrderPieceEditor: View {
                     NewOrderSizeField(title: "Size", options: only.options, value: $piece.size)
                 }
             } header: {
-                Text("Size")
+                LedgerHeading(title: "Size")
             } footer: {
                 Text(scale.multi ? scale.label + ". Leave either blank if not applicable." : scale.label)
             }
@@ -206,7 +211,7 @@ struct NewOrderPieceEditor: View {
                 weighedRows
             }
         } header: {
-            Text("Price")
+            LedgerHeading(title: "Price")
         } footer: {
             if !piece.manual {
                 Text("Weight is with the stones in; the stones' weight comes off the metal.")
@@ -270,7 +275,7 @@ struct NewOrderPieceEditor: View {
                 }
             }
         } header: {
-            Text("For the workshop")
+            LedgerHeading(title: "For the workshop")
         } footer: {
             Text("The instructions are never printed on a customer estimate or invoice.")
         }
@@ -286,7 +291,7 @@ struct NewOrderPieceEditor: View {
                 .autocorrectionDisabled()
             Toggle("Customer provided a physical sample", isOn: $piece.sampleGiven)
         } header: {
-            Text("References")
+            LedgerHeading(title: "References")
         } footer: {
             Text("All optional.")
         }

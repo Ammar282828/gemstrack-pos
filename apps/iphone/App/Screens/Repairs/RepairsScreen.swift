@@ -256,7 +256,7 @@ struct RepairsRow: View {
                     .font(.headline)
                     .lineLimit(1)
                 Spacer(minLength: 8)
-                if busy { ProgressView() } else { money }
+                if busy { SkeletonLoading() } else { money }
             }
             Text(who)
                 .font(.subheadline)

@@ -153,7 +153,7 @@ private struct VoiceSettingsPage: View {
     private var namesSection: some View {
         Section {
             if !aliases.loaded {
-                HStack { Spacer(); ProgressView(); Spacer() }
+                HStack { Spacer(); SkeletonLoading(); Spacer() }
             } else if let error = aliases.error, aliases.items.isEmpty {
                 Label(error, systemImage: "exclamationmark.icloud").foregroundStyle(.secondary)
             } else if aliases.items.isEmpty {
@@ -164,7 +164,7 @@ private struct VoiceSettingsPage: View {
                 }
             }
         } header: {
-            Text("Names it has learned")
+            LedgerHeading(title: "Names it has learned")
         } footer: {
             Text("Each one is a time it picked the wrong person and was told which was meant. It gets that name right from then on.")
         }
@@ -186,7 +186,7 @@ private struct VoiceSettingsPage: View {
             }
             Spacer(minLength: 8)
             Button(role: .destructive) { Task { await forget(a) } } label: {
-                if busy == a.id { ProgressView() } else { Image(systemName: "trash") }
+                if busy == a.id { SkeletonLoading() } else { Image(systemName: "trash") }
             }
             .buttonStyle(.plain)
             .foregroundStyle(.red)

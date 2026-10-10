@@ -207,7 +207,7 @@ private struct StockPieceEditor: View {
                 }
             }
         } header: {
-            Text("The piece")
+            LedgerHeading(title: "The piece")
         } footer: {
             if !f.fixed {
                 Text("Left blank, the name is made from the category and the SKU.")
@@ -222,7 +222,7 @@ private struct StockPieceEditor: View {
     }
 
     private var finishSection: some View {
-        Section("925 Sterling Silver finish") {
+        LedgerSection("925 Sterling Silver finish") {
             Picker("Plating", selection: $f.platingType) {
                 Text("No plating").tag("")
                 ForEach(platingOptions, id: \.self) { (p: String) in
@@ -257,7 +257,7 @@ private struct StockPieceEditor: View {
                 NewOrderNumberRow(title: "Weight", text: $f.secondWeight, prompt: "e.g. 1.25", unit: "g")
             }
         } header: {
-            Text("Second metal")
+            LedgerHeading(title: "Second metal")
         } footer: {
             Text("Optional.")
         }
@@ -278,7 +278,7 @@ private struct StockPieceEditor: View {
                     NewOrderSizeField(title: "Size", options: only.options, value: $f.size)
                 }
             } header: {
-                Text("Size")
+                LedgerHeading(title: "Size")
             } footer: {
                 Text(scale.multi ? scale.label + ". Leave either blank if not applicable." : scale.label)
             }
@@ -330,7 +330,7 @@ private struct StockPieceEditor: View {
                 }
             }
         } header: {
-            Text("Price")
+            LedgerHeading(title: "Price")
         } footer: {
             priceFooter
         }
@@ -356,7 +356,7 @@ private struct StockPieceEditor: View {
     // MARK: Diamonds and stones
 
     private var stonesSection: some View {
-        Section("Diamonds and stones") {
+        LedgerSection("Diamonds and stones") {
             Toggle("Has diamonds", isOn: $f.hasDiamonds)
             if f.hasDiamonds {
                 NewOrderNumberRow(title: "Diamonds (PKR)", text: $f.diamondCharges, prompt: "e.g. 50000")
@@ -390,7 +390,7 @@ private struct StockPieceEditor: View {
                     Label(photo == nil ? "Add a photo in the ERP" : "Change the photo in the ERP", systemImage: "photo")
                 }
             } header: {
-                Text("Photo")
+                LedgerHeading(title: "Photo")
             } footer: {
                 Text("The photo is uploaded on the ERP's own page. Everything else saves here, and saving here keeps the photo.")
             }
@@ -399,7 +399,7 @@ private struct StockPieceEditor: View {
                 Label("Add the photo once the piece is saved", systemImage: "photo")
                     .foregroundStyle(.secondary)
             } header: {
-                Text("Photo")
+                LedgerHeading(title: "Photo")
             } footer: {
                 Text("The photo is uploaded on the ERP's own page, which opens from here after saving.")
             }

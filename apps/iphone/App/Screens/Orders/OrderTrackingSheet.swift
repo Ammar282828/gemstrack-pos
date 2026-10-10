@@ -20,7 +20,7 @@ struct OrderTrackingSheet: View {
                 if asking && track == nil && failure == nil {
                     Section {
                         HStack(spacing: 10) {
-                            ProgressView()
+                            SkeletonLoading()
                             Text("Asking TCS\u{2026}").foregroundStyle(.secondary)
                         }
                     }

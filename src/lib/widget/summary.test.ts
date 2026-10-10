@@ -24,12 +24,15 @@ const rows = (over: Partial<WidgetRows> = {}): WidgetRows => ({
   ...over,
 });
 
-describe('the widget\'s four figures', () => {
+describe('the widget\'s figures', () => {
   it('reads like the ERP\'s own pages', () => {
     const s = widgetSummary(rows(), 'Taheri', 'gold', now);
     expect(s.house).toBe('Taheri');
     expect(s.updated).toBe('3:00 pm');
-    const [rate, drawer, owed, due] = s.figures;
+    const [today, month, rate, drawer, owed, due] = s.figures;
+    expect(today).toEqual({ label: 'Made today', value: 'Rs 50,000', detail: 'revenue' });
+    expect(month).toEqual({ label: 'This month', value: 'Rs 50,000', detail: 'revenue' });
+    expect(s.asOf).toBe('2026-10-08');
     expect(rate).toEqual({ label: 'Gold 21K', value: 'Rs 24,350', detail: expect.stringMatching(/^a gram · /) });
     expect(drawer).toEqual({ label: 'In the drawer', value: 'Rs 45,000', detail: 'Rs 50,000 in today' });
     expect(owed).toEqual({ label: 'Owed to you', value: 'Rs 2.5 lac', detail: '1 unpaid' });
@@ -39,6 +42,10 @@ describe('the widget\'s four figures', () => {
 
   it('says when the rate was not set today, and shows silver for a silver house', () => {
     const s = widgetSummary(rows({ rates: { silverRatePerGram: 410, updatedAt: '2026-10-06T04:40:00Z' } }), 'House of Mina', 'silver', now);
-    expect(s.figures[0]).toEqual({ label: 'Silver', value: 'Rs 410', detail: 'not set today' });
+    expect(s.figures[2]).toEqual({ label: 'Silver', value: 'Rs 410', detail: 'not set today' });
+  });
+  it('shows the shared pin, including clearing it', () => {
+    expect(widgetSummary(rows({ teamNote: '  Urgent collection at 5 pm.  ' }), 'Mina', 'silver', now).teamNote).toBe('Urgent collection at 5 pm.');
+    expect(widgetSummary(rows({ teamNote: '' }), 'Mina', 'silver', now).teamNote).toBe('');
   });
 });

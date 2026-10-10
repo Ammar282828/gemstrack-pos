@@ -13,6 +13,7 @@ struct AnaSalesPage: View {
     let pick: (String) -> Void
 
     @State private var day: AnaDay?
+    @State private var showDays = false
 
     var body: some View {
         List {
@@ -41,10 +42,10 @@ struct AnaSalesPage: View {
                 Text("No sales data available to display chart for the selected period.").foregroundStyle(.secondary)
             } else {
                 AnaSalesChart(days: figures.salesOverTime)
-                AnaOrdersChart(days: figures.salesOverTime)
+                DisclosureGroup("Number of sales") { AnaOrdersChart(days: figures.salesOverTime) }
             }
         } header: {
-            Text("Sales over time")
+            LedgerHeading(title: "Sales over time")
         } footer: {
             Text("Revenue and order count trend for the selected period.")
         }
@@ -58,7 +59,7 @@ struct AnaSalesPage: View {
             Section {
                 AnaMonthlyChart(months: history.months, average: history.monthlyAverage, best: history.bestMonth)
             } header: {
-                Text("Revenue by month")
+                LedgerHeading(title: "Revenue by month")
             } footer: {
                 Text(monthlyNote)
             }
@@ -84,7 +85,7 @@ struct AnaSalesPage: View {
                         .buttonStyle(.plain)
                 }
             } header: {
-                Text("Yearly performance")
+                LedgerHeading(title: "Yearly performance")
             } footer: {
                 Text(showCosts
                      ? "All-time revenue, expenses and profit by year. Tap a year to filter Analytics to it."
@@ -134,15 +135,16 @@ struct AnaSalesPage: View {
             if figures.salesOverTime.isEmpty {
                 Text("No daily data available for the selected period.").foregroundStyle(.secondary)
             } else {
-                ForEach(figures.salesOverTime) { (d: AnaDay) in
+                ForEach(Array(figures.salesOverTime.prefix(showDays ? figures.salesOverTime.count : 5))) { (d: AnaDay) in
                     Button { day = d } label: { dayRow(d) }
                         .buttonStyle(.plain)
                 }
+                if figures.salesOverTime.count > 5 { Button(showDays ? "Show fewer days" : "Show all days · \(figures.salesOverTime.count)") { showDays.toggle() } }
             }
         } header: {
-            Text("Daily summary")
+            LedgerHeading(title: "Daily summary")
         } footer: {
-            Text("A day-by-day breakdown of sales activity for the selected period. Tap a day for its report.")
+            Text("Tap a day for its report.")
         }
         .houseRows()
     }
@@ -195,8 +197,8 @@ struct AnaDaySheet: View {
                     Text(AnaDate.longDay(AnaDate.parseISO(day.date) ?? Date()))
                 } footer: {
                     Text("Orders and extra revenue are in the totals; the lists are the invoices written this day.")
-                }
-                Section("Invoices") {
+                }.houseRows()
+                LedgerSection("Invoices") {
                     if invoices.isEmpty {
                         Text("No invoices on this day.").foregroundStyle(.secondary)
                     } else {
@@ -205,7 +207,7 @@ struct AnaDaySheet: View {
                         }
                     }
                 }
-                Section("Products sold") {
+                LedgerSection("Products sold") {
                     if lines.isEmpty {
                         Text("No pieces sold on this day.").foregroundStyle(.secondary)
                     } else {

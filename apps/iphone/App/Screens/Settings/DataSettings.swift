@@ -20,12 +20,12 @@ private struct DataForm: View {
                 SettingToggle(title: "Keep unfinished orders and sales", key: "autoDraftForms", stored: settings.autoDraftForms, writer: writer)
                 NavigationLink(value: Route(path: "/drafts")) { Label("Drafts", systemImage: "doc.text") }
             } header: {
-                Text("Drafts")
+                LedgerHeading(title: "Drafts")
             } footer: {
                 Text("A new order or sale is kept as it is typed, on every device, until it is saved.")
             }
 
-            Section("Keep and restore") {
+            LedgerSection("Keep and restore") {
                 NavigationLink(value: Route(path: "/settings/backups")) { Label("Backups", systemImage: "externaldrive") }
                 NavigationLink(value: Route(path: "/settings/recently-removed")) { Label("Recently removed", systemImage: "arrow.uturn.backward") }
             }
@@ -37,7 +37,7 @@ private struct DataForm: View {
                     NavigationLink(value: Route(path: "/settings/import-taheri")) { Label("Import Taheri Software book", systemImage: "books.vertical") }
                 }
             } header: {
-                Text("Imports")
+                LedgerHeading(title: "Imports")
             } footer: {
                 Text("Bring records in from a phone or another app.")
             }

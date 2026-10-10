@@ -73,7 +73,7 @@ struct RepairsSheet: View {
         if let r = current {
             detail(r)
         } else if !book.repairs.loaded {
-            ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+            SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ContentUnavailableView(
                 "Repair not found",
@@ -199,7 +199,7 @@ struct RepairsSheet: View {
                 pieceRow(r.pieces[i])
             }
         } header: {
-            Text("Pieces (\(r.pieces.count))")
+            LedgerHeading(title: "Pieces (\(r.pieces.count))")
         }
     }
 
@@ -249,7 +249,7 @@ struct RepairsSheet: View {
                 paymentLine(r.payments[i])
             }
         } header: {
-            Text("Money")
+            LedgerHeading(title: "Money")
         }
     }
 
@@ -289,7 +289,7 @@ struct RepairsSheet: View {
             }
             noteRow(r)
         } header: {
-            Text("Details")
+            LedgerHeading(title: "Details")
         }
     }
 

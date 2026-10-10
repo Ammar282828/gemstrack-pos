@@ -19,6 +19,7 @@ import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { CommandPalette, openCommandPalette } from '@/components/search/command-palette';
 import { VoiceBubble } from '@/components/voice/voice-bubble';
+import { TeamNote } from '@/components/shared/team-note';
 import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LOGO_SIDEBAR_HEIGHT } from '@/lib/store-config';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
@@ -159,7 +160,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (inNativeApp()) {
     return (
       <SidebarProvider defaultOpen={false}>
-        <VoiceBubble />
         <RateSheet />
         <div className="app-inset flex min-h-dvh w-full flex-col">
           {!isOnline && (
@@ -384,6 +384,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               scroll box every `sticky` inside it measures against, so no column or toolbar ever stuck (found 2026-10-04).
               Clip keeps a wide page from widening the screen; tables scroll in their own wrapper (ui/table.tsx). */}
           <main className="flex-1 min-w-0 p-4 overflow-x-clip md:p-6">
+            <TeamNote owner={role === 'owner'} />
             {children}
           </main>
 

@@ -78,7 +78,7 @@ struct WorkshopStockJobSheet: View {
                     }
                     TextField("Size, e.g. 12, 2.4, 7.5\"", text: $size)
                 }
-                Section("Notes") {
+                LedgerSection("Notes") {
                     TextField("Instructions, stone details…", text: $notes, axis: .vertical)
                         .lineLimit(2...5)
                 }
@@ -167,7 +167,7 @@ struct WorkshopJobDetailsSheet: View {
                     TextField("What is being made", text: $name, axis: .vertical)
                         .lineLimit(1...3)
                 } header: {
-                    Text("Item name")
+                    LedgerHeading(title: "Item name")
                 } footer: {
                     Text("\(job.description): only the fields the karigar sees. Price, customer and quantity are unchanged.")
                 }
@@ -183,7 +183,7 @@ struct WorkshopJobDetailsSheet: View {
                     TextField("Stones, plating, sizing, or other specifications", text: $instructions, axis: .vertical)
                         .lineLimit(3...8)
                 } header: {
-                    Text("Instructions")
+                    LedgerHeading(title: "Instructions")
                 } footer: {
                     Text("Shown to the karigar and on the workshop slip.")
                 }

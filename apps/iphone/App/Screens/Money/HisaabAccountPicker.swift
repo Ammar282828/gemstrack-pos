@@ -97,7 +97,7 @@ struct HisaabAccountPicker: View {
                 if canCreate || creating {
                     Button { Task { await createKarigar() } } label: {
                         HStack(spacing: 12) {
-                            if creating { ProgressView() } else { Image(systemName: "plus.circle") }
+                            if creating { SkeletonLoading() } else { Image(systemName: "plus.circle") }
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(creating ? "Adding" : "Add karigar") \u{201C}\(typed)\u{201D}").font(.body.weight(.medium))
                                 Text("Opens a new hisaab for him").font(.caption).foregroundStyle(.secondary)

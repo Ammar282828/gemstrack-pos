@@ -7,6 +7,11 @@ import ERPCore
 /// shows the money before and after and asks). Audience, rename, duplicate, archive and delete, and an
 /// ad's previews, stay the ERP's page: one tap opens it.
 struct AdsCampaignsScreen: View {
+    var path = "/ads/campaigns"
+    @State private var gallery = false
+    @State private var sort = "spend"
+    @State private var expanded = Set<String>()
+    @State private var allExpanded = false
     @Environment(Session.self) private var session
 
     @AppStorage("ads.range") private var rangeKey = "last_7d"
@@ -44,7 +49,7 @@ struct AdsCampaignsScreen: View {
             } else if let problem {
                 failed(problem)
             } else {
-                ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
+                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle("Campaigns")
@@ -56,6 +61,7 @@ struct AdsCampaignsScreen: View {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Toggle("Show archived", isOn: $archived)
+                        Toggle("Expand all campaigns", isOn: $allExpanded)
                         Button { go = Route(path: "/ads/new") } label: { Label("New ad", systemImage: "plus") }
                     } label: {
                         Label("More", systemImage: "ellipsis.circle")
@@ -65,6 +71,7 @@ struct AdsCampaignsScreen: View {
         }
         .navigationDestination(item: $go) { (r: Route) in PlaceScreen(path: r.path) }
         .task(id: "\(rangeKey)|\(archived)") { if mayRead { await load() } }
+        .task { if let id = AdsQuery.value("ad", in: path) { go = Route(path: objectPath("ad", id)) } }
         .confirmationDialog("Run it?", isPresented: askingShown, titleVisibility: .visible, presenting: asking) { (t: Target) in
             Button("Run") { Task { await setRunning(t, running: true) } }
         } message: { (t: Target) in
@@ -172,6 +179,18 @@ struct AdsCampaignsScreen: View {
                 } footer: {
                     Text(summary(list.count, d.campaigns.count, spent, views, cur))
                 }
+                Section {
+                    Picker("View", selection: $gallery) {
+                        Text("Campaigns").tag(false)
+                        Text("Ads and pictures").tag(true)
+                    }.pickerStyle(.segmented)
+                    if gallery {
+                        Picker("Sort", selection: $sort) {
+                            Text("Most spent").tag("spend"); Text("Most results").tag("results")
+                            Text("Cheapest result").tag("cost"); Text("Best click-through").tag("ctr"); Text("Name").tag("name")
+                        }
+                    }
+                }
                 if let problem {
                     Section { Label(problem, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary) } header: { Text("Couldn't refresh") }
                 }
@@ -182,10 +201,8 @@ struct AdsCampaignsScreen: View {
                                                description: Text(d.campaigns.isEmpty ? "Make the first ad from New ad." : "Try another filter or search."))
                     }
                 }
-                ForEach(list) { (c: AdCampaign) in campaignSection(c, cur) }
-                Section {
-                    MarketingLink(title: "Audiences, names, copies", subtitle: "Change, duplicate, archive or delete in the ERP", symbol: "slider.horizontal.3", path: "/ads/campaigns?web=1")
-                }
+                if gallery { gallerySection(list, cur) }
+                else { ForEach(list) { (c: AdCampaign) in campaignSection(c, cur) } }
             }
             .houseRows()
         }
@@ -204,7 +221,11 @@ struct AdsCampaignsScreen: View {
         let goal: String? = c.adsets.count == 1 ? c.adsets[0].optimizationGoal : nil
         return Section {
             campaignRow(c, goal, cur)
-            ForEach(c.adsets) { (s: AdSet) in adSetRow(s, cur) }
+            DisclosureGroup("\(c.adsets.count) ad sets", isExpanded: Binding(get: { allExpanded || expanded.contains(c.id) }, set: { on in
+                allExpanded = false; if on { expanded.insert(c.id) } else { expanded.remove(c.id) }
+            })) {
+                ForEach(c.adsets) { (s: AdSet) in adSetRow(s, cur) }
+            }
         }
     }
 
@@ -216,7 +237,7 @@ struct AdsCampaignsScreen: View {
         ].filter { (s: String) in !s.isEmpty }
         return HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(c.name).font(.headline).lineLimit(2)
+                Text(c.name).font(.headline).fixedSize(horizontal: false, vertical: true)
                 AdsStatusBadge(status: c.effectiveStatus)
                 Text(bits.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
                 let b = budget(c.dailyBudget, c.lifetimeBudget, cur)
@@ -228,7 +249,10 @@ struct AdsCampaignsScreen: View {
                 issues(c.issues)
             }
             Spacer(minLength: 8)
-            runSwitch(Target(level: "campaign", id: c.id, name: c.name), status: c.status)
+            VStack(spacing: 12) {
+                runSwitch(Target(level: "campaign", id: c.id, name: c.name), status: c.status)
+                detailsButton("campaign", c.id)
+            }
         }
         .padding(.vertical, 2)
     }
@@ -237,7 +261,7 @@ struct AdsCampaignsScreen: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(s.name).font(.body.weight(.medium)).lineLimit(2)
+                    Text(s.name).font(.body.weight(.medium)).fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 6) {
                         AdsStatusBadge(status: s.effectiveStatus)
                         if let learning = s.learning { Text(learning).font(.caption).foregroundStyle(.orange) }
@@ -251,7 +275,10 @@ struct AdsCampaignsScreen: View {
                     issues(s.issues)
                 }
                 Spacer(minLength: 8)
-                runSwitch(Target(level: "adset", id: s.id, name: s.name), status: s.status)
+                VStack(spacing: 12) {
+                    runSwitch(Target(level: "adset", id: s.id, name: s.name), status: s.status)
+                    detailsButton("adset", s.id)
+                }
             }
             if !s.ads.isEmpty { adStrip(s.ads, cur) }
         }
@@ -264,18 +291,68 @@ struct AdsCampaignsScreen: View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(alignment: .top, spacing: 10) {
                 ForEach(ads) { (a: AdItem) in
-                    Button { go = Route(path: "/ads/campaigns?ad=\(a.id)&web=1") } label: {
+                    Button { go = Route(path: objectPath("ad", a.id)) } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             StockImage(imageUrl: a.image, name: a.name, key: a.id)
                                 .aspectRatio(1, contentMode: .fit)
                                 .clipShape(.rect(cornerRadius: 10))
-                            Text(a.name).font(.caption2).lineLimit(1)
+                            Text(a.name).font(.caption).fixedSize(horizontal: false, vertical: true)
                             Text(AdsFormat.money(a.metrics.spend, cur)).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                         }
                         .frame(width: 84)
                     }
                     .buttonStyle(.plain)
                 }
+            }
+        }
+    }
+
+    private func objectPath(_ level: String, _ id: String) -> String {
+        "/ads/object?level=\(level)&id=\(AdsQuery.escape(id))"
+    }
+
+    private func detailsButton(_ level: String, _ id: String) -> some View {
+        Button("Details and actions", systemImage: "ellipsis.circle") { go = Route(path: objectPath(level, id)) }
+            .labelStyle(.iconOnly).buttonStyle(.borderless).frame(minWidth: 44, minHeight: 44)
+    }
+
+    private func gallerySection(_ campaigns: [AdCampaign], _ cur: String) -> some View {
+        let ads = campaigns.flatMap(\.adsets).flatMap(\.ads).filter { ad in
+            switch filter {
+            case .all: return true
+            case .running: return ad.effectiveStatus == "ACTIVE"
+            case .paused: return ad.effectiveStatus == "PAUSED"
+            case .problems: return isProblem(ad.effectiveStatus, ad.issues)
+            }
+        }.sorted { a, b in
+            let ar = AdsResults.of(a.metrics, goal: nil)?.value ?? 0
+            let br = AdsResults.of(b.metrics, goal: nil)?.value ?? 0
+            switch sort {
+            case "name": return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+            case "results": return ar > br
+            case "cost": return (ar > 0 ? a.metrics.spend / ar : Double.infinity) < (br > 0 ? b.metrics.spend / br : Double.infinity)
+            case "ctr": return a.metrics.ctr > b.metrics.ctr
+            default: return a.metrics.spend > b.metrics.spend
+            }
+        }
+        return Section {
+            ForEach(ads) { ad in
+                VStack(alignment: .leading, spacing: 12) {
+                    Button { go = Route(path: objectPath("ad", ad.id)) } label: {
+                        VStack(alignment: .leading, spacing: 10) {
+                            StockImage(imageUrl: ad.image, name: ad.name, key: ad.id).aspectRatio(1, contentMode: .fit).clipShape(.rect(cornerRadius: 16))
+                            Text(ad.name).font(.headline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
+                        }
+                    }.buttonStyle(.plain)
+                    AdsStatusBadge(status: ad.effectiveStatus)
+                    numbers(ad.metrics, goal: nil, before: nil, cur)
+                    issues(ad.issues)
+                    HStack {
+                        detailsButton("ad", ad.id)
+                        Spacer()
+                        runSwitch(Target(level: "ad", id: ad.id, name: ad.name), status: ad.status)
+                    }
+                }.padding(.vertical, 10)
             }
         }
     }
@@ -292,7 +369,7 @@ struct AdsCampaignsScreen: View {
         )
         return Group {
             if busy == t.id {
-                ProgressView()
+                SkeletonLoading()
             } else {
                 Toggle("Running", isOn: on)
                     .labelsHidden()
@@ -337,8 +414,8 @@ struct AdsCampaignsScreen: View {
 
     @ViewBuilder
     private func issues(_ list: [String]) -> some View {
-        if let first = list.first {
-            Label(first, systemImage: "exclamationmark.triangle.fill")
+        ForEach(list, id: \.self) { issue in
+            Label(issue, systemImage: "exclamationmark.triangle.fill")
                 .font(.caption)
                 .foregroundStyle(.orange)
         }

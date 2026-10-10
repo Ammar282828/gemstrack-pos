@@ -98,12 +98,12 @@ struct ExpensesScreen: View {
         let shown = category.isEmpty ? scoped : scoped.filter { $0.item.category == category }
         let groups = MoneyBuckets.group(shown, by: grouping, now: now, amount: { (e: Expense) -> Double in e.amount })
         let summary = ExpenseFigures.summary(shown, groups: groups)
-        List {
+        List { Group {
             if period == .custom {
                 Section {
                     MoneyRangeFields(filter: $custom)
                 } header: {
-                    Text("Custom range")
+                    LedgerHeading(title: "Custom range")
                 } footer: {
                     Text(custom.useFrom ? "Without an end date it runs to the end of today." : "Until a start date is chosen, every expense is shown.")
                 }
@@ -133,6 +133,7 @@ struct ExpensesScreen: View {
             } footer: {
                 Text("The report is drawn by the ERP's page, for the period and filters chosen there.")
             }
+        }.houseRows()
         }
         .listStyle(.insetGrouped)
         .safeAreaBar(edge: .top, spacing: 0) { categoryChips(scoped) }
@@ -178,15 +179,20 @@ struct ExpensesScreen: View {
     private func figures(_ s: ExpenseSummary) -> some View {
         let per = grouping.title.lowercased()
         return VStack(spacing: 10) {
-            HStack(alignment: .top, spacing: 10) {
+            FigureRow(alignment: .top, spacing: 10) {
                 FigureTile(label: "Total expenses", value: Money.pkr(s.total), tint: Theme.accent)
                 FigureTile(label: "Payments", value: "\(s.count)", detail: category.isEmpty ? nil : category)
             }
-            HStack(alignment: .top, spacing: 10) {
-                FigureTile(label: "Average per \(per)", value: Money.pkr(s.perBucket))
-                FigureTile(label: "Karigar payments", value: Money.pkr(s.karigarTotal), detail: "\(s.karigarShare)% of total")
+            DisclosureGroup("Spending breakdown") {
+                VStack(spacing: 12) {
+                    TwoLine(title: "Average per \(per)", trailing: Money.pkr(s.perBucket))
+                    TwoLine(title: "Karigar payments", subtitle: "\(s.karigarShare)% of total", trailing: Money.pkr(s.karigarTotal))
+                    TwoLine(title: "Biggest \(per)", subtitle: s.biggestLabel, trailing: Money.pkr(s.biggestTotal))
+                }
+                .padding(.top, 12)
             }
-            FigureTile(label: "Biggest \(per)", value: Money.pkr(s.biggestTotal), detail: s.biggestLabel)
+            .font(.subheadline)
+            .ledgerCard()
         }
         .padding(.vertical, 4)
     }
@@ -195,17 +201,10 @@ struct ExpensesScreen: View {
         let n = group.rows.count
         let count = "\(n) item\(n == 1 ? "" : "s")"
         let detail = group.sub.isEmpty ? count : "\(group.sub) · \(count)"
-        return HStack(alignment: .firstTextBaseline, spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(group.label).font(.subheadline.weight(.semibold))
-                Text(detail).font(.caption2).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 8)
-            MoneyText(amount: group.total, exact: true)
-                .font(.subheadline.weight(.semibold))
+        return VStack(alignment: .leading, spacing: 6) {
+            LedgerHeading(title: group.label, trailing: Money.pkr(group.total))
+            Text(detail).font(.footnote).foregroundStyle(.secondary)
         }
-        .textCase(nil)
-        .foregroundStyle(.primary)
     }
 
     // MARK: Rows
@@ -302,23 +301,8 @@ struct ExpensesScreen: View {
         }
     }
 
-    @ViewBuilder
     private func chip(_ title: String, count: Int, selected: Bool, action: @escaping () -> Void) -> some View {
-        if selected {
-            Button(action: action) { chipLabel(title, count: count) }
-                .buttonStyle(.houseProminent)
-        } else {
-            Button(action: action) { chipLabel(title, count: count) }
-                .buttonStyle(.glass)
-        }
-    }
-
-    private func chipLabel(_ title: String, count: Int) -> some View {
-        HStack(spacing: 5) {
-            Text(title)
-            Text("\(count)").font(.caption).monospacedDigit().opacity(0.7)
-        }
-        .font(.subheadline.weight(.medium))
+        FilterChip(title: title, count: count, chosen: selected, action: action)
     }
 
     // MARK: Period and grouping

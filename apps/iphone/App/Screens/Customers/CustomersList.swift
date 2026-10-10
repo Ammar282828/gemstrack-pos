@@ -125,9 +125,7 @@ struct CustomersList: View {
             }
             Section {
                 chips
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                    .chipRowInList()
             }
             if shown.owing.isEmpty && shown.active.isEmpty && shown.quiet.isEmpty {
                 Section { empty(matched: f.matchedCount) }
@@ -150,28 +148,17 @@ struct CustomersList: View {
                 } footer: {
                     Text("Merging moves one customer's invoices, orders and hisaab to another, and asks for the delete code. Cleaning up spam opens on the ERP's own page.")
                 }
+                .houseRows()
             }
         }
         .listStyle(.insetGrouped)
     }
 
     private var chips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(Showing.allCases) { option in
-                    chip(option)
-                }
+        ChipRow {
+            ForEach(Showing.allCases) { option in
+                FilterChip(title: option.rawValue, chosen: option == showing) { showing = option }
             }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-        }
-    }
-
-    @ViewBuilder private func chip(_ option: Showing) -> some View {
-        if option == showing {
-            Button(option.rawValue) { showing = option }.buttonStyle(.houseProminent)
-        } else {
-            Button(option.rawValue) { showing = option }.buttonStyle(.glass)
         }
     }
 
@@ -182,14 +169,12 @@ struct CustomersList: View {
                     row(c, stats[c.id])
                 }
             } header: {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(title)
-                    Text(hint).font(.caption).foregroundStyle(.tertiary)
-                    Spacer(minLength: 8)
-                    Text("\(people.count)").monospacedDigit()
+                VStack(alignment: .leading, spacing: 6) {
+                    LedgerHeading(title: title, count: people.count)
+                    Text(hint).font(.footnote).foregroundStyle(.secondary)
                 }
-                .textCase(nil)
             }
+            .houseRows()
         }
     }
 
@@ -263,12 +248,25 @@ private struct CustSummary: View {
     }
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-            FigureTile(label: "Customers", value: "\(customerCount)")
-            FigureTile(label: "Owed to you", value: Money.pkr(owed.total), detail: owedDetail, tint: owed.total > 0 ? .red : .primary)
-            FigureTile(label: "Bought in \(CustomerKit.dormantAfterMonths)m", value: "\(boughtRecently)")
-            FigureTile(label: "Lifetime sales", value: Money.pkrLac(lifetime), tint: Color.accentColor)
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Owed to you").font(.subheadline).foregroundStyle(.secondary)
+                HeroAmount(amount: owed.total)
+                Text(owedDetail).font(.footnote).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Divider()
+            DisclosureGroup("Customer overview") {
+                VStack(spacing: 12) {
+                    TwoLine(title: "Customers", trailing: "\(customerCount)")
+                    TwoLine(title: "Bought in \(CustomerKit.dormantAfterMonths) months", trailing: "\(boughtRecently)")
+                    TwoLine(title: "Lifetime sales", trailing: Money.pkrLac(lifetime))
+                }
+                .padding(.top, 12)
+            }
+            .font(.subheadline)
         }
+        .ledgerCard()
     }
 }
 
@@ -300,6 +298,12 @@ private struct CustRowLabel: View {
 
     var body: some View {
         // What is owed leads: it is the reason you look a customer up.
-        TwoLine(title: CustomerKit.shown(customer), subtitle: subtitle, trailing: trailing, trailingTint: owes ? .red : .secondary)
+        HStack(alignment: .top, spacing: 12) {
+            Monogram(name: CustomerKit.shown(customer))
+            TwoLine(title: CustomerKit.shown(customer), subtitle: subtitle,
+                    trailing: trailing, trailingTint: owes ? Tone.owed.color : .primary,
+                    trailingLabel: owes ? "Owed" : "Lifetime sales")
+        }
+        .padding(.vertical, 8)
     }
 }
