@@ -126,23 +126,24 @@ struct StatusBadge: View {
     }
 }
 
-/// What a screen shows before and around a shelf's documents: a spinner until the first answer,
-/// the error if the books could not be read, a line when the phone is showing its own copy.
+/// Show cached books immediately; only a confirmed network loss warrants an offline warning.
 struct ShelfState<Content: View>: View {
     let loaded: Bool
     let error: String?
     var offline = false
     @ViewBuilder let content: () -> Content
 
+    private var showingOfflineCopy: Bool { offline && Connection.shared.isOffline }
+
     var body: some View {
         if !loaded {
             SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let error, !error.isEmpty, !offline {
+        } else if let error, !error.isEmpty, !showingOfflineCopy {
             ContentUnavailableView("Couldn't read the books", systemImage: "exclamationmark.icloud", description: Text(error))
         } else {
             content()
                 .safeAreaInset(edge: .top, spacing: 0) {
-                    if offline {
+                    if showingOfflineCopy {
                         Label("Offline: showing this phone's copy", systemImage: "icloud.slash")
                             .font(.footnote.weight(.medium))
                             .padding(.horizontal, 14).padding(.vertical, 7)

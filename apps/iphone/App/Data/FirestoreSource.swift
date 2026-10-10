@@ -86,7 +86,7 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
         first = true
         let db = Firestore.firestore()
         if let docId {
-            registration = db.collection(name).document(docId).addSnapshotListener { [weak self] snap, error in
+            registration = db.collection(name).document(docId).addSnapshotListener(includeMetadataChanges: true) { [weak self] snap, error in
                 guard let self else { return }
                 if let error { return self.failed(error) }
                 guard let snap else { return }
@@ -94,7 +94,7 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
                 self.send(.all(model.map { [$0] } ?? [], offline: snap.metadata.isFromCache))
             }
         } else {
-            registration = db.collection(name).addSnapshotListener { [weak self] snap, error in
+            registration = db.collection(name).addSnapshotListener(includeMetadataChanges: true) { [weak self] snap, error in
                 guard let self else { return }
                 if let error { return self.failed(error) }
                 guard let snap else { return }

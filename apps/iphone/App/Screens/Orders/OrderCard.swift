@@ -135,29 +135,36 @@ struct OrderCardHead: View {
 
     var body: some View {
         let counts = pieceCounts(order.items)
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
-                Monogram(name: OrdersLogic.customerName(order), size: 40)
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(OrdersLogic.customerName(order))
-                        .font(.headline)
-                        .foregroundStyle(greyed ? Color.secondary : Color.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+                : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+            layout {
+                HStack(alignment: .top, spacing: 12) {
+                    Monogram(name: OrdersLogic.customerName(order), size: 36)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(OrdersLogic.customerName(order))
+                            .font(.headline)
+                            .foregroundStyle(greyed ? Color.secondary : Color.primary)
+                            .fixedSize(horizontal: false, vertical: true)
                         Text(order.id).font(.caption).foregroundStyle(.secondary)
-                        if mine { MineTag() }
-                        if OrdersLogic.isOnline(order) { OrdersOnlineBadge() }
+                        if mine || OrdersLogic.isOnline(order) {
+                            HStack(spacing: 6) {
+                                if mine { MineTag() }
+                                if OrdersLogic.isOnline(order) { OrdersOnlineBadge() }
+                            }
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                money
             }
             let what = OrdersLogic.cardWhat(order)
             Text(what.text + (what.extra.map { " · " + $0 } ?? ""))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            let layout = typeSize.isAccessibilitySize
-                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-                : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
+            Divider()
             layout {
                 VStack(alignment: .leading, spacing: 5) {
                     Label(stageTitle, systemImage: stageSymbol)
@@ -171,9 +178,8 @@ struct OrderCardHead: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                money
+                promise
             }
-            promise
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
@@ -209,7 +215,7 @@ struct OrderCardHead: View {
             let urgent = promise.chase && (timing.state == .late || timing.state == .today || promise.urgent)
             let words = PromiseWords.say(timing)
             Label(urgent ? words.text : "Due " + OrdersLogic.dueDay(due), systemImage: "calendar")
-                .font(.footnote)
+                .font(.caption.weight(urgent ? .semibold : .regular))
                 .foregroundStyle(urgent ? words.tone.color : Color.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -221,10 +227,10 @@ struct OrderCardHead: View {
             VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 3) {
                 if abs(due) > 0.5 {
                     Text(Money.pkr(abs(due)))
-                        .font(.system(.title3, design: .serif).weight(.semibold))
+                        .font(.headline)
                         .foregroundStyle(due < 0 ? Tone.credit.color : Color.primary)
                         .monospacedDigit()
-                    Text(due < 0 ? "In credit" : "Due")
+                    Text(due < 0 ? "In credit" : "Owed")
                         .font(.caption).foregroundStyle(.secondary)
                 } else {
                     Text("Paid").font(.subheadline.weight(.medium)).foregroundStyle(Tone.settled.color)

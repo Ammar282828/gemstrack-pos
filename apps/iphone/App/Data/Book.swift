@@ -92,7 +92,7 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
     let name: String
     private(set) var items: [T] = []
     private(set) var loaded = false
-    /// The last answer came from the phone's copy, not the server (no connection).
+    /// The last answer came from the phone's cache; this alone does not mean the network is offline.
     private(set) var offline = false
     private(set) var error: String?
     /// Goes up on every change to the items: a screen keys what it works out from them on this (Memo), so
