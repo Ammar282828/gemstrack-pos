@@ -344,6 +344,8 @@ export type GivenEdit = {
   /** The linked karigar or customer; absent clears an old link (the name no longer resolves to one). */
   recipientId?: string;
   notes: string;
+  /** Who at the shop gave it: a name, null to clear, absent to leave as it is (an app that never sent it). */
+  givenBy?: string | null;
 };
 
 /** "Edit Given Item": its date, what it is, who has it and a note. Whether it came back is not changed here. */
@@ -356,6 +358,7 @@ export async function updateGivenItem(db: DbPort, input: { id: string; edit: Giv
     recipientName: edit.recipientName,
     recipientId: edit.recipientId ? edit.recipientId : deps.deleteField(),
     notes: edit.notes,
+    ...(edit.givenBy !== undefined && { givenBy: edit.givenBy ? edit.givenBy : deps.deleteField() }),
   };
   await db.runTransaction(async (tx) => {
     if (!(await tx.get(GIVEN, input.id))) refuse('No such given item.');

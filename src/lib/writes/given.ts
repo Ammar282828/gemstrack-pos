@@ -15,7 +15,7 @@ const log = (fx: SideEffects, a: string, t: string, d: string, id: string) =>
 export async function addGivenItem(db: DbPort, data: Omit<GivenItem, 'id'>, fx: SideEffects = {}): Promise<GivenItem> {
   // An unlinked recipient arrives as recipientId: undefined, which Firestore refuses.
   const id = await db.add(GIVEN, cleanObject(data) as unknown as Record<string, unknown>);
-  log(fx, 'given.create', `Given item: ${data.description}`, `To: ${data.recipientName}`, id);
+  log(fx, 'given.create', `Given item: ${data.description}`, `To: ${data.recipientName}${data.givenBy ? ` · by ${data.givenBy}` : ''}`, id);
   return { id, ...data };
 }
 

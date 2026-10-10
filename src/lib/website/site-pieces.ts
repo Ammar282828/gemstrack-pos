@@ -25,7 +25,7 @@
 
 import { adminDb } from '@/lib/firebase-admin';
 import { getCatalogAttributes } from '@/lib/website/catalog-source';
-import { mergeWeights } from '@/lib/website/weights';
+import { mergeWeights, type PosWeight } from '@/lib/website/weights';
 import { getPieceWeights } from '@/lib/website/piece-weights';
 import { collectionOfKey } from '@/lib/website/pricing';
 import { byNewest, newArrivalIds } from '@/lib/website/new-arrivals';
@@ -85,7 +85,9 @@ export interface SitePiece {
 const TTL_MS = 10 * 60 * 1000;
 let cache: { at: number; site: string; pieces: Listed[] } | null = null;
 /** A piece as the site lists it, before the counter's changes. */
-type Listed = Omit<SitePiece, 'words' | 'change' | 'hidden'>;
+// `labelGrams`: the weight taheri.shop read off the photograph itself, kept apart so the counter's weight can be
+// laid over it fresh on every read (getSitePieces) rather than frozen into the ten-minute list.
+type Listed = Omit<SitePiece, 'words' | 'change' | 'hidden'> & { labelGrams?: number | null };
 
 export const siteOrigin = () => (process.env.WEBSITE_ORIGIN || process.env.NEXT_PUBLIC_STORE_WEBSITE_URL || '').trim().replace(/\/+$/, '');
 
@@ -145,7 +147,7 @@ export async function listDrops(site: string): Promise<{ key: string; name: stri
 
 async function fromAttributes(site: string): Promise<Listed[]> {
   // Never the counter's weights cached: a weight typed a moment ago shows at once.
-  const [catalog, pos, drops] = await Promise.all([getCatalogAttributes({ own: true }), getPieceWeights(true).catch(() => ({})), dropsOf(site)]);
+  const [catalog, pos, drops] = await Promise.all([getCatalogAttributes({ own: true }), getPieceWeights(true).catch((): Record<string, PosWeight> => ({})), dropsOf(site)]);
   const merged = mergeWeights(catalog, pos);
   const abs = (u: string) => (/^https?:\/\//.test(u) ? u : `${site}${u.startsWith('/') ? '' : '/'}${u}`);
   // A drop is keyed like the photograph it becomes ("…/DSC09213.jpg" → "…/DSC09213.webp"); an adopted one is listed below.
@@ -156,7 +158,8 @@ async function fromAttributes(site: string): Promise<Listed[]> {
       const path = dropPath(key);
       return {
         id: key, name, url: path ? `${site}${path}` : '', image: abs(dr.full), thumb: abs(dr.thumb), collection: collectionOfKey(key),
-        weightGrams: null, weightOnPhoto: false, facts: [], about: '',
+        // A new upload has no label; its weight is the counter's (getSitePieces lays it on).
+        weightGrams: pos[key]?.weightGrams ?? null, labelGrams: null, weightOnPhoto: false, facts: [], about: '',
         added: typeof dr.t === 'number' && dr.t > 0 ? dr.t * 1000 : null, newArrival: false,
         imagePath: key, drop: true, source: 'attributes' as const, photoSource: null, sourceMarked: false,
         own: { name, about: '', facts: [], stone: '', metal: '', karat: '', cut: '', style: '' },
@@ -175,6 +178,7 @@ async function fromAttributes(site: string): Promise<Listed[]> {
       thumb: `${site}/catalog-thumb/${encodeURI(key)}`,
       collection: collectionOfKey(key),
       weightGrams: x.weightGrams ?? null,
+      labelGrams: x.labelWeightGrams ?? null,
       weightOnPhoto: x.weightSource === 'label',
       facts: [x.stone, x.cut, x.style].map(tag).filter(Boolean),
       about: '',
@@ -187,6 +191,20 @@ async function fromAttributes(site: string): Promise<Listed[]> {
       own: { name, about: '', facts: [], stone: tag(x.stone), metal: tag(x.metal), karat: tag(x.karat), cut: tag(x.cut), style: tag(x.style) },
     };
   })];
+}
+
+/**
+ * taheri.shop's photographs take the counter's weight as the site does (lib/website/weights.ts mergeWeights:
+ * the counter's, else the label's), read at most a minute old and dropped when one is typed (setPosWeight).
+ * Folded into the ten-minute list it went stale: a weight typed on Photo weights reached Posts ten minutes
+ * later, and a new upload's never, as its row was made with none (the owner, 2026-10-10: "if a product already
+ * has an existing weight linked to it on the website automatically apply that").
+ */
+export function withCounterWeight<T extends Listed>(p: T, counter: Record<string, { weightGrams: number }>): T {
+  if (p.source !== 'attributes') return p;
+  const typed = counter[p.id]?.weightGrams;
+  const label = p.labelGrams ?? null;
+  return { ...p, weightGrams: typed && typed > 0 ? typed : label };
 }
 
 /** A piece with the counter's change laid over what the site says. */
@@ -239,8 +257,8 @@ async function listed(site: string): Promise<Listed[]> {
 export async function getSitePieces(opts: { all?: boolean; fresh?: boolean } = {}): Promise<{ site: string; pieces: SitePiece[] }> {
   const site = siteOrigin();
   if (!site) return { site: '', pieces: [] };
-  const [list, changes] = await Promise.all([listed(site), getSiteOverrides(site, opts.fresh)]);
-  const pieces = list.map(p => withChange(p, changes[p.id]))
+  const [list, changes, counter] = await Promise.all([listed(site), getSiteOverrides(site, opts.fresh), getPieceWeights().catch((): Record<string, { weightGrams: number }> => ({}))]);
+  const pieces = list.map(p => withChange(withCounterWeight(p, counter), changes[p.id]))
     .filter(p => opts.all ? p.url || p.hidden || p.change || p.drop : p.url && !p.hidden);
   return { site, pieces };
 }

@@ -36,7 +36,7 @@ import { SHAREHOLDERS } from '@/lib/shareholders';
 import { addGivenItem, markGivenItemReturned } from '@/lib/writes/given';
 import { mainRate } from '@/lib/rates';
 import { personFor } from '@/lib/people';
-import { STORE_CONFIG } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_TAKEN_BY } from '@/lib/store-config';
 import type { OpHandler, OpRoles } from './op-context';
 import { PEOPLE_OPS, runPeopleOp } from './ops-people';
 import { STOCK_OPS, runStockOp } from './ops-stock';
@@ -414,10 +414,15 @@ export async function POST(req: NextRequest) {
           if (!description || !recipientName || !['karigar', 'customer', 'other'].includes(recipientType)) {
             return NextResponse.json({ error: 'What was given, and to whom, are needed.' }, { status: 400 });
           }
+          // Who at the shop gave it: the name sent if it is one of the shop's, else the signed-in person
+          // (an app that predates the field still records it).
+          const sentBy = text(body.givenBy);
+          const givenBy = sentBy && STORE_TAKEN_BY.includes(sentBy) ? sentBy : personFor(email);
           const item = await addGivenItem(adminPort, {
             date: text(body.date) || new Date().toISOString(),
             description, recipientName, recipientType: recipientType as never,
             ...(text(body.recipientId) && { recipientId: text(body.recipientId) }),
+            ...(givenBy && { givenBy }),
             ...(text(body.notes) && { notes: text(body.notes) }),
             status: 'out',
           } as never, { log });

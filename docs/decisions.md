@@ -509,6 +509,10 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
 
 ### Signed-in defaults
 
+- **Given by** (2026-10-10, owner: "when adding something to given items … also register who from taheri gave those items"):
+  a given item carries `givenBy`, a Taken by name, on the Given page (form, list, a filter), the iPhone app's Given items and
+  voice's "give something out". It starts on the signed-in person and is always shown and changeable; `/api/app/write`
+  takes only the house's names and falls back to the signed-in person, so an older app still records it.
 - **The ERP starts on whoever is signed in** (2026-09-30, owner: "taken by defaults to ammar when potatomasta is logged in /
   workshop filters to ammar / orders filter to ammar"): `NEXT_PUBLIC_STORE_PEOPLE` per house ("email=Name,…"; Taheri:
   potatomasta501=Ammar, unknownuser80=Mansoor, mmurtaza1970=Murtaza, hmurtaza55=Huzaifa, Mohammad has no account; Mina:

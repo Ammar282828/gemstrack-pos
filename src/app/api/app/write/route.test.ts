@@ -404,6 +404,16 @@ describe('the rest of the book', () => {
     expect((e.body.expense as Record<string, unknown>).paidBy).toBeUndefined();
   });
 
+  it('records who at the shop gave an item: a name on the list, never one that is not', async () => {
+    const a = await call({ op: 'addGivenItem', description: 'Sample', recipientName: 'K', recipientType: 'karigar', givenBy: 'Huzaifa' });
+    expect(a.status).toBe(200);
+    expect((a.body.item as Record<string, unknown>).givenBy).toBe('Huzaifa');
+    // Not one of the shop's people, and the account has no counter name: nobody, rather than a made-up one.
+    const b = await call({ op: 'addGivenItem', description: 'Sample', recipientName: 'K', recipientType: 'karigar', givenBy: 'Somebody' });
+    expect(b.status).toBe(200);
+    expect(b.body.item as Record<string, unknown>).not.toHaveProperty('givenBy');
+  });
+
   it('every follow-up the app is told to send is one of the ERP\'s own routes', async () => {
     const r = await call({ op: 'setOrderStatus', orderId: 'ORD-000001', status: 'Cancelled' });
     for (const f of r.body.followUps!) expect(f.path.startsWith('/api/')).toBe(true);

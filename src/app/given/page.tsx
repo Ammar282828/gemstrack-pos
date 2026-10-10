@@ -34,6 +34,8 @@ import { cn } from '@/lib/utils';
 import { resolveRecipientId } from '@/lib/given';
 import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
+import { TakenByPicker } from '@/components/shared/taken-by-picker';
+import { useMe } from '@/hooks/use-me';
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 const givenSchema = z.object({
@@ -42,6 +44,7 @@ const givenSchema = z.object({
   recipientType: z.enum(['karigar', 'customer', 'other'] as const),
   recipientName: z.string().min(1, 'Recipient name is required.'),
   notes: z.string().optional(),
+  givenBy: z.string().optional(),
 });
 type GivenFormData = z.infer<typeof givenSchema>;
 
@@ -56,6 +59,8 @@ function GivenItemForm({
   const { toast } = useToast();
   const { addGivenItem, updateGivenItem, karigars, customers, loadKarigars, loadCustomers } = useAppStore();
   const isEdit = !!item;
+  // Who at the shop is handing it over: starts on the signed-in person, as Taken by does (lib/people.ts).
+  const me = useMe();
 
   useEffect(() => {
     loadKarigars();
@@ -71,6 +76,7 @@ function GivenItemForm({
           recipientType: item.recipientType,
           recipientName: item.recipientName,
           notes: item.notes ?? '',
+          givenBy: item.givenBy ?? '',
         }
       : {
           date: new Date(),
@@ -78,6 +84,7 @@ function GivenItemForm({
           recipientType: 'karigar',
           recipientName: '',
           notes: '',
+          givenBy: me ?? '',
         },
   });
 
@@ -95,6 +102,8 @@ function GivenItemForm({
       // names one clears the old link (the store turns undefined into a field delete).
       recipientId: resolveRecipientId(data.recipientType, data.recipientName, karigars, customers),
       notes: data.notes || '',
+      // Nobody picked: left off a new entry, cleared on an edit (the store deletes the field).
+      givenBy: data.givenBy || undefined,
       status: item?.status ?? 'out',
       ...(item?.returnedDate ? { returnedDate: item.returnedDate } : {}),
     };
@@ -203,6 +212,21 @@ function GivenItemForm({
           )}
         />
 
+        {/* Who at the shop gave it */}
+        <FormField
+          control={form.control}
+          name="givenBy"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Given by</FormLabel>
+              <FormControl>
+                <TakenByPicker value={field.value ?? ''} onChange={(v) => field.onChange(v ?? '')} aria-label="Given by" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         {/* Notes */}
         <FormField
           control={form.control}
@@ -237,6 +261,7 @@ const RECIPIENT_ICON: Record<GivenItemRecipientType, React.ReactNode> = {
 export default function GivenItemsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | GivenItemStatus>('all');
+  const [byFilter, setByFilter] = useState<string | undefined>();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<GivenItem | undefined>();
 
@@ -251,12 +276,13 @@ export default function GivenItemsPage() {
   const filtered = useMemo(() => {
     return givenItems
       .filter(g => statusFilter === 'all' ? true : g.status === statusFilter)
+      .filter(g => !byFilter || g.givenBy === byFilter)
       .filter(g =>
         g.description.toLowerCase().includes(search.toLowerCase()) ||
         g.recipientName.toLowerCase().includes(search.toLowerCase()) ||
         (g.notes ?? '').toLowerCase().includes(search.toLowerCase())
       );
-  }, [givenItems, search, statusFilter]);
+  }, [givenItems, search, statusFilter, byFilter]);
 
   const outCount = givenItems.filter(g => g.status === 'out').length;
   const returnedCount = givenItems.filter(g => g.status === 'returned').length;
@@ -323,7 +349,7 @@ export default function GivenItemsPage() {
         value={search}
         onChange={setSearch}
         placeholder="Search by item or recipient…"
-        activeCount={statusFilter !== 'all' ? 1 : 0}
+        activeCount={(statusFilter !== 'all' ? 1 : 0) + (byFilter ? 1 : 0)}
         actions={(['all', 'out', 'returned'] as const).map(st => (
           <Button key={st} size="sm" className="h-10 capitalize flex-1 sm:flex-none"
             variant={statusFilter === st ? 'default' : 'outline'}
@@ -331,7 +357,10 @@ export default function GivenItemsPage() {
             {st === 'all' ? 'All' : st === 'out' ? 'Still Out' : 'Returned'}
           </Button>
         ))}
-      />
+      >
+        <TakenByPicker value={byFilter ?? ''} onChange={setByFilter} allowAny anyLabel="Given by anyone"
+          aria-label="Given by" className="w-full sm:w-[170px]" />
+      </FilterBar>
 
       {/* Table */}
       {isGivenItemsLoading ? (
@@ -343,7 +372,7 @@ export default function GivenItemsPage() {
           <HandCoins className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-1">Nothing here yet</h3>
           <p className="text-muted-foreground text-sm">
-            {search || statusFilter !== 'all' ? 'No items match your filter.' : 'Select "Record Item Given" to add an entry.'}
+            {search || statusFilter !== 'all' || byFilter ? 'No items match your filter.' : 'Select "Record Item Given" to add an entry.'}
           </p>
         </div>
       ) : (
@@ -358,6 +387,7 @@ export default function GivenItemsPage() {
                       <p className="font-semibold truncate">{item.description}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {format(parseISO(item.date), 'd MMM yy')} · {RECIPIENT_ICON[item.recipientType]} {item.recipientName}
+                        {item.givenBy && <> · by {item.givenBy}</>}
                       </p>
                     </div>
                     {item.status === 'out' ? (
@@ -413,6 +443,7 @@ export default function GivenItemsPage() {
                   <TableHead className="hidden xl:table-cell">Date</TableHead>
                   <TableHead>Item / Description</TableHead>
                   <TableHead>Given To</TableHead>
+                  <TableHead>Given By</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="hidden xl:table-cell">Notes</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -431,6 +462,7 @@ export default function GivenItemsPage() {
                         <span className="text-sm">{item.recipientName}</span>
                       </div>
                     </TableCell>
+                    <TableCell className="text-sm">{item.givenBy || <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell>
                       {item.status === 'out' ? (
                         <Badge variant="outline" className="border-warning text-warning gap-1">
