@@ -104,7 +104,7 @@ extension SaleForm {
             Button { startNewItem() } label: {
                 Label("New item", systemImage: "plus.circle")
             }
-            NavigationLink(value: SaleLinks.newPiece) {
+            Button { addingStock = true } label: {
                 Label("New item, and keep it in stock", systemImage: "square.and.pencil")
             }
             // The AI bill reader (SaleScanScreen): the ERP's own reader, its lines put on this sale.

@@ -138,16 +138,29 @@ private struct CreateAccessory: ViewModifier {
     let voiceShown: Bool
     let open: (String) -> Void
     let talk: () -> Void
+    @State private var compact = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
-        content.safeAreaInset(edge: .bottom, spacing: 0) {
+        content
+            .safeAreaPadding(.bottom, shown ? 76 : 0)
+            .onScrollPhaseChange { _, phase in
+                if phase != .idle { compact = true }
+            }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top > 24
+            } action: { _, scrolled in
+                compact = scrolled
+            }
+            .overlay(alignment: .bottomTrailing) {
             if shown {
-                GlassEffectContainer(spacing: 12) {
-                    HStack(spacing: 12) {
-                        Spacer(minLength: 0)
+                GlassEffectContainer(spacing: compact ? 8 : 12) {
+                    HStack(spacing: compact ? 8 : 12) {
                         if voiceShown {
                             Button(action: talk) {
-                                Image(systemName: "mic.fill").font(.title3).frame(width: 52, height: 52)
+                                Image(systemName: "mic.fill")
+                                    .font(.system(size: compact ? 16 : 20))
+                                    .frame(width: compact ? 44 : 52, height: compact ? 44 : 52)
                             }
                             .buttonStyle(.glass).buttonBorderShape(.circle)
                             .accessibilityLabel("Voice assistant")
@@ -159,7 +172,9 @@ private struct CreateAccessory: ViewModifier {
                             Button("New order", systemImage: "list.clipboard") { open("/orders/add") }
                             Button("Scan", systemImage: "qrcode.viewfinder") { open("/scan") }
                         } label: {
-                            Image(systemName: "plus").font(.title2.weight(.semibold)).frame(width: 52, height: 52)
+                            Image(systemName: "plus")
+                                .font(.system(size: compact ? 18 : 22, weight: .semibold))
+                                .frame(width: compact ? 44 : 52, height: compact ? 44 : 52)
                                 .foregroundStyle(Theme.onAccent)
                         }
                         .buttonStyle(.glassProminent).buttonBorderShape(.circle)
@@ -167,7 +182,7 @@ private struct CreateAccessory: ViewModifier {
                     }
                 }
                 .padding(.horizontal, 20).padding(.vertical, 8)
-                .background(Theme.ground)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: compact)
             }
         }
     }

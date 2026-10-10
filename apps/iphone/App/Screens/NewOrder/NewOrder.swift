@@ -38,6 +38,7 @@ struct NewOrder: View {
     @State private var created: String?
     /// The sizes on offer to the customer's profile once the order is saved.
     @State private var sizeAsk: NewOrderSizeAsk?
+    @State private var savedEdit = false
     @State private var confirmReset = false
     @State private var pickingStock = false
 
@@ -66,7 +67,9 @@ struct NewOrder: View {
             }
         }
         .onAppear { start() }
-        .sheet(item: $sizeAsk) { ask in NewOrderSizeAskSheet(ask: ask) }
+        .sheet(item: $sizeAsk, onDismiss: {
+            if edit != nil && savedEdit { dismiss() }
+        }) { ask in NewOrderSizeAskSheet(ask: ask) }
         .navigationDestination(isPresented: $readingSlip) { NewOrderScanScreen(draft: $draft) }
     }
 
@@ -352,7 +355,8 @@ struct NewOrder: View {
                 rates: NewOrderMath.formRates(draft, book.settings.value),
                 karigars: karigars,
                 onDuplicate: { duplicatePiece(id) },
-                onRemove: { removePiece(id) }
+                onRemove: { removePiece(id) },
+                editingOrder: edit != nil
             )
         } else {
             ContentUnavailableView("That piece is gone", systemImage: "trash")
@@ -464,7 +468,9 @@ struct NewOrder: View {
             let request = NewOrderMath.editRequest(draft, edit: edit, settings: settings, customers: people)
             do {
                 _ = try await ERPAPI.shared.write("updateOrder", request)
-                dismiss()
+                savedEdit = true
+                if let order = request["order"] as? [String: Any] { offerSizes(order) }
+                if sizeAsk == nil { dismiss() }
             } catch let e as ERPAPI.Failure {
                 tell("The changes weren't saved", e.message)
             } catch {

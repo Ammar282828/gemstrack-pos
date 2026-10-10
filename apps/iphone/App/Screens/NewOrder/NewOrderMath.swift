@@ -171,7 +171,7 @@ enum NewOrderMath {
         o["hasStones"] = p.hasStones
         o["stoneWeightG"] = p.stoneWeightValue
         o["sampleGiven"] = p.sampleGiven
-        o["isCompleted"] = false
+        o["isCompleted"] = p.isCompleted
         o["isManualPrice"] = p.manual
         o["manualPrice"] = p.manual ? num(p.manualPrice) : 0.0
         o["metalCost"] = NewOrderFormat.finite(costs.metalCost)
@@ -194,6 +194,11 @@ enum NewOrderMath {
         put(&o, "adminNote", p.adminNote)
         if photo, let data = p.photo {
             o["sampleImageDataUri"] = "data:image/jpeg;base64," + data.base64EncodedString()
+        } else if photo, p.removePhoto {
+            o["sampleImageDataUri"] = NSNull()
+            o["samplePhotoId"] = NSNull()
+        } else if photo, let uri = p.sampleImageDataUri, !uri.isEmpty {
+            o["sampleImageDataUri"] = uri
         }
         return o
     }

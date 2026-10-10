@@ -14,6 +14,33 @@ import ERPCore
 // All made up: names, numbers, rates.
 
 enum OrderCases {
+    /// Editing preserves workshop facts and the photo until the counter changes them.
+    static func auditEdits() {
+        let settings = decode(Settings.self, "global", taheriSettings)
+        let order = decode(Order.self, "ORD-TEST", [
+            "items": [["description": "Test ring", "metalType": "gold", "karat": "21k", "estimatedWeightG": 5,
+                       "isCompleted": true, "samplePhotoId": "photo-test", "givenAt": "2026-10-01"]],
+        ])
+        let edit = NewOrderEdit(order)
+        var draft = edit.draft
+        func sent(_ draft: NewOrderDraft) -> [String: Any] {
+            let request = NewOrderMath.editRequest(draft, edit: edit, settings: settings, customers: [])
+            return ((request["order"] as! [String: Any])["items"] as! [[String: Any]])[0]
+        }
+        expect(draft.pieces[0].isCompleted, "edit", "finished state lost on opening")
+        expect(draft.pieces[0].samplePhotoId == "photo-test", "edit", "saved photo lost on opening")
+        expect(sent(draft)["isCompleted"] as? Bool == true, "edit", "unchanged finished state lost")
+        expect(sent(draft)["samplePhotoId"] == nil, "edit", "untouched photo should stay on file")
+        draft.pieces[0].isCompleted = false
+        expect(sent(draft)["isCompleted"] as? Bool == false, "edit", "finished toggle not sent")
+        draft.pieces[0].removePhoto = true
+        expect(sent(draft)["samplePhotoId"] is NSNull, "edit", "photo removal not sent")
+        expect(sent(draft)["sampleImageDataUri"] is NSNull, "edit", "inline photo removal not sent")
+        draft.pieces[0].photo = Data([1, 2, 3])
+        expect((sent(draft)["sampleImageDataUri"] as? String)?.hasPrefix("data:image/jpeg;base64,") == true, "edit", "replacement photo not sent")
+        let legacy = try! JSONDecoder().decode(NewOrderPieceDraft.self, from: Data("{}".utf8))
+        expect(!legacy.isCompleted && !legacy.removePhoto && legacy.samplePhotoId == nil, "edit", "old draft defaults changed")
+    }
     // MARK: The shops' books (app_settings/global as Firestore holds it)
 
     /// Taheri: gold by karat, palladium by grade and flat, platinum, silver.

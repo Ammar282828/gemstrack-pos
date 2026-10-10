@@ -6,7 +6,7 @@ import ERPCore
 // lib/writes/update-order.ts). Pure, so the contract cases (apps/iphone/Packages/Contract) run it.
 //
 // What the form does not show stays as it is on file: each piece is sent with the index it had, and the
-// ERP lays the form's fields over that stored piece (karigar, finished, given, its sample photo). The
+// ERP lays the form's fields over that stored piece, preserving workshop handover facts. The
 // order keeps the rates it was quoted at; more advance than before is money taken today (the ERP lists it).
 
 /// An order opened for editing: which order, and which stored piece each piece on screen began as.
@@ -114,6 +114,9 @@ extension NewOrderPieceDraft {
         karigarId = item.karigarId ?? ""
         referenceSku = item.referenceSku ?? ""
         sampleGiven = item.sampleGiven
+        isCompleted = item.isCompleted
+        samplePhotoId = item.samplePhotoId
+        sampleImageDataUri = item.sampleImageDataUri
         manual = item.isManualPrice
         manualPrice = item.isManualPrice ? NewOrderFormat.boxText(item.manualPrice ?? 0) : ""
         adminNote = item.adminNote ?? ""
@@ -128,10 +131,8 @@ extension NewOrderMath {
         var o = order(d, settings: settings, customers: customers)
         let rates = formRates(d, settings)
         o["items"] = d.pieces.map { p -> [String: Any] in
-            // Only a picture chosen now is sent; the one on file stays with its piece.
-            var item = self.item(p, rates: rates, photo: p.photo != nil)
-            // Finished or not is the order's page's to say (a piece's tick), never reset by an edit.
-            item.removeValue(forKey: "isCompleted")
+            // Keep the stored photo unless the counter replaces or removes it.
+            var item = self.item(p, rates: rates, photo: true)
             // A karigar taken off in the form is taken off on file too.
             if NewOrderFormat.trim(p.karigarId).isEmpty { item["karigarId"] = NSNull() }
             item["editIndex"] = edit.origin[p.id] ?? -1

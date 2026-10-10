@@ -65,6 +65,7 @@ struct NewOrderPieceEditor: View {
     let karigars: [Karigar]
     let onDuplicate: () -> Void
     let onRemove: () -> Void
+    var editingOrder = false
 
     @Environment(\.dismiss) private var dismiss
     @State private var confirmRemove = false
@@ -274,6 +275,7 @@ struct NewOrderPieceEditor: View {
                     Text(k.name).tag(k.id)
                 }
             }
+            if editingOrder { Toggle("Piece is finished", isOn: $piece.isCompleted) }
         } header: {
             LedgerHeading(title: "For the workshop")
         } footer: {
@@ -285,7 +287,7 @@ struct NewOrderPieceEditor: View {
 
     private var referencesBox: some View {
         Section {
-            NewOrderPhotoField(data: $piece.photo)
+            NewOrderSampleField(piece: $piece)
             TextField("Reference SKU", text: $piece.referenceSku, prompt: Text("e.g. RIN-123456"))
                 .textInputAutocapitalization(.characters)
                 .autocorrectionDisabled()

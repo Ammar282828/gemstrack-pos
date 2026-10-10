@@ -243,6 +243,14 @@ describe('editing an order from the phone', () => {
     expect(item.sampleImageDataUri).toBeUndefined();
     expect(data.order_photos[item.samplePhotoId as string]).toMatchObject({ orderId: 'ORD-000001' });
   });
+
+  it('explicitly removes a sample photo without clearing the workshop handover', async () => {
+    put('orders', 'ORD-000001', { items: [{ description: 'A', samplePhotoId: 'photo-old', givenAt: '2026-10-01', isCompleted: true }] }, true);
+    const r = await call(editOf({ items: [{ editIndex: 0, description: 'A', samplePhotoId: null, sampleImageDataUri: null, isCompleted: true }] }));
+    expect(r.status).toBe(200);
+    const item = (data.orders['ORD-000001'].items as Record<string, unknown>[])[0];
+    expect(item).toMatchObject({ samplePhotoId: null, sampleImageDataUri: null, givenAt: '2026-10-01', isCompleted: true });
+  });
 });
 
 describe('finalizing an order from the phone', () => {

@@ -1,6 +1,47 @@
 import SwiftUI
 import PhotosUI
 import UIKit
+import FirebaseFirestore
+import ERPCore
+
+/// Stored samples stay visible while editing; choosing or removing a photo is explicit.
+struct NewOrderSampleField: View {
+    @Binding var piece: NewOrderPieceDraft
+    @State private var storedURI: String?
+    @State private var failure: String?
+
+    private var hasStored: Bool {
+        !(piece.samplePhotoId ?? "").isEmpty || !(piece.sampleImageDataUri ?? "").isEmpty
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if piece.photo == nil && !piece.removePhoto && hasStored {
+                if let uri = piece.sampleImageDataUri ?? storedURI, !uri.isEmpty {
+                    StockImage(imageUrl: uri, name: piece.description, key: piece.id.uuidString, decodeDataURI: true)
+                        .frame(maxHeight: 160).clipShape(.rect(cornerRadius: 12))
+                } else if let failure {
+                    Text(failure).font(.footnote).foregroundStyle(.secondary)
+                } else { SkeletonLoading().frame(height: 80) }
+                Button("Remove photo", systemImage: "trash", role: .destructive) { piece.removePhoto = true }
+            }
+            NewOrderPhotoField(data: Binding(
+                get: { piece.photo },
+                set: { piece.photo = $0; piece.removePhoto = $0 == nil }
+            ))
+        }
+        .task(id: piece.samplePhotoId) {
+            storedURI = nil; failure = nil
+            guard let id = piece.samplePhotoId, !id.isEmpty, piece.sampleImageDataUri == nil else { return }
+            guard !House.isDemo else { failure = "Sample photo preview unavailable in demo."; return }
+            do {
+                let snapshot = try await Firestore.firestore().collection("order_photos").document(id).getDocument()
+                storedURI = snapshot.data()?["dataUri"] as? String
+                if storedURI == nil { failure = "The saved photo is unavailable. It stays on the order unless removed." }
+            } catch { failure = "Couldn't load the saved photo. It stays on the order unless removed." }
+        }
+    }
+}
 
 // The sample picture of a piece (components/shared/sample-image-input.tsx): from the library or the
 // camera, made small enough to carry, and sent inside the order as a data URI. createOrder moves it

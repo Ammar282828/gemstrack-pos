@@ -50,6 +50,7 @@ func run(_ house: String, _ make: () -> [ContractCase]) -> [[String: Any]] {
     return make().map(\.json)
 }
 
+OrderCases.auditEdits()
 let out: [String: Any] = [
     "orders": run("taheri", OrderCases.taheri) + run("mina", OrderCases.mina),
     "sales": run("taheri", SaleCases.taheri) + run("mina", SaleCases.mina),

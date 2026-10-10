@@ -16,6 +16,7 @@ import ERPCore
 struct StockPieceForm: View {
     /// nil adds a piece.
     let sku: String?
+    var onCreated: ((Product) -> Void)? = nil
 
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -45,7 +46,7 @@ struct StockPieceForm: View {
             .navigationTitle("Edit piece")
             .navigationBarTitleDisplayMode(.inline)
         } else {
-            StockPieceEditor(original: nil)
+            StockPieceEditor(original: nil, onCreated: onCreated)
         }
     }
 
@@ -66,6 +67,7 @@ struct StockPieceForm: View {
 private struct StockPieceEditor: View {
     /// The piece being edited, as it was when the form opened; nil adds one.
     let original: Product?
+    let onCreated: ((Product) -> Void)?
 
     @Environment(Book.self) private var book
     @Environment(\.dismiss) private var dismiss
@@ -80,8 +82,9 @@ private struct StockPieceEditor: View {
         let name: String
     }
 
-    init(original: Product?) {
+    init(original: Product?, onCreated: ((Product) -> Void)? = nil) {
         self.original = original
+        self.onCreated = onCreated
         var start: StockPieceFields
         if let original {
             start = StockPieceFields(original)
@@ -478,6 +481,10 @@ private struct StockPieceEditor: View {
             let doc: [String: Any] = out["product"] as? [String: Any] ?? [:]
             let newSku: String = doc["sku"] as? String ?? ""
             let made: Product? = newSku.isEmpty ? nil : DocJSON.decode(Product.self, id: newSku, data: doc)
+            if let onCreated {
+                guard let made else { throw ERPAPI.Failure(status: 0, message: "The piece was saved but its details were not returned. Check Stock before adding it again.") }
+                onCreated(made)
+            }
             tick += 1
             saved = Saved(sku: newSku, name: made?.name ?? newSku)
         } catch {

@@ -47,6 +47,10 @@ struct NewOrderPieceDraft: Codable, Equatable, Identifiable {
     var karigarId = ""
     var referenceSku = ""
     var sampleGiven = false
+    var isCompleted = false
+    var samplePhotoId: String?
+    var sampleImageDataUri: String?
+    var removePhoto = false
     /// Fixed price instead of weight × rate (the web's `isManualPrice`).
     var manual = false
     var manualPrice = ""
@@ -81,6 +85,10 @@ struct NewOrderPieceDraft: Codable, Equatable, Identifiable {
         karigarId = c.orderField(.karigarId, "")
         referenceSku = c.orderField(.referenceSku, "")
         sampleGiven = c.orderField(.sampleGiven, false)
+        isCompleted = c.orderField(.isCompleted, false)
+        samplePhotoId = try? c.decodeIfPresent(String.self, forKey: .samplePhotoId)
+        sampleImageDataUri = try? c.decodeIfPresent(String.self, forKey: .sampleImageDataUri)
+        removePhoto = c.orderField(.removePhoto, false)
         manual = c.orderField(.manual, false)
         manualPrice = c.orderField(.manualPrice, "")
         adminNote = c.orderField(.adminNote, "")
@@ -338,6 +346,7 @@ extension NewOrderPieceDraft {
         platingNote = line.platingNote ?? ""
         nickelFree = line.nickelFree
         referenceSku = line.stockSku ?? ""
+        sampleImageDataUri = line.imageUrl
         manual = line.isCustomPrice
         manualPrice = line.isCustomPrice ? NewOrderFormat.boxText(line.customPrice ?? 0) : ""
     }
