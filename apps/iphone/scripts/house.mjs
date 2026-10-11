@@ -12,8 +12,10 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const dir = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+// fileURLToPath, not .pathname: a checkout under "Mac SSD" kept its %20 and houses.json was not found.
+const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const houses = JSON.parse(fs.readFileSync(path.join(dir, 'houses.json'), 'utf8'));
 const name = process.argv[2];
 const h = houses[name];
