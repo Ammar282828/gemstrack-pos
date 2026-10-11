@@ -6,9 +6,16 @@ import FirebaseCore
 @main
 struct ERPApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var session = Session()
+    @State private var session: Session
     @State private var lock = AppLock.shared
     @Environment(\.scenePhase) private var scenePhase
+
+    init() {
+        let session = Session()
+        _session = State(initialValue: session)
+        // Opened straight onto the books (Session's cached answer): the lock covers them from the first frame.
+        if session.state == .signedIn { AppLock.shared.launched(signedIn: true) }
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -27,7 +34,10 @@ struct ERPApp: App {
             // A cold start of a signed-in app asks for the face too; a fresh sign-in does not.
             .onChange(of: session.state) { old, new in
                 if old == .starting && new == .signedIn { lock.launched(signedIn: true) }
+                if new != .signedIn && lock.locked { lock.signedOut() }
             }
+            // The launch's own ask, if the app was not yet in front when the lock went up.
+            .task { if lock.locked, UIApplication.shared.applicationState == .active { await lock.unlock() } }
         }
     }
 }

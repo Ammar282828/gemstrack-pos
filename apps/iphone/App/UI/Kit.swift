@@ -2,22 +2,80 @@ import SwiftUI
 import ERPCore
 
 /// Static placeholders never obscure a page with a spinning activity indicator.
+///
+/// `.controlSize(.large)` is a whole page still loading: the ledger page's own shape (a date line, the hero
+/// card, a folded card, then a section of rows) on the page's own cards and margins, pinned to the top, so
+/// the page arrives where its outline already stood rather than the outline floating mid-screen and jumping.
+/// Nothing moves in it: a cold start shows one steady frame until the books are in.
 struct SkeletonLoading: View {
     @Environment(\.controlSize) private var size
     private let label: String
     init(_ label: String = "Loading") { self.label = label }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: size == .large ? 20 : 5) {
-            ForEach(0..<(size == .large ? 5 : 3), id: \.self) { index in
-                RoundedRectangle(cornerRadius: size == .large ? 12 : 4)
-                    .fill(.secondary.opacity(0.12))
-                    .frame(width: size == .large ? nil : (index == 1 ? 54 : 76), height: size == .large ? 64 : 5)
+        Group {
+            if size == .large {
+                page
+            } else {
+                VStack(alignment: .leading, spacing: 5) {
+                    ForEach(0..<3, id: \.self) { index in
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(.secondary.opacity(0.12))
+                            .frame(width: index == 1 ? 54 : 76, height: 5)
+                    }
+                }
             }
         }
-        .padding(size == .large ? 20 : 0)
+        .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
+    }
+
+    private var page: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            line(width: 132, height: 10).padding(.horizontal, 4).padding(.top, 6)
+            card(height: 172) {
+                VStack(alignment: .leading, spacing: 12) {
+                    line(width: 84, height: 10)
+                    line(width: 190, height: 30)
+                    line(width: 120, height: 10)
+                }
+            }
+            card(height: 52) { line(width: 120, height: 12) }
+            line(width: 96, height: 12).padding(.horizontal, 4).padding(.top, 14)
+            card(height: nil) {
+                VStack(spacing: 0) {
+                    ForEach(0..<3, id: \.self) { index in
+                        HStack(spacing: 12) {
+                            Circle().fill(.secondary.opacity(0.12)).frame(width: 36, height: 36)
+                            VStack(alignment: .leading, spacing: 8) {
+                                line(width: index == 1 ? 120 : 150, height: 11)
+                                line(width: 90, height: 9)
+                            }
+                            Spacer(minLength: 8)
+                            line(width: 56, height: 11)
+                        }
+                        .frame(height: 64)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private func line(width: CGFloat, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: height / 2.5, style: .continuous)
+            .fill(.secondary.opacity(0.12))
+            .frame(width: width, height: height)
+    }
+
+    private func card<C: View>(height: CGFloat?, @ViewBuilder _ content: () -> C) -> some View {
+        content()
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, minHeight: height, alignment: .leading)
+            .background(Theme.card, in: .rect(cornerRadius: 22, style: .continuous))
     }
 }
 
@@ -52,6 +110,8 @@ struct FigureTile: View {
                 .font(.system(.title2, design: .serif).weight(.semibold))
                 .foregroundStyle(tint)
                 .monospacedDigit()
+                // A new period's figure rolls over digit by digit rather than blinking.
+                .contentTransition(.numericText())
                 .fixedSize(horizontal: false, vertical: true)
             if let detail, !detail.isEmpty {
                 Text(detail).font(.footnote).foregroundStyle(.secondary)
@@ -91,6 +151,119 @@ struct FigureGrid<Content: View>: View {
             content()
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { availableWidth = $0 }
+    }
+}
+
+/// How the app moves: the ERP's three curves (docs/decisions.md "Motion"), so a filter, a reveal or a figure
+/// changes here at the pace it does in the browser. Reduce Motion gets no movement, only the change.
+enum Motion {
+    /// What arrives: a revealed row, a chosen filter's results. ease-enter (0.22, 1, 0.36, 1), 220 ms.
+    static let enter = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.22)
+    /// What leaves. ease-exit (0.4, 0, 1, 1), 150 ms.
+    static let exit = Animation.timingCurve(0.4, 0, 1, 1, duration: 0.15)
+    /// What travels across the page. ease-sheet (0.32, 0.72, 0, 1), 300 ms.
+    static let travel = Animation.timingCurve(0.32, 0.72, 0, 1, duration: 0.3)
+
+    /// `withAnimation(Motion.enter)` unless the reader asked for less motion.
+    @MainActor static func run(_ animation: Animation = enter, reduce: Bool, _ change: () -> Void) {
+        if reduce { change() } else { withAnimation(animation, change) }
+    }
+}
+
+/// `.motion(value:)`: the page's change animates on the enter curve, or not at all under Reduce Motion.
+struct MotionOnChange<V: Equatable>: ViewModifier {
+    let value: V
+    var animation: Animation = Motion.enter
+    @Environment(\.accessibilityReduceMotion) private var reduce
+
+    func body(content: Content) -> some View {
+        content.animation(reduce ? nil : animation, value: value)
+    }
+}
+
+extension View {
+    func motion<V: Equatable>(_ value: V, _ animation: Animation = Motion.enter) -> some View {
+        modifier(MotionOnChange(value: value, animation: animation))
+    }
+}
+
+/// Whether the tab's create menu (New sale, New order, Scan) is in this page's toolbar, so a page's own
+/// "New order" does not stand beside it twice (iPad).
+private struct CreateMenuShownKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    var createMenuShown: Bool {
+        get { self[CreateMenuShownKey.self] }
+        set { self[CreateMenuShownKey.self] = newValue }
+    }
+}
+
+/// A page's rows in a readable column on an iPad's wide window (about 70 characters of a form, as Settings
+/// keeps them), the ground and the scrolling still the whole window's. The margin goes into the safe area, so a
+/// List or Form insets its rows and keeps its scroll edge to edge; a phone (compact width) is never touched.
+struct ReadableColumn: ViewModifier {
+    var maxWidth: CGFloat = 720
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var width: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        let inset = sizeClass == .regular ? max(0, ((width - maxWidth) / 2).rounded()) : 0
+        Group {
+            // Branching on the size class only (it does not change as the page is measured), so the page keeps
+            // its state when the margin arrives.
+            if sizeClass == .regular {
+                // A large title stays at the window's edge while the rows sit centred; in the bar, centred over
+                // the column, the name and the page read as one.
+                content.safeAreaPadding(.horizontal, inset)
+                    .toolbarTitleDisplayMode(inset > 0 ? .inline : .automatic)
+                    .environment(\.inReadableColumn, inset > 0)
+            } else {
+                content
+            }
+        }
+        // Measured outside the margin, so the margin never feeds back into the width it is worked from.
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+    }
+}
+
+extension View {
+    /// `.readableColumn()`: rows and fields no wider than `maxWidth` on an iPad; nothing on a phone.
+    func readableColumn(_ maxWidth: CGFloat = 720) -> some View { modifier(ReadableColumn(maxWidth: maxWidth)) }
+}
+
+private struct InReadableColumnKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    /// The page sits in a centred column on an iPad (ReadableColumn), so its title belongs in the bar.
+    var inReadableColumn: Bool {
+        get { self[InReadableColumnKey.self] }
+        set { self[InReadableColumnKey.self] = newValue }
+    }
+}
+
+/// A hub's large title on a phone; over an iPad's centred column, the title in the bar, centred with the page,
+/// rather than a large one left at the window's edge.
+private struct HubTitleMode: ViewModifier {
+    @Environment(\.inReadableColumn) private var inColumn
+    func body(content: Content) -> some View {
+        content.navigationBarTitleDisplayMode(inColumn ? .inline : .large)
+    }
+}
+
+extension View {
+    func hubTitleDisplay() -> some View { modifier(HubTitleMode()) }
+}
+
+/// Columns of cards for a wide window: as many as fit at `minimum` each (at most `limit`), all the same width,
+/// so a lone card keeps a card's width rather than stretching across an iPad.
+enum CardColumns {
+    static func count(_ width: CGFloat, minimum: CGFloat = 340, spacing: CGFloat = 20, limit: Int = 3) -> Int {
+        max(1, min(limit, Int((width + spacing) / (minimum + spacing))))
+    }
+
+    static func grid(_ width: CGFloat, minimum: CGFloat = 340, spacing: CGFloat = 20, limit: Int = 3) -> [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: spacing, alignment: .top),
+              count: count(width, minimum: minimum, spacing: spacing, limit: limit))
     }
 }
 
@@ -138,22 +311,31 @@ struct ShelfState<Content: View>: View {
     private var showingOfflineCopy: Bool { offline && Connection.shared.isOffline }
 
     var body: some View {
-        if !loaded {
-            SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let error, !error.isEmpty, !showingOfflineCopy {
-            ContentUnavailableView("Couldn't read the books", systemImage: "exclamationmark.icloud", description: Text(error))
-        } else {
-            content()
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    if showingOfflineCopy {
-                        Label("Offline: showing this phone's copy", systemImage: "icloud.slash")
-                            .font(.footnote.weight(.medium))
-                            .padding(.horizontal, 14).padding(.vertical, 7)
-                            .glassEffect(.regular, in: .capsule)
-                            .padding(.top, 4)
-                    }
-                }
+        // The books arriving cross-fade over the outline (none under Reduce Motion).
+        Group {
+            if !loaded {
+                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .transition(.opacity)
+            } else if let error, !error.isEmpty, !showingOfflineCopy {
+                ContentUnavailableView("Couldn't read the books", systemImage: "exclamationmark.icloud", description: Text(error))
+            } else {
+                loadedContent.transition(.opacity)
+            }
         }
+        .motion(loaded, Motion.travel)
+    }
+
+    private var loadedContent: some View {
+        content()
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if showingOfflineCopy {
+                    Label("Offline: showing this phone's copy", systemImage: "icloud.slash")
+                        .font(.footnote.weight(.medium))
+                        .padding(.horizontal, 14).padding(.vertical, 7)
+                        .glassEffect(.regular, in: .capsule)
+                        .padding(.top, 4)
+                }
+            }
     }
 }
 
@@ -324,6 +506,9 @@ struct PaymentSheet: View {
     @State private var note: String
     @State private var saving = false
     @State private var error: String?
+    /// Counted, so the confirming tap (or the refusal) is felt once per attempt.
+    @State private var recorded = 0
+    @State private var refused = 0
 
     private struct Pinned {
         let text: String
@@ -438,9 +623,11 @@ struct PaymentSheet: View {
                                 // A cash payment has no reference to carry, whatever was typed before it was switched.
                                 try await commit(amount, method, method == "Cash" ? "" : reference,
                                                  note.trimmingCharacters(in: .whitespacesAndNewlines))
+                                recorded += 1
                                 dismiss()
                             } catch {
                                 self.error = error.localizedDescription
+                                refused += 1
                             }
                             saving = false
                         }
@@ -448,7 +635,11 @@ struct PaymentSheet: View {
                     .disabled(amount <= 0 || problem != nil || saving)
                 }
             }
+            // The ERP's words for a refusal slide in under the form rather than appearing in a jump.
+            .motion(error)
         }
+        .sensoryFeedback(.success, trigger: recorded)
+        .sensoryFeedback(.error, trigger: refused)
         .presentationDetents([.medium, .large])
     }
 }

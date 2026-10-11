@@ -50,7 +50,7 @@ struct CustomersList: View {
             list
         }
         .navigationTitle("Customers")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
         .searchable(text: $search, prompt: "Search by name, phone, or email")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

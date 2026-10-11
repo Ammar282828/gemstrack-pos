@@ -150,6 +150,7 @@ struct RowAmount: View {
         Text(lac ? Money.pkrLac(amount) : Money.pkr(amount))
             .font(.subheadline.weight(.semibold))
             .monospacedDigit()
+            .contentTransition(.numericText(value: amount))
             .foregroundStyle(tone)
             .lineLimit(1)
     }
@@ -204,6 +205,7 @@ struct MoneySplit: View {
             Text(value)
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
+                .contentTransition(.numericText())
                 .foregroundStyle(tint)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -549,6 +551,9 @@ struct FilterChip: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(chosen ? .isSelected : [])
+        // A light tick as a chip is chosen (never as the old one lets go), and its fill eases over.
+        .sensoryFeedback(.selection, trigger: chosen) { _, now in now }
+        .motion(chosen, Motion.exit)
     }
 }
 

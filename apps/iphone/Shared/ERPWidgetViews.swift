@@ -1,5 +1,6 @@
 import SwiftUI
 import Security
+import WidgetKit
 
 /// What the home-screen widget shows and how, shared by the widget (ERPWidget/) and the app,
 /// which writes the widget's link and draws a preview of it (WidgetPreviewScreen).
@@ -95,140 +96,295 @@ enum ERPWidgetSize {
     case small, medium, large, extraLarge, rectangular, inline
 }
 
+/// Marks a view as part of the accent group when the system renders the widget tinted.
+extension View {
+    @ViewBuilder func erpAccentable(_ on: Bool = true) -> some View {
+        if #available(iOS 16.0, *) { self.widgetAccentable(on) } else { self }
+    }
+}
+
+/// When the figures were worked out; carries the day when they are not today's.
+struct ERPFreshness {
+    let text: String
+    let short: String
+    let stale: Bool
+
+    init(_ s: ERPSummary, now: Date = Date()) {
+        guard let day = s.asOf else { text = s.updated; short = s.updated; stale = false; return }
+        let tz = TimeZone(identifier: "Asia/Karachi")
+        let iso = DateFormatter()
+        iso.locale = Locale(identifier: "en_US_POSIX")
+        iso.timeZone = tz
+        iso.dateFormat = "yyyy-MM-dd"
+        if day == iso.string(from: now) { text = s.updated; short = s.updated; stale = false; return }
+        var shown = day
+        if let d = iso.date(from: day) {
+            let out = DateFormatter()
+            out.timeZone = tz
+            out.setLocalizedDateFormatFromTemplate("d MMM")
+            shown = out.string(from: d)
+        }
+        text = "\(shown) · \(s.updated)"
+        short = shown
+        stale = true
+    }
+}
+
 /// The widget's face. `size` is passed in, not read from WidgetKit's environment, so the app can
 /// draw the same face for its preview.
 struct ERPWidgetFace: View {
     let summary: ERPSummary?
     let size: ERPWidgetSize
-    /// "Taheri ERP": named in the "open the app" line before the widget is linked.
     var appName: String = "the ERP app"
-
+    var accented = false
     private var brand: String { (summary?.house ?? appName).localizedCaseInsensitiveContains("mina") ? "mina" : "taheri" }
-    private var accent: Color { Color("Accent-\(brand)") }
+    private var ink: Color { accented ? .primary : Color("Accent-\(brand)") }
+    private var note: String? { summary?.teamNote.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 } }
 
     var body: some View {
-        if let s = summary, !s.figures.isEmpty {
-            switch size {
-            case .inline:
-                Text("\(s.figures[0].label) \(s.figures[0].value)")
-            case .rectangular:
-                VStack(alignment: .leading, spacing: 1) {
-                    ForEach(Array(s.figures.prefix(2)), id: \.self) { f in
-                        HStack(spacing: 4) {
-                            Text(f.label).font(.caption2).foregroundStyle(.secondary)
-                            Spacer(minLength: 0)
-                            Text(f.value).font(.caption.weight(.semibold)).monospacedDigit()
-                        }
-                    }
-                    Text(stamp(s)).font(.caption2).foregroundStyle(.secondary)
-                }
-            case .small:
-                VStack(alignment: .leading, spacing: 6) {
-                    brandHeader(s, compact: true)
-                    figure(s.figures[0], big: true, detail: false)
-                    if s.figures.count > 1 {
-                        HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text(s.figures[1].label).font(.caption2).foregroundStyle(.secondary)
-                            Spacer(minLength: 0)
-                            Text(s.figures[1].value).font(.caption.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.75)
-                        }
-                    }
-                    if let note = s.teamNote, !note.isEmpty { pinned(note, lines: 2) }
-                    Spacer(minLength: 0)
-                    Text(stamp(s)).font(.caption2).foregroundStyle(.tertiary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            case .medium, .large, .extraLarge:
-                VStack(alignment: .leading, spacing: size == .medium ? 8 : 10) {
-                    brandHeader(s, compact: false)
-                    HStack(alignment: .top, spacing: 12) {
-                        ForEach(Array(s.figures.prefix(2)), id: \.self) { f in
-                            figure(f, big: true, detail: false)
-                                .frame(maxWidth: .infinity, alignment: .leading).padding(size == .medium ? 8 : 10)
-                                .background(accent.opacity(0.07), in: .rect(cornerRadius: 12))
-                        }
-                    }
-                    if let note = s.teamNote, !note.isEmpty { pinned(note, lines: size == .medium ? 2 : 4) }
-                    if size == .large || size == .extraLarge {
-                        Divider()
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .topLeading), count: size == .extraLarge ? 4 : 2),
-                                  alignment: .leading, spacing: 12) {
-                            ForEach(Array(s.figures.dropFirst(2)), id: \.self) { f in figure(f, big: false) }
-                        }
-                    }
-                    Spacer(minLength: 0)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
+        if let s = summary, let today = s.figures.first {
+            face(s, today)
+        } else if size == .inline {
+            // An inline accessory is one line of text: no wordmark fits there.
+            Text("Open \(appName)")
         } else {
-            switch size {
-            case .inline:
-                Text("Open \(appName)")
-            default:
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Today at the shop").font(.caption.weight(.semibold))
-                    Text("Open \(appName) once, signed in as an owner.").font(.caption2).foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
+            unlinked
         }
     }
 
-    private func pinned(_ note: String, lines: Int) -> some View {
-        HStack(alignment: .top, spacing: 5) {
-            Image(systemName: "pin.fill").font(.caption2).foregroundStyle(accent).rotationEffect(.degrees(-15))
-            Text(note).font(size == .small ? .caption2 : .caption).lineLimit(lines).frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(size == .small ? 0 : 8)
-        .background(size == .small ? Color.clear : accent.opacity(0.05), in: .rect(cornerRadius: 10))
-    }
-
-    private func brandHeader(_ summary: ERPSummary, compact: Bool) -> some View {
-        HStack(alignment: .center, spacing: 8) {
-            Image("BrandLogo-\(brand)").resizable().scaledToFit()
-                .frame(width: compact ? 64 : 88, height: compact ? 16 : 22)
-                .accessibilityLabel(summary.house)
-            Spacer(minLength: 0)
-            Text(compact ? "TODAY" : stamp(summary))
-                .font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary).lineLimit(1)
+    @ViewBuilder private func face(_ s: ERPSummary, _ today: ERPSummary.Figure) -> some View {
+        switch size {
+        case .inline: inlineFace(today)
+        case .rectangular: rectangularFace(s, today)
+        case .small: smallFace(s, today)
+        case .medium: mediumFace(s, today)
+        case .large: largeFace(s, today)
+        case .extraLarge: extraLargeFace(s, today)
         }
     }
 
-    private func stamp(_ summary: ERPSummary) -> String {
-        guard let day = summary.asOf else { return summary.updated }
-        let formatter = DateFormatter()
-        formatter.timeZone = TimeZone(identifier: "Asia/Karachi")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return day == formatter.string(from: Date()) ? summary.updated : "\(day) · \(summary.updated)"
+    // MARK: Accessory
+
+    private func inlineFace(_ today: ERPSummary.Figure) -> some View {
+        Text("\(today.label) · \(today.value)").privacySensitive()
     }
 
-    @ViewBuilder
-    private func figure(_ f: ERPSummary.Figure, big: Bool, detail: Bool = true) -> some View {
+    private func rectangularFace(_ s: ERPSummary, _ today: ERPSummary.Figure) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(f.label).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-            Text(f.value)
-                .font(big ? .system(.title2, design: .serif).weight(.semibold) : .subheadline.weight(.semibold))
-                .foregroundStyle(big ? accent : Color.primary)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-            if detail, let d = f.detail, !d.isEmpty {
-                Text(d).font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
+            Text(today.label.uppercased())
+                .font(.system(size: 10, weight: .semibold)).tracking(0.8)
+                .lineLimit(1).erpAccentable()
+            Text(today.value)
+                .font(.system(.title3, design: .rounded).weight(.semibold)).monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.7).privacySensitive()
+            if let note {
+                Label(note, systemImage: "pin.fill").font(.caption).lineLimit(1)
+            } else if s.figures.count > 1 {
+                Text("\(s.figures[1].label) · \(s.figures[1].value)")
+                    .font(.caption).lineLimit(1).privacySensitive()
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: Home screen
+
+    private func smallFace(_ s: ERPSummary, _ today: ERPSummary.Figure) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header(s, compact: true)
+            Spacer(minLength: 6)
+            hero(today, size: 26)
+            month(s, compact: true).padding(.top, 3)
+            if let note {
+                Spacer(minLength: 8)
+                pinned(note, lines: 2, compact: true)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func mediumFace(_ s: ERPSummary, _ today: ERPSummary.Figure) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header(s)
+            Spacer(minLength: 8)
+            HStack(alignment: .top, spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    hero(today, size: 30)
+                    month(s, compact: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if let note {
+                    hairline(vertical: true)
+                    pinned(note, lines: 3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func largeFace(_ s: ERPSummary, _ today: ERPSummary.Figure) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header(s)
+            hero(today, size: 40).padding(.top, 18)
+            month(s).padding(.top, 6)
+            if let note { pinned(note, lines: 3).padding(.top, 16) }
+            Spacer(minLength: 12)
+            supporting(s, columns: 2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func extraLargeFace(_ s: ERPSummary, _ today: ERPSummary.Figure) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header(s)
+            HStack(alignment: .top, spacing: 28) {
+                VStack(alignment: .leading, spacing: 6) { hero(today, size: 44); month(s) }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if let note {
+                    hairline(vertical: true)
+                    pinned(note, lines: 5).frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 18)
+            Spacer(minLength: 12)
+            supporting(s, columns: 4)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var unlinked: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            wordmark(width: 92, height: 24)
+            Spacer(minLength: 4)
+            Text("Your shop, at a glance").font(.headline).lineLimit(2)
+            Text("Open \(appName) and link your widget in Settings.")
+                .font(.caption).foregroundStyle(.secondary).lineLimit(3)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    // MARK: Pieces
+
+    @ViewBuilder private func wordmark(width: CGFloat, height: CGFloat) -> some View {
+        let image = Image("BrandLogo-\(brand)").resizable()
+        if #available(iOS 18.0, *) {
+            image.widgetAccentedRenderingMode(.accented).scaledToFit()
+                .frame(width: width, height: height, alignment: .leading)
+        } else {
+            image.scaledToFit().frame(width: width, height: height, alignment: .leading)
+        }
+    }
+
+    private func header(_ s: ERPSummary, compact: Bool = false) -> some View {
+        HStack(alignment: .center, spacing: 6) {
+            wordmark(width: compact ? 72 : 96, height: compact ? 18 : 24)
+                .accessibilityLabel(s.house)
+            Spacer(minLength: 4)
+            stamp(ERPFreshness(s), compact: compact)
+        }
+    }
+
+    private func stamp(_ f: ERPFreshness, compact: Bool) -> some View {
+        HStack(spacing: 3) {
+            if f.stale { Image(systemName: "clock.arrow.circlepath").font(.system(size: 9, weight: .semibold)) }
+            Text(compact ? f.short : f.text)
+                .font(.system(size: compact ? 10 : 11, weight: f.stale ? .semibold : .medium))
+                .monospacedDigit().lineLimit(1)
+        }
+        .foregroundStyle(f.stale ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(f.stale ? "Figures from \(f.text)" : "Updated \(f.text)")
+    }
+
+    private func hero(_ f: ERPSummary.Figure, size: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(f.label.uppercased())
+                .font(.system(size: 10, weight: .semibold)).tracking(1.2)
+                .foregroundStyle(.secondary).lineLimit(1)
+            Text(f.value)
+                .font(.system(size: size, weight: .semibold, design: .rounded))
+                .foregroundStyle(ink).monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.6)
+                .privacySensitive().erpAccentable()
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder private func month(_ s: ERPSummary, compact: Bool = false) -> some View {
+        if s.figures.count > 1 {
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Text(s.figures[1].label).foregroundStyle(.secondary)
+                Text(s.figures[1].value).fontWeight(.semibold).monospacedDigit().privacySensitive()
+            }
+            .font(compact ? .system(size: 12) : .subheadline)
+            .lineLimit(1).minimumScaleFactor(0.75)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private func pinned(_ text: String, lines: Int, compact: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            if compact {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Image(systemName: "pin.fill").font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(ink).erpAccentable()
+                    Text(text).font(.system(size: 11, weight: .medium)).lineLimit(lines)
+                }
+            } else {
+                Label("PINNED", systemImage: "pin.fill")
+                    .font(.system(size: 9, weight: .semibold)).tracking(1.1)
+                    .foregroundStyle(ink).erpAccentable()
+                Text(text).font(.system(size: 13, weight: .medium)).lineLimit(lines)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Pinned note: \(text)")
+    }
+
+    @ViewBuilder private func hairline(vertical: Bool) -> some View {
+        if vertical {
+            Rectangle().fill(.primary.opacity(0.14)).frame(width: 1)
+        } else {
+            Rectangle().fill(.primary.opacity(0.14)).frame(height: 1)
+        }
+    }
+
+    @ViewBuilder private func supporting(_ s: ERPSummary, columns: Int) -> some View {
+        let rest = Array(s.figures.dropFirst(2).enumerated())
+        if !rest.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                hairline(vertical: false)
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14, alignment: .topLeading), count: columns),
+                          alignment: .leading, spacing: 12) {
+                    ForEach(rest, id: \.offset) { item in figureCell(item.element) }
+                }
+            }
+        }
+    }
+
+    private func figureCell(_ f: ERPSummary.Figure) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(f.label).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+            Text(f.value).font(.system(.subheadline, design: .rounded).weight(.semibold))
+                .monospacedDigit().lineLimit(1).minimumScaleFactor(0.75).privacySensitive()
+            if let detail = f.detail, !detail.isEmpty {
+                Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
-/// House-colored paper and a quiet decorative rule, without fabricated chart data.
+/// Quiet house paper; personality comes from the wordmark, typography and the shop's note.
 struct ERPWidgetPaper: View {
     let house: String
     private var brand: String { house.localizedCaseInsensitiveContains("mina") ? "mina" : "taheri" }
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Color("Ground-\(brand)")
-            Circle().stroke(Color("Accent-\(brand)").opacity(0.08), lineWidth: 20)
-                .frame(width: 150, height: 150).offset(x: 65, y: -85)
-            Rectangle().fill(Color("Accent-\(brand)").opacity(0.25)).frame(height: 3).frame(maxHeight: .infinity, alignment: .top)
-        }.clipped()
+        Color("Ground-\(brand)").overlay(alignment: .leading) {
+            Rectangle().fill(Color("Accent-\(brand)")).frame(width: 4)
+        }
     }
 }

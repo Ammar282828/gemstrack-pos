@@ -19,6 +19,7 @@ struct Dashboard: View {
     @Environment(\.scenePhase) private var scenePhase
     /// At the largest text sizes the three cards stand one under another rather than squeezed side by side.
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The instant the page is worked out against; it turns over at Karachi's midnight on a screen left open.
     @State private var now = Date()
@@ -28,6 +29,8 @@ struct Dashboard: View {
     @State private var allNeeds = false
     @State private var allDue = false
     @State private var allSales = false
+    /// The page's width: an iPad's wide window lays Home out in two columns.
+    @State private var width: CGFloat = 0
     /// Online orders waiting to be confirmed, and whether selling waits on today's rate (the server says).
     private var inbox: OnlineInbox { .shared }
 
@@ -116,23 +119,58 @@ struct Dashboard: View {
         // A house whose website does not sell has no online orders to confirm and no rate to pause on.
         let selling = session.shop.websiteSelling
         let needs = f.needs(onlineWaiting: selling ? inbox.waiting : 0, ratePause: selling ? inbox.ratePause : nil)
+        let wide = width >= 900 && !typeSize.isAccessibilitySize
         return ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 10) {
-                    dateLine
-                    hero(f)
-                    stats(f)
+            Group {
+                if wide {
+                    wideColumns(f, needs: needs)
+                } else {
+                    VStack(alignment: .leading, spacing: 22) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            dateLine
+                            hero(f)
+                            stats(f)
+                        }
+                        needsSection(needs)
+                        dueSection(f)
+                        salesSection(f)
+                        monthSection(f)
+                    }
                 }
-                needsSection(needs)
-                dueSection(f)
-                salesSection(f)
-                monthSection(f)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, wide ? 28 : 16)
             .padding(.top, 4)
             .padding(.bottom, 24)
+            // On the widest windows the page stays a page: the two columns never drift a room apart.
+            .frame(maxWidth: wide ? 1240 : .infinity)
+            .frame(maxWidth: .infinity)
         }
         .background(Theme.ground.ignoresSafeArea())
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+    }
+
+    /// An iPad's Home: today and the three cards across the top (the cards shown, there is room for them),
+    /// then the lists in two columns: what needs doing on the left, what has happened on the right.
+    private func wideColumns(_ f: DashFigures, needs: [DashNeed]) -> some View {
+        VStack(alignment: .leading, spacing: 26) {
+            VStack(alignment: .leading, spacing: 10) {
+                dateLine
+                hero(f)
+                HStack(alignment: .top, spacing: 14) { statCards(f) }.fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(alignment: .top, spacing: 24) {
+                VStack(alignment: .leading, spacing: 22) {
+                    needsSection(needs)
+                    dueSection(f)
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+                VStack(alignment: .leading, spacing: 22) {
+                    salesSection(f)
+                    monthSection(f)
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
+        }
     }
 
     /// "FRIDAY 9 OCTOBER", under the shop's name.
@@ -270,7 +308,7 @@ struct Dashboard: View {
 
     private func reveal(_ expanded: Binding<Bool>, count: Int) -> some View {
         Button(expanded.wrappedValue ? "Show less" : "Show \(count) more") {
-            withAnimation { expanded.wrappedValue.toggle() }
+            Motion.run(expanded.wrappedValue ? Motion.exit : Motion.enter, reduce: reduceMotion) { expanded.wrappedValue.toggle() }
         }
         .font(.subheadline.weight(.medium)).frame(minHeight: 44).padding(.horizontal, 4)
     }

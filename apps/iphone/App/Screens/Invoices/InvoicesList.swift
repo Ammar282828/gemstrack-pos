@@ -241,7 +241,7 @@ struct InvoicesList: View {
     var body: some View {
         let all = book.invoices.items
         ShelfState(loaded: book.invoices.loaded, error: book.invoices.error, offline: book.invoices.offline) {
-            content(all)
+            content(all).motion(chip)
         }
         .navigationTitle("Invoices")
         .searchable(text: $search, prompt: "Customer, phone, piece, invoice or SKU")
@@ -285,7 +285,7 @@ struct InvoicesList: View {
                     listControls(scoped, all: all)
                     ForEach(groups) { group in
                         InvoiceSectionHeader(section: group)
-                        LazyVGrid(columns: [GridItem(group.rows.count == 1 ? .flexible() : .adaptive(minimum: 340), spacing: 20)], alignment: .leading, spacing: 20) {
+                        LazyVGrid(columns: CardColumns.grid(geometry.size.width - 48), alignment: .leading, spacing: 20) {
                             ForEach(group.rows) { inv in
                                 VStack(alignment: .leading, spacing: 12) {
                                     row(inv).buttonStyle(.plain)
@@ -338,7 +338,7 @@ struct InvoicesList: View {
         ChipRow {
             ForEach([InvoiceChip.all, .unpaid, .paid]) { c in
                 FilterChip(title: c.title, count: scoped.filter { c.matches($0) }.count, chosen: c == chip) {
-                    withAnimation { chip = c }
+                    chip = c
                 }
             }
         }

@@ -51,8 +51,13 @@ private struct IntegrationsForm: View {
                     } else {
                         SkeletonLoading()
                     }
+                    if shopify?.configured != false {
+                        NavigationLink(value: Route(path: "/app/settings/shopify")) {
+                            Label("Connection and import", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                    }
                     NavigationLink(value: Route(path: "/settings/integrations?web=1")) {
-                        Label("Connection and sync", systemImage: "arrow.triangle.2.circlepath")
+                        Label("On the ERP's page", systemImage: "globe")
                     }
                 } header: {
                     LedgerHeading(title: "Shopify")

@@ -24,7 +24,7 @@ struct OnlineOrdersScreen: View {
     var body: some View {
         content
             .navigationTitle("Online orders")
-            .navigationBarTitleDisplayMode(.large)
+            .hubTitleDisplay()
             .navigationDestination(item: $go) { (r: Route) in PlaceScreen(path: r.path) }
             .sheet(item: $confirming) { (r: OnlineOrderRow) in
                 OnlineConfirmSheet(row: r) { orderId in go = Route(path: "/orders/\(orderId)") }

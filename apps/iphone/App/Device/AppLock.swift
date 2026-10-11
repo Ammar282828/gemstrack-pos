@@ -50,11 +50,17 @@ final class AppLock {
         }
     }
 
-    /// A cold start of a signed-in app asks too.
+    /// A cold start of a signed-in app asks too. The cover is up from the first frame; Face ID is asked for
+    /// once the app is in front (a launch calls this before it is, and the ask would fail), here or in `phase`.
     func launched(signedIn: Bool) {
         guard !House.isDemo, signedIn, enabled, Self.available else { return }
         locked = true
-        Task { await unlock() }
+        if UIApplication.shared.applicationState == .active { Task { await unlock() } }
+    }
+
+    /// Nobody is signed in after all (the cached sign-in was gone): there is nothing to lock away.
+    func signedOut() {
+        locked = false
     }
 
     func unlock() async {

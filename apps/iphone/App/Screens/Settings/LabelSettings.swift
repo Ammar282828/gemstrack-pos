@@ -207,7 +207,7 @@ private struct LabelDesigner: View {
             try await ERPAPI.shared.write("saveLabelLayout", ["layout": next.stored, "seq": UUID().uuidString])
             if layout == next { edited = false }
         } catch {
-            withAnimation { note = OwnerNote(title: "Layout not saved", detail: "Check the connection; it will try again on the next change. \(error.localizedDescription)") }
+            withAnimation { note = OwnerNote(title: "Layout not saved", detail: "Check the connection; it will try again on the next change. \(error.localizedDescription)", failed: true) }
         }
         saving = false
     }
@@ -320,7 +320,7 @@ private struct LabelDesigner: View {
             csv = try SettingsFiles.save(data, named: "gemstrack_double_tag_export_\(stamp).csv")
             withAnimation { note = OwnerNote(title: "CSV Exported", detail: "Product details for \(p.sku) exported.") }
         } catch {
-            withAnimation { note = OwnerNote(title: "CSV not made", detail: error.localizedDescription) }
+            withAnimation { note = OwnerNote(title: "CSV not made", detail: error.localizedDescription, failed: true) }
         }
         making = false
     }

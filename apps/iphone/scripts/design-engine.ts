@@ -73,7 +73,8 @@ async function run(input: any) {
   let background: HTMLImageElement | null = null;
   if (input.background) background = await loadImage(input.background);
   const canvas = E.renderDocTo(doc, fields, assets, Math.max(120, Math.min(3240, input.px ?? 540)), { background, hideBound: !!input.hideBound });
-  const piece = input.piece ?? {};
+  // A caller that draws a design (the Studio, its board) sends no piece: the caption is then empty, not a throw.
+  const piece = { headline: '', ...(input.piece ?? {}) };
   return JSON.parse(JSON.stringify({
     doc, image: canvas.toDataURL('image/jpeg', input.quality ?? .92).split(',')[1],
     boxes: doc.layers.map(l => ({ id: l.id, ...E.layerBox(l, fields, assets) })), added: additions.map(l => l.id),

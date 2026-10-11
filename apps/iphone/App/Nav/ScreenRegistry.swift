@@ -47,6 +47,25 @@ enum ScreenRegistry {
         return c.string ?? path
     }
 
+    /// How wide a native page reads on an iPad's wide window: nil fills the window (pages that lay out their
+    /// own columns, grids or a form beside its summary), else the column its rows and fields sit in. A phone
+    /// never reaches the limit, so it changes nothing there.
+    static func readableWidth(for path: String) -> CGFloat? {
+        let bare = ScreenRoute.bare(path)
+        let fills: Set<String> = ["/", "/orders", "/invoices", "/workshop", "/karigars", "/products", "/calendar",
+                                  "/my-work", "/given", "/orders/add", "/invoices/new", "/products/add",
+                                  "/products/bulk-add", "/settings/printer", "/app/widgets"]
+        if fills.contains(bare) { return nil }
+        for prefix in ["/ads", "/website", "/posts", "/marketing"] where bare == prefix || bare.hasPrefix(prefix + "/") { return nil }
+        // The forms beside their summary (TransactionWorkspace): editing an order, a sale or a piece, and Finalize.
+        if bare.hasSuffix("/edit") && (bare.hasPrefix("/orders/") || bare.hasPrefix("/invoices/") || bare.hasPrefix("/products/")) { return nil }
+        if bare.hasSuffix("/finalize") { return nil }
+        if bare.hasPrefix("/analytics") { return 980 }
+        // An order, an invoice or a customer: their figures sit side by side, so a little wider than a form.
+        if bare.hasPrefix("/orders/") || bare.hasPrefix("/invoices/") || bare.hasPrefix("/customers/") || bare.hasPrefix("/repairs") { return 820 }
+        return 720
+    }
+
     @MainActor
     static func view(for path: String) -> AnyView {
         if wantsWeb(path) { return AnyView(WebScreen(path: withoutWebFlag(path))) }

@@ -28,7 +28,7 @@ struct WorkshopKarigarScreen: View {
     var body: some View {
         content
             .navigationTitle(book.karigars.item(id)?.name ?? "Karigar")
-            .navigationBarTitleDisplayMode(.large)
+            .hubTitleDisplay()
             .modifier(HouseGround())
             .sheet(item: $ask) { (a: WorkshopPayAsk) in
                 paySheet(a)

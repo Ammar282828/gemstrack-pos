@@ -33,6 +33,7 @@ struct OrdersHub: View {
     @State private var web: OrdersWebTarget?
     @State private var failure: String?
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.createMenuShown) private var createMenuShown
 
     var body: some View {
         ShelfState(
@@ -40,7 +41,8 @@ struct OrdersHub: View {
             error: book.orders.error ?? book.invoices.error,
             offline: book.orders.offline
         ) {
-            hub
+            // A new grouping or filter settles in on the enter curve rather than jumping.
+            hub.motion([groupingRaw, statusFilter, month, takenBy, payment])
         }
         .navigationTitle("Orders")
         .navigationBarTitleDisplayMode(.large)
@@ -95,9 +97,9 @@ struct OrdersHub: View {
                             groupHeading(g)
                             if g.folds {
                                 DisclosureGroup(isExpanded: expansion(g.id, forceOpen: forceOpen)) {
-                                    cardGrid(g.orders, owedOn: owedOn, now: now)
+                                    cardGrid(g.orders, owedOn: owedOn, now: now, width: geometry.size.width - 48)
                                 } label: { Text("\(g.orders.count) orders").font(.subheadline).foregroundStyle(.secondary) }
-                            } else { cardGrid(g.orders, owedOn: owedOn, now: now) }
+                            } else { cardGrid(g.orders, owedOn: owedOn, now: now, width: geometry.size.width - 48) }
                         }
                     }
                     if groups.isEmpty { emptyState(nothingOpen: grouping == .due && !shown.isEmpty) }
@@ -234,8 +236,9 @@ struct OrdersHub: View {
         )
     }
 
-    private func cardGrid(_ orders: [Order], owedOn: [String: Double], now: Date) -> some View {
-        LazyVGrid(columns: [GridItem(orders.count == 1 ? .flexible() : .adaptive(minimum: 340), spacing: 20, alignment: .top)], alignment: .leading, spacing: 20) {
+    /// The same columns for every group, so a day with one order keeps a card's width rather than the window's.
+    private func cardGrid(_ orders: [Order], owedOn: [String: Double], now: Date, width: CGFloat) -> some View {
+        LazyVGrid(columns: CardColumns.grid(width), alignment: .leading, spacing: 20) {
             ForEach(orders) { order in card(order, owedOn: owedOn, now: now, standalone: true) }
         }
     }
@@ -302,6 +305,8 @@ struct OrdersHub: View {
                 Text(OrdersGrouping.due.title).tag(OrdersGrouping.due)
             }
             .pickerStyle(.segmented)
+            // Three words need no more than a phone's width, wherever they are.
+            .frame(maxWidth: 480, alignment: .leading)
             .padding(.horizontal, 16)
             .chipRowInList()
             if statusFilter != "All" || !month.isEmpty || !takenBy.isEmpty || payment != "All" {
@@ -362,9 +367,12 @@ struct OrdersHub: View {
 
     @ToolbarContentBuilder
     private var hubToolbar: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            NavigationLink(value: Route(path: "/orders/add")) {
-                Label("New order", systemImage: "plus")
+        // The tab's own create menu already offers New order beside the rate chip (iPad): one "+" is enough.
+        if !createMenuShown {
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink(value: Route(path: "/orders/add")) {
+                    Label("New order", systemImage: "plus")
+                }
             }
         }
         ToolbarItem(placement: .topBarTrailing) {

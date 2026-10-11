@@ -32,7 +32,7 @@ struct RepairsScreen: View {
             list
         }
         .navigationTitle("Repairs")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
         .searchable(text: $query, prompt: "Name, phone, piece or REP no.")
         .toolbar { newRepairButton }
         .sheet(item: $sheet) { open in RepairsSheet(id: open.id, seed: open.seed) }

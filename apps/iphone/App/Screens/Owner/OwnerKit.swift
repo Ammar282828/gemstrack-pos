@@ -135,6 +135,8 @@ struct OwnerDeleteCodeSheet: View {
 struct OwnerNote: Equatable {
     let title: String
     var detail = ""
+    /// Something that did not happen: an amber warning and a warning tap, never the green tick.
+    var failed = false
 }
 
 struct OwnerNoteBanner: View {
@@ -142,7 +144,8 @@ struct OwnerNoteBanner: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            Image(systemName: note.failed ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                .foregroundStyle(note.failed ? Tone.owed.color : Tone.settled.color)
             VStack(alignment: .leading, spacing: 1) {
                 Text(note.title).font(.subheadline.weight(.semibold))
                 if !note.detail.isEmpty {
@@ -160,19 +163,36 @@ struct OwnerNoteBanner: View {
 extension View {
     /// The note floating over the bottom of the screen, gone after four seconds.
     func ownerNote(_ note: Binding<OwnerNote?>) -> some View {
-        overlay(alignment: .bottom) {
-            if let shown = note.wrappedValue {
-                OwnerNoteBanner(note: shown)
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+        modifier(OwnerNotePresenter(note: note))
+    }
+}
+
+/// The note rises in on the enter curve with a success tick (felt as well as seen), and leaves on the exit
+/// curve; under Reduce Motion it only fades.
+private struct OwnerNotePresenter: ViewModifier {
+    @Binding var note: OwnerNote?
+    @Environment(\.accessibilityReduceMotion) private var reduce
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .bottom) {
+                if let shown = note {
+                    OwnerNoteBanner(note: shown)
+                        .frame(maxWidth: 560)
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                        .transition(reduce ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+                }
             }
-        }
-        .task(id: note.wrappedValue) {
-            guard note.wrappedValue != nil else { return }
-            try? await Task.sleep(for: .seconds(4))
-            if !Task.isCancelled { withAnimation { note.wrappedValue = nil } }
-        }
+            .sensoryFeedback(trigger: note) { _, now in
+                guard let now else { return nil }
+                return now.failed ? .warning : .success
+            }
+            .task(id: note) {
+                guard note != nil else { return }
+                try? await Task.sleep(for: .seconds(4))
+                if !Task.isCancelled { Motion.run(Motion.exit, reduce: reduce) { note = nil } }
+            }
     }
 }
 

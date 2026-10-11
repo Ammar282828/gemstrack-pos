@@ -63,7 +63,12 @@ struct ERPProvider: TimelineProvider {
 
 struct ERPWidgetEntryView: View {
     @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetRenderingMode) private var renderingMode
     let entry: ERPEntry
+
+    private var appName: String { Bundle.main.object(forInfoDictionaryKey: "ERPAppName") as? String ?? "the ERP app" }
+    private var house: String { entry.summary?.house ?? (Bundle.main.object(forInfoDictionaryKey: "ERPAppName") as? String ?? "") }
+    private var isAccessory: Bool { size == .rectangular || size == .inline }
 
     private var size: ERPWidgetSize {
         switch family {
@@ -76,16 +81,23 @@ struct ERPWidgetEntryView: View {
         }
     }
 
+    private var face: ERPWidgetFace {
+        ERPWidgetFace(summary: entry.summary, size: size, appName: appName,
+                      accented: renderingMode == .accented)
+    }
+
     var body: some View {
-        let face = ERPWidgetFace(summary: entry.summary, size: size,
-                                 appName: Bundle.main.object(forInfoDictionaryKey: "ERPAppName") as? String ?? "the ERP app")
         if #available(iOSApplicationExtension 17.0, *) {
-            face.containerBackground(for: .widget) {
-                ERPWidgetPaper(house: entry.summary?.house ?? (Bundle.main.object(forInfoDictionaryKey: "ERPAppName") as? String ?? ""))
-            }
+            face.containerBackground(for: .widget) { background }
+        } else if isAccessory {
+            face
         } else {
-            face.padding()
+            face.padding().background { ERPWidgetPaper(house: house) }
         }
+    }
+
+    @ViewBuilder private var background: some View {
+        if isAccessory { Color.clear } else { ERPWidgetPaper(house: house) }
     }
 }
 

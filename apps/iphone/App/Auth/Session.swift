@@ -67,17 +67,43 @@ final class Session {
     /// The house's settings for the screens (see Shop).
     var shop: Shop { me?.shop ?? .fallback }
 
-    init() { Task { await start() } }
-
-    func start() async {
+    /// The first frame is the app itself, not a wait: the demo, and anyone the ERP answered for last time
+    /// (the same answer the app already opens on offline), start signed in, so a cold start draws the
+    /// shop's own pages (their skeletons while the books arrive) straight after the launch screen.
+    /// `start()` then checks Firebase's sign-in and asks the ERP again; a changed role or a removed account
+    /// is applied as soon as it answers. Firebase is configured by the app delegate, after this runs, so
+    /// nothing here touches Firebase.
+    init() {
         if House.isDemo {
             me = Me(email: "owner@example.com", role: "owner", karigar: nil, shop: .demo)
             Book.shared.signedIn(role: "owner")
             state = .signedIn
+        } else if House.firebaseOptions == nil {
+            state = .needsSetup
+        } else if let last = Self.lastMe, last.role != "none" {
+            me = last
+            Book.shared.signedIn(role: last.role)
+            state = .signedIn
+        }
+        Task { await start() }
+    }
+
+    func start() async {
+        if House.isDemo { return }
+        guard House.firebaseOptions != nil, FirebaseApp.app() != nil else { state = .needsSetup; return }
+        guard let user = Auth.auth().currentUser else {
+            // Opened on the cached answer, but Firebase has nobody signed in: back to the sign-in page.
+            if me != nil { me = nil; Self.lastMe = nil; Book.shared.signedOut() }
+            state = .signedOut
             return
         }
-        guard House.firebaseOptions != nil else { state = .needsSetup; return }
-        if Auth.auth().currentUser != nil { await loadMe() } else { state = .signedOut }
+        if let me, me.email.lowercased() != user.email?.lowercased() {
+            // The cached answer was someone else's: show nothing of theirs while the ERP is asked.
+            self.me = nil
+            Book.shared.signedOut()
+            state = .starting
+        }
+        await loadMe()
     }
 
     func signIn() async {

@@ -7,9 +7,12 @@ struct RootGate: View {
     @Environment(Session.self) private var session
     @Environment(Book.self) private var book
     @AppStorage("deviceTheme") private var deviceTheme = ""
+    /// The shop's theme as the settings last said, so a cold start opens in it before the settings are read
+    /// again (otherwise a shop set to light flips from the phone's dark a moment after launch).
+    @AppStorage("erp.lastShopTheme") private var lastShopTheme = ""
 
     private var preferredScheme: ColorScheme? {
-        let theme = deviceTheme.isEmpty ? (book.settings.value?.theme ?? "") : deviceTheme
+        let theme = deviceTheme.isEmpty ? (book.settings.value?.theme ?? lastShopTheme) : deviceTheme
         if theme == "default" { return .light }
         if theme == "taheri" || theme == "slate" { return .dark }
         return nil
@@ -19,19 +22,34 @@ struct RootGate: View {
         Group {
             switch session.state {
             case .starting:
-                SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity).background(Theme.ground)
-            case .signedOut, .signingIn, .needsSetup:
-                SignInView()
-            case .signedIn:
-                if session.role == "karigar" {
-                    // A karigar's own work, native (MyWorkScreen reads the portal's /api/karigar/me; the ERP's /my-work).
-                    NavigationStack { MyWorkScreen(path: "/my-work") }
-                } else {
-                    RootView()
+                // Only while the ERP is asked who a new account is (Session opens on its last answer otherwise):
+                // the page's outline under an empty bar, on the ground the launch screen was drawn in.
+                NavigationStack {
+                    SkeletonLoading().controlSize(.large)
+                        .background(Theme.ground.ignoresSafeArea())
+                        .navigationBarTitleDisplayMode(.inline)
                 }
+                .transition(.opacity)
+            case .signedOut, .signingIn, .needsSetup:
+                SignInView().transition(.opacity)
+            case .signedIn:
+                Group {
+                    if session.role == "karigar" {
+                        // A karigar's own work, native (MyWorkScreen reads the portal's /api/karigar/me; the ERP's /my-work).
+                        NavigationStack { MyWorkScreen(path: "/my-work") }
+                    } else {
+                        RootView()
+                    }
+                }
+                .transition(.opacity)
             }
         }
+        .background(Theme.ground.ignoresSafeArea())
+        .motion(session.state, Motion.travel)
         .preferredColorScheme(preferredScheme)
+        .onChange(of: book.settings.value?.theme) { _, theme in
+            if let theme { lastShopTheme = theme }
+        }
     }
 }
 
@@ -103,10 +121,15 @@ struct RootView: View {
             }
         }
         .tabViewStyle(.sidebarAdaptable)
+        // The house's whole logo heads an iPad's sidebar, as the ERP's own sidebar is headed.
+        .tabViewSidebarHeader {
+            HouseLogo().frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
+        }
         .sheet(isPresented: $voice) {
             NavigationStack {
                 NativeVoiceScreen { path in voice = false; creating = Route(path: path) }
             }
+            .presentationSizing(.form)
         }
         .sheet(item: $creating) { r in
             NavigationStack {
@@ -145,7 +168,45 @@ private struct CreateAccessory: ViewModifier {
     @State private var compact = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
     func body(content: Content) -> some View {
+        if sizeClass == .regular {
+            // An iPad has a toolbar to spare: New and the voice assistant sit in it, so nothing floats over a
+            // form or the last row, and the page keeps its whole height. They go beside the rate chip, leaving
+            // the trailing side to the page's own actions (filters, Settings), which would otherwise fold away.
+            content.environment(\.createMenuShown, shown).toolbar {
+                if shown {
+                    // One control, the voice assistant inside it: beside the tab bar an iPad's toolbar holds about
+                    // two things a side before it folds them all behind "More".
+                    ToolbarItem(placement: .topBarLeading) {
+                        createMenu(voice: true) {
+                            Label("New", systemImage: "plus")
+                        }
+                        .accessibilityLabel(voiceShown ? "Create: new sale, new order, scan or voice" : "Create: new sale, new order or scan")
+                    }
+                }
+            }
+        } else {
+            floating(content)
+        }
+    }
+
+    private func createMenu<L: View>(voice: Bool = false, @ViewBuilder label: () -> L) -> some View {
+        Menu {
+            if let sale = map.newSale {
+                Button("New sale", systemImage: "banknote") { open(sale.href) }
+            }
+            Button("New order", systemImage: "list.clipboard") { open("/orders/add") }
+            Button("Scan", systemImage: "qrcode.viewfinder") { open("/scan") }
+            if voice && voiceShown {
+                Divider()
+                Button("Voice assistant", systemImage: "mic", action: talk)
+            }
+        } label: { label() }
+    }
+
+    private func floating(_ content: Content) -> some View {
         content
             .safeAreaPadding(.bottom, shown ? 76 : 0)
             .onScrollPhaseChange { _, phase in
@@ -169,13 +230,7 @@ private struct CreateAccessory: ViewModifier {
                             .buttonStyle(.glass).buttonBorderShape(.circle)
                             .accessibilityLabel("Voice assistant")
                         }
-                        Menu {
-                            if let sale = map.newSale {
-                                Button("New sale", systemImage: "banknote") { open(sale.href) }
-                            }
-                            Button("New order", systemImage: "list.clipboard") { open("/orders/add") }
-                            Button("Scan", systemImage: "qrcode.viewfinder") { open("/scan") }
-                        } label: {
+                        createMenu {
                             Image(systemName: "plus")
                                 .font(.system(size: compact ? 18 : 22, weight: .semibold))
                                 .frame(width: compact ? 44 : 52, height: compact ? 44 : 52)
@@ -228,7 +283,7 @@ struct PlaceScreen: View {
             .modifier(WebTitle(title: ScreenRegistry.hasNative(current) ? nil : (title ?? "")))
             .modifier(TabsMenu(tabs: tabs, chosen: $chosen))
             // Native screens sit on the house's ground; an ERP page brings its own (the same palette).
-            .modifier(OptionalGround(on: ScreenRegistry.hasNative(current)))
+            .modifier(OptionalGround(on: ScreenRegistry.hasNative(current), width: ScreenRegistry.readableWidth(for: current)))
             .modifier(TeamNotePresentation())
             .toolbar {
                 if isRoot {
@@ -250,8 +305,16 @@ struct PlaceScreen: View {
 
 private struct OptionalGround: ViewModifier {
     let on: Bool
+    /// The page's readable column on an iPad (nil: the page lays out the whole window itself).
+    var width: CGFloat?
     func body(content: Content) -> some View {
-        if on { content.modifier(HouseGround()) } else { content }
+        if on, let width {
+            content.modifier(HouseGround()).readableColumn(width)
+        } else if on {
+            content.modifier(HouseGround())
+        } else {
+            content
+        }
     }
 }
 

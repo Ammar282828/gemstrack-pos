@@ -7,7 +7,8 @@ import SwiftUI
 /// simple is edited here; the activity log is the Work group's (ActivityLogScreen) and Recently removed the
 /// Owner group's. Voice, Labels (Stock › Labels, still at /settings/printer), Backups and the contact and hisaab
 /// imports are native too; what stays the ERP's pages, opened inside the app: a backup's Restore (it writes a
-/// whole file over the live books), the Taheri Software book's one-off import, and the Shopify and Meta connections.
+/// whole file over the live books), the Taheri Software book's one-off import, Meta's connection and Shopify's
+/// sign-in (OAuth opens in Safari from the native Shopify screen, `/app/settings/shopify`).
 /// Simple settings go through /api/app/write `updateSettings` (lib/writes/settings.ts); the rest through their
 /// own writes (ops-settings2.ts).
 enum SettingsRoutes {
@@ -18,6 +19,7 @@ enum SettingsRoutes {
             .exact("/settings/alerts") { AlertSettings() },
             .exact("/settings/payment-methods") { BankAccountSettings() },
             .exact("/settings/integrations") { IntegrationSettings() },
+            .exact("/app/settings/shopify") { ShopifySettings() },
             .exact("/settings/data") { DataSettings() },
             .exact("/settings/voice") { VoiceSettings() },
             .exact("/settings/printer") { LabelSettings() },

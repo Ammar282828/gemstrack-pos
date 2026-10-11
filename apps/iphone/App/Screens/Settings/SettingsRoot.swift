@@ -46,7 +46,7 @@ struct SettingsRoot: View {
             .houseRows()
         }
         .navigationTitle("Settings")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
         .confirmationDialog("Sign out of \(session.shop.name)?", isPresented: $signingOut, titleVisibility: .visible) {
             Button("Sign out", role: .destructive) { session.signOut() }
         } message: {
