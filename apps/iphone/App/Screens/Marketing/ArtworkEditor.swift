@@ -148,6 +148,7 @@ struct ArtworkEditor: View {
         Menu("Arrange · \(selected.count) selected") {
             Button("Select all") { selected = Set(layers.map { $0.s("id") }) }
             Button("Bring to front") { reorder(true) }; Button("Send to back") { reorder(false) }
+            Button("Bring forward") { step(1) }; Button("Send backward") { step(-1) }
             Button("Group") { set(["group": .string(UUID().uuidString)]) }; Button("Ungroup") { set(["group": .null]) }
             Button("Mirror across") { flip("flipX") }; Button("Mirror down") { flip("flipY") }
             Menu("Align to page") { alignMenu(page: true) }; if selected.count > 1 { Menu("Align selection") { alignMenu(page: false) } }
@@ -202,6 +203,8 @@ struct ArtworkEditor: View {
     private func set(_ fields: [String: MarketingValue]) { var d = doc; d["layers"] = .array(layers.map { l in var n = l; if selected.contains(l.s("id")), !l["locked"].bool { for (k, v) in fields { n[k] = v } }; return n }); change(d) }
     private func flip(_ key: String) { for l in layers where selected.contains(l.s("id")) && !l["locked"].bool { patch(l.s("id"), [key: .bool(!l[key].bool)]) } }
     private func reorder(_ front: Bool) { let kept = layers.filter { !selected.contains($0.s("id")) }, own = layers.filter { selected.contains($0.s("id")) }; var d = doc; d["layers"] = .array(front ? kept + own : own + kept); change(d) }
+    /// One place up or down the stack for each chosen layer (the page's ↑/↓), the others keeping their order.
+    private func step(_ by: Int) { var a = layers; let order = by > 0 ? Array(a.indices.reversed()) : Array(a.indices); for i in order where selected.contains(a[i].s("id")) { let j = i + by; guard a.indices.contains(j), !selected.contains(a[j].s("id")) else { continue }; a.swapAt(i, j) }; var d = doc; d["layers"] = .array(a); change(d) }
     private func duplicate(_ source: [MarketingValue]) { var groups: [String: String] = [:]; let made = source.map { l -> MarketingValue in var n = l; n["id"] = .string(UUID().uuidString); n["x"] = .number(l.n("x") + 24); n["y"] = .number(l.n("y") + 24); n["locked"] = .bool(false); let g = l.s("group"); if !g.isEmpty { groups[g] = groups[g] ?? UUID().uuidString; n["group"] = .string(groups[g]!) }; return n }; var d = doc; d["layers"] = .array(layers + made); change(d); selected = Set(made.map { $0.s("id") }) }
     private func act(_ action: String, _ value: String, _ extra: [String: Any] = [:]) { Task { do { var o = extra; o["action"] = action; o["value"] = value; o["selected"] = Array(selected); let r = try await engine.run(doc: doc, photos: allPhotos, fields: fields, options: o); change(r["doc"]); response = r; if !r["added"].array.isEmpty { selected = Set(r["added"].array.map(\.string)) }; problem = nil } catch { problem = error.localizedDescription } } }
     private func render() async { do { let r = try await engine.run(doc: doc, photos: allPhotos, fields: fields); guard !Task.isCancelled else { return }; response = r; problem = nil } catch { if !Task.isCancelled { problem = error.localizedDescription } } }

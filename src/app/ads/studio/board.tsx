@@ -25,24 +25,26 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X } from 'lucide-react';
+import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X, Upload, Undo2, Wand2, Type } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
-import { reflow, renderDocTo, type Assets, type Bind, type Fields, type StoryDoc } from '@/lib/social/editor';
+import { applyPalette, newImageLayer, newText, reflow, renderDocTo, type Assets, type Bind, type Fields, type StoryDoc } from '@/lib/social/editor';
 import { AD_FORMATS, AD_FORMAT_ORDER, AD_TEMPLATES, MORE_FORMAT_ORDER, PHOTO, applyAdTemplate, blankAd, formatInfo, type AdFormat, type AdTemplateId } from '@/lib/ads/studio/templates';
 import { BOARD_SCALE, applyOps, framePx, newId, safeTemplate, type Board, type BoardFrame, type BoardNote, type BoardOp } from '@/lib/ads/studio/board-shape';
+import { MAIN, assetOfRef, extraIds, libRef, pictureSlots, replacePicture, rewriteUploads, uploadSrcs, type PictureSlot, type PictureTarget } from '@/lib/ads/studio/board-pictures';
 import type { BoardSummary } from '@/lib/ads/studio/board';
-import type { Direction } from '@/lib/ads/studio/prompts';
+import type { CopyResult, Direction } from '@/lib/ads/studio/prompts';
+import { SCENES, nearestAspect } from '@/lib/social/prompts';
 import { VOICE } from '@/lib/ads/studio/brand';
 import { HANDOFF_PREFIX, type StudioHandoff } from '@/lib/ads/studio/handoff';
 import type { WeeklyState } from '@/lib/ads/studio/weekly';
 import { STORE_LINKS } from '@/lib/store-config';
-import { SoloEditor, useStoryDoc } from '../../website/post/story-editor';
+import { SoloEditor, useStoryDoc, type DesignerExtras, type Editor } from '../../website/post/story-editor';
 import { FONTS, bodyFace, headlineFace, serifFace } from '../../website/post/fonts';
 import { useSiteAssets } from '../../website/post/site-assets';
 import { api, authHeaders } from '../ads-kit';
-import { AuthedImg, SITE_LABEL, downloadBlob, fetchAsset, safeName, type LibraryItem, type LibraryResponse } from './studio-kit';
+import { AuthedImg, SITE_LABEL, downloadBlob, fetchAsset, runImageOp, safeName, type LibraryItem, type LibraryResponse } from './studio-kit';
 
 const LAST_KEY = 'taheri_studio_board';
 const POLL_MS = 4000;
@@ -74,18 +76,33 @@ const fontsReady = () => (fontsOnce ??= Promise.all(
   [`600 40px ${FONTS.headline}`, `400 40px ${FONTS.body}`, `400 40px ${FONTS.serif}`, `italic 400 40px ${FONTS.serif}`].map(f => document.fonts.load(f).catch(() => null)),
 ));
 
+/** A picture this page already has (an upload, an AI result): kept as if fetched, so it isn't fetched back. */
+function remember(id: string, blob: Blob) {
+  const p = loadImage(blob).then(img => ({ blob, img, url: URL.createObjectURL(blob) }));
+  p.catch(() => pics.delete(id));
+  pics.set(id, p);
+}
+
+/** A picture into the Studio's library (POST /api/ads/studio/uploads): its asset id, `up:<id>`. */
+async function uploadPicture(blob: Blob, name: string): Promise<string> {
+  const form = new FormData();
+  form.append('file', blob, `${safeName(name)}.${blob.type === 'image/png' ? 'png' : 'jpg'}`);
+  form.append('name', name);
+  const { asset } = await api<{ asset: { id: string } }>('/api/ads/studio/uploads', { form });
+  remember(asset.id, blob);
+  return asset.id;
+}
+
 /**
- * A design may hold more library photos than its own as image layers — a product shot inset beside the
- * hand that wears it (2026-10-06, owner: "add the product shot in there"). Such a layer's photoId is
- * `lib:<asset id>`; the page fetches each like the design's own photo.
+ * A design may hold more library photos than its own — a product shot inset beside the hand that wears it
+ * (2026-10-06, owner: "add the product shot in there"), a picture uploaded from the computer, an AI edit, or
+ * a library photo as the background. Each is `lib:<asset id>` (board-pictures.ts); the page fetches each
+ * like the design's own photo, so the board, the editor, downloads and every send draw the same pictures.
  */
-const LIB = 'lib:';
-const extraIds = (doc: StoryDoc | null | undefined): string[] =>
-  [...new Set((doc?.layers ?? []).flatMap(l => (l.kind === 'image' && !l.src && l.photoId.startsWith(LIB) ? [l.photoId] : [])))];
 type Extras = Record<string, Pic>;
 async function extrasOf(doc: StoryDoc | null | undefined): Promise<Extras> {
   const ids = extraIds(doc);
-  const got = await Promise.all(ids.map(id => photoOf(id.slice(LIB.length)).catch(() => null)));
+  const got = await Promise.all(ids.map(id => photoOf(assetOfRef(id)!).catch(() => null)));
   return Object.fromEntries(ids.flatMap((id, i) => (got[i] ? [[id, got[i]!]] : [])));
 }
 const assetsFor = (pic: Pic | null, marks: Assets['marks'], extras: Extras = {}): Assets => ({
@@ -305,6 +322,16 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
       return [];
     } finally { busy.current--; }
   }, [id, fail, load]);
+
+  /** The designer's Save: one `put`, and unlike `send` it throws, so the designer stays open (nothing lost) when it fails. */
+  const saveFrame = useCallback(async (fid: string, patch: Partial<BoardFrame>) => {
+    const ops: BoardOp[] = [{ op: 'put', id: fid, patch: { ...patch, by: 'page' } }];
+    busy.current++;
+    try {
+      const r = await api<{ board: Board }>(`/api/ads/studio/boards/${id}`, { method: 'PATCH', body: { ops } });
+      setBoard(r.board);
+    } finally { busy.current--; }
+  }, [id]);
 
   const frames = board?.frames ?? [];
   const notes = board?.notes ?? [];
@@ -640,11 +667,11 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
         {!sel && <p className="text-xs text-muted-foreground rounded-xl border p-3">Tap a design to edit it, cook variants of it, or make it in another shape.</p>}
       </aside>
 
-      <PhotoPicker open={picker} onOpenChange={setPicker} onPick={addPhoto} />
+      <PhotoPicker open={picker} onOpenChange={setPicker} onPick={addPhoto} withFormat />
       {queueShown && <QueueDialog key={queueShown.id} frame={queueShown} open={!!queueFor} onClose={() => setQueueFor(null)} onQueue={o => { if (queueFor) queuePost(queueFor, o); }} />}
       {editing && (() => {
         const f = frames.find(x => x.id === editing);
-        return f ? <FrameEditor frame={f} marks={marks} onClose={() => setEditing(null)} onSave={patch => { send([{ op: 'put', id: f.id, patch: { ...patch, by: 'page' } }]); setEditing(null); }} /> : null;
+        return f ? <FrameEditor key={f.id} frame={f} marks={marks} onClose={() => setEditing(null)} onSave={async patch => { await saveFrame(f.id, patch); setEditing(null); toast({ title: 'Saved to the board' }); }} /> : null;
       })()}
     </div>
   );
@@ -843,56 +870,494 @@ function QueueDialog({ frame: f, open, onClose, onQueue }: { frame: BoardFrame; 
 
 // ── The designer, on one design ────────────────────────────────────────────
 
-function FrameEditor({ frame: f, marks, onClose, onSave }: { frame: BoardFrame; marks: Assets['marks']; onClose: () => void; onSave: (p: Partial<BoardFrame>) => void }) {
+type Check = { samePiece: boolean; differences: string[] } | null;
+/** The image AI's tools (the route Post a piece, Edit a piece and the Studio's library use), as they apply to a picture on a design. */
+type PhotoAi = { op: 'enhance' | 'clean' | 'retouch' | 'reframe' | 'restage' | 'custom'; label: string; secs: string; main?: boolean };
+const PHOTO_AI: PhotoAi[] = [
+  { op: 'enhance', label: 'Enhance', secs: 'about a minute' },
+  { op: 'clean', label: 'Logo and labels off', secs: 'about a minute' },
+  { op: 'retouch', label: 'Retouch (Magnific)', secs: 'about two minutes' },
+  { op: 'reframe', label: 'Extend to the design’s shape', secs: 'about a minute', main: true },
+];
+const FIELD_ROWS: [Bind, string, number][] = [['kicker', 'Small line', 60], ['headline', 'Headline', 140], ['weight', 'Weight / specs', 160], ['details', 'Call to action', 80]];
+
+/**
+ * One design in the designer (2026-10-12, owner: "the boards from ad studio ads should be fully editable, let
+ * me edit any present text and picture … add text, different fonts, elements … also ai features"): the
+ * Canva-style designer (text, fonts, elements, photos and uploads, brand, layers, background, undo, align,
+ * snap) beside the design's pictures — each replaced from the library or this device, or edited by the
+ * image AI, the original restorable until Save — and its words, written by the AI on request. Full screen
+ * of its own rather than a dialog, so the designer it opens takes clicks and keys. Save is one `put`;
+ * pictures uploaded in the designer are put in the library first (board-pictures.ts rewriteUploads).
+ */
+function FrameEditor({ frame: f, marks, onClose, onSave }: { frame: BoardFrame; marks: Assets['marks']; onClose: () => void; onSave: (p: Partial<BoardFrame>) => Promise<void> }) {
+  const { toast } = useToast();
+  const [start] = useState(f);   // the design as opened: the board's poll may hand a newer one in meanwhile
+  const [assetId, setAssetId] = useState<string | null>(start.assetId);
+  const [marked, setMarked] = useState(start.marked);
+  const [label, setLabel] = useState(start.label);
   const [pic, setPic] = useState<Pic | null>(null);
+  const [picErr, setPicErr] = useState(false);
   const [extras, setExtras] = useState<Extras>({});
-  const [fields, setFields] = useState<Fields>(f.fields);
-  const [template, setTemplate] = useState<AdTemplateId>(f.template);
+  const [fields, setFields] = useState<Fields>(start.fields);
+  const [template, setTemplate] = useState<AdTemplateId>(start.template);
+  const [palette, setPalette] = useState(PALETTES[0]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [checks, setChecks] = useState<Record<string, Check>>({});
+  const [slot, setSlot] = useState<PictureTarget | null>(null);
+  const [picking, setPicking] = useState<{ target: PictureTarget | 'add' } | null>(null);
   const assets = useMemo(() => assetsFor(pic, marks, extras), [pic, marks, extras]);
-  useEffect(() => { extrasOf(f.doc).then(setExtras).catch(() => setExtras({})); }, [f.doc]);
-  const doc = useStoryDoc(f.doc ?? blankAd(f.format));
-  const started = useRef(false);
-  useEffect(() => { if (f.assetId) photoOf(f.assetId).then(setPic).catch(() => setPic(null)); }, [f.assetId]);
+  const doc = useStoryDoc(start.doc ?? blankAd(start.format));
+  const F = formatInfo(start.format);
+
+  // The design's own photo, and every library picture the document draws (fetched again as pictures come and go).
   useEffect(() => {
-    if (started.current || (f.assetId && !pic)) return;
+    let live = true;
+    setPicErr(false);
+    if (!assetId) { setPic(null); return; }
+    photoOf(assetId).then(p => live && setPic(p)).catch(() => { if (live) { setPic(null); setPicErr(true); } });
+    return () => { live = false; };
+  }, [assetId]);
+  const extraKey = extraIds(doc.doc).join('|');
+  useEffect(() => {
+    let live = true;
+    extrasOf(doc.doc).then(x => live && setExtras(x)).catch(() => undefined);
+    return () => { live = false; };
+  }, [extraKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A design never laid out (doc null) is laid out from its template once the photo is here.
+  const ready = !assetId || !!pic || picErr;
+  // Each picture as it was when the designer opened (or as first laid out), to put back before Save.
+  const pictureMap = (d: StoryDoc | null) => new Map((d?.layers ?? []).flatMap(l => (l.kind === 'image' ? [[l.id, { photoId: l.photoId, src: l.src }] as const] : [])));
+  const [origin, setOrigin] = useState(() => pictureMap(start.doc));
+  const [originBg, setOriginBg] = useState<string>(start.doc?.bg.photoId ?? MAIN);
+  const started = useRef(!!start.doc);
+  useEffect(() => {
+    if (started.current || !ready) return;
     started.current = true;
-    if (!f.doc) doc.reset(layOut({ ...f, fields, template }, assets));
-  }, [pic]); // eslint-disable-line react-hooks/exhaustive-deps
-  const F = formatInfo(f.format);
-  const ready = !f.assetId || !!pic;
-  return (
-    <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-5xl max-h-[95svh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{f.label || 'Design'}</DialogTitle>
-          <DialogDescription>{F.label} · {F.px}×{Math.round(F.px * F.frame.h / F.frame.w)}</DialogDescription>
-        </DialogHeader>
-        <SoloEditor side={{
-          label: 'The design', sub: F.label,
-          placeholder: ready ? undefined : <div className="flex h-60 items-center justify-center text-sm text-muted-foreground"><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Fetching the photo…</div>,
-          props: {
-            api: doc, square: true, fields, assets,
-            photos: [...(pic ? [{ id: PHOTO, url: pic.url, label: f.label }] : []), ...Object.entries(extras).map(([id, x]) => ({ id, url: x.url, label: 'Product shot' }))],
-            palette: PALETTES[0], onPalette: () => undefined, lettered: null, weightOwnLine: true, websiteLabel: SITE_LABEL,
-            onField: (b: Bind, v: string) => setFields(x => ({ ...x, [b]: v })),
-            presets: AD_TEMPLATES.map(t => ({ id: t.id, label: t.label })),
-            onPreset: id => { setTemplate(id as AdTemplateId); doc.change(d => applyAdTemplate(d, id as AdTemplateId, fields, assets, { photoMarked: f.marked })); },
-            previewPreset: id => applyAdTemplate(doc.doc, id as AdTemplateId, fields, assets, { photoMarked: f.marked }),
-            fileName: safeName(fields.headline || f.label),
-          },
-        }} />
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button disabled={!ready} onClick={() => onSave({ doc: doc.doc, fields, template })}>Save to the board</Button>
+    const laid = layOut({ ...start, fields, template }, assets);
+    doc.reset(laid);
+    setOrigin(pictureMap(laid)); setOriginBg(laid.bg.photoId ?? MAIN);
+  }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dirty = doc.canUndo || assetId !== start.assetId || marked !== start.marked || template !== start.template || label !== start.label
+    || FIELD_ROWS.some(([b]) => fields[b] !== start.fields[b]);
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => { if (dirtyRef.current) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('beforeunload', warn);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('beforeunload', warn); document.body.style.overflow = overflow; };
+  }, []);
+  const cancel = () => {
+    if (busy && !window.confirm('Something is still working. Close anyway?')) return;
+    if (dirty && !window.confirm('Discard your changes to this design?')) return;
+    onClose();
+  };
+
+  const fail = (title: string, e: unknown) => toast({ title, description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+  useEffect(() => {
+    if (picErr) toast({ title: 'The design’s photo didn’t load', description: 'Everything else is here to edit. Replace the photo under Pictures, or cancel and try again.', variant: 'destructive' });
+  }, [picErr]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Pictures ──
+  const slots = pictureSlots(doc.doc, !!assetId);
+  const urlOf = (shows: string) => (shows === MAIN ? pic?.url : shows.startsWith('data:') ? shows : extras[shows]?.url);
+
+  const replace = (target: PictureTarget, pick: { assetId: string; marked?: boolean }) => {
+    if (target === MAIN || (target === 'bg' && (!doc.doc.bg.photoId || doc.doc.bg.photoId === MAIN))) {
+      setAssetId(pick.assetId); setMarked(!!pick.marked);
+      return;
+    }
+    doc.change(d => replacePicture({ doc: d, assetId, marked }, target, pick).doc);
+  };
+  const restorable = (target: PictureTarget): boolean => {
+    if (target === MAIN) return assetId !== start.assetId || marked !== start.marked;
+    if (target === 'bg') return doc.doc.bg.photoId !== originBg;
+    const was = origin.get(target);
+    const l = doc.doc.layers.find(x => x.id === target);
+    return !!was && !!l && l.kind === 'image' && (l.photoId !== was.photoId || l.src !== was.src);
+  };
+  const restore = (target: PictureTarget) => {
+    setChecks(c => ({ ...c, [target]: null }));
+    if (target === MAIN) { setAssetId(start.assetId); setMarked(start.marked); return; }
+    if (target === 'bg') { doc.change(d => ({ ...d, bg: { ...d.bg, photoId: originBg } })); return; }
+    const was = origin.get(target);
+    if (!was) return;
+    doc.change(d => ({ ...d, layers: d.layers.map(l => {
+      if (l.id !== target || l.kind !== 'image') return l;
+      const { src: _src, ...rest } = l;
+      return was.src ? { ...rest, photoId: was.photoId, src: was.src } : { ...rest, photoId: was.photoId };
+    }) }));
+  };
+
+  /** A new picture onto the design: in the middle, about half its width, kept in proportion. */
+  const addPicture = (newAssetId: string) => {
+    const w = Math.round(doc.doc.frame?.w ?? F.frame.w) * 0.45;
+    const fw = doc.doc.frame?.w ?? F.frame.w, fh = doc.doc.frame?.h ?? F.frame.h;
+    const layer = { ...newImageLayer(libRef(newAssetId)), x: Math.round(fw / 2 - w / 2), y: Math.round(fh / 2 - w / 2), w: Math.round(w), radius: 0, border: null, shadow: false };
+    if (edRef.current) edRef.current.add(layer); else doc.change(d => ({ ...d, layers: [...d.layers, layer] }));
+    setSlot(layer.id);
+  };
+
+  const onLibrary = (item: LibraryItem) => {
+    const target = picking?.target;
+    setPicking(null);
+    if (!target) return;
+    const pick = { assetId: item.original?.id ?? item.id, marked: item.source === 'site' && !item.original };
+    if (target === 'add') addPicture(pick.assetId);
+    else { replace(target, pick); setChecks(c => ({ ...c, [target]: null })); }
+  };
+  const onFile = async (file: File) => {
+    const target = picking?.target;
+    setPicking(null);
+    if (!target) return;
+    setBusy('Putting the picture in the library…');
+    try {
+      const id = await uploadPicture(file, file.name.replace(/\.[a-z0-9]+$/i, '') || 'Uploaded picture');
+      if (target === 'add') addPicture(id);
+      else { replace(target, { assetId: id, marked: false }); setChecks(c => ({ ...c, [target]: null })); }
+    } catch (e) { fail('Couldn’t upload it', e); } finally { setBusy(null); }
+  };
+
+  /** The picture a slot shows, as a file for the AI. */
+  const blobOf = async (shows: string): Promise<Blob> => {
+    if (shows === MAIN) { if (!pic) throw new Error('The photo hasn’t come yet.'); return pic.blob; }
+    if (shows.startsWith('data:')) return (await fetch(shows)).blob();
+    const x = extras[shows] ?? await photoOf(assetOfRef(shows)!);
+    return x.blob;
+  };
+  const aspectOf = (target: PictureTarget): string => {
+    if (target === MAIN || target === 'bg') return F.ai;
+    const l = doc.doc.layers.find(x => x.id === target);
+    if (l?.kind !== 'image') return '1:1';
+    const img = l.photoId === MAIN ? pic?.img : extras[l.photoId]?.img;
+    return nearestAspect(l.w, l.h ?? (img ? l.w * img.naturalHeight / img.naturalWidth : l.w));
+  };
+  const runAi = async (target: PictureTarget, op: PhotoAi['op'] | 'restage' | 'custom', extra: { sceneId?: string; instruction?: string } = {}) => {
+    const s = slots.find(x => x.target === target);
+    if (!s || busy) return;
+    const isMain = target === MAIN || (target === 'bg' && s.shows === MAIN);
+    const wasMarked = isMain ? marked : false;
+    const params: Record<string, unknown> =
+      op === 'enhance' ? { tidy: false }
+        : op === 'clean' ? { tidy: true }
+          : op === 'retouch' ? {}
+            : op === 'reframe' ? { aspect: F.ai, tidy: wasMarked }
+              : op === 'restage' ? { sceneId: extra.sceneId, aspect: aspectOf(target) }
+                : { instruction: extra.instruction };
+    const what = PHOTO_AI.find(x => x.op === op);
+    setBusy(`${what?.label ?? (op === 'restage' ? 'A new setting' : 'Your change')} — ${what?.secs ?? 'about a minute'}…`);
+    try {
+      const r = await runImageOp(await blobOf(s.shows), op === 'clean' ? 'enhance' : op, params);
+      const id = await uploadPicture(r.blob, `${label || 'Design'} · AI ${op}`);
+      // Tidied (logo off, extended clean, a new setting) carries no mark any more: the layout's own is wanted.
+      const clean = op === 'clean' || op === 'restage' || (op === 'reframe' && wasMarked);
+      replace(target, { assetId: id, marked: isMain ? (clean ? false : wasMarked) : false });
+      setChecks(c => ({ ...c, [target]: r.check }));
+      toast(r.check && !r.check.samePiece
+        ? { title: 'Look closely', description: `The check thinks the piece changed: ${r.check.differences.slice(0, 2).join('; ') || 'not the same'}. Restore the original if so.`, variant: 'destructive' }
+        : { title: 'Done', description: r.check ? 'The check says it is the same piece. The original is one tap away until you save.' : 'The original is one tap away until you save.' });
+      if (isMain && clean && wasMarked) toast({ title: 'The logo is off the photo', description: 'Add the house’s mark from Elements → The shop’s marks, or pick a layout again.' });
+    } catch (e) { fail('The AI couldn’t do that', e); } finally { setBusy(null); }
+  };
+
+  // ── Words ──
+  const [brief, setBrief] = useState('');
+  const [copy, setCopy] = useState<CopyResult | null>(null);
+  const writeWords = async () => {
+    if (busy) return;
+    setBusy('Writing the words — about half a minute…');
+    try {
+      const r = await api<CopyResult>('/api/ads/studio/copy', { body: {
+        name: label || fields.headline, collection: fields.kicker, brief, goal: 'WhatsApp conversations', specs: fields.weight,
+      } });
+      setCopy(r);
+    } catch (e) { fail('Couldn’t write the words', e); } finally { setBusy(null); }
+  };
+  const setField = (b: Bind, v: string) => setFields(x => ({ ...x, [b]: v }));
+  const freeText = doc.doc.layers.filter((l): l is Extract<typeof l, { kind: 'text' }> => l.kind === 'text' && !l.bind);
+
+  // ── Save ──
+  const save = async () => {
+    if (busy) return;
+    setBusy('Saving…');
+    try {
+      let d = doc.doc;
+      const srcs = uploadSrcs(d);
+      const map: Record<string, string> = {};
+      for (const [i, s] of srcs.entries()) {
+        setBusy(`Putting picture ${i + 1} of ${srcs.length} in the library…`);
+        map[s] = await uploadPicture(await (await fetch(s)).blob(), `${label || 'Design'} · upload ${i + 1}`);
+      }
+      d = rewriteUploads(d, map);
+      if (d !== doc.doc) doc.change(() => d);
+      setBusy('Saving…');
+      await onSave({ doc: d, fields, template, label, assetId, marked });
+    } catch (e) { fail('That didn’t save — your changes are still here', e); setBusy(null); }
+  };
+
+  // ── The designer, canvas first: the host's panels (Add, Pictures, Words) in its rail, tools for what is selected ──
+  const edRef = useRef<Editor | null>(null);
+  const fw = doc.doc.frame?.w ?? F.frame.w, fh = doc.doc.frame?.h ?? F.frame.h;
+  const slotOfSelection = (ed: Editor): PictureTarget | null =>
+    ed.one?.kind === 'image' ? ed.one.id : ed.bgSel ? (doc.doc.bg.photoId && assetOfRef(doc.doc.bg.photoId) ? 'bg' : assetId ? MAIN : null) : null;
+  const openPictures = (ed: Editor, target: PictureTarget | null) => { if (target) setSlot(target); ed.setPanel('x:pictures'); };
+
+  const panels: NonNullable<DesignerExtras['panels']> = [
+    { id: 'x:add', label: 'Add', title: 'Add to the design', icon: <Plus className="h-5 w-5" />, render: ed => (edRef.current = ed,
+      <AddPanel busy={!!busy}
+        onText={() => ed.add({ ...newText(palette.body), x: Math.round(fw / 2), y: Math.round(fh / 2), width: Math.round(fw * 0.8) })}
+        onTextStyles={() => ed.setPanel('text')} onPicture={() => setPicking({ target: 'add' })}
+        onElements={() => ed.setPanel('elements')} onLayouts={() => ed.setPanel('templates')} onBrand={() => ed.setPanel('brand')} />
+    ) },
+    { id: 'x:pictures', label: 'Pictures', title: 'Pictures', icon: <ImagePlus className="h-5 w-5" />, render: ed => (edRef.current = ed,
+      <PicturesPanel slots={slots} urlOf={urlOf} selected={slotOfSelection(ed) ?? slot} busy={!!busy} checks={checks} restorable={restorable} hasMain={!!assetId}
+        onChoose={t => { setSlot(t); if (t === MAIN || t === 'bg') ed.selectBg(); else ed.select([t]); }}
+        onAdd={() => setPicking({ target: 'add' })} onMain={() => setPicking({ target: MAIN })}
+        onReplace={t => setPicking({ target: t })} onRestore={restore} onAi={runAi} onCrop={t => { if (t === MAIN || t === 'bg') { ed.selectBg(); ed.setPanel('background'); } else { ed.select([t]); ed.setPanel('frame'); } }} />
+    ) },
+    { id: 'x:words', label: 'Words', title: 'Words', icon: <Pencil className="h-5 w-5" />, render: ed => {
+      const sel = ed.one?.kind === 'text' ? ed.one : null;
+      return (
+        <div className="space-y-3">
+          {FIELD_ROWS.map(([b, name, max]) => {
+            const on = doc.doc.layers.some(l => l.kind === 'text' && l.bind === b);
+            return (
+              <label key={b} className={cn('block space-y-0.5 rounded-md', sel?.bind === b && 'ring-2 ring-primary ring-offset-2 ring-offset-background')}>
+                <span className="flex items-center justify-between text-[11px] text-muted-foreground">{name}
+                  {!on && <button type="button" className="text-primary min-h-0" onClick={() => ed.setPanel('text')}>Put it on the design</button>}
+                </span>
+                <Input value={fields[b]} maxLength={max} onChange={e => setField(b, e.target.value)} className="h-9 text-base sm:text-sm" />
+              </label>
+            );
+          })}
+          {freeText.length > 0 && <p className="pt-1 text-[11px] font-medium text-muted-foreground">Other text on the design</p>}
+          {freeText.map((l, i) => (
+            <label key={l.id} className={cn('block space-y-0.5 rounded-md', sel?.id === l.id && 'ring-2 ring-primary ring-offset-2 ring-offset-background')}>
+              <span className="text-[11px] text-muted-foreground">{l.name || `Text ${i + 1}`}</span>
+              <Textarea value={l.text} onFocus={() => ed.select([l.id])} onChange={e => { const t = e.target.value; doc.change(d => ({ ...d, layers: d.layers.map(x => (x.id === l.id && x.kind === 'text' ? { ...x, text: t } : x)) }), { key: `text:${l.id}` }); }} className="min-h-[44px] text-base sm:text-sm" />
+            </label>
+          ))}
+          <WordsAi busy={!!busy} brief={brief} onBrief={setBrief} copy={copy} onWrite={writeWords}
+            onUseAll={c => setFields(x => ({ ...x, kicker: c.onImage.kicker || x.kicker, headline: c.onImage.headline || x.headline, details: c.onImage.details || x.details }))}
+            onHeadline={h => setField('headline', h.slice(0, 140))} />
+          <div className="space-y-1.5 border-t pt-3">
+            <p className="text-[11px] font-medium text-muted-foreground">Colours of the words</p>
+            <div className="flex flex-wrap gap-1.5">
+              {PALETTES.map(pp => (
+                <button key={pp.id} type="button" title={pp.label} onClick={() => { setPalette(pp); doc.change(d => applyPalette(d, pp)); }}
+                  className={cn('flex h-8 w-8 items-center justify-center rounded-full border-2 min-h-0', palette.id === pp.id ? 'border-primary' : 'border-transparent')} style={{ background: pp.dark ? '#2a2a2a' : '#EDE6DA' }}>
+                  <span className="h-4 w-4 rounded-full" style={{ background: pp.headline }} />
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">Fonts, sizes and any one line’s colour: select it on the design.</p>
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      );
+    } },
+  ];
+
+  /** Tools for what is selected, first in the toolbar (and the phone's bar). */
+  const tools = (ed: Editor, where: 'toolbar' | 'phone') => {
+    edRef.current = ed;
+    const T = ({ icon, label, onClick, primary }: { icon: React.ReactNode; label: string; onClick: () => void; primary?: boolean }) => where === 'toolbar'
+      ? <button type="button" onClick={onClick} disabled={!!busy} className={cn('flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-xs disabled:opacity-40', primary ? 'bg-primary/10 text-primary hover:bg-primary/15' : 'hover:bg-muted')}>{icon}{label}</button>
+      : <button type="button" onClick={onClick} disabled={!!busy} className={cn('flex min-w-[64px] shrink-0 flex-col items-center justify-center gap-1 px-1.5 py-2 text-[10px] disabled:opacity-40', primary ? 'text-primary' : 'text-foreground/80')}>{icon}<span className="whitespace-nowrap">{label}</span></button>;
+    const i = where === 'toolbar' ? 'h-4 w-4' : 'h-5 w-5';
+    const target = slotOfSelection(ed);
+    if (target) return (<>
+      <T primary icon={<ImagePlus className={i} />} label="Replace" onClick={() => setPicking({ target })} />
+      <T primary icon={<Wand2 className={i} />} label="AI photo" onClick={() => openPictures(ed, target)} />
+      {ed.bgSel && <T icon={<Maximize className={i} />} label="Crop" onClick={() => ed.setPanel('background')} />}
+      {restorable(target) && <T icon={<Undo2 className={i} />} label="Original" onClick={() => restore(target)} />}
+    </>);
+    if (ed.one?.kind === 'text') return <T primary icon={<Sparkles className={i} />} label={ed.one.bind ? 'Words · AI' : 'Words'} onClick={() => ed.setPanel('x:words')} />;
+    if (ed.selLayers.length) return null;
+    return (<>
+      <T primary icon={<Plus className={i} />} label="Add" onClick={() => ed.setPanel('x:add')} />
+      <T icon={<Pencil className={i} />} label="Words" onClick={() => ed.setPanel('x:words')} />
+      {assetId && <T icon={<ImagePlus className={i} />} label="Replace photo" onClick={() => setPicking({ target: MAIN })} />}
+    </>);
+  };
+
+  const designerExtras: DesignerExtras = {
+    panels, tools, hide: ['photos'], startPanel: 'x:add', closeLabel: 'Cancel',
+    hint: 'Click to select · drag, resize and turn on the page · Delete · ⌘Z / ⇧⌘Z undo · ⌘D duplicate · arrows nudge (⇧ more) · Esc deselect · right-click for order, lock, align',
+    title: <input value={label} onChange={e => setLabel(e.target.value.slice(0, 80))} aria-label="Design name" placeholder="Design"
+      className="h-8 min-w-0 max-w-[40vw] rounded-md border border-transparent bg-transparent px-1.5 text-sm font-medium outline-none hover:border-border focus:border-primary sm:max-w-[260px]" />,
+    status: busy
+      ? <span className="flex min-w-0 items-center gap-1 truncate rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary"><Loader2 className="h-3 w-3 shrink-0 animate-spin" /><span className="truncate max-w-[30vw] sm:max-w-[280px]">{busy}</span></span>
+      : <span className={cn('hidden sm:flex shrink-0 items-center gap-1 text-[11px]', dirty ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}><span className={cn('h-1.5 w-1.5 rounded-full', dirty ? 'bg-amber-500' : 'bg-emerald-500')} />{dirty ? 'Unsaved' : 'Saved'} · {F.short}</span>,
+    actions: <Button size="sm" className="ml-1" disabled={!ready || !!busy} onClick={save}>{busy === 'Saving…' ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Save{dirty ? <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-amber-300" /> : null}</Button>,
+  };
+
+  return (<>
+    <SoloEditor designerOnly={{ onClose: cancel }} side={{
+      label: label || 'Design', sub: F.label,
+      placeholder: ready ? undefined : (
+        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-background text-sm text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin" /> Fetching the photo…
+          <Button size="sm" variant="ghost" onClick={onClose}>Cancel</Button>
+        </div>
+      ),
+      props: {
+        api: doc, square: true, fields, assets, extras: designerExtras,
+        photos: [...(pic ? [{ id: PHOTO, url: pic.url, label: 'The photo' }] : []), ...Object.entries(extras).map(([id, x]) => ({ id, url: x.url, label: 'Library picture' }))],
+        palette, onPalette: setPalette, lettered: null, weightOwnLine: true, websiteLabel: SITE_LABEL,
+        onField: setField,
+        presets: AD_TEMPLATES.map(t => ({ id: t.id, label: t.label })),
+        onPreset: id => { setTemplate(id as AdTemplateId); doc.change(d => applyAdTemplate(d, id as AdTemplateId, fields, assets, { photoMarked: marked })); },
+        previewPreset: id => applyAdTemplate(doc.doc, id as AdTemplateId, fields, assets, { photoMarked: marked }),
+        fileName: safeName(fields.headline || label),
+        cropLabel: 'Fill the frame', photoNote: 'The design’s photo: drag or pinch it on the page to choose what shows. Replace it, or edit it with AI, under Pictures.',
+      },
+    }} />
+    <PhotoPicker open={!!picking} onOpenChange={o => { if (!o) setPicking(null); }} onPick={onLibrary} onFile={onFile} above
+      title={picking?.target === 'add' ? 'Add a picture to the design' : 'Replace the picture'} />
+  </>);
+}
+
+/** Add: the few things a design is made of, each one tap — the designer's full panels behind them. */
+function AddPanel({ busy, onText, onTextStyles, onPicture, onElements, onLayouts, onBrand }: {
+  busy: boolean; onText: () => void; onTextStyles: () => void; onPicture: () => void; onElements: () => void; onLayouts: () => void; onBrand: () => void;
+}) {
+  const tile = 'flex flex-col items-start gap-1 rounded-xl border p-3 text-left hover:border-primary hover:bg-primary/5 disabled:opacity-50 min-h-0';
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" className={tile} onClick={onText}><Type className="h-5 w-5 text-primary" /><span className="text-sm font-medium">Text</span><span className="text-[11px] text-muted-foreground">A line to type into</span></button>
+        <button type="button" className={tile} disabled={busy} onClick={onPicture}><ImagePlus className="h-5 w-5 text-primary" /><span className="text-sm font-medium">Picture</span><span className="text-[11px] text-muted-foreground">Library or this device</span></button>
+        <button type="button" className={tile} onClick={onElements}><Shapes className="h-5 w-5 text-primary" /><span className="text-sm font-medium">Shapes</span><span className="text-[11px] text-muted-foreground">Lines, arrows, frames</span></button>
+        <button type="button" className={tile} onClick={onElements}><Sparkles className="h-5 w-5 text-primary" /><span className="text-sm font-medium">Stickers</span><span className="text-[11px] text-muted-foreground">Badges and the house’s marks</span></button>
+      </div>
+      <div className="space-y-1">
+        <button type="button" className="w-full rounded-md border px-3 py-2 text-left text-sm hover:border-primary" onClick={onTextStyles}>Headings and font combinations →</button>
+        <button type="button" className="w-full rounded-md border px-3 py-2 text-left text-sm hover:border-primary" onClick={onLayouts}>Start from a layout →</button>
+        <button type="button" className="w-full rounded-md border px-3 py-2 text-left text-sm hover:border-primary" onClick={onBrand}>Brand colours and fonts →</button>
+      </div>
+      <p className="text-[11px] text-muted-foreground">Or paste a picture (⌘V). Anything you add can be dragged, resized and turned on the page.</p>
+    </div>
+  );
+}
+
+/** The design's pictures: choose one (or select it on the page), then replace it, crop it, or edit it with AI. */
+function PicturesPanel({ slots, urlOf, selected, busy, checks, restorable, hasMain, onChoose, onAdd, onMain, onReplace, onRestore, onAi, onCrop }: {
+  slots: PictureSlot[]; urlOf: (shows: string) => string | undefined; selected: PictureTarget | null; busy: boolean; checks: Record<string, Check>;
+  restorable: (t: PictureTarget) => boolean; hasMain: boolean;
+  onChoose: (t: PictureTarget) => void; onAdd: () => void; onMain: () => void; onReplace: (t: PictureTarget) => void; onRestore: (t: PictureTarget) => void;
+  onAi: (t: PictureTarget, op: PhotoAi['op'], extra?: { sceneId?: string; instruction?: string }) => void; onCrop: (t: PictureTarget) => void;
+}) {
+  const current = slots.find(s => s.target === selected) ?? null;
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {slots.map(s => {
+          const url = urlOf(s.shows);
+          return (
+            <button key={s.target} type="button" onClick={() => onChoose(s.target)} title={s.label}
+              className={cn('relative h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 bg-muted min-h-0', selected === s.target ? 'border-primary ring-2 ring-primary/30' : 'border-transparent hover:border-border')}>
+              {url ? <img src={url} alt={s.label} className="h-full w-full object-cover" /> : <Loader2 className="m-auto h-4 w-4 animate-spin text-muted-foreground" />}
+              {restorable(s.target) && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-primary" title="Changed" />}
+            </button>
+          );
+        })}
+        <button type="button" onClick={onAdd} disabled={busy} className="flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-md border-2 border-dashed text-[10px] text-muted-foreground hover:border-primary min-h-0"><Plus className="h-4 w-4" /> Add</button>
+        {!hasMain && <button type="button" onClick={onMain} disabled={busy} className="flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-md border-2 border-dashed text-[10px] text-muted-foreground hover:border-primary min-h-0"><ImagePlus className="h-4 w-4" /> Photo</button>}
+      </div>
+      {current
+        ? <PictureTools key={current.target} name={current.label} busy={busy} check={checks[current.target] ?? null} canRestore={restorable(current.target)}
+            main={current.target === MAIN || (current.target === 'bg' && current.shows === MAIN)}
+            onReplace={() => onReplace(current.target)} onRestore={() => onRestore(current.target)} onCrop={() => onCrop(current.target)}
+            onAi={(op, extra) => onAi(current.target, op, extra)} />
+        : <p className="text-[11px] text-muted-foreground">Tap a picture here or on the design. Replacing keeps its place, size, frame and crop.</p>}
+    </div>
+  );
+}
+
+/** The AI writes the words (the Studio's copy route, in the house's voice); a tap puts them in. */
+function WordsAi({ busy, brief, onBrief, copy, onWrite, onUseAll, onHeadline }: {
+  busy: boolean; brief: string; onBrief: (v: string) => void; copy: CopyResult | null; onWrite: () => void; onUseAll: (c: CopyResult) => void; onHeadline: (h: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5 rounded-lg border border-primary/40 bg-primary/5 p-2">
+      <p className="text-xs font-medium flex items-center gap-1"><Sparkles className="h-3.5 w-3.5" /> Write with AI</p>
+      <Input value={brief} onChange={e => onBrief(e.target.value)} placeholder="Aim (optional) — e.g. Eid gifting" className="h-8 text-base sm:text-xs" />
+      <Button size="sm" variant="outline" className="w-full" disabled={busy} onClick={onWrite}>{busy ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />} {copy ? 'Write again' : 'Write the words'}</Button>
+      {copy && (
+        <div className="space-y-1.5 text-xs">
+          {(copy.onImage.kicker || copy.onImage.headline || copy.onImage.details) && (
+            <button type="button" className="w-full rounded-md border bg-background p-2 text-left hover:border-primary min-h-0" onClick={() => onUseAll(copy)}>
+              {copy.onImage.kicker && <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">{copy.onImage.kicker}</span>}
+              <span className="block font-semibold">{copy.onImage.headline}</span>
+              {copy.onImage.details && <span className="block text-muted-foreground">{copy.onImage.details}</span>}
+              <span className="mt-1 block text-[10px] text-primary">Use all three</span>
+            </button>
+          )}
+          {copy.headlines.length > 0 && <p className="text-[10px] text-muted-foreground">Other headlines — tap to use:</p>}
+          <div className="flex flex-wrap gap-1">
+            {copy.headlines.slice(0, 6).map(h => <button key={h} type="button" onClick={() => onHeadline(h)} className="rounded-full border px-2 py-0.5 text-[11px] hover:border-primary min-h-0">{h}</button>)}
+          </div>
+          {copy.why && <p className="text-[10px] italic text-muted-foreground">{copy.why}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** One picture's tools: replace it, the image AI on it, and its original back. */
+function PictureTools({ name, main, busy, check, canRestore, onReplace, onRestore, onAi, onCrop }: {
+  name: string; main: boolean; busy: boolean; check: Check; canRestore: boolean;
+  onReplace: () => void; onRestore: () => void; onCrop: () => void; onAi: (op: PhotoAi['op'], extra?: { sceneId?: string; instruction?: string }) => void;
+}) {
+  const [scene, setScene] = useState(SCENES[0]?.id ?? '');
+  const [ask, setAsk] = useState('');
+  return (
+    <div className="space-y-2 rounded-lg bg-muted/40 p-2">
+      <div className="flex items-center gap-2">
+        <p className="flex-1 truncate text-xs font-medium">{name}</p>
+        {canRestore && <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" disabled={busy} onClick={onRestore}><Undo2 className="h-3.5 w-3.5 mr-1" /> Original</Button>}
+      </div>
+      <div className="grid grid-cols-[1fr_auto] gap-1.5">
+        <Button size="sm" variant="outline" disabled={busy} onClick={onReplace}><ImagePlus className="h-4 w-4 mr-1" /> Replace</Button>
+        <Button size="sm" variant="outline" disabled={busy} onClick={onCrop}><Maximize className="h-4 w-4 mr-1" /> Crop</Button>
+      </div>
+      <p className="text-[10px] text-muted-foreground">From the library, or a picture from this device.</p>
+      <p className="text-[11px] font-medium flex items-center gap-1 pt-1"><Wand2 className="h-3.5 w-3.5" /> With AI</p>
+      <div className="grid grid-cols-2 gap-1.5">
+        {PHOTO_AI.filter(x => main || !x.main).map(x => <Button key={x.op} size="sm" variant="outline" className="h-auto min-h-8 whitespace-normal py-1 text-xs" disabled={busy} onClick={() => onAi(x.op)}>{x.label}</Button>)}
+      </div>
+      <div className="flex gap-1.5">
+        <select value={scene} onChange={e => setScene(e.target.value)} className="h-8 min-w-0 flex-1 rounded-md border bg-background px-1.5 text-xs" aria-label="Setting">
+          {SCENES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+        </select>
+        <Button size="sm" variant="outline" className="h-8 text-xs" disabled={busy || !scene} onClick={() => onAi('restage', { sceneId: scene })}>New setting</Button>
+      </div>
+      <div className="flex gap-1.5">
+        <Input value={ask} onChange={e => setAsk(e.target.value)} placeholder="Ask for a change — e.g. warmer light" className="h-8 text-base sm:text-xs" />
+        <Button size="sm" variant="outline" className="h-8 text-xs" disabled={busy || !ask.trim()} onClick={() => onAi('custom', { instruction: ask.trim() })}>Ask</Button>
+      </div>
+      {check && <p className={cn('text-[11px]', check.samePiece ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-300')}>{check.samePiece ? 'The check: the same piece as before.' : `The check: the piece may have changed — ${check.differences.slice(0, 3).join('; ') || 'not the same'}.`}</p>}
+      <p className="text-[10px] text-muted-foreground">Each AI edit is checked against the picture it came from, and kept in the library as an upload.</p>
+    </div>
   );
 }
 
 // ── Choosing a photo ───────────────────────────────────────────────────────
 
-function PhotoPicker({ open, onOpenChange, onPick }: { open: boolean; onOpenChange: (o: boolean) => void; onPick: (item: LibraryItem, format: AdFormat) => void }) {
+function PhotoPicker({ open, onOpenChange, onPick, withFormat, title = 'Add a photo', onFile, above }: {
+  open: boolean; onOpenChange: (o: boolean) => void; onPick: (item: LibraryItem, format: AdFormat) => void;
+  /** Choose the new design's shape too (adding a design to the board). */
+  withFormat?: boolean; title?: string;
+  /** Offer a picture from this phone or computer as well. */
+  onFile?: (file: File) => void;
+  /** Over the full-screen designer (z-60). */
+  above?: boolean;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
   const [q, setQ] = useState('');
   const [format, setFormat] = useState<AdFormat>('portrait');
   const [items, setItems] = useState<LibraryItem[] | null>(null);
@@ -911,17 +1376,23 @@ function PhotoPicker({ open, onOpenChange, onPick }: { open: boolean; onOpenChan
   }, [open, q]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90svh] overflow-y-auto">
+      <DialogContent className={cn('max-w-3xl max-h-[90svh] overflow-y-auto', above && 'z-[70]')}>
         <DialogHeader>
-          <DialogTitle>Add a photo</DialogTitle>
-          <DialogDescription>From taheri.shop and the shared Drive, best for ads first.</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>From {SITE_LABEL}, the shared Drive and your uploads, best for ads first.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-wrap gap-2">
           <Input value={q} onChange={e => setQ(e.target.value)} placeholder="Search — ring, emerald, bangles…" className="h-9 flex-1 min-w-[180px] text-base sm:text-sm" />
-          <Select value={format} onValueChange={v => setFormat(v as AdFormat)}>
-            <SelectTrigger className="h-9 w-[180px]"><SelectValue /></SelectTrigger>
-            <SelectContent>{FORMATS.map(x => <SelectItem key={x} value={x}>{AD_FORMATS[x as Exclude<AdFormat, 'custom'>].label}</SelectItem>)}</SelectContent>
-          </Select>
+          {withFormat && (
+            <Select value={format} onValueChange={v => setFormat(v as AdFormat)}>
+              <SelectTrigger className="h-9 w-[180px]"><SelectValue /></SelectTrigger>
+              <SelectContent>{FORMATS.map(x => <SelectItem key={x} value={x}>{AD_FORMATS[x as Exclude<AdFormat, 'custom'>].label}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
+          {onFile && (<>
+            <Button size="sm" variant="outline" className="h-9" onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4 mr-1" /> From this device</Button>
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; if (file) onFile(file); }} />
+          </>)}
         </div>
         {err && <p className="text-sm text-destructive">{err}</p>}
         {!items && !err && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</p>}

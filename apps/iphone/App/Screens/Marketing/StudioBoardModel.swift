@@ -387,6 +387,21 @@ final class StudioBoardModel {
         return data
     }
 
+    /// A picture already in hand (just uploaded, or an AI version) kept so the board draws it without fetching it back.
+    func remember(_ asset: String, _ data: Data) { photos[asset] = data }
+
+    /// A picture from the phone (or an accepted AI version) into the Studio's uploads (POST /api/ads/studio/uploads):
+    /// its library id, "up:<id>", which a board's photo or inset ("lib:up:<id>") can hold.
+    func upload(_ data: Data, name: String) async throws -> String {
+        if House.isDemo { throw ERPAPI.Failure(status: 0, message: "The demo uploads nothing.") }
+        let jpeg = WebsitePhoto.jpegCopy(data) ?? data
+        let bytes = try await WebsiteForm.send("/api/ads/studio/uploads", fields: [("name", name)], files: [.init(field: "file", name: "picture.jpg", type: "image/jpeg", data: jpeg)], timeout: 180)
+        let id = try JSONDecoder().decode(MarketingValue.self, from: bytes)["asset"].s("id")
+        guard id.hasPrefix("up:") else { throw ERPAPI.Failure(status: 0, message: "The upload gave no picture.") }
+        photos[id] = jpeg
+        return id
+    }
+
     /// The design's photos as the engine takes them: its own as "photo", and any other library photos it holds as
     /// image layers ("lib:<asset>", a product shot beside the hand that wears it).
     func photoSet(_ f: MarketingValue, doc: MarketingValue? = nil) async throws -> [String: Data] {

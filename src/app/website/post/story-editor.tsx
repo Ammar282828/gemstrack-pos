@@ -151,11 +151,31 @@ export interface StoryEditorProps {
   /** The photo settings' words, where the square is something else (Edit a piece: a website photo in its own shape). */
   cropLabel?: string;
   photoNote?: string;
+  /** A host's own panels, tools and header in the full-screen designer (Studio → Board's design editor). */
+  extras?: DesignerExtras;
+}
+
+/**
+ * What a page may add to the designer without forking it (2026-10-12, Studio → Board): rail panels of its own,
+ * tools for whatever is selected (the desktop toolbar and the phone's bar), and its own header — the close
+ * button's word, a status beside the title, and actions after Download (its Save).
+ */
+export interface DesignerExtras {
+  panels?: { id: `x:${string}`; label: string; title: string; icon: React.ReactNode; render: (ed: Editor) => React.ReactNode }[];
+  /** The designer's own rail panels to leave out (the host has its own for the same job). */
+  hide?: SidePanel[];
+  tools?: (ed: Editor, where: 'toolbar' | 'phone') => React.ReactNode;
+  title?: React.ReactNode;
+  status?: React.ReactNode;
+  actions?: React.ReactNode;
+  closeLabel?: string;
+  hint?: string;
+  startPanel?: SidePanel;
 }
 
 // ── The editor's state and actions ─────────────────────────────────────────
 
-export type SidePanel = 'templates' | 'elements' | 'text' | 'photos' | 'brand' | 'layers' | 'background' | 'edit' | 'effects' | 'position' | 'photo' | 'font' | 'colour' | 'transparency' | 'frame';
+export type SidePanel = 'templates' | 'elements' | 'text' | 'photos' | 'brand' | 'layers' | 'background' | 'edit' | 'effects' | 'position' | 'photo' | 'font' | 'colour' | 'transparency' | 'frame' | `x:${string}`;
 
 export function useEditor(p: StoryEditorProps) {
   const { toast } = useToast();
@@ -167,7 +187,7 @@ export function useEditor(p: StoryEditorProps) {
   const [bgSel, setBgSel] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [panel, setPanel] = useState<SidePanel | null>('templates');
+  const [panel, setPanel] = useState<SidePanel | null>(p.extras?.startPanel ?? 'templates');
   // Bumped when a font or an uploaded image finishes loading, so the canvas redraws.
   const [ver, setVer] = useState(0);
   const tick = useCallback(() => setVer(n => n + 1), []);
@@ -982,7 +1002,7 @@ export function PairEditor({ story, square, show, active, onActive }: {
  * One design on its own — Website → Edit a piece re-makes a photograph already on
  * the website: the small editor, and the same full-screen designer.
  */
-export function SoloEditor({ side }: { side: PairSide }) {
+export function SoloEditor({ side, designerOnly }: { side: PairSide; /** Straight into the full-screen designer, which stays open; closing it calls this. */ designerOnly?: { onClose: () => void } }) {
   const ed = useEditor(side.props);
   const [designer, setDesigner] = useState(false);
   const empty = !!side.placeholder;
@@ -993,6 +1013,7 @@ export function SoloEditor({ side }: { side: PairSide }) {
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
   });
+  if (designerOnly) return side.placeholder ? <>{side.placeholder}</> : <Designer ed={ed} onClose={designerOnly.onClose} F={ed.F} frameLabel={`${side.label} · ${side.sub}`} />;
   return (
     <div ref={rootRef} className="space-y-3" onKeyDown={e => { if (!designer && !empty) ed.onKey(e); }}>
       {side.top}
@@ -1173,6 +1194,12 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
   pages?: { key: PairKey; label: string; square: boolean; off: boolean }[]; current?: PairKey; onPage?: (k: PairKey) => void;
 }) {
   const { api } = ed;
+  const extras = ed.p.extras;
+  const rail = [
+    ...(extras?.panels ?? []).map(x => ({ id: x.id as SidePanel, label: x.label, icon: x.icon })),
+    ...RAIL.filter(r => !extras?.hide?.includes(r.id)),
+  ];
+  const titleOf = (p: SidePanel) => extras?.panels?.find(x => x.id === p)?.title ?? PANEL_TITLE[p] ?? '';
   const areaRef = useRef<HTMLDivElement>(null);
   const [area, setArea] = useState({ w: 800, h: 600 });
   const [zoom, setZoom] = useState<number | 'fit'>('fit');
@@ -1255,7 +1282,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
       case 'colour': return <ColourPanel ed={ed} />;
       case 'transparency': return <TransparencyPanel ed={ed} />;
       case 'frame': return ed.one?.kind === 'image' ? <FramePanel ed={ed} layer={ed.one} /> : <p className="text-sm text-muted-foreground">Select a photo.</p>;
-      default: return null;
+      default: return extras?.panels?.find(x => x.id === panel)?.render(ed) ?? null;
     }
   })();
 
@@ -1279,7 +1306,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
     <div className="fixed inset-x-0 z-[60] flex flex-col overflow-hidden bg-background text-foreground [touch-action:manipulation] overscroll-none"
       style={{ top: vp?.top ?? 0, height: vp ? vp.h : '100dvh' }} role="dialog" aria-label="Designer">
       <header className="flex h-12 shrink-0 items-center gap-1 border-b px-1.5 pt-[env(safe-area-inset-top)] md:gap-2 md:px-2">
-        <Button size="sm" variant="ghost" onClick={onClose} className="px-2"><ArrowLeft className="h-4 w-4 md:mr-1.5" /><span className="hidden md:inline">Done</span></Button>
+        <Button size="sm" variant="ghost" onClick={onClose} className="px-2"><ArrowLeft className="h-4 w-4 md:mr-1.5" /><span className={extras?.closeLabel ? undefined : 'hidden md:inline'}>{extras?.closeLabel ?? 'Done'}</span></Button>
         {pages ? (<>
           <div className="flex shrink-0 items-center rounded-full border p-0.5" role="tablist" aria-label="The story and the post">
             {pages.map(pg => (
@@ -1291,8 +1318,9 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
           </div>
           <span className="hidden min-w-0 truncate text-xs text-muted-foreground lg:inline">{frameLabel}</span>
         </>) : (
-          <span className="min-w-0 truncate text-sm font-medium">{mobile ? (ed.square ? 'Post' : 'Story') : frameLabel}</span>
+          extras?.title ?? <span className="min-w-0 truncate text-sm font-medium">{mobile ? (ed.square ? 'Post' : 'Story') : frameLabel}</span>
         )}
+        {extras?.status}
         <div className="ml-auto flex items-center gap-0.5 md:gap-1">
           <Button size="icon" variant="ghost" className="h-9 w-9" onClick={api.undo} disabled={!api.canUndo} title="Undo (⌘Z)" aria-label="Undo"><Undo2 className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" className="h-9 w-9" onClick={api.redo} disabled={!api.canRedo} title="Redo (⇧⌘Z)" aria-label="Redo"><Redo2 className="h-4 w-4" /></Button>
@@ -1305,7 +1333,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
               <DropdownMenuItem onClick={ed.saveTemplate}><Save className="h-4 w-4 mr-1.5" /> Save as a template…</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" onClick={onClose} className="ml-1 md:hidden">Done</Button>
+          {extras?.actions ?? <Button size="sm" onClick={onClose} className="ml-1 md:hidden">Done</Button>}
         </div>
       </header>
 
@@ -1313,7 +1341,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
         {/* A computer: the rail and its panel down the left. */}
         {!mobile && (<>
           <nav className="flex w-[76px] shrink-0 flex-col overflow-y-auto border-r">
-            {RAIL.map(r => (
+            {rail.map(r => (
               <button key={r.id} type="button" onClick={() => setPanel(panel === r.id ? null : r.id)}
                 className={cn('flex flex-col items-center gap-1 px-1 py-3 text-[10px]', panel === r.id ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60')}>
                 {r.icon}{r.label}
@@ -1323,7 +1351,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
           {panel && (
             <aside className="flex w-[320px] shrink-0 flex-col border-r xl:w-[360px]">
               <div className="flex items-center justify-between px-3 pt-3 pb-2">
-                <p className="text-sm font-semibold">{PANEL_TITLE[panel]}</p>
+                <p className="text-sm font-semibold">{titleOf(panel)}</p>
                 <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setPanel(null)}>Close</button>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">{panelBody}</div>
@@ -1339,7 +1367,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
           </div>
           {!mobile && (
             <footer className="flex h-10 shrink-0 items-center gap-1 border-t px-2 text-xs text-muted-foreground">
-              <span className="truncate">Drag a box round several · double-click words to type · ⌘C / ⌘V between story and post · right-click for more</span>
+              <span className="truncate">{extras?.hint ?? 'Drag a box round several · double-click words to type · ⌘C / ⌘V between story and post · right-click for more'}</span>
               <div className="ml-auto flex items-center gap-1">
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => stepZoom(-1)} title="Zoom out (⌘ scroll)"><ZoomOut className="h-4 w-4" /></Button>
                 <input type="range" min={8} max={300} value={pct} onChange={e => setZoomTo(Number(e.target.value) / 100)} className="w-24 accent-primary" aria-label="Zoom" />
@@ -1361,7 +1389,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
             <span className="mx-auto h-1.5 w-10 rounded-full bg-muted-foreground/30" />
             <button type="button" className="w-14 text-right text-xs text-muted-foreground" onPointerDown={e => e.stopPropagation()} onClick={() => setPanel(null)}>Close</button>
           </div>
-          <p className="px-4 pb-2 text-sm font-semibold">{PANEL_TITLE[panel]}</p>
+          <p className="px-4 pb-2 text-sm font-semibold">{titleOf(panel)}</p>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">{panelBody}</div>
         </div>
       )}
@@ -1369,7 +1397,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
         <div className="shrink-0 border-t bg-background pb-[env(safe-area-inset-bottom)]">
           {ed.selLayers.length ? <MobileToolbar ed={ed} /> : (
             <nav className="flex overflow-x-auto">
-              {RAIL.map(r => (
+              {rail.map(r => (
                 <button key={r.id} type="button" onClick={() => setPanel(panel === r.id ? null : r.id)}
                   className={cn('flex min-w-[68px] flex-1 flex-col items-center gap-1 px-1 py-2 text-[10px]', panel === r.id ? 'text-primary' : 'text-muted-foreground')}>
                   {r.icon}{r.label}

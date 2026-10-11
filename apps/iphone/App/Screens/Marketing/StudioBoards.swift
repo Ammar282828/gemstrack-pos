@@ -79,6 +79,10 @@ struct StudioBoards: View {
             // After the canvas has its size: fitted against the default size, a big iPad board sat small.
             fitted = id
             Task { try? await Task.sleep(for: .milliseconds(300)); fit() }
+            // The simulator check opens the designer on the demo board's first design (`-ERPDemoBoardEditor text`).
+            if House.isDemo, UserDefaults.standard.string(forKey: "ERPDemoBoardEditor") != nil, let first = board.frames.first?.s("id") {
+                Task { try? await Task.sleep(for: .milliseconds(900)); selected = first; sheet = .editor(first) }
+            }
         }
         .websiteBusy(board.busy)
     }

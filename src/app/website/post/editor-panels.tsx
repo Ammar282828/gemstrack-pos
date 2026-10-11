@@ -591,7 +591,8 @@ export function ContextToolbar({ ed }: { ed: Editor }) {
       {common}
     </>);
   }
-  return <div className="flex h-12 shrink-0 items-center gap-0.5 overflow-x-auto border-b px-2">{body}</div>;
+  const host = ed.p.lettered ? null : ed.p.extras?.tools?.(ed, 'toolbar');
+  return <div className="flex h-12 shrink-0 items-center gap-0.5 overflow-x-auto border-b px-2">{host}{host ? <span className="mx-1 h-5 w-px shrink-0 bg-border" /> : null}{body}</div>;
 }
 
 // ── The designer's rail ────────────────────────────────────────────────────
@@ -1063,7 +1064,7 @@ export function MobileToolbar({ ed }: { ed: Editor }) {
   return (
     <div className="flex items-stretch">
       <button type="button" onClick={ed.clear} aria-label="Finished with this — deselect" title="Deselect" className="flex shrink-0 items-center justify-center border-r px-4 text-primary"><Check className="h-6 w-6" /></button>
-      <div className="flex min-w-0 flex-1 overflow-x-auto">{items}</div>
+      <div className="flex min-w-0 flex-1 overflow-x-auto">{ed.p.extras?.tools?.(ed, 'phone')}{items}</div>
     </div>
   );
 }
