@@ -69,6 +69,7 @@
     {
      "itemCategory": "Ring",
      "description": "Plain band, matte finish",
+     "totalEstimate": 168000,
      "karat": "21k",
      "metalType": "gold",
      "estimatedWeightG": 4.2,
@@ -113,6 +114,7 @@
     {
      "itemCategory": "Bangle",
      "description": "Bangle pair with filigree",
+     "totalEstimate": 800000,
      "karat": "21k",
      "metalType": "gold",
      "estimatedWeightG": 22.5,
@@ -132,6 +134,7 @@
     {
      "itemCategory": "Earrings",
      "description": "Matching studs",
+     "totalEstimate": 110000,
      "karat": "21k",
      "metalType": "gold",
      "estimatedWeightG": 3.1,
@@ -178,6 +181,7 @@
     {
      "itemCategory": "Pendant",
      "description": "Pendant with initial",
+     "totalEstimate": 215000,
      "karat": "21k",
      "metalType": "gold",
      "estimatedWeightG": 5.4,
@@ -197,6 +201,7 @@
     {
      "itemCategory": "Chain",
      "description": "Chain 18 inch",
+     "totalEstimate": 210000,
      "karat": "21k",
      "metalType": "gold",
      "estimatedWeightG": 7.0,
@@ -243,6 +248,7 @@
     {
      "itemCategory": "Ring",
      "description": "Signet ring",
+     "totalEstimate": 332000,
      "karat": "21k",
      "metalType": "gold",
      "estimatedWeightG": 8.8,
@@ -289,6 +295,7 @@
     {
      "itemCategory": "Nose Pin",
      "description": "Nose pin, tiny",
+     "totalEstimate": 26000,
      "karat": "21k",
      "metalType": "gold",
      "estimatedWeightG": 0.6,
@@ -333,6 +340,7 @@
     {
      "itemCategory": "Kara",
      "description": "Kara, heavy",
+     "totalEstimate": 1050000,
      "karat": "21k",
      "metalType": "gold",
      "estimatedWeightG": 30.0,

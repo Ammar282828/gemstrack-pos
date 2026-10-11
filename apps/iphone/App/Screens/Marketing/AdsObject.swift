@@ -29,7 +29,13 @@ struct AdsObjectScreen: View {
     var body: some View {
         Group {
             if response != nil { form }
-            else if let failure { ContentUnavailableView("Couldn't load this \(level)", systemImage: "megaphone", description: Text(failure)) }
+            else if let failure {
+                ContentUnavailableView {
+                    Label("Couldn't load this \(level)", systemImage: "megaphone")
+                } description: { Text(failure) } actions: {
+                    Button("Try again") { self.failure = nil; Task { await load() } }.buttonStyle(.houseProminent)
+                }
+            }
             else { SkeletonLoading().frame(maxWidth: .infinity, maxHeight: .infinity) }
         }
         .modifier(HouseGround()).navigationTitle(name.isEmpty ? "Ad details" : name).navigationBarTitleDisplayMode(.inline)

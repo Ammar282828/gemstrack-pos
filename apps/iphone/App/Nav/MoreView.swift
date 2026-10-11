@@ -76,37 +76,46 @@ struct SignInView: View {
     @Environment(Session.self) private var session
 
     var body: some View {
-        VStack(spacing: 28) {
-            Spacer()
-            HouseLogo().padding(.horizontal, 32)
-            VStack(spacing: 6) {
-                Text(House.storeName).font(.title.weight(.semibold))
-                Text("Sign in with the Gmail the shop has for you.").font(.subheadline).foregroundStyle(.secondary)
-            }
-            if session.state == .needsSetup {
-                Text("This build can't reach the shop's book yet: its Firebase iOS app is not registered.")
-                    .font(.footnote).multilineTextAlignment(.center).padding(.horizontal, 32)
-            } else {
-                Button {
-                    Task { await session.signIn() }
-                } label: {
-                    HStack {
-                        if session.state == .signingIn { SkeletonLoading() } else { Image(systemName: "person.crop.circle.badge.checkmark") }
-                        Text("Sign in with Google")
+        // Scrolls rather than clips at the largest text sizes and in landscape; centred when it fits.
+        GeometryReader { geo in
+            ScrollView {
+                VStack(spacing: 28) {
+                    HouseLogo().padding(.horizontal, 32)
+                    VStack(spacing: 6) {
+                        Text(House.storeName).font(.title.weight(.semibold)).multilineTextAlignment(.center)
+                        Text("Sign in with the Gmail the shop has for you.").font(.subheadline).foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
                     }
-                    .frame(maxWidth: 280)
-                    .padding(.vertical, 6)
+                    if session.state == .needsSetup {
+                        Text("This build can't reach the shop's book yet: its Firebase iOS app is not registered.")
+                            .font(.footnote).multilineTextAlignment(.center)
+                    } else {
+                        let signingIn = session.state == .signingIn
+                        Button {
+                            Task { await session.signIn() }
+                        } label: {
+                            // The button says what is happening; the page itself never goes to a loading state.
+                            Label(signingIn ? "Signing in…" : "Sign in with Google",
+                                  systemImage: signingIn ? "hourglass" : "person.crop.circle.badge.checkmark")
+                                .frame(maxWidth: 280)
+                                .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.houseProminent)
+                        .controlSize(.large)
+                        .disabled(signingIn)
+                    }
+                    if let e = session.error {
+                        Label(e, systemImage: "exclamationmark.triangle.fill")
+                            .font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center)
+                    }
                 }
-                .buttonStyle(.houseProminent)
-                .controlSize(.large)
-                .disabled(session.state == .signingIn)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 24)
+                .frame(maxWidth: 520)
+                .frame(maxWidth: .infinity, minHeight: geo.size.height)
             }
-            if let e = session.error {
-                Text(e).font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center).padding(.horizontal, 32)
-            }
-            Spacer()
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.ground.ignoresSafeArea())
     }
 }

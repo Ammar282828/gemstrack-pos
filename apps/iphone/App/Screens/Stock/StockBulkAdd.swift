@@ -99,6 +99,9 @@ private struct StockBulkEditor: View {
     @State private var rows: [StockBulkRow] = [StockBulkRow()]
     @State private var pasted = ""
     @State private var saving = false
+    /// One run of "Add pieces": the same weights pasted again later are a new run, not a repeat.
+    @State private var batch = UUID().uuidString
+    @State private var confirmReset = false
     @State private var failureTitle = "The pieces weren't added"
     @State private var failure: String?
     /// The SKUs once everything is in stock.
@@ -129,6 +132,7 @@ private struct StockBulkEditor: View {
         }
         .sensoryFeedback(.success, trigger: tick)
         .interactiveDismissDisabled(saving)
+        .navigationBarBackButtonHidden(saving)
     }
 
     private var failureShown: Binding<Bool> {
@@ -315,7 +319,14 @@ private struct StockBulkEditor: View {
 
     private var resetSection: some View {
         Section {
-            Button("Reset form", role: .destructive) { reset() }
+            Button("Reset form", role: .destructive) { confirmReset = true }
+                .disabled(saving)
+                .confirmationDialog("Reset the form?", isPresented: $confirmReset, titleVisibility: .visible) {
+                    Button("Reset", role: .destructive) { reset() }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Every row and the setup above are cleared.")
+                }
         }
     }
 
@@ -384,7 +395,7 @@ private struct StockBulkEditor: View {
             let part = Array(all[next..<min(next + StockBulk.perRequest, all.count)])
             do {
                 // "part" tells two requests of the same weights apart: the ERP records one request once.
-                let out = try await ERPAPI.shared.write("addProducts", ["pieces": part.map { piece(for: $0).piece }, "part": next])
+                let out = try await ERPAPI.shared.write("addProducts", ["pieces": part.map { piece(for: $0).piece }, "part": next, "batch": batch])
                 let made: [[String: Any]] = out["products"] as? [[String: Any]] ?? []
                 added.append(contentsOf: made.compactMap { $0["sku"] as? String })
                 if (out["partial"] as? Bool) == true {
@@ -413,6 +424,7 @@ private struct StockBulkEditor: View {
             return
         }
         tick += 1
+        batch = UUID().uuidString
         done = added
     }
 

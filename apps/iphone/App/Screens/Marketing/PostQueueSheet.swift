@@ -31,6 +31,8 @@ struct PostQueueSheet: View {
                         ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
                     }
                 }.presentationDetents([.large])
+                // Not swiped away mid-send: the answer (or the error) is shown here.
+                .interactiveDismissDisabled(busy != nil)
             }
         }.task { await store.refreshQueue() }
     }

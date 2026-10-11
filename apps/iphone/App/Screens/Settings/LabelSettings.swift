@@ -160,7 +160,13 @@ private struct LabelDesigner: View {
             if let layout {
                 form(layout)
             } else if let failure, standard == nil, doc.loaded, saved == nil {
-                ContentUnavailableView("Couldn't load the tag", systemImage: "tag", description: Text(failure))
+                ContentUnavailableView {
+                    Label("Couldn't load the tag", systemImage: "tag")
+                } description: {
+                    Text(failure)
+                } actions: {
+                    Button("Try again") { self.failure = nil; doc.need(); Task { await loadStandard() } }
+                }
             } else {
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -172,7 +178,11 @@ private struct LabelDesigner: View {
             doc.need()
             book.products.need()
         }
-        .onDisappear { doc.reset() }
+        .onDisappear {
+            // A change made in the last second before leaving is saved rather than dropped with the timer.
+            if edited, let layout { Task { await save(layout) } }
+            doc.reset()
+        }
         .task { await loadStandard() }
         // Adopt the saved layout when it arrives (or changes on another device) unless one is being edited.
         .onChange(of: saved) { _, next in adopt(next) }
@@ -187,7 +197,8 @@ private struct LabelDesigner: View {
     }
 
     private func adopt(_ next: SettingsLabelLayout?) {
-        guard !edited, doc.loaded else { return }
+        // A failed read is not "no saved layout": adopting the standard tag then would save it over the shop's own.
+        guard !edited, doc.loaded, doc.error == nil || doc.value != nil else { return }
         if let next { layout = next } else if let standard { layout = standard }
     }
 
@@ -207,7 +218,7 @@ private struct LabelDesigner: View {
             try await ERPAPI.shared.write("saveLabelLayout", ["layout": next.stored, "seq": UUID().uuidString])
             if layout == next { edited = false }
         } catch {
-            withAnimation { note = OwnerNote(title: "Layout not saved", detail: "Check the connection; it will try again on the next change. \(error.localizedDescription)", failed: true) }
+            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Layout not saved", detail: "Check the connection; it will try again on the next change. \(error.localizedDescription)", failed: true) }
         }
         saving = false
     }
@@ -318,9 +329,9 @@ private struct LabelDesigner: View {
             // The page's file name: gemstrack_double_tag_export_<UTC time>.csv
             let stamp = String(ERPDate.iso(Date()).prefix(19)).replacingOccurrences(of: ":", with: "-").replacingOccurrences(of: "T", with: "-")
             csv = try SettingsFiles.save(data, named: "gemstrack_double_tag_export_\(stamp).csv")
-            withAnimation { note = OwnerNote(title: "CSV Exported", detail: "Product details for \(p.sku) exported.") }
+            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "CSV Exported", detail: "Product details for \(p.sku) exported.") }
         } catch {
-            withAnimation { note = OwnerNote(title: "CSV not made", detail: error.localizedDescription, failed: true) }
+            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "CSV not made", detail: error.localizedDescription, failed: true) }
         }
         making = false
     }

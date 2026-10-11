@@ -23,6 +23,8 @@ struct PhoneSettings: View {
     @State private var testResult: String?
     @State private var error: String?
     @State private var widgetLinked = ERPWidgetLink.load() != nil
+    @State private var linking = false
+    @State private var linkFailed = false
     @AppStorage("deviceTheme") private var deviceTheme = ""
     @State private var lockOn = AppLock.shared.enabled
     @Environment(\.openURL) private var openURL
@@ -105,12 +107,18 @@ struct PhoneSettings: View {
                 NavigationLink(value: Route(path: "/app/widgets")) {
                     Label("Preview widgets", systemImage: "rectangle.on.rectangle")
                 }
-                Button(widgetLinked ? "Link again" : "Link the widget") {
+                Button(linking ? "Linking…" : widgetLinked ? "Link again" : "Link the widget") {
                     Task {
-                        ERPWidgetLink.clear()
-                        await WidgetLinker.link()
+                        linking = true
+                        linkFailed = !(await WidgetLinker.link(force: true))
                         widgetLinked = ERPWidgetLink.load() != nil
+                        linking = false
                     }
+                }
+                .disabled(linking)
+                if linkFailed {
+                    Text("Couldn't reach the ERP to link the widget. The widget keeps its current link.")
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
             } footer: {
                 Text("Add it from the home screen: touch and hold, then Edit → Add Widget → \(House.storeName).")
@@ -138,13 +146,17 @@ struct PhoneSettings: View {
 
     private func refresh() async {
         allowed = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
-        loaded = false
-        error = nil
+        // Coming back to the app re-reads quietly: the switches stay up while asking, and only a decided answer
+        // changes them (a failed read keeps what was shown, with the error).
         if allowed == .authorized || allowed == .provisional || allowed == .ephemeral {
             do {
                 off = Set(try await Push.shared.kindsOff())
                 loaded = true
+                error = nil
             } catch { self.error = error.localizedDescription }
+        } else {
+            loaded = false
+            error = nil
         }
         do {
             let data = try await ERPAPI.shared.data("/api/push/key")

@@ -158,6 +158,8 @@ struct WebsiteGoldScheduleSheet: View {
             }
         }
         .presentationDetents([.large])
+        // Changed choices aren't lost to a swipe; Cancel still closes it.
+        .interactiveDismissDisabled(busy != nil || !(draft.map { (x: WebsiteGoldSchedule) in gold.schedule.map { (y: WebsiteGoldSchedule) in x.sameChoices(y) } ?? true } ?? true))
         .onAppear { if draft == nil { draft = gold.schedule } }
         .websiteBusy(busy)
         .confirmationDialog("Send Investments by Taheri automatically?", isPresented: askingShown, titleVisibility: .visible, presenting: asking) { (a: Saving) in
@@ -430,6 +432,7 @@ struct WebsiteGoldAddSheet: View {
             }
         }
         .presentationDetents([.large])
+        .interactiveDismissDisabled(busy != nil || !post.isEmpty || square != nil || story != nil)
         .websiteBusy(busy)
         .onChange(of: squareItem) { _, item in
             guard let item else { return }

@@ -16,8 +16,13 @@ struct StudioBoardEditor: View {
     @State private var preview: UIImage?
     @State private var problem: String?
     @State private var editing = false
+    /// The layers were opened: the document may have changed, so a swipe doesn't throw the work away.
+    @State private var touched = false
 
     private var frame: MarketingValue { board.frame(frameID) ?? .null }
+    private var dirty: Bool {
+        ready && (touched || fields != board.fields(frame) || template != frame.s("template", "headline") || label != frame.s("label"))
+    }
     private var renderKey: String { doc.text + MarketingValue(fields).text }
     /// Layers carrying an uploaded picture: a board keeps only library photos (board-shape.ts cleanDoc drops them).
     private var uploads: Int { doc["layers"].array.filter { $0.s("kind") == "image" && $0["src"] != .null }.count }
@@ -41,9 +46,10 @@ struct StudioBoardEditor: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Save to the board") { save() }.disabled(!ready) }
             }
-            .sheet(isPresented: $editing) { ArtworkEditor(doc: $doc, photos: photos, fields: fields, ad: true) }
+            .sheet(isPresented: $editing, onDismiss: { touched = true }) { ArtworkEditor(doc: $doc, photos: photos, fields: fields, ad: true) }
         }
         .presentationSizing(.page)
+        .interactiveDismissDisabled(dirty)
         .task { await load() }
         .task(id: renderKey) { await draw() }
     }
@@ -115,7 +121,7 @@ struct StudioBoardEditor: View {
     private func save() {
         var clean = doc
         clean["layers"] = .array(doc["layers"].array.filter { !($0.s("kind") == "image" && $0["src"] != .null) })
-        let patch: [String: Any] = ["doc": clean.any, "fields": fields, "template": template, "label": label.trimmingCharacters(in: .whitespacesAndNewlines), "by": "page"]
+        let patch: [String: Any] = ["doc": clean.any, "fields": fields, "template": template, "label": label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? frame.s("label") : label.trimmingCharacters(in: .whitespacesAndNewlines), "by": "page"]
         let id = frameID
         Task { await board.change([["op": "put", "id": id, "patch": patch]]) }
         dismiss()
@@ -140,6 +146,9 @@ struct StudioBoardQueueSheet: View {
                 Section {
                     Text("It waits in Posts → Hub, held: send it now or set a time there.").font(.footnote).foregroundStyle(.secondary)
                     if let places {
+                        if places.isEmpty && problem == nil {
+                            Text("No WhatsApp channel or group is connected; the story can still be queued.").font(.footnote).foregroundStyle(.secondary)
+                        }
                         ForEach(places.map { $0.s("key") }, id: \.self) { key in
                             let p = places.first { $0.s("key") == key } ?? .null
                             Toggle(isOn: Binding(get: { chosen.contains(key) }, set: { if $0 { chosen.insert(key) } else { chosen.remove(key) } })) {
@@ -216,7 +225,9 @@ struct StudioBoardPhotoPicker: View {
                     .pickerStyle(.menu)
                     if let problem { Text(problem).font(.footnote).foregroundStyle(.red) }
                     if let items {
-                        if items.isEmpty { Text("Nothing matches.").foregroundStyle(.secondary) }
+                        if items.isEmpty && problem == nil {
+                            Text(q.isEmpty ? "The library has no photos yet." : "Nothing matches “\(q)”.").foregroundStyle(.secondary)
+                        }
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 10)], spacing: 10) {
                             ForEach(items.map { $0.s("id") }, id: \.self) { id in
                                 let item = items.first { $0.s("id") == id } ?? .null

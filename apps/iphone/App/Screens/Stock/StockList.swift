@@ -207,11 +207,14 @@ extension View {
     /// (owners) edit it (the native form) or delete it (the ERP's page, which asks for the delete code).
     fileprivate func stockContextMenu(_ p: Product, go: Binding<Route?>, mayEdit: Bool) -> some View {
         contextMenu {
-            Button {
-                SaleDraftStore.add(p)
-                go.wrappedValue = Route(path: StockKit.newSalePath)
-            } label: {
-                Label("Sell", systemImage: "cart")
+            // Selling is the owners' (createInvoice): staff are not offered a sale they cannot save.
+            if mayEdit {
+                Button {
+                    SaleDraftStore.add(p)
+                    go.wrappedValue = Route(path: StockKit.newSalePath)
+                } label: {
+                    Label("Sell", systemImage: "cart")
+                }
             }
             if mayEdit {
                 Button { go.wrappedValue = Route(path: StockKit.editPath(p.sku)) } label: { Label("Edit", systemImage: "pencil") }
@@ -266,13 +269,15 @@ private struct StockRow: View {
             }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button {
-                SaleDraftStore.add(p)
-                go = Route(path: StockKit.newSalePath)
-            } label: {
-                Label("Sell", systemImage: "cart")
+            if mayEdit {
+                Button {
+                    SaleDraftStore.add(p)
+                    go = Route(path: StockKit.newSalePath)
+                } label: {
+                    Label("Sell", systemImage: "cart")
+                }
+                .tint(.green)
             }
-            .tint(.green)
             if mayEdit {
                 Button { go = Route(path: StockKit.editPath(p.sku)) } label: { Label("Edit", systemImage: "pencil") }
                     .tint(.orange)

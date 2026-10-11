@@ -10,6 +10,8 @@ final class NativeArtwork: NSObject, WKNavigationDelegate {
     @ObservationIgnored private var pending: [CheckedContinuation<Void, Error>] = []
     private var loaded = false
     private var loadError: Error?
+    /// The page the engine runs in, kept to start it again if iOS stops its process (memory, background).
+    @ObservationIgnored private var page = ""
 
     override init() {
         let config = WKWebViewConfiguration()
@@ -24,7 +26,8 @@ final class NativeArtwork: NSObject, WKNavigationDelegate {
             return
         }
         let policy = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'"
-        web.loadHTMLString("<!doctype html><meta http-equiv='Content-Security-Policy' content=\"\(policy)\"><script>\(script.replacingOccurrences(of: "</script", with: "<\\/script"))</script>", baseURL: nil)
+        page = "<!doctype html><meta http-equiv='Content-Security-Policy' content=\"\(policy)\"><script>\(script.replacingOccurrences(of: "</script", with: "<\\/script"))</script>"
+        web.loadHTMLString(page, baseURL: nil)
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         loaded = true
@@ -34,7 +37,11 @@ final class NativeArtwork: NSObject, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { fail(error) }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { fail(error) }
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        fail(ERPAPI.Failure(status: 0, message: "The artwork renderer stopped. Close and reopen the design to retry."))
+        // What was drawing fails once; the engine starts again, so the next drawing works without reopening.
+        let all = pending; pending = []
+        for p in all { p.resume(throwing: ERPAPI.Failure(status: 0, message: "The artwork renderer stopped. Try again.")) }
+        loaded = false; loadError = nil
+        if !page.isEmpty { web.loadHTMLString(page, baseURL: nil) }
     }
     private func fail(_ error: Error) {
         loadError = error
@@ -115,7 +122,9 @@ struct ArtworkProperties: View {
     static func hex(_ color: Color) -> String {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
-        return String(format: "#%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
+        // Wide-gamut colours come back outside 0…1; clamped, the hex stays six valid digits.
+        func byte(_ v: CGFloat) -> Int { Int((min(1, max(0, v)) * 255).rounded()) }
+        return String(format: "#%02X%02X%02X", byte(r), byte(g), byte(b))
     }
 }
 

@@ -151,7 +151,7 @@ struct WebsiteEditPieceScreen: View {
                 Link(destination: url) { Label("Open on \(siteName)", systemImage: "safari") }
             }
         } header: {
-            Text(headerWords(p))
+            LedgerHeading(title: headerWords(p))
         } footer: {
             Text(photoNote(p))
         }

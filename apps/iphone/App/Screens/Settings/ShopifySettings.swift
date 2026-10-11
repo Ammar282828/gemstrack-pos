@@ -73,6 +73,7 @@ private let scopeNeeds: [ScopeNeed] = [
 
 private struct ShopifyInnerForm: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var status: ShopifyStatus?
     @State private var statusFailure: String?
@@ -114,6 +115,8 @@ private struct ShopifyInnerForm: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await loadStatus(); if status?.configured == true { await loadOrders() } }
         .refreshable { await loadStatus(); if status?.configured == true { await loadOrders() } }
+        // Back from Safari's reauthorize: the store's permissions may have changed.
+        .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await loadStatus() } } }
         .confirmationDialog(importTitle, isPresented: $confirmImport, titleVisibility: .visible) {
             Button("Import \(picked.count) order\(picked.count == 1 ? "" : "s")") { Task { await runImport() } }
             Button("Cancel", role: .cancel) {}

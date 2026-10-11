@@ -429,7 +429,7 @@ private struct ContactImportPage: View {
             let added = out["added"] as? Int ?? 0
             let updated = out["updated"] as? Int ?? 0
             let settled = out["settled"] as? Int ?? answer.plan.settled.count
-            withAnimation { note = OwnerNote(title: "Import finished", detail: "\(added) added, \(updated) updated. \(settled) were already saved.") }
+            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Import finished", detail: "\(added) added, \(updated) updated. \(settled) were already saved.") }
             self.answer = nil
             vcf = ""
             fileName = ""

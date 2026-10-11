@@ -73,6 +73,9 @@ private struct StockPieceEditor: View {
     @Environment(\.dismiss) private var dismiss
     @State private var f: StockPieceFields
     @State private var saving = false
+    /// Names this new piece for the ERP's once-only check: a retry of the same piece reuses it, the next piece
+    /// (even with the same figures) gets a fresh one rather than "already sent and recorded".
+    @State private var batch = UUID().uuidString
     @State private var failure: String?
     @State private var saved: Saved?
     @State private var tick = 0
@@ -128,6 +131,7 @@ private struct StockPieceEditor: View {
         }
         .sensoryFeedback(.success, trigger: tick)
         .interactiveDismissDisabled(saving)
+        .navigationBarBackButtonHidden(saving)
     }
 
     private var failureShown: Binding<Bool> {
@@ -486,9 +490,13 @@ private struct StockPieceEditor: View {
                 dismiss()
                 return
             }
-            let out = try await ERPAPI.shared.write("addProduct", ["piece": f.piece])
+            let out = try await ERPAPI.shared.write("addProduct", ["piece": f.piece, "batch": batch])
+            batch = UUID().uuidString
             let doc: [String: Any] = out["product"] as? [String: Any] ?? [:]
             let newSku: String = doc["sku"] as? String ?? ""
+            guard !newSku.isEmpty else {
+                throw ERPAPI.Failure(status: 0, message: "Saved, but no SKU came back. Check Stock before adding it again.")
+            }
             let made: Product? = newSku.isEmpty ? nil : DocJSON.decode(Product.self, id: newSku, data: doc)
             if let onCreated {
                 guard let made else { throw ERPAPI.Failure(status: 0, message: "The piece was saved but its details were not returned. Check Stock before adding it again.") }

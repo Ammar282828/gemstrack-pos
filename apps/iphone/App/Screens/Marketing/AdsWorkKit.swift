@@ -246,7 +246,8 @@ struct AdsNotReady: View {
             } description: {
                 Text(problem)
             } actions: {
-                Button("Try again") { Task { await retry() } }.buttonStyle(.glass)
+                // The demo has no ERP to ask again: no button that can only fail.
+                if !House.isDemo { Button("Try again") { Task { await retry() } }.buttonStyle(.glass) }
             }
         } else if let status {
             ContentUnavailableView {

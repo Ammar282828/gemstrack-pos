@@ -52,6 +52,8 @@ private struct BankAccountsForm: View {
     let settings: Settings
     @State private var writer = SettingsWriter()
     @State private var editing: BankAccountDraft?
+    /// A swipe asks first: customers pay into these accounts.
+    @State private var removing: IndexSet?
     /// The list as the person has left it, until the book answers with it.
     @State private var shown: [BankAccountDraft]?
 
@@ -69,11 +71,7 @@ private struct BankAccountsForm: View {
                             .foregroundStyle(.primary)
                     }
                 }
-                .onDelete { offsets in
-                    var next = accounts
-                    next.remove(atOffsets: offsets)
-                    Task { _ = await write(next) }
-                }
+                .onDelete { offsets in removing = offsets }
             } footer: {
                 Text("Shared with customers who pay by transfer.")
             }
@@ -86,6 +84,19 @@ private struct BankAccountsForm: View {
             ToolbarItem(placement: .primaryAction) {
                 Button { editing = BankAccountDraft.new() } label: { Label("Add account", systemImage: "plus") }
             }
+        }
+        .confirmationDialog(removingTitle(accounts), isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+                            titleVisibility: .visible) {
+            Button("Remove", role: .destructive) {
+                guard let offsets = removing else { return }
+                var next = accounts
+                next.remove(atOffsets: offsets)
+                removing = nil
+                Task { _ = await write(next) }
+            }
+            Button("Cancel", role: .cancel) { removing = nil }
+        } message: {
+            Text("Customers paying by transfer will no longer be shown it.")
         }
         .sheet(item: $editing) { draft in
             BankAccountSheet(draft: draft, isNew: !accounts.contains { $0.id == draft.id }) { saved in
@@ -101,6 +112,12 @@ private struct BankAccountsForm: View {
     }
 
     /// Nil when the ERP took the list, else its words.
+    private func removingTitle(_ accounts: [BankAccountDraft]) -> String {
+        guard let offsets = removing else { return "Remove this account?" }
+        let names = offsets.compactMap { accounts.indices.contains($0) ? accounts[$0].bankName : nil }.filter { !$0.isEmpty }
+        return names.count == 1 ? "Remove \(names[0])?" : "Remove these accounts?"
+    }
+
     private func write(_ next: [BankAccountDraft]) async -> String? {
         let before = shown
         shown = next
@@ -170,6 +187,7 @@ private struct BankAccountSheet: View {
                 }
                 .houseRows()
             }
+            .modifier(HouseGround())
             .navigationTitle(isNew ? "New bank account" : "Bank account")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

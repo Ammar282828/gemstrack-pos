@@ -70,6 +70,8 @@ struct AdsCampaignsScreen: View {
             }
         }
         .navigationDestination(item: $go) { (r: Route) in PlaceScreen(path: r.path) }
+        // Back from a campaign, ad set or ad: what was paused, renamed or deleted there shows here.
+        .onChange(of: go) { old, new in if old != nil && new == nil { Task { await load() } } }
         .task(id: "\(rangeKey)|\(archived)") { if mayRead { await load() } }
         .task { if let id = AdsQuery.value("ad", in: path) { go = Route(path: objectPath("ad", id)) } }
         .confirmationDialog("Run it?", isPresented: askingShown, titleVisibility: .visible, presenting: asking) { (t: Target) in
@@ -123,7 +125,8 @@ struct AdsCampaignsScreen: View {
         } description: {
             Text(message)
         } actions: {
-            Button("Try again") { Task { await load() } }.buttonStyle(.glass)
+            // The demo has no ERP to ask again: no button that can only fail.
+            if !House.isDemo { Button("Try again") { Task { await load() } }.buttonStyle(.glass) }
             Button("Open Setup") { go = Route(path: "/ads/setup") }.buttonStyle(.glass)
         }
     }
@@ -221,7 +224,7 @@ struct AdsCampaignsScreen: View {
         let goal: String? = c.adsets.count == 1 ? c.adsets[0].optimizationGoal : nil
         return Section {
             campaignRow(c, goal, cur)
-            DisclosureGroup("\(c.adsets.count) ad sets", isExpanded: Binding(get: { allExpanded || expanded.contains(c.id) }, set: { on in
+            DisclosureGroup("\(c.adsets.count) ad set\(c.adsets.count == 1 ? "" : "s")", isExpanded: Binding(get: { allExpanded || expanded.contains(c.id) }, set: { on in
                 allExpanded = false; if on { expanded.insert(c.id) } else { expanded.remove(c.id) }
             })) {
                 ForEach(c.adsets) { (s: AdSet) in adSetRow(s, cur) }
@@ -374,7 +377,8 @@ struct AdsCampaignsScreen: View {
                 Toggle("Running", isOn: on)
                     .labelsHidden()
                     .tint(Theme.accent)
-                    .disabled(status == "ARCHIVED" || status == "DELETED")
+                    // One change at a time: a second switch mid-send would have its busy mark cleared by the first.
+                    .disabled(busy != nil || status == "ARCHIVED" || status == "DELETED")
             }
         }
     }

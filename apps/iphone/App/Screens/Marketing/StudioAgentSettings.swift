@@ -36,7 +36,9 @@ struct StudioAgentSettings: View {
                         Text(command).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
                             .privacySensitive()
                         Button(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc") {
-                            UIPasteboard.general.string = command; copied = true
+                            // The key leaves the clipboard after ten minutes (time enough to paste it on the Mac).
+                            UIPasteboard.general.setItems([["public.utf8-plain-text": command]], options: [.expirationDate: Date().addingTimeInterval(600)])
+                            copied = true
                         }
                         .buttonStyle(.houseProminent)
                         Text("Then ask Claude, for example: “Fill the Eid board with six ring ads from the studio.” Keep the board open on a phone or the web: it lays out and draws what the agent adds.")
@@ -44,6 +46,7 @@ struct StudioAgentSettings: View {
                     } else {
                         Button(making ? "Making a key…" : "Make a key", systemImage: "key") { Task { await make() } }
                             .buttonStyle(.houseProminent).disabled(making || House.isDemo)
+                        if House.isDemo { Text("The demo can’t make keys.").font(.footnote).foregroundStyle(.secondary) }
                     }
                     if let problem { Text(problem).font(.footnote).foregroundStyle(.red) }
                 } header: { LedgerHeading(title: "Connect an agent") }.houseRows()

@@ -78,10 +78,9 @@ struct AddCustomer: View {
         .navigationTitle(saved == nil ? "New customer" : "Saved")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            // No Cancel of its own: the sheet's Close or the pushed page's Back already leaves, and a second
+            // way out stood beside each of them.
             if saved == nil {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { Task { await save() } }
                         .disabled(!canSave)

@@ -344,7 +344,7 @@ private struct CustInvoiceRow: View {
 
     var body: some View {
         TwoLine(title: invoice.id, subtitle: subtitle, trailing: Money.pkr(invoice.grandTotal),
-                trailingTint: (!refunded && line.state == .due) ? .red : .primary)
+                trailingTint: (!refunded && line.state == .due) ? Tone.owed.color : .primary)
     }
 }
 
@@ -388,7 +388,7 @@ private struct CustRepairRow: View {
         let status = CustomerKit.repairStatus(repair.status)
         HStack(spacing: 8) {
             TwoLine(title: CustomerKit.repairSummary(repair), subtitle: subtitle,
-                    trailing: (open && balance > 0) ? Money.pkr(balance) : nil, trailingTint: .red)
+                    trailing: (open && balance > 0) ? Money.pkr(balance) : nil, trailingTint: Tone.owed.color)
             StatusBadge(status.text, color: status.color)
         }
     }

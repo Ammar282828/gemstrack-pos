@@ -14,6 +14,7 @@ struct PostComposerScreen: View {
     @State private var sharedStory = false
     @State private var confirmation: String?
     @State private var queued: Route?
+    @State private var deletingDraft: NativePostDraft?
     @Environment(\.openURL) private var openURL
     private var d: NativePostDraft { model.draft }
     private var form: some View {
@@ -81,7 +82,9 @@ Section {
                 if d.photos.isEmpty { ContentUnavailableView("Start with a photo", systemImage: "photo.on.rectangle", description: Text("Choose photos, take one, or bring in a website piece.")) }
                 else { photoStrip }
                 if !model.frozen {
-                    PhotosPicker(selection: $photos, maxSelectionCount: max(1, 12 - d.photos.count), matching: .images) { Label("Add photos", systemImage: "photo.badge.plus") }
+                    // Twelve photos is the most a piece takes: past that the picker would only fail.
+                    if d.photos.count < 12 { PhotosPicker(selection: $photos, maxSelectionCount: max(1, 12 - d.photos.count), matching: .images) { Label("Add photos", systemImage: "photo.badge.plus") } }
+                    else { Text("Twelve photos is the most a piece takes.").font(.footnote).foregroundStyle(.secondary) }
                     if UIImagePickerController.isSourceTypeAvailable(.camera) { Button { camera = true } label: { Label("Camera", systemImage: "camera") } }
                     Button { sitePicker = true } label: { Label("From the website", systemImage: "globe") }
                 }
@@ -144,7 +147,7 @@ Section {
                         ForEach([("enhance", "Enhance"), ("retouch", "Retouch"), ("reframe", "Extend / change shape"), ("restage", "New setting"), ("custom", "Ask AI")], id: \.0) { op, label in Button(label) { ai = .init(op: op, target: label, photoID: p.id) } }
                         Button("Edit crop") { model.draft.square["bg"]["photoId"] = .string(p.id); design = "square" }
                         Button("Share original") { share = MarketingFileShare(items: [UIImage(data: p.data) as Any]) }
-                        Button("Remove photo", role: .destructive) { model.draft.photos.removeAll { $0.id == p.id }; if model.draft.story["bg"].s("photoId") == p.id { model.draft.story["bg"]["photoId"] = .string(model.draft.photos.first?.id ?? "") } }
+                        Button("Remove photo", role: .destructive) { model.draft.photos.removeAll { $0.id == p.id }; if model.draft.story["bg"].s("photoId") == p.id { model.draft.story["bg"]["photoId"] = .string(model.draft.photos.first?.id ?? "") }; if model.draft.square["bg"].s("photoId") == p.id { model.draft.square["bg"]["photoId"] = .string(model.draft.photos.first?.id ?? "") } }
                     }.disabled(model.frozen)
                 }.frame(width: 150) }
             }
@@ -172,7 +175,7 @@ Section {
                 Button("Share caption") { share = MarketingFileShare(items: [d.words.s("caption")]) }
             }
             if model.aiAnswer["caption"] != .null { DisclosureGroup("AI alternatives") { let c = model.aiAnswer["caption"]; ForEach(c["headlines"].array, id: \.text) { item in Button(item.string) { model.draft.words["headline"] = item } }; MarketingDetails(fields: c.object.filter { !["headlines", "whatsappCaption"].contains($0.key) }.mapValues(\.any)) } }
-        } header: { Text("Caption") }.houseRows().disabled(model.frozen)
+        } header: { LedgerHeading(title: "Caption") }.houseRows().disabled(model.frozen)
     }
     @ViewBuilder private var destinations: some View {
         if model.makeSquare {
@@ -222,10 +225,33 @@ Section {
         }.houseRows()
     }
     private var draftSheet: some View {
-        NavigationStack { List { ForEach(model.drafts) { saved in Button { Task { await model.open(saved); draftsOpen = false } } label: { VStack(alignment: .leading, spacing: 4) { Text(saved.title); Text(saved.updated, style: .date).font(.caption).foregroundStyle(.secondary); Text("\(saved.photos.count) photos").font(.caption).foregroundStyle(.secondary) } }.swipeActions { Button("Delete", role: .destructive) { Task { await model.remove(saved) } } } }.houseRows() }.modifier(HouseGround()).navigationTitle("Drafts").toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { draftsOpen = false } } } }
+        NavigationStack {
+            List {
+                if model.drafts.isEmpty {
+                    ContentUnavailableView("No drafts", systemImage: "doc", description: Text("A piece you start is kept here, on this device, until it goes out."))
+                }
+                ForEach(model.drafts) { saved in
+                    Button { Task { await model.open(saved); draftsOpen = false } } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(saved.title)
+                            Text(saved.updated, style: .date).font(.caption).foregroundStyle(.secondary)
+                            Text("\(saved.photos.count) photo\(saved.photos.count == 1 ? "" : "s")").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    // A draft holds its photos: deleting it asks first (decision "Delete code": every delete asks).
+                    .swipeActions(allowsFullSwipe: false) { Button("Delete", role: .destructive) { deletingDraft = saved } }
+                }
+            }
+            .houseRows()
+            .modifier(HouseGround()).navigationTitle("Drafts")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { draftsOpen = false } } }
+            .confirmationDialog("Delete “\(deletingDraft?.title ?? "this draft")” and its photos?", isPresented: Binding(get: { deletingDraft != nil }, set: { if !$0 { deletingDraft = nil } }), titleVisibility: .visible) {
+                Button("Delete draft", role: .destructive) { if let saved = deletingDraft { Task { await model.remove(saved) } } }
+            }
+        }
     }
     private func take(_ items: [PhotosPickerItem]) async { for (i, item) in items.enumerated() { do { if let data = try await item.loadTransferable(type: Data.self) { await model.add(data, name: "Photo \(i + 1)") } } catch { model.error = error.localizedDescription } }; photos = [] }
-    private func shareDesign(_ kind: String) async { do { let r = try await model.render(story: kind == "story", photo: model.hero, px: kind == "story" ? 1080 : 1600); guard let bytes = Data(base64Encoded: r.s("image")) else { return }; let url = FileManager.default.temporaryDirectory.appendingPathComponent("piece-\(kind)-\(UUID().uuidString).jpg"); try bytes.write(to: url); sharedStory = kind == "story"; share = MarketingFileShare(items: [url]) } catch { model.error = error.localizedDescription } }
+    private func shareDesign(_ kind: String) async { do { let r = try await model.render(story: kind == "story", photo: model.hero, px: kind == "story" ? 1080 : 1600); guard let bytes = Data(base64Encoded: r.s("image")) else { model.error = "The design could not be drawn."; return }; let url = FileManager.default.temporaryDirectory.appendingPathComponent("piece-\(kind)-\(UUID().uuidString).jpg"); try bytes.write(to: url); sharedStory = kind == "story"; share = MarketingFileShare(items: [url]) } catch { model.error = error.localizedDescription } }
 }
 
 struct NativePostAIRequest: Identifiable { var id = UUID(); let op: String; let target: String; let photoID: String? }
@@ -281,13 +307,17 @@ struct NativeSitePhotoPicker: View {
     @State private var q = ""
     @State private var busy: String?
     @State private var error: String?
+    @State private var loaded = false
+    private var shown: [MarketingValue] { pieces.filter { q.isEmpty || ($0.s("name") + " " + $0.s("collection")).localizedCaseInsensitiveContains(q) } }
     var body: some View {
         NavigationStack { List {
             if let error { Text(error).foregroundStyle(.red) }
-            ForEach(pieces.filter { q.isEmpty || ($0.s("name") + " " + $0.s("collection")).localizedCaseInsensitiveContains(q) }, id: \.text) { p in
+            if !loaded && error == nil { SkeletonLoading("Loading the website’s pieces") }
+            else if loaded && shown.isEmpty { ContentUnavailableView(q.isEmpty ? "No pieces on the website" : "Nothing matches “\(q)”", systemImage: "globe") }
+            ForEach(shown, id: \.text) { p in
                 Button { Task { await take(p) } } label: { HStack(spacing: 12) { MarketingPhoto(path: p.s("thumb", p.s("image"))).frame(width: 64, height: 64); VStack(alignment: .leading, spacing: 4) { Text(p.s("name")).foregroundStyle(.primary); Text(p.s("collection")).font(.caption).foregroundStyle(.secondary) } } }
             }
-        }.houseRows().modifier(HouseGround()).searchable(text: $q).navigationTitle("From the website").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }.task { do { pieces = try await MarketingRequest.get("/api/website/site-pieces")["pieces"].array.filter { !$0["hidden"].bool } } catch { self.error = error.localizedDescription } }.websiteBusy(busy) }
+        }.houseRows().modifier(HouseGround()).searchable(text: $q).navigationTitle("From the website").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }.task { do { pieces = try await MarketingRequest.get("/api/website/site-pieces")["pieces"].array.filter { !$0["hidden"].bool }; loaded = true } catch { self.error = error.localizedDescription } }.websiteBusy(busy) }
     }
     private func take(_ p: MarketingValue) async { busy = "Bringing the photo…"; defer { busy = nil }; do { let data = try await ERPAPI.shared.data("/api/website/site-pieces/image?id=\(AdsQuery.escape(p.s("id")))&size=3000" + (p["photoSource"] == .null ? "" : "&original=1")); picked(p, data) } catch { self.error = error.localizedDescription } }
 }

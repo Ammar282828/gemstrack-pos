@@ -218,7 +218,7 @@ struct WebsiteWeightsScreen: View {
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
         } header: {
-            Text(p.collection)
+            LedgerHeading(title: p.collection)
         } footer: {
             Text(p.file)
         }

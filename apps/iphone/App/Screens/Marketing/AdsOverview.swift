@@ -41,6 +41,7 @@ struct AdsOverviewScreen: View {
             }
         }
         .navigationDestination(item: $go) { (r: Route) in PlaceScreen(path: r.path) }
+        .onChange(of: go) { old, new in if old != nil && new == nil, mayRead { Task { await load(fresh: true) } } }
         .task(id: rangeKey) { if mayRead { await load() } }
         .confirmationDialog("Run it again?", isPresented: askingShown, titleVisibility: .visible, presenting: asking) { (a: AdAttention) in
             Button("Run again") { Task { await run(a, running: true) } }
@@ -90,7 +91,8 @@ struct AdsOverviewScreen: View {
         } description: {
             Text(message)
         } actions: {
-            Button("Try again") { Task { await load(fresh: true) } }.buttonStyle(.glass)
+            // The demo has no ERP to ask again: no button that can only fail.
+            if !House.isDemo { Button("Try again") { Task { await load(fresh: true) } }.buttonStyle(.glass) }
             Button("Open Setup") { go = Route(path: "/ads/setup") }.buttonStyle(.glass)
         }
     }
@@ -256,11 +258,11 @@ struct AdsOverviewScreen: View {
                 if a.doing == "pause" {
                     Button("Pause") { Task { await run(a, running: false) } }
                         .buttonStyle(.glass)
-                        .disabled(acting == a.targetId)
+                        .disabled(acting != nil)
                 } else if a.doing == "resume" {
                     Button("Run again") { asking = a }
                         .buttonStyle(.glass)
-                        .disabled(acting == a.targetId)
+                        .disabled(acting != nil)
                 }
             }
         }

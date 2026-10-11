@@ -17,10 +17,13 @@ struct StudioBoards: View {
     @State private var position = ScrollPosition()
     @State private var fitted = ""
     @State private var inspectorShown = false
+    /// The board's own width: below this the inspector covers the canvas (iPad mini, Split View), so it opens only for a choice.
+    @State private var width = 0.0
     @State private var sheet: BoardSheet?
     @State private var asking: BoardQuestion?
     @State private var nameText = ""
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.scenePhase) private var scenePhase
 
     private var compact: Bool { sizeClass == .compact }
     private var z: Double { min(1.5, max(0.08, zoom * pinch)) }
@@ -28,6 +31,8 @@ struct StudioBoards: View {
     private var selNote: MarketingValue? { board.note(selected) }
     /// On an iPhone the inspector is itself a sheet: what it opens must open from it, not from under it.
     private var inspectorIsSheet: Bool { compact && inspectorShown }
+    /// Too narrow to keep the inspector beside the canvas: it comes with a chosen design or note, as on an iPhone.
+    private var narrow: Bool { compact || width < 1000 }
 
     var body: some View {
         presentations(screen, active: !inspectorIsSheet)
@@ -55,14 +60,20 @@ struct StudioBoards: View {
             await board.loadList(initial: true)
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(board.agentBusy ? 1.5 : 4)) } catch { break }
-                if draggingID.isEmpty { await board.refresh() }
+                // Not while a piece is held, nor while the app is in the background (no one is looking).
+                if draggingID.isEmpty && scenePhase == .active { await board.refresh() }
             }
         }
-        .onAppear { if !compact { inspectorShown = true } }
+        .onGeometryChange(for: Double.self) { $0.size.width } action: { w in
+            // Measured with the inspector away (it takes its column from the board): the window's own room.
+            let first = width == 0
+            if first || !inspectorShown || narrow == false && w >= 1000 { width = w }
+            if first && !narrow { inspectorShown = true }
+        }
         .onChange(of: model.catalogue) { _, c in board.catalogue = c }
         .onChange(of: board.current) { _, _ in selected = "" }
-        .onChange(of: selected) { _, id in if compact { inspectorShown = !id.isEmpty } }
-        .onChange(of: inspectorShown) { _, shown in if compact && !shown { selected = "" } }
+        .onChange(of: selected) { _, id in if narrow { inspectorShown = !id.isEmpty } }
+        .onChange(of: inspectorShown) { _, shown in if narrow && !shown { selected = "" } }
         .onChange(of: board.value.s("id")) { _, id in
             guard !id.isEmpty, fitted != id else { return }
             // After the canvas has its size: fitted against the default size, a big iPad board sat small.
@@ -153,7 +164,10 @@ struct StudioBoards: View {
             if board.current.isEmpty {
                 VStack(spacing: 16) {
                     if !board.loaded { SkeletonLoading("Loading the boards") }
-                    else {
+                    else if let problem = board.listProblem {
+                        ContentUnavailableView("Couldn’t load the boards", systemImage: "wifi.exclamationmark", description: Text(problem))
+                        Button("Try again", systemImage: "arrow.clockwise") { Task { await board.loadList(initial: true) } }.buttonStyle(.houseProminent)
+                    } else {
                         ContentUnavailableView("A place for your ideas", systemImage: "rectangle.3.group", description: Text("A board holds designs side by side — your own, the AI’s variants and an agent’s — with notes beside them."))
                         Button("Make the first board", systemImage: "plus") { nameText = "New board"; asking = .create }.buttonStyle(.houseProminent)
                     }
@@ -345,9 +359,10 @@ struct StudioBoards: View {
             .alert(asking == .rename ? "Rename board" : "New board", isPresented: Binding(get: { active && (asking == .create || asking == .rename) }, set: { if !$0 { asking = nil } })) {
                 TextField("Name", text: $nameText)
                 Button(asking == .rename ? "Rename" : "Create") {
-                    let name = nameText, renaming = asking == .rename
+                    let name = nameText.trimmingCharacters(in: .whitespacesAndNewlines), renaming = asking == .rename
                     Task { if renaming { await board.rename(name) } else { await board.create(name) } }
                 }
+                .disabled(nameText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 Button("Cancel", role: .cancel) {}
             }
             .confirmationDialog("Delete “\(board.value.s("name"))” and its \(board.frames.count) designs?", isPresented: Binding(get: { active && asking == .delete }, set: { if !$0 { asking = nil } }), titleVisibility: .visible) {
@@ -390,6 +405,8 @@ private struct StudioFramePanel: View {
     @State private var label = ""
     @State private var count = 4
     @State private var brief = ""
+    /// Removed: its name isn't saved on the way out (that would be sent for a design that is gone).
+    @State private var gone = false
 
     private var ownNotes: [MarketingValue] {
         board.notes.filter { $0.s("by") == "page" && !$0.s("text").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.s("text").trimmingCharacters(in: .whitespaces) != "Note" }
@@ -405,7 +422,7 @@ private struct StudioFramePanel: View {
             Button("Download or share", systemImage: "square.and.arrow.up", action: share)
             Button("Duplicate", systemImage: "plus.square.on.square") { Task { await board.duplicate(frame) } }
             Button("Remove design", systemImage: "trash", role: .destructive) {
-                let id = frame.s("id"); removed()
+                let id = frame.s("id"); gone = true; removed()
                 Task { await board.change([["op": "remove", "id": id]]) }
             }
         } header: { LedgerHeading(title: "Design") }.houseRows()
@@ -458,6 +475,9 @@ private struct StudioFramePanel: View {
 
     private func save() {
         let clean = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !gone else { return }
+        // An emptied name goes back to the one it had rather than leaving the design unnamed.
+        if clean.isEmpty { label = frame.s("label"); return }
         guard clean != frame.s("label") else { return }
         let id = frame.s("id")
         Task { await board.change([["op": "put", "id": id, "patch": ["label": clean]]]) }
@@ -469,6 +489,7 @@ private struct StudioNotePanel: View {
     let board: StudioBoardModel
     let removed: () -> Void
     @State private var text = ""
+    @State private var gone = false
 
     var body: some View {
         Section {
@@ -480,14 +501,14 @@ private struct StudioNotePanel: View {
         .onDisappear { save() }
         Section {
             Button("Remove the note", systemImage: "trash", role: .destructive) {
-                let id = note.s("id"); removed()
+                let id = note.s("id"); gone = true; removed()
                 Task { await board.change([["op": "noteRemove", "id": id]]) }
             }
         }.houseRows()
     }
 
     private func save() {
-        guard text != note.s("text") else { return }
+        guard !gone, text != note.s("text") else { return }
         let id = note.s("id"), words = text
         Task { await board.change([["op": "noteText", "id": id, "text": words]]) }
     }

@@ -590,7 +590,11 @@ struct WorkshopBoard: View {
         busy.insert(job.id)
         Task { @MainActor in
             do {
-                _ = try await ERPAPI.shared.write(op, fields)
+                // These say the state wanted (done, given, a karigar), so Done → Not done → Done within the ERP's
+                // 30-second once-only window is three changes, not a repeat: `seq` makes each its own (busy stops double taps).
+                var named = fields
+                named["seq"] = UUID().uuidString
+                _ = try await ERPAPI.shared.write(op, named)
             } catch {
                 failure = error.localizedDescription
             }

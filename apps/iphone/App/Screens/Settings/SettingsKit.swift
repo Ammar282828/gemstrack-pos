@@ -69,7 +69,8 @@ struct SettingsGate<Content: View>: View {
     var body: some View {
         Group {
             if session.isOwner {
-                ShelfState(loaded: book.settings.loaded, error: book.settings.error) {
+                // A passing read error keeps the form that has already arrived; only no document at all is a failure.
+                ShelfState(loaded: book.settings.loaded, error: book.settings.value == nil ? book.settings.error : nil) {
                     if let s = book.settings.value ?? Settings.blank {
                         content(s)
                     } else {

@@ -127,10 +127,14 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
 
 /// The home-screen widget's key (/api/widget/key), in the keychain the widget shares.
 enum WidgetLinker {
-    @MainActor static func link() async {
-        if let l = ERPWidgetLink.load(), l.url == House.serverURL.absoluteString { return }
-        guard let r = try? await ERPAPI.shared.send("/api/widget/key", ["label": "iPhone widget"]), let key = r["key"] as? String else { return }
+    /// `force` asks for a fresh key even when one is kept; the kept link is replaced only once the new key
+    /// has arrived, so a failed relink (offline) never leaves a working widget unlinked. False if no key came.
+    @discardableResult
+    @MainActor static func link(force: Bool = false) async -> Bool {
+        if !force, let l = ERPWidgetLink.load(), l.url == House.serverURL.absoluteString { return true }
+        guard let r = try? await ERPAPI.shared.send("/api/widget/key", ["label": "iPhone widget"]), let key = r["key"] as? String else { return false }
         ERPWidgetLink.save(.init(url: House.serverURL.absoluteString, key: key, house: House.storeName))
         WidgetCenter.shared.reloadAllTimelines()
+        return true
     }
 }

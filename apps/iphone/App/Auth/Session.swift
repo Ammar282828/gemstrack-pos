@@ -136,6 +136,12 @@ final class Session {
             state = .signedIn
             if me.role == "owner" { await DeviceLinks.afterSignIn() }
         } catch {
+            // The ERP refused the sign-in and Google says the account itself is gone or disabled: not "offline".
+            if let f = error as? ERPAPI.Failure, f.status == 401 || f.status == 403, await Self.accountGone() {
+                self.error = "This sign-in is no longer valid. Sign in again."
+                signOut()
+                return
+            }
             // No answer (offline, or the server restarting): stay signed in as the ERP last said.
             if let last = Self.lastMe, last.email.lowercased() == Auth.auth().currentUser?.email?.lowercased() {
                 me = last
@@ -149,15 +155,38 @@ final class Session {
     }
 
     func signOut() {
-        Task { await DeviceLinks.beforeSignOut() }
-        if FirebaseApp.app() != nil { try? Auth.auth().signOut() }
-        GoogleAuth.shared.signOut()
+        // The screen leaves at once; the phone is unregistered for alerts while its sign-in token is still good
+        // (after Firebase's sign-out the request would go without one, be refused, and alerts would keep coming).
         Self.lastMe = nil
         Book.shared.signedOut()
-        // The owner's books stay on no phone after sign-out: Firestore's copy on disk is erased too.
-        Task { await FirestoreSource.forget() }
         me = nil
         state = .signedOut
+        let leaving = FirebaseApp.app() != nil ? Auth.auth().currentUser?.uid : nil
+        Task {
+            await DeviceLinks.beforeSignOut()
+            // Only the account that was leaving: a quick sign-in again meanwhile is not undone.
+            if FirebaseApp.app() != nil, Auth.auth().currentUser?.uid == leaving { try? Auth.auth().signOut() }
+            if state != .signedIn && state != .signingIn { GoogleAuth.shared.signOut() }
+            // The owner's books stay on no phone after sign-out: Firestore's copy on disk is erased too.
+            if state == .signedOut { await FirestoreSource.forget() }
+        }
+    }
+
+    /// Whether a refusal means the account is really over: a forced token refresh that Firebase rejects for
+    /// the user (disabled, deleted, its token revoked). A network failure is not that.
+    private static func accountGone() async -> Bool {
+        guard let user = Auth.auth().currentUser else { return true }
+        do {
+            _ = try await user.getIDToken(forcingRefresh: true)
+            return false
+        } catch {
+            let ns = error as NSError
+            guard ns.domain == AuthErrorDomain, let code = AuthErrorCode(rawValue: ns.code) else { return false }
+            switch code {
+            case .userDisabled, .userNotFound, .userTokenExpired, .invalidUserToken: return true
+            default: return false
+            }
+        }
     }
 
     /// The Firebase ID token the ERP's server routes check.

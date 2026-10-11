@@ -35,9 +35,12 @@ struct RepairsScreen: View {
         .hubTitleDisplay()
         .searchable(text: $query, prompt: "Name, phone, piece or REP no.")
         .toolbar { newRepairButton }
-        .sheet(item: $sheet) { open in RepairsSheet(id: open.id, seed: open.seed) }
+        // A ticket and the form are whole pages: over an iPad's sheet the system's default shrank them to a card
+        // with the money under the Mark ready / Take payment bar.
+        .sheet(item: $sheet) { open in RepairsSheet(id: open.id, seed: open.seed).presentationSizing(.page) }
         .sheet(isPresented: $creating, onDismiss: openPending) {
             RepairsForm { id, seed in pending = RepairsOpen(id: id, seed: seed) }
+                .presentationSizing(.page)
         }
         .repairsDesk(desk)
         .alert("Repair not found", isPresented: missingShown) {

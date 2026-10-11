@@ -135,7 +135,8 @@ struct AnaSalesPage: View {
             if figures.salesOverTime.isEmpty {
                 Text("No daily data available for the selected period.").foregroundStyle(.secondary)
             } else {
-                ForEach(Array(figures.salesOverTime.prefix(showDays ? figures.salesOverTime.count : 5))) { (d: AnaDay) in
+                // Newest first: the first five are the latest days, not the oldest.
+                ForEach(Array(figures.salesOverTime.reversed().prefix(showDays ? figures.salesOverTime.count : 5))) { (d: AnaDay) in
                     Button { day = d } label: { dayRow(d) }
                         .buttonStyle(.plain)
                 }

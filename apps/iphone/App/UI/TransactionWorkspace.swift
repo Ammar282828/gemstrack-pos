@@ -45,8 +45,11 @@ struct EntryContinue: View {
                 Button("Back", systemImage: "chevron.left") { move(selection.previous) }
                     .buttonStyle(.glass).controlSize(.large)
             }
-            Button("Continue", systemImage: "arrow.right") { move(selection.next) }
-                .frame(maxWidth: .infinity)
+            // The width goes on the label: on the button itself the glass kept its own size and the step's main
+            // action sat as a small pill in the middle of the bar.
+            Button { move(selection.next) } label: {
+                Label("Continue", systemImage: "arrow.right").frame(maxWidth: .infinity)
+            }
                 .buttonStyle(.houseProminent).controlSize(.large)
                 .accessibilityHint("Continue to \(selection.next.title)")
         }

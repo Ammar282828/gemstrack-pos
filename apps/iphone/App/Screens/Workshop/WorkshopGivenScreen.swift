@@ -166,26 +166,8 @@ struct WorkshopGivenScreen: View {
             }
         }
         .padding(.vertical, 4)
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            if canReturn(item) {
-                Button { markReturned(item) } label: {
-                    Label("Got back", systemImage: "checkmark.circle")
-                }
-                .tint(.green)
-            }
-            if session.isOwner {
-                Button(role: .destructive) { askDelete(item) } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
-        }
-        .swipeActions(edge: .leading) {
-            if session.isOwner {
-                Button { editing = item } label: {
-                    Label("Edit", systemImage: "pencil")
-                }
-            }
-        }
+        // No swipe actions: the cards share one list row (WorkshopCards' grid), so a swipe would act on whichever
+        // card the row picked. The … menu and the long press carry the same actions, on the right piece.
         .contextMenu { itemMenu(item) }
     }
 
@@ -435,8 +417,8 @@ struct WorkshopGivenSheet: View {
     @ViewBuilder
     private var givenByRow: some View {
         if takenBy.isEmpty {
-            TextField("Given by", text: $givenBy, prompt: Text("Not set"))
-                .textInputAutocapitalization(.words)
+            // No list for this house: the ERP records who is signed in, and takes no typed name.
+            LabeledContent("Given by", value: givenBy.isEmpty ? "Who is signed in" : givenBy)
         } else {
             Picker("Given by", selection: $givenBy) {
                 Text("Not set").tag("")
@@ -553,7 +535,13 @@ struct WorkshopGivenSheet: View {
         if item != nil || !note.isEmpty { fields["notes"] = note }
         // Who gave it: a new entry sends a name or nothing; an edit sends nobody as null, which clears it.
         let by = givenBy.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !by.isEmpty { fields["givenBy"] = by } else if item != nil { fields["givenBy"] = NSNull() }
+        // The ERP takes only a name on the house's list: a new entry sends one when chosen; an edit sends "Given by"
+        // only when it was changed, so an old entry whose giver has left the list still saves its other fields.
+        if let item {
+            if by != (item.givenBy ?? "") { fields["givenBy"] = by.isEmpty ? NSNull() : by }
+        } else if !by.isEmpty {
+            fields["givenBy"] = by
+        }
         let sent = fields
         let editing = item
         saving = true

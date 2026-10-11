@@ -100,6 +100,8 @@ private struct BackupPage: View {
         .onChange(of: search) { _, typed in
             if !typed.trimmingCharacters(in: .whitespaces).isEmpty { sold.need() }
         }
+        // Leaving resets the search's shelf (a pushed page counts as leaving): coming back asks again.
+        .onAppear { if !search.trimmingCharacters(in: .whitespaces).isEmpty { sold.need() } }
         .onDisappear { sold.reset() }
     }
 
@@ -214,7 +216,7 @@ private struct BackupPage: View {
             file = try SettingsFiles.save(out, named: list.fileName)
             lastExport = now
             let total = list.collections.filter { selected.contains($0.id) }.reduce(0) { $0 + max(0, $1.count) }
-            withAnimation { note = OwnerNote(title: "Backup Downloaded", detail: "\(BackupPage.grouped(total)) records across \(cols.count) collections.") }
+            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Backup Downloaded", detail: "\(BackupPage.grouped(total)) records across \(cols.count) collections.") }
         } catch {
             failure = "Export Failed: \(error.localizedDescription)"
         }
@@ -283,7 +285,7 @@ private struct BackupPage: View {
         do {
             let out = try await ERPAPI.shared.write("reAddSoldProduct", ["sku": p.sku])
             let sku = (out["product"] as? [String: Any])?["sku"] as? String
-            withAnimation {
+            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) {
                 note = OwnerNote(title: "Product Restored", detail: "\(p.name) has been re-added to inventory with a new SKU\(sku.map { " (\($0))" } ?? "").")
             }
         } catch {
@@ -351,7 +353,7 @@ private struct BackupPage: View {
         ) { code in
             let out = try await ERPAPI.shared.write("deleteLatestProducts", ["count": count, "deleteCode": code])
             let gone = out["deleted"] as? Int ?? 0
-            withAnimation { note = OwnerNote(title: "Success", detail: "\(gone) latest products deleted.") }
+            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Success", detail: "\(gone) latest products deleted.") }
         }
     }
 }

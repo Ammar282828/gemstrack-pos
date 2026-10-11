@@ -238,7 +238,7 @@ struct PostsHub: View {
         case .off:
             EmptyView()
         case .idle, .loading:
-            Section { MarketingReading(text: "Reading the website…") } header: { Text("From the website") }
+            Section { MarketingReading(text: "Reading the website…") } header: { LedgerHeading(title: "From the website") }
         case .failed(let message):
             Section {
                 Text(message).foregroundStyle(.secondary)
@@ -273,7 +273,7 @@ struct PostsHub: View {
             }
             MarketingLink(title: "All \(store.pieces.count) pieces", subtitle: "Search by name or collection", symbol: "square.grid.2x2", path: MarketingKit.piecesPath)
         } header: {
-            Text(fresh.isEmpty ? "From \(store.siteName)" : "New on \(store.siteName)")
+            LedgerHeading(title: fresh.isEmpty ? "From \(store.siteName)" : "New on \(store.siteName)")
         }
     }
 }

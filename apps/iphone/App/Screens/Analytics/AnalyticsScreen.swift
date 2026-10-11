@@ -84,7 +84,8 @@ struct AnalyticsScreen: View {
     private var firstError: String? {
         let core = book.invoices.error ?? book.orders.error ?? book.products.error ?? book.customers.error
         if core != nil || !session.isOwner { return core }
-        return book.expenses.error
+        // Extra revenue counts in Revenue, Est. profit and Cash in: a failed read must not quietly lower them.
+        return book.expenses.error ?? book.revenue.error
     }
 
     // MARK: Time

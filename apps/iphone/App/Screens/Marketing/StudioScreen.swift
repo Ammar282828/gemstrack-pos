@@ -116,6 +116,7 @@ struct StudioMaker: View {
     @State private var days = 7
     @State private var photoBrief = ""
     @State private var scene = ""
+    @State private var discarding = false
     private func field(_ key: String) -> Binding<String> { Binding(get: { model.fields[key] ?? "" }, set: { model.fields[key] = $0 }) }
     var body: some View {
         Form {
@@ -125,7 +126,7 @@ struct StudioMaker: View {
         }
         .task(id: model.renderKey) { await model.preview() }
         .task { if !House.isDemo { folders = (try? await MarketingRequest.get("/api/ads/studio/saved")["folders"].array) ?? [] } }
-        .onChange(of: picker) { _, item in if let item { Task { if let bytes = try? await item.loadTransferable(type: Data.self) { await model.upload(bytes) }; picker = nil } } }
+        .onChange(of: picker) { _, item in if let item { Task { if let bytes = try? await item.loadTransferable(type: Data.self) { await model.upload(bytes) } else { model.error = "Couldn’t read that photo. Try another, or save it to Photos first." }; picker = nil } } }
         .sheet(isPresented: $editing) { ArtworkEditor(doc: $model.doc, photos: model.photos, fields: model.fields, ad: true) }
         .sheet(item: $share) { MarketingShareSheet(items: $0.items) }
     }
@@ -199,7 +200,10 @@ struct StudioMaker: View {
                     if let bytes = Data(base64Encoded: model.painted["image"].s("data")), let image = UIImage(data: bytes) { Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 360) }
                     MarketingDetails(fields: model.painted.object.filter { $0.key != "image" }.mapValues(\.any))
                     Button("Use this version") { Task { await model.usePainted() } }
-                    Button("Discard version", role: .destructive) { model.painted = .null }
+                    Button("Discard version", role: .destructive) { discarding = true }
+                        .confirmationDialog("Discard this version? It can’t be brought back.", isPresented: $discarding, titleVisibility: .visible) {
+                            Button("Discard version", role: .destructive) { model.painted = .null }
+                        }
                 }
             }
         }.houseRows()

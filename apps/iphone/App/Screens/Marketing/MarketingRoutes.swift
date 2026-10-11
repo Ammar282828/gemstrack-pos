@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Native Marketing screens use the ERP's existing authenticated routes.
-/// Studio's shared board remains available while its canvas is being ported.
+/// Studio's board is native too (StudioBoards), on the same transactional board the web and an agent use.
 enum MarketingRoutes {
     static var all: [ScreenRoute] {
         let piece = ScreenRoute(
@@ -41,7 +41,7 @@ enum MarketingRoutes {
             .exact("/ads/rules") { AdsRulesScreen() },
             .exact("/ads/setup") { AdsSetupScreen() },
             .exact(MarketingKit.websitePath) { WebsiteMenu() },
-            // The Website pages, native (Website*.swift), on the web's own routes; /website/post stays the ERP's.
+            // The Website pages, native (Website*.swift), on the web's own routes; /website/post is Post a piece (above).
             .exact("/website/photos") { WebsitePhotosScreen() },
             editPiece,
             .exact("/website/weights") { WebsiteWeightsScreen() },

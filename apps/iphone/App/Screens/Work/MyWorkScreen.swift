@@ -136,8 +136,9 @@ struct MyWorkScreen: View {
     /// Says a piece is done, or not (idempotent: the server is told the state wanted, not "flip it").
     private func toggle(_ job: KarigarPortalJob) {
         guard busy == nil, portal?.preview != true else { return }
+        // Taken before the Task, so a double tap cannot pass the guard twice.
+        busy = job.id
         Task {
-            busy = job.id
             do {
                 try await ERPAPI.shared.send("/api/karigar/complete", ["jobId": job.id, "completed": !job.isDone])
                 await load()

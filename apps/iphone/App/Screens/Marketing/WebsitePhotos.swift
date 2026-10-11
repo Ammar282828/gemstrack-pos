@@ -601,7 +601,7 @@ struct WebsiteCollectionSheet: View {
         NavigationStack {
             List {
                 ForEach(shelves) { (s: Shelf) in
-                    Section(s.id) {
+                    Section {
                         ForEach(s.list) { (c: WebsiteCollection) in
                             Button {
                                 folder = c.folder
@@ -615,9 +615,10 @@ struct WebsiteCollectionSheet: View {
                                 }
                             }
                         }
-                    }
+                    } header: { LedgerHeading(title: s.id) }
                     .houseRows()
                 }
+                if shelves.isEmpty { ContentUnavailableView.search(text: search) }
             }
             .listStyle(.insetGrouped)
             .searchable(text: $search, prompt: "Find a collection")

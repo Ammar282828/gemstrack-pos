@@ -129,7 +129,7 @@ struct WebsiteInvestmentsScreen: View {
                     if p.date == gold.today { WebsiteGoldTag(text: "Today", tint: Theme.accent) }
                     if p.hold { WebsiteGoldTag(text: "Held", tint: .secondary) }
                 }
-                Text(p.headline).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Text(p.headline).font(.subheadline).foregroundStyle(.secondary).lineLimit(3)
             }
             Spacer(minLength: 8)
             Text("\(sent)/\(targets.count) sent").font(.caption).foregroundStyle(.secondary).monospacedDigit()
@@ -277,7 +277,8 @@ struct WebsiteGoldDaySheet: View {
             }
         }
         .presentationDetents([.large])
-        .interactiveDismissDisabled(busy != nil)
+        // Edited words aren't thrown away by a swipe: Done (or saving) closes it.
+        .interactiveDismissDisabled(busy != nil || (filled && (post != (day?.post ?? "") || teaser != (day?.teaser ?? ""))))
         .onAppear { fill() }
         .websiteBusy(busy)
         .confirmationDialog(askTitle, isPresented: askShown, titleVisibility: .visible, presenting: ask) { (a: Ask) in

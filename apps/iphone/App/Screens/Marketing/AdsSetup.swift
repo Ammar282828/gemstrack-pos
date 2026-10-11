@@ -519,6 +519,7 @@ struct AdsSetupScreen: View {
                 Text("Connect and choose the ad account first.").foregroundStyle(.secondary)
             } else if let pixelProblem {
                 Text(pixelProblem).foregroundStyle(.red)
+                Button("Try again", systemImage: "arrow.clockwise") { Task { await loadPixel() } }
             } else if let pixel, let st = pixel.state {
                 pixelRows(pixel, st)
             } else {
@@ -588,6 +589,7 @@ struct AdsSetupScreen: View {
                 }
             }
             .buttonStyle(.borderless)
+            .disabled(busy != nil || pixelName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         if st.id != nil {
             Button("Stop using it", role: .destructive) { Task { await pixelAct(["action": "choose", "id": NSNull()], "pixel") } }

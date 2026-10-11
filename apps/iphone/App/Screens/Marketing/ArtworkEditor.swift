@@ -19,6 +19,8 @@ struct ArtworkEditor: View {
     @State private var share: MarketingFileShare?
     @State private var clipboard = ArtworkClipboard.shared
     @State private var resizing: MarketingValue?
+    /// The design as it came in, so Cancel can put it back (the editor writes to the live design as it goes).
+    @State private var original: MarketingValue?
     private var pageWidth: Double { doc["frame"].n("w", 1080) }
     private var allPhotos: [String: Data] { clipboard.photos.merging(photos) { _, current in current } }
     private var placement: Binding<MarketingValue> {
@@ -81,7 +83,8 @@ struct ArtworkEditor: View {
                 }.houseRows()
             }.modifier(HouseGround()).navigationTitle("Design").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { if let original { doc = original }; dismiss() } }
+                    ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                     ToolbarItemGroup(placement: .primaryAction) {
                         Button { history(true) } label: { Label("Undo", systemImage: "arrow.uturn.backward") }.disabled(undo.isEmpty)
                         Button { history(false) } label: { Label("Redo", systemImage: "arrow.uturn.forward") }.disabled(redo.isEmpty)
@@ -89,6 +92,8 @@ struct ArtworkEditor: View {
                     }
                 }.task(id: doc.text + fields.sorted(by: { $0.key < $1.key }).description) { await render() }
                 .onChange(of: importing) { _, item in if let item { Task { await take(item) } } }
+                .onAppear { if original == nil { original = doc } }
+                .interactiveDismissDisabled(original != nil && original != doc)
                 .sheet(item: $share) { MarketingShareSheet(items: $0.items) }.websiteBusy(busy ? "Preparing…" : nil)
         }
     }
@@ -178,7 +183,7 @@ struct ArtworkEditor: View {
                     Toggle("Gradient fill", isOn: Binding(get: { l.wrappedValue["fill2"] != .null }, set: { l.wrappedValue["fill2"] = $0 ? .string("#111111") : .null }))
                 }
             }
-        } header: { Text(name(l.wrappedValue)) }.houseRows()
+        } header: { LedgerHeading(title: name(l.wrappedValue)) }.houseRows()
     }
     private func filters(_ v: Binding<MarketingValue>) -> some View {
         DisclosureGroup("Photo filters") {
@@ -201,5 +206,5 @@ struct ArtworkEditor: View {
     private func act(_ action: String, _ value: String, _ extra: [String: Any] = [:]) { Task { do { var o = extra; o["action"] = action; o["value"] = value; o["selected"] = Array(selected); let r = try await engine.run(doc: doc, photos: allPhotos, fields: fields, options: o); change(r["doc"]); response = r; if !r["added"].array.isEmpty { selected = Set(r["added"].array.map(\.string)) }; problem = nil } catch { problem = error.localizedDescription } } }
     private func render() async { do { let r = try await engine.run(doc: doc, photos: allPhotos, fields: fields); guard !Task.isCancelled else { return }; response = r; problem = nil } catch { if !Task.isCancelled { problem = error.localizedDescription } } }
     private func take(_ item: PhotosPickerItem) async { defer { importing = nil }; do { guard let data = try await item.loadTransferable(type: Data.self), let jpeg = WebsitePhoto.jpegCopy(data), let image = UIImage(data: jpeg) else { throw ERPAPI.Failure(status: 0, message: "Choose a readable photo.") }; let n = MarketingValue(["id": UUID().uuidString, "kind": "image", "photoId": "", "src": "data:image/jpeg;base64," + jpeg.base64EncodedString(), "x": 240, "y": height * 0.35, "w": 600, "h": 600 * image.size.height / image.size.width, "radius": 0, "rotate": 0, "opacity": 1, "shadow": false, "name": "Uploaded image"]); var d = doc; d["layers"] = .array(layers + [n]); change(d); selected = [n.s("id")] } catch { problem = error.localizedDescription } }
-    private func export() async { busy = true; defer { busy = false }; do { let r = try await engine.run(doc: doc, photos: allPhotos, fields: fields, options: ["px": 1080]); guard let data = Data(base64Encoded: r.s("image")) else { return }; let url = FileManager.default.temporaryDirectory.appendingPathComponent("design-\(UUID().uuidString).jpg"); try data.write(to: url); share = MarketingFileShare(items: [url]) } catch { problem = error.localizedDescription } }
+    private func export() async { busy = true; defer { busy = false }; do { let r = try await engine.run(doc: doc, photos: allPhotos, fields: fields, options: ["px": 1080]); guard let data = Data(base64Encoded: r.s("image")) else { problem = "The design could not be drawn."; return }; let url = FileManager.default.temporaryDirectory.appendingPathComponent("design-\(UUID().uuidString).jpg"); try data.write(to: url); share = MarketingFileShare(items: [url]) } catch { problem = error.localizedDescription } }
 }

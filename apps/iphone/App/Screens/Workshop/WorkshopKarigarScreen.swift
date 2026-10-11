@@ -90,8 +90,12 @@ struct WorkshopKarigarScreen: View {
         return books && book.hisaab.loaded && book.expenses.loaded && book.karigarBatches.loaded
     }
 
+    /// Owners' books too: a failed hisaab or pay-batch read must say so, not read as "Square" or "No active pay
+    /// batch" (and invite a second batch).
     private var firstError: String? {
-        book.karigars.error ?? book.orders.error ?? book.invoices.error ?? book.karigarJobs.error ?? book.givenItems.error
+        let core = book.karigars.error ?? book.orders.error ?? book.invoices.error ?? book.karigarJobs.error ?? book.givenItems.error
+        guard session.isOwner else { return core }
+        return core ?? book.hisaab.error ?? book.expenses.error ?? book.karigarBatches.error
     }
 
     @ViewBuilder

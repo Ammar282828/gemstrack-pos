@@ -203,10 +203,10 @@ private struct VoiceSettingsPage: View {
         busy = a.id
         do {
             try await ERPAPI.shared.write("forgetVoiceAlias", ["aliasId": a.id])
-            withAnimation { note = OwnerNote(title: "Forgotten", detail: "“\(a.heard)” no longer means \(a.refName).") }
+            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Forgotten", detail: "“\(a.heard)” no longer means \(a.refName).") }
         } catch let f as ERPAPI.Failure where f.status == 409 {
             // Forgotten on another device a moment ago: the list catches up by itself.
-            withAnimation { note = OwnerNote(title: "Forgotten", detail: "“\(a.heard)” no longer means \(a.refName).") }
+            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Forgotten", detail: "“\(a.heard)” no longer means \(a.refName).") }
         } catch {
             failure = error.localizedDescription
         }

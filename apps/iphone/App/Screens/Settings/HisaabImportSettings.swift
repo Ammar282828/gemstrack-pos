@@ -261,7 +261,7 @@ private struct HisaabImportPage: View {
         do {
             let out = try await ERPAPI.shared.write("importHisaab", ["csv": csv, "entityId": person.id, "entityType": person.type])
             let n = out["imported"] as? Int ?? rows.count
-            withAnimation { note = OwnerNote(title: "Import Complete", detail: "\(n) transactions imported successfully. 0 failed.") }
+            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Import Complete", detail: "\(n) transactions imported successfully. 0 failed.") }
             read = nil
             csv = ""
             fileName = ""

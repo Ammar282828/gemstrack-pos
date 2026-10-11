@@ -485,6 +485,11 @@ struct AdsNewAdScreen: View {
         check = nil
         notice = nil
         previewError = nil
+        // The next ad starts paused again, as every new ad does; the last one's previews and errors go.
+        launch = "paused"
+        previewSet = nil
+        mediaError = nil
+        failure = nil
     }
 
     // MARK: The form

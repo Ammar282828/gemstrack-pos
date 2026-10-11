@@ -143,12 +143,20 @@ struct AnaSourceTrendChart: View {
 struct AnaShareChart: View {
     let rows: [AnaBreakdown.CategoryRow]
 
+    /// A share is of what came in: a category at nothing (or below, after returns) has no slice.
+    private var slices: [AnaBreakdown.CategoryRow] { rows.filter { $0.revenue > 0 } }
+
     var body: some View {
-        Chart(rows) { (c: AnaBreakdown.CategoryRow) in
-            SectorMark(angle: .value("Revenue", c.revenue), innerRadius: .ratio(0.55), angularInset: 1.5)
-                .foregroundStyle(by: .value("Category", c.name))
+        if slices.isEmpty {
+            Text("No category revenue in this period.").font(.subheadline).foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, minHeight: 80)
+        } else {
+            Chart(slices) { (c: AnaBreakdown.CategoryRow) in
+                SectorMark(angle: .value("Revenue", c.revenue), innerRadius: .ratio(0.55), angularInset: 1.5)
+                    .foregroundStyle(by: .value("Category", c.name))
+            }
+            .frame(height: 280)
+            .accessibilityLabel("Share of revenue by category")
         }
-        .frame(height: 280)
-        .accessibilityLabel("Share of revenue by category")
     }
 }

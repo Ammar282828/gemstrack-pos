@@ -8,6 +8,7 @@ struct StudioRivals: View {
     @State private var username = ""
     @State private var busy: String?
     @State private var error: String?
+    @State private var removing: MarketingValue?
     var body: some View {
         Section {
             TextField("Search focus (optional)", text: $brief, axis: .vertical)
@@ -16,6 +17,9 @@ struct StudioRivals: View {
             Button("Add account") { add(MarketingValue(["username": username, "source": "owner"])) }.disabled(username.isEmpty)
             if let busy { SkeletonLoading(busy) }; if let error { Text(error).foregroundStyle(.red) }
         }.houseRows().task { if !House.isDemo { await load() } }.disabled(busy != nil)
+        .confirmationDialog("Remove @\(removing?.s("username") ?? "") and its readings?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
+            Button("Remove account", role: .destructive) { if let item = removing { action("Removing…") { _ = try await MarketingRequest.send("/api/ads/studio/competitors", ["action": "remove", "username": item.s("username")]); await load() } } }
+        }
         if !found.isEmpty {
             LedgerSection("Found") {
                 ForEach(found, id: \.text) { item in
@@ -48,7 +52,7 @@ struct StudioRivals: View {
                         }
                     }
                     if item["reading"] != .null { MarketingDetails(fields: item["reading"].object.mapValues(\.any)) }
-                    Button("Remove account", role: .destructive) { action("Removing…") { _ = try await MarketingRequest.send("/api/ads/studio/competitors", ["action": "remove", "username": item.s("username")]); await load() } }
+                    Button("Remove account", role: .destructive) { removing = item }
                 }
             }.houseRows().disabled(busy != nil)
         }
@@ -115,12 +119,14 @@ struct StudioSaved: View {
         .refreshable { await load() }
         .sheet(item: $selected) { choice in detail(choice.item) }
         .sheet(item: $share) { MarketingShareSheet(items: $0.items) }
-        .confirmationDialog("Delete “\(deleting?.s("name") ?? "")”?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+        // From the detail sheet the question is asked in the sheet (below); here only for the list's own deletes.
+        .confirmationDialog("Delete “\(deleting?.s("name") ?? "")”?", isPresented: Binding(get: { deleting != nil && selected == nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
             Button("Delete", role: .destructive) { if let item = deleting { if item.s("deleteKind") != "folder" { mutate("/api/ads/studio/saved?id=" + AdsQuery.escape(item.s("id")), method: "DELETE") } else { mutate("/api/ads/studio/saved/folders?id=" + AdsQuery.escape(item.s("folder")), method: "DELETE") }; deleting = nil; selected = nil } }
         }
     }
     @ViewBuilder private var accountRows: some View {
         Section {
+            if account.isEmpty { Text("No ads in the account.").foregroundStyle(.secondary) }
             ForEach(account, id: \.text) { ad in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(ad.s("name")).font(.headline)
@@ -148,12 +154,15 @@ struct StudioSaved: View {
                         Button("Unfiled") { mutate("/api/ads/studio/saved", ["id": item.s("id"), "folder": NSNull()], method: "PATCH") }
                         ForEach(data["folders"].array, id: \.text) { f in Button(f.s("name")) { mutate("/api/ads/studio/saved", ["id": item.s("id"), "folder": f.s("id")], method: "PATCH") } }
                     }
-                    Button("Delete design", role: .destructive) { deleting = item; selected = nil }
+                    Button("Delete design", role: .destructive) { deleting = item }
                 }.houseRows()
                 LedgerSection("Words and settings", collapsible: true) { MarketingDetails(fields: item.object.filter { $0.key != "thumb" }.mapValues(\.any)) }
                 if let error = model.error { Section { Text(error).foregroundStyle(.red) }.houseRows() }
             }.modifier(HouseGround()).navigationTitle(item.s("name")).navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { selected = nil } } }.websiteBusy(model.busy)
+            .confirmationDialog("Delete “\(item.s("name"))”?", isPresented: Binding(get: { deleting != nil && selected != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+                Button("Delete design", role: .destructive) { mutate("/api/ads/studio/saved?id=" + AdsQuery.escape(item.s("id")), method: "DELETE"); deleting = nil; selected = nil }
+            }
         }
     }
     private func load() async { do { data = try await MarketingRequest.get("/api/ads/studio/saved") } catch { model.error = error.localizedDescription } }

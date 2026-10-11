@@ -123,6 +123,7 @@ struct AdsBudgetSheet: View {
                 }
                 .houseRows()
             }
+            .modifier(HouseGround())
             .navigationTitle(target.level == "campaign" ? "Campaign budget" : "Ad set budget")
             .navigationBarTitleDisplayMode(.inline)
             .disabled(busy)

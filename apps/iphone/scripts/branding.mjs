@@ -44,10 +44,21 @@ for (const [house, brand] of Object.entries(houses)) {
   }, null, 2) + '\n');
 
   const launch = brand.darkLaunch ? lightLogo : logo;
+  // The launch mark in both appearances: `mark@` is the house's own launch cut (light-on-dark for a dark
+  // launch), and the other appearance gets the opposite cut, so a light phone never shows white on light.
+  const other = brand.darkLaunch ? logo : lightLogo;
+  const otherName = brand.darkLaunch ? 'mark-light' : 'mark-dark';
+  const launchDir = path.join(assets, `LaunchLogo-${house}.imageset`);
+  const launchImages = [];
   for (const scale of [1, 2, 3]) {
-    await sharp(launch).resize({ width: 256 * scale }).png()
-      .toFile(path.join(assets, `LaunchLogo-${house}.imageset`, `mark@${scale}x.png`));
+    await sharp(launch).resize({ width: 256 * scale }).png().toFile(path.join(launchDir, `mark@${scale}x.png`));
+    await sharp(other).resize({ width: 256 * scale }).png().toFile(path.join(launchDir, `${otherName}@${scale}x.png`));
+    const dark = { appearances: [{ appearance: 'luminosity', value: 'dark' }] };
+    const own = { filename: `mark@${scale}x.png`, idiom: 'universal', scale: `${scale}x` };
+    const opposite = { filename: `${otherName}@${scale}x.png`, idiom: 'universal', scale: `${scale}x` };
+    launchImages.push(...(brand.darkLaunch ? [opposite, { ...own, ...dark }] : [own, { ...opposite, ...dark }]));
   }
+  await fs.writeFile(path.join(launchDir, 'Contents.json'), JSON.stringify({ images: launchImages, info }, null, 2) + '\n');
   const iconDir = path.join(assets, `AppIcon-${house}.appiconset`);
   await icon(launch, brand.ground, path.join(iconDir, 'icon-1024.png'));
   const images = [{ filename: 'icon-1024.png', idiom: 'universal', platform: 'ios', size: '1024x1024' }];

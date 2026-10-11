@@ -124,9 +124,10 @@ struct NewOrderPromisedSection: View {
                 DatePicker("Date promised", selection: dateBinding, displayedComponents: .date)
                     .environment(\.timeZone, ERPDate.karachi)
                 if let d = days, d <= URGENT_WINDOW_DAYS {
+                    // Soon is amber, as the order page's "Urgent" pill: red is kept for what is already late.
                     Label(urgentWords(d), systemImage: "exclamationmark.triangle.fill")
                         .font(.subheadline)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(d < 0 ? Tone.late.color : Tone.owed.color)
                 }
             }
         } header: {

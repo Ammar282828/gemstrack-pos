@@ -366,6 +366,7 @@ struct AdsAdSetsScreen: View {
             MarketingReading(text: "Reading the account's ads…")
         } else {
             TextField("Find an ad", text: $adQ).autocorrectionDisabled()
+            if shownAds.isEmpty { Text(adQ.isEmpty ? "No ads in the last 30 days." : "No ad matches “\(adQ)”.").foregroundStyle(.secondary) }
             ForEach(shownAds) { (r: AdRow) in
                 let on = adIds.contains(r.ad.id)
                 Button {
@@ -516,12 +517,13 @@ private struct AdsSetCard: View {
             }
             Toggle("Starts on a day", isOn: startOn).tint(Theme.accent)
             if draft.start != nil {
-                DatePicker("From", selection: startDay, displayedComponents: .date)
+                DatePicker("From", selection: startDay, in: Self.dayStart(Date())..., displayedComponents: .date)
                     .environment(\.timeZone, ERPDate.karachi)
             }
             Toggle("Ends on a day", isOn: endOn).tint(Theme.accent)
             if draft.end != nil {
-                DatePicker("To", selection: endDay, in: Date()..., displayedComponents: .date)
+                // Never before the day it starts: an ad set can't end before it begins.
+                DatePicker("To", selection: endDay, in: max(Date(), draft.start ?? Date())..., displayedComponents: .date)
                     .environment(\.timeZone, ERPDate.karachi)
             }
             Button(action: audience) {

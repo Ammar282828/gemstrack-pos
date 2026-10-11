@@ -13,6 +13,8 @@ struct StudioLibrary: View {
     @State private var sort = "newest"
     @State private var opened: StudioAssetChoice?
     @State private var driveLink = ""
+    @State private var loaded = false
+    @State private var unlinking: MarketingValue?
     private var queryKey: String { [model.part, q, placement, source, filter, collection, sort].joined(separator: "|") }
     var body: some View {
         List {
@@ -44,6 +46,10 @@ struct StudioLibrary: View {
                     }
                     if rows.count < Int(answer.n("total")) { Button("Show more") { Task { await load(more: true) } } }
                 }.houseRows()
+            } else if House.isDemo {
+                Section { Text("The demo has no photo library.").foregroundStyle(.secondary) }.houseRows()
+            } else if !loaded {
+                Section { SkeletonLoading("Loading the photos") }.houseRows()
             } else { Section { Text("No photos match these filters.").foregroundStyle(.secondary) }.houseRows() }
             assessment
             drive
@@ -52,6 +58,9 @@ struct StudioLibrary: View {
         .task(id: queryKey) { if !House.isDemo { do { try await Task.sleep(for: .milliseconds(250)); await load() } catch {} } }
         .refreshable { await load(fresh: true) }
         .sheet(item: $opened) { choice in StudioAssetSheet(item: choice.item, placement: placement, model: model) { await load() } }
+        .confirmationDialog("Unlink “\(unlinking?.s("name") ?? "this folder")”? Its photos leave the library.", isPresented: Binding(get: { unlinking != nil }, set: { if !$0 { unlinking = nil } }), titleVisibility: .visible) {
+            Button("Unlink folder", role: .destructive) { if let folder = unlinking { Task { await model.run("Unlinking folder…") { _ = try await MarketingRequest.send("/api/ads/studio/drive?id=" + AdsQuery.escape(folder.s("id")), method: "DELETE") }; await load(fresh: true) } } }
+        }
     }
     private var assessment: some View {
         LedgerSection("Assessment", collapsible: true) {
@@ -73,7 +82,7 @@ struct StudioLibrary: View {
             TextField("Folder link", text: $driveLink).keyboardType(.URL).textInputAutocapitalization(.never)
             Button("Add folder") { Task { await model.run("Adding Drive folder…") { _ = try await MarketingRequest.send("/api/ads/studio/drive", ["link": driveLink]); driveLink = "" }; await load(fresh: true) } }.disabled(driveLink.isEmpty)
             ForEach(details["roots"].array, id: \.text) { folder in
-                HStack { Text(folder.s("name")); Spacer(); Button("Unlink", role: .destructive) { Task { await model.run("Unlinking folder…") { _ = try await MarketingRequest.send("/api/ads/studio/drive?id=" + AdsQuery.escape(folder.s("id")), method: "DELETE") }; await load(fresh: true) } } }
+                HStack { Text(folder.s("name")); Spacer(); Button("Unlink", role: .destructive) { unlinking = folder } }
             }
             MarketingDetails(fields: details.object.filter { !["roots", "account"].contains($0.key) }.mapValues(\.any))
             if let url = URL(string: details.s("enableUrl")), url.scheme == "https" { Link("Enable Drive API", destination: url) }
@@ -86,9 +95,9 @@ struct StudioLibrary: View {
         let path = "/api/ads/studio/library?" + params.sorted { $0.key < $1.key }.map { $0.key + "=" + AdsQuery.escape($0.value) }.joined(separator: "&")
         do {
             let r = try await MarketingRequest.get(path); guard !Task.isCancelled else { return }
-            answer = r; rows = more ? rows + r["items"].array : r["items"].array
+            answer = r; rows = more ? rows + r["items"].array : r["items"].array; loaded = true
             assessState = try await MarketingRequest.get("/api/ads/studio/assess")
-        } catch { if !Task.isCancelled { model.error = error.localizedDescription } }
+        } catch { if !Task.isCancelled { model.error = error.localizedDescription; loaded = true } }
     }
     private func assess(_ body: [String: Any]) { Task { await model.run("Assessing photos…") { assessState = try await MarketingRequest.send("/api/ads/studio/assess", body) }; await load() } }
 }

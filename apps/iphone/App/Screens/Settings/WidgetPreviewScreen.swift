@@ -78,6 +78,8 @@ struct WidgetPreviewScreen: View {
             .background { backdrop }
             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
             .environment(\.colorScheme, look == .light ? .light : .dark)
+            // A real widget's text stops growing about here; past it the fixed-size preview would clip.
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Sample widget")
     }

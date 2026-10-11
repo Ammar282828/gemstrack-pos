@@ -31,6 +31,8 @@ final class StudioBoardModel {
     var working: String?
     var error: String?
     var said: String?
+    /// The list of boards couldn't be read: the canvas says so (with Try again) rather than offering a first board.
+    var listProblem: String?
 
     @ObservationIgnored let engine = NativeArtwork()
     @ObservationIgnored private var photos: [String: Data] = [:]
@@ -124,13 +126,14 @@ final class StudioBoardModel {
                 if current.isEmpty { await choose(new.s("id")) }
             }
             known = ids
+            listProblem = nil
             if initial || (!current.isEmpty && !ids.contains(current)) {
                 let last = UserDefaults.standard.string(forKey: Self.lastKey) ?? ""
                 let pick = ids.contains(current) ? current : ids.contains(last) ? last : list.first?.s("id") ?? ""
                 if pick != current || value == .null { await choose(pick) }
             }
             loaded = true
-        } catch { if initial { self.error = error.localizedDescription }; loaded = true }
+        } catch { if initial || boards.isEmpty { listProblem = error.localizedDescription }; loaded = true }
     }
 
     func choose(_ id: String) async {

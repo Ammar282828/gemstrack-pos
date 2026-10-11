@@ -64,27 +64,8 @@ struct WorkshopJobRow: View {
             if busy { SkeletonLoading("Updating job").frame(height: 20) }
         }
         .padding(.vertical, 4)
-        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-            if canWrite && !busy {
-                Button { actions.done(job, !job.isDone) } label: {
-                    Label(job.isDone ? "Not done" : "Done", systemImage: job.isDone ? "arrow.uturn.backward" : "checkmark")
-                }
-                .tint(.green)
-            }
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            if canWrite && !busy && isStock {
-                Button(role: .destructive) { actions.delete(job) } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
-            if canWrite && !busy && !job.isDone && !job.isUnassigned {
-                Button { actions.given(job, !job.hasGiven) } label: {
-                    Label(job.hasGiven ? "Not given" : "Given", systemImage: "shippingbox")
-                }
-                .tint(.orange)
-            }
-        }
+        // No swipe actions: the cards share one list row (WorkshopCards' grid), so a swipe would act on whichever
+        // card the row picked. The … menu and the long press carry the same actions, on the right piece.
         .contextMenu { menuItems }
     }
 

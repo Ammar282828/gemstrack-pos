@@ -45,7 +45,8 @@ struct StockPieceScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
-        .safeAreaBar(edge: .bottom, spacing: 0) { sellBar(p) }
+        // Selling is the owners' (createInvoice is owner-only): staff read the piece without a Sell they cannot finish.
+        .safeAreaBar(edge: .bottom, spacing: 0) { if session.isOwner { sellBar(p) } }
     }
 
     /// Sell puts the piece on the sale in progress (the New sale screen's own draft, as Scan does) and opens it.
