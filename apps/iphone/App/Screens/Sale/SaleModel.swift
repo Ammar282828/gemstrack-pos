@@ -611,35 +611,21 @@ extension SaleDraft {
 // MARK: Lists the sale offers
 
 /// lib/categories.ts `staticCategories`, for the edit sheet's Category.
-// TODO(logic): port staticCategories (categories.ts) into ERPCore.
 struct SaleCategory: Identifiable {
     let id: String
     let title: String
 }
 
 enum SaleCategories {
-    private static let pairs: [(String, String)] = [
-        ("cat001", "Rings"), ("cat002", "Tops"), ("cat003", "Balis"), ("cat004", "Lockets"),
-        ("cat005", "Bracelets"), ("cat006", "Bracelet and Ring Set"), ("cat007", "Bangles"),
-        ("cat008", "Chains"), ("cat009", "Bands"), ("cat010", "Locket Sets without Bangle"),
-        ("cat011", "Locket Set with Bangle"), ("cat012", "String Sets"),
-        ("cat013", "Stone Necklace Sets without Bracelets"), ("cat014", "Stone Necklace Sets with Bracelets"),
-        ("cat015", "Gold Necklace Sets with Bracelets"), ("cat016", "Gold Necklace Sets without Bracelets"),
-        ("cat017", "Gold Coins"), ("cat018", "Men's Rings"), ("cat019", "Loose Bracelet"),
-        ("cat020", "Men's Buttons"),
-    ]
+    static let all: [SaleCategory] = staticCategories.map { SaleCategory(id: $0.id, title: $0.title) }
 
-    static let all: [SaleCategory] = pairs.map { SaleCategory(id: $0.0, title: $0.1) }
-
-    static func title(_ id: String) -> String? { all.first { $0.id == id }?.title }
+    static func title(_ id: String) -> String? { ERPCore.categoryTitle(id) }
 }
 
 /// store.ts `PLATING_TYPES`: the finishes offered on 925 silver.
-// TODO(logic): port PLATING_TYPES (store.ts) into ERPCore.
 enum SalePlating {
-    static let all = ["White Rhodium", "21K Gold Plating", "18K Gold Plating", "Chandi White Plating", "Other"]
+    static let all = platingTypes
 }
 
 /// units.ts `GRAMS_PER_TOLA`: the figure the trade uses here.
-// TODO(logic): port GRAMS_PER_TOLA (units.ts) into ERPCore.
-let SALE_GRAMS_PER_TOLA = 11.664
+let SALE_GRAMS_PER_TOLA = gramsPerTola

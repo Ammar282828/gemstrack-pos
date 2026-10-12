@@ -163,24 +163,9 @@ enum CustomerKit {
         return n.isEmpty ? nil : URL(string: "https://wa.me/" + n)
     }
 
-    // TODO(logic): port toWhatsAppNumber (src/lib/whatsapp.ts). Digits with the country code,
-    // Pakistan's when the number is written the Pakistani way: 0300 1234567 -> 923001234567; a
-    // number written with its "+" or "00" is international and stays as written.
-    static func whatsAppNumber(_ phone: String?) -> String {
-        let raw = trim(phone)
-        var digits = ""
-        for ch in raw where ch >= "0" && ch <= "9" { digits.append(ch) }
-        if digits.isEmpty { return "" }
-        if raw.hasPrefix("+") { return digits }
-        if digits.hasPrefix("00"), digits.count > 2, digits.dropFirst(2).first != "0" { return String(digits.dropFirst(2)) }
-        if digits.hasPrefix("92") { return digits }
-        if digits.hasPrefix("0") { return "92" + String(digits.drop(while: { $0 == "0" })) }
-        // A Pakistani mobile written without its 0: 3xx xxxxxxx.
-        if digits.count == 10 && digits.hasPrefix("3") { return "92" + digits }
-        // Longer than any Pakistani number without a code: it carries its own.
-        if digits.count >= 11 { return digits }
-        return "92" + digits
-    }
+    /// Digits with the country code, Pakistan's when the number is written the Pakistani way: 0300 1234567 ->
+    /// 923001234567; a number written with its "+" or "00" is international and stays as written.
+    static func whatsAppNumber(_ phone: String?) -> String { toWhatsAppNumber(phone) }
 
     // MARK: Owed, spent, last sale (customers/page.tsx)
 
@@ -315,22 +300,11 @@ enum CustomerKit {
 
     // MARK: Repairs (src/lib/store.ts)
 
-    // TODO(logic): port repairTotal / repairPaid / repairBalance / repairSummary (src/lib/store.ts).
     /// What the customer still owes on the ticket.
-    static func repairBalance(_ r: Repair) -> Double {
-        var total = 0.0
-        for p in r.pieces { total += p.price ?? 0 }
-        var paid = 0.0
-        for p in r.payments { paid += p.amount }
-        return max(0, ((total - paid) * 100).rounded() / 100)
-    }
+    static func repairBalance(_ r: Repair) -> Double { ERPCore.repairBalance(r) }
 
     /// "Gold ring" or "Gold ring + 2 more": a ticket in a line.
-    static func repairSummary(_ r: Repair) -> String {
-        let named = r.pieces.filter { !$0.item.isEmpty }
-        if named.isEmpty { return "Repair" }
-        return named.count == 1 ? named[0].item : "\(named[0].item) + \(named.count - 1) more"
-    }
+    static func repairSummary(_ r: Repair) -> String { ERPCore.repairSummary(r) }
 
     /// The repair's steps in the shop's words: In the shop, Ready, Collected.
     static func repairStatus(_ s: RepairStatus) -> (text: String, color: Color) {

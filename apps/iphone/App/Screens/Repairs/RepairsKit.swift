@@ -30,32 +30,15 @@ struct RepairsGroup: Identifiable {
 enum RepairsKit {
     // MARK: A ticket's sums (src/lib/repairs.ts)
 
-    // TODO(logic): port repairTotal (src/lib/repairs.ts) to ERPCore
-    static func repairTotal(_ r: Repair) -> Double {
-        var sum = 0.0
-        for p in r.pieces { sum += p.price ?? 0 }
-        return sum
-    }
+    static func repairTotal(_ r: Repair) -> Double { ERPCore.repairTotal(r) }
 
-    // TODO(logic): port repairPaid (src/lib/repairs.ts) to ERPCore
-    static func repairPaid(_ r: Repair) -> Double {
-        var sum = 0.0
-        for p in r.payments { sum += p.amount }
-        return sum
-    }
+    static func repairPaid(_ r: Repair) -> Double { ERPCore.repairPaid(r) }
 
-    // TODO(logic): port repairBalance (src/lib/repairs.ts) to ERPCore. What the customer still owes on the ticket.
-    static func repairBalance(_ r: Repair) -> Double {
-        let owing = ((repairTotal(r) - repairPaid(r)) * 100).rounded() / 100
-        return owing > 0 ? owing : 0
-    }
+    /// What the customer still owes on the ticket.
+    static func repairBalance(_ r: Repair) -> Double { ERPCore.repairBalance(r) }
 
-    // TODO(logic): port repairSummary (src/lib/repairs.ts) to ERPCore. "Gold ring" or "Gold ring + 2 more".
-    static func repairSummary(_ r: Repair) -> String {
-        let named = r.pieces.filter { !$0.item.isEmpty }
-        if named.isEmpty { return "Repair" }
-        return named.count == 1 ? named[0].item : "\(named[0].item) + \(named.count - 1) more"
-    }
+    /// "Gold ring" or "Gold ring + 2 more".
+    static func repairSummary(_ r: Repair) -> String { ERPCore.repairSummary(r) }
 
     // MARK: Words
 
@@ -228,14 +211,7 @@ enum RepairsKit {
 
     // MARK: Phones and WhatsApp
 
-    // TODO(logic): port normalizePhoneNumber (src/lib/utils.ts)
-    static func normalizePhone(_ phone: String) -> String {
-        let clean = phone.filter { !$0.isWhitespace && !"-().".contains($0) }
-        if clean.hasPrefix("+") { return clean }
-        if clean.hasPrefix("0") && clean.count >= 10 { return "+92" + String(clean.dropFirst()) }
-        if clean.hasPrefix("92") && clean.count >= 12 { return "+" + clean }
-        return phone
-    }
+    static func normalizePhone(_ phone: String) -> String { normalizePhoneNumber(phone) }
 
     /// What can be dialled: digits, and a leading "+".
     static func callURL(_ phone: String?) -> URL? {
@@ -246,20 +222,7 @@ enum RepairsKit {
         return out.isEmpty ? nil : URL(string: "tel:" + out)
     }
 
-    // TODO(logic): port toWhatsAppNumber (src/lib/whatsapp.ts)
-    static func whatsAppNumber(_ phone: String?) -> String {
-        let raw = (phone ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let digits = String(raw.filter { $0 >= "0" && $0 <= "9" })
-        if digits.isEmpty { return "" }
-        if raw.hasPrefix("+") { return digits }
-        if digits.hasPrefix("00"), digits.count > 2, !digits.dropFirst(2).hasPrefix("0") { return String(digits.dropFirst(2)) }
-        if digits.hasPrefix("92") { return digits }
-        if digits.hasPrefix("0") { return "92" + String(digits.drop(while: { $0 == "0" })) }
-        // A Pakistani mobile written without its 0: 3xx xxxxxxx.
-        if digits.count == 10 && digits.hasPrefix("3") { return "92" + digits }
-        if digits.count >= 11 { return digits }
-        return "92" + digits
-    }
+    static func whatsAppNumber(_ phone: String?) -> String { toWhatsAppNumber(phone) }
 
     /// The page's "Tell them" message, word for word. `shopName` is the shop's own (session.shop.name),
     /// since the customer reads it: never the app's "… ERP".

@@ -359,32 +359,14 @@ enum OrdersLogic {
         return !id.isEmpty && id != "none"
     }
 
-    /// TODO(logic): port CUSTOMER_SOURCE_LABELS (store.ts)
-    static func sourceLabel(_ s: CustomerSource) -> String {
-        switch s {
-        case .taheriSpillover: return "Taheri Spillover"
-        case .referral: return "Referral"
-        case .walkin: return "Walk-in"
-        case .socialMedia: return "Social media"
-        case .website: return "Website"
-        case .other: return "Other"
-        case .unknown(let raw): return raw
-        }
-    }
+    /// store.ts CUSTOMER_SOURCE_LABELS; a key the ERP does not know shows as it was written.
+    static func sourceLabel(_ s: CustomerSource) -> String { customerSourceLabel(s.rawValue) ?? s.rawValue }
 
     /// categorySingular (lib/categories.ts): "Ring" for cat001; the id itself when unknown, as the web's
     /// `categorySingular(id) || id` shows it. Both the order page and the invoice page read it.
     static func categorySingular(_ id: String?) -> String? {
         guard let id, !id.isEmpty else { return nil }
-        let names: [String: String] = [
-            "cat001": "Ring", "cat002": "Top", "cat003": "Bali", "cat004": "Locket", "cat005": "Bracelet",
-            "cat006": "Bracelet and Ring Set", "cat007": "Bangle", "cat008": "Chain", "cat009": "Band",
-            "cat010": "Locket Set without Bangle", "cat011": "Locket Set with Bangle", "cat012": "String Set",
-            "cat013": "Stone Necklace Set without Bracelets", "cat014": "Stone Necklace Set with Bracelets",
-            "cat015": "Gold Necklace Set with Bracelets", "cat016": "Gold Necklace Set without Bracelets",
-            "cat017": "Gold Coin", "cat018": "Men's Ring", "cat019": "Loose Bracelet", "cat020": "Men's Button",
-        ]
-        return names[id] ?? id
+        return ERPCore.categorySingular(id) ?? id
     }
 
     /// The rates the order was booked at, for the gold karats it uses: "Gold (21K): PKR 33,700/g".

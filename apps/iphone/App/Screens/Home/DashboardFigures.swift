@@ -152,31 +152,18 @@ enum DashPath {
     static func karigar(_ id: String) -> String { item("/karigars/", id) }
 }
 
-// MARK: Rules the page uses that ERPCore does not hold yet
+// MARK: Rules the page uses, ERPCore's
 
 enum DashRules {
-    // TODO(logic): port getInvoiceRevenueDate (store.ts)
     /// A sale counts on its order's day when it came from one.
     static func revenueDate(of inv: Invoice, orders: [String: Order]) -> String {
-        if let source = inv.sourceOrderId, !source.isEmpty, let o = orders[source], !o.createdAt.isEmpty {
-            return o.createdAt
-        }
-        return inv.createdAt
+        getInvoiceRevenueDate(inv, ordersById: orders)
     }
 
-    // TODO(logic): port repairTotal (store.ts)
-    static func repairTotal(_ r: Repair) -> Double {
-        var sum = 0.0
-        for p in r.pieces {
-            let price = p.price ?? 0
-            sum += price.isNaN ? 0 : price
-        }
-        return sum
-    }
+    static func repairTotal(_ r: Repair) -> Double { ERPCore.repairTotal(r) }
 
-    // TODO(logic): port isBusinessCost (partnership.ts)
     /// A partner's drawing is not a cost of earning.
-    static func isBusinessCost(_ e: Expense) -> Bool { e.category != "Partner Drawings" }
+    static func isBusinessCost(_ e: Expense) -> Bool { Partnership.isBusinessCost(e) }
 }
 
 // MARK: The workshop
