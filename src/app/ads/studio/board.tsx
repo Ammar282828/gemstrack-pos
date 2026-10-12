@@ -25,7 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X, Upload, Undo2, Wand2, Type } from 'lucide-react';
+import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Maximize2, Minimize2, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X, Upload, Undo2, Wand2, Type } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
@@ -248,6 +248,25 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
   const [view, setView] = useState({ x: 40, y: 40, z: 0.7 });
   const [drag, setDrag] = useState<{ kind: 'frame' | 'note'; id: string; x: number; y: number } | null>(null);
   const [picker, setPicker] = useState(false);
+  // Full screen: the board alone, edge to edge (the browser's full screen where it has one; an iPhone has none, so
+  // the board also covers the page itself). Esc or the button leaves.
+  const [full, setFull] = useState(false);
+  const fullRef = useRef<HTMLDivElement>(null);
+  const toggleFull = () => {
+    const next = !full;
+    setFull(next);
+    try {
+      if (next) void fullRef.current?.requestFullscreen?.().catch(() => undefined);
+      else if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+    } catch { /* the covering view still works */ }
+  };
+  useEffect(() => {
+    const onChange = () => { if (!document.fullscreenElement) setFull(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFull(false); };
+    document.addEventListener('fullscreenchange', onChange);
+    window.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('fullscreenchange', onChange); window.removeEventListener('keydown', onKey); };
+  }, []);
   const [editing, setEditing] = useState<string | null>(null);
   const [cooking, setCooking] = useState<string | null>(null);
   const { marks, ready: marksReady } = useSiteAssets(true);
@@ -440,6 +459,16 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
     send([{ op: 'note', note: { id: nid, text: 'Note', ...at } }]).then(() => setSel({ kind: 'note', id: nid }));
   };
 
+  /** A picture of the owner's own (device, Drive, a link, a paste): into the library, then onto the board as a frame. */
+  const addOwnPhoto = async (file: File, format: AdFormat) => {
+    setPicker(false);
+    const name = file.name.replace(/\.[a-z0-9]+$/i, '') || 'Uploaded picture';
+    try {
+      const id = await uploadPicture(file, name);
+      await addPhoto({ id, name, source: 'upload' } as unknown as LibraryItem, format);
+    } catch (e) { toast({ title: 'Couldn’t add the picture', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }); }
+  };
+
   const addPhoto = async (item: LibraryItem, format: AdFormat) => {
     setPicker(false);
     const fid = newId('frame');
@@ -595,7 +624,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
 
   return (
     <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
-      <div className="space-y-2 min-w-0">
+      <div ref={fullRef} className={cn('space-y-2 min-w-0', full && 'fixed inset-0 z-[60] overflow-auto bg-background p-3 pt-[max(0.75rem,env(safe-area-inset-top))]')}>
         <div className="flex flex-wrap items-center gap-1.5">
           <Button size="sm" onClick={() => setPicker(true)}><ImagePlus className="h-4 w-4 mr-1" /> Add a photo</Button>
           <Button size="sm" variant="outline" onClick={addNote}><StickyNote className="h-4 w-4 mr-1" /> Note</Button>
@@ -604,6 +633,9 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
             <span className="text-xs tabular-nums w-10 text-center text-muted-foreground">{Math.round(view.z * 100)}%</span>
             <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Zoom in" onClick={() => zoomAt(1.25, (boxRef.current?.clientWidth ?? 0) / 2, (boxRef.current?.clientHeight ?? 0) / 2)}><Plus className="h-4 w-4" /></Button>
             <Button size="sm" variant="ghost" onClick={fit}><Maximize className="h-4 w-4 mr-1" /> Fit</Button>
+            <Button size="sm" variant={full ? 'default' : 'ghost'} onClick={toggleFull} aria-label={full ? 'Leave full screen' : 'Full screen'}>
+              {full ? <Minimize2 className="h-4 w-4 mr-1" /> : <Maximize2 className="h-4 w-4 mr-1" />}{full ? 'Exit' : 'Full screen'}
+            </Button>
           </span>
         </div>
         {(cooking || sending) && <p className="text-xs rounded-lg bg-primary/10 p-2 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin shrink-0" /> {cooking || sending}</p>}
@@ -616,7 +648,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
         )}
         <div
           ref={boxRef}
-          className="relative h-[68svh] min-h-[420px] overflow-hidden rounded-xl border bg-muted/40 touch-none select-none cursor-grab active:cursor-grabbing"
+          className={cn('relative min-h-[420px] overflow-hidden rounded-xl border bg-muted/40 touch-none select-none cursor-grab active:cursor-grabbing', full ? 'h-[calc(100svh-4.5rem)]' : 'h-[68svh]')}
           style={{ backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.25) 1px, transparent 1px)', backgroundSize: `${24 * view.z}px ${24 * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` }}
           onPointerDown={e => onDown(e)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
         >
@@ -667,7 +699,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
         {!sel && <p className="text-xs text-muted-foreground rounded-xl border p-3">Tap a design to edit it, cook variants of it, or make it in another shape.</p>}
       </aside>
 
-      <PhotoPicker open={picker} onOpenChange={setPicker} onPick={addPhoto} withFormat />
+      <PhotoPicker open={picker} onOpenChange={setPicker} onPick={addPhoto} onFile={addOwnPhoto} withFormat />
       {queueShown && <QueueDialog key={queueShown.id} frame={queueShown} open={!!queueFor} onClose={() => setQueueFor(null)} onQueue={o => { if (queueFor) queuePost(queueFor, o); }} />}
       {editing && (() => {
         const f = frames.find(x => x.id === editing);
@@ -1353,7 +1385,7 @@ function PhotoPicker({ open, onOpenChange, onPick, withFormat, title = 'Add a ph
   /** Choose the new design's shape too (adding a design to the board). */
   withFormat?: boolean; title?: string;
   /** Offer a picture from this phone or computer as well. */
-  onFile?: (file: File) => void;
+  onFile?: (file: File, format: AdFormat) => void;
   /** Over the full-screen designer (z-60). */
   above?: boolean;
 }) {
@@ -1362,6 +1394,31 @@ function PhotoPicker({ open, onOpenChange, onPick, withFormat, title = 'Add a ph
   const [format, setFormat] = useState<AdFormat>('portrait');
   const [items, setItems] = useState<LibraryItem[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [link, setLink] = useState('');
+  const [fetching, setFetching] = useState(false);
+  /** A picture from anywhere on the web: an image address, or a page that shares one (an Instagram post). */
+  const fromLink = async () => {
+    if (!onFile || !link.trim()) return;
+    setFetching(true); setErr(null);
+    try {
+      const res = await fetch(`/api/ads/studio/fetch-image?url=${encodeURIComponent(link.trim())}`, { headers: await authHeaders() });
+      if (!res.ok) throw new Error(((await res.json().catch(() => null)) as { error?: string } | null)?.error || `Could not fetch it (${res.status}).`);
+      const blob = await res.blob();
+      const name = (() => { try { const u = new URL(link.trim()); return u.hostname.includes('instagram') ? 'Instagram photo' : (u.pathname.split('/').filter(Boolean).pop() || u.hostname); } catch { return 'Picture from a link'; } })();
+      setLink('');
+      onFile(new File([blob], name, { type: blob.type || 'image/jpeg' }), format);
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); } finally { setFetching(false); }
+  };
+  // A picture pasted while the picker is open (copied from a website, WhatsApp, Photos) goes straight in.
+  useEffect(() => {
+    if (!open || !onFile) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const f = Array.from(e.clipboardData?.files ?? []).find(x => x.type.startsWith('image/'));
+      if (f) { e.preventDefault(); onFile(f, format); }
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [open, onFile, format]);
   useEffect(() => {
     if (!open) return;
     let live = true;
@@ -1379,7 +1436,7 @@ function PhotoPicker({ open, onOpenChange, onPick, withFormat, title = 'Add a ph
       <DialogContent className={cn('max-w-3xl max-h-[90svh] overflow-y-auto', above && 'z-[70]')}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>From {SITE_LABEL}, the shared Drive and your uploads, best for ads first.</DialogDescription>
+          <DialogDescription>From {SITE_LABEL}, the shared Drive and your uploads, best for ads first.{onFile ? ' Or your own: Photos, Files, Google Drive or iCloud (“Photos, Files or Drive”), a link to any picture or Instagram post, or paste one.' : ''}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-wrap gap-2">
           <Input value={q} onChange={e => setQ(e.target.value)} placeholder="Search — ring, emerald, bangles…" className="h-9 flex-1 min-w-[180px] text-base sm:text-sm" />
@@ -1390,10 +1447,17 @@ function PhotoPicker({ open, onOpenChange, onPick, withFormat, title = 'Add a ph
             </Select>
           )}
           {onFile && (<>
-            <Button size="sm" variant="outline" className="h-9" onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4 mr-1" /> From this device</Button>
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; if (file) onFile(file); }} />
+            {/* The system picker: Photo Library, camera, and Files, where Google Drive, iCloud and Dropbox sit. */}
+            <Button size="sm" variant="outline" className="h-9" onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4 mr-1" /> Photos, Files or Drive</Button>
+            <input ref={fileRef} type="file" accept="image/*,.heic,.heif" hidden onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; if (file) onFile(file, format); }} />
           </>)}
         </div>
+        {onFile && (
+          <form className="flex gap-2" onSubmit={e => { e.preventDefault(); void fromLink(); }}>
+            <Input value={link} onChange={e => setLink(e.target.value)} inputMode="url" placeholder="Paste a link: an Instagram post or any picture" className="h-9 flex-1 text-base sm:text-sm" />
+            <Button size="sm" type="submit" className="h-9" disabled={!link.trim() || fetching}>{fetching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add'}</Button>
+          </form>
+        )}
         {err && <p className="text-sm text-destructive">{err}</p>}
         {!items && !err && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</p>}
         {items && (
