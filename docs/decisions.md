@@ -516,7 +516,11 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   (1.47M) and 5.29M of exchange in all were missing. They now sum `invoiceSaleValue` (`lib/analytics/sale-value.ts`, tested:
   grandTotal + the exchange fields; an older invoice whose exchange sits inside a lumped payment has no field and adds nothing).
   Kept on purpose: an invoiced order still counts on the order's date, and an open order at its full `subtotal`. A rolling
-  range (last 30/90 days, this year) re-anchors when the day turns on a page left open.
+  range (this month, last 30/90 days, this year) re-anchors when the day turns on a page left open.
+
+### Analytics default: this month
+
+- **Every analytics screen opens on this month, the 1st to today** (owner, 2026-10-12: "all analytic should default to that month rather than 30 days"). `lib/analytics/range-param.ts` (`this-month` is first in `QUICK_RANGES` and is `DEFAULT_RANGE_KEY`, so a plain /analytics keeps a clean URL; Last 30 days stays one tap away) and the quick buttons in `analytics-view.tsx` read that one list. Home's collapsed ledger section is "This month" (revenue, expenses, net since the 1st). Expenses already defaulted to This month. Left as they were: the iPhone app (`apps/iphone`, native Swift: `AnalyticsDates.swift` `defaultKey`), the Ads page's own presets, and the new-arrivals 30-day window.
 
 ## People and sign-in
 

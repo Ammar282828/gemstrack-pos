@@ -180,8 +180,6 @@ export default function HomePage() {
     const todayStart = startOfDay(now);
     const monthStart = startOfMonth(now);
     const lastMonthStart = startOfMonth(subMonths(now, 1));
-    // "last 30 days" = today plus 29 prior full days, matching Analytics.
-    const last30Start = startOfDay(subDays(now, 29));
     const ordersById = new Map(orders.map(o => [o.id, o]));
 
     // Revenue recognised on the source order's date (getInvoiceRevenueDate), between two instants.
@@ -221,9 +219,9 @@ export default function HomePage() {
     // Repairs finished but not collected for a while — the customer needs a call.
     const readyWaiting = repairs.filter(r => r.status === 'ready' && r.readyAt && isValid(parseISO(r.readyAt)) && differenceInCalendarDays(now, parseISO(r.readyAt)) >= 3);
 
-    const revenue30 = rev(last30Start);
-    // net30 is a profit figure, so partner drawings stay out of it.
-    const expenses30 = expenses.filter(e => parseISO(e.date) >= last30Start && isBusinessCost(e))
+    const revenueMonth = rev(monthStart);
+    // netMonth is a profit figure, so partner drawings stay out of it.
+    const expensesMonth = expenses.filter(e => parseISO(e.date) >= monthStart && isBusinessCost(e))
       .reduce((s, e) => s + (e.amount || 0), 0);
 
     return {
@@ -234,7 +232,7 @@ export default function HomePage() {
       unpaid, totalOutstanding, owedInHisaab: owed.ledger,
       activeJobs, criticalJobs, unassignedJobs,
       due, lateDue, todayDue, readyWaiting,
-      revenue30, expenses30, net30: revenue30 - expenses30,
+      revenueMonth, expensesMonth, netMonth: revenueMonth - expensesMonth,
       recentInvoices: [...generatedInvoices]
         .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime())
         .slice(0, 12),
@@ -400,10 +398,10 @@ export default function HomePage() {
   );
 
   const month = (
-    <LedgerSection title="Last 30 days" collapsible defaultOpen={false}>
-      <Link href="/analytics" className={cn(ROW, 'justify-between')}><span className="text-ios-sub text-muted-foreground">Revenue</span><span className="text-ios-sub font-semibold tabular-nums text-tone-settled-ink">{compactPKR(stats.revenue30)}</span></Link>
-      <Link href="/analytics" className={cn(ROW, 'justify-between')}><span className="text-ios-sub text-muted-foreground">Expenses</span><span className="text-ios-sub font-semibold tabular-nums">{compactPKR(stats.expenses30)}</span></Link>
-      <Link href="/analytics" className={cn(ROW, 'justify-between')}><span className="text-ios-sub text-muted-foreground">Net</span><span className={cn('text-ios-sub font-semibold tabular-nums', stats.net30 >= 0 ? 'text-foreground' : 'text-tone-late-ink')}>{compactPKR(stats.net30)}</span></Link>
+    <LedgerSection title="This month" collapsible defaultOpen={false}>
+      <Link href="/analytics" className={cn(ROW, 'justify-between')}><span className="text-ios-sub text-muted-foreground">Revenue</span><span className="text-ios-sub font-semibold tabular-nums text-tone-settled-ink">{compactPKR(stats.revenueMonth)}</span></Link>
+      <Link href="/analytics" className={cn(ROW, 'justify-between')}><span className="text-ios-sub text-muted-foreground">Expenses</span><span className="text-ios-sub font-semibold tabular-nums">{compactPKR(stats.expensesMonth)}</span></Link>
+      <Link href="/analytics" className={cn(ROW, 'justify-between')}><span className="text-ios-sub text-muted-foreground">Net</span><span className={cn('text-ios-sub font-semibold tabular-nums', stats.netMonth >= 0 ? 'text-foreground' : 'text-tone-late-ink')}>{compactPKR(stats.netMonth)}</span></Link>
     </LedgerSection>
   );
 
