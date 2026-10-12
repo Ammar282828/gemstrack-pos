@@ -134,3 +134,17 @@ export async function retouchPhoto(photo: Buffer, parts: RetouchPart[] = RETOUCH
   const final = await sharp(out).resize({ width: CATALOGUE_EDGE, height: CATALOGUE_EDGE, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 92, mozjpeg: true }).toBuffer();
   return { image: { mimeType: 'image/jpeg', data: final.toString('base64') }, steps };
 }
+
+/**
+ * Cutting a piece out of its background (Design layer splitter, plan §4.3). NOT AVAILABLE, and said so
+ * rather than faked: the Magnific calls made here are the two retouch.ts already uses (GPT Image edit and the
+ * Precision upscaler). Magnific's background remover is offered through its MCP tool (`images_remove_background`,
+ * a PNG with alpha) and its app, but the REST path and body for it are written nowhere in this repo, and an
+ * endpoint is not guessed. The layer splitter therefore degrades to "the original photograph + the lettering as
+ * text layers". When the path is confirmed, implement it here with `magnificTask` and set `BACKGROUND_REMOVAL`;
+ * callers already handle both.
+ */
+export const BACKGROUND_REMOVAL = false;
+export async function removeBackground(_photo: Buffer): Promise<Retouched> {
+  throw new AiError('Cutting the piece out of its background isn’t available yet. The photograph stays as it is, with the lettering as layers.', 501);
+}

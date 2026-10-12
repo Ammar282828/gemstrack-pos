@@ -12,21 +12,25 @@ import {
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { Gem, LogOut, WifiOff, Search, Sun, Moon } from 'lucide-react';
-import { NEW_SALE, SETTINGS, sidebarFor, forRole, locate, type NavEntry } from '@/lib/nav';
+import { NEW_SALE, SETTINGS, sidebarFor, forRole, locate, pageTitle, type NavEntry } from '@/lib/nav';
 import { useWorkDrafts } from '@/components/drafts/use-work-drafts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { CommandPalette, openCommandPalette } from '@/components/search/command-palette';
 import { VoiceBubble } from '@/components/voice/voice-bubble';
-import { NewBubble } from '@/components/layout/new-bubble';
+import { TabBar } from '@/components/layout/tab-bar';
+import { CreateMenu } from '@/components/layout/create-menu';
+import { MapSheet } from '@/components/layout/map-sheet';
+import { PageBack } from '@/components/shared/page-back';
+import { hidesTabBar, isRootPage, showsCreateCluster, tabEntries } from '@/lib/tab-bar';
 import { TeamNote } from '@/components/shared/team-note';
 import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LOGO_SIDEBAR_HEIGHT } from '@/lib/store-config';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { useScrolled } from '@/lib/use-scrolled';
+import { useScrolled, useTitleScrolledOut } from '@/lib/use-scrolled';
 import { roleForEmail } from '@/lib/roles';
 import { devRole, captureDevRole } from '@/lib/dev-role';
 import { writeDeviceTheme } from '@/lib/theme-cache';
@@ -78,7 +82,7 @@ function SidebarSearch() {
         <SidebarMenuButton
           onClick={() => { if (isMobile) setOpenMobile(false); openCommandPalette(); }}
           tooltip={{ children: 'Search (⌘K)' }}
-          className="sidebar-search justify-start gap-3 rounded-lg border border-input bg-background text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:border-0"
+          className="sidebar-search justify-start gap-3 rounded-full border-0 bg-muted text-muted-foreground hover:text-foreground"
         >
           <Search />
           <span className="flex-1 group-data-[collapsible=icon]:hidden">Search</span>
@@ -128,6 +132,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // The glass top bar's scroll edge shows only once content passes beneath it. Above the early
   // return below: a hook after it changes the hook count the render the store hydrates.
   const scrolled = useScrolled('.app-inset > main');
+  // The phone's Search tab opens the map as a sheet; the bar's centre shows the title once the large one has scrolled out.
+  const [mapOpen, setMapOpen] = useState(false);
+  const titleOut = useTitleScrolledOut('.app-inset > main', pathname);
+  useEffect(() => { setMapOpen(false); }, [pathname]);
 
   // A marketing account (roles.ts) has only the Marketing group: any other address — the dashboard
   // included, which shows the day's money — sends it to the first page it may open. The server refuses
@@ -158,7 +166,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // shows the row's tabs whenever there is more than one to choose between.
   const entries: NavEntry[] = [...visibleGroups.flatMap(g => g.entries), ...(settingsEntry ? [settingsEntry] : [])];
   const here = locate(pathname, entries);
+  const tabs = tabEntries(navRole, visibleGroups);
+  const barHidden = hidesTabBar(pathname);
+  const createShown = showsCreateCluster(pathname, navRole) && !!newSaleEntry;
+  const rootPage = isRootPage(pathname, here?.entry);
+  const phoneTitle = pageTitle(pathname, entries) ?? here?.entry.label;
   const pageTabs = here?.tab && here.entry.tabs && here.entry.tabs.length > 1 ? here.entry.tabs : null;
+  // On a phone the Settings index is itself the list of its pages (`phoneIndex`), so the tab row would only repeat it.
+  const phoneTabs = pageTabs && !(here?.entry.phoneIndex && pathname === here.entry.href) ? pageTabs : null;
   // `phone`: the row under the bar, one segmented group filling the width (glass or not); otherwise the
   // tabs beside the menu, underlined (or glass pills, globals.css .app-tabs).
   const renderTabs = (className: string, phone: boolean) => pageTabs && (
@@ -199,7 +214,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <RateSheet />
         <div className="app-inset flex min-h-dvh w-full flex-col">
           {!isOnline && (
-            <div className="flex items-center justify-center gap-2 px-4 py-2 bg-warning text-warning text-sm font-medium">
+            <div className="flex items-center justify-center gap-2 px-4 py-2 bg-tone-owed/[.13] text-tone-owed-ink text-sm font-medium">
               <WifiOff className="w-4 h-4 flex-shrink-0" />
               You're offline — changes will sync when reconnected.
             </div>
@@ -216,8 +231,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <CommandPalette />
         {/* The microphone floats over every screen. */}
         <VoiceBubble />
-        {/* Home's New: an invoice or an order, one tap from the first screen (owner, 2026-10-10). */}
-        {pathname === '/' && newSaleEntry && <NewBubble />}
+        {/* The create cluster (New invoice, New order, New sale…) beside the microphone, on the phone's tab roots. */}
+        <CreateMenu navRole={navRole} show={createShown} />
+        {/* Phone: the bottom tab bar, and the Search tab's sheet, the whole map. */}
+        <TabBar navRole={navRole} tabs={tabs} mapOpen={mapOpen} onSearch={() => setMapOpen(true)} onlineWaiting={navRole === 'owner' ? onlineWaiting : 0} />
+        <MapSheet
+          open={mapOpen} onOpenChange={setMapOpen} navRole={navRole} groups={visibleGroups} settings={settingsEntry}
+          pathname={pathname} draftCount={draftCount} onlineWaiting={navRole === 'owner' ? onlineWaiting : 0}
+          user={user} onSignOut={signOut} themeToggle={<ThemeToggle />}
+        />
         {/* The rate form, opened by the top bar's chip (or openRateSheet()). */}
         <RateSheet />
         <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
@@ -259,7 +281,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <SidebarMenuItem>
                 <Link href={newSaleEntry.href} legacyBehavior passHref>
                   <SidebarMenuButton asChild tooltip={{ children: newSaleEntry.label }}
-                    className="glass-prominent justify-center gap-2 rounded-lg bg-primary font-medium text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground data-[active=true]:bg-primary data-[active=true]:text-primary-foreground">
+                    className="glass-prominent justify-center gap-2 rounded-full bg-primary font-medium text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground data-[active=true]:bg-primary data-[active=true]:text-primary-foreground">
                     <a><newSaleEntry.icon /><span className="group-data-[collapsible=icon]:hidden">{newSaleEntry.label}</span></a>
                   </SidebarMenuButton>
                 </Link>
@@ -272,7 +294,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {visibleGroups.map((group, gi) => (
                 <SidebarGroup key={group.key} className={gi === 0 ? 'pt-2' : 'pt-0'}>
                   {group.label && (
-                    <SidebarGroupLabel className="sidebar-group-label text-2xs font-semibold uppercase tracking-widest text-muted-foreground/70 px-3 pb-1 group-data-[collapsible=icon]:hidden">
+                    <SidebarGroupLabel className="sidebar-group-label px-3 pb-1 group-data-[collapsible=icon]:hidden">
                       {group.label}
                     </SidebarGroupLabel>
                   )}
@@ -287,9 +309,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 asChild
                                 isActive={isActive}
                                 tooltip={{ children: item.label }}
-                                className="justify-start gap-3 rounded-lg"
+                                className="justify-start gap-3"
                               >
-                                <a className={cn(isActive && 'font-medium')}>
+                                <a>
                                   <item.icon />
                                   <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                                   {item.count === 'drafts' && draftCount > 0 && (
@@ -321,8 +343,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <SidebarMenu className="mb-1">
                 <SidebarMenuItem>
                   <Link href={settingsEntry.href} legacyBehavior passHref>
-                    <SidebarMenuButton asChild isActive={here?.entry.id === settingsEntry.id} tooltip={{ children: 'Settings' }} className="justify-start gap-3 rounded-lg">
-                      <a className={cn(here?.entry.id === settingsEntry.id && 'font-medium')}>
+                    <SidebarMenuButton asChild isActive={here?.entry.id === settingsEntry.id} tooltip={{ children: 'Settings' }} className="justify-start gap-3">
+                      <a>
                         <settingsEntry.icon />
                         <span className="group-data-[collapsible=icon]:hidden">Settings</span>
                       </a>
@@ -341,8 +363,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <p className="text-xs font-semibold truncate leading-tight">{user.displayName || user.email}</p>
                   {user.displayName && <p className="text-2xs text-muted-foreground truncate leading-tight">{user.email}</p>}
                 </div>
-                {/* The top bar's light/dark switch, which a phone's bar leaves out. */}
-                <span className="md:hidden"><ThemeToggle /></span>
                 <button
                   onClick={signOut}
                   title="Sign out"
@@ -364,36 +384,43 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset className={cn('app-inset', pageTabs && 'has-page-tabs')}>
-          <header data-scrolled={scrolled || undefined} className="app-header sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b">
+        <SidebarInset className={cn('app-inset', phoneTabs && 'has-page-tabs')}>
+          <header data-scrolled={scrolled || undefined} className="app-header sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b max-md:border-b-transparent max-md:data-[scrolled]:border-border">
             <div className="flex h-14 items-center gap-2 px-4 md:px-6">
             {/* Was md:hidden, which meant the sidebar could collapse to icons
                 on paper but there was no way to trigger it on a desktop. On a
                 1280px screen the rail is a fifth of the width; collapsing it
                 is what makes the wide tables fit. Cmd/Ctrl+B also toggles. */}
-            <SidebarTrigger className="glass-ctl" />
+            {/* A phone has the tab bar and the map sheet instead of a menu (docs/features/web-matches-app.md, c.3). */}
+            <SidebarTrigger className="glass-ctl max-md:!hidden" />
             <span className="hidden lg:inline text-2xs text-muted-foreground">⌘B</span>
+            {/* Phone, deeper than a tab root: back to the place it sits under, as the app's navigation bar does. */}
+            {!rootPage && here && (
+              <PageBack layout fallback={here.entry.href} label={here.entry.label} className="md:hidden max-w-[40%] truncate text-[17px]" />
+            )}
             {/* The page's siblings (lib/nav.ts): one sidebar entry, several pages. Beside the menu from
                 md; on a phone their own row below, where they had been squeezed between the menu and
                 the rate, cut off mid-word (owner, 2026-10-10: "a weird tab bar on the top"). */}
             {pageTabs && renderTabs('ml-2 hidden min-w-0 overflow-x-auto self-stretch md:flex', false)}
-            <div className="ml-auto -mr-1 flex shrink-0 items-center gap-1">
-            {/* The shop's rate and when it was set, on every page. */}
-            <RateChip />
-            {/* Light or dark: from md here; on a phone in the menu's footer, one control fewer up top. */}
+            {/* The page's title, once the large one has scrolled out (phone). */}
+            <span
+              aria-hidden={!titleOut}
+              className={cn('pointer-events-none absolute inset-x-24 truncate text-center text-[17px] font-semibold transition-opacity duration-150 md:hidden', titleOut ? 'opacity-100' : 'opacity-0')}
+            >{phoneTitle}</span>
+            {/* The shop's rate and when it was set, on every page: leading on a phone's tab roots, else trailing. */}
+            <span className={cn('shrink-0', rootPage ? 'max-md:order-first max-md:mr-auto md:ml-auto' : 'ml-auto')}><RateChip /></span>
+            <div className="-mr-1 flex shrink-0 items-center gap-1">
+            {/* Light or dark: from md here; on a phone in the map sheet's account block. */}
             <span className="hidden md:inline-flex"><ThemeToggle /></span>
-            {/* On a phone the sidebar is behind a tap; search is one tap from here. */}
-            <button
-              type="button"
-              onClick={openCommandPalette}
-              aria-label="Search"
-              className="glass-ctl rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
-            >
-              <Search className="h-5 w-5" />
-            </button>
+            {/* Home, owners, phone: the account monogram opens Settings, as the app's top-right does. */}
+            {pathname === '/' && navRole === 'owner' && settingsEntry && (
+              <Link href={settingsEntry.href} aria-label="Settings" className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/[.13] text-sm font-semibold text-primary md:hidden">
+                {(user?.displayName?.[0] ?? user?.email?.[0] ?? '?').toUpperCase()}
+              </Link>
+            )}
             </div>
             </div>
-            {pageTabs && (
+            {phoneTabs && (
               <div className="flex h-11 items-start px-4 md:hidden">
                 {renderTabs('w-full overflow-x-auto', true)}
               </div>
@@ -402,7 +429,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Offline banner */}
           {!isOnline && (
-            <div className="flex items-center justify-center gap-2 px-4 py-2 bg-warning text-warning text-sm font-medium">
+            <div className="flex items-center justify-center gap-2 px-4 py-2 bg-tone-owed/[.13] text-tone-owed-ink text-sm font-medium">
               <WifiOff className="w-4 h-4 flex-shrink-0" />
               You're offline — changes will sync when reconnected.
             </div>
@@ -411,8 +438,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* overflow-x-clip, not overflow-auto: an overflow-auto <main> that never scrolls (the window does) is still the
               scroll box every `sticky` inside it measures against, so no column or toolbar ever stuck (found 2026-10-04).
               Clip keeps a wide page from widening the screen; tables scroll in their own wrapper (ui/table.tsx). */}
-          {/* pb-28 on a phone: the floating microphone (and Home's New bubble) never sit over the last row. */}
-          <main className="flex-1 min-w-0 p-4 pb-28 overflow-x-clip md:p-6">
+          {/* On a phone: clear of the tab bar (49px + the home indicator), plus the floating mic and "+" on tab roots
+              (the app's safeAreaPadding(.bottom, 76)); pb-28 where the bar steps aside. */}
+          <main className={cn(
+            'flex-1 min-w-0 p-4 overflow-x-clip md:p-6',
+            // The microphone floats on every page, so every page clears it, not only the tab roots.
+            barHidden ? 'pb-28' : 'pb-[calc(49px+env(safe-area-inset-bottom)+76px)]',
+          )}>
             <TeamNote owner={role === 'owner'} />
             {children}
           </main>

@@ -21,8 +21,9 @@ import { useAppStore, Order, Invoice, Repair, getInvoiceRevenueDate, repairTotal
 import { buildWorkshopJobs, UNASSIGNED_ID, CRITICAL_DAYS } from '@/lib/workshop';
 import { orderTiming, isActiveOrder, timingLabel, type OrderTiming } from '@/lib/order-timing';
 import { useAppReady } from '@/hooks/use-store';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, CalendarClock, Hammer, AlertTriangle, Receipt, CheckCircle2, Wallet, CalendarDays } from 'lucide-react';
+import { ChevronRight, CheckCircle2, Globe, Hammer, CalendarClock, Gem, Receipt, Cake, Wrench, Coins, UserX } from 'lucide-react';
+import { DateLeaf, EmptyState, FigureTile, HeroAmount, LedgerSection, Monogram, Pill, toneClasses, type Tone } from '@/components/ledger';
+import { lacCrore } from '@/lib/money';
 import { format, parseISO, subDays, startOfDay, startOfMonth, subMonths, differenceInCalendarDays, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { isBusinessCost } from '@/lib/partnership';
@@ -32,46 +33,30 @@ import { revenueForPeriod } from '@/lib/analytics/revenue-period';
 import { useOnlineWaiting, useSellingPausedForRates } from '@/lib/website/online-client';
 import { awaitingTransfer, bookedAsSale } from '@/lib/order-stage';
 
-/** PKR at a glance. Exact value stays available on hover. */
+/** PKR at a glance, in lac and crore (lib/money.ts); the exact value stays on hover. */
 function compactPKR(n: number): string {
-  const abs = Math.abs(n);
-  // 999_500 rather than 1_000_000: rounding 999,999 to the nearest thousand
-  // gives "1000k", which is worse than "1M".
-  if (abs >= 999_500) return `PKR ${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M`;
-  if (abs >= 100_000) return `PKR ${Math.round(n / 1000)}k`;
-  return `PKR ${n.toLocaleString()}`;
+  return `PKR ${lacCrore(n)}`;
 }
 
-/** One of the four headline figures. Large enough to read across a counter. */
-const Headline: React.FC<{
-  label: string; value: string; sub?: string; tone?: string; href: string; icon: React.ReactNode; exact?: string;
-}> = ({ label, value, sub, tone, href, icon, exact }) => (
-  <Link href={href}
-    className="rounded-xl border bg-card p-3 sm:p-4 hover:border-primary/40 transition-colors group min-w-0"
-    title={exact}>
-    <div className="flex items-center gap-1.5 text-muted-foreground">
-      <span className="flex-shrink-0">{icon}</span>
-      <span className="text-2xs sm:text-xs uppercase tracking-wide truncate">{label}</span>
-      <ArrowRight className="h-3.5 w-3.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 hidden sm:block" />
-    </div>
-    <p className={cn('text-xl sm:text-2xl xl:text-3xl font-bold tabular-nums mt-1 truncate', tone)}>{value}</p>
-    {sub && <p className="text-2xs sm:text-xs text-muted-foreground truncate mt-0.5">{sub}</p>}
-  </Link>
-);
+/** A row's trailing disclosure: the system chevron. */
+const Chevron = () => <ChevronRight aria-hidden className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/60" />;
 
-/** A row in "Needs you" — one thing waiting on a decision. */
+const ROW = 'flex min-h-[56px] items-center gap-3 py-3 transition-colors active:bg-muted/60 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40';
+
+/** A row in "Needs you": an icon tile in the tone, a title, a caption. One thing waiting on a decision. */
 const TaskRow: React.FC<{
-  href: string; title: string; detail: string; amount?: string; tone: 'danger' | 'warn' | 'plain';
-}> = ({ href, title, detail, amount, tone }) => (
-  <Link href={href} className="flex items-center gap-3 py-2.5 px-1.5 rounded-md hover:bg-muted/50 transition-colors group">
-    <span className={cn('h-1.5 w-1.5 rounded-full flex-shrink-0',
-      tone === 'danger' ? 'bg-destructive' : tone === 'warn' ? 'bg-warning' : 'bg-muted-foreground/40')} />
-    <span className="min-w-0 flex-1">
-      <span className="block text-sm font-medium truncate">{title}</span>
-      <span className="block text-xs text-muted-foreground truncate">{detail}</span>
+  href: string; title: string; detail: string; amount?: string; tone: Tone; icon: React.ComponentType<{ className?: string }>;
+}> = ({ href, title, detail, amount, tone, icon: Icon }) => (
+  <Link href={href} className={ROW}>
+    <span aria-hidden className={cn('flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[30%]', toneClasses(tone).tint10, toneClasses(tone).ink)}>
+      <Icon className="h-5 w-5" />
     </span>
-    {amount && <span className="text-xs font-semibold tabular-nums flex-shrink-0">{amount}</span>}
-    <ArrowRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+    <span className="min-w-0 flex-1">
+      <span className="block truncate text-ios-sub font-semibold text-foreground">{title}</span>
+      <span className="block truncate text-ios-foot text-muted-foreground">{detail}</span>
+    </span>
+    {amount && <span className="flex-shrink-0 text-ios-sub font-semibold tabular-nums">{amount}</span>}
+    <Chevron />
   </Link>
 );
 
@@ -88,65 +73,61 @@ interface Due {
 
 const DueRow: React.FC<{ d: Due }> = ({ d }) => {
   const t = d.timing;
-  const late = t.state === 'late';
-  const today = t.state === 'today';
-  const when = t.due ? (late || today ? timingLabel(t) : format(t.due, 'EEE d MMM')) : t.state === 'late' ? timingLabel(t) : 'no date';
+  const tone: Tone = t.state === 'late' ? 'late' : t.state === 'today' ? 'owed' : 'quiet';
+  const when = t.due ? (t.state === 'late' || t.state === 'today' ? timingLabel(t) : '') : t.state === 'late' ? timingLabel(t) : 'no date';
   return (
-    <Link href={d.href} className="block py-2.5 px-1.5 hover:bg-muted/50 rounded-md transition-colors">
-      <div className="flex items-baseline justify-between gap-3 min-w-0">
-        <span className="flex items-baseline gap-2 min-w-0">
-          <span className={cn('h-1.5 w-1.5 rounded-full flex-shrink-0 translate-y-[-1px]', late ? 'bg-destructive' : today ? 'bg-warning' : 'bg-muted-foreground/40')} />
-          <span className="font-semibold text-sm truncate">{d.customer}</span>
+    <Link href={d.href} className={ROW}>
+      {t.due ? (
+        <DateLeaf date={t.due} tone={tone} size={44} />
+      ) : (
+        <span aria-hidden className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-leaf bg-muted-foreground/10 text-muted-foreground"><CalendarClock className="h-5 w-5" /></span>
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-ios-sub font-semibold text-foreground">{d.customer}</span>
+        <span className="block truncate text-ios-foot text-muted-foreground">
+          {d.kind === 'repair' ? 'Repair · ' : ''}{d.id}
+          {when && <span className={cn('font-medium', tone !== 'quiet' && toneClasses(tone).ink)}> · {when}</span>}
         </span>
-        <span className={cn('text-xs font-medium tabular-nums flex-shrink-0', late ? 'text-destructive' : today ? 'text-warning' : 'text-muted-foreground')}>{when}</span>
-      </div>
-      <div className="flex items-baseline justify-between gap-3 mt-1 pl-3.5">
-        <span className="text-xs text-muted-foreground truncate">{d.kind === 'repair' ? 'Repair · ' : ''}<span className="font-mono">{d.id}</span></span>
-        {d.amount > 0 && <span className="text-xs text-muted-foreground tabular-nums flex-shrink-0">PKR {d.amount.toLocaleString()}</span>}
-      </div>
+      </span>
+      {d.amount > 0 && <span className="flex-shrink-0 text-ios-sub font-semibold tabular-nums">{compactPKR(d.amount)}</span>}
+      <Chevron />
     </Link>
   );
 };
 
-const RecentInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice }) => (
-  <Link href={`/invoices/${invoice.id}`} className="block py-2.5 px-1.5 hover:bg-muted/50 rounded-md transition-colors">
-    <div className="flex items-baseline justify-between gap-3 min-w-0">
-      <span className="font-semibold text-sm truncate">{invoice.customerName || 'Walk-in'}</span>
-      <span className={cn('text-sm font-semibold tabular-nums flex-shrink-0', (invoice.balanceDue || 0) > 0 && 'text-warning')}>
-        {compactPKR(invoiceSaleValue(invoice))}
+const RecentInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice }) => {
+  const owing = (invoice.balanceDue || 0) > 0;
+  return (
+    <Link href={`/invoices/${invoice.id}`} className={ROW}>
+      <Monogram name={invoice.customerName || 'Walk-in'} size={40} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-ios-sub font-semibold text-foreground">{invoice.customerName || 'Walk-in'}</span>
+        <span className="block truncate text-ios-foot text-muted-foreground">{format(parseISO(invoice.createdAt), 'EEE d MMM')}</span>
       </span>
-    </div>
-    <div className="flex items-baseline justify-between gap-3 mt-1">
-      <span className="text-xs text-muted-foreground truncate">{format(parseISO(invoice.createdAt), 'EEE d MMM')}</span>
-      {(invoice.balanceDue || 0) > 0 && (
-        <span className="text-xs text-warning tabular-nums flex-shrink-0">
-          {invoice.balanceDue >= (invoice.grandTotal || 0) ? 'unpaid' : `${compactPKR(invoice.balanceDue)} due`}
-        </span>
-      )}
-    </div>
-  </Link>
+      <span className="flex flex-shrink-0 flex-col items-end gap-1">
+        <span className="text-ios-sub font-semibold tabular-nums">{compactPKR(invoiceSaleValue(invoice))}</span>
+        {owing && (
+          <Pill tone="owed">{invoice.balanceDue >= (invoice.grandTotal || 0) ? 'Unpaid' : `${compactPKR(invoice.balanceDue)} due`}</Pill>
+        )}
+      </span>
+      <Chevron />
+    </Link>
+  );
+};
+
+/** "Show n more" under a list that shows its first three. */
+const ShowMore: React.FC<{ hidden: number; onClick: () => void }> = ({ hidden, onClick }) => (
+  <button type="button" onClick={onClick} className="flex min-h-11 w-full items-center text-ios-sub font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40">
+    Show {hidden} more
+  </button>
 );
 
-/** A panel that scrolls inside itself so the board keeps its height. */
-const Panel: React.FC<{
-  title: string; icon: React.ReactNode; href?: string; count?: number; children: React.ReactNode;
-}> = ({ title, icon, href, count, children }) => (
-  <Card className="flex flex-col lg:min-h-0 overflow-hidden">
-    <CardHeader className="pb-2 px-4 pt-4 flex flex-row items-center gap-2 justify-between space-y-0 flex-shrink-0">
-      <CardTitle className="text-sm font-semibold flex items-center gap-1.5 min-w-0">
-        <span className="flex-shrink-0 text-muted-foreground">{icon}</span>
-        <span className="truncate">{title}</span>
-        {count !== undefined && count > 0 && (
-          <span className="flex-shrink-0 text-2xs font-normal text-muted-foreground tabular-nums">{count}</span>
-        )}
-      </CardTitle>
-      {href && (
-        <Link href={href} className="flex-shrink-0 text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5">All <ArrowRight className="h-3.5 w-3.5" /></Link>
-      )}
-    </CardHeader>
-    <CardContent className="flex-1 lg:min-h-0 overflow-y-auto px-3 pb-3 pt-0">{children}</CardContent>
-  </Card>
+/** A figure that opens its screen: the tile, made a link. */
+const TileLink: React.FC<{ href: string; title?: string; children: React.ReactNode }> = ({ href, title, children }) => (
+  <Link href={href} title={title} className="block min-w-0 rounded-card transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:opacity-80">{children}</Link>
 );
+
+const SHOWN = 3;
 
 /** Late first, then today, then soonest, then the undated by age. */
 const dueOrder = (t: OrderTiming) => (t.state === 'late' ? 0 : t.state === 'today' ? 1 : t.due ? 2 : 3);
@@ -199,8 +180,6 @@ export default function HomePage() {
     const todayStart = startOfDay(now);
     const monthStart = startOfMonth(now);
     const lastMonthStart = startOfMonth(subMonths(now, 1));
-    // "last 30 days" = today plus 29 prior full days, matching Analytics.
-    const last30Start = startOfDay(subDays(now, 29));
     const ordersById = new Map(orders.map(o => [o.id, o]));
 
     // Revenue recognised on the source order's date (getInvoiceRevenueDate), between two instants.
@@ -240,9 +219,9 @@ export default function HomePage() {
     // Repairs finished but not collected for a while — the customer needs a call.
     const readyWaiting = repairs.filter(r => r.status === 'ready' && r.readyAt && isValid(parseISO(r.readyAt)) && differenceInCalendarDays(now, parseISO(r.readyAt)) >= 3);
 
-    const revenue30 = rev(last30Start);
-    // net30 is a profit figure, so partner drawings stay out of it.
-    const expenses30 = expenses.filter(e => parseISO(e.date) >= last30Start && isBusinessCost(e))
+    const revenueMonth = rev(monthStart);
+    // netMonth is a profit figure, so partner drawings stay out of it.
+    const expensesMonth = expenses.filter(e => parseISO(e.date) >= monthStart && isBusinessCost(e))
       .reduce((s, e) => s + (e.amount || 0), 0);
 
     return {
@@ -253,7 +232,7 @@ export default function HomePage() {
       unpaid, totalOutstanding, owedInHisaab: owed.ledger,
       activeJobs, criticalJobs, unassignedJobs,
       due, lateDue, todayDue, readyWaiting,
-      revenue30, expenses30, net30: revenue30 - expenses30,
+      revenueMonth, expensesMonth, netMonth: revenueMonth - expensesMonth,
       recentInvoices: [...generatedInvoices]
         .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime())
         .slice(0, 12),
@@ -274,7 +253,7 @@ export default function HomePage() {
     // taheri.shop sells only at a rate set in the last 36 hours (lib/website/config.ts ratesFresh).
     if (ratePause) {
       out.push({
-        href: '/settings?tab=rates', tone: 'danger',
+        href: '/settings?tab=rates', tone: 'late', icon: Coins,
         title: "Set today's gold rate — online selling is paused",
         detail: ratePause.ratesUpdatedAt ? `Last set ${new Date(ratePause.ratesUpdatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · the rate chip at the top` : 'The rate chip at the top',
       });
@@ -283,7 +262,7 @@ export default function HomePage() {
     // An online order nobody has looked at: the customer is waiting for the bank details.
     if (onlineWaiting > 0) {
       out.push({
-        href: '/orders', tone: 'danger',
+        href: '/orders', tone: 'late', icon: Globe,
         title: onlineWaiting === 1 ? 'An online order to confirm' : `${onlineWaiting} online orders to confirm`,
         detail: 'From taheri.shop · they get the bank details when you confirm',
       });
@@ -292,7 +271,7 @@ export default function HomePage() {
     if (stats.lateDue.length) {
       const worst = stats.lateDue[0];
       out.push({
-        href: worst.href, tone: 'danger',
+        href: worst.href, tone: 'late', icon: CalendarClock,
         title: stats.lateDue.length === 1 ? `${worst.customer}’s ${worst.kind} is late` : `${stats.lateDue.length} promises past their date`,
         detail: stats.lateDue.length === 1 ? timingLabel(worst.timing) : `Longest: ${worst.customer}, ${timingLabel(worst.timing)}`,
       });
@@ -310,13 +289,13 @@ export default function HomePage() {
     }
     for (const k of [...byKarigar.values()].sort((a, b) => b.oldest - a.oldest).slice(0, 4)) {
       out.push({
-        href: '/workshop', tone: 'danger', title: k.name,
+        href: '/workshop', tone: 'late', icon: Hammer, title: k.name,
         detail: k.count === 1 ? `1 piece, ${k.oldest} days on the bench` : `${k.count} pieces overdue · longest ${k.oldest} days`,
       });
     }
     if (stats.unassignedJobs.length) {
       out.push({
-        href: '/workshop', tone: 'danger',
+        href: '/workshop', tone: 'late', icon: UserX,
         title: `${stats.unassignedJobs.length} unassigned piece${stats.unassignedJobs.length === 1 ? '' : 's'}`,
         detail: 'Nobody is making these yet',
       });
@@ -324,7 +303,7 @@ export default function HomePage() {
 
     for (const inv of stats.unpaid.slice(0, 3)) {
       out.push({
-        href: `/invoices/${inv.id}`, tone: 'warn',
+        href: `/invoices/${inv.id}`, tone: 'owed', icon: Receipt,
         title: inv.customerName || 'Walk-in',
         detail: `Unpaid since ${format(parseISO(inv.createdAt), 'd MMM')}`,
         amount: compactPKR(inv.balanceDue || 0),
@@ -333,7 +312,7 @@ export default function HomePage() {
     const rest = stats.unpaid.slice(3);
     if (rest.length) {
       out.push({
-        href: '/invoices', tone: 'warn',
+        href: '/invoices', tone: 'owed', icon: Receipt,
         title: `${rest.length} more unpaid`, detail: 'Smaller balances',
         amount: compactPKR(rest.reduce((s, i) => s + (i.balanceDue || 0), 0)),
       });
@@ -341,7 +320,7 @@ export default function HomePage() {
 
     for (const r of stats.readyWaiting.slice(0, 3)) {
       out.push({
-        href: `/repairs?id=${encodeURIComponent(r.id)}`, tone: 'warn',
+        href: `/repairs?id=${encodeURIComponent(r.id)}`, tone: 'owed', icon: Wrench,
         title: `${r.customerName || 'Walk-in'}’s repair is ready`,
         detail: `Waiting to be collected since ${format(parseISO(r.readyAt!), 'd MMM')}`,
       });
@@ -349,13 +328,16 @@ export default function HomePage() {
 
     for (const o of upcomingOccasions(customers).slice(0, 4)) {
       out.push({
-        href: `/customers/${o.customerId}`, tone: o.inDays <= 1 ? 'warn' : 'plain',
+        href: `/customers/${o.customerId}`, tone: o.inDays <= 1 ? 'owed' : 'quiet', icon: Cake,
         title: o.customerName, detail: `${o.kind === 'birthday' ? 'Birthday' : 'Anniversary'} ${occasionWhen(o.inDays)}`,
       });
     }
 
     return out;
   }, [stats, customers, onlineWaiting, ratePause]);
+
+  const [moreNeeds, setMoreNeeds] = React.useState(false);
+  const [moreDue, setMoreDue] = React.useState(false);
 
   if (!appReady) {
     return (
@@ -366,82 +348,114 @@ export default function HomePage() {
   }
 
   const monthSub = stats.lastMonthRevenue > 0 ? `Last month ${compactPKR(stats.lastMonthRevenue)}` : format(new Date(), 'MMMM');
+  const lastSale = stats.recentInvoices[0];
+  const lastSaleToday = !!lastSale && startOfDay(parseISO(lastSale.createdAt)).getTime() === startOfDay(new Date()).getTime();
+  const shownTasks = moreNeeds ? tasks : tasks.slice(0, SHOWN);
+  const shownDue = moreDue ? stats.due : stats.due.slice(0, SHOWN);
+
+  const needs = (
+    <LedgerSection title="Needs you" count={tasks.length || undefined}>
+      {tasks.length === 0 ? (
+        <EmptyState icon={<CheckCircle2 className="text-tone-settled" />} title="All clear" description="Nothing late, unpaid or waiting." className="py-8" />
+      ) : (
+        <>
+          {shownTasks.map((t, i) => <TaskRow key={`${t.href}-${i}`} {...t} />)}
+          {tasks.length > SHOWN && !moreNeeds && <ShowMore hidden={tasks.length - SHOWN} onClick={() => setMoreNeeds(true)} />}
+        </>
+      )}
+    </LedgerSection>
+  );
+
+  const dueList = (
+    <LedgerSection
+      title="Due to customers"
+      count={stats.due.length || undefined}
+      tone={stats.lateDue.length ? 'late' : undefined}
+      trailing={<Link href="/orders" className="inline-flex items-center gap-0.5 hover:text-foreground">All<ChevronRight aria-hidden className="h-3.5 w-3.5" /></Link>}
+    >
+      {stats.due.length === 0 ? (
+        <EmptyState icon={<CalendarClock />} title="Nothing due" description="No open orders or repairs." className="py-8" />
+      ) : (
+        <>
+          {shownDue.map(d => <DueRow key={d.key} d={d} />)}
+          {stats.due.length > SHOWN && !moreDue && <ShowMore hidden={stats.due.length - SHOWN} onClick={() => setMoreDue(true)} />}
+        </>
+      )}
+    </LedgerSection>
+  );
+
+  const sales = (
+    <LedgerSection
+      title="Recent sales"
+      trailing={<Link href="/invoices" className="inline-flex items-center gap-0.5 hover:text-foreground">All<ChevronRight aria-hidden className="h-3.5 w-3.5" /></Link>}
+    >
+      {stats.recentInvoices.length === 0 ? (
+        <EmptyState icon={<Gem />} title="No sales yet" className="py-8" />
+      ) : (
+        stats.recentInvoices.map(i => <RecentInvoiceRow key={i.id} invoice={i} />)
+      )}
+    </LedgerSection>
+  );
+
+  const month = (
+    <LedgerSection title="This month" collapsible defaultOpen={false}>
+      <Link href="/analytics" className={cn(ROW, 'justify-between')}><span className="text-ios-sub text-muted-foreground">Revenue</span><span className="text-ios-sub font-semibold tabular-nums text-tone-settled-ink">{compactPKR(stats.revenueMonth)}</span></Link>
+      <Link href="/analytics" className={cn(ROW, 'justify-between')}><span className="text-ios-sub text-muted-foreground">Expenses</span><span className="text-ios-sub font-semibold tabular-nums">{compactPKR(stats.expensesMonth)}</span></Link>
+      <Link href="/analytics" className={cn(ROW, 'justify-between')}><span className="text-ios-sub text-muted-foreground">Net</span><span className={cn('text-ios-sub font-semibold tabular-nums', stats.netMonth >= 0 ? 'text-foreground' : 'text-tone-late-ink')}>{compactPKR(stats.netMonth)}</span></Link>
+    </LedgerSection>
+  );
 
   return (
-    <div className="container mx-auto px-3 py-4 md:px-4 space-y-4 lg:h-[calc(100dvh-6.5rem)] lg:flex lg:flex-col lg:space-y-4 lg:overflow-hidden">
+    <div className="container mx-auto max-w-[1240px] space-y-5 px-4 py-5 md:py-6">
 
-      <header className="flex-shrink-0 min-w-0">
-        <h1 className="text-2xl md:text-3xl font-bold text-primary truncate">{settings?.shopName || 'Dashboard'}</h1>
-        <p className="text-sm text-muted-foreground">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
+      <header className="min-w-0 space-y-0.5">
+        <p className="text-ios-cap font-semibold uppercase tracking-[.8px] text-muted-foreground">{format(new Date(), 'EEEE, d MMMM')}</p>
+        <h1 className="truncate text-ios-large font-bold text-foreground">{settings?.shopName || 'Dashboard'}</h1>
       </header>
 
-      {/* Two by two until the board is wide enough for four; the labels were truncating at four across a laptop. */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-3 flex-shrink-0">
-        <Headline label="Taken today" href="/invoices" icon={<Wallet className="h-4 w-4" />}
-          value={compactPKR(stats.todayRevenue)} exact={`PKR ${stats.todayRevenue.toLocaleString()}`}
-          tone={stats.todayRevenue > 0 ? 'text-success' : undefined}
-          sub={`${stats.todayInvoiceCount} invoice${stats.todayInvoiceCount === 1 ? '' : 's'} today`} />
-        <Headline label="This month" href="/analytics" icon={<CalendarDays className="h-4 w-4" />}
-          value={compactPKR(stats.monthRevenue)} exact={`PKR ${stats.monthRevenue.toLocaleString()}`}
-          sub={monthSub} />
-        <Headline label="Owed to you" href={stats.owedInHisaab > 0 ? '/hisaab' : '/invoices'} icon={<Receipt className="h-4 w-4" />}
-          value={stats.totalOutstanding > 0 ? compactPKR(stats.totalOutstanding) : 'Nil'}
-          exact={stats.owedInHisaab > 0
-            ? `PKR ${stats.totalOutstanding.toLocaleString()} — invoices ${(stats.totalOutstanding - stats.owedInHisaab).toLocaleString()}, hisaab ${stats.owedInHisaab.toLocaleString()}`
-            : `PKR ${stats.totalOutstanding.toLocaleString()}`}
-          tone={stats.totalOutstanding > 0 ? 'text-destructive' : undefined}
-          sub={stats.owedInHisaab > 0 ? `${stats.unpaid.length} unpaid · ${compactPKR(stats.owedInHisaab).replace(/^PKR\s*/, '')} hisaab` : `${stats.unpaid.length} unpaid`} />
-        <Headline label="On the bench" href="/workshop" icon={<Hammer className="h-4 w-4" />}
-          value={`${stats.activeJobs.length} piece${stats.activeJobs.length === 1 ? '' : 's'}`}
-          tone={stats.criticalJobs.length > 0 ? 'text-destructive' : undefined}
-          sub={stats.criticalJobs.length > 0 ? `${stats.criticalJobs.length} sitting ${CRITICAL_DAYS}+ days` : 'Nothing overdue'} />
+      {/* The glance: what was taken today, then three figures. Wide, they sit across in one row. */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+        <TileLink href="/invoices" title={`PKR ${stats.todayRevenue.toLocaleString()}`}>
+          <div className="h-full rounded-card bg-card p-4">
+            <p className="text-ios-sub text-muted-foreground">Taken today</p>
+            <HeroAmount amount={stats.todayRevenue} lac tone={stats.todayRevenue > 0 ? 'settled' : undefined} className="mt-1" />
+            <p className="mt-1 text-ios-foot text-muted-foreground">
+              {stats.todayInvoiceCount} invoice{stats.todayInvoiceCount === 1 ? '' : 's'} today
+              {lastSaleToday && lastSale && ` · last at ${format(parseISO(lastSale.createdAt), 'h:mm a').toLowerCase()}`}
+            </p>
+          </div>
+        </TileLink>
+        <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-3 lg:col-span-3">
+          <TileLink href="/analytics" title={`PKR ${stats.monthRevenue.toLocaleString()}`}>
+            <FigureTile className="h-full" label="This month" value={stats.monthRevenue} detail={monthSub} />
+          </TileLink>
+          <TileLink
+            href={stats.owedInHisaab > 0 ? '/hisaab' : '/invoices'}
+            title={stats.owedInHisaab > 0
+              ? `PKR ${stats.totalOutstanding.toLocaleString()} — invoices ${(stats.totalOutstanding - stats.owedInHisaab).toLocaleString()}, hisaab ${stats.owedInHisaab.toLocaleString()}`
+              : `PKR ${stats.totalOutstanding.toLocaleString()}`}
+          >
+            <FigureTile
+              className="h-full" label="Owed to you" tint={stats.totalOutstanding > 0 ? 'owed' : undefined}
+              value={stats.totalOutstanding > 0 ? stats.totalOutstanding : 'Nil'}
+              detail={stats.owedInHisaab > 0 ? `${stats.unpaid.length} unpaid · ${lacCrore(stats.owedInHisaab)} in hisaab` : `${stats.unpaid.length} unpaid`}
+            />
+          </TileLink>
+          <TileLink href="/workshop">
+            <FigureTile
+              className="h-full" label="On the bench" tint={stats.criticalJobs.length > 0 ? 'late' : undefined}
+              value={`${stats.activeJobs.length} piece${stats.activeJobs.length === 1 ? '' : 's'}`}
+              detail={stats.criticalJobs.length > 0 ? `${stats.criticalJobs.length} sitting ${CRITICAL_DAYS}+ days` : 'Nothing overdue'}
+            />
+          </TileLink>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:flex-1 lg:min-h-0">
-
-        <Panel title="Needs you" count={tasks.length}
-          icon={<AlertTriangle className={cn('h-4 w-4', tasks.length ? 'text-destructive' : 'text-muted-foreground')} />}>
-          {tasks.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-success" />
-              <p className="text-sm">Nothing late, unpaid or waiting.</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-border/60">
-              {tasks.map((t, i) => <TaskRow key={`${t.href}-${i}`} {...t} />)}
-            </div>
-          )}
-        </Panel>
-
-        <Panel title="Due to customers" icon={<CalendarClock className="h-4 w-4" />} href="/orders" count={stats.due.length}>
-          {stats.due.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-10">No open orders or repairs.</p>
-          ) : (
-            <div className="divide-y divide-border/60">
-              {stats.due.map(d => <DueRow key={d.key} d={d} />)}
-            </div>
-          )}
-        </Panel>
-
-        <Panel title="Recent sales" icon={<Receipt className="h-4 w-4" />} href="/invoices">
-          {stats.recentInvoices.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-10">No sales yet.</p>
-          ) : (
-            <div className="divide-y divide-border/60">
-              {stats.recentInvoices.map(i => <RecentInvoiceRow key={i.id} invoice={i} />)}
-            </div>
-          )}
-        </Panel>
+      {/* Phone: one column, in the app's order. Wide: needs + due beside sales + the month. */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
+        <div className="space-y-5">{needs}{dueList}</div>
+        <div className="space-y-5">{sales}{month}</div>
       </div>
-
-      <Link href="/analytics"
-        className="flex-shrink-0 flex items-center gap-x-6 gap-y-1 flex-wrap rounded-lg border bg-card px-4 py-2.5 text-sm hover:border-primary/40 transition-colors group">
-        <span className="text-xs uppercase tracking-wide text-muted-foreground">Last 30 days</span>
-        <span className="tabular-nums">Revenue <span className="font-semibold text-success">{compactPKR(stats.revenue30)}</span></span>
-        <span className="tabular-nums">Expenses <span className="font-semibold text-destructive">{compactPKR(stats.expenses30)}</span></span>
-        <span className="tabular-nums">Net <span className={cn('font-semibold', stats.net30 >= 0 ? 'text-primary' : 'text-destructive')}>{compactPKR(stats.net30)}</span></span>
-        <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-      </Link>
     </div>
   );
 }

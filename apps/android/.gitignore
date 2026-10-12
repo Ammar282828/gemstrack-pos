@@ -1,0 +1,11 @@
+build/
+.gradle/
+local.properties
+.kotlin/
+*.iml
+.idea/
+captures/
+# keystores stay out of git; only the encrypted one is kept
+*.jks
+*.keystore
+!signing/*.enc

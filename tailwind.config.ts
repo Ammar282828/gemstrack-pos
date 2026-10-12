@@ -19,6 +19,19 @@ export default {
   			// in (9px, 10px, 11px). 11px is the floor: below that, muted grey
   			// text is not readable on a phone in a shop.
   			'2xs': ['0.6875rem', { lineHeight: '0.875rem' }],
+  			// The app's SF text styles (docs/features/web-matches-app.md a.3). Size and line only;
+  			// the weight is the caller's (semibold for headlines, bold for the large title).
+  			'ios-large': ['2.125rem', { lineHeight: '2.5625rem' }],
+  			'ios-title2': ['1.375rem', { lineHeight: '1.75rem' }],
+  			'ios-title3': ['1.25rem', { lineHeight: '1.5625rem' }],
+  			'ios-headline': ['1.0625rem', { lineHeight: '1.375rem' }],
+  			'ios-sub': ['0.9375rem', { lineHeight: '1.25rem' }],
+  			'ios-foot': ['0.8125rem', { lineHeight: '1.125rem' }],
+  			'ios-cap': ['0.75rem', { lineHeight: '1rem' }],
+  		},
+  		// New York on Apple devices (the app's figures and section headings), Georgia elsewhere.
+  		fontFamily: {
+  			serif: ['ui-serif', '"New York"', 'Georgia', 'Cambria', '"Times New Roman"', 'serif'],
   		},
   		colors: {
   			background: 'hsl(var(--background))',
@@ -59,6 +72,19 @@ export default {
   				DEFAULT: 'hsl(var(--warning))',
   				foreground: 'hsl(var(--warning-foreground))'
   			},
+  			// List dividers (the iOS opaque separator); cards have no border at all.
+  			separator: 'hsl(var(--separator))',
+  			// The app's Tone: nothing else picks a colour. DEFAULT is the fill (tints, bars,
+  			// icons), `ink` is for text and small icons. lib/tones.ts maps a Tone to these.
+  			tone: {
+  				late: { DEFAULT: 'hsl(var(--tone-late))', ink: 'hsl(var(--tone-late-ink))' },
+  				owed: { DEFAULT: 'hsl(var(--tone-owed))', ink: 'hsl(var(--tone-owed-ink))' },
+  				settled: { DEFAULT: 'hsl(var(--tone-settled))', ink: 'hsl(var(--tone-settled-ink))' },
+  				credit: { DEFAULT: 'hsl(var(--tone-credit))', ink: 'hsl(var(--tone-credit-ink))' },
+  				working: { DEFAULT: 'hsl(var(--tone-working))', ink: 'hsl(var(--tone-working-ink))' },
+  				quiet: { DEFAULT: 'hsl(var(--tone-quiet))', ink: 'hsl(var(--tone-quiet-ink))' },
+  				house: { DEFAULT: 'hsl(var(--tone-house))', ink: 'hsl(var(--tone-house-ink))' },
+  			},
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
@@ -83,7 +109,14 @@ export default {
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			sm: 'calc(var(--radius) - 4px)',
+  			// The app's shapes (globals.css --r-*): card 22, standalone card 20, quick-action tile 14,
+  			// date leaf 10, form field 12. Capsules are rounded-full.
+  			card: 'var(--r-card)',
+  			'card-sm': 'var(--r-card-sm)',
+  			tile: 'var(--r-tile)',
+  			leaf: 'var(--r-leaf)',
+  			control: 'var(--r-control)'
   		},
   		keyframes: {
   			'accordion-down': {

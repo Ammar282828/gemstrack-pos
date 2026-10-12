@@ -25,3 +25,29 @@ export function useScrolled(inner?: string, threshold = 2): boolean {
   }, [inner, threshold]);
   return scrolled;
 }
+
+/**
+ * True once the page's large title (the first <h1> under `scope`) has scrolled out of view above the
+ * top bar, so the bar can show the title itself, as the app's navigation bar does. False until then,
+ * and when the page has no <h1>. Re-reads when `key` (the pathname) changes.
+ */
+export function useTitleScrolledOut(scope: string, key: string): boolean {
+  const [out, setOut] = useState(false);
+  useEffect(() => {
+    setOut(false);
+    if (typeof IntersectionObserver === 'undefined') return;
+    let io: IntersectionObserver | undefined;
+    let tries = 0;
+    let timer = 0;
+    // The page paints its heading after the route changes: look for it for a moment.
+    const find = () => {
+      const h1 = document.querySelector<HTMLElement>(scope + ' h1');
+      if (!h1) { if (tries++ < 20) timer = window.setTimeout(find, 100); return; }
+      io = new IntersectionObserver(([e]) => setOut(!e.isIntersecting && e.boundingClientRect.top < 0), { rootMargin: '-56px 0px 0px 0px' });
+      io.observe(h1);
+    };
+    timer = window.setTimeout(find, 0);
+    return () => { clearTimeout(timer); io?.disconnect(); };
+  }, [scope, key]);
+  return out;
+}

@@ -1,7 +1,8 @@
 import { readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ALL_ENTRIES, NAV, GROUPS, SETTINGS, forRole, locate, pageTitle, paletteFor, registryHrefs, sidebarFor } from './nav';
+import { PRIMARY_TAB_IDS } from './tab-bar';
+import { ALL_ENTRIES, NAV, GROUPS, SETTINGS, SETTINGS_SHOP_HREF, forRole, locate, pageTitle, paletteFor, registryHrefs, sidebarFor } from './nav';
 
 /** Pages that are no one's row on purpose: the customer's pages, the offline page, the karigar's own. */
 const OUTSIDE = ['/links', '/view-invoice/[id]', '/~offline', '/my-work'];
@@ -112,5 +113,37 @@ describe('where a page sits', () => {
   it('every sidebar row has an icon and the groups keep their order', () => {
     for (const e of NAV) expect(e.icon, e.id).toBeTruthy();
     expect(sidebarFor(false).map(g => g.key)).toEqual(['home', 'sales', 'workshop', 'marketing', 'money']);
+  });
+});
+
+describe('the phone tab bar reads the registry', () => {
+  it('every primary tab id is a row of NAV', () => {
+    for (const id of PRIMARY_TAB_IDS) expect(NAV.map(e => e.id), id).toContain(id);
+  });
+  it('staff may open every primary tab', () => {
+    const staff = sidebarFor('staff').flatMap(g => g.entries.map(e => e.id));
+    for (const id of PRIMARY_TAB_IDS) expect(staff, id).toContain(id);
+  });
+});
+
+describe('Settings is an index list on a phone', () => {
+  const owner = forRole(SETTINGS, 'owner')!;
+  it('is flagged, and the Shop form has its own page under it', () => {
+    expect(SETTINGS.phoneIndex).toBe(true);
+    expect(SETTINGS_SHOP_HREF).toBe('/settings/shop');
+    expect(owner.pages?.map(p => p.href)).toContain(SETTINGS_SHOP_HREF);
+  });
+  it('every row of the index is a tab of Settings, the first being Shop at /settings', () => {
+    expect(owner.tabs?.[0].href).toBe('/settings');
+    expect(owner.tabs?.map(t => t.label)).toEqual(['Shop', 'Alerts', 'Bank accounts', 'Integrations', 'Data', 'Activity', 'Voice']);
+  });
+  it('the Shop page lights Settings and its Shop tab', () => {
+    const found = locate(SETTINGS_SHOP_HREF, [owner]);
+    expect(found?.entry.id).toBe('settings');
+    expect(found?.tab?.href).toBe('/settings');
+    expect(pageTitle(SETTINGS_SHOP_HREF)).toBe('Shop details');
+  });
+  it('only Settings is an index on a phone', () => {
+    expect(ALL_ENTRIES.filter(e => e.phoneIndex).map(e => e.id)).toEqual(['settings']);
   });
 });

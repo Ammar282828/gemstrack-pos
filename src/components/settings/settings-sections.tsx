@@ -31,7 +31,7 @@ import { WebsiteSettings } from '@/components/settings/website-settings';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { ShopifyPullPanel } from '@/components/settings/shopify-pull-panel';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Image as ImageIcon, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw, Bell, BellOff, Plus, X, ShoppingBag, RefreshCw, CheckCircle2, Lock, SlidersHorizontal, Printer, Tag, ArchiveRestore, Landmark } from 'lucide-react';
+import { ChevronRight, Save, Building, Phone, Image as ImageIcon, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw, Bell, BellOff, Plus, X, ShoppingBag, RefreshCw, CheckCircle2, Lock, SlidersHorizontal, Printer, Tag, ArchiveRestore, Landmark } from 'lucide-react';
 import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL } from '@/lib/store-config';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
@@ -459,26 +459,28 @@ export function NotificationsCard() {
 /** Label + explanation on the left, control on the right. The page repeated
  *  this shape a dozen times with slightly different spacing each time. */
 export const SettingRow: React.FC<{ title: string; description?: React.ReactNode; children: React.ReactNode }> = ({ title, description, children }) => (
-  <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+  <div className="flex items-center justify-between gap-4 rounded-card bg-card p-4">
     <div className="min-w-0">
-      <p className="font-medium">{title}</p>
-      {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
+      <p className="text-ios-headline font-semibold">{title}</p>
+      {description && <p className="text-ios-sub text-muted-foreground mt-0.5">{description}</p>}
     </div>
     <div className="flex items-center gap-2 flex-shrink-0">{children}</div>
   </div>
 );
 
-/** A link out to one of the settings sub-pages. */
+/** A link out to one of the settings sub-pages: an inset row (icon, title, line, chevron) for a LedgerSection. */
 export const SettingsLink: React.FC<{ href: string; icon: React.ElementType; title: string; description: string }> = ({ href, icon: Icon, title, description }) => (
-  <Button asChild variant="outline" className="w-full justify-start text-left h-auto py-3 whitespace-normal">
-    <Link href={href}>
-      <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
-      <span className="block min-w-0">
-        <span className="block font-semibold">{title}</span>
-        <span className="block text-xs text-muted-foreground font-normal">{description}</span>
-      </span>
-    </Link>
-  </Button>
+  <Link href={href}
+    className="flex min-h-[56px] items-center gap-3 py-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40">
+    <span aria-hidden className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[9px] bg-primary/[.13] text-primary">
+      <Icon className="h-[18px] w-[18px]" />
+    </span>
+    <span className="block min-w-0 flex-1">
+      <span className="block text-[17px]">{title}</span>
+      <span className="block text-ios-foot text-muted-foreground">{description}</span>
+    </span>
+    <ChevronRight aria-hidden className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/60" />
+  </Link>
 );
 
 /** The switch for Drafts (new orders and sales kept as they are typed) and how many are waiting. */
