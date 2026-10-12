@@ -392,13 +392,16 @@ final class StudioBoardModel {
 
     /// A picture from the phone (or an accepted AI version) into the Studio's uploads (POST /api/ads/studio/uploads):
     /// its library id, "up:<id>", which a board's photo or inset ("lib:up:<id>") can hold.
-    func upload(_ data: Data, name: String) async throws -> String {
+    /// `rawType` ("image/png", "image/svg+xml") sends the file as it is: a logo file is not re-made as a JPEG here
+    /// (that would turn a PNG's clear parts black and an SVG into nothing); the server rasterises and flattens it.
+    func upload(_ data: Data, name: String, rawType: String? = nil) async throws -> String {
         if House.isDemo { throw ERPAPI.Failure(status: 0, message: "The demo uploads nothing.") }
-        let jpeg = WebsitePhoto.jpegCopy(data) ?? data
-        let bytes = try await WebsiteForm.send("/api/ads/studio/uploads", fields: [("name", name)], files: [.init(field: "file", name: "picture.jpg", type: "image/jpeg", data: jpeg)], timeout: 180)
+        let jpeg = rawType == nil ? (WebsitePhoto.jpegCopy(data) ?? data) : data
+        let ext = rawType == "image/svg+xml" ? "svg" : rawType == "image/png" ? "png" : "jpg"
+        let bytes = try await WebsiteForm.send("/api/ads/studio/uploads", fields: [("name", name)], files: [.init(field: "file", name: "picture." + ext, type: rawType ?? "image/jpeg", data: jpeg)], timeout: 180)
         let id = try JSONDecoder().decode(MarketingValue.self, from: bytes)["asset"].s("id")
         guard id.hasPrefix("up:") else { throw ERPAPI.Failure(status: 0, message: "The upload gave no picture.") }
-        photos[id] = jpeg
+        if rawType == nil { photos[id] = jpeg }
         return id
     }
 

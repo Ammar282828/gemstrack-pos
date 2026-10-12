@@ -14,12 +14,19 @@ struct StudioBoardCanvas: View {
     let ended: () -> Void
     let began: () -> Void
     var openText: (String) -> Void = { _ in }
+    /// The framed picture whose photo is being moved inside its frame (a drag slides it, a pinch zooms it), if any.
+    var cropping: String?
+    /// A layer's picture size in pixels, for the maths of moving the photo inside the frame.
+    var naturalSize: (MarketingValue) -> CGSize? = { _ in nil }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var start: [MarketingValue]?
     @State private var startBox: CGRect = .zero
     @State private var live: CGRect?
     @State private var liveAngle: Double?
     @State private var guides: [Guide] = []
+    /// While the photo is moved in its frame, a drag and a pinch can run together: each keeps its part here.
+    @State private var liveZoom: Double?
+    @State private var livePan: CGSize = .zero
 
     struct Guide: Hashable { let vertical: Bool; let at: Double }
 
@@ -70,6 +77,7 @@ struct StudioBoardCanvas: View {
         let angle = chosen ? (liveAngle ?? l.n("rotate")) : l.n("rotate")
         Rectangle().fill(Color.white.opacity(0.001))
             .overlay {
+                if chosen && cropping == id { Rectangle().fill(Theme.accent.opacity(0.14)) }
                 if chosen {
                     // A light edge under the house's colour, so the outline reads on a dark design and a light one.
                     Rectangle().strokeBorder(.white.opacity(0.9), lineWidth: 4)
@@ -89,6 +97,7 @@ struct StudioBoardCanvas: View {
             .onTapGesture(count: 2) { selected = id; if l.s("kind") == "text" { openText(id) } }
             .onTapGesture { selected = id }
             .gesture(move(l, scale: scale))
+            .simultaneousGesture(zoomInFrame(l))
             .accessibilityElement()
             .accessibilityLabel(Self.name(l))
             .accessibilityAddTraits(chosen ? [.isButton, .isSelected] : .isButton)
@@ -110,7 +119,7 @@ struct StudioBoardCanvas: View {
         start = layers; startBox = boxOf(l.s("id")); began()
     }
     private func finish() {
-        start = nil; live = nil; liveAngle = nil; guides = []
+        start = nil; live = nil; liveAngle = nil; guides = []; liveZoom = nil; livePan = .zero
         ended()
     }
 
@@ -122,6 +131,12 @@ struct StudioBoardCanvas: View {
                 guard !l["locked"].bool else { return }
                 begin(l)
                 guard let start else { return }
+                if isCropping(l) {
+                    // panInFrame: the frame stays and the photo slides under it.
+                    livePan = CGSize(width: v.translation.width / scale, height: v.translation.height / scale)
+                    changed(start.map { $0.s("id") == id ? cropped($0) : $0 })
+                    return
+                }
                 var dx = v.translation.width / scale, dy = v.translation.height / scale
                 let moved = startBox.offsetBy(dx: dx, dy: dy)
                 let snap = snapping(moved, excluding: id, slop: 8 / scale)
@@ -135,6 +150,30 @@ struct StudioBoardCanvas: View {
                 })
             }
             .onEnded { _ in if start != nil { finish() } }
+    }
+
+    private func isCropping(_ l: MarketingValue) -> Bool { cropping == l.s("id") && l.s("kind") == "image" && l["h"] != .null && !l["locked"].bool }
+
+    /// The layer with the drag's and the pinch's parts both applied (panInFrame, with the pinch's iz).
+    private func cropped(_ s: MarketingValue) -> MarketingValue {
+        var n = s
+        if let liveZoom { n["iz"] = .number(liveZoom) }
+        let crop = ArtworkPixels.panned(n, natural: naturalSize(s), fx0: s.n("fx", 0.5), fy0: s.n("fy", 0.5), dx: livePan.width, dy: livePan.height)
+        n["fx"] = .number(crop.fx); n["fy"] = .number(crop.fy)
+        return n
+    }
+
+    /// Pinching the chosen frame zooms the photo inside it (iz, 1 to 4), then re-clamps the crop as the page does.
+    private func zoomInFrame(_ l: MarketingValue) -> some Gesture {
+        MagnifyGesture()
+            .onChanged { v in
+                guard isCropping(l) else { return }
+                begin(l)
+                guard let start, let s = start.first(where: { $0.s("id") == l.s("id") }) else { return }
+                liveZoom = (min(4, max(1, s.n("iz", 1) * Double(v.magnification))) * 100).rounded() / 100
+                changed(start.map { $0.s("id") == s.s("id") ? cropped($0) : $0 })
+            }
+            .onEnded { _ in if start != nil && cropping != nil { finish() } }
     }
 
     private func resize(_ l: MarketingValue, scale: Double) -> some Gesture {

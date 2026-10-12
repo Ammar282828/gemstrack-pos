@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
 
 /// The designer on one board design (board.tsx FrameEditor), made for a finger: the design itself is the canvas
 /// (tap any layer to change it, drag it, pull its corner, turn its knob) and every tool sits beside it on an iPad or
@@ -63,6 +64,9 @@ struct StudioBoardEditor: View {
     @State private var deviceTarget: Target?
     @State private var device: PhotosPickerItem?
     @State private var pickerOpen = false
+    @State private var logoOpen = false
+    /// The framed picture whose photo a drag slides and a pinch zooms inside its frame.
+    @State private var cropping: String?
     @State private var advanced = false
     @State private var advancedStart: Design?
     @State private var candidate: Candidate?
@@ -136,7 +140,10 @@ struct StudioBoardEditor: View {
         .sensoryFeedback(.impact(weight: .medium), trigger: removedTick)
         .sensoryFeedback(.success, trigger: savedTick)
         .onChange(of: device) { _, item in if let item { Task { await take(item) } } }
-        .onChange(of: selected) { _, id in if id != nil && (tab == .add || regular) { tab = .edit } }
+        .onChange(of: selected) { _, id in
+            if id != cropping { cropping = nil }
+            if id != nil && (tab == .add || regular) { tab = .edit }
+        }
     }
 
     private var main: some View {
@@ -169,7 +176,9 @@ struct StudioBoardEditor: View {
                                   changed: { design.doc["layers"] = .array($0) },
                                   ended: endGesture,
                                   began: { gestureStart = design },
-                                  openText: { _ in show(.edit); typing = true })
+                                  openText: { _ in show(.edit); typing = true },
+                                  cropping: cropping,
+                                  naturalSize: { l in source(.inset(l.s("id"))).flatMap { ArtworkPixels.size($0) } })
                     .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
                     .padding(regular ? 28 : 14)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -270,6 +279,7 @@ struct StudioBoardEditor: View {
                 }
             }
             .photosPicker(isPresented: Binding(get: { active && pickerOpen }, set: { pickerOpen = $0 }), selection: $device, matching: .images)
+            .fileImporter(isPresented: Binding(get: { active && logoOpen }, set: { logoOpen = $0 }), allowedContentTypes: [.svg, .png]) { takeLogo($0) }
             .sheet(isPresented: Binding(get: { active && advanced }, set: { advanced = $0 }), onDismiss: advancedClosed) {
                 ArtworkEditor(doc: $design.doc, photos: allPhotos, fields: design.fields, ad: true)
             }
@@ -309,6 +319,8 @@ struct StudioBoardEditor: View {
             Menu { ForEach(catalogue["badges"].array, id: \.text) { i in Button(i.s("label")) { act("badge", i.s("id")) } } } label: { Label("Badges", systemImage: "seal") }
             Button("Full logo, top right", systemImage: "signature") { act("mark", "top") }
             Button("Full logo, bottom right", systemImage: "signature") { act("mark", "bottom") }
+            Button("Monogram", systemImage: "t.square") { addLayer(ArtworkLogo.monogram(ink: ArtworkLogo.ink(for: design.doc))) }
+            Button("Logo file (SVG or PNG)", systemImage: "square.and.arrow.down") { logoOpen = true }
             Button("Link pill", systemImage: "link") { act("link", "Ask us on WhatsApp") }
         } header: { LedgerHeading(title: "Elements") }.houseRows()
         Section {
@@ -447,8 +459,13 @@ struct StudioBoardEditor: View {
 
     @ViewBuilder private func imageSections(_ id: String, _ l: MarketingValue) -> some View {
         Section {
-            if let data = source(.inset(id)), let image = UIImage(data: data) {
-                Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 140).clipShape(.rect(cornerRadius: 8)).frame(maxWidth: .infinity)
+            if let data = source(.inset(id)) {
+                if let image = UIImage(data: data) {
+                    Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 140).clipShape(.rect(cornerRadius: 8)).frame(maxWidth: .infinity)
+                } else {
+                    // An SVG logo has no bitmap to show; the design itself draws it.
+                    Label("A vector logo: no preview here, the design shows it.", systemImage: "doc.richtext").font(.footnote).foregroundStyle(.secondary)
+                }
             }
             Button("Replace from the library", systemImage: "photo.on.rectangle") { picking = .inset(id) }
             Button("Replace from this phone", systemImage: "iphone") { deviceTarget = .inset(id); pickerOpen = true }
@@ -466,12 +483,19 @@ struct StudioBoardEditor: View {
                 slider("Height", num(id, "h", 380), 40...max(400, frameSize.height * 1.5))
                 slider("Crop across", num(id, "fx", 0.5), 0...1, step: 0.01, format: "%.2f")
                 slider("Crop down", num(id, "fy", 0.5), 0...1, step: 0.01, format: "%.2f")
+                // iz: drawn as the cover scale times this (src/lib/social: ImageLayer.iz).
+                slider("Zoom in frame", num(id, "iz", 1), 1...4, step: 0.05, format: "%.2f×")
+                Button(cropping == id ? "Done moving the photo" : "Move photo in frame", systemImage: "arrow.up.and.down.and.arrow.left.and.right") { cropping = cropping == id ? nil : id }
+                if cropping == id { Text("Drag the design to slide the photo inside its frame; pinch to zoom it.").font(.footnote).foregroundStyle(.secondary) }
             }
             slider("Corners", num(id, "radius", 0), 0...300)
             Toggle("Border", isOn: Binding(get: { l["border"] != .null }, set: { on in updateLayer(id) { $0["border"] = on ? .string("#FFFFFF") : .null } }))
             if l["border"] != .null { ColorPicker("Border colour", selection: color(id, "border"), supportsOpacity: false) }
             Toggle("Shadow", isOn: flag(id, "shadow"))
         } header: { LedgerHeading(title: "Frame and crop") }.houseRows()
+        Section {
+            ArtworkShadeControls(shade: l["shade"]) { v, key in updateLayer(id, key.map { "shade-" + $0 }) { $0["shade"] = v } }
+        } header: { LedgerHeading(title: "Gradient") }.houseRows()
         aiPhotoSection(.inset(id))
     }
 
@@ -562,12 +586,15 @@ struct StudioBoardEditor: View {
                 slider("Focus across", placementNumber("focusX", 0.5), 0...1, step: 0.01, format: "%.2f")
                 slider("Focus down", placementNumber("focusY", 0.5), 0...1, step: 0.01, format: "%.2f")
             } header: { LedgerHeading(title: "Crop and placement") }.houseRows()
+            Section {
+                ArtworkShadeControls(shade: design.doc["bg"]["shade"]) { v, key in edit(key.map { "bg-shade-" + $0 }) { $0.doc["bg"]["shade"] = v } }
+            } header: { LedgerHeading(title: "Gradient") }.houseRows()
             aiPhotoSection(.main)
         }
     }
 
     @ViewBuilder private func aiPhotoSection(_ target: Target) -> some View {
-        let off = House.isDemo || busy != nil || source(target) == nil
+        let off = House.isDemo || busy != nil || source(target).map({ WebsitePhoto.kind(of: $0) == nil }) ?? true
         let aspect = target == .main ? info.s("ai", "4:5") : "1:1"
         Section {
             Button("Remove logo and labels", systemImage: "eraser") { ai("enhance", ["tidy": true], target) }.disabled(off)
@@ -859,6 +886,21 @@ struct StudioBoardEditor: View {
         case .add: act("image", "rounded", ["photoId": "lib:" + key])
         }
     }
+    private func addLayer(_ n: MarketingValue) {
+        edit { $0.doc["layers"] = .array($0.doc["layers"].array + [n]) }
+        selected = n.s("id"); tab = .edit; addedTick += 1; problem = nil
+    }
+    /// A logo file (newUploadLayer): an image layer holding the SVG or PNG as a data: URL, uploaded when you save.
+    private func takeLogo(_ result: Result<URL, Error>) {
+        do {
+            let url = try result.get()
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            guard let n = ArtworkLogo.uploadLayer(data, frame: frameSize) else { throw ERPAPI.Failure(status: 0, message: "Choose an SVG or PNG logo.") }
+            addLayer(n)
+        } catch { if (error as? CocoaError)?.code != .userCancelled { problem = error.localizedDescription } }
+    }
     private func restoreInset(_ id: String) {
         guard let was = insetOriginals[id] else { return }
         updateLayer(id) { n in
@@ -1004,8 +1046,14 @@ struct StudioBoardEditor: View {
                 if !src.isEmpty {
                     if bySrc[src] == nil {
                         guard let data = Self.dataURL(src) else { throw ERPAPI.Failure(status: 0, message: "An uploaded picture couldn’t be read; replace it and save again.") }
-                        let id = try await board.upload(data, name: name)
-                        pictures[id] = data; bySrc[src] = id
+                        // A PNG or SVG goes up as it is (the server draws and flattens it, as for the web's logo files);
+                        // a photo is re-made as a JPEG first.
+                        let mime = Self.dataURLMime(src)
+                        let raw = ["image/png", "image/svg+xml"].contains(mime) ? mime : nil
+                        let id = try await board.upload(data, name: name, rawType: raw)
+                        // The server keeps a raw logo as a JPEG, so that is the copy to draw from if the write below fails.
+                        if raw == nil { pictures[id] = data } else if let kept = try? await board.photoData(id) { pictures[id] = kept }
+                        bySrc[src] = id
                     }
                     var o = list[i].object; o["src"] = nil; o["photoId"] = .string("lib:" + (bySrc[src] ?? "")); list[i] = .object(o)
                 }
@@ -1029,6 +1077,10 @@ struct StudioBoardEditor: View {
 
     // MARK: Small helpers
 
+    static func dataURLMime(_ src: String) -> String {
+        guard src.hasPrefix("data:"), let end = src.firstIndex(where: { $0 == ";" || $0 == "," }) else { return "" }
+        return String(src[src.index(src.startIndex, offsetBy: 5)..<end]).lowercased()
+    }
     static func dataURL(_ src: String) -> Data? {
         guard src.hasPrefix("data:"), let comma = src.firstIndex(of: ",") else { return nil }
         return Data(base64Encoded: String(src[src.index(after: comma)...]))
