@@ -70,7 +70,10 @@ open and Secret Manager is not writable from the ERP.
 
 **The widget's figures** (`/api/widget/summary`, `lib/widget`): the house's rate, the drawer (Today's cash), Owed to
 you (with hisaab) and orders and repairs due, from the ERP's own functions, worked out at most every 15 minutes. Read
-with a key of the phone's own (`/api/widget/key`, kept by hash in `widget_keys`) that opens nothing else.
+with a key of the phone's own (`/api/widget/key`, kept by hash in `widget_keys`) that opens nothing else. The native
+widget (2026-10-12) has small, medium, large and extra-large sizes and lock-screen forms, its text follows Dynamic Type,
+and Settings shows a preview. It learns its house from `ERP_HOUSE` in its own Info.plist, never from a name containing
+"mina".
 
 **Going fully native** (owner, 2026-10-08: "rewrite the app and make the app fully native … follow latest apple liquid
 glass design … keep ALL my erp features"). `apps/iphone` (SwiftUI, iOS 26) replaces this shell under the same bundle IDs
@@ -86,8 +89,8 @@ as version 2.0; `apps/iphone/CONVENTIONS.md` is its rulebook.
 - **Every ERP place.** The menus are `lib/nav.ts` exported per house (`npm run nav:export`; a test fails when stale).
   A path with a native screen opens it; any other path, or `?web=1`, opens the ERP page inside the app, without its
   sidebar and top bar ("ERPNative/" in the user agent), signed in by itself with the app's Google token.
-- **What is still the ERP's page** (2026-10-09, after every operational page went native): the designers (Post a piece's
-  story and square, the Ad studio, re-making a site photo on Edit a piece); PDFs still drawn only in the browser (the
+- **What is still the ERP's page** (2026-10-09, after every operational page went native; the designers followed on
+  2026-10-12, below): PDFs still drawn only in the browser (the
   hisaab ledger and its reminder, the expense report, the repair receipt; the invoice and the workshop slip are drawn
   on the server, `/api/app/pdf/*`, and shown natively); an order's Give out and a sold piece's workshop details (sample
   photo, admin note); a stock piece's photo; the voice order; Backups' Restore (a mass merge with no undo, kept to the
@@ -95,15 +98,55 @@ as version 2.0; `apps/iphone/CONVENTIONS.md` is its rulebook.
   the callback checks a cookie the app's session cannot hold).
 - **Liquid Glass** on the control layer only: four tabs (Home, Orders, Invoices, Customers) and Search, which is also the
   whole map, Settings and the account (an iPhone shows five tabs; a sixth folded two away); New sale · Order · Scan as the
-  tab bar's accessory; the rate chip on each tab's first screen for owners.
+  tab bar's accessory; the rate chip on each tab's first screen for owners. Motion runs on the ERP's three curves and
+  stops under Reduce Motion; saves and payments tap.
+- **iPad.** An iPad layout needs the idiom to be pad **and** the width regular: a Plus or Max iPhone held sideways is
+  regular width too and keeps the phone's layout. On an iPad the pages sit in readable columns (wider for money and
+  analytics, full width for boards and lists that lay out their own columns), Home has two columns, the create menu
+  is in the toolbar rather than floating, and a sale, an order or a piece is edited beside its summary
+  (`TransactionWorkspace`).
+- **New order and New sale are steps** (customer, pieces, payment and exchange, review), each with Continue, and the
+  review page links back to any step. A picture already filed on an order is not sent again.
 - **The phone.** Face ID keeps the delete code (offered once a typed code is accepted; the server still checks it),
   Apple's document scanner reads paper for the bill and order-slip readers, notifications per kind (Search → This
-  phone), the home-screen widget.
+  phone), the home-screen widget. Settings → This phone says whether the phone is registered for alerts and sends
+  a test notification.
+- **Voice** is native (`Device/NativeVoice.swift`): Apple's recogniser or up to a minute of audio goes to
+  `/api/voice/native` (below), owners only. Its sheet closes before the page it chose opens (two sheets in one update
+  can drop the second).
+- **The team note** ([decision](../decisions.md#team-note)): owners edit it from the banner (600 characters; Save stays
+  off past that and says why); everyone reads it. It heads each tab's first screen and Search, not pushed pages or
+  forms, where it would repeat at every level and take room from the fields.
+- **Offline.** Cached books show at once and are not treated as a lost connection. Only a confirmed network loss
+  (`Connection`, NWPathMonitor) puts up the offline wording; a cold start opens on the last answer with a
+  ledger-shaped skeleton, re-checking sign-in at the same time.
+- **Studio is native.** Post a piece, the Ad studio's Make and its **Board** (the canvas, notes, Let it cook, shapes,
+  Saved ads, the post queue, over the same transactional board ops as the web and the MCP agent; read-only in the
+  demo) and **Shopify** (Settings → Integrations: the connection, its permissions, a selective one-way import of
+  orders; owners only) have no web page behind them. Re-making a site photo on Edit a piece still opens the ERP's page.
+- **The designer engine is the web's own.** `App/Resources/Design/design-<house>.js` is `src/lib/social` bundled with
+  the house's fonts and wordmark and run in a web view on the phone, with no network. **Whenever `src/lib/social`
+  changes, run `node apps/iphone/scripts/design-bundle.mjs` and commit both files**; a phone otherwise draws the
+  old design. A design is held as raw JSON (`MarketingValue`), never decoded into Swift fields, so a field the web adds
+  survives a save from the phone and the reverse. Board designs are editable in full on the web and the phone
+  (owner, 2026-10-12: "let me edit any present text and picture from any of the ads"); a picture added in the designer
+  goes to the library through `POST /api/ads/studio/uploads` and the design keeps `lib:up:<id>`.
+- **Agent keys** (Studio settings): the MCP connection is named from `/api/app/website` `siteName` and "-studio"
+  ("taheri-studio"), as `board.tsx` does, so web and phone show the same command. The server keeps only the key's hash;
+  a new key is shown once.
+- **Icons and launch.** Mina has dark and tinted app icons from its wordmark. The launch screen is `UILaunchScreen`:
+  the colour `Launch-<house>` and the mark `LaunchLogo-<house>` (light and dark variants), both set per house by
+  `house.mjs`, so it follows the phone's appearance.
+- **Signing out** unregisters the phone for alerts first, while the sign-in token is good, capped at 3 seconds:
+  offline, it still signs out at once. A revoked account skips the unregister.
 - **Checks and builds** (`.github/workflows/iphone-native.yml`): ERPCore's tests on Linux on every push; the
   simulator build, a screenshot of each tab in the demo (`-ERPDemo YES`, made-up data in `Resources/demo.json`) and
   TestFlight only by hand since 2026-10-09, when Xcode Cloud took them over (below). A house reaches TestFlight once
   its Firebase iOS app ID is in `apps/iphone/houses.json` (`firebase.iosAppId`, Firebase console → Project settings →
   Add app → iOS).
+- **Verifying in a cloud session.** A Linux Swift toolchain (swift.org 6.0.3 for Ubuntu 24.04, extracted to `/opt/swift`;
+  not kept across containers) builds and tests `Packages/ERPCore` and `Packages/Contract` and regenerates
+  `contract/cases.json`. The App and Widget targets (SwiftUI, UIKit) compile only on Xcode Cloud.
 
 ### Server routes the app uses
 
@@ -119,6 +162,10 @@ are not obvious from its screens.
 - **`src/lib/analytics/revenue-period.ts`** (`revenueForPeriod`, tested) is the revenue of a period for the dashboard and the
   widget: sales at their source order's date, open booked orders and other income. A bare `YYYY-MM-DD` is read as midnight in
   Karachi (+05:00), so a day's edge matches the shop's day wherever the server runs.
+- **Order photos** (`lib/order-photos.ts`): one document per picture in `order_photos`. `splitItemPhotos` fingerprints
+  each picture (`samplePhotoHash` on the item, `hash` on the document), so the same bytes sent again are recognised
+  and keep their document (documents filed before hashes are compared by reading the one document). A picture an
+  edit replaces or removes has its document deleted in the same commit, in `updateOrder` and the web's order saves.
 - **Audits.** What was checked and fixed in the native screens: [orders and invoices](iphone-order-invoice-audit.md) and
   [the workshop](iphone-workshop-audit.md).
 
