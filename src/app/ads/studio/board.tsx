@@ -25,7 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Maximize2, Minimize2, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X, Upload, Undo2, Wand2, Type } from 'lucide-react';
+import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Maximize2, Minimize2, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X, Upload, Undo2, Wand2, Type, Crown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
@@ -41,6 +41,7 @@ import { HANDOFF_PREFIX, type StudioHandoff } from '@/lib/ads/studio/handoff';
 import type { WeeklyState } from '@/lib/ads/studio/weekly';
 import { STORE_LINKS } from '@/lib/store-config';
 import { SoloEditor, useStoryDoc, type DesignerExtras, type Editor } from '../../website/post/story-editor';
+import { MarksSection } from '../../website/post/editor-panels';
 import { FONTS, bodyFace, headlineFace, serifFace } from '../../website/post/fonts';
 import { useSiteAssets } from '../../website/post/site-assets';
 import { api, authHeaders } from '../ads-kit';
@@ -1143,7 +1144,14 @@ function FrameEditor({ frame: f, marks, onClose, onSave }: { frame: BoardFrame; 
       <AddPanel busy={!!busy}
         onText={() => ed.add({ ...newText(palette.body), x: Math.round(fw / 2), y: Math.round(fh / 2), width: Math.round(fw * 0.8) })}
         onTextStyles={() => ed.setPanel('text')} onPicture={() => setPicking({ target: 'add' })}
-        onElements={() => ed.setPanel('elements')} onLayouts={() => ed.setPanel('templates')} onBrand={() => ed.setPanel('brand')} />
+        onElements={() => ed.setPanel('elements')} onLayouts={() => ed.setPanel('templates')} onBrand={() => ed.setPanel('brand')}
+        onLogo={() => ed.setPanel('x:logo')} />
+    ) },
+    { id: 'x:logo', label: 'Logo', title: 'Logo', icon: <Crown className="h-5 w-5" />, render: ed => (edRef.current = ed,
+      <div className="space-y-2">
+        <p className="text-[11px] text-muted-foreground">Tap a mark: it lands in the middle, to drag anywhere, size and turn. Its colour is under the mark once selected.</p>
+        <MarksSection ed={ed} upload />
+      </div>
     ) },
     { id: 'x:pictures', label: 'Pictures', title: 'Pictures', icon: <ImagePlus className="h-5 w-5" />, render: ed => (edRef.current = ed,
       <PicturesPanel slots={slots} urlOf={urlOf} selected={slotOfSelection(ed) ?? slot} busy={!!busy} checks={checks} restorable={restorable} hasMain={!!assetId}
@@ -1254,8 +1262,8 @@ function FrameEditor({ frame: f, marks, onClose, onSave }: { frame: BoardFrame; 
 }
 
 /** Add: the few things a design is made of, each one tap — the designer's full panels behind them. */
-function AddPanel({ busy, onText, onTextStyles, onPicture, onElements, onLayouts, onBrand }: {
-  busy: boolean; onText: () => void; onTextStyles: () => void; onPicture: () => void; onElements: () => void; onLayouts: () => void; onBrand: () => void;
+function AddPanel({ busy, onText, onTextStyles, onPicture, onElements, onLayouts, onBrand, onLogo }: {
+  busy: boolean; onText: () => void; onTextStyles: () => void; onPicture: () => void; onElements: () => void; onLayouts: () => void; onBrand: () => void; onLogo: () => void;
 }) {
   const tile = 'flex flex-col items-start gap-1 rounded-xl border p-3 text-left hover:border-primary hover:bg-primary/5 disabled:opacity-50 min-h-0';
   return (
@@ -1264,7 +1272,8 @@ function AddPanel({ busy, onText, onTextStyles, onPicture, onElements, onLayouts
         <button type="button" className={tile} onClick={onText}><Type className="h-5 w-5 text-primary" /><span className="text-sm font-medium">Text</span><span className="text-[11px] text-muted-foreground">A line to type into</span></button>
         <button type="button" className={tile} disabled={busy} onClick={onPicture}><ImagePlus className="h-5 w-5 text-primary" /><span className="text-sm font-medium">Picture</span><span className="text-[11px] text-muted-foreground">Library or this device</span></button>
         <button type="button" className={tile} onClick={onElements}><Shapes className="h-5 w-5 text-primary" /><span className="text-sm font-medium">Shapes</span><span className="text-[11px] text-muted-foreground">Lines, arrows, frames</span></button>
-        <button type="button" className={tile} onClick={onElements}><Sparkles className="h-5 w-5 text-primary" /><span className="text-sm font-medium">Stickers</span><span className="text-[11px] text-muted-foreground">Badges and the house’s marks</span></button>
+        <button type="button" className={tile} onClick={onElements}><Sparkles className="h-5 w-5 text-primary" /><span className="text-sm font-medium">Stickers</span><span className="text-[11px] text-muted-foreground">Badges</span></button>
+        <button type="button" className={cn(tile, 'col-span-2')} onClick={onLogo}><Crown className="h-5 w-5 text-primary" /><span className="text-sm font-medium">Logo</span><span className="text-[11px] text-muted-foreground">The house’s mark as a vector, any colour, anywhere; or your own SVG</span></button>
       </div>
       <div className="space-y-1">
         <button type="button" className="w-full rounded-md border px-3 py-2 text-left text-sm hover:border-primary" onClick={onTextStyles}>Headings and font combinations →</button>

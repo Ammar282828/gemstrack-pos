@@ -130,12 +130,24 @@ export interface ImageLayer extends Base {
   /** Cut to a shape (a Canva frame). */
   mask?: MaskKey | null;
   adjust?: Adjust | null;
+  /** A gradient over the picture, inside its frame. */
+  shade?: Shade | null;
 }
 export type Layer = TextLayer | MarkLayer | ShapeLayer | ImageLayer;
+
+/**
+ * A gradient laid over a photo (the background or a picture), every part adjustable: two colours, each
+ * with its own opacity, the direction (CSS degrees: 180 runs top to bottom) and where along it the fade
+ * starts and ends (0…1).
+ */
+export interface Shade { from: string; fromAlpha: number; to: string; toAlpha: number; angle: number; start: number; end: number }
+export const SHADE_DEFAULT: Shade = { from: '#000000', fromAlpha: 0, to: '#000000', toAlpha: 0.7, angle: 180, start: 0.4, end: 1 };
 
 export interface StoryDoc {
   bg: {
     photoId: string | null; placement: Placement; dim: number; gradient: 'none' | 'top' | 'bottom' | 'both'; color: string;
+    /** An adjustable gradient over the photo, on top of the dim and the preset shade. */
+    shade?: Shade | null;
     /** Behind the photo, or the whole design without one: `color` running to this. */
     color2?: string | null;
     /** The background photo's filter. */
@@ -720,8 +732,21 @@ function drawImageLayer(ctx: Ctx, l: ImageLayer, a: Assets) {
     const dw = iw * s, dh = ih * s;
     ctx.drawImage(src, (w - dw) * (l.fx ?? 0.5), (h - dh) * (l.fy ?? 0.5), dw, dh);
   } else ctx.drawImage(src, 0, 0, w, h);
+  if (l.shade) drawShade(ctx, l.shade, 0, 0, w, h);
   vignette(ctx, 0, 0, w, h, l.adjust?.vignette ?? 0);
   ctx.restore();
+}
+
+/** A shade over the box (x, y, w, h): the line runs through its centre at the shade's angle, corner to corner. */
+export function drawShade(ctx: Ctx, g: Shade, x: number, y: number, w: number, h: number) {
+  const a = (g.angle * Math.PI) / 180, dx = Math.sin(a), dy = -Math.cos(a);
+  const half = (Math.abs(w * dx) + Math.abs(h * dy)) / 2, cx = x + w / 2, cy = y + h / 2;
+  const grad = ctx.createLinearGradient(cx - dx * half, cy - dy * half, cx + dx * half, cy + dy * half);
+  const s0 = Math.max(0, Math.min(1, g.start)), s1 = Math.max(s0, Math.min(1, g.end));
+  grad.addColorStop(s0, rgba(g.from, g.fromAlpha));
+  grad.addColorStop(s1, rgba(g.to, g.toAlpha));
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, y, w, h);
 }
 
 function drawOverlay(ctx: Ctx, bg: StoryDoc['bg'], f: Frame) {
@@ -735,6 +760,7 @@ function drawOverlay(ctx: Ctx, bg: StoryDoc['bg'], f: Frame) {
   };
   if (bg.gradient === 'top' || bg.gradient === 'both') grad(0, f.h * 0.42);
   if (bg.gradient === 'bottom' || bg.gradient === 'both') grad(f.h, f.h * 0.58);
+  if (bg.shade) drawShade(ctx, bg.shade, 0, 0, f.w, f.h);
 }
 
 // ── The catalogue stamp and automatic colour ───────────────────────────────

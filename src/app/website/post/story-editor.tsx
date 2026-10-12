@@ -99,7 +99,7 @@ let clipboard: Layer[] = [];
 let styleClipboard: { kind: Layer['kind']; style: Partial<Layer> } | null = null;
 const TEXT_STYLE_KEYS = ['font', 'size', 'color', 'spacing', 'lineHeight', 'upper', 'shadow', 'box', 'effect', 'underline', 'autoColor', 'curve', 'opacity'] as const;
 const SHAPE_STYLE_KEYS = ['color', 'stroke', 'fill', 'fill2', 'dash', 'radius', 'opacity'] as const;
-const IMAGE_STYLE_KEYS = ['radius', 'border', 'shadow', 'adjust', 'mask', 'opacity'] as const;
+const IMAGE_STYLE_KEYS = ['radius', 'border', 'shadow', 'adjust', 'mask', 'opacity', 'shade'] as const;
 const styleKeys = (k: Layer['kind']): readonly string[] => k === 'text' ? TEXT_STYLE_KEYS : k === 'image' ? IMAGE_STYLE_KEYS : k === 'wordmark' ? ['color', 'autoColor', 'opacity'] : SHAPE_STYLE_KEYS;
 
 /** Images uploaded this visit, to add again from the Photos panel. */

@@ -28,10 +28,10 @@ import {
 import { cn } from '@/lib/utils';
 import { PALETTES } from '@/lib/social/palettes';
 import {
-  BADGES, BOLD_OF, EFFECTS, FONT_LABEL, ITALIC_OF, TEXT_STYLES, applyPalette, effectDefaults, effectOf, fontCss, layerBox, moveLayer, newBody, newCornerMark,
+  BADGES, BOLD_OF, EFFECTS, SHADE_DEFAULT, FONT_LABEL, ITALIC_OF, TEXT_STYLES, applyPalette, effectDefaults, effectOf, fontCss, layerBox, moveLayer, newBody, newCornerMark,
   newFrame, newHeading, newImageLayer, newInFont, newLineStyle, newLinkPill, newMonogram, newShape, newShapeOf, newSubheading, newUploadLayer, newWordmark,
   placementOf, reflow, renderDocTo, uploadedImage, withPlacement,
-  type Bind, type EffectKind, type FontKey, type ImageLayer, type Layer, type MarkLayer, type ShapeLayer, type StoryDoc, type TextLayer, type TextEffect,
+  type Bind, type EffectKind, type FontKey, type ImageLayer, type Layer, type MarkLayer, type ShapeLayer, type StoryDoc, type TextLayer, type TextEffect, type Shade,
 } from '@/lib/social/editor';
 import { FILTERS, MASK_PICKS, NO_ADJUST, SHAPES, SHAPE_PICKS, applyAdjust, isPlain, type Adjust, type AlignHow, type MaskKey } from '@/lib/social/design';
 import { sessionUploads, type Editor, type SidePanel } from './story-editor';
@@ -88,6 +88,30 @@ function ColourButton({ ed, value, onChange, title, ring }: { ed: Editor; value:
         <div><p className="mb-1.5 text-[11px] text-muted-foreground">{doc.length ? 'Brand colours' : 'Colours'}</p><ColourRow value={value} onChange={onChange} /></div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/** Directions a shade can start from, as CSS angles. */
+const SHADE_WAYS: [string, string][] = [['180', '↓'], ['0', '↑'], ['90', '→'], ['270', '←'], ['135', '↘'], ['225', '↙']];
+
+/** A gradient over a photo, every part adjustable: colours, their opacity, direction and where the fade runs. */
+export function ShadeControls({ value, onChange, extra = [] }: { value: Shade | null; onChange: (g: Shade | null, key?: string) => void; extra?: string[] }) {
+  const g = value;
+  const set = (patch: Partial<Shade>, key?: string) => onChange({ ...(g ?? SHADE_DEFAULT), ...patch }, key ? `shade:${key}` : undefined);
+  return (
+    <div className="space-y-2 border-t pt-2">
+      <label className="flex items-center gap-1.5 text-xs"><Switch checked={!!g} onCheckedChange={v => onChange(v ? SHADE_DEFAULT : null)} /> Gradient over the photo</label>
+      {g && (<>
+        <Row label="Direction"><Pills value={String(g.angle)} options={SHADE_WAYS} onChange={v => set({ angle: Number(v) })} /></Row>
+        <Row label="Angle"><Num value={g.angle} min={0} max={360} step={1} onChange={v => set({ angle: v }, 'angle')} /></Row>
+        <Row label="From"><ColourRow value={g.from} onChange={c => set({ from: c }, 'from')} extra={extra} /></Row>
+        <Row label="From opacity"><Num value={Math.round(g.fromAlpha * 100)} min={0} max={100} step={1} onChange={v => set({ fromAlpha: v / 100 }, 'fa')} /></Row>
+        <Row label="To"><ColourRow value={g.to} onChange={c => set({ to: c }, 'to')} extra={extra} /></Row>
+        <Row label="To opacity"><Num value={Math.round(g.toAlpha * 100)} min={0} max={100} step={1} onChange={v => set({ toAlpha: v / 100 }, 'ta')} /></Row>
+        <Row label="Fade starts %"><Num value={Math.round(g.start * 100)} min={0} max={100} step={1} onChange={v => set({ start: v / 100 }, 'start')} /></Row>
+        <Row label="Fade ends %"><Num value={Math.round(g.end * 100)} min={0} max={100} step={1} onChange={v => set({ end: v / 100 }, 'end')} /></Row>
+      </>)}
+    </div>
   );
 }
 
@@ -304,6 +328,7 @@ function ImageControls({ ed, l }: { ed: Editor; l: ImageLayer }) {
       <label className="flex items-center gap-1.5"><Switch checked={l.shadow} onCheckedChange={v => set({ shadow: v })} /> Shadow</label>
     </div>
     {l.border && <Row label="Border"><ColourRow value={l.border} onChange={c => set({ border: c }, 'border')} extra={docColours(ed)} /></Row>}
+    <ShadeControls value={l.shade ?? null} onChange={(g, key) => set({ shade: g }, key)} extra={docColours(ed)} />
     <AdjustControls value={l.adjust ?? NO_ADJUST} onChange={(a, key) => set({ adjust: isPlain(a) ? null : a }, key)} img={imageOfLayer(ed, l)} />
   </>);
 }
@@ -448,6 +473,7 @@ export function BackgroundInspector({ ed, bare }: { ed: Editor; bare?: boolean }
       {photoTools}
       <Row label="Darken"><Num value={bg.dim} min={0} max={0.7} step={0.05} onChange={v => setBg({ dim: v }, 'dim')} /></Row>
       <Row label="Shade"><Pills value={bg.gradient} options={[['none', 'None'], ['top', 'Top'], ['bottom', 'Bottom'], ['both', 'Both']]} onChange={v => setBg({ gradient: v as StoryDoc['bg']['gradient'] })} /></Row>
+      {photo && <ShadeControls value={bg.shade ?? null} onChange={(g, key) => setBg({ shade: g }, key)} extra={docColours(ed)} />}
       <Row label="Behind"><ColourRow value={bg.color} onChange={c => setBg({ color: c }, 'color')} extra={docColours(ed)} /></Row>
       <label className="flex items-center gap-1.5 text-xs"><Switch checked={!!bg.color2} onCheckedChange={v => setBg({ color2: v ? '#C9973F' : null })} /> Gradient behind</label>
       {bg.color2 && <Row label="Fades to"><ColourRow value={bg.color2} onChange={c => setBg({ color2: c }, 'color2')} /></Row>}
@@ -700,18 +726,28 @@ export function ElementsPanel({ ed }: { ed: Editor }) {
           <Button variant="outline" size="sm" className="justify-start" onClick={() => ed.add(newLinkPill(ed.p.websiteLabel))}><Link2 className="h-4 w-4 mr-1.5" /> Link pill</Button>
         </div>
       </Section>
-      <MarksSection ed={ed} />
+      <MarksSection ed={ed} upload />
     </div>
   );
 }
 
-function MarksSection({ ed }: { ed: Editor }) {
+/**
+ * The house's logo, as vectors (its SVG wordmark and monogram: sharp at any size, any colour), dropped in
+ * the middle to drag anywhere; and a logo of one's own, an SVG or a PNG from this device.
+ */
+export function MarksSection({ ed, upload }: { ed: Editor; upload?: boolean }) {
   const { palette } = ed.p;
   const ink = palette.dark ? '#FFFFFF' : '#111111';
   const { wordmark, t } = ed.assets.marks;
-  if (!wordmark && !t) return null;
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  if (!wordmark && !t && !upload) return null;
   return (
     <Section title="The shop’s marks">
+      {upload && (<>
+        <input ref={fileRef} type="file" accept="image/svg+xml,.svg,image/png,image/webp" className="hidden"
+          onChange={e => { if (e.target.files?.length) ed.uploadFiles(e.target.files); e.target.value = ''; }} />
+        <Button variant="outline" size="sm" className="mb-2 w-full" onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4 mr-1.5" /> A logo file (SVG or PNG)</Button>
+      </>)}
       <div className="grid grid-cols-2 gap-2">
         {wordmark && <button type="button" className="flex h-16 items-center justify-center rounded-md border bg-neutral-800 p-3 hover:ring-2 hover:ring-primary" onClick={() => ed.add(ed.square ? newCornerMark('wordmark', ed.assets, ed.F) : newWordmark(ink))}><img src={wordmark.src} alt="Wordmark" className="max-h-full max-w-full invert" /></button>}
         {t && <button type="button" className="flex h-16 items-center justify-center rounded-md border bg-neutral-800 p-3 hover:ring-2 hover:ring-primary" onClick={() => ed.add(ed.square ? newCornerMark('t', ed.assets, ed.F) : newMonogram(ink))}><img src={t.src} alt="t mark" className="max-h-full max-w-full invert" /></button>}
@@ -842,7 +878,7 @@ export function BrandPanel({ ed }: { ed: Editor }) {
           ))}
         </div>
       </Section>
-      <MarksSection ed={ed} />
+      <MarksSection ed={ed} upload />
     </div>
   );
 }
