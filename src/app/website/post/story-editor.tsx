@@ -32,15 +32,15 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Undo2, Redo2, Plus, LayoutTemplate, Type, ArrowUpRight, Minus, Circle, Square, Link2, Image as ImageIcon, Trash2, Save, BookmarkCheck,
   Maximize2, Lock, Copy, MoreHorizontal, ArrowLeft, Download, ZoomIn, ZoomOut, Shapes, PaintBucket, Layers, Palette as PaletteIcon, Upload, Clipboard, Scissors,
-  ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Group, Ungroup, Unlock, Paintbrush, Pencil, ArrowRightLeft, ChevronDown, ChevronUp,
+  ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Group, Ungroup, Unlock, Paintbrush, Pencil, ArrowRightLeft, Crop, Check, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Palette } from '@/lib/social/palettes';
 import type { Frame } from '@/lib/social/story';
 import {
   carryLayers, fontCss, frameOf, hitTest, layerBox, layoutText, loadUpload, moveLayer, newCornerMark, newImageLayer, newLayerId, newLinkPill, newMonogram, newShape, newText,
-  newUploadLayer, newWordmark, placementOf, reflow, renderDoc, renderDocTo, scaleLayer, uploadedImage, withPlacement,
-  type Assets, type Bind, type Box, type Fields, type Layer, type ShapeLayer, type StoryDoc, type TextLayer,
+  newUploadLayer, newWordmark, imageOf, panInFrame, placementOf, reflow, renderDoc, renderDocTo, scaleLayer, uploadedImage, withPlacement,
+  type Assets, type Bind, type Box, type Fields, type ImageLayer, type Layer, type ShapeLayer, type StoryDoc, type TextLayer,
 } from '@/lib/social/editor';
 import { alignDeltas, distributeDeltas, intersects, snapBox, snapLines, unionBox, type AlignHow } from '@/lib/social/design';
 import {
@@ -186,6 +186,8 @@ export function useEditor(p: StoryEditorProps) {
   const [sel, setSel] = useState<string[]>([]);
   const [bgSel, setBgSel] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  /** The picture whose photo is being moved inside its frame (double-click it, or the frame button). */
+  const [cropping, setCropping] = useState<string | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [panel, setPanel] = useState<SidePanel | null>(p.extras?.startPanel ?? 'templates');
   // Bumped when a font or an uploaded image finishes loading, so the canvas redraws.
@@ -429,7 +431,7 @@ export function useEditor(p: StoryEditorProps) {
 
   return {
     p, api, doc, view, F, fields, assets, square: !!square, onField, ver,
-    sel, bgSel, one, selLayers, editing, setEditing, panel, setPanel, grouped,
+    sel, bgSel, one, selLayers, editing, setEditing, cropping, setCropping, panel, setPanel, grouped,
     select, selectBg, clear, withGroups, boxOf, update, updateSel, add, remove, duplicate, copy, cut, paste, copyStyle, pasteStyle, hasStyle: () => !!styleClipboard, hasClip: () => clipboard.length > 0, sendToOther,
     reorder, align, distribute, nudge, group, ungroup, toggleLock, change,
     templates, saveTemplate, useTemplate, templateDoc, dropTemplate, preset,
@@ -443,6 +445,7 @@ export type Editor = ReturnType<typeof useEditor>;
 type Drag = { changed?: boolean } & (
   | { mode: 'move'; ids: string[]; sx: number; sy: number; orig: Layer[]; box0: Box; before: StoryDoc; lines: ReturnType<typeof snapLines> }
   | { mode: 'photo'; sx: number; sy: number; fx: number; fy: number; before: StoryDoc }
+  | { mode: 'inner'; id: string; sx: number; sy: number; fx: number; fy: number; before: StoryDoc }
   | { mode: 'resize'; id: string; cx: number; cy: number; d0: number; orig: Layer; before: StoryDoc }
   | { mode: 'side'; id: string; side: 'l' | 'r' | 't' | 'b'; sx: number; sy: number; orig: Layer; box0: Box; before: StoryDoc }
   | { mode: 'end'; id: string; end: 0 | 1; orig: ShapeLayer; before: StoryDoc }
@@ -529,6 +532,12 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
       const [a, b] = [...pointers.current.values()];
       const target = one && !one.locked ? one.id : 'bg';
       if (drag.current?.changed && 'before' in drag.current) checkpoint(drag.current.before);
+      if (ed.cropping && one?.id === ed.cropping && one.kind === 'image') {
+        // Two fingers on a picture being cropped zoom the photo inside its frame.
+        drag.current = { mode: 'pinch', id: `inner:${one.id}`, d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, a0: 0, orig: one, zoom0: one.iz ?? 1, before: doc };
+        down.current = null;
+        return;
+      }
       drag.current = { mode: 'pinch', id: target, d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, a0: Math.atan2(b.y - a.y, b.x - a.x), orig: target === 'bg' ? null : one, zoom0: placement.zoom, before: doc };
       down.current = null;
       return;
@@ -537,6 +546,17 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
     if (ed.editing) ed.setEditing(null);
     const hit = hitTest(view, pt.x, pt.y, fields, assets);
     const touch = e.pointerType !== 'mouse';
+    if (ed.cropping) {
+      const c = view.layers.find(l => l.id === ed.cropping);
+      const b = c ? ed.boxOf(c) : null;
+      if (c?.kind === 'image' && b && pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) {
+        // Inside the frame being cropped: the drag moves the photo, not the frame.
+        down.current = { x: e.clientX, y: e.clientY, t: Date.now(), hit: c, wasOnly: false, moved: false, touch };
+        drag.current = { mode: 'inner', id: c.id, sx: pt.x, sy: pt.y, fx: c.fx ?? 0.5, fy: c.fy ?? 0.5, before: doc };
+        return;
+      }
+      ed.setCropping(null);
+    }
     down.current = { x: e.clientX, y: e.clientY, t: Date.now(), hit, wasOnly: !!hit && one?.id === hit.id, moved: false, touch };
     if (touch) {
       // A long press opens the menu a right-click would.
@@ -580,7 +600,11 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
       const pts = [...pointers.current.values()];
       if (pts.length < 2) return;
       const k = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) / d.d0;
-      if (d.id === 'bg' || !d.orig) live(doc0 => withPlacement(doc0, { ...placementOf(doc0), zoom: Math.min(3, Math.max(1, d.zoom0 * k)) }));
+      if (d.id.startsWith('inner:') && d.orig?.kind === 'image') {
+        const o = d.orig, iz = Math.round(Math.min(4, Math.max(1, d.zoom0 * k)) * 100) / 100;
+        setHud(`${Math.round(iz * 100)}%`);
+        live(doc0 => ({ ...doc0, layers: doc0.layers.map(l => l.id === o.id ? { ...o, iz, ...panInFrame({ ...o, iz }, imageOf(o, assets), o.fx ?? 0.5, o.fy ?? 0.5, 0, 0) } as Layer : l) }));
+      } else if (d.id === 'bg' || !d.orig) live(doc0 => withPlacement(doc0, { ...placementOf(doc0), zoom: Math.min(3, Math.max(1, d.zoom0 * k)) }));
       else {
         const o = d.orig;
         const turn = ((Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) - d.a0) * 180) / Math.PI;
@@ -641,6 +665,11 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
       const ang = snapAngle((Math.atan2(pt.y - d.cy, pt.x - d.cx) * 180) / Math.PI - 90);
       setHud(`${ang}°`);
       live(doc0 => ({ ...doc0, layers: doc0.layers.map(l => l.id === d.id ? { ...d.orig, rotate: ang } as Layer : l) }));
+    } else if (d.mode === 'inner') {
+      const o = doc.layers.find(l => l.id === d.id);
+      if (o?.kind !== 'image') return;
+      const next = panInFrame(o, imageOf(o, assets), d.fx, d.fy, pt.x - d.sx, pt.y - d.sy);
+      live(doc0 => ({ ...doc0, layers: doc0.layers.map(l => l.id === d.id ? { ...l, ...next } as Layer : l) }));
     } else if (d.mode === 'photo') {
       const photo = doc.bg.photoId ? assets.photos[doc.bg.photoId] : null;
       if (!photo) return;
@@ -672,6 +701,39 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
     latest.current = { clientX: e.clientX, clientY: e.clientY };
     if (!frame.current) frame.current = requestAnimationFrame(apply);
   };
+
+  /** Crop a picture: a plain one becomes a frame of its own size first, so the photo has room to move once zoomed. */
+  const startCrop = (l: ImageLayer) => {
+    if (!l.h) {
+      const img = imageOf(l, assets);
+      const h = Math.round(img && img.naturalWidth ? l.w * img.naturalHeight / img.naturalWidth : l.w);
+      change(d0 => ({ ...d0, layers: d0.layers.map(x => x.id === l.id ? { ...x, h } as Layer : x) }));
+    }
+    ed.select([l.id]);
+    ed.setCropping(l.id);
+  };
+
+  // Scrolling over the picture being cropped zooms the photo inside it; Escape or Enter ends cropping.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el || !ed.cropping) return;
+    const id = ed.cropping;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return;
+      e.preventDefault();
+      change(d0 => ({ ...d0, layers: d0.layers.map(l => {
+        if (l.id !== id || l.kind !== 'image') return l;
+        const iz = Math.round(Math.min(4, Math.max(1, (l.iz ?? 1) * Math.exp(-e.deltaY * 0.002))) * 100) / 100;
+        return { ...l, iz, ...panInFrame({ ...l, iz }, imageOf(l, assets), l.fx ?? 0.5, l.fy ?? 0.5, 0, 0) } as Layer;
+      }) }), { key: `iz:${id}` });
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); ed.setCropping(null); } };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('keydown', onKey, true);
+    return () => { el.removeEventListener('wheel', onWheel); window.removeEventListener('keydown', onKey, true); };
+  }, [ed.cropping]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Cropping ends when the picture is no longer the one selected.
+  useEffect(() => { if (ed.cropping && ed.one?.id !== ed.cropping) ed.setCropping(null); }, [ed.one?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onPointerUp = (e: React.PointerEvent) => {
     pointers.current.delete(e.pointerId);
@@ -755,6 +817,8 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
           const pt = toStory(e);
           const hit = lettered ? null : hitTest(view, pt.x, pt.y, fields, assets);
           if (hit?.kind === 'text' && !hit.locked) { ed.select([hit.id]); ed.setEditing(hit.id); }
+          // Into a picture: move the photo inside its frame (or its clipping mask).
+          if (hit?.kind === 'image' && !hit.locked) startCrop(hit);
         }}
         className={cn('block w-full touch-none bg-muted outline-none cursor-default', designer ? 'rounded-sm shadow-xl' : 'rounded-xl shadow-md focus-visible:ring-2 focus-visible:ring-primary')}
         aria-label={ed.square ? 'Square photo — tap something to select it, drag to move it' : 'Story — tap something to select it, drag to move it'}
@@ -796,6 +860,11 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
       })()}
       {/* Several selected: the box round all of them. */}
       {union && ed.selLayers.length > 1 && <div className="pointer-events-none absolute border-2 border-sky-500/60" style={{ left: union.x * scale - 4, top: union.y * scale - 4, width: union.w * scale + 8, height: union.h * scale + 8 }} />}
+      {/* Cropping: the frame is dashed and says what the pointer does now. */}
+      {ed.cropping && union && ed.one?.id === ed.cropping && (<>
+        <div className="pointer-events-none absolute border-2 border-dashed border-amber-400" style={{ left: union.x * scale - 2, top: union.y * scale - 2, width: union.w * scale + 4, height: union.h * scale + 4 }} />
+        {!dragging && <div className="pointer-events-none absolute z-10 whitespace-nowrap rounded-md bg-foreground/85 px-2 py-0.5 text-[11px] text-background" style={{ left: (union.x + union.w / 2) * scale, top: (union.y + union.h) * scale + 8, transform: 'translateX(-50%)' }}>Drag to move the photo · {coarse ? 'pinch' : 'scroll'} to zoom</div>}
+      </>)}
       {/* The angle or size while turning or sizing. */}
       {hud && union && <div className="pointer-events-none absolute z-10 rounded-md bg-foreground/85 px-2 py-0.5 text-[11px] tabular-nums text-background" style={{ left: (union.x + union.w / 2) * scale, top: Math.max(4, union.y * scale - 30), transform: 'translateX(-50%)' }}>{hud}</div>}
 
@@ -804,6 +873,9 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
         <div className="absolute z-10 flex items-center gap-0.5 rounded-full border bg-background px-1 py-0.5 shadow-md"
           style={{ left: Math.min(Math.max((union.x + union.w / 2) * scale, 90), F.w * scale - 90), top: union.y * scale - (coarse ? 68 : 50) < 0 ? (union.y + union.h) * scale + (coarse ? 56 : 48) : union.y * scale - (coarse ? 68 : 50), transform: 'translateX(-50%)' }}>
           {ed.one?.kind === 'text' && !ed.one.locked && <MiniButton title="Type (Enter)" onClick={() => ed.setEditing(ed.one!.id)}><Pencil className="h-4 w-4" /></MiniButton>}
+          {ed.one?.kind === 'image' && !ed.one.locked && (ed.cropping === ed.one.id
+            ? <MiniButton title="Done moving the photo (Enter)" onClick={() => ed.setCropping(null)}><Check className="h-4 w-4" /></MiniButton>
+            : <MiniButton title="Move the photo inside its frame (double-click)" onClick={() => startCrop(ed.one as ImageLayer)}><Crop className="h-4 w-4" /></MiniButton>)}
           <MiniButton title={ed.selLayers.every(l => l.locked) ? 'Unlock' : 'Lock'} onClick={ed.toggleLock}>{ed.selLayers.every(l => l.locked) ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}</MiniButton>
           <MiniButton title="Duplicate (⌘D)" onClick={() => ed.duplicate()}><Copy className="h-4 w-4" /></MiniButton>
           <MiniButton title="Delete" onClick={() => ed.remove()}><Trash2 className="h-4 w-4" /></MiniButton>

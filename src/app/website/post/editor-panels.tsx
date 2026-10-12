@@ -294,6 +294,8 @@ function ImageControls({ ed, l }: { ed: Editor; l: ImageLayer }) {
     {l.h && (<>
       <Row label="Crop across"><Num value={l.fx ?? 0.5} min={0} max={1} step={0.01} onChange={v => set({ fx: v }, 'fx')} /></Row>
       <Row label="Crop down"><Num value={l.fy ?? 0.5} min={0} max={1} step={0.01} onChange={v => set({ fy: v }, 'fy')} /></Row>
+      <Row label="Zoom in frame"><Num value={l.iz ?? 1} min={1} max={4} step={0.05} onChange={v => set({ iz: v }, 'iz')} /></Row>
+      <Button size="sm" variant={ed.cropping === l.id ? 'default' : 'outline'} className="w-full" onClick={() => ed.setCropping(ed.cropping === l.id ? null : l.id)}>{ed.cropping === l.id ? 'Done moving the photo' : 'Move the photo inside the frame'}</Button>
     </>)}
     <Row label="Size"><Num value={l.w} min={40} max={1080} step={5} onChange={v => ed.update(l.id, x => { const i = x as ImageLayer; return { ...i, w: v, ...(i.h ? { h: Math.round(i.h * v / i.w) } : {}) }; }, 'w')} /></Row>
     {!l.mask && <Row label="Corners"><Num value={l.radius} min={0} max={300} onChange={v => set({ radius: v }, 'r')} /></Row>}

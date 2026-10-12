@@ -124,6 +124,8 @@ export interface ImageLayer extends Base {
   h?: number;
   /** Where the crop sits when framed, 0…1 (centre by default). */
   fx?: number; fy?: number;
+  /** How far the photo is zoomed inside its frame, 1 = just covering it (up to 4). */
+  iz?: number;
   radius: number; border: string | null; shadow: boolean;
   /** Cut to a shape (a Canva frame). */
   mask?: MaskKey | null;
@@ -347,6 +349,19 @@ export function loadUpload(src: string): Promise<HTMLImageElement> {
 }
 type Pic = HTMLImageElement;
 export const imageOf = (l: ImageLayer, a: Assets): Pic | undefined => (l.src ? uploads.get(l.src) : a.photos[l.photoId]);
+/**
+ * The photo inside a frame, moved by a drag of (dx, dy) story px from where it was: the frame stays,
+ * the crop slides (Canva's double-click into a frame). Clamped so the photo always covers the frame.
+ */
+export function panInFrame(l: ImageLayer, img: Pic | undefined, fx0: number, fy0: number, dx: number, dy: number): Pick<ImageLayer, 'fx' | 'fy'> {
+  const w = l.w, h = l.h ?? l.w * ratioOf(img);
+  const iw = img?.naturalWidth || w, ih = img?.naturalHeight || h;
+  const s = Math.max(w / iw, h / ih) * Math.max(1, l.iz ?? 1);
+  const spareX = iw * s - w, spareY = ih * s - h;
+  const cl = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 1000) / 1000;
+  return { fx: spareX > 0.5 ? cl(fx0 - dx / spareX) : 0.5, fy: spareY > 0.5 ? cl(fy0 - dy / spareY) : 0.5 };
+}
+
 const ratioOf = (img: Pic | undefined) => (img && img.naturalWidth ? img.naturalHeight / img.naturalWidth : 1);
 
 export function layerBox(l: Layer, fields: Fields, a: Assets): Box {
@@ -701,7 +716,7 @@ function drawImageLayer(ctx: Ctx, l: ImageLayer, a: Assets) {
   if (l.h) {
     // A frame: the photo covers it, cropped around (fx, fy).
     const iw = img.naturalWidth, ih = img.naturalHeight;
-    const s = Math.max(w / iw, h / ih);
+    const s = Math.max(w / iw, h / ih) * Math.max(1, l.iz ?? 1);
     const dw = iw * s, dh = ih * s;
     ctx.drawImage(src, (w - dw) * (l.fx ?? 0.5), (h - dh) * (l.fy ?? 0.5), dw, dh);
   } else ctx.drawImage(src, 0, 0, w, h);
