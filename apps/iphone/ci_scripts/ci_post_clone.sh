@@ -24,8 +24,11 @@ case "${CI_XCODE_PROJECT:-}" in
 ') ;;
 esac
 if [ "$HOUSE" = mina ]; then SPEC=project-mina.yml; PROJ=ERPMina.xcodeproj; else SPEC=project.yml; PROJ=ERP.xcodeproj; fi
-echo "Dressing the app as $HOUSE (build ${CI_BUILD_NUMBER:-1}, team ${CI_TEAM_ID:-?})"
-node scripts/house.mjs "$HOUSE" --auto "${CI_TEAM_ID:-}" "${CI_BUILD_NUMBER:-1}" >/dev/null
+# Xcode Cloud counts from 1, but builds made on the Mac reached 1009 (2026-10-11): TestFlight offers the highest
+# number, so a cloud build of 3 never reached a phone holding 1009. Cloud builds are numbered 2000 and up.
+BUILD=$((2000 + ${CI_BUILD_NUMBER:-1}))
+echo "Dressing the app as $HOUSE (build $BUILD, team ${CI_TEAM_ID:-?})"
+node scripts/house.mjs "$HOUSE" --auto "${CI_TEAM_ID:-}" "$BUILD" >/dev/null
 xcodegen generate --spec "$SPEC"
 
 # Xcode Cloud builds with package resolution switched off, only from the project's Package.resolved, and a
