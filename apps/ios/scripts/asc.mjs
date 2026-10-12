@@ -5,6 +5,7 @@
 //   node scripts/asc.mjs sign <house> <dir>             a signing certificate and profile for one build → $GITHUB_ENV
 //   node scripts/asc.mjs sign-native <house> <dir>      the same for the native app (apps/iphone) and its widget, with push
 //   node scripts/asc.mjs testers <house> [emails]       the house's "Shop" testers: the account holder, the emails, and anyone accepted since
+//   node scripts/asc.mjs builds <house> [--fix]         the app's newest builds, whether "Shop" has them; --fix adds the newest and answers export compliance
 //   node scripts/asc.mjs revoke                         the build's certificate and profile, gone again
 //   node scripts/asc.mjs key-file <path>                the key as a proper .p8, for xcodebuild's upload
 //
@@ -324,6 +325,61 @@ async function testers(name, emails) {
   }
 }
 
+/** Nothing uploaded after this instant means Xcode Cloud archived but never distributed (2026-10-12, commit 42f8124). */
+const ARCHIVED_AT = '2026-10-12T18:30:00Z';
+
+/** The app's newest builds and whether the house's "Shop" group has them; with fix, the newest joins it. */
+async function builds(name, fix) {
+  const h = houses[name];
+  if (!h) throw new Error(`no house ${name}`);
+  const app = await appFor(h);
+  if (!app) throw new Error(`${h.storeName} has no app in App Store Connect`);
+  say(`${h.storeName}: app ${app.id} (${h.bundleId})`);
+  const res = await api('GET', `/v1/builds?filter[app]=${app.id}&sort=-uploadedDate&limit=8&include=buildBetaDetail,preReleaseVersion`);
+  const inc = (type, id) => (res.included || []).find((i) => i.type === type && i.id === id);
+  const rows = res.data.map((b) => {
+    const a = b.attributes;
+    const pre = inc('preReleaseVersions', b.relationships?.preReleaseVersion?.data?.id);
+    const det = inc('buildBetaDetails', b.relationships?.buildBetaDetail?.data?.id);
+    return {
+      id: b.id, version: pre?.attributes?.version || '?', build: a.version, uploaded: a.uploadedDate,
+      state: a.processingState, expired: !!a.expired, encryption: a.usesNonExemptEncryption,
+      internal: det?.attributes?.internalBuildState || '-', external: det?.attributes?.externalBuildState || '-',
+    };
+  });
+  const group = (await api('GET', `/v1/apps/${app.id}/betaGroups?limit=50`)).data
+    .find((g) => g.attributes.name === 'Shop' && g.attributes.isInternalGroup);
+  let inShop = new Set();
+  let testerCount = 0;
+  if (group) {
+    inShop = new Set((await api('GET', `/v1/builds?filter[betaGroups]=${group.id}&filter[app]=${app.id}&sort=-uploadedDate&limit=50`)).data.map((b) => b.id));
+    testerCount = (await api('GET', `/v1/betaGroups/${group.id}/betaTesters?limit=200`)).data.length;
+    say(`Group "Shop" ${group.id}: ${testerCount} tester(s), access to all builds: ${!!group.attributes.hasAccessToAllBuilds}`);
+  } else say('No internal group "Shop" for this app (run testers first).');
+  for (const r of rows) {
+    say(`  ${r.version} (${r.build})  ${r.uploaded}  ${r.state}${r.expired ? ' EXPIRED' : ''}  encryption ${r.encryption}  internal ${r.internal}  external ${r.external}  in Shop: ${inShop.has(r.id) ? 'yes' : 'no'}`);
+  }
+  const hhmm = (d) => new Date(d).toISOString().slice(11, 16);
+  const newest = rows[0];
+  if (!newest) { say(`::warning::${h.storeName}: no builds at all in App Store Connect.`); return; }
+  say(`${h.storeName}: newest build ${newest.version} (${newest.build}) uploaded ${hhmm(newest.uploaded)} UTC ${newest.uploaded.slice(0, 10)}, ${newest.state}, internal ${newest.internal}, in Shop: ${inShop.has(newest.id) ? 'yes' : 'no'}`);
+  if (!rows.some((r) => new Date(r.uploaded) > new Date(ARCHIVED_AT))) {
+    say(`::error::${h.storeName}: Xcode Cloud archived but uploaded nothing (no build after ${ARCHIVED_AT}): the workflow has no TestFlight distribution / post-action.`);
+    return;
+  }
+  if (!fix) return;
+  if (newest.state !== 'VALID' || newest.expired) { say(`Not fixing: the newest build is ${newest.state}${newest.expired ? ', expired' : ''} (still processing, or Apple refused it).`); return; }
+  if (newest.encryption == null) {
+    // Info.plist declares ITSAppUsesNonExemptEncryption false; this answers it where the build missed it.
+    await api('PATCH', `/v1/builds/${newest.id}`, { data: { type: 'builds', id: newest.id, attributes: { usesNonExemptEncryption: false } } });
+    say(`Set export compliance (usesNonExemptEncryption false) on ${newest.version} (${newest.build})`);
+  }
+  if (!group) { say('Not added: no "Shop" group.'); return; }
+  if (inShop.has(newest.id)) { say(`${newest.version} (${newest.build}) is already in Shop.`); return; }
+  await api('POST', `/v1/betaGroups/${group.id}/relationships/builds`, { data: [{ type: 'builds', id: newest.id }] });
+  say(`Added ${newest.version} (${newest.build}) to Shop (${testerCount} tester(s))`);
+}
+
 const [cmd, ...args] = process.argv.slice(2);
 try {
   if (cmd === 'plan') await plan(args[0] || 'auto');
@@ -332,6 +388,7 @@ try {
   else if (cmd === 'sign-native') await signNative(args[0], args[1]);
   else if (cmd === 'revoke') await revoke();
   else if (cmd === 'key-file') { fs.mkdirSync(path.dirname(args[0]), { recursive: true }); fs.writeFileSync(args[0], ASC_PRIVATE_KEY, { mode: 0o600 }); }
+  else if (cmd === 'builds') await builds(args[0], args.includes('--fix'));
   else if (cmd === 'testers') await testers(args[0], String(args[1] || '').split(/[\s,;]+/).filter(Boolean));
   else throw new Error(`unknown command ${cmd}`);
 } catch (e) {

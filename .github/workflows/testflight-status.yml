@@ -1,0 +1,38 @@
+name: TestFlight status
+
+# Why a build is or is not in TestFlight (docs/features/iphone-app.md, Xcode Cloud): each house's newest builds,
+# their processing and beta state, and whether the "Shop" group has them (apps/ios/scripts/asc.mjs builds).
+# With fix (the default, and on a push to this file): the newest valid build joins Shop, export compliance answered.
+
+on:
+  workflow_dispatch:
+    inputs:
+      fix:
+        description: Add the newest build to Shop
+        type: boolean
+        default: true
+  push:
+    branches: ['claude/**']
+    paths: ['.github/workflows/testflight-status.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  status:
+    # gemstrack-pos carries this file too; the key is here only.
+    if: github.repository == 'Ammar282828/taheri-pos'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          FIX: ${{ (github.event_name == 'push' || inputs.fix) && '1' || '' }}
+        run: |
+          for h in taheri mina; do node apps/ios/scripts/asc.mjs builds "$h" ${FIX:+--fix} || echo "::warning::$h failed"; done
