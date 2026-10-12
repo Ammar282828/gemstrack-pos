@@ -53,6 +53,7 @@ function docColours(ed: Editor): string[] {
     if (l.kind === 'text') { put(l.color); put(l.box?.color); put(l.effect?.color); }
     else if (l.kind === 'image') put(l.border);
     else if (l.kind === 'wordmark') put(l.color);
+    else if (l.kind === 'qr') { put(l.fg); put(l.bg); }
     else { put(l.color); put(l.fill); put(l.fill2); }
   }
   return [...out].filter(c => !SWATCHES.includes(c)).slice(0, 10);
@@ -1194,7 +1195,7 @@ export function ColourPanel({ ed }: { ed: Editor }) {
           {l.fill && l.fill2 && <Big value={l.fill2} onChange={c => set({ fill2: c } as Partial<Layer>, 'fill2')} />}
         </Section>
       )}
-      <Section title={closed ? 'Border' : 'Colour'}><Big value={l.color} onChange={c => set({ color: c } as Partial<Layer>, 'color')} /></Section>
+      <Section title={closed ? 'Border' : 'Colour'}><Big value={l.kind === 'qr' ? l.fg : l.color} onChange={c => set((l.kind === 'qr' ? { fg: c } : { color: c }) as Partial<Layer>, 'color')} /></Section>
     </div>
   );
 }

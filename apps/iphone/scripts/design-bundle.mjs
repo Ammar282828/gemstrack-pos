@@ -11,6 +11,8 @@ const fonts = [
   ['Cormorant', 'cormorant-garamond-normal-latin', '500', 'normal'], ['Cormorant', 'cormorant-garamond-italic-latin', '500', 'italic'],
   ['Playfair', 'playfair-display-latin', '700', 'normal'], ['Script', 'great-vibes-latin', '400', 'normal'],
   ['Montserrat', 'montserrat-latin', '400 700', 'normal'], ['Cinzel', 'cinzel-latin', '500', 'normal'],
+  ['CormorantInfant', 'cormorant-infant-latin', '500', 'normal'], ['Italiana', 'italiana-latin', '400', 'normal'], ['Jost', 'jost-latin', '400', 'normal'],
+  ['TenorSans', 'tenor-sans-latin', '400', 'normal'], ['DMSerif', 'dm-serif-display-latin', '400', 'normal'], ['Marcellus', 'marcellus-latin', '400', 'normal'],
 ];
 let css = '';
 for (const [name, file, weight, style] of fonts) {
