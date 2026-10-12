@@ -102,6 +102,21 @@ is its rulebook, mirroring `apps/iphone/CONVENTIONS.md`.
 5. Device: widgets, FCM (and the server side), voice, scanner, PDFs and share, deep links, biometrics.
 6. CI and distribution, owner steps.
 
+### The interim app (apps/android-twa)
+
+Owner, 2026-10-12: "just give me an apk". Until the native app ships, `apps/android-twa` is a Trusted Web Activity: the
+live ERP full-screen in Chrome under the native app's IDs and upload key (versionCode 1; the native app starts at 2,
+so it installs over it as an update). Google sign-in works as it does in Chrome, with nothing registered in Firebase.
+Full-screen needs `public/.well-known/assetlinks.json` (both packages, the upload key's SHA-256) on each ERP host;
+Play App Signing's key must be added to it when the app goes to Play. Signed APKs are built in a session with the
+key and handed over directly.
+
 ### Status
 
-(Updated as phases land.)
+- 2026-10-12 — Phase 1 done: Gradle project (AGP 9.4, Kotlin 2.4, Compose BOM 2026.09, Material 3 1.5.0-beta01 for the
+  expressive API, minSdk 26, target 37), flavors, palette/fonts/icons from the iPhone's sources; `core` (ERPCore, 368
+  tests = the Swift's 368); the New order / New sale logic and the contract (`contract/cases.json` byte-identical
+  to the iPhone's; the ERP's contract test runs both phones' files, 270/270); the kit; the shell (sign-in, session, the
+  books, ErpApi, Navigation 3 with per-tab stacks and adaptive bars, the ERP page with the full bridge, biometric vault,
+  document scanner, speech, deep links, demo mode). No emulator here (no KVM): screens are checked by JVM screenshot tests.
+- Phase 2 in progress: Orders, Invoices, New sale.

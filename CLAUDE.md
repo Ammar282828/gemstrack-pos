@@ -236,6 +236,9 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 **iPhone app** (`docs/features/iphone-app.md`)
 - [iPhone app](docs/features/iphone-app.md#iphone-app) — `apps/ios`, Capacitor over the live ERP; TestFlight by `ios.yml`
 
+**Android app** (`docs/features/android-app.md`)
+- [Android app](docs/features/android-app.md#android-app) — `apps/android`, Kotlin/Compose port of `apps/iphone`, two flavors; money in `core` held to the iPhone's contract; Play internal testing; `apps/android-twa` until it ships
+
 ## graphify
 
 This project has a graphify knowledge graph at graphify-out/.
