@@ -17,7 +17,7 @@ import { KarigarWorkload, WorkshopJob, UNASSIGNED_ID, WARN_DAYS, CRITICAL_DAYS, 
 import { STORE_CONFIG } from '@/lib/store-config';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Pill, EmptyState } from '@/components/ledger';
 import { Separator } from '@/components/ui/separator';
 import {
   Hammer, AlertTriangle, Flame, Share2, PlusCircle, ChevronRight, Moon, ExternalLink,
@@ -108,8 +108,8 @@ function useShare(contactById: Map<string, string>) {
 const Age: React.FC<{ days: number }> = ({ days }) => (
   <span className={cn(
     'tabular-nums text-xs font-medium w-9 flex-shrink-0',
-    days >= CRITICAL_DAYS ? 'text-destructive'
-      : days >= WARN_DAYS ? 'text-warning'
+    days >= CRITICAL_DAYS ? 'text-tone-late-ink'
+      : days >= WARN_DAYS ? 'text-tone-owed-ink'
       : 'text-muted-foreground',
   )}>{days}d</span>
 );
@@ -125,8 +125,7 @@ const KarigarPanel: React.FC<{
   return (
     <Card className={cn(
       'flex flex-col',
-      row.critical > 0 && 'border-destructive/40',
-      row.isUnassigned && 'border-destructive/60 bg-destructive/5',
+      row.isUnassigned && 'bg-tone-late/[.06]',
     )}>
       <CardContent className="p-4 flex flex-col flex-1">
         {/* Name + headline count */}
@@ -135,10 +134,10 @@ const KarigarPanel: React.FC<{
           <div className="flex items-start justify-between gap-2">
             <span className="flex items-center gap-1.5 min-w-0">
               {row.isUnassigned
-                ? <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />
+                ? <AlertTriangle className="h-4 w-4 text-tone-late-ink flex-shrink-0" />
                 : <Hammer className="h-4 w-4 text-primary flex-shrink-0" />}
-              <span className={cn('font-semibold truncate group-hover:underline',
-                row.isUnassigned && 'text-destructive')}>
+              <span className={cn('text-ios-headline font-semibold truncate group-hover:underline',
+                row.isUnassigned && 'text-tone-late-ink')}>
                 {row.isUnassigned ? 'Unassigned' : row.karigarName}
               </span>
             </span>
@@ -146,14 +145,14 @@ const KarigarPanel: React.FC<{
           </div>
 
           <div className="flex items-baseline gap-1.5 mt-1.5">
-            <span className="text-3xl font-bold tabular-nums leading-none">{row.active}</span>
+            <span className="font-serif text-3xl font-semibold tabular-nums leading-none">{row.active}</span>
             <span className="text-sm text-muted-foreground">
               piece{row.active === 1 ? '' : 's'}
             </span>
             {row.oldestDays > 0 && (
               <span className={cn('text-sm ml-auto tabular-nums',
-                row.oldestDays >= CRITICAL_DAYS ? 'text-destructive font-medium'
-                  : row.oldestDays >= WARN_DAYS ? 'text-warning' : 'text-muted-foreground')}>
+                row.oldestDays >= CRITICAL_DAYS ? 'text-tone-late-ink font-medium'
+                  : row.oldestDays >= WARN_DAYS ? 'text-tone-owed-ink' : 'text-muted-foreground')}>
                 oldest {row.oldestDays}d
               </span>
             )}
@@ -163,14 +162,10 @@ const KarigarPanel: React.FC<{
         {(row.critical > 0 || row.late > 0) && (
           <div className="flex items-center gap-1.5 mt-2">
             {row.critical > 0 && (
-              <Badge variant="destructive" className="text-2xs">
-                <Flame className="h-3 w-3 mr-1" />{row.critical} critical
-              </Badge>
+              <Pill tone="late" icon={<Flame />}>{row.critical} critical</Pill>
             )}
             {row.late > 0 && (
-              <Badge variant="outline" className="text-2xs text-warning border-warning/40 bg-warning/10">
-                {row.late} late
-              </Badge>
+              <Pill tone="owed">{row.late} late</Pill>
             )}
           </div>
         )}
@@ -260,9 +255,7 @@ export const KarigarGlance: React.FC<{
 
   if (rows.length === 0) {
     return (
-      <Card><CardContent className="py-12 text-center text-muted-foreground">
-        No karigars on record yet.
-      </CardContent></Card>
+      <EmptyState icon={<Hammer />} title="No karigars on record yet" />
     );
   }
 
@@ -275,14 +268,14 @@ export const KarigarGlance: React.FC<{
             {[
               { label: 'Pieces out', value: String(totals.active) },
               { label: 'Benches working', value: `${busy.filter(r => !r.isUnassigned).length}` },
-              { label: `Late ${WARN_DAYS}d+`, value: String(totals.late), tone: totals.late ? 'text-warning' : undefined },
-              { label: `Critical ${CRITICAL_DAYS}d+`, value: String(totals.critical), tone: totals.critical ? 'text-destructive' : undefined },
+              { label: `Late ${WARN_DAYS}d+`, value: String(totals.late), tone: totals.late ? 'text-tone-owed-ink' : undefined },
+              { label: `Critical ${CRITICAL_DAYS}d+`, value: String(totals.critical), tone: totals.critical ? 'text-tone-late-ink' : undefined },
               { label: 'Gold out', value: totals.weightG > 0 ? `${totals.weightG.toFixed(1)}g` : '—' },
               { label: 'Value out', value: totals.value > 0 ? `PKR ${Math.round(totals.value / 1000)}k` : '—' },
             ].map(c => (
               <div key={c.label} className="min-w-0">
-                <p className="text-2xs uppercase tracking-wide text-muted-foreground truncate">{c.label}</p>
-                <p className={cn('text-lg sm:text-xl font-bold leading-tight tabular-nums truncate', c.tone)}>{c.value}</p>
+                <p className="text-2xs font-semibold uppercase tracking-[.6px] text-muted-foreground truncate">{c.label}</p>
+                <p className={cn('font-serif text-ios-title2 font-semibold leading-tight tabular-nums truncate', c.tone)}>{c.value}</p>
               </div>
             ))}
           </div>
@@ -290,9 +283,7 @@ export const KarigarGlance: React.FC<{
       </Card>
 
       {busy.length === 0 ? (
-        <Card><CardContent className="py-10 text-center text-muted-foreground">
-          Nobody is holding any pieces right now.
-        </CardContent></Card>
+        <EmptyState icon={<Moon />} title="Nothing is on the bench" description="Nobody is holding any pieces right now." />
       ) : (
         <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
           {busy.map(r => (
@@ -305,7 +296,7 @@ export const KarigarGlance: React.FC<{
       {/* Empty benches: one line, not one row each. Naming them is the point —
           these are the people you can hand the next job to. */}
       {idle.length > 0 && (
-        <Card className="bg-muted/30">
+        <Card className="bg-muted/60">
           <CardContent className="p-3">
             <button type="button" onClick={() => setShowIdle(v => !v)}
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground w-full text-left">
