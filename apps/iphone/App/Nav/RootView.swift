@@ -63,6 +63,8 @@ struct RootView: View {
     @State private var tab = UserDefaults.standard.string(forKey: "ERPDemoTab") ?? "home"
     @State private var creating: Route?
     @State private var voice = false
+    /// The page the voice assistant chose, opened once its sheet has gone (two sheets in one update can drop the second).
+    @State private var pendingRoute: Route?
 
     private var map: NavMap { NavMap.current.visible(to: session.role) }
     private static let primary = ["home", "orders", "invoices", "customers"]
@@ -70,7 +72,7 @@ struct RootView: View {
 
     /// The tabs before Search. Marketing has no dashboard: the ERP sends it to Posts, the first page it may open.
     private func tabEntries(_ map: NavMap) -> [NavEntry] {
-        if sizeClass == .regular { return map.entries }
+        if sizeClass.isPadLayout { return map.entries }
         if session.role == "marketing" { return Array(map.entries.prefix(4)) }
         return Self.primary.compactMap { id in map.entries.first { $0.id == id } }
     }
@@ -125,9 +127,11 @@ struct RootView: View {
         .tabViewSidebarHeader {
             HouseLogo().frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
         }
-        .sheet(isPresented: $voice) {
+        .sheet(isPresented: $voice, onDismiss: {
+            if let p = pendingRoute { pendingRoute = nil; creating = p }
+        }) {
             NavigationStack {
-                NativeVoiceScreen { path in voice = false; creating = Route(path: path) }
+                NativeVoiceScreen { path in pendingRoute = Route(path: path); voice = false }
             }
             .presentationSizing(.form)
         }
@@ -171,7 +175,7 @@ private struct CreateAccessory: ViewModifier {
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     func body(content: Content) -> some View {
-        if sizeClass == .regular {
+        if sizeClass.isPadLayout {
             // An iPad has a toolbar to spare: New and the voice assistant sit in it, so nothing floats over a
             // form or the last row, and the page keeps its whole height. They go beside the rate chip, leaving
             // the trailing side to the page's own actions (filters, Settings), which would otherwise fold away.
@@ -284,7 +288,7 @@ struct PlaceScreen: View {
             .modifier(TabsMenu(tabs: tabs, chosen: $chosen))
             // Native screens sit on the house's ground; an ERP page brings its own (the same palette).
             .modifier(OptionalGround(on: ScreenRegistry.hasNative(current), width: ScreenRegistry.readableWidth(for: current)))
-            .modifier(TeamNotePresentation())
+            .modifier(TeamNotePresentation(shown: isRoot))
             .toolbar {
                 if isRoot {
                     ToolbarItem(placement: .topBarLeading) { RateChip() }
@@ -354,7 +358,10 @@ final class DemoTeamNote {
     var text: String?
 }
 
+/// The banner heads each tab's first screen only: on pushed pages and forms it would repeat at every level and
+/// take room from the fields (the sheets built on `PlaceScreen(path:)` are not roots either).
 struct TeamNotePresentation: ViewModifier {
+    var shown = true
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
     @State private var reading = false
@@ -364,7 +371,7 @@ struct TeamNotePresentation: ViewModifier {
     func body(content: Content) -> some View {
         content
             .safeAreaInset(edge: .top, spacing: 0) {
-                if !text.isEmpty {
+                if shown && !text.isEmpty {
                     HStack(alignment: .top, spacing: 12) {
                         Button { reading = true } label: {
                             VStack(alignment: .leading, spacing: 5) {
@@ -412,6 +419,9 @@ struct TeamNoteEditor: View {
     @State private var saving = false
     @State private var failure: String?
 
+    private static let limit = 600
+    private var over: Bool { text.count > Self.limit }
+
     static func current(_ book: Book) -> String {
         (House.isDemo ? DemoTeamNote.shared.text : nil) ?? book.settings.value?.teamNote ?? ""
     }
@@ -424,7 +434,13 @@ struct TeamNoteEditor: View {
                         .lineLimit(4...10)
                         .disabled(saving)
                 } header: { LedgerHeading(title: "Team note") } footer: {
-                    Text("Visible to everyone until cleared. Up to 600 characters.")
+                    // The field never cuts the text; Save stays off until it fits, so say so rather than leave it grey.
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Visible to everyone until cleared.")
+                        Text(over ? "Keep it under \(Self.limit) characters: \(text.count) / \(Self.limit)" : "\(text.count) / \(Self.limit)")
+                            .foregroundStyle(over ? Color.red : Color.secondary)
+                            .monospacedDigit()
+                    }
                 }
                 .houseRows()
                 if !Self.current(book).isEmpty {
@@ -441,7 +457,7 @@ struct TeamNoteEditor: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(saving) }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save(text.trimmingCharacters(in: .whitespacesAndNewlines)) }
-                        .disabled(!loaded || saving || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || text.count > 600 || !session.isOwner)
+                        .disabled(!loaded || saving || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || over || !session.isOwner)
                 }
             }
             .onAppear { book.settings.need(); seed() }

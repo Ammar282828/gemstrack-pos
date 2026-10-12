@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import ERPCore
 
 /// Static placeholders never obscure a page with a spinning activity indicator.
@@ -198,6 +199,12 @@ extension EnvironmentValues {
     }
 }
 
+extension Optional where Wrapped == UserInterfaceSizeClass {
+    /// The iPad layout: an iPad whose window is wide. A Plus or Max iPhone turned sideways is `.regular` too, and must keep
+    /// the phone's tabs and floating button; an iPad in Split View or Slide Over is `.compact` and takes the phone path.
+    @MainActor var isPadLayout: Bool { UIDevice.current.userInterfaceIdiom == .pad && self == .regular }
+}
+
 /// A page's rows in a readable column on an iPad's wide window (about 70 characters of a form, as Settings
 /// keeps them), the ground and the scrolling still the whole window's. The margin goes into the safe area, so a
 /// List or Form insets its rows and keeps its scroll edge to edge; a phone (compact width) is never touched.
@@ -207,11 +214,11 @@ struct ReadableColumn: ViewModifier {
     @State private var width: CGFloat = 0
 
     func body(content: Content) -> some View {
-        let inset = sizeClass == .regular ? max(0, ((width - maxWidth) / 2).rounded()) : 0
+        let inset = sizeClass.isPadLayout ? max(0, ((width - maxWidth) / 2).rounded()) : 0
         Group {
             // Branching on the size class only (it does not change as the page is measured), so the page keeps
             // its state when the margin arrives.
-            if sizeClass == .regular {
+            if sizeClass.isPadLayout {
                 // A large title stays at the window's edge while the rows sit centred; in the bar, centred over
                 // the column, the name and the page read as one.
                 content.safeAreaPadding(.horizontal, inset)
