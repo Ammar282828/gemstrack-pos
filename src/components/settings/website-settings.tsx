@@ -106,7 +106,7 @@ export function WebsiteSettings() {
       <CardContent className="space-y-6">
 
         {denied && (
-          <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
+          <div className="rounded-control bg-tone-owed/[.08] p-4 text-sm">
             <p className="font-medium">These settings are owner-only.</p>
             <p className="text-muted-foreground">Pricing and the selling switch can only be read and changed by a shop owner. Nothing below will save on this account.</p>
           </div>
@@ -117,7 +117,7 @@ export function WebsiteSettings() {
             <Label className="text-base">Show prices and take orders</Label>
             <p className="text-sm text-muted-foreground">
               {cfg.enabled ? 'On. The site shows prices for every piece with a readable weight.' : 'Off. The site shows no prices; every piece is enquiry-only.'}
-              {missing.length > 0 && <span className="block text-amber-600 mt-1">Before this can work, set {missing.join(' and ')}.</span>}
+              {missing.length > 0 && <span className="block text-tone-owed-ink mt-1">Before this can work, set {missing.join(' and ')}.</span>}
             </p>
           </div>
           <Switch checked={cfg.enabled} onCheckedChange={v => set({ enabled: v })} disabled={!loaded} />

@@ -385,7 +385,7 @@ function PostsHub() {
     <div className="container mx-auto px-4 py-6 max-w-6xl space-y-5 pb-24 lg:pb-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><Send className="mr-3 h-7 w-7" /> Posts</h1>
+          <h1 className="flex items-center text-ios-large font-bold text-foreground md:text-3xl md:font-semibold"><Send className="mr-3 hidden h-7 w-7 text-primary md:block" /> Posts</h1>
           <p className="text-sm text-muted-foreground mt-1">What went out today, what’s waiting, and anything new — the website’s pieces, new photos{STORE_INVESTMENTS ? ', the gold post' : ''}.</p>
         </div>
         {STORE_POST_PIECE && (

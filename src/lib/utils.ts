@@ -1,5 +1,18 @@
 import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { extendTailwindMerge } from "tailwind-merge"
+import { toneText, type Tone } from "@/lib/tones"
+
+// tailwind-merge must know the ERP's own text sizes and radii (tailwind.config.ts), or it files
+// `text-ios-sub` as a colour and `rounded-card` as nothing, and a caller's `text-lg` / `rounded-xl`
+// would sit beside the default instead of replacing it.
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      "font-size": [{ text: ["ios-large", "ios-title2", "ios-title3", "ios-headline", "ios-sub", "ios-foot", "ios-cap", "2xs"] }],
+      rounded: [{ rounded: ["card", "card-sm", "tile", "leaf", "control"] }],
+    },
+  },
+})
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -174,3 +187,10 @@ export const shopifyRowClass =
  * The tint alone is enough, and it is the part that survives a glance.
  */
 export const shopifyCardClass = 'bg-success/[0.06]';
+
+/**
+ * Text colour for a tone (docs/features/web-matches-app.md a.2): the `-ink` variant, which passes
+ * contrast as text. One source: `toneText` in lib/tones.ts. Phone cards use `MineTag` and `Pill`
+ * (components/ledger) in place of `settledRowClass` / `mineRowClass`; those two stay for desktop rows.
+ */
+export const toneClass = (tone: Tone = 'quiet'): string => toneText(tone);

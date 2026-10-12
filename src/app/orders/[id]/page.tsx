@@ -66,33 +66,24 @@ import QRCode from 'qrcode.react';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PageBack } from '@/components/shared/page-back';
 import { PromiseLine } from '@/components/shared/promise-line';
+import { ContactActions, Monogram, MoneySplit, Pill, StageTrack, toneClasses, type Tone } from '@/components/ledger';
+import { stageOf } from '@/lib/order-stage';
+import { isWalkInName } from '@/lib/walk-in';
 import { PhoneField } from '@/components/ui/phone-field';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { deleteErrorText } from '@/lib/delete-code';
 
 
-const getStatusBadgeVariant = (status: OrderStatus) => {
-    switch (status) {
-      case 'Pending': return 'bg-warning text-warning-foreground';
-      case 'In Progress': return 'bg-blue-500/80 text-blue-50';
-      case 'Completed': return 'bg-success text-success-foreground';
-      case 'Cancelled': return 'bg-destructive text-destructive-foreground';
-      case 'Refunded': return 'bg-purple-500/80 text-purple-50';
-      default: return 'secondary';
-    }
-};
+const STATUS_TONE: Record<string, Tone> = { Pending: 'owed', 'In Progress': 'working', Completed: 'settled', Cancelled: 'quiet', Refunded: 'quiet' };
+const statusLook = (status: string) => { const t = toneClasses(STATUS_TONE[status] ?? 'quiet'); return cn(t.tint, t.ink); };
 
 type PaymentStatus = OrderPaymentStatus;
 const getPaymentStatus = getOrderPaymentStatus;
-const getPaymentBadgeClass = (status: PaymentStatus) => {
-  switch (status) {
-    case 'Paid': return 'bg-success text-success-foreground';
-    case 'Partial': return 'bg-orange-500/80 text-orange-50';
-    case 'Unpaid': return 'bg-destructive text-destructive-foreground';
-  }
-};
+const PAYMENT_TONE: Record<PaymentStatus, Tone> = { Paid: 'settled', Partial: 'owed', Unpaid: 'late' };
 
+/** Booked, Making, Ready, Invoiced: where the order stands on the track (an online order awaiting its transfer is still Booked). */
+const TRACK_STEP = { transfer: 0, new: 0, karigar: 1, ready: 2, payment: 3, done: 3, closed: -1 } as const;
 
 type PhoneForm = {
     phone: string;
@@ -539,6 +530,14 @@ export default function OrderDetailPage() {
   // recorded after it (lib/order-payment.ts).
   const advanceLines = orderAdvancePayments(order, '').map(a => ({ ...a, notes: a.notes?.replace(/^: /, '') || (a.date === order.createdAt ? 'With the order' : '') }));
 
+  // The page's hero: the person, the track, and the money split (the app's order page). An invoiced order shows
+  // its invoice's money, since that is where it is taken.
+  const heroName = !order.customerName?.trim() || isWalkInName(order.customerName) ? 'Walk-in' : order.customerName.trim();
+  const trackStep = TRACK_STEP[stageOf(order, linkedInvoice && (linkedInvoice.balanceDue || 0) > 0.5 ? linkedInvoice.balanceDue : 0)];
+  const moneyTotal = linkedInvoice ? linkedInvoice.grandTotal : subtotal - discountAmount;
+  const moneyPaid = linkedInvoice ? linkedInvoice.amountPaid : advancePayment + advanceInExchangeValue;
+  const moneyDue = linkedInvoice ? linkedInvoice.balanceDue : grandTotal;
+
   const ratesApplied = order.ratesApplied || {};
   
   const getRateDisplay = () => {
@@ -553,7 +552,7 @@ export default function OrderDetailPage() {
 
   return (
     <>
-    <div className="container mx-auto py-8 px-4 space-y-6">
+    <div className="container mx-auto max-w-5xl px-4 py-5 md:py-6 space-y-5">
       <div style={{ display: 'none' }}>
         <img id="shop-logo" src={STORE_LOGO_URL} crossOrigin="anonymous" alt="" loading="lazy" decoding="async" />
         <QRCode id="wa-qr-code" value={STORE_CONFIG.whatsappUrl} size={128} />
@@ -671,21 +670,30 @@ export default function OrderDetailPage() {
       <Card>
               <CardHeader>
                       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
-                        <div className="min-w-0">
-                          {/* The id no longer wraps mid-word, and the line that
-                              said "Details of the custom order" now carries the
-                              two facts you actually came for. */}
-                          <CardTitle className="text-2xl whitespace-nowrap">{order.id}</CardTitle>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {order.customerName || 'Walk-in'}
-                            {' · '}
-                            {format(parseISO(order.createdAt), 'd MMM yyyy')}
-                            {getRateDisplay() !== 'N/A' && <> · {getRateDisplay()}</>}
-                          </p>
-                          {/* Its own line rather than another item in the run
-                              above: when this one has gone red it is the thing
-                              you opened the order to find out. */}
-                          <PromiseLine order={order} className="mt-0.5 text-sm" />
+                        <div className="min-w-0 flex-1 space-y-4 lg:max-w-xl">
+                          <div className="flex items-start gap-3">
+                            <Monogram name={heroName} size={44} />
+                            <div className="min-w-0 space-y-1">
+                              {/* The person leads, the id is the quiet caption (the app's order page). */}
+                              <CardTitle className="break-words font-serif text-ios-title2 font-semibold">{heroName}</CardTitle>
+                              <p className="text-ios-sub text-muted-foreground">
+                                {order.id}
+                                {' · '}
+                                {format(parseISO(order.createdAt), 'd MMM yyyy')}
+                                {getRateDisplay() !== 'N/A' && <> · {getRateDisplay()}</>}
+                              </p>
+                              {/* Its own line rather than another item in the run
+                                  above: when this one has gone red it is the thing
+                                  you opened the order to find out. */}
+                              <PromiseLine order={order} className="text-ios-sub" />
+                            </div>
+                          </div>
+                          {trackStep >= 0 && <StageTrack stage={trackStep} />}
+                          <MoneySplit
+                            total={moneyTotal} paid={moneyPaid} due={moneyDue}
+                            totalLabel={linkedInvoice ? 'Invoice' : 'Total'}
+                          />
+                          <ContactActions phone={order.customerContact} />
                         </div>
 
                         {/* Three controls, not seven. Status was being said
@@ -695,18 +703,15 @@ export default function OrderDetailPage() {
                             badge; one action leads and the rest are one click
                             away rather than all competing at once. */}
                         <div className="flex items-center gap-2 flex-wrap lg:justify-end flex-shrink-0">
-                          <Badge variant="outline" className={cn('h-8 px-2.5 gap-1.5 font-medium',
-                            getPaymentStatus(order) === 'Unpaid' && 'text-destructive border-destructive/40 bg-destructive/5')}>
-                            <CreditCard className="w-3.5 h-3.5" />{getPaymentStatus(order)}
-                          </Badge>
+                          <Pill tone={PAYMENT_TONE[getPaymentStatus(order)]} icon={<CreditCard />} className="h-8 px-3 text-ios-foot">{getPaymentStatus(order)}</Pill>
 
                           <Select value={order.status} onValueChange={(val) => handleStatusChange(val as OrderStatus)} disabled={isUpdatingStatus}>
                             <SelectTrigger
                               id="status-update"
                               aria-label={`Status: ${order.status}`}
-                              className={cn('h-8 w-fit gap-1 rounded-full border-transparent px-3 text-xs font-medium',
+                              className={cn('h-8 w-fit gap-1 rounded-full border-transparent px-3 text-ios-foot font-semibold',
                                 'focus:ring-0 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:opacity-80',
-                                getStatusBadgeVariant(order.status))}>
+                                statusLook(order.status))}>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -826,7 +831,7 @@ export default function OrderDetailPage() {
                       {/* A banner, not a veil. The greyed-out overlay hid the
                           one thing this state has to show — what was actually
                           invoiced — and nothing below it is interactive anyway. */}
-                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3">
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-tile bg-muted/50 px-4 py-3">
                         <div className="flex items-start gap-2 text-sm min-w-0">
                           <Lock className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
                           <p>
@@ -847,10 +852,10 @@ export default function OrderDetailPage() {
                       </div>
 
                       <div>
-                        <h3 className="text-lg font-semibold mb-4">Invoiced pieces</h3>
+                        <h3 className="font-serif text-ios-title3 font-semibold mb-4">Invoiced pieces</h3>
                         <div className="space-y-4">
                           {linkedInvoice.items.map((item, index) => (
-                            <div key={index} className="p-4 border rounded-lg bg-muted/30">
+                            <div key={index} className="p-4 rounded-tile bg-muted/50">
                               <div className="flex-grow">
                                 {item.itemCategory && (
                                   <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{categorySingular(item.itemCategory) || item.itemCategory}</span>
@@ -862,13 +867,13 @@ export default function OrderDetailPage() {
                                   {item.size && <div className="min-w-0"><dt className="text-2xs uppercase tracking-wide text-muted-foreground">Size</dt><dd>{item.size}</dd></div>}
                                 </dl>
                                 {item.stoneDetails && (
-                                  <div className="mt-2 text-xs p-2 bg-background/50 rounded-md border">
+                                  <div className="mt-2 text-xs p-2 bg-card rounded-tile">
                                     <p className="font-semibold flex items-center"><Gem className="w-3 h-3 mr-1.5"/>Stones</p>
                                     <p className="text-muted-foreground whitespace-pre-wrap">{item.stoneDetails}</p>
                                   </div>
                                 )}
                                 {item.diamondDetails && (
-                                  <div className="mt-2 text-xs p-2 bg-background/50 rounded-md border">
+                                  <div className="mt-2 text-xs p-2 bg-card rounded-tile">
                                     <p className="font-semibold flex items-center"><Diamond className="w-3 h-3 mr-1.5"/>Diamonds</p>
                                     <p className="text-muted-foreground whitespace-pre-wrap">{item.diamondDetails}</p>
                                   </div>
@@ -890,17 +895,17 @@ export default function OrderDetailPage() {
                         <Separator className="my-6" />
 
                         <div className="flex flex-col md:flex-row justify-end items-start gap-4">
-                          <div className="w-full max-w-sm space-y-2 p-4 text-base bg-muted/30 rounded-lg">
+                          <div className="w-full max-w-sm space-y-2 p-4 text-ios-sub bg-muted/50 rounded-tile">
                             <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {linkedInvoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                             {linkedInvoice.discountAmount > 0 && (
                               <div className="flex justify-between text-destructive"><span>Discount:</span> <span className="font-semibold">- PKR {linkedInvoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                             )}
                             <div className="flex justify-between font-bold"><span>Grand Total:</span> <span>PKR {linkedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                             {linkedInvoice.amountPaid > 0 && (
-                              <div className="flex justify-between text-success"><span>Paid:</span> <span className="font-semibold">PKR {linkedInvoice.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                              <div className="flex justify-between text-tone-settled-ink"><span>Paid:</span> <span className="font-semibold">PKR {linkedInvoice.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                             )}
                             <Separator className="my-2 bg-muted-foreground/20"/>
-                            <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {linkedInvoice.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                            <div className="flex justify-between items-baseline font-semibold"><span className="text-ios-headline">Balance Due:</span> <span className={cn('font-serif text-ios-title2 tabular-nums', linkedInvoice.balanceDue > 0.5 ? 'text-tone-owed-ink' : 'text-tone-settled-ink')}>PKR {linkedInvoice.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           </div>
                         </div>
                       </div>
@@ -908,7 +913,7 @@ export default function OrderDetailPage() {
                   ) : (
                   <>
                   <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-                    <h3 className="text-lg font-semibold">Pieces <span className="text-muted-foreground font-normal">({order.items.length})</span></h3>
+                    <h3 className="font-serif text-ios-title3 font-semibold">Pieces <span className="font-sans text-ios-sub text-muted-foreground font-normal tabular-nums">({order.items.length})</span></h3>
                     <KarigarBulkAssign
                       orderId={order.id}
                       unassignedCount={order.items.filter(i => !i.karigarId || i.karigarId === 'none').length}
@@ -917,7 +922,7 @@ export default function OrderDetailPage() {
                   <div className="space-y-4">
                       {order.items.map((item, index) => {
                           return (
-                          <div key={index} className="p-4 border rounded-lg flex flex-col md:flex-row gap-4 bg-muted/30">
+                          <div key={index} className="p-4 rounded-tile flex flex-col md:flex-row gap-4 bg-muted/50">
                               <div className="flex items-start gap-4 flex-grow min-w-0">
                                   <OrderPhoto item={item}>{src => (
                                       <div className="relative w-24 h-24 flex-shrink-0">
@@ -976,13 +981,13 @@ export default function OrderDetailPage() {
                                       {(item.stoneDetails || item.diamondDetails) && (
                                         <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
                                           {item.diamondDetails && (
-                                              <div className="text-xs p-2 bg-background/50 rounded-md border">
+                                              <div className="text-xs p-2 bg-card rounded-tile">
                                                   <p className="font-semibold flex items-center"><Diamond className="w-3 h-3 mr-1.5"/>Diamonds</p>
                                                   <p className="text-muted-foreground whitespace-pre-wrap">{item.diamondDetails}</p>
                                               </div>
                                           )}
                                           {item.stoneDetails && (
-                                              <div className="text-xs p-2 bg-background/50 rounded-md border">
+                                              <div className="text-xs p-2 bg-card rounded-tile">
                                                   <p className="font-semibold flex items-center"><Gem className="w-3 h-3 mr-1.5"/>Stones</p>
                                                   <p className="text-muted-foreground whitespace-pre-wrap">{item.stoneDetails}</p>
                                               </div>
@@ -1044,7 +1049,7 @@ export default function OrderDetailPage() {
 
                   {/* TCS Tracking Info (shown after Track button is clicked) */}
                   {trackingInfo && (
-                    <div className="mb-6 p-4 border rounded-lg bg-muted/30 space-y-2">
+                    <div className="mb-6 p-4 rounded-tile bg-muted/50 space-y-2">
                       <p className="font-semibold flex items-center"><PackageSearch className="w-4 h-4 mr-2" />TCS Tracking — {order.tcsConsignmentNo}</p>
                       <p className="text-sm whitespace-pre-line text-muted-foreground">{trackingInfo.summary}</p>
                       {trackingInfo.checkpoints.length > 0 && (
@@ -1073,12 +1078,12 @@ export default function OrderDetailPage() {
                      {!order.invoiceId && order.status !== 'Cancelled' && order.status !== 'Refunded' && (
                        <Button variant="outline" onClick={() => setIsAdvanceDialogOpen(true)}>Record an advance</Button>
                      )}
-                      <div className="w-full max-w-sm space-y-2 p-4 text-base bg-muted/30 rounded-lg">
+                      <div className="w-full max-w-sm space-y-2 p-4 text-ios-sub bg-muted/50 rounded-tile">
                           <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           {discountAmount > 0 && (
                             <div className="flex justify-between text-destructive"><span>Discount:</span> <span className="font-semibold">- PKR {discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           )}
-                          <div className="flex justify-between items-center text-destructive"><span>Advance paid:</span>
+                          <div className="flex justify-between items-center text-tone-settled-ink"><span>Advance paid:</span>
                             <span className="font-semibold inline-flex items-center gap-1">- PKR {advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                               {/* One advance: its delete sits here; several: each line has its own below. */}
                               {!order.invoiceId && advanceLines.length === 1 && (
@@ -1105,7 +1110,7 @@ export default function OrderDetailPage() {
                             </ul>
                           )}
                           {advanceInExchangeValue > 0 && (
-                            <div className="flex justify-between text-destructive"><span>Taken in exchange:</span> <span className="font-semibold">- PKR {advanceInExchangeValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                            <div className="flex justify-between text-tone-settled-ink"><span>Taken in exchange:</span> <span className="font-semibold">- PKR {advanceInExchangeValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           )}
                           {orderExchanges(order).length > 0 && (
                               <ul className="pt-1 text-xs text-muted-foreground space-y-0.5 pl-3">
@@ -1118,7 +1123,7 @@ export default function OrderDetailPage() {
                               </ul>
                           )}
                           <Separator className="my-2 bg-muted-foreground/20"/>
-                          <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                          <div className="flex justify-between items-baseline font-semibold"><span className="text-ios-headline">Balance Due:</span> <span className={cn('font-serif text-ios-title2 tabular-nums', grandTotal > 0.5 ? 'text-tone-owed-ink' : 'text-tone-settled-ink')}>PKR {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           {/* The shop's margin on the order (lib/margin.ts) — blurred until tapped, never on the slip. */}
                           <MarginFigure className="mt-3" margin={orderMargin(order)} />
                       </div>
