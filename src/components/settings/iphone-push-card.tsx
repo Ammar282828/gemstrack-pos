@@ -67,7 +67,7 @@ export function IphonePushCard() {
           <p className="text-muted-foreground"><Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" /> Checking…</p>
         ) : status.set && status.readable ? (
           <p className="flex items-start gap-2">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-tone-settled-ink" />
             <span>Apple push key {status.keyId} is set{status.setBy ? `, by ${status.setBy}` : ''}{status.setAt ? ` on ${new Date(status.setAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}.</span>
           </p>
         ) : (

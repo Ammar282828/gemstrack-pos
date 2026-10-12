@@ -75,6 +75,12 @@ export interface NavEntry extends Place {
   qualify?: boolean;
   /** Its tabs carry the page's query along (Analytics' date range). */
   keepQuery?: boolean;
+  /**
+   * On a phone its first tab is an index list of the others (Settings, as in the app) rather than
+   * a page in a segmented row: the shell shows no tab row for it below md. The tab's own content
+   * moves to the page listed under `pages` for `SETTINGS_SHOP_HREF`.
+   */
+  phoneIndex?: boolean;
 }
 
 export interface NavAction extends Place {
@@ -195,8 +201,12 @@ export const NAV: NavEntry[] = [
 ];
 
 /** Settings, pinned to the footer as a gear rather than a group of its own. */
+/** The Shop form's own address: on a phone `/settings` is the index list, and Shop is the first row of it. */
+export const SETTINGS_SHOP_HREF = '/settings/shop';
+
 export const SETTINGS: NavEntry = {
   id: 'settings', group: 'footer', href: '/settings', label: 'Settings', icon: SettingsIcon, keywords: ['preferences'],
+  phoneIndex: true,
   // One route per tab (the audit of 2026-10-01: Settings had seven top-bar tabs and six in-page ones).
   // The rates left for the top bar's chip; Labels went to Stock; Security's sign-in log and lock to Activity.
   tabs: [
@@ -210,6 +220,7 @@ export const SETTINGS: NavEntry = {
     { href: '/settings/voice', label: 'Voice', icon: Mic, keywords: ['microphone'] },
   ],
   pages: [
+    { href: SETTINGS_SHOP_HREF, label: 'Shop details', icon: SettingsIcon, keywords: ['shop name', 'address', 'numbering', 'appearance'] },
     { href: '/settings/backups', label: 'Backups', icon: ArchiveRestore, keywords: ['backup', 'export', 'restore'] },
     { href: '/settings/recently-removed', label: 'Recently removed', icon: RotateCcw, keywords: ['deleted', 'trash', 'restore'] },
     { href: '/settings/contact-import', label: 'Import contacts', icon: Contact, keywords: ['phone book', 'vcf'] },
