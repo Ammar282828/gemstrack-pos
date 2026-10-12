@@ -15,7 +15,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const PageBack: React.FC<{
@@ -37,9 +37,10 @@ export const PageBack: React.FC<{
     <Button
       type="button" variant="ghost" size="sm" onClick={go}
       aria-label={label}
-      className={cn('-ml-2 h-8 px-2 text-muted-foreground hover:text-foreground', className)}
+      className={cn('-ml-2 h-8 gap-0.5 px-2 text-primary hover:text-primary', className)}
     >
-      <ArrowLeft className="h-4 w-4 mr-1.5" />{label}
+      {/* The app's back control: an accent chevron and the place it returns to. */}
+      <ChevronLeft className="-ml-1 h-5 w-5" strokeWidth={2} />{label}
     </Button>
   );
 };
