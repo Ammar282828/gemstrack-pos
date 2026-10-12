@@ -3,6 +3,7 @@ package erp.app.screens
 import erp.app.nav.ScreenRoute
 import erp.app.screens.home.HomeRoutes
 import erp.app.screens.invoices.InvoicesRoutes
+import erp.app.screens.neworder.NewOrderRoutes
 import erp.app.screens.orders.OrdersRoutes
 import erp.app.screens.sale.SaleRoutes
 
@@ -15,7 +16,8 @@ object NativeScreens {
     val all: List<ScreenRoute> by lazy {
         listOf(
             HomeRoutes,
-            // NewOrderRoutes goes before this: its "/orders/add" would otherwise be taken for an order's id.
+            // Before Orders: its "/orders/add" would otherwise be taken for an order's id.
+            NewOrderRoutes,
             OrdersRoutes,
             // Before Invoices: "/invoices/new" is the Sale group's, and the invoice item route would take "new" for an id.
             SaleRoutes,
