@@ -34,6 +34,8 @@ import { SavedShelf } from './saved-shelf';
 import { StartScreen, startPhotoFromSite } from './start';
 import { DesignWorkspace } from './workspace';
 import { displayName, isDesignDraft, kindCard, photoPartOf, sectionOf, sectionsFor, type PhotoPart, type SectionKey } from './design-state';
+import { OldDraftView } from './old-draft-view';
+import { diagnose } from '@/lib/social/diagnose';
 import { useDesign, useDesignRole, type StartPhoto, type StartRequest } from './use-design';
 
 export default function DesignPage() {
@@ -57,6 +59,33 @@ function DesignRoute() {
   const initialKind: DesignKind | undefined = DESIGN_KINDS.find(k => k === askedKind);
   const go = useCallback((next: SectionKey, s?: PhotoPart) => router.replace(`${pathname}?v=${next}${s ? `&s=${s}` : ''}`, { scroll: false }), [router, pathname]);
 
+  // A draft of the older Post a piece screen opens as a design; one that can't is shown read-only.
+  const [oldView, setOldView] = useState<string | null>(null);
+  const openAnyDraft = useCallback(async (id: string): Promise<boolean> => {
+    const d = (await listPostDrafts().catch(() => [])).find(x => x.id === id);
+    if (!d) { toast({ title: 'That draft could not be opened', description: 'It may have been cleared from this device.', variant: 'destructive' }); return false; }
+    if (isDesignDraft(d.state)) { await design.openDraft(id); return true; }
+    const r = await design.openOldDraft(id);
+    if (!r.ok) { setOldView(id); return false; }
+    toast({
+      title: 'Opened as a design',
+      description: r.partlySent ? 'Part of this piece had already been sent from the older screen. The Publish sheet does not know that: check before sending again.' : 'Your words, photographs and both pictures came with it.',
+      ...(r.partlySent ? { variant: 'destructive' as const } : {}),
+    });
+    return true;
+  }, [design, toast]);
+
+  // Back from Instagram's approval page.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const got = q.get('instagram');
+    if (!got) return;
+    if (got === 'connected') toast({ title: `Instagram connected as @${q.get('username')}`, description: 'Stories and posts now go straight from here.' });
+    if (got === 'error') { const d = diagnose('instagram-connect', q.get('reason') || ''); toast({ title: `Instagram was not connected — ${d.title.toLowerCase()}`, description: d.fix, variant: 'destructive' }); }
+    ['instagram', 'username', 'reason'].forEach(k => q.delete(k));
+    window.history.replaceState(null, '', `${window.location.pathname}${q.toString() ? `?${q}` : ''}`);
+  }, [toast]);
+
   const askedPlay = params.get('play');
   const play = PLAYS.find(p => p.id === askedPlay) ?? null;
   const clearPlay = () => { if (askedPlay) router.replace(`${pathname}?v=make&kind=ad`, { scroll: false }); };
@@ -71,11 +100,7 @@ function DesignRoute() {
     const strip = () => { const q = new URLSearchParams(window.location.search); ['draft', 'site', 'new'].forEach(k => q.delete(k)); if (!q.get('v')) q.set('v', 'make'); router.replace(`${pathname}?${q}`, { scroll: false }); };
     try {
       if (askedDraft) {
-        const d = (await listPostDrafts()).find(x => x.id === askedDraft);
-        if (!d) { toast({ title: 'That draft could not be opened', description: 'It may have been cleared from this device.', variant: 'destructive' }); strip(); return; }
-        // A draft of the older Post a piece screen opens there; Design's own open here.
-        if (!isDesignDraft(d.state)) { router.replace(`/design/classic/post?draft=${encodeURIComponent(askedDraft)}`); return; }
-        await design.openDraft(askedDraft);
+        await openAnyDraft(askedDraft);
       } else if (askedSite) {
         const res = await fetch('/api/website/site-pieces', { headers: await authHeaders(), cache: 'no-store' });
         const body = await res.json().catch(() => ({}));
@@ -89,7 +114,7 @@ function DesignRoute() {
       toast({ title: 'Couldn’t bring the piece in', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
     }
     strip();
-  }, [askedDraft, askedSite, askedNew, design, pathname, router, toast]);
+  }, [askedDraft, askedSite, askedNew, design, openAnyDraft, pathname, router, toast]);
   useEffect(() => {
     if (!askedDraft && !askedSite && !askedNew) return;
     const key = `${askedDraft}|${askedSite}|${askedNew}`;
@@ -100,7 +125,7 @@ function DesignRoute() {
 
   const start = async (req: StartRequest) => { if (await design.start(req)) { setPhoto(null); go('make'); } };
   const openSaved = async (r: DesignRecord) => { await design.openRecord(r); go('make'); };
-  const openDraft = async (id: string) => { await design.openDraft(id); go('make'); };
+  const openDraft = async (id: string) => { if (await openAnyDraft(id)) go('make'); };
 
   const w = design.work;
   return (
@@ -133,6 +158,7 @@ function DesignRoute() {
       )}
       {v === 'board' && adsOk && <BoardSection />}
       {v === 'saved' && <SavedShelf adsOk={adsOk} onOpen={openSaved} onOpenDraft={openDraft} />}
+      <OldDraftView id={oldView} onClose={() => setOldView(null)} />
     </PageShell>
   );
 }

@@ -20,6 +20,8 @@ import { breaksHouseRule, inventedFigures } from '@/lib/ads/studio/prompts';
 import { HANDOFF_PREFIX, type StudioHandoff } from '@/lib/ads/studio/handoff';
 import { makeLabel, needsFor, outputPx, pageFor, storyPage, type InstagramMode } from './destinations';
 import type { SizePreset } from './sizes';
+import { websiteFileName } from '@/lib/social/caption';
+import { isMaisonFolder, maisonFileName } from '@/lib/website/maisons';
 
 // ── What is being sent ───────────────────────────────────────────────────────
 
@@ -38,8 +40,11 @@ export interface PublishDesign {
 
 /** The sheet's choices. Off is `undefined`/`null`/empty. */
 export interface Choices {
-  /** Add photos: a collection folder ("Earrings/Jhumki"). */
-  website?: { folder: string } | null;
+  /**
+   * Add photos: a collection folder ("Earrings/Jhumki"). `name` is what the site calls the piece (its file name — the
+   * headline when empty); in The Maisons, `house` is the great house the piece belongs to and `name` its official name.
+   */
+  website?: { folder: string; name?: string; house?: string } | null;
   /** The home page's set of the day (needs `website`). */
   featured?: boolean;
   /** WhatsApp places by key — a group's key, or "channel". */
@@ -68,6 +73,12 @@ export interface PlanContext {
   stamped?: boolean;
   /** Where the Meta ad's button goes. */
   link?: string;
+  /**
+   * More photographs of the same piece (other angles): the website and WhatsApp get each as a square of its own, named
+   * "<name> 2.jpg" and following, the caption riding on the first picture only. `render` draws page `pageId` over photograph
+   * number `index` (1 is the first of these).
+   */
+  more?: { count: number; render: (pageId: string, index: number, px: number) => Promise<Blob> };
   senders: Senders;
 }
 
@@ -97,8 +108,10 @@ export interface QueueRequest {
   caption: string;
   fileBase: string;
   sitePiece?: string;
-  website: { folder: string; name: string; featured: boolean } | null;
+  website: { folder: string; name: string; names?: string[]; featured: boolean } | null;
   whatsapp: string[];
+  /** How many squares the website and WhatsApp get (the piece and its other photographs). */
+  count?: number;
   /** The images the queue holds, by the queue's own keys: 'site-0', 'wa-0', 'story'. */
   images: Record<string, Blob>;
   thumb: Blob | null;
@@ -162,6 +175,15 @@ export function buildPlan(ctx: PlanContext, c: Choices): Plan {
   const missing: MissingSize[] = [];
   const base = slug(design.fields.headline || design.name);
   const sitePiece = design.source?.siteId;
+  // The site reads a piece's name from its file name, so it is written the way the site shows it ("Bangle and Ring.jpg"),
+  // and a Maisons piece as "<House> — <Model>.jpg" (lib/website/maisons.ts).
+  const siteFile = (i = 0): string => {
+    const w = c.website;
+    const name = (w?.name?.trim() || design.fields.headline || design.name).trim();
+    return w && isMaisonFolder(w.folder) && w.house ? maisonFileName(w.house, name, i) : websiteFileName(name, i);
+  };
+  const more = ctx.more && ctx.more.count > 0 ? ctx.more : null;
+  const extras = more ? Array.from({ length: more.count }, (_, k) => k + 1) : [];
   const pageOf = (dest: DestinationId) => {
     const pick = pageFor(pages, design.master, dest);
     if ('page' in pick) return pick.page;
@@ -198,7 +220,10 @@ export function buildPlan(ctx: PlanContext, c: Choices): Plan {
 
   if (!queued && website && c.website) {
     const folder = c.website.folder;
-    steps.push({ id: 'website', dest: 'website', label: 'Website', run: async () => senders.website(await draw('website', website), folder, `${base}.jpg`) });
+    steps.push({ id: 'website', dest: 'website', label: 'Website', run: async () => senders.website(await draw('website', website), folder, siteFile()) });
+    for (const i of extras) {
+      steps.push({ id: `website:${i}`, dest: 'website', label: `Website · photo ${i + 1}`, after: ['website'], run: async () => senders.website(await more!.render(website.id, i, outputPx('website', website)), folder, siteFile(i)) });
+    }
     if (featuredPage) {
       steps.push({ id: 'featured', dest: 'featured', label: 'Set of the day', after: ['website'], run: m => senders.featured(m.website) });
     }
@@ -218,6 +243,13 @@ export function buildPlan(ctx: PlanContext, c: Choices): Plan {
         // 1600 px: WhatsApp makes no preview for images over 3000 px and shrinks everything to about this anyway.
         run: async () => senders.whatsapp(key, await draw('whatsapp', waPage), `${base}.jpg`, c.captions.wa, sitePiece),
       });
+      // The other photographs follow the first, with no caption of their own.
+      for (const i of extras) {
+        steps.push({
+          id: `wa:${key}:${i}`, dest: key === 'channel' ? 'channel' : 'whatsapp', label: `${key === 'channel' ? 'WhatsApp channel' : `WhatsApp · ${key}`} · photo ${i + 1}`, after: [`wa:${key}`],
+          run: async () => senders.whatsapp(key, await more!.render(waPage.id, i, outputPx('whatsapp', waPage)), `${base}-${i + 1}.jpg`, '', sitePiece),
+        });
+      }
     }
   }
   if (queued && (website || waPage || storyQueued)) {
@@ -229,11 +261,16 @@ export function buildPlan(ctx: PlanContext, c: Choices): Plan {
         const images: Record<string, Blob> = {};
         if (website) images['site-0'] = await draw('website', website);
         if (waPage) images['wa-0'] = await draw('whatsapp', waPage);
+        for (const i of extras) {
+          if (website) images[`site-${i}`] = await more!.render(website.id, i, outputPx('website', website));
+          if (waPage) images[`wa-${i}`] = await more!.render(waPage.id, i, outputPx('whatsapp', waPage));
+        }
         if (storyQueued) images.story = await draw('instagram-story', storyQueued);
         const lead = website ?? waPage ?? storyQueued!;
         return senders.queue({
           headline: design.fields.headline || design.name, caption: c.captions.wa, fileBase: base, sitePiece,
-          website: website && c.website ? { folder: c.website.folder, name: `${base}.jpg`, featured: !!featuredPage } : null,
+          website: website && c.website ? { folder: c.website.folder, name: siteFile(), names: [0, ...extras].map(siteFile), featured: !!featuredPage } : null,
+          count: 1 + extras.length,
           whatsapp: waPage ? [...wa, ...(channel ? ['channel'] : [])] : [],
           images, thumb: await render(lead.id, 240).catch(() => null), dueAt: c.queue!.dueAt,
         });
@@ -431,11 +468,11 @@ export function httpSenders(headers: () => Promise<Record<string, string>>, fetc
     queue: async r => {
       let qid: string | null = null;
       try {
-        const counts = { site: r.website ? 1 : 0, wa: r.whatsapp.length ? 1 : 0, story: 'story' in r.images };
+        const counts = { site: r.website ? r.count ?? 1 : 0, wa: r.whatsapp.length ? r.count ?? 1 : 0, story: 'story' in r.images };
         const thumb = r.thumb ? (await blobToDataUrl(r.thumb)).split(',')[1] : undefined;
         const { item } = await call<{ item: { id: string } }>('/api/website/post/queue', { json: {
           headline: r.headline, caption: r.caption, fileBase: r.fileBase, counts,
-          website: r.website ? { folder: r.website.folder, collection: r.website.folder.split('/')[1] ?? r.website.folder, names: [r.website.name], featured: r.website.featured } : null,
+          website: r.website ? { folder: r.website.folder, collection: r.website.folder.split('/')[1] ?? r.website.folder, names: r.website.names ?? [r.website.name], featured: r.website.featured } : null,
           instagram: counts.story, whatsapp: r.whatsapp, ...(thumb ? { thumb } : {}), ...(r.sitePiece ? { sitePiece: r.sitePiece } : {}),
         } });
         qid = item.id;

@@ -10,6 +10,14 @@ const TABLE: [string, string, string][] = [
   ['/website/post', 'site=piece-9', '/design?v=make&site=piece-9'],
   ['/website/post', 'dev=1&site=a%20b', '/design?v=make&dev=1&site=a+b'],
   ['/website/post/', 'draft=x', '/design?v=make&draft=x'],
+  // The two classic screens
+  ['/design/classic/post', '', '/design?v=make'],
+  ['/design/classic/post', 'draft=abc123', '/design?v=make&draft=abc123'],
+  ['/design/classic/post', 'site=piece-9&dev=1', '/design?v=make&site=piece-9&dev=1'],
+  ['/design/classic/ad', '', '/design?v=make&kind=ad'],
+  ['/design/classic/ad', 'v=make', '/design?v=make&kind=ad'],
+  ['/design/classic/ad', 'v=photos&s=library', '/design?v=photos&s=picks'],
+  ['/design/classic/ad', 'v=saved&dev=1', '/design?v=saved&dev=1'],
   // From the website
   ['/website/from-site', '', '/posts'],
   ['/website/from-site', 'q=ring', '/posts?q=ring'],

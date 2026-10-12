@@ -208,7 +208,24 @@ export interface StoryDoc {
    */
   placements?: Record<string, Placement>;
   /** Designer v2: what the design is, where its subject sits (for resizing), the user's guides and grid (for snapping). */
-  meta?: { template?: string; master?: string; guides?: { x: number[]; y: number[] }; subject?: Box01; grid?: number };
+  meta?: { template?: string; master?: string; guides?: { x: number[]; y: number[] }; subject?: Box01; grid?: number; lettered?: LetteredMeta };
+}
+
+/**
+ * An AI-lettered or AI-painted page (lib/design/lettered.ts): the AI's picture is the page's background and our
+ * own bound words are hidden; this is what to put back for "Back to our design".
+ */
+export interface LetteredMeta {
+  /** The AI picture's photo id. */
+  photoId: string;
+  kind: 'letter' | 'paint';
+  /** Every word read back from the picture. */
+  verified: boolean;
+  missing: string[];
+  /** The same-piece check of a painting against the real photograph. */
+  check?: { samePiece: boolean; confidence: number; differences: string[] } | null;
+  /** The background before, and the bound words that were showing. */
+  prev: { bg: StoryDoc['bg']; hidden: string[] };
 }
 
 export const SQUARE_FRAME: Frame = { w: 1080, h: 1080 };

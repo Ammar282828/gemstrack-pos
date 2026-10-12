@@ -6,8 +6,8 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 > **Plan** (what to run, ad days & rules, competitors) is **Ads › Plan** (`/ads/plan`, `?s=plays|guide|rivals`, `src/app/ads/plan/`).
 > **Photos, Make, Board and Saved** are **Posts › Design** sections (`?v=photos|make|board|saved`); `board.tsx`, `library.tsx` and
 > `studio-kit.tsx` moved to `src/app/design/` unchanged, and Make and Saved are Design's workspace and shelf. `/ads/studio?v=…`
-> redirects (table in design.md). The old Make and Saved screens remain at `/design/classic/ad` for "Make it with AI" (art-directed
-> and painted ads), which Design does not do yet; `maker.tsx`, `post-it.tsx`, `saved.tsx` live there. **Every `/api/ads/studio/*` and
+> redirects (table in design.md). "Make it with AI" (an art-directed layout, a painted ad) and the lettering check are Design's AI panel
+> now, and `/design/classic/ad` redirects there; the old `maker.tsx`, `post-it.tsx`, `saved.tsx` are deleted. **Every `/api/ads/studio/*` and
 > `/api/studio/mcp` route is unchanged** (the iPhone app and the board's agent call them). Below, "the Studio" means those parts.
 
 ### Ad studio

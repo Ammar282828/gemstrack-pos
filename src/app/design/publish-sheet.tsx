@@ -29,7 +29,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Loader2, Send, CheckCircle2, XCircle, Instagram, MessageCircle, Globe, Sparkles, Download, Save, Clock, Wand2, Share2, RotateCcw } from 'lucide-react';
+import { Loader2, Send, CheckCircle2, XCircle, Instagram, MessageCircle, Globe, Sparkles, Download, Save, Clock, Wand2, Share2, RotateCcw, Link2, Copy, ExternalLink, Images } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_LINKS, STORE_WHATSAPP_NUMBERS } from '@/lib/store-config';
 import { authHeaders } from '@/app/ads/ads-kit';
@@ -38,6 +38,9 @@ import { postAi } from '@/lib/social/ai-client';
 import type { CaptionResult } from '@/lib/social/prompts';
 import type { DesignKind, DesignPage, DestinationId } from '@/lib/design/model';
 import { sizePreset } from '@/lib/design/sizes';
+import { isMaisonFolder, MAISON_HOUSES } from '@/lib/website/maisons';
+import { SetOfTheDayCard } from '@/components/website/set-of-the-day';
+import { Input } from '@/components/ui/input';
 import { makeLabel, pageFor, type DestinationInfo } from '@/lib/design/destinations';
 import {
   buildPlan, checkGroupOf, downloadBlob, httpSenders, initialStates, loadMemory, markDone, runSteps, saveMemory, shareImage, wordProblems,
@@ -52,6 +55,8 @@ export interface PublishSheetProps {
   onDone?: (r: { ok: boolean; designId?: string; memory: Memory }) => void;
   docOf?: (pageId: string) => unknown;
   stamped?: boolean;
+  /** More photographs of the piece, drawn on a page (`index` 1 is the first): the website and WhatsApp get each as a square. */
+  more?: { count: number; render: (pageId: string, index: number, px: number) => Promise<Blob> };
   onSaved?: (id: string) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -90,7 +95,7 @@ export function PublishSheet(props: PublishSheetProps) {
   );
 }
 
-function PublishPanel({ design, pages, render, onNeedSize, onDone, docOf, stamped, onSaved }: PublishSheetProps) {
+function PublishPanel({ design, pages, render, onNeedSize, onDone, docOf, stamped, more, onSaved }: PublishSheetProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const fromSite = !!design.source?.siteId;
@@ -117,6 +122,10 @@ function PublishPanel({ design, pages, render, onNeedSize, onDone, docOf, stampe
   const [folder, setFolder] = useState('');
   const [websiteOn, setWebsiteOn] = useState(def.website);
   const [featured, setFeatured] = useState(false);
+  // What the site calls the piece (the headline until it is changed), and — in The Maisons — its house.
+  const [siteName, setSiteName] = useState('');
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [house, setHouse] = useState('');
   const [waOn, setWaOn] = useState(def.wa);
   const [waKeys, setWaKeys] = useState<string[]>([]);
   const [storyOn, setStoryOn] = useState(def.story);
@@ -150,7 +159,7 @@ function PublishPanel({ design, pages, render, onNeedSize, onDone, docOf, stampe
 
   const igMode = (id: 'instagram-story' | 'instagram-post') => row(id)?.mode ?? 'share';
   const choices: Choices = {
-    website: websiteOn && ok('website') && folder ? { folder } : null,
+    website: websiteOn && ok('website') && folder ? { folder, ...(siteName.trim() ? { name: siteName.trim() } : {}), ...(isMaisonFolder(folder) && house ? { house } : {}) } : null,
     featured: websiteOn && featured && ok('featured'),
     whatsapp: waOn ? waKeys.filter(k => (k === 'channel' ? ok('channel') : ok('whatsapp'))) : [],
     instagramStory: storyOn ? igMode('instagram-story') : null,
@@ -174,15 +183,16 @@ function PublishPanel({ design, pages, render, onNeedSize, onDone, docOf, stampe
   const health = useHealth();
 
   const plan = useMemo(
-    () => buildPlan({ design, pages, render, docOf, stamped, link: STORE_LINKS.website || undefined, senders }, choices),
+    () => buildPlan({ design, pages, render, docOf, stamped, more, link: STORE_LINKS.website || undefined, senders }, choices),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [design, pages, render, docOf, stamped, JSON.stringify(choices)],
+    [design, pages, render, docOf, stamped, more, JSON.stringify(choices)],
   );
   const shown = states.length ? states : initialStates(plan.steps, memory);
   const stateOf = (s: PublishStep): StepState => shown.find(x => x.id === s.id) ?? initialStates([s], memory)[0];
 
   const problems: string[] = [];
   if (websiteOn && ok('website') && !folder) problems.push('Choose a website collection, or switch the website off.');
+  if (websiteOn && ok('website') && isMaisonFolder(folder) && !house) problems.push('Choose the piece’s house for The Maisons.');
   if (waOn && ok('whatsapp') && !choices.whatsapp?.length) problems.push('Choose a WhatsApp group or the channel, or switch WhatsApp off.');
   if (when === 'schedule' && !dueLocal) problems.push('Choose a time to send it.');
   if (!plan.steps.length && !plan.missing.length) problems.push('Choose where it goes.');
@@ -215,6 +225,15 @@ function PublishPanel({ design, pages, render, onNeedSize, onDone, docOf, stampe
     if (problems.length || wordIssues.length) return;
     if (choices.whatsapp?.length || choices.instagramStory === 'api' || choices.instagramPost === 'api' || failingGroups.length) setConfirming(true);
     else void run();
+  };
+
+  const connectInstagram = async () => {
+    try {
+      const res = await fetch('/api/instagram/connect', { method: 'POST', headers: await authHeaders() });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || !d.url) throw new Error(d.error || `Instagram answered ${res.status}.`);
+      window.location.href = d.url;
+    } catch (e) { setNote(e instanceof Error ? e.message : 'Could not start the Instagram connection.'); }
   };
 
   const share = async (s: PublishStep) => {
@@ -251,6 +270,33 @@ function PublishPanel({ design, pages, render, onNeedSize, onDone, docOf, stampe
     } catch (e) { setNote(e instanceof Error ? e.message : 'Could not draw it.'); }
     finally { setDownloading(false); }
   };
+
+  const fileBase = () => (design.fields.headline || design.name).replace(/[^\w-]+/g, '-').slice(0, 60);
+  /** From the phone: every size to Photos at once (the share sheet), the picture with its caption, the caption alone. */
+  const shareAll = async () => {
+    setDownloading(true);
+    try {
+      const files = await Promise.all(pages.map(async p => new File([await render(p.id, sizePreset(p.format)?.px ?? 1080)], `${fileBase()}-${(p.label || p.format).replace(/[^\w-]+/g, '-')}.jpg`, { type: 'image/jpeg' })));
+      if (typeof navigator.canShare === 'function' && navigator.canShare({ files })) {
+        try { await navigator.share({ files }); } catch (e) { if ((e as Error).name !== 'AbortError') throw e; }
+      } else files.forEach((f, i) => setTimeout(() => downloadBlob(f, f.name), i * 300));
+    } catch (e) { setNote(e instanceof Error ? e.message : 'Could not draw it.'); }
+    finally { setDownloading(false); }
+  };
+  const shareWithCaption = async () => {
+    try {
+      const pick = pageFor(pages, design.master, 'whatsapp');
+      if (!('page' in pick)) { setNote('Make a 1:1 size first (Make 1:1 from this).'); return; }
+      const f = new File([await render(pick.page.id, 1600)], `${fileBase()}.jpg`, { type: 'image/jpeg' });
+      // WhatsApp often drops text shared alongside a file, so the caption goes on the clipboard too.
+      try { await navigator.clipboard.writeText(wa); } catch { /* said below either way */ }
+      const data: ShareData = { files: [f], ...(wa ? { text: wa } : {}) };
+      if (typeof navigator.canShare === 'function' && navigator.canShare(data)) { try { await navigator.share(data); } catch (e) { if ((e as Error).name !== 'AbortError') throw e; } }
+      else downloadBlob(f, f.name);
+      setNote(wa ? 'The caption is on the clipboard — paste it under the picture.' : null);
+    } catch (e) { setNote(e instanceof Error ? e.message : 'Could not share it.'); }
+  };
+  const copyCaption = async () => { try { await navigator.clipboard.writeText(wa); setNote('The caption is copied.'); } catch { setNote('Could not copy — select it and copy it by hand.'); } };
 
   const forgetAll = () => { for (const k of Object.keys(memory)) delete memory[k]; saveMemory(memoryKey, memory); setStates([]); };
 
@@ -290,6 +336,9 @@ function PublishPanel({ design, pages, render, onNeedSize, onDone, docOf, stampe
           {extra}
         </div>
         {r.reason && <p className="text-[11px] text-muted-foreground pl-1">{r.reason}</p>}
+        {r.connectable && on && (
+          <Button type="button" size="sm" variant="outline" className="ml-1 h-7 px-2 text-[11px]" onClick={() => void connectInstagram()}><Link2 className="mr-1 h-3 w-3" /> Connect Instagram</Button>
+        )}
       </div>
     );
   };
@@ -310,6 +359,27 @@ function PublishPanel({ design, pages, render, onNeedSize, onDone, docOf, stampe
                 </select>
                 {ok('featured') && (
                   <label className="flex items-center gap-1.5 text-[11px]"><input type="checkbox" checked={featured} onChange={e => setFeatured(e.target.checked)} /> Set of the day on the home page</label>
+                )}
+                {ok('featured') && featured && <SetOfTheDayCard variant="compact" />}
+                {isMaisonFolder(folder) && (
+                  <select value={house} onChange={e => setHouse(e.target.value)} className="w-full rounded-md border bg-background px-2 py-1 text-base sm:text-xs" aria-label="House">
+                    <option value="">The house — Cartier, Van Cleef &amp; Arpels…</option>
+                    {MAISON_HOUSES.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                )}
+                {renameOpen || isMaisonFolder(folder) ? (
+                  <div className="space-y-0.5">
+                    <label className="text-[11px] text-muted-foreground" htmlFor="site-name">{isMaisonFolder(folder) ? 'Official name, as the house names it' : 'Name on the website'}</label>
+                    <Input id="site-name" value={siteName} onChange={e => setSiteName(e.target.value)} placeholder={design.fields.headline || design.name} className="h-8 text-base sm:text-xs" />
+                    {isMaisonFolder(folder) && <p className="text-[11px] text-muted-foreground">Shown under its house, in 18k, with no gold-rate price.</p>}
+                  </div>
+                ) : (
+                  <p className="truncate text-[11px] text-muted-foreground">Named “{siteName.trim() || design.fields.headline || design.name}” · <button type="button" className="min-h-0 text-primary" onClick={() => setRenameOpen(true)}>Change</button></p>
+                )}
+                {!pages.some(p => p.label === sizePreset('website')?.label) && (
+                  <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={() => onNeedSize('website')}>
+                    <Wand2 className="mr-1 h-3 w-3" /> Make the catalogue photo (weight stamped)
+                  </Button>
                 )}
               </div>
             )}
@@ -421,6 +491,18 @@ function PublishPanel({ design, pages, render, onNeedSize, onDone, docOf, stampe
         <Button type="button" size="sm" variant="ghost" className="h-7 text-[11px] px-2" disabled={downloading} onClick={downloadAll}>
           {downloading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Download className="h-3 w-3 mr-1" />} Download every size
         </Button>
+        <Button type="button" size="sm" variant="ghost" className="h-7 text-[11px] px-2" disabled={downloading} onClick={() => void shareAll()} title="Every size to the phone’s photos at once">
+          <Images className="h-3 w-3 mr-1" /> Save all to Photos
+        </Button>
+        {(waRow || chRow) && (
+          <Button type="button" size="sm" variant="ghost" className="h-7 text-[11px] px-2" onClick={() => void shareWithCaption()}>
+            <Share2 className="h-3 w-3 mr-1" /> Share the picture
+          </Button>
+        )}
+        {wa.trim() && <Button type="button" size="sm" variant="ghost" className="h-7 text-[11px] px-2" onClick={() => void copyCaption()}><Copy className="h-3 w-3 mr-1" /> Copy the caption</Button>}
+        {STORE_LINKS.waChannel && (
+          <Button asChild size="sm" variant="ghost" className="h-7 text-[11px] px-2"><a href={STORE_LINKS.waChannel} target="_blank" rel="noopener"><ExternalLink className="h-3 w-3 mr-1" /> Open the WhatsApp channel</a></Button>
+        )}
         {Object.keys(memory).length > 0 && <Button type="button" size="sm" variant="ghost" className="h-7 text-[11px] px-2" disabled={busy} onClick={forgetAll}>Send again from the start</Button>}
       </div>
     </div>

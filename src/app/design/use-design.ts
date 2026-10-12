@@ -14,17 +14,21 @@ import { useAuth } from '@/components/auth/google-auth-gate';
 import { devRole } from '@/lib/dev-role';
 import { roleForEmail } from '@/lib/roles';
 import { useToast } from '@/hooks/use-toast';
-import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
-import { reflow, renderDocTo, type Assets, type Fields, type StoryDoc } from '@/lib/social/editor';
+import { PALETTES, canvasToJpeg, loadImage, suggestPalette } from '@/lib/social/story';
+import { applySquarePreset, reflow, renderDocTo, withPlacement, type Assets, type Fields, type StoryDoc } from '@/lib/social/editor';
+import { readImageFile } from './image-file';
+import { sizePreset } from '@/lib/design/sizes';
 import { PHOTO, applyAdTemplate, blankAd, type AdTemplateId } from '@/lib/ads/studio/templates';
 import { ID_OK, fileKey, type DesignRecord, type DesignSource } from '@/lib/design/model';
 import {
   deletePostDraft, listPostDrafts, readPostDraft, savePostDraft, thumbOf, type PostDraft,
 } from '@/lib/social/post-drafts';
+import type { CheckResult } from '@/lib/social/prompts';
 import { authHeaders } from '../ads/ads-kit';
 import { fetchAsset } from './studio-kit';
 import type { SmartPhoto } from './smart-input';
 import { FONTS } from '../website/post/fonts';
+import { convertOldDraft, isOldPostDraft, type OldDraftState, type OpenedOldDraft } from './old-draft';
 import { useSiteAssets } from '../website/post/site-assets';
 import {
   addPages, activePage, deserializeWork, displayName, editDoc, fromRecord, isDesignDraft, layOutAll, markSaved, newWork, pageOf, redoFromMaster,
@@ -75,12 +79,37 @@ export async function fetchSitePhoto(id: string, original = false): Promise<Blob
   return res.blob();
 }
 
-export interface PhotoState { blob: Blob; img: HTMLImageElement; url: string; label: string }
+/** `ai`: the photograph is an AI version of the one before it, with the same-piece check that came with it. */
+export interface PhotoState { blob: Blob; img: HTMLImageElement; url: string; label: string; ai?: { check: CheckResult | null } }
+
+/**
+ * An AI picture waiting for the person to use it or not: a photograph the same-piece check doubts, or the ad AI's
+ * painting (the maker's "Paint the whole ad", which is always looked at first).
+ */
+export interface AiCandidate {
+  kind: 'photo' | 'ad';
+  url: string; blob: Blob; label: string;
+  /** The result no longer carries the house's marks (the layouts add them back once). */
+  clean: boolean;
+  check: { samePiece: boolean; confidence?: number; differences: string[] } | null;
+  /** The ad painting, read back. */
+  lettering?: { ok: boolean; missing: string[]; read: string };
+  /** Why it is here to look at. */
+  why: 'doubt' | 'paint';
+}
+
+/** The dialogs of the AI tools (ai-tools.tsx), open from any panel. */
+export type AiDialog = 'setting' | 'ask' | 'paint' | 'make' | null;
+
+const TIDY = 'taheri_design_tidy';
 
 const CURRENT = 'taheri_design_draft';
 const newDraftId = () => `design-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const readCurrent = (): string | null => { try { return localStorage.getItem(CURRENT); } catch { return null; } };
 const writeCurrent = (id: string | null) => { try { if (id) localStorage.setItem(CURRENT, id); else localStorage.removeItem(CURRENT); } catch { /* private mode */ } };
+
+/** The page made for the website (sizes.ts "Website 1:1"). */
+export const isCataloguePage = (p: { label: string }) => p.label === sizePreset('website')?.label;
 
 const fail = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -105,6 +134,18 @@ export function useDesign() {
   const [marked, setMarked] = useState(false);
   /** Photographs beyond the main one: an AI-extended copy a resized page uses. */
   const [extra, setExtra] = useState<Record<string, PhotoState>>({});
+  // The AI tools: what is running (one at a time — the Vertex quota is tiny), which dialog is open, the photographs
+  // before the AI ones (to go back), an AI picture waiting to be looked at, and "also remove tags" (kept per device).
+  const [aiBusy, setAiBusy] = useState<string | null>(null);
+  const [aiDialog, setAiDialog] = useState<AiDialog>(null);
+  const [trail, setTrail] = useState<{ blob: Blob; label: string }[]>([]);
+  const [candidate, setCandidateState] = useState<AiCandidate | null>(null);
+  const [checkTick, setCheckTick] = useState(0);
+  const [tidy, setTidyState] = useState(true);
+  useEffect(() => { try { if (localStorage.getItem(TIDY) === '0') setTidyState(false); } catch { /* fine */ } }, []);
+  const setTidy = useCallback((v: boolean) => { setTidyState(v); try { localStorage.setItem(TIDY, v ? '1' : '0'); } catch { /* fine */ } }, []);
+  const setCandidate = useCallback((p: AiCandidate | null) => setCandidateState(prev => { if (prev) URL.revokeObjectURL(prev.url); return p; }), []);
+  const pendingOld = useRef<string | null>(null);
   const composeRef = useRef<StartRequest['compose'] | null>(null);
   const [starting, setStarting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -123,12 +164,17 @@ export function useDesign() {
   }), [photo, extra, marks]);
   const assetsRef = useRef(assets);
   assetsRef.current = assets;
+  /** Lettering colours chosen for this photograph (the dark/light of it), as Post a piece did. */
+  const palette = useMemo(() => {
+    if (!photo) return PALETTES[0];
+    try { return suggestPalette(photo.img, { mode: 'fill', zoom: 1, focusX: 0.5, focusY: 0.5 }); } catch { return PALETTES[0]; }
+  }, [photo]);
 
-  const setPhoto = useCallback(async (blob: Blob, label: string) => {
+  const setPhoto = useCallback(async (blob: Blob, label: string, ai?: PhotoState['ai']) => {
     const url = URL.createObjectURL(blob);
     try {
       const img = await loadImage(url);
-      setPhotoState(prev => { if (prev) URL.revokeObjectURL(prev.url); return { blob, img, url, label }; });
+      setPhotoState(prev => { if (prev) URL.revokeObjectURL(prev.url); return { blob, img, url, label, ...(ai ? { ai } : {}) }; });
     } catch (e) {
       URL.revokeObjectURL(url);
       throw e;
@@ -157,7 +203,9 @@ export function useDesign() {
   }, [marked]);
 
   /** A fresh page's first document: the caller's own (a rebuilt flat ad), else the template. */
-  const makePage = (p: WorkPage, w: DesignWork): StoryDoc => composeRef.current?.(p) ?? layOut({ ...blankAd(p.format, p.frame) }, w.template, w.fields);
+  const makePage = (p: WorkPage, w: DesignWork): StoryDoc => composeRef.current?.(p)
+    // The website's own page is the catalogue's photograph: the piece, the weight stamped, the mark.
+    ?? (isCataloguePage(p) ? applySquarePreset(blankAd(p.format, p.frame), 'catalogue', w.fields, assetsRef.current) : layOut({ ...blankAd(p.format, p.frame) }, w.template, w.fields));
 
   // A fresh design is laid out once its photo and the house's marks are in.
   useEffect(() => {
@@ -172,8 +220,9 @@ export function useDesign() {
     createdAt.current = new Date().toISOString();
     storedPhotos.current = new Set();
     writeCurrent(draftId.current);
+    setTrail([]); setAiBusy(null); setAiDialog(null); setCandidate(null);
     setWork(w);
-  }, []);
+  }, [setCandidate]);
 
   const start = useCallback(async (req: StartRequest) => {
     setStarting(true);
@@ -203,7 +252,10 @@ export function useDesign() {
     return () => clearTimeout(t);
   }, [work?.fresh, photo, marksReady, starting, layOut]);
 
-  const close = useCallback(() => { setWork(null); writeCurrent(null); draftId.current = null; composeRef.current = null; clearExtra(); }, [clearExtra]);
+  const close = useCallback(() => {
+    setWork(null); writeCurrent(null); draftId.current = null; composeRef.current = null; clearExtra();
+    setTrail([]); setAiBusy(null); setAiDialog(null); setCandidate(null);
+  }, [clearExtra, setCandidate]);
 
   /** A saved design (or a legacy saved ad), with each page's document and its photograph. */
   const openRecord = useCallback(async (rec: DesignRecord) => {
@@ -255,11 +307,38 @@ export function useDesign() {
       createdAt.current = got.draft.createdAt;
       storedPhotos.current = new Set([...(blob ? [PHOTO] : []), ...others]);
       writeCurrent(id);
+      setTrail([]); setAiBusy(null); setAiDialog(null); setCandidate(null);
       setWork(w);
     } catch (e) {
       toast({ title: 'Couldn’t open it', description: fail(e), variant: 'destructive' });
     } finally { setStarting(false); }
-  }, [setPhoto, addPhoto, clearExtra, toast]);
+  }, [setPhoto, addPhoto, clearExtra, setCandidate, toast]);
+
+  /**
+   * A draft of the old Post a piece screen, opened as a design (old-draft.ts). False when it cannot be (the caller
+   * offers the read-only view). The old draft is removed once the design has been kept on this device in its place.
+   */
+  const openOldDraft = useCallback(async (id: string): Promise<{ ok: boolean; partlySent?: boolean }> => {
+    setStarting(true);
+    try {
+      const got = await readPostDraft<OldDraftState>(id);
+      if (!got || !isOldPostDraft(got.draft.state)) return { ok: false };
+      const opened: OpenedOldDraft | null = convertOldDraft(got.draft, got.blobs);
+      if (!opened) return { ok: false };
+      if (opened.main) await setPhoto(opened.main.blob, opened.main.label); else setPhotoState(prev => { if (prev) URL.revokeObjectURL(prev.url); return null; });
+      setMarked(opened.marked);
+      composeRef.current = null;
+      clearExtra();
+      for (const [k, b] of opened.more) await addPhoto(k, b, k.startsWith('ai-') ? 'AI picture' : 'Photo').catch(() => undefined);
+      if (opened.folder) { try { localStorage.setItem('taheri_post_folder', opened.folder); } catch { /* fine */ } }
+      begin(opened.work, null);
+      pendingOld.current = id;
+      return { ok: true, partlySent: opened.partlySent };
+    } catch (e) {
+      toast({ title: 'Couldn’t open it', description: fail(e), variant: 'destructive' });
+      return { ok: false };
+    } finally { setStarting(false); }
+  }, [begin, setPhoto, addPhoto, clearExtra, toast]);
 
   // The design left open on this device comes back (never over one already open).
   const resumed = useRef(false);
@@ -288,7 +367,11 @@ export function useDesign() {
         photos: [...(photo ? [PHOTO] : []), ...more.map(([k]) => k)].map(k => ({ id: k, name: `${k}.jpg`, toSite: false, toWhatsApp: false })),
         thumb: photo ? await thumbOf(photo.img) : null, state: serializeWork(w) as unknown as Record<string, unknown>,
       };
-      try { await savePostDraft(draft, blobs, storedPhotos.current); setDraftSaved(new Date()); } catch { /* storage full or private mode: the design is still on screen */ }
+      try {
+        await savePostDraft(draft, blobs, storedPhotos.current); setDraftSaved(new Date());
+        // A draft of the old screen that was opened as this design goes once this one is kept in its place.
+        if (pendingOld.current) { const old = pendingOld.current; pendingOld.current = null; void deletePostDraft(old).catch(() => undefined); }
+      } catch { /* storage full or private mode: the design is still on screen */ }
     }, 1500);
     return () => clearTimeout(t);
   }, [work, photo, extra]);
@@ -306,13 +389,45 @@ export function useDesign() {
   const patchFields = useCallback((f: Partial<Fields>) => change(w => setFields(w, f)), [change]);
 
   /** A new photograph in place of the picture (an AI result, one from the Photos section, one from this device). */
-  const replacePhoto = useCallback(async (blob: Blob, label: string, clean = false) => {
-    await setPhoto(blob, label);
+  const replacePhoto = useCallback(async (blob: Blob, label: string, clean = false, ai?: { check: CheckResult | null }) => {
+    // An AI version keeps the photograph before it (to go back to, and as the real one for the same-piece check);
+    // a photograph the person chose starts over.
+    const before = photoRef.current;
+    setTrail(t => (ai ? (before ? [...t, { blob: before.blob, label: before.label }].slice(-6) : t) : []));
+    await setPhoto(blob, label, ai);
     if (clean) {
       setMarked(false);
       change(w => layOutAll(w, p => layOut(p.doc, (p.doc.meta?.template as AdTemplateId | undefined) ?? w.template, w.fields, false)));
     }
   }, [change, layOut, setPhoto]);
+
+  /** Back to the photograph before the last AI version. */
+  const undoPhoto = useCallback(async () => {
+    const back = trail[trail.length - 1];
+    if (!back) return;
+    setTrail(t => t.slice(0, -1));
+    await setPhoto(back.blob, back.label);
+  }, [trail, setPhoto]);
+
+  /** More photographs of the piece (other angles): extras named `more-…`, which Publish sends as squares of their own. */
+  const addMore = useCallback(async (files: File[]) => {
+    for (const f of files) {
+      const r = await readImageFile(f);
+      await addPhoto(`more-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, r.blob, r.name);
+    }
+  }, [addPhoto]);
+  const removeMore = useCallback((id: string) => setExtra(prev => { const { [id]: gone, ...rest } = prev; if (gone) URL.revokeObjectURL(gone.url); return rest; }), []);
+  const moreIds = useMemo(() => Object.keys(extra).filter(k => k.startsWith('more-')), [extra]);
+
+  /** A page drawn over another of the design's photographs (a further angle), at this width. */
+  const renderWith = useCallback(async (pageId: string, photoId: string, px: number, quality = 0.92): Promise<Blob> => {
+    const w = workRef.current;
+    const p = w && pageOf(w, pageId);
+    if (!w || !p) throw new Error('That page is gone.');
+    const a = assetsRef.current;
+    const doc = withPlacement({ ...p.doc, bg: { ...p.doc.bg, photoId } }, { mode: 'fill', zoom: 1, focusX: 0.5, focusY: 0.5 });
+    return canvasToJpeg(renderDocTo(reflow(doc, w.fields, a), w.fields, a, px), quality);
+  }, []);
 
   /** Draw a page at this width. */
   const render = useCallback(async (pageId: string, px: number, quality = 0.92): Promise<Blob> => {
@@ -373,8 +488,12 @@ export function useDesign() {
   return {
     adoptSaved: (id: string, folder: string | null = null) => setWork(cur => (cur ? markSaved(cur, id, cur.folder ?? folder) : cur)),
     addPhoto,
-    work, photo, assets, marks, marksReady, marked, starting, saving, draftSaved, email, palette: PALETTES[0],
-    start, openRecord, openDraft, close, finish, change, onDoc, patchFields, layOut, replacePhoto, render, saveToShop,
+    work, photo, assets, marks, marksReady, marked, setMarked, starting, saving, draftSaved, email, palette,
+    moreIds, addMore, removeMore, renderWith, extra,
+    aiBusy, setAiBusy, aiDialog, setAiDialog, tidy, setTidy, candidate, setCandidate, checkTick, requestCheck: () => setCheckTick(n => n + 1),
+    /** The photograph the AI started from: the first one before the AI versions, else the current. */
+    original: trail[0]?.blob ?? photo?.blob ?? null, canUndoPhoto: trail.length > 0, undoPhoto,
+    start, openRecord, openDraft, openOldDraft, close, finish, change, onDoc, patchFields, layOut, replacePhoto, render, saveToShop,
     // The pure steps, bound to the work.
     actions: {
       setActive: (id: string) => change(w => setActive(w, id)),

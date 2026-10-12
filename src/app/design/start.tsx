@@ -11,11 +11,11 @@ import React, { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Globe, ImagePlus, LayoutDashboard, Loader2, Upload, X } from 'lucide-react';
+import { Camera, Globe, ImagePlus, LayoutDashboard, Loader2, Upload, X } from 'lucide-react';
 import { DESIGN_KINDS } from '@/lib/design/model';
 import { ChipRow, FilterChip, LedgerSection } from '@/components/ledger';
 import { cn } from '@/lib/utils';
-import { STORE_AD_STUDIO, STORE_POST_PIECE } from '@/lib/store-config';
+import { STORE_INVESTMENTS } from '@/lib/store-config';
 import type { Fields } from '@/lib/social/editor';
 import type { DesignKind, DesignRecord } from '@/lib/design/model';
 import { SIZE_GROUPS, sizePreset } from '@/lib/design/sizes';
@@ -27,6 +27,7 @@ import { KIND_CARDS, isDesignDraft, kindCard, kindLabel, sizeOf, type SizeChoice
 import { SmartInput, type LayersResult, type SmartPhoto, type SmartResult } from './smart-input';
 import { fetchSitePhoto, startPhotoOf, type StartPhoto, type StartRequest } from './use-design';
 import { flatAdRequest, type PlanReview } from './flat-ad';
+import { readImageFile } from './image-file';
 import type { Play } from '@/lib/ads/studio/plays';
 import { useDesigns, useDeviceDrafts } from './saved-shelf';
 
@@ -46,7 +47,7 @@ export function startPhotoFromSite(p: SitePick): StartPhoto {
   };
 }
 
-export const startPhotoFromFile = (f: File): StartPhoto => ({ label: f.name, load: async () => f });
+export const startPhotoFromFile = (f: File): StartPhoto => ({ label: f.name, load: async () => (await readImageFile(f)).blob });
 
 /** Pieces the smart input found beyond the one in use: they wait here (this page's life) for their own turn. */
 let carried: SmartResult[] = [];
@@ -79,6 +80,7 @@ export function StartScreen({ adsOk, initialKind, play, onClearPlay, photo, onPh
   const [fields, setFields] = useState<Partial<Fields>>({});
   const [pickerOpen, setPickerOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const { data } = useDesigns();
   const { drafts } = useDeviceDrafts();
 
@@ -111,7 +113,7 @@ export function StartScreen({ adsOk, initialKind, play, onClearPlay, photo, onPh
   const onLayers = (plan: LayersResult, photo: SmartPhoto) => setReview({ plan, photo });
 
   const recent = (data?.items ?? []).slice(0, 4);
-  const mine = (drafts ?? []).filter(d => isDesignDraft(d.state)).slice(0, 3);
+  const mine = (drafts ?? []).slice(0, 3);
   const haveFields = Object.values(fields).some(Boolean);
 
   return (
@@ -208,9 +210,11 @@ export function StartScreen({ adsOk, initialKind, play, onClearPlay, photo, onPh
             <FilterChip title="Browse photos" chosen={false} onClick={onChoosePhoto} />
             <button type="button" onClick={() => setPickerOpen(true)} className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-muted-foreground/[.18] bg-card px-[13px] text-ios-sub font-medium"><Globe className="h-4 w-4" /> From {SITE_LABEL}</button>
             <button type="button" onClick={() => fileRef.current?.click()} className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-muted-foreground/[.18] bg-card px-[13px] text-ios-sub font-medium"><Upload className="h-4 w-4" /> This device</button>
+            <button type="button" onClick={() => cameraRef.current?.click()} className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-muted-foreground/[.18] bg-card px-[13px] text-ios-sub font-medium sm:hidden"><Camera className="h-4 w-4" /> Camera</button>
           </ChipRow>
         )}
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onPhoto(startPhotoFromFile(f)); }} />
+        <input ref={fileRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onPhoto(startPhotoFromFile(f)); }} />
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onPhoto(startPhotoFromFile(f)); }} />
         <SitePicker open={pickerOpen} onOpenChange={setPickerOpen} siteName={SITE_LABEL} headers={authHeaders} onAdd={ps => { if (ps[0]) onPhoto(startPhotoFromSite(ps[0])); }} />
         <Button className="h-11 w-full sm:w-auto" disabled={starting} onClick={() => onStart({
           kind, sizes: choices, photo, fields,
@@ -222,19 +226,18 @@ export function StartScreen({ adsOk, initialKind, play, onClearPlay, photo, onPh
         {!photo && <p className="px-1 text-ios-foot text-muted-foreground">A photograph is optional: without one the design starts on the house’s ground.</p>}
       </section>
 
-      <p className="px-1 text-ios-foot text-muted-foreground">
-        Still on the older screens, for what Design doesn’t do yet:{' '}
-        {STORE_POST_PIECE && <><Link href="/design/classic/post" className="text-primary underline">Post a piece (classic)</Link> — restage, paint and lettering with AI</>}
-        {STORE_POST_PIECE && adsOk && STORE_AD_STUDIO && ' · '}
-        {adsOk && STORE_AD_STUDIO && <><Link href="/design/classic/ad" className="text-primary underline">Ad maker (classic)</Link> — art-directed and painted ads</>}.
-      </p>
+      {STORE_INVESTMENTS && (
+        <p className="px-1 text-ios-foot text-muted-foreground">
+          Gold investment posts: <Link href="/website/investments" className="text-primary underline">Investments</Link> — the rates and the day’s post, sent from there.
+        </p>
+      )}
 
       {(mine.length > 0 || recent.length > 0) && (
         <LedgerSection title="Where you left off" trailing={<button type="button" className="min-h-0 text-primary" onClick={onSeeAll}>Saved</button>}>
           {mine.map(d => (
             <button key={d.id} type="button" onClick={() => onOpenDraft(d.id)} className="flex min-h-0 w-full items-center gap-3 py-3 text-left">
               <span className="min-w-0 flex-1 truncate text-ios-sub font-medium">{d.title || 'Untitled'}</span>
-              <span className="shrink-0 text-ios-foot text-muted-foreground">Draft on this device</span>
+              <span className="shrink-0 text-ios-foot text-muted-foreground">{isDesignDraft(d.state) ? 'Draft on this device' : 'Earlier draft'}</span>
             </button>
           ))}
           {recent.map(r => (

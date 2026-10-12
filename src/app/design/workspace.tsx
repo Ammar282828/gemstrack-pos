@@ -17,11 +17,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, ImagePlus, Loader2, Maximize2, Plus, RefreshCw, Rocket, Save, ShieldCheck, Star, Trash2, Type } from 'lucide-react';
+import { ArrowLeft, ImagePlus, Loader2, Maximize2, Plus, RefreshCw, Rocket, Save, ShieldCheck, Sparkles, Star, Trash2, Type } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PALETTES } from '@/lib/social/story';
-import { reflow, renderDocTo, type Assets, type Bind, type Fields, type StoryDoc } from '@/lib/social/editor';
-import { AD_TEMPLATES, PHOTO, applyAdTemplate, safeZone, type AdTemplateId } from '@/lib/ads/studio/templates';
+import { PRESETS, SQUARE_PRESETS, applyPreset, applySquarePreset, reflow, renderDocTo, type Assets, type Bind, type Fields, type PresetId, type SquarePresetId, type StoryDoc } from '@/lib/social/editor';
+import { AD_TEMPLATES, PHOTO, applyAdTemplate, blankAd, safeZone, type AdTemplateId } from '@/lib/ads/studio/templates';
 import { sizePreset } from '@/lib/design/sizes';
 import { resizeOne } from '@/lib/design/resize';
 import type { Box01 } from '@/lib/social/editor';
@@ -30,12 +30,13 @@ import type { PublishDesign } from '@/lib/design/publish';
 import { SoloEditor, useStoryDoc, type DesignerExtras } from '../website/post/story-editor';
 import { headlineFace, bodyFace, serifFace } from '../website/post/fonts';
 import { SITE_LABEL, safeName } from './studio-kit';
-import { CheckPanel, DesignPiece, PicturesPanel, WordsPanel } from './design-piece';
+import { AiPanelHost, CheckPanel, DesignPiece, PicturesPanel, WordsPanel } from './design-piece';
+import { AiCandidateBanner, AiDialogs, isStoryShaped, useAiActions } from './ai-tools';
 import { activePage, displayName, kindLabel, pageOf, toPage, type DesignWork, type NewPage, type WorkPage } from './design-state';
 import { PublishSheet } from './publish-sheet';
 import { ResizeSheet } from './resize-sheet';
 import type { ResizedPage } from '@/lib/design/resize';
-import type { DesignApi } from './use-design';
+import { isCataloguePage, type DesignApi } from './use-design';
 
 interface Props {
   design: DesignApi;
@@ -64,10 +65,14 @@ export function DesignWorkspace({ design, adsOk, onAnother, onClose }: Props) {
   /** A page for a destination that wants a shape the design hasn't got ("Make 1:1 from this"). */
   const needSize = (presetId: string) => {
     const p = sizePreset(presetId);
-    if (!p || w.pages.some(x => x.frame.w === p.frame.w && x.frame.h === p.frame.h && x.format === p.format)) return;
-    design.actions.addPages([{ label: p.label, format: p.format, frame: p.frame, doc: resizedTo(p.frame), origin: 'resized' }]);
+    // WhatsApp's square and the website's are the same shape but not the same picture: each has a page of its own.
+    const same = (x: WorkPage) => (presetId === 'website' || presetId === 'whatsapp' ? x.label === p?.label : x.frame.w === p?.frame.w && x.frame.h === p?.frame.h && x.format === p?.format);
+    if (!p || w.pages.some(same)) return;
+    // The website's photograph is the catalogue's own: the piece, the weight stamped and the mark — not a poster.
+    const doc = presetId === 'website' ? applySquarePreset(blankFor(p.format, p.frame, master.doc), 'catalogue', w.fields, design.assets) : resizedTo(p.frame);
+    design.actions.addPages([{ label: p.label, format: p.format, frame: p.frame, doc, origin: presetId === 'website' ? 'manual' : 'resized' }]);
   };
-  const redo = (p: WorkPage) => design.actions.redoFromMaster(p.id, resizedTo(p.frame));
+  const redo = (p: WorkPage) => design.actions.redoFromMaster(p.id, isCataloguePage(p) ? applySquarePreset(blankFor(p.format, p.frame, master.doc), 'catalogue', w.fields, design.assets) : resizedTo(p.frame));
 
   const resizeNode = () => (
     <ResizeSheet doc={master.doc} fields={w.fields} assets={design.assets} subject={subjectOf(master.doc)} master={w.master} photoMarked={design.marked}
@@ -78,6 +83,7 @@ export function DesignWorkspace({ design, adsOk, onAnother, onClose }: Props) {
   const publishProps = {
     design: publishDesign, pages: w.pages.map(toPage), render: design.render, onNeedSize: needSize,
     docOf: (pageId: string) => pageOf(w, pageId)?.doc, stamped: design.marked,
+    ...(design.moreIds.length ? { more: { count: design.moreIds.length, render: (pageId: string, index: number, px: number) => design.renderWith(pageId, design.moreIds[index - 1], px) } } : {}),
     onSaved: (id: string) => design.adoptSaved(id),
     onDone: (r: { ok: boolean }) => { setPublishOpen(false); if (r.ok && w.id) design.finish(); },
   };
@@ -86,10 +92,12 @@ export function DesignWorkspace({ design, adsOk, onAnother, onClose }: Props) {
   const save = () => { void design.saveToShop(); };
   const publishDisabled = w.fresh;
 
+  const actions = useAiActions(design, adsOk);
   const extras: DesignerExtras = {
     panels: [
-      { id: 'x:pictures', label: 'Pictures', title: 'Pictures', icon: <ImagePlus className="h-5 w-5" />, render: () => <PicturesPanel design={design} onAnother={onAnother} /> },
+      { id: 'x:pictures', label: 'Pictures', title: 'Pictures', icon: <ImagePlus className="h-5 w-5" />, render: () => <PicturesPanel design={design} adsOk={adsOk} onAnother={onAnother} /> },
       { id: 'x:words', label: 'Words', title: 'Words', icon: <Type className="h-5 w-5" />, render: () => <WordsPanel design={design} adsOk={adsOk} /> },
+      { id: 'x:ai', label: 'AI', title: 'With AI', icon: <Sparkles className="h-5 w-5" />, render: () => <AiPanelHost design={design} adsOk={adsOk} /> },
       { id: 'x:resize', label: 'Resize', title: 'Resize', icon: <Maximize2 className="h-5 w-5" />, render: () => resizeNode() },
       { id: 'x:check', label: 'Check', title: 'Check', icon: <ShieldCheck className="h-5 w-5" />, render: () => <CheckPanel design={design} adsOk={adsOk} /> },
       { id: 'x:publish', label: 'Publish', title: 'Publish', icon: <Rocket className="h-5 w-5" />, render: () => publishNode },
@@ -125,6 +133,11 @@ export function DesignWorkspace({ design, adsOk, onAnother, onClose }: Props) {
 
       <PageStrip design={design} onAdd={() => setResizeOpen(true)} onRedo={redo} />
 
+      {design.aiBusy && (
+        <p className="flex items-center gap-2 rounded-lg bg-primary/10 p-2 text-xs text-primary" role="status"><Loader2 className="h-4 w-4 shrink-0 animate-spin" /> {design.aiBusy}…</p>
+      )}
+      <AiCandidateBanner design={design} actions={actions} />
+
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <div className="min-w-0">
           {w.fresh || !design.marksReady ? (
@@ -153,6 +166,7 @@ export function DesignWorkspace({ design, adsOk, onAnother, onClose }: Props) {
       </Dialog>
 
       <PublishSheet {...publishProps} open={publishOpen} onOpenChange={setPublishOpen} />
+      <AiDialogs design={design} actions={actions} />
     </div>
   );
 }
@@ -177,6 +191,20 @@ function PageEditor({ design, work, page, assets, extras, overlay }: {
   const info = sizeLine(page);
   const choose = (id: AdTemplateId) => doc.change(d => design.layOut(d, id, fields), { key: `layout:${id}` });
   const marked = design.marked;
+  // Post a piece's own layouts come with the shapes they were made for: the story's stacks (coloured for the photograph)
+  // on a story-shaped page, the catalogue stamps on a square one.
+  const storyShaped = isStoryShaped(page);
+  const squareShaped = Math.abs(page.frame.w / page.frame.h - 1) < 0.02;
+  const palette = design.palette;
+  const storyOpts = { weightOwnLine: true, wordmark: true };
+  const presets = [
+    ...AD_TEMPLATES.map(t => ({ id: t.id as string, label: t.label })),
+    ...(storyShaped ? PRESETS.map(p => ({ id: `story:${p.id}`, label: `Story · ${p.label}` })) : []),
+    ...(squareShaped ? SQUARE_PRESETS.map(p => ({ id: `sq:${p.id}`, label: `Square · ${p.label}` })) : []),
+  ];
+  const applyAny = (d: StoryDoc, id: string): StoryDoc => id.startsWith('story:') ? applyPreset(d, id.slice(6) as PresetId, palette, fields, assets, storyOpts)
+    : id.startsWith('sq:') ? applySquarePreset(d, id.slice(3) as SquarePresetId, fields, assets)
+      : applyAdTemplate(d, id as AdTemplateId, fields, assets, { photoMarked: marked });
 
   return (
     <SoloEditor side={{
@@ -184,10 +212,10 @@ function PageEditor({ design, work, page, assets, extras, overlay }: {
       props: {
         api: doc, square: true, fields, assets, extras,
         photos: design.photo ? [{ id: PHOTO, url: design.photo.url, label: design.photo.label || 'The photo' }] : [],
-        palette: PALETTES[0], onPalette: () => undefined, lettered: null, weightOwnLine: true, websiteLabel: SITE_LABEL,
+        palette, onPalette: () => undefined, lettered: null, weightOwnLine: true, websiteLabel: SITE_LABEL,
         onField: (b: Bind, v: string) => design.patchFields({ [b]: v }),
-        presets: AD_TEMPLATES.map(t => ({ id: t.id, label: t.label })), onPreset: id => choose(id as AdTemplateId),
-        previewPreset: id => applyAdTemplate(doc.doc, id as AdTemplateId, fields, assets, { photoMarked: marked }),
+        presets, onPreset: id => (id.startsWith('story:') || id.startsWith('sq:') ? doc.change(d => applyAny(d, id), { key: `layout:${id}` }) : choose(id as AdTemplateId)),
+        previewPreset: id => applyAny(doc.doc, id),
         fileName: safeName(displayName(work)),
         cropLabel: 'The photo', photoNote: 'Drag or pinch it to choose what shows; the piece should fill the frame on a phone.',
         overlay,
@@ -195,6 +223,12 @@ function PageEditor({ design, work, page, assets, extras, overlay }: {
     }} />
   );
 }
+
+/** A blank page of this shape over the master's photograph, placed as the master has it. */
+const blankFor = (format: WorkPage['format'], frame: Frame, from: StoryDoc): StoryDoc => {
+  const b = blankAd(format, frame);
+  return { ...b, bg: { ...b.bg, placement: from.bg.placement } };
+};
 
 /** Where the piece sits in the photograph, when the design says. */
 const subjectOf = (d: StoryDoc): Box01 | undefined => d.meta?.subject as Box01 | undefined;

@@ -85,6 +85,39 @@ describe('buildPlan', () => {
   });
 });
 
+describe('more photographs of the piece', () => {
+  const more = { count: 2, render: async (id: string, i: number) => blob(`${id}#${i}`) };
+  it('go to the website as "<name> 2.jpg" and on, and to each WhatsApp place after the first, with no caption', async () => {
+    const { s, calls } = fakes();
+    const { steps } = buildPlan(ctx(s, { more }), { website: { folder: 'Rings/Rings' }, whatsapp: ['announcements'], captions });
+    expect(steps.map(x => x.id)).toEqual(['website', 'website:1', 'website:2', 'wa:announcements', 'wa:announcements:1', 'wa:announcements:2']);
+    await runSteps(steps, {});
+    expect(calls).toEqual([
+      'website:Rings/Rings:Ruby ring.jpg', 'website:Rings/Rings:Ruby ring 2.jpg', 'website:Rings/Rings:Ruby ring 3.jpg',
+      'wa:announcements:WA:', 'wa:announcements::', 'wa:announcements::',
+    ]);
+  });
+  it('a second photo that failed is retried alone — the first is never uploaded twice', async () => {
+    let up = false;
+    const { s, calls } = fakes({ website: vi.fn(async (_b, _f, name) => { if (name.endsWith('2.jpg') && !up) throw new Error('down'); calls.push(name); return 'rel'; }) });
+    const memory: Memory = {};
+    const { steps } = buildPlan(ctx(s, { more: { ...more, count: 1 } }), { website: { folder: 'Rings/Rings' }, captions });
+    await runSteps(steps, memory);
+    expect(memory['website']).toBeDefined();
+    expect(memory['website:1']).toBeUndefined();
+    up = true;
+    await runSteps(steps, memory);
+    expect(calls).toEqual(['Ruby ring.jpg', 'Ruby ring 2.jpg']);
+  });
+  it('the queue carries every square and says how many', async () => {
+    const { s } = fakes();
+    const seen: unknown[] = [];
+    s.queue = vi.fn(async r => { seen.push({ keys: Object.keys(r.images).sort(), count: r.count, names: r.website?.names }); return 'q'; });
+    await runSteps(buildPlan(ctx(s, { more: { ...more, count: 1 } }), { website: { folder: 'Rings/Rings' }, whatsapp: ['announcements'], queue: { dueAt: null }, captions }).steps, {});
+    expect(seen).toEqual([{ keys: ['site-0', 'site-1', 'wa-0', 'wa-1'], count: 2, names: ['Ruby ring.jpg', 'Ruby ring 2.jpg'] }]);
+  });
+});
+
 describe('runSteps', () => {
   it('runs in order and remembers what went', async () => {
     const { s, calls } = fakes();
@@ -92,8 +125,15 @@ describe('runSteps', () => {
     const { steps } = buildPlan(ctx(s), { website: { folder: 'Rings/Rings' }, featured: true, whatsapp: ['announcements'], captions });
     const out = await runSteps(steps, memory);
     expect(out.every(x => x.status === 'done')).toBe(true);
-    expect(calls).toEqual(['website:Rings/Rings:Ruby-ring.jpg', 'featured:Rings/Rings/a.jpg', 'wa:announcements:WA:']);
+    expect(calls).toEqual(['website:Rings/Rings:Ruby ring.jpg', 'featured:Rings/Rings/a.jpg', 'wa:announcements:WA:']);
     expect(memory).toMatchObject({ website: 'Rings/Rings/a.jpg', 'wa:announcements': 'msg-announcements' });
+  });
+
+  it('the site gets the name it should show: typed, or the headline; a Maisons piece under its house', async () => {
+    const { s, calls } = fakes();
+    await runSteps(buildPlan(ctx(s), { website: { folder: 'Rings/Rings', name: 'Ruby & Pearl' }, captions }).steps, {});
+    await runSteps(buildPlan(ctx(s), { website: { folder: 'Wristwear/The Maisons', name: 'LOVE Bracelet, Classic', house: 'Cartier' }, captions }).steps, {});
+    expect(calls).toEqual(['website:Rings/Rings:Ruby and Pearl.jpg', 'website:Wristwear/The Maisons:Cartier — LOVE Bracelet, Classic.jpg']);
   });
 
   it('retries only what failed — a group that went is never posted twice', async () => {

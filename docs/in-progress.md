@@ -7,8 +7,8 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 - **Design (2026-10-12): cut over; open items** ([docs/features/design.md](features/design.md)). (1) **A native Design tab in the iPhone
   app** (a separate iOS task: its Post composer and Studio screens still call the old addresses, kept in the map as `moved` pages, and
   the web view shows `/design`). (2) **Video / animation, phase 2** (a Ken-Burns or shimmer story by MediaRecorder; a licensed track).
-  (3) **Retire the classic screens** `/design/classic/post` and `/design/classic/ad` once Design has AI restage, paint, lettering and
-  "Make it with AI". (4) Shared designer templates (`design_templates`) — templates are still per device. (5) **Owner walkthrough** on
+  (3) ~~Retire the classic screens~~ done 2026-10-12: Design has every tool (docs/features/design.md#with-ai); the two addresses
+  redirect. **Owner to try** on a phone: AI lettering and paint on a story, a draft of the old screen, the website's catalogue photo. (4) Shared designer templates (`design_templates`) — templates are still per device. (5) **Owner walkthrough** on
   both houses, with a staff and a marketing account, before anything else moves.
 
 - **Editing existing website pieces from the POS** (owner, 2026-09-26: "fix/crop/add logo weight overlay to existing,

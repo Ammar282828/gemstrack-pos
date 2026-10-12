@@ -85,6 +85,10 @@ describe('needs and pages', () => {
     expect(pageFor(pages, 'm', 'whatsapp')).toMatchObject({ page: { id: 'sq1' } });
     expect(pageFor(pages, 'sq2', 'website')).toMatchObject({ page: { id: 'sq2' } });
     expect(pageFor(pages, 'm', 'instagram-story')).toMatchObject({ page: { id: 'st' } });
+    // The page made for the website is the website's, whichever square leads.
+    const withSite = [...pages, { ...page('web', 1080, 1080), label: 'Website 1:1' }];
+    expect(pageFor(withSite, 'sq2', 'website')).toMatchObject({ page: { id: 'web' } });
+    expect(pageFor(withSite, 'web', 'whatsapp')).toMatchObject({ page: { id: 'web' } });
     expect(pageFor(pages, 'm', 'meta-ad')).toMatchObject({ page: { id: 'm' } });
   });
   it('a 1:1-only place with only a 9:16 page offers to make 1:1', () => {

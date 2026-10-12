@@ -34,6 +34,8 @@ export interface DestinationInfo extends DestinationRow {
   mode?: InstagramMode;
   /** WhatsApp rows: the places a tick can choose from (the channel is `channel`). */
   targets?: WhatsAppTarget[];
+  /** Instagram rows: the house has the app set up but is not connected yet — the sheet offers "Connect Instagram". */
+  connectable?: boolean;
 }
 
 /** The order the sheet shows them in. */
@@ -81,8 +83,8 @@ export function destinationRows(f: DestinationFacts, opts: { fromSite?: boolean 
     row('featured', site && f.featured, !site ? siteReason : 'This shop has no set of the day.'),
     row('whatsapp', f.whatsapp.community && f.whatsapp.groups.length > 0, 'This shop has no WhatsApp community set.', { targets: f.whatsapp.groups }),
     row('channel', f.whatsapp.community && f.whatsapp.channel, 'This shop has no WhatsApp channel.', { targets: f.whatsapp.channel ? [{ key: 'channel', label: 'Channel' }] : [] }),
-    { ...row('instagram-story', true), mode: igMode, ...(igNote ? { reason: igNote } : {}) },
-    { ...row('instagram-post', true), mode: igMode, ...(igNote ? { reason: igNote } : {}) },
+    { ...row('instagram-story', true), mode: igMode, ...(igNote ? { reason: igNote } : {}), ...(ig.configured && !ig.connected ? { connectable: true } : {}) },
+    { ...row('instagram-post', true), mode: igMode, ...(igNote ? { reason: igNote } : {}), ...(ig.configured && !ig.connected ? { connectable: true } : {}) },
     row('meta-ad', f.metaAds && f.mayAds, !f.metaAds ? 'This shop has no Meta ad account here.' : 'Meta ads are for the owner and marketing.'),
     row('site-replace', f.siteEdit && !!opts.fromSite, !f.siteEdit ? 'Editing website pieces is off in this shop.' : 'Only a design made from a piece on the website can replace its photo.'),
   ];
@@ -100,11 +102,19 @@ export function matchesRatio(p: Pick<DesignPage, 'frame'>, ratio: DestinationNee
 
 export type PagePick = { page: DesignPage } | { missing: SizePreset; ratio: string };
 
-/** The page a place takes: the master when it fits, else the first that does; none → the size to make. */
+/** Places that want the catalogue's own photograph (the weight stamped, the mark) when the design has made one. */
+const OWN_PAGE: DestinationId[] = ['website', 'featured', 'site-replace'];
+
+/**
+ * The page a place takes: the master when it fits, else the first that does; none → the size to make. The website
+ * takes the page made for it ("Website 1:1", the catalogue stamp) before any other square: the WhatsApp square may
+ * carry a headline the catalogue never does.
+ */
 export function pageFor(pages: DesignPage[], master: string, id: DestinationId): PagePick {
   const needs = NEEDS[id];
   const fits = pages.filter(p => matchesRatio(p, needs.ratio));
-  const page = fits.find(p => p.id === master) ?? fits[0];
+  const own = OWN_PAGE.includes(id) ? fits.find(p => p.label === sizeForDestination(id).label) : undefined;
+  const page = own ?? fits.find(p => p.id === master) ?? fits[0];
   if (page) return { page };
   const missing = sizeForDestination(id);
   return { missing, ratio: missing.ratio };

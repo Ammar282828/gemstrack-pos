@@ -695,6 +695,7 @@ their standing "do everything yourself": `docs/features/design-studio-plan.md`; 
 - **Addresses:** every old URL redirects with its query (`lib/design/redirects.ts`, table-tested); **every `/api` route keeps its
   address** (the iPhone app calls `/api/ads/studio/*` and `/api/website/post/ai`, the board's agent `/api/studio/mcp`).
   `/website/post` and `/ads/studio` stay in the map as `moved` pages so the app's native Post composer and Studio stay linked.
-- **Kept until Design has them:** `/design/classic/post` (AI restage, paint, lettering, "Ask AI") and `/design/classic/ad` ("Make it with
-  AI": art-directed and painted ads). Reachable from Design's start screen, not the menu; retire them when Design does the same.
+- **The classic screens are gone** (2026-10-12, parity pass): everything they did is in Design ([With AI](features/design.md#with-ai)).
+  `/design/classic/post` and `/design/classic/ad` are redirects (with `?draft=`); a draft of the old Post a piece screen opens as a
+  design ([Old drafts](features/design.md#old-drafts)).
 

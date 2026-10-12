@@ -13,22 +13,24 @@
  *              (/api/ads/studio/check) on the master page
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { AlertTriangle, CheckCircle2, ImagePlus, Loader2, Scissors, ShieldCheck, Sparkles, Upload, Wand2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ImagePlus, Loader2, MessageSquareText, Palette as PaletteIcon, Scissors, ShieldAlert, ShieldCheck, Sparkles, Undo2, Upload, Wand2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { newImageLayer, type Bind } from '@/lib/social/editor';
 import { blobToDataUrl } from '@/lib/design/publish';
 import { authHeaders } from '../ads/ads-kit';
-import { AD_FORMATS, nearestAiRatio, safeZone } from '@/lib/ads/studio/templates';
+import { AD_FORMATS, safeZone } from '@/lib/ads/studio/templates';
 import { VOICE } from '@/lib/ads/studio/brand';
 import { inventedFigures, type CheckVerdict, type CopyResult } from '@/lib/ads/studio/prompts';
 import { kindLabel } from './design-state';
 import { api } from '../ads/ads-kit';
-import { runImageOp, scoreTone } from './studio-kit';
+import { scoreTone } from './studio-kit';
+import { AiPanel, CaptionSection, POST_AI_ON, TidyToggle, useAiActions } from './ai-tools';
+import { readImageFile } from './image-file';
 import type { DesignApi } from './use-design';
 
 const FIELD_ROWS: [Bind, string, string, number][] = [
@@ -44,6 +46,7 @@ const input = 'h-9 text-base sm:text-sm';
 
 export function WordsPanel({ design, adsOk }: { design: DesignApi; adsOk: boolean }) {
   const { toast } = useToast();
+  const actions = useAiActions(design, adsOk);
   const w = design.work!;
   const [brief, setBrief] = useState('');
   const [busy, setBusy] = useState(false);
@@ -112,6 +115,12 @@ export function WordsPanel({ design, adsOk }: { design: DesignApi; adsOk: boolea
         </div>
       )}
 
+      {w.kind !== 'ad' && (
+        <div className="space-y-1.5 border-t pt-3">
+          <CaptionSection design={design} actions={actions} />
+        </div>
+      )}
+
       {(w.kind === 'ad' || !!w.copy.adText) && (
         <div className="space-y-1.5">
           <p className="text-[11px] font-medium text-muted-foreground">The ad’s own words</p>
@@ -125,40 +134,23 @@ export function WordsPanel({ design, adsOk }: { design: DesignApi; adsOk: boolea
 
 // ── Pictures ───────────────────────────────────────────────────────────────
 
-/** The AI ops a photograph has, as the image route runs them. `shape`: aimed at the page's ratio. */
-const PHOTO_AI = [
-  { id: 'tidy', label: 'Logo and labels off', note: 'About a minute', clean: true },
-  { id: 'extend', label: 'Extend to this shape', note: 'About a minute', clean: true },
-  { id: 'retouch', label: 'Retouch', note: 'About two minutes', clean: false },
-] as const;
-
-export function PicturesPanel({ design, onAnother }: { design: DesignApi; onAnother: () => void }) {
+export function PicturesPanel({ design, adsOk, onAnother }: { design: DesignApi; adsOk: boolean; onAnother: () => void }) {
   const { toast } = useToast();
+  const actions = useAiActions(design, adsOk);
   const [busy, setBusy] = useState<string | null>(null);
-  const [check, setCheck] = useState<{ samePiece: boolean; differences: string[] } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const moreRef = useRef<HTMLInputElement>(null);
   const page = design.activePage;
   const photo = design.photo;
+  const lock = !photo || !!busy || !!design.aiBusy;
+  const aiNote = photo?.ai;
+  const doubtful = aiNote?.check && !(aiNote.check.samePiece && aiNote.check.confidence >= 0.8);
 
-  const run = async (id: (typeof PHOTO_AI)[number]['id']) => {
-    if (!photo || !page || busy) return;
-    const meta = PHOTO_AI.find(x => x.id === id)!;
-    setBusy(id); setCheck(null);
-    try {
-      const r = id === 'tidy' ? await runImageOp(photo.blob, 'enhance', { tidy: true })
-        : id === 'extend' ? await runImageOp(photo.blob, 'reframe', { aspect: nearestAiRatio(page.frame.w, page.frame.h), tidy: design.marked })
-        : await runImageOp(photo.blob, 'retouch', {});
-      // The same-piece check decides: a result that changed the piece never goes in unseen.
-      if (r.check && !r.check.samePiece) {
-        setCheck(r.check);
-        toast({ title: 'Kept your photo', description: `The AI changed the piece: ${r.check.differences.slice(0, 2).join('; ') || 'it is not the same'}.`, variant: 'destructive' });
-        return;
-      }
-      await design.replacePhoto(r.blob, meta.label, meta.clean);
-      toast({ title: `${meta.label} — done`, description: 'The check: the same piece as before.' });
-    } catch (e) {
-      toast({ title: `${meta.label} didn’t work`, description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
-    } finally { setBusy(null); }
+  const choose = async (f: File | undefined) => {
+    if (!f) return;
+    try { const r = await readImageFile(f); await design.replacePhoto(r.blob, r.name); }
+    catch (err) { toast({ title: 'Couldn’t read that photo', description: err instanceof Error ? err.message : String(err), variant: 'destructive' }); }
   };
 
   /**
@@ -168,7 +160,7 @@ export function PicturesPanel({ design, onAnother }: { design: DesignApi; onAnot
    */
   const cutOut = async () => {
     if (!photo || !page || busy) return;
-    setBusy('cutout'); setCheck(null);
+    setBusy('cutout');
     try {
       const form = new FormData();
       form.append('file', photo.blob, 'photo.jpg');
@@ -187,6 +179,11 @@ export function PicturesPanel({ design, onAnother }: { design: DesignApi; onAnot
     } finally { setBusy(null); }
   };
 
+  const ai = (label: string, run: () => void, icon: React.ReactNode, title?: string) => (
+    <Button size="sm" variant="outline" className="h-auto min-h-8 justify-start whitespace-normal py-1 text-left text-xs" disabled={lock || !POST_AI_ON} onClick={run} title={title}>
+      {icon}{label}
+    </Button>
+  );
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3">
@@ -195,32 +192,65 @@ export function PicturesPanel({ design, onAnother }: { design: DesignApi; onAnot
         </div>
         <div className="min-w-0 flex-1 space-y-1.5">
           <p className="truncate text-sm font-medium">{photo?.label ?? 'No photograph'}</p>
+          {aiNote && (
+            <p title={aiNote.check?.differences.join('\n') || ''} className={cn('flex items-start gap-1 text-[11px]', doubtful ? 'text-amber-600' : 'text-emerald-600')}>
+              {aiNote.check ? (doubtful ? <><ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {aiNote.check.differences[0] ?? 'Look closely'}</> : <><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" /> Same piece</>)
+                : <><ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" /> Not checked</>}
+            </p>
+          )}
           <div className="flex flex-wrap gap-1.5">
             <Button size="sm" variant="outline" onClick={onAnother}><ImagePlus className="mr-1 h-4 w-4" /> Another</Button>
             <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}><Upload className="mr-1 h-4 w-4" /> From this device</Button>
+            <Button size="sm" variant="outline" className="sm:hidden" onClick={() => cameraRef.current?.click()} aria-label="Take a photo">Camera</Button>
           </div>
         </div>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={async e => {
-          const f = e.target.files?.[0]; e.target.value = '';
-          if (f) await design.replacePhoto(f, f.name).catch(err => toast({ title: 'Couldn’t read that photo', description: err instanceof Error ? err.message : String(err), variant: 'destructive' }));
+        <input ref={fileRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={async e => { const f = e.target.files?.[0]; e.target.value = ''; await choose(f); }} />
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={async e => { const f = e.target.files?.[0]; e.target.value = ''; await choose(f); }} />
+      </div>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11px] font-medium">More photos of this piece</span>
+          <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={() => moreRef.current?.click()}><ImagePlus className="mr-1 h-3.5 w-3.5" /> Add</Button>
+        </div>
+        {design.moreIds.length > 0 && (
+          <ul className="flex flex-wrap gap-1.5">
+            {design.moreIds.map(id => (
+              <li key={id} className="relative">
+                <img src={design.extra[id]?.url} alt={design.extra[id]?.label ?? ''} className="h-12 w-12 rounded-md border object-cover" />
+                <button type="button" aria-label="Take this photo out" onClick={() => design.removeMore(id)} className="absolute -right-1 -top-1 flex h-4 min-h-0 w-4 items-center justify-center rounded-full bg-foreground text-[10px] text-background">×</button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-[10px] text-muted-foreground">{design.moreIds.length ? 'Publish sends each to the website and WhatsApp as a square of its own, on the same page design.' : 'Other angles of the same piece go out with it as squares of their own.'}</p>
+        <input ref={moreRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={async e => {
+          const list = Array.from(e.target.files ?? []); e.target.value = '';
+          try { await design.addMore(list); } catch (err) { toast({ title: 'Couldn’t read a photo', description: err instanceof Error ? err.message : String(err), variant: 'destructive' }); }
         }} />
       </div>
       <div className="space-y-1.5 rounded-lg bg-muted/40 p-2">
-        <p className="flex items-center gap-1 text-[11px] font-medium"><Wand2 className="h-3.5 w-3.5" /> With AI</p>
+        <p className="flex items-center gap-1 text-[11px] font-medium"><Wand2 className="h-3.5 w-3.5" /> With AI — the piece stays as it is</p>
         <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-          {PHOTO_AI.map(x => (
-            <Button key={x.id} size="sm" variant="outline" className="h-auto min-h-8 justify-start whitespace-normal py-1 text-left text-xs" disabled={!photo || !!busy} onClick={() => run(x.id)} title={x.note}>
-              {busy === x.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}{x.label}
-            </Button>
-          ))}
-          <Button size="sm" variant="outline" className="h-auto min-h-8 justify-start whitespace-normal py-1 text-left text-xs" disabled={!photo || !!busy} onClick={cutOut} title="Cuts the piece out of its background; nothing is redrawn">
+          {ai('Enhance — clean, colour, sparkle', () => void actions.photo({ op: 'enhance' }), <Sparkles className="mr-1 h-3.5 w-3.5 shrink-0" />, 'About a minute')}
+          {ai('Logo and labels off', () => void actions.photo({ op: 'clean' }), <Sparkles className="mr-1 h-3.5 w-3.5 shrink-0" />, 'About a minute')}
+          {ai('Extend to this shape', () => void actions.photo({ op: 'extend' }), <Sparkles className="mr-1 h-3.5 w-3.5 shrink-0" />, 'About a minute')}
+          {ai('Retouch — piece, background, light', () => void actions.photo({ op: 'retouch' }), <Sparkles className="mr-1 h-3.5 w-3.5 shrink-0" />, 'GPT Image + Magnific Precision, about two minutes')}
+          {ai('New setting…', () => design.setAiDialog('setting'), <PaletteIcon className="mr-1 h-3.5 w-3.5 shrink-0" />, 'Photograph it again in one of the shop’s settings')}
+          {ai('Ask AI… (anything, in your words)', () => design.setAiDialog('ask'), <MessageSquareText className="mr-1 h-3.5 w-3.5 shrink-0" />)}
+          <Button size="sm" variant="outline" className="h-auto min-h-8 justify-start whitespace-normal py-1 text-left text-xs" disabled={lock} onClick={cutOut} title="Cuts the piece out of its background; nothing is redrawn">
             {busy === 'cutout' ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Scissors className="mr-1 h-3.5 w-3.5" />}Remove background
           </Button>
+          {design.canUndoPhoto && (
+            <Button size="sm" variant="ghost" className="h-auto min-h-8 justify-start whitespace-normal py-1 text-left text-xs" disabled={lock} onClick={() => void design.undoPhoto()}>
+              <Undo2 className="mr-1 h-3.5 w-3.5 shrink-0" /> Back to the photo before
+            </Button>
+          )}
         </div>
-        {busy && busy !== 'cutout' && <p className="text-[11px] text-muted-foreground">Working on the photograph — {PHOTO_AI.find(x => x.id === busy)?.note.toLowerCase()}…</p>}
+        <TidyToggle design={design} />
+        {design.aiBusy && <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {design.aiBusy}…</p>}
         {busy === 'cutout' && <p className="text-[11px] text-muted-foreground">Cutting the piece out — this takes about ten seconds…</p>}
-        {check && <p className="text-[11px] text-rose-700 dark:text-rose-300">The check: the piece may have changed — {check.differences.slice(0, 3).join('; ') || 'not the same'}. Your photo stays.</p>}
-        <p className="text-[10px] text-muted-foreground">Every result is compared with your photo; one that changed the piece is not used.</p>
+        {!POST_AI_ON && <p className="text-[11px] text-muted-foreground">The photograph AI isn’t part of this shop.</p>}
+        <p className="text-[10px] text-muted-foreground">Every result is compared with your photo; one that changed the piece waits for your say.</p>
       </div>
     </div>
   );
@@ -230,7 +260,7 @@ export function PicturesPanel({ design, onAnother }: { design: DesignApi; onAnot
 
 interface FullCheck { verdict: CheckVerdict; words: { text: boolean; headline: boolean }; invented: string[]; calendar: { blocked: boolean } }
 
-export function CheckPanel({ design, adsOk }: { design: DesignApi; adsOk: boolean }) {
+export function CheckPanel({ design, adsOk, autoRun = false }: { design: DesignApi; adsOk: boolean; autoRun?: boolean }) {
   const { toast } = useToast();
   const w = design.work!;
   const [busy, setBusy] = useState(false);
@@ -261,6 +291,14 @@ export function CheckPanel({ design, adsOk }: { design: DesignApi; adsOk: boolea
       toast({ title: 'Couldn’t check it', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
     } finally { setBusy(false); }
   };
+  // "Make it with AI" and "Use this ad" check what they made, once the new layout is on screen.
+  const lastTick = useRef(design.checkTick);
+  useEffect(() => {
+    if (!autoRun || !adsOk || design.checkTick === lastTick.current) return;
+    lastTick.current = design.checkTick;
+    const t = setTimeout(() => { void run(); }, 600);
+    return () => clearTimeout(t);
+  }, [design.checkTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const v = full?.r.verdict;
   const stale = full && full.at !== w.pages.find(p => p.id === w.master)?.rev;
   const Icon = v?.verdict === 'run' ? CheckCircle2 : v?.verdict === 'fix' ? AlertTriangle : XCircle;
@@ -298,6 +336,12 @@ export function CheckPanel({ design, adsOk }: { design: DesignApi; adsOk: boolea
 
 // ── The card ───────────────────────────────────────────────────────────────
 
+/** The AI panel with its own actions (hooks live in a component, not in the render of a section). */
+export function AiPanelHost({ design, adsOk }: { design: DesignApi; adsOk: boolean }) {
+  const actions = useAiActions(design, adsOk);
+  return <AiPanel design={design} adsOk={adsOk} actions={actions} />;
+}
+
 /** The column beside the editor: the design's name, then its words, pictures and checks. */
 export function DesignPiece({ design, adsOk, onAnother }: { design: DesignApi; adsOk: boolean; onAnother: () => void }) {
   const w = design.work!;
@@ -319,8 +363,9 @@ export function DesignPiece({ design, adsOk, onAnother }: { design: DesignApi; a
         <Input value={w.name} placeholder={w.fields.headline || 'Name this design'} maxLength={120} onChange={e => design.actions.rename(e.target.value)} aria-label="Design name" className="mt-2 h-9 text-base font-medium sm:text-sm" />
       </div>
       {section('Words', <WordsPanel design={design} adsOk={adsOk} />, true)}
-      {section('Pictures', <PicturesPanel design={design} onAnother={onAnother} />)}
-      {section('Check', <CheckPanel design={design} adsOk={adsOk} />)}
+      {section('Pictures', <PicturesPanel design={design} adsOk={adsOk} onAnother={onAnother} />)}
+      {section('With AI', <AiPanelHost design={design} adsOk={adsOk} />)}
+      {section('Check', <CheckPanel design={design} adsOk={adsOk} autoRun />)}
     </div>
   );
 }

@@ -6,8 +6,9 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 > start screen, the page strip (story, post, WhatsApp, website and ad sizes of one design), one Publish sheet (website with
 > collections, set of the day, WhatsApp groups and channel, Instagram story and feed post, Meta ad, queue/schedule), Saved. The sections
 > below describe the same engine, the checks, the queue, drafts and Maisons, which Design reuses; where they say "Post a piece" read
-> Design. `/website/post` redirects (`?draft=`, `?site=`, `?new=1` kept). The old screen is still reachable, unchanged, at
-> `/design/classic/post` for what Design does not do yet (AI restage, paint and lettering, free-form "Ask AI"); its drafts open there.
+> Design. `/website/post` redirects (`?draft=`, `?site=`, `?new=1` kept). AI restage (New setting), paint, lettering, free-form "Ask AI", Make it with AI and the caption writer are in Design too
+> ([With AI](design.md#with-ai)); `/design/classic/post` redirects, and a draft of the old screen opens as a design
+> ([Old drafts](design.md#old-drafts)). The old page itself is deleted.
 > The editor files stay in `src/app/website/post/`.
 
 ### Post a piece drafts

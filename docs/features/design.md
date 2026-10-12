@@ -81,15 +81,15 @@ of the day** · **WhatsApp groups** (ticks, remembered) · **WhatsApp channel** 
 
 `designs/{id}` + `design_media` (900 KB parts), admin SDK only like `ad_saved`. **No migration:** the shelf reads `designs` ∪ legacy
 `ad_saved` (id `saved:<id>`, kind Ad, owner + marketing) through `lib/design/saved-compat.ts`; the first Save of a legacy ad writes a
-`designs` record that supersedes it. Folders are the existing `ad_folders`. *On this device* lists drafts (Design's own; a draft
-of the older Post a piece screen opens in the classic screen). *In the ad account* is still listed for owner + marketing. Boards stay
+`designs` record that supersedes it. Folders are the existing `ad_folders`. *On this device* lists drafts (Design's own, and the older Post a piece screen's, which open as designs). *In the ad account* is still listed for owner + marketing. Boards stay
 `studio_boards`.
 
 ## Old addresses (`lib/design/redirects.ts`, `redirects.test.ts`; every query rides along)
 
 | Old | New |
 |---|---|
-| `/website/post` (`?new=1`, `?draft=<id>`, `?site=<id>`) | `/design?v=make` + the same. Design answers once and clears them: `?site=` starts a piece from that website piece, `?new=1` a fresh one, `?draft=` opens a Design draft (a draft of the old screen goes to `/design/classic/post?draft=`) |
+| `/website/post` (`?new=1`, `?draft=<id>`, `?site=<id>`) | `/design?v=make` + the same. Design answers once and clears them: `?site=` starts a piece from that website piece, `?new=1` a fresh one, `?draft=` opens a Design draft, or a draft of the old screen converted to a design |
+| `/design/classic/post`, `/design/classic/ad` (`?v=`) | `/design?v=make` (`&kind=ad` for the ad maker; its Photos/Saved go to Design's) — the classic screens are gone |
 | `/ads/studio`, `?v=plan` (`&s=`), `?v=guide`, `?v=rivals` | `/ads/plan` (`?s=plays|guide|rivals`) |
 | `/ads/studio?v=photos` (`&s=`), `?v=picks`, `?v=library` | `/design?v=photos&s=picks|library` |
 | `/ads/studio?v=make` / `board` / `saved` | `/design?v=make&kind=ad` / `?v=board` / `?v=saved` |
@@ -101,20 +101,53 @@ composer and Studio screens are matched by those addresses and found through the
 
 ## Where the code is
 
-`src/app/design/` (shell: `page`, `start`, `workspace`, `use-design`, `design-state`, `design-piece`, `photos-section`,
+`src/app/design/` (shell: `page`, `start`, `workspace`, `use-design`, `design-state`, `design-piece`, `ai-tools`, `old-draft`, `photos-section`,
 `saved-shelf`, `publish-sheet`, `resize-sheet`, `smart-input`; moved here from the Studio: `board`, `library`, `studio-kit`),
 `src/lib/design/**` (pure engine, tested), `src/app/api/design/**` (`designs`, `destinations`, `resize`, `parse`, `fetch`, `analyze`,
 `layers`, `remove-background`), `src/app/ads/plan/`. **Every API route kept its address** — the iPhone app calls
 `/api/ads/studio/*` and `/api/website/post/ai`, and the MCP agent `/api/studio/mcp`. The editor itself still lives under
 `src/app/website/post/` (`story-editor`, `editor-panels`, `fonts`, `site-picker`, `health-panel`, `queue-panel`).
 
-## Kept for lack of parity (reachable from Design's start screen, not in the menu)
+## With AI
 
-- **Post a piece (classic)** `/design/classic/post` — the old screen, unchanged: AI *restage* (new setting), *paint* and *lettering*
-  passes, free-form "Ask AI" edits and the old drafts dialog. Design has tidy, extend and retouch.
-- **Ad maker (classic)** `/design/classic/ad` — Photos / Make / Saved as before: *Make it with AI* (an art-directed layout, a painted
-  ad), the lettering check, the ad pre-flight inside the maker.
-Retire each once Design has the AI ops (they call the same `/api/website/post/ai` and `/api/ads/studio/auto`).
+Everything the classic Post a piece and ad maker did with the image AI lives in `ai-tools.tsx`, calling the routes they always did
+(`/api/website/post/ai`, `/api/ads/studio/auto`); no back end changed. `useAiActions` holds no state: what is running (`aiBusy`, one
+tool at a time), the open dialog, the photographs before the AI ones, and a picture waiting for a look are in `use-design.ts`.
+
+| Classic had | Design now |
+|---|---|
+| Enhance · Retouch (GPT Image 2.5 Edit + Magnific Precision, then the same-piece check) · Extend (9:16/4:5/1:1) · "Also remove tags and strings" | **Pictures → With AI**: Enhance, Logo and labels off, Extend to this shape (the page's ratio), Retouch, the tags toggle (per device) |
+| New setting (7 scenes or free text, shape, edit the full prompt) · Ask AI (free text, shape, full prompt) | **New setting…** and **Ask AI…** dialogs, unchanged in content |
+| Same-piece badge on every AI photo; a result the check doubts was added with a warning | A result the check doubts waits in a banner above the editor (**Use it anyway** / Discard), never in unseen; "Back to the photo before" undoes AI versions |
+| Make the whole story (captions, palette, layout, a 9:16 setting) | **With AI → Make it with AI** on a piece/story/post: captions to the Publish sheet, headline and small line if empty, the colours and Left stack/Centred layout on the story page, the setting as that page's own photograph |
+| The ad maker's Make it with AI (art-directed layout, words, ad text and headline, photo extended/logo off, then the full ad check) | Same, on an **Ad** design (owner and marketing, Ad studio houses): the layout goes on every size, the check runs by itself |
+| Paint the whole story / post / ad | **With AI → Paint it…**: a story or post is painted into the page (read back, same-piece check, "Back to our design"); an ad is looked at first (**Use this ad**, Paint again, Discard) |
+| AI lettering (style words, read back) | **With AI → AI lettering** on a story-shaped page; "Back to our fonts" |
+| Write with AI (WhatsApp + Instagram captions, headline ideas, stones seen, a line about it, plain/edit, copy) | **Words → Captions**; the Publish sheet starts from them |
+
+An AI-lettered or painted page is a change to the document (`lib/design/lettered.ts`, tested): the AI picture is one of the design's
+photographs, the page's background becomes it and the bound words are hidden, so the strip, Save, the draft and Publish draw it without
+knowing — and it can still be edited. Role gates and flags are the classic screens': the photograph, story and caption tools need
+`STORE_POST_PIECE || STORE_SITE_EDIT`; the ad's art direction and painting need `STORE_AD_STUDIO` and owner/marketing.
+
+Also ported from Post a piece: **More photos of this piece** (other angles go out as squares of their own — "<name> 2.jpg" on the
+website, no caption after the first on WhatsApp, each its own retryable step, and in the queue); the website's **Name on the website**
+and **The Maisons** house and official name; the **catalogue photograph** (the Website 1:1 page: weight stamped, the mark, and
+Square/Story layouts from Post a piece in Layouts); the **set of the day** card showing what it replaces; **Connect Instagram**
+(and the return toast); **Save all to Photos**, **Share the picture** with its caption, **Copy the caption**, **Open the WhatsApp
+channel**; HEIC from this device (converted by the ERP) and the camera on a phone; the Investments link on the start screen.
+
+Not carried, on purpose: the old screen's per-photo Site/WA ticks (each photograph is a design or a "more photo"), the metal / stones /
+weight-each fields (one Specs line), and the weight-on-photo switch (a layer's eye in the designer).
+
+## Old drafts
+
+A draft of the old Post a piece screen (IndexedDB `taheri-post-drafts`) opens as a design from Saved › On this device, "Where you left
+off", or `?draft=`: `app/design/old-draft.ts` (tested) makes the story the master page and the square the WhatsApp page, the lead photograph
+the design's own and the others its further photographs, applies an AI lettering/painting that was on, carries the words and the
+caption, and leaves the old collection for the Publish sheet's remembered one. What the old screen had already sent is not known to the
+Publish sheet: the toast says so. The old draft is deleted once the design is kept on the device in its place. A draft that cannot be
+converted (no story or square) opens read-only (`old-draft-view.tsx`): words, caption to copy, photographs to save.
 
 ## Not done
 

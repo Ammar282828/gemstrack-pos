@@ -36,6 +36,16 @@ export function redirectFor(pathname: string, params: Params): string | null {
   // Post a piece: Design's Make. ?draft=, ?site= and ?new=1 ride along; Design reads them.
   if (path === '/website/post') return build('/design', [['v', 'make']], q);
 
+  // The two classic screens Design kept for a while (until it had their AI tools): both are Design's now.
+  if (path === '/design/classic/post') return build('/design', [['v', 'make']], q);
+  if (path === '/design/classic/ad') {
+    const v = q.get('v') ?? '';
+    q.delete('v'); q.delete('s');
+    if (v === 'saved') return build('/design', [['v', 'saved']], q);
+    if (v === 'photos') return build('/design', [['v', 'photos'], ['s', 'picks']], q);
+    return build('/design', [['v', 'make'], ['kind', 'ad']], q);
+  }
+
   // From the website was the Posts hub's before it was Design's: unchanged since 2026-10-04.
   if (path === '/website/from-site') return build('/posts', [], q);
 
@@ -58,4 +68,4 @@ export function redirectFor(pathname: string, params: Params): string | null {
 }
 
 /** Every old address the table above answers, for the test and the docs. */
-export const MOVED_PATHS = ['/website/post', '/website/from-site', '/ads/studio'] as const;
+export const MOVED_PATHS = ['/website/post', '/website/from-site', '/ads/studio', '/design/classic/post', '/design/classic/ad'] as const;
