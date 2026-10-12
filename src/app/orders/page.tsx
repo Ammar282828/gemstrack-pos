@@ -29,8 +29,9 @@ import {
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
+import { DUE_BUCKETS, dueGroups } from '@/lib/orders-due';
 import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
-import { orderTiming, URGENT_WINDOW_DAYS, type OrderTiming } from '@/lib/order-timing';
+import { orderTiming } from '@/lib/order-timing';
 import { isWalkInName } from '@/lib/walk-in';
 import { lacCrore } from '@/lib/money';
 import { PromiseLine } from '@/components/shared/promise-line';
@@ -312,7 +313,7 @@ const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = 
       <TableRow data-mine={mine ? 'true' : undefined} title={mine ? 'Taken by you' : undefined} className={cn(mine && 'bg-primary/[.06]')}>
         <TableCell className="font-medium align-top">
           <div className="flex items-center gap-2">
-            <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
+            <Link href={`/orders/${order.id}`} className="text-foreground hover:underline">
               {order.id}
             </Link>
             {mine && <MineTag />}
@@ -335,16 +336,21 @@ const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = 
         </TableCell>
         <TableCell className="align-top">
           <div className="flex min-w-0 items-center gap-2.5">
-            <Monogram name={customerOf(order)} size={32} className="hidden xl:inline-flex" />
+            <Monogram name={customerOf(order)} size={32} className="hidden min-[1400px]:inline-flex" />
             <div className="min-w-0 leading-tight">
               <p className={cn('text-ios-sub font-medium truncate', greyed && 'text-muted-foreground')}>{customerOf(order)}</p>
               {order.customerContact && (
                 <p className="text-ios-cap text-muted-foreground tabular-nums whitespace-nowrap">{order.customerContact}</p>
               )}
+              {/* Where the Financials column is hidden, the one thing it said that you chase: payment and what is left. */}
+              <div className="mt-1 flex items-center gap-1.5 min-[1400px]:hidden">
+                <Pill tone={PAYMENT_TONE[pay]}>{pay}</Pill>
+                <span className="text-ios-cap text-muted-foreground tabular-nums whitespace-nowrap">Bal <span className="font-semibold text-foreground">{grandTotal.toLocaleString()}</span></span>
+              </div>
             </div>
           </div>
         </TableCell>
-        <TableCell className="hidden xl:table-cell text-right align-top">
+        <TableCell className="hidden min-[1400px]:table-cell text-right align-top">
           <div className="flex flex-col items-end gap-0.5 leading-tight whitespace-nowrap">
             <Pill tone={PAYMENT_TONE[pay]}>{pay}</Pill>
             <div className="text-ios-cap text-muted-foreground">Bal: <span className="font-semibold text-foreground tabular-nums">{grandTotal.toLocaleString()}</span></div>
@@ -365,7 +371,7 @@ const OrderTableRow: React.FC<{ order: Order; owed: number; mine?: boolean }> = 
                   id={`status-update-${order.id}`}
                   aria-label={`Status: ${order.status}`}
                   className={cn(
-                    'h-7 w-fit gap-1 rounded-full border-transparent px-2.5 text-ios-cap font-semibold',
+                    'h-7 w-fit gap-1 rounded-full border-transparent px-2.5 text-ios-cap font-semibold [@media(pointer:coarse)]:!min-h-7',
                     'focus:ring-0 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:opacity-80',
                     toneClasses(tone).tint, toneClasses(tone).ink,
                   )}
@@ -421,28 +427,6 @@ function monthLabel(key: string): string {
 }
 
 type GroupBy = 'stage' | 'status' | 'due' | Graduation;
-
-/** The Due view's sections, in the order they are chased (the app's OrdersDueBucket). */
-const DUE_BUCKETS = [
-  { key: 'late', title: 'Late', hint: 'past the day promised' },
-  { key: 'today', title: 'Today', hint: 'promised for today' },
-  { key: 'week', title: 'This week', hint: `in the next ${URGENT_WINDOW_DAYS} days: start them now` },
-  { key: 'later', title: 'Later', hint: 'more than a week away' },
-  { key: 'undated', title: 'No date', hint: 'no day promised: oldest first' },
-] as const;
-type DueBucket = typeof DUE_BUCKETS[number]['key'];
-
-/** An order with no day promised is undated here, whatever the age rule calls it (the app's dueBucket). */
-function dueBucketOf(t: OrderTiming): DueBucket {
-  if (!t.due) return 'undated';
-  if (t.state === 'late') return 'late';
-  if (t.state === 'today') return 'today';
-  if (t.state === 'upcoming') return -t.daysLate <= URGENT_WINDOW_DAYS ? 'week' : 'later';
-  return 'undated';
-}
-
-/** Still to be handed over: not invoiced, not cancelled or refunded. */
-const isOpenOrder = (o: Order) => !o.invoiceId && o.status !== 'Cancelled' && o.status !== 'Refunded';
 
 const GROUP_OPTIONS: { value: GroupBy; label: string }[] = [
   { value: 'day', label: 'Day' },
@@ -561,22 +545,8 @@ export default function OrdersPage() {
     } else if (groupBy === 'due') {
       // The open orders by their promise; in each section the soonest promise first (so the latest of the
       // late), and the undated oldest first, as they have waited longest (the app's dueGroups).
-      const byBucket = new Map<DueBucket, { order: Order; due: number | null; taken: number }[]>();
-      for (const o of filteredOrders) {
-        if (!isOpenOrder(o)) continue;
-        const t = orderTiming(o, now);
-        const b = dueBucketOf(t);
-        const list = byBucket.get(b) ?? [];
-        list.push({ order: o, due: t.due ? t.due.getTime() : null, taken: o.createdAt ? parseISO(o.createdAt).getTime() : 0 });
-        byBucket.set(b, list);
-      }
-      for (const b of DUE_BUCKETS) {
-        const rows = (byBucket.get(b.key) ?? []).sort((x, y) =>
-          (x.due != null && y.due != null && x.due !== y.due) ? x.due - y.due
-            : x.taken !== y.taken ? x.taken - y.taken
-            : x.order.id < y.order.id ? -1 : 1);
-        push(`due-${b.key}`, b.title, b.hint, rows.map(r => r.order), b.key === 'late');
-      }
+      const groups = new Map(dueGroups(filteredOrders, now).map(g => [g.bucket, g.orders]));
+      for (const b of DUE_BUCKETS) push(`due-${b.key}`, b.title, b.hint, groups.get(b.key) ?? [], b.key === 'late');
     } else if (groupBy === 'status') {
       // Ordered the way work moves, so the list reads as a pipeline.
       for (const st of ORDER_STATUSES) {
@@ -657,7 +627,7 @@ export default function OrdersPage() {
 
       {/* Phone and tablet: the app's controls. Search, Show by, status chips with counts, and the rest of the filters in a sheet. */}
       <div className="space-y-3 lg:hidden">
-        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Search by order ID, customer, or contact…" />
+        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Search orders and customers" />
         {groupControl}
         <ChipRow label="Status">
           {STATUS_CHIPS.filter(st => st === 'All' || (statusCounts[st] ?? 0) > 0 || statusFilter === st).map(st => (
@@ -719,13 +689,13 @@ export default function OrdersPage() {
         <FilterBar
           value={searchTerm}
           onChange={setSearchTerm}
-          placeholder="Search by order ID, customer, or contact…"
+          placeholder="Search by order, customer or phone"
           activeCount={filterCount}
           footer={<div className="flex"><div className="w-full max-w-md">{groupControl}</div></div>}
         >
           {monthSelect('w-full sm:w-[150px]')}
 
-          <TakenByPicker value={takenByFilter} onChange={setTakenByFilter} allowAny anyLabel="Anyone" aria-label="Taken by" />
+          <TakenByPicker value={takenByFilter} onChange={setTakenByFilter} allowAny anyLabel="Anyone" aria-label="Taken by" className="w-full sm:w-[140px]" />
 
           <Select value={statusFilter} onValueChange={v => setStatusFilter(v as typeof statusFilter)}>
             <SelectTrigger className="w-full sm:w-[145px]" aria-label="Status"><SelectValue /></SelectTrigger>
@@ -735,7 +705,7 @@ export default function OrdersPage() {
             </SelectContent>
           </Select>
 
-          {paymentSelect('w-full sm:w-[135px]')}
+          {paymentSelect('w-full sm:w-[150px]')}
         </FilterBar>
       </div>
 
@@ -800,7 +770,7 @@ export default function OrdersPage() {
                     <TableHead>Order</TableHead>
                     <TableHead className="hidden lg:table-cell">Date</TableHead>
                     <TableHead>Customer</TableHead>
-                    <TableHead className="hidden xl:table-cell text-right">Financials (PKR)</TableHead>
+                    <TableHead className="hidden min-[1400px]:table-cell text-right">Financials (PKR)</TableHead>
                     <TableHead>Status &amp; progress</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>

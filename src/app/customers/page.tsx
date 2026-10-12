@@ -3,6 +3,7 @@
 "use client";
 
 import { owedToYou } from '@/lib/owed';
+import { lacCrore } from '@/lib/money';
 import { WALK_IN_ENTITY } from '@/lib/walk-in';
 import React, { useState, useMemo, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
@@ -35,29 +36,10 @@ import { cn } from '@/lib/utils';
 import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
 
-const CustomerActions: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void>; isCard?: boolean }> = ({ customer, onDelete, isCard }) => {
-  return (
-    <div className="flex gap-2 w-full">
-      <Button asChild size="sm" variant="outline" className="flex-1">
-        <Link href={`/hisaab/${customer.id}?type=customer`}>
-          <BookUser className="w-4 h-4 mr-1.5" /> Ledger
-        </Link>
-      </Button>
-      <Button asChild size="sm" variant={isCard ? 'default' : 'outline'} className="flex-1">
-        <Link href={`/customers/${customer.id}/edit`}>
-          <Edit3 className="w-4 h-4 mr-1.5" /> Edit
-        </Link>
-      </Button>
-    </div>
-  );
-}
-
 /** Lifetime spend, what is still owed, and when they last bought. */
 export interface CustomerStats { spent: number; owed: number; lastAt?: string; count: number }
 
-const money = (n: number) => n >= 100_000
-  ? `${Math.round(n / 1000)}k`
-  : n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+const money = (n: number) => lacCrore(n);
 
 /** The same figure with its unit, for anywhere it stands alone. */
 const pkr = (n: number) => `PKR ${money(n)}`;
@@ -752,11 +734,11 @@ export default function CustomersPage() {
           {spamCandidates.length > 0 && (
             <Button size="sm" variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10"
               onClick={() => setSpamOpen(true)}>
-              <Trash2 className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Clean spam ({spamCandidates.length})</span>
+              <Trash2 className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Clean spam ({spamCandidates.length})</span><span className="sm:hidden">Spam ({spamCandidates.length})</span>
             </Button>
           )}
           <Button size="sm" variant="outline" onClick={() => setMergeOpen(true)}>
-            <Merge className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Merge duplicates</span>
+            <Merge className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Merge duplicates</span><span className="sm:hidden">Merge</span>
           </Button>
           <Button asChild size="sm">
             <Link href="/customers/add"><PlusCircle className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add customer</span><span className="sm:hidden">Add</span></Link>
@@ -783,7 +765,7 @@ export default function CustomersPage() {
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <SearchField className="lg:max-w-md lg:flex-1" value={searchTerm} onChange={setSearchTerm} placeholder="Search by name, phone, or email…" />
+        <SearchField className="lg:max-w-md lg:flex-1" value={searchTerm} onChange={setSearchTerm} placeholder="Search name, phone, email" />
         <ChipRow label="Show" className="lg:mx-0 lg:px-0">
           {([['all', 'Everyone'], ['owing', 'Owing'], ['active', 'Recent']] as const).map(([id, label]) => (
             <FilterChip key={id} title={label} chosen={view === id} onClick={() => setView(id)} />

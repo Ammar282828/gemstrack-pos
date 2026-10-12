@@ -242,8 +242,8 @@ export default function KarigarsPage() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2">
-        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Search by name or contact…" className="flex-1" />
-        <Segmented<'all' | 'working' | 'free'> label="Show" value={view} onChange={setView}
+        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Search by name or contact…" className="sm:flex-1" />
+        <Segmented<'all' | 'working' | 'free'> label="Show" value={view} onChange={setView} className="shrink-0"
           options={[{ value: 'all', label: 'Everyone' }, { value: 'working', label: 'Working' }, { value: 'free', label: 'Free' }]} />
       </div>
 

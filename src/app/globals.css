@@ -942,3 +942,8 @@ body.app-look .ledger-rows .ui-field:focus {
   from { transform: translateY(0); }
   to { transform: translateY(100%); }
 }
+
+/* A phone's top bar already has the back control (app-layout); a page's own inline one would be a second. */
+@media (max-width: 767px) {
+  body:has([data-layout-back]) .page-back-inline { display: none; }
+}

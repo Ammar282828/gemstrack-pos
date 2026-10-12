@@ -172,6 +172,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const rootPage = isRootPage(pathname, here?.entry);
   const phoneTitle = pageTitle(pathname, entries) ?? here?.entry.label;
   const pageTabs = here?.tab && here.entry.tabs && here.entry.tabs.length > 1 ? here.entry.tabs : null;
+  // On a phone the Settings index is itself the list of its pages (`phoneIndex`), so the tab row would only repeat it.
+  const phoneTabs = pageTabs && !(here?.entry.phoneIndex && pathname === here.entry.href) ? pageTabs : null;
   // `phone`: the row under the bar, one segmented group filling the width (glass or not); otherwise the
   // tabs beside the menu, underlined (or glass pills, globals.css .app-tabs).
   const renderTabs = (className: string, phone: boolean) => pageTabs && (
@@ -382,7 +384,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset className={cn('app-inset', pageTabs && 'has-page-tabs')}>
+        <SidebarInset className={cn('app-inset', phoneTabs && 'has-page-tabs')}>
           <header data-scrolled={scrolled || undefined} className="app-header sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b max-md:border-b-transparent max-md:data-[scrolled]:border-border">
             <div className="flex h-14 items-center gap-2 px-4 md:px-6">
             {/* Was md:hidden, which meant the sidebar could collapse to icons
@@ -394,7 +396,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="hidden lg:inline text-2xs text-muted-foreground">⌘B</span>
             {/* Phone, deeper than a tab root: back to the place it sits under, as the app's navigation bar does. */}
             {!rootPage && here && (
-              <PageBack fallback={here.entry.href} label={here.entry.label} className="md:hidden max-w-[40%] truncate text-[17px]" />
+              <PageBack layout fallback={here.entry.href} label={here.entry.label} className="md:hidden max-w-[40%] truncate text-[17px]" />
             )}
             {/* The page's siblings (lib/nav.ts): one sidebar entry, several pages. Beside the menu from
                 md; on a phone their own row below, where they had been squeezed between the menu and
@@ -418,7 +420,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             )}
             </div>
             </div>
-            {pageTabs && (
+            {phoneTabs && (
               <div className="flex h-11 items-start px-4 md:hidden">
                 {renderTabs('w-full overflow-x-auto', true)}
               </div>

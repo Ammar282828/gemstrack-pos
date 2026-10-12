@@ -13,7 +13,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Monogram, Pill, HeroAmount, ContactActions, LedgerSection, EmptyState, type Tone } from '@/components/ledger';
-import { isOwing } from '@/lib/owed';
+import { owedToYou } from '@/lib/owed';
 import { Edit3, Trash2, Phone, Mail, MapPin, BookUser, ClipboardList, FileText, Ruler, Cake, CalendarHeart, Heart, StickyNote } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -53,10 +53,12 @@ export default function CustomerDetailPage() {
   const customerId = params.id as string;
 
   const isHydrated = useIsStoreHydrated();
-  const { customer, allInvoices, allOrders, deleteCustomerAction, loadCustomers, loadGeneratedInvoices, loadOrders } = useAppStore(state => ({
+  const { customer, allInvoices, allOrders, hisaabEntries, deleteCustomerAction, loadCustomers, loadGeneratedInvoices, loadOrders, loadHisaab } = useAppStore(state => ({
     customer: state.customers.find(c => c.id === customerId),
     allInvoices: state.generatedInvoices,
     allOrders: state.orders,
+    hisaabEntries: state.hisaabEntries,
+    loadHisaab: state.loadHisaab,
     deleteCustomerAction: state.deleteCustomer,
     loadCustomers: state.loadCustomers,
     loadGeneratedInvoices: state.loadGeneratedInvoices,
@@ -71,8 +73,9 @@ export default function CustomerDetailPage() {
       loadCustomers();
       loadGeneratedInvoices();
       loadOrders();
+      loadHisaab();
     }
-  }, [isHydrated, loadCustomers, loadGeneratedInvoices, loadOrders]);
+  }, [isHydrated, loadCustomers, loadGeneratedInvoices, loadOrders, loadHisaab]);
 
 
   useEffect(() => {
@@ -128,8 +131,10 @@ export default function CustomerDetailPage() {
     customer.chainLength && `Chain ${customer.chainLength}`,
   ].filter(Boolean) as string[];
 
-  // What they owe is the ERP's one rule (lib/owed.ts) over their own invoices; else what they have bought.
-  const owedNow = customerInvoices.reduce((n, i) => n + (isOwing(i) ? i.balanceDue || 0 : 0), 0);
+  // What they owe is the ERP's one figure (lib/owed.ts, as "Owed to you" and the customer list read it):
+  // their invoices plus their hand-written hisaab balance. Else what they have bought.
+  const owedNow = owedToYou(allInvoices, id => (id === customerId ? customer.name : undefined), Array.isArray(hisaabEntries) ? hisaabEntries : [])
+    .byKey.get(customerId)?.amount ?? 0;
   const bought = customerInvoices.reduce((n, i) => n + (i.status === 'Refunded' ? 0 : i.grandTotal || 0), 0);
 
   const invoiceRows = customerInvoices.map(invoice => (
@@ -202,7 +207,7 @@ export default function CustomerDetailPage() {
                 </Button>
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="w-full"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
+                    <Button variant="outline" className="w-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                     <AlertDialogHeader><AlertDialogTitle>Remove {customer.name}?</AlertDialogTitle><AlertDialogDescription>This hides them from the book. Their hisaab, orders and invoices stay exactly where they are, and Settings &rarr; Recently removed puts them back.</AlertDialogDescription></AlertDialogHeader>
@@ -244,7 +249,7 @@ export default function CustomerDetailPage() {
                   <TableBody>
                     {customerInvoices.map((invoice) => (
                       <TableRow key={invoice.id} className="cursor-pointer" onClick={() => router.push(`/invoices/${invoice.id}`)}>
-                        <TableCell className="font-medium text-primary hover:underline">
+                        <TableCell className="font-medium text-foreground hover:underline">
                           <Link href={`/invoices/${invoice.id}`} onClick={e => e.stopPropagation()}>{invoice.id}</Link>
                         </TableCell>
                         <TableCell>{new Date(invoice.createdAt).toLocaleDateString()}</TableCell>
@@ -278,7 +283,7 @@ export default function CustomerDetailPage() {
                   <TableBody>
                     {customerOrders.map((order) => (
                       <TableRow key={order.id} className="cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)}>
-                        <TableCell className="font-medium text-primary hover:underline">
+                        <TableCell className="font-medium text-foreground hover:underline">
                           <Link href={`/orders/${order.id}`}>{order.id}</Link>
                         </TableCell>
                         <TableCell>{format(parseISO(order.createdAt), 'PP')}</TableCell>
