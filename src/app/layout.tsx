@@ -125,7 +125,7 @@ function AppBody({ children }: { children: React.ReactNode }) {
   useIsomorphicLayoutEffect(() => {
     applyThemeToDocument(shownTheme);
     const meta = document.querySelector('meta[name="theme-color"]');
-    const bar = onLinksPage ? LINKS_DRESS.ground : shownTheme === LIGHT_THEME ? '#FCFCFD' : STORE_THEME_COLOR;
+    const bar = onLinksPage ? LINKS_DRESS.ground : shownTheme === LIGHT_THEME ? (STORE_BRAND === 'mina' ? '#F4EFE8' : '#F2F3F6') : STORE_THEME_COLOR;
     if (meta) meta.setAttribute('content', bar);
     // The iPhone app's status bar, which no meta tag reaches.
     tellAppChrome(bar, onLinksPage || shownTheme !== LIGHT_THEME);
@@ -133,7 +133,8 @@ function AppBody({ children }: { children: React.ReactNode }) {
 
   // The same class on the server and on every client render: the theme is put on the
   // body by applyThemeToDocument, so hydration has nothing to disagree about.
-  const bodyClass = `${inter.variable} font-sans antialiased brand-${STORE_BRAND}`;
+  // `app-look` is constant (web-matches-app.md a.6): the structural rules of the app's look in globals.css hang on it.
+  const bodyClass = `${inter.variable} font-sans antialiased app-look brand-${STORE_BRAND}`;
 
   // The ERP waits for its store before drawing anything. A customer's page does not use
   // the store and must not wait: until 2026-09-29 the link page and a shared invoice
