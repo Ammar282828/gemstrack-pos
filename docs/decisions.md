@@ -144,6 +144,14 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   either used to make that rate today's. The Settings form no longer carries rates, so saving shop details can't write back a
   stale one.
 
+### Team note
+
+- **A shared note for the team** (2026-10-12, with the native app's update): one short note in the app layout (`TeamNote`,
+  `components/shared/team-note.tsx`), kept in `app_settings/global.teamNote`, at most 600 characters. **Owners write it, staff
+  read it**: the write is `updateSettings` on `/api/app/write` (owners only; staff and Marketing get 403, a longer note 400, the
+  server holds the limit in `lib/writes/settings.ts`), and every screen, the iPhone app and the widget read the same live
+  setting. Clearing it saves an empty string. It is not a chat: one note, the last writer wins.
+
 ### One screen per question
 
 - **One screen per question** (2026-10-01 audit, Phase 4). **Owed to you** is one rule, `lib/owed.ts` (tested): every invoice

@@ -258,6 +258,29 @@ longer forms (Let it cook with an aim, the name, every shape).
   product shot beside the hand that wears it); the board fetches each like the design's own photo, draws it, sends it in the
   agent's view and the downloads, and offers it in the editor.
 
+- **The designer on a board design** (2026-10-12, owner: "let me edit any present text and picture from any of the ads … add text,
+  fonts, elements, the AI"; `FrameEditor` in `board.tsx`). **Edit** on a design opens the Canva-style designer
+  (`website/post/story-editor.tsx`) full screen on that design's `StoryDoc`: any text (the bound fields and free text), added text,
+  fonts, shapes and stickers, layer order, lock, align, background, crop, undo/redo; the canvas first, tools following the
+  selection. **Pictures:** the design's photo or any inset is replaced from the library or the device; **With AI** runs the
+  existing tools on the selected picture — Enhance, Logo and labels off, Retouch, Extend to the design's shape (`PHOTO_AI`, through
+  `runImageOp` in `studio-kit.tsx` to `/api/website/post/ai`, its gate unchanged) — and the words come from `/api/ads/studio/copy`.
+  Each accepted result is kept as an upload, and the original is one tap away until Save. Cancel asks first when there are unsaved
+  changes. **Save is one put** of the design on the board, so reopening, the board's picture, Download, Saved ads, a new ad and the
+  post queue all draw the same pictures. The native app's editor (`StudioBoardEditor.swift`) does the same over the same routes.
+  - **`POST /api/ads/studio/uploads`** (multipart `file`, optional `name`; the Ad studio's gate; ≤ 25 MB, answered 413 from the
+    `Content-Length` before the body is read) puts a picture in the library (`uploads.ts addUpload`) and answers
+    `{ asset: { id: "up:<id>", name, w, h } }`.
+  - **The `lib:up:<id>` convention.** A picture the design holds beyond its own photo is a layer whose `photoId` is
+    `lib:<asset id>`, so an upload is `lib:up:<id>` (`board-pictures.ts`, tested); the page fetches each like any library photo.
+  - **Pictures are uploaded one by one before the single board put.** Anything added or made by the AI in the designer is sent to
+    `/uploads` at once; the board changes only on Save. A save that fails (or a designer closed without saving) can therefore leave
+    `studio_uploads` rows nothing uses. Known and acceptable: they are small and the library lists them as uploads.
+  - **`DesignerExtras`** (`story-editor.tsx`, the `extras` prop of `SoloEditor`) is how a page adds to the designer without forking
+    it: `panels` (rail panels with ids `x:<name>`, here Pictures and Words), `hide` (its own panels to leave out), `tools(ed, 'toolbar'
+    | 'phone')` (tools for the selection), and the header — `title`, `status`, `actions` (after Download; here Save), `closeLabel`,
+    `hint` and `startPanel`. The board is its only host so far.
+
 <a id="five-tabs"></a>### Five tabs
 
 - **The Studio has five tabs** (2026-10-04, owner: "audit and consolidate ads tab"; there were eight): **Plan** (What to run —
