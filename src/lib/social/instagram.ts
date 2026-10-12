@@ -167,16 +167,43 @@ export async function freshConnection(): Promise<Connection> {
 
 // ── Posting ────────────────────────────────────────────────────────────────
 
+/** Instagram's own limit on a feed caption. */
+export const FEED_CAPTION_MAX = 2200;
+
 /** A story from a public JPEG URL. Resolves to the new media's id. */
 export async function publishStory(imageUrl: string): Promise<string> {
   const conn = await freshConnection();
-  const v = VERSION();
-  const container = await igJson(await fetch(`${GRAPH}/${v}/${conn.userId}/media`, {
+  const container = await igJson(await fetch(`${GRAPH}/${VERSION()}/${conn.userId}/media`, {
     method: 'POST',
     body: new URLSearchParams({ image_url: imageUrl, media_type: 'STORIES', access_token: conn.token }),
   }));
+  return publishContainer(conn, container);
+}
+
+/**
+ * A feed post (one image and its caption) from a public JPEG URL: the same connection, token renewal and
+ * fetch-by-Instagram as a story, but a plain image container (no `media_type`: `image_url` alone is a feed
+ * photo). Feed images are 4:5 to 1.91:1; the caption is at most 2,200 characters. Resolves to the new
+ * media's id.
+ */
+export async function publishPhoto(imageUrl: string, caption = ''): Promise<string> {
+  const text = caption.trim();
+  if (text.length > FEED_CAPTION_MAX) throw new InstagramError(`Instagram takes captions up to ${FEED_CAPTION_MAX} characters; this one is ${text.length}.`, 400);
+  const conn = await freshConnection();
+  const container = await igJson(await fetch(`${GRAPH}/${VERSION()}/${conn.userId}/media`, {
+    method: 'POST',
+    body: new URLSearchParams({ image_url: imageUrl, ...(text ? { caption: text } : {}), access_token: conn.token }),
+  }));
+  return publishContainer(conn, container);
+}
+
+/**
+ * A made container → published. Images are usually ready at once; Instagram gets up to half a minute,
+ * and a container it refuses ("ERROR" / "EXPIRED") says why. Resolves to the new media's id.
+ */
+async function publishContainer(conn: Connection, container: Record<string, unknown>): Promise<string> {
+  const v = VERSION();
   const id = String(container.id);
-  // Images are usually ready at once; give Instagram up to half a minute.
   for (let i = 0; i < 15; i++) {
     const s = await igJson(await fetch(`${GRAPH}/${v}/${id}?${new URLSearchParams({ fields: 'status_code,status', access_token: conn.token })}`));
     if (s.status_code === 'FINISHED') break;
