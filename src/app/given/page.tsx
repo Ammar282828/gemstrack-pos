@@ -333,7 +333,7 @@ export default function GivenItemsPage() {
       <FilterBar
         value={search}
         onChange={setSearch}
-        placeholder="Search by item or recipient…"
+        placeholder="Search items and people"
         activeCount={(statusFilter !== 'all' ? 1 : 0) + (byFilter ? 1 : 0)}
         footer={
           <ChipRow label="Status" className="-mx-2 px-2 sm:mx-0 sm:px-0">

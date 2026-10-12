@@ -1,5 +1,6 @@
 "use client";
 
+import { lacCrore } from '@/lib/money';
 import { loadOrderPhoto } from '@/components/order/order-photo';
 import { useLingering } from '@/hooks/use-lingering';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -732,7 +733,7 @@ const FocusedKarigarView: React.FC<{
             if (late.length) cells.push({ label: `Late ${WARN_DAYS}d+`, value: String(late.length), tone: 'text-tone-owed-ink' });
             if (load.critical) cells.push({ label: `Critical ${CRITICAL_DAYS}d+`, value: String(load.critical), tone: 'text-tone-late-ink' });
             if (load.totalWeightG > 0) cells.push({ label: 'Gold out', value: `${load.totalWeightG.toFixed(1)}g` });
-            if (load.totalValue > 0) cells.push({ label: 'Value', value: `${Math.round(load.totalValue / 1000)}k` });
+            if (load.totalValue > 0) cells.push({ label: 'Value', value: lacCrore(load.totalValue) });
             return (
               <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-x-4 sm:gap-x-8 gap-y-3">
                 {cells.map(c => (
@@ -800,7 +801,7 @@ const JobCardMobile: React.FC<{
               {job.invoiceId
                 ? <Link href={`/invoices/${job.invoiceId}`} className="font-mono text-tone-settled-ink hover:underline">{job.invoiceId}</Link>
                 : job.orderId
-                  ? <Link href={`/orders/${job.orderId}`} className="font-mono text-primary hover:underline">{job.orderId}</Link>
+                  ? <Link href={`/orders/${job.orderId}`} className="font-mono text-foreground hover:underline">{job.orderId}</Link>
                   : <Pill tone="working">Stock</Pill>}
               {job.customerName && <span className="truncate">{job.customerName}</span>}
               <TakenByTag job={job} />
@@ -1042,7 +1043,7 @@ export default function WorkshopPage() {
       <FilterBar
         value={search}
         onChange={setSearch}
-        placeholder="Search item, karigar, customer, order…"
+        placeholder="Search work, karigars, orders"
         activeCount={(statusFilter !== 'active' ? 1 : 0) + (typeFilter !== 'all' ? 1 : 0) + (takenByFilter ? 1 : 0)}
       >
         <TakenByPicker value={takenByFilter} onChange={setTakenByFilter} allowAny anyLabel="Anyone"
@@ -1360,7 +1361,7 @@ export default function WorkshopPage() {
                           {j.invoiceId
                             ? <Link href={`/invoices/${j.invoiceId}`} className="font-mono text-sm text-tone-settled-ink hover:underline">{j.invoiceId}</Link>
                             : j.orderId
-                              ? <Link href={`/orders/${j.orderId}`} className="font-mono text-sm text-primary hover:underline">{j.orderId}</Link>
+                              ? <Link href={`/orders/${j.orderId}`} className="font-mono text-sm text-foreground hover:underline">{j.orderId}</Link>
                               : <span className="text-sm text-muted-foreground">—</span>}
                           {j.customerName && <div className="text-xs text-muted-foreground truncate max-w-[11rem]">{j.customerName}</div>}
                           <div className="text-xs text-muted-foreground mt-0.5"><TakenByTag job={j} /></div>

@@ -395,7 +395,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                 </p>
               </div>
             </div>
-            <div className="flex items-end justify-between gap-3">
+            <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
               <HeroAmount amount={invoice.grandTotal} />
               <div className="flex shrink-0 flex-col items-end gap-1 pb-1">
                 {(invoice.balanceDue || 0) > 0 ? (
@@ -530,7 +530,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                     </div>
                      <Separator className="mt-4"/>
                      <div className="pt-4 space-y-2 text-right">
-                        <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Subtotal:</span> <span className="w-32 font-medium">PKR {invoice.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                        <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Subtotal:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {invoice.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                         <div className="flex justify-end items-center gap-2">
                           <span className="text-muted-foreground">Discount:</span>
                           {isEditingDiscount ? (
@@ -552,7 +552,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                             </div>
                           ) : (
                             <button
-                              className="w-32 font-medium text-right hover:underline cursor-pointer"
+                              className="min-w-32 whitespace-nowrap text-right font-medium text-right hover:underline cursor-pointer"
                               onClick={() => { setEditDiscountInput(String(invoice.discountAmount)); setIsEditingDiscount(true); }}
                             >
                               {invoice.discountAmount > 0 ? `- PKR ${invoice.discountAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}` : 'Add discount'}
@@ -572,13 +572,13 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                                 </span>
                               ))}
                             </span>
-                            <span className="w-32 font-medium flex-shrink-0">- PKR {getInvoiceExchangeTotal(invoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                            <span className="min-w-32 whitespace-nowrap text-right font-medium flex-shrink-0">- PKR {getInvoiceExchangeTotal(invoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                           </div>
                         )}
-                        {getInvoiceAdjustmentsAmount(invoice) !== 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Adjustments:</span> <span className="w-32 font-medium">PKR {getInvoiceAdjustmentsAmount(invoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>}
-                        <div className="flex justify-end items-center gap-4 font-serif text-ios-title3 font-semibold"><span className="font-sans text-base font-normal text-muted-foreground">Grand Total:</span> <span className="w-32">PKR {invoice.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                        {getInvoiceAdjustmentsAmount(invoice) !== 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Adjustments:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {getInvoiceAdjustmentsAmount(invoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>}
+                        <div className="flex justify-end items-center gap-4 font-serif text-ios-title3 font-semibold"><span className="font-sans text-base font-normal text-muted-foreground">Grand Total:</span> <span className="min-w-32 whitespace-nowrap text-right">PKR {invoice.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                         {invoice.amountPaid > 0 && (
-                          <div className="flex justify-end items-center gap-4 text-tone-settled-ink"><span>Paid:</span> <span className="w-32 font-medium">PKR {invoice.amountPaid.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                          <div className="flex justify-end items-center gap-4 text-tone-settled-ink"><span>Paid:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {invoice.amountPaid.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                         )}
                         <div className={cn('flex justify-end items-center gap-4 font-semibold', invoice.balanceDue > 0 ? 'text-tone-owed-ink' : balanceLine(invoice.balanceDue).state === 'credit' ? 'text-tone-credit-ink' : 'text-muted-foreground')}><span>{balanceLine(invoice.balanceDue).state === 'credit' ? 'Credit to customer' : 'Balance due'}:</span> <span className="w-32">PKR {Math.abs(invoice.balanceDue).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                      </div>

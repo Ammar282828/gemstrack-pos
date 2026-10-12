@@ -10,6 +10,7 @@
  * bottom. Nobody is hidden; they just don't get a row of em-dashes each.
  */
 
+import { lacCrore } from '@/lib/money';
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Karigar } from '@/lib/store';
@@ -198,7 +199,7 @@ const KarigarPanel: React.FC<{
               {[
                 row.orders > 0 ? `${row.orders} order${row.orders === 1 ? '' : 's'}` : null,
                 row.weightG > 0 ? `${row.weightG.toFixed(1)}g out` : null,
-                row.value > 0 ? `PKR ${Math.round(row.value / 1000)}k` : null,
+                row.value > 0 ? `PKR ${lacCrore(row.value)}` : null,
               ].filter(Boolean).join(' · ')}
             </p>
           )}
@@ -271,7 +272,7 @@ export const KarigarGlance: React.FC<{
               { label: `Late ${WARN_DAYS}d+`, value: String(totals.late), tone: totals.late ? 'text-tone-owed-ink' : undefined },
               { label: `Critical ${CRITICAL_DAYS}d+`, value: String(totals.critical), tone: totals.critical ? 'text-tone-late-ink' : undefined },
               { label: 'Gold out', value: totals.weightG > 0 ? `${totals.weightG.toFixed(1)}g` : '—' },
-              { label: 'Value out', value: totals.value > 0 ? `PKR ${Math.round(totals.value / 1000)}k` : '—' },
+              { label: 'Value out', value: totals.value > 0 ? `PKR ${lacCrore(totals.value)}` : '—' },
             ].map(c => (
               <div key={c.label} className="min-w-0">
                 <p className="text-2xs font-semibold uppercase tracking-[.6px] text-muted-foreground truncate">{c.label}</p>

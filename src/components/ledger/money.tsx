@@ -73,7 +73,7 @@ export function FigureTile({ label, value, detail, tint, className }: FigureTile
   return (
     <div className={cn('min-w-0 rounded-card bg-card p-4', className)}>
       <div className="text-ios-sub text-muted-foreground">{label}</div>
-      <div className={cn('mt-1 truncate font-serif text-ios-title2 font-semibold tabular-nums', tint ? toneClasses(tint).ink : 'text-foreground')}>
+      <div className={cn('mt-1 break-words font-serif text-ios-title2 font-semibold tabular-nums', tint ? toneClasses(tint).ink : 'text-foreground')}>
         {typeof value === 'number' ? `PKR ${lacCrore(value)}` : value}
       </div>
       {detail ? <div className="mt-0.5 text-ios-foot text-muted-foreground">{detail}</div> : null}

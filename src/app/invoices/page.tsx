@@ -86,7 +86,7 @@ const OrderStatusSelect: React.FC<{ doc: Order; onStatusChange: (s: OrderStatus)
         onClick={(e) => e.stopPropagation()}
         aria-label={`Status: ${doc.status}`}
         className={cn(
-          'h-7 w-fit gap-1 rounded-full border-transparent px-2.5 text-ios-cap font-semibold',
+          'h-7 w-fit gap-1 rounded-full border-transparent px-2.5 text-ios-cap font-semibold [@media(pointer:coarse)]:!min-h-7',
           'focus:ring-0 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:opacity-80',
           t.ink, t.tint,
         )}
@@ -183,7 +183,7 @@ const DocumentRow: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMark
         <TableRow onClick={handleRowClick} className={cn('cursor-pointer',
           status === 'Completed' && settledRowClass, isShopifyDoc(doc) && shopifyRowClass, mine && mineRowClass)} title={mine ? 'Taken by you' : undefined}>
             <TableCell>
-                 <div className="whitespace-nowrap font-medium text-primary hover:underline">{doc.id}</div>
+                 <div className="whitespace-nowrap font-medium text-foreground hover:underline">{doc.id}</div>
             </TableCell>
             <TableCell>
                 <div className="flex items-center gap-2.5">
@@ -761,7 +761,7 @@ export default function DocumentsPage() {
         return (
           <div className="space-y-3">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-              <SearchField className="lg:max-w-md lg:flex-1" value={searchTerm} onChange={setSearchTerm} placeholder="Search by ID or customer name…" />
+              <SearchField className="lg:max-w-md lg:flex-1" value={searchTerm} onChange={setSearchTerm} placeholder="Search invoices and orders" />
               <ChipRow label="Show" className="lg:mx-0 lg:px-0">
                 {([
                   { value: 'all', label: 'All', n: byTab.all.length },

@@ -23,7 +23,9 @@ export const PageBack: React.FC<{
   fallback: string;
   label?: string;
   className?: string;
-}> = ({ fallback, label = 'Back', className }) => {
+  /** The app shell's own (phone top bar). A page's inline back hides on a phone while this one is shown. */
+  layout?: boolean;
+}> = ({ fallback, label = 'Back', className, layout }) => {
   const router = useRouter();
 
   const go = () => {
@@ -37,7 +39,8 @@ export const PageBack: React.FC<{
     <Button
       type="button" variant="ghost" size="sm" onClick={go}
       aria-label={label}
-      className={cn('-ml-2 h-8 gap-0.5 px-2 text-primary hover:text-primary', className)}
+      data-layout-back={layout ? '' : undefined}
+      className={cn('-ml-2 h-8 gap-0.5 px-2 text-primary hover:text-primary', !layout && 'page-back-inline', className)}
     >
       {/* The app's back control: an accent chevron and the place it returns to. */}
       <ChevronLeft className="-ml-1 h-5 w-5" strokeWidth={2} />{label}
