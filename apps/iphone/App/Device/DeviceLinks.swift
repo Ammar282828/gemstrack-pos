@@ -10,8 +10,17 @@ enum DeviceLinks {
         await WidgetLinker.link()
     }
 
-    @MainActor static func beforeSignOut() async {
-        await Push.shared.unregister()
+    /// Never waits more than a few seconds: offline, the sign-out must still happen (the unregister is
+    /// a courtesy to the server, tried first while the token is good, then let go).
+    @MainActor static func beforeSignOut(unregister: Bool = true) async {
+        if unregister {
+            // Whichever ends first: the request (itself capped at 3 s) or 3 s, should getting the token hang.
+            await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+                let once = Once(done)
+                Task { @MainActor in await Push.shared.unregister(); once.fire() }
+                Task { @MainActor in try? await Task.sleep(for: .seconds(3)); once.fire() }
+            }
+        }
         ERPWidgetLink.clear()
         WidgetCenter.shared.reloadAllTimelines()
     }
@@ -81,7 +90,7 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
     func unregister() async {
         registrationTask?.cancel()
         registrationTask = nil
-        if let t = token { _ = try? await ERPAPI.shared.send("/api/push/devices", method: "DELETE", ["token": t]) }
+        if let t = token { _ = try? await ERPAPI.shared.send("/api/push/devices", method: "DELETE", ["token": t], timeout: 3) }
         token = nil
         registeredOnServer = false
         registering = false
@@ -137,4 +146,11 @@ enum WidgetLinker {
         WidgetCenter.shared.reloadAllTimelines()
         return true
     }
+}
+
+/// Resumes a continuation the first time it is fired, never twice.
+@MainActor private final class Once {
+    private var done: CheckedContinuation<Void, Never>?
+    init(_ done: CheckedContinuation<Void, Never>) { self.done = done }
+    func fire() { done?.resume(); done = nil }
 }

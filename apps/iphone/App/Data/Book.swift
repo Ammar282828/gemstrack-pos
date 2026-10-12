@@ -138,6 +138,8 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
             byId = Dictionary(list.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             publish(off)
         case .changes(let upserts, let removed, let off):
+            // Only the cache flag moved (Firestore's metadata change): no new books, so nothing re-reckoned.
+            if upserts.isEmpty && removed.isEmpty { offline = off; return }
             for x in upserts { byId[x.id] = x }
             for id in removed { byId[id] = nil }
             // A handful of documents changed (a payment, a status): placed where they sort, rather than

@@ -62,6 +62,8 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
     private var stopped = false
     private var tries = 0
     private var first = true
+    /// The cache flag last handed on, so a metadata-only snapshot is sent only when it flips.
+    private var lastOffline = false
 
     init(name: String, docId: String?, deliver: @escaping @MainActor (Delivery<T>) -> Void) {
         self.name = name
@@ -84,9 +86,10 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
         guard !stopped else { return }
         registration?.remove()
         first = true
+        lastOffline = false
         let db = Firestore.firestore()
         if let docId {
-            registration = db.collection(name).document(docId).addSnapshotListener(includeMetadataChanges: true) { [weak self] snap, error in
+            registration = db.collection(name).document(docId).addSnapshotListener { [weak self] snap, error in
                 guard let self else { return }
                 if let error { return self.failed(error) }
                 guard let snap else { return }
@@ -108,11 +111,18 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
     }
 
     private func take(_ snap: QuerySnapshot) {
+        let off = snap.metadata.isFromCache
         if first {
+            // Even an empty collection is an answer: "loaded, nothing in it".
             first = false
-            send(.all(snap.documents.compactMap(decode), offline: snap.metadata.isFromCache))
+            lastOffline = off
+            send(.all(snap.documents.compactMap(decode), offline: off))
             return
         }
+        // Metadata alone (pending write acknowledged, cache -> server) has no changes: it matters only when
+        // the cache flag flips, which the shelf takes without counting a change of the books.
+        if snap.documentChanges.isEmpty && off == lastOffline { return }
+        lastOffline = off
         var upserts: [T] = []
         var removed: [String] = []
         for c in snap.documentChanges {
@@ -125,7 +135,7 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
                 removed.append(c.document.documentID)
             }
         }
-        send(.changes(upserts: upserts, removed: removed, offline: snap.metadata.isFromCache))
+        send(.changes(upserts: upserts, removed: removed, offline: off))
     }
 
     private func failed(_ error: Error) {

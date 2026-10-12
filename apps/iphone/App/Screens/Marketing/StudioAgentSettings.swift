@@ -11,11 +11,16 @@ struct StudioAgentSettings: View {
     @State private var making = false
     @State private var problem: String?
     @State private var site = ""
+    @State private var siteName = ""
     @State private var copied = false
     @State private var revoking: MarketingValue?
 
-    /// The connection's name in Claude Code: the website's name and "-studio" ("taheri-studio").
+    /// The connection's name in Claude Code: the website's name and "-studio" ("taheri-studio"), as board.tsx
+    /// builds it from the site's name (/api/app/website `siteName`), so web and phone show the same.
     private var name: String {
+        if !siteName.isEmpty {
+            return (siteName.split(separator: ".", omittingEmptySubsequences: false).first.map(String.init) ?? "shop").lowercased() + "-studio"
+        }
         let host = URL(string: site)?.host?.replacingOccurrences(of: "www.", with: "") ?? ""
         return ((host.split(separator: ".").first).map(String.init) ?? House.id).lowercased() + "-studio"
     }
@@ -91,7 +96,7 @@ struct StudioAgentSettings: View {
     private func load() async {
         if House.isDemo { keys = []; return }
         do { keys = try await MarketingRequest.get("/api/ads/studio/agent-keys")["keys"].array } catch { keys = []; problem = error.localizedDescription }
-        if site.isEmpty, let w = try? await MarketingRequest.get("/api/app/website") { site = w.s("site") }
+        if site.isEmpty, let w = try? await MarketingRequest.get("/api/app/website") { site = w.s("site"); siteName = w.s("siteName") }
     }
 
     private func make() async {

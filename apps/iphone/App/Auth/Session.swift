@@ -139,7 +139,7 @@ final class Session {
             // The ERP refused the sign-in and Google says the account itself is gone or disabled: not "offline".
             if let f = error as? ERPAPI.Failure, f.status == 401 || f.status == 403, await Self.accountGone() {
                 self.error = "This sign-in is no longer valid. Sign in again."
-                signOut()
+                signOut(unregister: false)
                 return
             }
             // No answer (offline, or the server restarting): stay signed in as the ERP last said.
@@ -154,7 +154,8 @@ final class Session {
         }
     }
 
-    func signOut() {
+    /// `unregister: false` when Google already refused the account: its token can't delete anything.
+    func signOut(unregister: Bool = true) {
         // The screen leaves at once; the phone is unregistered for alerts while its sign-in token is still good
         // (after Firebase's sign-out the request would go without one, be refused, and alerts would keep coming).
         Self.lastMe = nil
@@ -163,7 +164,7 @@ final class Session {
         state = .signedOut
         let leaving = FirebaseApp.app() != nil ? Auth.auth().currentUser?.uid : nil
         Task {
-            await DeviceLinks.beforeSignOut()
+            await DeviceLinks.beforeSignOut(unregister: unregister)
             // Only the account that was leaving: a quick sign-in again meanwhile is not undone.
             if FirebaseApp.app() != nil, Auth.auth().currentUser?.uid == leaving { try? Auth.auth().signOut() }
             if state != .signedIn && state != .signingIn { GoogleAuth.shared.signOut() }
