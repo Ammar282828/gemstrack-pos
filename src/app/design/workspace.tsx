@@ -16,20 +16,25 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { ArrowLeft, ImagePlus, Loader2, Maximize2, Plus, RefreshCw, Rocket, Save, ShieldCheck, Star, Trash2, Type } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PALETTES } from '@/lib/social/story';
 import { reflow, renderDocTo, type Assets, type Bind, type Fields, type StoryDoc } from '@/lib/social/editor';
 import { AD_TEMPLATES, PHOTO, applyAdTemplate, safeZone, type AdTemplateId } from '@/lib/ads/studio/templates';
 import { sizePreset } from '@/lib/design/sizes';
+import { resizeOne } from '@/lib/design/resize';
+import type { Box01 } from '@/lib/social/editor';
+import type { Frame } from '@/lib/social/story';
+import type { PublishDesign } from '@/lib/design/publish';
 import { SoloEditor, useStoryDoc, type DesignerExtras } from '../website/post/story-editor';
 import { headlineFace, bodyFace, serifFace } from '../website/post/fonts';
 import { SITE_LABEL, safeName } from '../ads/studio/studio-kit';
 import { CheckPanel, DesignPiece, PicturesPanel, WordsPanel } from './design-piece';
-import { activePage, displayName, kindLabel, pageOf, toPage, toRecordLike, type DesignWork, type WorkPage } from './design-state';
-import { PublishSheet, ResizeSheet, resizeFallback, type ResizedPage } from './slots';
+import { activePage, displayName, kindLabel, pageOf, toPage, type DesignWork, type NewPage, type WorkPage } from './design-state';
+import { PublishSheet } from './publish-sheet';
+import { ResizeSheet } from './resize-sheet';
+import type { ResizedPage } from '@/lib/design/resize';
 import type { DesignApi } from './use-design';
 
 interface Props {
@@ -50,20 +55,33 @@ export function DesignWorkspace({ design, adsOk, onAnother, onClose }: Props) {
   const [safe, setSafe] = useState(true);
   const zone = safeZone(page.frame);
 
-  const create = (pages: ResizedPage[]) => { design.actions.addPages(pages); setResizeOpen(false); };
-  /** A page for a destination that wants a shape the design hasn't got. */
+  /** The master's design on another shape, by the resize engine (the same one the Resize panel uses). */
+  const resizedTo = (frame: Frame, doc = master.doc) => resizeOne(doc, w.fields, design.assets, frame, { subject: subjectOf(master.doc), photoMarked: design.marked }).doc;
+  const create = (pages: ResizedPage[]) => {
+    design.actions.addPages(pages.map((r): NewPage => ({ label: r.page.label, format: r.page.format, frame: r.page.frame, doc: r.doc, origin: 'resized', syncedFrom: r.page.syncedFrom ?? w.master })));
+    setResizeOpen(false);
+  };
+  /** A page for a destination that wants a shape the design hasn't got ("Make 1:1 from this"). */
   const needSize = (presetId: string) => {
     const p = sizePreset(presetId);
     if (!p || w.pages.some(x => x.frame.w === p.frame.w && x.frame.h === p.frame.h && x.format === p.format)) return;
-    design.actions.addPages([{ label: p.label, format: p.format, frame: p.frame, doc: resizeFallback(master.doc, p, w.fields, design.assets), origin: 'resized' }]);
+    design.actions.addPages([{ label: p.label, format: p.format, frame: p.frame, doc: resizedTo(p.frame), origin: 'resized' }]);
   };
-  const redo = (p: WorkPage) => design.actions.redoFromMaster(p.id, resizeFallback(master.doc, p, w.fields, design.assets));
+  const redo = (p: WorkPage) => design.actions.redoFromMaster(p.id, resizedTo(p.frame));
 
-  const resizeNode = <ResizeSheet doc={master.doc} fields={w.fields} assets={design.assets} onCreate={create} />;
-  const publishNode = (
-    <PublishSheet design={toRecordLike(w, design.email)} pages={w.pages.map(toPage)} render={design.render} onNeedSize={needSize}
-      onDone={() => { setPublishOpen(false); if (w.id) design.finish(); }} />
+  const resizeNode = () => (
+    <ResizeSheet doc={master.doc} fields={w.fields} assets={design.assets} subject={subjectOf(master.doc)} master={w.master} photoMarked={design.marked}
+      {...(design.photo ? { photoBlob: async () => design.photo!.blob, onPhoto: (id: string, blob: Blob) => { void design.addPhoto(id, blob); } } : {})}
+      onCreate={create} />
   );
+  const publishDesign: PublishDesign = { ...(w.id ? { id: w.id } : {}), name: displayName(w), kind: w.kind, fields: w.fields, copy: w.copy, ...(w.source ? { source: w.source } : {}), master: w.master, folder: w.folder };
+  const publishProps = {
+    design: publishDesign, pages: w.pages.map(toPage), render: design.render, onNeedSize: needSize,
+    docOf: (pageId: string) => pageOf(w, pageId)?.doc, stamped: design.marked,
+    onSaved: (id: string) => design.adoptSaved(id),
+    onDone: (r: { ok: boolean }) => { setPublishOpen(false); if (r.ok && w.id) design.finish(); },
+  };
+  const publishNode = <PublishSheet {...publishProps} />;
 
   const save = () => { void design.saveToShop(); };
   const publishDisabled = w.fresh;
@@ -72,7 +90,7 @@ export function DesignWorkspace({ design, adsOk, onAnother, onClose }: Props) {
     panels: [
       { id: 'x:pictures', label: 'Pictures', title: 'Pictures', icon: <ImagePlus className="h-5 w-5" />, render: () => <PicturesPanel design={design} onAnother={onAnother} /> },
       { id: 'x:words', label: 'Words', title: 'Words', icon: <Type className="h-5 w-5" />, render: () => <WordsPanel design={design} adsOk={adsOk} /> },
-      { id: 'x:resize', label: 'Resize', title: 'Resize', icon: <Maximize2 className="h-5 w-5" />, render: () => resizeNode },
+      { id: 'x:resize', label: 'Resize', title: 'Resize', icon: <Maximize2 className="h-5 w-5" />, render: () => resizeNode() },
       { id: 'x:check', label: 'Check', title: 'Check', icon: <ShieldCheck className="h-5 w-5" />, render: () => <CheckPanel design={design} adsOk={adsOk} /> },
       { id: 'x:publish', label: 'Publish', title: 'Publish', icon: <Rocket className="h-5 w-5" />, render: () => publishNode },
     ],
@@ -127,24 +145,14 @@ export function DesignWorkspace({ design, adsOk, onAnother, onClose }: Props) {
       </div>
 
       <Dialog open={resizeOpen} onOpenChange={setResizeOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>More sizes</DialogTitle>
-            <DialogDescription>Each size is made from the master{master.label ? ` (${master.label})` : ''}; your words follow.</DialogDescription>
-          </DialogHeader>
-          {resizeOpen && resizeNode}
+        <DialogContent className="max-h-[92dvh] max-w-xl overflow-y-auto">
+          <DialogTitle className="sr-only">More sizes</DialogTitle>
+          <DialogDescription className="sr-only">Each size is made from the master{master.label ? ` (${master.label})` : ''}; your words follow.</DialogDescription>
+          {resizeOpen && resizeNode()}
         </DialogContent>
       </Dialog>
 
-      <Sheet open={publishOpen} onOpenChange={setPublishOpen}>
-        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>Publish</SheetTitle>
-            <SheetDescription>{displayName(w)} · {w.pages.length} size{w.pages.length === 1 ? '' : 's'}</SheetDescription>
-          </SheetHeader>
-          {publishOpen && publishNode}
-        </SheetContent>
-      </Sheet>
+      <PublishSheet {...publishProps} open={publishOpen} onOpenChange={setPublishOpen} />
     </div>
   );
 }
@@ -187,6 +195,9 @@ function PageEditor({ design, work, page, assets, extras, overlay }: {
     }} />
   );
 }
+
+/** Where the piece sits in the photograph, when the design says. */
+const subjectOf = (d: StoryDoc): Box01 | undefined => d.meta?.subject as Box01 | undefined;
 
 const sizeLine = (p: WorkPage) => `${p.frame.w}×${p.frame.h}`;
 

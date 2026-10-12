@@ -4,15 +4,16 @@
  * quota — DESIGN_LAYERS in layers.ts). One image, read once, resized to 1600 px before any model.
  *
  *   1. one vision call: the lettering (text, box, role, font class, colour), the subject box, the background;
- *   2. the subject cut out — Magnific's remover is NOT reachable from here (retouch.ts removeBackground), so
- *      this step is skipped and said so;
- *   3. so the plate is the original photograph, untouched; the lettering comes back as text layers to review
- *      (accept or skip each), and the subject box goes to the resize. The jewellery is never redrawn, and no
- *      "same piece" check is needed because no pixel of the piece is generated.
+ *   2. the subject cut out by Magnific's remover (retouch.ts removeBackground; a PNG with alpha, no pixel generated);
+ *      when it can't be made (no key, the service says no) the step says why in `notes` and the answer carries none;
+ *   3. the plate is the original photograph, untouched; the lettering comes back as text layers to review
+ *      (accept or skip each), and the subject box goes to the resize. The jewellery is never redrawn, so no
+ *      "same piece" check is needed.
  * Without the AI the answer is an empty plan with a note, never an error.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { mediaOrigin } from '@/lib/social/gate';
 import { aiConfigured, generateJson, TEXT_MODEL } from '@/lib/social/ai';
 import { BACKGROUND_REMOVAL, removeBackground } from '@/lib/social/retouch';
 import { designFail, designGate, noStore } from '@/lib/design/gate';
@@ -47,10 +48,11 @@ export async function POST(req: NextRequest) {
 
     let cutout: { mimeType: string; data: string } | null = null;
     if (BACKGROUND_REMOVAL && analysis.subject) {
-      try { cutout = (await removeBackground(img.jpeg)).image; }
+      try { cutout = (await removeBackground(img.jpeg, mediaOrigin(req))).image; }
       catch (e) { notes.push(e instanceof Error ? e.message : 'The cut-out failed.'); }
-    } else {
-      notes.push('The piece isn’t cut out (background removal isn’t available yet): the photograph stays whole, with the lettering as layers above it.');
+      if (!cutout) notes.push('The photograph stays whole, with the lettering as layers above it.');
+    } else if (!analysis.subject) {
+      notes.push('No piece was found to cut out: the photograph stays whole, with the lettering as layers above it.');
     }
     return NextResponse.json({
       width: img.width, height: img.height, layers: plan.layers, subject: plan.subject, plate: plan.plate, cutout,
