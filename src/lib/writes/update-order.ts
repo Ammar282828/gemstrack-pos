@@ -13,11 +13,12 @@
  */
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
-import { ORDER_PHOTOS, splitItemPhotos } from '@/lib/order-photos';
+import { ORDER_PHOTOS, droppedPhotoIds, isInlinePhoto, photoHash, splitItemPhotos } from '@/lib/order-photos';
 import { statusFromPieces } from '@/lib/order-stage';
 
 const ORDERS = 'orders';
 
+type PhotoEdit = { sampleImageDataUri?: string; samplePhotoId?: string; samplePhotoHash?: string };
 type Advance = { amount: number; date: string; notes?: string; method?: string };
 
 export interface OrderOnFile {
@@ -85,12 +86,24 @@ export async function updateOrder(
   const now = input.now || new Date().toISOString();
   const existing = await db.get<OrderOnFile>(ORDERS, orderId);
   if (!existing) throw new Error(`Order ${orderId} not found.`);
-  const { patch, addedAdvance, movedTo } = orderEditPatch(existing, edit, now, deps.clean);
+  let { patch, addedAdvance, movedTo } = orderEditPatch(existing, edit, now, deps.clean);
+  // A picture sent again unchanged (a copy of the order that holds it inline, an old app build) must
+  // not become another document: an item whose stored document already holds these bytes, but was
+  // filed before documents carried a hash, is recognised by reading that one document.
+  if (Array.isArray(patch.items)) {
+    patch = { ...patch, items: await Promise.all((patch.items as PhotoEdit[]).map(async it => {
+      if (!it || !isInlinePhoto(it.sampleImageDataUri) || !it.samplePhotoId || it.samplePhotoHash) return it;
+      const stored = await db.get<{ dataUri?: string }>(ORDER_PHOTOS, it.samplePhotoId).catch(() => null);
+      return stored?.dataUri === it.sampleImageDataUri ? { ...it, samplePhotoHash: photoHash(it.sampleImageDataUri) } : it;
+    })) };
+  }
   const split = Array.isArray(patch.items) ? splitItemPhotos(patch.items as never[]) : null;
   const cleanData = deps.clean(split ? { ...patch, items: split.items } : patch);
   const batch = db.batch();
   batch.set(ORDERS, orderId, cleanData as Record<string, unknown>, true);
-  for (const ph of split?.photos ?? []) batch.set(ORDER_PHOTOS, ph.id, { dataUri: ph.dataUri, orderId, createdAt: now });
+  for (const ph of split?.photos ?? []) batch.set(ORDER_PHOTOS, ph.id, { dataUri: ph.dataUri, hash: ph.hash, orderId, createdAt: now });
+  // The documents this edit let go of (a replaced or removed picture), in the same commit.
+  if (split) for (const id of droppedPhotoIds(existing.items as never[], split.items as never[])) batch.delete(ORDER_PHOTOS, id);
   await batch.commit();
   await fx.log?.('order.update', `Updated order: ${orderId}`, 'Details updated', orderId);
   if (addedAdvance) {

@@ -94,6 +94,7 @@ const orderItemSchema = z.object({
   // about, so a piece's photo link (lib/order-photos.ts) and the date it went to the karigar
   // (the Workshop's "Given") used to vanish on every save of the order form.
   samplePhotoId: z.string().optional(),
+  samplePhotoHash: z.string().optional(),
   givenAt: z.string().optional(),
   referenceSku: z.string().optional(),
   sampleGiven: z.boolean().default(false),
