@@ -380,15 +380,18 @@ final class StudioBoardModel {
 
     // MARK: Photos and drawing
 
-    func photoData(_ asset: String) async throws -> Data {
-        if let data = photos[asset] { return data }
-        let data = try await ERPAPI.shared.data("/api/ads/studio/image?id=" + AdsQuery.escape(asset) + "&size=1600")
-        photos[asset] = data
+    /// `alpha`: a picture laid over the design (a logo file, a cut-out) comes back with its transparency, as the web's
+    /// board asks for its "lib:" layers; the design's own photo stays a JPEG.
+    func photoData(_ asset: String, alpha: Bool = false) async throws -> Data {
+        let key = alpha ? asset + "#alpha" : asset
+        if let data = photos[key] { return data }
+        let data = try await ERPAPI.shared.data("/api/ads/studio/image?id=" + AdsQuery.escape(asset) + "&size=1600" + (alpha ? "&alpha=1" : ""))
+        photos[key] = data
         return data
     }
 
     /// A picture already in hand (just uploaded, or an AI version) kept so the board draws it without fetching it back.
-    func remember(_ asset: String, _ data: Data) { photos[asset] = data }
+    func remember(_ asset: String, _ data: Data) { photos[asset] = data; photos[asset + "#alpha"] = data }
 
     /// A picture from the phone (or an accepted AI version) into the Studio's uploads (POST /api/ads/studio/uploads):
     /// its library id, "up:<id>", which a board's photo or inset ("lib:up:<id>") can hold.
@@ -413,7 +416,7 @@ final class StudioBoardModel {
         let layers = (doc ?? f["doc"])["layers"].array
         for l in layers where l.s("kind") == "image" && l["src"] == .null && l.s("photoId").hasPrefix("lib:") {
             let id = l.s("photoId")
-            if out[id] == nil, let data = try? await photoData(String(id.dropFirst(4))) { out[id] = data }
+            if out[id] == nil, let data = try? await photoData(String(id.dropFirst(4)), alpha: true) { out[id] = data }
         }
         return out
     }

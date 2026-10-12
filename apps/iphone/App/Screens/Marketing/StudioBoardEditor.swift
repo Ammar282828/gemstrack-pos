@@ -1051,8 +1051,8 @@ struct StudioBoardEditor: View {
                         let mime = Self.dataURLMime(src)
                         let raw = ["image/png", "image/svg+xml"].contains(mime) ? mime : nil
                         let id = try await board.upload(data, name: name, rawType: raw)
-                        // The server keeps a raw logo as a JPEG, so that is the copy to draw from if the write below fails.
-                        if raw == nil { pictures[id] = data } else if let kept = try? await board.photoData(id) { pictures[id] = kept }
+                        // The server's copy of a logo file (a PNG, transparency kept) is the one to draw from if the write below fails.
+                        if raw == nil { pictures[id] = data } else if let kept = try? await board.photoData(id, alpha: true) { pictures[id] = kept }
                         bySrc[src] = id
                     }
                     var o = list[i].object; o["src"] = nil; o["photoId"] = .string("lib:" + (bySrc[src] ?? "")); list[i] = .object(o)
