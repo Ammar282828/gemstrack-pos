@@ -1,8 +1,5 @@
 package erp.app.screens.owner
 
-import androidx.compose.runtime.Composable
-import erp.app.screens.invoices.InvoiceDeleteCodeSheet
-import erp.app.screens.invoices.InvoiceDeletion
 import erp.core.ERPDate
 import erp.core.logic.Money
 import java.time.Instant
@@ -10,26 +7,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 
-// What the owners' pages share (OwnerKit.swift): the delete code, asked before a delete the ERP's server carries out,
-// and the words the pages print their money in. The Money screens use the same delete code.
-
-/**
- * One delete waiting for its code: what is deleted (said in the sheet and in the ERP's log of who tried), what goes
- * with it, and the write that runs once the code is typed.
- * TODO(shared): replace with the shared owner delete-code sheet when merged (the fix-up pass moves it to
- * screens/owner/DeleteCode.kt); until then the invoices group's own copy does the asking.
- */
-typealias OwnerAsk = InvoiceDeletion
-
-/** Builds one, in the iPhone's argument order (`OwnerDeletion(what:detail:final:run:)`). */
-fun ownerAsk(what: String, detail: String, final: Boolean = true, run: suspend (code: String) -> Unit): OwnerAsk =
-    InvoiceDeletion(what = what, detail = detail, run = run, final = final)
-
-/** The delete code sheet for one [OwnerAsk]; [onDone] runs once the delete has gone through. TODO(shared): see [OwnerAsk]. */
-@Composable
-fun OwnerAskSheet(ask: OwnerAsk, onDismiss: () -> Unit, onDone: () -> Unit) {
-    InvoiceDeleteCodeSheet(ask, onDismiss = onDismiss, onDone = onDone)
-}
+// What the owners' pages share (OwnerKit.swift): the words the pages print their money in. The delete code is the
+// shared OwnerDeleteCodeSheet (erp.app.ui).
 
 object OwnerText {
     /** The pages' money: whole rupees, grouped in threes (`PKR ${Math.round(n).toLocaleString()}`). */

@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -52,7 +53,9 @@ import erp.app.ui.MonogramSize
 import erp.app.ui.Pill
 import erp.app.ui.PromiseWords
 import erp.app.ui.Radius
+import erp.app.ui.RowAction
 import erp.app.ui.RowAmount
+import erp.app.ui.SwipeActions
 import erp.app.ui.StageTrack
 import erp.app.ui.Tone
 import erp.app.ui.color
@@ -115,10 +118,26 @@ fun OrderCard(
     val accent = ErpColors.accent
     val path = OrderPaths.order(order.id)
 
+    // The card's swipes (OrderCard.swift): from the left the customer, from the right the money and the bench. A swipe
+    // has room for one a side, so the second of each pair (WhatsApp; Ready beside Advance) is in the card's menu and
+    // TalkBack's actions.
+    val call = RowAction("Call", Icons.Filled.Call, Tone.settled) { actions.contact(order, OrderContactKind.call) }
+    val whatsApp = RowAction("WhatsApp", Icons.Filled.Chat, Tone.credit) { actions.contact(order, OrderContactKind.whatsApp) }
+    val advance = RowAction("Advance", Icons.Filled.Payments, Tone.working) { actions.advance(order) }
+    val ready = RowAction("Ready", Icons.Filled.CheckCircle, Tone.settled) { actions.markReady(order) }
+    val right = listOfNotNull(advance.takeIf { canAdvance }, ready.takeIf { stage == OrderStage.karigar })
+    SwipeActions(
+        modifier = modifier.clip(Radius.cardShape),
+        start = call.takeIf { hasPhone },
+        end = right.firstOrNull(),
+        more = listOfNotNull(whatsApp.takeIf { hasPhone }) + right.drop(1),
+    ) {
     Column(
-        modifier
-            .ledgerCard(padding = 20.dp)
-            .border(1.dp, accent.copy(alpha = if (mine) 0.22f else 0.08f), Radius.cardShape),
+        // The hairline is the card's own edge, so it goes on before the padding (after it, it drew a second card inside).
+        Modifier
+            .ledgerCard(padding = 0.dp)
+            .border(1.dp, accent.copy(alpha = if (mine) 0.22f else 0.08f), Radius.cardShape)
+            .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box {
@@ -171,6 +190,7 @@ fun OrderCard(
                 }
             }
         }
+    }
     }
 }
 

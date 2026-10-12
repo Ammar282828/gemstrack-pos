@@ -60,6 +60,14 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
+import erp.app.ui.ValueRow
+import erp.app.ui.FormSection
+import erp.app.ui.FullScreenSheet
+import erp.app.ui.PaperPhoto
+import erp.app.ui.PaperReader
+import erp.app.ui.PaperPicker
+import erp.app.ui.PaperPhotoStrip
+import erp.app.ui.PaperNamePick
 
 /**
  * Read a written bill (components/cart/bill-scanner.tsx): a handwritten bill or estimate photographed, read by the
@@ -145,7 +153,7 @@ private fun ScanForm(draft: SaleDraft, onDraft: (SaleDraft) -> Unit, keep: Boole
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            SaleSection(
+            FormSection(
                 "The bill",
                 footer = {
                     Text(
@@ -166,7 +174,7 @@ private fun ScanForm(draft: SaleDraft, onDraft: (SaleDraft) -> Unit, keep: Boole
                 )
             }
             if (busy) {
-                SaleSection("Reading it…", footer = { Text("Usually a few seconds; up to a minute when the shop's AI is busy.") }) {
+                FormSection("Reading it…", footer = { Text("Usually a few seconds; up to a minute when the shop's AI is busy.") }) {
                     Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         SkeletonLoading(compact = true)
                         Text("Reading it…")
@@ -174,7 +182,7 @@ private fun ScanForm(draft: SaleDraft, onDraft: (SaleDraft) -> Unit, keep: Boole
                 }
             }
             problem?.let { text ->
-                SaleSection("Could not read that") {
+                FormSection("Could not read that") {
                     Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Filled.Warning, contentDescription = null, tint = Tone.problem.color())
                         Text(text, color = Tone.problem.color())
@@ -207,7 +215,7 @@ private fun ReadingSections(
 ) {
     val a = r.answer
     a.unreadable?.takeIf { it.isNotEmpty() }?.let { unread ->
-        SaleSection("Could not make this out") {
+        FormSection("Could not make this out") {
             Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.HelpOutline, contentDescription = null, tint = Tone.owed.color())
                 Text(unread, color = Tone.owed.color())
@@ -227,7 +235,7 @@ private fun ReadingSections(
 private fun LinesSection(r: SaleBillReading, onReading: (SaleBillReading) -> Unit) {
     val lines = r.answer.lines
     val bare = r.kept.count { !SaleBill.hasBreakdown(it) }
-    SaleSection(
+    FormSection(
         "${r.kept.size} of ${lines.size} line${if (lines.size == 1) "" else "s"}",
         footer = {
             if (bare > 0) {
@@ -305,7 +313,7 @@ private fun FootSection(r: SaleBillReading, draft: SaleDraft, settings: erp.core
     val written = SaleBill.writtenFigure(a)
     val held = SaleBill.rates(r.kept, a.ratePerGram, House.metal)
     val check = filledCheck(r, draft, settings, customers, written) { id -> book.customers.item(id) }
-    SaleSection("Foot of the bill", footer = { Text(footNote(a, held)) }) {
+    FormSection("Foot of the bill", footer = { Text(footNote(a, held)) }) {
         if ((a.discount ?: 0.0) > 0) ValueRow("Discount") { Text(Money.pkr(a.discount ?: 0.0)) }
         if ((a.grandTotal ?: 0.0) > 0) ValueRow("Total") { Text(Money.pkr(a.grandTotal ?: 0.0)) }
         if ((a.amountPaid ?: 0.0) > 0) ValueRow("Paid") { Text(Money.pkr(a.amountPaid ?: 0.0)) }

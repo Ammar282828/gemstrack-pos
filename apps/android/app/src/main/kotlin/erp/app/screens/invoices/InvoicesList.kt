@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.AppClock
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -91,21 +93,20 @@ import erp.app.ui.MineTag
 import erp.app.ui.Monogram
 import erp.app.ui.MonogramSize
 import erp.app.ui.Note
-import erp.app.ui.NoteHost
-import erp.app.ui.NoteState
 import erp.app.ui.NotAvailableState
 import erp.app.ui.NumericText
 import erp.app.ui.Pill
 import erp.app.ui.Radius
 import erp.app.ui.RowAmount
 import erp.app.ui.ShelfState
+import erp.app.ui.RowAction
+import erp.app.ui.SwipeActions
 import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.app.ui.isLargeText
 import erp.app.ui.ledgerCard
 import erp.app.ui.mineRow
 import erp.app.ui.readableColumn
-import erp.app.ui.rememberNoteState
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.theme.ErpType
 import erp.app.ui.theme.TabularDigits
@@ -120,7 +121,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-private val FULL_WIDTH = GridItemSpan(Int.MAX_VALUE)
+// The whole row, whatever the columns (an Int.MAX_VALUE span laid nothing out in the grid).
+private val FULL_WIDTH: LazyGridItemSpanScope.() -> GridItemSpan = { GridItemSpan(maxLineSpan) }
 private val SECTION_GAP = 24.dp
 
 /**
@@ -136,8 +138,7 @@ fun InvoicesList() {
     val status = rememberShelfStatus(book.invoices)
     val customers by rememberShelf(book.customers)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
-    val own = LocalNoteState.current
-    val note = if (own !== NoteState.Inert) own else rememberNoteState()
+    val note = LocalNoteState.current
     val byCustomer = session.shop.invoiceByCustomer
     val canPay = InvoiceFacts.mayTakePayments(session.role)
 
@@ -155,7 +156,7 @@ fun InvoicesList() {
     var pdf by remember { mutableStateOf<InvoicePdfTarget?>(null) }
 
     val filter = InvoiceFilter(search, takenBy, month, rangeFrom, rangeTo)
-    val now = remember(status.revision) { Instant.now() }
+    val now = remember(status.revision) { AppClock.now() }
     val all = status.items
     val scoped = remember(all, filter, customers) {
         InvoicesListRules.scope(all, filter, phones = {
@@ -216,17 +217,17 @@ fun InvoicesList() {
                         caption = if (filterOn) InvoicesListRules.caption(filter, chip) else null, onClear = ::clearFilters,
                         summary = summary, filter = filter, now = now,
                         onPick = { figure ->
-                            val (f, c) = InvoicesListRules.pick(figure, filter, chip, Instant.now())
+                            val (f, c) = InvoicesListRules.pick(figure, filter, chip, AppClock.now())
                             month = f.month; rangeFrom = f.rangeFrom; rangeTo = f.rangeTo; chip = c
                         },
                     )
                     if (groups.isEmpty()) {
-                        item(span = { FULL_WIDTH }) {
+                        item(span = FULL_WIDTH) {
                             EmptyState(InvoicesListRules.filtering(filter, chip), onClear = { search = ""; clearFilters() }, onNewSale = { navigator.open("/invoices/new") })
                         }
                     }
                     for (group in groups) {
-                        item(key = "h" + group.id, span = { FULL_WIDTH }) {
+                        item(key = "h" + group.id, span = FULL_WIDTH) {
                             Box(Modifier.padding(horizontal = 20.dp).padding(top = if (wide) 4.dp else SECTION_GAP, bottom = 8.dp)) { SectionHeader(group) }
                         }
                         if (wide) {
@@ -238,7 +239,7 @@ fun InvoicesList() {
                                 )
                             }
                         } else {
-                            items(group.rows.size, key = { "r${group.id}${group.rows[it].id}" }, span = { FULL_WIDTH }) { i ->
+                            items(group.rows.size, key = { "r${group.id}${group.rows[it].id}" }, span = { FULL_WIDTH() }) { i ->
                                 val inv = group.rows[i]
                                 val first = i == 0
                                 val last = i == group.rows.lastIndex
@@ -270,7 +271,6 @@ fun InvoicesList() {
             openWeb = { inv, doing -> navigator.open(InvoiceFacts.path(inv.id, web = true, doing = doing)) },
             sent = { note.show(Note(it.title, it.detail)) },
         )
-        if (own === NoteState.Inert) NoteHost(note)
     }
 
     paying?.let { inv ->
@@ -315,7 +315,7 @@ private fun LazyGridScope.head(
     now: Instant,
     onPick: (InvoiceSummary.Figure) -> Unit,
 ) {
-    item(key = "search", span = { FULL_WIDTH }) {
+    item(key = "search", span = FULL_WIDTH) {
         OutlinedTextField(
             value = search,
             onValueChange = onSearch,
@@ -330,7 +330,7 @@ private fun LazyGridScope.head(
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         )
     }
-    item(key = "chips", span = { FULL_WIDTH }) {
+    item(key = "chips", span = FULL_WIDTH) {
         ChipRow {
             for (c in listOf(InvoiceChip.all, InvoiceChip.unpaid, InvoiceChip.paid)) {
                 FilterChip(c.title, chosen = c == chip, onClick = { onChip(c) }, count = scoped.count { c.matches(it) })
@@ -338,14 +338,14 @@ private fun LazyGridScope.head(
         }
     }
     if (caption != null) {
-        item(key = "caption", span = { FULL_WIDTH }) {
+        item(key = "caption", span = FULL_WIDTH) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(caption, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 TextButton(onClick = onClear) { Text("Clear", fontWeight = FontWeight.SemiBold) }
             }
         }
     }
-    item(key = "summary", span = { FULL_WIDTH }) {
+    item(key = "summary", span = FULL_WIDTH) {
         Box(Modifier.padding(horizontal = 16.dp).readableColumn()) { SummaryStrip(summary, filter, chip, now, onPick) }
     }
 }
@@ -361,10 +361,11 @@ private fun SummaryStrip(s: InvoiceSummary, filter: InvoiceFilter, chip: Invoice
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(
             Modifier
-                .ledgerCard()
+                .ledgerCard(padding = 0.dp)
                 .chosenEdge(chosen(InvoiceSummary.Figure.owed))
                 .clickable(role = Role.Button) { onPick(InvoiceSummary.Figure.owed) }
-                .semantics { selected = chosen(InvoiceSummary.Figure.owed) },
+                .semantics { selected = chosen(InvoiceSummary.Figure.owed) }
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text("Owed to you", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -386,7 +387,9 @@ private fun SummaryStrip(s: InvoiceSummary, filter: InvoiceFilter, chip: Invoice
 @Composable
 private fun erp.app.ui.FigureScope.FigureButton(title: String, amount: Double, count: Int, chosen: Boolean, onClick: () -> Unit) {
     Box(
+        // share(): each takes half the row (without it Today filled the row and This month had no width).
         Modifier
+            .share()
             .chosenEdge(chosen)
             .clip(Radius.cardShape)
             .clickable(role = Role.Button, onClick = onClick)
@@ -527,8 +530,10 @@ private fun InvoiceCard(
     var menu by remember { mutableStateOf(false) }
     Column(
         Modifier
-            .ledgerCard(padding = 20.dp)
-            .border(BorderStroke(1.dp, ErpColors.accent.copy(alpha = if (mine) 0.22f else 0.08f)), Radius.cardShape),
+            // The hairline is the card's own edge: on before the padding (after it, it drew a second card inside).
+            .ledgerCard(padding = 0.dp)
+            .border(BorderStroke(1.dp, ErpColors.accent.copy(alpha = if (mine) 0.22f else 0.08f)), Radius.cardShape)
+            .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(Modifier.clickable(role = Role.Button, onClick = open).zoomSource(InvoiceFacts.path(inv.id))) {

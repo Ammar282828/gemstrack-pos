@@ -55,6 +55,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import erp.app.ui.LocalNoteState
 import erp.app.auth.LocalSession
 import erp.app.data.Connection
 import erp.app.data.ErpApi
@@ -64,9 +65,7 @@ import erp.app.nav.ScreenActions
 import erp.app.nav.ScreenTitle
 import erp.app.screens.money.Footnote
 import erp.app.screens.money.MoneyOwnersOnly
-import erp.app.screens.money.Host
 import erp.app.screens.money.cardEdges
-import erp.app.screens.money.rememberScreenNote
 import erp.app.ui.FigureRow
 import erp.app.ui.FigureTile
 import erp.app.ui.LedgerHeading
@@ -119,7 +118,7 @@ private fun OverheadsBoard() {
     val invoices = rememberShelfStatus(book.invoices)
     val orders = rememberShelfStatus(book.orders)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
-    val note = rememberScreenNote()
+    val note = LocalNoteState.current
 
     var answer by remember { mutableStateOf<OverheadPlansAnswer?>(null) }
     var loadError by remember { mutableStateOf<String?>(null) }
@@ -269,7 +268,6 @@ private fun OverheadsBoard() {
                 )
             }
         }
-        note.Host()
     }
 }
 

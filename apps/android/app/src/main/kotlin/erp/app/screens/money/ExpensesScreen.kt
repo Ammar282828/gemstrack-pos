@@ -40,6 +40,11 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import erp.app.ui.LocalNoteState
+import erp.app.ui.SwipeActions
+import erp.app.ui.RowAction
+import erp.app.ui.OwnerDeleteCodeSheet
+import erp.app.ui.OwnerDeletion
 import erp.app.auth.LocalSession
 import erp.app.data.Connection
 import erp.app.data.ErpApi
@@ -49,9 +54,6 @@ import erp.app.data.rememberShelfStatus
 import erp.app.nav.LocalNavigator
 import erp.app.nav.ScreenActions
 import erp.app.nav.ScreenTitle
-import erp.app.screens.owner.OwnerAsk
-import erp.app.screens.owner.OwnerAskSheet
-import erp.app.screens.owner.ownerAsk
 import erp.app.ui.ChipRow
 import erp.app.ui.FigureRow
 import erp.app.ui.FigureTile
@@ -101,7 +103,7 @@ private fun ExpensesBoard() {
     // His hisaabs are read by the sheets; started here so they are ready when one opens.
     rememberShelf(book.karigarBatches)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
-    val note = rememberScreenNote()
+    val note = LocalNoteState.current
 
     var search by rememberSaveable { mutableStateOf("") }
     var period by rememberSaveable { mutableStateOf(ExpensePeriod.thisMonth) }
@@ -112,7 +114,7 @@ private fun ExpensesBoard() {
     var category by rememberSaveable { mutableStateOf("") }
     var adding by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Expense?>(null) }
-    var deletion by remember { mutableStateOf<OwnerAsk?>(null) }
+    var deletion by remember { mutableStateOf<OwnerDeletion?>(null) }
     var menu by remember { mutableStateOf(false) }
 
     val karigarNames = remember(karigars) { karigars.associate { it.id to it.name } }
@@ -228,7 +230,6 @@ private fun ExpensesBoard() {
                 }
             }
         }
-        note.Host()
     }
 
     if (adding) {
@@ -238,7 +239,7 @@ private fun ExpensesBoard() {
         ExpenseEditSheet(e, sheetCategories, partnership, onDismiss = { editing = null }, onSaved = { note.show(it) })
     }
     deletion?.let { d ->
-        OwnerAskSheet(d, onDismiss = { deletion = null }, onDone = { note.show(Note("Expense deleted", "The record has been removed.")) })
+        OwnerDeleteCodeSheet(d, onDismiss = { deletion = null }, onDone = { note.show(Note("Expense deleted", "The record has been removed.")) })
     }
 }
 
@@ -295,11 +296,11 @@ internal fun expenseSubtitle(e: Expense, karigarNames: Map<String, String>): Str
  * The web's "Delete this expense?" and the code, in one sheet: what goes is said before the code is asked for. The
  * ERP checks the code with the delete (`deleteExpense`).
  */
-internal fun askDelete(e: Expense): OwnerAsk {
+internal fun askDelete(e: Expense): OwnerDeletion {
     val id = e.id
-    return ownerAsk(ExpenseEditing.deleteWhat(e), "Delete this expense? ${ExpenseEditing.deleteDetail(e)}") { code ->
+    return OwnerDeletion(ExpenseEditing.deleteWhat(e), "Delete this expense? ${ExpenseEditing.deleteDetail(e)}", run = { code ->
         ErpApi.shared.write("deleteExpense", mapOf("expenseId" to id, "deleteCode" to code))
-    }
+    })
 }
 
 @Composable
@@ -321,12 +322,12 @@ private fun ExpenseRow(
         }
     }
     if (ExpenseEditing.isDrawing(e, partnership)) {
-        val go = MoneyAction("Change this on Shareholders", Icons.Filled.Group, Tone.quiet, shareholders)
-        MoneySwipe(end = MoneyAction("Shareholders", Icons.Filled.Group, Tone.quiet, shareholders), menu = listOf(go), onClick = null, content = row)
+        val go = RowAction("Change this on Shareholders", Icons.Filled.Group, Tone.quiet, shareholders)
+        SwipeActions(end = RowAction("Shareholders", Icons.Filled.Group, Tone.quiet, shareholders), menu = listOf(go), onClick = null, content = row)
     } else {
-        val editAction = MoneyAction("Edit", Icons.Filled.Edit, Tone.house, edit)
-        val deleteAction = MoneyAction("Delete", Icons.Filled.Delete, Tone.problem, delete)
-        MoneySwipe(start = editAction, end = deleteAction, menu = listOf(editAction, deleteAction), onClick = null, content = row)
+        val editAction = RowAction("Edit", Icons.Filled.Edit, Tone.house, edit)
+        val deleteAction = RowAction("Delete", Icons.Filled.Delete, Tone.problem, delete)
+        SwipeActions(start = editAction, end = deleteAction, menu = listOf(editAction, deleteAction), onClick = null, content = row)
     }
 }
 

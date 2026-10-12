@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.AppClock
 import erp.app.ui.ShopDate
 import erp.app.ui.toWhatsAppNumber
 import erp.core.Container
@@ -249,7 +250,7 @@ object OnlineOrdersLogic {
      * When it was placed, said the web's way ("2 hours ago"): Foundation's RelativeDateTimeFormatter picks the
      * largest unit that has reached one, in numbers.
      */
-    fun ago(iso: String, now: Instant = Instant.now()): String {
+    fun ago(iso: String, now: Instant = AppClock.now()): String {
         val d = ERPDate.parse(iso) ?: return ""
         val seconds = Duration.between(d, now).seconds
         val n = abs(seconds)

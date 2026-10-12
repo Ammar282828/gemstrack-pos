@@ -76,6 +76,10 @@ import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
 import kotlinx.coroutines.delay
+import erp.app.ui.ValueRow
+import erp.app.ui.ActionRow
+import erp.app.ui.FormSection
+import erp.app.ui.FullScreenSheet
 
 /**
  * A new sale (src/components/sale/sale-page.tsx, `/invoices/new`): the customer, the pieces, the rates, a discount,
@@ -281,14 +285,14 @@ private fun EditBanner(edit: SaleEdit) {
 private fun ReviewSteps(s: SaleFormState, f: SaleFigures, d: SaleData) {
     // The sum first: it is what the customer is told.
     TotalsSection(f)
-    SaleSection("Review") {
+    FormSection("Review") {
         ValueRow("Customer") { Text(f.who.name.ifEmpty { "Walk-in" }, style = MaterialTheme.typography.bodyLarge) }
         if (s.draft.customerPhone.isNotEmpty()) ValueRow("Phone") { Text(s.draft.customerPhone, style = MaterialTheme.typography.bodyLarge) }
         ActionRow("Edit pieces", { s.step = EntryStep.pieces })
         ActionRow("Edit payment and exchange", { s.step = EntryStep.payment })
     }
     if (s.draft.lines.isNotEmpty()) {
-        SaleSection("Pieces") { s.draft.lines.forEach { line -> LineRow(s, line, f, d) } }
+        FormSection("Pieces") { s.draft.lines.forEach { line -> LineRow(s, line, f, d) } }
     }
     ShopSection(s, f, d)
     DeliverySection(s, f, d)
@@ -351,7 +355,7 @@ private fun SaleRateSheet(settings: Settings?, onDismiss: () -> Unit) {
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).readableColumn().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            SaleSection(
+            FormSection(
                 "Rate",
                 footer = {
                     Text(
@@ -379,7 +383,7 @@ private fun SaleRateSheet(settings: Settings?, onDismiss: () -> Unit) {
                 listOf(gold, palladium, "Other metals" to listOf("Silver" to (settings?.silverRatePerGram ?: 0.0), "Platinum" to (settings?.platinumRatePerGram ?: 0.0)))
             }
             groups.forEach { (title, fields) ->
-                SaleSection(
+                FormSection(
                     title,
                     footer = if (title == "Palladium") ({ Text("Left at zero, 18K and 12K palladium are priced from the flat rate.") }) else null,
                 ) {

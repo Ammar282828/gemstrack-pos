@@ -42,9 +42,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// The toast said after a save or a refusal (Note.swift). Every screen uses it:
-// `val note = LocalNoteState.current` (or `rememberNoteState()` on a screen of its own), `note.show(Note("Saved"))`,
-// and one `NoteHost(note)` at the top of the screen's Box.
+// The toast said after a save or a refusal (Note.swift). The shell hosts it over every screen (AppRoot, and the
+// create sheet's window), so a screen only says `LocalNoteState.current.show(Note("Saved"))`; it never hosts one.
 
 /** What was said after a save, for a few seconds (the web's toast). */
 data class Note(
@@ -105,15 +104,16 @@ val LocalNoteState = staticCompositionLocalOf { NoteState.Inert }
 /**
  * The banner over the top of the screen (not a bottom snackbar: the floating menu and the bars live down there).
  * It rises in on the enter curve with a success tick (felt as well as seen), leaves on the exit curve; with
- * animations off it only fades. TalkBack is told in words. Place it last in the screen's `Box`.
+ * animations off it only fades. TalkBack is told in words. The shell places it (AppRoot, CreateSheet); [haptics] is
+ * false for the second copy a dialog shows, so one note buzzes once.
  */
 @Composable
-fun NoteHost(state: NoteState, modifier: Modifier = Modifier) {
+fun NoteHost(state: NoteState, modifier: Modifier = Modifier, haptics: Boolean = true) {
     val reduce = reduceMotion()
-    val haptics = rememberHaptics()
+    val feel = rememberHaptics()
     val shown = state.note
     LaunchedEffect(shown) {
-        if (shown != null) if (shown.failed) haptics.warning() else haptics.success()
+        if (haptics && shown != null) if (shown.failed) feel.warning() else feel.success()
     }
     Box(modifier.fillMaxWidth().statusBarsPadding(), contentAlignment = Alignment.TopCenter) {
         AnimatedVisibility(

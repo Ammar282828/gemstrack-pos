@@ -57,6 +57,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import erp.app.device.shareFile
 import erp.app.ui.theme.ErpColors
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -78,7 +79,7 @@ import kotlin.math.roundToInt
  * - [load] fetches the bytes as the signed-in person (`ErpApi`, with a long timeout: a slip of many pieces
  *   takes a second or two). A throw is shown as "Couldn't draw the PDF" with Try again.
  * - [fileName]: "Invoice - Test Buyer.pdf", "OrderSlip-ORD-000123.pdf": what Print, Files and WhatsApp call it.
- * - [onShare]: gets the kept file; the shell shares it (there is no FileProvider here yet).
+ * - [onShare]: gets the kept file; by default it goes to the system share sheet as [fileName] (device/ShareFiles.kt).
  * - [showBar]: false where the shell already draws the title and the back arrow (then Share is up to it too:
  *   use [PdfPages] with the file it was handed).
  *
@@ -90,7 +91,7 @@ fun PdfDocumentScreen(
     title: String,
     fileName: String,
     load: suspend () -> ByteArray,
-    onShare: (File) -> Unit,
+    onShare: ((File) -> Unit)? = null,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     showBar: Boolean = true,
@@ -135,7 +136,7 @@ fun PdfDocumentScreen(
                 },
                 actions = {
                     shown?.let { source ->
-                        IconButton(onClick = { onShare(source.file) }) { Icon(Icons.Filled.Share, contentDescription = "Share or print") }
+                        IconButton(onClick = { onShare?.invoke(source.file) ?: shareFile(context, source.file, "application/pdf", title, name = fileName) }) { Icon(Icons.Filled.Share, contentDescription = "Share or print") }
                     }
                 },
             )

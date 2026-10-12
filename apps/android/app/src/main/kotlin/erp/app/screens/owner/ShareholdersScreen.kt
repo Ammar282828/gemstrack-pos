@@ -55,6 +55,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.clickable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import erp.app.ui.LocalNoteState
+import erp.app.ui.SwipeActions
+import erp.app.ui.RowAction
+import erp.app.ui.OwnerDeleteCodeSheet
+import erp.app.ui.OwnerDeletion
 import erp.app.auth.LocalSession
 import erp.app.data.Book
 import erp.app.data.Connection
@@ -67,14 +72,10 @@ import erp.app.data.rememberShelfStatus
 import erp.app.nav.ScreenActions
 import erp.app.nav.ScreenTitle
 import erp.app.screens.money.Footnote
-import erp.app.screens.money.Host
-import erp.app.screens.money.MoneyAction
 import erp.app.screens.money.MoneyOwnersOnly
 import erp.app.screens.money.MoneyParse
-import erp.app.screens.money.MoneySwipe
 import erp.app.screens.money.cardEdges
 import erp.app.screens.money.cardRows
-import erp.app.screens.money.rememberScreenNote
 import erp.app.ui.FigureRow
 import erp.app.ui.FigureTile
 import erp.app.ui.HeroAmount
@@ -202,10 +203,10 @@ private fun ShareholdersBoard() {
     val floorLoaded by books.floor.loaded.collectAsStateWithLifecycle()
     val floorValue by books.floor.value.collectAsStateWithLifecycle()
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
-    val note = rememberScreenNote()
+    val note = LocalNoteState.current
 
     var asking by remember { mutableStateOf<ShareholderAsk?>(null) }
-    var deletion by remember { mutableStateOf<OwnerAsk?>(null) }
+    var deletion by remember { mutableStateOf<OwnerDeletion?>(null) }
     var menu by remember { mutableStateOf(false) }
     var cashText by rememberSaveable { mutableStateOf("") }
     var floorText by remember { mutableStateOf<String?>(null) }
@@ -298,14 +299,13 @@ private fun ShareholdersBoard() {
                 }
             }
         }
-        note.Host()
     }
 
     asking?.let { a ->
         ShareholderEntrySheet(a, salaryPaid, onDismiss = { asking = null }, onSaved = { note.show(it) })
     }
     deletion?.let { d ->
-        OwnerAskSheet(
+        OwnerDeleteCodeSheet(
             d, onDismiss = { deletion = null },
             onDone = { note.show(Note(if (d.what.startsWith("Delete expense")) "Salary payment removed" else "Entry removed")) },
         )
@@ -320,18 +320,20 @@ private sealed interface PartnerEntry {
     class Row(val r: ShareholderLedgerRow) : PartnerEntry { override val key get() = "r" + r.id }
 }
 
-internal fun askDeleteSalary(e: Expense): OwnerAsk = ownerAsk(
+internal fun askDeleteSalary(e: Expense): OwnerDeletion = OwnerDeletion(
     what = "Delete expense \"${e.description}\"",
     detail = "Remove this salary payment? ${e.description} — ${ShareholderMoney.fmt(e.amount)}. It will be deleted from Expenses too.",
-) { code -> ErpApi.shared.write("deletePartnerSalary", mapOf("expenseId" to e.id, "deleteCode" to code)) }
+    run = { code -> ErpApi.shared.write("deletePartnerSalary", mapOf("expenseId" to e.id, "deleteCode" to code)) },
+)
 
-internal fun askDeleteEntry(r: ShareholderLedgerRow, p: ShareholderFigures.Position): OwnerAsk {
+internal fun askDeleteEntry(r: ShareholderLedgerRow, p: ShareholderFigures.Position): OwnerDeletion {
     val linked = r.linkedExpenseId != null
-    return ownerAsk(
+    return OwnerDeletion(
         what = "Delete this ${p.name} ledger entry",
         detail = "Remove this entry? ${r.description} — ${ShareholderMoney.fmt(r.amount)}." +
             (if (linked) " The matching Partner Drawings expense will be deleted too." else ""),
-    ) { code -> ErpApi.shared.write("deleteShareholderEntry", mapOf("shareholderId" to p.id, "entryId" to r.id, "deleteCode" to code)) }
+        run = { code -> ErpApi.shared.write("deleteShareholderEntry", mapOf("shareholderId" to p.id, "entryId" to r.id, "deleteCode" to code)) },
+    )
 }
 
 // MARK: The page
@@ -425,8 +427,8 @@ private fun ActionRow(label: String, icon: androidx.compose.ui.graphics.vector.I
 @Composable
 private fun SalaryRow(e: Expense, p: ShareholderFigures.Position, onDelete: () -> Unit) {
     val shown = e.description.replace("${p.name} salary — ", "")
-    val delete = MoneyAction("Delete", Icons.Filled.Delete, Tone.problem, onDelete)
-    MoneySwipe(end = delete, menu = listOf(delete)) {
+    val delete = RowAction("Delete", Icons.Filled.Delete, Tone.problem, onDelete)
+    SwipeActions(end = delete, menu = listOf(delete)) {
         Box(Modifier.background(ErpColors.card).fillMaxWidth().ledgerRow()) {
             TwoLine(
                 title = shown,
@@ -443,8 +445,8 @@ private fun LedgerEntryRow(r: ShareholderLedgerRow, p: ShareholderFigures.Positi
     val isIn = r.type == PartnerLedgerType.payment
     var sub = "${OwnerText.shortDate(r.date)} · ${if (r.category == erp.core.models.PartnerLedgerCategory.loan) "Loan" else "Equity"}"
     if (r.linkedExpenseId != null) sub += " · logged as an expense"
-    val delete = MoneyAction("Delete", Icons.Filled.Delete, Tone.problem, onDelete)
-    MoneySwipe(end = delete, menu = listOf(delete)) {
+    val delete = RowAction("Delete", Icons.Filled.Delete, Tone.problem, onDelete)
+    SwipeActions(end = delete, menu = listOf(delete)) {
         Box(Modifier.background(ErpColors.card).fillMaxWidth().ledgerRow()) {
             TwoLine(
                 title = r.description,

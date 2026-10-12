@@ -57,8 +57,8 @@ import erp.app.data.rememberSingle
 import erp.app.nav.LocalNavigator
 import erp.app.nav.ScreenActions
 import erp.app.nav.ScreenTitle
-import erp.app.screens.invoices.RowAction
-import erp.app.screens.invoices.SwipeActions
+import erp.app.ui.RowAction
+import erp.app.ui.SwipeActions
 import erp.app.screens.sale.SaleStore
 import erp.app.ui.ChipRow
 import erp.app.ui.FigureRow

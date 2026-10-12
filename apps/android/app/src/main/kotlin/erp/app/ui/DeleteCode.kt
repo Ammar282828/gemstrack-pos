@@ -1,4 +1,4 @@
-package erp.app.screens.invoices
+package erp.app.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -48,12 +48,23 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import erp.app.data.ErpApi
 import erp.app.device.BiometricVault
-import erp.app.ui.DestructiveFeedback
-import erp.app.ui.Tone
-import erp.app.ui.color
-import erp.app.ui.rememberHaptics
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+
+/**
+ * One delete waiting for its code (OwnerKit.swift `OwnerDeletion`): what is deleted (said in the sheet and in the
+ * ERP's log of who tried), what goes with it, and the write that runs once the code is typed.
+ */
+class OwnerDeletion(
+    /** The store's own words for it ("Delete invoice INV-000123"). */
+    val what: String,
+    /** What else happens, said before the code is asked for (the web's confirmation). */
+    val detail: String,
+    /** The ERP's write, sent with the code; it throws the ERP's words when refused. */
+    val run: suspend (code: String) -> Unit,
+    /** False for a removal Settings, Recently removed can put back: the sheet then does not say it can't be undone. */
+    val final: Boolean = true,
+)
 
 /** The delete code's small rules, apart from the sheet so they are tested (OwnerKit.swift `OwnerDeleteCodeSheet`). */
 object DeleteCode {
@@ -67,7 +78,7 @@ object DeleteCode {
     fun isWrong(e: Throwable): Boolean = e is ErpApi.Failure && e.status == 403 && e.message == "Wrong code."
 
     /** The sheet's footer: what else happens, that it can't be undone, and what to do. */
-    fun footer(d: InvoiceDeletion): String =
+    fun footer(d: OwnerDeletion): String =
         listOf(d.detail, if (d.final) "This can't be undone." else "", "Enter the code to go ahead.").filter { it.isNotEmpty() }.joinToString(" ")
 }
 
@@ -79,7 +90,7 @@ object DeleteCode {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InvoiceDeleteCodeSheet(deletion: InvoiceDeletion, onDismiss: () -> Unit, onDone: () -> Unit) {
+fun OwnerDeleteCodeSheet(deletion: OwnerDeletion, onDismiss: () -> Unit, onDone: () -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()

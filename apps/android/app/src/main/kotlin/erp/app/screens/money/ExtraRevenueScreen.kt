@@ -30,6 +30,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import erp.app.ui.LocalNoteState
+import erp.app.ui.SwipeActions
+import erp.app.ui.RowAction
+import erp.app.ui.OwnerDeleteCodeSheet
+import erp.app.ui.OwnerDeletion
 import erp.app.auth.LocalSession
 import erp.app.data.Connection
 import erp.app.data.ErpApi
@@ -38,9 +43,6 @@ import erp.app.data.rememberShelfStatus
 import erp.app.nav.LocalNavigator
 import erp.app.nav.ScreenActions
 import erp.app.nav.ScreenTitle
-import erp.app.screens.owner.OwnerAsk
-import erp.app.screens.owner.OwnerAskSheet
-import erp.app.screens.owner.ownerAsk
 import erp.app.ui.FigureRow
 import erp.app.ui.FigureTile
 import erp.app.ui.LedgerHeading
@@ -80,14 +82,14 @@ private fun RevenueBoard() {
     val navigator = LocalNavigator.current
     val revenue = rememberShelfStatus(book.revenue)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
-    val note = rememberScreenNote()
+    val note = LocalNoteState.current
 
     var search by rememberSaveable { mutableStateOf("") }
     // The date filter, none until a start date is chosen (additional-revenue/page.tsx `dateRange`).
     var dates by remember { mutableStateOf(MoneyCustomRange()) }
     var adding by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<AdditionalRevenue?>(null) }
-    var deletion by remember { mutableStateOf<OwnerAsk?>(null) }
+    var deletion by remember { mutableStateOf<OwnerDeletion?>(null) }
 
     ScreenTitle("Extra revenue")
     ScreenActions { IconButton(onClick = { adding = true }) { Icon(Icons.Filled.Add, contentDescription = "Add extra revenue") } }
@@ -154,9 +156,9 @@ private fun RevenueBoard() {
                                 )
                             }
                         } else {
-                            val edit = MoneyAction("Edit", Icons.Filled.Edit, Tone.house) { editing = r }
-                            val delete = MoneyAction("Delete", Icons.Filled.Delete, Tone.problem) { deletion = askDelete(r) }
-                            MoneySwipe(start = edit, end = delete, menu = listOf(edit, delete)) {
+                            val edit = RowAction("Edit", Icons.Filled.Edit, Tone.house) { editing = r }
+                            val delete = RowAction("Delete", Icons.Filled.Delete, Tone.problem) { deletion = askDelete(r) }
+                            SwipeActions(start = edit, end = delete, menu = listOf(edit, delete)) {
                                 Box(Modifier.background(ErpColors.card).fillMaxWidth().ledgerRow()) {
                                     TwoLine(title = r.description, subtitle = whenSaid, trailing = Money.pkr(r.amount))
                                 }
@@ -166,13 +168,12 @@ private fun RevenueBoard() {
                 }
             }
         }
-        note.Host()
     }
 
     if (adding) RevenueEditSheet(null, onDismiss = { adding = false }, onSaved = { note.show(it) })
     editing?.let { r -> RevenueEditSheet(r, onDismiss = { editing = null }, onSaved = { note.show(it) }) }
     deletion?.let { d ->
-        OwnerAskSheet(d, onDismiss = { deletion = null }, onDone = { note.show(Note("Deleted", "Revenue entry deleted.")) })
+        OwnerDeleteCodeSheet(d, onDismiss = { deletion = null }, onDone = { note.show(Note("Deleted", "Revenue entry deleted.")) })
     }
 }
 
@@ -195,10 +196,11 @@ internal fun revenueLines(all: List<AdditionalRevenue>, search: String, dates: M
 }
 
 /** The web's "Delete revenue entry?" and the code, in one sheet; the ERP checks the code with the delete (`deleteExtraRevenue`), in the store's own words for it. */
-internal fun askDelete(r: AdditionalRevenue): OwnerAsk {
+internal fun askDelete(r: AdditionalRevenue): OwnerDeletion {
     val id = r.id
-    return ownerAsk(
+    return OwnerDeletion(
         what = "Delete this extra revenue",
         detail = "This will permanently delete “${r.description}” (${Money.pkr(r.amount)}).",
-    ) { code -> ErpApi.shared.write("deleteExtraRevenue", mapOf("revenueId" to id, "deleteCode" to code)) }
+        run = { code -> ErpApi.shared.write("deleteExtraRevenue", mapOf("revenueId" to id, "deleteCode" to code)) },
+    )
 }

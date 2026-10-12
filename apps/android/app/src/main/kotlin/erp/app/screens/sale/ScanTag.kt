@@ -50,7 +50,6 @@ import erp.app.ui.ShopDate
 import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.app.ui.ledgerCard
-import erp.app.ui.readableColumn
 import erp.core.entry.SaleLookup
 import erp.core.entry.SaleNumber
 import erp.core.entry.TagCode
@@ -117,7 +116,7 @@ fun ScanTag() {
     }
 
     Column(
-        Modifier.verticalScroll(rememberScrollState()).readableColumn().padding(16.dp),
+        Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         TagScanner(active = found == null) { code -> handle(code) }

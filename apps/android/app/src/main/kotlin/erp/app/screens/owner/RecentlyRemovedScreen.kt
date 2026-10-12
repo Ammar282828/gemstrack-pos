@@ -33,6 +33,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import erp.app.ui.LocalNoteState
+import erp.app.ui.OwnerDeleteCodeSheet
+import erp.app.ui.OwnerDeletion
 import erp.app.auth.LocalSession
 import erp.app.data.Connection
 import erp.app.data.ErpApi
@@ -40,9 +43,7 @@ import erp.app.data.LocalBook
 import erp.app.data.rememberShelfStatus
 import erp.app.nav.ScreenTitle
 import erp.app.screens.money.Footnote
-import erp.app.screens.money.Host
 import erp.app.screens.money.cardEdges
-import erp.app.screens.money.rememberScreenNote
 import erp.app.ui.FailureAlert
 import erp.app.ui.LedgerDivider
 import erp.app.ui.LedgerHeading
@@ -91,11 +92,11 @@ private fun RecentlyRemovedList() {
     val hisaab = rememberShelfStatus(book.hisaab)
     val orders = rememberShelfStatus(book.orders)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
-    val note = rememberScreenNote()
+    val note = LocalNoteState.current
 
     var busy by remember { mutableStateOf<String?>(null) }
     var failure by remember { mutableStateOf<String?>(null) }
-    var deletion by remember { mutableStateOf<OwnerAsk?>(null) }
+    var deletion by remember { mutableStateOf<OwnerDeletion?>(null) }
 
     val ready = customers.loaded && karigars.loaded && hisaab.loaded && orders.loaded
     val removedCustomers = remember(customers.revision) { customers.items.filter { RecentlyRemoved.isRemoved(it.deletedAt) } }
@@ -170,11 +171,10 @@ private fun RecentlyRemovedList() {
                 }
             }
         }
-        note.Host()
     }
 
     FailureAlert(failure, onDismiss = { failure = null }, title = "Could not do that")
-    deletion?.let { d -> OwnerAskSheet(d, onDismiss = { deletion = null }, onDone = {}) }
+    deletion?.let { d -> OwnerDeleteCodeSheet(d, onDismiss = { deletion = null }, onDone = {}) }
 }
 
 @Composable
@@ -222,18 +222,18 @@ internal fun emptyWarning(customers: List<Customer>, karigars: List<Karigar>, h:
     return said + " This is the one thing in the app that cannot be undone."
 }
 
-private fun askToEmpty(customers: List<Customer>, karigars: List<Karigar>, h: Map<String, RecentlyRemoved.History>, say: (Note) -> Unit): OwnerAsk {
+private fun askToEmpty(customers: List<Customer>, karigars: List<Karigar>, h: Map<String, RecentlyRemoved.History>, say: (Note) -> Unit): OwnerDeletion {
     val customerIds = customers.map { it.id }
     val karigarIds = karigars.map { it.id }
-    return ownerAsk(
+    return OwnerDeletion(
         what = "Delete every removed customer and karigar for good",
         detail = "Empty Recently removed? " + emptyWarning(customers, karigars, h),
-    ) { code ->
+        run = { code ->
         val out = ErpApi.shared.write("purgeRemoved", mapOf("customerIds" to customerIds, "karigarIds" to karigarIds, "deleteCode" to code))
         val c = (out["customers"] as? Number)?.toInt() ?: 0
         val k = (out["karigars"] as? Number)?.toInt() ?: 0
         say(Note("Recently removed emptied", "$c customer(s) and $k karigar(s) permanently deleted."))
-    }
+    })
 }
 
 @Composable

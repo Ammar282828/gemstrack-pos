@@ -51,6 +51,15 @@ import erp.core.logic.metalHasKarat
 import erp.core.logic.metalLabel
 import erp.core.logic.platingTypes
 import erp.core.logic.staticCategories
+import erp.app.ui.ValueRow
+import erp.app.ui.ValueInput
+import erp.app.ui.NumberRow
+import erp.app.ui.TextRow
+import erp.app.ui.ToggleRow
+import erp.app.ui.PickerRow
+import erp.app.ui.FieldRow
+import erp.app.ui.FormSection
+import erp.app.ui.FullScreenSheet
 
 /**
  * Every attribute of a line on the sale, not only its price (components/cart/edit-cart-item-dialog.tsx): the name,
@@ -124,7 +133,7 @@ private fun PieceSection(f: SaleLineFields, create: Boolean, rev: Int, edit: (Sa
     val allowed = karatsFor(f.metalType).map { it.rawValue }
     // A karat the piece already carries stays selectable even if the metal's list no longer offers it.
     val karatOptions = if (f.karat.isNotEmpty() && !allowed.contains(f.karat) && metalHasKarat(f.metalType)) allowed + f.karat else allowed
-    SaleSection("The piece", footer = if (create) ({ Text("Describe the piece you are billing. It goes on this invoice only: your stock is untouched.") }) else null) {
+    FormSection("The piece", footer = if (create) ({ Text("Describe the piece you are billing. It goes on this invoice only: your stock is untouched.") }) else null) {
         val categories = buildList {
             add("" to "Not set")
             staticCategories.forEach { add(it.id to it.title) }
@@ -158,7 +167,7 @@ private fun PieceSection(f: SaleLineFields, create: Boolean, rev: Int, edit: (Sa
 private fun SizeSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -> Unit) -> Unit) {
     val scale = NewOrderSizes.scale(f.categoryId)
     if (scale != null) {
-        SaleSection("Size", footer = { Text(if (scale.multi) scale.label + ". Leave either blank if not applicable." else scale.label) }) {
+        FormSection("Size", footer = { Text(if (scale.multi) scale.label + ". Leave either blank if not applicable." else scale.label) }) {
             if (scale.multi) {
                 scale.parts.forEachIndexed { i, part ->
                     val parsed = NewOrderSizes.parse(f.size, scale.legacyPartKey)
@@ -175,8 +184,8 @@ private fun SizeSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() ->
             }
         }
     } else {
-        SaleSection("Size") {
-            SaleTextField("Size", f.size, { v -> edit { size = v } }, prompt = "Optional")
+        FormSection("Size") {
+            TextRow("Size", f.size, { v -> edit { size = v } }, prompt = "Optional")
         }
     }
 }
@@ -200,7 +209,7 @@ private fun SaleSizeField(title: String, options: List<String>, value: String, o
 @Composable
 @NonSkippableComposable
 private fun FinishSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -> Unit) -> Unit) {
-    SaleSection("925 Sterling Silver finish") {
+    FormSection("925 Sterling Silver finish") {
         PickerRow("Plating", f.platingType, listOf("" to "No plating") + platingTypes.map { it to it }) { v -> edit { platingType = v } }
         if (f.platingType == "Other") {
             FieldRow("Describe the plating", f.platingNote, { v -> edit { platingNote = v } }, placeholder = "e.g. Rose gold plating")
@@ -213,7 +222,7 @@ private fun FinishSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() 
 @NonSkippableComposable
 private fun PriceSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -> Unit) -> Unit) {
     val silver = f.metalType == "silver"
-    SaleSection("Price", footer = if (f.fixed) ({ Text("The weight is printed on the bill; the price stays as typed.") }) else null) {
+    FormSection("Price", footer = if (f.fixed) ({ Text("The weight is printed on the bill; the price stays as typed.") }) else null) {
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
             listOf(false to "Weight × rate", true to "Fixed price").forEachIndexed { i, (fixed, title) ->
                 SegmentedButton(
@@ -224,22 +233,22 @@ private fun PriceSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -
             }
         }
         if (f.fixed) {
-            SaleNumberField("Price (PKR)", f.customPrice, { v -> edit { customPrice = v } }, prompt = "The agreed total")
+            NumberRow("Price (PKR)", f.customPrice, { v -> edit { customPrice = v } }, prompt = "The agreed total")
             // A fixed price still has a weight, and the bill says it (owner, 2026-10-07): it moves nothing, but it
             // prints, and the margin is costed from it instead of the 10% guess.
-            SaleNumberField("Weight (g)", f.weight, { v -> edit { weight = v } }, prompt = "Optional")
-            if (silver) SaleNumberField("Reference rate per gram", f.silverRate, { v -> edit { silverRate = v } }, prompt = "Optional")
+            NumberRow("Weight (g)", f.weight, { v -> edit { weight = v } }, prompt = "Optional")
+            if (silver) NumberRow("Reference rate per gram", f.silverRate, { v -> edit { silverRate = v } }, prompt = "Optional")
         } else {
-            SaleNumberField("Weight (g)", f.weight, { v -> edit { weight = v } })
+            NumberRow("Weight (g)", f.weight, { v -> edit { weight = v } })
             if (silver) {
-                SaleNumberField("Rate per gram (PKR)", f.silverRate, { v -> edit { silverRate = v } }, prompt = "e.g. 150")
+                NumberRow("Rate per gram (PKR)", f.silverRate, { v -> edit { silverRate = v } }, prompt = "e.g. 150")
             } else {
-                SaleNumberField("Wastage (%)", f.wastage, { v -> edit { wastage = v } })
+                NumberRow("Wastage (%)", f.wastage, { v -> edit { wastage = v } })
             }
-            SaleNumberField("Making (PKR)", f.making, { v -> edit { making = v } })
-            SaleNumberField("Stones (PKR)", f.stoneCharges, { v -> edit { stoneCharges = v } })
-            SaleNumberField("Misc (PKR)", f.miscCharges, { v -> edit { miscCharges = v } })
-            if (silver) SaleNumberField("Wastage (%)", f.wastage, { v -> edit { wastage = v } })
+            NumberRow("Making (PKR)", f.making, { v -> edit { making = v } })
+            NumberRow("Stones (PKR)", f.stoneCharges, { v -> edit { stoneCharges = v } })
+            NumberRow("Misc (PKR)", f.miscCharges, { v -> edit { miscCharges = v } })
+            if (silver) NumberRow("Wastage (%)", f.wastage, { v -> edit { wastage = v } })
         }
     }
 }
@@ -247,16 +256,16 @@ private fun PriceSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -
 @Composable
 @NonSkippableComposable
 private fun StonesSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -> Unit) -> Unit) {
-    SaleSection("Diamonds and stones") {
+    FormSection("Diamonds and stones") {
         ToggleRow("Has diamonds", f.hasDiamonds, { v -> edit { hasDiamonds = v } })
         if (f.hasDiamonds) {
             // The charge only exists when the price is built from the rate; the details print either way.
-            if (!f.fixed) SaleNumberField("Diamonds (PKR)", f.diamondCharges, { v -> edit { diamondCharges = v } })
+            if (!f.fixed) NumberRow("Diamonds (PKR)", f.diamondCharges, { v -> edit { diamondCharges = v } })
             FieldRow("Diamond details", f.diamondDetails, { v -> edit { diamondDetails = v } }, placeholder = "e.g. 0.5ct round")
         }
         ToggleRow("Has other stones", f.hasStones, { v -> edit { hasStones = v } })
         if (f.hasStones) {
-            SaleNumberField("Stone weight (g)", f.stoneWeight, { v -> edit { stoneWeight = v } })
+            NumberRow("Stone weight (g)", f.stoneWeight, { v -> edit { stoneWeight = v } })
             FieldRow("Stone details", f.stoneDetails, { v -> edit { stoneDetails = v } }, placeholder = "e.g. 4 rubies")
         }
     }
@@ -265,7 +274,7 @@ private fun StonesSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() 
 @Composable
 @NonSkippableComposable
 private fun BillSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -> Unit) -> Unit) {
-    SaleSection("On the bill") {
+    FormSection("On the bill") {
         FieldRow(
             "Description", f.billDescription, { v -> edit { billDescription = v } },
             placeholder = "Additional details to appear on the invoice", singleLine = false, minLines = 2, maxLines = 5,
@@ -276,7 +285,7 @@ private fun BillSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() ->
 
 @Composable
 private fun TotalSection(preview: Double, create: Boolean) {
-    SaleSection("Total", footer = { Text(if (create) "This piece is on this sale only." else "These changes apply to this sale only, not to the piece in stock.") }) {
+    FormSection("Total", footer = { Text(if (create) "This piece is on this sale only." else "These changes apply to this sale only, not to the piece in stock.") }) {
         ValueRow("Line total") {
             NumericText(Money.pkr(preview), preview, style = MaterialTheme.typography.titleMedium)
         }

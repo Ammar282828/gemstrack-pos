@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.AppClock
 import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -125,7 +126,7 @@ private fun Moves(order: Order, w: WebsiteOrderMeta, context: android.content.Co
     if (awaitingMoney(order, w)) {
         bankDetailsUrl(order, w)?.let { url ->
             // The shop sends its bank details itself (owner, 2026-10-04): the chat, the amount written in.
-            MoveButton(Icons.Filled.Send, "Bank details on WhatsApp") { ordersOpen(context, Intent.ACTION_VIEW, url) }
+            MoveButton(Icons.Filled.Send, "Bank details on WhatsApp") { erp.app.device.openAddress(context, Intent.ACTION_VIEW, url) }
         }
         MoveButton(Icons.Filled.Payments, "Transfer received: ${Money.pkr(OrdersLogic.onlineTotal(order))}") { onMove(OnlineMoveKind.paid) }
         MoveButton(Icons.Filled.Block, "Let it lapse", destructive = true) { onMove(OnlineMoveKind.lapse) }
@@ -178,7 +179,7 @@ private fun Courier(l: LeopardsMeta, context: android.content.Context) {
         if (l.trackingUrl.isNotEmpty()) {
             Text(
                 words,
-                Modifier.weight(1.2f).clickable { ordersOpen(context, Intent.ACTION_VIEW, l.trackingUrl) },
+                Modifier.weight(1.2f).clickable { erp.app.device.openAddress(context, Intent.ACTION_VIEW, l.trackingUrl) },
                 style = MaterialTheme.typography.bodyMedium, color = ErpColors.accent, textAlign = TextAlign.End,
             )
         } else {
@@ -193,7 +194,7 @@ private fun Hold(w: WebsiteOrderMeta) {
     val until = w.holdUntil ?: return
     val whenEnds = ERPDate.parse(until) ?: return
     if (w.paymentStatus == WebsitePaymentStatus.transferReceived || w.paymentStatus == WebsitePaymentStatus.expired) return
-    val ended = !whenEnds.isAfter(Instant.now())
+    val ended = !whenEnds.isAfter(AppClock.now())
     val relative = OnlineOrdersLogic.ago(until)
     val tone = if (ended) Tone.late.color() else MaterialTheme.colorScheme.onSurfaceVariant
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {

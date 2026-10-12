@@ -54,6 +54,8 @@ import erp.app.R
 import erp.app.auth.LocalSession
 import erp.app.data.LocalBook
 import erp.app.data.OnlineInbox
+import erp.app.ui.LocalNoteState
+import erp.app.ui.NoteHost
 
 /** The phone's four most-used places, before Search. */
 private val PRIMARY = listOf("home", "orders", "invoices", "customers")
@@ -118,11 +120,12 @@ fun RootScaffold() {
                 Image(
                     painterResource(R.drawable.brand_logo),
                     stringResource(R.string.app_name),
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).widthIn(max = 200.dp),
+                    Modifier.widthIn(max = 200.dp).fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), // widthIn first: after fillMaxWidth it cannot narrow
                 )
             }
             tabs.forEach { e ->
                 NavigationSuiteItem(
+                    navigationSuiteType = layout,
                     selected = selected == e.id,
                     onClick = { if (selected == e.id) popToRoot(stacks[e.id]) else chosen = e.id },
                     icon = {
@@ -135,6 +138,9 @@ fun RootScaffold() {
             }
             // Search is also the way to everything else: idle, it lists the ERP's whole map with Settings and the account.
             NavigationSuiteItem(
+                // Told which bar this is: left to itself an item picks its own style from the window, and drew the
+                // short rail's stacked labels inside the expanded rail.
+                navigationSuiteType = layout,
                 selected = selected == SEARCH_TAB,
                 onClick = { if (selected == SEARCH_TAB) popToRoot(stacks[SEARCH_TAB]) else chosen = SEARCH_TAB },
                 icon = { Icon(Icons.Rounded.Search, null) },
@@ -219,7 +225,11 @@ private fun CreateSheet(path: String, onClose: () -> Unit) {
             // The dialog has its own back dispatcher: a screen on the sheet's stack goes first, then the sheet.
             BackHandler(enabled = stack.size > 1) { stack.removeAt(stack.lastIndex) }
             androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                StackHost(stack, Modifier.fillMaxSize(), onClose = onClose)
+                Box(Modifier.fillMaxSize()) {
+                    StackHost(stack, Modifier.fillMaxSize(), onClose = onClose)
+                    // A dialog is a window above the app's own banner: the same note, shown again here (the app's copy buzzes).
+                    NoteHost(LocalNoteState.current, haptics = false)
+                }
             }
         }
     }

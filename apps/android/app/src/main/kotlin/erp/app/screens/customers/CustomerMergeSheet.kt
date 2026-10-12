@@ -46,6 +46,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import erp.app.ui.OwnerDeleteCodeSheet
+import erp.app.ui.OwnerDeletion
 import erp.app.data.Connection
 import erp.app.data.ErpApi
 import erp.app.data.LocalBook
@@ -112,7 +114,7 @@ fun CustomerMergeSheet(onDismiss: () -> Unit) {
     var duplicateId by rememberSaveable { mutableStateOf("") }
     var keepSearch by rememberSaveable { mutableStateOf("") }
     var duplicateSearch by rememberSaveable { mutableStateOf("") }
-    var deletion by remember { mutableStateOf<CustomerDeletion?>(null) }
+    var deletion by remember { mutableStateOf<OwnerDeletion?>(null) }
 
     val counted = remember(invoices.revision, orders.revision, hisaab.revision, given.revision, repairs.revision, ready) {
         if (!ready) null else CustomerMergeBook(invoices.items, orders.items, hisaab.items, given.items, repairs.items)
@@ -129,7 +131,7 @@ fun CustomerMergeSheet(onDismiss: () -> Unit) {
         } else {
             "$gone's ${counts.sentence} move to $kept, and $gone's record is deleted for good."
         }
-        deletion = CustomerDeletion("Merge, and delete customer $gone", detail, run = { code ->
+        deletion = OwnerDeletion("Merge, and delete customer $gone", detail, run = { code ->
             val out = ErpApi.shared.write("mergeCustomers", mapOf("keepId" to keep.id, "deleteId" to duplicate.id, "deleteCode" to code))
             val moved = (out["updatedDocs"] as? Number)?.toInt() ?: 0
             note.show(Note("Customers merged", "$gone is gone. $moved record${if (moved == 1) "" else "s"} updated."))
@@ -210,7 +212,7 @@ fun CustomerMergeSheet(onDismiss: () -> Unit) {
             NoteHost(note)
         }
     }
-    deletion?.let { CustomerDeleteCodeSheet(it, onDismiss = { deletion = null }) }
+    deletion?.let { OwnerDeleteCodeSheet(it, onDismiss = { deletion = null }, onDone = {}) }
 }
 
 @Composable
