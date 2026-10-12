@@ -1,11 +1,13 @@
 package erp.app.screens
 
 import erp.app.nav.ScreenRoute
+import erp.app.screens.customers.CustomersRoutes
 import erp.app.screens.home.HomeRoutes
 import erp.app.screens.invoices.InvoicesRoutes
 import erp.app.screens.neworder.NewOrderRoutes
 import erp.app.screens.orders.OrdersRoutes
 import erp.app.screens.sale.SaleRoutes
+import erp.app.screens.stock.StockRoutes
 
 /**
  * Every native screen's routes, group by group. A group adds its line here and nowhere else (a screen group lives
@@ -22,6 +24,8 @@ object NativeScreens {
             // Before Invoices: "/invoices/new" is the Sale group's, and the invoice item route would take "new" for an id.
             SaleRoutes,
             InvoicesRoutes,
+            CustomersRoutes,
+            StockRoutes,
         ).flatten()
     }
 }
