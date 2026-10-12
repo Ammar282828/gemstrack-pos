@@ -1,6 +1,7 @@
 import { readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { PRIMARY_TAB_IDS } from './tab-bar';
 import { ALL_ENTRIES, NAV, GROUPS, SETTINGS, forRole, locate, pageTitle, paletteFor, registryHrefs, sidebarFor } from './nav';
 
 /** Pages that are no one's row on purpose: the customer's pages, the offline page, the karigar's own. */
@@ -112,5 +113,25 @@ describe('where a page sits', () => {
   it('every sidebar row has an icon and the groups keep their order', () => {
     for (const e of NAV) expect(e.icon, e.id).toBeTruthy();
     expect(sidebarFor(false).map(g => g.key)).toEqual(['home', 'sales', 'workshop', 'marketing', 'money']);
+  });
+});
+
+describe('the phone tab bar reads the registry', () => {
+  it('every primary tab id is a row of NAV', () => {
+    for (const id of PRIMARY_TAB_IDS) expect(NAV.map(e => e.id), id).toContain(id);
+  });
+  it('staff may open every primary tab', () => {
+    const staff = sidebarFor('staff').flatMap(g => g.entries.map(e => e.id));
+    for (const id of PRIMARY_TAB_IDS) expect(staff, id).toContain(id);
+  });
+});
+
+describe('the phone tab bar reads the registry', () => {
+  it('every primary tab id is a row of NAV', () => {
+    for (const id of PRIMARY_TAB_IDS) expect(NAV.map(e => e.id), id).toContain(id);
+  });
+  it('staff may open every primary tab', () => {
+    const staff = sidebarFor('staff').flatMap(g => g.entries.map(e => e.id));
+    for (const id of PRIMARY_TAB_IDS) expect(staff, id).toContain(id);
   });
 });
