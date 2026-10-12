@@ -22,6 +22,8 @@ class ErpApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        // core knows no BuildConfig: the New order / New sale rules learn the house here, once.
+        erp.core.entry.EntryHouse.id = House.id
         Prefs.init(this)
         BiometricVault.init(this)
         if (!House.isDemo) ensureFirebase()

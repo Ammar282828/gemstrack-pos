@@ -254,6 +254,7 @@ dependencies {
     implementation(libs.androidx.browser)
     implementation(libs.androidx.work.runtime)
     implementation(libs.mlkit.document.scanner)
+    implementation(libs.mlkit.code.scanner) // Scan a tag: Google's code scanner, no camera permission of its own
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
