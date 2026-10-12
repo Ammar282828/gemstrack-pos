@@ -3,19 +3,20 @@
 "use client";
 
 import { owedToYou } from '@/lib/owed';
+import { lacCrore } from '@/lib/money';
 import { WALK_IN_ENTITY } from '@/lib/walk-in';
 import React, { useState, useMemo, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { format, parseISO, subMonths } from 'date-fns';
-import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
 import { useAppStore, Customer } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Monogram, MineTag, RowAmount, FigureTile, ChipRow, FilterChip, SearchField, EmptyState, LedgerSection, formatAmount } from '@/components/ledger';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Edit3, Trash2, User, Phone, Mail, MapPin, Users, Loader2, BookUser, Merge } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, User, Phone, Mail, MapPin, Users, Loader2, BookUser, Merge } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -35,29 +36,10 @@ import { cn } from '@/lib/utils';
 import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
 
-const CustomerActions: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void>; isCard?: boolean }> = ({ customer, onDelete, isCard }) => {
-  return (
-    <div className="flex gap-2 w-full">
-      <Button asChild size="sm" variant="outline" className="flex-1">
-        <Link href={`/hisaab/${customer.id}?type=customer`}>
-          <BookUser className="w-4 h-4 mr-1.5" /> Ledger
-        </Link>
-      </Button>
-      <Button asChild size="sm" variant={isCard ? 'default' : 'outline'} className="flex-1">
-        <Link href={`/customers/${customer.id}/edit`}>
-          <Edit3 className="w-4 h-4 mr-1.5" /> Edit
-        </Link>
-      </Button>
-    </div>
-  );
-}
-
 /** Lifetime spend, what is still owed, and when they last bought. */
 export interface CustomerStats { spent: number; owed: number; lastAt?: string; count: number }
 
-const money = (n: number) => n >= 100_000
-  ? `${Math.round(n / 1000)}k`
-  : n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+const money = (n: number) => lacCrore(n);
 
 /** The same figure with its unit, for anywhere it stands alone. */
 const pkr = (n: number) => `PKR ${money(n)}`;
@@ -66,8 +48,9 @@ const CustomerRow: React.FC<{ customer: Customer; stats?: CustomerStats; onDelet
   return (
     <TableRow>
       <TableCell>
-        <Link href={`/customers/${customer.id}`} className="font-medium text-primary hover:underline">
-          {customer.name}
+        <Link href={`/customers/${customer.id}`} className="flex items-center gap-2.5 font-medium hover:underline">
+          <Monogram name={customer.name} size={28} />
+          <span className="truncate">{customer.name}</span>
         </Link>
       </TableCell>
       <TableCell className="text-muted-foreground">{customer.phone || '-'}</TableCell>
@@ -77,7 +60,7 @@ const CustomerRow: React.FC<{ customer: Customer; stats?: CustomerStats; onDelet
       </TableCell>
       <TableCell className="text-right tabular-nums">
         {stats?.owed
-          ? <span className="font-medium text-destructive">{pkr(stats.owed)}</span>
+          ? <span className="font-medium text-tone-owed-ink">{pkr(stats.owed)}</span>
           : <span className="text-muted-foreground">—</span>}
       </TableCell>
       <TableCell className="hidden lg:table-cell text-muted-foreground text-sm whitespace-nowrap">
@@ -104,33 +87,48 @@ const CustomerRow: React.FC<{ customer: Customer; stats?: CustomerStats; onDelet
   );
 };
 
-const CustomerCard: React.FC<{ customer: Customer; stats?: CustomerStats; onDelete: (id: string) => Promise<void> }> = ({ customer, stats, onDelete }) => (
-    <Card className="mb-2.5">
-        <CardContent className="p-3">
-            <div className="flex items-start justify-between gap-2">
-                <Link href={`/customers/${customer.id}`} className="min-w-0 flex-1">
-                    <p className="font-semibold text-primary truncate">{customer.name}</p>
-                    {customer.phone && <p className="text-xs text-muted-foreground truncate">{customer.phone}</p>}
-                </Link>
-                {/* What is owed leads: it is the reason you look a customer up. */}
-                {stats && stats.owed > 0 ? (
-                    <span className="text-sm font-semibold text-destructive tabular-nums flex-shrink-0">{pkr(stats.owed)}</span>
-                ) : stats && stats.spent > 0 ? (
-                    <span className="text-sm text-muted-foreground tabular-nums flex-shrink-0">{pkr(stats.spent)}</span>
-                ) : null}
+/** The app's customer row: a monogram, the name, phone and history; what they owe (amber) or what they have bought (lac). */
+const CustomerCard: React.FC<{ customer: Customer; stats?: CustomerStats; onDelete: (id: string) => Promise<void> }> = ({ customer, stats }) => {
+    const owing = !!stats && stats.owed > 0;
+    const spent = !!stats && stats.spent > 0;
+    return (
+    <div className="py-3">
+        <Link href={`/customers/${customer.id}`} className="flex items-start gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-md">
+            <Monogram name={customer.name} size={40} />
+            <div className="min-w-0 flex-1">
+                <p className="truncate text-ios-headline font-semibold">{customer.name}</p>
+                {customer.phone && <p className="truncate text-ios-sub text-muted-foreground">{customer.phone}</p>}
+                {stats && stats.count > 0 && (
+                    <p className="truncate text-ios-cap text-muted-foreground">
+                        {stats.count} sale{stats.count === 1 ? '' : 's'}
+                        {stats.lastAt && ` · last ${format(parseISO(stats.lastAt), 'MMM yyyy')}`}
+                    </p>
+                )}
             </div>
-            {stats && stats.count > 0 && (
-                <p className="text-2xs text-muted-foreground mt-1">
-                    {stats.count} sale{stats.count === 1 ? '' : 's'}
-                    {stats.lastAt && ` · last ${format(parseISO(stats.lastAt), 'MMM yyyy')}`}
-                </p>
-            )}
-        </CardContent>
-        <CardFooter className="p-1.5 border-t bg-muted/30">
-            <CustomerActions customer={customer} onDelete={onDelete} isCard />
-        </CardFooter>
-    </Card>
-);
+            {/* What is owed leads: it is the reason you look a customer up. */}
+            {owing ? (
+                <div className="shrink-0 text-right">
+                    <RowAmount amount={stats!.owed} tone="owed" />
+                    <p className="text-ios-cap text-muted-foreground">Owed</p>
+                </div>
+            ) : spent ? (
+                <div className="shrink-0 text-right">
+                    <RowAmount amount={stats!.spent} lac />
+                    <p className="text-ios-cap text-muted-foreground">Lifetime sales</p>
+                </div>
+            ) : null}
+        </Link>
+        <div className="-mb-1 mt-1 flex gap-1 pl-[52px]">
+            <Button asChild size="sm" variant="ghost">
+                <Link href={`/hisaab/${customer.id}?type=customer`}><BookUser className="mr-1.5 h-4 w-4" /> Ledger</Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost">
+                <Link href={`/customers/${customer.id}/edit`}><Edit3 className="mr-1.5 h-4 w-4" /> Edit</Link>
+            </Button>
+        </div>
+    </div>
+    );
+};
 
 
 // --- Duplicate detection helpers ---
@@ -682,43 +680,46 @@ export default function CustomersPage() {
     if (people.length === 0) return null;
     return (
       <section>
-        <div className="flex items-baseline justify-between gap-3 px-1 pb-1.5">
-          <div className="flex items-baseline gap-2 min-w-0">
-            <h2 className="text-sm font-semibold truncate">{title}</h2>
-            <span className="text-2xs text-muted-foreground flex-shrink-0">{hint}</span>
+        {/* Below lg the app's rows (a card per group). Each skipped while off screen (globals.css .cv-list). */}
+        <div className="lg:hidden cv-list" style={{ '--cv-size': `${40 + people.length * 96}px` } as React.CSSProperties}>
+          <LedgerSection title={title} count={`${people.length} · ${hint}`}>
+            {people.map(c => (
+              <CustomerCard key={c.id} customer={c} stats={statsById.get(c.id)} onDelete={handleDeleteCustomer} />
+            ))}
+          </LedgerSection>
+        </div>
+
+        <div className="hidden lg:block">
+          <div className="flex items-baseline justify-between gap-3 px-1 pb-1.5">
+            <div className="flex min-w-0 items-baseline gap-2">
+              <h2 className="truncate font-serif text-ios-title3 font-semibold">{title}</h2>
+              <span className="flex-shrink-0 text-ios-sub text-muted-foreground">{hint}</span>
+            </div>
+            <span className="flex-shrink-0 text-ios-sub tabular-nums text-muted-foreground">{people.length}</span>
           </div>
-          <span className="text-2xs text-muted-foreground flex-shrink-0">{people.length}</span>
+          <Card>
+            <CardContent className="p-0 scroll-shadow-x overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead className="text-right">Spent</TableHead>
+                    <TableHead className="text-right">Owes</TableHead>
+                    <TableHead className="hidden lg:table-cell">Last sale</TableHead>
+                    <TableHead className="hidden xl:table-cell">Address</TableHead>
+                    <TableHead className="text-right w-[7rem]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {people.map(c => (
+                    <CustomerRow key={c.id} customer={c} stats={statsById.get(c.id)} onDelete={handleDeleteCustomer} />
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
-
-        {/* Each card skipped while off screen (globals.css .cv-list); ~120px tall on a phone. */}
-        <div className="md:hidden cv-list" style={{ '--cv-size': '120px' } as React.CSSProperties}>
-          {people.map(c => (
-            <CustomerCard key={c.id} customer={c} stats={statsById.get(c.id)} onDelete={handleDeleteCustomer} />
-          ))}
-        </div>
-
-        <Card className="hidden md:block">
-          <CardContent className="p-0 scroll-shadow-x overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead className="text-right">Spent</TableHead>
-                  <TableHead className="text-right">Owes</TableHead>
-                  <TableHead className="hidden lg:table-cell">Last sale</TableHead>
-                  <TableHead className="hidden xl:table-cell">Address</TableHead>
-                  <TableHead className="text-right w-[7rem]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {people.map(c => (
-                  <CustomerRow key={c.id} customer={c} stats={statsById.get(c.id)} onDelete={handleDeleteCustomer} />
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
       </section>
     );
   };
@@ -733,11 +734,11 @@ export default function CustomersPage() {
           {spamCandidates.length > 0 && (
             <Button size="sm" variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10"
               onClick={() => setSpamOpen(true)}>
-              <Trash2 className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Clean spam ({spamCandidates.length})</span>
+              <Trash2 className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Clean spam ({spamCandidates.length})</span><span className="sm:hidden">Spam ({spamCandidates.length})</span>
             </Button>
           )}
           <Button size="sm" variant="outline" onClick={() => setMergeOpen(true)}>
-            <Merge className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Merge duplicates</span>
+            <Merge className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Merge duplicates</span><span className="sm:hidden">Merge</span>
           </Button>
           <Button asChild size="sm">
             <Link href="/customers/add"><PlusCircle className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add customer</span><span className="sm:hidden">Add</span></Link>
@@ -747,60 +748,40 @@ export default function CustomersPage() {
       <MergeCustomersDialog open={mergeOpen} onOpenChange={setMergeOpen} customers={customers} onMerge={handleMerge} />
       <SpamReviewDialog open={spamOpen} onOpenChange={setSpamOpen} candidates={spamCandidates} onDelete={handleDeleteCustomer} />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Customers</p>
-          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight">{customers.length}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Owed to you</p>
-          <p className={cn('text-base sm:text-xl md:text-2xl font-bold leading-tight truncate',
-            totals.owed > 0 && 'text-destructive')}>{pkr(totals.owed)}</p>
-          <p className="text-2xs text-muted-foreground">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        <FigureTile label="Customers" value={customers.length.toLocaleString()} />
+        <FigureTile
+          label="Owed to you"
+          value={pkr(totals.owed)}
+          tint={totals.owed > 0 ? 'owed' : undefined}
+          detail={<>
             {totals.owingCount} customer{totals.owingCount === 1 ? '' : 's'}
             {totals.walkIn > 0 && <> · walk-ins {pkr(totals.walkIn)}</>}
             {totals.nameOnly > 0 && <> · typed names {pkr(totals.nameOnly)}</>}
-          </p>
-        </div>
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Bought in {DORMANT_AFTER_MONTHS}m</p>
-          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight">{groups.active.length + groups.owing.length}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Lifetime sales</p>
-          <p className="text-base sm:text-xl md:text-2xl font-bold text-primary leading-tight truncate">{pkr(totals.spent)}</p>
-        </div>
+          </>}
+        />
+        <FigureTile label={`Bought in ${DORMANT_AFTER_MONTHS}m`} value={(groups.active.length + groups.owing.length).toLocaleString()} />
+        <FigureTile label="Lifetime sales" value={`PKR ${formatAmount(totals.spent, true)}`} />
       </div>
 
-      <FilterBar
-        value={searchTerm}
-        onChange={setSearchTerm}
-        placeholder="Search by name, phone, or email…"
-        actions={
-          <div className="inline-flex rounded-md border overflow-hidden flex-shrink-0" role="group" aria-label="Show">
-            {([['all', 'Everyone'], ['owing', 'Owing'], ['active', 'Recent']] as const).map(([id, label]) => (
-              <button
-                key={id} type="button" onClick={() => setView(id)} aria-pressed={view === id}
-                className={cn('px-2.5 text-xs h-9 transition-colors whitespace-nowrap',
-                  view === id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        }
-      />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <SearchField className="lg:max-w-md lg:flex-1" value={searchTerm} onChange={setSearchTerm} placeholder="Search name, phone, email" />
+        <ChipRow label="Show" className="lg:mx-0 lg:px-0">
+          {([['all', 'Everyone'], ['owing', 'Owing'], ['active', 'Recent']] as const).map(([id, label]) => (
+            <FilterChip key={id} title={label} chosen={view === id} onClick={() => setView(id)} />
+          ))}
+        </ChipRow>
+      </div>
 
-      {matched.length === 0 ? (
-        <div className="text-center py-14 bg-card rounded-xl border">
-          <Users className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-          <h3 className="text-lg font-semibold mb-1">No customers found</h3>
-          <p className="text-sm text-muted-foreground">
-            {searchTerm ? 'Try a different search term.' : 'Add a customer to begin.'}
-          </p>
-        </div>
+      {visible.owing.length + visible.active.length + visible.quiet.length === 0 ? (
+        <EmptyState
+          className="rounded-card bg-card"
+          icon={<Users />}
+          title={searchTerm ? 'No customers found' : view === 'owing' ? 'Nobody owes you' : view === 'active' ? 'No recent buyers' : 'No customers found'}
+          description={searchTerm ? 'Try a different search term.' : view === 'all' ? 'Add a customer to begin.' : undefined}
+        />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <Section title="Owing money" hint="most owed first" people={visible.owing} />
           <Section title="Recent" hint={`bought in the last ${DORMANT_AFTER_MONTHS} months`} people={visible.active} />
           <Section title="Quiet" hint="no sale in a year" people={visible.quiet} />

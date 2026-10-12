@@ -26,7 +26,8 @@ import { whatsAppLink } from '@/lib/whatsapp';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Monogram, Pill, HeroAmount, MoneySplit, ContactActions } from '@/components/ledger';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, MessageSquare, Check, Banknote, Edit, PlusCircle, CalendarIcon, List, RotateCcw, CheckCircle, Lock, XCircle, Trash2 } from 'lucide-react';
@@ -365,7 +366,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
   }
 
   return (
-      <div className="bg-muted min-h-screen p-4 sm:p-8">
+      <div className="mx-auto max-w-4xl space-y-4 px-4 py-5 md:py-6">
         <div style={{ display: 'none' }}>
           <img id="shop-logo" src={STORE_LOGO_URL} crossOrigin="anonymous" alt="" loading="lazy" decoding="async" />
           <QRCode id="wa-qr-code" value={STORE_CONFIG.whatsappUrl} size={128} />
@@ -373,43 +374,43 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
           <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
         </div>
         <SetCustomerDialog invoice={invoice} open={settingCustomer} onOpenChange={setSettingCustomer} onDone={setLatest} />
-        <Card className="max-w-4xl mx-auto shadow-lg">
-           <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                <div className="min-w-0">
-                    {/* You reach this page by opening an existing invoice, so
-                        "created successfully" was announcing something that had
-                        not just happened. The identifier leads, and the line
-                        under it says what is actually owed. */}
-                    <CardTitle className="text-2xl font-bold font-mono">{invoice.id}</CardTitle>
-                    <CardDescription className="mt-1">
-                      {invoice.customerName || 'Walk-in Customer'}
-                      {invoice.status !== 'Refunded' && (
-                        <button type="button" onClick={() => setSettingCustomer(true)}
-                          className={cn('ml-1.5 text-xs font-medium hover:underline', !invoice.customerName || isWalkInName(invoice.customerName) ? 'text-primary' : 'text-muted-foreground')}>
-                          {!invoice.customerName || isWalkInName(invoice.customerName) ? 'Name them' : 'Change'}
-                        </button>
-                      )}
-                      {' · '}
-                      {new Date(invoice.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
-                      {invoice.takenBy && <>{' · taken by '}{invoice.takenBy}</>}
-                    </CardDescription>
-                    <div className="flex items-center gap-2 mt-2">
-                      {(invoice.balanceDue || 0) > 0 ? (
-                        <Badge variant="outline" className="text-destructive border-destructive/40 bg-destructive/5">
-                          PKR {(invoice.balanceDue || 0).toLocaleString()} due
-                        </Badge>
-                      ) : balanceLine(invoice.balanceDue).state === 'credit' ? (
-                        <Badge variant="outline" className="text-success border-success/40 bg-success/5">
-                          PKR {balanceLine(invoice.balanceDue).amount.toLocaleString()} in credit
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-success border-success/40 bg-success/5">Paid in full</Badge>
-                      )}
-                      {invoice.status === 'Refunded' && <Badge variant="destructive">Refunded</Badge>}
-                    </div>
-                </div>
-                 <div className="flex gap-2 flex-col sm:flex-row">
+        {/* The app's invoice screen: who and when, the sum large, what was paid and what is due, then the actions. */}
+        <Card>
+           <CardHeader className="space-y-4">
+            <div className="flex items-start gap-3">
+              <Monogram name={invoice.customerName} size={44} />
+              <div className="min-w-0 flex-1">
+                {/* The identifier leads in small type; the person is the headline. */}
+                <p className="font-mono text-ios-cap text-muted-foreground">{invoice.id}</p>
+                <p className="break-words text-ios-headline font-semibold">{invoice.customerName || 'Walk-in Customer'}</p>
+                <p className="text-ios-foot text-muted-foreground">
+                  {new Date(invoice.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {invoice.takenBy && <>{' · taken by '}{invoice.takenBy}</>}
+                  {invoice.status !== 'Refunded' && (
+                    <button type="button" onClick={() => setSettingCustomer(true)}
+                      className={cn('ml-1.5 font-medium hover:underline', !invoice.customerName || isWalkInName(invoice.customerName) ? 'text-primary' : 'text-muted-foreground')}>
+                      {!invoice.customerName || isWalkInName(invoice.customerName) ? 'Name them' : 'Change'}
+                    </button>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+              <HeroAmount amount={invoice.grandTotal} />
+              <div className="flex shrink-0 flex-col items-end gap-1 pb-1">
+                {(invoice.balanceDue || 0) > 0 ? (
+                  <Pill tone="owed">PKR {(invoice.balanceDue || 0).toLocaleString()} due</Pill>
+                ) : balanceLine(invoice.balanceDue).state === 'credit' ? (
+                  <Pill tone="credit">PKR {balanceLine(invoice.balanceDue).amount.toLocaleString()} in credit</Pill>
+                ) : (
+                  <Pill tone="settled">Paid in full</Pill>
+                )}
+                {invoice.status === 'Refunded' && <Pill tone="late">Refunded</Pill>}
+              </div>
+            </div>
+            <MoneySplit total={invoice.grandTotal} paid={invoice.amountPaid} due={invoice.balanceDue} />
+            <ContactActions phone={phoneFor} className="max-w-sm" />
+            <div className="flex flex-wrap gap-2">
                     <Button asChild variant="outline">
                       <Link href={`/invoices/${invoice.id}/edit`}><Edit className="mr-2 h-4 w-4"/> Edit invoice</Link>
                     </Button>
@@ -430,9 +431,10 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                     <Button asChild variant="ghost">
                       <Link href="/invoices/new"><PlusCircle className="mr-2 h-4 w-4"/> New sale</Link>
                     </Button>
-                 </div>
             </div>
            </CardHeader>
+         </Card>
+        <Card>
            <CardContent className="space-y-6">
                 {invoice.internalNote && (
                   <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
@@ -445,7 +447,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                 <MarginFigure margin={invoiceMargin(invoice)} />
                 {/* An order's advances, exchange and the rest, read from the order itself. */}
                 <OrderCarryOver invoice={invoice} />
-                <div className="p-4 border rounded-md bg-background">
+                <div>
                     {(() => {
                       const shipTo = describeDelivery(invoice.delivery);
                       if (!shipTo.length) return null;
@@ -483,7 +485,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                         if ((item.miscChargesIfAny ?? 0) > 0) costs.push(['Misc', item.miscChargesIfAny]);
 
                         return (
-                          <div key={item.sku ?? index} className="rounded-lg border p-3">
+                          <div key={item.sku ?? index} className="rounded-2xl bg-muted/60 p-3">
                             <div className="flex items-baseline justify-between gap-3">
                               <div className="min-w-0">
                                 {item.itemCategory && (
@@ -528,7 +530,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                     </div>
                      <Separator className="mt-4"/>
                      <div className="pt-4 space-y-2 text-right">
-                        <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Subtotal:</span> <span className="w-32 font-medium">PKR {invoice.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                        <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Subtotal:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {invoice.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                         <div className="flex justify-end items-center gap-2">
                           <span className="text-muted-foreground">Discount:</span>
                           {isEditingDiscount ? (
@@ -550,7 +552,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                             </div>
                           ) : (
                             <button
-                              className="w-32 font-medium text-right hover:underline cursor-pointer"
+                              className="min-w-32 whitespace-nowrap text-right font-medium text-right hover:underline cursor-pointer"
                               onClick={() => { setEditDiscountInput(String(invoice.discountAmount)); setIsEditingDiscount(true); }}
                             >
                               {invoice.discountAmount > 0 ? `- PKR ${invoice.discountAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}` : 'Add discount'}
@@ -570,15 +572,15 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                                 </span>
                               ))}
                             </span>
-                            <span className="w-32 font-medium flex-shrink-0">- PKR {getInvoiceExchangeTotal(invoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                            <span className="min-w-32 whitespace-nowrap text-right font-medium flex-shrink-0">- PKR {getInvoiceExchangeTotal(invoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                           </div>
                         )}
-                        {getInvoiceAdjustmentsAmount(invoice) !== 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Adjustments:</span> <span className="w-32 font-medium">PKR {getInvoiceAdjustmentsAmount(invoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>}
-                        <div className="flex justify-end items-center gap-4 text-lg font-bold"><span className="text-muted-foreground">Grand Total:</span> <span className="w-32">PKR {invoice.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                        {getInvoiceAdjustmentsAmount(invoice) !== 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Adjustments:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {getInvoiceAdjustmentsAmount(invoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>}
+                        <div className="flex justify-end items-center gap-4 font-serif text-ios-title3 font-semibold"><span className="font-sans text-base font-normal text-muted-foreground">Grand Total:</span> <span className="min-w-32 whitespace-nowrap text-right">PKR {invoice.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                         {invoice.amountPaid > 0 && (
-                          <div className="flex justify-end items-center gap-4 text-success"><span>Paid:</span> <span className="w-32 font-medium">PKR {invoice.amountPaid.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                          <div className="flex justify-end items-center gap-4 text-tone-settled-ink"><span>Paid:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {invoice.amountPaid.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                         )}
-                        <div className={cn('flex justify-end items-center gap-4 font-semibold', invoice.balanceDue > 0 ? 'text-destructive' : balanceLine(invoice.balanceDue).state === 'credit' ? 'text-success' : 'text-muted-foreground')}><span>{balanceLine(invoice.balanceDue).state === 'credit' ? 'Credit to customer' : 'Balance due'}:</span> <span className="w-32">PKR {Math.abs(invoice.balanceDue).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                        <div className={cn('flex justify-end items-center gap-4 font-semibold', invoice.balanceDue > 0 ? 'text-tone-owed-ink' : balanceLine(invoice.balanceDue).state === 'credit' ? 'text-tone-credit-ink' : 'text-muted-foreground')}><span>{balanceLine(invoice.balanceDue).state === 'credit' ? 'Credit to customer' : 'Balance due'}:</span> <span className="w-32">PKR {Math.abs(invoice.balanceDue).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                      </div>
                 </div>
 
@@ -586,7 +588,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
-                         <h3 className="font-semibold text-lg">Send to customer</h3>
+                         <h3 className="font-serif text-ios-title3 font-semibold">Send to customer</h3>
                          <div className="space-y-2">
                             <Label htmlFor="whatsapp-number">WhatsApp number</Label>
                              <PhoneField
@@ -609,7 +611,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="font-semibold text-lg">Record a payment</h3>
+                        <h3 className="font-serif text-ios-title3 font-semibold">Record a payment</h3>
                         {/* A paid invoice still takes money from a named customer: it goes on as their credit. */}
                         {invoice.balanceDue <= 0 && !canHoldCredit(invoice.customerId) ? (
                           <p className="text-sm text-muted-foreground">Nothing outstanding on this invoice.</p>
@@ -679,8 +681,8 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                 </div>
                  {invoice.paymentHistory && invoice.paymentHistory.length > 0 && (
                      <div>
-                        <h3 className="text-lg font-semibold flex items-center mb-2"><List className="mr-2 h-5 w-5"/>Payment history</h3>
-                        <div className="rounded-lg border overflow-hidden">
+                        <h3 className="font-serif text-ios-title3 font-semibold flex items-center mb-2"><List className="mr-2 h-5 w-5 text-muted-foreground"/>Payment history</h3>
+                        <div className="rounded-card bg-muted/40 overflow-hidden">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>

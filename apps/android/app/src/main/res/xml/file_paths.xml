@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What the app may hand to other apps: files a page asked to share, and a photo taken for a file input. Nothing else. -->
+<paths>
+    <cache-path name="erp_web" path="erp-web/" />
+    <cache-path name="capture" path="capture/" />
+</paths>

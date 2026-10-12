@@ -7,7 +7,7 @@ Google Fonts' own latin cuts (woff2), downloaded 2026-09-30 from the addresses
 and ad faces).
 
 Inter, Figtree, Sofia Sans Extra Condensed, Bodoni Moda, Cormorant Garamond,
-Playfair Display, Great Vibes, Montserrat, Cinzel and Newsreader are all under
+Playfair Display, Great Vibes, Montserrat, Cinzel, Newsreader, Cormorant Infant, Italiana, Jost, Tenor Sans, DM Serif Display and Marcellus (the last six: @fontsource's latin cuts, added 2026-10-12 for the designer) are all under
 the SIL Open Font License 1.1 (https://openfontlicense.org), © their authors.
 
 `futura-lt-light.woff2` is taheri.shop's own weight face (its `WeightLabel`), the same file as

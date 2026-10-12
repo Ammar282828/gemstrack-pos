@@ -22,6 +22,7 @@ import { nameScore } from '@/lib/voice/phonetics';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Search, Briefcase, Gem, Receipt, ClipboardList, ArrowRight } from 'lucide-react';
 import { paletteFor } from '@/lib/nav';
+import { scorePlace } from '@/lib/palette-match';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { roleForEmail } from '@/lib/roles';
 import { devRole } from '@/lib/dev-role';
@@ -228,10 +229,7 @@ export function CommandPalette() {
     // typed ranks above one that only contains it.
     const matchedDestinations = destinations
       .map((item) => {
-        const label = item.label.toLowerCase();
-        const words = (item as { keywords?: string[] }).keywords || [];
-        const score = label.startsWith(needle) ? 4 : label.includes(needle) ? 3
-          : words.some((k) => k.startsWith(needle)) ? 3 : words.some((k) => k.includes(needle)) ? 2.5 : -1;
+        const score = scorePlace(item.label, (item as { keywords?: string[] }).keywords, needle);
         return { item, score };
       })
       .filter((x) => x.score > 0);

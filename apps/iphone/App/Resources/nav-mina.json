@@ -644,6 +644,17 @@
     ],
     "pages": [
       {
+        "href": "/settings/shop",
+        "label": "Shop details",
+        "icon": "Settings",
+        "keywords": [
+          "shop name",
+          "address",
+          "numbering",
+          "appearance"
+        ]
+      },
+      {
         "href": "/settings/backups",
         "label": "Backups",
         "icon": "ArchiveRestore",
