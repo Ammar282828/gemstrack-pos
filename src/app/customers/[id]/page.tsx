@@ -9,11 +9,12 @@ import Link from 'next/link';
 import { useAppStore, Customer, Invoice, Order } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, BookUser, ClipboardList, FileText, Ruler, Cake, CalendarHeart, Heart, StickyNote } from 'lucide-react';
+import { Monogram, Pill, HeroAmount, ContactActions, LedgerSection, EmptyState, type Tone } from '@/components/ledger';
+import { isOwing } from '@/lib/owed';
+import { Edit3, Trash2, Phone, Mail, MapPin, BookUser, ClipboardList, FileText, Ruler, Cake, CalendarHeart, Heart, StickyNote } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -27,27 +28,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format, parseISO } from 'date-fns';
-import { cn } from '@/lib/utils';
 import { PageBack } from '@/components/shared/page-back';
 import { deleteErrorText } from '@/lib/delete-code';
 
-const getStatusBadgeVariant = (status: Order['status']) => {
-    switch (status) {
-      case 'Pending': return 'bg-warning text-warning-foreground';
-      case 'In Progress': return 'bg-blue-500/80 text-blue-50';
-      case 'Completed': return 'bg-success text-success-foreground';
-      case 'Cancelled': return 'bg-destructive text-destructive-foreground';
-      case 'Refunded': return 'bg-purple-500/80 text-purple-50';
-      default: return 'secondary';
-    }
+/** An order's stage in its one tone (a.2); owed is amber, never red. */
+const STATUS_TONE: Record<Order['status'], Tone> = {
+  Pending: 'owed', 'In Progress': 'working', Completed: 'settled', Cancelled: 'quiet', Refunded: 'quiet',
 };
 
 const DetailItem: React.FC<{ label: string; value: string | undefined; icon?: React.ReactNode }> = ({ label, value, icon }) => (
-  <div className="flex items-start py-2">
-    {icon && <span className="mr-3 mt-1 text-muted-foreground">{icon}</span>}
-    <div>
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="font-medium text-foreground">{value || '-'}</p>
+  <div className="flex items-start gap-3 py-3">
+    {icon && <span className="mt-0.5 text-muted-foreground">{icon}</span>}
+    <div className="min-w-0">
+      <p className="text-ios-foot text-muted-foreground">{label}</p>
+      <p className="break-words text-ios-sub font-medium text-foreground">{value || '-'}</p>
     </div>
   </div>
 );
@@ -134,40 +128,67 @@ export default function CustomerDetailPage() {
     customer.chainLength && `Chain ${customer.chainLength}`,
   ].filter(Boolean) as string[];
 
+  // What they owe is the ERP's one rule (lib/owed.ts) over their own invoices; else what they have bought.
+  const owedNow = customerInvoices.reduce((n, i) => n + (isOwing(i) ? i.balanceDue || 0 : 0), 0);
+  const bought = customerInvoices.reduce((n, i) => n + (i.status === 'Refunded' ? 0 : i.grandTotal || 0), 0);
+
+  const invoiceRows = customerInvoices.map(invoice => (
+    <Link key={invoice.id} href={`/invoices/${invoice.id}`} className="flex items-center justify-between gap-3 py-3">
+      <div className="min-w-0">
+        <p className="truncate text-ios-sub font-semibold">{invoice.id}</p>
+        <p className="text-ios-cap text-muted-foreground">{new Date(invoice.createdAt).toLocaleDateString()}</p>
+      </div>
+      <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {invoice.grandTotal.toLocaleString()}</span>
+    </Link>
+  ));
+  const orderRows = customerOrders.map(order => (
+    <Link key={order.id} href={`/orders/${order.id}`} className="flex items-center justify-between gap-3 py-3">
+      <div className="min-w-0">
+        <p className="truncate text-ios-sub font-semibold">{order.id}</p>
+        <p className="text-ios-cap text-muted-foreground">{format(parseISO(order.createdAt), 'PP')}</p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {order.grandTotal.toLocaleString()}</span>
+        <Pill tone={STATUS_TONE[order.status] ?? 'quiet'}>{order.status}</Pill>
+      </div>
+    </Link>
+  ));
+
   return (
-    <div className="container mx-auto py-8 px-4 space-y-6">
+    <div className="container mx-auto px-4 py-5 md:py-6 space-y-4">
       <PageBack fallback="/customers" label="Back to customers" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+        <div className="lg:col-span-1 space-y-4">
           <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-2xl">{customer.name}</CardTitle>
-                <User className="w-8 h-8 text-primary" />
+            <CardHeader className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Monogram name={customer.name} size={56} />
+                <div className="min-w-0">
+                  <h1 className="break-words text-ios-title2 font-semibold">{customer.name}</h1>
+                  <p className="truncate font-mono text-ios-cap text-muted-foreground">Customer ID: {customer.id}</p>
+                </div>
               </div>
-              <CardDescription>Customer ID: {customer.id}</CardDescription>
+              {(owedNow > 0 || bought > 0) && (
+                <div>
+                  <p className="text-ios-foot text-muted-foreground">{owedNow > 0 ? 'Owes you' : 'Lifetime sales'}</p>
+                  <HeroAmount amount={owedNow > 0 ? owedNow : bought} lac={owedNow <= 0} tone={owedNow > 0 ? 'owed' : undefined} />
+                </div>
+              )}
+              <ContactActions phone={customer.phone} className="max-w-sm" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="divide-y divide-separator py-0">
               <DetailItem label="Phone" value={customer.phone} icon={<Phone className="w-4 h-4" />} />
-              <Separator className="my-1" />
               <DetailItem label="Email" value={customer.email} icon={<Mail className="w-4 h-4" />} />
-              <Separator className="my-1" />
               <DetailItem label="Address" value={[customer.address, customer.city, customer.country].filter(Boolean).join(', ')} icon={<MapPin className="w-4 h-4" />} />
-              {customer.altPhone && (<><Separator className="my-1" />
-                <DetailItem label="Second number" value={customer.altPhone} icon={<Phone className="w-4 h-4" />} /></>)}
-              {sizes.length > 0 && (<><Separator className="my-1" />
-                <DetailItem label="Sizes" value={sizes.join(' · ')} icon={<Ruler className="w-4 h-4" />} /></>)}
-              {customer.birthday && (<><Separator className="my-1" />
-                <DetailItem label="Birthday" value={customer.birthday} icon={<Cake className="w-4 h-4" />} /></>)}
-              {customer.anniversary && (<><Separator className="my-1" />
-                <DetailItem label="Anniversary" value={customer.anniversary} icon={<CalendarHeart className="w-4 h-4" />} /></>)}
-              {customer.preference && (<><Separator className="my-1" />
-                <DetailItem label="Prefers" value={customer.preference} icon={<Heart className="w-4 h-4" />} /></>)}
-              {customer.notes && (<><Separator className="my-1" />
-                <DetailItem label="Notes" value={customer.notes} icon={<StickyNote className="w-4 h-4" />} /></>)}
+              {customer.altPhone && <DetailItem label="Second number" value={customer.altPhone} icon={<Phone className="w-4 h-4" />} />}
+              {sizes.length > 0 && <DetailItem label="Sizes" value={sizes.join(' · ')} icon={<Ruler className="w-4 h-4" />} />}
+              {customer.birthday && <DetailItem label="Birthday" value={customer.birthday} icon={<Cake className="w-4 h-4" />} />}
+              {customer.anniversary && <DetailItem label="Anniversary" value={customer.anniversary} icon={<CalendarHeart className="w-4 h-4" />} />}
+              {customer.preference && <DetailItem label="Prefers" value={customer.preference} icon={<Heart className="w-4 h-4" />} />}
+              {customer.notes && <DetailItem label="Notes" value={customer.notes} icon={<StickyNote className="w-4 h-4" />} />}
             </CardContent>
-            <CardFooter className="flex-col gap-2">
+            <CardFooter className="flex-col gap-2 pt-4">
                <Button asChild className="w-full">
                 <Link href={`/hisaab/${customer.id}?type=customer`}>
                   <BookUser className="mr-2 h-4 w-4" /> View Hisaab
@@ -194,11 +215,21 @@ export default function CustomerDetailPage() {
 
         </div>
 
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
+        <div className="lg:col-span-2 space-y-5">
+          {/* Below lg the app's rows; at lg the tables the counter works in. */}
+          <div className="lg:hidden space-y-5">
+            {customerInvoices.length > 0
+              ? <LedgerSection title="Ready Sales History" count={customerInvoices.length}>{invoiceRows}</LedgerSection>
+              : <EmptyState className="rounded-card bg-card" icon={<FileText />} title="No sales yet" description="No sales history found for this customer." />}
+            {customerOrders.length > 0
+              ? <LedgerSection title="Custom Order History" count={customerOrders.length}>{orderRows}</LedgerSection>
+              : <EmptyState className="rounded-card bg-card" icon={<ClipboardList />} title="No custom orders" description="No custom orders found for this customer." />}
+          </div>
+
+          <Card className="hidden lg:block">
             <CardHeader>
-              <CardTitle className="text-xl flex items-center"><FileText className="mr-2 h-5 w-5 text-primary" /> Ready Sales History</CardTitle>
-              <CardDescription>Past invoices for {customer.name}.</CardDescription>
+              <h2 className="flex items-center font-serif text-ios-title3 font-semibold"><FileText className="mr-2 h-5 w-5 text-primary" /> Ready Sales History</h2>
+              <p className="text-ios-sub text-muted-foreground">Past invoices for {customer.name}.</p>
             </CardHeader>
             <CardContent>
               {customerInvoices.length > 0 ? (
@@ -217,7 +248,7 @@ export default function CustomerDetailPage() {
                           <Link href={`/invoices/${invoice.id}`} onClick={e => e.stopPropagation()}>{invoice.id}</Link>
                         </TableCell>
                         <TableCell>{new Date(invoice.createdAt).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right">{invoice.grandTotal.toLocaleString()}</TableCell>
+                        <TableCell className="text-right tabular-nums">{invoice.grandTotal.toLocaleString()}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -228,10 +259,10 @@ export default function CustomerDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hidden lg:block">
             <CardHeader>
-              <CardTitle className="text-xl flex items-center"><ClipboardList className="mr-2 h-5 w-5 text-primary" /> Custom Order History</CardTitle>
-              <CardDescription>Past custom orders placed by {customer.name}.</CardDescription>
+              <h2 className="flex items-center font-serif text-ios-title3 font-semibold"><ClipboardList className="mr-2 h-5 w-5 text-primary" /> Custom Order History</h2>
+              <p className="text-ios-sub text-muted-foreground">Past custom orders placed by {customer.name}.</p>
             </CardHeader>
             <CardContent>
               {customerOrders.length > 0 ? (
@@ -252,11 +283,9 @@ export default function CustomerDetailPage() {
                         </TableCell>
                         <TableCell>{format(parseISO(order.createdAt), 'PP')}</TableCell>
                         <TableCell>
-                            <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>
-                                {order.status}
-                            </Badge>
+                            <Pill tone={STATUS_TONE[order.status] ?? 'quiet'}>{order.status}</Pill>
                         </TableCell>
-                        <TableCell className="text-right">{order.grandTotal.toLocaleString()}</TableCell>
+                        <TableCell className="text-right tabular-nums">{order.grandTotal.toLocaleString()}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
