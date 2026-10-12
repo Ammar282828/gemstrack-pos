@@ -9,7 +9,7 @@ import ERPCore
 struct OrderUndoAsk: Identifiable {
     enum Then {
         /// The page's toast.
-        case note(OwnerNote)
+        case note(Note)
         /// Unlock & edit: the order's edit form, now that it is open again.
         case edit(String)
         /// Delete order: the order is gone, so its screen goes too (the page goes back to /orders).
@@ -33,7 +33,7 @@ enum OrderUndo {
             deletion: OwnerDeletion(what: OrderActions.undoWhat(order), detail: OrderActions.undoDetail(order)) { code in
                 _ = try await ERPAPI.shared.write("undoOrderInvoice", ["orderId": order.id, "invoiceId": invoiceId, "deleteCode": code])
             },
-            then: .note(OwnerNote(title: said.title, detail: said.detail))
+            then: .note(Note(title: said.title, detail: said.detail))
         )
     }
 
@@ -56,7 +56,7 @@ enum OrderUndo {
                 // The invoice the screen showed (none: ""), so a refund never takes one it did not say.
                 _ = try await ERPAPI.shared.write("refundOrder", ["orderId": order.id, "invoiceId": order.invoiceId ?? "", "deleteCode": code])
             },
-            then: .note(OwnerNote(title: said.title, detail: said.detail))
+            then: .note(Note(title: said.title, detail: said.detail))
         )
     }
 
@@ -86,21 +86,22 @@ private struct OrderUndoPresenter: ViewModifier {
     @Environment(\.dismiss) private var dismiss
     /// What follows, once the sheet has gone: the edit form or going back never start under a closing sheet.
     @State private var then: OrderUndoAsk.Then?
-    @State private var note: OwnerNote?
+    @State private var note: Note?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         content
             .sheet(item: $ask, onDismiss: follow) { (a: OrderUndoAsk) in
                 OwnerDeleteCodeSheet(deletion: a.deletion) { then = a.then }
             }
-            .ownerNote($note)
+            .noteToast($note)
     }
 
-    private func follow() {
+    @MainActor private func follow() {
         guard let next = then else { return }
         then = nil
         switch next {
-        case .note(let said): withAnimation { note = said }
+        case .note(let said): Note.show(said, in: $note, reduce: reduceMotion)
         case .edit(let id): open = .edit(id)
         case .leave: dismiss()
         }

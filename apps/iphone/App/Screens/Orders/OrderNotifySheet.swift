@@ -33,7 +33,7 @@ struct OrderNotifySheet: View {
                         .keyboardType(.phonePad)
                         .textContentType(.telephoneNumber)
                 } header: {
-                    Text("Customer WhatsApp Number")
+                    LedgerHeading(title: "Customer's WhatsApp number")
                 } footer: {
                     if CustomerKit.whatsAppNumber(phone).isEmpty {
                         Text("Please enter the customer's phone number.")
@@ -48,14 +48,15 @@ struct OrderNotifySheet: View {
                         .font(.subheadline)
                         .textSelection(.enabled)
                 } header: {
-                    Text("The message")
+                    LedgerHeading(title: "The message")
                 } footer: {
                     Text("WhatsApp opens with it written: press send there.")
                 }
                 }
                 .houseRows()
             }
-            .navigationTitle("Notify Customer via WhatsApp")
+            .houseForm()
+            .navigationTitle("Message the customer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -69,7 +70,7 @@ struct OrderNotifySheet: View {
                         dismiss()
                     }
                 } label: {
-                    Label("Send Message", systemImage: "message")
+                    Label("Send message", systemImage: "message")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.houseProminent)

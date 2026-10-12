@@ -32,8 +32,14 @@ struct OrdersHub: View {
     @State private var cancelling: Order?
     @State private var web: OrdersWebTarget?
     @State private var failure: String?
+    /// Counted so each event is felt once: an advance taken, an order marked ready, an order cancelled.
+    @State private var moneyTick = 0
+    @State private var readyTick = 0
+    @State private var cancelTick = 0
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.createMenuShown) private var createMenuShown
+
+    private var inbox: OnlineInbox { .shared }
 
     var body: some View {
         ShelfState(
@@ -50,13 +56,16 @@ struct OrdersHub: View {
         .toolbar { hubToolbar }
         .ordersWebDestination($web)
         .sheet(item: $advancing) { order in advanceSheet(order) }
-        .confirmationDialog("Cancel this order?", isPresented: cancelShown, titleVisibility: .visible, presenting: cancelling) { order in
-            Button("Cancel order \(order.id)", role: .destructive) { setStatus(order, "Cancelled") }
+        .confirmationDialog(cancelling.map { "Cancel order \($0.id)?" } ?? "Cancel order?", isPresented: cancelShown, titleVisibility: .visible, presenting: cancelling) { order in
+            Button("Cancel order", role: .destructive) { setStatus(order, "Cancelled") }
             Button("Keep it", role: .cancel) {}
         } message: { _ in
             Text(OrdersLogic.cancelWords)
         }
         .ordersFailureAlert($failure)
+        .moneyFeedback(success: moneyTick, failure: 0)
+        .sensoryFeedback(.success, trigger: readyTick)
+        .destructiveFeedback(trigger: cancelTick)
         .onAppear {
             book.orders.need()
             book.invoices.need()
@@ -91,7 +100,7 @@ struct OrdersHub: View {
           if geometry.size.width >= 760 && !typeSize.isAccessibilitySize {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 24) {
-                    controls()
+                    gridControls()
                     ForEach(groups) { g in
                         VStack(alignment: .leading, spacing: 16) {
                             groupHeading(g)
@@ -108,7 +117,7 @@ struct OrdersHub: View {
             }
           } else {
             List {
-            controls()
+            listControls()
             ForEach(groups) { g in
                 section(g, owedOn: owedOn, now: now, forceOpen: forceOpen)
             }
@@ -260,7 +269,8 @@ struct OrdersHub: View {
                 mine: OrdersLogic.isMine(order, person: session.shop.person),
                 busy: busy.contains(order.id),
                 actions: actions,
-                standalone: standalone
+                standalone: standalone,
+                showsStage: grouping != .stage
             )
     }
 
@@ -282,48 +292,86 @@ struct OrdersHub: View {
                     description: Text("Every order here is invoiced or closed. Day and Stage show them all.")
                 )
             } else {
-                ContentUnavailableView(
-                    "No orders found",
-                    systemImage: "list.clipboard",
-                    description: Text(filtering ? "Try adjusting the search or filters." : "Create a custom order to begin.")
-                )
+                ContentUnavailableView {
+                    Label("No orders found", systemImage: "list.clipboard")
+                } description: {
+                    Text(filtering ? "Try adjusting the search or filters." : "Create a custom order to begin.")
+                } actions: {
+                    if filtering {
+                        Button("Clear filters") { clearFilters() }
+                            .buttonStyle(.glass)
+                    }
+                    Button("New order") {
+                        web = OrdersWebTarget(path: "/orders/add", title: "New order", native: true)
+                    }
+                    .buttonStyle(.houseProminent)
+                }
             }
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 40)
     }
 
+    /// Everything that narrows the list, put back: the search, the status, the month, whose and how paid.
+    private func clearFilters() {
+        query = ""
+        statusFilter = "All"
+        month = ""
+        takenBy = ""
+        payment = "All"
+    }
+
     // MARK: Grouping and active filters
 
-    /// The grouping stays visible; status and the other filters share the toolbar menu.
-    private func controls() -> some View {
+    /// Day / Stage / Due: always visible; status and the other filters share the toolbar menu.
+    private var groupingPicker: some View {
         let cut = grouping.calendarCut
-        return Section {
-            Picker("Show by", selection: groupingChoice) {
-                Text(cut.title).tag(cut)
-                Text(OrdersGrouping.stage.title).tag(OrdersGrouping.stage)
-                Text(OrdersGrouping.due.title).tag(OrdersGrouping.due)
+        return Picker("Show by", selection: groupingChoice) {
+            Text(cut.title).tag(cut)
+            Text(OrdersGrouping.stage.title).tag(OrdersGrouping.stage)
+            Text(OrdersGrouping.due.title).tag(OrdersGrouping.due)
+        }
+        .pickerStyle(.segmented)
+        // Three words need no more than a phone's width, wherever they are.
+        .frame(maxWidth: 480, alignment: .leading)
+    }
+
+    private var narrowed: Bool { statusFilter != "All" || !month.isEmpty || !takenBy.isEmpty || payment != "All" }
+
+    /// What the menu has narrowed the list to, with the way back.
+    private var filterSummary: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text([statusFilter == "All" ? nil : statusFilter,
+                  month.isEmpty ? nil : InvoiceCalendar.monthLabel(month),
+                  takenBy.isEmpty ? nil : takenBy,
+                  payment == "All" ? nil : payment].compactMap { $0 }.joined(separator: " \u{00B7} "))
+                .font(.footnote).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Button("Clear") { statusFilter = "All"; month = ""; takenBy = ""; payment = "All" }
+                .font(.footnote.weight(.medium)).buttonStyle(.borderless)
+        }
+    }
+
+    /// The controls as the list's first rows.
+    private func listControls() -> some View {
+        Section {
+            groupingPicker
+                .padding(.horizontal, 16)
+                .chipRowInList()
+            if narrowed {
+                filterSummary
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
-            .pickerStyle(.segmented)
-            // Three words need no more than a phone's width, wherever they are.
-            .frame(maxWidth: 480, alignment: .leading)
-            .padding(.horizontal, 16)
-            .chipRowInList()
-            if statusFilter != "All" || !month.isEmpty || !takenBy.isEmpty || payment != "All" {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text([statusFilter == "All" ? nil : statusFilter,
-                          month.isEmpty ? nil : InvoiceCalendar.monthLabel(month),
-                          takenBy.isEmpty ? nil : takenBy,
-                          payment == "All" ? nil : payment].compactMap { $0 }.joined(separator: " · "))
-                        .font(.footnote).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                    Button("Clear") { statusFilter = "All"; month = ""; takenBy = ""; payment = "All" }
-                        .font(.footnote.weight(.medium)).buttonStyle(.borderless)
-                }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            }
+        }
+    }
+
+    /// The same controls on the wide window's page: no list rows, so no list modifiers, and the page's own padding.
+    private func gridControls() -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            groupingPicker
+            if narrowed { filterSummary }
         }
     }
 
@@ -378,17 +426,24 @@ struct OrdersHub: View {
         ToolbarItem(placement: .topBarTrailing) {
             filterMenu(book.orders.items)
         }
-        // Online orders wait here until a person confirms them (docs/decisions.md "Online orders"); a
-        // house whose website takes no orders (Mina) has none, so the menu would be empty.
-        if session.shop.websiteSelling {
+        // Online orders wait here until a person confirms them (docs/decisions.md "Online orders"): one tap from
+        // the hub while any wait, with how many. A house whose website takes no orders (Mina) has none.
+        if session.shop.websiteSelling && inbox.waiting > 0 {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    NavigationLink(value: Route(path: "/orders/online")) {
-                        Label("Online orders to confirm", systemImage: "globe")
-                    }
-                } label: {
-                    Label("More", systemImage: "ellipsis.circle")
+                NavigationLink(value: Route(path: "/orders/online")) {
+                    Image(systemName: "globe")
+                        .overlay(alignment: .topTrailing) {
+                            Text(inbox.waiting > 99 ? "99+" : "\(inbox.waiting)")
+                                .font(.caption2.weight(.bold))
+                                .monospacedDigit()
+                                .foregroundStyle(Theme.onAccent)
+                                .padding(.horizontal, 5)
+                                .frame(minWidth: 16, minHeight: 16)
+                                .background(Theme.accent, in: .capsule)
+                                .offset(x: 10, y: -8)
+                        }
                 }
+                .accessibilityLabel("Online orders, \(inbox.waiting) to confirm")
             }
         }
     }
@@ -427,6 +482,8 @@ struct OrdersHub: View {
         Task { @MainActor in
             do {
                 _ = try await ERPAPI.shared.write("setOrderStatus", ["orderId": order.id, "status": status])
+                if status == "Completed" { readyTick += 1 }
+                if status == "Cancelled" { cancelTick += 1 }
             } catch {
                 failure = error.localizedDescription
             }
@@ -444,6 +501,7 @@ struct OrdersHub: View {
                 "method": method,
                 "notes": note,
             ])
+            await MainActor.run { moneyTick += 1 }
         }
     }
 }
@@ -471,7 +529,7 @@ struct OrdersSectionHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            LedgerHeading(title: title, count: count, trailing: Money.pkrLac(value), tone: tone)
+            LedgerHeading(title: title, count: count, trailing: "worth " + Money.pkrLac(value), tone: tone)
                 .accessibilityLabel("\(title), \(count) order\(count == 1 ? "" : "s"), worth \(Money.pkrLac(value))")
             if !hint.isEmpty {
                 Text(hint)

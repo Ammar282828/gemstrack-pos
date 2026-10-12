@@ -30,12 +30,12 @@ struct OnlineMessageSection: View {
                     .foregroundStyle(.secondary)
             } else {
                 HStack(spacing: 10) {
-                    SkeletonLoading()
+                    ProgressView().controlSize(.small)
                     Text("Reading what is sent…").foregroundStyle(.secondary)
                 }
             }
         } header: {
-            Text("WhatsApp to the customer")
+            LedgerHeading(title: "WhatsApp to the customer")
         } footer: {
             if let p = preview {
                 if p.sends {
@@ -48,14 +48,14 @@ struct OnlineMessageSection: View {
     }
 }
 
-/// The ERP's refusal, in red.
+/// The ERP's refusal, in the problem tone.
 private struct OnlineFailureSection: View {
     let message: String?
 
     var body: some View {
         if let message {
             Section {
-                Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
             }
         }
     }
@@ -75,7 +75,7 @@ private struct OnlineBottomButton: View {
             if destructive {
                 Button(role: .destructive, action: action) { label }
                     .buttonStyle(.glassProminent)
-                    .tint(.red)
+                    .tint(Tone.problem.color)
             } else {
                 Button(action: action) { label }
                     .buttonStyle(.houseProminent)
@@ -89,7 +89,7 @@ private struct OnlineBottomButton: View {
 
     private var label: some View {
         HStack(spacing: 8) {
-            if busy { SkeletonLoading() } else { Image(systemName: symbol) }
+            if busy { ProgressView().controlSize(.small) } else { Image(systemName: symbol) }
             Text(title)
         }
         .frame(maxWidth: .infinity)
@@ -128,6 +128,7 @@ struct OnlineConfirmSheet: View {
                 }
                 .houseRows()
             }
+            .houseForm()
             .navigationTitle(confirmed.map { "\(row.id) is \($0.orderId)" } ?? "Confirm \(row.id)?")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -135,7 +136,10 @@ struct OnlineConfirmSheet: View {
                     if confirmed == nil {
                         Button(role: .cancel) { dismiss() }
                             .disabled(busy)
-                    } else {
+                    }
+                }
+                if confirmed != nil {
+                    ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { dismiss() }
                     }
                 }
@@ -167,7 +171,7 @@ struct OnlineConfirmSheet: View {
             LabeledContent("Ships to", value: row.delivery.city)
             if let dearer = OnlineOrdersLogic.dearerToday(row) {
                 LabeledContent("Today it would be") {
-                    Text(Money.pkr(dearer)).foregroundStyle(.orange).monospacedDigit()
+                    Text(Money.pkr(dearer)).foregroundStyle(Tone.owed.color).monospacedDigit()
                 }
             }
         }
@@ -188,10 +192,10 @@ struct OnlineConfirmSheet: View {
         Section {
             if let n = c.notified, !n.isEmpty {
                 Label("Confirmed, but the WhatsApp telling \(row.customer.name) did not send (\(n)).", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Tone.owed.color)
             } else {
                 Label("\(row.customer.name) has been told it is confirmed and that your bank details are coming.", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Tone.settled.color)
             }
             Text("Send them now: the price is held \(holdWords) for \(Money.pkr(row.grandTotal)).")
         } footer: {
@@ -261,7 +265,7 @@ struct OnlineDeclineSheet: View {
                     Text("\(row.customer.name) is sent this on WhatsApp, after “we can't take it as it was placed:”. Nothing has been charged, so nothing needs undoing.")
                         .font(.subheadline)
                 }
-                Section("Why") {
+                Section {
                     ForEach(OnlineOrdersLogic.reasons, id: \.self) { (r: String) in
                         Button { reason = r } label: {
                             HStack {
@@ -273,6 +277,8 @@ struct OnlineDeclineSheet: View {
                     }
                     TextField("Why, in a line", text: $reason, prompt: Text("Why, in a line"), axis: .vertical)
                         .lineLimit(2...5)
+                } header: {
+                    LedgerHeading(title: "Why")
                 }
                 if ready {
                     OnlineMessageSection(
@@ -285,6 +291,7 @@ struct OnlineDeclineSheet: View {
                 }
                 .houseRows()
             }
+            .houseForm()
             .navigationTitle("Decline \(row.id)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -387,6 +394,7 @@ struct OnlineMoveSheet: View {
                 }
                 .houseRows()
             }
+            .houseForm()
             .navigationTitle(kind == .paid ? "\(Money.pkr(total)) is in the account?" : "Let \(ref) lapse?")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -505,7 +513,7 @@ struct OnlineSlipSheet: View {
             .navigationTitle("Slip " + ShopDate.say(slip.at, withTime: true))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
             }

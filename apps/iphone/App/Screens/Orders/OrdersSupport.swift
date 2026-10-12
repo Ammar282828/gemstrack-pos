@@ -45,26 +45,9 @@ extension View {
         }
     }
 
-    /// The ERP's own words when a write is refused.
+    /// The ERP's own words when a write is refused (the kit's `failureAlert`, which also taps an error).
     func ordersFailureAlert(_ message: Binding<String?>, title: String = "Not changed") -> some View {
-        modifier(OrdersFailureAlert(message: message, title: title))
-    }
-}
-
-private struct OrdersFailureAlert: ViewModifier {
-    @Binding var message: String?
-    let title: String
-
-    func body(content: Content) -> some View {
-        content.alert(title, isPresented: shown) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(message ?? "")
-        }
-    }
-
-    private var shown: Binding<Bool> {
-        Binding(get: { message != nil }, set: { if !$0 { message = nil } })
+        failureAlert(message, title: title)
     }
 }
 

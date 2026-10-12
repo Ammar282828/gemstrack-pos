@@ -20,16 +20,16 @@ struct OrderTrackingSheet: View {
                 if asking && track == nil && failure == nil {
                     Section {
                         HStack(spacing: 10) {
-                            SkeletonLoading()
+                            ProgressView().controlSize(.small)
                             Text("Asking TCS\u{2026}").foregroundStyle(.secondary)
                         }
                     }
                 }
                 if let failure {
                     Section {
-                        Label(failure, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                        Label(failure, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
                     } header: {
-                        Text("Tracking Failed")
+                        LedgerHeading(title: "Tracking failed")
                     }
                 }
                 if let track {
@@ -47,7 +47,7 @@ struct OrderTrackingSheet: View {
                             }
                         }
                     } header: {
-                        Label("TCS Tracking \u{2014} \(cn)", systemImage: "shippingbox")
+                        LedgerHeading(title: "TCS tracking \u{2014} \(cn)")
                     }
                 }
                 if let url = OrderActions.tcsURL(cn) {
@@ -61,6 +61,7 @@ struct OrderTrackingSheet: View {
                 .houseRows()
             }
             .listStyle(.insetGrouped)
+            .houseForm()
             .navigationTitle("Track \(cn)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

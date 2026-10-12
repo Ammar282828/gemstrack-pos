@@ -28,6 +28,8 @@ struct OrderPieceRow: View {
                 notes
                 price
             }
+            // A finished piece sits quieter than one still to make.
+            .opacity(item.isCompleted ? 0.7 : 1)
             Spacer(minLength: 0)
             tick
         }
@@ -146,7 +148,7 @@ struct OrderPieceRow: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(8)
-        .background(Color.secondary.opacity(0.12), in: .rect(cornerRadius: 8))
+        .background(Color.secondary.opacity(0.12), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
     }
 
     // MARK: Price, last: subordinate to what the piece is
@@ -206,10 +208,12 @@ struct OrderPieceRow: View {
 
     // MARK: Done
 
+    /// The tick's hit area is a finger's (44 pt), whatever the glyph.
     @ViewBuilder
     private var tick: some View {
         if busy {
-            SkeletonLoading()
+            ProgressView().controlSize(.small)
+                .frame(width: 44, height: 44)
         } else if canTick {
             Button {
                 onTick(!item.isCompleted)
@@ -217,6 +221,8 @@ struct OrderPieceRow: View {
                 Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
                     .foregroundStyle(item.isCompleted ? Tone.settled.color : Color.secondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
             .accessibilityLabel(item.isCompleted ? "Done. Tap to mark not done." : "Mark as complete")
@@ -224,6 +230,7 @@ struct OrderPieceRow: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.title2)
                 .foregroundStyle(Tone.settled.color)
+                .frame(width: 44, height: 44)
                 .accessibilityLabel("Done")
         }
     }

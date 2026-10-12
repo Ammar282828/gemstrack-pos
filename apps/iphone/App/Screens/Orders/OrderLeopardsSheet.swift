@@ -57,7 +57,7 @@ struct OrderLeopardsSheet: View {
                 }
                 if let said {
                     Section {
-                        Label(said.title, systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                        Label(said.title, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color)
                         if !said.detail.isEmpty {
                             Text(said.detail).font(.footnote).foregroundStyle(.secondary)
                         }
@@ -65,12 +65,13 @@ struct OrderLeopardsSheet: View {
                 }
                 if let error {
                     Section {
-                        Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                        Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
                     }
                 }
                 }
                 .houseRows()
             }
+            .houseForm()
             .navigationTitle("Leopards")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -104,7 +105,7 @@ struct OrderLeopardsSheet: View {
             Button("Use this CN") { asking = .useCN(cn.trimmingCharacters(in: .whitespacesAndNewlines)) }
                 .disabled(busy || !OrderActions.cnLooksRight(cn))
         } header: {
-            Text("Ship")
+            LedgerHeading(title: "Ship")
         } footer: {
             Text("Or enter a CN booked at the counter. Either way \(customerInSentence) is sent the tracking number on WhatsApp.")
         }
@@ -174,7 +175,7 @@ struct OrderLeopardsSheet: View {
                     .disabled(busy)
             }
         } header: {
-            Text(done ? "Delivered" : "Leopards \(cn)")
+            LedgerHeading(title: done ? "Delivered" : "Leopards \(cn)")
         } footer: {
             if !done {
                 Text("Mark delivered closes the order as Completed. Neither tells the customer anything.")
