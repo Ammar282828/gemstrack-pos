@@ -224,6 +224,9 @@ data class Settings(
     /** When the rates were last auto-fetched from gold.pk (ISO). */
     val goldRatesLastFetchedAt: String?,
 
+    /** The shared urgent note; an empty string means there is no active notice (at most 600 characters, owners write it). */
+    val teamNote: String = "",
+
     val shopName: String,
     val shopAddress: String,
     val shopContact: String,
@@ -298,6 +301,7 @@ data class Settings(
                 ratesUpdatedAt = c.string("ratesUpdatedAt"),
                 ratesUpdatedBy = c.string("ratesUpdatedBy"),
                 goldRatesLastFetchedAt = c.string("goldRatesLastFetchedAt"),
+                teamNote = c.string("teamNote", ""),
                 shopName = c.string("shopName", ""),
                 shopAddress = c.string("shopAddress", ""),
                 shopContact = c.string("shopContact", ""),

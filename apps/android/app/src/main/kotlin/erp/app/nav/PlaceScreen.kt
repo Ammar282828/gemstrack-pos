@@ -2,6 +2,8 @@ package erp.app.nav
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -46,6 +48,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.auth.LocalSession
+import erp.app.screens.home.TeamNoteBanner
+import erp.app.screens.rates.RateChip
 
 /** True under the phone layout's bottom bar, which already takes the system navigation inset. */
 val LocalBottomBar = compositionLocalOf { false }
@@ -83,6 +87,13 @@ fun PlaceScreen(
     // A native screen names itself (until it does, the map's name); an ERP page is named from the map.
     val title = if (path == SEARCH_PATH) "Everything" else (if (native) chrome.title else null) ?: mapTitle ?: ""
 
+    // A tab's first screen carries the rate chip (everyone in the shop: an owner's opens the form, anyone else's a page
+    // to read) and, with Search, the team note. A sheet's first screen, a pushed page and a karigar's portal carry neither.
+    val inShop = role == "owner" || role == "staff" || role == "marketing"
+    val tabRoot = isRoot && onClose == null && inShop
+    val rateChip = tabRoot && path != SEARCH_PATH
+    val teamNote = tabRoot
+
     val insets = if (LocalBottomBar.current) WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top) else WindowInsets.safeDrawing
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -94,6 +105,7 @@ fun PlaceScreen(
                     when {
                         navigator.canGoBack -> IconButton(onClick = navigator::back) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
                         onClose != null -> IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, "Close") }
+                        rateChip -> RateChip()
                     }
                 },
                 actions = {
@@ -108,10 +120,13 @@ fun PlaceScreen(
             )
         },
     ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize()) {
-            CompositionLocalProvider(LocalChrome provides chrome) {
-                key(current) {
-                    if (path == SEARCH_PATH) SearchScreen() else ScreenRegistry.Screen(current)
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            if (teamNote) TeamNoteBanner()
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                CompositionLocalProvider(LocalChrome provides chrome) {
+                    key(current) {
+                        if (path == SEARCH_PATH) SearchScreen() else ScreenRegistry.Screen(current)
+                    }
                 }
             }
         }
