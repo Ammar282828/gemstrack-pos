@@ -28,8 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Monogram, Pill, RowAmount, ChipRow, FilterChip, SearchField, EmptyState, type Tone } from '@/components/ledger';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -40,7 +39,6 @@ import { PhoneField } from '@/components/ui/phone-field';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { KarigarPicker, UNASSIGNED_VALUE } from '@/components/karigar/karigar-picker';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
-import { FilterBar } from '@/components/shared/filter-bar';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { Wrench, Plus, PlusCircle, Printer, Edit, Trash2, MessageCircle, CheckCircle2, PackageCheck, Loader2, X, ChevronDown } from 'lucide-react';
 import { useMe } from '@/hooks/use-me';
@@ -59,11 +57,12 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'all', label: 'All' },
 ];
 
-const STATUS_TONE: Record<RepairStatus, string> = {
-  received: 'border-warning text-warning',
-  ready: 'border-success text-success bg-success/10',
-  collected: 'border-muted-foreground/40 text-muted-foreground',
-  cancelled: 'border-destructive/50 text-destructive',
+/** In the shop (with us), Ready (settled), Collected (quiet): each in its one tone. */
+const STATUS_TONE: Record<RepairStatus, Tone> = {
+  received: 'working',
+  ready: 'settled',
+  collected: 'quiet',
+  cancelled: 'quiet',
 };
 
 /** Still in the shop past its ready-by date: days late, else null. */
@@ -375,50 +374,48 @@ export default function RepairsPage() {
         <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl || ' '} size={128} />
       </div>
 
-      <FilterBar
-        value={search}
-        onChange={setSearch}
-        placeholder="Search name, phone, piece or REP no."
-        actions={
-          <div className="inline-flex rounded-md border overflow-hidden flex-shrink-0" role="group" aria-label="Show">
-            {TABS.map((t) => {
-              const n = t.key === 'received' ? count('received') : t.key === 'ready' ? count('ready') : null;
-              return (
-                <button key={t.key} type="button" onClick={() => setTab(t.key)} aria-pressed={tab === t.key}
-                  className={cn('px-3 text-xs h-9 whitespace-nowrap transition-colors', tab === t.key ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}>
-                  {t.label}{n ? ` · ${n}` : ''}
-                </button>
-              );
-            })}
-          </div>
-        }
-      />
+      <div className="space-y-3">
+        <SearchField value={search} onChange={setSearch} placeholder="Search name, phone, piece or REP no." />
+        <ChipRow label="Show">
+          {TABS.map((t) => {
+            const n = t.key === 'received' ? count('received') : t.key === 'ready' ? count('ready') : undefined;
+            return <FilterChip key={t.key} title={t.label} count={n || undefined} chosen={tab === t.key} onClick={() => setTab(t.key)} />;
+          })}
+        </ChipRow>
+      </div>
 
       {isRepairsLoading ? (
         <ListSkeleton rows={4} />
       ) : shown.length === 0 ? (
-        <div className="text-center py-16 bg-card rounded-lg border">
-          <Wrench className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-          <p className="font-medium">{repairs.length ? 'Nothing here' : 'No repairs yet'}</p>
-          {!repairs.length && <p className="text-sm text-muted-foreground mt-1">Tap <span className="font-medium">New repair</span> when a customer leaves pieces to be mended.</p>}
-        </div>
+        <EmptyState
+          className="rounded-card bg-card"
+          icon={<Wrench />}
+          title={repairs.length ? 'Nothing here' : 'No repairs yet'}
+          description={!repairs.length ? <>Tap <span className="font-medium">New repair</span> when a customer leaves pieces to be mended.</> : undefined}
+        />
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {shown.map((r) => {
             const late = daysLate(r, today);
             const bal = repairBalance(r);
             return (
-              <Card key={r.id} className={cn(r.status === 'collected' || r.status === 'cancelled' ? 'opacity-70' : '')}>
-                <CardContent className="p-3.5 sm:p-4">
+              <div key={r.id} className={cn('rounded-card bg-card p-4', r.status === 'collected' || r.status === 'cancelled' ? 'opacity-70' : '')}>
+                <div>
                   <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
                     {/* Who and what */}
                     <button type="button" onClick={() => setEditing(r)} className="min-w-0 flex-1 text-left">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="font-semibold">{r.customerName || 'Walk-in'}</span>
-                        {r.customerContact && <span className="text-xs text-muted-foreground tabular-nums">{r.customerContact}</span>}
-                        <Badge variant="outline" className={cn('text-2xs', STATUS_TONE[r.status])}>{REPAIR_STATUS_LABELS[r.status]}</Badge>
+                      <div className="flex items-start gap-3">
+                        <Monogram name={r.customerName} size={40} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-ios-headline font-semibold">{r.customerName || 'Walk-in'}</p>
+                          {r.customerContact && <p className="truncate text-ios-sub tabular-nums text-muted-foreground">{r.customerContact}</p>}
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <Pill tone={STATUS_TONE[r.status]}>{REPAIR_STATUS_LABELS[r.status]}</Pill>
+                          {late && <Pill tone="late">{late}d late</Pill>}
+                        </div>
                       </div>
-                      <ul className="mt-1.5 space-y-0.5 text-sm">
+                      <ul className="mt-2 space-y-0.5 pl-[52px] text-ios-sub">
                         {(r.pieces || []).map((p, i) => (
                           <li key={i} className="flex gap-2">
                             <span className="text-muted-foreground tabular-nums w-3.5 text-right">{i + 1}</span>
@@ -426,9 +423,9 @@ export default function RepairsPage() {
                           </li>
                         ))}
                       </ul>
-                      <p className="mt-1.5 text-xs text-muted-foreground">
+                      <p className="mt-1.5 pl-[52px] text-ios-cap text-muted-foreground">
                         {r.id} · in {day(r.receivedAt)}
-                        {r.status === 'received' && r.promisedDate && <span className={cn(late && 'text-destructive font-medium')}> · ready by {day(r.promisedDate)}{late ? ` (${late}d late)` : ''}</span>}
+                        {r.status === 'received' && r.promisedDate && <span className={cn(late && 'font-medium text-tone-late-ink')}> · ready by {day(r.promisedDate)}{late ? ` (${late}d late)` : ''}</span>}
                         {r.karigarName && ` · with ${r.karigarName}`}
                       </p>
                     </button>
@@ -436,12 +433,12 @@ export default function RepairsPage() {
                     {/* Money and the next step */}
                     <div className="flex flex-col items-end gap-2">
                       <p className="text-sm tabular-nums">
-                        {bal > 0 ? <><span className="text-muted-foreground text-xs">due </span><span className="font-semibold">{pkr(bal)}</span></> : repairTotal(r) > 0 ? <span className="text-muted-foreground text-xs">paid</span> : null}
+                        {bal > 0 ? <><span className="text-ios-cap text-muted-foreground">due </span><RowAmount amount={bal} tone="owed" /></> : repairTotal(r) > 0 ? <span className="text-ios-cap text-muted-foreground">paid</span> : null}
                       </p>
                       <div className="flex items-center gap-1">
-                        {r.status === 'received' && <Button size="sm" variant="outline" className="h-8 border-success text-success hover:bg-success/10" onClick={() => markReady(r)}><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />Ready</Button>}
+                        {r.status === 'received' && <Button size="sm" variant="outline" className="h-8 border-tone-settled-ink text-tone-settled-ink hover:bg-tone-settled/10" onClick={() => markReady(r)}><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />Ready</Button>}
                         {r.status === 'ready' && r.customerContact && (
-                          <Button asChild size="sm" variant="outline" className="h-8 text-success border-success/60">
+                          <Button asChild size="sm" variant="outline" className="h-8 border-tone-settled-ink/60 text-tone-settled-ink">
                             <a href={whatsAppLink(r.customerContact, readyMessage(r))} target="_blank" rel="noopener noreferrer" aria-label="Tell the customer on WhatsApp"><MessageCircle className="mr-1.5 h-3.5 w-3.5" />Tell them</a>
                           </Button>
                         )}
@@ -472,8 +469,8 @@ export default function RepairsPage() {
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>

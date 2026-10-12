@@ -5,20 +5,16 @@ import { isOwing, owedToYou } from '@/lib/owed';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { ListSkeleton } from '@/components/shared/skeletons';
-import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
 import { useAppStore, Order, Invoice, Customer, ORDER_STATUSES, OrderStatus } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Search, Loader2, FileText, ClipboardList, AlertTriangle, Calendar, Upload, CheckCircle2, ShoppingBag, Link2, Copy, Send } from 'lucide-react';
+import { Loader2, FileText, Calendar, Upload, CheckCircle2, ShoppingBag, Link2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
-import { cn, settledRowClass, shopifyRowClass, shopifyCardClass, mineRowClass } from '@/lib/utils';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn, settledRowClass, shopifyRowClass, mineRowClass } from '@/lib/utils';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from "react-day-picker";
 import { useRouter } from 'next/navigation';
@@ -41,6 +37,7 @@ import { label } from '@/lib/pdf-chrome';
 import { useMe, useMineFilter } from '@/hooks/use-me';
 import { RecordPaymentDialog } from '@/components/invoice/record-payment-dialog';
 import { PageShell } from '@/components/shared/page-shell';
+import { Monogram, Pill, MineTag, ChipRow, FilterChip, Segmented, SearchField, EmptyState, LedgerSection, toneClasses, type Tone } from '@/components/ledger';
 
 type DocumentType = (Order | Invoice) & { docType: 'order' | 'invoice' };
 
@@ -53,17 +50,17 @@ const pieceCount = (d: DocumentType): number => {
 
 
 
-const getStatusBadgeVariant = (status: Order['status'] | 'Paid' | 'Unpaid') => {
-    switch (status) {
-      case 'Pending': return 'bg-warning text-warning-foreground';
-      case 'In Progress': return 'bg-blue-500/80 text-blue-50';
-      case 'Completed': return 'bg-success text-success-foreground';
-      case 'Cancelled': return 'bg-destructive text-destructive-foreground';
-      case 'Refunded': return 'bg-purple-500/80 text-purple-50';
-      case 'Paid': return 'bg-success text-success-foreground';
-      case 'Unpaid': return 'bg-orange-500/80 text-orange-50';
-      default: return 'secondary';
-    }
+/** An order's stage and an invoice's payment, each in its one tone (a.2): owed is amber, never red. */
+const STATUS_TONE: Record<string, Tone> = {
+  Pending: 'owed', 'In Progress': 'working', Completed: 'settled', Cancelled: 'quiet', Refunded: 'quiet', Paid: 'settled', Unpaid: 'owed',
+};
+const statusTone = (status: string): Tone => STATUS_TONE[status] ?? 'quiet';
+
+/** What the sale was of, in a line: the pieces' names. */
+const soldLine = (d: DocumentType): string => {
+  const items = (d as { items?: unknown }).items;
+  const list = Array.isArray(items) ? items : Object.values(items || {});
+  return (list as { name?: string }[]).map(i => i?.name).filter(Boolean).join(', ');
 };
 
 const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' => {
@@ -78,97 +75,99 @@ const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' =>
 const isShopifyDoc = (doc: DocumentType): boolean =>
   doc.docType === 'invoice' && !!((doc as Invoice).source?.startsWith('shopify'));
 
-const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPerPiece?: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean; mine?: boolean }> = ({ doc, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink, mine }) => {
+type RowProps = { doc: DocumentType; onPrint: () => void; onPrintPerPiece?: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean; mine?: boolean };
+
+/** The status an order can change, as a pill with a chevron. */
+const OrderStatusSelect: React.FC<{ doc: Order; onStatusChange: (s: OrderStatus) => void }> = ({ doc, onStatusChange }) => {
+  const t = toneClasses(statusTone(doc.status));
+  return (
+    <Select value={doc.status} onValueChange={(val) => onStatusChange(val as OrderStatus)}>
+      <SelectTrigger
+        onClick={(e) => e.stopPropagation()}
+        aria-label={`Status: ${doc.status}`}
+        className={cn(
+          'h-7 w-fit gap-1 rounded-full border-transparent px-2.5 text-ios-cap font-semibold',
+          'focus:ring-0 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:opacity-80',
+          t.ink, t.tint,
+        )}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {ORDER_STATUSES.map(s => (
+          <SelectItem key={s} value={s}>{s}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+};
+
+/** The balance in a word: what is due, in credit, or paid. An order shows its stage. */
+const BalancePill: React.FC<{ doc: DocumentType }> = ({ doc }) => {
+  const status = getDocStatus(doc);
+  if (doc.docType === 'order') return <Pill tone={statusTone(status)}>{status}</Pill>;
+  const inv = doc as Invoice;
+  if (inv.status === 'Refunded') return <Pill tone="quiet">Refunded</Pill>;
+  if ((inv.balanceDue || 0) > 0) return <Pill tone="owed">PKR {Math.round(inv.balanceDue).toLocaleString()} due</Pill>;
+  if ((inv.balanceDue || 0) < -0.5) return <Pill tone="credit">PKR {Math.round(-inv.balanceDue).toLocaleString()} in credit</Pill>;
+  return <Pill tone="settled">Paid</Pill>;
+};
+
+/** One row of the phone list (the app's invoice row): who, what, the balance, the total; actions beneath. */
+const DocumentCard: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink, mine }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
-
-    const handleCardClick = () => {
-        if (doc.docType === 'order') {
-            router.push(`/orders/${doc.id}`);
-        } else {
-            router.push(`/invoices/${doc.id}`);
-        }
-    };
+    const href = doc.docType === 'order' ? `/orders/${doc.id}` : `/invoices/${doc.id}`;
+    const sold = soldLine(doc);
+    const open = () => router.push(href);
 
     return (
-        <Card className={cn('mb-3', status === 'Completed' && settledRowClass,
-          isShopifyDoc(doc) && shopifyCardClass, mine && mineRowClass)} title={mine ? 'Taken by you' : undefined}>
-            <CardContent className="p-3.5 space-y-2.5" onClick={handleCardClick}>
-                <div className="flex justify-between items-start">
-                    <div>
-                        <div className="font-bold text-primary hover:underline text-lg">{doc.id}</div>
-                        <div className="flex items-center gap-1 mt-1 flex-wrap">
-                            <Badge variant={doc.docType === 'order' ? 'secondary' : 'default'} className="capitalize flex items-center gap-1 w-fit">
-                                {doc.docType === 'order' ? <ClipboardList className="h-3 w-3"/> : <FileText className="h-3 w-3"/>}
-                                {doc.docType}
-                            </Badge>
-                            {isShopifyDoc(doc) && (
-                                <Badge className="bg-success text-success-foreground border-transparent flex items-center gap-1 w-fit">
-                                    <ShoppingBag className="h-3 w-3"/> Shopify
-                                </Badge>
-                            )}
-                        </div>
+        <div
+          role="link" tabIndex={0} aria-label={`${doc.id}, ${doc.customerName || 'Walk-in Customer'}`}
+          onClick={open}
+          onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(); } }}
+          className={cn('cursor-pointer py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40', status === 'Completed' && settledRowClass)}
+        >
+            <div className="flex items-start gap-3">
+                <Monogram name={doc.customerName} size={38} />
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                        <p className="min-w-0 truncate text-ios-headline font-semibold">{doc.customerName || 'Walk-in Customer'}</p>
+                        {mine && <MineTag />}
                     </div>
-                    {/* Same pill as the table, so a phone and a desktop show
-                        the same object. */}
-                    {doc.docType === 'order' && onStatusChange ? (
-                        <Select value={(doc as Order).status} onValueChange={(val) => onStatusChange(val as OrderStatus)}>
-                            <SelectTrigger
-                              onClick={(e) => e.stopPropagation()}
-                              aria-label={`Status: ${(doc as Order).status}`}
-                              className={cn(
-                                'h-7 w-fit gap-1 rounded-full border-transparent px-2.5 text-xs font-medium capitalize',
-                                'focus:ring-0 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:opacity-80',
-                                getStatusBadgeVariant((doc as Order).status),
-                              )}
-                            >
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {ORDER_STATUSES.map(s => (
-                                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    ) : (
-                        <span className={cn(
-                          'inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium capitalize',
-                          getStatusBadgeVariant(status),
-                        )}>{status}</span>
-                    )}
+                    <p className="truncate text-ios-cap text-muted-foreground">
+                        {doc.id} · {format(parseISO(doc.createdAt), 'h:mm a')}
+                        {doc.docType === 'order' && ' · Order'}
+                        {isShopifyDoc(doc) && ' · Shopify'}
+                    </p>
+                    {sold && <p className="truncate text-ios-sub text-muted-foreground">{sold}</p>}
                 </div>
-                {/* Three icon rows became two lines. The icons were labelling
-                    facts that read as themselves — a name is a name, a date is
-                    a date — and each row cost a full line on a phone. */}
-                <div className="pt-2 border-t mt-2 space-y-0.5">
-                    <p className="text-sm truncate">{doc.customerName || 'Walk-in Customer'}</p>
-                    <div className="flex items-baseline justify-between gap-3">
-                        <span className="text-xs text-muted-foreground">{format(parseISO(doc.createdAt), 'd MMM yyyy')}</span>
-                        <span className="font-bold text-primary tabular-nums">PKR {doc.grandTotal.toLocaleString()}</span>
-                    </div>
-                </div>
-            </CardContent>
-             {/* "View Details" is gone: the card body already opens it, and on
-                 a phone four ghost buttons wrapped onto a second 44px row. */}
-             <CardFooter className="p-1.5 border-t bg-muted/30 flex gap-1.5">
-                <PrintButton className="flex-1" pieces={pieceCount(doc)} onPrint={onPrint} onPrintPerPiece={onPrintPerPiece} />
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-3 pl-[50px]">
+                {doc.docType === 'order' && onStatusChange
+                    ? <OrderStatusSelect doc={doc as Order} onStatusChange={onStatusChange} />
+                    : <BalancePill doc={doc} />}
+                <span className="whitespace-nowrap font-serif text-ios-title3 font-semibold tabular-nums">PKR {doc.grandTotal.toLocaleString()}</span>
+            </div>
+            <div className="-mb-1 mt-1 flex flex-wrap items-center gap-x-1 pl-[42px]">
+                <PrintButton pieces={pieceCount(doc)} onPrint={onPrint} onPrintPerPiece={onPrintPerPiece} />
                 {status === 'Unpaid' && onMarkPaid && (
-                    <Button variant="ghost" size="sm" className="flex-1 justify-center text-success hover:text-success hover:bg-success/10" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
-                        <CheckCircle2 className="w-4 h-4 mr-2" /> Record payment
+                    <Button variant="ghost" size="sm" className="text-tone-settled-ink hover:text-tone-settled-ink" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
+                        <CheckCircle2 className="mr-1.5 h-4 w-4" /> Record payment
                     </Button>
                 )}
                 {doc.docType === 'invoice' && status === 'Unpaid' && onSendPaymentLink && (
-                    <Button variant="ghost" size="sm" className="flex-1 justify-center text-blue-600 hover:text-blue-700 hover:bg-blue-50" disabled={isSendingLink} onClick={(e) => { e.stopPropagation(); onSendPaymentLink(); }}>
-                        {isSendingLink ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Link2 className="w-4 h-4 mr-2" />}
-                        {(doc as Invoice).shopifyCheckoutUrl ? 'Copy Link' : 'Payment Link'}
+                    <Button variant="ghost" size="sm" className="text-tone-working-ink hover:text-tone-working-ink" disabled={isSendingLink} onClick={(e) => { e.stopPropagation(); onSendPaymentLink(); }}>
+                        {isSendingLink ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Link2 className="mr-1.5 h-4 w-4" />}
+                        {(doc as Invoice).shopifyCheckoutUrl ? 'Copy link' : 'Payment link'}
                     </Button>
                 )}
-            </CardFooter>
-        </Card>
+            </div>
+        </div>
     );
 };
 
-const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPerPiece?: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean; mine?: boolean }> = ({ doc, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink, mine }) => {
+const DocumentRow: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink, mine }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
 
@@ -184,68 +183,43 @@ const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPer
         <TableRow onClick={handleRowClick} className={cn('cursor-pointer',
           status === 'Completed' && settledRowClass, isShopifyDoc(doc) && shopifyRowClass, mine && mineRowClass)} title={mine ? 'Taken by you' : undefined}>
             <TableCell>
-                 <div className="font-medium text-primary hover:underline">{doc.id}</div>
+                 <div className="whitespace-nowrap font-medium text-primary hover:underline">{doc.id}</div>
             </TableCell>
-            <TableCell>{doc.customerName || 'Walk-in'}</TableCell>
-            <TableCell className="hidden xl:table-cell">{format(parseISO(doc.createdAt), 'dd MMM, yyyy')}</TableCell>
-            <TableCell className="hidden xl:table-cell">
-                <div className="flex items-center gap-1 flex-wrap">
-                    <Badge variant={doc.docType === 'order' ? 'secondary' : 'default'} className="capitalize flex items-center gap-1">
-                        {doc.docType === 'order' ? <ClipboardList className="h-3 w-3"/> : <FileText className="h-3 w-3"/>}
-                        {doc.docType}
-                    </Badge>
-                    {isShopifyDoc(doc) && (
-                        <Badge className="bg-success text-success-foreground border-transparent flex items-center gap-1">
-                            <ShoppingBag className="h-3 w-3"/> Shopify
-                        </Badge>
-                    )}
+            <TableCell>
+                <div className="flex items-center gap-2.5">
+                    <Monogram name={doc.customerName} size={28} />
+                    <span className="truncate">{doc.customerName || 'Walk-in'}</span>
+                    {mine && <MineTag />}
                 </div>
             </TableCell>
-            <TableCell className="text-right">PKR {doc.grandTotal.toLocaleString()}</TableCell>
+            <TableCell className="hidden whitespace-nowrap 2xl:table-cell">{format(parseISO(doc.createdAt), 'dd MMM, yyyy')}</TableCell>
+            <TableCell className="hidden 2xl:table-cell">
+                <div className="flex flex-wrap items-center gap-1">
+                    <Pill tone={doc.docType === 'order' ? 'working' : 'quiet'} className="capitalize">{doc.docType}</Pill>
+                    {isShopifyDoc(doc) && <Pill tone="settled" icon={<ShoppingBag />}>Shopify</Pill>}
+                </div>
+            </TableCell>
+            <TableCell className="whitespace-nowrap text-right tabular-nums">PKR {doc.grandTotal.toLocaleString()}</TableCell>
              {/* One shape for the whole column. An order rendered as a
                  bordered select box while an invoice rendered as a coloured
                  pill, so the same column carried two different objects. Both
                  are pills now; the order's is simply the one you can change,
                  and the chevron is what says so. */}
              <TableCell>
-                {doc.docType === 'order' && onStatusChange ? (
-                    <Select value={(doc as Order).status} onValueChange={(val) => onStatusChange(val as OrderStatus)}>
-                        <SelectTrigger
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label={`Status: ${(doc as Order).status}`}
-                          className={cn(
-                            'h-7 w-fit gap-1 rounded-full border-transparent px-2.5 text-xs font-medium capitalize',
-                            'focus:ring-0 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:opacity-80',
-                            getStatusBadgeVariant((doc as Order).status),
-                          )}
-                        >
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {ORDER_STATUSES.map(s => (
-                                <SelectItem key={s} value={s}>{s}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                ) : (
-                    <span className={cn(
-                      'inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium capitalize',
-                      getStatusBadgeVariant(status),
-                    )}>
-                         {status}
-                    </span>
-                )}
+                {doc.docType === 'order' && onStatusChange
+                    ? <OrderStatusSelect doc={doc as Order} onStatusChange={onStatusChange} />
+                    : <BalancePill doc={doc} />}
             </TableCell>
             <TableCell>
                 <div className="flex items-center gap-1">
                     <PrintButton pieces={pieceCount(doc)} onPrint={onPrint} onPrintPerPiece={onPrintPerPiece} />
                     {status === 'Unpaid' && onMarkPaid && (
-                        <Button variant="ghost" size="sm" className="text-success hover:text-success hover:bg-success/10" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
+                        <Button variant="ghost" size="sm" className="text-tone-settled-ink hover:text-tone-settled-ink" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
                             <CheckCircle2 className="w-4 h-4 mr-1" /> Paid
                         </Button>
                     )}
                     {doc.docType === 'invoice' && status === 'Unpaid' && onSendPaymentLink && (
-                        <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" disabled={isSendingLink} onClick={(e) => { e.stopPropagation(); onSendPaymentLink(); }}>
+                        <Button variant="ghost" size="sm" className="text-tone-working-ink hover:text-tone-working-ink" disabled={isSendingLink} onClick={(e) => { e.stopPropagation(); onSendPaymentLink(); }}>
                             {isSendingLink ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Link2 className="w-4 h-4 mr-1" />}
                             {(doc as Invoice).shopifyCheckoutUrl ? 'Link' : 'Pay Link'}
                         </Button>
@@ -416,6 +390,8 @@ export default function DocumentsPage() {
    */
   const [groupBy, setGroupBy] = useState<'status' | Graduation>('day');
   const [activeTab, setActiveTab] = useState<'all' | 'invoices' | 'orders' | 'shopify'>('all');
+  // Phone: the finer filters fold behind one chip; from lg they sit in the row.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<{ rows: number; firstNames: string[] } | null>(null);
@@ -663,13 +639,12 @@ export default function DocumentsPage() {
       if (isLoading) return <ListSkeleton rows={6} />;
       if (docs.length === 0) {
           return (
-             <div className="text-center py-12 bg-card rounded-lg shadow">
-                <FileText className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Nothing found</h3>
-                <p className="text-muted-foreground">
-                    {searchTerm || dateRange ? "Try adjusting your search or filter." : "No orders or invoices have been created yet."}
-                </p>
-            </div>
+            <EmptyState
+              icon={<FileText />}
+              title="Nothing found"
+              description={searchTerm || dateRange ? "Try adjusting your search or filter." : "No orders or invoices have been created yet."}
+              className="rounded-card bg-card"
+            />
           );
       }
       const sections = buildSections(docs);
@@ -685,18 +660,17 @@ export default function DocumentsPage() {
         mine: !!me && (d as { takenBy?: string }).takenBy === me,
       });
 
-      // Wraps rather than squeezes: on a phone the figures took the row and the title, which could not
-      // shrink (a flex item's min-width), was drawn under them ("10 Oct 2PKR 135,000 owed").
+      // The table's group row: wraps rather than squeezes (the figures took the row and the title was drawn under them).
       const heading = (s: typeof sections[number]) => (
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
           <div className="flex items-baseline gap-2 min-w-0">
-            <span className={cn('text-sm font-semibold truncate min-w-0', s.danger && 'text-destructive')}>{s.title}</span>
+            <span className={cn('text-sm font-semibold truncate min-w-0', s.danger && 'text-tone-owed-ink')}>{s.title}</span>
             {s.hint && <span className="text-2xs text-muted-foreground flex-shrink-0">{s.hint}</span>}
           </div>
           <div className="ml-auto flex items-baseline gap-2 flex-shrink-0">
             <span className="text-2xs text-muted-foreground">{s.rows.length}</span>
             {s.owed > 0 && (
-              <span className="text-sm font-semibold tabular-nums text-destructive">{pkr(s.owed)} owed</span>
+              <span className="text-sm font-semibold tabular-nums text-tone-owed-ink">{pkr(s.owed)} owed</span>
             )}
             <span className="text-sm font-semibold tabular-nums">{pkr(s.billed)}</span>
           </div>
@@ -705,29 +679,32 @@ export default function DocumentsPage() {
 
       return (
         <>
-          {/* One table, not one per group. Grouping by day produced 176
-              separate <Table> elements here for 461 documents — 176 scroll
-              containers and 176 repeated column headers. The group heading is
-              a row inside the single table now. */}
-          <div className="md:hidden space-y-4 cv-list">
+          {/* One table, not one per group: 176 separate <Table> elements for 461 documents was 176 scroll
+              containers. Below lg the app's rows: a card per group, a divided row per document. */}
+          <div className="lg:hidden space-y-5 cv-list">
             {sections.map(s => (
-              // Skipped while off screen (globals.css .cv-list); a card is ~214px tall on a phone.
-              <section key={s.key} style={{ '--cv-size': `${26 + s.rows.length * 214}px` } as React.CSSProperties}>
-                <div className="px-1 pb-1.5">{heading(s)}</div>
-                {s.rows.map(d => <DocumentCard key={`${d.docType}-${d.id}`} {...rowProps(d)} />)}
-              </section>
+              // Skipped while off screen (globals.css .cv-list); a row is ~132px tall on a phone.
+              <div key={s.key} style={{ '--cv-size': `${40 + s.rows.length * 132}px` } as React.CSSProperties}>
+                <LedgerSection
+                  title={s.title}
+                  count={groupBy === 'status' && s.owed > 0 ? `${s.rows.length} · ${pkr(s.owed)} owed` : s.rows.length}
+                  trailing={pkr(s.billed)}
+                >
+                  {s.rows.map(d => <DocumentCard key={`${d.docType}-${d.id}`} {...rowProps(d)} />)}
+                </LedgerSection>
+              </div>
             ))}
           </div>
 
-          <Card className="hidden md:block">
+          <Card className="hidden lg:block">
             <CardContent className="p-0 scroll-shadow-x overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>ID</TableHead>
                     <TableHead>Customer</TableHead>
-                    <TableHead className="hidden xl:table-cell">Date</TableHead>
-                    <TableHead className="hidden xl:table-cell">Type</TableHead>
+                    <TableHead className="hidden 2xl:table-cell">Date</TableHead>
+                    <TableHead className="hidden 2xl:table-cell">Type</TableHead>
                     <TableHead className="text-right">Total (PKR)</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
@@ -765,7 +742,7 @@ export default function DocumentsPage() {
   return (
     <PageShell
       // On a phone only what is owed; the sentence around it is for the desk.
-      subtitle={<><span className="hidden sm:inline">Every invoice and order, and what is still owed on it{owedAll.total > 0 && ' — '}</span>{owedAll.total > 0 && <><span className="text-destructive font-medium">{pkr(owedAll.total)} owed</span> on {owedAll.invoices.length} invoice{owedAll.invoices.length === 1 ? '' : 's'}</>}<span className="hidden sm:inline">.</span></>}
+      subtitle={<><span className="hidden sm:inline">Every invoice and order, and what is still owed on it{owedAll.total > 0 && ' — '}</span>{owedAll.total > 0 && <><span className="font-medium text-tone-owed-ink">{pkr(owedAll.total)} owed</span> on {owedAll.invoices.length} invoice{owedAll.invoices.length === 1 ? '' : 's'}</>}<span className="hidden sm:inline">.</span></>}
       // A Shopify CSV is imported at a desk, never from a phone: the full-width button was the first
       // thing under the title there.
       action={
@@ -777,42 +754,60 @@ export default function DocumentsPage() {
     >
 
 
-      <FilterBar
-        value={searchTerm}
-        onChange={setSearchTerm}
-        placeholder="Search by ID or customer name…"
-        activeCount={(monthFilter !== 'All' ? 1 : 0) + (dateRange?.from ? 1 : 0) + (takenByFilter ? 1 : 0)}
-        actions={
-          <>
-            <div className="inline-flex rounded-md border overflow-hidden flex-shrink-0" role="group" aria-label="Group by">
-              {([['status', 'Status'], ...GRADUATIONS.map(g => [g.id, g.label] as const)] as const).map(([id, label]) => (
-                <button
-                  key={id} type="button" onClick={() => setGroupBy(id as 'status' | Graduation)}
-                  aria-pressed={groupBy === id}
-                  className={cn('px-2.5 text-xs h-9 transition-colors whitespace-nowrap',
-                    groupBy === id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
-                >
-                  {label}
-                </button>
-              ))}
+      {/* The app's controls: a capsule search, the kind of document as chips, the finer filters behind one chip
+          on a phone and in the row from lg. The date-range popover opens inside them. */}
+      {(() => {
+        const activeFilters = (monthFilter !== 'All' ? 1 : 0) + (dateRange?.from ? 1 : 0) + (takenByFilter ? 1 : 0);
+        return (
+          <div className="space-y-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <SearchField className="lg:max-w-md lg:flex-1" value={searchTerm} onChange={setSearchTerm} placeholder="Search by ID or customer name…" />
+              <ChipRow label="Show" className="lg:mx-0 lg:px-0">
+                {([
+                  { value: 'all', label: 'All', n: byTab.all.length },
+                  { value: 'invoices', label: 'Invoices', n: byTab.invoices.length },
+                  { value: 'orders', label: 'Orders', n: byTab.orders.length },
+                  { value: 'shopify', label: 'Shopify', n: byTab.shopify.length },
+                ] as const).map(tab => (
+                  <FilterChip key={tab.value} title={tab.label} count={tab.n} chosen={activeTab === tab.value} onClick={() => setActiveTab(tab.value)} />
+                ))}
+                <FilterChip
+                  className="lg:hidden"
+                  title={filtersOpen ? 'Hide filters' : 'Filters'}
+                  count={activeFilters || undefined}
+                  chosen={filtersOpen || activeFilters > 0}
+                  onClick={() => setFiltersOpen(o => !o)}
+                />
+              </ChipRow>
             </div>
-            <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />
-          </>
-        }
-      >
-        <TakenByPicker value={takenByFilter} onChange={setTakenByFilter} allowAny anyLabel="Anyone"
-          aria-label="Taken by" className="w-full sm:w-[150px]" />
-        <Select value={monthFilter} onValueChange={setMonthFilter}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <Calendar className="w-4 h-4 mr-2 text-muted-foreground flex-shrink-0" />
-            <SelectValue placeholder="Month" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="All">All time</SelectItem>
-            {monthOptions.map(m => <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </FilterBar>
+            <div
+              className={cn('flex-col gap-2 lg:flex lg:flex-row lg:flex-wrap lg:items-center', filtersOpen ? 'flex rounded-card bg-card p-3' : 'hidden', 'lg:rounded-none lg:bg-transparent lg:p-0')}
+              aria-label="Filters"
+            >
+              <Segmented
+                label="Group by"
+                value={groupBy}
+                onChange={(v) => setGroupBy(v as 'status' | Graduation)}
+                options={[{ value: 'status', label: 'Status' }, ...GRADUATIONS.map(g => ({ value: g.id as string, label: g.label }))]}
+                className="w-full lg:w-auto"
+              />
+              <TakenByPicker value={takenByFilter} onChange={setTakenByFilter} allowAny anyLabel="Anyone"
+                aria-label="Taken by" className="w-full lg:w-[150px]" />
+              <Select value={monthFilter} onValueChange={setMonthFilter}>
+                <SelectTrigger className="w-full lg:w-[180px]">
+                  <Calendar className="w-4 h-4 mr-2 text-muted-foreground flex-shrink-0" />
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All time</SelectItem>
+                  {monthOptions.map(m => <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full lg:w-auto" />
+            </div>
+          </div>
+        );
+      })()}
       
       {/* Shopify CSV Import Dialog */}
       <Dialog open={importOpen} onOpenChange={(o) => { if (!isImporting) setImportOpen(o); }}>
@@ -883,41 +878,7 @@ export default function DocumentsPage() {
         <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
       </div>
 
-      <Tabs value={activeTab} onValueChange={v => setActiveTab(v as typeof activeTab)}>
-        {/* A four-column grid gave each tab 25% of a 375px screen — about 85px —
-            which "Invoices (174)" cannot fit, so the labels spilled out of their
-            cells. A scrolling flex row sizes each tab to its own label. */}
-        <TabsList className="w-full md:w-fit justify-start mb-4">
-          {([
-            { value: 'all', label: 'All', n: byTab.all.length },
-            { value: 'invoices', label: 'Invoices', n: byTab.invoices.length },
-            { value: 'orders', label: 'Orders', n: byTab.orders.length },
-            { value: 'shopify', label: 'Shopify', n: byTab.shopify.length, icon: <ShoppingBag className="h-3 w-3 self-center flex-shrink-0" /> },
-          ] as const).map(tab => (
-            <TabsTrigger key={tab.value} value={tab.value}>
-              {/* One flex item, not three. TabsTrigger is `items-center`, so a
-                  bare label and a smaller count were centred against each
-                  other's line boxes rather than sharing a baseline — which is
-                  why the digits floated above the text. Grouping them lets
-                  `items-baseline` sit the count on the label's baseline, and
-                  the icon opts back out with `self-center`. */}
-              <span className="inline-flex items-baseline gap-1.5">
-                {'icon' in tab ? tab.icon : null}
-                {tab.label}
-                <span className="text-2xs opacity-60 tabular-nums">{tab.n}</span>
-              </span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        {/* Radix mounts only the active panel, but JSX still *builds* every
-            child eagerly — so all four lists were constructed on every render
-            and three thrown away. Only the visible one is built now. */}
-        {(['all', 'invoices', 'orders', 'shopify'] as const).map(key => (
-          <TabsContent key={key} value={key}>
-            {activeTab === key ? renderContent(byTab[key]) : null}
-          </TabsContent>
-        ))}
-      </Tabs>
+      {renderContent(byTab[activeTab])}
 
       <RecordPaymentDialog invoice={payingInvoice} open={!!payingInvoice} onOpenChange={o => { if (!o) setPayingInvoice(null); }} />
     </PageShell>
