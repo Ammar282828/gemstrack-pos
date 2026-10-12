@@ -96,11 +96,12 @@ import java.time.format.DateTimeParseException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import erp.app.ui.FieldRow
+import erp.app.ui.FormSection
+import erp.app.ui.FullScreenSheet
+import erp.app.ui.verticalScrollColumn
 
 // The small pieces New sale, the edit sheet and Scan a tag share (SaleKit.swift).
-
-/** Swift's `.rounded()`: halves go away from zero (the figures here are never negative, but the rule is the rule). */
-internal fun awayRounded(x: Double): Double = if (x < 0) -Math.floor(-x + 0.5) else Math.floor(x + 0.5)
 
 /**
  * Keeps a form above the keyboard where the shell does not: under a tab's bottom bar the shell leaves the keyboard
@@ -151,240 +152,6 @@ internal object SaleDates {
     fun date(s: String): LocalDate? = if (s.isEmpty()) null else try { LocalDate.parse(s) } catch (e: DateTimeParseException) { null }
 }
 
-// MARK: Rows of a form
-
-/** A label with its value at the right edge: the shape of the Form's `LabeledContent`. */
-@Composable
-internal fun ValueRow(label: String, modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
-    Row(
-        modifier.fillMaxWidth().ledgerRow(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        content()
-    }
-}
-
-/** What is typed at a row's right edge, with its prompt in grey while empty. */
-@Composable
-internal fun RowScope.ValueInput(
-    value: String,
-    onChange: (String) -> Unit,
-    prompt: String,
-    label: String,
-    modifier: Modifier = Modifier,
-    keyboard: KeyboardType = KeyboardType.Text,
-    capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
-    enabled: Boolean = true,
-) {
-    val focus = LocalFocusManager.current
-    BasicTextField(
-        value = value,
-        onValueChange = onChange,
-        modifier = modifier.weight(1f).defaultMinSize(minHeight = MinTouchTarget).semantics { contentDescription = label },
-        enabled = enabled,
-        singleLine = true,
-        textStyle = MaterialTheme.typography.bodyLarge.copy(
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.End,
-            fontFeatureSettings = if (keyboard == KeyboardType.Text) null else TabularDigits,
-        ),
-        cursorBrush = SolidColor(ErpColors.accent),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboard, capitalization = capitalization, imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
-        decorationBox = { inner ->
-            Box(Modifier.fillMaxWidth().defaultMinSize(minHeight = MinTouchTarget), contentAlignment = Alignment.CenterEnd) {
-                if (value.isEmpty()) {
-                    Text(prompt, style = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                inner()
-            }
-        },
-    )
-}
-
-/**
- * A label with a number typed at its right edge. Zero is blank, as the sale's fields show it (decisions.md "Number
- * fields"): the draft holds text, and `SaleNumber.text` has already left a zero out of it.
- */
-@Composable
-internal fun SaleNumberField(label: String, text: String, onChange: (String) -> Unit, prompt: String = "0", decimal: Boolean = true) {
-    ValueRow(label) {
-        ValueInput(text, onChange, prompt, label, keyboard = if (decimal) KeyboardType.Decimal else KeyboardType.Number)
-    }
-}
-
-/** A label with words typed at its right edge. */
-@Composable
-internal fun SaleTextField(label: String, text: String, onChange: (String) -> Unit, prompt: String, capitalization: KeyboardCapitalization = KeyboardCapitalization.None, keyboard: KeyboardType = KeyboardType.Text) {
-    ValueRow(label) { ValueInput(text, onChange, prompt, label, keyboard = keyboard, capitalization = capitalization) }
-}
-
-/** A switch, with a line under its name when there is something to know. */
-@Composable
-internal fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, sub: String? = null) {
-    Row(
-        Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp)
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(label, style = MaterialTheme.typography.bodyLarge)
-            if (sub != null) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Switch(checked = checked, onCheckedChange = null)
-    }
-}
-
-/** A choice from a list, said at the right edge; tapping opens the menu (a Form's `Picker`). */
-@Composable
-internal fun PickerRow(label: String, selected: String, options: List<Pair<String, String>>, onSelect: (String) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    val shown = options.firstOrNull { it.first == selected }?.second ?: selected
-    Box {
-        Row(
-            Modifier.fillMaxWidth().ledgerRow().clickable(role = Role.DropdownList) { open = true },
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            Text(shown, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End, maxLines = 2)
-            Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            options.forEach { (value, title) ->
-                DropdownMenuItem(text = { Text(title) }, onClick = { open = false; onSelect(value) })
-            }
-        }
-    }
-}
-
-/** A row that does something: an icon, its words, in the accent unless it says otherwise. */
-@Composable
-internal fun ActionRow(label: String, onClick: () -> Unit, icon: ImageVector? = null, enabled: Boolean = true, tone: Tone = Tone.house) {
-    val ink = if (enabled) (if (tone == Tone.quiet) MaterialTheme.colorScheme.onSurface else tone.color()) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-    Row(
-        Modifier.fillMaxWidth().ledgerRow().clickable(enabled = enabled, role = Role.Button, onClick = onClick),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (icon != null) Icon(icon, contentDescription = null, Modifier.size(22.dp), tint = ink)
-        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = ink)
-    }
-}
-
-/** A line of small print under or inside a section. */
-@Composable
-internal fun SmallPrint(text: String, tone: Tone = Tone.quiet, modifier: Modifier = Modifier) {
-    Text(text, modifier, style = MaterialTheme.typography.bodySmall, color = tone.color())
-}
-
-/** A row's own text box (a name, a note) as the Material field. */
-@Composable
-internal fun FieldRow(
-    label: String,
-    value: String,
-    onChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    placeholder: String? = null,
-    keyboard: KeyboardType = KeyboardType.Text,
-    capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
-    singleLine: Boolean = true,
-    minLines: Int = 1,
-    maxLines: Int = if (singleLine) 1 else 6,
-    enabled: Boolean = true,
-    imeAction: ImeAction = if (singleLine) ImeAction.Done else ImeAction.Default,
-    onImeAction: (() -> Unit)? = null,
-    leading: ImageVector? = null,
-) {
-    val focus = LocalFocusManager.current
-    OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-        label = { Text(label) },
-        placeholder = placeholder?.let { { Text(it) } },
-        leadingIcon = leading?.let { { Icon(it, contentDescription = null) } },
-        enabled = enabled,
-        singleLine = singleLine,
-        minLines = minLines,
-        maxLines = maxLines,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboard, capitalization = capitalization, imeAction = imeAction, autoCorrectEnabled = capitalization != KeyboardCapitalization.None),
-        keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }, onSearch = { onImeAction?.invoke() }),
-    )
-}
-
-/**
- * A card's rows with a hairline between them, wherever the rows come from (an `if` that shows none leaves no line).
- * The lines are real children, so they draw with the rows and move with them.
- */
-@Composable
-internal fun DividedColumn(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    SubcomposeLayout(modifier.fillMaxWidth()) { constraints ->
-        val loose = constraints.copy(minHeight = 0)
-        val rows = subcompose("rows", content).map { it.measure(loose) }
-        val lines = (1 until rows.size).map { i -> subcompose("line$i") { LedgerDivider() }.first().measure(loose) }
-        val height = rows.sumOf { it.height } + lines.sumOf { it.height }
-        layout(constraints.maxWidth, height) {
-            var y = 0
-            rows.forEachIndexed { i, row ->
-                if (i > 0) {
-                    lines[i - 1].placeRelative(0, y)
-                    y += lines[i - 1].height
-                }
-                row.placeRelative(0, y)
-                y += row.height
-            }
-        }
-    }
-}
-
-/** A titled card of rows (the Form's Section): the rows are divided, the footer is small print under the card. */
-@Composable
-internal fun SaleSection(title: String, footer: (@Composable () -> Unit)? = null, content: @Composable () -> Unit) {
-    LedgerSection(title, footer = footer) { DividedColumn(content = content) }
-}
-
-// MARK: Full-screen pages
-
-/**
- * The iPhone's large sheet (a NavigationStack with Cancel and a confirm button): a full-screen page over the
- * screen on a phone, as wide as the window on a tablet, so a two-pane form has its room.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun FullScreenSheet(
-    title: String,
-    onCancel: () -> Unit,
-    confirmText: String? = null,
-    onConfirm: () -> Unit = {},
-    confirmEnabled: Boolean = true,
-    cancelText: String = "Cancel",
-    content: @Composable () -> Unit,
-) {
-    Dialog(
-        onDismissRequest = onCancel,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-    ) {
-        Surface(Modifier.fillMaxSize(), color = ErpColors.ground) {
-            Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-                TopAppBar(
-                    title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    navigationIcon = { IconButton(onClick = onCancel) { Icon(Icons.Filled.Close, cancelText) } },
-                    actions = {
-                        if (confirmText != null) TextButton(onClick = onConfirm, enabled = confirmEnabled, modifier = Modifier.defaultMinSize(minHeight = MinTouchTarget)) { Text(confirmText) }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = ErpColors.ground),
-                )
-                Box(Modifier.weight(1f).fillMaxWidth()) { content() }
-            }
-        }
-    }
-}
-
 // MARK: Customer picker
 
 /**
@@ -408,7 +175,7 @@ internal fun SaleCustomerPicker(pick: (Customer?) -> Unit, onDismiss: () -> Unit
     FullScreenSheet(title = "Customer", onCancel = onDismiss) {
         Column(Modifier.fillMaxSize().verticalScrollColumn().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             FieldRow("Name or phone", search, { search = it }, Modifier.padding(0.dp), leading = Icons.Filled.Search)
-            SaleSection("Walk-in", footer = { Text("Walk-in. No customer is made; overpayment can't be kept as credit.") }) {
+            FormSection("Walk-in", footer = { Text("Walk-in. No customer is made; overpayment can't be kept as credit.") }) {
                 Row(
                     Modifier.fillMaxWidth().ledgerRow().clickable(role = Role.Button) { pick(null); onDismiss() },
                     horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
@@ -435,8 +202,6 @@ internal fun SaleCustomerPicker(pick: (Customer?) -> Unit, onDismiss: () -> Unit
     }
 }
 
-@Composable
-internal fun Modifier.verticalScrollColumn(): Modifier = this.then(Modifier.verticalScroll(rememberScrollState()))
 
 // MARK: Scanning a tag
 

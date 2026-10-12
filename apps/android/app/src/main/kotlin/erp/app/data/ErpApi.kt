@@ -30,11 +30,35 @@ class ErpApi private constructor() {
     private val requestIds = RequestIds()
 
     /** The sign-in token goes to the house's own ERP and nowhere else, whatever path is passed in. */
-    suspend fun data(path: String, method: String = "GET", json: Map<String, Any?>? = null, timeoutMs: Long = 60_000): String {
+    suspend fun data(path: String, method: String = "GET", json: Map<String, Any?>? = null, timeoutMs: Long = 60_000): String =
+        open(path, method, json, timeoutMs, "application/json").use { r ->
+            val text = r.body.string()
+            if (r.code !in 200..299) throw Failure(r.code, said(text) ?: "The ERP answered ${r.code}.")
+            text
+        }
+
+    /**
+     * A file from the ERP whole (a PDF, a slip's picture): `data` answers text, which would damage the bytes. The same
+     * sign-in, host pinning, demo refusal and failure words as `data`. A long default timeout: a bill of many pieces
+     * takes a second or two to draw.
+     */
+    suspend fun bytes(path: String, method: String = "GET", timeoutMs: Long = 90_000): ByteArray =
+        open(path, method, null, timeoutMs, "*/*").use { r ->
+            val body = try {
+                r.body.bytes()
+            } catch (e: IOException) {
+                throw Failure(0, e.message?.takeIf { it.isNotBlank() } ?: "No connection to the ERP.")
+            }
+            if (r.code !in 200..299) throw Failure(r.code, said(String(body, Charsets.UTF_8)) ?: "The ERP answered ${r.code}.")
+            body
+        }
+
+    /** The one place a request is built and sent, so text and bytes cannot drift apart in auth, pinning or failure. */
+    private suspend fun open(path: String, method: String, json: Map<String, Any?>?, timeoutMs: Long, accept: String): Response {
         // The demo has no server and no Firebase: every call answers as if offline.
         if (House.isDemo || !ErpApp.firebaseReady) throw Failure(0, "Not connected to the ERP in the demo.")
         val url = resolve(House.serverUrl, path) ?: throw Failure(0, "Not an address of this ERP.")
-        val builder = Request.Builder().url(url).header("Accept", "application/json")
+        val builder = Request.Builder().url(url).header("Accept", accept)
         token()?.let { builder.header("Authorization", "Bearer $it") }
         if (json != null) {
             val text = JsonText.of(json) ?: throw Failure(0, "That can't be sent.")
@@ -43,15 +67,10 @@ class ErpApi private constructor() {
             builder.method(method, ByteArray(0).toRequestBody(null))
         }
         val call = client.newBuilder().callTimeout(timeoutMs, TimeUnit.MILLISECONDS).build().newCall(builder.build())
-        val response = try {
+        return try {
             call.await()
         } catch (e: IOException) {
             throw Failure(0, e.message?.takeIf { it.isNotBlank() } ?: "No connection to the ERP.")
-        }
-        response.use { r ->
-            val text = r.body.string()
-            if (r.code !in 200..299) throw Failure(r.code, said(text) ?: "The ERP answered ${r.code}.")
-            return text
         }
     }
 

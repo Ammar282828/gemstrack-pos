@@ -1,4 +1,4 @@
-package erp.app.screens.sale
+package erp.app.ui
 
 import android.app.Activity
 import android.content.Intent
@@ -49,9 +49,6 @@ import androidx.compose.ui.unit.dp
 import erp.app.data.ErpApi
 import erp.app.device.DocumentScanner
 import erp.app.device.Foreground
-import erp.app.ui.MinTouchTarget
-import erp.app.ui.Radius
-import erp.app.ui.SkeletonLoading
 import erp.app.ui.theme.ErpColors
 import erp.core.entry.PaperNameGuess
 import erp.core.entry.PaperRankedName
@@ -64,11 +61,11 @@ import kotlinx.coroutines.withContext
 
 // What Read a written bill shares with Read a slip (NewOrderScanKit.swift): the paper coming in (the document scanner,
 // or Photos for one that arrived on WhatsApp), the photo kept on screen beside what was read off it (a figure read off
-// handwriting is worth checking against the handwriting), and a name offered, never decided. Kept in this group because
-// the Orders group's reader is its own port.
+// handwriting is worth checking against the handwriting), and a name offered, never decided. In the kit because New sale,
+// New order and Read a slip all read paper the same way.
 
 /** One photo of the paper: the JPEG the ERP's reader is sent (no side over 2200 px, as the scanner's pages) and the picture shown. */
-internal class PaperPhoto(val jpeg: ByteArray, val image: ImageBitmap) {
+class PaperPhoto(val jpeg: ByteArray, val image: ImageBitmap) {
     val id: String = UUID.randomUUID().toString()
 
     companion object {
@@ -106,7 +103,7 @@ internal class PaperPhoto(val jpeg: ByteArray, val image: ImageBitmap) {
 }
 
 /** The ERP's reader, as the signed-in owner: the same route the browser's scanner calls. */
-internal object PaperReader {
+object PaperReader {
     /** It waits out the AI's rate limit before answering, so it is given five minutes rather than one. */
     suspend fun ask(path: String, body: Map<String, Any?>): String = ErpApi.shared.data(path, "POST", body, timeoutMs = 300_000)
 
@@ -119,7 +116,7 @@ internal object PaperReader {
  * Photos. [room] is how many more photos may be added.
  */
 @Composable
-internal fun PaperPicker(
+fun PaperPicker(
     room: Int,
     add: (List<PaperPhoto>) -> Unit,
     problem: (String) -> Unit,
@@ -213,7 +210,7 @@ internal fun PaperPicker(
 
 /** The photos, large enough to check a figure against, numbered when there are several. Tap one to see it whole. */
 @Composable
-internal fun PaperPhotoStrip(photos: List<PaperPhoto>, remove: ((String) -> Unit)?, modifier: Modifier = Modifier) {
+fun PaperPhotoStrip(photos: List<PaperPhoto>, remove: ((String) -> Unit)?, modifier: Modifier = Modifier) {
     var shown by remember { mutableStateOf<PaperPhoto?>(null) }
     Row(modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         photos.forEachIndexed { i, p ->
@@ -252,8 +249,8 @@ internal fun PaperPhotoStrip(photos: List<PaperPhoto>, remove: ((String) -> Unit
  * matched, and still changeable; anything short of that a list to choose from; nobody close, said so.
  */
 @Composable
-internal fun PaperNamePick(label: String, guess: PaperNameGuess, nobody: String, pick: (PaperRankedName?) -> Unit) {
-    SaleSection(
+fun PaperNamePick(label: String, guess: PaperNameGuess, nobody: String, pick: (PaperRankedName?) -> Unit) {
+    FormSection(
         label,
         footer = {
             val pinned = guess.pinned

@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.AppClock
 import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -155,7 +156,7 @@ fun OrdersHub() {
 
     // The hub's sums, once per change of the books or of what narrows them.
     val view = remember(orders.revision, invoices.revision, query, statusFilter, month, takenBy, payment, grouping) {
-        val now = Instant.now()
+        val now = AppClock.now()
         val owedOn = OrdersLogic.owedOnInvoices(invoices.items)
         val scoped = OrdersLogic.scope(orders.items, query, month, takenBy, payment)
         val shown = if (statusFilter == "All") scoped else scoped.filter { it.status.rawValue == statusFilter }
@@ -194,10 +195,10 @@ fun OrdersHub() {
         contact = { order, kind ->
             if (kind == OrderContactKind.call) {
                 val dial = OrdersLogic.dialable(order.customerContact)
-                if (dial.isNotEmpty()) ordersOpen(context, Intent.ACTION_DIAL, "tel:$dial")
+                if (dial.isNotEmpty()) erp.app.device.openAddress(context, Intent.ACTION_DIAL, "tel:$dial")
             } else {
                 val number = toWhatsAppNumber(order.customerContact)
-                if (number.isNotEmpty()) ordersOpen(context, Intent.ACTION_VIEW, "https://wa.me/$number")
+                if (number.isNotEmpty()) erp.app.device.openAddress(context, Intent.ACTION_VIEW, "https://wa.me/$number")
             }
         },
     )

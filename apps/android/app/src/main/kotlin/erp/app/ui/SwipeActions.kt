@@ -1,4 +1,4 @@
-package erp.app.screens.invoices
+package erp.app.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -33,10 +33,6 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import erp.app.ui.Tone
-import erp.app.ui.color
-import erp.app.ui.fill
-import erp.app.ui.rememberHaptics
 
 /** One thing a row can do: from a swipe, a long press, or TalkBack's actions menu. */
 class RowAction(val label: String, val icon: ImageVector, val tone: Tone, val run: () -> Unit)
@@ -44,15 +40,18 @@ class RowAction(val label: String, val icon: ImageVector, val tone: Tone, val ru
 /**
  * The iPhone's `.swipeActions` and `.contextMenu` in Android's terms: a swipe from the left runs [start], from the
  * right runs [end] (the row springs back, as the iPhone's row does); a long press opens [menu]; TalkBack lists all
- * of them as actions. The content draws its own background so the swipe's colour shows only as it moves.
+ * of them as actions. The content draws its own background so the swipe's colour shows only as it moves; give
+ * [modifier] the content's shape (`clip`) so the colour does not square off a rounded card.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-internal fun SwipeActions(
+fun SwipeActions(
     modifier: Modifier = Modifier,
     start: RowAction? = null,
     end: RowAction? = null,
     menu: List<RowAction> = emptyList(),
+    /** More moves for TalkBack's actions menu only (a swipe has room for one a side; the iPhone's has two). */
+    more: List<RowAction> = emptyList(),
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
@@ -68,7 +67,7 @@ internal fun SwipeActions(
         }
         false
     })
-    val all = (listOfNotNull(start, end) + menu).distinctBy { it.label }
+    val all = (listOfNotNull(start, end) + more + menu).distinctBy { it.label }
     SwipeToDismissBox(
         state = state,
         modifier = modifier,
@@ -96,9 +95,13 @@ internal fun SwipeActions(
     ) {
         Box(
             Modifier
-                .combinedClickable(
-                    onClick = { onClick?.invoke() },
-                    onLongClick = if (menu.isEmpty()) null else ({ haptics.selection(); menuOpen = true }),
+                // A card that handles its own taps (a head that opens, a button) is not made one big button.
+                .then(
+                    if (onClick == null && menu.isEmpty()) Modifier
+                    else Modifier.combinedClickable(
+                        onClick = { onClick?.invoke() },
+                        onLongClick = if (menu.isEmpty()) null else ({ haptics.selection(); menuOpen = true }),
+                    ),
                 )
                 .semantics { customActions = all.map { a -> CustomAccessibilityAction(a.label) { a.run(); true } } },
         ) {

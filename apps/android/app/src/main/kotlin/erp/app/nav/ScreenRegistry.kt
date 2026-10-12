@@ -1,6 +1,8 @@
 package erp.app.nav
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import erp.app.screens.NativeScreens
 import erp.app.web.WebScreen
 import java.io.ByteArrayOutputStream
@@ -81,6 +83,29 @@ object ScreenRegistry {
         if (!noHash.contains('?')) return emptyList()
         return noHash.substringAfter('?').split('&').filter { it.isNotEmpty() }
             .map { it.substringBefore('=') to (if (it.contains('=')) it.substringAfter('=') else "") }
+    }
+
+    /**
+     * How wide a native page reads on a wide window (ScreenRegistry.readableWidth on the iPhone): null fills the window
+     * (pages that lay out their own columns, grids or a form beside its summary), else the column its rows and fields
+     * sit in. A phone never reaches the limit, so it changes nothing there.
+     */
+    fun readableWidth(path: String): Dp? {
+        val bare = ScreenRoute.bare(path)
+        val fills = setOf(
+            "/", "/orders", "/invoices", "/workshop", "/karigars", "/products", "/calendar",
+            "/my-work", "/given", "/orders/add", "/invoices/new", "/products/add",
+            "/products/bulk-add", "/settings/printer", "/app/widgets",
+        )
+        if (bare in fills) return null
+        for (prefix in listOf("/ads", "/website", "/posts", "/marketing")) if (bare == prefix || bare.startsWith("$prefix/")) return null
+        // The forms beside their summary (TransactionWorkspace): editing an order, a sale or a piece, and Finalize.
+        if (bare.endsWith("/edit") && (bare.startsWith("/orders/") || bare.startsWith("/invoices/") || bare.startsWith("/products/"))) return null
+        if (bare.endsWith("/finalize")) return null
+        if (bare.startsWith("/analytics")) return 980.dp
+        // An order, an invoice or a customer: their figures sit side by side, so a little wider than a form.
+        if (bare.startsWith("/orders/") || bare.startsWith("/invoices/") || bare.startsWith("/customers/") || bare.startsWith("/repairs")) return 820.dp
+        return 720.dp
     }
 
     /** The screen for a path: the ERP's page where `?web=1` asks for it or nothing native matches. */

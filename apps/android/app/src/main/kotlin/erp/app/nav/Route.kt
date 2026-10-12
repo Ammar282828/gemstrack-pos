@@ -19,6 +19,12 @@ interface Navigator {
     /** Push this ERP path onto the stack the screen is on (a screen with a native version, else the ERP page). */
     fun open(path: String)
 
+    /**
+     * Put this path where the current screen is: the top of the stack is swapped, so Back from the new screen goes to
+     * the one below (the iPhone pops and then pushes). A finished form handing over to what it made.
+     */
+    fun replace(path: String)
+
     /** Pop one screen; at a stack's root, leave the sheet or do nothing. */
     fun back()
 

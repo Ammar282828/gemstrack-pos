@@ -80,6 +80,8 @@ import erp.core.models.Invoice
 import kotlin.math.abs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import erp.app.ui.OwnerDeletion
+import erp.app.ui.OwnerDeleteCodeSheet
 
 // The invoice page's sheets (InvoiceAction*Sheet.swift, InvoiceCustomerSheet.swift, InvoiceWhatsAppSheet.swift).
 
@@ -254,7 +256,7 @@ fun InvoiceDiscountSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoi
  */
 @Composable
 fun InvoicePaymentDeleteSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (InvoiceActionOutcome) -> Unit) {
-    var asking by remember { mutableStateOf<Pair<InvoiceDeletion, InvoiceActionOutcome>?>(null) }
+    var asking by remember { mutableStateOf<Pair<OwnerDeletion, InvoiceActionOutcome>?>(null) }
 
     InvoiceSheet("Delete a payment", onDismiss) {
         SheetHeading("Payments on ${invoice.id}")
@@ -276,7 +278,7 @@ fun InvoicePaymentDeleteSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (
         Spacer(Modifier.height(16.dp))
     }
     asking?.let { (deletion, outcome) ->
-        InvoiceDeleteCodeSheet(deletion, onDismiss = { asking = null }, onDone = { onDone(outcome); onDismiss() })
+        OwnerDeleteCodeSheet(deletion, onDismiss = { asking = null }, onDone = { onDone(outcome); onDismiss() })
     }
 }
 
@@ -295,12 +297,12 @@ fun InvoiceDeleteSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoice
     val invoices by rememberShelf(book.invoices)
     val hisaab = rememberShelfStatus(book.hisaab)
     val invoiceId = invoice.id
-    val deletion = InvoiceDeletion(
+    val deletion = OwnerDeletion(
         what = InvoiceActionWords.deleteInvoiceWhat(invoiceId),
         detail = deleteDetail(invoice, invoices, if (hisaab.loaded) hisaab.items else null),
         run = { code -> ErpApi.shared.write("deleteInvoice", InvoiceActionWords.deleteInvoiceFields(invoiceId, code)) },
     )
-    InvoiceDeleteCodeSheet(deletion, onDismiss = onDismiss, onDone = {
+    OwnerDeleteCodeSheet(deletion, onDismiss = onDismiss, onDone = {
         onDone(
             InvoiceActionOutcome(
                 InvoiceNote("Invoice $invoiceId deleted", "Its ledger rows went with it, and pieces only it had sold are back in stock."),
@@ -331,7 +333,7 @@ fun InvoiceRefundSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoice
     var full by rememberSaveable { mutableStateOf(true) }
     var amountText by rememberSaveable { mutableStateOf("") }
     var reason by rememberSaveable { mutableStateOf("") }
-    var asking by remember { mutableStateOf<Pair<InvoiceDeletion, InvoiceActionOutcome>?>(null) }
+    var asking by remember { mutableStateOf<Pair<OwnerDeletion, InvoiceActionOutcome>?>(null) }
 
     val amount = PaymentText.amount(amountText) ?: 0.0
     val said = reason.trim()
@@ -353,7 +355,7 @@ fun InvoiceRefundSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoice
         val invoiceId = invoice.id
         if (full) {
             val outcome = InvoiceActionOutcome(InvoiceNote("Invoice refunded", "Invoice $invoiceId has been deleted and its pieces returned to stock."), removed = true)
-            asking = InvoiceDeletion(InvoiceActionWords.deleteInvoiceWhat(invoiceId), detail, run = { code ->
+            asking = OwnerDeletion(InvoiceActionWords.deleteInvoiceWhat(invoiceId), detail, run = { code ->
                 ErpApi.shared.write("deleteInvoice", InvoiceActionWords.deleteInvoiceFields(invoiceId, code))
             }) to outcome
             return
@@ -365,7 +367,7 @@ fun InvoiceRefundSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoice
         val outcome = InvoiceActionOutcome(InvoiceNote("Partial refund recorded", "${PaymentText.pkr(refund)} refunded on Invoice $invoiceId."), removed = false)
         val words = "${PaymentText.pkr(refund)} goes back to the customer${if (why.isEmpty()) "" else " ($why)"}, recorded on $invoiceId as a negative payment." +
             " Paid becomes ${PaymentText.pkr(a.amountPaid)}; ${InvoiceActionWords.balance(a.balanceDue)}. " + partialFollowers(a)
-        asking = InvoiceDeletion(InvoiceActionWords.refundWhat(refund, invoiceId), words, run = { code ->
+        asking = OwnerDeletion(InvoiceActionWords.refundWhat(refund, invoiceId), words, run = { code ->
             ErpApi.shared.write("refundInvoicePartial", InvoiceActionWords.partialRefundFields(invoiceId, refund, code, seen, why))
         }) to outcome
     }
@@ -437,7 +439,7 @@ fun InvoiceRefundSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoice
         Spacer(Modifier.height(16.dp))
     }
     asking?.let { (deletion, outcome) ->
-        InvoiceDeleteCodeSheet(deletion, onDismiss = { asking = null }, onDone = { onDone(outcome); onDismiss() })
+        OwnerDeleteCodeSheet(deletion, onDismiss = { asking = null }, onDone = { onDone(outcome); onDismiss() })
     }
 }
 
@@ -560,7 +562,7 @@ fun InvoiceWhatsAppSheet(invoice: Invoice, initialPhone: String, onDismiss: () -
             Button(
                 onClick = {
                     if (url != null) {
-                        InvoicePdfShare.openUrl(context, url)
+                        erp.app.device.openAddress(context, android.content.Intent.ACTION_VIEW, url)
                         onDismiss()
                     }
                 },

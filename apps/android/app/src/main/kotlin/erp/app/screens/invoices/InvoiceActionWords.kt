@@ -11,27 +11,13 @@ import erp.core.logic.inCredit
 import erp.core.models.Invoice
 import erp.core.models.InvoiceItem
 import erp.core.models.Payment
+import erp.app.ui.OwnerDeletion
 
 // What the invoice page's own actions share (InvoiceActionKit.swift; components/invoice/invoice-viewer.tsx): change
 // the discount, delete a payment, refund, delete. Each sheet says exactly what will change, from the ERP's own rules
 // (core InvoiceActions, ported from lib/invoice-actions.ts), before anything is sent; the write is the ERP's
 // (/api/app/write, ops-invoice-actions.ts). A delete or a refund asks for the delete code with it (decision "Delete
 // code"). Owners only: on the web each is the store's own Firestore write, which the shop floor cannot make.
-
-/**
- * One delete waiting for its code (OwnerKit.swift `OwnerDeletion`): what is deleted (said in the sheet and in the
- * ERP's log of who tried), what goes with it, and the write that runs once the code is typed.
- */
-class InvoiceDeletion(
-    /** The store's own words for it ("Delete invoice INV-000123"). */
-    val what: String,
-    /** What else happens, said before the code is asked for (the web's confirmation). */
-    val detail: String,
-    /** The ERP's write, sent with the code; it throws the ERP's words when refused. */
-    val run: suspend (code: String) -> Unit,
-    /** False for a removal Settings can put back: the sheet then does not say it can't be undone. */
-    val final: Boolean = true,
-)
 
 object InvoiceActionWords {
     /**
@@ -153,7 +139,7 @@ object InvoiceActionWords {
      * What deleting one payment says and does: the delete code's words, the ERP's write, and the note for the page
      * after. The sheet's rows and the invoice page's swipe both start it. Null when the payment is no longer there.
      */
-    fun deletingPayment(invoice: Invoice, index: Int, p: Payment): Pair<InvoiceDeletion, InvoiceActionOutcome>? {
+    fun deletingPayment(invoice: Invoice, index: Int, p: Payment): Pair<OwnerDeletion, InvoiceActionOutcome>? {
         val after = InvoiceActions.withoutPayment(InvoiceActions.Figures(invoice), index) ?: return null
         val whenSaid = ShopDate.say(p.date)
         val note = (p.notes ?: "").trim()
@@ -170,7 +156,7 @@ object InvoiceActionWords {
             removed = false,
         )
         val invoiceId = invoice.id
-        val deletion = InvoiceDeletion(deletePaymentWhat(p.amount, invoiceId), said, run = { code ->
+        val deletion = OwnerDeletion(deletePaymentWhat(p.amount, invoiceId), said, run = { code ->
             ErpApi.shared.write("deleteInvoicePayment", deletePaymentFields(invoiceId, index, p, code))
         })
         return deletion to outcome

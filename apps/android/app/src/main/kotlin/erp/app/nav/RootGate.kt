@@ -8,6 +8,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,6 +45,9 @@ import erp.app.auth.SignInScreen
 import erp.app.auth.findActivity
 import erp.app.config.Prefs
 import erp.app.data.LocalBook
+import erp.app.ui.LocalNoteState
+import erp.app.ui.NoteHost
+import erp.app.ui.rememberNoteState
 import erp.app.ui.theme.ErpTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -98,8 +102,14 @@ fun AppRoot(session: Session) {
     ForcedNightMode(forced) {
         ErpTheme(themeOverride = when (forced) { true -> "taheri"; false -> "default"; null -> null }) {
             SystemBars(dark)
-            CompositionLocalProvider(LocalSession provides session) {
-                RootGate()
+            // One toast for the whole app: the banner sits over every screen (the create sheet carries its own copy,
+            // being a window of its own), so `LocalNoteState.current.show(Note(...))` works wherever it is called.
+            val note = rememberNoteState()
+            CompositionLocalProvider(LocalSession provides session, LocalNoteState provides note) {
+                Box(Modifier.fillMaxSize()) {
+                    RootGate()
+                    NoteHost(note)
+                }
                 LockLayer()
             }
         }
@@ -205,6 +215,12 @@ fun StackHost(
         object : Navigator {
             override fun open(path: String) {
                 if ((stack.lastOrNull() as? Route)?.path != path) stack.add(Route(path, stack.size))
+            }
+
+            override fun replace(path: String) {
+                if (stack.isEmpty()) return open(path)
+                // Same depth as the one it replaces, so it keeps that place's state key.
+                stack[stack.lastIndex] = Route(path, stack.lastIndex)
             }
 
             override fun back() {

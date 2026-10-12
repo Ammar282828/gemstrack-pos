@@ -3,6 +3,7 @@ package erp.app.config
 import android.content.Intent
 import com.google.firebase.FirebaseOptions
 import erp.app.BuildConfig
+import erp.core.logic.MarginSettings
 
 /** Which shop this build is. Every difference between the houses is a BuildConfig variable, never a branch in code. */
 object House {
@@ -22,6 +23,15 @@ object House {
     val firebaseStorageBucket: String = BuildConfig.FIREBASE_STORAGE_BUCKET
     val firebaseAndroidAppId: String = BuildConfig.FIREBASE_ANDROID_APP_ID.trim()
     val googleWebClientId: String = BuildConfig.GOOGLE_WEB_CLIENT_ID.trim()
+
+    /**
+     * How the shop's own margin is worked out (lib/margin.ts, the house's COST_RATTI_LESS and STORE_EST_MARGIN):
+     * Taheri costs a sale at 24K less 6 ratti, else 10%; Mina has no costing, 40%. Shop screens only: a customer
+     * never sees a margin.
+     */
+    val margin: MarginSettings = marginFor(id)
+
+    fun marginFor(house: String): MarginSettings = if (house == "mina") MarginSettings.mina else MarginSettings.taheri
 
     const val DEMO_EXTRA = "erp.demo"
 

@@ -60,6 +60,17 @@ app, `apps/iphone` (read `apps/iphone/CONVENTIONS.md` too: its rules hold here, 
 11. **Words.** The ERP's own (docs/decisions.md "The name ERP", "Customer copy"): "Owed to you", "In the drawer",
     "Taken by", "hisaab", "karigar". Never "Najmi Market" or "Saddar".
 12. **Comments say why**, briefly, in the ERP's voice (as the Swift and `src/lib` do).
-13. **Demo.** Every native screen must render from the demo books (`assets/demo.json`, launch extra `erp.demo=true`),
-    and has a screenshot test (Roborazzi, `app/src/test/.../screens/<group>`), light and dark, phone and tablet, once
-    the screenshot harness exists.
+13. **Demo and screenshots.** Every native screen must render from the demo books (`assets/demo.json`, launch extra
+    `erp.demo=true`), and has a screenshot test (Roborazzi + Robolectric, `app/src/test/kotlin/erp/app/shots`): add a
+    `@Test` to `ScreenShots` (or a class of your own on `ShotBase`) that calls `showPlace("/your/path")` and
+    `shoot("name")`. Each runs at phone (411x891 dp) and tablet (1280x800 dp), light and dark, in the demo as the
+    owner, with the clock pinned (`AppClock`) so a baseline does not age. Images are the committed review baseline in
+    `app/src/test/screenshots/<house>/`: `./gradlew :app:recordRoborazziTaheriDebug` (and `…MinaDebug`) records,
+    `:app:verifyRoborazziTaheriDebug` checks. A screen whose look depends on the house (palette, menus, name) records
+    for both flavors; the rest call `onlyTaheri()`. Look at the images after recording.
+14. **Shared helpers, not copies.** Before writing one, look in `erp/app/ui` (rows and pages: `Forms.kt`; paper and
+    photos: `Paper.kt`; `SwipeActions`; `OwnerDeleteCodeSheet` for any delete that asks for the code; `PdfDocumentScreen`),
+    `erp/app/device` (`ShareFiles.kt`: `shareFile`, `shareBytes`, `shareText`, `openAddress`, `viewFile`), `ErpApi.shared.bytes`
+    for a file from the ERP, `House.margin`, `LocalNoteState` (the shell hosts the toast: never make your own host),
+    `LocalNavigator.current.replace(path)` for a form that hands over to what it made, and `ScreenRegistry.readableWidth`
+    (PlaceScreen already puts a native page in its column: do not add another unless the page needs a narrower one).

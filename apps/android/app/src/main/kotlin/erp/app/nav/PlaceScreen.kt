@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.auth.LocalSession
+import erp.app.ui.readableColumn
 
 /** True under the phone layout's bottom bar, which already takes the system navigation inset. */
 val LocalBottomBar = compositionLocalOf { false }
@@ -111,7 +112,13 @@ fun PlaceScreen(
         Box(Modifier.padding(padding).fillMaxSize()) {
             CompositionLocalProvider(LocalChrome provides chrome) {
                 key(current) {
-                    if (path == SEARCH_PATH) SearchScreen() else ScreenRegistry.Screen(current)
+                    // Search is a list of places, not a form: a wide window reads it in a column, as the rest.
+                    if (path == SEARCH_PATH) Box(Modifier.readableColumn(720.dp)) { SearchScreen() }
+                    else {
+                        // A native page reads in its column on a wide window; an ERP page brings its own layout.
+                        val width = if (native) ScreenRegistry.readableWidth(current) else null
+                        Box(if (width != null) Modifier.readableColumn(width) else Modifier) { ScreenRegistry.Screen(current) }
+                    }
                 }
             }
         }

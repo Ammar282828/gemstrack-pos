@@ -9,6 +9,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import erp.app.ui.OwnerDeletion
+import erp.app.ui.DeleteCode
 
 class InvoiceActionTests {
     private val paid = mapOf(
@@ -159,9 +161,9 @@ class InvoiceActionTests {
         assertFalse(DeleteCode.isWrong(ErpApi.Failure(403, "Owners only.")))
         assertFalse(DeleteCode.isWrong(ErpApi.Failure(400, "Wrong code.")))
         assertFalse(DeleteCode.isWrong(IllegalStateException("Wrong code.")))
-        val d = InvoiceDeletion("Delete invoice X", "Its rows go.", run = {})
+        val d = OwnerDeletion("Delete invoice X", "Its rows go.", run = {})
         assertEquals("Its rows go. This can't be undone. Enter the code to go ahead.", DeleteCode.footer(d))
-        assertEquals("Its rows go. Enter the code to go ahead.", DeleteCode.footer(InvoiceDeletion("w", "Its rows go.", run = {}, final = false)))
+        assertEquals("Its rows go. Enter the code to go ahead.", DeleteCode.footer(OwnerDeletion("w", "Its rows go.", run = {}, final = false)))
     }
 
     @Test fun theDetailOfADeleteCountsTheInvoicesLedgerRowsOnceTheHisaabIsRead() {

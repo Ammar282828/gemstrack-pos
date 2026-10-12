@@ -103,10 +103,20 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import kotlin.math.abs
+import erp.app.ui.ValueRow
+import erp.app.ui.NumberRow
+import erp.app.ui.TextRow
+import erp.app.ui.ToggleRow
+import erp.app.ui.PickerRow
+import erp.app.ui.ActionRow
+import erp.app.ui.SmallPrint
+import erp.app.ui.FieldRow
+import erp.app.ui.FormSection
+import erp.core.swiftRounded
 
 // The sections of New sale, in the order of the web's page (sale-page.tsx): the customer, the pieces, the rates, the
 // discount, what is handed over in exchange, what is paid now, the shop's own fields, the delivery, and the totals.
-// (SaleSections.swift.)
+// (FormSections.swift.)
 
 /** What the books hold that the sale reads, as the screen has them this moment. */
 internal class SaleData(
@@ -179,8 +189,11 @@ internal fun LineRow(s: SaleFormState, line: SaleLine, f: SaleFigures, d: SaleDa
             state = dismiss,
             enableDismissFromStartToEnd = false,
             backgroundContent = {
-                Row(Modifier.fillMaxWidth().background(Tone.late.fill()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Delete, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White)
+                // Only while it is being swiped: drawn at rest, the red showed as a fringe at a rounded card's corners.
+                if (dismiss.dismissDirection != androidx.compose.material3.SwipeToDismissBoxValue.Settled) {
+                    Row(Modifier.fillMaxWidth().background(Tone.late.fill()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Delete, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White)
+                    }
                 }
             },
         ) {
@@ -222,7 +235,7 @@ internal fun PiecesSection(s: SaleFormState, f: SaleFigures, d: SaleData) {
     val results = SaleLookup.matches(s.query, d.products, taken)
     var menu by remember { mutableStateOf(false) }
     val n = s.draft.lines.size
-    SaleSection("Pieces", footer = { Text("$n piece${if (n == 1) "" else "s"}. Tap to edit; swipe to remove.") }) {
+    FormSection("Pieces", footer = { Text("$n piece${if (n == 1) "" else "s"}. Tap to edit; swipe to remove.") }) {
         s.draft.lines.forEach { line -> LineRow(s, line, f, d) }
         FieldRow(
             label = "Search stock by SKU or name", value = s.query, onChange = { s.query = it; s.notice = null },
@@ -275,7 +288,7 @@ internal fun RatesSection(s: SaleFormState, f: SaleFigures, d: SaleData) {
     // The shop's rate not set today: say so, never block the sale (RateStaleNotice).
     val stale = f.hasPieces && !ratesSetToday(d.settings?.ratesUpdatedAt)
     if (f.boxes.isEmpty() && !stale) return
-    SaleSection("Rates (PKR per gram)", footer = { Text("Used for this sale only. A rate typed here is not saved as today's rate: set that from the rate chip.") }) {
+    FormSection("Rates (PKR per gram)", footer = { Text("Used for this sale only. A rate typed here is not saved as today's rate: set that from the rate chip.") }) {
         if (stale) {
             Row(
                 Modifier.fillMaxWidth().ledgerRow().clickable(role = Role.Button) { s.rateSheet = true },
@@ -286,7 +299,7 @@ internal fun RatesSection(s: SaleFormState, f: SaleFigures, d: SaleData) {
             }
         }
         f.boxes.forEach { box ->
-            SaleNumberField(box.label, f.rateBook.text(box.key), { t -> s.update { it.rates[box.key.name] = t } })
+            NumberRow(box.label, f.rateBook.text(box.key), { t -> s.update { it.rates[box.key.name] = t } })
         }
         if (s.draft.rates.isNotEmpty()) {
             ActionRow("Back to today's rates", { s.update { it.rates = LinkedHashMap() } })
@@ -298,8 +311,8 @@ internal fun RatesSection(s: SaleFormState, f: SaleFigures, d: SaleData) {
 
 @Composable
 internal fun DiscountSection(s: SaleFormState, f: SaleFigures) {
-    SaleSection("Discount", footer = f.discountProblem?.let { problem -> { Text(problem, color = Tone.problem.color()) } }) {
-        SaleNumberField("Amount (PKR)", s.draft.discount, { t -> s.update { it.discount = t } })
+    FormSection("Discount", footer = f.discountProblem?.let { problem -> { Text(problem, color = Tone.problem.color()) } }) {
+        NumberRow("Amount (PKR)", s.draft.discount, { t -> s.update { it.discount = t } })
     }
 }
 
@@ -378,7 +391,7 @@ private fun ExchangeRowView(s: SaleFormState, row: SaleExchangeRow) {
 @Composable
 internal fun ExchangeSection(s: SaleFormState) {
     val total = exchangeRowsTotal(s.draft.exchanges.map { it.core })
-    SaleSection("Exchange / trade-in", footer = { Text("Gold or anything else the customer hands over, taken off the bill at an agreed value.") }) {
+    FormSection("Exchange / trade-in", footer = { Text("Gold or anything else the customer hands over, taken off the bill at an agreed value.") }) {
         s.draft.exchanges.forEach { row -> SwipeToRemove(onRemove = { s.update { it.removeExchange(row.id) } }) { ExchangeRowView(s, row) } }
         ActionRow("Add another exchange", { s.update { it.addExchange() } }, Icons.Filled.Add)
         if (s.draft.exchanges.size > 1 && total > 0) {
@@ -402,8 +415,10 @@ internal fun SwipeToRemove(onRemove: () -> Unit, content: @Composable () -> Unit
         enableDismissFromStartToEnd = false,
         modifier = Modifier.semantics { customActions = listOf(androidx.compose.ui.semantics.CustomAccessibilityAction("Remove") { latest(); true }) },
         backgroundContent = {
-            Row(Modifier.fillMaxWidth().background(Tone.late.fill()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Delete, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White)
+            if (dismiss.dismissDirection != androidx.compose.material3.SwipeToDismissBoxValue.Settled) {
+                Row(Modifier.fillMaxWidth().background(Tone.late.fill()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Delete, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White)
+                }
             }
         },
     ) { Box(Modifier.fillMaxWidth().background(ErpColors.card)) { content() } }
@@ -446,7 +461,7 @@ private fun PaymentRowView(s: SaleFormState, row: SalePaymentRow, f: SaleFigures
 
 @Composable
 internal fun PaymentSection(s: SaleFormState, f: SaleFigures) {
-    SaleSection(
+    FormSection(
         "Payment received",
         footer = { Text("Taken as the invoice is written and filed in its payment history. Leave it empty if nothing is paid yet: a payment can still be recorded after.") },
     ) {
@@ -476,7 +491,7 @@ internal fun BalanceRow(f: SaleFigures) {
 private fun TakenByRow(s: SaleFormState) {
     val names = LocalSession.current.shop.takenBy
     if (names.isEmpty()) {
-        SaleTextField("Taken by", s.draft.takenBy, { t -> s.update { it.takenBy = t } }, prompt = "Not set", capitalization = KeyboardCapitalization.Words)
+        TextRow("Taken by", s.draft.takenBy, { t -> s.update { it.takenBy = t } }, prompt = "Not set", capitalization = KeyboardCapitalization.Words)
     } else {
         val options = buildList {
             add("" to "Not set")
@@ -493,16 +508,16 @@ private fun TakenByRow(s: SaleFormState) {
 private fun CostRateRows(s: SaleFormState, f: SaleFigures, d: SaleData) {
     val ratti = EntryHouse.margin.rattiLess ?: 0.0
     val perGram = SaleNumber.value(s.draft.costTola) / SALE_GRAMS_PER_TOLA
-    val sheetTola = awayRounded((d.settings?.goldRatePerGram24k ?: 0.0) * SALE_GRAMS_PER_TOLA)
-    val assumed = awayRounded(EntryHouse.margin.assumedMargin * 100).toInt()
-    SaleNumberField("24k rate now (PKR / tola)", s.draft.costTola, { t -> s.update { it.costTola = t } }, prompt = "For our margin", decimal = false)
+    val sheetTola = swiftRounded((d.settings?.goldRatePerGram24k ?: 0.0) * SALE_GRAMS_PER_TOLA)
+    val assumed = swiftRounded(EntryHouse.margin.assumedMargin * 100).toInt()
+    NumberRow("24k rate now (PKR / tola)", s.draft.costTola, { t -> s.update { it.costTola = t } }, prompt = "For our margin", decimal = false)
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (perGram > 0) {
             SmallPrint("${Money.pkr(perGram)} a gram · our cost ${Money.pkr(goldCostPerGram(perGram, rattiLess = ratti))} a gram of jewellery (24k less ${SaleNumber.grams(ratti)} ratti).")
         } else {
             SmallPrint("Without it the margin is taken as $assumed%.")
         }
-        if (sheetTola > 0 && sheetTola != awayRounded(SaleNumber.value(s.draft.costTola))) {
+        if (sheetTola > 0 && sheetTola != swiftRounded(SaleNumber.value(s.draft.costTola))) {
             TextButton(onClick = { s.update { it.costTola = sheetTola.toLong().toString() } }, Modifier.defaultMinSize(minHeight = MinTouchTarget)) {
                 Text("Use the rate sheet's ${Money.grouped(sheetTola)} a tola", style = MaterialTheme.typography.bodySmall)
             }
@@ -512,11 +527,11 @@ private fun CostRateRows(s: SaleFormState, f: SaleFigures, d: SaleData) {
 }
 
 private fun marginWords(m: Margin): String {
-    val assumed = awayRounded(EntryHouse.margin.assumedMargin * 100).toInt()
+    val assumed = swiftRounded(EntryHouse.margin.assumedMargin * 100).toInt()
     if (m.assumed) return "≈ ${percentLabel(m)} (no 24k rate given — assumed)"
     var out = "${percentLabel(m)} · ${Money.pkr(m.profit)}"
     if (m.costedShare < 0.999) {
-        val rest = awayRounded((1 - m.costedShare) * 100).toInt()
+        val rest = swiftRounded((1 - m.costedShare) * 100).toInt()
         out += " · $rest% of it at $assumed% (no weight)"
     }
     return out
@@ -548,7 +563,7 @@ private fun MarginRow(s: SaleFormState, m: Margin) {
 
 @Composable
 internal fun ShopSection(s: SaleFormState, f: SaleFigures, d: SaleData) {
-    SaleSection("For the shop", footer = { Text("Never printed on the bill or sent to the customer.") }) {
+    FormSection("For the shop", footer = { Text("Never printed on the bill or sent to the customer.") }) {
         TakenByRow(s)
         ToggleRow(
             "Leave rates off the printed bill", s.draft.hideRates, { v -> s.update { it.hideRates = v } },
@@ -597,7 +612,7 @@ private fun ExpectedDate(s: SaleFormState) {
 @Composable
 internal fun DeliverySection(s: SaleFormState, f: SaleFigures, d: SaleData) {
     val delivery = s.draft.delivery
-    SaleSection("Delivery", footer = { Text("Off unless ticked: most sales are handed over at the counter.") }) {
+    FormSection("Delivery", footer = { Text("Off unless ticked: most sales are handed over at the counter.") }) {
         ToggleRow("Deliver this", delivery.required, { v -> s.update { it.delivery.required = v } })
         if (delivery.required) {
             val known = SaleLookup.knownAddresses(
@@ -620,7 +635,7 @@ internal fun DeliverySection(s: SaleFormState, f: SaleFigures, d: SaleData) {
             if (delivery.expectedDate.isNotEmpty()) ExpectedDate(s)
             FieldRow("Receiver name", delivery.contactName, { t -> s.update { it.delivery.contactName = t } }, placeholder = "If not the customer", capitalization = KeyboardCapitalization.Words)
             FieldRow("Receiver phone", delivery.contactPhone, { t -> s.update { it.delivery.contactPhone = t } }, placeholder = "Optional", keyboard = KeyboardType.Phone)
-            SaleNumberField("Delivery charge (PKR)", delivery.charge, { t -> s.update { it.delivery.charge = t } }, prompt = "0 if free")
+            NumberRow("Delivery charge (PKR)", delivery.charge, { t -> s.update { it.delivery.charge = t } }, prompt = "0 if free")
             FieldRow("Instructions", delivery.notes, { t -> s.update { it.delivery.notes = t } }, placeholder = "Landmark, timing, gate code", capitalization = KeyboardCapitalization.Sentences)
         }
     }
@@ -689,7 +704,7 @@ private fun TotalRow(label: String, value: Double, f: SaleFigures, signed: Boole
 
 @Composable
 internal fun TotalsSection(f: SaleFigures) {
-    SaleSection("Totals") {
+    FormSection("Totals") {
         TotalRow("Subtotal", f.subtotal, f)
         if (f.discount != 0.0) TotalRow("Discount", f.discount, f, signed = true)
         if (f.exchange != 0.0) TotalRow("Exchange", f.exchange, f, signed = true)
@@ -706,7 +721,7 @@ internal fun TotalsSection(f: SaleFigures) {
 internal fun OrderSection(s: SaleFormState) {
     // A sale already billed is not turned into an order.
     if (s.edit != null) return
-    SaleSection("Order", footer = { Text("Invoice bills it now. Order sends it to the workshop first, with an advance if taken.") }) {
+    FormSection("Order", footer = { Text("Invoice bills it now. Order sends it to the workshop first, with an advance if taken.") }) {
         ActionRow("Create order", { s.askOrder() }, Icons.AutoMirrored.Filled.Assignment, enabled = s.draft.lines.isNotEmpty())
     }
 }

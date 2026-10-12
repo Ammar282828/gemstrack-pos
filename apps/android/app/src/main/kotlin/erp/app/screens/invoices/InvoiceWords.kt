@@ -126,9 +126,6 @@ object InvoiceWords {
 
     // MARK: The margin (lib/margin.ts), for the shop
 
-    /** How the house costs a sale: Taheri at 24K less 6 ratti, else 10%; Mina has no costing, 40% (the house's COST_RATTI_LESS, STORE_EST_MARGIN). */
-    fun houseMargin(house: String = House.id): MarginSettings = if (house == "mina") MarginSettings.mina else MarginSettings.taheri
-
     /** Mina's silver is not costed that way: its web page shows no margin row at all. */
     fun showsMargin(settings: MarginSettings): Boolean = settings.rattiLess != null
 

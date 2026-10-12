@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.roborazzi)
 }
 
 // ---- One source per fact: the iPhone's files, read here, never copied by hand -------------------
@@ -163,7 +164,26 @@ android {
     testOptions {
         // The pure parts are tested on the JVM; an Android call they happen to touch answers its default, not an error.
         unitTests.isReturnDefaultValues = true
+        // Robolectric reads the app's resources, assets and manifest: the screenshot tests draw the real screens.
+        unitTests.isIncludeAndroidResources = true
+        // Robolectric reaches into the JDK's file descriptors (Android 16 shared memory); Java 17+ closes them unless told.
+        unitTests.all { test ->
+            test.jvmArgs(
+                "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
+                "--add-opens=java.base/java.io=ALL-UNNAMED",
+                "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                "--add-opens=java.base/java.nio=ALL-UNNAMED",
+                "--add-opens=java.base/java.util=ALL-UNNAMED",
+                "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+            )
+        }
     }
+}
+
+// The review baseline: recorded screenshots are kept in the repo (./gradlew :app:recordRoborazziTaheriDebug records,
+// :app:verifyRoborazziTaheriDebug checks). The tests name each flavor's own folder, so the houses never overwrite each other.
+roborazzi {
+    outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
 }
 
 kotlin {
@@ -259,4 +279,10 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
+    testImplementation(libs.compose.ui.test.junit4)
+    debugImplementation(libs.compose.ui.test.manifest) // the ComponentActivity the compose rule starts
 }
