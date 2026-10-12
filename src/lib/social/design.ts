@@ -82,7 +82,11 @@ export const MASK_PICKS: MaskKey[] = ['ellipse', 'arch', 'rounded', 'pill', 'hea
 // ── Photo filters ──────────────────────────────────────────────────────────
 
 /** Every value −100…100 (fade and vignette 0…100); all zero leaves the photo as it is. */
-export interface Adjust { brightness: number; contrast: number; saturation: number; warmth: number; fade: number; vignette: number }
+export interface Adjust {
+  brightness: number; contrast: number; saturation: number; warmth: number; fade: number; vignette: number;
+  /** Designer v2 (not applied yet; missing = 0). */
+  highlights?: number; shadows?: number; tint?: number; hue?: number; sharpen?: number; blur?: number; grain?: number;
+}
 export const NO_ADJUST: Adjust = { brightness: 0, contrast: 0, saturation: 0, warmth: 0, fade: 0, vignette: 0 };
 export const isPlain = (a: Adjust | null | undefined): boolean =>
   !a || (!a.brightness && !a.contrast && !a.saturation && !a.warmth && !a.fade && !a.vignette);

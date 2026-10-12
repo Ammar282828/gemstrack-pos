@@ -147,6 +147,10 @@ export const NAV: NavEntry[] = [
       { staff: true, href: '/website/post', label: 'Post a piece', icon: Camera, when: () => STORE_POST_PIECE, keywords: ['post', 'story', 'instagram', 'whatsapp', 'community', 'channel', 'new photos'] },
       { staff: true, href: '/website/investments', label: 'Investments', icon: TrendingUp, when: () => STORE_INVESTMENTS, keywords: ['investment', 'gold post'] },
     ],
+    // Design (docs/features/design-studio-plan.md): a placeholder until the cutover makes it a Posts tab.
+    pages: [
+      { staff: true, href: '/design', label: 'Design', icon: Palette, when: () => false },
+    ],
   },
   {
     id: 'website', group: 'marketing', staff: true, href: '/website/photos', label: 'Website', icon: Globe, when: website,

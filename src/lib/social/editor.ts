@@ -24,6 +24,25 @@ export type FontKey =
   | 'cormorant' | 'cormorant-italic' | 'playfair' | 'script' | 'montserrat' | 'montserrat-bold' | 'cinzel';
 export type Bind = 'kicker' | 'headline' | 'weight' | 'details';
 
+/**
+ * Designer v2 (docs/features/design-studio-plan.md §2.5): the types the engine will grow into. Every field
+ * is optional and missing means today's behaviour; nothing here is drawn yet (WP1 does that), and the
+ * iPhone app's bundled engine keeps unknown fields as they are.
+ */
+export type Blend = 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-light' | 'hard-light' | 'color-dodge' | 'darken' | 'lighten';
+/** What a layer is for, so a resize can lay it out by its job (plan §3). */
+export type LayerRole = 'photo' | 'headline' | 'kicker' | 'specs' | 'cta' | 'mark' | 'badge' | 'frame' | 'band' | 'decor' | 'text' | 'image';
+export interface LayerFx {
+  shadow?: { color: string; x: number; y: number; blur: number; alpha: number };
+  glow?: { color: string; blur: number; alpha: number };
+  outline?: { color: string; width: number };
+}
+export interface Gradient { type: 'linear' | 'radial'; angle: number; stops: { at: number; color: string; alpha?: number }[] }
+/** A style over characters `from`…`to` of a text layer's words (size is a multiple of the layer's). */
+export interface TextRun { from: number; to: number; font?: FontKey; color?: string; size?: number; upper?: boolean; underline?: boolean; gradient?: Gradient }
+/** A box as fractions (0…1) of the frame. */
+export interface Box01 { x: number; y: number; w: number; h: number }
+
 interface Base {
   id: string; rotate: number; opacity: number; hidden?: boolean;
   /** Can't be moved, sized or deleted until unlocked (Canva's lock). */
@@ -34,6 +53,11 @@ interface Base {
   name?: string;
   /** Layers sharing a group id select and move as one. */
   group?: string;
+  /** Designer v2 (not drawn yet). */
+  blend?: Blend;
+  role?: LayerRole;
+  /** Shadow, glow and outline (named `layerFx` because an image's `fx` is its crop's x). */
+  layerFx?: LayerFx;
 }
 
 /** Canva's text effects. Numbers are 0…100; `angle` is degrees clockwise from the right. */
@@ -90,6 +114,10 @@ export interface TextLayer extends Base {
   /** Bend the words along an arc: + arches up, − smiles; −100…100. One line when bent. */
   curve?: number;
   underline?: boolean;
+  /** Designer v2 (not drawn yet): mixed styles in one box, bullets or numbers, a gradient fill. */
+  runs?: TextRun[];
+  list?: 'bullet' | 'number' | null;
+  fillGradient?: Gradient | null;
 }
 /**
  * The shop's mark, from its SVG: the "taheri" wordmark or the "t" monogram.
@@ -112,7 +140,11 @@ export interface ShapeLayer extends Base {
   /** Which outline a `shape` is (design.ts). */
   shape?: ShapeKey;
   dash?: 'solid' | 'dash' | 'dot';
+  /** Designer v2 (not drawn yet): replaces the two-colour fill. */
+  fillGradient?: Gradient | null;
 }
+/** Designer v2 (not drawn yet, so not yet in `Layer`): a QR code. */
+export interface QrLayer extends Base { kind: 'qr'; x: number; y: number; w: number; value: string; fg: string; bg: string | null; quiet: number }
 export interface ImageLayer extends Base {
   kind: 'image';
   /** One of the piece's photos… */
@@ -132,6 +164,8 @@ export interface ImageLayer extends Base {
   adjust?: Adjust | null;
   /** A gradient over the picture, inside its frame. */
   shade?: Shade | null;
+  /** Designer v2 (not drawn yet): a PNG with alpha from the background remover. */
+  cutout?: boolean;
 }
 export type Layer = TextLayer | MarkLayer | ShapeLayer | ImageLayer;
 
@@ -161,6 +195,8 @@ export interface StoryDoc {
    * crop per photo: each photo's placement lives here, keyed by its id.
    */
   placements?: Record<string, Placement>;
+  /** Designer v2 (not drawn yet): what the design is, and where its subject sits, for resizing. */
+  meta?: { template?: string; master?: string; guides?: { x: number[]; y: number[] }; subject?: Box01; grid?: number };
 }
 
 export const SQUARE_FRAME: Frame = { w: 1080, h: 1080 };
