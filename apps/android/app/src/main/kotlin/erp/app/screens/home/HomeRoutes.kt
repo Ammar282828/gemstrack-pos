@@ -14,11 +14,12 @@ import erp.app.nav.ScreenRoute
 import erp.app.nav.ScreenTitle
 
 /**
- * Home's routes. Home itself ("/") is the ERP's page until the Home group lands: leaving it unregistered is
- * what opens the dashboard of the ERP today, so the app is complete from its first build. The voice assistant
- * (the create menu's last item, owners only) has its place already, answering that it is coming.
+ * Home's routes: the dashboard and Today's cash (HomeRoutes.swift). The third tab, /calendar, is the Work group's.
+ * The voice assistant (the create menu's last item, owners only) keeps its place, answering that it is coming.
  */
 val HomeRoutes: List<ScreenRoute> = listOf(
+    ScreenRoute.exact("/") { Dashboard() },
+    ScreenRoute.exact("/today") { TodaysCashScreen() },
     ScreenRoute.exact("/voice") { ComingSoon("Voice assistant", "The voice assistant arrives with the next update. Until then, say it to the ERP in the browser.") },
 )
 
