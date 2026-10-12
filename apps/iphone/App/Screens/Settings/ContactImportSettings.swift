@@ -191,11 +191,7 @@ private struct ContactImportPage: View {
             if plan != nil { importBar }
         }
         .ownerNote($note)
-        .alert("Import stopped", isPresented: Binding(get: { stopped != nil }, set: { if !$0 { stopped = nil } })) {
-            Button("OK") { stopped = nil }
-        } message: {
-            Text(stopped ?? "")
-        }
+        .failureAlert($stopped, title: "Import stopped")
         .fileImporter(isPresented: $picking, allowedContentTypes: [.vCard]) { result in
             switch result {
             case .success(let url): Task { await read(url) }
@@ -220,7 +216,7 @@ private struct ContactImportPage: View {
                     Text("Could not read that").font(.subheadline.weight(.semibold))
                     Text(error).font(.subheadline)
                 }
-                .foregroundStyle(.red)
+                .foregroundStyle(Tone.problem.color)
             }
         } header: {
             LedgerHeading(title: "Choose the file")
@@ -308,7 +304,7 @@ private struct ContactImportPage: View {
                 conflictRow(c)
             }
         } header: {
-            Label("Needs you", systemImage: "questionmark.circle")
+            LedgerHeading(title: "Needs you")
         } footer: {
             Text("Half-matches — the only kind that can go wrong. Anything you leave alone stays exactly as it is in the book.")
         }
@@ -367,7 +363,7 @@ private struct ContactImportPage: View {
                         Image(systemName: off ? "checkmark" : "xmark")
                     }
                     .buttonStyle(.plain)
-                    .foregroundStyle(off ? Color.green : Color.secondary)
+                    .foregroundStyle(off ? Tone.settled.color : Color.secondary)
                     .accessibilityLabel(off ? "Put back" : "Drop")
                     .disabled(importing)
                 }

@@ -27,7 +27,7 @@ struct WebsiteInvestmentsScreen: View {
         Group {
             switch gold.phase {
             case .off:
-                ContentUnavailableView("Investments by Taheri isn't part of this shop", systemImage: "chart.line.uptrend.xyaxis")
+                NotAvailableState("Investments by Taheri isn't part of this shop", why: "Its daily post belongs to Taheri's own website.", symbol: "chart.line.uptrend.xyaxis")
             case .failed(let message):
                 ContentUnavailableView {
                     Label("Couldn't load the posts", systemImage: "wifi.exclamationmark")
@@ -71,16 +71,9 @@ struct WebsiteInvestmentsScreen: View {
                 Text(WebsiteGoldWords.switchOn(s, targets: gold.targets))
             }
         }
-        .alert("Not done", isPresented: failureShown) {
-            Button("OK") { failure = nil }
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure)
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     // MARK: The page
 
@@ -97,7 +90,7 @@ struct WebsiteInvestmentsScreen: View {
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                         } icon: {
-                            Image(systemName: "clock").foregroundStyle(.orange)
+                            Image(systemName: "clock").foregroundStyle(Tone.owed.color)
                         }
                     }
                 }
@@ -126,8 +119,8 @@ struct WebsiteInvestmentsScreen: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(WebsiteGoldTime.longDate(p.date)).font(.body.weight(.semibold))
-                    if p.date == gold.today { WebsiteGoldTag(text: "Today", tint: Theme.accent) }
-                    if p.hold { WebsiteGoldTag(text: "Held", tint: .secondary) }
+                    if p.date == gold.today { Pill("Today", tone: .house) }
+                    if p.hold { Pill("Held", tone: .quiet) }
                 }
                 Text(p.headline).font(.subheadline).foregroundStyle(.secondary).lineLimit(3)
             }
@@ -150,14 +143,14 @@ struct WebsiteInvestmentsScreen: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
-                .tint(.green)
+                .tint(Tone.settled.color)
                 if s.enabled, WebsiteGoldTime.minutesSince(s.lastTick).map({ (m: Int) in m > 15 }) ?? true {
                     Label(s.lastTick == nil
                           ? "The scheduler hasn't checked in yet. It runs every 5 minutes; if this stays, nothing goes out by itself."
                           : "The scheduler last checked in \(WebsiteGoldTime.ago(s.lastTick)). It should every 5 minutes: until it does, nothing goes out by itself.",
                           systemImage: "exclamationmark.triangle.fill")
                         .font(.subheadline)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Tone.owed.color)
                 }
                 Button { editing = true } label: { Label("Edit the schedule", systemImage: "calendar.badge.clock") }
             } else {
@@ -205,20 +198,6 @@ struct WebsiteInvestmentsScreen: View {
         busy = "Switching it on…"
         defer { busy = nil }
         do { try await gold.saveSchedule(s) } catch { failure = error.localizedDescription }
-    }
-}
-
-/// A small word on a coloured ground ("Today", "Held").
-struct WebsiteGoldTag: View {
-    let text: String
-    let tint: Color
-
-    var body: some View {
-        Text(text)
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(tint)
-            .padding(.horizontal, 7).padding(.vertical, 2)
-            .background(tint.opacity(0.14), in: .capsule)
     }
 }
 
@@ -286,20 +265,13 @@ struct WebsiteGoldDaySheet: View {
         } message: { (a: Ask) in
             Text(askWords(a))
         }
-        .alert("Not all of it went", isPresented: failureShown) {
-            Button("OK") { failure = nil }
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure, title: "Not all of it went")
     }
 
     private var askShown: Binding<Bool> {
         Binding(get: { ask != nil }, set: { (on: Bool) in if !on { ask = nil } })
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     private func fill() {
         guard !filled, let d = day else { return }
@@ -315,7 +287,7 @@ struct WebsiteGoldDaySheet: View {
         return List {
             Group {
                 if let said {
-                    Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
+                    Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
                 }
                 Section {
                     TextField("The WhatsApp post", text: $post, axis: .vertical)
@@ -340,7 +312,7 @@ struct WebsiteGoldDaySheet: View {
                     VStack(alignment: .leading, spacing: 4) {
                         if edited {
                             Text("You've changed the words: what you send now is your version, and it's saved when it goes.\(scheduled ? " The schedule sends the saved words, so send by hand to use these." : "")")
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(Tone.owed.color)
                         }
                         Text(arrivedWords(d))
                     }
@@ -381,7 +353,7 @@ struct WebsiteGoldDaySheet: View {
                 VStack(alignment: .leading, spacing: 4) {
                     StockImage(imageUrl: url.absoluteString, name: label, key: d.id + kind + d.receivedAt)
                         .aspectRatio(kind == "square" ? 1 : 9.0 / 16.0, contentMode: .fit)
-                        .clipShape(.rect(cornerRadius: 10))
+                        .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                     Label(label, systemImage: "arrow.up.right.square").font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -391,7 +363,7 @@ struct WebsiteGoldDaySheet: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, minHeight: 90)
-                .background(.quaternary, in: .rect(cornerRadius: 10))
+                .ledgerCard(padding: 8)
         }
     }
 
@@ -399,7 +371,7 @@ struct WebsiteGoldDaySheet: View {
         Section {
             if gold.schedule?.mode == "approve" {
                 if let at = d.approvedAt {
-                    Label("Approved \(ShopDate.say(at, withTime: true))", systemImage: "checkmark.shield").foregroundStyle(.green)
+                    Label("Approved \(ShopDate.say(at, withTime: true))", systemImage: "checkmark.shield").foregroundStyle(Tone.settled.color)
                 } else if !d.hold {
                     Button { ask = .approve } label: { Label("Approve today", systemImage: "checkmark.shield") }
                 }
@@ -448,13 +420,13 @@ struct WebsiteGoldDaySheet: View {
                 Spacer(minLength: 8)
                 if let went {
                     Label(ShopDate.say(went.at, withTime: true) + (went.by == "schedule" ? " · auto" : ""), systemImage: "checkmark")
-                        .font(.caption).foregroundStyle(.green)
+                        .font(.caption).foregroundStyle(Tone.settled.color)
                 }
             }
             if scheduled, let line = part?.line {
                 Label(line, systemImage: "calendar.badge.clock")
                     .font(.caption)
-                    .foregroundStyle(part?.tone == "ok" ? Color.green : part?.tone == "warn" ? Color.orange : Color.secondary)
+                    .foregroundStyle(part?.tone == "ok" ? Tone.settled.color : part?.tone == "warn" ? Tone.owed.color : Color.secondary)
             }
             HStack(spacing: 16) {
                 Button(went == nil ? "Send now" : "Send again…") { ask = .send([t.id], force: went != nil) }

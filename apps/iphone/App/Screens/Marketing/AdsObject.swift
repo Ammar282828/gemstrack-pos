@@ -73,7 +73,7 @@ struct AdsObjectScreen: View {
 
     private var form: some View {
         Form {
-            if let failure { Section { Text(failure).foregroundStyle(.red) }.houseRows() }
+            if let failure { Section { Text(failure).foregroundStyle(Tone.problem.color) }.houseRows() }
             if busy { Section { SkeletonLoading("Saving…") }.houseRows() }
             LedgerSection("Status") {
                 AdsStatusBadge(status: object["effective_status"] as? String ?? "")

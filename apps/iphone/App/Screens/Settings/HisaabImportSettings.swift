@@ -93,7 +93,7 @@ private struct HisaabImportPage: View {
                         Text("Error Reading File").font(.subheadline.weight(.semibold))
                         Text(error).font(.subheadline)
                     }
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Tone.problem.color)
                 }
             }
             if !rows.isEmpty { previewSection }
@@ -104,11 +104,7 @@ private struct HisaabImportPage: View {
         .navigationTitle("Import hisaab")
         .navigationBarTitleDisplayMode(.inline)
         .ownerNote($note)
-        .alert("Import stopped", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
-            Button("OK") { failure = nil }
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure, title: "Import stopped")
         .fileImporter(isPresented: $picking, allowedContentTypes: [.commaSeparatedText, .plainText]) { result in
             switch result {
             case .success(let url): Task { await readFile(url) }
@@ -139,7 +135,7 @@ private struct HisaabImportPage: View {
             .font(.subheadline)
             .foregroundStyle(.secondary)
         } header: {
-            LedgerHeading(title: "Instructions & Required Format")
+            LedgerHeading(title: "Instructions and required format")
         } footer: {
             Text("Import historical transactions for a customer or karigar from a CSV file (e.g., exported from Easy Khata).")
         }
@@ -148,7 +144,7 @@ private struct HisaabImportPage: View {
     // MARK: 1. Upload CSV File
 
     private var fileSection: some View {
-        LedgerSection("1. Upload CSV File") {
+        LedgerSection("1. Upload the CSV file") {
             Button { picking = true } label: {
                 HStack(spacing: 8) {
                     if reading { SkeletonLoading() }
@@ -188,7 +184,7 @@ private struct HisaabImportPage: View {
     // MARK: 2. Select Person to Import For
 
     private var personSection: some View {
-        LedgerSection("2. Select Person to Import For") {
+        LedgerSection("2. Choose who to import for") {
             Button { choosingPerson = true } label: {
                 HStack {
                     if let person {
@@ -212,23 +208,23 @@ private struct HisaabImportPage: View {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: row.isValidDate ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(row.isValidDate ? Color.green : Color.red)
+                        .foregroundStyle(row.isValidDate ? Tone.settled.color : Tone.problem.color)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(row.description.isEmpty ? "—" : row.description).lineLimit(2)
                         Text(row.isValidDate ? OwnerText.shortDate(row.date) : "Invalid Date")
                             .font(.caption)
-                            .foregroundStyle(row.isValidDate ? Color.secondary : Color.red)
+                            .foregroundStyle(row.isValidDate ? Color.secondary : Tone.problem.color)
                     }
                     Spacer(minLength: 8)
                     VStack(alignment: .trailing, spacing: 2) {
                         if row.cashIn != 0 { Text("IN \(PaymentText.pkr(row.cashIn))").font(.subheadline).monospacedDigit() }
                         if row.cashOut != 0 { Text("OUT \(PaymentText.pkr(row.cashOut))").font(.subheadline).monospacedDigit() }
-                        if row.cashIn == 0 && row.cashOut == 0 { Text("No amount").font(.caption).foregroundStyle(.red) }
+                        if row.cashIn == 0 && row.cashOut == 0 { Text("No amount").font(.caption).foregroundStyle(Tone.problem.color) }
                     }
                 }
             }
         } header: {
-            LedgerHeading(title: "Preview Data (\(rows.count) rows)")
+            LedgerHeading(title: "Preview data (\(rows.count) rows)")
         }
     }
 
@@ -247,7 +243,7 @@ private struct HisaabImportPage: View {
             .disabled(rows.isEmpty || person == nil || importing || error != nil || read?.refusal != nil)
         } footer: {
             if let refusal = read?.refusal {
-                Text(refusal).foregroundStyle(.red)
+                Text(refusal).foregroundStyle(Tone.problem.color)
             }
         }
     }

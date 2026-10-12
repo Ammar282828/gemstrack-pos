@@ -47,24 +47,7 @@ extension View {
 
     /// The ERP's own words when a write is refused.
     func workshopFailureAlert(_ message: Binding<String?>, title: String = "Not changed") -> some View {
-        modifier(WorkshopFailureAlert(message: message, title: title))
-    }
-}
-
-private struct WorkshopFailureAlert: ViewModifier {
-    @Binding var message: String?
-    let title: String
-
-    func body(content: Content) -> some View {
-        content.alert(title, isPresented: shown) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(message ?? "")
-        }
-    }
-
-    private var shown: Binding<Bool> {
-        Binding(get: { message != nil }, set: { if !$0 { message = nil } })
+        failureAlert(message, title: title)
     }
 }
 
@@ -74,7 +57,7 @@ struct WorkshopAgeBadge: View {
 
     var body: some View {
         if job.isDone {
-            StatusBadge("Done", color: .green)
+            StatusBadge("Done", tone: .settled)
         } else {
             StatusBadge("\(job.ageDays)d", color: tone)
                 .monospacedDigit()
@@ -83,8 +66,8 @@ struct WorkshopAgeBadge: View {
 
     private var tone: Color {
         switch job.urgency {
-        case .critical: return .red
-        case .warning: return .orange
+        case .critical: return Tone.late.color
+        case .warning: return Tone.owed.color
         case .ok: return .secondary
         }
     }
@@ -97,8 +80,8 @@ struct WorkshopUrgencyBadges: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            if critical > 0 { StatusBadge("\(critical) critical", color: .red) }
-            if late > 0 { StatusBadge("\(late) late", color: .orange) }
+            if critical > 0 { StatusBadge("\(critical) critical", tone: .late) }
+            if late > 0 { StatusBadge("\(late) late", tone: .owed) }
         }
     }
 }
@@ -186,13 +169,7 @@ struct WorkshopCards<Item: Identifiable, Content: View>: View {
         LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
             ForEach(items) { item in
                 content(item)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16)
-                    .background(Theme.card, in: .rect(cornerRadius: 20))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 20)
-                            .strokeBorder(.primary.opacity(0.06), lineWidth: 1)
-                    }
+                    .ledgerCard()
             }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }

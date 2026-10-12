@@ -33,7 +33,7 @@ struct StudioLibrary: View {
                     ForEach(rows, id: \.text) { item in
                         Button { opened = StudioAssetChoice(item: item) } label: {
                             HStack(alignment: .top, spacing: 12) {
-                                MarketingPhoto(path: item.s("thumb")).frame(width: 92, height: 92).clipShape(.rect(cornerRadius: 10))
+                                MarketingPhoto(path: item.s("thumb")).frame(width: 92, height: 92).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text(item.s("name")).foregroundStyle(.primary)
                                     Text(item.s("collection")).font(.caption).foregroundStyle(.secondary)
@@ -86,7 +86,7 @@ struct StudioLibrary: View {
             }
             MarketingDetails(fields: details.object.filter { !["roots", "account"].contains($0.key) }.mapValues(\.any))
             if let url = URL(string: details.s("enableUrl")), url.scheme == "https" { Link("Enable Drive API", destination: url) }
-            if !answer.s("siteError").isEmpty { Text(answer.s("siteError")).foregroundStyle(.red) }
+            if !answer.s("siteError").isEmpty { Text(answer.s("siteError")).foregroundStyle(Tone.problem.color) }
             Button("Check again") { Task { await load(fresh: true) } }
         }
     }

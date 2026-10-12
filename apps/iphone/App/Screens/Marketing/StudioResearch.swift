@@ -15,7 +15,7 @@ struct StudioRivals: View {
             Button("Find competitors") { action("Searching…") { found = try await MarketingRequest.send("/api/ads/studio/competitors", ["action": "find", "brief": brief])["found"].array } }
             TextField("@username or Instagram link", text: $username).textInputAutocapitalization(.never)
             Button("Add account") { add(MarketingValue(["username": username, "source": "owner"])) }.disabled(username.isEmpty)
-            if let busy { SkeletonLoading(busy) }; if let error { Text(error).foregroundStyle(.red) }
+            if let busy { SkeletonLoading(busy) }; if let error { Text(error).foregroundStyle(Tone.problem.color) }
         }.houseRows().task { if !House.isDemo { await load() } }.disabled(busy != nil)
         .confirmationDialog("Remove @\(removing?.s("username") ?? "") and its readings?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
             Button("Remove account", role: .destructive) { if let item = removing { action("Removing…") { _ = try await MarketingRequest.send("/api/ads/studio/competitors", ["action": "remove", "username": item.s("username")]); await load() } } }
@@ -41,7 +41,7 @@ struct StudioRivals: View {
                     LabeledContent("Posts", value: String(Int(item["profile"].n("mediaCount"))))
                     Button("Look up / refresh account") { look(item, read: false) }
                     Button("Read their feed") { look(item, read: true) }
-                    if !item.s("profileError").isEmpty { Text(item.s("profileError")).foregroundStyle(.red) }
+                    if !item.s("profileError").isEmpty { Text(item.s("profileError")).foregroundStyle(Tone.problem.color) }
                     DisclosureGroup("Recent posts") {
                         ForEach(item["profile"]["posts"].array.sorted { $0.n("rate") > $1.n("rate") }, id: \.text) { post in
                             VStack(alignment: .leading, spacing: 5) {
@@ -157,7 +157,7 @@ struct StudioSaved: View {
                     Button("Delete design", role: .destructive) { deleting = item }
                 }.houseRows()
                 LedgerSection("Words and settings", collapsible: true) { MarketingDetails(fields: item.object.filter { $0.key != "thumb" }.mapValues(\.any)) }
-                if let error = model.error { Section { Text(error).foregroundStyle(.red) }.houseRows() }
+                if let error = model.error { Section { Text(error).foregroundStyle(Tone.problem.color) }.houseRows() }
             }.modifier(HouseGround()).navigationTitle(item.s("name")).navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { selected = nil } } }.websiteBusy(model.busy)
             .confirmationDialog("Delete “\(item.s("name"))”?", isPresented: Binding(get: { deleting != nil && selected != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {

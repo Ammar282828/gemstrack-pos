@@ -53,7 +53,7 @@ struct StudioAgentSettings: View {
                             .buttonStyle(.houseProminent).disabled(making || House.isDemo)
                         if House.isDemo { Text("The demo can’t make keys.").font(.footnote).foregroundStyle(.secondary) }
                     }
-                    if let problem { Text(problem).font(.footnote).foregroundStyle(.red) }
+                    if let problem { Text(problem).font(.footnote).foregroundStyle(Tone.problem.color) }
                 } header: { LedgerHeading(title: "Connect an agent") }.houseRows()
 
                 Section {
@@ -117,11 +117,11 @@ struct StudioAgentSettings: View {
 private enum ERPDateText {
     static func day(_ iso: String) -> String {
         guard let d = ISO8601DateFormatter.flexible(iso) else { return "—" }
-        return d.formatted(.dateTime.day().month(.abbreviated).year().locale(Locale(identifier: "en_GB")))
+        return ShopDate.stamp(d)
     }
     static func moment(_ iso: String) -> String {
         guard let d = ISO8601DateFormatter.flexible(iso) else { return "—" }
-        return d.formatted(date: .abbreviated, time: .shortened)
+        return ShopDate.stamp(d, withTime: true)
     }
 }
 

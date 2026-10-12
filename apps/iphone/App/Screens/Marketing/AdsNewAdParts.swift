@@ -98,7 +98,7 @@ struct AdsMediaGrid: View {
         let on = chosen == m.id
         return StockImage(imageUrl: m.thumb, name: m.caption.isEmpty ? "Post" : m.caption, key: m.id)
             .aspectRatio(1, contentMode: .fit)
-            .clipShape(.rect(cornerRadius: 8))
+            .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             .overlay(alignment: .topLeading) {
                 if let w = m.kindWord {
                     Text(w)
@@ -138,7 +138,7 @@ struct AdsPieceGrid: View {
                     VStack(alignment: .leading, spacing: 4) {
                         StockImage(imageUrl: p.thumb, name: p.name, key: p.id)
                             .aspectRatio(1, contentMode: .fit)
-                            .clipShape(.rect(cornerRadius: 8))
+                            .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                         Text(p.name).font(.caption2).lineLimit(2)
                     }
                 }
@@ -167,7 +167,7 @@ struct AdsPhotoRow: View {
         HStack(alignment: .top, spacing: 10) {
             thumb
                 .frame(width: 56, height: 56)
-                .clipShape(.rect(cornerRadius: 10))
+                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 6) { state }
             Spacer(minLength: 4)
             if carousel {
@@ -200,7 +200,7 @@ struct AdsPhotoRow: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         } else if let e = photo.error {
-            Text(e).font(.caption).foregroundStyle(.red)
+            Text(e).font(.caption).foregroundStyle(Tone.problem.color)
         } else if carousel {
             TextField("Card headline", text: $photo.headline)
             if ownLinks {
@@ -247,7 +247,7 @@ struct AdsLibrarySheet: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     if let problem {
-                        Text(problem).foregroundStyle(.red)
+                        Text(problem).foregroundStyle(Tone.problem.color)
                         Button("Try again") { Task { await load(nil) } }.buttonStyle(.glass)
                     }
                     grid
@@ -292,7 +292,7 @@ struct AdsLibrarySheet: View {
         } label: {
             StockImage(imageUrl: img.thumb, name: img.name.isEmpty ? "Photo" : img.name, key: img.hash)
                 .aspectRatio(1, contentMode: .fit)
-                .clipShape(.rect(cornerRadius: 8))
+                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                 .overlay(alignment: .topTrailing) {
                     if used {
                         Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.accent).padding(4)

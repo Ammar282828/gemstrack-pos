@@ -83,20 +83,13 @@ struct WebsiteEditPieceScreen: View {
         } message: { (c: Confirm) in
             Text(confirmWords(c))
         }
-        .alert("Not done", isPresented: failureShown) {
-            Button("OK") { failure = nil }
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure)
     }
 
     private var confirmShown: Binding<Bool> {
         Binding(get: { confirm != nil }, set: { (on: Bool) in if !on { confirm = nil } })
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     private var siteName: String { store.siteName }
 
@@ -107,7 +100,7 @@ struct WebsiteEditPieceScreen: View {
             Group {
                 photoSection(p)
                 if let said {
-                    Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
+                    Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
                 }
                 wordsSection(p)
                 weightSection(p)
@@ -134,7 +127,7 @@ struct WebsiteEditPieceScreen: View {
         Section {
             StockImage(imageUrl: p.image, name: p.words.name, key: p.id + (p.change?.at ?? ""))
                 .aspectRatio(1, contentMode: .fit)
-                .clipShape(.rect(cornerRadius: 14))
+                .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
                 .opacity(p.hidden ? 0.5 : 1)
                 .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
             Text(p.photoEdited ? "The website shows a photo made here. The original is kept." : "The website's photo, unchanged.")

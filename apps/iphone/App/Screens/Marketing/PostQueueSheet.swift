@@ -53,10 +53,10 @@ struct PostQueueSheet: View {
         List { Group {
             Section { header(e) }
             if let said {
-                Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
+                Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
             }
             if let failure {
-                Section { Label(failure, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }
+                Section { Label(failure, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color) }
             }
             Section {
                 ForEach(places(e)) { (p: Place) in placeRow(p) }
@@ -93,10 +93,10 @@ struct PostQueueSheet: View {
         HStack(alignment: .top, spacing: 14) {
             StockImage(imageUrl: e.thumb, name: e.headline, key: e.id, decodeDataURI: true)
                 .frame(width: 84, height: 84)
-                .clipShape(.rect(cornerRadius: 14))
+                .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
             VStack(alignment: .leading, spacing: 6) {
                 Text(e.headline.isEmpty ? "A piece" : e.headline).font(.headline)
-                Text(statusWords(e)).font(.subheadline).foregroundStyle(e.status == "failed" ? Color.red : Color.secondary)
+                Text(statusWords(e)).font(.subheadline).foregroundStyle(e.status == "failed" ? Tone.problem.color : Color.secondary)
                 if e.units > 0 {
                     ProgressView(value: Double(e.done), total: Double(e.units))
                         .tint(Theme.accent)
@@ -165,14 +165,14 @@ struct PostQueueSheet: View {
                 Text(p.title)
                 Text(problem ?? p.detail)
                     .font(.caption)
-                    .foregroundStyle(problem == nil ? Color.secondary : Color.red)
+                    .foregroundStyle(problem == nil ? Color.secondary : Tone.problem.color)
 
             }
             Spacer(minLength: 6)
             if gone == p.units.count {
-                Label("Gone", systemImage: "checkmark.circle.fill").labelStyle(.iconOnly).foregroundStyle(.green)
+                Label("Gone", systemImage: "checkmark.circle.fill").labelStyle(.iconOnly).foregroundStyle(Tone.settled.color)
             } else if problem != nil {
-                Label("Failed", systemImage: "exclamationmark.circle.fill").labelStyle(.iconOnly).foregroundStyle(.red)
+                Label("Failed", systemImage: "exclamationmark.circle.fill").labelStyle(.iconOnly).foregroundStyle(Tone.problem.color)
             } else if gone > 0 {
                 Text("\(gone)/\(p.units.count)").font(.caption).foregroundStyle(.secondary).monospacedDigit()
             }

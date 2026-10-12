@@ -302,17 +302,10 @@ struct WebsiteFeatureButton: View {
             } message: {
                 Text(words(on))
             }
-            .alert("The set of the day didn't change", isPresented: failureShown) {
-                Button("OK") { failure = nil }
-            } message: {
-                Text(failure ?? "")
-            }
+            .failureAlert($failure, title: "The set of the day didn't change")
         }
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     private func words(_ on: Bool) -> String {
         if on {
@@ -360,7 +353,7 @@ struct WebsiteSetOfTheDay: View {
                     HStack(spacing: 12) {
                         StockImage(imageUrl: f.thumb, name: f.file, key: f.key)
                             .frame(width: 52, height: 52)
-                            .clipShape(.rect(cornerRadius: 10))
+                            .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                         TwoLine(title: f.file, subtitle: f.collection)
                         if busy { SkeletonLoading() }
                     }
@@ -401,11 +394,7 @@ struct WebsiteSetOfTheDay: View {
                          : "Under the set of the day on \(store.siteName)'s home page, for everyone: “\(note.trimmingCharacters(in: .whitespaces))”")
                 }
             }
-            .alert("The set of the day didn't change", isPresented: failureShown) {
-                Button("OK") { failure = nil }
-            } message: {
-                Text(failure ?? "")
-            }
+            .failureAlert($failure, title: "The set of the day didn't change")
         }
     }
 
@@ -413,9 +402,6 @@ struct WebsiteSetOfTheDay: View {
         Binding(get: { asking != nil }, set: { (on: Bool) in if !on { asking = nil } })
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     private func saveNote() async {
         guard let f = store.featured else { return }

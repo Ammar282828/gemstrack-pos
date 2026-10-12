@@ -15,7 +15,7 @@ struct WebsiteMenu: View {
             Group {
                 if tabs.isEmpty {
                     Section {
-                        ContentUnavailableView("This shop doesn't change its website from the ERP", systemImage: "globe")
+                        NotAvailableState("This shop doesn't change its website from the ERP", why: "Its website is managed outside the ERP, so there are no website tools here.", symbol: "globe")
                     }
                 } else {
                     Section {

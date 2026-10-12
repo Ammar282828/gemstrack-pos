@@ -30,8 +30,7 @@ struct NewOrderScanScreen: View {
             if session.isOwner {
                 form
             } else {
-                ContentUnavailableView("Reading a slip is for the owners", systemImage: "lock",
-                                       description: Text("The ERP reads paper with the shop's AI account, which only an owner's sign-in may use. Type the order in, or ask an owner."))
+                NotAvailableState("Reading a slip is for the owners", why: "The ERP reads paper with the shop's AI account, which only an owner's sign-in may use. Type the order in, or ask an owner.", symbol: "lock")
             }
         }
         .navigationTitle("Read a slip")
@@ -60,7 +59,7 @@ struct NewOrderScanScreen: View {
             }
             if let problem {
                 Section {
-                    Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                    Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
                 } header: {
                     LedgerHeading(title: "Could not read that")
                 }
@@ -103,7 +102,7 @@ struct NewOrderScanScreen: View {
         let check = NewOrderSlip.check(a)
         if let unread = a.unreadable, !unread.isEmpty {
             Section {
-                Label(unread, systemImage: "questionmark.circle").foregroundStyle(.orange)
+                Label(unread, systemImage: "questionmark.circle").foregroundStyle(Tone.owed.color)
             } header: {
                 LedgerHeading(title: "Could not make this out")
             }
@@ -111,7 +110,7 @@ struct NewOrderScanScreen: View {
         if !check.warnings.isEmpty {
             Section {
                 ForEach(check.warnings, id: \.self) { w in
-                    Label(w, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Label(w, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
                 }
             } header: {
                 LedgerHeading(title: "The slip does not add up as read")
@@ -143,7 +142,7 @@ struct NewOrderScanScreen: View {
                 pieceRow(it, off: check.itemsOff.contains(i))
             }
         } header: {
-            Text(a.items.count == 1 ? "1 piece" : "\(a.items.count) pieces")
+            LedgerHeading(title: a.items.count == 1 ? "1 piece" : "\(a.items.count) pieces")
         } footer: {
             if a.items.contains(where: NewOrderSlip.hasHisaab) {
                 Text("The rate on the slip goes into the order's rate box, so the form prices these pieces the way the slip did. Change the rate on the form and they move with it.")
@@ -180,7 +179,7 @@ struct NewOrderScanScreen: View {
             TwoLine(title: (it.description ?? "").isEmpty ? "Unnamed piece" : it.description!,
                     subtitle: bits.joined(separator: " · "),
                     trailing: written > 0 ? Money.pkr(written) : nil,
-                    trailingTint: off ? .red : .primary)
+                    trailingTint: off ? Tone.problem.color : .primary)
             if let computed, written <= 0 {
                 Text("Rate × weight comes to \(Money.pkr(computed)): no amount was written against it.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -205,7 +204,7 @@ struct NewOrderScanScreen: View {
                 if let x = a.exchange {
                     LabeledContent {
                         Text(ex.from == .unpriced ? "No figure" : "− " + Money.pkr(ex.value))
-                            .foregroundStyle(ex.from == .unpriced ? Color.red : Color.primary)
+                            .foregroundStyle(ex.from == .unpriced ? Tone.problem.color : Color.primary)
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Taken in exchange")

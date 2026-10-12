@@ -50,7 +50,7 @@ struct ArtworkEditor: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section { preview.listRowInsets(EdgeInsets()); if let problem { Text(problem).foregroundStyle(.red).font(.footnote) } }.houseRows()
+                Section { preview.listRowInsets(EdgeInsets()); if let problem { Text(problem).foregroundStyle(Tone.problem.color).font(.footnote) } }.houseRows()
                 Section {
                     Menu("Add") { addMenu }
                     Menu("Layout") {

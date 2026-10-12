@@ -147,7 +147,7 @@ private struct ShopifyInnerForm: View {
                 }
                 if let error = status.error, !error.isEmpty {
                     Label(error, systemImage: "exclamationmark.triangle")
-                        .font(.footnote).foregroundStyle(.orange)
+                        .font(.footnote).foregroundStyle(Tone.owed.color)
                 }
                 if !status.configured {
                     Text("This house has no Shopify store set up.").font(.footnote).foregroundStyle(.secondary)
@@ -183,7 +183,7 @@ private struct ShopifyInnerForm: View {
         !s.configured ? "minus.circle" : (s.connected == true ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
     }
     private func statusTint(_ s: ShopifyStatus) -> Color {
-        !s.configured ? .secondary : (s.connected == true ? .green : .orange)
+        !s.configured ? .secondary : (s.connected == true ? Tone.settled.color : Tone.owed.color)
     }
 
     /// /api/shopify/auth?shop=… (as the web's Re-authorize button). It sets its state cookie and sends the
@@ -218,7 +218,7 @@ private struct ShopifyInnerForm: View {
                 LabeledContent("Required") {
                     Label(missing.isEmpty ? "All granted" : "\(missing.count) missing",
                           systemImage: missing.isEmpty ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(missing.isEmpty ? .green : .orange)
+                        .foregroundStyle(missing.isEmpty ? Tone.settled.color : Tone.owed.color)
                 }
                 DisclosureGroup("Permissions") {
                     ForEach(scopeNeeds) { need in
@@ -259,7 +259,7 @@ private struct ShopifyInnerForm: View {
     private func scopeChip(_ title: String, _ ok: Bool) -> some View {
         Label(title, systemImage: ok ? "checkmark.circle.fill" : "xmark.circle")
             .font(.footnote)
-            .foregroundStyle(ok ? .green : .red)
+            .foregroundStyle(ok ? Tone.settled.color : Tone.problem.color)
             .accessibilityLabel("\(title) \(ok ? "granted" : "missing")")
     }
 
@@ -272,16 +272,16 @@ private struct ShopifyInnerForm: View {
                 LabeledContent("On the store in all", value: s.webhooksTotal.map(String.init) ?? "Unknown")
                 if s.webhooksHere == 0 {
                     Text("No webhooks point at this ERP, so new Shopify orders won't arrive by themselves.")
-                        .font(.footnote).foregroundStyle(.orange)
+                        .font(.footnote).foregroundStyle(Tone.owed.color)
                 }
             }
-            if let webhookMessage { Label(webhookMessage, systemImage: "checkmark.circle").font(.footnote).foregroundStyle(.green) }
-            if let webhookFailure { Label(webhookFailure, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(.red) }
+            if let webhookMessage { Label(webhookMessage, systemImage: "checkmark.circle").font(.footnote).foregroundStyle(Tone.settled.color) }
+            if let webhookFailure { Label(webhookFailure, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Tone.problem.color) }
             Button { confirmWebhooks = true } label: {
                 HStack {
                     Label("Register webhooks", systemImage: "antenna.radiowaves.left.and.right")
                     Spacer()
-                    if busy.contains(.webhooks) { ProgressView() }
+                    if busy.contains(.webhooks) { ProgressView().controlSize(.small) }
                 }
                 .frame(maxWidth: .infinity, minHeight: 44)
             }
@@ -314,7 +314,7 @@ private struct ShopifyInnerForm: View {
         Section {
             if let outcome { outcomeView(outcome) }
             if let importFailure {
-                Label("Import failed: \(importFailure)", systemImage: "xmark.octagon").font(.footnote).foregroundStyle(.red)
+                Label("Import failed: \(importFailure)", systemImage: "xmark.octagon").font(.footnote).foregroundStyle(Tone.problem.color)
             }
             if let orders {
                 if let listFailure {
@@ -326,7 +326,7 @@ private struct ShopifyInnerForm: View {
                 }
                 if orders.isEmpty {
                     Label("Every Shopify order after #\(since.map(String.init) ?? "the cutoff") is already in the ERP.", systemImage: "checkmark.circle")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Tone.settled.color)
                 } else {
                     TextField("Filter by order number or customer", text: $query)
                         .textInputAutocapitalization(.never)
@@ -382,7 +382,7 @@ private struct ShopifyInnerForm: View {
                     HStack {
                         Label(picked.isEmpty ? "Select orders to import" : "Import \(picked.count) order\(picked.count == 1 ? "" : "s")", systemImage: "square.and.arrow.down")
                         Spacer()
-                        if busy.contains(.importing) { ProgressView() }
+                        if busy.contains(.importing) { ProgressView().controlSize(.small) }
                     }
                     .frame(maxWidth: .infinity, minHeight: 44)
                 }
@@ -431,12 +431,12 @@ private struct ShopifyInnerForm: View {
         VStack(alignment: .leading, spacing: 6) {
             Label("Imported \(r.imported) of \(r.requested) order\(r.requested == 1 ? "" : "s")",
                   systemImage: r.errors.isEmpty && r.imported == r.requested ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(r.errors.isEmpty && r.imported == r.requested ? .green : .orange)
+                .foregroundStyle(r.errors.isEmpty && r.imported == r.requested ? Tone.settled.color : Tone.owed.color)
             Text(r.when.formatted(date: .omitted, time: .shortened)).font(.caption).foregroundStyle(.secondary)
             if !r.errors.isEmpty {
                 Text("\(r.errors.count) problem\(r.errors.count == 1 ? "" : "s"):").font(.footnote.weight(.semibold))
                 ForEach(Array(r.errors.enumerated()), id: \.offset) { _, e in
-                    Text("• " + e).font(.footnote).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+                    Text("• " + e).font(.footnote).foregroundStyle(Tone.problem.color).fixedSize(horizontal: false, vertical: true)
                 }
             }
             Button("Dismiss") { outcome = nil }.font(.footnote).frame(minHeight: 44)
@@ -448,7 +448,7 @@ private struct ShopifyInnerForm: View {
             HStack {
                 Label(title, systemImage: "arrow.clockwise")
                 Spacer()
-                if busy.contains(kind) { ProgressView() }
+                if busy.contains(kind) { ProgressView().controlSize(.small) }
             }
             .frame(maxWidth: .infinity, minHeight: 44)
         }

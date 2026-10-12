@@ -85,7 +85,7 @@ struct WorkshopStockJobSheet: View {
                         .lineLimit(2...5)
                 }
                 if let error {
-                    Section { Text(error).foregroundStyle(Color.red) }
+                    Section { Text(error).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()
@@ -192,7 +192,7 @@ struct WorkshopJobDetailsSheet: View {
                     Text("Shown to the karigar and on the workshop slip.")
                 }
                 if let error {
-                    Section { Text(error).foregroundStyle(Color.red) }
+                    Section { Text(error).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()

@@ -72,13 +72,13 @@ struct PhoneSettings: View {
                     }
                 }
                 if let providerStatus { Text(providerStatus).font(.caption).foregroundStyle(.secondary) }
-                if let problem = Push.shared.registrationError { Text(problem).font(.caption).foregroundStyle(.red) }
+                if let problem = Push.shared.registrationError { Text(problem).font(.caption).foregroundStyle(Tone.problem.color) }
             } header: {
                 LedgerHeading(title: "Notifications on this phone")
             } footer: {
                 Text("The shop's WhatsApp alerts are set in the ERP's Settings → Alerts.")
             }
-            if let error { Section { Text(error).foregroundStyle(.red) } }
+            if let error { Section { Text(error).foregroundStyle(Tone.problem.color) } }
 
 
             Section {

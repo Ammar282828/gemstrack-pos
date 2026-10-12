@@ -70,11 +70,7 @@ struct AdsAudiencesScreen: View {
             } message: {
                 Text(notice ?? "")
             }
-            .alert("Meta didn't take that", isPresented: failureShown) {
-                Button("OK") { failure = nil }
-            } message: {
-                Text(failure ?? "")
-            }
+            .failureAlert($failure, title: "Meta didn't take that")
     }
 
     private var deletingShown: Binding<Bool> {
@@ -85,9 +81,6 @@ struct AdsAudiencesScreen: View {
         Binding(get: { notice != nil }, set: { (on: Bool) in if !on { notice = nil } })
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     private var segmentLabel: String { data?.segments.first { (s: AdsHinted) in s.key == segment }?.label ?? "customers" }
 
@@ -161,7 +154,7 @@ struct AdsAudiencesScreen: View {
                 AdsAlertsSection(status: s)
                 if let loadProblem {
                     Section {
-                        Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                        Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
                         Button("Try again") { Task { await loadAudiences() } }
                     }
                 }
@@ -228,7 +221,7 @@ struct AdsAudiencesScreen: View {
             }
             .disabled(data == nil)
         } header: {
-            Text(data?.instagram.map { (ig: String) in "Instagram engagers · @\(ig)" } ?? "Instagram engagers")
+            LedgerHeading(title: data?.instagram.map { (ig: String) in "Instagram engagers · @\(ig)" } ?? "Instagram engagers")
         } footer: {
             Text("People who already know the shop on Instagram: usually the cheapest to turn into chats.")
         }
@@ -285,7 +278,7 @@ struct AdsAudiencesScreen: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(a.name)
                 Text(line).font(.caption).foregroundStyle(.secondary)
-                if let st = a.status { Text(st).font(.caption).foregroundStyle(.orange) }
+                if let st = a.status { Text(st).font(.caption).foregroundStyle(Tone.owed.color) }
             }
             Spacer(minLength: 8)
             if busy == a.id {

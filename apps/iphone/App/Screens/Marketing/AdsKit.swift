@@ -68,37 +68,40 @@ enum AdsFormat {
 
 /// A status in the shop's words and a tone (shape.ts STATUS, ACCOUNT_STATUS).
 enum AdsStatusWords {
-    enum Tone { case good, idle, warn, bad }
+    enum Level { case good, idle, warn, bad }
 
-    static func color(_ t: Tone) -> Color {
-        switch t {
-        case .good: return .green
-        case .idle: return .secondary
-        case .warn: return .orange
-        case .bad: return .red
+    /// The kit's tone for a status level: good is settled, idle quiet, warn owed, bad a problem.
+    static func tone(_ l: Level) -> Tone {
+        switch l {
+        case .good: return .settled
+        case .idle: return .quiet
+        case .warn: return .owed
+        case .bad: return .problem
         }
     }
 
-    private static let object: [String: (String, Tone)] = [
+    static func color(_ l: Level) -> Color { tone(l).color }
+
+    private static let object: [String: (String, Level)] = [
         "ACTIVE": ("Running", .good), "PAUSED": ("Paused", .idle), "CAMPAIGN_PAUSED": ("Campaign paused", .idle),
         "ADSET_PAUSED": ("Ad set paused", .idle), "PENDING_REVIEW": ("In review", .warn), "IN_PROCESS": ("Processing", .warn),
         "PREAPPROVED": ("Pre-approved", .warn), "WITH_ISSUES": ("Has issues", .bad), "DISAPPROVED": ("Rejected", .bad),
         "PENDING_BILLING_INFO": ("Needs payment info", .bad), "ARCHIVED": ("Archived", .idle), "DELETED": ("Deleted", .idle),
     ]
 
-    static func of(_ status: String) -> (label: String, tone: Tone) {
+    static func of(_ status: String) -> (label: String, tone: Level) {
         if let known = object[status] { return (known.0, known.1) }
         let words = status.isEmpty ? "unknown" : status.lowercased().replacingOccurrences(of: "_", with: " ")
         return (words.prefix(1).uppercased() + words.dropFirst(), .idle)
     }
 
-    private static let account: [Int: (String, Tone)] = [
+    private static let account: [Int: (String, Level)] = [
         1: ("Active", .good), 2: ("Disabled", .bad), 3: ("Payment due", .bad), 7: ("Under risk review", .warn),
         8: ("Settling a payment", .warn), 9: ("Grace period", .warn), 100: ("Closing", .bad), 101: ("Closed", .bad),
         201: ("Active", .good), 202: ("Closed", .bad),
     ]
 
-    static func ofAccount(_ status: Int) -> (label: String, tone: Tone) {
+    static func ofAccount(_ status: Int) -> (label: String, tone: Level) {
         if let known = account[status] { return (known.0, known.1) }
         return ("Status \(status)", .idle)
     }
@@ -303,7 +306,6 @@ struct AdsStatusBadge: View {
 /// in the map; this is for a link that reaches one anyway.
 struct AdsOwnersOnly: View {
     var body: some View {
-        ContentUnavailableView("Ads are for owners", systemImage: "lock",
-                               description: Text("Sign in with an owner or marketing account to see the ad spend."))
+        NotAvailableState("Ads are for owners", why: "Sign in with an owner or marketing account to see the ad spend.", symbol: "lock")
     }
 }

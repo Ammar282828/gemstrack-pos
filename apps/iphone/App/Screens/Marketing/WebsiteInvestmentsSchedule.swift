@@ -167,20 +167,13 @@ struct WebsiteGoldScheduleSheet: View {
         } message: { (_: Saving) in
             if let d = draft { Text(WebsiteGoldWords.switchOn(d, targets: gold.targets)) }
         }
-        .alert("Not saved", isPresented: failureShown) {
-            Button("OK") { failure = nil }
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure, title: "Not saved")
     }
 
     private var askingShown: Binding<Bool> {
         Binding(get: { asking != nil }, set: { (on: Bool) in if !on { asking = nil } })
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     private var usable: [WebsiteGoldStatus.Target] { gold.targets }
     private var going: Int { usable.filter { (t: WebsiteGoldStatus.Target) in draft?.plan(t.id).on ?? false }.count }
@@ -447,16 +440,9 @@ struct WebsiteGoldAddSheet: View {
         } message: {
             Text("The day's post, teaser and cards are replaced by these. Nothing is sent; what already went stays marked as sent.")
         }
-        .alert("Not filed", isPresented: failureShown) {
-            Button("OK") { failure = nil }
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure, title: "Not filed")
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     private func cardRow(_ title: String, thumb: UIImage?, has: Bool, pick: @escaping () -> Void, clear: @escaping () -> Void) -> some View {
         HStack(spacing: 12) {
@@ -469,7 +455,7 @@ struct WebsiteGoldAddSheet: View {
                 }
             }
             .frame(width: 52, height: 52)
-            .clipShape(.rect(cornerRadius: 8))
+            .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(.subheadline)
                 HStack(spacing: 14) {

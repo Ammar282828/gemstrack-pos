@@ -56,7 +56,7 @@ struct NewOrderSizeAskSheet: View {
                     Text("So the size is there next time, on any order or sale for them.")
                 }
                 if let failure {
-                    Section { Text(failure).foregroundStyle(.red) }
+                    Section { Text(failure).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()

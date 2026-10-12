@@ -28,7 +28,7 @@ struct StudioScreen: View {
             if tab == "plan", !["plays", "guide", "rivals"].contains(model.part) { model.part = "plays" }
         }
         .navigationDestination(item: $model.route) { PlaceScreen(path: $0.path) }
-        .alert("Could not finish", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
+        .failureAlert($model.error, title: "Could not finish")
         .websiteBusy(model.busy)
     }
     @ViewBuilder private var page: some View {

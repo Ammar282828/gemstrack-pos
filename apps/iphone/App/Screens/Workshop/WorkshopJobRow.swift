@@ -82,6 +82,7 @@ struct WorkshopJobRow: View {
             Label(stageWords, systemImage: stageSymbol)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(stageTone)
+                .contentTransition(.symbolEffect(.replace))
             WorkshopAgeBadge(job: job)
         }
     }
@@ -99,9 +100,9 @@ struct WorkshopJobRow: View {
     }
 
     private var stageTone: Color {
-        if job.isDone { return .green }
-        if job.isUnassigned { return .red }
-        return job.hasGiven ? Theme.accent : .orange
+        if job.isDone { return Tone.settled.color }
+        if job.isUnassigned { return Tone.owed.color }
+        return job.hasGiven ? Theme.accent : Tone.owed.color
     }
 
     /// The order (or invoice) it came off, its customer, and who took it: "on every order in the Workshop".
@@ -167,7 +168,7 @@ struct WorkshopJobRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 12)
-            .background(Theme.ground, in: .rect(cornerRadius: 12))
+            .background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous))
         }
     }
 
@@ -301,11 +302,11 @@ struct WorkshopJobRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 Image(systemName: "hammer").foregroundStyle(.secondary)
                 if job.isUnassigned {
-                    Text("No karigar yet").foregroundStyle(Color.red)
+                    Text("No karigar yet").foregroundStyle(Tone.owed.color)
                 } else {
                     Text(job.karigarName).fontWeight(.medium)
                     Text(job.hasGiven ? "Given " + ShopDate.say(job.givenAt) : "Not given yet")
-                        .foregroundStyle(job.hasGiven ? Color.secondary : Color.orange)
+                        .foregroundStyle(job.hasGiven ? Color.secondary : Tone.owed.color)
                 }
             }
             .font(.subheadline)

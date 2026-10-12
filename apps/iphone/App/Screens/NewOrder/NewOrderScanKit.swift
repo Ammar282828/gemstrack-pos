@@ -158,7 +158,7 @@ struct PaperPhotoStrip: View {
                             .resizable()
                             .scaledToFit()
                             .frame(height: 260)
-                            .clipShape(.rect(cornerRadius: 12))
+                            .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Photo \(i + 1) of the paper")
@@ -237,7 +237,7 @@ struct PaperNamePick: View {
                 Text(nobody).foregroundStyle(.secondary)
             }
         } header: {
-            Text(label)
+            LedgerHeading(title: label)
         } footer: {
             if guess.pinned != nil {
                 Text("Read as “\(guess.heard)”: matched in the book.")

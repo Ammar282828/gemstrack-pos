@@ -38,7 +38,7 @@ struct WebsiteWeightsScreen: View {
     var body: some View {
         Group {
             if let s = site.settings, !s.weights {
-                ContentUnavailableView("This shop's website prices pieces without weights", systemImage: "scalemass")
+                NotAvailableState("This shop's website prices pieces without weights", symbol: "scalemass")
             } else if let pieces {
                 page(pieces)
             } else if let problem {
@@ -74,20 +74,13 @@ struct WebsiteWeightsScreen: View {
         } message: { (p: Pending) in
             Text(words(p))
         }
-        .alert("Not saved", isPresented: failureShown) {
-            Button("OK") { failure = nil }
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure, title: "Not saved")
     }
 
     private var confirmingShown: Binding<Bool> {
         Binding(get: { confirming != nil }, set: { (on: Bool) in if !on { confirming = nil } })
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     // MARK: The list being worked through
 
@@ -137,7 +130,7 @@ struct WebsiteWeightsScreen: View {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(alignment: .firstTextBaseline) {
-                            Text("\(c.withWeight)").font(.title2.weight(.semibold)).monospacedDigit()
+                            Text("\(c.withWeight)").font(.system(.title2, design: .serif).weight(.semibold)).monospacedDigit().contentTransition(.numericText(value: Double(c.withWeight)))
                             Text("of \(c.total) weighed").foregroundStyle(.secondary)
                             Spacer()
                             Text(c.total - c.withWeight > 0 ? "\(c.total - c.withWeight) to go" : "all weighed")
@@ -178,7 +171,7 @@ struct WebsiteWeightsScreen: View {
         Section {
             StockImage(imageUrl: p.thumb, name: p.file, key: p.key)
                 .aspectRatio(1, contentMode: .fit)
-                .clipShape(.rect(cornerRadius: 14))
+                .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
                 .overlay(alignment: .topLeading) {
                     // As the site draws it (WeightLabel.jsx): Futura LT Light (bundled, App/Resources/Fonts) at 143/3000 of
                     // the photo's width, 120/3000 in, its baseline at (100 + 143 × 1.1)/3000 — so what is typed shows
@@ -230,7 +223,7 @@ struct WebsiteWeightsScreen: View {
                 TextField("0.00", text: $value)
                     .keyboardType(.decimalPad)
                     .focused($typing)
-                    .font(.system(size: 40, weight: .semibold))
+                    .font(.system(.largeTitle, design: .serif).weight(.semibold))
                     .monospacedDigit()
                 Text("g").font(.title).foregroundStyle(.secondary)
             }
@@ -265,7 +258,7 @@ struct WebsiteWeightsScreen: View {
                         Button { index = u.at } label: {
                             StockImage(imageUrl: u.piece.thumb, name: u.piece.file, key: u.piece.key)
                                 .frame(width: 64, height: 64)
-                                .clipShape(.rect(cornerRadius: 10))
+                                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                                 .overlay(alignment: .bottom) {
                                     if let g = u.piece.weightGrams {
                                         Text("\(WebsiteNumber.grams(g))g")
@@ -275,7 +268,7 @@ struct WebsiteWeightsScreen: View {
                                             .background(Color.black.opacity(0.55))
                                     }
                                 }
-                                .clipShape(.rect(cornerRadius: 10))
+                                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                         }
                         .buttonStyle(.plain)
                     }

@@ -105,11 +105,7 @@ struct AdsNewAdScreen: View {
             } message: {
                 Text(confirmText)
             }
-            .alert("That didn't work", isPresented: failureShown) {
-                Button("OK") { failure = nil }
-            } message: {
-                Text(failure ?? "")
-            }
+            .failureAlert($failure, title: "That didn't work")
     }
 
     private func sheets<V: View>(_ v: V) -> some View {
@@ -130,9 +126,6 @@ struct AdsNewAdScreen: View {
             }
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     // MARK: Reading
 
@@ -544,14 +537,14 @@ struct AdsNewAdScreen: View {
     private var postSection: some View {
         Section {
             if let mediaError {
-                Label(mediaError, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                Label(mediaError, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
                 Button("Try again") { Task { await loadMedia(after: nil) } }
             }
             if let post, !(media ?? []).contains(where: { (m: AdsMedia) in m.id == post.id }) {
                 HStack(spacing: 10) {
                     StockImage(imageUrl: post.thumb, name: "Post", key: post.id)
                         .frame(width: 56, height: 56)
-                        .clipShape(.rect(cornerRadius: 10))
+                        .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                     Text("The post of the ad this started from").font(.subheadline)
                 }
             }
@@ -612,7 +605,7 @@ struct AdsNewAdScreen: View {
                 }
             }
         } header: {
-            Text(kind == .site ? "The pieces" : "The photos")
+            LedgerHeading(title: kind == .site ? "The pieces" : "The photos")
         } footer: {
             Text(photosNote)
         }
@@ -639,7 +632,7 @@ struct AdsNewAdScreen: View {
             TextField("Search the website: ruby, kara, jhumka…", text: $pieceQ)
                 .autocorrectionDisabled()
             if let piecesError {
-                Label(piecesError, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                Label(piecesError, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
             } else if let pieces {
                 AdsPieceGrid(pieces: shownPieces(pieces), full: photos.count >= 10) { (p: PostPiece) in
                     Task { await addPiece(p) }
@@ -706,7 +699,7 @@ struct AdsNewAdScreen: View {
                 line = "Meta didn't say what the pixel recorded this week."
             }
         }
-        return Text(line).foregroundStyle(warn ? Color.orange : Color.secondary)
+        return Text(line).foregroundStyle(warn ? Tone.owed.color : Color.secondary)
     }
 
     // MARK: The words
@@ -753,7 +746,7 @@ struct AdsNewAdScreen: View {
         } header: {
             LedgerHeading(title: "\(step(4)) · Who sees it")
         } footer: {
-            if audience.places.isEmpty { Text("Choose where the ad shows.").foregroundStyle(.red) }
+            if audience.places.isEmpty { Text("Choose where the ad shows.").foregroundStyle(Tone.problem.color) }
         }
     }
 
@@ -865,7 +858,7 @@ struct AdsNewAdScreen: View {
             }
             .disabled(previewBusy || (kind == .post ? post == nil : readyPhotos.isEmpty))
             if let previewError {
-                Text(previewError).font(.footnote).foregroundStyle(.red)
+                Text(previewError).font(.footnote).foregroundStyle(Tone.problem.color)
             }
         } header: {
             LedgerHeading(title: "\(step(6)) · Preview")
@@ -918,7 +911,7 @@ struct AdsNewAdScreen: View {
             Group {
                 Section {
                     VStack(spacing: 10) {
-                        Image(systemName: "checkmark.circle.fill").font(.largeTitle).foregroundStyle(.green)
+                        Image(systemName: "checkmark.circle.fill").font(.largeTitle).foregroundStyle(Tone.settled.color)
                         Text(m.live ? "The ad is on its way" : "The ad is made, paused").font(.headline)
                         Text(m.live ? "Meta reviews every ad first (usually within the hour); it starts as soon as it is approved."
                              : "Nothing is spent until it is switched on in Campaigns.")
@@ -926,7 +919,7 @@ struct AdsNewAdScreen: View {
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                         ForEach(m.warnings, id: \.self) { (w: String) in
-                            Text(w).font(.footnote).foregroundStyle(.orange)
+                            Text(w).font(.footnote).foregroundStyle(Tone.owed.color)
                         }
                     }
                     .frame(maxWidth: .infinity)

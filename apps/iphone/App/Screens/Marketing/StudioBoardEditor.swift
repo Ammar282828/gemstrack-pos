@@ -170,7 +170,7 @@ struct StudioBoardEditor: View {
     private var canvasArea: some View {
         VStack(spacing: 8) {
             if House.isDemo { Label(demoNote, systemImage: "info.circle").font(.footnote).foregroundStyle(.secondary).padding(.horizontal) }
-            if let problem { Label(problem, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(.orange).padding(.horizontal) }
+            if let problem { Label(problem, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Tone.owed.color).padding(.horizontal) }
             if ready {
                 StudioBoardCanvas(image: NativeArtwork.image(response), boxes: response["boxes"].array, layers: layers, frameSize: frameSize, selected: $selected,
                                   changed: { design.doc["layers"] = .array($0) },
@@ -328,7 +328,7 @@ struct StudioBoardEditor: View {
                 ForEach(Self.stickers, id: \.self) { glyph in
                     Button { sticker(glyph) } label: {
                         Text(glyph).font(.title2).frame(maxWidth: .infinity, minHeight: 48)
-                            .background(Theme.card, in: .rect(cornerRadius: 10))
+                            .background(Theme.card, in: .rect(cornerRadius: Radius.tile, style: .continuous))
                     }
                     .buttonStyle(.plain).accessibilityLabel("Sticker " + glyph)
                 }
@@ -461,7 +461,7 @@ struct StudioBoardEditor: View {
         Section {
             if let data = source(.inset(id)) {
                 if let image = UIImage(data: data) {
-                    Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 140).clipShape(.rect(cornerRadius: 8)).frame(maxWidth: .infinity)
+                    Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 140).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous)).frame(maxWidth: .infinity)
                 } else {
                     // An SVG logo has no bitmap to show; the design itself draws it.
                     Label("A vector logo: no preview here, the design shows it.", systemImage: "doc.richtext").font(.footnote).foregroundStyle(.secondary)
@@ -568,7 +568,7 @@ struct StudioBoardEditor: View {
     @ViewBuilder private var photoPane: some View {
         Section {
             if let data = pictures[design.asset], let image = UIImage(data: data) {
-                Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 180).clipShape(.rect(cornerRadius: 10)).frame(maxWidth: .infinity)
+                Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 180).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous)).frame(maxWidth: .infinity)
                 Text(Self.origin(design.asset)).font(.footnote).foregroundStyle(.secondary)
             } else {
                 Text(design.asset.isEmpty ? "This design has no photo." : "The photo couldn’t be fetched.").foregroundStyle(.secondary)
@@ -647,7 +647,7 @@ struct StudioBoardEditor: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    if let warning = c.warning { Label(warning, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).font(.subheadline) }
+                    if let warning = c.warning { Label(warning, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color).font(.subheadline) }
                     ViewThatFits(in: .horizontal) {
                         HStack(alignment: .top, spacing: 12) { versions(c) }
                         VStack(spacing: 12) { versions(c) }
@@ -669,7 +669,7 @@ struct StudioBoardEditor: View {
         ForEach([("Before", c.before), ("After", Optional(c.data))], id: \.0) { title, data in
             VStack(alignment: .leading, spacing: 6) {
                 Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                if let data, let image = UIImage(data: data) { Image(uiImage: image).resizable().scaledToFit().clipShape(.rect(cornerRadius: 10)) }
+                if let data, let image = UIImage(data: data) { Image(uiImage: image).resizable().scaledToFit().clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous)) }
             }
             .frame(maxWidth: 520)
         }
@@ -1144,7 +1144,7 @@ struct StudioBoardQueueSheet: View {
                     } else if problem == nil {
                         SkeletonLoading("Finding the WhatsApp places")
                     }
-                    if let problem { Text(problem).font(.footnote).foregroundStyle(.red) }
+                    if let problem { Text(problem).font(.footnote).foregroundStyle(Tone.problem.color) }
                 } header: { LedgerHeading(title: "Where") }.houseRows()
                 Section {
                     TextField("Caption", text: $caption, axis: .vertical).lineLimit(4...12)
@@ -1205,7 +1205,7 @@ struct StudioBoardPhotoPicker: View {
                         }
                         .pickerStyle(.menu)
                     }
-                    if let problem { Text(problem).font(.footnote).foregroundStyle(.red) }
+                    if let problem { Text(problem).font(.footnote).foregroundStyle(Tone.problem.color) }
                     if let items {
                         if items.isEmpty && problem == nil {
                             Text(q.isEmpty ? "The library has no photos yet." : "Nothing matches “\(q)”.").foregroundStyle(.secondary)
@@ -1215,7 +1215,7 @@ struct StudioBoardPhotoPicker: View {
                                 let item = items.first { $0.s("id") == id } ?? .null
                                 Button { pick(item, format) } label: {
                                     VStack(alignment: .leading, spacing: 4) {
-                                        MarketingPhoto(path: item.s("thumb")).frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit).clipShape(.rect(cornerRadius: 10))
+                                        MarketingPhoto(path: item.s("thumb")).frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                                         Text(item.s("name")).font(.caption).lineLimit(2).foregroundStyle(.primary)
                                     }
                                 }
