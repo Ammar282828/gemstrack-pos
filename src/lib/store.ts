@@ -1016,7 +1016,7 @@ const initialSettingsData: Settings = {
   notifEndOfDayTime: '19:00',
   notifDailyReportTime: '21:00',
   firebaseConfig: {
-    projectId: "gemstrack-pos",
+    projectId: firebaseConfig.projectId, // this house's own, never the other one's
   }
 };
 

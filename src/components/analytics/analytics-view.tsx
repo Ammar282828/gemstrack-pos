@@ -3,6 +3,7 @@
 "use client";
 
 import { useAnalyticsRange } from '@/components/analytics/use-analytics-range';
+import { QUICK_RANGES } from '@/lib/analytics/range-param';
 import { ProductBreakdown } from '@/components/analytics/product-breakdown';
 import { CustomerBreakdown } from '@/components/analytics/customer-breakdown';
 import { CategoryBreakdown } from '@/components/analytics/category-breakdown';
@@ -756,13 +757,7 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
       <div>
         <div className="flex flex-wrap gap-1.5 items-center">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mr-1">Quick:</span>
-          {([
-            { key: 'last-30', label: 'Last 30 days', short: '30d' },
-            { key: 'last-90', label: 'Last 90 days', short: '90d' },
-            { key: 'this-year', label: 'This year', short: 'This yr' },
-            { key: 'last-year', label: 'Last year', short: 'Last yr' },
-            { key: 'all-time', label: 'All time', short: 'All' },
-          ] as const).map(btn => (
+          {QUICK_RANGES.map(btn => (
             <Button key={btn.key} variant={activeQuickSelect === btn.key ? 'default' : 'outline'} size="sm" className="text-xs px-2.5 h-7" onClick={() => handleQuickSelect(btn.key)}>
               <span className="hidden sm:inline">{btn.label}</span>
               <span className="sm:hidden">{btn.short}</span>

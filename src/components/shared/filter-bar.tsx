@@ -57,7 +57,7 @@ export const FilterBar: React.FC<{
     <Card className={cn('mb-3', className)}>
       <CardContent className="p-2 sm:p-2.5 space-y-2">
         <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex gap-2">
+          <div className="flex gap-2 sm:min-w-[15rem] sm:flex-1">
             <div className="relative flex-1 min-w-0">
               <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input

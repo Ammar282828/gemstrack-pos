@@ -4,23 +4,22 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
-import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
 import { useAppStore, Karigar } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { LedgerHeading, Pill, Monogram, SearchField, Segmented, EmptyState, FigureTile } from '@/components/ledger';
 import { buildWorkshopJobs, groupByKarigar, KarigarWorkload, CRITICAL_DAYS } from '@/lib/workshop';
-import { Search, PlusCircle, Edit3, Briefcase, Phone, Eye, User } from 'lucide-react';
+import { PlusCircle, Edit3, Briefcase, Phone, Eye, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageShell } from '@/components/shared/page-shell';
 
 /** What this karigar is holding, in one line. */
 const BenchSummary: React.FC<{ load?: KarigarWorkload; compact?: boolean }> = ({ load, compact }) => {
   if (!load || load.active === 0) {
-    return <span className="text-sm text-muted-foreground">Free</span>;
+    return <span className="text-ios-sub text-muted-foreground">Free</span>;
   }
   const late = load.overdue - load.critical;
   return (
@@ -28,10 +27,10 @@ const BenchSummary: React.FC<{ load?: KarigarWorkload; compact?: boolean }> = ({
       <span className="font-semibold tabular-nums">{load.active}</span>
       <span className="text-sm text-muted-foreground">piece{load.active === 1 ? '' : 's'}</span>
       {load.critical > 0 && (
-        <Badge variant="destructive" className="text-2xs">{load.critical} over {CRITICAL_DAYS}d</Badge>
+        <Pill tone="late">{load.critical} over {CRITICAL_DAYS}d</Pill>
       )}
       {late > 0 && (
-        <Badge variant="outline" className="text-2xs text-warning border-warning/40 bg-warning/10">{late} late</Badge>
+        <Pill tone="owed">{late} late</Pill>
       )}
       {!compact && load.totalWeightG > 0 && (
         <span className="text-xs text-muted-foreground tabular-nums">{load.totalWeightG.toFixed(1)}g out</span>
@@ -41,34 +40,26 @@ const BenchSummary: React.FC<{ load?: KarigarWorkload; compact?: boolean }> = ({
 };
 
 const KarigarCard: React.FC<{ karigar: Karigar; activeHisaab: string | null; load?: KarigarWorkload }> = ({ karigar, activeHisaab, load }) => (
-  <Link href={`/karigars/${karigar.id}`}>
-    <Card className="mb-3 hover:shadow-md transition-shadow cursor-pointer">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-4">
-          <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <User className="h-5 w-5 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="font-semibold truncate">{karigar.name}</p>
-              {activeHisaab && <Badge className="text-xs flex-shrink-0">{activeHisaab}</Badge>}
-            </div>
-            <div className="mt-1"><BenchSummary load={load} compact /></div>
-            {karigar.contact && <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5"><Phone className="h-3 w-3" />{karigar.contact}</p>}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+  <Link href={`/karigars/${karigar.id}`}
+    className="flex min-h-[56px] items-center gap-3 py-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+    <Monogram name={karigar.name} size={40} />
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center gap-2">
+        <p className="text-ios-headline font-semibold truncate">{karigar.name}</p>
+        {activeHisaab && <Pill tone="house" className="flex-shrink-0">{activeHisaab}</Pill>}
+      </div>
+      <div className="mt-0.5"><BenchSummary load={load} compact /></div>
+      {karigar.contact && <p className="text-ios-cap text-muted-foreground flex items-center gap-1 mt-0.5"><Phone className="h-3 w-3" />{karigar.contact}</p>}
+    </div>
+    <ChevronRight aria-hidden className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/60" />
   </Link>
 );
 
 const KarigarRow: React.FC<{ karigar: Karigar; activeHisaab: string | null; load?: KarigarWorkload }> = ({ karigar, activeHisaab, load }) => (
   <TableRow className="cursor-pointer">
     <TableCell>
-      <Link href={`/karigars/${karigar.id}`} className="font-medium text-primary hover:underline flex items-center gap-2">
-        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-          <User className="h-4 w-4 text-primary" />
-        </div>
+      <Link href={`/karigars/${karigar.id}`} className="font-medium text-foreground hover:underline flex items-center gap-2">
+        <Monogram name={karigar.name} size={32} />
         {karigar.name}
       </Link>
     </TableCell>
@@ -76,7 +67,7 @@ const KarigarRow: React.FC<{ karigar: Karigar; activeHisaab: string | null; load
     <TableCell className="text-muted-foreground hidden lg:table-cell">{karigar.contact || '-'}</TableCell>
     <TableCell className="hidden xl:table-cell">
       {activeHisaab
-        ? <Badge className="text-xs">{activeHisaab}</Badge>
+        ? <Pill tone="house">{activeHisaab}</Pill>
         : <span className="text-muted-foreground text-sm">—</span>}
     </TableCell>
     <TableCell className="text-right">
@@ -199,15 +190,9 @@ export default function KarigarsPage() {
     if (people.length === 0) return null;
     return (
       <section>
-        <div className="flex items-baseline justify-between gap-3 px-1 pb-1.5">
-          <div className="flex items-baseline gap-2 min-w-0">
-            <h2 className="text-sm font-semibold truncate">{title}</h2>
-            <span className="text-2xs text-muted-foreground flex-shrink-0">{hint}</span>
-          </div>
-          <span className="text-2xs text-muted-foreground flex-shrink-0">{people.length}</span>
-        </div>
+        <LedgerHeading title={title} count={people.length} trailing={hint} className="pb-2" />
 
-        <div className="md:hidden">
+        <div className="md:hidden overflow-hidden rounded-card bg-card divide-y divide-separator px-4">
           {people.map(k => (
             <KarigarCard key={k.id} karigar={k} activeHisaab={activeHisaabMap[k.id] ?? null}
               load={loadById.get(k.id)} />
@@ -250,56 +235,23 @@ export default function KarigarsPage() {
     >
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Working now</p>
-          <p className="text-base sm:text-xl md:text-2xl font-bold text-primary leading-tight">{stats.working}</p>
-          <p className="text-2xs text-muted-foreground">of {stats.total} on file</p>
-        </div>
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Pieces out</p>
-          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight">{stats.pieces}</p>
-          {stats.grams > 0 && <p className="text-2xs text-muted-foreground">{stats.grams.toFixed(0)}g of metal</p>}
-        </div>
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Over {CRITICAL_DAYS} days</p>
-          <p className={cn('text-base sm:text-xl md:text-2xl font-bold leading-tight',
-            stats.critical > 0 && 'text-destructive')}>{stats.critical}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Open hisaabs</p>
-          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight">{stats.openHisaabs}</p>
-        </div>
+        <FigureTile label="Working now" value={String(stats.working)} detail={`of ${stats.total} on file`} />
+        <FigureTile label="Pieces out" value={String(stats.pieces)} detail={stats.grams > 0 ? `${stats.grams.toFixed(0)}g of metal` : undefined} />
+        <FigureTile label={`Over ${CRITICAL_DAYS} days`} value={String(stats.critical)} tint={stats.critical > 0 ? 'late' : undefined} />
+        <FigureTile label="Open hisaabs" value={String(stats.openHisaabs)} />
       </div>
 
-      <FilterBar
-        value={searchTerm}
-        onChange={setSearchTerm}
-        placeholder="Search by name or contact…"
-        actions={
-          <div className="inline-flex rounded-md border overflow-hidden flex-shrink-0" role="group" aria-label="Show">
-            {([['all', 'Everyone'], ['working', 'Working'], ['free', 'Free']] as const).map(([id, label]) => (
-              <button
-                key={id} type="button" onClick={() => setView(id)} aria-pressed={view === id}
-                className={cn('px-2.5 text-xs h-9 transition-colors whitespace-nowrap',
-                  view === id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        }
-      />
+      <div className="flex flex-col sm:flex-row gap-2">
+        <SearchField value={searchTerm} onChange={setSearchTerm} placeholder="Search by name or contact…" className="sm:flex-1" />
+        <Segmented<'all' | 'working' | 'free'> label="Show" value={view} onChange={setView} className="shrink-0"
+          options={[{ value: 'all', label: 'Everyone' }, { value: 'working', label: 'Working' }, { value: 'free', label: 'Free' }]} />
+      </div>
 
       {groups.all.length === 0 ? (
-        <div className="text-center py-14 bg-card rounded-xl border">
-          <Briefcase className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-          <h3 className="text-lg font-semibold mb-1">No karigars found</h3>
-          <p className="text-sm text-muted-foreground">
-            {searchTerm ? 'Try a different search term.' : 'Add a karigar to begin.'}
-          </p>
-        </div>
+        <EmptyState icon={<Briefcase />} title="No karigars found"
+          description={searchTerm ? 'Try a different search term.' : 'Add a karigar to begin.'} />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-[22px]">
           <Section title="Working" hint="busiest first" people={visible.working} />
           <Section title="Free" hint="nothing on the bench" people={visible.free} />
         </div>
