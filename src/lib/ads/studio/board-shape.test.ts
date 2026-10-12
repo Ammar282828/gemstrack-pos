@@ -67,3 +67,56 @@ describe('a layout that suits the photo and shape', () => {
     expect(safeTemplate('headline', { marked: false, format: 'portrait' })).toBe('headline');
   });
 });
+
+describe('Designer v2 fields in a document from outside', () => {
+  const bg = { photoId: null, placement: { mode: 'fill', zoom: 1, focusX: 0.5, focusY: 0.5 }, dim: 0, gradient: 'none', color: '#fff' };
+  const grad = { type: 'linear', angle: 100, stops: [{ at: 0, color: '#8C6A25' }, { at: 1, color: '#FBEFC4', alpha: 0.9 }] };
+  const text = { id: 't', kind: 'text', text: 'Price Rs 125,000', x: 10, y: 10, size: 40, font: 'regular', color: '#111', align: 'left', width: 400, fit: false, spacing: 0, lineHeight: 1.1, upper: false, shadow: false, box: null, rotate: 0, opacity: 1 };
+  const qr = { id: 'q', kind: 'qr', x: 100, y: 100, w: 240, value: 'https://wa.me/923001234567', fg: '#111111', bg: '#ffffff', quiet: 4, rotate: 0, opacity: 1 };
+  const withLayer = (l: object, over: object = {}) => ({ bg, layers: [l], ...over });
+
+  it('round-trips every new key', () => {
+    const layers = [
+      { ...text, blend: 'soft-light', role: 'headline', layerFx: { shadow: { color: '#000', x: 0, y: 8, blur: 20, alpha: 0.4 }, glow: { color: '#fd8', blur: 30, alpha: 0.7 }, outline: { color: '#fff', width: 4 } }, runs: [{ from: 6, to: 16, font: 'bold', color: '#C9973F', size: 1.5, upper: false, underline: true, gradient: grad }], list: 'bullet', fillGradient: grad },
+      { id: 'r', kind: 'rect', x: 0, y: 0, w: 10, h: 10, color: '#000', stroke: 0, fill: null, curve: 0, radius: 0, rotate: 0, opacity: 1, fillGradient: grad, blend: 'multiply' },
+      { id: 'i', kind: 'image', photoId: 'p', x: 0, y: 0, w: 100, radius: 0, border: null, shadow: false, rotate: 0, opacity: 1, cutout: true, adjust: { brightness: 0, contrast: 0, saturation: 0, warmth: 0, fade: 0, vignette: 0, highlights: -30, shadows: 20, tint: 5, hue: 0, sharpen: 40, blur: 0, grain: 10 } },
+      qr,
+    ];
+    const doc = { bg: { ...bg, fill: { ...grad, type: 'radial' }, adjust: { brightness: 1, contrast: 0, saturation: 0, warmth: 0, fade: 0, vignette: 0, grain: 12 } }, layers, meta: { template: 'headline', master: 'p1', guides: { x: [100, 540], y: [200] }, subject: { x: 0.2, y: 0.3, w: 0.5, h: 0.4 }, grid: 40 } };
+    expect(cleanDoc(doc)).toEqual(doc);
+  });
+
+  it('knows the qr kind', () => {
+    expect(cleanDoc(withLayer(qr)).layers[0]).toMatchObject({ kind: 'qr', value: 'https://wa.me/923001234567' });
+    expect(() => cleanDoc(withLayer({ ...qr, w: NaN }))).toThrow(/w that is not a number/);
+    expect(() => cleanDoc(withLayer({ ...qr, value: '' }))).toThrow(/QR code/);
+    expect(() => cleanDoc(withLayer({ ...qr, value: 'x'.repeat(501) }))).toThrow(/QR code/);
+    expect(() => cleanDoc(withLayer({ ...qr, quiet: 20 }))).toThrow(/quiet zone/);
+    expect(() => cleanDoc(withLayer({ ...qr, bg: 5 }))).toThrow(/background/);
+  });
+
+  it('refuses junk in the new keys, saying which', () => {
+    expect(() => cleanDoc(withLayer({ ...text, blend: 'burn' }))).toThrow(/blend/);
+    expect(() => cleanDoc(withLayer({ ...text, role: 'boss' }))).toThrow(/role/);
+    expect(() => cleanDoc(withLayer({ ...text, layerFx: { shadow: { color: '#000', x: 0, y: NaN, blur: 1, alpha: 1 } } }))).toThrow(/shadow/);
+    expect(() => cleanDoc(withLayer({ ...text, layerFx: { glow: { color: '#000', blur: 9999, alpha: 1 } } }))).toThrow(/glow/);
+    expect(() => cleanDoc(withLayer({ ...text, layerFx: 'big' }))).toThrow(/layerFx/);
+    expect(() => cleanDoc(withLayer({ ...text, list: 'roman' }))).toThrow(/list/);
+    expect(() => cleanDoc(withLayer({ ...text, fillGradient: { ...grad, stops: [grad.stops[0]] } }))).toThrow(/stops/);
+    expect(() => cleanDoc(withLayer({ ...text, runs: [{ from: 'a', to: 3 }] }))).toThrow(/run/);
+    expect(() => cleanDoc(withLayer({ ...text, runs: [{ from: 5, to: 3 }] }))).toThrow(/run/);
+    expect(() => cleanDoc(withLayer({ ...text, runs: [{ from: 0, to: 3, font: 'comic' }] }))).toThrow(/font/);
+    expect(() => cleanDoc(withLayer({ ...text, runs: [{ from: 0, to: 3, size: 100 }] }))).toThrow(/size/);
+    expect(() => cleanDoc(withLayer({ ...text, runs: Array.from({ length: 61 }, () => ({ from: 0, to: 1 })) }))).toThrow(/at most 60/);
+    expect(() => cleanDoc(withLayer({ id: 'i', kind: 'image', photoId: 'p', x: 0, y: 0, w: 1, cutout: 'yes' }))).toThrow(/cutout/);
+    expect(() => cleanDoc(withLayer({ id: 'i', kind: 'image', photoId: 'p', x: 0, y: 0, w: 1, adjust: { sharpen: NaN } }))).toThrow(/sharpen/);
+    expect(() => cleanDoc({ bg: { ...bg, fill: { type: 'linear' } }, layers: [] })).toThrow(/gradient/);
+    expect(() => cleanDoc({ bg, layers: [], meta: { grid: -4 } })).toThrow(/grid/);
+    expect(() => cleanDoc({ bg, layers: [], meta: { guides: { x: [1, NaN], y: [] } } })).toThrow(/guides/);
+    expect(() => cleanDoc({ bg, layers: [], meta: { subject: { x: 0, y: 0, w: 2, h: 1 } } })).toThrow(/subject/);
+  });
+
+  it('still passes documents saved before any of it', () => {
+    expect(cleanDoc(withLayer(text)).layers).toHaveLength(1);
+  });
+});

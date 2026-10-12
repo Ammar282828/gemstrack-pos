@@ -17,7 +17,7 @@ import { FIXES, PLACEMENT_LABEL, PLACEMENTS, type FixCode, type Placement } from
 import { SCENES } from '@/lib/social/prompts';
 import { AI_RATIOS } from '@/lib/ads/studio/templates';
 import { BRAND } from '@/lib/ads/studio/brand';
-import { api } from '../ads-kit';
+import { api } from '../ads/ads-kit';
 import {
   AuthedImg, FIX_OPS, Meter, SITE_LABEL, ScoreBadge, downloadBlob, fetchAsset, runImageOp, safeName, scoreWord,
   type FixResult, type LibraryItem, type LibraryResponse, type WorkPhoto,

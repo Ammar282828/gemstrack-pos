@@ -22,6 +22,7 @@
 import sharp from 'sharp';
 import { readSecret } from '@/lib/secret-manager';
 import { AiError, type InlineImage } from '@/lib/social/ai';
+import { relayJpeg, withPublicImage } from '@/lib/social/story-post';
 
 export type RetouchPart = 'jewelry' | 'background' | 'light';
 export const RETOUCH_PARTS: RetouchPart[] = ['jewelry', 'background', 'light'];
@@ -133,4 +134,42 @@ export async function retouchPhoto(photo: Buffer, parts: RetouchPart[] = RETOUCH
   console.log(`[retouch] GPT Image ${((t1 - t0) / 1000).toFixed(0)} s${steps.length > 1 ? `, Precision ${((Date.now() - t1) / 1000).toFixed(0)} s` : ''}`);
   const final = await sharp(out).resize({ width: CATALOGUE_EDGE, height: CATALOGUE_EDGE, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 92, mozjpeg: true }).toBuffer();
   return { image: { mimeType: 'image/jpeg', data: final.toString('base64') }, steps };
+}
+
+/**
+ * Cutting a piece out of its background (Design layer splitter, plan §4.3): Magnific's remove-background
+ * endpoint (POST {API}/beta/remove-background, form field `image_url`, the same x-magnific-api-key header as
+ * above; it answers at once with `{ url, high_resolution, preview, original }`, a PNG with alpha). It takes a
+ * public address, not bytes, so the photograph is held for the length of the call at the `social_media` relay
+ * (story-post.ts, as an Instagram post is). Verified live 2026-10-12: urlencoded `image_url` through the
+ * social_media relay answers with a `high_resolution` PNG. Any failure is a plain message, never a faked cut-out,
+ * and the splitter keeps the photograph whole.
+ * Returns a PNG.
+ */
+export const BACKGROUND_REMOVAL = true;
+export async function removeBackground(photo: Buffer, origin: string): Promise<Retouched> {
+  const key = await magnificKey();
+  if (!key) throw new AiError('Cutting the piece out isn’t set up for this shop yet: add magnific-api-key in Secret Manager.', 503);
+  const jpeg = await relayJpeg(photo);
+  const png = await withPublicImage(jpeg, origin, async url => {
+    const res = await fetch(`${API}/beta/remove-background`, {
+      method: 'POST',
+      headers: { 'x-magnific-api-key': key, 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      body: new URLSearchParams({ image_url: url }).toString(),
+      signal: AbortSignal.timeout(60_000),
+    });
+    const d = await res.json().catch(() => ({})) as { url?: string; high_resolution?: string; message?: string; data?: { url?: string } };
+    const out = d.high_resolution || d.url || d.data?.url;
+    if (!res.ok || !out) throw new AiError(`The cut-out couldn’t be made: ${d.message || `status ${res.status}`}.`, res.status === 401 ? 503 : res.status === 429 ? 429 : 502);
+    const img = await fetch(out, { signal: AbortSignal.timeout(60_000) });
+    if (!img.ok) throw new AiError(`The cut-out didn’t download (${img.status}).`, 502);
+    return Buffer.from(await img.arrayBuffer());
+  });
+  const meta = await sharp(png).metadata().catch(() => null);
+  if (!meta?.hasAlpha) throw new AiError('The cut-out came back without transparency, so it isn’t used.', 502);
+  // No generated pixel is in a cut-out, but a mask that kept nothing or everything is not a cut-out.
+  const alpha = await sharp(png).resize({ width: 64, height: 64, fit: 'inside' }).ensureAlpha().extractChannel(3).raw().toBuffer();
+  const kept = alpha.reduce((n, a) => n + (a > 127 ? 1 : 0), 0) / Math.max(1, alpha.length);
+  if (kept < 0.02 || kept > 0.985) throw new AiError('The cut-out found no clear piece to separate, so the photograph stays whole.', 502);
+  return { image: { mimeType: 'image/png', data: png.toString('base64') }, steps: ['Magnific remove background'] };
 }

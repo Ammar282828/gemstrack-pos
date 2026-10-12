@@ -2,6 +2,14 @@
 
 _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE.md keeps a one-line index; this is the record._
 
+> **Split and moved to Design (2026-10-12, WP7; [docs/features/design.md](design.md)).** The Studio is no longer an Ads tab.
+> **Plan** (what to run, ad days & rules, competitors) is **Ads › Plan** (`/ads/plan`, `?s=plays|guide|rivals`, `src/app/ads/plan/`).
+> **Photos, Make, Board and Saved** are **Posts › Design** sections (`?v=photos|make|board|saved`); `board.tsx`, `library.tsx` and
+> `studio-kit.tsx` moved to `src/app/design/` unchanged, and Make and Saved are Design's workspace and shelf. `/ads/studio?v=…`
+> redirects (table in design.md). The old Make and Saved screens remain at `/design/classic/ad` for "Make it with AI" (art-directed
+> and painted ads), which Design does not do yet; `maker.tsx`, `post-it.tsx`, `saved.tsx` live there. **Every `/api/ads/studio/*` and
+> `/api/studio/mcp` route is unchanged** (the iPhone app and the board's agent call them). Below, "the Studio" means those parts.
+
 ### Ad studio
 
 - **Ad studio** (`/ads/studio`, an Ads tab; both houses — `NEXT_PUBLIC_STORE_AD_STUDIO` (Mina "1" since the evening of 2026-09-29); 2026-09-29, owner: "a curated

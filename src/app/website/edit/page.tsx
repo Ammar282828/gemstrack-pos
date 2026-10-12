@@ -19,6 +19,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useLingering } from '@/hooks/use-lingering';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,7 @@ import {
   ArrowLeft, Check, ExternalLink, EyeOff, History, ImageIcon, Loader2, MessageSquareText, PenLine, RotateCcw, Save, Search, Sparkles, Undo2, Wand2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { STORE_BRAND, STORE_LINKS, STORE_SITE_EDIT, STORE_SITE_MARK_INK } from '@/lib/store-config';
+import { STORE_BRAND, STORE_DESIGN, STORE_LINKS, STORE_SITE_EDIT, STORE_SITE_MARK_INK } from '@/lib/store-config';
 import { weightLabel } from '@/lib/social/caption';
 import { PALETTES, canvasToJpeg, loadImage, stampPhoto } from '@/lib/social/story';
 import {
@@ -476,6 +477,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
           <p className="text-xs text-muted-foreground truncate">{[piece.collection, piece.hidden ? 'hidden from the website' : '', changed(piece) && piece.change?.at ? `changed ${when(piece.change.at)}` : ''].filter(Boolean).join(' · ')}</p>
         </div>
         {piece.url && <Button asChild variant="outline" size="sm"><a href={piece.url} target="_blank" rel="noopener"><ExternalLink className="h-4 w-4 mr-1.5" /> On the website</a></Button>}
+        {STORE_DESIGN && <Button asChild variant="outline" size="sm"><Link href={`/design?v=make&site=${encodeURIComponent(piece.id)}`} title="Make its story, post or an ad from this photograph — resize, publish"><Wand2 className="h-4 w-4 mr-1.5" /> Open in Design</Link></Button>}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
