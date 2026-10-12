@@ -8,6 +8,7 @@ import erp.app.screens.neworder.NewOrderRoutes
 import erp.app.screens.orders.OrdersRoutes
 import erp.app.screens.sale.SaleRoutes
 import erp.app.screens.stock.StockRoutes
+import erp.app.screens.workshop.WorkshopRoutes
 
 /**
  * Every native screen's routes, group by group. A group adds its line here and nowhere else (a screen group lives
@@ -26,6 +27,7 @@ object NativeScreens {
             InvoicesRoutes,
             CustomersRoutes,
             StockRoutes,
+            WorkshopRoutes,
         ).flatten()
     }
 }

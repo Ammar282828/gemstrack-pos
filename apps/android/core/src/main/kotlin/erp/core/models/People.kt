@@ -247,6 +247,8 @@ data class GivenItem(
     val recipientName: String,
     /** The karigar's or customer's id, when linked. */
     val recipientId: String?,
+    /** Who at the shop handed it over (a Taken by name; the owner, 2026-10-10). Older rows have none. */
+    val givenBy: String?,
     val notes: String?,
     val status: GivenItemStatus,
     /** ISO; when it came back. */
@@ -262,6 +264,7 @@ data class GivenItem(
                 recipientType = c.word("recipientType", GivenItemRecipientType, GivenItemRecipientType.unknown("")),
                 recipientName = c.string("recipientName", ""),
                 recipientId = c.string("recipientId"),
+                givenBy = c.string("givenBy"),
                 notes = c.string("notes"),
                 status = c.word("status", GivenItemStatus, GivenItemStatus.unknown("")),
                 returnedDate = c.string("returnedDate"),
