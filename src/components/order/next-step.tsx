@@ -47,29 +47,33 @@ export function NextStep({ order, owed, className, size = 'sm', compact = false 
     }
   };
 
-  const h = size === 'sm' ? 'h-8' : 'h-10';
+  // On a phone's card (size 'default') the step is the app's full-width tinted capsule; in the desktop
+  // table (size 'sm') it stays a compact button.
+  const card = size === 'default';
+  const h = card ? 'h-11 flex-1 text-ios-sub font-semibold' : 'h-8';
+  const lead = (v: 'default' | 'secondary') => (card ? 'secondary' : v);
   return (
     // The card behind opens the order; nothing here should.
     <div className={cn('flex items-center gap-1.5', className)} onClick={e => e.stopPropagation()}>
       {stage === 'transfer' && (
-        <Button type="button" size="sm" variant={order.website?.paymentStatus === 'slip_sent' ? 'default' : 'secondary'} className={h} onClick={() => setOpen('transfer')}>
+        <Button type="button" size="sm" variant={lead(order.website?.paymentStatus === 'slip_sent' ? 'default' : 'secondary')} className={h} onClick={() => setOpen('transfer')}>
           <Banknote className="mr-1.5 h-4 w-4" />{order.website?.paymentStatus === 'slip_sent' ? 'Slip in — check' : 'Check transfer'}
         </Button>
       )}
-      {stage === 'new' && <Button type="button" size="sm" className={h} onClick={() => setOpen('give')}><UserPlus className="mr-1.5 h-4 w-4" />Give out</Button>}
+      {stage === 'new' && <Button type="button" size="sm" variant={lead('default')} className={h} onClick={() => setOpen('give')}><UserPlus className="mr-1.5 h-4 w-4" />Give out</Button>}
       {stage === 'karigar' && (
         <Button type="button" size="sm" variant="secondary" className={h} disabled={busy} onClick={markReady}>
           {busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-4 w-4" />}Mark ready
         </Button>
       )}
-      {stage === 'ready' && <Button type="button" size="sm" className={h} onClick={() => setOpen('finalize')}><FileText className="mr-1.5 h-4 w-4" />Finalize &amp; invoice</Button>}
+      {stage === 'ready' && <Button type="button" size="sm" variant={lead('default')} className={h} onClick={() => setOpen('finalize')}><FileText className="mr-1.5 h-4 w-4" />Finalize &amp; invoice</Button>}
       {order.invoiceId && (
-        <Link href={`/invoices/${order.invoiceId}`} className="text-xs text-muted-foreground underline-offset-2 hover:underline whitespace-nowrap">
-          Invoiced · {order.invoiceId}
+        <Link href={`/invoices/${order.invoiceId}`} className={cn('inline-flex items-center gap-1.5 whitespace-nowrap underline-offset-2 hover:underline', card ? 'min-h-11 flex-1 text-ios-sub font-medium text-primary' : 'text-xs text-muted-foreground')}>
+          {card && <FileText aria-hidden className="h-4 w-4" />}Invoiced · {order.invoiceId}
         </Link>
       )}
       {making && (
-        <Button type="button" size="sm" variant="ghost" className={cn(h, 'px-2 text-muted-foreground')} onClick={() => setOpen('advance')} title="Record an advance" aria-label="Record an advance">
+        <Button type="button" size="sm" variant="ghost" className={cn(card ? 'h-11 px-3' : 'h-8 px-2 text-muted-foreground')} onClick={() => setOpen('advance')} title="Record an advance" aria-label="Record an advance">
           <CreditCard className="h-4 w-4" />{!compact && <span className="ml-1 hidden sm:inline">Advance</span>}
         </Button>
       )}
