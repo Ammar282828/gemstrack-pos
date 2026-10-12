@@ -258,7 +258,9 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
     const next = !full;
     setFull(next);
     try {
-      if (next) void fullRef.current?.requestFullscreen?.().catch(() => undefined);
+      // The whole page (the board covers it): the designer and the menus open on <body>, which a full-screen
+      // board element would hide.
+      if (next) void document.documentElement.requestFullscreen?.().catch(() => undefined);
       else if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     } catch { /* the covering view still works */ }
   };

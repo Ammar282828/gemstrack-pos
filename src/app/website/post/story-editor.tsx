@@ -31,7 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Undo2, Redo2, Plus, LayoutTemplate, Type, ArrowUpRight, Minus, Circle, Square, Link2, Image as ImageIcon, Trash2, Save, BookmarkCheck,
-  Maximize2, Lock, Copy, MoreHorizontal, ArrowLeft, Download, ZoomIn, ZoomOut, Shapes, PaintBucket, Layers, Palette as PaletteIcon, Upload, Clipboard, Scissors,
+  Maximize2, Minimize2, Lock, Copy, MoreHorizontal, ArrowLeft, Download, ZoomIn, ZoomOut, Shapes, PaintBucket, Layers, Palette as PaletteIcon, Upload, Clipboard, Scissors,
   ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Group, Ungroup, Unlock, Paintbrush, Pencil, ArrowRightLeft, Crop, Check, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -1273,6 +1273,35 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
   ];
   const titleOf = (p: SidePanel) => extras?.panels?.find(x => x.id === p)?.title ?? PANEL_TITLE[p] ?? '';
   const areaRef = useRef<HTMLDivElement>(null);
+
+  // Full screen (2026-10-12, owner: "the editor in full screen for any ad"): the browser's own, so its tabs and
+  // address bar go too. Remembered on this device: the next design opens full screen (the tap that opened it
+  // still counts as the gesture the browser asks for). Esc leaves; an iPhone has no element full screen, and the
+  // designer already covers the page there.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const canFull = typeof document !== 'undefined' && !!document.fullscreenEnabled;
+  const [isFull, setIsFull] = useState(false);
+  const entered = useRef(false);   // full screen this designer asked for (the board's own is left alone on close)
+  const goFull = useCallback((on: boolean) => {
+    entered.current = on;
+    try { localStorage.setItem('designer_fullscreen', on ? '1' : '0'); } catch { /* private mode */ }
+    // The whole page, not the designer alone: its menus and colour pickers open in portals on <body>,
+    // which a full-screen designer element would hide.
+    if (on) void document.documentElement.requestFullscreen?.().catch(() => undefined);
+    else if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+  }, []);
+  useEffect(() => {
+    const onChange = () => setIsFull(document.fullscreenElement === document.documentElement);
+    document.addEventListener('fullscreenchange', onChange);
+    let want = false;
+    try { want = localStorage.getItem('designer_fullscreen') === '1'; } catch { /* private mode */ }
+    if (want && document.fullscreenEnabled && !document.fullscreenElement) { entered.current = true; void document.documentElement.requestFullscreen?.().then(() => setIsFull(true)).catch(() => undefined); }
+    else onChange();
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+      if (entered.current && document.fullscreenElement === document.documentElement) void document.exitFullscreen().catch(() => undefined);
+    };
+  }, []);
   const [area, setArea] = useState({ w: 800, h: 600 });
   const [zoom, setZoom] = useState<number | 'fit'>('fit');
   const [mounted, setMounted] = useState(false);
@@ -1375,8 +1404,8 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
 
   if (!mounted) return null;
   return createPortal(
-    <div className="fixed inset-x-0 z-[60] flex flex-col overflow-hidden bg-background text-foreground [touch-action:manipulation] overscroll-none"
-      style={{ top: vp?.top ?? 0, height: vp ? vp.h : '100dvh' }} role="dialog" aria-label="Designer">
+    <div ref={rootRef} className="fixed inset-x-0 z-[60] flex flex-col overflow-hidden bg-background text-foreground [touch-action:manipulation] overscroll-none"
+      style={isFull ? { top: 0, height: '100%' } : { top: vp?.top ?? 0, height: vp ? vp.h : '100dvh' }} role="dialog" aria-label="Designer">
       <header className="flex h-12 shrink-0 items-center gap-1 border-b px-1.5 pt-[env(safe-area-inset-top)] md:gap-2 md:px-2">
         <Button size="sm" variant="ghost" onClick={onClose} className="px-2"><ArrowLeft className="h-4 w-4 md:mr-1.5" /><span className={extras?.closeLabel ? undefined : 'hidden md:inline'}>{extras?.closeLabel ?? 'Done'}</span></Button>
         {pages ? (<>
@@ -1396,6 +1425,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
         <div className="ml-auto flex items-center gap-0.5 md:gap-1">
           <Button size="icon" variant="ghost" className="h-9 w-9" onClick={api.undo} disabled={!api.canUndo} title="Undo (⌘Z)" aria-label="Undo"><Undo2 className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" className="h-9 w-9" onClick={api.redo} disabled={!api.canRedo} title="Redo (⇧⌘Z)" aria-label="Redo"><Redo2 className="h-4 w-4" /></Button>
+          {canFull && <Button size="icon" variant={isFull ? 'secondary' : 'ghost'} className="h-9 w-9" onClick={() => goFull(!isFull)} title={isFull ? 'Leave full screen (Esc)' : 'Full screen'} aria-label={isFull ? 'Leave full screen' : 'Full screen'}>{isFull ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</Button>}
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button size="sm" variant="secondary" className="px-2.5 md:px-3" aria-label="Download"><Download className="h-4 w-4 md:mr-1.5" /><span className="hidden md:inline">Download</span></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="z-[70]">
