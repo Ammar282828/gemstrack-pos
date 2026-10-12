@@ -262,28 +262,14 @@ struct InvoiceScreen: View {
         }
     }
 
-    /// The customer's name in the serif, linked to their page unless the sale was to nobody in particular (lib/walk-in.ts).
-    @ViewBuilder
+    /// The customer's name in the serif. Their page is the Details section's first row: a link inside the receipt's
+    /// row would make the whole row a link, and take the Name the customer button's tap with it.
     private func customerTitle(_ inv: Invoice) -> some View {
-        let name = InvoiceFacts.customerName(inv, walkIn: "Walk-in")
-        let title = Text(name)
+        Text(InvoiceFacts.customerName(inv, walkIn: "Walk-in"))
             .font(.system(.title2, design: .serif).weight(.semibold))
             .foregroundStyle(Color.primary)
             .lineLimit(2)
             .minimumScaleFactor(0.8)
-        if let customerId = linkableCustomer(inv) {
-            NavigationLink(value: Route(path: "/customers/" + InvoiceFacts.encode(customerId))) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    title
-                    Image(systemName: "chevron.right")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            .buttonStyle(.plain)
-        } else {
-            title
-        }
     }
 
     /// The customer's id when the sale has a real one: not a walk-in however it was recorded, and
@@ -461,8 +447,14 @@ struct InvoiceScreen: View {
         let ship = describeDelivery(inv.delivery)
         let by = inv.takenBy ?? ""
         let source = sourceWords(inv)
-        if !order.isEmpty || !ship.isEmpty || !by.isEmpty || source != nil {
+        let customerId = linkableCustomer(inv)
+        if customerId != nil || !order.isEmpty || !ship.isEmpty || !by.isEmpty || source != nil {
             Section {
+                if let customerId {
+                    NavigationLink(value: Route(path: "/customers/" + InvoiceFacts.encode(customerId))) {
+                        LabeledContent("Customer", value: InvoiceFacts.customerName(inv, walkIn: "Walk-in"))
+                    }
+                }
                 if !order.isEmpty {
                     NavigationLink(value: Route(path: "/orders/" + InvoiceFacts.encode(order))) {
                         LabeledContent("From order", value: order)

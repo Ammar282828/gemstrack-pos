@@ -207,11 +207,8 @@ struct OnlineOrdersScreen: View {
                     .foregroundStyle(.secondary)
             }
         } else {
-            // Their own row, each button its own tap (a plain button in a row takes the whole row).
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 10) { decisionButtons(r) }
-                VStack(spacing: 10) { decisionButtons(r) }
-            }
+            // Each button its own row, so its tap is its own: two buttons in one List row fire together.
+            decisionButtons(r)
         }
     }
 

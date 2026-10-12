@@ -16,6 +16,12 @@ final class ERPUITests: XCTestCase {
         return app
     }
 
+    /// A step tab of the new-sale and new-order flows. Its label gains ", done" or ", needs a look" once the step is
+    /// complete or stuck, so it is found by its first words and a held element keeps working as the state changes.
+    private func step(_ app: XCUIApplication, _ words: String) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", words)).firstMatch
+    }
+
     /// Every place with a native screen, and one of each kind of page behind a list.
     static let places = [
         "/today", "/new", "/invoices/new", "/orders/add", "/scan", "/products", "/repairs",
@@ -155,7 +161,7 @@ final class ERPUITests: XCTestCase {
     func testANewOrderPricesAPiece() {
         let app = demo(["-ERPDemoTab", "orders", "-ERPDemoOpen", "/orders/add"])
         app.launch()
-        let pieces = app.buttons["Step 2 of 4: Pieces"]
+        let pieces = step(app, "Step 2 of 4: Pieces")
         XCTAssertTrue(pieces.waitForExistence(timeout: 8))
         pieces.tap()
         let add = app.buttons["Add a piece"]
@@ -191,7 +197,7 @@ final class ERPUITests: XCTestCase {
     private func editOpens(_ place: String, tab: String) {
         let app = demo(["-ERPDemoTab", tab, "-ERPDemoOpen", place])
         app.launch()
-        let review = app.buttons["Step 4 of 4: Review"]
+        let review = step(app, "Step 4 of 4: Review")
         XCTAssertTrue(review.waitForExistence(timeout: 10))
         review.tap()
         let save = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Save changes'")).firstMatch
@@ -211,7 +217,7 @@ final class ERPUITests: XCTestCase {
         for place in ["/orders/add", "/invoices/new"] {
             let app = demo(["-ERPDemoTab", "home", "-ERPDemoOpen", place])
             app.launch()
-            let customer = app.buttons["Step 1 of 4: Customer"]
+            let customer = step(app, "Step 1 of 4: Customer")
             XCTAssertTrue(customer.waitForExistence(timeout: 10))
             let name = app.textFields.matching(NSPredicate(format: "placeholderValue == 'Search or type a new name'")).firstMatch
             if !name.exists && app.buttons["Change"].exists { app.buttons["Change"].tap() }
@@ -220,7 +226,7 @@ final class ERPUITests: XCTestCase {
             name.typeText("Flow Check")
             let entered = name.value as? String
             for step in ["Step 2 of 4: Pieces", "Step 3 of 4: Payment", "Step 4 of 4: Review"] {
-                app.buttons[step].tap()
+                self.step(app, step).tap()
                 XCTAssertEqual(app.state, .runningForeground)
             }
             customer.tap()
