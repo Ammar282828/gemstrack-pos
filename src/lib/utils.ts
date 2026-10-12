@@ -186,3 +186,21 @@ export const shopifyRowClass =
  * The tint alone is enough, and it is the part that survives a glance.
  */
 export const shopifyCardClass = 'bg-success/[0.06]';
+
+/**
+ * Text colour for a tone of the redesign (docs/features/web-matches-app.md a.2): the `-ink` variant,
+ * which passes contrast as text. Written out in full so Tailwind's scanner sees every class.
+ * Phone cards use `MineTag` and `Pill` (components/ledger) in place of `settledRowClass` / `mineRowClass`;
+ * those two stay for desktop table rows.
+ */
+export function toneClass(tone: 'late' | 'owed' | 'settled' | 'credit' | 'working' | 'quiet' | 'house' = 'quiet'): string {
+  switch (tone) {
+    case 'late': return 'text-tone-late-ink';
+    case 'owed': return 'text-tone-owed-ink';
+    case 'settled': return 'text-tone-settled-ink';
+    case 'credit': return 'text-tone-credit-ink';
+    case 'working': return 'text-tone-working-ink';
+    case 'house': return 'text-primary';
+    default: return 'text-muted-foreground';
+  }
+}
