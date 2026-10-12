@@ -61,6 +61,12 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
             registering = true
             UIApplication.shared.registerForRemoteNotifications()
             if let token { await link(token) }
+            // iOS answers with a token or an error; if it says nothing, say so rather than spin for ever.
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(20))
+                guard let self, self.registering, !self.registeredOnServer else { return }
+                self.didFail(NSError(domain: "ERPPush", code: 1, userInfo: [NSLocalizedDescriptionKey: "iOS gave no notification token after 20 seconds."]))
+            }
         } catch { didFail(error) }
     }
 
