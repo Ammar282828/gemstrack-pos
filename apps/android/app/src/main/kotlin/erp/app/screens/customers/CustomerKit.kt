@@ -277,22 +277,11 @@ object CustomerKit {
 
     // MARK: Repairs (src/lib/store.ts)
 
-    // TODO(shared): replace with core's repairTotal / repairPaid / repairBalance / repairSummary when Repairs.swift is ported.
-    private fun jsRound(x: Double): Double = Math.floor(x + 0.5)
+    /** What the customer still owes on the ticket (core's `repairBalance`, src/lib/repairs.ts). */
+    fun repairBalance(r: Repair): Double = erp.core.logic.repairBalance(r)
 
-    /** What the customer still owes on the ticket. */
-    fun repairBalance(r: Repair): Double {
-        val total = r.pieces.fold(0.0) { sum, p -> sum + (p.price?.takeIf { !it.isNaN() } ?: 0.0) }
-        val paid = r.payments.fold(0.0) { sum, p -> sum + (if (p.amount.isNaN()) 0.0 else p.amount) }
-        return maxOf(0.0, jsRound((total - paid) * 100) / 100)
-    }
-
-    /** "Gold ring" or "Gold ring + 2 more": a ticket in a line. */
-    fun repairSummary(r: Repair): String {
-        val named = r.pieces.filter { it.item.isNotEmpty() }
-        if (named.isEmpty()) return "Repair"
-        return if (named.size == 1) named[0].item else "${named[0].item} + ${named.size - 1} more"
-    }
+    /** "Gold ring" or "Gold ring + 2 more": a ticket in a line (core's `repairSummary`). */
+    fun repairSummary(r: Repair): String = erp.core.logic.repairSummary(r)
 
     /** The repair's steps in the shop's words: In the shop, Ready, Collected. */
     fun repairStatus(s: RepairStatus): Pair<String, Tone> = when (s) {
