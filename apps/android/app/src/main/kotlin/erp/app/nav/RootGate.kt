@@ -96,7 +96,7 @@ fun AppRoot(session: Session) {
     val forced = ThemeChoice.preferredDark(device, shopTheme, lastShop)
     val dark = forced ?: isSystemInDarkTheme()
     ForcedNightMode(forced) {
-        ErpTheme(dark = dark) {
+        ErpTheme(themeOverride = when (forced) { true -> "taheri"; false -> "default"; null -> null }) {
             SystemBars(dark)
             CompositionLocalProvider(LocalSession provides session) {
                 RootGate()
