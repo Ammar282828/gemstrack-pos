@@ -54,7 +54,10 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
         center.delegate = self
         registrationError = nil
         do {
-            guard try await center.requestAuthorization(options: [.alert, .sound, .badge]) else { return }
+            guard try await center.requestAuthorization(options: [.alert, .sound, .badge]) else {
+                reportFailure("not allowed on this phone")
+                return
+            }
             registering = true
             UIApplication.shared.registerForRemoteNotifications()
             if let token { await link(token) }
@@ -85,6 +88,17 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
     func didFail(_ error: Error) {
         registering = false
         registrationError = error.localizedDescription
+        reportFailure(error.localizedDescription)
+    }
+
+    /// Tells the server why this phone never registers (it shows in push_devices_failed): once per launch,
+    /// best effort, no token in it, never waited on.
+    private var reportedFailure = false
+    private func reportFailure(_ text: String) {
+        guard !reportedFailure else { return }
+        reportedFailure = true
+        let body: [String: Any] = ["bundleId": Bundle.main.bundleIdentifier ?? "", "label": UIDevice.current.model, "error": String(text.prefix(300))]
+        Task { _ = try? await ERPAPI.shared.send("/api/push/register-failed", body, timeout: 5) }
     }
 
     func unregister() async {
