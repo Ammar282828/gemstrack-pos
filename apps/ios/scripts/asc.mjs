@@ -335,6 +335,22 @@ async function builds(name, fix) {
   const app = await appFor(h);
   if (!app) throw new Error(`${h.storeName} has no app in App Store Connect`);
   say(`${h.storeName}: app ${app.id} (${h.bundleId})`);
+  // The App IDs' capabilities (read-only unless --fix) (a build without PUSH_NOTIFICATIONS here can never be handed a device token).
+  for (const id of [h.bundleId, `${h.bundleId}.widget`]) {
+    try {
+      const b = await api('GET', `/v1/bundleIds?filter[identifier]=${q(id)}&filter[platform]=IOS&include=bundleIdCapabilities&limit=20`);
+      const bundle = b.data.find((x) => x.attributes.identifier === id);
+      if (!bundle) { say(`  App ID ${id}: not registered`); continue; }
+      const caps = (b.included || []).filter((i) => i.type === 'bundleIdCapabilities').map((c) => c.attributes?.capabilityType).filter(Boolean);
+      const types = caps.length ? caps : (await api('GET', `/v1/bundleIds/${bundle.id}/bundleIdCapabilities`)).data.map((c) => c.attributes.capabilityType);
+      say(`  App ID ${id}: capabilities ${types.join(', ') || '(none)'}; push notifications: ${types.includes('PUSH_NOTIFICATIONS') ? 'ON' : 'OFF'}`);
+      // Without it the profile lacks aps-environment and iOS never hands out a token; a new Xcode Cloud build regenerates the profile.
+      if (fix && id === h.bundleId && !types.includes('PUSH_NOTIFICATIONS')) {
+        await capability(bundle, 'PUSH_NOTIFICATIONS');
+        say(`enabled push notifications on ${id}`);
+      }
+    } catch (e) { say(`  App ID ${id}: could not read capabilities (${e.message})`); }
+  }
   const res = await api('GET', `/v1/builds?filter[app]=${app.id}&sort=-uploadedDate&limit=8&include=buildBetaDetail,preReleaseVersion`);
   const inc = (type, id) => (res.included || []).find((i) => i.type === type && i.id === id);
   const rows = res.data.map((b) => {
