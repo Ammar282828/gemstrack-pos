@@ -61,7 +61,7 @@ struct RepairsForm: View {
                 }
                 shopSection
                 if let error {
-                    Section { Text(error).foregroundStyle(.red) }
+                    Section { Text(error).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()

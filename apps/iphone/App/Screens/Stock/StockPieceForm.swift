@@ -124,18 +124,10 @@ private struct StockPieceEditor: View {
                 }
             }
         }
-        .alert(editing ? "The piece wasn't saved" : "The piece wasn't added", isPresented: failureShown) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure, title: editing ? "The piece wasn't saved" : "The piece wasn't added")
         .sensoryFeedback(.success, trigger: tick)
         .interactiveDismissDisabled(saving)
         .navigationBarBackButtonHidden(saving)
-    }
-
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })
     }
 
     private var form: some View {
@@ -400,7 +392,7 @@ private struct StockPieceEditor: View {
                 if let photo {
                     StockImage(imageUrl: photo, name: original.name, key: original.sku, decodeDataURI: true)
                         .frame(width: 96, height: 96)
-                        .clipShape(.rect(cornerRadius: 12))
+                        .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                 }
                 NavigationLink(value: Route(path: StockKit.editPath(original.sku) + "?web=1")) {
                     Label(photo == nil ? "Add a photo in the ERP" : "Change the photo in the ERP", systemImage: "photo")
@@ -429,8 +421,9 @@ private struct StockPieceEditor: View {
             Section {
                 VStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.green)
+                        .font(.largeTitle)
+                        .imageScale(.large)
+                        .foregroundStyle(Tone.settled.color)
                     Text("Saved").font(.title2.weight(.semibold))
                     Text("\(s.name) is in stock as \(s.sku).").foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }

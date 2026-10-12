@@ -7,7 +7,7 @@ struct MoneyOwnersOnly: View {
     let title: String
 
     var body: some View {
-        ContentUnavailableView("Owners only", systemImage: "lock")
+        NotAvailableState("Owners only")
             .navigationTitle(title)
     }
 }

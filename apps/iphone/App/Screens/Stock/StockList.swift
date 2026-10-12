@@ -258,7 +258,8 @@ private struct StockRow: View {
             HStack(spacing: 12) {
                 StockImage(imageUrl: p.imageUrl, name: p.name, key: p.sku)
                     .frame(width: 52, height: 52)
-                    .clipShape(.rect(cornerRadius: 10))
+                    .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+                    .zoomSource(id: StockKit.piecePath(p.sku))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(p.name).font(.body.weight(.medium)).lineLimit(2)
                     Text(p.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
@@ -276,11 +277,11 @@ private struct StockRow: View {
                 } label: {
                     Label("Sell", systemImage: "cart")
                 }
-                .tint(.green)
+                .tint(Tone.settled.color)
             }
             if mayEdit {
                 Button { go = Route(path: StockKit.editPath(p.sku)) } label: { Label("Edit", systemImage: "pencil") }
-                    .tint(.orange)
+                    .tint(Theme.accent)
             }
         }
         .stockContextMenu(p, go: $go, mayEdit: mayEdit)
@@ -302,7 +303,8 @@ private struct StockCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 StockImage(imageUrl: p.imageUrl, name: p.name, key: p.sku)
                     .aspectRatio(1, contentMode: .fit)
-                    .clipShape(.rect(cornerRadius: 12))
+                    .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
+                    .zoomSource(id: StockKit.piecePath(p.sku))
                 Text(p.name).font(.subheadline.weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)
                 Text(p.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
                 Text("\(StockKit.metalLine(p)) · \(StockKit.grams(p.metalWeightG))")
@@ -311,9 +313,7 @@ private struct StockCard: View {
                     .lineLimit(1)
                 StockPrice(price: row.price)
             }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.background.secondary, in: .rect(cornerRadius: 16))
+            .ledgerCard(padding: 10)
         }
         .buttonStyle(.plain)
     }

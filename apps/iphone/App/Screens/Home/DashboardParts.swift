@@ -77,7 +77,7 @@ struct DashHero: View {
                     .padding(.top, 6)
             }
         }
-        .ledgerCard(padding: 18)
+        .heroSheen(padding: 18)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Taken today, \(Money.pkrLac(amount)), \(line)")
     }

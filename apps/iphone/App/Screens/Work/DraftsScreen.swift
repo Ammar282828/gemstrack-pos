@@ -54,11 +54,7 @@ struct DraftsScreen: View {
         } message: { row in
             Text("\(row.draft.isOrder ? "Order" : "Sale") for \(row.draft.title).")
         }
-        .alert("Not discarded", isPresented: failureShown) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure, title: "Not discarded")
     }
 
     // MARK: Reading
@@ -86,10 +82,6 @@ struct DraftsScreen: View {
 
     private var discardShown: Binding<Bool> {
         Binding(get: { discarding != nil }, set: { if !$0 { discarding = nil } })
-    }
-
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })
     }
 
     // MARK: The rows
@@ -190,7 +182,7 @@ struct DraftsScreen: View {
                 Text("Drafts begun on other devices are listed for the shop's owners; this shows what is kept on this phone.")
             }
             if readsDrafts, let error = shelf.error, !error.isEmpty {
-                Text("The shop's drafts could not be read: \(error)").foregroundStyle(.red)
+                Text("The shop's drafts could not be read: \(error)").foregroundStyle(Tone.problem.color)
             }
         }
     }

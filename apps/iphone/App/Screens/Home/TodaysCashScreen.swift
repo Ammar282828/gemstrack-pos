@@ -27,7 +27,7 @@ struct TodaysCashScreen: View {
                 .onAppear { needAll() }
                 .task { await keepTime() }
             } else {
-                ContentUnavailableView("Owners only", systemImage: "lock")
+                NotAvailableState("Owners only")
             }
         }
         .navigationTitle("Today’s cash")
@@ -65,12 +65,12 @@ struct TodaysCashScreen: View {
             } header: {
                 Text(DashDate.dayLabel(now)).textCase(nil)
             }
-            Section("By how it was paid") {
+            LedgerSection("By how it was paid") {
                 ForEach(METHODS, id: \.self) { (m: CashMethod) in
                     methodRow(m, t.byMethod[m] ?? 0)
                 }
             }
-            Section("Came in") {
+            LedgerSection("Came in") {
                 if t.lines.isEmpty {
                     Text("Nothing yet today.").foregroundStyle(.secondary)
                 } else {
@@ -80,12 +80,10 @@ struct TodaysCashScreen: View {
                 }
             }
             if !t.expenseLines.isEmpty {
-                Section {
+                LedgerSection("Paid out") {
                     ForEach(Array(t.expenseLines.enumerated()), id: \.offset) { _, e in
                         TwoLine(title: e.description, subtitle: e.category, trailing: Money.pkr(e.amount))
                     }
-                } header: {
-                    Text("Paid out")
                 } footer: {
                     Text("Expenses carry no method, so every one the business paid today counts as leaving the drawer; one a partner paid out of pocket does not.")
                 }
@@ -100,7 +98,7 @@ struct TodaysCashScreen: View {
         return VStack(spacing: 10) {
             HStack(alignment: .top, spacing: 10) {
                 FigureTile(label: "In the drawer", value: Money.pkr(t.netCash), detail: "Cash in, less what was paid out",
-                           tint: t.netCash < 0 ? Color.red : Theme.accent)
+                           tint: t.netCash < 0 ? Tone.owed.color : Theme.accent)
                 FigureTile(label: "Money in", value: Money.pkr(t.totalIn), detail: "Every method")
             }
             HStack(alignment: .top, spacing: 10) {
@@ -113,9 +111,7 @@ struct TodaysCashScreen: View {
 
     private func methodRow(_ m: CashMethod, _ amount: Double) -> some View {
         LabeledContent(m.rawValue) {
-            Text(Money.pkr(amount))
-                .monospacedDigit()
-                .foregroundStyle(amount == 0 ? Color.secondary : Color.primary)
+            RowAmount(amount: amount, tone: amount == 0 ? Color.secondary : Color.primary)
         }
     }
 

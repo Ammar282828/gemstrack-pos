@@ -35,7 +35,7 @@ struct WorkNotYours: View {
     var detail = "The ERP does not show this to your account."
 
     var body: some View {
-        ContentUnavailableView(title, systemImage: "lock", description: Text(detail))
+        NotAvailableState(title, why: detail)
             .navigationTitle(title)
     }
 }
@@ -104,7 +104,7 @@ struct WorkSamplePhoto: View {
                     .resizable()
                     .scaledToFit()
                     .frame(maxHeight: 220)
-                    .clipShape(.rect(cornerRadius: 10))
+                    .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             } else if !failed {
                 SkeletonLoading().frame(maxWidth: .infinity, minHeight: 60)
             }

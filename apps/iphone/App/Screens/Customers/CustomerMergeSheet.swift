@@ -24,6 +24,7 @@ struct CustomerMergeSheet: View {
     @State private var duplicateSearch = ""
     @State private var deletion: OwnerDeletion?
     @State private var note: OwnerNote?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var counted = Memo<CustomerMergeBook>()
 
     private var ready: Bool {
@@ -54,7 +55,7 @@ struct CustomerMergeSheet: View {
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {}
         }
-        .ownerNote($note)
+        .noteToast($note)
         .task {
             book.customers.need()
             book.invoices.need()
@@ -124,7 +125,7 @@ struct CustomerMergeSheet: View {
         if let keep = byId[turned ? pair.b : pair.a], let duplicate = byId[turned ? pair.a : pair.b] {
             Section {
                 person("Keep", keep, tint: Theme.accent)
-                person("Delete", duplicate, tint: .red, moves: moves(for: duplicate.id))
+                person("Delete", duplicate, tint: Tone.problem.color, moves: moves(for: duplicate.id))
                 Button { toggle(pair.id) } label: {
                     Label("Swap keep and delete", systemImage: "arrow.up.arrow.down")
                 }
@@ -166,7 +167,7 @@ struct CustomerMergeSheet: View {
         let duplicate = byId[duplicateId]
         return Section {
             chooser("Keep (primary)", picked: keep, tint: Theme.accent, search: $keepSearch, other: duplicateId) { keepId = $0 }
-            chooser("Duplicate (will be deleted)", picked: duplicate, tint: .red, search: $duplicateSearch, other: keepId) { duplicateId = $0 }
+            chooser("Duplicate (will be deleted)", picked: duplicate, tint: Tone.problem.color, search: $duplicateSearch, other: keepId) { duplicateId = $0 }
             if let keep, let duplicate {
                 Text(duplicateMoves(duplicate, keep))
                     .font(.caption)
@@ -253,9 +254,8 @@ struct CustomerMergeSheet: View {
         deletion = OwnerDeletion(what: "Merge, and delete customer \(gone)", detail: detail) { code in
             let out = try await ERPAPI.shared.write("mergeCustomers", ["keepId": keep.id, "deleteId": duplicate.id, "deleteCode": code])
             let moved = out["updatedDocs"] as? Int ?? 0
-            withAnimation {
-                note = OwnerNote(title: "Customers merged", detail: "\(gone) is gone. \(moved) record\(moved == 1 ? "" : "s") updated.")
-            }
+            Note.show(Note(title: "Customers merged", detail: "\(gone) is gone. \(moved) record\(moved == 1 ? "" : "s") updated."),
+                      in: $note, reduce: reduceMotion)
             if keepId == keep.id || duplicateId == duplicate.id {
                 keepId = ""
                 duplicateId = ""

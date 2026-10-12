@@ -74,7 +74,7 @@ struct OwnerDeleteCodeSheet: View {
                     Text(([deletion.detail, deletion.final ? "This can't be undone." : "", "Enter the code to go ahead."]).filter { !$0.isEmpty }.joined(separator: " "))
                 }
                 if let error {
-                    Section { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }
+                    Section { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()

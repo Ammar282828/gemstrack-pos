@@ -82,7 +82,7 @@ struct AnaOrdersChart: View {
         VStack(alignment: .leading, spacing: 6) {
             Chart(days) { (d: AnaDay) in
                 BarMark(x: .value("Day", d.plotDate, unit: .day), y: .value("Orders", d.orders))
-                    .foregroundStyle(Color.green)
+                    .foregroundStyle(Tone.settled.color)
             }
             .frame(height: 110)
             .accessibilityLabel("Orders each day over the period")
@@ -104,7 +104,7 @@ struct AnaMonthlyChart: View {
             Chart {
                 ForEach(months) { (m: AnaMonth) in
                     BarMark(x: .value("Month", m.plotDate, unit: .month), y: .value("Revenue", m.revenue / Money.lac))
-                        .foregroundStyle(m.key == best ? Color.green : Theme.accent)
+                        .foregroundStyle(m.key == best ? Tone.settled.color : Theme.accent)
                 }
                 RuleMark(y: .value("Average", average / Money.lac))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))

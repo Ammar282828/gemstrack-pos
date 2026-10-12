@@ -307,13 +307,13 @@ enum CustomerKit {
     static func repairSummary(_ r: Repair) -> String { ERPCore.repairSummary(r) }
 
     /// The repair's steps in the shop's words: In the shop, Ready, Collected.
-    static func repairStatus(_ s: RepairStatus) -> (text: String, color: Color) {
+    static func repairStatus(_ s: RepairStatus) -> (text: String, tone: Tone) {
         switch s {
-        case .received: return ("In the shop", .orange)
-        case .ready: return ("Ready", .green)
-        case .collected: return ("Collected", .secondary)
-        case .cancelled: return ("Cancelled", .secondary)
-        case .unknown(let raw): return (raw.isEmpty ? "No status" : raw, .secondary)
+        case .received: return ("In the shop", .owed)
+        case .ready: return ("Ready", .settled)
+        case .collected: return ("Collected", .quiet)
+        case .cancelled: return ("Cancelled", .quiet)
+        case .unknown(let raw): return (raw.isEmpty ? "No status" : raw, .quiet)
         }
     }
 }

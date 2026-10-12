@@ -43,7 +43,7 @@ struct AnalyticsScreen: View {
 
     var body: some View {
         if session.isOwner { owners } else {
-            ContentUnavailableView("Owners only", systemImage: "lock").navigationTitle(section.title)
+            NotAvailableState("Owners only").navigationTitle(section.title)
         }
     }
 
@@ -196,11 +196,11 @@ struct AnaEmptyPage: View {
             Section {
                 switch kind {
                 case .nothingInRange:
-                    ContentUnavailableView("Nothing in this range", systemImage: "chart.bar",
-                                           description: Text("There are no invoices or orders in the selected period. Pick another period to see more."))
+                    NotAvailableState("Nothing in this range", why: "There are no invoices or orders in the selected period. Pick another period to see more.",
+                                      symbol: "chart.bar")
                 case .noData:
-                    ContentUnavailableView("No data yet", systemImage: "chart.bar",
-                                           description: Text("There is no data available to generate analytics yet."))
+                    NotAvailableState("No data yet", why: "There is no data available to generate analytics yet.",
+                                      symbol: "chart.bar")
                 }
             }
             .listRowBackground(Color.clear)

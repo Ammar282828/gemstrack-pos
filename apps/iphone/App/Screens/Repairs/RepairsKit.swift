@@ -53,14 +53,13 @@ enum RepairsKit {
         }
     }
 
-    /// The web's STATUS_TONE: warning, success, quiet, destructive.
-    static func color(_ s: RepairStatus) -> Color {
+    /// The web's STATUS_TONE (warning, success, quiet, destructive) in the kit's tones; a cancelled ticket says
+    /// nothing, as a cancelled order does.
+    static func tone(_ s: RepairStatus) -> Tone {
         switch s {
-        case .received: return .orange
-        case .ready: return .green
-        case .collected: return .secondary
-        case .cancelled: return .red
-        case .unknown: return .secondary
+        case .received: return .owed
+        case .ready: return .settled
+        case .collected, .cancelled, .unknown: return .quiet
         }
     }
 
@@ -284,9 +283,9 @@ struct RepairsPromiseText: View {
 
     private func tone(_ t: OrderTiming) -> Color {
         switch t.state {
-        case .late: return .red
-        case .today: return .orange
-        default: return .secondary
+        case .late: return Tone.late.color
+        case .today: return Tone.owed.color
+        default: return Tone.quiet.color
         }
     }
 }

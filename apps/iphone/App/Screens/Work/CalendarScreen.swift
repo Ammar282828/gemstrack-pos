@@ -101,7 +101,7 @@ struct CalendarScreen: View {
     private func tiles(_ m: ShopCalendarMonth) -> some View {
         VStack(spacing: 10) {
             FigureRow(alignment: .top, spacing: 10) {
-                FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkr(m.total), tint: .green)
+                FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkr(m.total), tint: Tone.settled.color)
                 FigureTile(label: "Sales", value: "\(m.sales)")
             }
             FigureRow(alignment: .top, spacing: 10) {
@@ -114,9 +114,9 @@ struct CalendarScreen: View {
 
     private var legend: some View {
         HStack(spacing: 14) {
-            Label("Sales", systemImage: "circle.fill").foregroundStyle(.green)
-            Label("Orders", systemImage: "circle.fill").foregroundStyle(.blue)
-            Label("Promised", systemImage: "calendar.badge.clock").foregroundStyle(.orange)
+            Label("Sales", systemImage: "circle.fill").foregroundStyle(Tone.settled.color)
+            Label("Orders", systemImage: "circle.fill").foregroundStyle(Tone.working.color)
+            Label("Promised", systemImage: "calendar.badge.clock").foregroundStyle(Tone.owed.color)
         }
         .labelStyle(LegendLabel())
         .font(.caption)
@@ -178,25 +178,25 @@ struct CalendarScreen: View {
                     Text(" ").font(.caption2)
                 }
                 HStack(spacing: 3) {
-                    if let data, data.invoices > 0 { count(data.invoices, color: .green) }
-                    if let data, data.orders > 0 { count(data.orders, color: .blue) }
+                    if let data, data.invoices > 0 { count(data.invoices, color: Tone.settled.color) }
+                    if let data, data.orders > 0 { count(data.orders, color: Tone.working.color) }
                     if due > 0 {
                         HStack(spacing: 1) {
                             Image(systemName: "calendar.badge.clock")
                             Text("\(due)")
                         }
                         .font(.system(size: 9))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Tone.owed.color)
                     }
                 }
                 .frame(minHeight: 12)
             }
             .frame(maxWidth: .infinity, minHeight: 60)
-            .background(isSelected ? Theme.accent.opacity(0.16) : Color.clear, in: .rect(cornerRadius: 8))
+            .background(isSelected ? Theme.accent.opacity(0.16) : Color.clear, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
             .overlay {
-                if isToday { RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.accent, lineWidth: 1.5) }
+                if isToday { RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous).strokeBorder(Theme.accent, lineWidth: 1.5) }
             }
-            .contentShape(.rect(cornerRadius: 8))
+            .contentShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(spoken(key, data, due))
@@ -232,7 +232,7 @@ struct CalendarScreen: View {
                 ForEach(events) { e in eventRow(e) }
             }
         } header: {
-            Text("Events for \(ShopCalendar.longDay(selected))").textCase(nil)
+            LedgerHeading(title: "Events for \(ShopCalendar.longDay(selected))")
         } footer: {
             Text("\(events.count) event\(events.count == 1 ? "" : "s") found.")
         }
@@ -244,7 +244,7 @@ struct CalendarScreen: View {
         return NavigationLink(value: Route(path: path)) {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: e.isInvoice ? "receipt" : "list.clipboard")
-                    .foregroundStyle(e.isInvoice ? Color.green : Color.blue)
+                    .foregroundStyle(e.isInvoice ? Tone.settled.color : Tone.working.color)
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(e.docId).font(.subheadline.monospaced().weight(.semibold)).lineLimit(1)
@@ -267,7 +267,7 @@ struct CalendarScreen: View {
                 ForEach(due) { o in
                     NavigationLink(value: Route(path: WorkPaths.order(o.id))) {
                         HStack(alignment: .top, spacing: 12) {
-                            Image(systemName: "calendar.badge.clock").foregroundStyle(.orange).frame(width: 24)
+                            Image(systemName: "calendar.badge.clock").foregroundStyle(Tone.owed.color).frame(width: 24)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(o.id).font(.subheadline.monospaced().weight(.semibold)).lineLimit(1)
                                 Text((o.customerName ?? "").isEmpty ? "Walk-in" : (o.customerName ?? ""))
@@ -279,7 +279,7 @@ struct CalendarScreen: View {
                     }
                 }
             } header: {
-                Text("Promised for this day").textCase(nil)
+                LedgerHeading(title: "Promised for this day")
             }
             .houseRows()
         }

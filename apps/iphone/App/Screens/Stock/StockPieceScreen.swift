@@ -23,6 +23,7 @@ struct StockPieceScreen: View {
         }
         .navigationTitle(sku)
         .navigationBarTitleDisplayMode(.inline)
+        .zoomDestination(id: StockKit.piecePath(sku))
         .stockDestination($go)
         .task {
             book.products.need()
@@ -69,13 +70,13 @@ struct StockPieceScreen: View {
         Section {
             StockImage(imageUrl: p.imageUrl, name: p.name, key: p.sku, decodeDataURI: true)
                 .aspectRatio(1, contentMode: .fit)
-                .clipShape(.rect(cornerRadius: 14))
+                .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
                 .frame(maxHeight: 340)
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             VStack(alignment: .leading, spacing: 6) {
-                StatusBadge(StockKit.categoryTitle(p.categoryId), color: .accentColor)
+                Pill(StockKit.categoryTitle(p.categoryId), tone: .house)
                 Text(p.name).font(.title2.weight(.bold))
                 Text(p.sku).font(.subheadline.monospaced()).foregroundStyle(.secondary)
             }
@@ -94,12 +95,14 @@ struct StockPieceScreen: View {
                 Text(p.isCustomPrice ? "Fixed price" : "At today's rates")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text(totalLine(costs))
-                    .font(.largeTitle.weight(.bold))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .contentTransition(.numericText(value: costs?.totalPrice ?? 0))
+                if let costs, costs.totalPrice > 0 {
+                    HeroAmount(amount: costs.totalPrice)
+                } else {
+                    Text(totalLine(costs))
+                        .font(.system(.largeTitle, design: .serif).weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 6)
@@ -137,11 +140,11 @@ struct StockPieceScreen: View {
         if p.hasDiamonds { moneyRow("Diamond charges", c.diamondCharges) }
         moneyRow(p.hasDiamonds ? "Other stone charges" : "Stone charges", c.stoneCharges)
         moneyRow("Misc. charges", c.miscCharges)
-        LabeledContent("Total") { Text(Money.pkr(c.totalPrice)).font(.body.weight(.semibold)).monospacedDigit() }
+        MoneyRow("Total", c.totalPrice, emphasis: true)
     }
 
     private func moneyRow(_ label: String, _ amount: Double) -> some View {
-        LabeledContent(label) { Text(Money.pkr(amount)).monospacedDigit() }
+        MoneyRow(label, amount)
     }
 
     // MARK: What it is made of
@@ -201,7 +204,7 @@ struct StockPieceScreen: View {
                 Label("Print tag", systemImage: "printer")
             }
             NavigationLink(value: Route(path: StockKit.piecePath(p.sku, web: true))) {
-                Label("Delete", systemImage: "trash").foregroundStyle(.red)
+                Label("Delete", systemImage: "trash").foregroundStyle(Tone.problem.color)
             }
         } header: {
             LedgerHeading(title: "On the ERP's page")
@@ -218,6 +221,9 @@ struct StockPieceScreen: View {
 private struct StockSoldView: View {
     let sku: String
     @Environment(Book.self) private var book
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Bumped as the page appears, so the seal bounces once (not under Reduce Motion).
+    @State private var sealed = 0
 
     var body: some View {
         content
@@ -250,14 +256,16 @@ private struct StockSoldView: View {
         List { Group {
             Section {
                 VStack(spacing: 6) {
-                    Image(systemName: "checkmark.seal").font(.largeTitle).foregroundStyle(.green)
+                    Image(systemName: "checkmark.seal").font(.largeTitle).foregroundStyle(Tone.settled.color)
+                        .symbolEffect(.bounce, value: reduceMotion ? 0 : sealed)
+                        .onAppear { sealed += 1 }
                     Text("Sold").font(.title2.weight(.bold))
                     Text("\(sku) is no longer in stock.").font(.subheadline).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
             }
-            Section(sales.count == 1 ? "Sold on" : "Sold on these invoices") {
+            LedgerSection(sales.count == 1 ? "Sold on" : "Sold on these invoices") {
                 ForEach(sales) { (inv: Invoice) in
                     NavigationLink(value: Route(path: "/invoices/" + StockKit.encode(inv.id))) {
                         saleRow(inv)
@@ -278,7 +286,7 @@ private struct StockSoldView: View {
         let subtitle = when.isEmpty ? who : "\(who) · \(when)"
         return HStack(alignment: .firstTextBaseline) {
             TwoLine(title: inv.id, subtitle: subtitle, trailing: item.map { Money.pkr($0.itemTotal) })
-            if inv.status == .refunded { StatusBadge("Refunded", color: .purple) }
+            if inv.status == .refunded { Pill("Refunded", tone: .quiet) }
         }
     }
 }

@@ -182,6 +182,7 @@ struct CustomersList: View {
         NavigationLink(value: CustomerKit.route(c.id)) {
             CustRowLabel(customer: c, stats: s)
         }
+        .zoomSource(id: CustomerKit.path(c.id))
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             swipe(c)
         }
@@ -195,11 +196,11 @@ struct CustomersList: View {
     @ViewBuilder private func swipe(_ c: Customer) -> some View {
         if let url = CustomerKit.whatsAppURL(c.phone) {
             Button { openURL(url) } label: { Label("WhatsApp", systemImage: "message.fill") }
-                .tint(.green)
+                .tint(Tone.settled.color)
         }
         if let url = CustomerKit.callURL(c.phone) {
             Button { openURL(url) } label: { Label("Call", systemImage: "phone.fill") }
-                .tint(.blue)
+                .tint(Theme.accent)
         }
     }
 

@@ -18,6 +18,7 @@ struct HisaabLedgerScreen: View {
     @State private var adding: HisaabEntryMode?
     @State private var deletion: OwnerDeletion?
     @State private var note: OwnerNote?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var entityId: String { MoneyPaths.ledgerID(fromPath: path) ?? "" }
 
@@ -56,7 +57,7 @@ struct HisaabLedgerScreen: View {
         let name = personName(id: id, rows: rows, isCustomer: isCustomer, customer: customer, karigar: karigar)
         if name.isEmpty && rows.isEmpty {
             // The web says "Entity not found. It may have been deleted."
-            ContentUnavailableView("Not found", systemImage: "person.crop.circle.badge.questionmark", description: Text("It may have been deleted."))
+            NotAvailableState("Not found", why: "It may have been deleted.", symbol: "person.crop.circle.badge.questionmark")
                 .navigationTitle("Hisaab")
         } else {
             ledger(name: name, id: id, isCustomer: isCustomer, rows: rows, onFile: onFile(id: id, isCustomer: isCustomer, customer: customer, karigar: karigar))
@@ -167,15 +168,15 @@ struct HisaabLedgerScreen: View {
         }
         .sheet(item: $adding) { (mode: HisaabEntryMode) in
             HisaabEntrySheet(mode: mode, personId: id, personName: name, isCustomer: isCustomer) { (saved: OwnerNote) in
-                withAnimation { note = saved }
+                Note.show(saved, in: $note, reduce: reduceMotion)
             }
         }
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {
-                withAnimation { note = OwnerNote(title: "Transaction deleted") }
+                Note.show(Note(title: "Transaction deleted"), in: $note, reduce: reduceMotion)
             }
         }
-        .ownerNote($note)
+        .noteToast($note)
     }
 
     /// The web's confirmation, then the delete code with the delete. A row that follows an invoice's balance is
@@ -196,8 +197,8 @@ struct HisaabLedgerScreen: View {
         let getGold: String? = r.gold > 0 ? "\(MoneyFormat.grams(r.gold)) \(MoneyWords.metal)" : nil
         let giveGold: String? = r.gold < 0 ? "\(MoneyFormat.grams(abs(r.gold))) \(MoneyWords.metal)" : nil
         return FigureRow(alignment: .top, spacing: 10) {
-            FigureTile(label: "You will get", value: Money.pkr(max(0, r.cash)), detail: getGold, tint: .green)
-            FigureTile(label: "You will give", value: Money.pkr(abs(min(0, r.cash))), detail: giveGold, tint: .red)
+            FigureTile(label: "You will get", value: Money.pkr(max(0, r.cash)), detail: getGold, tint: Tone.owed.color)
+            FigureTile(label: "You will give", value: Money.pkr(abs(min(0, r.cash))), detail: giveGold, tint: Tone.credit.color)
         }
         .padding(.vertical, 4)
     }
@@ -217,8 +218,8 @@ struct HisaabLedgerScreen: View {
 
 // MARK: One row
 
-/// What was written, when, how much each way, and the balance after it. "You gave" is a debit (red),
-/// "You got" a credit (green): the web's words and colours; a positive balance is owed to the shop.
+/// What was written, when, how much each way, and the balance after it. "You gave" is a debit (owed),
+/// "You got" a credit (settled): the web's words in the kit's tones; a positive balance is owed to the shop.
 private struct HisaabLedgerRow: View {
     let line: HisaabLedgerLine
     let showGold: Bool
@@ -245,16 +246,16 @@ private struct HisaabLedgerRow: View {
     private var moves: some View {
         let e = line.entry
         if e.cashDebit > 0 {
-            Text("You gave \(Money.pkr(e.cashDebit))").font(.subheadline.weight(.semibold)).foregroundStyle(.red)
+            Text("You gave \(Money.pkr(e.cashDebit))").font(.subheadline.weight(.semibold)).foregroundStyle(Tone.owed.color)
         }
         if e.cashCredit > 0 {
-            Text("You got \(Money.pkr(e.cashCredit))").font(.subheadline.weight(.semibold)).foregroundStyle(.green)
+            Text("You got \(Money.pkr(e.cashCredit))").font(.subheadline.weight(.semibold)).foregroundStyle(Tone.settled.color)
         }
         if e.goldDebitGrams > 0 {
-            Text("You gave \(MoneyFormat.grams(e.goldDebitGrams))").font(.caption).foregroundStyle(.red)
+            Text("You gave \(MoneyFormat.grams(e.goldDebitGrams))").font(.caption).foregroundStyle(Tone.owed.color)
         }
         if e.goldCreditGrams > 0 {
-            Text("You got \(MoneyFormat.grams(e.goldCreditGrams))").font(.caption).foregroundStyle(.green)
+            Text("You got \(MoneyFormat.grams(e.goldCreditGrams))").font(.caption).foregroundStyle(Tone.settled.color)
         }
     }
 
@@ -272,6 +273,6 @@ private struct HisaabLedgerRow: View {
 
     private func tone(_ balance: Double) -> Color {
         if abs(balance) < 0.001 { return Color.secondary }
-        return balance > 0 ? Color.green : Color.red
+        return balance > 0 ? Tone.owed.color : Tone.credit.color
     }
 }

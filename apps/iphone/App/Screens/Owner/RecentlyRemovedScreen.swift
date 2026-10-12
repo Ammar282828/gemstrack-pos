@@ -16,7 +16,7 @@ struct RecentlyRemovedScreen: View {
         if session.isOwner {
             RecentlyRemovedList()
         } else {
-            ContentUnavailableView("Owners only", systemImage: "lock", description: Text("Settings are the owners’."))
+            NotAvailableState("Owners only", why: "Settings are the owners’.")
                 .navigationTitle("Recently removed")
         }
     }
@@ -28,6 +28,7 @@ private struct RecentlyRemovedList: View {
     @State private var busy: String?
     @State private var failure: String?
     @State private var note: OwnerNote?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var deletion: OwnerDeletion?
     @State private var history = Memo<[String: RecentlyRemoved.History]>()
 
@@ -42,25 +43,17 @@ private struct RecentlyRemovedList: View {
         }
         .navigationTitle("Recently removed")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("Could not do that", isPresented: failureShown) {
-            Button("OK") { failure = nil }
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure, title: "Could not do that")
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {}
         }
-        .ownerNote($note)
+        .noteToast($note)
         .task {
             book.customers.need()
             book.karigars.need()
             book.hisaab.need()
             book.orders.need()
         }
-    }
-
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
     }
 
     private func reckon() -> [String: RecentlyRemoved.History] {
@@ -80,8 +73,8 @@ private struct RecentlyRemovedList: View {
             Group {
                 if customers.isEmpty && karigars.isEmpty {
                     Section {
-                        ContentUnavailableView("Nobody has been removed", systemImage: "arrow.uturn.backward",
-                                               description: Text("Nothing here has been destroyed. Their history is exactly where they left it."))
+                        NotAvailableState("Nobody has been removed", why: "Nothing here has been destroyed. Their history is exactly where they left it.",
+                                          symbol: "arrow.uturn.backward")
                     }
                 } else {
                     summarySection(customers, karigars, h)
@@ -150,9 +143,8 @@ private struct RecentlyRemovedList: View {
             let out = try await ERPAPI.shared.write("purgeRemoved", ["customerIds": customerIds, "karigarIds": karigarIds, "deleteCode": code])
             let c = out["customers"] as? Int ?? 0
             let k = out["karigars"] as? Int ?? 0
-            withAnimation {
-                note = OwnerNote(title: "Recently removed emptied", detail: "\(c) customer(s) and \(k) karigar(s) permanently deleted.")
-            }
+            Note.show(Note(title: "Recently removed emptied", detail: "\(c) customer(s) and \(k) karigar(s) permanently deleted."),
+                      in: $note, reduce: reduceMotion)
         }
     }
 
@@ -192,16 +184,16 @@ private struct RecentlyRemovedList: View {
         do {
             let out = try await ERPAPI.shared.write("restoreRemoved", ["customerIds": customerIds, "karigarIds": karigarIds])
             let back = (out["customers"] as? [Any] ?? []).count + (out["karigars"] as? [Any] ?? []).count
-            withAnimation {
-                if back == 0 {
-                    // Someone put them back already (or they are gone): the list catches up by itself.
-                    note = OwnerNote(title: "Nothing to put back", detail: "They are no longer in Recently removed.")
-                } else if let name {
-                    note = OwnerNote(title: "Put back", detail: "\(name.isEmpty ? "They are" : "\(name) is") in the book again.")
-                } else {
-                    note = OwnerNote(title: "Put everything back", detail: "\(back) record(s) restored.")
-                }
+            let said: Note
+            if back == 0 {
+                // Someone put them back already (or they are gone): the list catches up by itself.
+                said = Note(title: "Nothing to put back", detail: "They are no longer in Recently removed.")
+            } else if let name {
+                said = Note(title: "Put back", detail: "\(name.isEmpty ? "They are" : "\(name) is") in the book again.")
+            } else {
+                said = Note(title: "Put everything back", detail: "\(back) record(s) restored.")
             }
+            Note.show(said, in: $note, reduce: reduceMotion)
         } catch {
             failure = error.localizedDescription
         }

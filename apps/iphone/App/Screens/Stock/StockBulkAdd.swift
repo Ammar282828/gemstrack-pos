@@ -125,18 +125,10 @@ private struct StockBulkEditor: View {
                 }
             }
         }
-        .alert(failureTitle, isPresented: failureShown) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure, title: failureTitle)
         .sensoryFeedback(.success, trigger: tick)
         .interactiveDismissDisabled(saving)
         .navigationBarBackButtonHidden(saving)
-    }
-
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })
     }
 
     private var form: some View {
@@ -435,8 +427,9 @@ private struct StockBulkEditor: View {
             Section {
                 VStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.green)
+                        .font(.largeTitle)
+                        .imageScale(.large)
+                        .foregroundStyle(Tone.settled.color)
                     Text("Bulk add complete").font(.title2.weight(.semibold))
                     Text("\(skus.count) piece\(skus.count == 1 ? " is" : "s are") in stock.")
                         .foregroundStyle(.secondary)

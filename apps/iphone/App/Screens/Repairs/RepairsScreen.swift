@@ -196,11 +196,11 @@ struct RepairsScreen: View {
     private func trailingSwipe(_ r: Repair) -> some View {
         if session.isOwner && r.status == .received {
             Button { desk.markReady(r) } label: { Label("Mark ready", systemImage: "checkmark.circle") }
-                .tint(.green)
+                .tint(Tone.settled.color)
         }
         if session.isOwner && r.status == .ready {
             Button { desk.collect(r) } label: { Label("Collected", systemImage: "shippingbox") }
-                .tint(.indigo)
+                .tint(Tone.working.color)
         }
     }
 
@@ -208,7 +208,7 @@ struct RepairsScreen: View {
     private func leadingSwipe(_ r: Repair) -> some View {
         if r.status == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
             Button { openURL(url) } label: { Label("Tell them", systemImage: "message") }
-                .tint(.green)
+                .tint(Tone.settled.color)
         }
     }
 
@@ -224,7 +224,7 @@ struct RepairsScreen: View {
             Button { openURL(url) } label: { Label("Tell them it's ready", systemImage: "message") }
         }
         if session.isOwner && r.status != .cancelled && RepairsKit.repairBalance(r) > 0 {
-            Button { desk.taking = r } label: { Label("Take payment", systemImage: "creditcard") }
+            Button { desk.taking = r } label: { Label("Take payment", systemImage: "banknote") }
         }
         if session.isOwner && (r.status == .received || r.status == .ready) {
             Button(role: .destructive) { desk.askCancel(r) } label: { Label("Cancel repair", systemImage: "xmark.circle") }
@@ -311,7 +311,7 @@ struct RepairsRow: View {
         } else if RepairsKit.repairTotal(repair) > 0 {
             Text("paid")
                 .font(.caption)
-                .foregroundStyle(.green)
+                .foregroundStyle(Tone.settled.color)
         }
     }
 }

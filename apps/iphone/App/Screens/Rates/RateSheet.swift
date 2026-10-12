@@ -126,10 +126,12 @@ struct RateChip: View {
             HStack(spacing: 4) {
                 if !today { Image(systemName: "exclamationmark.triangle.fill") }
                 Text(RateKeys.main.label).fontWeight(.semibold)
-                Text(s.map { Money.grouped($0[keyPath: RateKeys.main.value]) } ?? "—").monospacedDigit()
+                Text(s.map { Money.grouped($0[keyPath: RateKeys.main.value]) } ?? "—")
+                    .monospacedDigit()
+                    .contentTransition(.numericText(value: s?[keyPath: RateKeys.main.value] ?? 0))
             }
             .font(.footnote)
-            .foregroundStyle(today ? Color.primary : Color.orange)
+            .foregroundStyle(today ? Color.primary : Tone.owed.color)
         }
         .accessibilityLabel(accessibility(today: today))
         .onAppear { book.settings.need() }
@@ -165,7 +167,7 @@ struct RateReadout: View {
                             LabeledContent(f.label, value: RateKeys.shown(s?[keyPath: f.value] ?? 0))
                         }
                     } header: {
-                        Text(g.title)
+                        LedgerHeading(title: g.title)
                     } footer: {
                         if let note = g.note { Text(note) }
                     }
@@ -249,12 +251,12 @@ struct RateSheet: View {
                             }
                         }
                     } header: {
-                        Text(g.title)
+                        LedgerHeading(title: g.title)
                     } footer: {
                         if let note = g.note { Text(note) }
                     }
                 }
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { Text(error).foregroundStyle(Tone.problem.color) } }
                 }
                 .houseRows()
             }

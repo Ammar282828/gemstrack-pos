@@ -25,6 +25,7 @@ struct ExpensesScreen: View {
     @State private var openWeb = false
     @State private var openShareholders = false
     @State private var note: ExpenseSavedNote?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if session.isOwner {
@@ -48,17 +49,17 @@ struct ExpensesScreen: View {
         }
         .sheet(isPresented: $adding) {
             AddExpenseSheet(categories: sheetCategories, partnership: session.shop.partnership) { (saved: ExpenseSavedNote) in
-                withAnimation { note = saved }
+                Note.show(saved, in: $note, reduce: reduceMotion)
             }
         }
         .sheet(item: $editing) { (e: Expense) in
             ExpenseEditSheet(expense: e, categories: sheetCategories, partnership: session.shop.partnership) { (saved: ExpenseSavedNote) in
-                withAnimation { note = saved }
+                Note.show(saved, in: $note, reduce: reduceMotion)
             }
         }
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {
-                withAnimation { note = ExpenseSavedNote(title: "Expense deleted", detail: "The record has been removed.") }
+                Note.show(ExpenseSavedNote(title: "Expense deleted", detail: "The record has been removed."), in: $note, reduce: reduceMotion)
             }
         }
         .navigationDestination(isPresented: $openWeb) {
@@ -67,20 +68,8 @@ struct ExpensesScreen: View {
         .navigationDestination(isPresented: $openShareholders) {
             PlaceScreen(path: MoneyPaths.shareholders)
         }
-        .overlay(alignment: .bottom) {
-            if let note {
-                ExpenseSavedBanner(note: note)
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
         // Said for a few seconds, like the web's toast, then gone.
-        .task(id: note) {
-            guard note != nil else { return }
-            try? await Task.sleep(for: .seconds(4))
-            if !Task.isCancelled { withAnimation { note = nil } }
-        }
+        .noteToast($note)
         .task {
             book.expenses.need()
             book.karigars.need()
@@ -169,7 +158,7 @@ struct ExpensesScreen: View {
     private var emptyState: some View {
         let filtering = !search.isEmpty || !category.isEmpty
         let text = filtering ? "Select a wider period, or clear the filters." : "No expenses recorded for \(period.title.lowercased())."
-        return ContentUnavailableView("No expenses in this period", systemImage: "creditcard", description: Text(text))
+        return ContentUnavailableView("No expenses in this period", systemImage: "tray", description: Text(text))
     }
 
     // MARK: Figures
@@ -219,11 +208,11 @@ struct ExpensesScreen: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if ExpenseEditing.isDrawing(e, partnership: session.shop.partnership) {
                 Button { openShareholders = true } label: { Label("Shareholders", systemImage: "person.2") }
-                    .tint(.indigo)
+                    .tint(Color.secondary)
             } else {
                 Button(role: .destructive) { askDelete(e) } label: { Label("Delete", systemImage: "trash") }
                 Button { editing = e } label: { Label("Edit", systemImage: "pencil") }
-                    .tint(.blue)
+                    .tint(Theme.accent)
             }
         }
         .contextMenu {
