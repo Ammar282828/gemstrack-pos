@@ -1,65 +1,85 @@
 package erp.app
 
+import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.lifecycleScope
+import erp.app.auth.Session
 import erp.app.config.House
-import erp.app.ui.theme.ErpTheme
+import erp.app.device.AppLock
+import erp.app.device.Foreground
+import erp.app.nav.AppRoot
+import erp.app.nav.AppRouter
+import erp.app.nav.ThemeChoice
+import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+// FragmentActivity (a ComponentActivity) because BiometricPrompt, the delete code's and the lock's, wants one.
+class MainActivity : FragmentActivity() {
+    private val session: Session get() = ErpApp.session
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen() // before super: swaps the splash theme for Theme.Erp
+        val splash = installSplashScreen() // before super: swaps the splash theme for Theme.Erp
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Before the Session exists: the demo is decided by the launch intent.
         House.applyIntent(intent)
-        setContent { ErpTheme { Placeholder() } }
+        ErpApp.ensureFirebase()
+        ThemeChoice.load()
+        Foreground.attach(this)
+        // Held only while the ERP is asked who a new account is, and no longer than a second.
+        val started = System.currentTimeMillis()
+        splash.setKeepOnScreenCondition { session.state.value == Session.State.Starting && System.currentTimeMillis() - started < 1000 }
+        if (savedInstanceState == null) {
+            AppRouter.handle(intent)
+            // A cold start of a signed-in app asks for the fingerprint too; a fresh sign-in does not.
+            if (session.state.value == Session.State.SignedIn) AppLock.launched(this, signedIn = true)
+        }
+        lifecycleScope.launch {
+            var before = session.state.value
+            session.state.collect { s ->
+                if (before == Session.State.Starting && s == Session.State.SignedIn && savedInstanceState == null) {
+                    // The cached sign-in was someone else's or missing and the ERP has now said who this is.
+                    AppLock.launched(this@MainActivity, signedIn = true)
+                    AppLock.unlockIfNeeded(this@MainActivity)
+                }
+                before = s
+                if (s != Session.State.SignedIn) AppLock.signedOut()
+                AppLock.applyRecentsPolicy(this@MainActivity, hide = s == Session.State.SignedIn && AppLock.enabled && !House.isDemo)
+            }
+        }
+        setContent { AppRoot(session) }
     }
-}
 
-// The real shell (navigation, sign-in) replaces this; it proves the palette, logo and font reach the screen.
-@Composable
-private fun Placeholder() {
-    val futura = FontFamily(Font(R.font.futura_lt_light))
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .safeDrawingPadding()
-            .padding(horizontal = 32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Image(
-            painterResource(R.drawable.brand_logo),
-            contentDescription = stringResource(R.string.app_name),
-            modifier = Modifier.widthIn(max = 280.dp),
-        )
-        Text(
-            House.storeName,
-            modifier = Modifier.padding(top = 24.dp),
-            color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.typography.headlineMedium,
-            fontFamily = futura,
-        )
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // A link or a tapped notification opens its page over whatever is showing.
+        AppRouter.handle(intent)
+    }
+
+    private val signedIn: Boolean get() = session.state.value == Session.State.SignedIn
+
+    override fun onPause() {
+        AppLock.paused(signedIn)
+        super.onPause()
+    }
+
+    override fun onStop() {
+        AppLock.stopped(signedIn)
+        super.onStop()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        AppLock.resumed(this, signedIn)
+        lifecycleScope.launch { AppLock.unlockIfNeeded(this@MainActivity) }
+    }
+
+    override fun onDestroy() {
+        Foreground.detach(this)
+        super.onDestroy()
     }
 }

@@ -159,6 +159,11 @@ android {
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
+
+    testOptions {
+        // The pure parts are tested on the JVM; an Android call they happen to touch answers its default, not an error.
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 kotlin {
@@ -236,13 +241,13 @@ dependencies {
     implementation(libs.androidx.splashscreen)
     implementation(libs.androidx.webkit)
 
-    // Not used by code yet; here so they resolve and the manifest merges from the first build.
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
-    implementation(libs.firebase.messaging)
+    implementation(libs.firebase.messaging) // not used by code yet (alerts, a later phase); here so the manifest merges
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
+    // Not used by code yet (widgets, a later phase); here so they resolve from the first build.
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
     implementation(libs.androidx.biometric)
