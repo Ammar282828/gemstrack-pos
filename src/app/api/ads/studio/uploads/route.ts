@@ -14,10 +14,14 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const MAX = 25 * 1024 * 1024;
+/** The multipart envelope adds a little to the file; past this the body is not worth buffering. */
+const MAX_BODY = 26 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   const who = await adsGate(req, STORE_AD_STUDIO);
   if (who instanceof NextResponse) return who;
+  // Before formData(), which buffers the whole body.
+  if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY) return NextResponse.json({ error: 'That picture is over 25 MB.' }, { status: 413 });
   try {
     const form = await req.formData().catch(() => null);
     const file = form?.get('file');
