@@ -84,12 +84,17 @@ export const MASK_PICKS: MaskKey[] = ['ellipse', 'arch', 'rounded', 'pill', 'hea
 /** Every value −100…100 (fade and vignette 0…100); all zero leaves the photo as it is. */
 export interface Adjust {
   brightness: number; contrast: number; saturation: number; warmth: number; fade: number; vignette: number;
-  /** Designer v2 (not applied yet; missing = 0). */
+  /**
+   * Designer v2 (missing = 0). highlights/shadows −100…100 (shadows + lifts the dark, highlights − recovers glare),
+   * tint −100…100 (− green, + magenta), hue −100…100 (±180°), sharpen / blur / grain 0…100.
+   * Blur and sharpen are relative to the picture's size, so a preview and a full-size export look alike.
+   */
   highlights?: number; shadows?: number; tint?: number; hue?: number; sharpen?: number; blur?: number; grain?: number;
 }
 export const NO_ADJUST: Adjust = { brightness: 0, contrast: 0, saturation: 0, warmth: 0, fade: 0, vignette: 0 };
 export const isPlain = (a: Adjust | null | undefined): boolean =>
-  !a || (!a.brightness && !a.contrast && !a.saturation && !a.warmth && !a.fade && !a.vignette);
+  !a || (!a.brightness && !a.contrast && !a.saturation && !a.warmth && !a.fade && !a.vignette
+    && !a.highlights && !a.shadows && !a.tint && !a.hue && !a.sharpen && !a.blur && !a.grain);
 /** Whether the pixels themselves change (the vignette is drawn over them instead). */
 export const changesPixels = (a: Adjust | null | undefined): boolean => !!a && !isPlain({ ...a, vignette: 0 });
 
@@ -109,14 +114,19 @@ export const FILTERS: { id: string; label: string; adjust: Adjust }[] = [
 ];
 
 /**
- * Brightness, contrast, saturation, warmth and fade applied to RGBA pixels in
- * place. Plain arithmetic rather than ctx.filter, which Safari on the
- * counter's iPhones doesn't draw.
+ * The designer's photo filters applied to RGBA pixels in place. Plain arithmetic rather than ctx.filter, which
+ * Safari on the counter's iPhones doesn't draw. Brightness, contrast, saturation, warmth and fade come first
+ * (unchanged since they were written), then highlights, shadows, tint and hue per pixel, then — when the
+ * picture's `w` × `h` is given — blur, sharpen (an unsharp mask) and grain. Every new control at 0 (or missing)
+ * leaves the pixels exactly as the older arithmetic made them.
  */
-export function applyAdjust(d: Uint8ClampedArray, a: Adjust): void {
+export function applyAdjust(d: Uint8ClampedArray, a: Adjust, w?: number, h?: number): void {
   const br = a.brightness / 100, sat = 1 + a.saturation / 100, warm = a.warmth / 100, fade = a.fade / 100;
   const C = a.contrast * 1.28;
   const cf = (259 * (C + 255)) / (255 * (259 - C));
+  const hi = (a.highlights ?? 0) / 100, sh = (a.shadows ?? 0) / 100, tint = (a.tint ?? 0) / 100, hue = (a.hue ?? 0) * 1.8;
+  const tonal = !!(hi || sh), tinted = !!tint, turned = !!hue;
+  const rot = hueMatrix(hue);
   for (let i = 0; i < d.length; i += 4) {
     let r = d[i], g = d[i + 1], b = d[i + 2];
     if (br) { r = r * (1 + br * 0.45) + br * 40; g = g * (1 + br * 0.45) + br * 40; b = b * (1 + br * 0.45) + br * 40; }
@@ -124,7 +134,89 @@ export function applyAdjust(d: Uint8ClampedArray, a: Adjust): void {
     if (sat !== 1) { const y = 0.2126 * r + 0.7152 * g + 0.0722 * b; r = y + (r - y) * sat; g = y + (g - y) * sat; b = y + (b - y) * sat; }
     if (warm) { r += 28 * warm; g += 7 * warm; b -= 28 * warm; }
     if (fade) { r = r * (1 - 0.28 * fade) + 34 * fade; g = g * (1 - 0.28 * fade) + 32 * fade; b = b * (1 - 0.28 * fade) + 30 * fade; }
+    if (tonal) {
+      const y = Math.min(1, Math.max(0, (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255));
+      const lift = sh * 70 * (1 - y) * (1 - y) + hi * 70 * y * y;
+      r += lift; g += lift; b += lift;
+    }
+    if (tinted) { r += 8 * tint; g -= 24 * tint; b += 8 * tint; }
+    if (turned) {
+      const r0 = r, g0 = g, b0 = b;
+      r = rot[0] * r0 + rot[1] * g0 + rot[2] * b0;
+      g = rot[3] * r0 + rot[4] * g0 + rot[5] * b0;
+      b = rot[6] * r0 + rot[7] * g0 + rot[8] * b0;
+    }
     d[i] = r; d[i + 1] = g; d[i + 2] = b; // Uint8ClampedArray clamps and rounds
+  }
+  if (!w || !h || w * h * 4 !== d.length) return; // the spatial controls need the picture's shape
+  const long = Math.max(w, h);
+  const blur = Math.min(100, Math.max(0, a.blur ?? 0));
+  if (blur) boxBlurRGBA(d, w, h, Math.max(1, Math.round(((blur / 100) * 0.025 * long) / 1.5)), 3);
+  const sharpen = Math.min(100, Math.max(0, a.sharpen ?? 0));
+  if (sharpen) unsharp(d, w, h, Math.max(1, Math.round(0.003 * long)), (sharpen / 100) * 1.6);
+  const grain = Math.min(100, Math.max(0, a.grain ?? 0));
+  if (grain) addGrain(d, (grain / 100) * 38);
+}
+
+/** CSS's hue-rotate matrix (row-major 3 × 3) for an angle in degrees. */
+function hueMatrix(deg: number): number[] {
+  const t = (deg * Math.PI) / 180, c = Math.cos(t), s = Math.sin(t);
+  return [
+    0.213 + c * 0.787 - s * 0.213, 0.715 - c * 0.715 - s * 0.715, 0.072 - c * 0.072 + s * 0.928,
+    0.213 - c * 0.213 + s * 0.143, 0.715 + c * 0.285 + s * 0.14, 0.072 - c * 0.072 - s * 0.283,
+    0.213 - c * 0.213 - s * 0.787, 0.715 - c * 0.715 + s * 0.715, 0.072 + c * 0.928 + s * 0.072,
+  ];
+}
+
+/**
+ * A box blur of radius r over all four channels, repeated `passes` times (three approximate a Gaussian). Each
+ * pass is two running sums, so the cost is linear in the pixels however large r is. Edges repeat their last
+ * pixel. In place.
+ */
+export function boxBlurRGBA(d: Uint8ClampedArray, w: number, h: number, r: number, passes = 1): void {
+  if (r < 1 || w < 1 || h < 1) return;
+  const tmp = new Uint8ClampedArray(d.length);
+  for (let p = 0; p < passes; p++) {
+    blurAxis(d, tmp, w, h, r, 4, w * 4); // along each row
+    blurAxis(tmp, d, h, w, r, w * 4, 4); // down each column
+  }
+}
+function blurAxis(src: Uint8ClampedArray, dst: Uint8ClampedArray, len: number, lines: number, r: number, step: number, lineStep: number): void {
+  const div = 2 * r + 1, half = div >> 1;
+  for (let line = 0; line < lines; line++) {
+    const base = line * lineStep;
+    for (let c = 0; c < 4; c++) {
+      const at = (i: number) => base + (i < 0 ? 0 : i >= len ? len - 1 : i) * step + c;
+      let sum = 0;
+      for (let i = -r; i <= r; i++) sum += src[at(i)];
+      for (let i = 0; i < len; i++) {
+        dst[base + i * step + c] = Math.floor((sum + half) / div);
+        sum += src[at(i + r + 1)] - src[at(i - r)];
+      }
+    }
+  }
+}
+
+/** Sharpen by an unsharp mask: the picture plus `amount` × (the picture − its blur). Alpha is left alone. In place. */
+export function unsharp(d: Uint8ClampedArray, w: number, h: number, r: number, amount: number): void {
+  if (!amount) return;
+  const soft = d.slice();
+  boxBlurRGBA(soft, w, h, r, 3);
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] = d[i] + amount * (d[i] - soft[i]);
+    d[i + 1] = d[i + 1] + amount * (d[i + 1] - soft[i + 1]);
+    d[i + 2] = d[i + 2] + amount * (d[i + 2] - soft[i + 2]);
+  }
+}
+
+/** Film grain: one random-looking amount (± `amp` levels) added to all three channels, fixed per pixel so a redraw looks the same. In place. */
+export function addGrain(d: Uint8ClampedArray, amp: number): void {
+  for (let i = 0; i < d.length; i += 4) {
+    // An integer hash of the pixel's index, mapped to −1…1.
+    let x = (i >>> 2) + 0x9e3779b9;
+    x = Math.imul(x ^ (x >>> 16), 0x85ebca6b); x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35); x ^= x >>> 16;
+    const v = (((x >>> 0) / 4294967295) * 2 - 1) * amp;
+    d[i] = d[i] + v; d[i + 1] = d[i + 1] + v; d[i + 2] = d[i + 2] + v;
   }
 }
 
@@ -180,11 +272,27 @@ export function distributeDeltas(boxes: Box[], axis: 'h' | 'v'): { dx: number; d
 // ── Magnetic guides ────────────────────────────────────────────────────────
 
 export interface SnapLines { xs: number[]; ys: number[] }
+export interface SnapExtras {
+  /** A grid every this many pixels (0 or missing: none). */
+  grid?: number;
+  /** The user's own guides (`doc.meta.guides`). */
+  guides?: { x?: number[]; y?: number[] };
+}
 
-/** Where a moving box may snap: the page's centre and margins, and the edges and centres of everything else. */
-export function snapLines(frame: { w: number; h: number }, margin: number, others: Box[]): SnapLines {
+/**
+ * Where a moving box may snap: the page's centre and margins, the edges and centres of everything else, and —
+ * when asked — a grid and the user's guides.
+ */
+export function snapLines(frame: { w: number; h: number }, margin: number, others: Box[], extra: SnapExtras = {}): SnapLines {
   const xs = [frame.w / 2, margin, frame.w - margin], ys = [frame.h / 2, margin, frame.h - margin];
   for (const b of others) { xs.push(b.x, b.x + b.w / 2, b.x + b.w); ys.push(b.y, b.y + b.h / 2, b.y + b.h); }
+  const grid = extra.grid && extra.grid >= 4 ? extra.grid : 0;
+  if (grid) {
+    for (let x = grid; x < frame.w && xs.length < 600; x += grid) xs.push(x);
+    for (let y = grid; y < frame.h && ys.length < 600; y += grid) ys.push(y);
+  }
+  for (const g of extra.guides?.x ?? []) if (Number.isFinite(g)) xs.push(g);
+  for (const g of extra.guides?.y ?? []) if (Number.isFinite(g)) ys.push(g);
   return { xs, ys };
 }
 
@@ -201,4 +309,70 @@ export function snapBox(b: Box, lines: SnapLines, threshold: number): { dx: numb
   const x = best([b.x, b.x + b.w / 2, b.x + b.w], lines.xs);
   const y = best([b.y, b.y + b.h / 2, b.y + b.h], lines.ys);
   return { dx: x.d, dy: y.d, v: x.at, h: y.at };
+}
+
+/**
+ * A gap drawn between two boxes while spacing is equal. `axis: 'x'` is a horizontal gap from `a` to `b` (x
+ * positions) at height `at`; `axis: 'y'` a vertical one at x = `at`. `gap` is the distance to show.
+ */
+export interface SpacingGuide { axis: 'x' | 'y'; a: number; b: number; at: number; gap: number }
+
+const overlapY = (p: Box, q: Box) => p.y < q.y + q.h && q.y < p.y + p.h;
+const overlapX = (p: Box, q: Box) => p.x < q.x + q.w && q.x < p.x + p.w;
+
+/**
+ * Canva's equal-spacing guides, on one axis. Among the boxes that sit level with the moving one (they overlap
+ * it on the other axis) it finds where the box would (a) sit exactly midway between two of them, or (b) repeat
+ * the gap between two neighbours, just past either end of the pair. Returns the nudge to get there (within
+ * `threshold`) and the gaps to draw, or none.
+ */
+export function spacingSnap(b: Box, others: Box[], threshold: number, axis: 'x' | 'y'): { d: number; guides: SpacingGuide[] } {
+  const x = axis === 'x';
+  const pos = (p: Box) => (x ? p.x : p.y), len = (p: Box) => (x ? p.w : p.h);
+  const level = others.filter(o => (x ? overlapY(o, b) : overlapX(o, b))).sort((p, q) => pos(p) - pos(q));
+  const mid = (p: Box) => (x ? p.y + p.h / 2 : p.x + p.w / 2);
+  type Cand = { d: number; guides: SpacingGuide[] };
+  const cands: Cand[] = [];
+  const guide = (from: number, to: number, ref: Box): SpacingGuide => ({ axis, a: from, b: to, at: mid(ref), gap: to - from });
+  // (a) between two boxes: the gaps either side of the moving box made equal.
+  for (let i = 0; i < level.length; i++) for (let j = i + 1; j < level.length; j++) {
+    const left = level[i], right = level[j];
+    const gapL = pos(b) - (pos(left) + len(left)), gapR = pos(right) - (pos(b) + len(b));
+    if (gapL < 0 || gapR < 0) continue;
+    const d = (gapR - gapL) / 2;
+    if (Math.abs(d) <= threshold) {
+      const gap = (gapL + gapR) / 2;
+      cands.push({ d, guides: [guide(pos(left) + len(left), pos(left) + len(left) + gap, b), guide(pos(right) - gap, pos(right), b)] });
+    }
+  }
+  // (b) repeating the gap of a neighbouring pair, after it or before it.
+  for (let i = 0; i + 1 < level.length; i++) {
+    const p = level[i], q = level[i + 1];
+    const gap = pos(q) - (pos(p) + len(p));
+    if (gap <= 0) continue;
+    const after = pos(q) + len(q) + gap, before = pos(p) - gap - len(b);
+    if (Math.abs(pos(b) - after) <= threshold && pos(b) >= pos(q) + len(q) - 0.5) cands.push({ d: after - pos(b), guides: [guide(pos(p) + len(p), pos(q), b), guide(pos(q) + len(q), after, b)] });
+    if (Math.abs(pos(b) - before) <= threshold && pos(b) + len(b) <= pos(p) + 0.5) cands.push({ d: before - pos(b), guides: [guide(before + len(b), pos(p), b), guide(pos(p) + len(p), pos(q), b)] });
+  }
+  if (!cands.length) return { d: 0, guides: [] };
+  return cands.reduce((best, c) => (Math.abs(c.d) < Math.abs(best.d) ? c : best));
+}
+
+/**
+ * `snapBox` plus equal spacing: lines win on an axis where one is within reach, equal spacing fills in where
+ * none is. `spacing` lists the gaps to draw, each with its distance.
+ */
+export function snapMove(b: Box, lines: SnapLines, others: Box[], threshold: number): { dx: number; dy: number; v: number | null; h: number | null; spacing: SpacingGuide[] } {
+  const s = snapBox(b, lines, threshold);
+  let { dx, dy } = s;
+  const spacing: SpacingGuide[] = [];
+  if (s.v === null) {
+    const e = spacingSnap(b, others, threshold, 'x');
+    if (e.guides.length) { dx = e.d; spacing.push(...e.guides); }
+  }
+  if (s.h === null) {
+    const e = spacingSnap(b, others, threshold, 'y');
+    if (e.guides.length) { dy = e.d; spacing.push(...e.guides); }
+  }
+  return { dx, dy, v: s.v, h: s.h, spacing };
 }

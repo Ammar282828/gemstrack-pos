@@ -13,10 +13,10 @@ import { weightLabel, detailsLine, whatsappCaption, websiteFileName } from '../.
 
 declare const NATIVE_MARK: string;
 declare const NATIVE_FONTS: string;
-const fonts: E.FontFamilies = { headline: 'Headline', body: 'Body', serif: 'Didone', extra: { cormorant: 'Cormorant', playfair: 'Playfair', script: 'Script', montserrat: 'Montserrat', cinzel: 'Cinzel' } };
+const fonts: E.FontFamilies = { headline: 'Headline', body: 'Body', serif: 'Didone', extra: { cormorant: 'Cormorant', playfair: 'Playfair', script: 'Script', montserrat: 'Montserrat', cinzel: 'Cinzel', cormorantInfant: 'CormorantInfant', italiana: 'Italiana', jost: 'Jost', tenor: 'TenorSans', dmSerif: 'DMSerif', marcellus: 'Marcellus' } };
 const ready = (async () => {
   const style = document.createElement('style'); style.textContent = NATIVE_FONTS; document.head.appendChild(style);
-  await Promise.all(['800 100px Headline', '300 40px Body', '400 40px Body', '700 40px Body', '500 40px Didone', 'italic 400 40px Didone', '300 40px "Taheri Stamp"', '500 40px Cormorant', 'italic 500 40px Cormorant', '700 40px Playfair', '400 40px Script', '400 40px Montserrat', '700 40px Montserrat', '500 40px Cinzel'].map(f => document.fonts.load(f)));
+  await Promise.all(['800 100px Headline', '300 40px Body', '400 40px Body', '700 40px Body', '500 40px Didone', 'italic 400 40px Didone', '300 40px "Taheri Stamp"', '500 40px Cormorant', 'italic 500 40px Cormorant', '700 40px Playfair', '400 40px Script', '400 40px Montserrat', '700 40px Montserrat', '500 40px Cinzel', '500 40px CormorantInfant', '400 40px Italiana', '400 40px Jost', '400 40px TenorSans', '400 40px DMSerif', '400 40px Marcellus'].map(f => document.fonts.load(f)));
   return loadImage(NATIVE_MARK);
 })();
 const images = new Map<string, { src: string; img: HTMLImageElement }>();

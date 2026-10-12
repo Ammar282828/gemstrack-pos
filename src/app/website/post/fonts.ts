@@ -65,6 +65,32 @@ const cinzel = localFont({
   display: 'swap', preload: false, adjustFontFallback: 'Times New Roman',
 });
 
+// Designer v2's jewellery set (2026-10-12, @fontsource's latin cuts, SIL OFL 1.1), loaded on first use like the extras above.
+const cormorantInfant = localFont({
+  src: [{ path: '../../../fonts/cormorant-infant-latin.woff2', weight: '500', style: 'normal' }],
+  display: 'swap', preload: false, adjustFontFallback: 'Times New Roman',
+});
+const italiana = localFont({
+  src: [{ path: '../../../fonts/italiana-latin.woff2', weight: '400', style: 'normal' }],
+  display: 'swap', preload: false, adjustFontFallback: 'Times New Roman',
+});
+const jost = localFont({
+  src: [{ path: '../../../fonts/jost-latin.woff2', weight: '400', style: 'normal' }],
+  display: 'swap', preload: false,
+});
+const tenorSans = localFont({
+  src: [{ path: '../../../fonts/tenor-sans-latin.woff2', weight: '400', style: 'normal' }],
+  display: 'swap', preload: false,
+});
+const dmSerif = localFont({
+  src: [{ path: '../../../fonts/dm-serif-display-latin.woff2', weight: '400', style: 'normal' }],
+  display: 'swap', preload: false, adjustFontFallback: 'Times New Roman',
+});
+const marcellus = localFont({
+  src: [{ path: '../../../fonts/marcellus-latin.woff2', weight: '400', style: 'normal' }],
+  display: 'swap', preload: false, adjustFontFallback: 'Times New Roman',
+});
+
 export const FONTS: FontFamilies = {
   headline: headlineFace.style.fontFamily,
   body: bodyFace.style.fontFamily,
@@ -75,5 +101,11 @@ export const FONTS: FontFamilies = {
     script: script.style.fontFamily,
     montserrat: montserrat.style.fontFamily,
     cinzel: cinzel.style.fontFamily,
+    cormorantInfant: cormorantInfant.style.fontFamily,
+    italiana: italiana.style.fontFamily,
+    jost: jost.style.fontFamily,
+    tenor: tenorSans.style.fontFamily,
+    dmSerif: dmSerif.style.fontFamily,
+    marcellus: marcellus.style.fontFamily,
   },
 };
