@@ -2,7 +2,7 @@ name: TestFlight status
 
 # Why a build is or is not in TestFlight (docs/features/iphone-app.md, Xcode Cloud): each house's newest builds,
 # their processing and beta state, and whether the "Shop" group has them (apps/ios/scripts/asc.mjs builds).
-# A cloud session cannot dispatch it (403): a push that changes this file runs it (last: 2.2).
+# A cloud session cannot dispatch it (403): a push that changes this file runs it (last: push token fix).
 # With fix (the default, and on a push to this file): the newest valid build joins Shop, export compliance answered.
 
 on:

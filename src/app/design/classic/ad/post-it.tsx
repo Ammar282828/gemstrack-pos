@@ -13,8 +13,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Send, CheckCircle2, XCircle, Instagram, MessageCircle, Globe, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_LINKS } from '@/lib/store-config';
-import { authHeaders } from '../ads-kit';
-import { SITE_LABEL } from './studio-kit';
+import { authHeaders } from '../../../ads/ads-kit';
+import { SITE_LABEL } from '../../studio-kit';
 
 interface Where { key: string; label: string }
 interface Options { story: 'api' | 'share' | null; wa: Where[]; site: { folder: string; label: string }[] }

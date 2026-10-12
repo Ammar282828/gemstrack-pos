@@ -11,7 +11,7 @@ import { ImageOff, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AssetAssessment, FixCode, Placement } from '@/lib/ads/studio/assessment';
 import type { StudioAsset, DriveSummary } from '@/lib/ads/studio/assets';
-import { authHeaders } from '../ads-kit';
+import { authHeaders } from '../ads/ads-kit';
 import { STORE_LINKS } from '@/lib/store-config';
 
 export interface LibraryItem extends StudioAsset {
