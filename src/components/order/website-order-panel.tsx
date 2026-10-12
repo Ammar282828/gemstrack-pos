@@ -14,6 +14,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLingering } from '@/hooks/use-lingering';
 import { formatDistanceToNowStrict, parseISO } from 'date-fns';
+import { Pill, type Tone } from '@/components/ledger';
 import type { Order } from '@/lib/store';
 import { bankDetailsWhatsApp, staffFetch } from '@/lib/website/online-client';
 import { getAuth } from 'firebase/auth';
@@ -190,14 +191,14 @@ export function WebsiteOrderPanel({ order }: { order: Order }) {
   const delivered = !!order.leopards?.deliveredAt;
   const ref = w.onlineId || order.id;
   const statusUrl = `${process.env.NEXT_PUBLIC_STORE_WEBSITE_URL || 'https://taheri.shop'}/order/${encodeURIComponent(ref)}?t=${encodeURIComponent(w.token)}`;
-  const tone = paid ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-300' : lapsed ? 'border-muted-foreground/40 text-muted-foreground' : 'border-amber-500/40 text-amber-700 dark:text-amber-300';
+  const tone: Tone = paid ? 'settled' : lapsed ? 'quiet' : 'owed';
 
   return (
-    <Card className="border-sky-500/30">
+    <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex flex-wrap items-center gap-2"><Globe className="h-4 w-4" /> Online order{w.onlineId ? ` ${w.onlineId}` : ''}
-          <Badge variant="outline" className={tone}>{PAY_LABEL[w.paymentStatus]}</Badge>
-          {shipped && <Badge variant="outline" className="border-sky-500/40 text-sky-700 dark:text-sky-300">{delivered ? 'Delivered' : `Leopards ${order.leopards!.cn}`}</Badge>}
+          <Pill tone={tone}>{PAY_LABEL[w.paymentStatus]}</Pill>
+          {shipped && <Pill tone="working">{delivered ? 'Delivered' : `Leopards ${order.leopards!.cn}`}</Pill>}
         </CardTitle>
         <CardDescription>
           Placed {when(w.placedAt)}{w.confirmedAt ? ` · confirmed ${when(w.confirmedAt)}${w.confirmedBy && w.confirmedBy !== 'dev-bypass' ? ` by ${w.confirmedBy.split('@')[0]}` : ''}` : ''} · paid in full by bank transfer · {fmt(onlineTotal(order))}
