@@ -48,12 +48,14 @@ export const PageShell: React.FC<{
   )}>
     <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5 min-w-0">
-          {icon && <span className="flex-shrink-0">{icon}</span>}
+        {/* The app's large title: label colour, bold, no icon on a phone; from md the page title is
+            30px semibold with the page's icon in the accent (web-matches-app.md c.4). */}
+        <h1 className="text-ios-large font-bold text-foreground flex items-center gap-2.5 min-w-0 md:text-3xl md:font-semibold">
+          {icon && <span className="hidden md:inline-flex flex-shrink-0 text-primary">{icon}</span>}
           <span className="truncate">{title}</span>
         </h1>
         {subtitle && (
-          <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
+          <p className="text-ios-foot text-muted-foreground mt-0.5">{subtitle}</p>
         )}
       </div>
       {action && (
