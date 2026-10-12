@@ -362,6 +362,11 @@ export const STORE_META_ADS = process.env.NEXT_PUBLIC_STORE_META_ADS !== '0';
  * STORE_BRAND. A house without it sets "0".
  */
 export const STORE_AD_STUDIO = STORE_META_ADS && process.env.NEXT_PUBLIC_STORE_AD_STUDIO !== '0';
+/**
+ * The Design area (docs/features/design-studio-plan.md): wherever any of the things it gathers — Post a piece, the
+ * Ad studio, the website's posts — is on. No variable of its own; each destination keeps its own switch.
+ */
+export const STORE_DESIGN = STORE_POST_PIECE || STORE_AD_STUDIO || STORE_SITE_POSTS;
 const lines = (v: string | undefined) => (v ?? '').replace(/\\n/g, '\n').trim();
 export const STORE_POST_TAGLINE = lines(process.env.NEXT_PUBLIC_STORE_POST_TAGLINE);
 export const STORE_POST_FOOTER = lines(process.env.NEXT_PUBLIC_STORE_POST_FOOTER);
