@@ -29,7 +29,7 @@ import type { Frame } from '@/lib/social/story';
 import type { PublishDesign } from '@/lib/design/publish';
 import { SoloEditor, useStoryDoc, type DesignerExtras } from '../website/post/story-editor';
 import { headlineFace, bodyFace, serifFace } from '../website/post/fonts';
-import { SITE_LABEL, safeName } from '../ads/studio/studio-kit';
+import { SITE_LABEL, safeName } from './studio-kit';
 import { CheckPanel, DesignPiece, PicturesPanel, WordsPanel } from './design-piece';
 import { activePage, displayName, kindLabel, pageOf, toPage, type DesignWork, type NewPage, type WorkPage } from './design-state';
 import { PublishSheet } from './publish-sheet';

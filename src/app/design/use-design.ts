@@ -22,7 +22,7 @@ import {
   deletePostDraft, listPostDrafts, readPostDraft, savePostDraft, thumbOf, type PostDraft,
 } from '@/lib/social/post-drafts';
 import { authHeaders } from '../ads/ads-kit';
-import { fetchAsset } from '../ads/studio/studio-kit';
+import { fetchAsset } from './studio-kit';
 import type { SmartPhoto } from './smart-input';
 import { FONTS } from '../website/post/fonts';
 import { useSiteAssets } from '../website/post/site-assets';
@@ -266,6 +266,8 @@ export function useDesign() {
   useEffect(() => {
     if (resumed.current) return;
     resumed.current = true;
+    // An address that asks for something (?draft=, ?site=, ?new=1) is answered by the page, not by what was left open.
+    if (typeof window !== 'undefined' && /[?&](draft|site|new)(=|&|$)/.test(window.location.search)) return;
     const id = readCurrent();
     if (id) void listPostDrafts().then(l => { if (l.some(d => d.id === id && isDesignDraft(d.state))) void openDraft(id); }).catch(() => undefined);
   }, [openDraft]);

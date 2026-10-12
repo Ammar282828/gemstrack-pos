@@ -28,7 +28,7 @@ import { VOICE } from '@/lib/ads/studio/brand';
 import { inventedFigures, type CheckVerdict, type CopyResult } from '@/lib/ads/studio/prompts';
 import { kindLabel } from './design-state';
 import { api } from '../ads/ads-kit';
-import { runImageOp, scoreTone } from '../ads/studio/studio-kit';
+import { runImageOp, scoreTone } from './studio-kit';
 import type { DesignApi } from './use-design';
 
 const FIELD_ROWS: [Bind, string, string, number][] = [

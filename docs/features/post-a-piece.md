@@ -2,6 +2,14 @@
 
 _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE.md keeps a one-line index; this is the record._
 
+> **Moved to Design (2026-10-12, WP7).** Post a piece is **Posts › Design** (`/design`, [docs/features/design.md](design.md)): the
+> start screen, the page strip (story, post, WhatsApp, website and ad sizes of one design), one Publish sheet (website with
+> collections, set of the day, WhatsApp groups and channel, Instagram story and feed post, Meta ad, queue/schedule), Saved. The sections
+> below describe the same engine, the checks, the queue, drafts and Maisons, which Design reuses; where they say "Post a piece" read
+> Design. `/website/post` redirects (`?draft=`, `?site=`, `?new=1` kept). The old screen is still reachable, unchanged, at
+> `/design/classic/post` for what Design does not do yet (AI restage, paint and lettering, free-form "Ask AI"); its drafts open there.
+> The editor files stay in `src/app/website/post/`.
+
 ### Post a piece drafts
 
 - **Post a Piece remembers** (2026-09-27, owner: "post a piece should have proper memory and have drafts and continue where

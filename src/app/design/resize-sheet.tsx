@@ -24,7 +24,7 @@ import { pageOf, resizeOne, swapPhoto, type ResizedPage, type ResizeResult } fro
 import { makeMeasure } from '@/lib/design/score';
 import { overlayRects, safeKindsFor } from '@/lib/design/safe';
 import { authHeaders } from '../ads/ads-kit';
-import { runImageOp } from '../ads/studio/studio-kit';
+import { runImageOp } from './studio-kit';
 
 export interface ResizeSheetProps {
   doc: StoryDoc;

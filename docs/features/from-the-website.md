@@ -2,6 +2,11 @@
 
 _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE.md keeps a one-line index; this is the record._
 
+> **2026-10-12: moved to Design.** A website piece's *Post a piece* button on the hub's cards is now **Design**
+> (`/design?v=make&site=<id>`), and Edit a piece has **Open in Design**; the hub itself (Today, the queue, the pieces, Send all / Later)
+> is unchanged. `/website/from-site` still redirects to `/posts`. The card's story and square editors (`piece-design.tsx`) stay in the
+> hub for the quick send; the full designer, resize and publishing are in Design ([design.md](design.md)).
+
 ### Posts hub
 
 - **Posts → Hub** (`/posts`, 2026-10-04; owner: "the posts tab could be consolidated a lot better … the workflows could be

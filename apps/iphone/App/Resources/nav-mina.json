@@ -276,19 +276,38 @@
           ]
         },
         {
-          "href": "/website/post",
-          "label": "Post a piece",
-          "icon": "Camera",
+          "href": "/design",
+          "label": "Design",
+          "icon": "Palette",
           "staff": true,
           "keywords": [
+            "post a piece",
             "post",
             "story",
             "instagram",
             "whatsapp",
             "community",
             "channel",
-            "new photos"
+            "new photos",
+            "studio",
+            "ad studio",
+            "canva",
+            "creative",
+            "poster",
+            "resize",
+            "board",
+            "make an ad",
+            "designer",
+            "saved ads"
           ]
+        }
+      ],
+      "pages": [
+        {
+          "href": "/website/post",
+          "label": "Post a piece",
+          "icon": "Camera",
+          "staff": true
         }
       ]
     },
@@ -361,18 +380,18 @@
           ]
         },
         {
-          "href": "/ads/studio",
-          "label": "Studio",
-          "icon": "Palette",
+          "href": "/ads/plan",
+          "label": "Plan",
+          "icon": "Map",
           "keywords": [
-            "creative",
-            "design",
-            "canva",
+            "plays",
+            "what to run",
             "competitors",
-            "ad photos",
-            "drive",
+            "rivals",
+            "ad days",
             "guide",
-            "ad studio"
+            "rules",
+            "strategy"
           ]
         },
         {
@@ -411,6 +430,11 @@
             "ad set",
             "audience test"
           ]
+        },
+        {
+          "href": "/ads/studio",
+          "label": "Studio",
+          "icon": "Palette"
         },
         {
           "href": "/ads/audiences",

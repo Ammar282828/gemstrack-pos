@@ -26,7 +26,7 @@ import type { TreeCampaign } from '@/lib/ads/shape';
 import type { DesignRecord } from '@/lib/design/model';
 import { deletePostDraft, listPostDrafts, type PostDraft } from '@/lib/social/post-drafts';
 import { api, authHeaders } from '../ads/ads-kit';
-import { downloadBlob, safeName } from '../ads/studio/studio-kit';
+import { downloadBlob, safeName } from './studio-kit';
 import { isDesignDraft, kindLabel } from './design-state';
 
 const DEVICE = '__device';
@@ -238,7 +238,7 @@ function DraftRow({ draft, onOpen, onChanged }: { draft: PostDraft; onOpen: (id:
       <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">{thumb ? <img src={thumb} alt="" className="h-full w-full object-cover" /> : <Smartphone className="h-5 w-5 text-muted-foreground" />}</span>
       <span className="min-w-0 flex-1 text-left">
         <span className="block truncate text-ios-sub font-medium">{draft.title || 'Untitled'}</span>
-        <span className="block truncate text-ios-foot text-muted-foreground">{mine ? 'Design' : 'Post a piece'} draft · {when(draft.updatedAt)}</span>
+        <span className="block truncate text-ios-foot text-muted-foreground">{mine ? "Design" : "Classic Post a piece"} draft · {when(draft.updatedAt)}</span>
       </span>
     </>
   );
@@ -246,7 +246,7 @@ function DraftRow({ draft, onOpen, onChanged }: { draft: PostDraft; onOpen: (id:
     <div className="flex items-center gap-2 rounded-card bg-card p-2">
       {mine
         ? <button type="button" onClick={() => onOpen(draft.id)} className="flex min-h-0 min-w-0 flex-1 items-center gap-3">{body}</button>
-        : <Link href={`/website/post?draft=${encodeURIComponent(draft.id)}`} className="flex min-w-0 flex-1 items-center gap-3">{body}</Link>}
+        : <Link href={`/design/classic/post?draft=${encodeURIComponent(draft.id)}`} className="flex min-w-0 flex-1 items-center gap-3">{body}</Link>}
       <Button variant="ghost" size="icon" className="h-9 w-9 min-h-0 text-muted-foreground" aria-label="Delete this draft" onClick={async () => {
         if (!confirm('Delete this draft from this device?')) return;
         await deletePostDraft(draft.id).catch(() => undefined);

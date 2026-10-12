@@ -15,17 +15,19 @@ import { Globe, ImagePlus, LayoutDashboard, Loader2, Upload, X } from 'lucide-re
 import { DESIGN_KINDS } from '@/lib/design/model';
 import { ChipRow, FilterChip, LedgerSection } from '@/components/ledger';
 import { cn } from '@/lib/utils';
+import { STORE_AD_STUDIO, STORE_POST_PIECE } from '@/lib/store-config';
 import type { Fields } from '@/lib/social/editor';
 import type { DesignKind, DesignRecord } from '@/lib/design/model';
 import { SIZE_GROUPS, sizePreset } from '@/lib/design/sizes';
 import { headlineOf, siteFrom } from '@/lib/website/site-photo';
 import { SitePicker, type SitePick } from '../website/post/site-picker';
-import { SITE_LABEL } from '../ads/studio/studio-kit';
+import { SITE_LABEL } from './studio-kit';
 import { authHeaders } from '../ads/ads-kit';
 import { KIND_CARDS, isDesignDraft, kindCard, kindLabel, sizeOf, type SizeChoice } from './design-state';
 import { SmartInput, type LayersResult, type SmartPhoto, type SmartResult } from './smart-input';
 import { fetchSitePhoto, startPhotoOf, type StartPhoto, type StartRequest } from './use-design';
 import { flatAdRequest, type PlanReview } from './flat-ad';
+import type { Play } from '@/lib/ads/studio/plays';
 import { useDesigns, useDeviceDrafts } from './saved-shelf';
 
 /** A website piece as a photograph to start from. */
@@ -51,10 +53,13 @@ let carried: SmartResult[] = [];
 
 const GROUP_LABEL: Record<string, string> = { ads: 'Feed ads', whatsapp: 'WhatsApp', website: 'Website', story: 'Story', more: 'More shapes' };
 
-export function StartScreen({ adsOk, initialKind, photo, onPhoto, onStart, starting, onChoosePhoto, onOpenDraft, onOpenSaved, onSeeAll }: {
+export function StartScreen({ adsOk, initialKind, play, onClearPlay, photo, onPhoto, onStart, starting, onChoosePhoto, onOpenDraft, onOpenSaved, onSeeAll }: {
   adsOk: boolean;
   /** From the address (?kind=ad): the kind to open on. */
   initialKind?: DesignKind;
+  /** From Ads → Plan's "Make this" (?play=): the ad starts at the play's shape(s), layout and goal. */
+  play?: Play | null;
+  onClearPlay?: () => void;
   photo: StartPhoto | null;
   onPhoto: (p: StartPhoto | null) => void;
   onStart: (req: StartRequest) => void;
@@ -66,9 +71,10 @@ export function StartScreen({ adsOk, initialKind, photo, onPhoto, onStart, start
   onSeeAll: () => void;
 }) {
   const cards = KIND_CARDS.filter(c => adsOk || !c.ads);
-  const first: DesignKind = cards.some(c => c.kind === initialKind) ? initialKind! : 'piece';
+  const first: DesignKind = play && cards.some(c => c.kind === 'ad') ? 'ad' : cards.some(c => c.kind === initialKind) ? initialKind! : 'piece';
   const [kind, setKind] = useState<DesignKind>(first);
-  const [sizes, setSizes] = useState<string[]>(() => kindCard(first).sizes);
+  const playSizes = (p: Play): string[] => [p.format, ...(p.pair && p.format !== 'story' ? ['story'] : [])].filter(id => id !== 'custom' && !!sizePreset(id));
+  const [sizes, setSizes] = useState<string[]>(() => (play && playSizes(play).length ? playSizes(play) : kindCard(first).sizes));
   const [custom, setCustom] = useState({ w: 4, h: 5 });
   const [fields, setFields] = useState<Partial<Fields>>({});
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -76,7 +82,7 @@ export function StartScreen({ adsOk, initialKind, photo, onPhoto, onStart, start
   const { data } = useDesigns();
   const { drafts } = useDeviceDrafts();
 
-  const choose = (k: DesignKind) => { setKind(k); setSizes(kindCard(k).sizes); };
+  const choose = (k: DesignKind) => { setKind(k); setSizes(kindCard(k).sizes); if (k !== 'ad') onClearPlay?.(); };
   const toggle = (id: string) => setSizes(s => (s.includes(id) ? (s.length > 1 ? s.filter(x => x !== id) : s) : [...s, id]));
 
   const choices: SizeChoice[] = useMemo(() => sizes.map(id => (id === 'custom' ? { id, custom } : { id })), [sizes, custom]);
@@ -141,6 +147,12 @@ export function StartScreen({ adsOk, initialKind, photo, onPhoto, onStart, start
 
       <section className="space-y-2" aria-label="What are you making?">
         <h2 className="px-1 font-serif text-ios-title3 font-semibold">What are you making?</h2>
+        {play && kind === 'ad' && (
+          <p className="flex items-center gap-2 rounded-card bg-primary/10 p-3 text-ios-sub">
+            <span className="min-w-0 flex-1">Making <b>{play.title}</b> — “{play.cta}” · {play.where}</span>
+            <button type="button" className="min-h-0 text-primary" onClick={() => { onClearPlay?.(); }}>Not this play</button>
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {cards.map(c => (
             <button key={c.kind} type="button" aria-pressed={kind === c.kind} onClick={() => choose(c.kind)}
@@ -200,11 +212,22 @@ export function StartScreen({ adsOk, initialKind, photo, onPhoto, onStart, start
         )}
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onPhoto(startPhotoFromFile(f)); }} />
         <SitePicker open={pickerOpen} onOpenChange={setPickerOpen} siteName={SITE_LABEL} headers={authHeaders} onAdd={ps => { if (ps[0]) onPhoto(startPhotoFromSite(ps[0])); }} />
-        <Button className="h-11 w-full sm:w-auto" disabled={starting} onClick={() => onStart({ kind, sizes: choices, photo, fields, ...(price ? { copy: { price } } : {}) })}>
+        <Button className="h-11 w-full sm:w-auto" disabled={starting} onClick={() => onStart({
+          kind, sizes: choices, photo, fields,
+          ...(play && kind === 'ad' ? { template: play.template } : {}),
+          ...(price || (play && kind === 'ad') ? { copy: { ...(price ? { price } : {}), ...(play && kind === 'ad' ? { goal: play.goal } : {}) } } : {}),
+        })}>
           {starting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}Continue
         </Button>
         {!photo && <p className="px-1 text-ios-foot text-muted-foreground">A photograph is optional: without one the design starts on the house’s ground.</p>}
       </section>
+
+      <p className="px-1 text-ios-foot text-muted-foreground">
+        Still on the older screens, for what Design doesn’t do yet:{' '}
+        {STORE_POST_PIECE && <><Link href="/design/classic/post" className="text-primary underline">Post a piece (classic)</Link> — restage, paint and lettering with AI</>}
+        {STORE_POST_PIECE && adsOk && STORE_AD_STUDIO && ' · '}
+        {adsOk && STORE_AD_STUDIO && <><Link href="/design/classic/ad" className="text-primary underline">Ad maker (classic)</Link> — art-directed and painted ads</>}.
+      </p>
 
       {(mine.length > 0 || recent.length > 0) && (
         <LedgerSection title="Where you left off" trailing={<button type="button" className="min-h-0 text-primary" onClick={onSeeAll}>Saved</button>}>

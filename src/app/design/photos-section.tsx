@@ -17,13 +17,13 @@ import { ChipRow, EmptyState, FilterChip, SearchField } from '@/components/ledge
 import { Button } from '@/components/ui/button';
 import { byNewest } from '@/lib/website/new-arrivals';
 import { authHeaders } from '../ads/ads-kit';
-import { AssetSheet, LibrarySection, PicksSection, usePlacement } from '../ads/studio/library';
-import { fetchAsset, type WorkPhoto } from '../ads/studio/studio-kit';
+import { AssetSheet, LibrarySection, PicksSection, usePlacement } from './library';
+import { fetchAsset, type WorkPhoto } from './studio-kit';
 import type { SitePick } from '../website/post/site-picker';
 import { photoPartsFor, type PhotoPart } from './design-state';
 import { startPhotoFromSite } from './start';
 import type { StartPhoto } from './use-design';
-import type { LibraryItem } from '../ads/studio/studio-kit';
+import type { LibraryItem } from './studio-kit';
 
 const NEW = '__new__';
 const PAGE = 60;

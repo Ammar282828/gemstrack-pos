@@ -395,16 +395,16 @@ function PostsHub() {
                 <FileClock className="h-4 w-4 mr-1.5" />Drafts<span className="ml-1.5 rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold text-primary">{drafts.count}</span>
               </Button>
             )}
-            <Button size="sm" asChild><Link href="/website/post?new=1"><Camera className="h-4 w-4 mr-1.5" /> New piece</Link></Button>
+            <Button size="sm" asChild><Link href="/design?v=make&new=1"><Camera className="h-4 w-4 mr-1.5" /> New piece</Link></Button>
           </div>
         )}
       </div>
 
       {/* Post a Piece's piece in progress, a tap away. */}
       {drafts.current && (
-        <Link href="/website/post" className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm hover:bg-primary/10">
+        <Link href={`/design?v=make&draft=${encodeURIComponent(drafts.current.id)}`} className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm hover:bg-primary/10">
           <History className="h-4 w-4 shrink-0 text-primary" />
-          <span className="min-w-0 flex-1 truncate">Still making <b className="font-medium">{drafts.current.title || 'a piece'}</b> in Post a piece</span>
+          <span className="min-w-0 flex-1 truncate">Still making <b className="font-medium">{drafts.current.title || 'a piece'}</b> in Design</span>
           <span className="shrink-0 text-primary font-medium">Continue</span>
         </Link>
       )}
@@ -599,7 +599,7 @@ function PostsHub() {
 
       {STORE_POST_PIECE && (
         <PostDraftsDialog open={draftsOpen} onOpenChange={setDraftsOpen} currentId={null}
-          onContinue={id => router.push(`/website/post?draft=${encodeURIComponent(id)}`)} onNew={() => router.push('/website/post?new=1')}
+          onContinue={id => router.push(`/design?v=make&draft=${encodeURIComponent(id)}`)} onNew={() => router.push("/design?v=make&new=1")}
           onChanged={refreshDrafts} onDeletedCurrent={() => { setDraftsOpen(false); refreshDrafts(); }} />
       )}
     </div>

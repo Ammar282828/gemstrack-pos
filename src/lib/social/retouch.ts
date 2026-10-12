@@ -141,8 +141,9 @@ export async function retouchPhoto(photo: Buffer, parts: RetouchPart[] = RETOUCH
  * endpoint (POST {API}/beta/remove-background, form field `image_url`, the same x-magnific-api-key header as
  * above; it answers at once with `{ url, high_resolution, preview, original }`, a PNG with alpha). It takes a
  * public address, not bytes, so the photograph is held for the length of the call at the `social_media` relay
- * (story-post.ts, as an Instagram post is). NOT verified against the live API from the build sandbox (no key
- * there): any failure is a plain message, never a faked cut-out, and the splitter keeps the photograph whole.
+ * (story-post.ts, as an Instagram post is). Verified live 2026-10-12: urlencoded `image_url` through the
+ * social_media relay answers with a `high_resolution` PNG. Any failure is a plain message, never a faked cut-out,
+ * and the splitter keeps the photograph whole.
  * Returns a PNG.
  */
 export const BACKGROUND_REMOVAL = true;

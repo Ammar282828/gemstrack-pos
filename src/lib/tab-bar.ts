@@ -32,7 +32,7 @@ export function tabEntries(navRole: NavRole, groups: { key: string; entries: Nav
  * bottom bars (glass-bar totals), so the tab bar steps aside rather than stack a second one.
  */
 const HIDING_EXACT = ['/new', '/orders/add', '/invoices/new', '/customers/add', '/products/add', '/karigars/add', '/scan', '/ads/new'];
-const HIDING_PREFIX = ['/website/post', '/ads/studio'];
+const HIDING_PREFIX = ['/website/post', '/ads/studio', '/design/classic'];
 
 export function hidesTabBar(pathname: string, search = ''): boolean {
   const p = pathname.length > 1 ? pathname.replace(/\/$/, '') : pathname;

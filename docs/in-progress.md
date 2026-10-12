@@ -4,6 +4,13 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 
 ### In progress
 
+- **Design (2026-10-12): cut over; open items** ([docs/features/design.md](features/design.md)). (1) **A native Design tab in the iPhone
+  app** (a separate iOS task: its Post composer and Studio screens still call the old addresses, kept in the map as `moved` pages, and
+  the web view shows `/design`). (2) **Video / animation, phase 2** (a Ken-Burns or shimmer story by MediaRecorder; a licensed track).
+  (3) **Retire the classic screens** `/design/classic/post` and `/design/classic/ad` once Design has AI restage, paint, lettering and
+  "Make it with AI". (4) Shared designer templates (`design_templates`) — templates are still per device. (5) **Owner walkthrough** on
+  both houses, with a staff and a marketing account, before anything else moves.
+
 - **Editing existing website pieces from the POS** (owner, 2026-09-26: "fix/crop/add logo weight overlay to existing,
   change desc etc in taheri.shop or catalogue.houseofmina.store"). Mapped across the POS, taheri-site and mina-catalogue,
   designed, **not built**, four questions open for the owner: **`docs/edit-website-pieces.md`**.

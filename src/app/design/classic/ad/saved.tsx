@@ -19,8 +19,8 @@ import { AD_FORMATS, type AdFormat, type AdTemplateId } from '@/lib/ads/studio/t
 import type { StoryDoc } from '@/lib/social/editor';
 import type { GoalKey } from '@/lib/ads/plan';
 import type { TreeCampaign } from '@/lib/ads/shape';
-import { api, authHeaders } from '../ads-kit';
-import { downloadBlob, safeName, type WorkPhoto } from './studio-kit';
+import { api, authHeaders } from '../../../ads/ads-kit';
+import { downloadBlob, safeName, type WorkPhoto } from '../../studio-kit';
 
 /** A saved ad on its way back into the maker. */
 export interface SavedRestore {

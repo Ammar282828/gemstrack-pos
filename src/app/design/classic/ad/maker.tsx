@@ -36,13 +36,13 @@ import { VOICE } from '@/lib/ads/studio/brand';
 import type { CheckVerdict, CopyResult, Direction } from '@/lib/ads/studio/prompts';
 import { SCENES } from '@/lib/social/prompts';
 import { HANDOFF_PREFIX, type StudioHandoff } from '@/lib/ads/studio/handoff';
-import { SoloEditor, useStoryDoc } from '../../website/post/story-editor';
-import { FONTS, bodyFace, headlineFace, serifFace } from '../../website/post/fonts';
-import { useSiteAssets } from '../../website/post/site-assets';
-import { api } from '../ads-kit';
+import { SoloEditor, useStoryDoc } from '../../../website/post/story-editor';
+import { FONTS, bodyFace, headlineFace, serifFace } from '../../../website/post/fonts';
+import { useSiteAssets } from '../../../website/post/site-assets';
+import { api } from '../../../ads/ads-kit';
 import { PostIt } from './post-it';
 import { SaveButton, type SavedRestore } from './saved';
-import { SITE_LABEL, b64ToBlob, downloadBlob, fetchAsset, runImageOp, safeName, scoreTone, type WorkPhoto } from './studio-kit';
+import { SITE_LABEL, b64ToBlob, downloadBlob, fetchAsset, runImageOp, safeName, scoreTone, type WorkPhoto } from '../../studio-kit';
 
 const FORMAT_KEY = 'taheri_studio_format';
 const draw = (d: StoryDoc, f: Fields, a: Assets, px: number, q = 0.92) => canvasToJpeg(renderDocTo(reflow(d, f, a), f, a, px), q);
