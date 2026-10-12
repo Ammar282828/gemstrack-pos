@@ -162,7 +162,7 @@ fun RootGate() {
             when (p) {
                 0 -> StartingSkeleton()
                 1 -> SignInScreen(session)
-                // A karigar's own work: the ERP's /my-work until the native My work lands.
+                // A karigar's own work, native (MyWorkScreen reads the portal's /api/karigar/me).
                 2 -> KarigarHost()
                 else -> RootScaffold()
             }
@@ -185,9 +185,9 @@ private fun StartingSkeleton() {
 
 @Composable
 private fun KarigarHost() {
-    val session = LocalSession.current
+    // MyWorkScreen carries its own Refresh and Sign out, as the iPhone's does.
     val stack = rememberNavBackStack(Route("/my-work"))
-    StackHost(stack, trailing = { TextButton(onClick = { session.signOut() }) { Text("Sign out") } })
+    StackHost(stack)
 }
 
 /**
