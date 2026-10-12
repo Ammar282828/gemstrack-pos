@@ -41,3 +41,9 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 - `website-checkout` is retired but not deleted; delete it once nobody has it checked out elsewhere.
 - Mina's `firestore.rules` and Taheri's differ (Taheri's are open); App Hosting does not deploy rules, so each
   project keeps whatever was last deployed with the Firebase CLI.
+
+## For the app chat (from the web redesign, 2026-10-12)
+
+- **Analytics default is this month** on the web now (`src/lib/analytics/range-param.ts`, `this-month`). The app still defaults to the last 30 days: `apps/iphone/App/Screens/Analytics/AnalyticsDates.swift:148` (`defaultKey = "last-30"`) and the `.last30` period in `Screens/Money/MoneyLogic.swift`. Match the web.
+- **Settings gained "Shop details"** (`/settings/shop`, nav.ts `SETTINGS_SHOP_HREF`; the app's `nav-*.json` were re-exported). `apps/iphone/UITests/ERPUITests.swift` lists places by hand and lacks it.
+- The shop name stored in Taheri's `app_settings/global` is "Dashboard" — the owner should rename it in Settings → Shop details.
