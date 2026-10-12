@@ -35,42 +35,19 @@ import {
 } from '@/lib/social/editor';
 import { FILTERS, MASK_PICKS, NO_ADJUST, SHAPES, SHAPE_PICKS, applyAdjust, isPlain, type Adjust, type AlignHow, type MaskKey } from '@/lib/social/design';
 import { sessionUploads, type Editor, type SidePanel } from './story-editor';
+import { AlignButtons, IB, Num, Pills, Row, Section, Tool, ColourRow, ShapeIcon, Z, docColours, faceStyle, loadFaces } from './panels/kit';
+import { AdjustControls, CutoutSwitch } from './panels/adjust';
+import { BlendControl, FxControls } from './panels/blend-fx';
+import { GradientToggle, gradientFrom } from './panels/gradient-editor';
+import { QrControls, QrSection } from './panels/qr';
+import { RichTextPanel } from './panels/text-runs';
+import { BrandKitPanel } from './panels/brand-kit';
+export { PositionPanel } from './panels/position';
 
-const Z = 'z-[70]'; // above the designer, which sits over the page
-/** An icon button that grows to a finger's size on a touch screen. */
-const IB = `h-7 w-7 [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9`;
+// The shared small parts live in panels/kit.tsx; these names stay importable from here.
+export { ColourRow, Row, Num, Pills };
 
 // ── Small parts ────────────────────────────────────────────────────────────
-
-const SWATCHES = ['#FFFFFF', '#111111', '#1F4A2C', '#2E9E57', '#C07A3E', '#C9973F', '#2C3480', '#7A5A35', '#E8D5B5', '#8B1E2D'];
-
-/** The colours already in the design, as Canva offers them first. */
-function docColours(ed: Editor): string[] {
-  const out = new Set<string>();
-  const put = (c?: string | null) => { if (c && /^#[0-9a-f]{6}$/i.test(c)) out.add(c.toUpperCase()); };
-  put(ed.doc.bg.color); put(ed.doc.bg.color2);
-  for (const l of ed.doc.layers) {
-    if (l.kind === 'text') { put(l.color); put(l.box?.color); put(l.effect?.color); }
-    else if (l.kind === 'image') put(l.border);
-    else if (l.kind === 'wordmark') put(l.color);
-    else { put(l.color); put(l.fill); put(l.fill2); }
-  }
-  return [...out].filter(c => !SWATCHES.includes(c)).slice(0, 10);
-}
-
-export function ColourRow({ value, onChange, extra = [] }: { value: string; onChange: (c: string) => void; extra?: string[] }) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {[...extra, ...SWATCHES].map(c => (
-        <button key={c} type="button" onClick={() => onChange(c)} title={c}
-          className={cn('h-7 min-h-0 w-7 shrink-0 rounded-full border-2 [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9', value?.toLowerCase() === c.toLowerCase() ? 'border-primary' : 'border-border')} style={{ background: c }} />
-      ))}
-      <label className="h-7 w-7 shrink-0 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer text-[10px] text-muted-foreground [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9" title="Any colour">
-        +<input type="color" value={value?.length === 7 ? value : '#ffffff'} onChange={e => onChange(e.target.value)} className="sr-only" />
-      </label>
-    </div>
-  );
-}
 
 /** A swatch that opens the colour choices (document colours, brand colours, any colour). */
 function ColourButton({ ed, value, onChange, title, ring }: { ed: Editor; value: string; onChange: (c: string) => void; title: string; ring?: boolean }) {
@@ -115,44 +92,12 @@ export function ShadeControls({ value, onChange, extra = [] }: { value: Shade | 
   );
 }
 
-export function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="flex items-center gap-3 text-sm"><span className="w-20 shrink-0 text-muted-foreground text-xs">{label}</span><span className="flex-1 min-w-0">{children}</span></label>;
-}
-export const Num = ({ value, min, max, step = 1, onChange }: { value: number; min: number; max: number; step?: number; onChange: (v: number) => void }) => (
-  <div className="flex items-center gap-2"><Slider value={[value]} min={min} max={max} step={step} onValueChange={([v]) => onChange(v)} className="flex-1" /><span className="w-10 text-right text-xs tabular-nums text-muted-foreground">{Math.round(value * 100) / 100}</span></div>
-);
-export function Pills({ value, options, onChange }: { value: string; options: [string, string][]; onChange: (v: string) => void }) {
-  return (
-    <div className="inline-flex flex-wrap rounded-full border p-0.5">
-      {options.map(([v, l]) => <button key={v} type="button" onClick={() => onChange(v)} className={cn('rounded-full px-2.5 py-1 text-xs', `[@media(pointer:coarse)]:px-3 [@media(pointer:coarse)]:py-1.5`, value === v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>{l}</button>)}
-    </div>
-  );
-}
-const Section = ({ title, children, right }: { title: string; children: React.ReactNode; right?: React.ReactNode }) => (
-  <div className="space-y-2 pt-3 first:pt-0">
-    <div className="flex items-center justify-between"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>{right}</div>
-    {children}
-  </div>
-);
-const Tool = ({ title, active, onClick, children, disabled }: { title: string; active?: boolean; onClick?: () => void; children: React.ReactNode; disabled?: boolean }) => (
-  <button type="button" title={title} disabled={disabled} onClick={onClick}
-    className={cn('flex h-8 min-w-8 shrink-0 items-center justify-center gap-1 rounded-md px-1.5 text-xs disabled:opacity-40', active ? 'bg-primary/15 text-primary' : 'hover:bg-muted')}>
-    {children}
-  </button>
-);
-
-/** A shape's outline as a little SVG, for the pickers. */
-const ShapeIcon = ({ path, fill = 'currentColor', size = 40 }: { path: string; fill?: string; size?: number }) => (
-  <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden><path d={path} fill={fill} /></svg>
-);
-
-/** The piece's photos and the text on them are drawn in these CSS faces too. */
-const faceStyle = (ed: Editor, font: FontKey, px: number): React.CSSProperties => ({ font: fontCss(font, px, ed.assets.fonts) });
-
 // ── Inspectors (the small editor, and the designer's Edit panel) ───────────
 
 export function LayerInspector({ ed, layer: l, bare }: { ed: Editor; layer: Layer; bare?: boolean }) {
   const set = (patch: Partial<Layer> | ((x: Layer) => Layer), key?: string) => ed.update(l.id, patch, key);
+  // Rich text, and blend with effects, fold away under the basics (they are panels of their own in the designer's rail).
+  const [more, setMore] = useState<'rich' | 'fx' | null>(null);
   const box = layerBox(l, ed.fields, ed.assets);
   const doc = docColours(ed);
   return (
@@ -172,7 +117,7 @@ export function LayerInspector({ ed, layer: l, bare }: { ed: Editor; layer: Laye
 
       {l.kind === 'text' && (<>
         <Textarea rows={2} value={l.bind ? ed.fields[l.bind] : l.text}
-          onChange={e => l.bind ? ed.onField(l.bind, e.target.value) : set({ text: e.target.value }, 'text')} className="text-sm" />
+          onChange={e => ed.setWords(l, e.target.value)} className="text-base md:text-sm" />
         {l.bind && (
           <p className="text-[11px] text-muted-foreground flex items-center gap-2">
             {l.bind === 'weight' || l.bind === 'details' ? 'Made from the piece’s fields.' : `Same as the ${l.bind} field.`}
@@ -180,7 +125,7 @@ export function LayerInspector({ ed, layer: l, bare }: { ed: Editor; layer: Laye
           </p>
         )}
         <Row label="Font">
-          <Select value={l.font} onValueChange={v => set({ font: v as FontKey })} recentsKey={false}>
+          <Select value={l.font} onValueChange={v => set({ font: v as FontKey })} onOpenChange={o => o && loadFaces(ed)} recentsKey={false}>
             <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
             <SelectContent className={Z}>{(Object.keys(FONT_LABEL) as FontKey[]).map(f => <SelectItem key={f} value={f}><span style={faceStyle(ed, f, 15)}>{FONT_LABEL[f]}</span></SelectItem>)}</SelectContent>
           </Select>
@@ -207,7 +152,13 @@ export function LayerInspector({ ed, layer: l, bare }: { ed: Editor; layer: Laye
           </Select>
         </Row>
         {effectOf(l) && <EffectControls ed={ed} l={l} />}
+        <button type="button" className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm hover:bg-muted/50" onClick={() => setMore(m => m === 'rich' ? null : 'rich')}>
+          <span>Rich text: style single words, gradient, lists</span><span className="text-xs text-muted-foreground">{more === 'rich' ? 'Hide' : 'Open'}</span>
+        </button>
+        {more === 'rich' && <RichTextPanel ed={ed} layer={l} />}
       </>)}
+
+      {l.kind === 'qr' && <QrControls ed={ed} l={l} />}
 
       {l.kind === 'wordmark' && (<>
         {ed.assets.marks.t && <Row label="Mark"><Pills value={l.mark} options={[['wordmark', 'taheri'], ['t', 't']]} onChange={v => set(x => {
@@ -226,7 +177,7 @@ export function LayerInspector({ ed, layer: l, bare }: { ed: Editor; layer: Laye
 
       {(l.kind === 'arrow' || l.kind === 'line' || l.kind === 'rect' || l.kind === 'circle' || l.kind === 'shape') && <ShapeControls ed={ed} l={l} />}
 
-      {l.kind !== 'text' && (
+      {l.kind !== 'text' && l.kind !== 'qr' && (
         <div className="flex gap-1.5">
           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => set({ flipX: !l.flipX })}><FlipHorizontal2 className="h-3.5 w-3.5 mr-1" /> Flip</Button>
           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => set({ flipY: !l.flipY })}><FlipVertical2 className="h-3.5 w-3.5 mr-1" /> Flip vertical</Button>
@@ -234,6 +185,13 @@ export function LayerInspector({ ed, layer: l, bare }: { ed: Editor; layer: Laye
       )}
       <Row label="Turn"><Num value={l.rotate} min={-180} max={180} onChange={v => set({ rotate: v }, 'rot')} /></Row>
       <Row label="Opacity"><Num value={l.opacity} min={0.05} max={1} step={0.05} onChange={v => set({ opacity: v }, 'op')} /></Row>
+      <BlendControl ed={ed} />
+      {l.kind !== 'text' && (<>
+        <button type="button" className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm hover:bg-muted/50" onClick={() => setMore(m => m === 'fx' ? null : 'fx')}>
+          <span>Shadow, glow, outline</span><span className="text-xs text-muted-foreground">{more === 'fx' ? 'Hide' : 'Open'}</span>
+        </button>
+        {more === 'fx' && <FxControls ed={ed} />}
+      </>)}
     </div>
   );
 }
@@ -283,8 +241,14 @@ function ShapeControls({ ed, l }: { ed: Editor; l: ShapeLayer }) {
     {closed && (<>
       <label className="flex items-center gap-1.5 text-xs"><Switch checked={!!l.fill} onCheckedChange={v => set({ fill: v ? '#FFFFFF' : null })} /> Filled</label>
       {l.fill && <Row label="Fill"><ColourRow value={l.fill} onChange={c => set({ fill: c }, 'fill')} extra={doc} /></Row>}
-      {l.fill && <label className="flex items-center gap-1.5 text-xs"><Switch checked={!!l.fill2} onCheckedChange={v => set({ fill2: v ? '#C9973F' : null })} /> Gradient</label>}
-      {l.fill && l.fill2 && <Row label="Fades to"><ColourRow value={l.fill2} onChange={c => set({ fill2: c }, 'fill2')} extra={doc} /></Row>}
+      {l.fill2 && !l.fillGradient && (<>
+        <Row label="Fades to"><ColourRow value={l.fill2} onChange={c => set({ fill2: c }, 'fill2')} extra={doc} /></Row>
+        <button type="button" className="text-xs text-primary" onClick={() => set({ fill2: null, fillGradient: gradientFrom(l.fill ?? '#FFFFFF') })}>Use the gradient editor instead</button>
+      </>)}
+      {!(l.fill2 && !l.fillGradient) && (
+        <GradientToggle label="Gradient fill" value={l.fillGradient} start={gradientFrom(l.fill ?? '#FFFFFF')} colours={doc}
+          onChange={(g, key) => set({ fillGradient: g, ...(g ? { fill2: null } : {}) }, key ? `fillg-${key}` : undefined)} />
+      )}
     </>)}
     <Row label={closed ? 'Border' : 'Colour'}><ColourRow value={l.color} onChange={c => set({ color: c }, 'color')} extra={doc} /></Row>
     <Row label="Thickness"><Num value={l.stroke} min={0} max={40} onChange={v => set({ stroke: v }, 'stroke')} /></Row>
@@ -328,8 +292,9 @@ function ImageControls({ ed, l }: { ed: Editor; l: ImageLayer }) {
       <label className="flex items-center gap-1.5"><Switch checked={l.shadow} onCheckedChange={v => set({ shadow: v })} /> Shadow</label>
     </div>
     {l.border && <Row label="Border"><ColourRow value={l.border} onChange={c => set({ border: c }, 'border')} extra={docColours(ed)} /></Row>}
+    <CutoutSwitch value={!!l.cutout} onChange={v => set({ cutout: v ? true : undefined })} />
     <ShadeControls value={l.shade ?? null} onChange={(g, key) => set({ shade: g }, key)} extra={docColours(ed)} />
-    <AdjustControls value={l.adjust ?? NO_ADJUST} onChange={(a, key) => set({ adjust: isPlain(a) ? null : a }, key)} img={imageOfLayer(ed, l)} />
+    <AdjustControls value={l.adjust ?? NO_ADJUST} onChange={(a, key) => set({ adjust: isPlain(a) ? null : a }, key)} img={imageOfLayer(ed, l)} onCompare={ed.setCompare} />
   </>);
 }
 
@@ -357,58 +322,6 @@ function MaskPicker({ value, onChange }: { value: MaskKey | null; onChange: (m: 
   );
 }
 
-/** A photo's filter strip (each a thumbnail of the photo through that filter) and its six sliders. */
-function AdjustControls({ value, onChange, img }: { value: Adjust; onChange: (a: Adjust, key?: string) => void; img: HTMLImageElement | null }) {
-  const [open, setOpen] = useState(false);
-  const thumbs = useFilterThumbs(img);
-  const current = FILTERS.find(f => JSON.stringify(f.adjust) === JSON.stringify(value))?.id;
-  return (
-    <div className="space-y-2">
-      <div className="flex gap-1.5 overflow-x-auto pb-1">{FILTERS.map(f => (
-        <button key={f.id} type="button" onClick={() => onChange(f.adjust)} className="shrink-0 space-y-0.5 text-center">
-          <span className={cn('block h-14 w-14 overflow-hidden rounded-md border-2 bg-muted', current === f.id ? 'border-primary' : 'border-transparent')}>
-            {thumbs[f.id] && <img src={thumbs[f.id]} alt="" className="h-full w-full object-cover" />}
-          </span>
-          <span className="block text-[10px] text-muted-foreground">{f.label}</span>
-        </button>
-      ))}</div>
-      <button type="button" className="text-xs text-primary inline-flex items-center gap-1" onClick={() => setOpen(o => !o)}><SlidersHorizontal className="h-3 w-3" /> {open ? 'Hide' : 'Adjust'} brightness, contrast…</button>
-      {open && (
-        <div className="space-y-2">
-          {([['brightness', 'Brightness', -100], ['contrast', 'Contrast', -100], ['saturation', 'Saturation', -100], ['warmth', 'Warmth', -100], ['fade', 'Fade', 0], ['vignette', 'Vignette', 0]] as const).map(([k, label, min]) => (
-            <Row key={k} label={label}><Num value={value[k]} min={min} max={100} onChange={v => onChange({ ...value, [k]: v }, `adj-${k}`)} /></Row>
-          ))}
-          <button type="button" className="text-xs text-muted-foreground" onClick={() => onChange(NO_ADJUST)}>Reset</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function useFilterThumbs(img: HTMLImageElement | null): Record<string, string> {
-  return useMemo(() => {
-    if (!img || !img.naturalWidth) return {};
-    const out: Record<string, string> = {};
-    const s = 96, c = document.createElement('canvas');
-    c.width = s; c.height = s;
-    const t = c.getContext('2d', { willReadFrequently: true })!;
-    const k = Math.max(s / img.naturalWidth, s / img.naturalHeight);
-    for (const f of FILTERS) {
-      t.drawImage(img, (s - img.naturalWidth * k) / 2, (s - img.naturalHeight * k) / 2, img.naturalWidth * k, img.naturalHeight * k);
-      try {
-        if (!isPlain({ ...f.adjust, vignette: 0 })) { const d = t.getImageData(0, 0, s, s); applyAdjust(d.data, f.adjust); t.putImageData(d, 0, 0); }
-        if (f.adjust.vignette) {
-          const g = t.createRadialGradient(s / 2, s / 2, s * 0.25, s / 2, s / 2, s * 0.72);
-          g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${f.adjust.vignette / 100 * 0.85})`);
-          t.fillStyle = g; t.fillRect(0, 0, s, s);
-        }
-        out[f.id] = c.toDataURL('image/jpeg', 0.7);
-      } catch { /* a tainted image: no thumbnails */ }
-    }
-    return out;
-  }, [img]);
-}
-
 /** Several selected: what can be done to all of them at once. */
 export function SelectionSummary({ ed }: { ed: Editor }) {
   return (
@@ -424,28 +337,7 @@ export function SelectionSummary({ ed }: { ed: Editor }) {
       </div>
       <AlignButtons ed={ed} />
       <Row label="Opacity"><Num value={ed.selLayers[0]?.opacity ?? 1} min={0.05} max={1} step={0.05} onChange={v => ed.updateSel(l => ({ ...l, opacity: v }), 'op')} /></Row>
-    </div>
-  );
-}
-
-function AlignButtons({ ed }: { ed: Editor }) {
-  const many = ed.selLayers.length > 1 && !ed.grouped;
-  const items: [AlignHow, string, React.ReactNode][] = [
-    ['left', 'Left', <AlignStartVertical key="l" className="h-4 w-4" />], ['center', 'Centre', <AlignCenterVertical key="c" className="h-4 w-4" />], ['right', 'Right', <AlignEndVertical key="r" className="h-4 w-4" />],
-    ['top', 'Top', <AlignStartHorizontal key="t" className="h-4 w-4" />], ['middle', 'Middle', <AlignCenterHorizontal key="m" className="h-4 w-4" />], ['bottom', 'Bottom', <AlignEndHorizontal key="b" className="h-4 w-4" />],
-  ];
-  return (
-    <div className="space-y-1.5">
-      <p className="text-[11px] text-muted-foreground">{many ? 'Line them up with each other' : 'Line it up with the page'}</p>
-      <div className="grid grid-cols-3 gap-1">
-        {items.map(([how, label, icon]) => <Button key={how} size="sm" variant="outline" className="h-8 justify-start text-xs" onClick={() => ed.align(how)}>{icon}<span className="ml-1.5">{label}</span></Button>)}
-      </div>
-      {ed.selLayers.length > 2 && (
-        <div className="grid grid-cols-2 gap-1">
-          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => ed.distribute('h')}><AlignHorizontalDistributeCenter className="h-4 w-4 mr-1.5" /> Space across</Button>
-          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => ed.distribute('v')}><AlignVerticalDistributeCenter className="h-4 w-4 mr-1.5" /> Space down</Button>
-        </div>
-      )}
+      <BlendControl ed={ed} />
     </div>
   );
 }
@@ -474,13 +366,17 @@ export function BackgroundInspector({ ed, bare }: { ed: Editor; bare?: boolean }
       <Row label="Darken"><Num value={bg.dim} min={0} max={0.7} step={0.05} onChange={v => setBg({ dim: v }, 'dim')} /></Row>
       <Row label="Shade"><Pills value={bg.gradient} options={[['none', 'None'], ['top', 'Top'], ['bottom', 'Bottom'], ['both', 'Both']]} onChange={v => setBg({ gradient: v as StoryDoc['bg']['gradient'] })} /></Row>
       {photo && <ShadeControls value={bg.shade ?? null} onChange={(g, key) => setBg({ shade: g }, key)} extra={docColours(ed)} />}
-      <Row label="Behind"><ColourRow value={bg.color} onChange={c => setBg({ color: c }, 'color')} extra={docColours(ed)} /></Row>
-      <label className="flex items-center gap-1.5 text-xs"><Switch checked={!!bg.color2} onCheckedChange={v => setBg({ color2: v ? '#C9973F' : null })} /> Gradient behind</label>
-      {bg.color2 && <Row label="Fades to"><ColourRow value={bg.color2} onChange={c => setBg({ color2: c }, 'color2')} /></Row>}
+      {!bg.fill && <Row label="Behind"><ColourRow value={bg.color} onChange={c => setBg({ color: c }, 'color')} extra={docColours(ed)} /></Row>}
+      {!bg.fill && (<>
+        <label className="flex items-center gap-1.5 text-xs"><Switch checked={!!bg.color2} onCheckedChange={v => setBg({ color2: v ? '#C9973F' : null })} /> Gradient behind</label>
+        {bg.color2 && <Row label="Fades to"><ColourRow value={bg.color2} onChange={c => setBg({ color2: c }, 'color2')} /></Row>}
+      </>)}
+      <GradientToggle label={bg.fill ? 'Gradient behind (angle, radial, stops)' : 'More: angle, radial, several colours'} value={bg.fill} start={gradientFrom(bg.color)} colours={docColours(ed)}
+        onChange={(g, key) => setBg({ fill: g }, key ? `fill-${key}` : undefined)} />
       {photo && (
         <div className="pt-1 border-t">
           <p className="text-xs text-muted-foreground mb-1.5">Photo filter{square ? ' (every square)' : ''}</p>
-          <AdjustControls value={bg.adjust ?? NO_ADJUST} onChange={(a, key) => setBg({ adjust: isPlain(a) ? null : a }, key)} img={photo} />
+          <AdjustControls value={bg.adjust ?? NO_ADJUST} onChange={(a, key) => setBg({ adjust: isPlain(a) ? null : a }, key)} img={photo} onCompare={ed.setCompare} />
         </div>
       )}
       {!square && <Row label="Lettering">
@@ -549,7 +445,7 @@ export function ContextToolbar({ ed }: { ed: Editor }) {
     const bold = BOLD_OF[l.font], italic = ITALIC_OF[l.font];
     const alignNext: Record<TextLayer['align'], TextLayer['align']> = { left: 'center', center: 'right', right: 'left' };
     body = (<>
-      <Select value={l.font} onValueChange={v => set({ font: v as FontKey })} recentsKey={false}>
+      <Select value={l.font} onValueChange={v => set({ font: v as FontKey })} onOpenChange={o => o && loadFaces(ed)} recentsKey={false}>
         <SelectTrigger className="h-8 w-[150px] shrink-0 text-xs"><SelectValue /></SelectTrigger>
         <SelectContent className={Z}>{(Object.keys(FONT_LABEL) as FontKey[]).map(f => <SelectItem key={f} value={f}><span style={faceStyle(ed, f, 15)}>{FONT_LABEL[f]}</span></SelectItem>)}</SelectContent>
       </Select>
@@ -574,7 +470,8 @@ export function ContextToolbar({ ed }: { ed: Editor }) {
           <Row label="Width"><Num value={l.width} min={120} max={1080} step={10} onChange={v => set({ width: v }, 'width')} /></Row>
         </PopoverContent>
       </Popover>
-      <Tool title="Effects" active={ed.panel === 'effects'} onClick={() => openPanel('effects')}><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Effects</span></Tool>
+ <Tool title="Effects" active={ed.panel === 'effects'} onClick={() => openPanel('effects')}><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Effects</span></Tool>
+      <Tool title="Rich text: style single words, gold foil, lists" active={ed.panel === 'rich'} onClick={() => openPanel('rich')}><span className="text-xs font-semibold leading-none">Aa</span><span className="hidden sm:inline">Rich</span></Tool>
       <Tool title="Type on the canvas (Enter)" onClick={() => ed.setEditing(l.id)} disabled={l.locked}><Pencil className="h-4 w-4" /></Tool>
       {common}
     </>);
@@ -589,6 +486,8 @@ export function ContextToolbar({ ed }: { ed: Editor }) {
       <Tool title="Flip vertical" onClick={() => ed.update(l.id, { flipY: !l.flipY })}><FlipVertical2 className="h-4 w-4" /></Tool>
       <Tool title="Border" active={!!l.border} onClick={() => ed.update(l.id, { border: l.border ? null : '#FFFFFF' })}><span className="h-4 w-4 rounded-sm border-2 border-current" /></Tool>
       <Tool title="Shadow" active={l.shadow} onClick={() => ed.update(l.id, { shadow: !l.shadow })}><span className="h-3.5 w-3.5 rounded-sm bg-current shadow-[2px_2px_0_rgba(0,0,0,.35)]" /></Tool>
+      <Tool title="Cut out: the photo has a transparent background" active={!!l.cutout} onClick={() => ed.update(l.id, { cutout: l.cutout ? undefined : true } as Partial<Layer>)}><span className="text-xs">Cut out</span></Tool>
+      <Tool title="Blend, shadow, glow, outline" active={ed.panel === 'effects'} onClick={() => openPanel('effects')}><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Effects</span></Tool>
       {common}
     </>);
   } else if (l.kind === 'wordmark') {
@@ -597,6 +496,14 @@ export function ContextToolbar({ ed }: { ed: Editor }) {
       {!l.autoColor && <ColourButton ed={ed} value={l.color} onChange={c => ed.update(l.id, { color: c }, 'color')} title="Colour" />}
       {ed.assets.marks.t && <Tool title="Switch mark" onClick={() => ed.update(l.id, x => { const m = x as MarkLayer; const next = m.mark === 't' ? 'wordmark' : 't'; return { ...m, mark: next, width: next === 't' ? Math.max(24, Math.round(m.width / 8)) : Math.min(1000, m.width * 8) }; })}>{l.mark === 't' ? 'taheri' : 't'}</Tool>}
       <Tool title="Flip" onClick={() => ed.update(l.id, { flipX: !l.flipX })}><FlipHorizontal2 className="h-4 w-4" /></Tool>
+      <Tool title="Blend, shadow, glow, outline" active={ed.panel === 'effects'} onClick={() => openPanel('effects')}><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Effects</span></Tool>
+      {common}
+    </>);
+  } else if (l.kind === 'qr') {
+    body = (<>
+      <ColourButton ed={ed} value={l.fg} onChange={c => ed.update(l.id, { fg: c } as Partial<Layer>, 'qrfg')} title="Dark parts" />
+      <Tool title="What it says, its size and colours" active={ed.panel === 'edit'} onClick={() => openPanel('edit')}><SlidersHorizontal className="h-4 w-4" /><span className="hidden sm:inline">QR code</span></Tool>
+      <Tool title="Blend, shadow, glow, outline" active={ed.panel === 'effects'} onClick={() => openPanel('effects')}><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Effects</span></Tool>
       {common}
     </>);
   } else {
@@ -615,7 +522,8 @@ export function ContextToolbar({ ed }: { ed: Editor }) {
         </PopoverContent>
       </Popover>
       <Tool title="Flip" onClick={() => ed.update(s.id, { flipX: !s.flipX })}><FlipHorizontal2 className="h-4 w-4" /></Tool>
-      <Tool title="All settings" active={ed.panel === 'edit'} onClick={() => openPanel('edit')}><SlidersHorizontal className="h-4 w-4" /></Tool>
+      <Tool title="Blend, shadow, glow, outline" active={ed.panel === 'effects'} onClick={() => openPanel('effects')}><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Effects</span></Tool>
+      <Tool title="All settings, gradient fill" active={ed.panel === 'edit'} onClick={() => openPanel('edit')}><SlidersHorizontal className="h-4 w-4" /></Tool>
       {common}
     </>);
   }
@@ -726,6 +634,7 @@ export function ElementsPanel({ ed }: { ed: Editor }) {
           <Button variant="outline" size="sm" className="justify-start" onClick={() => ed.add(newLinkPill(ed.p.websiteLabel))}><Link2 className="h-4 w-4 mr-1.5" /> Link pill</Button>
         </div>
       </Section>
+      <QrSection ed={ed} />
       <MarksSection ed={ed} upload />
     </div>
   );
@@ -846,38 +755,9 @@ export function PhotosPanel({ ed }: { ed: Editor }) {
 }
 
 export function BrandPanel({ ed }: { ed: Editor }) {
-  const F = ed.F;
-  const colours = [...new Set([...PALETTES.flatMap(p => [p.headline, p.body]), ...SWATCHES].map(c => c.toUpperCase()))];
-  /** A brand colour on whatever is selected, or behind everything when nothing is. */
-  const paint = (c: string) => {
-    if (!ed.selLayers.length) { ed.api.change(d => ({ ...d, bg: { ...d.bg, color: c } }), { key: 'bg:color' }); return; }
-    ed.updateSel(l => l.kind === 'text' ? { ...l, color: c, autoColor: false }
-      : l.kind === 'wordmark' ? { ...l, color: c, autoColor: false }
-        : l.kind === 'image' ? { ...l, border: c }
-          : (l.kind === 'rect' || l.kind === 'circle' || l.kind === 'shape') && l.fill ? { ...l, fill: c } : { ...l, color: c }, 'brand');
-  };
-  const fonts = Object.keys(FONT_LABEL) as FontKey[];
-  // The designer's extra faces load when this list is seen, so the canvas can use them straight away.
-  useEffect(() => { for (const f of fonts) document.fonts.load(fontCss(f, 40, ed.assets.fonts)).catch(() => undefined); }, [ed.assets.fonts]); // eslint-disable-line react-hooks/exhaustive-deps
-  const text = ed.one?.kind === 'text' ? ed.one : null;
   return (
     <div className="space-y-4">
-      <Section title="Brand colours">
-        <p className="text-[11px] text-muted-foreground">{ed.selLayers.length ? 'Tap one to use it on what is selected.' : 'Tap one for the colour behind — or select something first.'}</p>
-        <div className="flex flex-wrap gap-1.5">{colours.map(c => <button key={c} type="button" title={c} onClick={() => paint(c)} className="h-8 w-8 rounded-full border" style={{ background: c }} />)}</div>
-      </Section>
-      <Section title="Brand fonts">
-        <p className="text-[11px] text-muted-foreground">{text ? 'Tap one to set the selected text in it.' : 'Tap one to add a line in it.'}</p>
-        <div className="space-y-1">
-          {fonts.map(f => (
-            <button key={f} type="button" onClick={() => text ? ed.update(text.id, { font: f }) : ed.add(newInFont(f, ed.p.palette.body, F))}
-              className={cn('flex w-full items-center justify-between rounded-md border px-3 py-1.5 text-left hover:border-primary', text?.font === f && 'border-primary')}>
-              <span style={faceStyle(ed, f, f === 'script' ? 24 : 18)}>{FONT_LABEL[f].replace(/ \(.*\)$/, '')}</span>
-              {text?.font === f && <span className="text-[10px] text-primary">in use</span>}
-            </button>
-          ))}
-        </div>
-      </Section>
+      <BrandKitPanel ed={ed} />
       <MarksSection ed={ed} upload />
     </div>
   );
@@ -933,47 +813,6 @@ export function LayersPanel({ ed }: { ed: Editor }) {
   );
 }
 
-export function PositionPanel({ ed }: { ed: Editor }) {
-  if (!ed.selLayers.length) return <p className="text-sm text-muted-foreground">Select something to arrange it.</p>;
-  const l = ed.one;
-  const b = l ? ed.boxOf(l) : null;
-  const numberBox = (label: string, value: number, onChange: (v: number) => void) => (
-    <label className="space-y-1"><span className="text-[11px] text-muted-foreground">{label}</span>
-      <Input type="number" value={Math.round(value)} onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v)) onChange(v); }} className="h-8 text-xs" />
-    </label>
-  );
-  const widthOf = (x: Layer) => x.kind === 'text' ? x.width : x.kind === 'wordmark' ? x.width : x.kind === 'image' ? x.w : Math.abs(x.w);
-  const setWidth = (x: Layer, v: number): Layer => x.kind === 'text' ? { ...x, width: v } : x.kind === 'wordmark' ? { ...x, width: v } : x.kind === 'image' ? { ...x, w: v, ...(x.h ? { h: Math.round(x.h * v / x.w) } : {}) } : { ...x, w: v };
-  return (
-    <div className="space-y-4">
-      <Section title="Arrange">
-        <div className="grid grid-cols-2 gap-1">
-          <Button size="sm" variant="outline" className="h-8 justify-start text-xs" onClick={() => ed.reorder('forward')}><ArrowUp className="h-4 w-4 mr-1.5" /> Forward</Button>
-          <Button size="sm" variant="outline" className="h-8 justify-start text-xs" onClick={() => ed.reorder('backward')}><ArrowDown className="h-4 w-4 mr-1.5" /> Backward</Button>
-          <Button size="sm" variant="outline" className="h-8 justify-start text-xs" onClick={() => ed.reorder('front')}><ChevronsUp className="h-4 w-4 mr-1.5" /> To front</Button>
-          <Button size="sm" variant="outline" className="h-8 justify-start text-xs" onClick={() => ed.reorder('back')}><ChevronsDown className="h-4 w-4 mr-1.5" /> To back</Button>
-        </div>
-      </Section>
-      <Section title="Align"><AlignButtons ed={ed} /></Section>
-      {l && b && (
-        <Section title="Exactly">
-          <div className="grid grid-cols-2 gap-2">
-            {numberBox('X', b.x, v => ed.update(l.id, x => moveLayer(x, v - b.x, 0)))}
-            {numberBox('Y', b.y, v => ed.update(l.id, x => moveLayer(x, 0, v - b.y)))}
-            {numberBox(l.kind === 'text' ? 'Line width' : 'Width', widthOf(l), v => v > 4 && ed.update(l.id, x => setWidth(x, v)))}
-            {(l.kind === 'rect' || l.kind === 'circle' || l.kind === 'shape' || (l.kind === 'image' && l.h))
-              ? numberBox('Height', l.kind === 'image' ? l.h! : Math.abs((l as ShapeLayer).h), v => v > 4 && ed.update(l.id, { h: v } as Partial<Layer>))
-              : numberBox('Height', b.h, () => undefined)}
-            {numberBox('Turn °', l.rotate, v => ed.update(l.id, { rotate: Math.max(-180, Math.min(180, v)) }))}
-            {l.kind === 'text' && numberBox('Size', l.size, v => v >= 8 && ed.update(l.id, { size: v } as Partial<Layer>))}
-          </div>
-          <p className="text-[11px] text-muted-foreground">In the {ed.square ? 'square’s 1080 × 1080' : 'story’s 1080 × 1920'} pixels.</p>
-        </Section>
-      )}
-    </div>
-  );
-}
-
 export function EffectsPanel({ ed, layer: l }: { ed: Editor; layer: TextLayer }) {
   const current = effectOf(l)?.kind ?? 'none';
   const tile = (kind: EffectKind | 'none'): React.CSSProperties => {
@@ -1008,6 +847,7 @@ export function EffectsPanel({ ed, layer: l }: { ed: Editor; layer: TextLayer })
         {!!l.curve && <Row label="Curve"><Num value={l.curve} min={-100} max={100} onChange={v => ed.update(l.id, { curve: Math.abs(v) < 2 ? (v < 0 ? -2 : 2) : v } as Partial<Layer>, 'curve')} /></Row>}
         <p className="text-[11px] text-muted-foreground">Bent text runs on one line.</p>
       </Section>
+      <Section title="Blend"><BlendControl ed={ed} /></Section>
       <Section title="Background">
         <label className="flex items-center gap-1.5 text-xs"><Switch checked={!!l.box} onCheckedChange={v => ed.update(l.id, { box: v ? { color: '#FFFFFF', radius: 24, pad: 20 } : null } as Partial<Layer>)} /> A colour behind the words</label>
         {l.box && (<>
@@ -1040,7 +880,7 @@ export function PhotoEditPanel({ ed }: { ed: Editor }) {
   return (
     <div className="space-y-3">
       <p className="text-[11px] text-muted-foreground">The background photo{ed.square ? ' — the filter goes on every square' : ''}. Drag it on the page to move it; pinch or use Zoom in Background to crop.</p>
-      <AdjustControls value={bg.adjust ?? NO_ADJUST} onChange={(a, key) => ed.api.change(d => ({ ...d, bg: { ...d.bg, adjust: isPlain(a) ? null : a } }), { key: key ? `bg:${key}` : undefined })} img={photo} />
+      <AdjustControls value={bg.adjust ?? NO_ADJUST} onChange={(a, key) => ed.api.change(d => ({ ...d, bg: { ...d.bg, adjust: isPlain(a) ? null : a } }), { key: key ? `bg:${key}` : undefined })} img={photo} onCompare={ed.setCompare} openByDefault />
     </div>
   );
 }
@@ -1083,11 +923,13 @@ export function MobileToolbar({ ed }: { ed: Editor }) {
       <Item icon={<Type className={i} />} label="Font" active={ed.panel === 'font'} onClick={() => open('font')} />
       <Item icon={<PaletteIcon className={i} />} label="Colour" active={ed.panel === 'colour'} onClick={() => open('colour')} />
       <Item icon={<Sparkles className={i} />} label="Effects" active={ed.panel === 'effects'} onClick={() => open('effects')} />
+      <Item icon={<span className="flex h-5 w-5 items-center justify-center text-sm font-semibold leading-none">Aa</span>} label="Rich text" active={ed.panel === 'rich'} onClick={() => open('rich')} />
       {tail}{more}
     </>);
   } else if (l.kind === 'image') {
     items = (<>
-      <Item icon={<Wand2 className={i} />} label="Filters" active={ed.panel === 'photo'} onClick={() => open('photo')} />
+      <Item icon={<Wand2 className={i} />} label="Adjust" active={ed.panel === 'photo'} onClick={() => open('photo')} />
+      <Item icon={<Sparkles className={i} />} label="Effects" active={ed.panel === 'effects'} onClick={() => open('effects')} />
       <Item icon={<FrameIcon className={i} />} label="Frame" active={ed.panel === 'frame'} onClick={() => open('frame')} />
       <Item icon={<FlipHorizontal2 className={i} />} label="Flip" onClick={() => ed.update(l.id, { flipX: !l.flipX })} />
       {tail}{more}
@@ -1095,7 +937,8 @@ export function MobileToolbar({ ed }: { ed: Editor }) {
   } else {
     items = (<>
       <Item icon={<PaletteIcon className={i} />} label="Colour" active={ed.panel === 'colour'} onClick={() => open('colour')} />
-      {l.kind !== 'wordmark' && <Item icon={<SlidersHorizontal className={i} />} label="Style" active={ed.panel === 'edit'} onClick={() => open('edit')} />}
+      {l.kind !== 'wordmark' && <Item icon={<SlidersHorizontal className={i} />} label={l.kind === 'qr' ? 'QR code' : 'Style'} active={ed.panel === 'edit'} onClick={() => open('edit')} />}
+      <Item icon={<Sparkles className={i} />} label="Effects" active={ed.panel === 'effects'} onClick={() => open('effects')} />
       {tail}
     </>);
   }
@@ -1170,6 +1013,10 @@ export function ColourPanel({ ed }: { ed: Editor }) {
     return (
       <div className="space-y-4">
         <Section title="Text"><label className="flex items-center gap-2 text-xs"><Switch checked={!!l.autoColor} onCheckedChange={v => set({ autoColor: v } as Partial<Layer>, 'auto')} /> Auto — white or dark by the photo</label>{!l.autoColor && <Big value={l.color} onChange={c => set({ color: c } as Partial<Layer>, 'color')} />}</Section>
+        <Section title="Gradient">
+          <GradientToggle label="Fill the letters with a gradient" value={l.fillGradient} start={gradientFrom(l.color)} colours={doc}
+            onChange={(g, key) => set({ fillGradient: g } as Partial<Layer>, key ? `fillg-${key}` : 'fillg')} />
+        </Section>
         <Section title="Behind the words">
           <label className="flex items-center gap-2 text-xs"><Switch checked={!!l.box} onCheckedChange={v => set({ box: v ? { color: '#FFFFFF', radius: 24, pad: 20 } : null } as Partial<Layer>, 'box')} /> A colour behind them</label>
           {l.box && <Big value={l.box.color} onChange={c => ed.update(l.id, x => ({ ...(x as TextLayer), box: { ...(x as TextLayer).box!, color: c } }), 'boxc')} />}
@@ -1190,11 +1037,12 @@ export function ColourPanel({ ed }: { ed: Editor }) {
         <Section title="Fill">
           <label className="flex items-center gap-2 text-xs"><Switch checked={!!l.fill} onCheckedChange={v => set({ fill: v ? '#FFFFFF' : null } as Partial<Layer>, 'filled')} /> Filled</label>
           {l.fill && <Big value={l.fill} onChange={c => set({ fill: c } as Partial<Layer>, 'fill')} />}
-          {l.fill && <label className="flex items-center gap-2 text-xs"><Switch checked={!!l.fill2} onCheckedChange={v => set({ fill2: v ? '#C9973F' : null } as Partial<Layer>, 'grad')} /> Fade to a second colour</label>}
-          {l.fill && l.fill2 && <Big value={l.fill2} onChange={c => set({ fill2: c } as Partial<Layer>, 'fill2')} />}
+          {l.fill2 && !l.fillGradient && <><Big value={l.fill2} onChange={c => set({ fill2: c } as Partial<Layer>, 'fill2')} /><button type="button" className="text-xs text-primary" onClick={() => set({ fill2: null, fillGradient: gradientFrom(l.fill ?? '#FFFFFF') } as Partial<Layer>, 'grad')}>Use the gradient editor instead</button></>}
+          {!(l.fill2 && !l.fillGradient) && <GradientToggle label="Gradient fill" value={l.fillGradient} start={gradientFrom(l.fill ?? '#FFFFFF')} colours={doc}
+            onChange={(g, key) => set({ fillGradient: g, ...(g ? { fill2: null } : {}) } as Partial<Layer>, key ? `fillg-${key}` : 'fillg')} />}
         </Section>
       )}
-      <Section title={closed ? 'Border' : 'Colour'}><Big value={l.color} onChange={c => set({ color: c } as Partial<Layer>, 'color')} /></Section>
+      <Section title={closed ? 'Border' : 'Colour'}><Big value={l.kind === 'qr' ? l.fg : l.color} onChange={c => set((l.kind === 'qr' ? { fg: c } : { color: c }) as Partial<Layer>, 'color')} /></Section>
     </div>
   );
 }
@@ -1206,6 +1054,7 @@ export function TransparencyPanel({ ed }: { ed: Editor }) {
     <div className="space-y-3 pt-2">
       <div className="flex items-center gap-3"><Slider value={[v]} min={0} max={95} step={1} onValueChange={([x]) => ed.updateSel(l => ({ ...l, opacity: 1 - x / 100 }), 'op')} className="flex-1" /><span className="w-12 text-right text-sm tabular-nums">{v}%</span></div>
       <p className="text-[11px] text-muted-foreground">0% is solid; the higher, the more shows through.</p>
+      <BlendControl ed={ed} />
     </div>
   );
 }

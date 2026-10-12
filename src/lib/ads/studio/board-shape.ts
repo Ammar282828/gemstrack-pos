@@ -8,7 +8,8 @@
  * Pure: shared by the server (board.ts, the MCP route) and the page. Tested.
  */
 
-import type { Fields, Layer, StoryDoc } from '@/lib/social/editor';
+import { FONT_KEYS, type Fields, type Layer, type StoryDoc } from '@/lib/social/editor';
+import { gradientProblem } from '@/lib/social/gradient';
 import { AD_FORMATS, isAdFormat, type AdFormat, type AdTemplateId } from './templates';
 
 export const TEMPLATE_IDS = ['clean', 'headline', 'framed', 'heritage', 'band', 'certified', 'rate', 'investment'] as const satisfies readonly AdTemplateId[];
@@ -95,7 +96,91 @@ export function cleanFields(v: unknown, base: Fields = BLANK_FIELDS): Fields {
   };
 }
 
-const LAYER_KINDS = new Set(['text', 'wordmark', 'arrow', 'line', 'rect', 'circle', 'shape', 'image']);
+const LAYER_KINDS = new Set(['text', 'wordmark', 'arrow', 'line', 'rect', 'circle', 'shape', 'image', 'qr']);
+const BLENDS = new Set(['normal', 'multiply', 'screen', 'overlay', 'soft-light', 'hard-light', 'color-dodge', 'darken', 'lighten']);
+const ROLES = new Set(['photo', 'headline', 'kicker', 'specs', 'cta', 'mark', 'badge', 'frame', 'band', 'decor', 'text', 'image']);
+
+const isNum = (v: unknown, lo = -1e6, hi = 1e6): v is number => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
+const isColor = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= 40;
+
+/** Designer v2's optional keys on a layer (blend, role, effects, runs, gradients, QR): what is wrong with them, or null. */
+function layerProblem(layer: Layer): string | null {
+  const l = layer as Layer & Record<string, unknown>;
+  if (l.blend !== undefined && (typeof l.blend !== 'string' || !BLENDS.has(l.blend))) return `a blend of “${String(l.blend).slice(0, 20)}”`;
+  if (l.role !== undefined && (typeof l.role !== 'string' || !ROLES.has(l.role))) return `a role of “${String(l.role).slice(0, 20)}”`;
+  if (l.layerFx !== undefined) {
+    const fx = l.layerFx as Record<string, unknown> | null;
+    if (!fx || typeof fx !== 'object' || Array.isArray(fx)) return 'a layerFx that is not an object';
+    const sh = fx.shadow as Record<string, unknown> | undefined, gl = fx.glow as Record<string, unknown> | undefined, ou = fx.outline as Record<string, unknown> | undefined;
+    if (sh !== undefined && !(sh && typeof sh === 'object' && isColor(sh.color) && isNum(sh.x, -2000, 2000) && isNum(sh.y, -2000, 2000) && isNum(sh.blur, 0, 400) && isNum(sh.alpha, 0, 1))) return 'a shadow that is not {color, x, y, blur 0–400, alpha 0–1}';
+    if (gl !== undefined && !(gl && typeof gl === 'object' && isColor(gl.color) && isNum(gl.blur, 0, 400) && isNum(gl.alpha, 0, 1))) return 'a glow that is not {color, blur 0–400, alpha 0–1}';
+    if (ou !== undefined && !(ou && typeof ou === 'object' && isColor(ou.color) && isNum(ou.width, 0, 200))) return 'an outline that is not {color, width 0–200}';
+  }
+  if (l.kind === 'text') {
+    if (l.list !== undefined && l.list !== null && l.list !== 'bullet' && l.list !== 'number') return 'a list that is not bullet or number';
+    if (l.fillGradient) { const g = gradientProblem(l.fillGradient); if (g) return g; }
+    if (l.runs !== undefined) {
+      if (!Array.isArray(l.runs) || l.runs.length > 60) return 'runs that are not a list of at most 60';
+      for (const r of l.runs as unknown as Record<string, unknown>[]) {
+        if (!r || typeof r !== 'object' || !isNum(r.from, 0, 100000) || !isNum(r.to, 0, 100000) || (r.to as number) < (r.from as number)) return 'a run without a from and to';
+        if (r.font !== undefined && !FONT_KEYS.includes(r.font as never)) return 'a run in a font that does not exist';
+        if (r.color !== undefined && !isColor(r.color)) return 'a run with a bad colour';
+        if (r.size !== undefined && !isNum(r.size, 0.1, 8)) return 'a run with a size that is not a number between 0.1 and 8';
+        if ((r.upper !== undefined && typeof r.upper !== 'boolean') || (r.underline !== undefined && typeof r.underline !== 'boolean')) return 'a run with an upper or underline that is not true/false';
+        if (r.gradient !== undefined) { const g = gradientProblem(r.gradient); if (g) return g; }
+      }
+    }
+  }
+  if (l.kind === 'rect' || l.kind === 'circle' || l.kind === 'shape') {
+    if (l.fillGradient) { const g = gradientProblem(l.fillGradient); if (g) return g; }
+  }
+  if (l.kind === 'image') {
+    if (l.cutout !== undefined && typeof l.cutout !== 'boolean') return 'a cutout that is not true/false';
+    const a = adjustProblem(l.adjust);
+    if (a) return a;
+  }
+  if (l.kind === 'qr') {
+    if (typeof l.value !== 'string' || !l.value || l.value.length > 500) return 'a QR code without a value of 1–500 characters';
+    if (!isColor(l.fg)) return 'a QR code without a foreground colour';
+    if (l.bg !== null && !isColor(l.bg)) return 'a QR code whose background is not a colour or null';
+    if (!isNum(l.quiet, 0, 8)) return 'a QR code whose quiet zone is not 0–8';
+    if (!isNum(l.w, 8, 4000) || !isNum(l.x) || !isNum(l.y)) return 'a QR code without a position and a width';
+  }
+  return null;
+}
+
+/** An Adjust from outside: every value a finite number. */
+function adjustProblem(v: unknown): string | null {
+  if (v === undefined || v === null) return null;
+  if (typeof v !== 'object' || Array.isArray(v)) return 'an adjust that is not an object';
+  for (const [k, n] of Object.entries(v)) if (!isNum(n, -1000, 1000)) return `an adjust whose ${k} is not a number`;
+  return null;
+}
+
+/** `bg.fill`, `bg.adjust` and `meta` from outside. */
+function docProblem(d: Partial<StoryDoc>): string | null {
+  const bg = d.bg as Record<string, unknown>;
+  if (bg.fill) { const g = gradientProblem(bg.fill); if (g) return g; }
+  const a = adjustProblem(bg.adjust);
+  if (a) return a;
+  if (d.meta !== undefined) {
+    const m = d.meta as Record<string, unknown> | null;
+    if (!m || typeof m !== 'object' || Array.isArray(m)) return 'meta that is not an object';
+    if (m.template !== undefined && (typeof m.template !== 'string' || m.template.length > 60)) return 'a meta.template that is not a short string';
+    if (m.master !== undefined && (typeof m.master !== 'string' || m.master.length > 60)) return 'a meta.master that is not a short string';
+    if (m.grid !== undefined && !isNum(m.grid, 0, 400)) return 'a meta.grid that is not 0–400';
+    if (m.guides !== undefined) {
+      const g = m.guides as Record<string, unknown>;
+      if (!g || typeof g !== 'object') return 'meta.guides that is not an object';
+      for (const k of ['x', 'y']) if (!Array.isArray(g[k]) || (g[k] as unknown[]).length > 40 || !(g[k] as unknown[]).every(n => isNum(n, -1e5, 1e5))) return `meta.guides.${k} that is not a list of at most 40 numbers`;
+    }
+    if (m.subject !== undefined) {
+      const b = m.subject as Record<string, unknown>;
+      if (!b || typeof b !== 'object' || !['x', 'y', 'w', 'h'].every(k => isNum(b[k], 0, 1))) return 'a meta.subject that is not {x, y, w, h} between 0 and 1';
+    }
+  }
+  return null;
+}
 
 /**
  * A layout document as it may be kept: a background and at most 80 layers, every layer of a kind the
@@ -119,8 +204,12 @@ export function cleanDoc(v: unknown): StoryDoc {
       if (val !== undefined && (typeof val !== 'number' || !Number.isFinite(val))) throw bad(`layer ${i} (${layer.kind}) has a ${k} that is not a number`);
     }
     if (layer.kind === 'text' && typeof (layer as { text?: unknown }).text !== 'string') throw bad(`text layer ${i} has no text`);
+    const problem = layerProblem(layer);
+    if (problem) throw bad(`layer ${i} (${layer.kind}) has ${problem}`);
     return layer;
   });
+  const docBad = docProblem(d);
+  if (docBad) throw bad(`it has ${docBad}`);
   const frame = d.frame && typeof d.frame === 'object'
     ? { w: Math.round(num(d.frame.w, 1080, 200, 4000)), h: Math.round(num(d.frame.h, 1350, 200, 4000)) }
     : undefined;

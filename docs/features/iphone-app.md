@@ -66,7 +66,12 @@ go, and a karigar marking a piece done (`/api/karigar/complete`, which never ale
 on (`push_devices`), unless that phone switched the kind off; WhatsApp's switches do not decide it. Once per event
 (`push_sent`); a development server only logs. The Apple key (one APNs key serves both houses) is uploaded in Settings →
 Alerts and kept in `app_private/apns`, sealed under a key drawn from CRON_SECRET: Taheri's Firestore rules are still
-open and Secret Manager is not writable from the ERP.
+open and Secret Manager is not writable from the ERP. The one owner step: create an APNs key (developer.apple.com →
+Keys, APNs ticked) and upload the .p8 with its key ID and team TND272ULB5 in **both** ERPs, Settings → Alerts, since each
+house has its own Firestore. `asc.mjs builds <house> --fix` (the TestFlight status workflow) turns on the App ID's Push
+Notifications capability, so the next Xcode Cloud build's profile carries `aps-environment`. Failures now show: a phone
+that cannot register reports it to `push_devices_failed` (`/api/push/register-failed`, last error, no token) and in
+Settings → This phone; the server logs `[push] no-key: <kind>` (once per 10 minutes) and `[push] no devices: <kind>`.
 
 **The widget's figures** (`/api/widget/summary`, `lib/widget`): the house's rate, the drawer (Today's cash), Owed to
 you (with hisaab) and orders and repairs due, from the ERP's own functions, worked out at most every 15 minutes. Read

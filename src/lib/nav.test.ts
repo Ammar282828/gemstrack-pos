@@ -86,7 +86,7 @@ describe('who sees what', () => {
     const labels = paletteFor(false).map(d => d.label);
     expect(labels).toContain('Analytics › Customers');
     expect(labels).toContain('Customers');
-    expect(labels).toContain('Ads › Studio');
+    expect(labels).toContain('Ads › Plan');
     expect(labels).not.toContain('Overview');
   });
 });
