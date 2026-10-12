@@ -20,7 +20,10 @@ settings:
     SWIFT_VERSION: "5.0"
     SWIFT_STRICT_CONCURRENCY: minimal
     # 2.1 from the first Xcode Cloud build (2026-10-09): its build numbers count from 1, and 2.0's were dates.
-    MARKETING_VERSION: "2.1"
+    # 2.2 from 2026-10-12: builds made on the Mac had reached 2.1 (1009), and TestFlight offers a phone only a
+    # higher version or build, so Xcode Cloud's 2.1 (3) and (4) never arrived. Xcode Cloud sets the build number
+    # itself; a Mac upload must not outnumber it within a version again.
+    MARKETING_VERSION: "2.2"
     # CURRENT_PROJECT_VERSION is House.xcconfig's (scripts/house.mjs): Xcode Cloud's build number there.
     TARGETED_DEVICE_FAMILY: "1,2"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
