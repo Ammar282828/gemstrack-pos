@@ -93,16 +93,27 @@ struct SaleCustomerPicker: View {
         NavigationStack {
             List { Group {
                 Section {
+                    // The walk-in is a row like the people below it: its monogram is the figure of nobody in particular.
                     Button { pick(nil); dismiss() } label: {
-                        Label("Walk-in", systemImage: "figure.walk")
+                        HStack(spacing: 12) {
+                            Monogram(name: "", size: Monogram.Size.row)
+                            Text("Walk-in").fontWeight(.medium)
+                            Spacer(minLength: 0)
+                        }
+                        .contentShape(.rect)
                     }
+                    .buttonStyle(.plain)
                 } footer: {
-                    Text("A sale to nobody in particular. No customer is made.")
+                    Text("Walk-in. No customer is made; overpayment can't be kept as credit.")
                 }
                 Section {
                     ForEach(people) { c in
                         Button { pick(c); dismiss() } label: {
-                            TwoLine(title: c.name, subtitle: c.phone).contentShape(.rect)
+                            HStack(spacing: 12) {
+                                Monogram(name: c.name, size: Monogram.Size.row)
+                                TwoLine(title: c.name, subtitle: c.phone)
+                            }
+                            .contentShape(.rect)
                         }
                         .buttonStyle(.plain)
                     }

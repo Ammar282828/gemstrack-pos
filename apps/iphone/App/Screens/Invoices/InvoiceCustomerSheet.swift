@@ -69,11 +69,12 @@ struct InvoiceCustomerSheet: View {
                     Text(customerNote)
                 }
                 if let error {
-                    Section { Text(error).foregroundStyle(.red) }
+                    Section { Text(error).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()
             }
+            .houseForm()
             .navigationTitle(named ? "Change the customer" : "Who was it for?")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -82,8 +83,12 @@ struct InvoiceCustomerSheet: View {
                         .disabled(saving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { Task { await save() } }
-                        .disabled(!canSave)
+                    if saving {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Button("Save") { Task { await save() } }
+                            .disabled(!canSave)
+                    }
                 }
             }
         }

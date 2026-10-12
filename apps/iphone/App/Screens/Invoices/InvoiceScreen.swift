@@ -9,17 +9,18 @@ import ERPCore
 /// the discount, deleting a payment, a refund and deleting the invoice are native sheets (InvoiceAction*,
 /// owners, the last three behind the delete code).
 ///
-/// Laid out as the ledger (Ledger.swift, 2026-10-09): who and how much at the head, with what has been paid
-/// and what is still due beside the total; the things done most after a sale (take the money, send the bill,
-/// print it, ring the customer) one tap under it; then the pieces as the bill reads them, the payments, and the
-/// shop's own lines (rates, margin, note, delivery) quieter at the foot.
+/// Laid out as the order's page is (a List on the house's ground, 2026-10-12): one receipt at the head (who,
+/// when, what is still due beside a ring of what is paid), the quick row (ring, write, print), then the pieces
+/// as the bill reads them with its totals, the payments, the details, and the shop's own lines at the foot.
+/// Take payment is the bar at the foot while money is owed; the ⋯ menu keeps everything else.
 struct InvoiceScreen: View {
     let id: String
 
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
-    @Environment(\.openURL) private var openURL
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var paying: Invoice?
     @State private var web: Route?
@@ -27,8 +28,13 @@ struct InvoiceScreen: View {
     /// Send on WhatsApp, by house (InvoiceWhatsAppSend): set to start it.
     @State private var sending: Invoice?
     @State private var pdf: InvoicePDFTarget?
-    @State private var note: InvoiceNote?
+    @State private var note: Note?
     @State private var acting: InvoiceAct?
+    /// Past the first five pieces, shown on request.
+    @State private var allPieces = false
+    /// A payment swiped away: the delete code is asked for it straight away (InvoiceActionPaymentSheet.deletion).
+    @State private var paymentDeletion: OwnerDeletion?
+    @State private var paymentOutcome: InvoiceActionOutcome?
 
     private var canPay: Bool { InvoiceFacts.mayTakePayments(role: session.role) }
 
@@ -36,6 +42,9 @@ struct InvoiceScreen: View {
     /// never a customer (docs/decisions.md "Margin"). Mina's silver is not costed that way: its web page
     /// shows none (NEXT_PUBLIC_STORE_COST_RATTI_LESS "none").
     private var showsMargin: Bool { House.margin.rattiLess != nil }
+
+    /// Pieces shown before "Show N more".
+    private let firstPieces = 5
 
     var body: some View {
         let invoice = book.invoices.items.first { $0.id == id }
@@ -50,6 +59,8 @@ struct InvoiceScreen: View {
         }
         .navigationTitle(id)
         .navigationBarTitleDisplayMode(.inline)
+        // The page grows out of its row on the list (the row's id is this route's path).
+        .zoomDestination(id: InvoiceFacts.path(id))
         .task {
             book.invoices.need()
             book.customers.need()
@@ -71,24 +82,31 @@ struct InvoiceScreen: View {
     // MARK: The page
 
     private func detail(_ inv: Invoice) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                heroCard(inv)
-                quickActions(inv)
-                piecesCard(inv)
-                paymentsCard(inv)
-                ratesCard(inv)
-                shopCard(inv)
-                deliveryCard(inv)
+        List {
+            // The receipt and the quick row carry their own surface; the rest sit on the house's cards.
+            heroSection(inv)
+            quickSection(inv)
+            Group {
+                piecesSection(inv)
+                paymentsSection(inv)
+                detailsSection(inv)
+                shopSection(inv)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 24)
+            .houseRows()
         }
+        .listStyle(.insetGrouped)
+        .modifier(HouseGround())
+        // The figures roll to their new numbers as a payment or a discount lands.
+        .motion(inv.balanceDue)
         .safeAreaBar(edge: .bottom, spacing: 0) { paymentBar(inv) }
         .toolbar {
-            ToolbarItem(placement: .principal) { titleView(inv) }
-            ToolbarItemGroup(placement: .primaryAction) { toolbarButtons(inv) }
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    menuItems(inv)
+                } label: {
+                    Label("More", systemImage: "ellipsis.circle")
+                }
+            }
         }
         .navigationDestination(item: $web) { r in
             ScreenRegistry.view(for: r.path)
@@ -98,11 +116,9 @@ struct InvoiceScreen: View {
         .navigationDestination(item: $pdf) { t in
             PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
         }
-        .invoicePaymentSheet(for: $paying)
+        .invoicePaymentSheet(for: $paying) { paid, amount in recorded(paid, amount) }
         .sheet(isPresented: $settingCustomer) {
-            InvoiceCustomerSheet(invoice: inv) { (saved: InvoiceNote) in
-                withAnimation { note = saved }
-            }
+            InvoiceCustomerSheet(invoice: inv) { (saved: InvoiceNote) in say(saved) }
         }
         .sheet(item: $acting) { a in
             switch a {
@@ -112,65 +128,138 @@ struct InvoiceScreen: View {
             case .delete: InvoiceActionDeleteSheet(invoice: inv, onDone: acted)
             }
         }
-        .invoiceWhatsAppSend($sending, web: $web) { sent in withAnimation { note = sent } }
-        .invoiceNoteBanner($note)
-    }
-
-    private func titleView(_ inv: Invoice) -> some View {
-        VStack(spacing: 0) {
-            Text(inv.id).font(.headline).monospacedDigit()
-            Text(InvoiceFacts.customerName(inv, walkIn: "Walk-in Customer"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+        .invoiceActionCode($paymentDeletion) {
+            if let outcome = paymentOutcome { acted(outcome) }
         }
+        .invoiceWhatsAppSend($sending, web: $web) { sent in say(sent) }
+        .noteToast($note)
     }
 
-    // MARK: Who and how much
+    /// Say a note from a sheet or a send on the page's toast.
+    private func say(_ n: InvoiceNote) {
+        Note.show(Note(title: n.title, detail: n.detail), in: $note, reduce: reduceMotion)
+    }
 
-    /// Who it was for and when, the total in the serif, and Total · Paid · Due under it (credit as In credit).
-    private func heroCard(_ inv: Invoice) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .center, spacing: 14) {
-                Monogram(name: inv.customerName, size: 56)
-                VStack(alignment: .leading, spacing: 4) {
-                    customerTitle(inv)
-                    Text(heroCaption(inv))
+    /// A payment taken from this page: what is left, said as the sheet closes.
+    private func recorded(_ inv: Invoice, _ amount: Double) {
+        let line = balanceLine(inv.balanceDue - amount)
+        let detail: String
+        switch line.state {
+        case .due: detail = "\(Money.pkr(line.amount)) still due"
+        case .credit: detail = "Paid in full, \(Money.pkr(line.amount)) in credit"
+        case .paid: detail = "Paid in full"
+        }
+        Note.show(Note(title: "Payment recorded", detail: detail), in: $note, reduce: reduceMotion)
+    }
+
+    // MARK: The receipt: who, when, what is due
+
+    /// Who it was for and when, then what is still due (or credit, or paid in full) beside the ring of what is
+    /// paid, with the total and the paid sum under it.
+    private func heroSection(_ inv: Invoice) -> some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 14))
+        let when = ShopDate.say(inv.createdAt, withTime: true)
+        return Section {
+            VStack(alignment: .leading, spacing: 14) {
+                layout {
+                    Monogram(name: inv.customerName, size: Monogram.Size.hero)
+                    VStack(alignment: .leading, spacing: 4) {
+                        customerTitle(inv)
+                        if !when.isEmpty {
+                            Text(when)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                        HStack(spacing: 6) {
+                            Text(piecesLine(inv))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                            if isShopify(inv) { Pill("Shopify") }
+                        }
+                    }
+                }
+                // A sale to nobody in particular, named once the bill is out (decision "Name a sale"): an owner's, as on the web.
+                if session.isOwner && unnamed(inv) && inv.status != .refunded {
+                    Button { settingCustomer = true } label: {
+                        Label("Name the customer", systemImage: "person.crop.circle.badge.plus")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.accent)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(Theme.accent.opacity(0.12), in: .capsule)
+                    }
+                    .buttonStyle(.plain)
+                }
+                PerforationDivider()
+                figures(inv)
+                // Whoever opens it next sees the PDF went, so it is not sent twice.
+                if let sent = inv.sentOnWhatsApp {
+                    Label("PDF sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))", systemImage: "checkmark.circle.fill")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .lineLimit(2)
                 }
-                Spacer(minLength: 0)
             }
-            // A sale to nobody in particular, named once the bill is out (decision "Name a sale"): an owner's, as on the web.
-            if session.isOwner && unnamed(inv) && inv.status != .refunded {
-                Button { settingCustomer = true } label: {
-                    Label("Name the customer", systemImage: "person.crop.circle.badge.plus")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Theme.accent)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(Theme.accent.opacity(0.12), in: .capsule)
-                }
-                .buttonStyle(.plain)
+            .heroSheen(padding: 18)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+        }
+    }
+
+    /// "3 pieces · Taken by Demo".
+    private func piecesLine(_ inv: Invoice) -> String {
+        let n = inv.items.count
+        var parts = ["\(n) piece\(n == 1 ? "" : "s")"]
+        if let by = inv.takenBy, !by.isEmpty { parts.append("Taken by " + by) }
+        return parts.joined(separator: " · ")
+    }
+
+    private func isShopify(_ inv: Invoice) -> Bool { (inv.source ?? "").hasPrefix("shopify") }
+
+    /// What is due as the big figure, the ring of what is paid beside it, and both sums in a line under.
+    private func figures(_ inv: Invoice) -> some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+        return layout {
+            VStack(alignment: .leading, spacing: 4) {
+                leadFigure(inv)
+                Text("Total \(Money.pkr(inv.grandTotal)) · Paid \(Money.pkr(inv.amountPaid))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
-            VStack(alignment: .leading, spacing: 6) {
-                if inv.status == .refunded {
-                    Pill("Refunded", tone: .quiet, symbol: "arrow.uturn.backward")
-                }
-                HeroAmount(amount: inv.grandTotal)
-            }
-            MoneySplit(total: inv.grandTotal, paid: inv.amountPaid, due: inv.balanceDue)
-            if let order = inv.sourceOrderId, !order.isEmpty {
-                Divider()
-                NavigationLink(value: Route(path: "/orders/" + InvoiceFacts.encode(order))) {
-                    InvoiceLinkLine(title: "From order", value: order, symbol: "shippingbox")
-                }
-                .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            PaidRing(paid: inv.amountPaid, total: inv.grandTotal)
+        }
+    }
+
+    /// Due while owing (amber, red once old), In credit, or Paid in full; a refunded invoice says Refunded instead.
+    @ViewBuilder
+    private func leadFigure(_ inv: Invoice) -> some View {
+        let line = balanceLine(inv.balanceDue)
+        if inv.status == .refunded {
+            Pill("Refunded", tone: .quiet, symbol: "arrow.uturn.backward")
+        } else {
+            switch line.state {
+            case .due:
+                Text("Due").font(.subheadline).foregroundStyle(.secondary)
+                HeroAmount(amount: line.amount, tone: InvoiceFacts.balanceTone(inv).color)
+            case .credit:
+                Text("In credit").font(.subheadline).foregroundStyle(.secondary)
+                HeroAmount(amount: line.amount, tone: Tone.credit.color)
+            case .paid:
+                Text("Paid in full")
+                    .font(.system(.largeTitle, design: .serif).weight(.semibold))
+                    .foregroundStyle(Tone.settled.color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
         }
-        .ledgerCard(padding: 18)
     }
 
     /// The customer's name in the serif, linked to their page unless the sale was to nobody in particular (lib/walk-in.ts).
@@ -197,16 +286,6 @@ struct InvoiceScreen: View {
         }
     }
 
-    /// "INV-000123 · Today 3:45 pm · Taken by Demo", and "· Shopify" for an import.
-    private func heroCaption(_ inv: Invoice) -> String {
-        var parts = [inv.id]
-        let when = ShopDate.say(inv.createdAt, withTime: true)
-        if !when.isEmpty { parts.append(when) }
-        if let by = inv.takenBy, !by.isEmpty { parts.append("Taken by " + by) }
-        if (inv.source ?? "").hasPrefix("shopify") { parts.append("Shopify") }
-        return parts.joined(separator: " · ")
-    }
-
     /// The customer's id when the sale has a real one: not a walk-in however it was recorded, and
     /// not just a typed name (saleCustomerKey says which).
     private func linkableCustomer(_ inv: Invoice) -> String? {
@@ -217,64 +296,90 @@ struct InvoiceScreen: View {
 
     // MARK: What is done most, one tap away
 
-    /// Take the money, send the bill, print it, ring the customer: the things the counter does after a sale,
-    /// where the ⋯ menu used to hide the send.
-    private func quickActions(_ inv: Invoice) -> some View {
-        let call = CustomerKit.callURL(whatsAppPhone(inv))
-        return VStack(alignment: .leading, spacing: 8) {
+    /// Ring, write or message the customer, and the PDF: the things the counter does after a sale. Taking the
+    /// money is the bar at the foot, so it has no tile here.
+    private func quickSection(_ inv: Invoice) -> some View {
+        let phone = whatsAppPhone(inv)
+        let reachable = !CustomerKit.dialable(phone).isEmpty
+        return Section {
             HStack(alignment: .top, spacing: 10) {
-                if mayTakePayment(inv) {
-                    QuickAction(title: "Payment", symbol: "banknote.fill", prominent: owing(inv)) { paying = inv }
-                }
-                QuickAction(title: "WhatsApp", symbol: "message.fill") { sending = inv }
-                QuickAction(title: "PDF", symbol: "printer.fill") {
+                if reachable { ContactActions(phone: phone) }
+                QuickAction(title: "PDF", symbol: "doc.richtext") {
                     pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer)
                 }
-                if let call {
-                    QuickAction(title: "Call", symbol: "phone.fill") { openURL(call) }
-                }
+                .frame(maxWidth: reachable ? 88 : 110)
+                if !reachable { Spacer(minLength: 0) }
             }
-            // Whoever opens it next sees the PDF went, so it is not sent twice.
-            if let sent = inv.sentOnWhatsApp {
-                Label("PDF sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))", systemImage: "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 4)
-            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
         }
     }
 
     // MARK: The pieces, as the bill reads them
 
-    private func piecesCard(_ inv: Invoice) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            LedgerHeading(title: inv.items.count == 1 ? "Piece" : "Pieces", count: inv.items.count > 1 ? inv.items.count : nil)
+    @ViewBuilder
+    private func piecesSection(_ inv: Invoice) -> some View {
+        let items = Array(inv.items.enumerated())
+        let shown = allPieces ? items : Array(items.prefix(firstPieces))
+        Section {
             if inv.items.isEmpty {
                 Text("No pieces on this invoice.").font(.subheadline).foregroundStyle(.secondary)
             }
-            ForEach(Array(inv.items.enumerated()), id: \.offset) { pair in
-                if pair.offset > 0 { Divider() }
-                InvoicePieceRow(item: pair.element)
+            ForEach(shown, id: \.offset) { pair in
+                InvoicePieceRow(item: pair.element, showBreakdown: session.isOwner)
             }
-            Divider()
-            InvoiceTotals(invoice: inv)
+            if !allPieces && items.count > firstPieces {
+                Button("Show \(items.count - firstPieces) more") {
+                    Motion.run(Motion.enter, reduce: reduceMotion) { allPieces = true }
+                }
+            }
+            totalRows(inv)
+        } header: {
+            LedgerHeading(title: "Pieces", count: inv.items.count)
         }
-        .ledgerCard()
     }
 
-    /// The rates the sale was priced at, as the printed bill says them, unless it leaves them off
-    /// (`hideRates`: the bill is priced at these rates and just does not say so).
+    /// Under the pieces, as the printed bill: the subtotal, the discount, each exchange row on its own line (what was
+    /// taken in, lib/exchange.ts), any adjustment, and the one Total; the rates it was priced at, unless it leaves
+    /// them off (`hideRates`: the bill is priced at these rates and just does not say so).
     @ViewBuilder
-    private func ratesCard(_ inv: Invoice) -> some View {
+    private func totalRows(_ inv: Invoice) -> some View {
+        let exchanges = invoiceExchanges(inv)
+        let adjustments = inv.adjustmentsAmount ?? 0
         let rates = appliedRates(inv)
-        if !inv.hideRates && !rates.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
-                InvoiceQuietHeading(title: "Rates applied", symbol: "chart.line.uptrend.xyaxis")
-                Text(rates.joined(separator: "  ·  "))
-                    .font(.subheadline)
-                    .monospacedDigit()
+        MoneyRow("Subtotal", inv.subtotal)
+        if inv.discountAmount > 0 {
+            MoneyRow("Discount", -inv.discountAmount, signed: true)
+        }
+        if exchangeTotal(exchanges) > 0 {
+            ForEach(Array(exchanges.enumerated()), id: \.offset) { pair in
+                exchangeRow(pair.element)
             }
-            .ledgerCard()
+        }
+        if adjustments != 0 {
+            MoneyRow("Adjustments", adjustments, signed: true)
+        }
+        MoneyRow("Total", inv.grandTotal, emphasis: true)
+        if !inv.hideRates && !rates.isEmpty {
+            Text("Rates applied · " + rates.joined(separator: "  ·  "))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+    }
+
+    private func exchangeRow(_ e: ExchangeEntry) -> some View {
+        let said = describeExchangeEntry(e)
+        return VStack(alignment: .leading, spacing: 2) {
+            if e.value > 0 {
+                MoneyRow("Exchange", -e.value, signed: true)
+            } else {
+                LabeledContent("Exchange", value: "—")
+            }
+            if !said.isEmpty {
+                Text(said).font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -291,58 +396,117 @@ struct InvoiceScreen: View {
 
     // MARK: Payments
 
+    /// Always there: what came in, or that nothing has. An owner swipes a payment to delete it (the delete code
+    /// is asked next, saying what the invoice will read after).
     @ViewBuilder
-    private func paymentsCard(_ inv: Invoice) -> some View {
-        if !inv.paymentHistory.isEmpty {
-            let line = balanceLine(inv.balanceDue)
-            VStack(alignment: .leading, spacing: 12) {
-                LedgerHeading(title: "Payments", count: inv.paymentHistory.count > 1 ? inv.paymentHistory.count : nil,
-                              trailing: Money.pkr(inv.amountPaid))
-                ForEach(Array(inv.paymentHistory.enumerated()), id: \.offset) { pair in
-                    if pair.offset > 0 { Divider() }
-                    InvoicePaymentRow(payment: pair.element)
-                }
-                // Paid past the total: the customer's credit, on their hisaab (decision "Invoice credit").
-                if line.state == .credit && inv.status != .refunded {
-                    Divider()
-                    Label("\(line.label) · \(Money.pkr(line.amount)), on \(InvoiceFacts.customerName(inv, walkIn: "the customer"))'s hisaab",
-                          systemImage: "arrow.uturn.left.circle.fill")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(Tone.credit.color)
+    private func paymentsSection(_ inv: Invoice) -> some View {
+        let line = balanceLine(inv.balanceDue)
+        Section {
+            if inv.paymentHistory.isEmpty {
+                Text("No payments yet").font(.subheadline).foregroundStyle(.secondary)
+            }
+            ForEach(Array(inv.paymentHistory.enumerated()), id: \.offset) { pair in
+                paymentRow(inv, index: pair.offset, payment: pair.element)
+            }
+            if mayTakePayment(inv) && (inv.paymentHistory.isEmpty || !owing(inv)) {
+                Button { paying = inv } label: {
+                    Label(owing(inv) ? "Take payment" : "Take payment as credit", systemImage: "banknote")
                 }
             }
-            .ledgerCard()
+            // Paid past the total: the customer's credit, on their hisaab (decision "Invoice credit").
+            if line.state == .credit && inv.status != .refunded && !inv.paymentHistory.isEmpty {
+                Label("\(line.label) · \(Money.pkr(line.amount)), on \(InvoiceFacts.customerName(inv, walkIn: "the customer"))'s hisaab",
+                      systemImage: "arrow.uturn.left.circle.fill")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(Tone.credit.color)
+            }
+        } header: {
+            LedgerHeading(title: "Payments", count: inv.paymentHistory.count > 1 ? inv.paymentHistory.count : nil,
+                          trailing: Money.pkr(inv.amountPaid))
         }
+    }
+
+    @ViewBuilder
+    private func paymentRow(_ inv: Invoice, index: Int, payment: Payment) -> some View {
+        if session.isOwner {
+            InvoicePaymentRow(payment: payment)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) { askDelete(inv, index: index, payment: payment) } label: {
+                        Label("Delete payment", systemImage: "trash")
+                    }
+                }
+                .contextMenu {
+                    Button(role: .destructive) { askDelete(inv, index: index, payment: payment) } label: {
+                        Label("Delete payment", systemImage: "trash")
+                    }
+                }
+        } else {
+            InvoicePaymentRow(payment: payment)
+        }
+    }
+
+    /// The existing delete-a-payment flow, started on this payment: the delete code says what the invoice reads after.
+    private func askDelete(_ inv: Invoice, index: Int, payment: Payment) {
+        guard let ask = InvoiceActionPaymentSheet.deleting(inv, index: index, payment: payment) else { return }
+        paymentOutcome = ask.outcome
+        paymentDeletion = ask.deletion
+    }
+
+    // MARK: Details
+
+    /// Where it came from, where it goes, who took it and how it reached us: the quiet facts.
+    @ViewBuilder
+    private func detailsSection(_ inv: Invoice) -> some View {
+        let order = inv.sourceOrderId ?? ""
+        let ship = describeDelivery(inv.delivery)
+        let by = inv.takenBy ?? ""
+        let source = sourceWords(inv)
+        if !order.isEmpty || !ship.isEmpty || !by.isEmpty || source != nil {
+            Section {
+                if !order.isEmpty {
+                    NavigationLink(value: Route(path: "/orders/" + InvoiceFacts.encode(order))) {
+                        LabeledContent("From order", value: order)
+                    }
+                }
+                if !ship.isEmpty {
+                    LabeledContent("Deliver to") {
+                        Text(ship.joined(separator: "\n")).multilineTextAlignment(.trailing)
+                    }
+                }
+                if !by.isEmpty {
+                    LabeledContent("Taken by", value: by)
+                }
+                if let source {
+                    LabeledContent("Source", value: source)
+                }
+            } header: {
+                LedgerHeading(title: "Details")
+            }
+        }
+    }
+
+    /// Shopify's import, else the channel the customer came by.
+    private func sourceWords(_ inv: Invoice) -> String? {
+        if isShopify(inv) { return "Shopify" }
+        return inv.acquisitionSource.map { OrdersLogic.sourceLabel($0) }
     }
 
     // MARK: For the shop
 
     /// The shop's margin (owners and staff; blurred until tapped) and the note nobody but the shop reads.
     @ViewBuilder
-    private func shopCard(_ inv: Invoice) -> some View {
-        let note = (inv.internalNote ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        if !note.isEmpty || showsMargin {
-            VStack(alignment: .leading, spacing: 12) {
-                InvoiceQuietHeading(title: "For the shop (never printed)", symbol: "lock.fill")
+    private func shopSection(_ inv: Invoice) -> some View {
+        let shopNote = (inv.internalNote ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !shopNote.isEmpty || showsMargin {
+            Section {
                 if showsMargin { InvoiceMarginRow(invoice: inv) }
-                if showsMargin && !note.isEmpty { Divider() }
-                if !note.isEmpty {
-                    Text(note).font(.subheadline)
+                if !shopNote.isEmpty {
+                    Text(shopNote).font(.subheadline)
                 }
+            } header: {
+                InvoiceQuietHeading(title: "For the shop (never printed)", symbol: "lock.fill")
+                    .textCase(nil)
             }
-            .ledgerCard()
-        }
-    }
-
-    @ViewBuilder
-    private func deliveryCard(_ inv: Invoice) -> some View {
-        let lines = describeDelivery(inv.delivery)
-        if !lines.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
-                InvoiceQuietHeading(title: "Deliver to", symbol: "shippingbox")
-                Text(lines.joined(separator: "\n")).font(.subheadline)
-            }
-            .ledgerCard()
         }
     }
 
@@ -355,40 +519,39 @@ struct InvoiceScreen: View {
         canPay && (owing(inv) || canHoldCredit(inv.customerId))
     }
 
-    /// Taking a payment is THE action of an invoice that is owed.
+    /// Taking a payment is THE action of an invoice that is owed. At accessibility sizes the sum goes under the words.
     @ViewBuilder
     private func paymentBar(_ inv: Invoice) -> some View {
         if canPay && owing(inv) {
-            Button { paying = inv } label: {
-                Label("Take payment · \(Money.pkr(inv.balanceDue))", systemImage: "banknote")
-                    .frame(maxWidth: .infinity)
+            ViewThatFits(in: .horizontal) {
+                payButton(inv, stacked: false)
+                payButton(inv, stacked: true)
             }
-            .buttonStyle(.houseProminent)
-            .controlSize(.large)
             .padding(.horizontal)
             .padding(.bottom, 8)
         }
     }
 
-    // MARK: The bar
-
-    /// The customer's page to share, and the menu of what the ERP's own page does.
-    @ViewBuilder
-    private func toolbarButtons(_ inv: Invoice) -> some View {
-        if let url = InvoiceFacts.shareURL(inv) {
-            ShareLink(item: url,
-                      subject: Text(InvoiceFacts.shareTitle(inv, byCustomer: session.shop.invoiceByCustomer)),
-                      message: Text(InvoiceFacts.shareMessage(inv, shopName: session.shop.name,
-                                                              byCustomer: session.shop.invoiceByCustomer))) {
-                Label("Share the customer's page", systemImage: "square.and.arrow.up")
+    private func payButton(_ inv: Invoice, stacked: Bool) -> some View {
+        Button { paying = inv } label: {
+            Group {
+                if stacked {
+                    VStack(spacing: 2) {
+                        Label("Take payment", systemImage: "banknote")
+                        Text(Money.pkr(inv.balanceDue)).monospacedDigit()
+                    }
+                } else {
+                    Label("Take payment · \(Money.pkr(inv.balanceDue))", systemImage: "banknote")
+                        .lineLimit(1)
+                }
             }
+            .frame(maxWidth: .infinity)
         }
-        Menu {
-            menuItems(inv)
-        } label: {
-            Label("More", systemImage: "ellipsis.circle")
-        }
+        .buttonStyle(.houseProminent)
+        .controlSize(.large)
     }
+
+    // MARK: The menu
 
     /// A sale to nobody in particular: the ERP page offers "Name them" (decisions: Name a sale).
     private func unnamed(_ inv: Invoice) -> Bool {
@@ -406,45 +569,54 @@ struct InvoiceScreen: View {
         InvoiceFacts.whatsAppPhone(inv, customer: inv.customerId.flatMap { book.customers.item($0) })
     }
 
+    /// Share, Change, More, then the two that cannot be taken back. Taking a payment is the bar (and, for a paid
+    /// invoice, the Payments section); deleting a payment is a swipe on its row.
     @ViewBuilder
     private func menuItems(_ inv: Invoice) -> some View {
-        if mayTakePayment(inv) {
-            Button { paying = inv } label: {
-                Label(owing(inv) ? "Take payment" : "Take payment as credit", systemImage: "banknote")
+        Section("Share") {
+            // The PDF Print saves, drawn on the ERP's server and shown here: Print, Files, AirDrop from its share sheet.
+            Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer) } label: {
+                Label("PDF", systemImage: "doc.richtext")
             }
-            Divider()
-        }
-        // The PDF Print saves, drawn on the ERP's server and shown here: Print, Files, AirDrop from its share sheet.
-        Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer) } label: {
-            Label("Print / PDF", systemImage: "printer")
-        }
-        // The split button's other half (print-button.tsx): one invoice per piece, for pieces bought for several people.
-        if inv.items.count > 1 {
-            Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer, perPiece: true) } label: {
-                Label("Print per piece", systemImage: "doc.on.doc")
-            }
-        }
-        Button { sending = inv } label: {
-            Label(inv.sentOnWhatsApp == nil ? "Send on WhatsApp" : "Send again on WhatsApp", systemImage: "message")
-        }
-        Button { web = Route(path: InvoiceFacts.editPath(inv.id)) } label: { Label("Edit", systemImage: "pencil") }
-        if inv.status != .refunded {
-            // The store's own Firestore write on the web, which the shop floor cannot make: an owner's.
-            if session.isOwner {
-                Button { settingCustomer = true } label: {
-                    Label(unnamed(inv) ? "Name the customer" : "Change the customer", systemImage: "person.crop.circle")
+            // The split button's other half (print-button.tsx): one invoice per piece, for pieces bought for several people.
+            if inv.items.count > 1 {
+                Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer, perPiece: true) } label: {
+                    Label("PDF per piece", systemImage: "doc.on.doc")
                 }
             }
-            Button { act(.discount, inv) } label: { Label("Change the discount", systemImage: "percent") }
+            Button { sending = inv } label: {
+                Label(inv.sentOnWhatsApp == nil ? "WhatsApp" : "WhatsApp again", systemImage: "message")
+            }
+            if let url = InvoiceFacts.shareURL(inv) {
+                ShareLink(item: url,
+                          subject: Text(InvoiceFacts.shareTitle(inv, byCustomer: session.shop.invoiceByCustomer)),
+                          message: Text(InvoiceFacts.shareMessage(inv, shopName: session.shop.name,
+                                                                  byCustomer: session.shop.invoiceByCustomer))) {
+                    Label("Customer link", systemImage: "link")
+                }
+            }
         }
-        if !inv.paymentHistory.isEmpty {
-            Button(role: .destructive) { act(.payment, inv) } label: { Label("Delete a payment", systemImage: "banknote") }
+        Section("Change") {
+            Button { web = Route(path: InvoiceFacts.editPath(inv.id)) } label: { Label("Edit", systemImage: "pencil") }
+            if inv.status != .refunded {
+                // The store's own Firestore write on the web, which the shop floor cannot make: an owner's.
+                if session.isOwner {
+                    Button { settingCustomer = true } label: {
+                        Label(unnamed(inv) ? "Name the customer" : "Change customer", systemImage: "person.crop.circle")
+                    }
+                }
+                Button { act(.discount, inv) } label: { Label("Change discount", systemImage: "percent") }
+            }
         }
-        Divider()
-        if inv.status != .refunded {
-            Button(role: .destructive) { act(.refund, inv) } label: { Label("Refund", systemImage: "arrow.uturn.backward") }
+        Section("More") {
+            Button { openWeb(inv) } label: { Label("Open in the ERP", systemImage: "globe") }
         }
-        Button(role: .destructive) { act(.delete, inv) } label: { Label("Delete", systemImage: "trash") }
+        Section {
+            if inv.status != .refunded {
+                Button(role: .destructive) { act(.refund, inv) } label: { Label("Refund…", systemImage: "arrow.uturn.backward") }
+            }
+            Button(role: .destructive) { act(.delete, inv) } label: { Label("Delete invoice…", systemImage: "trash") }
+        }
     }
 
     /// An owner's sheet; the shop floor keeps the ERP's page, which says it is an owner's (the server refuses
@@ -455,7 +627,7 @@ struct InvoiceScreen: View {
 
     /// After a sheet: its note on the page, or back to the list when the invoice is gone.
     private func acted(_ o: InvoiceActionOutcome) {
-        if o.removed { dismiss() } else { withAnimation { note = o.note } }
+        if o.removed { dismiss() } else { say(o.note) }
     }
 }
 
@@ -471,31 +643,6 @@ private struct InvoiceQuietHeading: View {
             .font(.footnote.weight(.semibold))
             .foregroundStyle(.secondary)
             .accessibilityAddTraits(.isHeader)
-    }
-}
-
-/// A line that opens something: its word, the value, a chevron.
-private struct InvoiceLinkLine: View {
-    let title: String
-    let value: String
-    let symbol: String
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Label(title, systemImage: symbol)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 8)
-            Text(value)
-                .font(.subheadline.weight(.medium))
-                .monospacedDigit()
-                .lineLimit(1)
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
-        }
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -519,12 +666,21 @@ private struct InvoicePieceRow: View {
         grams.string(from: NSNumber(value: v)) ?? String(v)
     }
 
+    /// Owners see the price broken into metal, wastage, making and stones, as the order's pieces do.
+    var showBreakdown = false
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+            // The name leading and the price trailing; at accessibility sizes the price goes under the name.
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 12))
+            layout {
                 Text(title)
                     .font(.headline)
-                Spacer(minLength: 8)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 RowAmount(amount: item.itemTotal)
             }
             if !facts.isEmpty {
@@ -535,13 +691,14 @@ private struct InvoicePieceRow: View {
             ForEach(settings, id: \.self) { line in
                 Text(line).font(.caption).foregroundStyle(.secondary)
             }
-            if !costs.isEmpty {
+            if showBreakdown && !costs.isEmpty {
                 Text(costs.joined(separator: " · "))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
         }
+        .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
     }
 
@@ -600,61 +757,6 @@ private struct InvoicePieceRow: View {
     }
 }
 
-/// Under the pieces, as the printed bill: the subtotal, the discount, each exchange row on its own line (what was
-/// taken in, lib/exchange.ts), any adjustment, and the total. Figures to the right, quiet but for the total.
-private struct InvoiceTotals: View {
-    let invoice: Invoice
-
-    var body: some View {
-        let exchanges = invoiceExchanges(invoice)
-        let exchanged = exchangeTotal(exchanges)
-        let adjustments = invoice.adjustmentsAmount ?? 0
-        VStack(alignment: .trailing, spacing: 7) {
-            line("Subtotal", Money.pkr(invoice.subtotal))
-            if invoice.discountAmount > 0 {
-                line("Discount", "− " + Money.pkr(invoice.discountAmount))
-            }
-            if exchanged > 0 {
-                ForEach(Array(exchanges.enumerated()), id: \.offset) { pair in
-                    line("Exchange", pair.element.value > 0 ? "− " + Money.pkr(pair.element.value) : "—",
-                         detail: describeExchangeEntry(pair.element))
-                }
-            }
-            if adjustments != 0 {
-                line("Adjustments", Money.pkr(adjustments))
-            }
-            line("Total", Money.pkr(invoice.grandTotal), strong: true)
-                .padding(.top, 2)
-        }
-        .frame(maxWidth: .infinity, alignment: .trailing)
-    }
-
-    private func line(_ label: String, _ value: String, detail: String? = nil, strong: Bool = false) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Spacer(minLength: 0)
-            VStack(alignment: .trailing, spacing: 1) {
-                Text(label)
-                    .font(strong ? Font.subheadline.weight(.semibold) : Font.subheadline)
-                    .foregroundStyle(strong ? Color.primary : Color.secondary)
-                if let detail, !detail.isEmpty {
-                    Text(detail)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .multilineTextAlignment(.trailing)
-                }
-            }
-            Text(value)
-                .font(strong ? Font.headline : Font.subheadline)
-                .monospacedDigit()
-                .foregroundStyle(strong ? Color.primary : Color.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .frame(minWidth: 110, alignment: .trailing)
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
-
 /// One payment: how it came (its symbol), when, any reference or note, and the amount. A refund (a row below
 /// zero, lib/writes/invoice-refund.ts) reads as one, quietly.
 private struct InvoicePaymentRow: View {
@@ -678,11 +780,15 @@ private struct InvoicePaymentRow: View {
                     .lineLimit(2)
             }
             Spacer(minLength: 8)
-            Text(refund ? "− " + Money.pkr(-payment.amount) : Money.pkr(payment.amount))
-                .font(.subheadline.weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(refund ? Color.secondary : Color.primary)
-                .lineLimit(1)
+            if refund {
+                Text(Money.minus(payment.amount))
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            } else {
+                RowAmount(amount: payment.amount)
+            }
         }
         .accessibilityElement(children: .combine)
     }
