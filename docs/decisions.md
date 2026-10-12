@@ -610,3 +610,18 @@ A fourth role beside owner, staff and karigar (`lib/roles.ts`), named by `NEXT_P
 - **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).
   The POS stayed usable at **https://studio--gemstrack-pos.us-central1.hosted.app** (App Hosting's own address; open access,
   data loads). Instagram fetches story images from `SOCIAL_MEDIA_ORIGIN` (that address) so posting never depends on .shop.
+
+### Community twin
+
+2026-10-12. "Taheri Collections" hit WhatsApp's member cap, so the owner opened "Taheri Collections - II"
+to carry the same groups. Every send to a group of the first community also goes to the group of the
+same name in the second (`src/lib/whatsapp-twins.ts`, inside `sendWhatsAppFileToGroup` /
+`sendWhatsAppTextToGroup`, so Posts, the queue, Investments and every other group send are covered).
+The announcements map to the announcements. Pairs are found by name from WAHA's group list (kept ten
+minutes), so a group added to the new community is reached from the next send with nothing to set.
+A failure of the twin's send is logged, not thrown, because the first post has already gone.
+`WHATSAPP_COMMUNITY_TWINS` (`apphosting.taheri.yaml`) names the pair of communities by parent id.
+Opening Posts copies each group's description and icon to a twin that lacks them. WAHA can't create a
+community's groups or link them; the owner adds them in WhatsApp, as admin of the second community.
+`/links` shows the community (now the second one's invite) instead of the channel, and so does
+taheri.shop's footer. Posts still go to the channel.

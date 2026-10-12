@@ -22,6 +22,8 @@
  *   GREENAPI_ID_INSTANCE, GREENAPI_API_TOKEN, GREENAPI_BASE_URL (optional)
  */
 
+import { communityTwins, twinOf, type WaGroup } from '@/lib/whatsapp-twins';
+
 const DEFAULT_BASE = 'https://api.green-api.com';
 
 /** Strip everything but digits so "+92 300…" and "92300…" are one number. */
@@ -172,7 +174,8 @@ const DEFAULT_MEDIA = 'https://media.green-api.com';
 /** One file, with the caption under it, to a group or channel. Resolves to the gateway's message id. */
 export async function sendWhatsAppFileToGroup(chatId: string, file: Blob, fileName: string, caption = ''): Promise<string> {
   if (!isGroupOrChannel(chatId)) throw new Error(`Not a group or channel chat id: ${chatId}`);
-  return sendFileToChat(chatId, file, fileName, caption);
+  const [id] = await Promise.all([sendFileToChat(chatId, file, fileName, caption), mirror(chatId, t => sendFileToChat(t, file, fileName, caption))]);
+  return id;
 }
 
 /**
@@ -240,7 +243,11 @@ async function sendFileToChat(chatId: string, file: Blob, fileName: string, capt
 export async function sendWhatsAppTextToGroup(chatId: string, text: string): Promise<string> {
   if (!isGroupOrChannel(chatId)) throw new Error(`Not a group or channel chat id: ${chatId}`);
   const w = waha();
-  if (w) return wahaMessageId(await wahaCall('/api/sendText', { body: { session: w.session, chatId, text } }));
+  if (w) {
+    const send = async (to: string) => wahaMessageId(await wahaCall('/api/sendText', { body: { session: w.session, chatId: to, text } }));
+    const [id] = await Promise.all([send(chatId), mirror(chatId, send)]);
+    return id;
+  }
   const creds = credentials();
   if (!creds) throw new WhatsAppNotConfiguredError();
   if (!/@g\.us$/.test(chatId)) throw new Error('Green API cannot post to a WhatsApp channel — that needs WAHA.');
@@ -255,6 +262,95 @@ export async function sendWhatsAppTextToGroup(chatId: string, text: string): Pro
   try { data = JSON.parse(body); } catch { /* reported below */ }
   if (!data.idMessage) throw new Error(`Green API did not accept the message: ${body.slice(0, 200)}`);
   return data.idMessage;
+}
+
+// ── The full community's twin (whatsapp-twins.ts) ──────────────────────────
+
+let groupsCache: { at: number; groups: WaGroup[] } | null = null;
+
+/** Every group the line is in, with its community: one WAHA call, kept ten minutes. */
+async function wahaGroups(): Promise<WaGroup[]> {
+  const w = waha();
+  if (!w) return [];
+  if (groupsCache && Date.now() - groupsCache.at < 10 * 60_000) return groupsCache.groups;
+  const raw = await wahaCall<unknown>(`/api/${encodeURIComponent(w.session)}/groups?limit=1000`, { timeoutMs: 20000 });
+  const list = (Array.isArray(raw) ? raw : Object.values((raw || {}) as Record<string, unknown>)) as Record<string, unknown>[];
+  const groups = list.map(g => {
+    const id = g.JID ?? g.id;
+    return {
+      id: String(typeof id === 'object' && id ? (id as { _serialized?: string })._serialized : id || ''),
+      name: String(g.Name ?? g.subject ?? g.name ?? ''),
+      parent: String(g.LinkedParentJID ?? ''),
+      announce: Boolean(g.IsAnnounce ?? g.announce),
+    };
+  }).filter(g => g.id);
+  groupsCache = { at: Date.now(), groups };
+  return groups;
+}
+
+/** The chat's twin in the newer community, or null. Never throws: a lookup failure must not stop the send. */
+export async function whatsAppTwin(chatId: string): Promise<WaGroup | null> {
+  const twins = communityTwins();
+  if (!twins.size || !waha() || !/@g\.us$/.test(chatId)) return null;
+  try { return twinOf(chatId, await wahaGroups(), twins); } catch { return null; }
+}
+
+/**
+ * The same send to the twin, alongside the first. Its failure is logged, not thrown: the first
+ * community's post has gone, and a retry would post it there twice.
+ */
+async function mirror(chatId: string, send: (to: string) => Promise<unknown>): Promise<void> {
+  const twin = await whatsAppTwin(chatId);
+  if (!twin) return;
+  try { await send(twin.id); } catch (e) { console.error(`[whatsapp] twin ${twin.id} of ${chatId}:`, e); }
+  syncTwin(chatId, twin.id).catch(() => {});
+}
+
+const synced = new Set<string>();
+
+/** A twin with no description or icon takes the first group's. Once per twin per server. */
+async function syncTwin(fromId: string, toId: string): Promise<string[]> {
+  const w = waha();
+  if (!w || synced.has(toId)) return [];
+  const s = encodeURIComponent(w.session), g = (id: string) => `/api/${s}/groups/${encodeURIComponent(id)}`;
+  const [from, to, fromPic, toPic] = await Promise.all([
+    wahaCall<Record<string, unknown>>(g(fromId), { timeoutMs: 10000 }),
+    wahaCall<Record<string, unknown>>(g(toId), { timeoutMs: 10000 }),
+    wahaCall<{ url?: string | null }>(`${g(fromId)}/picture`, { timeoutMs: 10000 }).catch(() => ({ url: null })),
+    wahaCall<{ url?: string | null }>(`${g(toId)}/picture`, { timeoutMs: 10000 }).catch(() => ({ url: null })),
+  ]);
+  const done: string[] = [];
+  const desc = String(from.Topic ?? from.description ?? '').trim();
+  if (desc && !String(to.Topic ?? to.description ?? '').trim()) {
+    await wahaCall(`${g(toId)}/description`, { method: 'PUT', body: { description: desc }, timeoutMs: 15000 });
+    done.push('description');
+  }
+  if (fromPic.url && !toPic.url) {
+    await wahaCall(`${g(toId)}/picture`, { method: 'PUT', body: { file: { url: fromPic.url, mimetype: 'image/jpeg', filename: 'icon.jpg' } }, timeoutMs: 30000 });
+    done.push('icon');
+  }
+  synced.add(toId);
+  return done;
+}
+
+/**
+ * Every first-community group with a twin: copies the description and icon where the twin has none.
+ * Run by Posts (GET /api/website/post), so a group the owner adds to the new community is dressed
+ * within minutes of the next visit. Returns what changed, by group name.
+ */
+export async function syncWhatsAppTwins(): Promise<{ name: string; twin: string; changed: string[] }[]> {
+  const twins = communityTwins();
+  if (!twins.size || !waha()) return [];
+  const groups = await wahaGroups();
+  const out: { name: string; twin: string; changed: string[] }[] = [];
+  for (const g of groups) {
+    if (!twins.has(g.id) && !twins.has(g.parent)) continue;
+    const twin = twinOf(g.id, groups, twins);
+    if (!twin || synced.has(twin.id)) continue;
+    const changed = await syncTwin(g.id, twin.id).catch(e => [`failed: ${e instanceof Error ? e.message : e}`]);
+    out.push({ name: g.name, twin: twin.name, changed });
+  }
+  return out;
 }
 
 /** A member. `id` is often a LID (…@lid, WhatsApp's private id) in communities; `pn` is the phone (…@c.us). */

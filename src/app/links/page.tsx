@@ -90,11 +90,13 @@ export default async function LinksPage() {
     { href: reviews?.writeUrl ? '' : STORE_LINKS.googleReview, label: 'Leave a review', sub: 'Tell Karachi what you thought', icon: 'star' },
   ] as Utility[]).filter((e) => Boolean(e.href));
 
-  // The channel (follow, nothing to join, lands in Updates), or a house's community.
-  const top = STORE_LINKS.waChannel
-    ? { href: STORE_LINKS.waChannel, kind: 'channel', action: 'Follow' }
-    : STORE_LINKS.waCommunity
-      ? { href: STORE_LINKS.waCommunity, kind: 'community', action: 'Join' }
+  // The house's community, else its channel. Taheri's channel row gave way to the community on
+  // 2026-10-12 ("remove the channel link from taheri links"), the invite now the second community's,
+  // the first being full.
+  const top = STORE_LINKS.waCommunity
+    ? { href: STORE_LINKS.waCommunity, kind: 'community', action: 'Join' }
+    : STORE_LINKS.waChannel
+      ? { href: STORE_LINKS.waChannel, kind: 'channel', action: 'Follow' }
       : null;
   const { lead, tail, line } = STORE_LINKS_PAGE.feature;
 
@@ -119,7 +121,7 @@ export default async function LinksPage() {
         {top && (
           <a
             href={top.href} target="_blank" rel="noopener noreferrer"
-            // The channel's real name, as WhatsApp shows it on arrival: the split below is typesetting.
+            // The community's (or channel's) real name, as WhatsApp shows it on arrival: the split below is typesetting.
             aria-label={`${lead} ${tail} — WhatsApp ${top.kind}. ${line}`}
             className="lk-feat lk-rise" style={delay(90)}
           >

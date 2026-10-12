@@ -103,7 +103,7 @@ export const STORE_LINKS = {
   whatsapp:   process.env.NEXT_PUBLIC_STORE_WHATSAPP_URL    ?? '',
   /** The WhatsApp *community* invite, which is not the same as a wa.me chat link. */
   waCommunity: process.env.NEXT_PUBLIC_STORE_WA_COMMUNITY_URL ?? '',
-  /** The shop's WhatsApp channel (whatsapp.com/channel/…): the link page's first row; Post a Piece links to it for sharing by hand. */
+  /** The shop's WhatsApp channel (whatsapp.com/channel/…): the link page's first row when there is no community; Post a Piece links to it for sharing by hand. */
   waChannel:  process.env.NEXT_PUBLIC_STORE_WA_CHANNEL_URL  ?? '',
   instagram:  process.env.NEXT_PUBLIC_STORE_INSTAGRAM_URL   ?? '',
   tiktok:     process.env.NEXT_PUBLIC_STORE_TIKTOK_URL      ?? '',
@@ -115,15 +115,15 @@ export const STORE_LINKS = {
 
 /**
  * The link page's words, per house. The defaults are Taheri's; House of Mina's file
- * states its own. `feature` is the top row — the WhatsApp channel, or the community
- * when a house has no channel — written "lead|tail|line": the lead set large in the
+ * states its own. `feature` is the top row — the WhatsApp community, or the channel
+ * when a house has no community — written "lead|tail|line": the lead set large in the
  * house's serif, the tail whispered beside it, the line beneath. `visit` is the
  * footer, one line per row ("\n" between them). An empty value means the default
  * (`||`, not `??`): the local env generator writes another house's variables empty.
  */
 const nl = (v: string | undefined) => v?.replace(/\\n/g, '\n').trim();
 const [featureLead = '', featureTail = '', featureLine = ''] =
-  (process.env.NEXT_PUBLIC_STORE_LINKS_FEATURE || 'Collections|by Taheri|Every new piece, in your Updates — no group to join')
+  (process.env.NEXT_PUBLIC_STORE_LINKS_FEATURE || 'Collections|by Taheri|Every new piece, the moment it’s made')
     .split('|').map((s) => s.trim());
 export const STORE_LINKS_PAGE = {
   tagline: process.env.NEXT_PUBLIC_STORE_LINKS_TAGLINE || 'Gold born from dust.',

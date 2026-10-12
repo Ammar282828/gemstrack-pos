@@ -162,6 +162,18 @@ env:
   - variable: WHATSAPP_CHANNEL_ID
     value: "120363426877255473@newsletter"
     availability: [RUNTIME]
+  # The community a customer joins from /links (its top row, in place of the channel since
+  # 2026-10-12). "Taheri Collections - II": the first community is full.
+  - variable: NEXT_PUBLIC_STORE_WA_COMMUNITY_URL
+    value: "https://chat.whatsapp.com/LWwR0H8Icmq8n6skcRAZEF"
+    availability:
+      - BUILD
+      - RUNTIME
+  # Every send to a group of "Taheri Collections" also goes to its namesake in "Taheri Collections - II"
+  # (src/lib/whatsapp-twins.ts): old community id = new community id.
+  - variable: WHATSAPP_COMMUNITY_TWINS
+    value: "120363359155352891@g.us=120363430846550697@g.us"
+    availability: [RUNTIME]
   # The channel's public link, for the page's "Open the WhatsApp channel".
   - variable: NEXT_PUBLIC_STORE_WA_CHANNEL_URL
     value: "https://whatsapp.com/channel/0029VbDHt507tkj3qtiehX0S"

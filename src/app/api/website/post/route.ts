@@ -28,7 +28,7 @@ import { STORE_POST_PIECE, STORE_SITE_POSTS } from '@/lib/store-config';
 import { notInThisShop } from '@/lib/social/gate';
 import { roleForEmail } from '@/lib/roles';
 import { adminDb } from '@/lib/firebase-admin';
-import { sendWhatsAppFileToGroup, whatsAppChannelInfo, whatsAppGroupInfo, whatsAppProvider, WhatsAppNotConfiguredError } from '@/lib/whatsapp';
+import { sendWhatsAppFileToGroup, syncWhatsAppTwins, whatsAppChannelInfo, whatsAppGroupInfo, whatsAppProvider, WhatsAppNotConfiguredError } from '@/lib/whatsapp';
 import { recordError } from '@/lib/social/errors';
 import { communityId, logName, postChannel, postGroups, type Destination } from '@/lib/social/destinations';
 
@@ -63,6 +63,9 @@ export async function GET(req: NextRequest) {
     whatsAppGroupInfo(id),
     ch ? whatsAppChannelInfo(ch) : Promise.resolve(null),
     Promise.all(groups.map(g => (g.chatId === id ? Promise.resolve(null) : whatsAppGroupInfo(g.chatId).catch(() => null)))),
+    // The full community's twin takes each group's description and icon it lacks (whatsapp-twins.ts);
+    // the page waits for it four seconds at most, the rest finishes on a later visit.
+    Promise.race([syncWhatsAppTwins().catch(() => []), new Promise(r => setTimeout(r, 4000))]),
   ]);
   return NextResponse.json({
     community: { name: info?.name || 'WhatsApp community', size: info?.size ?? null, reachable: !!info },
