@@ -8,6 +8,28 @@ one brain, lenient models, no real data, comments say why.
 
 Run: `./gradlew :core:test` from `apps/android`.
 
+## New order / New sale, and the contract
+
+`erp.core.entry` is the iPhone's `App/Screens/NewOrder` and `Sale` pure logic (the thirteen files `Packages/Contract`
+compiles), line for line, same names: `NewOrderMath`, `NewOrderDraft`, `NewOrderEdit`, `NewOrderSizes`, `NewOrderSlip`,
+`PaperNames`, `SaleDraft`, `SaleLine`, `SaleFigures`, `SaleEdit`, `SaleBill`, the `webValues` of both drafts.
+Only the views, `@Observable` state and `UserDefaults` stay out: a draft is kept by the app as the text
+`NewOrderDraftStore` / `SaleDraftStore` encode (blank is not kept; photos drop out over 3 MB), and `SaleScanHeld.hold`
+takes and gives the stored map. The house is `EntryHouse.id` ("taheri" by default; the app sets it once), where the
+iPhone reads `House`. Payloads (`send`, `webValues`) are `Map<String, Any?>` trees: Swift's `NSNull` is a key that
+holds `null`, an absent key is absent (`containsKey`). `ERPCore`'s `Categories.swift` and `Units.swift`, which the first
+port left out, are `logic/Categories.kt` and `logic/Units.kt`.
+
+`erp.core.contract` (test source set) is `Packages/Contract` (`main.swift`, `OrderCases`, `SaleCases`): the same cases
+over the same made-up data. `./gradlew :core:contractCases` writes `apps/android/contract/cases.json`, and
+`ContractTests` fails unless it is what the generator writes today and the generated cases equal
+`apps/iphone/contract/cases.json` value for value (numbers as doubles, exactly). Today the two files are byte for byte
+the same. `src/app/api/app/write/contract.test.ts` runs the ERP's own money over both.
+
+Where the port is exact on purpose, beyond the list below: `SaleNumber.text` (ICU's ten places, half to even, over the
+double's shortest digits), `NewOrderFormat.trimmed` (`Money.fixed`), Swift's `min`/`max` (`smin`/`smax`: `max(0, -0.0)`
+is `-0.0`), `String.count` as grapheme clusters (`graphemeCount`).
+
 ## Where things went
 
 | Swift (`ERPCore/Sources/ERPCore`) | Kotlin (`erp.core…`) |
@@ -79,6 +101,14 @@ a bare `yyyy-MM-dd` (its UTC midnight, as `new Date("yyyy-mm-dd")`). Karachi is 
   is 64-bit; they saturate. No money is held in one.
 
 ## Places the Swift is hard to reproduce exactly
+
+- `NewOrderSizes.swift:184`, `normal`: `Character.isNumber` is any Unicode number; here the same three general
+  categories (Nd, Nl, No), and `Double(head)` then refuses what is not ASCII digits, as Swift's does.
+- `NewOrderScanSlip.swift:187-197`, `pkNumber`: `NumberFormatter` (en_US, half up, three places) is BigDecimal over the
+  double's shortest digits, grouped by hand.
+- `NewOrderScanNames.swift`: the browser-regex and ICU rules are `java.util.regex` and `java.text.Normalizer` (NFD);
+  names in other scripts go through the same code-point table.
+- `NewOrderFormat.swift:49`, `NewOrderDay`: `DateFormatter` is a strict `yyyy-MM-dd` check and a Karachi midnight.
 
 - `Support/ERPDate.swift:8-27`: Foundation's `ISO8601DateFormatter` strictness is the OS's; `ERPDate.parse` is a
   hand-written reader of the shapes the ERP writes.
