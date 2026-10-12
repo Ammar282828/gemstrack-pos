@@ -68,6 +68,13 @@ extension View {
     func houseRows() -> some View { modifier(HouseRows()) }
 }
 
+extension View {
+    /// A sheet's Form on the house's ground, as the sale and order workspaces have it: `Form { … }.houseForm()`.
+    func houseForm() -> some View {
+        self.scrollContentBackground(.hidden).background(Theme.ground)
+    }
+}
+
 /// A screen on the house's ground: the list's own background hidden so the ground shows behind its cards.
 struct HouseGround: ViewModifier {
     func body(content: Content) -> some View {

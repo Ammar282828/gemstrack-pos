@@ -131,70 +131,7 @@ struct OwnerDeleteCodeSheet: View {
     }
 }
 
-/// What was said after a save, for a few seconds (the web's toast).
-struct OwnerNote: Equatable {
-    let title: String
-    var detail = ""
-    /// Something that did not happen: an amber warning and a warning tap, never the green tick.
-    var failed = false
-}
-
-struct OwnerNoteBanner: View {
-    let note: OwnerNote
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: note.failed ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                .foregroundStyle(note.failed ? Tone.owed.color : Tone.settled.color)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(note.title).font(.subheadline.weight(.semibold))
-                if !note.detail.isEmpty {
-                    Text(note.detail).font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .glassEffect(.regular, in: .rect(cornerRadius: 20))
-    }
-}
-
-extension View {
-    /// The note floating over the bottom of the screen, gone after four seconds.
-    func ownerNote(_ note: Binding<OwnerNote?>) -> some View {
-        modifier(OwnerNotePresenter(note: note))
-    }
-}
-
-/// The note rises in on the enter curve with a success tick (felt as well as seen), and leaves on the exit
-/// curve; under Reduce Motion it only fades.
-private struct OwnerNotePresenter: ViewModifier {
-    @Binding var note: OwnerNote?
-    @Environment(\.accessibilityReduceMotion) private var reduce
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(alignment: .bottom) {
-                if let shown = note {
-                    OwnerNoteBanner(note: shown)
-                        .frame(maxWidth: 560)
-                        .padding(.horizontal)
-                        .padding(.bottom, 8)
-                        .transition(reduce ? .opacity : .move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-            .sensoryFeedback(trigger: note) { _, now in
-                guard let now else { return nil }
-                return now.failed ? .warning : .success
-            }
-            .task(id: note) {
-                guard note != nil else { return }
-                try? await Task.sleep(for: .seconds(4))
-                if !Task.isCancelled { Motion.run(Motion.exit, reduce: reduce) { note = nil } }
-            }
-    }
-}
+// The note toast (OwnerNote, ownerNote) moved to App/UI/Note.swift as `Note`; the old names still work.
 
 enum OwnerText {
     /// The pages' money: whole rupees, grouped in threes (`PKR ${Math.round(n).toLocaleString()}`).

@@ -107,6 +107,8 @@ struct RootView: View {
                                                       open: { creating = Route(path: $0) }, talk: { voice = true }))
                             .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                     }
+                    // Outside the stack, so its pages see the same namespace as the rows they zoom from.
+                    .zoomScope()
                 }
                 .badge(badge(for: e))
             }
@@ -120,6 +122,7 @@ struct RootView: View {
                                                   open: { creating = Route(path: $0) }, talk: { voice = true }))
                         .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                 }
+                .zoomScope()
             }
         }
         .tabViewStyle(.sidebarAdaptable)
@@ -145,6 +148,7 @@ struct RootView: View {
                         }
                     }
             }
+            .zoomScope()
             .presentationSizing(.page)
         }
         // The one poll of the online-orders count (the dashboard and the Orders badge both read it).
@@ -259,6 +263,7 @@ struct PlaceStack: View {
             PlaceScreen(path: root, isRoot: true)
                 .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
         }
+        .zoomScope()
     }
 }
 

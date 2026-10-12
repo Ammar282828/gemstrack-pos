@@ -284,28 +284,20 @@ struct StatusBadge: View {
         self.color = color
     }
 
+    /// A badge in a tone: the same as `Pill`, which new code uses directly.
+    init(_ text: String, tone: Tone) {
+        self.init(text, color: tone.color)
+    }
+
     init(order status: OrderStatus) {
-        self.init(status.rawValue.isEmpty ? "No status" : status.rawValue, color: Self.color(for: status))
+        self.init(status.rawValue.isEmpty ? "No status" : status.rawValue, tone: Tone(status: status))
     }
 
-    static func color(for s: OrderStatus) -> Color {
-        switch s {
-        case .pending: return .orange
-        case .inProgress: return .blue
-        case .completed: return .green
-        case .cancelled, .refunded: return .secondary
-        case .unknown: return .secondary
-        }
-    }
+    /// An order status's colour: `Tone(status:)`'s, kept for call sites that still ask for a Color.
+    static func color(for s: OrderStatus) -> Color { Tone(status: s).color }
 
-    var body: some View {
-        Text(text)
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .foregroundStyle(color)
-            .background(color.opacity(0.14), in: .capsule)
-    }
+    // A thin wrapper: one capsule look for every badge, which is `Pill`'s.
+    var body: some View { Pill(text, color: color) }
 }
 
 /// Show cached books immediately; only a confirmed network loss warrants an offline warning.
@@ -420,6 +412,11 @@ enum ShopDate {
 
     static func say(_ iso: String?, withTime: Bool = false) -> String {
         guard let d = ERPDate.parse(iso) else { return "" }
+        return stamp(d, withTime: withTime)
+    }
+
+    /// The same words for a `Date` already in hand (a picker's value, `Date()`): "Today 4:05 pm", "Tue 6 Oct".
+    static func stamp(_ d: Date, withTime: Bool = false) -> String {
         let t = withTime ? " " + time.string(from: d) : ""
         if karachi.isDateInToday(d) { return "Today" + t }
         if karachi.isDateInYesterday(d) { return "Yesterday" + t }
