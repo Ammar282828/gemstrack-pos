@@ -202,6 +202,7 @@ androidComponents.onVariants { variant ->
 }
 
 dependencies {
+    implementation(project(":core"))
     implementation(platform(libs.compose.bom))
     implementation(platform(libs.firebase.bom))
 
