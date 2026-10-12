@@ -16,8 +16,9 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   "too cluttered on my phone with a weird tab bar on the top") the bar is menu · rate chip · search, and the tabs are their
   own full-width segmented row under it (up to three share the width; more scroll, the page's centred); light/dark moves
   into the menu's footer. From md the tabs sit beside the menu as before. Sticky toolbars use `--app-header-h`.
-  **Home's New** (same day): a "New" bubble beside the microphone opens New invoice / New order
-  (`components/layout/new-bubble.tsx`); the sidebar's New sale keeps the rest (repair, scan a tag, read a bill).
+  **Home's New** (same day; since the app-matching shell, 2026-10-12): a floating mic and "+" above the phone tab bar
+  (`components/layout/create-menu.tsx`, `tab-bar.tsx`) open New invoice / New order and the rest; the old
+  `new-bubble.tsx` is gone. The sidebar's New sale keeps repair, scan a tag, read a bill.
   ```
   [Search ⌘K] [New sale: Invoice · Order · Repair; Scan a tag · Read a written bill · Scan a parchi]   top bar: rate chip
   Home        Dashboard · Calendar · Today’s cash (owners)

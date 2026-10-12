@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { extendTailwindMerge } from "tailwind-merge"
+import { toneText, type Tone } from "@/lib/tones"
 
 // tailwind-merge must know the ERP's own text sizes and radii (tailwind.config.ts), or it files
 // `text-ios-sub` as a colour and `rounded-card` as nothing, and a caller's `text-lg` / `rounded-xl`
@@ -188,19 +189,8 @@ export const shopifyRowClass =
 export const shopifyCardClass = 'bg-success/[0.06]';
 
 /**
- * Text colour for a tone of the redesign (docs/features/web-matches-app.md a.2): the `-ink` variant,
- * which passes contrast as text. Written out in full so Tailwind's scanner sees every class.
- * Phone cards use `MineTag` and `Pill` (components/ledger) in place of `settledRowClass` / `mineRowClass`;
- * those two stay for desktop table rows.
+ * Text colour for a tone (docs/features/web-matches-app.md a.2): the `-ink` variant, which passes
+ * contrast as text. One source: `toneText` in lib/tones.ts. Phone cards use `MineTag` and `Pill`
+ * (components/ledger) in place of `settledRowClass` / `mineRowClass`; those two stay for desktop rows.
  */
-export function toneClass(tone: 'late' | 'owed' | 'settled' | 'credit' | 'working' | 'quiet' | 'house' = 'quiet'): string {
-  switch (tone) {
-    case 'late': return 'text-tone-late-ink';
-    case 'owed': return 'text-tone-owed-ink';
-    case 'settled': return 'text-tone-settled-ink';
-    case 'credit': return 'text-tone-credit-ink';
-    case 'working': return 'text-tone-working-ink';
-    case 'house': return 'text-primary';
-    default: return 'text-muted-foreground';
-  }
-}
+export const toneClass = (tone: Tone = 'quiet'): string => toneText(tone);

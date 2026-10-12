@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { toneClasses, type Tone } from './tone';
+import { toneClasses, type Tone } from '@/lib/tones';
 
 export interface PillProps extends React.HTMLAttributes<HTMLSpanElement> {
   tone?: Tone;

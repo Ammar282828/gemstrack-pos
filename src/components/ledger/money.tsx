@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { lacCrore } from '@/lib/money';
-import { toneClasses, type Tone } from './tone';
+import { toneClasses, type Tone } from '@/lib/tones';
 import { moneySplit } from './helpers';
 
 /** Whole rupees with grouping, or lac/crore when `lac` is set (lib/money.ts rules). */

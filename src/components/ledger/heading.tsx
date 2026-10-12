@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import type { Tone } from './tone';
+import type { Tone } from '@/lib/tones';
 
 export interface LedgerHeadingProps {
   title: string;

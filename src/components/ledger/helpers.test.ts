@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { clampSwipe, dateLeafParts, initials, moneySplit, settleSwipe, stageIndex } from './helpers';
-import { toneClasses } from './tone';
+import { toneClasses } from '@/lib/tones';
 import { contactHrefs } from './quick-actions';
 import { formatAmount } from './money';
 import { toneClass } from '@/lib/utils';
@@ -68,7 +68,7 @@ describe('swipe', () => {
 describe('Pill tone classes', () => {
   it('map to ink and tint', () => {
     expect(toneClasses('owed')).toMatchObject({ ink: 'text-tone-owed-ink', tint: 'bg-tone-owed/[.13]' });
-    expect(toneClasses('quiet').ink).toBe('text-muted-foreground');
+    expect(toneClasses('quiet').ink).toBe('text-tone-quiet-ink');
     expect(toneClass('late')).toBe('text-tone-late-ink');
   });
 });

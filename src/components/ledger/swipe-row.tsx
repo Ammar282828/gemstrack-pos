@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { toneClasses, type Tone } from './tone';
+import { toneClasses, type Tone } from '@/lib/tones';
 import { ACTION_WIDTH, SWIPE_SLOP, clampSwipe, settleSwipe } from './helpers';
 
 export interface SwipeAction {

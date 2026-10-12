@@ -15,5 +15,5 @@ export { MineTag } from './mine-tag';
 export { EmptyState, type EmptyStateProps } from './empty-state';
 export { SearchField, type SearchFieldProps } from './search-field';
 export { SwipeRow, type SwipeRowProps, type SwipeAction } from './swipe-row';
-export { toneClasses, TONE, type Tone } from './tone';
+export { toneClasses, TONE, type Tone } from '@/lib/tones';
 export { initials, moneySplit, stageIndex, dateLeafParts, STAGES } from './helpers';
