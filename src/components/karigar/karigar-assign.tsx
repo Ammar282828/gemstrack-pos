@@ -134,7 +134,7 @@ export const KarigarAssign: React.FC<{
           className={cn(
             'justify-start font-normal',
             compact ? 'h-7 text-xs w-[165px] px-2' : 'h-8 text-sm w-[200px] px-2.5',
-            !assigned && 'text-destructive border-destructive/40',
+            !assigned && 'border-transparent bg-tone-late/[.13] text-tone-late-ink hover:bg-tone-late/20 hover:text-tone-late-ink',
             className,
           )}
         >

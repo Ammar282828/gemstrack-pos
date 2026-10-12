@@ -14,7 +14,7 @@ import { WorkshopJob, UNASSIGNED_ID } from '@/lib/workshop';
 import { KarigarAssign } from '@/components/karigar/karigar-assign';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Pill, type Tone } from '@/components/ledger';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Pencil, UserRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -36,15 +36,10 @@ export const TakenByTag: React.FC<{ job: WorkshopJob }> = ({ job }) => {
 };
 
 export const AgeBadge: React.FC<{ job: WorkshopJob }> = ({ job }) => {
-  if (job.status === 'completed') {
-    return <Badge variant="outline" className="text-success border-success/40 bg-success/10">Done</Badge>;
-  }
-  const cls = job.urgency === 'critical'
-    ? 'text-destructive border-destructive/40 bg-destructive/10'
-    : job.urgency === 'warning'
-      ? 'text-warning border-warning/40 bg-warning/10'
-      : 'text-muted-foreground';
-  return <Badge variant="outline" className={cn('tabular-nums', cls)}>{job.ageDays}d</Badge>;
+  if (job.status === 'completed') return <Pill tone="settled">Done</Pill>;
+  // Sitting too long is a red word, not a red card (web-matches-app.md d.5).
+  const tone: Tone = job.urgency === 'critical' ? 'late' : job.urgency === 'warning' ? 'owed' : 'quiet';
+  return <Pill tone={tone}>{job.ageDays}d</Pill>;
 };
 
 export /** One piece as a board card. The board is scanned, not read, so the card
@@ -68,11 +63,9 @@ const BoardJobCard: React.FC<{
 
   return (
     <Card className={cn(
-      'flex flex-col overflow-hidden transition-shadow hover:shadow-md',
+      'flex flex-col overflow-hidden',
       done && 'opacity-60',
-      job.isOnline && 'bg-success/[0.05] border-success/30',
-      !done && job.urgency === 'critical' && 'border-destructive/50',
-      !done && job.urgency === 'warning' && 'border-warning/50',
+      job.isOnline && 'bg-tone-settled/[.06]',
     )}>
       <OrderPhoto item={{ sampleImageDataUri: job.sampleImage, samplePhotoId: job.samplePhotoId }}>{src => (
         // eslint-disable-next-line @next/next/no-img-element -- data: URI, no loader
@@ -99,12 +92,12 @@ const BoardJobCard: React.FC<{
 
         <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
           {job.source === 'manual'
-            ? <Badge variant="secondary" className="text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>
+            ? <Pill tone="working">Stock</Pill>
             : job.isOnline
-              ? <Badge variant="secondary" className="text-2xs bg-success/15 text-success">Online</Badge>
+              ? <Pill tone="settled">Online</Pill>
               : null}
           {job.invoiceId
-            ? <Link href={`/invoices/${job.invoiceId}`} className="font-mono text-success hover:underline">{job.invoiceId}</Link>
+            ? <Link href={`/invoices/${job.invoiceId}`} className="font-mono text-tone-settled-ink hover:underline">{job.invoiceId}</Link>
             : job.orderId
               ? <Link href={`/orders/${job.orderId}`} className="font-mono text-primary hover:underline">{job.orderId}</Link>
               : null}
@@ -115,13 +108,11 @@ const BoardJobCard: React.FC<{
         {/* The assign dropdown below already names the karigar, so the badge
             is only for cards that don't get one (stock jobs, completed work). */}
         {showKarigar && !canAssign && (
-          <Badge variant="outline" className={cn('text-2xs w-fit', job.karigarId === UNASSIGNED_ID && 'text-destructive border-destructive/40')}>
-            {job.karigarName}
-          </Badge>
+          <Pill tone={job.karigarId === UNASSIGNED_ID ? 'late' : 'quiet'} className="w-fit">{job.karigarName}</Pill>
         )}
 
         {job.notes && (
-          <div className="rounded-md border border-warning/25 bg-warning/[0.06] px-2 py-1.5 mt-0.5" title={job.notes}>
+          <div className="rounded-md bg-tone-owed/[.08] px-2 py-1.5 mt-0.5" title={job.notes}>
             <p className="text-xs text-foreground/80 line-clamp-3 whitespace-pre-wrap">{job.notes}</p>
           </div>
         )}

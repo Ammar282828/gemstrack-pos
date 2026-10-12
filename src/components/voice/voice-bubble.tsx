@@ -22,7 +22,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMe } from '@/hooks/use-me';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { hidesTabBar } from '@/lib/tab-bar';
 import { useAppStore, type AppState } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { READ_ONLY_ACTIONS, type RawIntent } from '@/lib/voice/resolve';
@@ -134,6 +135,9 @@ const NONE: never[] = [];
 
 export function VoiceBubble() {
   const router = useRouter();
+  // On a phone the microphone rides above the tab bar, at the create cluster's right edge, and
+  // drops to the screen's edge on the pages where the bar steps aside (lib/tab-bar.ts).
+  const barHidden = hidesTabBar(usePathname());
   // Who is speaking, at the counter: "Given by" on something given out by voice.
   const me = useMe();
   const { toast } = useToast();
@@ -614,7 +618,10 @@ export function VoiceBubble() {
       {(phase === 'listening' || phase === 'thinking') && (
         <div
           role="status" aria-live="polite"
-          className="glass fixed bottom-[8.75rem] left-4 right-4 z-40 rounded-xl border bg-background/95 p-3 shadow-lg md:bottom-24 md:left-auto md:w-96"
+          className={cn(
+            'glass fixed left-4 right-4 z-40 rounded-xl border bg-background/95 p-3 shadow-lg md:bottom-24 md:left-auto md:w-96',
+            barHidden ? 'bottom-[8.75rem]' :'bottom-[calc(5.5rem+49px+env(safe-area-inset-bottom))]',
+          )}
         >
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {phase === 'listening'
@@ -649,8 +656,10 @@ export function VoiceBubble() {
         onClick={phase === 'listening' ? stop : start}
         disabled={busy}
         className={cn(
-          // Clear of the mobile bottom nav, which is 4rem tall.
-          'fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-[background-color,color,box-shadow,transform] duration-200 ease-enter active:scale-95 md:bottom-6',
+          // Clear of the phone's tab bar (49px + the home indicator), as the app's floating mic is.
+          'fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-[background-color,color,box-shadow,transform] duration-200 ease-enter active:scale-95 md:bottom-6',
+          // Bar stepped aside: those pages carry their own bottom bar (a sale's total), as before.
+          barHidden ? 'bottom-20' : 'bottom-[calc(49px+env(safe-area-inset-bottom)+16px)]',
           phase === 'listening'
             ? 'bg-primary text-primary-foreground'
             : 'glass-fab bg-background text-foreground border hover:bg-accent',

@@ -944,7 +944,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
                                             <p className="text-xs text-warning font-medium">Fixed price: PKR {item.customPrice?.toLocaleString()}</p>
                                         )}
                                         {item.metalType === 'silver' && !item.isCustomPrice && item.silverRatePerGram && (
-                                            <p className="text-xs text-blue-500">Rate: {item.silverRatePerGram}/g</p>
+                                            <p className="text-xs text-tone-working-ink">Rate: {item.silverRatePerGram}/g</p>
                                         )}
                                     </div>
                                     {/* At the rates in the boxes, as the totals and the saved invoice are — not today's

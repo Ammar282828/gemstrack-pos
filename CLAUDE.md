@@ -133,6 +133,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Navigation and the look**
 - [The map](docs/decisions.md#the-map) — the sidebar rows, the one tab row per screen, and `lib/nav.ts` as the only registry
+- [Web matches the app](docs/decisions.md#web-matches-the-app) — the app's palette (light is grey/cream, Taheri's accent gold), flat 22px cards, capsules, tones in `lib/tones.ts`; spec `docs/features/web-matches-app.md`
 - [The name ERP](docs/decisions.md#the-name-erp) — ERP in every word people read; Shopify codes and code names stay POS
 - [Number fields](docs/decisions.md#number-fields) — and sale-flow fields show 0 as blank
 - [Hooks](docs/decisions.md#hooks) — the `/orders/add` crash of 2026-09-22
@@ -171,6 +172,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Invoice credit](docs/decisions.md#invoice-credit) — overpaid is a named customer's credit, on their hisaab
 - [Margin](docs/decisions.md#margin) — typed 24k less 6 ratti, else 10%; never the customer's
 - [Exchange as cash](docs/decisions.md#exchange-as-cash) — in Cash In and in revenue (`invoiceSaleValue`)
+- [Analytics default: this month](docs/decisions.md#analytics-default-this-month) — the 1st to today, not a rolling 30 days; Home's ledger too
 
 **People and sign-in**
 - [Add photos sign-in](docs/decisions.md#add-photos-sign-in) — superseded 2026-09-30: every house signs in

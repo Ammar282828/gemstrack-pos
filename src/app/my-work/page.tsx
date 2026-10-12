@@ -14,6 +14,7 @@ import { useScrolled } from '@/lib/use-scrolled';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Pill } from '@/components/ledger';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -233,12 +234,7 @@ export default function MyWorkPage() {
               </p>
             </div>
             {!allDone && urgency !== 'ok' && (
-              <Badge variant="outline" className={cn('flex-shrink-0 tabular-nums',
-                urgency === 'critical'
-                  ? 'text-destructive border-destructive/40 bg-destructive/10'
-                  : 'text-warning border-warning/40 bg-warning/10')}>
-                {group.ageDays}d
-              </Badge>
+              <Pill tone={urgency === 'critical' ? 'late' : 'owed'} className="flex-shrink-0 tabular-nums">{group.ageDays}d</Pill>
             )}
           </div>
           <Separator />
@@ -369,7 +365,7 @@ export default function MyWorkPage() {
                             <TableCell className="align-middle">
                               {j.orderId
                                 ? <span className="font-mono text-sm">{j.orderId}</span>
-                                : <Badge variant="secondary" className="text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>}
+                                : <Pill tone="credit">Stock</Pill>}
                             </TableCell>
                             <TableCell className="align-middle text-sm whitespace-nowrap">
                               {format(parseISO(j.assignedDate), 'dd MMM yyyy')}
