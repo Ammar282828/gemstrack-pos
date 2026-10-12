@@ -37,6 +37,12 @@ const secret = () => {
 
 let keyCache: { key: ApnsKey | null; at: number } | null = null;
 
+/** A found key is kept 10 minutes; a missing one only 30 s, so a key just uploaded on another instance works at once. */
+export const KEY_TTL_MS = 10 * 60_000;
+export const NO_KEY_TTL_MS = 30_000;
+export const keyCacheFresh = (c: { key: ApnsKey | null; at: number } | null, now = Date.now()) =>
+  !!c && now - c.at < (c.key ? KEY_TTL_MS : NO_KEY_TTL_MS);
+
 export async function saveApnsKey(k: ApnsKey, by: string): Promise<void> {
   await KEY_DOC().set(sealKey(k, secret(), by));
   keyCache = null;
@@ -44,7 +50,7 @@ export async function saveApnsKey(k: ApnsKey, by: string): Promise<void> {
 
 /** The key, or null when none is set or it was sealed under another CRON_SECRET. */
 export async function loadApnsKey(): Promise<ApnsKey | null> {
-  if (keyCache && Date.now() - keyCache.at < 10 * 60_000) return keyCache.key;
+  if (keyCache && keyCacheFresh(keyCache)) return keyCache.key;
   const snap = await KEY_DOC().get();
   const key = snap.exists ? openKey(snap.data() as SealedKey, secret()) : null;
   keyCache = { key, at: Date.now() };
@@ -82,6 +88,16 @@ export async function readDevice(token: string): Promise<PushDevice | null> {
 
 export async function forgetDevices(tokens: string[]): Promise<void> {
   await Promise.all(tokens.map((t) => DEVICES().doc(deviceId(t)).delete().catch(() => undefined)));
+}
+
+/** The last registration failure a phone reported (no token in it): one document per person and app. */
+export interface PushFailure { bundleId: string; label: string; error: string; email: string; at: string }
+
+export const failureId = (email: string, bundleId: string) =>
+  `${crypto.createHash('sha256').update(email.toLowerCase()).digest('hex').slice(0, 20)}_${bundleId}`.slice(0, 150);
+
+export async function saveFailure(f: PushFailure): Promise<void> {
+  await adminDb.collection('push_devices_failed').doc(failureId(f.email, f.bundleId)).set(f, { merge: true });
 }
 
 export async function allDevices(): Promise<PushDevice[]> {
