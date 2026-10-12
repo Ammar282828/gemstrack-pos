@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AD_FORMATS, AD_TEMPLATES, customFormat } from '@/lib/ads/studio/templates';
-import { frameOf, textOf, type Layer, type StoryDoc, type TextLayer } from '@/lib/social/editor';
+import { frameOf, newQr, textOf, type Layer, type StoryDoc, type TextLayer } from '@/lib/social/editor';
 import type { Frame } from '@/lib/social/story';
 import { CUSTOM_RATIOS, ELEVEN, FIELDS, assetsFor, customFrames, freeHand, installFakeDom, rateBoardFor, removeFakeDom, templateDoc } from './resize.fixture';
 import { fitSubject, resize, resizeOne, swapPhoto, pageOf } from './resize';
@@ -159,5 +159,40 @@ describe('pages', () => {
   });
   it('scores a bare layout', () => {
     expect(scoreLayout(freeHand(), FIELDS, assets).score).toBeGreaterThan(0);
+  });
+});
+
+describe('a QR code', () => {
+  it('stays square, scannable and inside the safe bands going 4:5 → 9:16 → 1.91:1', () => {
+    const start = freeHand();
+    const qr = { ...newQr('https://taheri.shop/p/ruby', '#111111', frameOf(start)), x: 80, y: 1000, w: 200 };
+    let doc: StoryDoc = { ...start, layers: [...start.layers, qr] };
+    for (const f of [AD_FORMATS.story.frame, AD_FORMATS.landscape.frame]) {
+      const [r] = resize(doc, FIELDS, assets, [f]);
+      const q = r.doc.layers.find(l => l.id === qr.id);
+      expect(q?.kind).toBe('qr');
+      if (q?.kind !== 'qr') return;
+      const b = m.box(q);
+      expect(b.w).toBe(b.h);
+      expect(q.w).toBeGreaterThanOrEqual(120);
+      expect(q.value).toBe(qr.value);
+      expect(Number.isFinite(q.x) && Number.isFinite(q.y)).toBe(true);
+      const bands = safeBands(f);
+      expect(b.x).toBeGreaterThanOrEqual(bands.left - 0.5);
+      expect(b.y).toBeGreaterThanOrEqual(bands.top - 0.5);
+      expect(b.x + b.w).toBeLessThanOrEqual(f.w - bands.right + 0.5);
+      expect(b.y + b.h).toBeLessThanOrEqual(f.h - bands.bottom + 0.5);
+      expect(r.penalties.find(p => p.id === 'qr')).toBeUndefined();
+      doc = r.doc;
+    }
+  });
+
+  it('is raised to the scannable minimum and the score notices one that is too small', () => {
+    const start = freeHand();
+    const tiny = { ...newQr('https://taheri.shop', '#111111', frameOf(start)), x: 80, y: 1000, w: 90 };
+    const doc: StoryDoc = { ...start, layers: [...start.layers, tiny] };
+    expect(scoreLayout(doc, FIELDS, assets).penalties.some(p => p.id === 'qr')).toBe(true);
+    const [r] = resize(doc, FIELDS, assets, [AD_FORMATS.landscape.frame]);
+    expect((r.doc.layers.find(l => l.id === tiny.id) as { w: number }).w).toBeGreaterThanOrEqual(120);
   });
 });

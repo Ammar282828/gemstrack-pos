@@ -25,7 +25,8 @@ export function roleOf(l: Layer, doc: StoryDoc): LayerRole {
     if (l.box && (l.text || '').trim().length <= BADGE_MAX) return 'badge';
     return 'text';
   }
-  if (l.kind === 'wordmark') return 'mark';
+  // A QR code is a badge that is never text: it keeps its square and its corner like a mark.
+  if (l.kind === 'wordmark' || l.kind === 'qr') return 'mark';
   if (l.kind === 'image') {
     if (l.photoId === TEMPLATE_PHOTO && !l.src) return 'photo';
     return 'image';

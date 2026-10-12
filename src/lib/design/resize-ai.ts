@@ -15,7 +15,7 @@ import {
 } from '@/lib/social/editor';
 import type { Frame, Placement } from '@/lib/social/story';
 import { roleOf } from './roles';
-import { safeBands, type SafeBands } from './safe';
+import { QR_MIN, safeBands, type SafeBands } from './safe';
 import { makeMeasure, reflowDoc, scoreLayout, type Measure } from './score';
 import type { ResizeResult } from './resize';
 
@@ -86,6 +86,7 @@ export function applyPlan(doc: StoryDoc, plan: ResizePlan): StoryDoc {
       case 'text': return { ...base, ...(p.width !== undefined ? { width: round(p.width) } : {}), ...(p.size !== undefined ? { size: round(p.size) } : {}), ...(p.align ? { align: p.align } : {}), flow: undefined };
       case 'wordmark': return p.width !== undefined ? { ...base, width: round(p.width) } : base;
       case 'image': return p.width !== undefined ? { ...base, w: round(p.width) } : base;
+      case 'qr': return p.width !== undefined ? { ...base, w: Math.max(QR_MIN, round(p.width)) } : base;
       default: return p.width !== undefined ? { ...base, w: Math.sign(base.w || 1) * round(p.width) } : base;
     }
   });
@@ -119,9 +120,10 @@ export function planProblem(raw: unknown, ctx: PlanContext): string | null {
     if (num(p.y) && (p.y < -h * 0.05 || p.y > h * 1.05)) return `${p.id} is outside the frame`;
     if (num(p.size) && (src.kind !== 'text' || p.size < 12 || p.size > 600)) return `bad size for ${p.id}`;
     if (num(p.width) && (p.width < 80 || p.width > 2400)) return `bad width for ${p.id}`;
+    if (num(p.width) && src.kind === 'qr' && p.width < QR_MIN) return `${p.id} would be too small to scan`;
     if (num(p.rotate) && Math.abs(p.rotate) > 180) return `bad rotation for ${p.id}`;
     if ('align' in p && p.align !== undefined && (src.kind !== 'text' || !['left', 'center', 'right'].includes(p.align as string))) return `bad align for ${p.id}`;
-    if ('hidden' in p && p.hidden !== undefined && (typeof p.hidden !== 'boolean' || (p.hidden && src.role !== 'decor' && src.role !== 'mark'))) return `${p.id} may not be hidden`;
+    if ('hidden' in p && p.hidden !== undefined && (typeof p.hidden !== 'boolean' || (p.hidden && (src.kind === 'qr' || (src.role !== 'decor' && src.role !== 'mark'))))) return `${p.id} may not be hidden`;
   }
   if (r.photo !== undefined && r.photo !== null) {
     const p = r.photo as Record<string, unknown>;
@@ -183,7 +185,7 @@ export function mergePlan(det: ResizeResult, plan: ResizePlan | null, fields: Fi
 export const RESIZE_SYSTEM = [
   'You are a layout editor for a jewellery shop’s social posts and ads.',
   'You are given a design in one shape and, for each shape it must become, a proposed layout. Improve the proposals where you see a real problem; otherwise return the layer positions as proposed.',
-  'You may only MOVE and RESIZE layers that exist: x, y (the layer’s anchor, in the target’s own pixels), width, size (text only), align (text only), rotate, and hidden (decorative layers and marks only).',
+  'You may only MOVE and RESIZE layers that exist: x, y (the layer’s anchor, in the target’s own pixels), width, size (text only), align (text only), rotate, and hidden (decorative layers and marks only). A QR code (kind qr) is never hidden, never narrower than 120 px, and stays square.',
   'You may NEVER change, add, remove or reword any text; never add layers; never use an id you were not given. You do not draw or alter the photograph; you may only set how it is cropped.',
   'Keep the reading order: kicker, headline, specs, then the call to action last. Keep every word inside the frame; in a frame 1800 px or taller keep words out of the top 14% and bottom 35% (Instagram draws over them). Keep the mark clear of the piece. Text must stay readable: not under 3% of the short side.',
   'Answer with JSON only: {"plans":[{"index":<target number>,"layers":[{"id","x","y","width","size","align"}],"photo":{"mode","zoom","focusX","focusY"},"needsExtend":false,"note":"<one short sentence>"}]}.',

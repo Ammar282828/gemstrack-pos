@@ -13,7 +13,7 @@ import {
 } from '@/lib/social/editor';
 import { intersects } from '@/lib/social/design';
 import type { Frame, Placement } from '@/lib/social/story';
-import { safeBands, type SafeBands } from './safe';
+import { QR_MIN, safeBands, type SafeBands } from './safe';
 import { roleOf } from './roles';
 
 // ── Measuring ──────────────────────────────────────────────────────────────
@@ -28,6 +28,7 @@ export interface Measure {
 const EM: Record<FontKey, number> = {
   condensed: 0.38, light: 0.5, regular: 0.52, bold: 0.56, serif: 0.47, 'serif-italic': 0.43, futura: 0.52,
   cormorant: 0.42, 'cormorant-italic': 0.4, playfair: 0.5, script: 0.42, montserrat: 0.58, 'montserrat-bold': 0.62, cinzel: 0.62,
+  'cormorant-infant': 0.42, italiana: 0.44, jost: 0.52, tenor: 0.52, 'dm-serif': 0.52, marcellus: 0.56,
 };
 const hasDom = () => typeof document !== 'undefined' && typeof document.createElement === 'function';
 
@@ -227,6 +228,13 @@ export function scoreLayout(input: StoryDoc, fields: Fields, assets: Assets, o: 
     if (marks.some(l => { const b = m.box(l); return overlap(b, subj.rect) > (known ? 0.05 : 0.5) * area(b); })) penalties.push({ id: 'mark', points: 15, why: 'the mark sits on the piece' });
     if (subj.visible < 0.92) penalties.push({ id: 'cropped', points: 10, why: `${Math.round((1 - subj.visible) * 100)}% of the piece is cropped` });
   }
+
+  // A QR code that cannot be scanned: under the minimum on this frame, or outside the frame or the safe bands.
+  const badQr = doc.layers.filter(l => l.kind === 'qr' && !l.hidden && (() => {
+    const b = m.box(l);
+    return b.w < QR_MIN - 0.5 || b.x < -0.5 || b.y < bands.top - 0.5 || b.x + b.w > f.w - bands.right + 0.5 || b.y + b.h > f.h - bands.bottom + 0.5;
+  })());
+  if (badQr.length) penalties.push({ id: 'qr', points: 30, why: `${badQr.length === 1 ? 'the QR code is' : 'QR codes are'} too small or outside the safe area` });
 
   // Order: the stack lined up inside the margins, the call to action last.
   const stack = stackOf(doc).filter(l => !isEmpty(l, fields));

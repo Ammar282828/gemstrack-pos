@@ -8,6 +8,8 @@ import type { Box } from '@/lib/social/editor';
 import type { Frame } from '@/lib/social/story';
 
 export interface SafeBands { top: number; bottom: number; left: number; right: number }
+/** The smallest a QR code may be drawn, in px on its frame (quiet zone included), so a phone can still scan it. */
+export const QR_MIN = 120;
 export type SafeKind = 'story' | 'reel' | 'feed-grid' | 'link';
 
 export const SAFE_KINDS: { id: SafeKind; label: string }[] = [

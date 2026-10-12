@@ -20,12 +20,12 @@ import { AD_TEMPLATES, applyAdTemplate, isAdFormat, type AdFormat, type AdTempla
 import { VISUAL } from '@/lib/ads/studio/brand';
 import {
   frameOf, textOf, withPlacement,
-  type Assets, type Box, type Box01, type Fields, type ImageLayer, type Layer, type MarkLayer, type ShapeLayer, type StoryDoc, type TextLayer,
+  type Assets, type Box, type Box01, type Fields, type ImageLayer, type Layer, type LayerFx, type MarkLayer, type QrLayer, type ShapeLayer, type StoryDoc, type TextLayer,
 } from '@/lib/social/editor';
 import type { Frame, Placement } from '@/lib/social/story';
 import type { DesignPage } from './model';
 import { anchorAxes, rolesOf, roleOf, TEMPLATE_LAYER, TEMPLATE_PHOTO } from './roles';
-import { safeBands, type SafeBands } from './safe';
+import { QR_MIN, safeBands, type SafeBands } from './safe';
 import {
   DEFAULT_SUBJECT, makeMeasure, minTextSize, photoAspectOf, reflowDoc, scoreLayout, shownTexts, stackOf, subjectInFrame, unionOf,
   type Measure, type ScoreItem,
@@ -106,6 +106,20 @@ const aspectOfPhoto = (id: string, assets: Assets, fallback: number) => {
   const img = assets.photos?.[id];
   return img && img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : fallback;
 };
+
+/** A layer's shadow, glow and outline grow and shrink with the layer. */
+function scaleFx(fx: LayerFx | undefined, k: number): LayerFx | undefined {
+  if (!fx) return fx;
+  const r = (n: number) => Math.round(n * k * 10) / 10;
+  return {
+    ...(fx.shadow ? { shadow: { ...fx.shadow, x: r(fx.shadow.x), y: r(fx.shadow.y), blur: r(fx.shadow.blur) } } : {}),
+    ...(fx.glow ? { glow: { ...fx.glow, blur: r(fx.glow.blur) } } : {}),
+    ...(fx.outline ? { outline: { ...fx.outline, width: Math.max(1, r(fx.outline.width)) } } : {}),
+  };
+}
+
+/** A QR code's side on a frame: scaled like a picture, never below what a phone can scan, never over half the short side. */
+const qrSide = (w: number, s: number, f: Frame) => clamp(Math.round(w * s), QR_MIN, Math.max(QR_MIN, Math.floor(Math.min(f.w, f.h) * 0.5)));
 
 // ── The anchor-preserving re-layout (strategies 2 and 3) ───────────────────
 
@@ -265,6 +279,14 @@ function relay(src0: StoryDoc, tf: Frame, c: Ctx, o: { layersOnly?: boolean } = 
         const p = place(b0, b1, sf, R);
         return { ...sc, x: Math.round(p.x), y: Math.round(p.y) };
       }
+      case 'qr': {
+        // Like a mark: square always, nearest corner and margin kept; the quiet zone scales with it.
+        const w = qrSide(l.w, s, tf);
+        const b0 = m.box(l);
+        const p = place(b0, { x: 0, y: 0, w, h: w }, sf, R);
+        const sc: QrLayer = { ...l, w, x: Math.round(p.x), y: Math.round(p.y), ...(l.layerFx ? { layerFx: scaleFx(l.layerFx, w / l.w) } : {}) };
+        return sc;
+      }
       case 'image': {
         const b0 = m.box(l);
         if (role === 'photo' && panel && l === photoLayer) {
@@ -304,7 +326,7 @@ function relay(src0: StoryDoc, tf: Frame, c: Ctx, o: { layersOnly?: boolean } = 
         }
         const b1: Box = { x: 0, y: 0, w: raw.w * s, h: raw.h * s };
         const p = place(raw, b1, sf, full);
-        return { ...sh, x: Math.round(sh.w < 0 ? p.x + b1.w : p.x), y: Math.round(sh.h < 0 ? p.y + b1.h : p.y), w: Math.round(sh.w * s), h: Math.round(sh.h * s), stroke };
+        return { ...sh, x: Math.round(sh.w < 0 ? p.x + b1.w : p.x), y: Math.round(sh.h < 0 ? p.y + b1.h : p.y), w: Math.round(sh.w * s), h: Math.round(sh.h * s), stroke, ...(sh.layerFx ? { layerFx: scaleFx(sh.layerFx, s) } : {}) };
       }
     }
   };
@@ -409,6 +431,21 @@ function templateRelay(src: StoryDoc, tf: Frame, c: Ctx, o: ResizeOptions): Rela
 // ── The safe pass (strategy 3) ─────────────────────────────────────────────
 
 
+/** QR codes kept scannable and inside the room: square, at least `QR_MIN`, never over the room's short side, moved in from the edges. */
+function keepQr(doc: StoryDoc, room: Box): StoryDoc {
+  let changed = false;
+  const layers = doc.layers.map(l => {
+    if (l.kind !== 'qr' || l.hidden) return l;
+    const w = clamp(l.w, QR_MIN, Math.max(QR_MIN, Math.floor(Math.min(room.w, room.h))));
+    const x = Math.round(clamp(l.x, room.x, Math.max(room.x, room.x + room.w - w)));
+    const y = Math.round(clamp(l.y, room.y, Math.max(room.y, room.y + room.h - w)));
+    if (w === l.w && x === l.x && y === l.y) return l;
+    changed = true;
+    return { ...l, w, x, y };
+  });
+  return changed ? { ...doc, layers } : doc;
+}
+
 /**
  * Words brought inside the frame and the safe bands, and under-sized words raised to the legible minimum. The stack
  * moves as one (shrinking if it is taller than the room); other lines move on their own.
@@ -427,6 +464,7 @@ export function repairLayout(input: StoryDoc, fields: Fields, m: Measure, bands:
     }),
   }, fields, m);
 
+  doc = keepQr(doc, room);
   const stackIds = new Set(stackOf(doc).map(l => l.id));
   const fix = (ids: Set<string>, whole: boolean) => {
     const members = doc.layers.filter((l): l is TextLayer => l.kind === 'text' && ids.has(l.id) && !l.hidden && !!textOf(l, fields).trim());
@@ -447,7 +485,8 @@ export function repairLayout(input: StoryDoc, fields: Fields, m: Measure, bands:
   if (stackIds.size) fix(stackIds, true);
   for (const l of shownTexts(doc, fields)) if (!stackIds.has(l.id)) fix(new Set([l.id]), false);
   doc = settle(doc, fields, m, room);
-  return seen ? clearMarks(doc, fields, m, room, seen) : doc;
+  doc = keepQr(doc, room);
+  return seen ? keepQr(clearMarks(doc, fields, m, room, seen), room) : doc;
 }
 
 
@@ -465,7 +504,7 @@ function clearMarks(doc: StoryDoc, fields: Fields, m: Measure, room: Box, seen: 
   const margin = Math.round(Math.min(room.w, room.h) * 0.04);
   let changed = false;
   const layers = doc.layers.map(l => {
-    if (l.kind !== 'wordmark' || l.hidden) return l;
+    if ((l.kind !== 'wordmark' && l.kind !== 'qr') || l.hidden) return l;
     const b = m.box(l);
     if (overlapArea(b, subj.rect) <= 0.05 * area(b)) return l;
     const corners = [
