@@ -105,6 +105,23 @@ as version 2.0; `apps/iphone/CONVENTIONS.md` is its rulebook.
   its Firebase iOS app ID is in `apps/iphone/houses.json` (`firebase.iosAppId`, Firebase console → Project settings →
   Add app → iOS).
 
+### Server routes the app uses
+
+The native app reads the ERP's own data from Firestore and writes only through the server; these are the routes that
+are not obvious from its screens.
+- **`/api/app/write`** takes every write the app makes as an op, checked and applied on the server against the live data.
+  `updateSettings` is owners'; **the Team note** (`settings.teamNote`, at most 600 characters) is written through it, and staff
+  and Marketing get 403 ([decision](../decisions.md#team-note)).
+- **`/api/voice/native`** is the native app's voice: owners only, read only. The phone sends a sentence (or up to a minute of
+  audio); the server loads the book itself (never names, balances or candidates from the phone; kept 45 s per instance), runs
+  the same listener as the web's voice (`/api/voice/listen`) and returns the **planned ops**, which the phone then sends to
+  `/api/app/write`. It writes nothing.
+- **`src/lib/analytics/revenue-period.ts`** (`revenueForPeriod`, tested) is the revenue of a period for the dashboard and the
+  widget: sales at their source order's date, open booked orders and other income. A bare `YYYY-MM-DD` is read as midnight in
+  Karachi (+05:00), so a day's edge matches the shop's day wherever the server runs.
+- **Audits.** What was checked and fixed in the native screens: [orders and invoices](iphone-order-invoice-audit.md) and
+  [the workshop](iphone-workshop-audit.md).
+
 ### Xcode Cloud
 
 **Xcode Cloud** builds the native app since 2026-10-09 (owner: "cant you switch to something free"): GitHub's Mac
