@@ -13,7 +13,7 @@ extension SaleForm {
         if draft.customerId != nil { return "\(f.who.name) is on file: the sale goes on their account." }
         if f.who.id != nil { return "That number is on file as \(f.who.name): the sale goes to them." }
         if f.namedCustomer { return "\(f.who.name) is new: the ERP adds them to the book when the sale is saved." }
-        return "Nobody named: a walk-in. No customer is made, and money paid over the total can't be kept as credit."
+        return "Walk-in. No customer is made; overpayment can't be kept as credit."
     }
 
     @ViewBuilder
@@ -54,13 +54,13 @@ extension SaleForm {
         return VStack(alignment: .leading, spacing: 4) {
             TwoLine(title: line.name.isEmpty ? (line.stockSku ?? "New piece") : line.name, subtitle: spec(line), trailing: Money.pkr(f.price(of: line.sku)))
             if line.isCustomPrice {
-                Text("Fixed price: \(Money.pkr(line.customPrice ?? 0))").font(.caption).foregroundStyle(.orange)
+                Text("Fixed price: \(Money.pkr(line.customPrice ?? 0))").font(.caption).foregroundStyle(Tone.owed.color)
             }
             if line.metalType == "silver", !line.isCustomPrice, let rate = line.silverRatePerGram, rate > 0 {
-                Text("Rate: \(SaleNumber.grams(rate))/g").font(.caption).foregroundStyle(.blue)
+                Text("Rate: \(SaleNumber.grams(rate))/g").font(.caption).foregroundStyle(.secondary)
             }
             if gone {
-                Label("No longer in stock", systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(.orange)
+                Label("No longer in stock", systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(Tone.problem.color)
             }
         }
         .contentShape(.rect)
@@ -98,7 +98,7 @@ extension SaleForm {
             }
             ForEach(results) { p in resultRow(p, f) }
             if let notice {
-                Label(notice, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(.orange)
+                Label(notice, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(Tone.problem.color)
             }
             Button { scanning = true } label: { Label("Scan a tag", systemImage: "qrcode.viewfinder") }
             Menu {
@@ -144,7 +144,7 @@ extension SaleForm {
                     Button { rateSheet = true } label: {
                         Label(staleRateText, systemImage: "exclamationmark.triangle.fill")
                             .font(.footnote)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Tone.owed.color)
                     }
                 }
                 ForEach(f.boxes) { box in
@@ -175,7 +175,7 @@ extension SaleForm {
         } header: {
             LedgerHeading(title: "Discount")
         } footer: {
-            if let problem = f.discountProblem { Text(problem).foregroundStyle(.red) }
+            if let problem = f.discountProblem { Text(problem).foregroundStyle(Tone.problem.color) }
         }
     }
 
@@ -299,7 +299,7 @@ extension SaleForm {
                     .keyboardType(.decimalPad)
                     .monospacedDigit()
                 Button(single ? "Paid in full" : "The rest") { draft.payRest(row.wrappedValue.id, total: f.total) }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glass)
                     .controlSize(.small)
                     .disabled(!f.hasEstimate)
             }
@@ -327,7 +327,7 @@ extension SaleForm {
             Button { draft.addPayment() } label: {
                 Label("Add another payment", systemImage: "plus")
             }
-            if f.hasEstimate && f.paidNow > 0 { balanceRow(f) }
+            if f.hasEstimate { balanceRow(f) }
         } header: {
             LedgerHeading(title: "Payment received")
         } footer: {
@@ -342,19 +342,19 @@ extension SaleForm {
         let line = balanceLine(f.balance)
         if f.overpaid {
             LabeledContent("More than the total by") {
-                Text(Money.pkr(abs(f.balance))).foregroundStyle(.red).monospacedDigit()
+                Text(Money.pkr(abs(f.balance))).foregroundStyle(Tone.problem.color).monospacedDigit()
             }
         } else if line.state == .credit {
             LabeledContent(line.label) {
-                Text(Money.pkr(line.amount)).foregroundStyle(.green).monospacedDigit()
+                Text(Money.pkr(line.amount)).foregroundStyle(Tone.credit.color).monospacedDigit()
             }
         } else if line.state == .paid {
             LabeledContent(line.label) {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(Tone.settled.color)
             }
         } else {
             LabeledContent(line.label) {
-                Text(Money.pkr(line.amount)).foregroundStyle(.orange).monospacedDigit()
+                Text(Money.pkr(line.amount)).foregroundStyle(Tone.owed.color).monospacedDigit()
             }
         }
     }
@@ -395,7 +395,7 @@ extension SaleForm {
                 .monospacedDigit()
         }
         if perGram > 0 {
-            Text("PKR \(Money.grouped(perGram)) a gram · our cost PKR \(Money.grouped(goldCostPerGram(perGram, rattiLess: ratti))) a gram of jewellery (24k less \(SaleNumber.grams(ratti)) ratti).")
+            Text("\(Money.pkr(perGram)) a gram · our cost \(Money.pkr(goldCostPerGram(perGram, rattiLess: ratti))) a gram of jewellery (24k less \(SaleNumber.grams(ratti)) ratti).")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } else {
@@ -424,7 +424,7 @@ extension SaleForm {
     /// What the shop earns on this sale, blurred until tapped: the counter turns its screen to show a
     /// customer the bill, and a margin beside the total is the one thing they must not read off it.
     func marginRow(_ m: Margin) -> some View {
-        let tone: Color = m.assumed ? .secondary : (m.percent < 0 ? .red : .green)
+        let tone: Color = m.assumed ? Tone.quiet.color : (m.percent < 0 ? Tone.late.color : Tone.settled.color)
         return Button { marginShown.toggle() } label: {
             HStack(spacing: 12) {
                 Label("We earn", systemImage: "lock").foregroundStyle(.secondary)
@@ -516,6 +516,65 @@ extension SaleForm {
         }
     }
 
+    // MARK: The summary under the steps
+
+    /// Where each step stands, from the sale as typed: a tick when it is complete, an amber dot where Save is
+    /// held up (Payment carries the sale's `blockedReason`, as the bar at the foot says it in words).
+    func stepStates(_ f: SaleFigures) -> [EntryStep: EntryStepState] {
+        var out: [EntryStep: EntryStepState] = [:]
+        if f.namedCustomer { out[.customer] = .done }
+        if f.hasPieces { out[.pieces] = f.missingRates.isEmpty ? .done : .attention }
+        if f.blockedReason != nil {
+            // An empty sale is not yet a problem to look at: the Pieces step has nothing, and says so.
+            if f.hasPieces { out[.payment] = .attention }
+        } else if f.hasEstimate && f.paidNow > 0 {
+            out[.payment] = .done
+        }
+        return out
+    }
+
+    /// The sale's total and what it still asks, pinned under the steps on Pieces and Payment so the figure is
+    /// in view as pieces are added and money is taken.
+    func saleSummary(_ f: SaleFigures) -> some View {
+        let line = balanceLine(f.balance)
+        let total = Text(f.hasEstimate ? "Total \(Money.pkr(f.total))" : "Total …")
+            .font(.system(.title3, design: .serif).weight(.semibold))
+            .monospacedDigit()
+            .contentTransition(.numericText(value: f.total))
+        let due: Text = {
+            guard f.hasEstimate else { return Text("") }
+            if f.overpaid { return Text("Over \(Money.pkr(abs(f.balance)))").foregroundStyle(Tone.problem.color) }
+            switch line.state {
+            case .due: return Text("Due \(Money.pkr(line.amount))").foregroundStyle(Tone.owed.color)
+            case .credit: return Text("In credit \(Money.pkr(line.amount))").foregroundStyle(Tone.credit.color)
+            case .paid: return Text("Paid in full").foregroundStyle(Tone.settled.color)
+            }
+        }()
+        return ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                total.lineLimit(1)
+                Spacer(minLength: 8)
+                summaryDue(due, f)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                total
+                summaryDue(due, f)
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.ground)
+        .accessibilityElement(children: .combine)
+        .motion(f.balance)
+    }
+
+    private func summaryDue(_ due: Text, _ f: SaleFigures) -> some View {
+        due.font(.subheadline.weight(.semibold))
+            .monospacedDigit()
+            .contentTransition(.numericText(value: f.balance))
+            .lineLimit(1)
+    }
+
     // MARK: 8. Totals
 
     private func totalRow(_ label: String, _ value: Double, _ f: SaleFigures, signed: String = "", strong: Bool = false) -> some View {
@@ -539,14 +598,13 @@ extension SaleForm {
             if f.discount != 0 { totalRow("Discount", f.discount, f, signed: "− ") }
             if f.exchange != 0 { totalRow("Exchange", f.exchange, f, signed: "− ") }
             totalRow("Total", f.total, f, strong: true)
-            if f.hasEstimate && f.paidNow > 0 {
-                totalRow("Paid now", f.paidNow, f)
+            if f.hasEstimate {
+                if f.paidNow > 0 { totalRow("Paid now", f.paidNow, f) }
                 balanceRow(f)
             }
         } header: {
             LedgerHeading(title: "Totals")
         }
-        orderSection()
     }
 
     /// The same pieces can go to the workshop as an order instead (sale-page.tsx "Create order",
@@ -593,7 +651,7 @@ extension SaleForm {
         VStack(spacing: 8) {
             if let failure {
                 VStack(spacing: 8) {
-                    Text(failure).font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center)
+                    Text(failure).font(.footnote).foregroundStyle(Tone.problem.color).multilineTextAlignment(.center)
                     if alreadySold {
                         // A new item is refused only once it is on an invoice: this sale was saved before
                         // (a save sent again after the answer was lost), so there is nothing to take off.
@@ -621,7 +679,7 @@ extension SaleForm {
             } else if let reason = f.blockedReason {
                 Text(reason)
                     .font(.footnote)
-                    .foregroundStyle(f.hasPieces ? Color.red : Color.secondary)
+                    .foregroundStyle(f.hasPieces ? Tone.problem.color : Tone.quiet.color)
                     .multilineTextAlignment(.center)
                     .padding(10)
                     .frame(maxWidth: .infinity)
@@ -629,7 +687,7 @@ extension SaleForm {
             }
             Button { Task { await save(f) } } label: {
                 HStack(spacing: 8) {
-                    if saving { SkeletonLoading() }
+                    if saving { ProgressView().controlSize(.small) }
                     Text(edit != nil ? (f.hasEstimate ? "Save changes · \(Money.pkr(f.total))" : "Save changes")
                          : (f.hasEstimate ? "Save sale · \(Money.pkr(f.total))" : "Save sale"))
                 }

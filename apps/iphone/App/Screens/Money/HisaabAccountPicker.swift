@@ -52,19 +52,11 @@ struct HisaabAccountPicker: View {
         }
         .presentationDetents([.large])
         .interactiveDismissDisabled(creating)
-        .alert("Could not add the karigar", isPresented: failureShown) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure, title: "Could not add the karigar")
         .task {
             book.customers.need()
             book.karigars.need()
         }
-    }
-
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })
     }
 
     private var list: some View {

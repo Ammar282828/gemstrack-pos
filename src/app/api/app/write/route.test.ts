@@ -244,6 +244,28 @@ describe('editing an order from the phone', () => {
     expect(data.order_photos[item.samplePhotoId as string]).toMatchObject({ orderId: 'ORD-000001' });
   });
 
+  it('the same picture sent again on every edit adds no photo document (two saves, one document)', async () => {
+    const uri = 'data:image/jpeg;base64,' + 'A'.repeat(300);
+    // An order whose picture was filed before documents carried a hash, and a client that re-sends its bytes.
+    put('orders', 'ORD-000001', { items: [{ description: 'A', samplePhotoId: 'photo-old' }] }, true);
+    put('order_photos', 'photo-old', { dataUri: uri, orderId: 'ORD-000001' }, true);
+    for (let i = 0; i < 2; i++) await call(editOf({ items: [{ editIndex: 0, description: `A${i}`, sampleImageDataUri: uri }] }));
+    expect(Object.keys(data.order_photos)).toEqual(['photo-old']);
+    const item = (data.orders['ORD-000001'].items as Record<string, unknown>[])[0];
+    expect(item).toMatchObject({ samplePhotoId: 'photo-old' });
+    expect(item.sampleImageDataUri).toBeUndefined();
+  });
+
+  it('an unmigrated inline picture is filed once, then re-sent copies add nothing; a new picture replaces and deletes the old document', async () => {
+    const uri = 'data:image/jpeg;base64,' + 'B'.repeat(300);
+    put('orders', 'ORD-000001', { items: [{ description: 'A', sampleImageDataUri: uri }] }, true);
+    await call(editOf({ items: [{ editIndex: 0, description: 'A', sampleImageDataUri: uri }] }));
+    await call(editOf({ items: [{ editIndex: 0, description: 'A', sampleImageDataUri: uri }] }));
+    expect(Object.keys(data.order_photos)).toHaveLength(1);
+    await call(editOf({ items: [{ editIndex: 0, description: 'A', sampleImageDataUri: uri + 'C' }] }));
+    expect(Object.keys(data.order_photos)).toHaveLength(1);
+  });
+
   it('explicitly removes a sample photo without clearing the workshop handover', async () => {
     put('orders', 'ORD-000001', { items: [{ description: 'A', samplePhotoId: 'photo-old', givenAt: '2026-10-01', isCompleted: true }] }, true);
     const r = await call(editOf({ items: [{ editIndex: 0, description: 'A', samplePhotoId: null, sampleImageDataUri: null, isCompleted: true }] }));

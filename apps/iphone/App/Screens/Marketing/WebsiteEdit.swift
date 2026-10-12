@@ -23,7 +23,7 @@ struct WebsiteEditScreen: View {
         Group {
             switch store.phase {
             case .off:
-                ContentUnavailableView("This shop doesn't edit its website from here", systemImage: "globe")
+                NotAvailableState("This shop doesn't edit its website from here", symbol: "globe")
             case .failed(let message):
                 ContentUnavailableView {
                     Label("Couldn't read the website", systemImage: "wifi.exclamationmark")
@@ -105,9 +105,7 @@ struct WebsiteEditScreen: View {
                         ForEach(Array(items.prefix(shown))) { (p: WebsiteEditPiece) in
                             NavigationLink(value: Route(path: WebsiteEditScreen.piecePath(p.id))) {
                                 WebsiteEditTile(piece: p)
-                                    .padding(10)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Theme.card, in: .rect(cornerRadius: 16))
+                                    .ledgerCard(padding: 10)
                             }
                             .buttonStyle(.plain)
                         }
@@ -149,9 +147,7 @@ struct WebsiteEditScreen: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.card, in: .rect(cornerRadius: 16))
+        .ledgerCard(padding: 14)
     }
 }
 
@@ -163,7 +159,7 @@ struct WebsiteEditTile: View {
         VStack(alignment: .leading, spacing: 6) {
             StockImage(imageUrl: piece.thumb, name: piece.words.name, key: piece.id)
                 .aspectRatio(1, contentMode: .fit)
-                .clipShape(.rect(cornerRadius: 12))
+                .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                 .opacity(piece.hidden ? 0.45 : 1)
                 .overlay(alignment: .topLeading) {
                     VStack(alignment: .leading, spacing: 4) {

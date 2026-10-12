@@ -15,6 +15,7 @@ struct WorkshopKarigarScreen: View {
 
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var silverBook = WorkshopSilverBook()
     @State private var ask: WorkshopPayAsk?
@@ -39,7 +40,7 @@ struct WorkshopKarigarScreen: View {
                         // He is off every list now; Recently removed has him.
                         dismissKarigar()
                     } else {
-                        withAnimation { note = OwnerNote(title: d.what == "Delete this silver entry" ? "Silver entry deleted" : "Batch deleted") }
+                        Note.show(OwnerNote(title: d.what == "Delete this silver entry" ? "Silver entry deleted" : "Batch deleted"), in: $note, reduce: reduceMotion)
                     }
                 }
             }
@@ -62,7 +63,7 @@ struct WorkshopKarigarScreen: View {
 
     @ViewBuilder
     private func paySheet(_ a: WorkshopPayAsk) -> some View {
-        let saved: (OwnerNote) -> Void = { n in withAnimation { note = n } }
+        let saved: (OwnerNote) -> Void = { n in Note.show(n, in: $note, reduce: reduceMotion) }
         if let karigar = book.karigars.item(id) {
             switch a {
             case .pay(let batch):
@@ -198,7 +199,7 @@ struct WorkshopKarigarScreen: View {
             }
             if let pay {
                 LabeledContent("Total paid (all time)") {
-                    Text(Money.pkr(pay.totalPaid)).monospacedDigit().foregroundStyle(Color.red)
+                    Text(Money.pkr(pay.totalPaid)).monospacedDigit().foregroundStyle(Color.primary)
                 }
                 LabeledContent("Active pay batch") {
                     if let open = pay.open, !open.batch.label.isEmpty {
@@ -236,7 +237,7 @@ struct WorkshopKarigarScreen: View {
                         title: "Gold khata",
                         subtitle: "given less received, in Hisaab",
                         trailing: WorkshopLogic.grams3(p.khataNet),
-                        trailingTint: p.khataNet > 0.0005 ? Color.red : Color.primary
+                        trailingTint: p.khataNet > 0.0005 ? Tone.owed.color : Color.primary
                     )
                 }
                 NavigationLink(value: Route(path: hisaabPath(karigar))) {
@@ -244,7 +245,7 @@ struct WorkshopKarigarScreen: View {
                         title: cash > 0 ? "He holds of ours" : (cash < 0 ? "We owe him" : "Cash"),
                         subtitle: cashHint(open),
                         trailing: cash == 0 ? "Square" : Money.pkr(abs(cash)),
-                        trailingTint: cash < 0 ? Color.red : Color.primary
+                        trailingTint: cash < 0 ? Tone.owed.color : Color.primary
                     )
                 }
             }
@@ -320,8 +321,8 @@ struct WorkshopKarigarScreen: View {
 
     private func ageTint(_ j: WorkshopJob) -> Color {
         switch j.urgency {
-        case .critical: return .red
-        case .warning: return .orange
+        case .critical: return Tone.late.color
+        case .warning: return Tone.owed.color
         case .ok: return .primary
         }
     }
@@ -378,7 +379,7 @@ struct WorkshopKarigarScreen: View {
             title: j.description,
             subtitle: sub.joined(separator: " · "),
             trailing: statusWords(j.status),
-            trailingTint: j.status == .completed ? Color.green : Color.primary
+            trailingTint: j.status == .completed ? Tone.settled.color : Color.primary
         )
     }
 
@@ -419,7 +420,7 @@ struct WorkshopKarigarScreen: View {
     private func khataTiles(_ p: WorkshopPosition) -> some View {
         let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
         let net = p.khataNet
-        let netTint: Color = net > 0.0005 ? Color.red : (net < -0.0005 ? Color.green : Color.primary)
+        let netTint: Color = net > 0.0005 ? Tone.owed.color : (net < -0.0005 ? Tone.settled.color : Color.primary)
         return LazyVGrid(columns: columns, spacing: 10) {
             FigureTile(label: "Given", value: WorkshopLogic.grams3(p.khataGiven))
             FigureTile(label: "Received", value: WorkshopLogic.grams3(p.khataBack))
@@ -449,8 +450,8 @@ struct WorkshopKarigarScreen: View {
     }
 
     private func hisaabTint(_ e: HisaabEntry) -> Color {
-        if e.goldDebitGrams > 0 { return .red }
-        if e.goldCreditGrams > 0 { return .green }
+        if e.goldDebitGrams > 0 { return Tone.owed.color }
+        if e.goldCreditGrams > 0 { return Tone.settled.color }
         return .primary
     }
 
@@ -463,7 +464,7 @@ struct WorkshopKarigarScreen: View {
         if let open = pay.open {
             Section {
                 LabeledContent("Pay batch total") {
-                    Text(PaymentText.pkr(open.total)).monospacedDigit().fontWeight(.semibold).foregroundStyle(Color.red)
+                    Text(PaymentText.pkr(open.total)).monospacedDigit().fontWeight(.semibold).foregroundStyle(Color.primary)
                 }
                 if open.payments.isEmpty {
                     Text("No payments recorded. Select \u{201C}Add payment\u{201D} to record one.")
@@ -480,12 +481,12 @@ struct WorkshopKarigarScreen: View {
                 Button { ask = .settle(open) } label: {
                     Label("Settle", systemImage: "checkmark.seal")
                 }
-                .tint(.green)
+                .tint(Tone.settled.color)
             } header: {
                 HStack(spacing: 6) {
                     Image(systemName: "lock.open")
                     Text(open.batch.label.isEmpty ? "Pay batch" : open.batch.label)
-                    StatusBadge("Active", color: .green)
+                    StatusBadge("Active", tone: .settled)
                 }
                 .textCase(nil)
             } footer: {

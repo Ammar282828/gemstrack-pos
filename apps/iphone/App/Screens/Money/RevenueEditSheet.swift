@@ -47,7 +47,7 @@ struct RevenueEditSheet: View {
                     if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }
                 }
                 if let error {
-                    Section { Text(error).foregroundStyle(.red) }
+                    Section { Text(error).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()

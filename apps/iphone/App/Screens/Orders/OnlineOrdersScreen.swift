@@ -76,15 +76,17 @@ struct OnlineOrdersScreen: View {
                 if let told {
                     Section {
                         Label(told.words, systemImage: told.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                            .foregroundStyle(told.ok ? Color.green : Color.orange)
+                            .foregroundStyle(told.ok ? Tone.settled.color : Tone.owed.color)
                     }
                 }
                 if waiting.isEmpty {
                     Section {
-                        Label("Nothing to confirm. A new one shows here, on Home and beside Orders.", systemImage: "checkmark.seal")
-                            .foregroundStyle(.secondary)
-                    } footer: {
-                        Text("Nothing is in the book, and nobody has the bank details, until you confirm.")
+                        ContentUnavailableView(
+                            "Nothing to confirm",
+                            systemImage: "checkmark.seal",
+                            description: Text("A new one shows here, on Home and beside Orders. Nothing is in the book, and nobody has the bank details, until you confirm.")
+                        )
+                        .listRowBackground(Color.clear)
                     }
                 } else {
                     ForEach(waiting) { (r: OnlineOrderRow) in waitingSection(r) }
@@ -93,7 +95,7 @@ struct OnlineOrdersScreen: View {
                     Section {
                         ForEach(lately) { (r: OnlineOrderRow) in latelyRow(r) }
                     } header: {
-                        Text("The last two weeks")
+                        LedgerHeading(title: "The last two weeks")
                     }
                 }
             }
@@ -107,51 +109,50 @@ struct OnlineOrdersScreen: View {
     @ViewBuilder
     private func waitingSection(_ r: OnlineOrderRow) -> some View {
         Section {
+            whoRow(r)
             ForEach(Array(r.lines.enumerated()), id: \.offset) { pair in lineRow(pair.element) }
             customerRows(r)
             if let moved = OnlineOrdersLogic.movedLine(r) {
                 let dearer = (OnlineOrdersLogic.moved(r)?.amount ?? 0) > 0
                 Label(moved, systemImage: "chart.line.uptrend.xyaxis")
                     .font(.footnote)
-                    .foregroundStyle(dearer ? Color.orange : Color.secondary)
+                    .foregroundStyle(dearer ? Tone.owed.color : Color.secondary)
             }
             actionsRow(r)
-        } header: {
-            waitingHeader(r)
         }
     }
 
-    private func waitingHeader(_ r: OnlineOrderRow) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
-                // The section says Online already; the number is what the customer quotes.
-                Text(r.id)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .monospacedDigit()
-                Text(OnlineOrdersLogic.ago(r.placedAt))
-                    .font(.caption2)
+    /// Who it is from first (the section says Online already); the number the customer quotes and how long ago
+    /// are the quiet line, and the total sits at the right.
+    private func whoRow(_ r: OnlineOrderRow) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Monogram(name: r.customer.name, size: Monogram.Size.row)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(r.customer.name.isEmpty ? "Customer" : r.customer.name)
+                    .font(.headline)
+                    .lineLimit(2)
+                Text(["Online", r.id, OnlineOrdersLogic.ago(r.placedAt)].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
             Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 1) {
-                Text(Money.pkr(r.grandTotal))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.accent)
-                    .monospacedDigit()
+            VStack(alignment: .trailing, spacing: 2) {
+                RowAmount(amount: r.grandTotal)
                 Text(r.deliveryCharge > 0 ? "incl. \(Money.pkr(r.deliveryCharge)) delivery" : "free delivery")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
+            .layoutPriority(1)
         }
-        .textCase(nil)
+        .accessibilityElement(children: .combine)
     }
 
     private func lineRow(_ l: OnlineOrderLine) -> some View {
         HStack(spacing: 12) {
             StockImage(imageUrl: l.image, name: l.description, key: l.key)
                 .frame(width: 48, height: 48)
-                .clipShape(.rect(cornerRadius: 8))
+                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(OnlineOrdersLogic.pieceName(l.description))
                     .font(.subheadline)
@@ -159,7 +160,7 @@ struct OnlineOrdersScreen: View {
                 if let size = l.size {
                     Text("Size \(size)")
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Tone.owed.color)
                 }
             }
             Spacer(minLength: 8)
@@ -171,7 +172,6 @@ struct OnlineOrdersScreen: View {
 
     @ViewBuilder
     private func customerRows(_ r: OnlineOrderRow) -> some View {
-        LabeledContent("Customer", value: r.customer.name)
         if let call = OnlineOrdersLogic.callURL(r.customer.phone) {
             Button { openURL(call) } label: {
                 Label(r.customer.phone, systemImage: "phone")
@@ -202,23 +202,30 @@ struct OnlineOrdersScreen: View {
         if r.state == "confirming" {
             // Someone pressed Confirm a moment ago; the server holds it for them for two minutes.
             HStack(spacing: 8) {
-                SkeletonLoading().controlSize(.small)
-                Text("Being confirmed" + (OnlineOrdersLogic.who(r.claimedBy).map { " by \($0)" } ?? "") + "…")
+                ProgressView().controlSize(.small)
+                Text("Being confirmed" + (OnlineOrdersLogic.who(r.claimedBy).map { " by \($0)" } ?? "") + "\u{2026}")
                     .foregroundStyle(.secondary)
             }
         } else {
-            HStack(spacing: 10) {
-                Button { confirming = r } label: {
-                    Label("Confirm", systemImage: "checkmark")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.houseProminent)
-                Button { declining = r } label: {
-                    Label("Decline", systemImage: "xmark")
-                }
-                .buttonStyle(.bordered)
-            }
+            // Each button its own row, so its tap is its own: two buttons in one List row fire together.
+            decisionButtons(r)
         }
+    }
+
+    @ViewBuilder
+    private func decisionButtons(_ r: OnlineOrderRow) -> some View {
+        Button { confirming = r } label: {
+            Label("Confirm", systemImage: "checkmark")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.houseProminent)
+        .controlSize(.large)
+        Button(role: .destructive) { declining = r } label: {
+            Label("Decline", systemImage: "xmark")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.glass)
+        .controlSize(.large)
     }
 
     // MARK: The last fortnight's

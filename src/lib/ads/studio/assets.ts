@@ -27,7 +27,7 @@ import { driveJpeg, driveLibrary } from './drive';
 import { normalizeAssessment, type AssetAssessment } from './assessment';
 import { pieceSpecs } from './specs';
 import { originalsByShot, shotKey } from './originals';
-import { listUploads, uploadJpeg } from './uploads';
+import { listUploads, uploadImage, type UploadType } from './uploads';
 
 export type AssetSource = 'site' | 'drive' | 'upload';
 
@@ -167,10 +167,22 @@ export async function recordCreative(row: { assets: string[]; hash: string; url?
 const hostOf = (u: string) => { try { return new URL(u).hostname; } catch { return ''; } };
 
 export async function assetJpeg(id: string, size: number): Promise<Buffer> {
+  return (await assetImage(id, size)).data;
+}
+
+/**
+ * Like assetJpeg, but with `keepAlpha` an upload stored with transparency comes back as its PNG. Only the
+ * designer's canvas wants that; every other caller (Meta, WhatsApp, Instagram, the vision model, PDFs) uses assetJpeg.
+ */
+export async function assetImage(id: string, size: number, o: { keepAlpha?: boolean } = {}): Promise<{ data: Buffer; type: UploadType }> {
   const [source, ...rest] = id.split(':');
   const key = rest.join(':');
+  if (source === 'up') return uploadImage(key, size, o);
+  return { data: await sourceJpeg(source, key, size), type: 'image/jpeg' };
+}
+
+async function sourceJpeg(source: string, key: string, size: number): Promise<Buffer> {
   if (source === 'drive') return driveJpeg(key, size);
-  if (source === 'up') return uploadJpeg(key, size);
   if (source !== 'site' && source !== 'source') throw Object.assign(new Error('Unknown source.'), { status: 400 });
   const piece = await getSitePiece(key);
   if (!piece || !piece.image.startsWith(`${siteOrigin()}/`)) throw Object.assign(new Error('No such piece on the website.'), { status: 404 });

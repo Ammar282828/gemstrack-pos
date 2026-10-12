@@ -82,44 +82,15 @@ struct NewOrderChoice: Identifiable, Hashable {
 }
 
 enum NewOrderWords {
-    /// TODO(logic): port CUSTOMER_SOURCES / CUSTOMER_SOURCE_LABELS (store.ts).
-    static let sources: [NewOrderChoice] = [
-        NewOrderChoice(id: "taheri_spillover", label: "Taheri Spillover"),
-        NewOrderChoice(id: "referral", label: "Referral"),
-        NewOrderChoice(id: "walkin", label: "Walk-in"),
-        NewOrderChoice(id: "social_media", label: "Social media"),
-        NewOrderChoice(id: "website", label: "Website"),
-        NewOrderChoice(id: "other", label: "Other"),
-    ]
+    /// store.ts CUSTOMER_SOURCES / CUSTOMER_SOURCE_LABELS.
+    static let sources: [NewOrderChoice] = customerSources.map { NewOrderChoice(id: $0, label: customerSourceLabel($0) ?? $0) }
 
-    /// TODO(logic): port staticCategories (categories.ts).
-    static let categories: [NewOrderChoice] = [
-        NewOrderChoice(id: "cat001", label: "Rings"),
-        NewOrderChoice(id: "cat002", label: "Tops"),
-        NewOrderChoice(id: "cat003", label: "Balis"),
-        NewOrderChoice(id: "cat004", label: "Lockets"),
-        NewOrderChoice(id: "cat005", label: "Bracelets"),
-        NewOrderChoice(id: "cat006", label: "Bracelet and Ring Set"),
-        NewOrderChoice(id: "cat007", label: "Bangles"),
-        NewOrderChoice(id: "cat008", label: "Chains"),
-        NewOrderChoice(id: "cat009", label: "Bands"),
-        NewOrderChoice(id: "cat010", label: "Locket Sets without Bangle"),
-        NewOrderChoice(id: "cat011", label: "Locket Set with Bangle"),
-        NewOrderChoice(id: "cat012", label: "String Sets"),
-        NewOrderChoice(id: "cat013", label: "Stone Necklace Sets without Bracelets"),
-        NewOrderChoice(id: "cat014", label: "Stone Necklace Sets with Bracelets"),
-        NewOrderChoice(id: "cat015", label: "Gold Necklace Sets with Bracelets"),
-        NewOrderChoice(id: "cat016", label: "Gold Necklace Sets without Bracelets"),
-        NewOrderChoice(id: "cat017", label: "Gold Coins"),
-        NewOrderChoice(id: "cat018", label: "Men's Rings"),
-        NewOrderChoice(id: "cat019", label: "Loose Bracelet"),
-        NewOrderChoice(id: "cat020", label: "Men's Buttons"),
-    ]
+    /// categories.ts staticCategories.
+    static let categories: [NewOrderChoice] = staticCategories.map { NewOrderChoice(id: $0.id, label: $0.title) }
 
-    /// TODO(logic): port PLATING_TYPES (store.ts).
-    static let platings = ["White Rhodium", "21K Gold Plating", "18K Gold Plating", "Chandi White Plating", "Other"]
+    /// store.ts PLATING_TYPES.
+    static let platings = platingTypes
 
-    /// The trade's tola, in grams (lib/units.ts GRAMS_PER_TOLA): the 24k rate for our margin is typed per tola.
-    /// TODO(logic): port lib/units.ts.
-    static let gramsPerTola = 11.664
+    /// The trade's tola, in grams (lib/units.ts): the 24k rate for our margin is typed per tola.
+    static let gramsPerTola = ERPCore.gramsPerTola
 }

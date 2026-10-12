@@ -47,6 +47,7 @@ struct SaleForm: View {
     @Environment(Book.self) var book
     @Environment(Session.self) var session
     @Environment(\.dismiss) var dismiss
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     /// Edit invoice (SaleEdit): the invoice on file in this form. Nothing is kept on the phone or in Drafts,
     /// there is no starting over, and Save writes the invoice under its own number.
@@ -92,12 +93,16 @@ struct SaleForm: View {
             if let id = made {
                 InvoiceScreen(id: id)
                     .overlay(alignment: .top) { ratesNoteBanner }
+                    .transition(.opacity)
             } else if !book.settings.loaded {
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                page
+                page.transition(.opacity)
             }
         }
+        // The sale made: the form gives way to its invoice on the page's curve, with a tick felt as it lands.
+        .motion(made, Motion.travel)
+        .sensoryFeedback(.success, trigger: made) { _, now in now != nil }
         .task {
             book.settings.need()
             book.products.need()
@@ -129,7 +134,8 @@ struct SaleForm: View {
         let f = SaleFigures(draft: draft, settings: book.settings.value, customers: book.customers.items, marginSettings: House.margin)
         return TransactionWorkspace {
           VStack(spacing: 0) {
-            EntrySteps(selection: $step)
+            EntrySteps(selection: $step, states: stepStates(f))
+            if step == .pieces || step == .payment { saleSummary(f) }
             Form { Group {
             if let edit {
                 Section {
@@ -151,10 +157,12 @@ struct SaleForm: View {
                 exchangeSection()
                 paymentSection(f)
             case .review:
+                // The sum first: it is what the customer is told.
+                totalsSection(f)
                 Section {
                     LabeledContent("Customer", value: f.who.name.isEmpty ? "Walk-in" : f.who.name)
                     if !draft.customerPhone.isEmpty { LabeledContent("Phone", value: draft.customerPhone) }
-                    Button("Edit \(draft.lines.count) pieces") { step = .pieces }
+                    Button("Edit pieces") { step = .pieces }
                     Button("Edit payment and exchange") { step = .payment }
                 } header: { LedgerHeading(title: "Review") }
                 if !draft.lines.isEmpty {
@@ -164,13 +172,15 @@ struct SaleForm: View {
                 }
                 shopSection(f)
                 deliverySection(f)
-                totalsSection(f)
+                orderSection()
             }
             }
             .houseRows()
             }
             .id(step)
+            .transition(.opacity)
           }
+          .motion(step, Motion.enter)
         } review: {
             TransactionReview(customer: f.who.name, contact: draft.customerPhone,
                 pieces: draft.lines.enumerated().map { index, line in
@@ -191,9 +201,16 @@ struct SaleForm: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if edit == nil {
+                // Throwing the sale away is a menu's item, not a red button beside the title.
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Start over", role: .destructive) { confirmingReset = true }
+                    Menu {
+                        Button(role: .destructive) { confirmingReset = true } label: {
+                            Label("Start over", systemImage: "arrow.counterclockwise")
+                        }
                         .disabled(draft.isBlank)
+                    } label: {
+                        Label("More", systemImage: "ellipsis.circle")
+                    }
                 }
             }
             ToolbarItemGroup(placement: .keyboard) {

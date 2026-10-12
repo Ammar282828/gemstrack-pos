@@ -61,6 +61,8 @@ struct WorkshopPaySheet: View {
     @State private var confirming = false
     @State private var saving = false
     @State private var error: String?
+    @State private var savedTick = 0
+    @State private var failedTick = 0
 
     private static let typed = "__typed__"
 
@@ -117,12 +119,13 @@ struct WorkshopPaySheet: View {
                     }
                 }
                 if let error {
-                    Section { Text(error).foregroundStyle(Color.red) }
+                    Section { Text(error).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()
             }
             .navigationTitle("Record payment")
+            .moneyFeedback(success: savedTick, failure: failedTick)
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -172,8 +175,10 @@ struct WorkshopPaySheet: View {
         do {
             try await ERPAPI.shared.write("addExpense", fields)
             onSaved(OwnerNote(title: "Expense added", detail: "Filed to hisaab \u{201C}\(batch.label)\u{201D}."))
+            savedTick += 1
             dismiss()
         } catch {
+            failedTick += 1
             self.error = error.localizedDescription
         }
         saving = false
@@ -195,6 +200,8 @@ struct WorkshopSilverSheet: View {
     @State private var confirming = false
     @State private var saving = false
     @State private var error: String?
+    @State private var savedTick = 0
+    @State private var failedTick = 0
 
     private var grams: Double { WorkshopFigure.read(gramsText) ?? 0 }
     private var rate: Double { WorkshopFigure.read(rateText, places: 2) ?? 0 }
@@ -219,7 +226,7 @@ struct WorkshopSilverSheet: View {
                     }
                 } footer: {
                     if !gramsText.isEmpty, let problem {
-                        Text(problem).foregroundStyle(Color.red)
+                        Text(problem).foregroundStyle(Tone.problem.color)
                     } else {
                         Text("Record silver received from \(name) with per-gram surcharge.")
                     }
@@ -229,12 +236,13 @@ struct WorkshopSilverSheet: View {
                         .lineLimit(1...3)
                 }
                 if let error {
-                    Section { Text(error).foregroundStyle(Color.red) }
+                    Section { Text(error).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()
             }
             .navigationTitle("Silver Transaction")
+            .moneyFeedback(success: savedTick, failure: failedTick)
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -268,8 +276,10 @@ struct WorkshopSilverSheet: View {
         do {
             try await ERPAPI.shared.write("addSilverEntry", fields)
             onSaved(OwnerNote(title: "Silver transaction recorded"))
+            savedTick += 1
             dismiss()
         } catch {
+            failedTick += 1
             self.error = error.localizedDescription
         }
         saving = false
@@ -303,7 +313,7 @@ struct WorkshopBatchStartSheet: View {
                     Text("Give it a name, e.g. \u{201C}March 2026\u{201D} or \u{201C}Gold Set Batch\u{201D}. Payments from his page are filed under it until it is settled.")
                 }
                 if let error {
-                    Section { Text(error).foregroundStyle(Color.red) }
+                    Section { Text(error).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()
@@ -354,6 +364,8 @@ struct WorkshopSettleSheet: View {
     @State private var carry = ""
     @State private var saving = false
     @State private var error: String?
+    @State private var savedTick = 0
+    @State private var failedTick = 0
 
     private var cleanedCarry: String { carry.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var count: Int { open.payments.count }
@@ -380,12 +392,13 @@ struct WorkshopSettleSheet: View {
                     Text("Leave blank to settle without starting a new hisaab.")
                 }
                 if let error {
-                    Section { Text(error).foregroundStyle(Color.red) }
+                    Section { Text(error).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()
             }
             .navigationTitle("Settle pay batch")
+            .moneyFeedback(success: savedTick, failure: failedTick)
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -427,8 +440,10 @@ struct WorkshopSettleSheet: View {
             } else {
                 onSaved(OwnerNote(title: "Settled, and a new pay batch started", detail: "\u{201C}\(open.batch.label)\u{201D} closed. \u{201C}\(cleanedCarry)\u{201D} is now active."))
             }
+            savedTick += 1
             dismiss()
         } catch {
+            failedTick += 1
             self.error = error.localizedDescription
         }
         saving = false

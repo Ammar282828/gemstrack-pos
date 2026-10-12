@@ -48,20 +48,13 @@ struct AdsOverviewScreen: View {
         } message: { (a: AdAttention) in
             Text("\(a.targetName) will spend its budget again.")
         }
-        .alert("Meta didn't take that", isPresented: failureShown) {
-            Button("OK") { failure = nil }
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure, title: "Meta didn't take that")
     }
 
     private var askingShown: Binding<Bool> {
         Binding(get: { asking != nil }, set: { (on: Bool) in if !on { asking = nil } })
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     // MARK: Asking Meta
 
@@ -117,7 +110,7 @@ struct AdsOverviewScreen: View {
     private func topSections(_ d: AdOverview, _ cur: String) -> some View {
         accountSection(d)
         if let problem {
-            Section { Label(problem, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary) } header: { Text("Couldn't refresh") }
+            Section { Label(problem, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary) } header: { LedgerHeading(title: "Couldn't refresh") }
         }
         figuresSection(d, cur)
         broughtSection(d)
@@ -230,12 +223,12 @@ struct AdsOverviewScreen: View {
     private func attentionSection(_ d: AdOverview) -> some View {
         Section {
             if d.attention.isEmpty {
-                Label("Nothing needs attention.", systemImage: "checkmark.circle").foregroundStyle(.green)
+                Label("Nothing needs attention.", systemImage: "checkmark.circle").foregroundStyle(Tone.settled.color)
             } else {
                 ForEach(d.attention) { (a: AdAttention) in attentionItem(a) }
             }
         } header: {
-            Text(d.attention.isEmpty ? "Needs a look" : "Needs a look: \(d.attention.count)")
+            LedgerHeading(title: "Needs a look", count: d.attention.count)
         }
     }
 
@@ -251,7 +244,7 @@ struct AdsOverviewScreen: View {
     private func attentionBody(_ a: AdAttention) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: a.severity == "tip" ? "lightbulb" : "exclamationmark.triangle.fill")
-                .foregroundStyle(a.severity == "bad" ? Color.red : (a.severity == "warn" ? Color.orange : Color.secondary))
+                .foregroundStyle(a.severity == "bad" ? Tone.problem.color : (a.severity == "warn" ? Tone.owed.color : Color.secondary))
             VStack(alignment: .leading, spacing: 4) {
                 Text(a.title).font(.body.weight(.medium))
                 Text(a.why).font(.subheadline).foregroundStyle(.secondary)
@@ -341,7 +334,7 @@ struct AdsOverviewScreen: View {
         HStack(spacing: 12) {
             StockImage(imageUrl: a.thumbnail, name: a.name, key: a.id)
                 .frame(width: 48, height: 48)
-                .clipShape(.rect(cornerRadius: 10))
+                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(a.name).lineLimit(1)
                 Text(a.campaign).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
@@ -380,7 +373,7 @@ struct AdsOverviewScreen: View {
                     }
                 }
             } header: {
-                Text(title)
+                LedgerHeading(title: title)
             }
         }
     }

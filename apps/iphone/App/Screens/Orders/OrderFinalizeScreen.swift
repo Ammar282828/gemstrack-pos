@@ -43,8 +43,10 @@ struct OrderFinalizeScreen: View {
                 SkeletonLoading()
             }
         }
-        .navigationTitle(made == nil ? "Finalize & invoice" : (made ?? ""))
+        .navigationTitle(made == nil ? "Make invoice" : (made ?? ""))
         .navigationBarTitleDisplayMode(.inline)
+        .moneyFeedback(success: made, failure: 0)
+        .sensoryFeedback(.error, trigger: failure) { _, now in now != nil }
         .onAppear {
             book.orders.need()
             book.settings.need()
@@ -70,6 +72,9 @@ struct OrderFinalizeScreen: View {
         let f = OrderFinalizeMath.figures(order, rows: rows, discount: discount, settings: settings)
         return TransactionWorkspace {
           Form { Group {
+            Section {
+                header(order, due: f.balance)
+            }
             ForEach($rows) { $row in
                 pieceSection($row, price: row.index < f.prices.count ? f.prices[row.index] : 0)
             }
@@ -100,12 +105,9 @@ struct OrderFinalizeScreen: View {
                     Text(Money.pkr(abs(f.balance))).font(.headline).monospacedDigit()
                 }
             } header: {
-                Text("The invoice")
+                LedgerHeading(title: "The invoice")
             } footer: {
                 Text("Priced at the rates the order was booked at. The advances become the invoice's payments, each on its own day; the exchange comes off the total.")
-            }
-            if let failure {
-                Section { Label(failure, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }
             }
             }
             .houseRows()
@@ -121,6 +123,13 @@ struct OrderFinalizeScreen: View {
                 .init(label: f.balance < 0 ? "Credit to customer" : "Balance due", value: Money.pkr(abs(f.balance)))
             ])
         } footer: {
+            VStack(spacing: 10) {
+            if let failure {
+                Label(failure, systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(Tone.problem.color)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             Button {
                 if let problem = OrderFinalizeMath.problem(rows, discount: discount) {
                     failure = problem
@@ -130,14 +139,15 @@ struct OrderFinalizeScreen: View {
                 }
             } label: {
                 HStack(spacing: 8) {
-                    if saving { SkeletonLoading() }
-                    Text("Finalize · \(Money.pkr(f.total))")
+                    if saving { ProgressView().controlSize(.small) }
+                    Text("Make invoice \u{00B7} \(Money.pkr(f.total))")
                 }
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.houseProminent)
             .controlSize(.large)
             .disabled(saving)
+            }
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
         }
@@ -146,6 +156,27 @@ struct OrderFinalizeScreen: View {
         } message: {
             Text(confirmWords(order, f))
         }
+    }
+
+    /// Who it is for, which order, and what is due once the advances are counted.
+    private func header(_ order: Order, due: Double) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Monogram(name: OrdersLogic.customerName(order), size: Monogram.Size.row)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(OrdersLogic.customerName(order)).font(.headline).lineLimit(2)
+                Text(order.id).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
+                if abs(due) > 0.5 {
+                    RowAmount(amount: abs(due), tone: due < 0 ? Tone.credit.color : Tone.owed.color)
+                    Text(due < 0 ? "In credit" : "Due").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Pill("Paid", tone: .settled)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     /// What is agreed to: the invoice's total and what is left owing (or in credit).
@@ -181,11 +212,8 @@ struct OrderFinalizeScreen: View {
                 field("Diamonds", row.diamonds, keyboard: .numberPad)
             }
         } header: {
-            HStack {
-                Text("\(r.index + 1). \(r.item.description.isEmpty ? "A piece" : r.item.description)")
-                Spacer()
-                Text(Money.pkr(price)).monospacedDigit()
-            }
+            LedgerHeading(title: "\(r.index + 1). \(r.item.description.isEmpty ? "A piece" : r.item.description)",
+                          trailing: Money.pkr(price))
         } footer: {
             if r.onOrder > 0 && Int(r.onOrder.rounded()) != Int(price.rounded()) {
                 Text("On the order \(Money.pkr(r.onOrder)).")

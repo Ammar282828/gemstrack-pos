@@ -60,11 +60,11 @@ struct NewOrder: View {
             if let created {
                 NewOrderLanding(id: created)
             } else if edit != nil && session.role != "owner" {
-                ContentUnavailableView("Only an owner can change an order", systemImage: "lock", description: Text("Ask an owner to make the change, or add a note on the order."))
+                NotAvailableState("Only an owner can change an order", why: "Ask an owner to make the change, or add a note on the order.", symbol: "lock")
             } else if session.role == "owner" || session.role == "staff" {
                 form
             } else {
-                ContentUnavailableView("Orders are taken by the shop", systemImage: "lock", description: Text("Sign in with an owner or staff account to take an order."))
+                NotAvailableState("Orders are taken by the shop", why: "Sign in with an owner or staff account to take an order.", symbol: "lock")
             }
         }
         .onAppear { start() }
@@ -170,11 +170,7 @@ struct NewOrder: View {
         let settings = book.settings.value
         let totals = NewOrderMath.totals(draft, settings)
         return screen(totals, settings)
-            .alert(failureTitle, isPresented: failureShown) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(failure ?? "")
-            }
+            .failureAlert($failure, title: failureTitle)
             .confirmationDialog("Start this order over?", isPresented: $confirmReset, titleVisibility: .visible) {
                 Button("Start over", role: .destructive) { startOver() }
                 Button("Keep it", role: .cancel) {}
@@ -190,7 +186,8 @@ struct NewOrder: View {
     private func screen(_ totals: NewOrderMath.Totals, _ settings: Settings?) -> some View {
         TransactionWorkspace {
           VStack(spacing: 0) {
-            EntrySteps(selection: $step)
+            EntrySteps(selection: $step, states: stepStates)
+            if step == .pieces || step == .payment { NewOrderPinnedSummary(totals: totals) }
             Form { Group {
             if restored { restoredBanner }
             if edit?.invoiced == true {
@@ -272,6 +269,26 @@ struct NewOrder: View {
         .navigationDestination(item: $editing) { ref in editor(ref.id) }
     }
 
+    /// Where each step stands, read from the draft only: a tick when it is complete, an amber dot when what is
+    /// typed would stop the save (the same rules as `NewOrderMath.problem`).
+    private var stepStates: [EntryStep: EntryStepState] {
+        var out: [EntryStep: EntryStepState] = [:]
+        if !draft.customerName.trimmingCharacters(in: .whitespaces).isEmpty { out[.customer] = .done }
+        if !draft.pieces.isEmpty {
+            let complete = draft.pieces.allSatisfy { (p: NewOrderPieceDraft) in
+                p.description.trimmingCharacters(in: .whitespaces).count >= 3
+                    && (p.manual ? NewOrderFormat.num(p.manualPrice) > 0 : NewOrderFormat.num(p.weight) > 0)
+            }
+            out[.pieces] = complete ? .done : .attention
+        }
+        if NewOrderFormat.num(draft.discount) < 0 || NewOrderFormat.num(draft.advance) < 0 {
+            out[.payment] = .attention
+        } else if NewOrderFormat.num(draft.advance) > 0 {
+            out[.payment] = .done
+        }
+        return out
+    }
+
     /// Kept on this phone as it is typed: a moment after the last key, and at once when the app leaves.
     private var keeping: NewOrderKeeping {
         NewOrderKeeping(
@@ -291,10 +308,6 @@ struct NewOrder: View {
         sync(now: true)
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })
-    }
-
     private var restoredBanner: some View {
         Section {
             if draft.fromSale {
@@ -307,7 +320,7 @@ struct NewOrder: View {
             if draft.photosLeftOut {
                 Label("The sample photos were too many to keep: add them again.", systemImage: "exclamationmark.triangle")
                     .font(.subheadline)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Tone.owed.color)
             }
         }
     }
@@ -330,7 +343,7 @@ struct NewOrder: View {
                     Button { duplicatePiece(piece.id) } label: {
                         Label("Duplicate", systemImage: "plus.square.on.square")
                     }
-                    .tint(.blue)
+                    .tint(Tone.working.color)
                 }
                 .contextMenu {
                     Button { duplicatePiece(piece.id) } label: {
@@ -607,5 +620,44 @@ struct NewOrderLanding: View {
                 waited = true
             }
         }
+    }
+}
+
+/// The order's total and what is still due, pinned under the steps while pieces and payment are typed. The
+/// figures are `NewOrderMath.totals`' own (subtotal and balance), never worked out again here.
+private struct NewOrderPinnedSummary: View {
+    let totals: NewOrderMath.Totals
+
+    private var dueTone: Tone {
+        if totals.balance < -0.5 { return .credit }
+        return totals.balance > 0.5 ? .owed : .settled
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Order total").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
+                Text(Money.pkr(totals.subtotal))
+                    .font(.system(.title3, design: .serif).weight(.semibold))
+                    .monospacedDigit()
+                    .contentTransition(.numericText(value: totals.subtotal))
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 0) {
+                Text(totals.balance < -0.5 ? "Credit to customer" : "Due").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
+                Text(Money.pkr(abs(totals.balance)))
+                    .font(.headline)
+                    .monospacedDigit()
+                    .foregroundStyle(dueTone.color)
+                    .contentTransition(.numericText(value: totals.balance))
+            }
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .padding(.horizontal, 16).padding(.vertical, 8)
+        .background(Theme.ground)
+        .motion(totals.balance, Motion.travel)
+        .motion(totals.subtotal, Motion.travel)
+        .accessibilityElement(children: .combine)
     }
 }

@@ -13,7 +13,6 @@ struct InvoiceActionDiscountSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var amountText: String
-    @State private var confirming = false
     @State private var saving = false
     @State private var error: String?
 
@@ -52,7 +51,7 @@ struct InvoiceActionDiscountSheet: View {
                     LabeledContent("Subtotal") { MoneyText(amount: invoice.subtotal, exact: true) }
                     LabeledContent("Discount") { MoneyText(amount: invoice.discountAmount, exact: true) }
                     if getInvoiceExchangeTotal(invoice) > 0 {
-                        LabeledContent("Exchange") { Text("- " + PaymentText.pkr(getInvoiceExchangeTotal(invoice))).monospacedDigit() }
+                        LabeledContent("Exchange") { Text(Money.minus(getInvoiceExchangeTotal(invoice))).monospacedDigit() }
                     }
                     LabeledContent("Grand total") { MoneyText(amount: invoice.grandTotal, exact: true) }
                     if invoice.amountPaid != 0 {
@@ -71,7 +70,7 @@ struct InvoiceActionDiscountSheet: View {
                     Text("Discount")
                 } footer: {
                     if let problem {
-                        Text(problem).foregroundStyle(.red)
+                        Text(problem).foregroundStyle(Tone.problem.color)
                     } else if let d = discount, d > 0 {
                         Text(Money.pkrLac(d))
                     }
@@ -88,11 +87,12 @@ struct InvoiceActionDiscountSheet: View {
                     }
                 }
                 if let error {
-                    Section { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }
+                    Section { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()
             }
+            .houseForm()
             .navigationTitle("Change the discount")
             .navigationBarTitleDisplayMode(.inline)
             .disabled(saving)
@@ -100,19 +100,15 @@ struct InvoiceActionDiscountSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }
                 }
+                // The figures above are the agreement: Before, After and what follows. This button is the confirm.
                 ToolbarItem(placement: .confirmationAction) {
                     if saving {
-                        SkeletonLoading()
+                        ProgressView().controlSize(.small)
                     } else {
-                        Button("Review") { confirming = true }
+                        Button("Change", role: .confirm) { Task { await save() } }
                             .disabled(after == nil || !changed)
                     }
                 }
-            }
-            .confirmationDialog("Change the discount?", isPresented: $confirming, titleVisibility: .visible) {
-                Button("Change it") { Task { await save() } }
-            } message: {
-                Text(review)
             }
         }
         .presentationDetents([.large])
@@ -126,17 +122,6 @@ struct InvoiceActionDiscountSheet: View {
             said += " Order \(order)'s balance becomes \(PaymentText.pkr(after.balanceDue))."
         }
         return said
-    }
-
-    /// Before and after, in money, as the counter agrees to it.
-    private var review: String {
-        guard let after else { return "" }
-        return [
-            "Discount: \(PaymentText.pkr(invoice.discountAmount)) → \(PaymentText.pkr(after.discountAmount))",
-            "Grand total: \(PaymentText.pkr(invoice.grandTotal)) → \(PaymentText.pkr(after.grandTotal))",
-            "\(InvoiceActionWords.balance(invoice.balanceDue)) → \(InvoiceActionWords.balance(after.balanceDue))",
-            followers(after),
-        ].joined(separator: "\n")
     }
 
     private func save() async {

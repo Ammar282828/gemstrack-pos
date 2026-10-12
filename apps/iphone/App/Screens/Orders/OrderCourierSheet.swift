@@ -36,13 +36,15 @@ struct OrderCourierSheet: View {
                     Section {
                         Label(OrderActions.noAddressWarning, systemImage: "exclamationmark.triangle.fill")
                             .font(.subheadline)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Tone.owed.color)
                     }
                 }
-                Section("What happens") {
+                Section {
                     step(1, firstStep, done: linked != nil)
                     step(2, "Fulfil it in Shopify", done: sent != nil)
                     step(3, "Universal Courier raises the Envio consignment and returns the tracking number", done: false)
+                } header: {
+                    LedgerHeading(title: "What happens")
                 }
                 Section {
                     Toggle("Email the customer now \u{2014} before there is a tracking number", isOn: $notify)
@@ -55,26 +57,27 @@ struct OrderCourierSheet: View {
                 if let made {
                     let said = OrderActions.madeNote(made)
                     Section {
-                        Label(said.title, systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                        Label(said.title, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color)
                         Text(said.detail).font(.footnote).foregroundStyle(.secondary)
                     }
                 }
                 if let sent {
                     Section {
-                        Label("Sent for booking", systemImage: "shippingbox.fill").foregroundStyle(.green)
+                        Label("Sent for booking", systemImage: "shippingbox.fill").foregroundStyle(Tone.settled.color)
                         Text(sent).font(.footnote).foregroundStyle(.secondary)
                     }
                 }
                 if let error {
                     Section {
-                        Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                        Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
                     } header: {
-                        Text("Could not book")
+                        LedgerHeading(title: "Could not book")
                     }
                 }
                 }
                 .houseRows()
             }
+            .houseForm()
             .navigationTitle("Book courier")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -88,7 +91,7 @@ struct OrderCourierSheet: View {
                     if sent != nil { dismiss() } else { book() }
                 } label: {
                     HStack(spacing: 8) {
-                        if busy != nil { SkeletonLoading() }
+                        if busy != nil { ProgressView().controlSize(.small) }
                         Label(buttonWords, systemImage: sent != nil ? "checkmark" : "truck.box")
                     }
                     .frame(maxWidth: .infinity)
@@ -120,7 +123,7 @@ struct OrderCourierSheet: View {
     private func step(_ n: Int, _ words: String, done: Bool) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Image(systemName: done ? "checkmark.circle.fill" : "\(n).circle")
-                .foregroundStyle(done ? Color.green : Color.secondary)
+                .foregroundStyle(done ? Tone.settled.color : Color.secondary)
             Text(words)
                 .font(.subheadline)
                 .foregroundStyle(done ? Color.secondary : Color.primary)

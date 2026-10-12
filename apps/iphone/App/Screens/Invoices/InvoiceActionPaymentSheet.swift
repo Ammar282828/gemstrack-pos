@@ -36,6 +36,7 @@ struct InvoiceActionPaymentSheet: View {
                 .houseRows()
             }
             .listStyle(.insetGrouped)
+            .houseForm()
             .navigationTitle("Delete a payment")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -59,7 +60,7 @@ struct InvoiceActionPaymentSheet: View {
             }
             Spacer(minLength: 8)
             Text(PaymentText.pkr(p.amount)).monospacedDigit().fontWeight(.medium)
-            Image(systemName: "trash").foregroundStyle(.red)
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
         }
         .contentShape(.rect)
     }
@@ -75,7 +76,15 @@ struct InvoiceActionPaymentSheet: View {
 
     /// The code sheet for this payment, saying what the invoice will read once it is off.
     private func ask(index: Int, payment p: Payment) {
-        guard let after = InvoiceActions.withoutPayment(InvoiceActions.Figures(invoice), index: index) else { return }
+        guard let ask = Self.deleting(invoice, index: index, payment: p) else { return }
+        outcome = ask.outcome
+        deletion = ask.deletion
+    }
+
+    /// What deleting one payment says and does: the delete code's words, the ERP's write, and the note for the page
+    /// after. The sheet's rows and the invoice page's swipe both start it. Nil when the payment is no longer there.
+    static func deleting(_ invoice: Invoice, index: Int, payment p: Payment) -> (deletion: OwnerDeletion, outcome: InvoiceActionOutcome)? {
+        guard let after = InvoiceActions.withoutPayment(InvoiceActions.Figures(invoice), index: index) else { return nil }
         let when = ShopDate.say(p.date)
         let note = (p.notes ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         var said = "\(PaymentText.pkr(p.amount)) of \(when)\(note.isEmpty ? "" : " (\(note))") comes off \(invoice.id)."
@@ -85,16 +94,17 @@ struct InvoiceActionPaymentSheet: View {
             said += " Order \(order)'s balance becomes \(PaymentText.pkr(after.balanceDue))."
         }
         let line = balanceLine(after.balanceDue)
-        outcome = InvoiceActionOutcome(
+        let outcome = InvoiceActionOutcome(
             note: InvoiceNote(title: "Payment deleted",
                               detail: "\(PaymentText.pkr(p.amount)) taken off \(invoice.id). \(line.label)\(line.amount > 0 ? ": \(PaymentText.pkr(line.amount))" : "")."),
             removed: false)
         let invoiceId = invoice.id
-        deletion = OwnerDeletion(what: InvoiceActionWords.deletePaymentWhat(p.amount, invoiceId), detail: said) { code in
-            // The payment as this sheet showed it: its place, amount and date. The ERP checks all three.
+        let deletion = OwnerDeletion(what: InvoiceActionWords.deletePaymentWhat(p.amount, invoiceId), detail: said) { code in
+            // The payment as the list showed it: its place, amount and date. The ERP checks all three.
             _ = try await ERPAPI.shared.write("deleteInvoicePayment", [
                 "invoiceId": invoiceId, "index": index, "amount": p.amount, "paymentDate": p.date, "deleteCode": code,
             ])
         }
+        return (deletion, outcome)
     }
 }

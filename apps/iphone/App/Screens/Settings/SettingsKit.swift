@@ -78,7 +78,7 @@ struct SettingsGate<Content: View>: View {
                     }
                 }
             } else {
-                ContentUnavailableView("Owners only", systemImage: "lock", description: Text("Settings are the owners’."))
+                NotAvailableState("Owners only", why: "Settings are the owners’.", symbol: "lock")
             }
         }
         .navigationTitle(title)
@@ -99,7 +99,8 @@ struct SettingsIcon: View {
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.system(size: 15, weight: .semibold))
+            .font(.subheadline.weight(.semibold))
+            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
             .foregroundStyle(color == Theme.accent ? Theme.onAccent : .white)
             .frame(width: 29, height: 29)
             .background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
@@ -174,7 +175,7 @@ struct SettingsOwnersOnly<Content: View>: View {
         if session.isOwner {
             content()
         } else {
-            ContentUnavailableView("Owners only", systemImage: "lock", description: Text("Settings are the owners’."))
+            NotAvailableState("Owners only", why: "Settings are the owners’.", symbol: "lock")
                 .navigationTitle(title)
         }
     }
@@ -187,7 +188,7 @@ struct SettingsErrorSection: View {
     var body: some View {
         if let message = writer.error {
             Section {
-                Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
             }
         }
     }

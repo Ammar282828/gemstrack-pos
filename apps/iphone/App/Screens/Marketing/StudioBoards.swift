@@ -24,6 +24,8 @@ struct StudioBoards: View {
     @State private var nameText = ""
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var note: Note?
 
     private var compact: Bool { sizeClass == .compact }
     private var z: Double { min(1.5, max(0.08, zoom * pinch)) }
@@ -49,6 +51,12 @@ struct StudioBoards: View {
             }
         }
         .accessibilityIdentifier("studio.board")
+        .noteToast($note)
+        .onChange(of: board.said) { _, said in
+            guard let said else { return }
+            Note.show(Note(title: said), in: $note, reduce: reduceMotion)
+            board.said = nil
+        }
         .inspector(isPresented: $inspectorShown) {
             presentations(inspector, active: inspectorIsSheet)
                 .inspectorColumnWidth(min: 300, ideal: 340, max: 420)
@@ -134,10 +142,7 @@ struct StudioBoards: View {
     @ViewBuilder private var banners: some View {
         VStack(spacing: 6) {
             if let working = board.working {
-                banner(Label { Text(working) } icon: { ProgressView().controlSize(.small) })
-            }
-            if let said = board.said {
-                banner(HStack { Text(said); Spacer(); Button("Dismiss", systemImage: "xmark") { board.said = nil }.labelStyle(.iconOnly) })
+                banner(HStack(spacing: 10) { SkeletonLoading(working); Text(working) })
             }
             if let offer = board.offer, offer.s("id") != board.current {
                 banner(HStack {
@@ -157,7 +162,7 @@ struct StudioBoards: View {
 
     private func banner(_ content: some View) -> some View {
         content.font(.footnote).frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10).background(Theme.card, in: .rect(cornerRadius: 12))
+            .ledgerCard(padding: 10)
             .padding(.bottom, 4)
     }
 
@@ -328,7 +333,7 @@ struct StudioBoards: View {
     private var boardLine: String {
         let v = board.value
         var s = "\(v["frames"].array.count) designs · \(v["notes"].array.count) notes"
-        if let at = ERPDate.parse(v.s("updated")) { s += " · changed " + at.formatted(date: .abbreviated, time: .shortened) }
+        if let at = ERPDate.parse(v.s("updated")) { s += " · changed " + ShopDate.stamp(at, withTime: true) }
         if v.s("by").hasPrefix("agent:") { s += " by the agent" }
         return s
     }
@@ -375,9 +380,7 @@ struct StudioBoards: View {
             .confirmationDialog("Make this week’s board now? It designs up to six of the week’s new pieces (about a minute each).", isPresented: Binding(get: { active && asking == .weekly }, set: { if !$0 { asking = nil } }), titleVisibility: .visible) {
                 Button("Make it") { Task { await board.weekly() } }
             }
-            .alert("Could not finish", isPresented: Binding(get: { active && board.error != nil }, set: { if !$0 { board.error = nil } })) {
-                Button("OK") { board.error = nil }
-            } message: { Text(board.error ?? "") }
+            .failureAlert(Binding(get: { active ? board.error : nil }, set: { board.error = $0 }), title: "Could not finish")
     }
 }
 

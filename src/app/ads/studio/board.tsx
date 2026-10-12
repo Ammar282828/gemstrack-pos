@@ -63,12 +63,14 @@ const ANGLES = ['', 'bold and graphic, one strong line', 'quiet luxury — very 
 
 interface Pic { img: HTMLImageElement; blob: Blob; url: string }
 const pics = new Map<string, Promise<Pic>>();
-function photoOf(id: string): Promise<Pic> {
-  let p = pics.get(id);
+/** `alpha`: a library picture laid on the design (inset, background, logo) keeps its transparency (a PNG); the design's own photo is always a JPEG. */
+function photoOf(id: string, alpha = false): Promise<Pic> {
+  const key = alpha ? `alpha|${id}` : id;
+  let p = pics.get(key);
   if (!p) {
-    p = fetchAsset(id, 1600).then(async blob => ({ blob, img: await loadImage(blob), url: URL.createObjectURL(blob) }));
-    p.catch(() => pics.delete(id));
-    pics.set(id, p);
+    p = fetchAsset(id, 1600, alpha).then(async blob => ({ blob, img: await loadImage(blob), url: URL.createObjectURL(blob) }));
+    p.catch(() => pics.delete(key));
+    pics.set(key, p);
   }
   return p;
 }
@@ -81,8 +83,9 @@ const fontsReady = () => (fontsOnce ??= Promise.all(
 /** A picture this page already has (an upload, an AI result): kept as if fetched, so it isn't fetched back. */
 function remember(id: string, blob: Blob) {
   const p = loadImage(blob).then(img => ({ blob, img, url: URL.createObjectURL(blob) }));
-  p.catch(() => pics.delete(id));
+  p.catch(() => { pics.delete(id); pics.delete(`alpha|${id}`); });
   pics.set(id, p);
+  pics.set(`alpha|${id}`, p);
 }
 
 /** A picture into the Studio's library (POST /api/ads/studio/uploads): its asset id, `up:<id>`. */
@@ -104,7 +107,7 @@ async function uploadPicture(blob: Blob, name: string): Promise<string> {
 type Extras = Record<string, Pic>;
 async function extrasOf(doc: StoryDoc | null | undefined): Promise<Extras> {
   const ids = extraIds(doc);
-  const got = await Promise.all(ids.map(id => photoOf(assetOfRef(id)!).catch(() => null)));
+  const got = await Promise.all(ids.map(id => photoOf(assetOfRef(id)!, true).catch(() => null)));
   return Object.fromEntries(ids.flatMap((id, i) => (got[i] ? [[id, got[i]!]] : [])));
 }
 const assetsFor = (pic: Pic | null, marks: Assets['marks'], extras: Extras = {}): Assets => ({
@@ -1232,7 +1235,7 @@ function FrameEditor({ frame: f, marks, onClose, onSave }: { frame: BoardFrame; 
   const blobOf = async (shows: string): Promise<Blob> => {
     if (shows === MAIN) { if (!pic) throw new Error('The photo hasn’t come yet.'); return pic.blob; }
     if (shows.startsWith('data:')) return (await fetch(shows)).blob();
-    const x = extras[shows] ?? await photoOf(assetOfRef(shows)!);
+    const x = extras[shows] ?? await photoOf(assetOfRef(shows)!, true);
     return x.blob;
   };
   const aspectOf = (target: PictureTarget): string => {

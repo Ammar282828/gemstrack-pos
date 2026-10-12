@@ -82,20 +82,13 @@ struct AdsCampaignsScreen: View {
         .sheet(item: $budgeting) { (t: AdsBudgetTarget) in
             AdsBudgetSheet(target: t) { await load() }
         }
-        .alert("Meta didn't take that", isPresented: failureShown) {
-            Button("OK") { failure = nil }
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure, title: "Meta didn't take that")
     }
 
     private var askingShown: Binding<Bool> {
         Binding(get: { asking != nil }, set: { (on: Bool) in if !on { asking = nil } })
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     // MARK: Asking Meta
 
@@ -195,7 +188,7 @@ struct AdsCampaignsScreen: View {
                     }
                 }
                 if let problem {
-                    Section { Label(problem, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary) } header: { Text("Couldn't refresh") }
+                    Section { Label(problem, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary) } header: { LedgerHeading(title: "Couldn't refresh") }
                 }
                 if list.isEmpty {
                     Section {
@@ -267,7 +260,7 @@ struct AdsCampaignsScreen: View {
                     Text(s.name).font(.body.weight(.medium)).fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 6) {
                         AdsStatusBadge(status: s.effectiveStatus)
-                        if let learning = s.learning { Text(learning).font(.caption).foregroundStyle(.orange) }
+                        if let learning = s.learning { Text(learning).font(.caption).foregroundStyle(Tone.owed.color) }
                     }
                     let b = budget(s.dailyBudget, s.lifetimeBudget, cur)
                     if !b.isEmpty {
@@ -298,7 +291,7 @@ struct AdsCampaignsScreen: View {
                         VStack(alignment: .leading, spacing: 4) {
                             StockImage(imageUrl: a.image, name: a.name, key: a.id)
                                 .aspectRatio(1, contentMode: .fit)
-                                .clipShape(.rect(cornerRadius: 10))
+                                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                             Text(a.name).font(.caption).fixedSize(horizontal: false, vertical: true)
                             Text(AdsFormat.money(a.metrics.spend, cur)).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                         }
@@ -421,7 +414,7 @@ struct AdsCampaignsScreen: View {
         ForEach(list, id: \.self) { issue in
             Label(issue, systemImage: "exclamationmark.triangle.fill")
                 .font(.caption)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Tone.owed.color)
         }
     }
 }

@@ -11,7 +11,7 @@ struct SettingsRoot: View {
         if session.isOwner {
             list
         } else {
-            ContentUnavailableView("Owners only", systemImage: "lock", description: Text("Settings are the owners’."))
+            NotAvailableState("Owners only", why: "Settings are the owners’.", symbol: "lock")
                 .navigationTitle("Settings")
         }
     }

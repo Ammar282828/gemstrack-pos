@@ -215,6 +215,7 @@ struct InvoicesList: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var search = ""
     @State private var chip: InvoiceChip = .all
@@ -232,7 +233,7 @@ struct InvoicesList: View {
     /// Send on WhatsApp from a swipe: the invoice page's own send (InvoiceWhatsAppSend).
     @State private var sending: Invoice?
     @State private var pdf: InvoicePDFTarget?
-    @State private var note: InvoiceNote?
+    @State private var note: Note?
     /// The ERP's own page for what has no native screen yet.
     @State private var web: Route?
 
@@ -244,13 +245,15 @@ struct InvoicesList: View {
             content(all).motion(chip)
         }
         .navigationTitle("Invoices")
-        .searchable(text: $search, prompt: "Customer, phone, piece, invoice or SKU")
+        .searchable(text: $search, prompt: "Search invoices")
         .toolbar {
             ToolbarItem(placement: .primaryAction) { filterMenu(all) }
         }
-        .invoicePaymentSheet(for: $paying)
-        .invoiceWhatsAppSend($sending, web: $web) { sent in withAnimation { note = sent } }
-        .invoiceNoteBanner($note)
+        .invoicePaymentSheet(for: $paying) { paid, amount in recorded(paid, amount) }
+        .invoiceWhatsAppSend($sending, web: $web) { sent in
+            Note.show(Note(title: sent.title, detail: sent.detail), in: $note, reduce: reduceMotion)
+        }
+        .noteToast($note)
         .sheet(isPresented: $pickingRange) {
             InvoiceRangeSheet(from: rangeFrom, to: rangeTo) { from, to in
                 rangeFrom = from
@@ -282,7 +285,9 @@ struct InvoicesList: View {
           if geometry.size.width >= 760 && !typeSize.isAccessibilitySize {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 24) {
-                    listControls(scoped, all: all)
+                    chipRow(scoped)
+                    if filterActive { filterCaption }
+                    summaryStrip(all)
                     ForEach(groups) { group in
                         InvoiceSectionHeader(section: group)
                         LazyVGrid(columns: CardColumns.grid(geometry.size.width - 48), alignment: .leading, spacing: 20) {
@@ -302,7 +307,12 @@ struct InvoicesList: View {
                                         }.accessibilityLabel("Actions for \(inv.id)")
                                     }
                                 }
-                                .padding(20).background(Theme.card, in: .rect(cornerRadius: 20))
+                                .ledgerCard(padding: 20)
+                                // The signed-in person's own sale is lit a little (decision "Signed-in defaults"), as an order's card is.
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                                        .strokeBorder(Theme.accent.opacity(isMine(inv) ? 0.22 : 0.08), lineWidth: 1)
+                                }
                             }
                         }
                     }
@@ -311,11 +321,13 @@ struct InvoicesList: View {
             }
           } else {
         List {
-            // The chips and the figures are the list's first rows (a bar pinned over the list greyed the large title out).
+            // The chips, the filter line and the figures are the list's first rows (a bar pinned over the list greyed
+            // the large title out). The chips scroll edge to edge and pad themselves; the rest take the page's margin.
             Section {
-                listControls(scoped, all: all)
+                chipRow(scoped).chipRowInList()
+                if filterActive { filterCaption.stripRow() }
+                summaryStrip(all).stripRow()
             }
-            .chipRowInList()
             if groups.isEmpty {
                 Section { emptyState }.houseRows()
             } else {
@@ -333,8 +345,7 @@ struct InvoicesList: View {
         }
     }
 
-    @ViewBuilder
-    private func listControls(_ scoped: [Invoice], all: [Invoice]) -> some View {
+    private func chipRow(_ scoped: [Invoice]) -> some View {
         ChipRow {
             ForEach([InvoiceChip.all, .unpaid, .paid]) { c in
                 FilterChip(title: c.title, count: scoped.filter { c.matches($0) }.count, chosen: c == chip) {
@@ -342,47 +353,90 @@ struct InvoicesList: View {
                 }
             }
         }
-        if !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || (chip != .all && chip != .unpaid && chip != .paid) {
-            HStack {
-                Text([chip == .all ? "" : chip.title, takenBy, month.isEmpty ? "" : InvoiceCalendar.monthLabel(month),
-                      rangeFrom.map { InvoiceCalendar.caption(from: $0, to: rangeTo) } ?? ""].filter { !$0.isEmpty }.joined(separator: " · "))
-                    .font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                Button("Clear") { chip = .all; takenBy = ""; month = ""; rangeFrom = nil; rangeTo = nil }
-                    .font(.caption.weight(.semibold)).buttonStyle(.borderless)
-            }
+    }
+
+    /// Something the chips do not show is narrowing the list.
+    private var filterActive: Bool {
+        !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || (chip != .all && chip != .unpaid && chip != .paid)
+    }
+
+    /// What the list is narrowed to, and a way back.
+    private var filterCaption: some View {
+        HStack {
+            Text([chip == .all ? "" : chip.title, takenBy, month.isEmpty ? "" : InvoiceCalendar.monthLabel(month),
+                  rangeFrom.map { InvoiceCalendar.caption(from: $0, to: rangeTo) } ?? ""].filter { !$0.isEmpty }.joined(separator: " · "))
+                .font(.caption).foregroundStyle(.secondary)
+            Spacer()
+            Button("Clear") { clearFilters() }
+                .font(.caption.weight(.semibold)).buttonStyle(.borderless)
         }
-        summaryCard(all)
+    }
+
+    private func clearFilters() {
+        chip = .all; takenBy = ""; month = ""; rangeFrom = nil; rangeTo = nil
+    }
+
+    /// A payment taken from a swipe: what is left, said as the sheet closes.
+    private func recorded(_ inv: Invoice, _ amount: Double) {
+        let line = balanceLine(inv.balanceDue - amount)
+        let detail: String
+        switch line.state {
+        case .due: detail = "\(Money.pkr(line.amount)) still due"
+        case .credit: detail = "Paid in full, \(Money.pkr(line.amount)) in credit"
+        case .paid: detail = "Paid in full"
+        }
+        Note.show(Note(title: "Payment recorded", detail: detail), in: $note, reduce: reduceMotion)
     }
 
     // MARK: The three figures
 
-    /// Billed today, billed this month, still owed: the whole book's, or the chosen person's (Taken by), whatever
-    /// else is filtered, so the figures hold still while the list below them is searched.
-    private func summaryCard(_ all: [Invoice]) -> some View {
+    /// Owed to you in the serif (a tap shows the unpaid), then Today and This month: the whole book's, or the
+    /// chosen person's (Taken by), whatever else is filtered, so the figures hold still while the list below them
+    /// is searched. Always in view: a fold hid the one number the counter opens this page for.
+    private func summaryStrip(_ all: [Invoice]) -> some View {
         let base = takenBy.isEmpty ? all : all.filter { $0.takenBy == takenBy }
         let s = InvoiceSummary.of(base, now: Date())
-        return DisclosureGroup("Invoice overview") {
-            VStack(spacing: 0) {
-                summaryRow("Today", amount: s.today, count: s.todayCount, figure: .today)
-                Divider().padding(.vertical, 10)
-                summaryRow("This month", amount: s.month, count: s.monthCount, figure: .month)
-                Divider().padding(.vertical, 10)
-                summaryRow("Owed to you", amount: s.owed, count: s.owedCount, figure: .owed)
+        return VStack(alignment: .leading, spacing: 12) {
+            Button { pick(.owed) } label: {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Owed to you").font(.subheadline).foregroundStyle(.secondary)
+                    Text(Money.pkr(s.owed))
+                        .font(.system(.largeTitle, design: .serif).weight(.semibold))
+                        .foregroundStyle(s.owed > 0 ? Tone.owed.color : Color.primary)
+                        .monospacedDigit()
+                        .contentTransition(.numericText(value: s.owed))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                    Text("\(s.owedCount) invoice\(s.owedCount == 1 ? "" : "s")").font(.footnote).foregroundStyle(.secondary)
+                }
+                .ledgerCard()
+                .overlay { chosenEdge(.owed) }
             }
-            .padding(.top, 14)
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(chosen(.owed) ? .isSelected : [])
+            FigureRow {
+                figureButton("Today", s.today, s.todayCount, .today)
+                figureButton("This month", s.month, s.monthCount, .month)
+            }
         }
-        .font(.subheadline.weight(.semibold)).ledgerCard()
     }
 
-    private func summaryRow(_ title: String, amount: Double, count: Int, figure: InvoiceSummary.Figure) -> some View {
+    private func figureButton(_ title: String, _ amount: Double, _ count: Int, _ figure: InvoiceSummary.Figure) -> some View {
         Button { pick(figure) } label: {
-            TwoLine(title: title, subtitle: "\(count) invoice\(count == 1 ? "" : "s")",
-                    trailing: Money.pkr(amount), trailingTint: figure == .owed && amount > 0 ? Tone.owed.color : .primary)
-                .foregroundStyle(chosen(figure) ? Theme.accent : Color.primary)
+            FigureTile(label: title, value: Money.pkrLac(amount), detail: "\(count) invoice\(count == 1 ? "" : "s")")
+                .overlay { chosenEdge(figure) }
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(.plain)
         .accessibilityAddTraits(chosen(figure) ? .isSelected : [])
+    }
+
+    /// The accent edge on the figure the list is showing.
+    @ViewBuilder
+    private func chosenEdge(_ f: InvoiceSummary.Figure) -> some View {
+        if chosen(f) {
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .strokeBorder(Theme.accent, lineWidth: 1.5)
+        }
     }
 
     private var todayKey: String { ERPDate.karachiDay(Date()) }
@@ -400,7 +454,7 @@ struct InvoicesList: View {
     /// A figure tapped shows what it counts, through the filters the list already has; tapped again, lets go.
     private func pick(_ f: InvoiceSummary.Figure) {
         let again = chosen(f)
-        withAnimation {
+        Motion.run(Motion.enter, reduce: reduceMotion) {
             switch f {
             case .today:
                 month = ""
@@ -416,21 +470,36 @@ struct InvoicesList: View {
         }
     }
 
+    @ViewBuilder
     private var emptyState: some View {
         let filtering = !search.isEmpty || !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || chip != .all
-        return ContentUnavailableView(
-            "Nothing found",
-            systemImage: "doc.text.magnifyingglass",
-            description: Text(filtering ? "Try adjusting your search or filter." : "No invoices have been created yet.")
-        )
+        if filtering {
+            ContentUnavailableView {
+                Label("No matches", systemImage: "doc.text.magnifyingglass")
+            } description: {
+                Text("Try adjusting your search or filter.")
+            } actions: {
+                Button("Clear filters") { search = ""; clearFilters() }
+            }
+        } else {
+            ContentUnavailableView {
+                Label("No invoices yet", systemImage: "doc.text")
+            } description: {
+                Text("A sale you make will be here, with what is still owed on it.")
+            } actions: {
+                NavigationLink(value: SaleLinks.newSale) { Text("New sale") }
+            }
+        }
     }
 
     private func row(_ inv: Invoice) -> some View {
         InvoiceListRow(invoice: inv, mine: isMine(inv), dated: grouping != .day)
+            // The page grows out of its row (the id is the route's path).
+            .zoomSource(id: InvoiceFacts.path(inv.id))
             // The bill to the customer: the commonest thing after a sale, the same send as the invoice page's.
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button { sending = inv } label: { Label("Send on WhatsApp", systemImage: "message") }
-                    .tint(Tone.working.color)
+                    .tint(Tone.credit.color)
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 if canPay && isOwing(inv) {
@@ -615,7 +684,7 @@ private struct InvoiceSectionHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            LedgerHeading(title: section.title, count: section.rows.count, trailing: Money.pkrLac(section.billed))
+            LedgerHeading(title: section.title, count: section.rows.count, trailing: Money.pkr(section.billed))
             if section.owed > 0.5 {
                 Text(section.hint.isEmpty ? "\(Money.pkr(section.owed)) still owed" : "\(section.hint) · \(Money.pkr(section.owed)) still owed")
                     .font(.caption.weight(.semibold))
@@ -630,51 +699,71 @@ private struct InvoiceSectionHeader: View {
     }
 }
 
-/// One invoice: who it was for, what was sold, its number and time, what it came to and where its balance stands.
+/// One invoice: who it was for, what was sold, its number and time; what it came to with where its balance stands under it.
 private struct InvoiceListRow: View {
     let invoice: Invoice
     /// Taken by whoever is signed in.
     let mine: Bool
     /// Grouped by more than a day: the row says its day, not only its time.
     let dated: Bool
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var shopify: Bool { (invoice.source ?? "").hasPrefix("shopify") }
 
     var body: some View {
         NavigationLink(value: Route(path: InvoiceFacts.path(invoice.id))) {
-            VStack(alignment: .leading, spacing: 14) {
+            let stacked = typeSize.isAccessibilitySize
+            let layout = stacked
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+                : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+            layout {
                 HStack(alignment: .top, spacing: 12) {
-                    Monogram(name: invoice.customerName, size: 38)
-                    VStack(alignment: .leading, spacing: 5) {
+                    Monogram(name: invoice.customerName, size: Monogram.Size.row)
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(InvoiceFacts.customerName(invoice)).font(.headline)
                             .fixedSize(horizontal: false, vertical: true)
-                        Text(reference).font(.caption).foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        if mine { MineTag() }
+                        if let sold = InvoiceFacts.whatSold(invoice), !sold.isEmpty {
+                            Text(sold).font(.subheadline).foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                        reference
                     }
-                    Spacer(minLength: 0)
                 }
-                if let sold = InvoiceFacts.whatSold(invoice), !sold.isEmpty {
-                    Text(sold).font(.subheadline).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: stacked ? .leading : .trailing, spacing: 4) {
+                    RowAmount(amount: invoice.grandTotal)
                     InvoiceBalancePill(invoice: invoice)
-                    Spacer(minLength: 0)
-                    Text(Money.pkr(invoice.grandTotal))
-                        .font(.system(.title3, design: .serif).weight(.semibold)).monospacedDigit()
-                        .fixedSize(horizontal: false, vertical: true)
                 }
+                .fixedSize(horizontal: !stacked, vertical: true)
             }
             .accessibilityElement(children: .combine)
         }
     }
 
-    /// "INV-000123 · 3:45 pm" under its day's heading, "INV-000123 · Tue 6 Oct" under a week's; "· Shopify" for an import.
-    private var reference: String {
-        var parts = [invoice.id]
+    /// "INV-000123 · 3:45 pm" under its day's heading, "INV-000123 · Tue 6 Oct" under a week's, with "You" and
+    /// "Shopify" beside it, or under it where the line is too narrow for all three.
+    private var reference: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) {
+                referenceText
+                if mine { MineTag() }
+                if shopify { Pill("Shopify") }
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                referenceText
+                HStack(spacing: 6) {
+                    if mine { MineTag() }
+                    if shopify { Pill("Shopify") }
+                }
+            }
+        }
+    }
+
+    private var referenceText: some View {
         let when = dated ? ShopDate.say(invoice.createdAt) : InvoiceFacts.time(invoice.createdAt)
-        if !when.isEmpty { parts.append(when) }
-        if (invoice.source ?? "").hasPrefix("shopify") { parts.append("Shopify") }
-        return parts.joined(separator: " · ")
+        return Text([invoice.id, when].filter { !$0.isEmpty }.joined(separator: " · "))
+            .font(.caption).foregroundStyle(.secondary)
+            .lineLimit(1)
     }
 }
 
@@ -727,5 +816,15 @@ private struct InvoiceRangeSheet: View {
             }
         }
         .presentationDetents([.medium])
+    }
+}
+
+private extension View {
+    /// A row of the list's head that sits on the ground: the page's margin, no card, no rule.
+    func stripRow() -> some View {
+        self
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
     }
 }

@@ -27,7 +27,7 @@ struct OrderCardActions {
 /// The card's own leading edge, which the next-step row lines up under: the row's inset, the monogram, the gap.
 private enum OrderCardMetrics {
     static let inset: CGFloat = 16
-    static let monogram: CGFloat = 40
+    static let monogram: CGFloat = Monogram.Size.row
     static let gap: CGFloat = 12
 }
 
@@ -43,6 +43,8 @@ struct OrderCardRows: View {
     let busy: Bool
     let actions: OrderCardActions
     var standalone = false
+    /// The hub grouped by stage already says the stage in the heading: the card keeps only its bars then.
+    var showsStage = true
 
     /// Invoiced, paid or not, is greyed (owner, 2026-10-06): the order's work is done and its money is the invoice's.
     private var greyed: Bool { OrdersLogic.hasInvoice(order) || stage == .done }
@@ -58,9 +60,10 @@ struct OrderCardRows: View {
       if standalone {
         VStack(spacing: 12) {
             NavigationLink(value: Route(path: "/orders/\(order.id)")) {
-                OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine)
+                OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine, showsStage: showsStage)
             }
             .buttonStyle(.plain)
+            .zoomSource(id: "/orders/\(order.id)")
             Divider()
             HStack(spacing: 8) {
                 if let step {
@@ -70,14 +73,18 @@ struct OrderCardRows: View {
                     .buttonStyle(.borderless).accessibilityLabel("Actions for \(order.id)")
             }
         }
-        .padding(20)
-        .background(Theme.card, in: .rect(cornerRadius: 20))
-        .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(Theme.accent.opacity(mine ? 0.22 : 0.08), lineWidth: 1) }
+        .ledgerCard(padding: 20)
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .strokeBorder(Theme.accent.opacity(mine ? 0.22 : 0.08), lineWidth: 1)
+                .allowsHitTesting(false)
+        }
         .contextMenu { menu }
       } else {
         NavigationLink(value: Route(path: "/orders/\(order.id)")) {
-            OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine)
+            OrderCardHead(order: order, stage: stage, owed: owed, now: now, greyed: greyed, mine: mine, showsStage: showsStage)
         }
+        .zoomSource(id: "/orders/\(order.id)")
         // The row's own leading inset, so the step row below lines up under the name on every width.
         .listRowInsets(EdgeInsets(top: 16, leading: OrderCardMetrics.inset, bottom: 12, trailing: 16))
         .listRowSeparator(step != nil ? .hidden : .automatic, edges: .bottom)
@@ -111,7 +118,7 @@ struct OrderCardRows: View {
     private var swipe: some View {
         if canAdvance {
             // Not the accent: a swipe's words are white, which Taheri's light dark-mode gold does not carry.
-            Button { actions.advance(order) } label: { Label("Advance", systemImage: "creditcard") }
+            Button { actions.advance(order) } label: { Label("Advance", systemImage: "banknote") }
                 .tint(Tone.working.color)
         }
         if stage == .karigar {
@@ -123,7 +130,7 @@ struct OrderCardRows: View {
     @ViewBuilder
     private var menu: some View {
         if canAdvance {
-            Button { actions.advance(order) } label: { Label("Record an advance", systemImage: "creditcard") }
+            Button { actions.advance(order) } label: { Label("Record an advance", systemImage: "banknote") }
         }
         if stage == .karigar {
             Button { actions.markReady(order) } label: { Label("Mark ready", systemImage: "checkmark.circle") }
@@ -153,62 +160,73 @@ struct OrderCardHead: View {
     let now: Date
     let greyed: Bool
     let mine: Bool
+    var showsStage = true
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let counts = pieceCounts(order.items)
-        VStack(alignment: .leading, spacing: 12) {
-            let layout = typeSize.isAccessibilitySize
-                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-                : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+        let wide = !typeSize.isAccessibilitySize
+        VStack(alignment: .leading, spacing: 10) {
+            // Who first, and what is owed beside them; the name takes two lines before the sum gives way.
+            let layout = wide
+                ? AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+                : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
             layout {
                 HStack(alignment: .top, spacing: 12) {
-                    Monogram(name: OrdersLogic.customerName(order), size: 36)
-                    VStack(alignment: .leading, spacing: 4) {
+                    Monogram(name: OrdersLogic.customerName(order), size: Monogram.Size.row)
+                    VStack(alignment: .leading, spacing: 3) {
                         Text(OrdersLogic.customerName(order))
                             .font(.headline)
                             .foregroundStyle(greyed ? Color.secondary : Color.primary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Text(order.id).font(.caption).foregroundStyle(.secondary)
-                        if mine || OrdersLogic.isOnline(order) {
-                            HStack(spacing: 6) {
-                                if mine { MineTag() }
-                                if OrdersLogic.isOnline(order) { OrdersOnlineBadge() }
-                            }
+                            .lineLimit(2)
+                        HStack(spacing: 6) {
+                            Text(order.id).font(.caption).foregroundStyle(.secondary)
+                            if mine { MineTag() }
+                            if OrdersLogic.isOnline(order) { OrdersOnlineBadge() }
                         }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 money
+                    .layoutPriority(1)
             }
             let what = OrdersLogic.cardWhat(order)
-            Text(what.text + (what.extra.map { " · " + $0 } ?? ""))
+            Text(what.text + (what.extra.map { " \u{00B7} " + $0 } ?? ""))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Divider()
-            layout {
-                VStack(alignment: .leading, spacing: 5) {
-                    Label(stageTitle, systemImage: stageSymbol)
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(stageTone.color)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if counts.total > 0 && !greyed {
-                        Text(counts.unassigned > 0 ? "\(counts.unassigned) unassigned" : "\(counts.done) of \(counts.total) done")
-                            .font(.caption).foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                promise
-            }
+                .lineLimit(2)
+            stateRow(counts)
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
     }
 
-    private var stageTitle: String {
-        stage == .closed ? order.status.rawValue : (STAGES[stage]?.title ?? stage.rawValue)
+    /// Where it stands (the four bars, and the stage's word unless the heading says it) and the promise.
+    @ViewBuilder
+    private func stateRow(_ counts: PieceCounts) -> some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+        layout {
+            if stage != .closed {
+                StageTrack(stage: stage)
+                    .frame(width: typeSize.isAccessibilitySize ? nil : 88)
+            }
+            if showsStage || stage == .closed {
+                Text(stageWords(counts))
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(stageTone.color)
+                    .lineLimit(2)
+            }
+            if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+            promise
+        }
+    }
+
+    private func stageWords(_ counts: PieceCounts) -> String {
+        let title = stage == .closed ? order.status.rawValue : (STAGES[stage]?.title ?? stage.rawValue)
+        guard counts.total > 0, !greyed, stage != .closed, stage != .done else { return title }
+        return title + " \u{00B7} " + (counts.unassigned > 0 ? "\(counts.unassigned) unassigned" : "\(counts.done) of \(counts.total) done")
     }
 
     private var stageTone: Tone {
@@ -220,47 +238,38 @@ struct OrderCardHead: View {
         }
     }
 
-    private var stageSymbol: String {
-        switch stage {
-        case .karigar: return "hammer"
-        case .ready, .done: return "checkmark.circle"
-        case .transfer, .payment: return "creditcard"
-        case .closed: return "minus.circle"
-        case .new: return "circle.dotted"
-        }
-    }
-
+    /// Late is red, today amber, anything else a quiet date.
     @ViewBuilder private var promise: some View {
         let timing = orderTiming(order, now: now)
         let promise = OrdersLogic.promise(order, now: now)
         if OrdersLogic.isOpen(order), let due = timing.due {
             let urgent = promise.chase && (timing.state == .late || timing.state == .today || promise.urgent)
             let words = PromiseWords.say(timing)
-            Label(urgent ? words.text : "Due " + OrdersLogic.dueDay(due), systemImage: "calendar")
+            Text(urgent ? words.text : "Due " + OrdersLogic.dueDay(due))
                 .font(.caption.weight(urgent ? .semibold : .regular))
                 .foregroundStyle(urgent ? words.tone.color : Color.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                .fixedSize()
         }
     }
 
+    /// What is still owed (amber), what is in credit (teal), or Paid in a pill once nothing is.
     @ViewBuilder private var money: some View {
         if stage != .closed {
             let due = OrdersLogic.stillOwed(order, invoiceOwed: owed)
-            VStack(alignment: typeSize.isAccessibilitySize ? .leading : .trailing, spacing: 3) {
-                if abs(due) > 0.5 {
-                    Text(Money.pkr(abs(due)))
-                        .font(.headline)
-                        .foregroundStyle(due < 0 ? Tone.credit.color : Color.primary)
-                        .monospacedDigit()
+            if abs(due) > 0.5 {
+                VStack(alignment: wideAlignment, spacing: 2) {
+                    RowAmount(amount: abs(due), tone: due < 0 ? Tone.credit.color : Tone.owed.color)
                     Text(due < 0 ? "In credit" : "Owed")
                         .font(.caption).foregroundStyle(.secondary)
-                } else {
-                    Text("Paid").font(.subheadline.weight(.medium)).foregroundStyle(Tone.settled.color)
                 }
+                .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: true)
+            } else {
+                Pill("Paid", tone: .settled)
             }
-            .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: true)
         }
     }
+
+    private var wideAlignment: HorizontalAlignment { typeSize.isAccessibilitySize ? .leading : .trailing }
 }
 
 /// One visible next action, with secondary money actions in the overflow menu. An invoiced order
@@ -290,7 +299,7 @@ struct OrderNextStepRow: View {
                 Spacer(minLength: 0)
                 if canAdvance && showsAdvanceMenu {
                     Menu {
-                        Button("Record an advance", systemImage: "creditcard") { actions.advance(order) }
+                        Button("Record an advance", systemImage: "banknote") { actions.advance(order) }
                     } label: {
                         Image(systemName: "ellipsis").frame(minWidth: 44, minHeight: 44)
                     }
@@ -310,7 +319,8 @@ struct OrderNextStepRow: View {
     @ViewBuilder
     private var primary: some View {
         if busy {
-            SkeletonLoading().controlSize(.small)
+            ProgressView().controlSize(.small)
+                .frame(minWidth: 44, minHeight: 44)
         } else {
             Button(action: run) { Label(step.title, systemImage: step.symbol) }
                 .buttonStyle(.borderless)

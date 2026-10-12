@@ -197,7 +197,8 @@ enum NewOrderMath {
         } else if photo, p.removePhoto {
             o["sampleImageDataUri"] = NSNull()
             o["samplePhotoId"] = NSNull()
-        } else if photo, let uri = p.sampleImageDataUri, !uri.isEmpty {
+        } else if photo, (p.samplePhotoId ?? "").isEmpty, let uri = p.sampleImageDataUri, !uri.isEmpty {
+            // A piece whose picture is already a document keeps it: resending the bytes only makes the server compare them.
             o["sampleImageDataUri"] = uri
         }
         return o

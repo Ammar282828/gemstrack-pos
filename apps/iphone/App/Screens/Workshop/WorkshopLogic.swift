@@ -297,19 +297,10 @@ enum WorkshopLogic {
 
     // MARK: Words from categories.ts
 
-    private static let categoryTitles: [String: String] = [
-        "cat001": "Rings", "cat002": "Tops", "cat003": "Balis", "cat004": "Lockets", "cat005": "Bracelets",
-        "cat006": "Bracelet and Ring Set", "cat007": "Bangles", "cat008": "Chains", "cat009": "Bands",
-        "cat010": "Locket Sets without Bangle", "cat011": "Locket Set with Bangle", "cat012": "String Sets",
-        "cat013": "Stone Necklace Sets without Bracelets", "cat014": "Stone Necklace Sets with Bracelets",
-        "cat015": "Gold Necklace Sets with Bracelets", "cat016": "Gold Necklace Sets without Bracelets",
-        "cat017": "Gold Coins", "cat018": "Men's Rings", "cat019": "Loose Bracelet", "cat020": "Men's Buttons",
-    ]
-
     /// A category id as its list name; nil when unknown.
     static func categoryTitle(_ id: String?) -> String? {
         guard let id, !id.isEmpty else { return nil }
-        return categoryTitles[id]
+        return ERPCore.categoryTitle(id)
     }
 
     /// Karat only means something for gold (`displayKarat`): silver and platinum carry a leftover default.
@@ -614,7 +605,7 @@ enum WorkshopLogic {
 
     /// The categories the Assign Stock Work form offers, in the list's order (categories.ts staticCategories).
     static var categoryIds: [String] {
-        categoryTitles.keys.sorted()
+        staticCategories.map(\.id).sorted()
     }
 
     /// The Assign Stock Work form's metals, its words for them.

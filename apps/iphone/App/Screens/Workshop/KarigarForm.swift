@@ -26,7 +26,7 @@ struct KarigarForm: View {
     var body: some View {
         Group {
             if !session.isOwner {
-                ContentUnavailableView("Only an owner can change a karigar", systemImage: "lock", description: Text("Ask an owner to make the change."))
+                NotAvailableState("Only an owner can change a karigar", why: "Ask an owner to make the change.", symbol: "lock")
             } else if let id {
                 editing(id)
             } else {
@@ -142,7 +142,7 @@ private struct KarigarFormBody: View {
             whereSection
             notesSection
             if let error {
-                Section { Text(error).foregroundStyle(.red) }
+                Section { Text(error).foregroundStyle(Tone.problem.color) }
             }
             }
             .houseRows()
@@ -165,7 +165,7 @@ private struct KarigarFormBody: View {
         } header: {
             LedgerHeading(title: "Name")
         } footer: {
-            if !nameOK && !draft.name.isEmpty { Text("Name is required.").foregroundStyle(.red) }
+            if !nameOK && !draft.name.isEmpty { Text("Name is required.").foregroundStyle(Tone.problem.color) }
         }
     }
 
@@ -191,7 +191,7 @@ private struct KarigarFormBody: View {
             LedgerHeading(title: "Google login")
         } footer: {
             if !emailOK {
-                Text("Enter a valid email.").foregroundStyle(.red)
+                Text("Enter a valid email.").foregroundStyle(Tone.problem.color)
             } else {
                 Text("Adding a Gmail lets this karigar sign in and see only their own work list and account. They cannot see customers, prices, or any other karigar. The first time, Firebase must allow new accounts while he signs in (Authentication, Settings, User actions, Enable create), or Google refuses him.")
             }

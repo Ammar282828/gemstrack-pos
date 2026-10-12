@@ -31,12 +31,12 @@ struct EditCustomer: View {
     var body: some View {
         ShelfState(loaded: seed != nil || book.customers.loaded, error: book.customers.error, offline: book.customers.offline) {
             if !session.isOwner {
-                ContentUnavailableView("Only an owner can change a customer", systemImage: "lock", description: Text("Ask an owner to make the change."))
+                NotAvailableState("Only an owner can change a customer", why: "Ask an owner to make the change.")
             } else if let c = customer, !CustomerKit.isRemoved(c) {
                 EditCustomerForm(customer: c)
             } else {
-                ContentUnavailableView("Customer not found", systemImage: "person.crop.circle.badge.questionmark",
-                                       description: Text("They may have been removed. Settings, Recently removed puts them back."))
+                NotAvailableState("Customer not found", why: "They may have been removed. Settings, Recently removed puts them back.",
+                                  symbol: "person.crop.circle.badge.questionmark")
             }
         }
         .navigationTitle("Edit customer")
@@ -147,7 +147,7 @@ private struct EditCustomerForm: View {
             aboutSection
             sourceSection
             if let error {
-                Section { Text(error).foregroundStyle(.red) }
+                Section { Text(error).foregroundStyle(Tone.problem.color) }
             }
             }
             .houseRows()
@@ -196,7 +196,7 @@ private struct EditCustomerForm: View {
         } header: {
             LedgerHeading(title: "Email")
         } footer: {
-            if !emailOK { Text("That doesn't look like an email address.").foregroundStyle(.red) }
+            if !emailOK { Text("That doesn't look like an email address.").foregroundStyle(Tone.problem.color) }
         }
     }
 

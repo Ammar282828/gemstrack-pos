@@ -119,7 +119,7 @@ struct ExpenseEditSheet: View {
                 }
                 karigarSection
                 if let error {
-                    Section { Text(error).foregroundStyle(.red) }
+                    Section { Text(error).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()

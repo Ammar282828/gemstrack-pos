@@ -10,7 +10,7 @@ enum HisaabEntryMode: String, Identifiable {
 
     var title: String { self == .gave ? "You gave" : "You got" }
 
-    var tint: Color { self == .gave ? .red : .green }
+    var tint: Color { self == .gave ? Tone.owed.color : Tone.settled.color }
 }
 
 /// "You gave" / "You got" on one person's ledger (src/app/hisaab/[entityId]/page.tsx `AddTransactionDialog`): a
@@ -67,7 +67,7 @@ struct HisaabEntrySheet: View {
                     Text("Enter a cash amount or \(metal.lowercased()) grams. It is written with today's date.")
                 }
                 if let error {
-                    Section { Text(error).foregroundStyle(.red) }
+                    Section { Text(error).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()

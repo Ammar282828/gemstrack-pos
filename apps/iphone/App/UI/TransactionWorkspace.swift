@@ -9,8 +9,15 @@ enum EntryStep: Int, CaseIterable, Identifiable {
     var previous: EntryStep { EntryStep(rawValue: max(rawValue - 1, 0)) ?? .customer }
 }
 
+/// Where a step stands, shown on its tab: a tick when it is complete, an amber dot when it needs a look.
+enum EntryStepState {
+    case done, attention
+}
+
 struct EntrySteps: View {
     @Binding var selection: EntryStep
+    /// Optional per-step state; a step with none shows its name alone.
+    var states: [EntryStep: EntryStepState] = [:]
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -20,19 +27,29 @@ struct EntrySteps: View {
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                     selection = step
                 } label: {
-                    Text(step.title)
+                    HStack(spacing: 4) {
+                        if states[step] == .done {
+                            Image(systemName: "checkmark").imageScale(.small).fontWeight(.bold)
+                        }
+                        Text(step.title)
+                        if states[step] == .attention {
+                            Circle().fill(Tone.owed.color).frame(width: 6, height: 6)
+                        }
+                    }
                         .font(.subheadline.weight(selection == step ? .semibold : .regular))
                         .foregroundStyle(selection == step ? Theme.accent : Color.secondary)
                         .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(selection == step ? Theme.accent.opacity(0.1) : Color.clear, in: .rect(cornerRadius: 12))
+                        .background(selection == step ? Theme.accent.opacity(0.1) : Color.clear, in: .rect(cornerRadius: Radius.tile, style: .continuous))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Step \(step.rawValue + 1) of 4: \(step.title)")
+                .accessibilityLabel("Step \(step.rawValue + 1) of 4: \(step.title)" + (states[step] == .done ? ", done" : states[step] == .attention ? ", needs a look" : ""))
                 .accessibilityAddTraits(selection == step ? .isSelected : [])
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 8)
         .background(Theme.ground)
+        // A light tick as the step changes, from the tabs or from Continue.
+        .sensoryFeedback(.selection, trigger: selection)
     }
 }
 

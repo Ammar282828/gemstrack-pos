@@ -17,6 +17,7 @@ struct CustomerScreen: View {
     private let seed: Customer?
     @State private var deletion: OwnerDeletion?
     @State private var note: OwnerNote?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(id: String, seed: Customer? = nil) {
         self.id = id
@@ -54,6 +55,7 @@ struct CustomerScreen: View {
         }
         .navigationTitle(customer.map { CustomerKit.shown($0) } ?? "Customer")
         .navigationBarTitleDisplayMode(.inline)
+        .zoomDestination(id: CustomerKit.path(id))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 // Editing a profile is an owner's: the shop floor has no write to it, in the ERP or here.
@@ -67,7 +69,7 @@ struct CustomerScreen: View {
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {}
         }
-        .ownerNote($note)
+        .noteToast($note)
         .task {
             book.customers.need()
             book.invoices.need()
@@ -80,14 +82,14 @@ struct CustomerScreen: View {
     @ViewBuilder private var content: some View {
         if let c = customer {
             if CustomerKit.isRemoved(c) {
-                ContentUnavailableView("Removed", systemImage: "person.crop.circle.badge.minus",
-                                       description: Text("\(CustomerKit.shown(c)) was removed. Settings, then Recently removed, puts them back."))
+                NotAvailableState("Removed", why: "\(CustomerKit.shown(c)) was removed. Settings, then Recently removed, puts them back.",
+                                  symbol: "person.crop.circle.badge.minus")
             } else {
                 page(facts(for: c))
             }
         } else {
-            ContentUnavailableView("Customer not found", systemImage: "person.crop.circle.badge.questionmark",
-                                   description: Text("They are not in the book on this phone."))
+            NotAvailableState("Customer not found", why: "They are not in the book on this phone.",
+                              symbol: "person.crop.circle.badge.questionmark")
         }
     }
 
@@ -144,9 +146,8 @@ struct CustomerScreen: View {
         detail += " Settings, then Recently removed, puts them back."
         deletion = OwnerDeletion(what: "Delete customer \(name)", detail: detail, final: false) { code in
             _ = try await ERPAPI.shared.write("removeCustomer", ["customerId": c.id, "deleteCode": code])
-            withAnimation {
-                note = OwnerNote(title: "\(name) removed", detail: "Settings, then Recently removed, puts them back.")
-            }
+            Note.show(Note(title: "\(name) removed", detail: "Settings, then Recently removed, puts them back."),
+                      in: $note, reduce: reduceMotion)
         }
     }
 
@@ -198,7 +199,7 @@ struct CustomerScreen: View {
                 Text(owedDetail(o)).font(.footnote).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-                .ledgerCard()
+                .heroSheen()
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
         }
@@ -389,7 +390,7 @@ private struct CustRepairRow: View {
         HStack(spacing: 8) {
             TwoLine(title: CustomerKit.repairSummary(repair), subtitle: subtitle,
                     trailing: (open && balance > 0) ? Money.pkr(balance) : nil, trailingTint: Tone.owed.color)
-            StatusBadge(status.text, color: status.color)
+            Pill(status.text, tone: status.tone)
         }
     }
 }
@@ -416,6 +417,6 @@ private struct CustHisaabRow: View {
 
     var body: some View {
         TwoLine(title: CustomerKit.filled(entry.description) ?? "Entry", subtitle: subtitle,
-                trailing: amount, trailingTint: net > 0 ? .red : .green)
+                trailing: amount, trailingTint: net > 0 ? Tone.owed.color : Tone.settled.color)
     }
 }

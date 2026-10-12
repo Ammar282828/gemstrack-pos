@@ -44,8 +44,7 @@ struct WebsitePhotosScreen: View {
     var body: some View {
         Group {
             if denied {
-                ContentUnavailableView("This account can't add photographs", systemImage: "lock",
-                                       description: Text("Only owner, staff and marketing accounts can write to the website."))
+                NotAvailableState("This account can't add photographs", why: "Only owner, staff and marketing accounts can write to the website.", symbol: "lock")
             } else if let problem, collections == nil {
                 ContentUnavailableView {
                     Label("Couldn't read the collections", systemImage: "wifi.exclamationmark")
@@ -92,16 +91,9 @@ struct WebsitePhotosScreen: View {
         } message: {
             Text(sendWords)
         }
-        .alert("Not done", isPresented: failureShown) {
-            Button("OK") { failure = nil }
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure)
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     // MARK: The page
 
@@ -125,7 +117,7 @@ struct WebsitePhotosScreen: View {
                 if !configured {
                     Section {
                         Label("Uploads are not switched on yet: the website's upload secret isn't set on this ERP. Until it is, nothing below can be sent.", systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Tone.owed.color)
                     }
                 }
                 collectionSection
@@ -221,7 +213,7 @@ struct WebsitePhotosScreen: View {
                 if let check = item.check, !check.passes {
                     Label(check.differences.first ?? "Not checked: compare it with the original.", systemImage: "exclamationmark.triangle")
                         .font(.caption)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Tone.owed.color)
                 }
                 if editable && !item.retouching {
                     HStack(spacing: 14) {
@@ -259,7 +251,7 @@ struct WebsitePhotosScreen: View {
             }
         }
         .frame(width: 72, height: 72)
-        .clipShape(.rect(cornerRadius: 12))
+        .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
         .opacity(item.status == .done ? 0.7 : 1)
     }
 
@@ -267,9 +259,9 @@ struct WebsitePhotosScreen: View {
     private func statusLine(_ item: WebsitePhotoItem) -> some View {
         switch item.status {
         case .done:
-            Label("On the website", systemImage: "checkmark.circle.fill").font(.caption).foregroundStyle(.green)
+            Label("On the website", systemImage: "checkmark.circle.fill").font(.caption).foregroundStyle(Tone.settled.color)
         case .failed:
-            Label(item.error ?? "Failed", systemImage: "xmark.circle.fill").font(.caption).foregroundStyle(.red)
+            Label(item.error ?? "Failed", systemImage: "xmark.circle.fill").font(.caption).foregroundStyle(Tone.problem.color)
         case .uploading:
             Text("Sending…").font(.caption).foregroundStyle(.secondary)
         case .queued:
@@ -300,7 +292,7 @@ struct WebsitePhotosScreen: View {
             }
         } footer: {
             if unnamed > 0 {
-                Text("\(unnamed) still need\(unnamed == 1 ? "s" : "") a house and a name.").foregroundStyle(.orange)
+                Text("\(unnamed) still need\(unnamed == 1 ? "s" : "") a house and a name.").foregroundStyle(Tone.owed.color)
             } else if let said {
                 Text(said)
             }

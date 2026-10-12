@@ -1,6 +1,6 @@
 import { STORE_TAKEN_BY } from './store-config';
 
-import { ORDER_PHOTOS, splitItemPhotos } from '@/lib/order-photos';
+import { ORDER_PHOTOS, droppedPhotoIds, splitItemPhotos } from '@/lib/order-photos';
 import { withItemDetails, type InvoiceItemDetails } from '@/lib/workshop-details';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
@@ -2968,7 +2968,8 @@ export const useAppStore = create<AppState>()(
         const batch = writeBatch(db);
         batch.set(orderRef, cleanData, { merge: true });
         const at = new Date().toISOString();
-        for (const ph of split?.photos ?? []) batch.set(doc(db, ORDER_PHOTOS, ph.id), { dataUri: ph.dataUri, orderId, createdAt: at });
+        for (const ph of split?.photos ?? []) batch.set(doc(db, ORDER_PHOTOS, ph.id), { dataUri: ph.dataUri, hash: ph.hash, orderId, createdAt: at });
+        if (split) for (const id of droppedPhotoIds(existing?.items, split.items)) batch.delete(doc(db, ORDER_PHOTOS, id));
         await batch.commit();
         addActivityLog('order.update', `Updated order: ${orderId}`, `Details updated`, orderId);
         if (addedAdvance) addActivityLog('order.update', `Advance recorded for Order ${orderId}`, `Amount: ${addedAdvance.amount.toLocaleString()}${addedAdvance.method ? ` (${addedAdvance.method})` : ''} | in the order form`, orderId);
@@ -3157,7 +3158,8 @@ export const useAppStore = create<AppState>()(
           const batch = writeBatch(db);
           batch.set(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId), { items: split.items }, { merge: true });
           const at = new Date().toISOString();
-          for (const ph of split.photos) batch.set(doc(db, ORDER_PHOTOS, ph.id), { dataUri: ph.dataUri, orderId, createdAt: at });
+          for (const ph of split.photos) batch.set(doc(db, ORDER_PHOTOS, ph.id), { dataUri: ph.dataUri, hash: ph.hash, orderId, createdAt: at });
+          for (const id of droppedPhotoIds(order.items, split.items)) batch.delete(doc(db, ORDER_PHOTOS, id));
           await batch.commit();
           await addActivityLog('order.update', `Making details updated on ${orderId}`,
             `${order.items[itemIndex]?.description || `Item ${itemIndex + 1}`}`, orderId);

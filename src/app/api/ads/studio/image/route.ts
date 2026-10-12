@@ -1,5 +1,5 @@
 /**
- * GET ?id=site:<piece>|drive:<file>&size= → the photograph as a JPEG from this server.
+ * GET ?id=site:<piece>|drive:<file>&size= → the photograph as a JPEG (or, with &alpha=1, an upload's transparent PNG) from this server.
  *
  * Drive keeps the shoots private, and a canvas can only export a picture that came from
  * its own origin, so the studio's grid, the model and the maker all take photos from
@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adsGate } from '@/lib/ads/gate';
 import { STORE_AD_STUDIO } from '@/lib/store-config';
-import { assetJpeg } from '@/lib/ads/studio/assets';
+import { assetImage } from '@/lib/ads/studio/assets';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -22,9 +22,10 @@ export async function GET(req: NextRequest) {
   const id = q.get('id') || '';
   const size = Math.min(3000, Math.max(160, Number(q.get('size')) || 1080));
   try {
-    const jpeg = await assetJpeg(id, size);
-    return new NextResponse(new Uint8Array(jpeg), {
-      headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=3600' },
+    // ?alpha=1 (the designer's canvas): an upload kept with transparency comes as its PNG; anything else, and every other caller, gets a JPEG.
+    const img = await assetImage(id, size, { keepAlpha: q.get('alpha') === '1' });
+    return new NextResponse(new Uint8Array(img.data), {
+      headers: { 'Content-Type': img.type, 'Cache-Control': 'private, max-age=3600' },
     });
   } catch (e) {
     const status = (e as { status?: number }).status ?? 502;

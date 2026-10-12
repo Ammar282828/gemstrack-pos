@@ -143,7 +143,7 @@ struct RepairsSheet: View {
                     Text(RepairsKit.repairSummary(r))
                         .font(.title3.weight(.bold))
                     Spacer(minLength: 8)
-                    StatusBadge(RepairsKit.label(r.status), color: RepairsKit.color(r.status))
+                    Pill(RepairsKit.label(r.status), tone: RepairsKit.tone(r.status))
                 }
                 Text("\(r.id) · in \(RepairsKit.byDay(r.receivedAt))")
                     .font(.subheadline)
@@ -238,12 +238,11 @@ struct RepairsSheet: View {
             LabeledContent("Total", value: Money.pkr(total))
             if paid > 0 {
                 LabeledContent("Paid") {
-                    Text(Money.pkr(paid)).foregroundStyle(.green).monospacedDigit()
+                    Text(Money.pkr(paid)).foregroundStyle(Tone.settled.color).monospacedDigit()
                 }
             }
             LabeledContent("Balance due") {
-                MoneyText(amount: owing, exact: true)
-                    .font(.title3.weight(.bold))
+                HeroAmount(amount: owing)
             }
             ForEach(r.payments.indices, id: \.self) { i in
                 paymentLine(r.payments[i])
@@ -320,7 +319,7 @@ struct RepairsSheet: View {
                     primaryButton("Collected", "shippingbox", busy: busy) { desk.collect(r) }
                 }
                 if owing {
-                    secondaryButton("Take payment", "creditcard", busy: busy) { desk.taking = r }
+                    secondaryButton("Take payment", "banknote", busy: busy) { desk.taking = r }
                 }
             }
         }

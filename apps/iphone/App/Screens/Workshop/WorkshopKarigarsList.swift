@@ -139,7 +139,7 @@ struct WorkshopKarigarsList: View {
             FigureGrid {
                 FigureTile(label: "Working now", value: "\(working)", detail: "of \(live.count) on file")
                 FigureTile(label: "Pieces out", value: "\(pieces)", detail: grams > 0 ? WorkshopLogic.number(grams, digits: 0) + "g of metal" : nil)
-                FigureTile(label: "Over \(WorkshopLogic.criticalDays) days", value: "\(critical)", tint: critical > 0 ? Color.red : Color.primary)
+                FigureTile(label: "Over \(WorkshopLogic.criticalDays) days", value: "\(critical)", tint: critical > 0 ? Tone.late.color : Color.primary)
                 if session.isOwner {
                     FigureTile(label: "Open hisaabs", value: "\(batches.count)")
                 } else {
@@ -209,8 +209,8 @@ struct WorkshopKarigarsList: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(WorkshopLogic.pieces(load.active)).font(.subheadline.weight(.semibold)).monospacedDigit()
                 FigureRow(spacing: 8) {
-                    if load.critical > 0 { StatusBadge("\(load.critical) over \(WorkshopLogic.criticalDays)d", color: .red) }
-                    if load.late > 0 { StatusBadge("\(load.late) late", color: .orange) }
+                    if load.critical > 0 { StatusBadge("\(load.critical) over \(WorkshopLogic.criticalDays)d", tone: .late) }
+                    if load.late > 0 { StatusBadge("\(load.late) late", tone: .owed) }
                 }
                 if load.totalWeightG > 0 {
                     Text(WorkshopLogic.number(load.totalWeightG, digits: 1) + "g out")

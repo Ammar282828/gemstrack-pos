@@ -40,11 +40,12 @@ export interface WorkPhoto {
   clean?: boolean;
 }
 
-export const imageUrl = (id: string, size: number) => `/api/ads/studio/image?id=${encodeURIComponent(id)}&size=${size}`;
+export const imageUrl = (id: string, size: number, alpha = false) => `/api/ads/studio/image?id=${encodeURIComponent(id)}&size=${size}${alpha ? '&alpha=1' : ''}`;
 
 /** A photograph from this server (which may ask for the owner's sign-in), as a blob. */
-export async function fetchAsset(id: string, size: number): Promise<Blob> {
-  const res = await fetch(imageUrl(id, size), { headers: await authHeaders() });
+/** `alpha`: for the designer's canvas, an upload with transparency comes as its PNG (otherwise always a JPEG on white). */
+export async function fetchAsset(id: string, size: number, alpha = false): Promise<Blob> {
+  const res = await fetch(imageUrl(id, size, alpha), { headers: await authHeaders() });
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `The photograph didn’t come (${res.status}).`);
   return res.blob();
 }

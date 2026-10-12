@@ -22,6 +22,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ERPAppName</key>
 	<string>$(ERP_DISPLAY_NAME)</string>
+	<key>ERPHouse</key>
+	<string>$(ERP_HOUSE)</string>
 	<key>ERPSharedKeychainGroup</key>
 	<string>$(AppIdentifierPrefix)$(ERP_BUNDLE_ID)</string>
 	<key>NSExtension</key>

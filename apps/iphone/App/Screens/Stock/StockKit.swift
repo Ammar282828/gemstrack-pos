@@ -66,29 +66,8 @@ enum StockKit {
         let title: String
     }
 
-    // TODO(logic): port staticCategories (src/lib/categories.ts). Ids and the list names (plural) as the ERP has them.
-    static let categories: [Category] = [
-        Category(id: "cat001", title: "Rings"),
-        Category(id: "cat002", title: "Tops"),
-        Category(id: "cat003", title: "Balis"),
-        Category(id: "cat004", title: "Lockets"),
-        Category(id: "cat005", title: "Bracelets"),
-        Category(id: "cat006", title: "Bracelet and Ring Set"),
-        Category(id: "cat007", title: "Bangles"),
-        Category(id: "cat008", title: "Chains"),
-        Category(id: "cat009", title: "Bands"),
-        Category(id: "cat010", title: "Locket Sets without Bangle"),
-        Category(id: "cat011", title: "Locket Set with Bangle"),
-        Category(id: "cat012", title: "String Sets"),
-        Category(id: "cat013", title: "Stone Necklace Sets without Bracelets"),
-        Category(id: "cat014", title: "Stone Necklace Sets with Bracelets"),
-        Category(id: "cat015", title: "Gold Necklace Sets with Bracelets"),
-        Category(id: "cat016", title: "Gold Necklace Sets without Bracelets"),
-        Category(id: "cat017", title: "Gold Coins"),
-        Category(id: "cat018", title: "Men's Rings"),
-        Category(id: "cat019", title: "Loose Bracelet"),
-        Category(id: "cat020", title: "Men's Buttons"),
-    ]
+    /// categories.ts staticCategories: the ids and the list names (plural) as the ERP has them.
+    static let categories: [Category] = staticCategories.map { Category(id: $0.id, title: $0.title) }
 
     private static let titleById: [String: String] = {
         var out: [String: String] = [:]

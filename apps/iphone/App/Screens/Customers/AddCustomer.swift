@@ -118,7 +118,7 @@ struct AddCustomer: View {
             } footer: {
                 if walkIn {
                     Text("A walk-in is not a customer: a sale to nobody in particular is left without one.")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Tone.problem.color)
                 }
             }
 
@@ -146,7 +146,7 @@ struct AddCustomer: View {
             } header: {
                 LedgerHeading(title: "Email")
             } footer: {
-                if !emailOK { Text("That doesn't look like an email address.").foregroundStyle(.red) }
+                if !emailOK { Text("That doesn't look like an email address.").foregroundStyle(Tone.problem.color) }
             }
 
             Section {
@@ -169,7 +169,7 @@ struct AddCustomer: View {
             }
 
             if let error {
-                Section { Text(error).foregroundStyle(.red) }
+                Section { Text(error).foregroundStyle(Tone.problem.color) }
             }
             }
             .houseRows()
@@ -184,8 +184,9 @@ struct AddCustomer: View {
             Section {
                 VStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.green)
+                        .font(.largeTitle)
+                        .imageScale(.large)
+                        .foregroundStyle(Tone.settled.color)
                     Text("Saved").font(.title2.weight(.semibold))
                     Text("\(s.name) is on file.").foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }

@@ -17,6 +17,7 @@ struct ExtraRevenueScreen: View {
     @State private var editing: AdditionalRevenue?
     @State private var deletion: OwnerDeletion?
     @State private var note: OwnerNote?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if session.isOwner {
@@ -38,17 +39,17 @@ struct ExtraRevenueScreen: View {
             }
         }
         .sheet(isPresented: $adding) {
-            RevenueEditSheet(editing: nil) { (saved: OwnerNote) in withAnimation { note = saved } }
+            RevenueEditSheet(editing: nil) { (saved: OwnerNote) in Note.show(saved, in: $note, reduce: reduceMotion) }
         }
         .sheet(item: $editing) { (r: AdditionalRevenue) in
-            RevenueEditSheet(editing: r) { (saved: OwnerNote) in withAnimation { note = saved } }
+            RevenueEditSheet(editing: r) { (saved: OwnerNote) in Note.show(saved, in: $note, reduce: reduceMotion) }
         }
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {
-                withAnimation { note = OwnerNote(title: "Deleted", detail: "Revenue entry deleted.") }
+                Note.show(Note(title: "Deleted", detail: "Revenue entry deleted."), in: $note, reduce: reduceMotion)
             }
         }
-        .ownerNote($note)
+        .noteToast($note)
         .task { book.revenue.need() }
     }
 
@@ -154,7 +155,7 @@ struct ExtraRevenueScreen: View {
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) { askDelete(r) } label: { Label("Delete", systemImage: "trash") }
                     Button { editing = r } label: { Label("Edit", systemImage: "pencil") }
-                        .tint(.blue)
+                        .tint(Theme.accent)
                 }
                 .contextMenu {
                     Button { editing = r } label: { Label("Edit", systemImage: "pencil") }

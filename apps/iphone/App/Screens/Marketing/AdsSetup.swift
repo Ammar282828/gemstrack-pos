@@ -73,16 +73,9 @@ struct AdsSetupScreen: View {
             } message: {
                 Text("The site already carries pixel \((pixel?.state?.carried ?? []).joined(separator: ", ")). A second pixel splits visits and orders between two.")
             }
-            .alert("That didn't work", isPresented: failureShown) {
-                Button("OK") { failure = nil }
-            } message: {
-                Text(failure ?? "")
-            }
+            .failureAlert($failure, title: "That didn't work")
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     // MARK: Reading
 
@@ -199,7 +192,7 @@ struct AdsSetupScreen: View {
 
     private func stepHeader(_ n: Int, _ title: String, done: Bool?) -> some View {
         let symbol = done == nil ? "circle" : (done == true ? "checkmark.circle.fill" : "xmark.circle.fill")
-        let tint: Color = done == nil ? .secondary : (done == true ? .green : .red)
+        let tint: Color = done == nil ? .secondary : (done == true ? Tone.settled.color : Tone.problem.color)
         return HStack(spacing: 6) {
             Image(systemName: symbol).foregroundStyle(tint)
             Text("\(n). \(title)")
@@ -214,7 +207,7 @@ struct AdsSetupScreen: View {
         if !lines.isEmpty {
             Section {
                 ForEach(lines, id: \.self) { (l: String) in
-                    Label(l, systemImage: "exclamationmark.triangle.fill").font(.subheadline).foregroundStyle(.orange)
+                    Label(l, systemImage: "exclamationmark.triangle.fill").font(.subheadline).foregroundStyle(Tone.owed.color)
                 }
             } header: {
                 LedgerHeading(title: "Before every kind of ad can run")
@@ -257,7 +250,7 @@ struct AdsSetupScreen: View {
                 if let id = app.id {
                     LabeledContent("App", value: id)
                 } else {
-                    Text("No Meta app is set for this shop (META_APP_ID in apphosting.yaml).").foregroundStyle(.red)
+                    Text("No Meta app is set for this shop (META_APP_ID in apphosting.yaml).").foregroundStyle(Tone.problem.color)
                 }
                 liveRow("Privacy policy URL", ok: app.live?.privacyPolicyUrl != nil, known: app.live != nil,
                         now: app.live?.privacyPolicyUrl, give: app.privacyPage)
@@ -275,7 +268,7 @@ struct AdsSetupScreen: View {
             Section {
                 Text(app.secret ? "Found in Secret Manager (\(app.secretName))." : "Copy the App secret from the Meta app's App settings → Basic and add it as a new version of \(app.secretName) in this project's Secret Manager.")
                     .foregroundStyle(app.secret ? Color.secondary : Color.primary)
-                Text(tokenLine(app)).font(.footnote).foregroundStyle(app.tokenStoreWrite ? Color.secondary : Color.red)
+                Text(tokenLine(app)).font(.footnote).foregroundStyle(app.tokenStoreWrite ? Color.secondary : Tone.problem.color)
             } header: {
                 stepHeader(2, "The app secret, kept by this ERP", done: app.secret && app.tokenStoreWrite)
             }
@@ -293,7 +286,7 @@ struct AdsSetupScreen: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Image(systemName: known && ok ? "checkmark.circle.fill" : (known ? "xmark.circle.fill" : "circle"))
-                    .foregroundStyle(known && ok ? Color.green : (known ? Color.red : Color.secondary))
+                    .foregroundStyle(known && ok ? Tone.settled.color : (known ? Tone.problem.color : Color.secondary))
                 Text(label)
             }
             if known && ok {
@@ -340,16 +333,16 @@ struct AdsSetupScreen: View {
                     if conn.kind == "user", let days = conn.daysLeft {
                         Text("Good for \(days) more day\(days == 1 ? "" : "s"): connect again before then (running ads are never affected).")
                             .font(.footnote)
-                            .foregroundStyle(days <= 10 ? Color.orange : Color.secondary)
+                            .foregroundStyle(days <= 10 ? Tone.owed.color : Color.secondary)
                     }
                 } else {
-                    Text(conn.error ?? "The connection is no longer valid.").foregroundStyle(.red)
+                    Text(conn.error ?? "The connection is no longer valid.").foregroundStyle(Tone.problem.color)
                 }
                 if !conn.missingScopes.isEmpty {
                     Label("Not granted: \(conn.missingScopes.joined(separator: ", ")). Add them to the login configuration (step 1), then connect again.",
                           systemImage: "exclamationmark.triangle.fill")
                         .font(.footnote)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Tone.owed.color)
                 }
             } else {
                 Text("Log in to Facebook as the person who runs \(session.shop.name)'s ads and approve. The login is kept in this project's Secret Manager, never in the database.")
@@ -367,7 +360,7 @@ struct AdsSetupScreen: View {
                 }
             }
             if let e = s.connectionError {
-                Text(e).font(.footnote).foregroundStyle(.red)
+                Text(e).font(.footnote).foregroundStyle(Tone.problem.color)
             }
         } header: {
             stepHeader(3, "Connect Facebook", done: s.connection.map { (c: AdsStatusAnswer.Connection) in c.connected })
@@ -391,12 +384,12 @@ struct AdsSetupScreen: View {
             if !connected {
                 Text("After connecting.").foregroundStyle(.secondary)
             } else if let assetsProblem {
-                Label(assetsProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                Label(assetsProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
                 Button("Try again") { Task { await loadAssets() } }
             } else if let assets {
                 if assets.accounts.isEmpty {
                     Text("This login can't see any ad account. In Meta Business Settings → Accounts → Ad accounts, give this person access to \(session.shop.name)'s ad account, then Check again.")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Tone.problem.color)
                 }
                 ForEach(assets.accounts) { (a: AdsAccountChoice) in accountRow(a, pinned: s.pinnedAccount) }
                 if s.pinnedAccount {
@@ -462,7 +455,7 @@ struct AdsSetupScreen: View {
                 }
             }
             if wrongHouse, let house {
-                Text("This shop is @\(house); ads made here would appear as @\(settings?.instagramUsername ?? "").").font(.footnote).foregroundStyle(.red)
+                Text("This shop is @\(house); ads made here would appear as @\(settings?.instagramUsername ?? "").").font(.footnote).foregroundStyle(Tone.problem.color)
             }
         } header: {
             stepHeader(5, house.map { (h: String) in "Instagram · @\(h)" } ?? "Instagram", done: settings?.instagramUserId != nil && !wrongHouse)
@@ -474,7 +467,7 @@ struct AdsSetupScreen: View {
         return Section {
             if assets.pages.isEmpty {
                 Text("No Facebook Page yet. Create one for \(session.shop.name) at facebook.com/pages/create, then in the Page's Settings → Linked accounts link the shop's Instagram (and WhatsApp, for chat ads). Then Check again.")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Tone.owed.color)
             }
             ForEach(assets.pages) { (p: AdsPageChoice) in
                 let line = [p.instagramUsername.map { (u: String) in "@\(u)" } ?? "no Instagram linked",
@@ -485,7 +478,7 @@ struct AdsSetupScreen: View {
                 }
             }
             if let ig = chosenIg, let linked = ig.pageId, let page = settings?.pageId, linked != page {
-                Text("@\(ig.username) is linked to another Page: Meta requires that same Page.").font(.footnote).foregroundStyle(.orange)
+                Text("@\(ig.username) is linked to another Page: Meta requires that same Page.").font(.footnote).foregroundStyle(Tone.owed.color)
             }
         } header: {
             stepHeader(6, "The Facebook Page behind new ads", done: settings?.pageId != nil)
@@ -518,7 +511,7 @@ struct AdsSetupScreen: View {
             if !(connected && settings?.adAccountId != nil) {
                 Text("Connect and choose the ad account first.").foregroundStyle(.secondary)
             } else if let pixelProblem {
-                Text(pixelProblem).foregroundStyle(.red)
+                Text(pixelProblem).foregroundStyle(Tone.problem.color)
                 Button("Try again", systemImage: "arrow.clockwise") { Task { await loadPixel() } }
             } else if let pixel, let st = pixel.state {
                 pixelRows(pixel, st)
@@ -553,7 +546,7 @@ struct AdsSetupScreen: View {
             VStack(alignment: .leading, spacing: 4) {
                 Label("Pixel \(id) \(st.live ? "is receiving from the website" : "has not received anything this week")",
                       systemImage: st.live ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .foregroundStyle(st.live ? Color.green : Color.orange)
+                    .foregroundStyle(st.live ? Tone.settled.color : Tone.owed.color)
                 if let last = st.lastFired { Text("Last received \(ShopDate.say(last, withTime: true)).").font(.caption) }
                 if st.onSite == false {
                     Text("\(st.sites.map { (x: AdsPixelSite) in x.host }.joined(separator: " and ")) doesn't load it yet: \(st.carried.isEmpty ? "the website needs its loader (it reads the id from this ERP's /api/public/pixel)" : "the site carries a different pixel (above)").")
@@ -562,7 +555,7 @@ struct AdsSetupScreen: View {
                 if st.events != nil { Text("This week: \(st.eventLine).").font(.caption) }
             }
         } else {
-            Text("No pixel chosen: website ads buy clicks, and nobody who visits can be retargeted.").font(.footnote).foregroundStyle(.orange)
+            Text("No pixel chosen: website ads buy clicks, and nobody who visits can be retargeted.").font(.footnote).foregroundStyle(Tone.owed.color)
         }
         ForEach(p.pixels) { (x: AdsPixelRow) in
             HStack(spacing: 8) {
@@ -572,7 +565,7 @@ struct AdsSetupScreen: View {
                 }
                 Spacer(minLength: 8)
                 if st.id == x.id {
-                    Text("In use").font(.caption.weight(.semibold)).foregroundStyle(.green)
+                    Text("In use").font(.caption.weight(.semibold)).foregroundStyle(Tone.settled.color)
                 } else {
                     Button("Use this") { Task { await pixelAct(["action": "choose", "id": x.id], "pixel") } }
                         .buttonStyle(.borderless)

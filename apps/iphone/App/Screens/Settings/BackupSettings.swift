@@ -87,11 +87,7 @@ private struct BackupPage: View {
         .navigationTitle("Backups")
         .navigationBarTitleDisplayMode(.inline)
         .ownerNote($note)
-        .alert("Could not do that", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
-            Button("OK") { failure = nil }
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure, title: "Could not do that")
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {}
         }
@@ -179,7 +175,7 @@ private struct BackupPage: View {
                 }
             }
         } header: {
-            LedgerHeading(title: "Export Backup")
+            LedgerHeading(title: "Export backup")
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Download all your data as a JSON file you can store locally or import later.")
@@ -232,7 +228,7 @@ private struct BackupPage: View {
                 Label("Restore from Backup in the ERP", systemImage: "arrow.counterclockwise")
             }
         } header: {
-            LedgerHeading(title: "Restore from Backup")
+            LedgerHeading(title: "Restore from backup")
         } footer: {
             Text("Upload a previously exported JSON backup. Documents are merged — existing records are updated, nothing is deleted. It writes over the live books, so it is done on the ERP’s own page.")
         }
@@ -274,7 +270,7 @@ private struct BackupPage: View {
                 }
             }
         } header: {
-            LedgerHeading(title: "Sold Product Recovery")
+            LedgerHeading(title: "Sold product recovery")
         } footer: {
             Text("Search for a sold product by its original SKU or name to re-add it to active inventory.")
         }
@@ -305,7 +301,7 @@ private struct BackupPage: View {
                 Link(destination: url) { Label("Open Firestore Console", systemImage: "arrow.up.right.square") }
             }
         } header: {
-            LedgerHeading(title: "Cloud Database Backups (PITR)")
+            LedgerHeading(title: "Cloud database backups (PITR)")
         } footer: {
             Text("Firestore’s Point-in-Time Recovery lets you restore to any minute in the last 7 days via the Google Cloud Console. Managed by Google Cloud.")
         }
@@ -335,7 +331,7 @@ private struct BackupPage: View {
             }
             .disabled(deleteCount <= 0)
         } header: {
-            Text("Danger Zone").foregroundStyle(.red)
+            LedgerHeading(title: "Danger zone")
         } footer: {
             Text("Destructive actions that cannot be undone.")
         }

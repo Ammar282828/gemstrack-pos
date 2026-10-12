@@ -258,34 +258,19 @@ struct InvoiceNote: Equatable, Identifiable {
     let detail: String
 }
 
-struct InvoiceNoteBanner: View {
-    let note: InvoiceNote
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(note.title).font(.subheadline.weight(.semibold))
-                Text(note.detail).font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .glassEffect(.regular, in: .rect(cornerRadius: 20))
-    }
-}
-
 extension View {
     /// The payment sheet for an invoice (Kit's PaymentSheet), the balance one tap away. Closing it
-    /// with a refusal showing keeps the sheet open with the ERP's own words.
-    func invoicePaymentSheet(for invoice: Binding<Invoice?>) -> some View {
+    /// with a refusal showing keeps the sheet open with the ERP's own words. `recorded` hears of a payment the
+    /// ERP has taken (the invoice as it stood, and the amount), so the page can say what is left.
+    func invoicePaymentSheet(for invoice: Binding<Invoice?>, recorded: ((Invoice, Double) -> Void)? = nil) -> some View {
         sheet(item: invoice) { inv in
             // Money over the balance is a named customer's credit; a walk-in's is refused (invoice-credit.ts).
             PaymentSheet(title: "Take payment · \(inv.id)", owed: inv.balanceDue > 0.5 ? inv.balanceDue : nil,
                          customer: PaymentCustomer(name: inv.customerName, canHoldCredit: canHoldCredit(inv.customerId))) { amount, method, reference in
                 try await InvoiceFacts.record(inv, amount: amount, method: method, reference: reference)
+                recorded?(inv, amount)
             }
+            .houseForm()
         }
     }
 }
@@ -418,40 +403,20 @@ private struct InvoiceWhatsAppSend: ViewModifier {
         Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil; failedOn = nil } })
     }
 
+    /// Whom it goes to, by name; the number is in the message under it.
     private func title(_ inv: Invoice) -> String {
-        let to = phone(inv)
-        return inv.sentOnWhatsApp == nil ? "Send the PDF to \(to)?" : "Send the PDF to \(to) again?"
+        let who = InvoiceFacts.customerName(inv, walkIn: "the customer")
+        return inv.sentOnWhatsApp == nil ? "Send the PDF to \(who)?" : "Send the PDF to \(who) again?"
     }
 
-    /// What happens, and that it went before (the web shows the send under its button so nobody sends twice).
+    /// The number it goes to, what happens, and that it went before (the web shows the send under its button so
+    /// nobody sends twice).
     private func words(_ inv: Invoice) -> String {
-        var s = "From the shop's own WhatsApp, with what is owed written under it: the PDF Print saves, drawn and sent by the ERP."
+        var s = "To \(phone(inv)). From the shop's own WhatsApp, with what is owed written under it: the PDF Print saves, drawn and sent by the ERP."
         if let sent = inv.sentOnWhatsApp {
             s += " Already sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))."
         }
         return s
-    }
-}
-
-/// A change that has landed, over the top of the screen for a few seconds, like the web's toast.
-private struct InvoiceNoteOverlay: ViewModifier {
-    @Binding var note: InvoiceNote?
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(alignment: .top) {
-                if let note {
-                    InvoiceNoteBanner(note: note)
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
-            }
-            .task(id: note) {
-                guard note != nil else { return }
-                try? await Task.sleep(for: .seconds(4))
-                if !Task.isCancelled { withAnimation { note = nil } }
-            }
     }
 }
 
@@ -460,10 +425,5 @@ extension View {
     /// where a number has to be typed, `sent` says it went.
     func invoiceWhatsAppSend(_ invoice: Binding<Invoice?>, web: Binding<Route?>, sent: @escaping (InvoiceNote) -> Void) -> some View {
         modifier(InvoiceWhatsAppSend(invoice: invoice, web: web, sent: sent))
-    }
-
-    /// The note of a change that has landed, said for a few seconds and then gone.
-    func invoiceNoteBanner(_ note: Binding<InvoiceNote?>) -> some View {
-        modifier(InvoiceNoteOverlay(note: note))
     }
 }

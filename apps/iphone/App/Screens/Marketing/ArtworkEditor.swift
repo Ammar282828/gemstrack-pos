@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
 
 struct ArtworkEditor: View {
     @Binding var doc: MarketingValue
@@ -19,6 +20,10 @@ struct ArtworkEditor: View {
     @State private var share: MarketingFileShare?
     @State private var clipboard = ArtworkClipboard.shared
     @State private var resizing: MarketingValue?
+    @State private var logoOpen = false
+    /// Slider steps close together are one undo step, as on the board designer.
+    @State private var coalesceKey = ""
+    @State private var coalesceAt = Date.distantPast
     /// The design as it came in, so Cancel can put it back (the editor writes to the live design as it goes).
     @State private var original: MarketingValue?
     private var pageWidth: Double { doc["frame"].n("w", 1080) }
@@ -45,7 +50,7 @@ struct ArtworkEditor: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section { preview.listRowInsets(EdgeInsets()); if let problem { Text(problem).foregroundStyle(.red).font(.footnote) } }.houseRows()
+                Section { preview.listRowInsets(EdgeInsets()); if let problem { Text(problem).foregroundStyle(Tone.problem.color).font(.footnote) } }.houseRows()
                 Section {
                     Menu("Add") { addMenu }
                     Menu("Layout") {
@@ -64,6 +69,9 @@ struct ArtworkEditor: View {
                         }
                         ArtworkProperties(value: nested("bg"), keys: ["color", "color2", "dim", "gradient"])
                         ArtworkProperties(value: placement, keys: ["mode", "zoom", "focusX", "focusY"])
+                        if !doc["bg"].s("photoId").isEmpty {
+                            ArtworkShadeControls(shade: doc["bg"]["shade"]) { v, key in var d = doc; d["bg"]["shade"] = v; change(d, key: key.map { "bg-shade-" + $0 }) }
+                        }
                         filters(nested("bg"))
                         Button("Add background gradient") { var d = doc; d["bg"]["color2"] = .string("#111111"); change(d) }
                     }
@@ -92,6 +100,7 @@ struct ArtworkEditor: View {
                     }
                 }.task(id: doc.text + fields.sorted(by: { $0.key < $1.key }).description) { await render() }
                 .onChange(of: importing) { _, item in if let item { Task { await take(item) } } }
+                .fileImporter(isPresented: $logoOpen, allowedContentTypes: [.svg, .png]) { takeLogo($0) }
                 .onAppear { if original == nil { original = doc } }
                 .interactiveDismissDisabled(original != nil && original != doc)
                 .sheet(item: $share) { MarketingShareSheet(items: $0.items) }.websiteBusy(busy ? "Preparing…" : nil)
@@ -134,7 +143,7 @@ struct ArtworkEditor: View {
             ForEach(["dash", "dot"], id: \.self) { key in Button(ArtworkProperties.label(key) + " line") { act("line", key) } }
         }
         Menu("Badges") { ForEach(catalogue["badges"].array, id: \.text) { i in Button(i.s("label")) { act("badge", i.s("id")) } } }
-        Menu("Full logo") { Button("Top right") { act("mark", "top") }; Button("Bottom right") { act("mark", "bottom") } }
+        Menu("Full logo") { Button("Top right") { act("mark", "top") }; Button("Bottom right") { act("mark", "bottom") }; Button("Monogram") { addLayer(ArtworkLogo.monogram(ink: ArtworkLogo.ink(for: doc))) } }
         Menu("Photo inset") {
             ForEach(photos.keys.sorted(), id: \.self) { key in Menu(photoName(key)) {
                 Button("Rectangle") { act("image", "", ["photoId": key]) }
@@ -142,6 +151,7 @@ struct ArtworkEditor: View {
             } }
         }
         PhotosPicker(selection: $importing, matching: .images) { Label("Upload image", systemImage: "photo.on.rectangle") }
+        Button { logoOpen = true } label: { Label("Logo file (SVG or PNG)", systemImage: "square.and.arrow.down") }
         Button("Link pill") { act("link", "Ask us on WhatsApp") }
     }
     private var selectionTools: some View {
@@ -168,7 +178,7 @@ struct ArtworkEditor: View {
                     Text("Uses the piece’s \(l.wrappedValue.s("bind")); edit it on the piece.").font(.footnote).foregroundStyle(.secondary)
                     Button("Make independent text") { let key = l.wrappedValue.s("bind"); l.wrappedValue["text"] = .string(fields[key] ?? ""); l.wrappedValue["bind"] = .null }
                 }
-                ArtworkProperties(value: l, keys: l.wrappedValue.object.keys.filter { !["id", "kind", "bind", "photoId", "src", "mark", "flow", "group", "effect", "adjust", "box"].contains($0) }.sorted())
+                ArtworkProperties(value: l, keys: l.wrappedValue.object.keys.filter { !["id", "kind", "bind", "photoId", "src", "mark", "flow", "group", "effect", "adjust", "box", "shade", "iz"].contains($0) }.sorted())
                 if l.wrappedValue.s("kind") == "text" {
                     Picker("Text effect", selection: Binding(get: { l.wrappedValue["effect"].s("kind", "none") }, set: { kind in l.wrappedValue["effect"] = kind == "none" ? .null : MarketingValue(["kind": kind, "color": "#000000", "offset": 30, "angle": 45, "blur": 20, "thickness": 40, "transparency": 50]) })) { ForEach(catalogue["effects"].array, id: \.text) { Text($0.s("label")).tag($0.s("id")) } }
                     ArtworkProperties(value: Binding(get: { l.wrappedValue["effect"] }, set: { l.wrappedValue["effect"] = $0 }), keys: ["color", "offset", "angle", "blur", "thickness", "transparency"])
@@ -177,7 +187,18 @@ struct ArtworkEditor: View {
                     Button("Underline") { l.wrappedValue["underline"] = .bool(!l.wrappedValue["underline"].bool) }
                     if l.wrappedValue["curve"] == .null { Button("Bend text") { l.wrappedValue["curve"] = .number(20) } }
                 }
-                if l.wrappedValue.s("kind") == "image" { filters(l); Picker("Frame", selection: Binding(get: { l.wrappedValue.s("mask") }, set: { l.wrappedValue["mask"] = $0.isEmpty ? .null : .string($0) })) { Text("Rectangle").tag(""); ForEach(catalogue["masks"].array, id: \.text) { Text(ArtworkProperties.label($0.string)).tag($0.string) } } }
+                if l.wrappedValue.s("kind") == "image" {
+                    filters(l)
+                    // Frames (a layer with a height) show the photo covering the frame; zoom goes past that.
+                    if l.wrappedValue["h"] != .null {
+                        ArtworkSlider(title: "Zoom in frame", value: Binding(get: { l.wrappedValue.n("iz", 1) }, set: { l.wrappedValue["iz"] = .number($0) }), range: 1...4, step: 0.05, format: "%.2f×")
+                    }
+                    ArtworkShadeControls(shade: l.wrappedValue["shade"]) { v, key in
+                        let id = l.wrappedValue.s("id")
+                        var d = doc; d["layers"] = .array(layers.map { var n = $0; if n.s("id") == id { n["shade"] = v }; return n })
+                        change(d, key: key.map { "shade-\(id)-" + $0 })
+                    }
+                    Picker("Frame", selection: Binding(get: { l.wrappedValue.s("mask") }, set: { l.wrappedValue["mask"] = $0.isEmpty ? .null : .string($0) })) { Text("Rectangle").tag(""); ForEach(catalogue["masks"].array, id: \.text) { Text(ArtworkProperties.label($0.string)).tag($0.string) } } }
                 if ["shape", "rect", "circle"].contains(l.wrappedValue.s("kind")) {
                     Toggle("Filled shape", isOn: Binding(get: { l.wrappedValue["fill"] != .null }, set: { l.wrappedValue["fill"] = $0 ? .string("#FFFFFF") : .null }))
                     if l.wrappedValue["fill"] != .null { ArtworkProperties(value: l, keys: ["fill"]) }
@@ -197,8 +218,27 @@ struct ArtworkEditor: View {
     private func name(_ l: MarketingValue) -> String { if !l.s("name").isEmpty { return l.s("name") }; if !l.s("bind").isEmpty { return ArtworkProperties.label(l.s("bind")) }; return l.s("text").isEmpty ? ArtworkProperties.label(l.s("kind")) : l.s("text") }
     private func photoName(_ key: String) -> String { "Photo \((photos.keys.sorted().firstIndex(of: key) ?? 0) + 1)" }
     private func select(_ id: String, multiple: Bool) { if multiple { if selected.contains(id) { selected.remove(id) } else { selected.insert(id) }; return }; if selected.contains(id), selected.count > 1 { return }; let group = layers.first { $0.s("id") == id }?.s("group") ?? ""; selected = group.isEmpty ? [id] : Set(layers.filter { $0.s("group") == group }.map { $0.s("id") }) }
-    private func change(_ d: MarketingValue) { guard d != doc else { return }; undo.append(doc); if undo.count > 80 { undo.removeFirst() }; redo = []; doc = d }
-    private func history(_ back: Bool) { if back, let d = undo.popLast() { redo.append(doc); doc = d }; if !back, let d = redo.popLast() { undo.append(doc); doc = d } }
+    private func change(_ d: MarketingValue, key: String? = nil) {
+        guard d != doc else { return }
+        let now = Date()
+        defer { coalesceAt = now }
+        if let key, key == coalesceKey, now.timeIntervalSince(coalesceAt) < 1.2 { redo = []; doc = d; return }
+        coalesceKey = key ?? ""
+        undo.append(doc); if undo.count > 80 { undo.removeFirst() }; redo = []; doc = d
+    }
+    private func addLayer(_ n: MarketingValue) { var d = doc; d["layers"] = .array(layers + [n]); change(d); selected = [n.s("id")]; problem = nil }
+    /// A logo file (newUploadLayer): an image layer holding the SVG or PNG as a data: URL.
+    private func takeLogo(_ result: Result<URL, Error>) {
+        do {
+            let url = try result.get()
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            guard let n = ArtworkLogo.uploadLayer(data, frame: CGSize(width: pageWidth, height: height)) else { throw ERPAPI.Failure(status: 0, message: "Choose an SVG or PNG logo.") }
+            addLayer(n)
+        } catch { if (error as? CocoaError)?.code != .userCancelled { problem = error.localizedDescription } }
+    }
+    private func history(_ back: Bool) { coalesceKey = ""; if back, let d = undo.popLast() { redo.append(doc); doc = d }; if !back, let d = redo.popLast() { undo.append(doc); doc = d } }
     private func patch(_ id: String, _ fields: [String: MarketingValue]) { var d = doc; d["layers"] = .array(layers.map { l in var n = l; if l.s("id") == id { for (k, v) in fields { n[k] = v } }; return n }); change(d) }
     private func set(_ fields: [String: MarketingValue]) { var d = doc; d["layers"] = .array(layers.map { l in var n = l; if selected.contains(l.s("id")), !l["locked"].bool { for (k, v) in fields { n[k] = v } }; return n }); change(d) }
     private func flip(_ key: String) { for l in layers where selected.contains(l.s("id")) && !l["locked"].bool { patch(l.s("id"), [key: .bool(!l[key].bool)]) } }

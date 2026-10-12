@@ -222,8 +222,8 @@ struct HisaabScreen: View {
         var giveLines: [String] = []
         if s.payableGold > 0 { giveLines.append("\(MoneyFormat.grams(s.payableGold)) \(MoneyWords.metal)") }
         return FigureRow(alignment: .top, spacing: 10) {
-            FigureTile(label: "You will get", value: Money.pkr(s.receivable), detail: getLines.joined(separator: "\n"), tint: .green)
-            FigureTile(label: "You will give", value: Money.pkr(s.payable), detail: giveLines.isEmpty ? nil : giveLines.joined(separator: "\n"), tint: .red)
+            FigureTile(label: "You will get", value: Money.pkr(s.receivable), detail: getLines.joined(separator: "\n"), tint: Tone.owed.color)
+            FigureTile(label: "You will give", value: Money.pkr(s.payable), detail: giveLines.isEmpty ? nil : giveLines.joined(separator: "\n"), tint: Tone.credit.color)
         }
         .padding(.vertical, 4)
     }
@@ -304,16 +304,14 @@ private struct HisaabAccountRow: View {
         }
     }
 
-    private var tint: Color { account.cash > 0 ? Color.green : Color.red }
+    private var tint: Color { account.cash > 0 ? Tone.owed.color : Tone.credit.color }
 
     private var top: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(account.name).font(.body.weight(.medium)).lineLimit(1)
             Spacer(minLength: 8)
             if account.hasCash {
-                MoneyText(amount: abs(account.cash), exact: true)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(tint)
+                RowAmount(amount: abs(account.cash), tone: tint)
             }
         }
     }

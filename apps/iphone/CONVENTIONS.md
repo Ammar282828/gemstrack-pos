@@ -58,3 +58,31 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
    Use `FigureRow` / `FigureGrid` so supporting figures stack at accessibility text sizes. Let names,
    descriptions and figure details wrap; keep every field and action reachable by scrolling rather than
    shrinking text or clipping information to fit a fixed card height.
+
+## Kit components
+
+Reach for these before writing a screen's own. Files: `App/UI/Ledger.swift`, `KitComponents.swift`, `Note.swift`.
+
+- **Colour: `Tone` only.** `.late` is a missed promise, `.problem` a failed or refused write (both red, never
+  swapped), `.owed` amber, `.settled` green, `.working` blue, `.credit` teal. An order status is `Tone(status:)`.
+  `Pill(text, tone:)` is the capsule; `StatusBadge` is a thin wrapper over it, kept for old call sites.
+- **Corners: `Radius` only** (`card` 22, `chip` 14, `tile` 12, `thumb` 10), always `style: .continuous`. No bare numbers.
+- **Cards:** `.ledgerCard()` for any card; `SectionCard("Title", count:, trailing:) { … }` for a titled one. In a
+  List, `LedgerSection`. **`.heroSheen()` on the ONE hero card of a screen**, in place of `ledgerCard`.
+  `PerforationDivider()` between a bill's lines and its totals.
+- **Money:** `MoneyRow(label, amount, tone:, lac:, emphasis:, signed:)` for a label and its sum; `RowAmount` inside
+  custom rows; `HeroAmount` for the screen's one big figure (`unit:` + `text:` for a weight: `Weight.grams(g)`).
+  Every sum passes `value:` to `.numericText(value:)`. `Money.signed(n)` ("+ / − PKR x"), `Money.minus(n)`.
+  `PaidRing(paid:total:)` for a payment's progress (`PaidBar` where a thin bar fits better).
+- **Failures:** `.failureAlert($message)` for a refused action (not an ad-hoc `.alert`); `NotAvailableState(title,
+  why:, symbol:)` for what the person cannot have.
+- **Saying something:** the `Note` toast. `.noteToast($note)` on the screen, then `Note.show(Note(title:), in: $note,
+  reduce: reduceMotion)`. Never a bare `withAnimation`: use `Motion.run(_, reduce:)` (or `.motion(value)`).
+  `OwnerNote` / `.ownerNote` still compile; new code says `Note`.
+- **Feel:** `.moneyFeedback(success:failure:)` on a screen that takes or refunds money (triggers change only on
+  the event); `.destructiveFeedback(trigger:)` where a delete or refund is confirmed.
+- **List to detail:** `.zoomSource(id: route.path)` on the row, `.zoomDestination(id: path)` on the page's root
+  view. `zoomScope()` is set on each NavigationStack by RootView; screens never set it. No-op without it.
+- **Sheets' forms:** `.houseForm()`. **Steps:** `EntrySteps(selection:, states:)` shows done / needs a look.
+- **People and dates:** `Monogram(name:, size: Monogram.Size.row | .card | .hero)`; `ShopDate.say(iso)` or
+  `ShopDate.stamp(date, withTime:)`.

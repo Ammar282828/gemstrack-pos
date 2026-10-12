@@ -106,7 +106,7 @@ struct AnaSalesPage: View {
             if showCosts {
                 HStack(spacing: 6) {
                     Text("Net profit \(Money.lacCrore(y.netProfit))")
-                        .foregroundStyle(y.netProfit >= 0 ? Color.green : Color.red)
+                        .foregroundStyle(y.netProfit >= 0 ? Tone.settled.color : Tone.owed.color)
                     Text(y.revenue > 0 ? "\(AnaFormat.fixed(y.netProfit / y.revenue * 100, 1))% margin" : "—")
                         .foregroundStyle(.secondary)
                 }

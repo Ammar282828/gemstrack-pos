@@ -19,7 +19,7 @@ struct PostComposerScreen: View {
     private var d: NativePostDraft { model.draft }
     private var form: some View {
         Form {
-            if let error = model.error { Section { Text(error).foregroundStyle(.red); Button("Dismiss") { model.error = nil } }.houseRows() }
+            if let error = model.error { Section { Text(error).foregroundStyle(Tone.problem.color); Button("Dismiss") { model.error = nil } }.houseRows() }
             if let said = model.said { Section { Text(said) }.houseRows() }
             photoSection
             designSection
@@ -136,7 +136,7 @@ Section {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .top, spacing: 16) {
                 ForEach(d.photos) { p in VStack(alignment: .leading, spacing: 8) {
-                    if let image = WebsitePhoto.thumbnail(p.data, maxPixel: 350) { Image(uiImage: image).resizable().scaledToFit().frame(width: 150, height: 150).background(Theme.ground, in: .rect(cornerRadius: 12)) }
+                    if let image = WebsitePhoto.thumbnail(p.data, maxPixel: 350) { Image(uiImage: image).resizable().scaledToFit().frame(width: 150, height: 150).background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous)) }
                     Button(model.hero?.id == p.id ? "Lead photo ✓" : "Make lead photo") { model.draft.story["bg"]["photoId"] = .string(p.id) }.font(.subheadline)
                     Toggle("Website", isOn: photoFlag(p.id, site: true)).disabled(model.frozen)
                     Toggle("WhatsApp", isOn: photoFlag(p.id, site: false)).disabled(model.frozen)
@@ -192,7 +192,7 @@ Section {
             if d.words["toWhatsApp"].bool {
                 ForEach(model.audience["groups"].array, id: \.text) { g in Toggle(g.s("label", g.s("name")), isOn: waTarget(g.s("key"))) }
                 if model.audience["channel"] != .null { Toggle(model.audience["channel"].s("name", "Channel"), isOn: waTarget("channel")) }
-                if model.audience["community"] == .null { Text("WhatsApp is not connected. Check connections below.").font(.footnote).foregroundStyle(.orange) }
+                if model.audience["community"] == .null { Text("WhatsApp is not connected. Check connections below.").font(.footnote).foregroundStyle(Tone.owed.color) }
             }
         }
         if model.makeStory {
@@ -268,7 +268,7 @@ struct NativePostAISheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let error = model.error { Section { Text(error).foregroundStyle(.red) }.houseRows() }
+                if let error = model.error { Section { Text(error).foregroundStyle(Tone.problem.color) }.houseRows() }
                 Section { TextField(request.op == "letter" ? "Lettering style" : "Your brief", text: $instruction, axis: .vertical).lineLimit(3...8)
                     if ["reframe", "restage", "custom"].contains(request.op) { Picker("Shape", selection: $aspect) { ForEach(["9:16", "4:5", "1:1", "5:4", "3:4", "4:3", "2:3", "3:2", "16:9", "21:9"], id: \.self) { Text($0).tag($0) } } }
                     if request.op == "restage" { Picker("Setting", selection: $scene) { Text("Use my brief").tag(""); ForEach(model.storyPreview["catalogue"]["scenes"].array, id: \.text) { Text($0.s("label")).tag($0.s("id")) } } }
@@ -311,7 +311,7 @@ struct NativeSitePhotoPicker: View {
     private var shown: [MarketingValue] { pieces.filter { q.isEmpty || ($0.s("name") + " " + $0.s("collection")).localizedCaseInsensitiveContains(q) } }
     var body: some View {
         NavigationStack { List {
-            if let error { Text(error).foregroundStyle(.red) }
+            if let error { Text(error).foregroundStyle(Tone.problem.color) }
             if !loaded && error == nil { SkeletonLoading("Loading the website’s pieces") }
             else if loaded && shown.isEmpty { ContentUnavailableView(q.isEmpty ? "No pieces on the website" : "Nothing matches “\(q)”", systemImage: "globe") }
             ForEach(shown, id: \.text) { p in

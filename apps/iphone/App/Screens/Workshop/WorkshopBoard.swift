@@ -10,6 +10,7 @@ import ERPCore
 struct WorkshopBoard: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var filter: WorkshopFilter
     @State private var focus: WorkshopFocus = .all
@@ -61,17 +62,17 @@ struct WorkshopBoard: View {
         .workshopFailureAlert($failure)
         .sheet(item: $assigning) { (ask: WorkshopStockJobAsk) in
             WorkshopStockJobSheet(karigars: workshopLive(book.karigars.items), presetKarigarId: ask.karigarId) { (saved: OwnerNote) in
-                withAnimation { note = saved }
+                Note.show(saved, in: $note, reduce: reduceMotion)
             }
         }
         .sheet(item: $editing) { (job: KarigarJob) in
             WorkshopJobDetailsSheet(job: job) { (saved: OwnerNote) in
-                withAnimation { note = saved }
+                Note.show(saved, in: $note, reduce: reduceMotion)
             }
         }
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {
-                withAnimation { note = OwnerNote(title: "Job deleted") }
+                Note.show(OwnerNote(title: "Job deleted"), in: $note, reduce: reduceMotion)
             }
         }
         .ownerNote($note)
@@ -192,8 +193,8 @@ struct WorkshopBoard: View {
             FigureGrid {
                 FigureTile(label: "Pieces out", value: "\(active)")
                 FigureTile(label: "Benches working", value: "\(working)")
-                FigureTile(label: "Late \(WorkshopLogic.warnDays)d+", value: "\(late)", tint: late > 0 ? Color.orange : Color.primary)
-                FigureTile(label: "Critical \(WorkshopLogic.criticalDays)d+", value: "\(critical)", tint: critical > 0 ? Color.red : Color.primary)
+                FigureTile(label: "Late \(WorkshopLogic.warnDays)d+", value: "\(late)", tint: late > 0 ? Tone.owed.color : Color.primary)
+                FigureTile(label: "Critical \(WorkshopLogic.criticalDays)d+", value: "\(critical)", tint: critical > 0 ? Tone.late.color : Color.primary)
                 FigureTile(label: "Metal out", value: grams > 0 ? WorkshopLogic.number(grams, digits: 1) + "g" : "—")
                 if session.isOwner {
                     FigureTile(label: "Value out", value: value > 0 ? Money.pkrLac(value) : "—")
@@ -221,10 +222,10 @@ struct WorkshopBoard: View {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
                     Image(systemName: load.isUnassigned ? "exclamationmark.triangle.fill" : "hammer")
-                        .foregroundStyle(load.isUnassigned ? Color.red : Color.accentColor)
+                        .foregroundStyle(load.isUnassigned ? Tone.owed.color : Color.accentColor)
                     Text(load.isUnassigned ? "Unassigned" : load.karigarName)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(load.isUnassigned ? Color.red : Color.primary)
+                        .foregroundStyle(load.isUnassigned ? Tone.owed.color : Color.primary)
                 }
                 Text(headerCounts(load))
                     .font(.caption2)
@@ -292,11 +293,11 @@ struct WorkshopBoard: View {
             let onTrack = active.filter { $0.urgency == .ok }.sorted { $0.ageDays > $1.ageDays }
             let done = load.jobs.filter { $0.isDone }
             focusedSummary(load, orders: Set(active.compactMap { $0.orderId }).count)
-            urgencySection("Critical", hint: "sitting \(WorkshopLogic.criticalDays)+ days", tone: Color.red, jobs: critical, choices: choices)
-            urgencySection("Late", hint: "\(WorkshopLogic.warnDays)–\(WorkshopLogic.criticalDays) days", tone: Color.orange, jobs: late, choices: choices)
-            urgencySection("On track", hint: "", tone: Color.primary, jobs: onTrack, choices: choices)
+            urgencySection("Critical", hint: "sitting \(WorkshopLogic.criticalDays)+ days", tone: .late, jobs: critical, choices: choices)
+            urgencySection("Late", hint: "\(WorkshopLogic.warnDays)–\(WorkshopLogic.criticalDays) days", tone: .owed, jobs: late, choices: choices)
+            urgencySection("On track", hint: "", tone: .quiet, jobs: onTrack, choices: choices)
             if filter.status == .all || filter.status == .completed {
-                urgencySection("Completed", hint: "", tone: Color.secondary, jobs: done, choices: choices)
+                urgencySection("Completed", hint: "", tone: .quiet, jobs: done, choices: choices)
             }
         }
     }
@@ -327,18 +328,12 @@ struct WorkshopBoard: View {
     }
 
     @ViewBuilder
-    private func urgencySection(_ title: String, hint: String, tone: Color, jobs: [WorkshopJob], choices: WorkshopChoices) -> some View {
+    private func urgencySection(_ title: String, hint: String, tone: Tone, jobs: [WorkshopJob], choices: WorkshopChoices) -> some View {
         if !jobs.isEmpty {
             Section {
                 jobCards(WorkshopLogic.byOrder(jobs), showKarigar: false, choices: choices)
             } header: {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(tone)
-                    if !hint.isEmpty { Text(hint).font(.caption2).foregroundStyle(.secondary) }
-                    Spacer(minLength: 8)
-                    Text("\(jobs.count)").font(.caption).foregroundStyle(.secondary)
-                }
-                .textCase(nil)
+                LedgerHeading(title: title, count: jobs.count, trailing: hint.isEmpty ? nil : hint, tone: tone)
             }
         }
     }
@@ -696,13 +691,13 @@ private struct FocusedCells: View {
     private var cells: [Cell] {
         var out = [Cell(label: "Active", value: "\(load.active)", tint: Color.primary)]
         if load.inProgress != load.active {
-            out.append(Cell(label: "In progress", value: "\(load.inProgress)", tint: Color.blue))
+            out.append(Cell(label: "In progress", value: "\(load.inProgress)", tint: Tone.working.color))
         }
         if load.late > 0 {
-            out.append(Cell(label: "Late \(WorkshopLogic.warnDays)d+", value: "\(load.late)", tint: Color.orange))
+            out.append(Cell(label: "Late \(WorkshopLogic.warnDays)d+", value: "\(load.late)", tint: Tone.owed.color))
         }
         if load.critical > 0 {
-            out.append(Cell(label: "Critical \(WorkshopLogic.criticalDays)d+", value: "\(load.critical)", tint: Color.red))
+            out.append(Cell(label: "Critical \(WorkshopLogic.criticalDays)d+", value: "\(load.critical)", tint: Tone.late.color))
         }
         if load.totalWeightG > 0 {
             out.append(Cell(label: "Metal out", value: WorkshopLogic.number(load.totalWeightG, digits: 1) + "g", tint: Color.primary))

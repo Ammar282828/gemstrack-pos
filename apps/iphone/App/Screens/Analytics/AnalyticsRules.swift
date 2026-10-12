@@ -1,61 +1,35 @@
 import Foundation
 import ERPCore
 
-// The small rules and words the Analytics pages use that ERPCore does not hold yet (each marked
+// The small rules and words the Analytics pages use (thin calls into ERPCore, or still page-local, each marked
 // TODO(logic)), and the formatting they share. Every money rule itself is ERPCore's:
 // invoiceSaleValue, bookedAsSale, cashInForPeriod, invoicedOrderIds, invoiceMargin / orderMargin,
 // saleCustomerKey.
 
 enum AnaRules {
-    // TODO(logic): port getInvoiceRevenueDate (store.ts)
     /// A sale counts on its order's day when it came from one.
     static func revenueDate(_ inv: Invoice, _ ordersById: [String: Order]) -> String {
-        if let source = inv.sourceOrderId, !source.isEmpty, let o = ordersById[source], !o.createdAt.isEmpty {
-            return o.createdAt
-        }
-        return inv.createdAt
+        getInvoiceRevenueDate(inv, ordersById: ordersById)
     }
 
-    // TODO(logic): port isBusinessCost (partnership.ts)
     /// A partner's drawing is a distribution of profit, not a cost of earning it.
-    static func isBusinessCost(_ e: Expense) -> Bool { e.category != "Partner Drawings" }
+    static func isBusinessCost(_ e: Expense) -> Bool { Partnership.isBusinessCost(e) }
 }
 
 /// `staticCategories` (lib/categories.ts): the list name of a category id.
 enum AnaCategories {
-    // TODO(logic): port categoryTitle / staticCategories (categories.ts)
-    private static let titles: [String: String] = [
-        "cat001": "Rings", "cat002": "Tops", "cat003": "Balis", "cat004": "Lockets", "cat005": "Bracelets",
-        "cat006": "Bracelet and Ring Set", "cat007": "Bangles", "cat008": "Chains", "cat009": "Bands",
-        "cat010": "Locket Sets without Bangle", "cat011": "Locket Set with Bangle", "cat012": "String Sets",
-        "cat013": "Stone Necklace Sets without Bracelets", "cat014": "Stone Necklace Sets with Bracelets",
-        "cat015": "Gold Necklace Sets with Bracelets", "cat016": "Gold Necklace Sets without Bracelets",
-        "cat017": "Gold Coins", "cat018": "Men's Rings", "cat019": "Loose Bracelet", "cat020": "Men's Buttons",
-    ]
-
     /// The category's name, or "Uncategorized".
-    static func title(_ id: String) -> String { titles[id] ?? "Uncategorized" }
+    static func title(_ id: String) -> String { categoryTitle(id) ?? "Uncategorized" }
 }
 
 /// Where a sale came from (`CUSTOMER_SOURCES`, store.ts), plus the catch-all.
 enum AnaSources {
     static let unclassified = "unclassified"
 
-    // TODO(logic): port CUSTOMER_SOURCES / CUSTOMER_SOURCE_LABELS (store.ts)
     /// The ERP's order: the six real sources lead and Unclassified trails.
-    static let keys: [String] = ["taheri_spillover", "referral", "walkin", "social_media", "website", "other", unclassified]
+    static let keys: [String] = customerSources + [unclassified]
 
-    static func label(_ key: String) -> String {
-        switch key {
-        case "taheri_spillover": return "Taheri Spillover"
-        case "referral": return "Referral"
-        case "walkin": return "Walk-in"
-        case "social_media": return "Social media"
-        case "website": return "Website"
-        case "other": return "Other"
-        default: return "Unclassified"
-        }
-    }
+    static func label(_ key: String) -> String { customerSourceLabel(key) ?? "Unclassified" }
 }
 
 /// A SKU worth showing a person (lib/sku.ts stockSku): a piece described for one bill gets a
@@ -126,15 +100,12 @@ enum AnaFormat {
     /// `toFixed(digits)`.
     static func fixed(_ x: Double, _ digits: Int) -> String { String(format: "%.\(digits)f", x) }
 
-    // TODO(logic): port GRAMS_PER_TOLA, toTola and formatWeight (units.ts)
-    static let gramsPerTola = 11.664
+    static let gramsPerTola = ERPCore.gramsPerTola
 
-    static func tola(_ grams: Double) -> Double { grams / gramsPerTola }
+    static func tola(_ grams: Double) -> Double { toTola(grams) }
 
     /// "12.5 g · 1.072 tola" (units.ts formatWeight).
-    static func weight(_ grams: Double) -> String {
-        "\(number(grams, maxDigits: 2)) g · \(number(tola(grams), maxDigits: 3)) tola"
-    }
+    static func weight(_ grams: Double) -> String { formatWeight(grams) }
 
     static func plural(_ n: Int, _ one: String, _ many: String) -> String { n == 1 ? one : many }
 }

@@ -1,30 +1,8 @@
 import SwiftUI
 import ERPCore
 
-/// What was said after a save, and where the expense was filed (the web's toast).
-struct ExpenseSavedNote: Equatable {
-    let title: String
-    let detail: String
-}
-
-/// The note for a few seconds, floating over the list.
-struct ExpenseSavedBanner: View {
-    let note: ExpenseSavedNote
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(note.title).font(.subheadline.weight(.semibold))
-                Text(note.detail).font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .glassEffect(.regular, in: .rect(cornerRadius: 20))
-    }
-}
+/// What was said after a save, and where the expense was filed (the web's toast): the kit's `Note`.
+typealias ExpenseSavedNote = Note
 
 /// "+" on Expenses: the web's Add expense form (components/expense/expense-form.tsx). Date, category,
 /// description and amount are required (the amount at least 0.01); paid by is the business unless a
@@ -126,7 +104,7 @@ struct AddExpenseSheet: View {
                 }
                 karigarSection
                 if let error {
-                    Section { Text(error).foregroundStyle(.red) }
+                    Section { Text(error).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()

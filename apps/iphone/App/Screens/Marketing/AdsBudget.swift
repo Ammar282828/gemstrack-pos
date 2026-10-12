@@ -90,7 +90,7 @@ struct AdsBudgetSheet: View {
                     LabeledContent("Now", value: before > 0 ? money(before) + (isDaily ? " a day" : " in total") : "None of its own")
                     LabeledContent("Ends", value: dayWords(endBefore))
                 } header: {
-                    Text(target.name)
+                    LedgerHeading(title: target.name)
                 }
                 Section {
                     LabeledContent(isDaily ? "A day" : "In total") {
@@ -118,7 +118,7 @@ struct AdsBudgetSheet: View {
                     Text(isDaily ? "Off runs it until it is paused." : "A total budget is spent by its end date.")
                 }
                 if let failure {
-                    Section { Label(failure, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }
+                    Section { Label(failure, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()
@@ -152,7 +152,7 @@ struct AdsBudgetSheet: View {
             VStack(alignment: .leading, spacing: 4) {
                 if isDaily { Text("About \(money(v * 30.4)) a month at this budget.") }
                 if before > 0 && v > before * 2 {
-                    Text("That more than doubles what it spends.").foregroundStyle(.orange)
+                    Text("That more than doubles what it spends.").foregroundStyle(Tone.owed.color)
                 }
             }
         } else {

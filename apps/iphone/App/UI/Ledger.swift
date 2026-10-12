@@ -8,7 +8,8 @@ import ERPCore
 // - Money is the subject. A screen's one big figure is set in the serif (New York, the system's own, so it
 //   scales with the reader's text size) and everything around it in SF; digits never jump (monospaced).
 // - Colour means something or it is not used. The house's accent marks what can be pressed and what is
-//   chosen; red is late, amber is owed or due soon, green is paid or done. A sum is never red for being large.
+//   chosen; red is late (`.late`) or a refused write (`.problem`, same red, different meaning), amber is owed
+//   or due soon, green is paid or done. A sum is never red for being large.
 // - A person comes before a number: rows lead with who (a monogram and the name); the record's id is the
 //   quiet line underneath, for finding it again.
 // - One badge at most on a card. Where an order stands is the stage track, not a pair of coloured words.
@@ -32,6 +33,9 @@ enum Tone {
     case quiet
     /// The house's own: what is chosen, what is the shop's.
     case house
+    /// Something that did not happen: a failed write, a refused action. Red like `.late`, but never lateness:
+    /// a screen picks `.late` for a missed promise and `.problem` for an error, so the two can be told apart later.
+    case problem
 
     var color: Color {
         switch self {
@@ -42,8 +46,34 @@ enum Tone {
         case .working: return .blue
         case .quiet: return Color.secondary
         case .house: return Theme.accent
+        case .problem: return .red
         }
     }
+
+    /// An order's status in its tone: waiting is owed, with the karigars is working, done is settled; cancelled,
+    /// refunded and unknown say nothing. The one palette for order statuses (`StatusBadge(order:)` reads it).
+    init(status: OrderStatus) {
+        switch status {
+        case .pending: self = .owed
+        case .inProgress: self = .working
+        case .completed: self = .settled
+        case .cancelled, .refunded, .unknown: self = .quiet
+        }
+    }
+}
+
+// MARK: Radii
+
+/// The corner radii every surface uses (all `.continuous`). Nothing else picks a corner.
+enum Radius {
+    /// A card of content: `ledgerCard`, hero and section cards.
+    static let card: CGFloat = 22
+    /// A chip or round-cornered control: `QuickAction`, a button-like tile.
+    static let chip: CGFloat = 14
+    /// A small tile: a step, a picker cell, a figure tile.
+    static let tile: CGFloat = 12
+    /// A thumbnail or a calendar leaf.
+    static let thumb: CGFloat = 10
 }
 
 // MARK: Words in a capsule
@@ -53,11 +83,19 @@ struct Pill: View {
     let text: String
     var tone: Tone = .quiet
     var symbol: String?
+    /// A colour no tone has (`StatusBadge`'s older call sites); new code passes a `tone`.
+    private var tint: Color?
 
     init(_ text: String, tone: Tone = .quiet, symbol: String? = nil) {
         self.text = text
         self.tone = tone
         self.symbol = symbol
+    }
+
+    init(_ text: String, color: Color, symbol: String? = nil) {
+        self.text = text
+        self.symbol = symbol
+        self.tint = color
     }
 
     var body: some View {
@@ -69,8 +107,8 @@ struct Pill: View {
         .lineLimit(1)
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
-        .foregroundStyle(tone.color)
-        .background(tone.color.opacity(0.13), in: .capsule)
+        .foregroundStyle(tint ?? tone.color)
+        .background((tint ?? tone.color).opacity(0.13), in: .capsule)
     }
 }
 
@@ -80,6 +118,16 @@ struct Pill: View {
 struct Monogram: View {
     let name: String
     var size: CGFloat = 40
+
+    /// The three sizes screens use; pass one rather than a number.
+    enum Size {
+        /// A list row.
+        static let row: CGFloat = 38
+        /// Inside a card (it was 36; one size for rows and cards).
+        static let card: CGFloat = 38
+        /// A detail page's header.
+        static let hero: CGFloat = 56
+    }
 
     var body: some View {
         let letters = Self.letters(name)
@@ -116,13 +164,18 @@ struct HeroAmount: View {
     var tone: Color = .primary
     /// "4.5 lac" rather than the rupees: for a figure read at a glance (Home).
     var lac = false
+    /// The small word before the figure: "PKR" for money; pass another ("g", "tola") for a weight, with
+    /// `text` for the figure itself.
+    var unit = "PKR"
+    /// A figure already formatted (a weight); animates by its own `amount` when that is passed too.
+    var text: String?
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text("PKR")
+            Text(unit)
                 .font(.system(.title3, design: .serif).weight(.medium))
                 .foregroundStyle(.secondary)
-            Text(Self.figure(amount, lac: lac))
+            Text(text ?? Self.figure(amount, lac: lac))
                 .font(.system(.largeTitle, design: .serif).weight(.semibold))
                 .foregroundStyle(tone)
                 .monospacedDigit()
@@ -182,21 +235,21 @@ struct MoneySplit: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack(alignment: .top, spacing: 0) {
-                cell(totalLabel, Money.pkr(total), .primary, .leading)
-                cell(paidLabel, Money.pkr(paid), .secondary, .center)
+                cell(totalLabel, total, Money.pkr(total), .primary, .leading)
+                cell(paidLabel, paid, Money.pkr(paid), .secondary, .center)
                 if due < -0.5 {
-                    cell("In credit", Money.pkr(-due), Tone.credit.color, .trailing)
+                    cell("In credit", -due, Money.pkr(-due), Tone.credit.color, .trailing)
                 } else if due > 0.5 {
-                    cell("Due", Money.pkr(due), Tone.owed.color, .trailing)
+                    cell("Due", due, Money.pkr(due), Tone.owed.color, .trailing)
                 } else {
-                    cell("Due", "Nil", Tone.settled.color, .trailing)
+                    cell("Due", 0, "Nil", Tone.settled.color, .trailing)
                 }
             }
             PaidBar(paid: paid, total: total)
         }
     }
 
-    private func cell(_ label: String, _ value: String, _ tint: Color, _ align: HorizontalAlignment) -> some View {
+    private func cell(_ label: String, _ amount: Double, _ value: String, _ tint: Color, _ align: HorizontalAlignment) -> some View {
         VStack(alignment: align, spacing: 3) {
             Text(label.uppercased())
                 .font(.caption2.weight(.semibold))
@@ -205,7 +258,7 @@ struct MoneySplit: View {
             Text(value)
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
-                .contentTransition(.numericText())
+                .contentTransition(.numericText(value: amount))
                 .foregroundStyle(tint)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -254,7 +307,7 @@ struct DateLeaf: View {
             }
         }
         .frame(width: size, height: size + 6)
-        .background((tone == .quiet ? Color.secondary : tone.color).opacity(0.1), in: .rect(cornerRadius: 10, style: .continuous))
+        .background((tone == .quiet ? Color.secondary : tone.color).opacity(0.1), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
         .accessibilityHidden(true)
     }
 }
@@ -293,6 +346,8 @@ struct StageTrack: View {
     let stage: OrderStage
     /// The step names under the bars (the order's page); the card shows the bars alone.
     var labels = false
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.colorScheme) private var scheme
 
     static let steps = ["Booked", "Making", "Ready", "Invoiced"]
 
@@ -308,11 +363,13 @@ struct StageTrack: View {
 
     var body: some View {
         let at = Self.step(stage)
+        // Inactive bars a little firmer in dark, where 0.18 of grey nearly vanishes on the card.
+        let idle = scheme == .dark ? 0.28 : 0.18
         HStack(alignment: .top, spacing: 4) {
             ForEach(Array(Self.steps.enumerated()), id: \.offset) { index, name in
                 VStack(alignment: .leading, spacing: 4) {
                     Capsule()
-                        .fill(index <= at ? Theme.accent : Color.secondary.opacity(0.18))
+                        .fill(index <= at ? Theme.accent : Color.secondary.opacity(idle))
                         .frame(height: labels ? 5 : 4)
                     if labels {
                         Text(name)
@@ -324,6 +381,8 @@ struct StageTrack: View {
                 .frame(maxWidth: .infinity)
             }
         }
+        // The bars travel to the new stage (none under Reduce Motion).
+        .animation(reduce ? nil : Motion.travel, value: at)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(at < 0 ? "Closed" : "Stage: " + Self.steps[min(at, Self.steps.count - 1)])
     }
@@ -431,7 +490,7 @@ extension View {
         self
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.card, in: .rect(cornerRadius: 22, style: .continuous))
+            .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
     }
 }
 
@@ -477,7 +536,7 @@ struct QuickAction: View {
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(prominent ? Theme.onAccent : Theme.accent)
                     .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(prominent ? Theme.accent : Theme.accent.opacity(0.12), in: .rect(cornerRadius: 14, style: .continuous))
+                    .background(prominent ? Theme.accent : Theme.accent.opacity(0.12), in: .rect(cornerRadius: Radius.chip, style: .continuous))
                 Text(title)
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(prominent ? Theme.accent : Color.primary)

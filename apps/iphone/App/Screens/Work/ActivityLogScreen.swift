@@ -126,7 +126,7 @@ struct ActivityLogScreen: View {
     }
 
     private func row(_ e: ActivityLogEntry) -> some View {
-        let tint = color(ActivityLogRules.tone(e.eventType))
+        let tint = tone(ActivityLogRules.tone(e.eventType)).color
         let revertable = ActivityLogRules.isRevertable(e.eventType)
         return HStack(alignment: .top, spacing: 12) {
             Image(systemName: symbol(e.eventType))
@@ -147,7 +147,7 @@ struct ActivityLogScreen: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if revertable {
                 Button { openWeb = true } label: { Label("Revert", systemImage: "arrow.uturn.backward") }
-                    .tint(.red)
+                    .tint(Tone.owed.color)
             }
         }
         .contextMenu {
@@ -157,12 +157,12 @@ struct ActivityLogScreen: View {
         }
     }
 
-    private func color(_ tone: ActivityLogRules.Tone) -> Color {
-        switch tone {
-        case .created: return .green
-        case .updated: return .blue
-        case .deleted: return .red
-        case .other: return .secondary
+    private func tone(_ kind: ActivityLogRules.Tone) -> Tone {
+        switch kind {
+        case .created: return .settled
+        case .updated: return .working
+        case .deleted: return .owed
+        case .other: return .quiet
         }
     }
 

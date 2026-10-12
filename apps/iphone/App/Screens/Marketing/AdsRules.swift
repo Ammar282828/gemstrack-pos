@@ -59,11 +59,7 @@ struct AdsRulesScreen: View {
             } message: { (_: AdsRuleRow) in
                 Text("Meta stops checking it. Ad sets it paused stay paused until switched on.")
             }
-            .alert("Meta didn't take that", isPresented: failureShown) {
-                Button("OK") { failure = nil }
-            } message: {
-                Text(failure ?? "")
-            }
+            .failureAlert($failure, title: "Meta didn't take that")
     }
 
     private var switchingShown: Binding<Bool> {
@@ -74,9 +70,6 @@ struct AdsRulesScreen: View {
         Binding(get: { deleting != nil }, set: { (on: Bool) in if !on { deleting = nil } })
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     // MARK: Reading
 
@@ -165,7 +158,7 @@ struct AdsRulesScreen: View {
                 AdsAlertsSection(status: s)
                 if let loadProblem {
                     Section {
-                        Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                        Label(loadProblem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
                         Button("Try again") { Task { await loadRules() } }
                     }
                 }

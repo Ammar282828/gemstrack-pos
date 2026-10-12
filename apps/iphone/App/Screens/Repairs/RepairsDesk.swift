@@ -32,6 +32,8 @@ final class RepairsDesk {
     /// The ERP's words when a write was refused.
     var failure: String?
     private(set) var busy: Set<String> = []
+    /// Bumped as a payment lands, so the screen can tap for it (`moneyFeedback`).
+    private(set) var paymentsTaken = 0
     /// Tickets whose balance was taken on the way out but whose status write has not landed: a retry
     /// must not charge twice.
     @ObservationIgnored private var balanceTaken: Set<String> = []
@@ -64,6 +66,7 @@ final class RepairsDesk {
     /// A payment on the ticket (an advance later on, the balance after collection).
     func takePayment(_ r: Repair, amount: Double, method: String) async throws {
         _ = try await ERPAPI.shared.write("recordRepairPayment", ["repairId": r.id, "amount": amount, "method": method])
+        paymentsTaken += 1
     }
 
     /// The page's Hand back: the money first (noted "On collection"), then Collected.
@@ -76,6 +79,7 @@ final class RepairsDesk {
         }
         _ = try await ERPAPI.shared.write("setRepairStatus", ["repairId": r.id, "status": "collected"])
         balanceTaken.remove(r.id)
+        paymentsTaken += 1
     }
 
     // MARK: One write at a time per ticket
@@ -116,11 +120,8 @@ private struct RepairsDeskModifier: ViewModifier {
             }
             .sheet(item: payingBinding) { r in handBackSheet(r) }
             .sheet(item: takingBinding) { r in paymentSheet(r) }
-            .alert("Not changed", isPresented: failureShown) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(desk.failure ?? "")
-            }
+            .failureAlert(failureBinding, title: "Not changed")
+            .moneyFeedback(success: desk.paymentsTaken, failure: false)
     }
 
     // MARK: The questions
@@ -167,8 +168,8 @@ private struct RepairsDeskModifier: ViewModifier {
         Binding(get: { desk.taking }, set: { desk.taking = $0 })
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { desk.failure != nil }, set: { if !$0 { desk.failure = nil } })
+    private var failureBinding: Binding<String?> {
+        Binding(get: { desk.failure }, set: { desk.failure = $0 })
     }
 
     private func handBackSheet(_ r: Repair) -> some View {

@@ -69,7 +69,7 @@ struct PostsHub: View {
             Section {
                 ForEach(failing) { (c: PostCheck) in
                     HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(c.group): \(c.label)").font(.body.weight(.medium))
                             Text(c.fix ?? c.detail).font(.subheadline).foregroundStyle(.secondary)
@@ -138,12 +138,12 @@ struct PostsHub: View {
         if let id = s.sitePiece, let piece = store.piece(id) {
             StockImage(imageUrl: piece.thumb, name: piece.name, key: piece.id)
                 .frame(width: 44, height: 44)
-                .clipShape(.rect(cornerRadius: 10))
+                .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
         } else {
             Image(systemName: storyOnly ? "camera.aperture" : "bubble.left.and.bubble.right")
                 .foregroundStyle(.secondary)
                 .frame(width: 44, height: 44)
-                .background(.quaternary, in: .rect(cornerRadius: 10))
+                .background(.quaternary, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
         }
     }
 
@@ -197,7 +197,7 @@ struct PostsHub: View {
             HStack(spacing: 12) {
                 StockImage(imageUrl: e.thumb, name: e.headline, key: e.id, decodeDataURI: true)
                     .frame(width: 44, height: 44)
-                    .clipShape(.rect(cornerRadius: 10))
+                    .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                 TwoLine(title: e.headline.isEmpty ? "A piece" : e.headline, subtitle: queueNote(e))
                 queueBadge(e)
                 Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
@@ -218,16 +218,16 @@ struct PostsHub: View {
     }
 
     private func queueBadge(_ e: PostQueueEntry) -> some View {
-        let words: (String, Color)
+        let words: (String, Tone)
         switch e.status {
-        case "scheduled": words = ("Scheduled", .blue)
-        case "sending": words = ("Sending", .orange)
-        case "sent": words = ("Sent", .green)
-        case "failed": words = ("Failed", .red)
-        case "draft": words = ("Making", .secondary)
-        default: words = ("Held", .secondary)
+        case "scheduled": words = ("Scheduled", .working)
+        case "sending": words = ("Sending", .owed)
+        case "sent": words = ("Sent", .settled)
+        case "failed": words = ("Failed", .problem)
+        case "draft": words = ("Making", .quiet)
+        default: words = ("Held", .quiet)
         }
-        return StatusBadge(words.0, color: words.1)
+        return Pill(words.0, tone: words.1)
     }
 
     // MARK: The website's pieces
@@ -287,7 +287,7 @@ struct PostPieceTile: View {
         VStack(alignment: .leading, spacing: 5) {
             StockImage(imageUrl: piece.thumb, name: piece.name, key: piece.id)
                 .aspectRatio(1, contentMode: .fit)
-                .clipShape(.rect(cornerRadius: 12))
+                .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                 .overlay(alignment: .topLeading) {
                     if piece.newArrival {
                         Text("New")

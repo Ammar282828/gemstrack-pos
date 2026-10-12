@@ -113,16 +113,9 @@ struct AdsAdSetsScreen: View {
             } message: {
                 Text((check?.summary ?? []).joined(separator: "\n"))
             }
-            .alert("That didn't work", isPresented: failureShown) {
-                Button("OK") { failure = nil }
-            } message: {
-                Text(failure ?? "")
-            }
+            .failureAlert($failure, title: "That didn't work")
     }
 
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { (on: Bool) in if !on { failure = nil } })
-    }
 
     // MARK: Reading
 
@@ -332,7 +325,7 @@ struct AdsAdSetsScreen: View {
                 TextField("Campaign name", text: $campaignName)
             }
             if let treeError {
-                Text("The account's campaigns didn't come: \(treeError)").font(.footnote).foregroundStyle(.red)
+                Text("The account's campaigns didn't come: \(treeError)").font(.footnote).foregroundStyle(Tone.problem.color)
             }
         } header: {
             LedgerHeading(title: "Campaign")
@@ -375,7 +368,7 @@ struct AdsAdSetsScreen: View {
                     HStack(spacing: 10) {
                         StockImage(imageUrl: r.ad.image, name: r.ad.name, key: r.ad.id)
                             .frame(width: 44, height: 44)
-                            .clipShape(.rect(cornerRadius: 8))
+                            .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                         VStack(alignment: .leading, spacing: 2) {
                             Text(r.ad.name).foregroundStyle(.primary).lineLimit(2)
                             Text(r.place).font(.caption).foregroundStyle(.secondary).lineLimit(1)
@@ -436,10 +429,10 @@ struct AdsAdSetsScreen: View {
             Group {
                 Section {
                     VStack(spacing: 10) {
-                        Image(systemName: "checkmark.circle.fill").font(.largeTitle).foregroundStyle(.green)
+                        Image(systemName: "checkmark.circle.fill").font(.largeTitle).foregroundStyle(Tone.settled.color)
                         Text("\(m.adsets.count) ad set\(m.adsets.count == 1 ? "" : "s") made\(m.live ? "" : ", paused")").font(.headline)
                         ForEach(m.warnings, id: \.self) { (w: String) in
-                            Text(w).font(.footnote).foregroundStyle(.orange)
+                            Text(w).font(.footnote).foregroundStyle(Tone.owed.color)
                         }
                     }
                     .frame(maxWidth: .infinity)

@@ -88,7 +88,7 @@ struct WidgetPreviewScreen: View {
         if look == .tinted {
             Color(white: 0.15)
         } else {
-            ERPWidgetPaper(house: summary.house)
+            ERPWidgetPaper()
         }
     }
 }

@@ -97,15 +97,7 @@ struct MyWorkScreen: View {
         .onChange(of: scenePhase) { _, now in
             if now == .active { Task { await load() } }
         }
-        .alert("Could not update", isPresented: failureShown) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(failure ?? "")
-        }
-    }
-
-    private var failureShown: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })
+        .failureAlert($failure, title: "Could not update")
     }
 
     // MARK: Reading
@@ -206,8 +198,8 @@ struct MyWorkScreen: View {
     private func figures(_ s: KarigarPortalSummary) -> some View {
         FigureRow(alignment: .top, spacing: 10) {
             FigureTile(label: "To do", value: "\(s.active)")
-            FigureTile(label: "Late", value: "\(s.late)", tint: s.late > 0 ? .orange : .primary)
-            FigureTile(label: "Urgent", value: "\(s.critical)", tint: s.critical > 0 ? .red : .primary)
+            FigureTile(label: "Late", value: "\(s.late)", tint: s.late > 0 ? Tone.owed.color : .primary)
+            FigureTile(label: "Urgent", value: "\(s.critical)", tint: s.critical > 0 ? Tone.late.color : .primary)
         }
         .padding(.vertical, 4)
     }
@@ -220,7 +212,7 @@ struct MyWorkScreen: View {
         if s.active.isEmpty {
             Section {
                 VStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle").font(.largeTitle).foregroundStyle(.green)
+                    Image(systemName: "checkmark.circle").font(.largeTitle).foregroundStyle(Tone.settled.color)
                     Text("No pending work").font(.headline)
                     Text("Nothing is waiting for you at the bench.").font(.subheadline).foregroundStyle(.secondary)
                 }
@@ -229,8 +221,8 @@ struct MyWorkScreen: View {
             }
             .houseRows()
         } else {
-            group("Urgent", jobs: s.critical, symbol: "flame", tone: .red, hint: "14+ days", readOnly: readOnly)
-            group("Late", jobs: s.late, symbol: "clock", tone: .orange, hint: "7–14 days", readOnly: readOnly)
+            group("Urgent", jobs: s.critical, symbol: "flame", tone: Tone.late.color, hint: "14+ days", readOnly: readOnly)
+            group("Late", jobs: s.late, symbol: "clock", tone: Tone.owed.color, hint: "7–14 days", readOnly: readOnly)
             group("In hand", jobs: s.onTrack, symbol: nil, tone: .secondary, hint: "on track", readOnly: readOnly)
         }
         group("Completed", jobs: s.done, symbol: "checkmark.circle", tone: .secondary, hint: nil, readOnly: readOnly)
@@ -283,7 +275,7 @@ struct MyWorkScreen: View {
             }
             Spacer(minLength: 8)
             if !allDone && urgency != "ok" {
-                StatusBadge("\(g.ageDays)d", color: urgency == "critical" ? .red : .orange)
+                Pill("\(g.ageDays)d", tone: urgency == "critical" ? .late : .owed)
             }
         }
         .opacity(allDone ? 0.55 : 1)
@@ -298,7 +290,7 @@ struct MyWorkScreen: View {
                     .strikethrough(j.isDone)
                 specs(j)
                 if j.sampleGiven {
-                    StatusBadge("Sample provided", color: .secondary)
+                    Pill("Sample provided", tone: .quiet)
                 }
                 if let picture = j.sampleImage, !picture.isEmpty {
                     WorkSamplePhoto(uri: picture, key: j.id)
@@ -310,7 +302,7 @@ struct MyWorkScreen: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
-                    .background(Color.orange.opacity(0.1), in: .rect(cornerRadius: 8))
+                    .background(Tone.owed.color.opacity(0.1), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                 }
             }
         }
@@ -325,14 +317,14 @@ struct MyWorkScreen: View {
         } else if readOnly {
             Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
                 .font(.title2)
-                .foregroundStyle(j.isDone ? Color.green : Color.secondary.opacity(0.5))
+                .foregroundStyle(j.isDone ? Tone.settled.color : Color.secondary.opacity(0.5))
                 .frame(width: 28, height: 28)
                 .accessibilityLabel(j.isDone ? "Done" : "Not done")
         } else {
             Button { toggle(j) } label: {
                 Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
-                    .foregroundStyle(j.isDone ? Color.green : Color.secondary)
+                    .foregroundStyle(j.isDone ? Tone.settled.color : Color.secondary)
                     .frame(width: 28, height: 28)
             }
             .buttonStyle(.borderless)
@@ -357,7 +349,7 @@ struct MyWorkScreen: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(spec.accent ? Theme.accent.opacity(0.12) : Color.secondary.opacity(0.1), in: .rect(cornerRadius: 8))
+                    .background(spec.accent ? Theme.accent.opacity(0.12) : Color.secondary.opacity(0.1), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                 }
             }
         }
@@ -371,7 +363,7 @@ struct MyWorkScreen: View {
             FigureRow(alignment: .top, spacing: 10) {
                 FigureTile(label: "Received", value: KarigarPortalRules.grams(a.goldGiven))
                 FigureTile(label: "Returned", value: KarigarPortalRules.grams(a.goldReceived))
-                FigureTile(label: "With you", value: KarigarPortalRules.grams(a.goldNet), tint: a.goldNet > 0 ? .red : .primary)
+                FigureTile(label: "With you", value: KarigarPortalRules.grams(a.goldNet), tint: a.goldNet > 0 ? Tone.owed.color : .primary)
             }
             .padding(.vertical, 4)
             .listRowInsets(EdgeInsets())
@@ -386,7 +378,7 @@ struct MyWorkScreen: View {
 
         Section {
             VStack(alignment: .leading, spacing: 2) {
-                Text(Money.pkr(a.totalPaid)).font(.title2.weight(.bold)).monospacedDigit()
+                HeroAmount(amount: a.totalPaid)
                 Text("total paid to you").font(.caption).foregroundStyle(.secondary)
             }
             ForEach(Array(a.payments.enumerated()), id: \.offset) { _, payment in
@@ -408,7 +400,7 @@ struct MyWorkScreen: View {
             Text(l.goldOut != 0 ? "↑ " + KarigarPortalRules.grams(l.goldOut) : "↓ " + KarigarPortalRules.grams(l.goldIn))
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
-                .foregroundStyle(l.goldOut != 0 ? Color.red : Color.green)
+                .foregroundStyle(l.goldOut != 0 ? Tone.owed.color : Tone.settled.color)
         }
     }
 

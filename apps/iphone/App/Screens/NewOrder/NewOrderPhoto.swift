@@ -19,7 +19,7 @@ struct NewOrderSampleField: View {
             if piece.photo == nil && !piece.removePhoto && hasStored {
                 if let uri = piece.sampleImageDataUri ?? storedURI, !uri.isEmpty {
                     StockImage(imageUrl: uri, name: piece.description, key: piece.id.uuidString, decodeDataURI: true)
-                        .frame(maxHeight: 160).clipShape(.rect(cornerRadius: 12))
+                        .frame(maxHeight: 160).clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                 } else if let failure {
                     Text(failure).font(.footnote).foregroundStyle(.secondary)
                 } else { SkeletonLoading().frame(height: 80) }
@@ -131,7 +131,7 @@ struct NewOrderPhotoField: View {
                 if busy { SkeletonLoading() }
             }
             if let problem {
-                Text(problem).font(.footnote).foregroundStyle(.red)
+                Text(problem).font(.footnote).foregroundStyle(Tone.problem.color)
             }
         }
         .photosPicker(isPresented: $library, selection: $picked, matching: .images)
@@ -156,7 +156,7 @@ struct NewOrderPhotoField: View {
                     .resizable()
                     .scaledToFit()
                     .frame(maxHeight: 140)
-                    .clipShape(.rect(cornerRadius: 12))
+                    .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                 Spacer(minLength: 8)
                 Button(role: .destructive) { self.data = nil } label: {
                     Label("Remove photo", systemImage: "trash")

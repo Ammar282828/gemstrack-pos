@@ -57,6 +57,7 @@ struct InvoiceWhatsAppSheet: View {
                 }
                 .houseRows()
             }
+            .houseForm()
             .navigationTitle("Send on WhatsApp")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

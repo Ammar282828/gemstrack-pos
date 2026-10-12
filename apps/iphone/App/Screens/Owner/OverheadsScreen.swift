@@ -55,6 +55,7 @@ private struct OverheadsBoard: View {
     @State private var saving = false
     @State private var saveError: String?
     @State private var note: OwnerNote?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// One clock for the whole screen, so the month boundary and the days-left figure cannot disagree
     /// part-way down.
     @State private var now = Date()
@@ -85,7 +86,7 @@ private struct OverheadsBoard: View {
         .safeAreaBar(edge: .bottom) {
             if dirty { saveBar }
         }
-        .ownerNote($note)
+        .noteToast($note)
         .task {
             book.invoices.need()
             book.orders.need()
@@ -157,10 +158,10 @@ private struct OverheadsBoard: View {
                     if met {
                         Label("Covered \u{2014} \(OwnerText.pkr(earned - target)) above the benchmark", systemImage: "chart.line.uptrend.xyaxis")
                             .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(Tone.settled.color)
                     } else {
                         HStack(spacing: 4) {
-                            Text(OwnerText.pkr(p.shortfall)).fontWeight(.semibold).foregroundStyle(Theme.accent).monospacedDigit()
+                            RowAmount(amount: p.shortfall, tone: Theme.accent)
                             Text("still to earn").foregroundStyle(.secondary)
                         }
                         .font(.subheadline)
@@ -169,9 +170,7 @@ private struct OverheadsBoard: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(14)
-                .background(Theme.card, in: .rect(cornerRadius: 22))
+                .ledgerCard(padding: 14)
             }
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             .listRowBackground(Color.clear)
@@ -208,7 +207,7 @@ private struct OverheadsBoard: View {
     }
 
     private func monthRow(_ r: OverheadMonthRow) -> some View {
-        let tone: Color = r.inProgress ? Color.secondary : (r.met ? Color.green : Color.red)
+        let tone: Color = r.inProgress ? Color.secondary : (r.met ? Tone.settled.color : Tone.owed.color)
         let symbol = r.inProgress ? "minus.circle.fill" : (r.met ? "checkmark.circle.fill" : "arrow.down.right.circle.fill")
         return HStack(spacing: 12) {
             Image(systemName: symbol).foregroundStyle(tone)
@@ -223,7 +222,7 @@ private struct OverheadsBoard: View {
             Text(OwnerText.signed(r.surplus))
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
-                .foregroundStyle(r.inProgress ? Color.secondary : (r.surplus >= 0 ? Color.green : Color.red))
+                .foregroundStyle(r.inProgress ? Color.secondary : (r.surplus >= 0 ? Tone.settled.color : Tone.owed.color))
         }
     }
 
@@ -249,7 +248,7 @@ private struct OverheadsBoard: View {
             }
             Button { add() } label: { Label("Add a line", systemImage: "plus.circle") }
             LabeledContent("Total") {
-                Text(OwnerText.pkr(target)).fontWeight(.bold).foregroundStyle(Theme.accent).monospacedDigit()
+                RowAmount(amount: target, tone: Theme.accent)
             }
         } header: {
             LedgerHeading(title: "The sheet")
@@ -273,11 +272,11 @@ private struct OverheadsBoard: View {
             if let saveError {
                 Text(saveError)
                     .font(.footnote)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Tone.problem.color)
                     .multilineTextAlignment(.center)
                     .padding(10)
                     .frame(maxWidth: .infinity)
-                    .background(.regularMaterial, in: .rect(cornerRadius: 14))
+                    .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
             }
             HStack(spacing: 10) {
                 Button {
@@ -332,9 +331,8 @@ private struct OverheadsBoard: View {
             } else {
                 lines = OverheadDraftLine.lines(saved)
             }
-            withAnimation {
-                note = OwnerNote(title: "Benchmark saved", detail: "\(OwnerText.pkr(Overheads.overheadTotal(saved))) a month, from \(Overheads.monthLabel(from)).")
-            }
+            Note.show(Note(title: "Benchmark saved", detail: "\(OwnerText.pkr(Overheads.overheadTotal(saved))) a month, from \(Overheads.monthLabel(from))."),
+                      in: $note, reduce: reduceMotion)
         } catch {
             saveError = error.localizedDescription
         }

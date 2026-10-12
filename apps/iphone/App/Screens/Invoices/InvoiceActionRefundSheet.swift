@@ -47,28 +47,40 @@ struct InvoiceActionRefundSheet: View {
                          : "A partial refund records a negative payment on this invoice and issues a matching refund on Shopify. The invoice stays in your records.")
                 }
                 if mode == .full {
-                    Section("What goes") {
+                    Section {
                         Text(InvoiceActionDeleteSheet.detail(invoice, book: book))
                             .font(.subheadline)
+                    } header: {
+                        Text("What goes")
+                    } footer: {
+                        Text("Same as Delete: the invoice is removed.")
                     }
                 } else {
                     partialSections
                 }
-                Section {
-                    Button(role: .destructive) { ask() } label: {
-                        Label(mode == .full ? "Yes, refund invoice" : "Record partial refund", systemImage: "arrow.uturn.backward")
-                    }
-                    .disabled(mode == .partial && after == nil)
-                }
                 }
                 .houseRows()
             }
+            .houseForm()
             .navigationTitle("Refund \(invoice.id)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }
                 }
+            }
+            // The one action, full width at the foot, in the colour of a thing that cannot be taken back.
+            .safeAreaBar(edge: .bottom, spacing: 0) {
+                Button { ask() } label: {
+                    Label(mode == .full ? "Yes, refund invoice" : "Record partial refund", systemImage: "arrow.uturn.backward")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glassProminent)
+                .tint(Tone.problem.color)
+                .controlSize(.large)
+                .disabled(mode == .partial && after == nil)
+                .padding(.horizontal)
+                .padding(.bottom, 8)
             }
         }
         .presentationDetents([.large])
@@ -95,7 +107,7 @@ struct InvoiceActionRefundSheet: View {
         } footer: {
             if amount > 0 && amount > invoice.amountPaid + 0.5 {
                 // The web takes it; said so nobody hands back more than came in by a slip of the keys.
-                Text("More than was paid on it (\(PaymentText.pkr(invoice.amountPaid))).").foregroundStyle(.orange)
+                Text("More than was paid on it (\(PaymentText.pkr(invoice.amountPaid))).").foregroundStyle(Tone.owed.color)
             } else if amount > 0 {
                 Text(Money.pkrLac(amount))
             }

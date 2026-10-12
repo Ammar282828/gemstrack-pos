@@ -182,7 +182,7 @@ private struct BankAccountSheet: View {
                 }
 
                 if let error {
-                    Section { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }
+                    Section { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()

@@ -295,12 +295,12 @@ export async function POST(req: NextRequest) {
           }
           // The phone sends each piece with the index it had: the form's fields go over the stored piece, so
           // what the form does not show (finished, given, its sample photo) stays as it was. A new picture
-          // replaces the old one (createOrder's splitItemPhotos files it).
+          // replaces the old one; the same picture sent again is kept (splitItemPhotos).
           edit.items = items.map((raw) => {
             const { editIndex, ...piece } = raw;
             const at = Number(editIndex);
             const base: Record<string, unknown> = Number.isInteger(at) && at >= 0 && at < stored.length ? { ...stored[at] } : { isCompleted: false };
-            if (typeof piece.sampleImageDataUri === 'string' && piece.sampleImageDataUri) delete base.samplePhotoId;
+            // A picture sent with the piece is compared with the stored one by updateOrder (same bytes: kept; else replaced).
             const merged: Record<string, unknown> = { ...base, ...piece };
             // A karigar taken off in the form: the field goes (null would read as a karigar named "null").
             if (piece.karigarId === null) delete merged.karigarId;

@@ -92,6 +92,17 @@ enum ERPWidgetLink {
     }
 }
 
+/// Which house this build is: the explicit ERPHouse in Info.plist (written from ERP_HOUSE by
+/// scripts/house.mjs), as the app's House.id reads it. Never guessed from a name or bundle id.
+/// Taheri is the default, as the code's defaults are Taheri's.
+enum ERPWidgetHouse {
+    static let brand: String = {
+        let id = (Bundle.main.object(forInfoDictionaryKey: "ERPHouse") as? String ?? "")
+            .trimmingCharacters(in: .whitespaces)
+        return id == "mina" ? "mina" : "taheri"
+    }()
+}
+
 enum ERPWidgetSize {
     case small, medium, large, extraLarge, rectangular, inline
 }
@@ -137,7 +148,21 @@ struct ERPWidgetFace: View {
     let size: ERPWidgetSize
     var appName: String = "the ERP app"
     var accented = false
-    private var brand: String { (summary?.house ?? appName).localizedCaseInsensitiveContains("mina") ? "mina" : "taheri" }
+    private var brand: String { ERPWidgetHouse.brand }
+    // Hero figures keep their sizes at the default text size and grow with Dynamic Type;
+    // lineLimit and minimumScaleFactor keep them inside the widget.
+    @ScaledMetric(relativeTo: .largeTitle) private var heroSmall: CGFloat = 26
+    @ScaledMetric(relativeTo: .largeTitle) private var heroMedium: CGFloat = 30
+    @ScaledMetric(relativeTo: .largeTitle) private var heroLarge: CGFloat = 40
+    @ScaledMetric(relativeTo: .largeTitle) private var heroExtraLarge: CGFloat = 44
+
+    // Explicit, because the private metrics would make the memberwise init private.
+    init(summary: ERPSummary?, size: ERPWidgetSize, appName: String = "the ERP app", accented: Bool = false) {
+        self.summary = summary
+        self.size = size
+        self.appName = appName
+        self.accented = accented
+    }
     private var ink: Color { accented ? .primary : Color("Accent-\(brand)") }
     private var note: String? { summary?.teamNote.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 } }
 
@@ -171,9 +196,10 @@ struct ERPWidgetFace: View {
 
     private func rectangularFace(_ s: ERPSummary, _ today: ERPSummary.Figure) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(today.label.uppercased())
-                .font(.system(size: 10, weight: .semibold)).tracking(0.8)
-                .lineLimit(1).erpAccentable()
+            Text(today.label)
+                .textCase(.uppercase)
+                .font(.caption2.weight(.semibold)).tracking(0.8)
+                .lineLimit(1).minimumScaleFactor(0.7).erpAccentable()
             Text(today.value)
                 .font(.system(.title3, design: .rounded).weight(.semibold)).monospacedDigit()
                 .lineLimit(1).minimumScaleFactor(0.7).privacySensitive()
@@ -193,7 +219,7 @@ struct ERPWidgetFace: View {
         VStack(alignment: .leading, spacing: 0) {
             header(s, compact: true)
             Spacer(minLength: 6)
-            hero(today, size: 26)
+            hero(today, size: heroSmall)
             month(s, compact: true).padding(.top, 3)
             if let note {
                 Spacer(minLength: 8)
@@ -209,7 +235,7 @@ struct ERPWidgetFace: View {
             Spacer(minLength: 8)
             HStack(alignment: .top, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
-                    hero(today, size: 30)
+                    hero(today, size: heroMedium)
                     month(s, compact: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -227,7 +253,7 @@ struct ERPWidgetFace: View {
     private func largeFace(_ s: ERPSummary, _ today: ERPSummary.Figure) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             header(s)
-            hero(today, size: 40).padding(.top, 18)
+            hero(today, size: heroLarge).padding(.top, 18)
             month(s).padding(.top, 6)
             if let note { pinned(note, lines: 3).padding(.top, 16) }
             Spacer(minLength: 12)
@@ -240,7 +266,7 @@ struct ERPWidgetFace: View {
         VStack(alignment: .leading, spacing: 0) {
             header(s)
             HStack(alignment: .top, spacing: 28) {
-                VStack(alignment: .leading, spacing: 6) { hero(today, size: 44); month(s) }
+                VStack(alignment: .leading, spacing: 6) { hero(today, size: heroExtraLarge); month(s) }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if let note {
                     hairline(vertical: true)
@@ -289,10 +315,10 @@ struct ERPWidgetFace: View {
 
     private func stamp(_ f: ERPFreshness, compact: Bool) -> some View {
         HStack(spacing: 3) {
-            if f.stale { Image(systemName: "clock.arrow.circlepath").font(.system(size: 9, weight: .semibold)) }
+            if f.stale { Image(systemName: "clock.arrow.circlepath").font(.caption2.weight(.semibold)) }
             Text(compact ? f.short : f.text)
-                .font(.system(size: compact ? 10 : 11, weight: f.stale ? .semibold : .medium))
-                .monospacedDigit().lineLimit(1)
+                .font(.caption2.weight(f.stale ? .semibold : .medium))
+                .monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
         }
         .foregroundStyle(f.stale ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
         .accessibilityElement(children: .combine)
@@ -301,9 +327,10 @@ struct ERPWidgetFace: View {
 
     private func hero(_ f: ERPSummary.Figure, size: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(f.label.uppercased())
-                .font(.system(size: 10, weight: .semibold)).tracking(1.2)
-                .foregroundStyle(.secondary).lineLimit(1)
+            Text(f.label)
+                .textCase(.uppercase)
+                .font(.caption2.weight(.semibold)).tracking(1.2)
+                .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
             Text(f.value)
                 .font(.system(size: size, weight: .semibold, design: .rounded))
                 .foregroundStyle(ink).monospacedDigit()
@@ -319,7 +346,7 @@ struct ERPWidgetFace: View {
                 Text(s.figures[1].label).foregroundStyle(.secondary)
                 Text(s.figures[1].value).fontWeight(.semibold).monospacedDigit().privacySensitive()
             }
-            .font(compact ? .system(size: 12) : .subheadline)
+            .font(compact ? .caption : .subheadline)
             .lineLimit(1).minimumScaleFactor(0.75)
             .accessibilityElement(children: .combine)
         }
@@ -329,15 +356,16 @@ struct ERPWidgetFace: View {
         VStack(alignment: .leading, spacing: 3) {
             if compact {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Image(systemName: "pin.fill").font(.system(size: 8, weight: .semibold))
+                    Image(systemName: "pin.fill").font(.caption2.weight(.semibold))
                         .foregroundStyle(ink).erpAccentable()
-                    Text(text).font(.system(size: 11, weight: .medium)).lineLimit(lines)
+                    Text(text).font(.caption.weight(.medium)).lineLimit(lines).minimumScaleFactor(0.8)
                 }
             } else {
-                Label("PINNED", systemImage: "pin.fill")
-                    .font(.system(size: 9, weight: .semibold)).tracking(1.1)
+                Label("Pinned", systemImage: "pin.fill")
+                    .textCase(.uppercase)
+                    .font(.caption2.weight(.semibold)).tracking(1.1)
                     .foregroundStyle(ink).erpAccentable()
-                Text(text).font(.system(size: 13, weight: .medium)).lineLimit(lines)
+                Text(text).font(.footnote.weight(.medium)).lineLimit(lines).minimumScaleFactor(0.8)
             }
         }
         .accessibilityElement(children: .combine)
@@ -380,8 +408,7 @@ struct ERPWidgetFace: View {
 
 /// Quiet house paper; personality comes from the wordmark, typography and the shop's note.
 struct ERPWidgetPaper: View {
-    let house: String
-    private var brand: String { house.localizedCaseInsensitiveContains("mina") ? "mina" : "taheri" }
+    private var brand: String { ERPWidgetHouse.brand }
     var body: some View {
         Color("Ground-\(brand)").overlay(alignment: .leading) {
             Rectangle().fill(Color("Accent-\(brand)")).frame(width: 4)

@@ -19,6 +19,9 @@ struct OrderOnlineSection: View {
     @State private var move: OnlineMoveSheet.Kind?
     @State private var slip: WebsiteSlip?
     @State private var told: OnlineTold?
+    /// Counted so a transfer booked, or an order let lapse, is felt once.
+    @State private var paidTick = 0
+    @State private var lapseTick = 0
 
     /// The accounts the server lets move an online order (lib/website/staff-gate.ts).
     private var mayAct: Bool { session.role == "owner" || session.role == "staff" }
@@ -28,12 +31,18 @@ struct OrderOnlineSection: View {
             Section {
                 row("Payment", OrdersLogic.paymentWords(w.paymentStatus), tint: tone(w.paymentStatus))
                     .sheet(item: $move) { (k: OnlineMoveSheet.Kind) in
-                        OnlineMoveSheet(order: order, kind: k) { t in told = t }
+                        OnlineMoveSheet(order: order, kind: k) { t in
+                            told = t
+                            // The move happened even when the WhatsApp did not go.
+                            if k == .paid { paidTick += 1 } else { lapseTick += 1 }
+                        }
                     }
+                    .moneyFeedback(success: paidTick, failure: 0)
+                    .destructiveFeedback(trigger: lapseTick)
                 if let told {
                     Label(told.words, systemImage: told.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                         .font(.subheadline)
-                        .foregroundStyle(told.ok ? Color.green : Color.orange)
+                        .foregroundStyle(told.ok ? Tone.settled.color : Tone.owed.color)
                 }
                 if let l = order.leopards, !l.cn.isEmpty { courier(l) }
                 row("Placed", ShopDate.say(w.placedAt, withTime: true))
@@ -50,7 +59,7 @@ struct OrderOnlineSection: View {
                 }
                 if mayAct { moves(w) }
             } header: {
-                Label("Online order" + (w.onlineId.map { " " + $0 } ?? ""), systemImage: "globe")
+                LedgerHeading(title: "Online order" + (w.onlineId.map { " " + $0 } ?? ""))
             }
         }
     }
@@ -107,9 +116,9 @@ struct OrderOnlineSection: View {
 
     private func tone(_ s: WebsitePaymentStatus) -> Color {
         switch s {
-        case .transferReceived: return .green
+        case .transferReceived: return Tone.settled.color
         case .expired, .refunded: return .secondary
-        default: return .orange
+        default: return Tone.owed.color
         }
     }
 
@@ -148,7 +157,7 @@ struct OrderOnlineSection: View {
                 systemImage: "clock"
             )
             .font(.footnote)
-            .foregroundStyle(ended ? Color.red : Color.secondary)
+            .foregroundStyle(ended ? Tone.late.color : Color.secondary)
         }
     }
 
@@ -173,7 +182,7 @@ struct OrderOnlineSection: View {
                 if let amount = s.amount, amount > 0 {
                     Text(Money.pkr(amount) + (wrong ? " (not the total)" : ""))
                         .monospacedDigit()
-                        .foregroundStyle(wrong ? Color.red : Color.primary)
+                        .foregroundStyle(wrong ? Tone.problem.color : Color.primary)
                 }
             }
             .font(.subheadline)

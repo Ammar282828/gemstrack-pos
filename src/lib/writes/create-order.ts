@@ -166,7 +166,7 @@ export async function createOrder(
     // walk-in orders with no customer used to fail to save without a word.
     tx.set(ORDERS, id, clean(doc) as Record<string, unknown>);
     tx.update(SETTINGS, SETTINGS_DOC, { lastOrderNumber: nextNumber });
-    for (const ph of photos) tx.set(ORDER_PHOTOS, ph.id, { dataUri: ph.dataUri, orderId: id, createdAt });
+    for (const ph of photos) tx.set(ORDER_PHOTOS, ph.id, { dataUri: ph.dataUri, hash: ph.hash, orderId: id, createdAt });
     return doc;
   });
 

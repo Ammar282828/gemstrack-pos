@@ -22,7 +22,7 @@ struct PostPiecesScreen: View {
         Group {
             switch store.piecesPhase {
             case .off:
-                ContentUnavailableView("This shop doesn't post its website's pieces", systemImage: "globe")
+                NotAvailableState("This shop doesn't post its website's pieces", why: "Its website has no pieces for the ERP to post from, so there is nothing to choose here.", symbol: "globe")
             case .failed(let message):
                 ContentUnavailableView {
                     Label("Couldn't read the website", systemImage: "wifi.exclamationmark")
@@ -82,8 +82,7 @@ struct PostPiecesScreen: View {
                 chips
                 Toggle("Hide pieces posted in the last \(PostPiecesScreen.freshDays) days", isOn: $freshOnly)
                     .tint(Theme.accent)
-                    .padding(14)
-                    .background(Theme.card, in: .rect(cornerRadius: 16))
+                    .ledgerCard(padding: 14)
                 Text("\(items.count) of \(store.pieces.count) pieces")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -95,9 +94,7 @@ struct PostPiecesScreen: View {
                         ForEach(Array(items.prefix(shown))) { (p: PostPiece) in
                             NavigationLink(value: Route(path: MarketingKit.piecePath(p.id))) {
                                 PostPieceTile(piece: p, posted: store.posted[p.id])
-                                    .padding(10)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Theme.card, in: .rect(cornerRadius: 16))
+                                    .ledgerCard(padding: 10)
                             }
                             .buttonStyle(.plain)
                         }
@@ -159,7 +156,7 @@ struct PostPieceScreen: View {
                 Section {
                     StockImage(imageUrl: p.image, name: p.name, key: p.id)
                         .aspectRatio(1, contentMode: .fit)
-                        .clipShape(.rect(cornerRadius: 14))
+                        .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
                         .frame(maxHeight: 360)
                         .frame(maxWidth: .infinity)
                         .listRowBackground(Color.clear)

@@ -55,10 +55,7 @@ public func shopCalendarDays(invoices: [Invoice], orders: [Order]) -> [String: S
 
     for inv in invoices {
         // A sale counts on its order's day when it came from one (getInvoiceRevenueDate), else its own.
-        var when = inv.createdAt
-        if let source = inv.sourceOrderId, !source.isEmpty, let o = ordersById[source], !o.createdAt.isEmpty {
-            when = o.createdAt
-        }
+        let when = getInvoiceRevenueDate(inv, ordersById: ordersById)
         // A date that does not read has no day to sit on.
         guard let placed = JS.parseISO(when) else { continue }
         let key = ERPDate.karachiDay(placed)

@@ -18,7 +18,7 @@ struct ShareholdersScreen: View {
             MoneyOwnersOnly(title: "Shareholders")
         } else if !session.shop.partnership {
             // Reachable by address from either house; only one keeps this book.
-            ContentUnavailableView("No partner ledgers", systemImage: "person.2", description: Text("This shop keeps no partner ledgers."))
+            NotAvailableState("No partner ledgers", why: "This shop keeps no partner ledgers.", symbol: "person.2")
                 .navigationTitle("Shareholders")
         } else {
             ShareholdersBoard()
@@ -63,6 +63,7 @@ private struct ShareholdersBoard: View {
     @State private var asking: ShareholderAsk?
     @State private var deletion: OwnerDeletion?
     @State private var note: OwnerNote?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var cashText = ""
     @State private var floorText: String?
     @State private var savingFloor = false
@@ -96,15 +97,15 @@ private struct ShareholdersBoard: View {
         }
         .sheet(item: $asking) { (a: ShareholderAsk) in
             ShareholderEntrySheet(ask: a, salaryPaid: salaryPaid) { (saved: OwnerNote) in
-                withAnimation { note = saved }
+                Note.show(saved, in: $note, reduce: reduceMotion)
             }
         }
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {
-                withAnimation { note = OwnerNote(title: d.what.hasPrefix("Delete expense") ? "Salary payment removed" : "Entry removed") }
+                Note.show(Note(title: d.what.hasPrefix("Delete expense") ? "Salary payment removed" : "Entry removed"), in: $note, reduce: reduceMotion)
             }
         }
-        .ownerNote($note)
+        .noteToast($note)
         .task {
             book.expenses.need()
             book.invoices.need()
@@ -161,10 +162,10 @@ private struct ShareholdersBoard: View {
         return Section {
             VStack(spacing: 10) {
                 FigureRow(alignment: .top, spacing: 10) {
-                    FigureTile(label: "Revenue", value: ShareholderMoney.fmt(t.totalRevenue), tint: .green)
+                    FigureTile(label: "Revenue", value: ShareholderMoney.fmt(t.totalRevenue), tint: Tone.settled.color)
                     FigureTile(label: "Expenses", value: ShareholderMoney.fmt(t.totalExpenses))
                 }
-                FigureTile(label: "Each partner's share", value: ShareholderMoney.signed(share), tint: share >= 0 ? .green : .red)
+                FigureTile(label: "Each partner's share", value: ShareholderMoney.signed(share), tint: share >= 0 ? Tone.settled.color : Tone.owed.color)
             }
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             .listRowBackground(Color.clear)
@@ -180,23 +181,20 @@ private struct ShareholdersBoard: View {
         let claim = p.balance.totalClaim
         let owed = claim > 0
         let words = owed ? "The business owes \(p.name)" : (claim < 0 ? "\(p.name) owes the business" : "All settled")
-        let tone: Color = owed ? Color.green : (claim < 0 ? Color.orange : Color.primary)
+        let tone: Color = owed ? Tone.credit.color : (claim < 0 ? Tone.owed.color : Color.primary)
         return Section {
             Group {
                 HStack(alignment: .firstTextBaseline) {
                     Text(words).foregroundStyle(.secondary)
                     Spacer(minLength: 8)
-                    Text(ShareholderMoney.fmt(claim))
-                        .font(.title2.weight(.bold))
-                        .monospacedDigit()
-                        .foregroundStyle(tone)
+                    HeroAmount(amount: abs(claim.rounded()), tone: tone)
                 }
-                LabeledContent("Loan to the business") { Text(ShareholderMoney.fmt(p.balance.loanBalance)).monospacedDigit() }
-                LabeledContent("Equity in the business") { Text(ShareholderMoney.fmt(p.balance.equityBalance)).monospacedDigit() }
+                LabeledContent("Loan to the business") { RowAmount(amount: abs(p.balance.loanBalance.rounded())) }
+                LabeledContent("Equity in the business") { RowAmount(amount: abs(p.balance.equityBalance.rounded())) }
                 LabeledContent("Half of profit & loss") {
                     Text(ShareholderMoney.signed(p.balance.netPnL))
                         .monospacedDigit()
-                        .foregroundStyle(p.balance.netPnL >= 0 ? Color.green : Color.red)
+                        .foregroundStyle(p.balance.netPnL >= 0 ? Tone.settled.color : Tone.owed.color)
                 }
                 HStack(spacing: 8) {
                     smallFigure("Contributed", p.contributed, symbol: "arrow.down.left")
@@ -266,7 +264,7 @@ private struct ShareholdersBoard: View {
             title: r.description,
             subtitle: sub,
             trailing: "\(isIn ? "+" : "\u{2212}")\(ShareholderMoney.fmt(r.amount))",
-            trailingTint: isIn ? Color.green : Color.orange
+            trailingTint: isIn ? Tone.settled.color : Tone.owed.color
         )
         .swipeActions {
             Button(role: .destructive) {
@@ -329,10 +327,10 @@ private struct ShareholdersBoard: View {
                 Label {
                     Text("It's a new month \u{2014} review the working-capital floor for \(Overheads.monthLabel(Overheads.monthKey(Date()))). Last set: \(lastSet(s)).")
                 } icon: {
-                    Image(systemName: "exclamationmark.circle")
+                    Image(systemName: "exclamationmark.triangle.fill")
                 }
                 .font(.footnote)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Tone.owed.color)
             }
             LabeledContent("Cash available") {
                 TextField("0", text: $cashText)
@@ -354,8 +352,8 @@ private struct ShareholdersBoard: View {
                 }
             }
             if cash > 0 {
-                LabeledContent("Held back as working capital") { Text(ShareholderMoney.fmt(d.workingCapitalFloor)).monospacedDigit() }
-                LabeledContent("Available to distribute") { Text(ShareholderMoney.fmt(d.distributableCash)).monospacedDigit() }
+                LabeledContent("Held back as working capital") { RowAmount(amount: abs(d.workingCapitalFloor.rounded())) }
+                LabeledContent("Available to distribute") { RowAmount(amount: abs(d.distributableCash.rounded())) }
                 ForEach(d.perPartner, id: \.name) { (pr: PartnerDistributionResult) in
                     VStack(alignment: .leading, spacing: 2) {
                         HStack {
@@ -372,11 +370,11 @@ private struct ShareholdersBoard: View {
                 if !d.feasible {
                     Text("Not enough to clear the floor and the loans \u{2014} \(ShareholderMoney.fmt(d.shortfallToFirstDistribution)) short.")
                         .font(.footnote)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Tone.owed.color)
                 }
             }
             if let floorError {
-                Label(floorError, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                Label(floorError, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
             }
         } header: {
             LedgerHeading(title: "Distribution calculator")
@@ -422,7 +420,7 @@ private struct ShareholdersBoard: View {
                 .buttonStyle(.houseProminent)
                 .disabled(savingFloor)
             } else {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(Tone.settled.color)
             }
         }
     }
@@ -433,7 +431,7 @@ private struct ShareholdersBoard: View {
         do {
             _ = try await ERPAPI.shared.write("setWorkingCapitalFloor", ["value": value, "seq": UUID().uuidString])
             floorText = nil
-            withAnimation { note = OwnerNote(title: "Working capital floor saved", detail: "\(Money.pkr(value)) \u{2014} recorded with timestamp.") }
+            Note.show(Note(title: "Working capital floor saved", detail: "\(Money.pkr(value)) \u{2014} recorded with timestamp."), in: $note, reduce: reduceMotion)
         } catch {
             floorError = error.localizedDescription
         }

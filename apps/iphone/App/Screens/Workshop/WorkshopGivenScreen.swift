@@ -8,6 +8,7 @@ import ERPCore
 struct WorkshopGivenScreen: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var query = ""
     @State private var filter: Filter = .all
@@ -48,12 +49,12 @@ struct WorkshopGivenScreen: View {
         .sheet(item: $editing) { (item: GivenItem) in
             WorkshopGivenSheet(karigars: workshopLive(book.karigars.items), customers: liveCustomers,
                                takenBy: session.shop.takenBy, me: session.shop.person, item: item) {
-                withAnimation { note = OwnerNote(title: "Updated", detail: "Item updated.") }
+                Note.show(OwnerNote(title: "Updated", detail: "Item updated."), in: $note, reduce: reduceMotion)
             }
         }
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {
-                withAnimation { note = OwnerNote(title: "Deleted") }
+                Note.show(OwnerNote(title: "Deleted"), in: $note, reduce: reduceMotion)
             }
         }
         .ownerNote($note)
@@ -115,8 +116,8 @@ struct WorkshopGivenScreen: View {
         let back = all.filter { $0.status == .returned }.count
         return Section {
             FigureRow {
-                FigureTile(label: "Still out", value: "\(out)", tint: out > 0 ? Color.orange : Color.primary)
-                FigureTile(label: "Returned", value: "\(back)", tint: back > 0 ? Color.green : Color.primary)
+                FigureTile(label: "Still out", value: "\(out)", tint: out > 0 ? Tone.owed.color : Color.primary)
+                FigureTile(label: "Returned", value: "\(back)", tint: back > 0 ? Tone.settled.color : Color.primary)
             }
             .padding(.vertical, 4)
             .listRowInsets(EdgeInsets())
@@ -226,10 +227,10 @@ struct WorkshopGivenScreen: View {
     @ViewBuilder
     private func statusBadge(_ item: GivenItem) -> some View {
         if item.status == .out {
-            StatusBadge("Out", color: .orange)
+            StatusBadge("Out", tone: .owed)
         } else {
             VStack(alignment: .trailing, spacing: 2) {
-                StatusBadge("Returned", color: .green)
+                StatusBadge("Returned", tone: .settled)
                 if let back = item.returnedDate, !back.isEmpty {
                     Text(ShopDate.say(back)).font(.caption2).foregroundStyle(.secondary)
                 }
@@ -249,7 +250,7 @@ struct WorkshopGivenScreen: View {
                         .frame(minHeight: 44)
                 }
                 .buttonStyle(.bordered)
-                .tint(.green)
+                .tint(Tone.settled.color)
             }
         }
     }
@@ -388,7 +389,7 @@ struct WorkshopGivenSheet: View {
                         .lineLimit(2...4)
                 }
                 if let error {
-                    Section { Text(error).foregroundStyle(Color.red) }
+                    Section { Text(error).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()

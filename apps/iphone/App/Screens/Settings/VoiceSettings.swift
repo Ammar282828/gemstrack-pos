@@ -72,11 +72,7 @@ private struct VoiceSettingsPage: View {
         .navigationTitle("Voice")
         .navigationBarTitleDisplayMode(.inline)
         .ownerNote($note)
-        .alert("Could not forget that", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
-            Button("OK") { failure = nil }
-        } message: {
-            Text(failure ?? "")
-        }
+        .failureAlert($failure, title: "Could not forget that")
         .task { await check() }
         .onAppear { aliases.need() }
         .onDisappear { aliases.reset() }
@@ -189,7 +185,7 @@ private struct VoiceSettingsPage: View {
                 if busy == a.id { SkeletonLoading() } else { Image(systemName: "trash") }
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.red)
+            .foregroundStyle(Tone.problem.color)
             .disabled(busy != nil)
             .accessibilityLabel("Forget")
         }

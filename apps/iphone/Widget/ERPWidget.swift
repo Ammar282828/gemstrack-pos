@@ -67,7 +67,6 @@ struct ERPWidgetEntryView: View {
     let entry: ERPEntry
 
     private var appName: String { Bundle.main.object(forInfoDictionaryKey: "ERPAppName") as? String ?? "the ERP app" }
-    private var house: String { entry.summary?.house ?? (Bundle.main.object(forInfoDictionaryKey: "ERPAppName") as? String ?? "") }
     private var isAccessory: Bool { size == .rectangular || size == .inline }
 
     private var size: ERPWidgetSize {
@@ -92,12 +91,12 @@ struct ERPWidgetEntryView: View {
         } else if isAccessory {
             face
         } else {
-            face.padding().background { ERPWidgetPaper(house: house) }
+            face.padding().background { ERPWidgetPaper() }
         }
     }
 
     @ViewBuilder private var background: some View {
-        if isAccessory { Color.clear } else { ERPWidgetPaper(house: house) }
+        if isAccessory { Color.clear } else { ERPWidgetPaper() }
     }
 }
 

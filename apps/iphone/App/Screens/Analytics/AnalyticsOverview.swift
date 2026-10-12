@@ -52,7 +52,7 @@ struct AnaOverviewPage: View {
             DisclosureGroup("Revenue and profit details") {
                 LabeledContent("Invoices") { Text(Money.pkrLac(figures.invoiceSales)).monospacedDigit() }
                 LabeledContent("Orders") { Text(Money.pkrLac(figures.orderSales)).monospacedDigit() }
-                LabeledContent("Extra revenue") { Text(Money.pkrLac(figures.extraRevenue)).monospacedDigit() }
+                LabeledContent("Extra revenue") { RowAmount(amount: figures.extraRevenue, lac: true) }
                 if showCosts { Text(estNote).font(.footnote).foregroundStyle(.secondary) }
             }
         }.houseRows()
@@ -63,12 +63,12 @@ struct AnaOverviewPage: View {
         let net = f.totalSales - f.totalExpenses
         let netPct = f.totalSales > 0 ? net / f.totalSales * 100 : 0
         let netDetail = f.totalSales > 0 ? "\(AnaFormat.fixed(netPct, 1))% margin" : "No revenue in period"
-        let netTint: Color = net >= 0 ? Color.green : Color.red
+        let netTint: Color = net >= 0 ? Tone.settled.color : Tone.owed.color
         return VStack(spacing: 10) {
             FigureRow(alignment: .top, spacing: 10) {
-                FigureTile(label: "Revenue", value: Money.pkrLac(f.totalSales), detail: "Sales in this period", tint: Color.green)
+                FigureTile(label: "Revenue", value: Money.pkrLac(f.totalSales), detail: "Sales in this period", tint: Tone.settled.color)
                 if showCosts {
-                    FigureTile(label: "Expenses", value: Money.pkrLac(f.totalExpenses), detail: "Paid out in this period", tint: Color.red)
+                    FigureTile(label: "Expenses", value: Money.pkrLac(f.totalExpenses), detail: "Paid out in this period", tint: Tone.owed.color)
                 }
             }
             if showCosts {
@@ -124,13 +124,13 @@ struct AnaOverviewPage: View {
         return LedgerSection("Orders and pieces", collapsible: true) {
             if f.totalUnpaid > 0 {
                 LabeledContent("Outstanding") {
-                    Text(Money.pkrLac(f.totalUnpaid)).monospacedDigit().foregroundStyle(Color.orange)
+                    RowAmount(amount: f.totalUnpaid, lac: true, tone: Tone.owed.color)
                 }
             }
             LabeledContent("Orders", value: String(f.totalOrders))
-            LabeledContent("Avg. order") { Text(Money.pkrLac(f.averageOrderValue)).monospacedDigit() }
+            LabeledContent("Avg. order") { RowAmount(amount: f.averageOrderValue, lac: true) }
             LabeledContent("Items sold", value: AnaFormat.count(f.totalItemsSold))
-            LabeledContent("Discounts") { Text(Money.pkrLac(f.totalDiscounts)).monospacedDigit() }
+            LabeledContent("Discounts") { RowAmount(amount: f.totalDiscounts, lac: true) }
             LabeledContent("Items / order", value: AnaFormat.fixed(f.averageItemsPerOrder, 2))
         }
         .houseRows()
@@ -200,7 +200,7 @@ struct AnaOverviewPage: View {
                         TwoLine(title: "Outstanding",
                                 subtitle: "Still owed on coin bills",
                                 trailing: Money.pkrLac(c.outstanding),
-                                trailingTint: Color.orange)
+                                trailingTint: Tone.owed.color)
                     }
                     Text("Coin figures are separate from jewellery revenue and profit.").font(.footnote).foregroundStyle(.secondary)
                     }
@@ -224,12 +224,12 @@ struct AnaOverviewPage: View {
         // Gold taken off an invoice's total is in Cash In but was never in revenue.
         let gap = f.totalSales - (f.cashIn - f.exchangeOffInvoices)
         let netSign = net >= 0 ? "+" : "−"
-        let netTint: Color = net >= 0 ? Color.green : Color.red
+        let netTint: Color = net >= 0 ? Tone.settled.color : Tone.owed.color
         return Section {
-            TwoLine(title: "Cash in", trailing: Money.pkrLac(f.cashIn), trailingTint: Color.green)
+            TwoLine(title: "Cash in", trailing: Money.pkrLac(f.cashIn), trailingTint: Tone.settled.color)
             if showCosts {
                 TwoLine(title: "Cash out", subtitle: "Every expense paid in this period",
-                        trailing: Money.pkrLac(f.cashOut), trailingTint: Color.red)
+                        trailing: Money.pkrLac(f.cashOut), trailingTint: Tone.owed.color)
                 TwoLine(title: "Net cash flow",
                         subtitle: net >= 0 ? "Business gained cash in this period" : "Business spent more cash than it took in",
                         trailing: netSign + Money.pkrLac(abs(net)), trailingTint: netTint)
@@ -243,7 +243,7 @@ struct AnaOverviewPage: View {
             if gap > 0 {
                 Text("\(Money.pkrLac(gap)) of recognised revenue is not yet collected: it sits as customer receivables and uninvoiced open orders. That gap is the difference between revenue (what was earned) and Cash in, leaving out gold taken off a bill (it is off the revenue too).")
                     .font(.footnote)
-                    .foregroundStyle(Color.orange)
+                    .foregroundStyle(Tone.owed.color)
             }
                 Text("Cash flow counts money received and paid. Revenue also includes unpaid sales and open orders.").font(.footnote).foregroundStyle(.secondary)
             }
@@ -278,10 +278,10 @@ struct AnaOverviewPage: View {
                 if rows.isEmpty {
                     Text("No expenses recorded for the selected period.").foregroundStyle(.secondary)
                 } else {
-                    AnaBarChart(bars: bars(rows), tint: Color.red.opacity(0.8))
+                    AnaBarChart(bars: bars(rows), tint: Tone.owed.color.opacity(0.8))
                     DisclosureGroup("All categories · \(rows.count)") {
                         ForEach(rows) { (e: AnaExpenseCategory) in
-                            LabeledContent(e.category) { Text(Money.pkr(e.amount)).monospacedDigit() }
+                            LabeledContent(e.category) { RowAmount(amount: e.amount) }
                         }
                     }
                 }
