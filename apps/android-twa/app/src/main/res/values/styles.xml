@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.Erp" parent="@android:style/Theme.Translucent.NoTitleBar" />
+</resources>
