@@ -12,6 +12,7 @@ import erp.app.screens.repairs.RepairsRoutes
 import erp.app.screens.sale.SaleRoutes
 import erp.app.screens.stock.StockRoutes
 import erp.app.screens.work.WorkRoutes
+import erp.app.screens.workshop.WorkshopRoutes
 
 /**
  * Every native screen's routes, group by group. A group adds its line here and nowhere else (a screen group lives
@@ -31,6 +32,7 @@ object NativeScreens {
             CustomersRoutes,
             RepairsRoutes,
             StockRoutes,
+            WorkshopRoutes,
             // The Swift order: Customers, Repairs, Stock and Workshop come between Invoices and Money.
             MoneyRoutes,
             // My work (a karigar's portal) comes after Analytics in the Swift order; the owners' pages share no prefix with it.
