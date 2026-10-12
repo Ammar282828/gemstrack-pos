@@ -17,8 +17,9 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const dir = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const houses = JSON.parse(fs.readFileSync(path.join(dir, 'houses.json'), 'utf8'));
 const { ASC_ISSUER_ID, ASC_KEY_ID } = process.env;
 const ASC_PRIVATE_KEY = privateKeyPem(process.env.ASC_PRIVATE_KEY);

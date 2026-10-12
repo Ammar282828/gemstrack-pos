@@ -79,6 +79,10 @@
 	<dict>
 		<key>UIColorName</key>
 		<string>$(ERP_LAUNCH_COLOR)</string>
+		<key>UIImageName</key>
+		<string>$(ERP_LAUNCH_MARK)</string>
+		<key>UIImageRespectsSafeAreaInsets</key>
+		<true/>
 	</dict>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
