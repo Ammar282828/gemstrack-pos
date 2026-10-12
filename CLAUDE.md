@@ -196,15 +196,15 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Scanners](docs/features/ai.md#scanners) — wastage in grams, weight before stones, the bill's rate and discount; never 3.8-flash
 - [Voice](docs/features/ai.md#voice) — live words; every part editable; anything, several steps
 
-**Post a piece and its tools** (`docs/features/post-a-piece.md`)
-- [Post a piece drafts](docs/features/post-a-piece.md#post-a-piece-drafts) — on this device (IndexedDB), photos included; resumes
+**Design** (`docs/features/design.md`; plan `design-studio-plan.md`) — replaces Post a piece and the Ads Studio tab (2026-10-12)
+- [Design](docs/decisions.md#design) — Posts › Design: one editor, one Publish sheet, one shelf; Ads → Plan; old URLs redirect, every `/api` route kept; `/design/classic/{post,ad}` kept for AI restage/paint and "Make it with AI"
+
+**Post a piece's engine** (`docs/features/post-a-piece.md`; the screen is Design)
+- [Drafts](docs/features/post-a-piece.md#post-a-piece-drafts) — on this device (IndexedDB), photos included; resumes
 - [Post a piece](docs/features/post-a-piece.md#post-a-piece) — story, square, caption → site, WhatsApp, Instagram; [Paint](docs/features/post-a-piece.md#paint)
 - [Checks](docs/features/post-a-piece.md#checks) — each dependency tested live, with its fix
-- [Story editor](docs/features/post-a-piece.md#story-editor) — the layer document and its editor
-- [Square only](docs/features/post-a-piece.md#square-only) — the square editor and SVG marks
-- [Designer](docs/features/post-a-piece.md#designer) — Canva-style, phone first
-- [Story and post](docs/features/post-a-piece.md#story-and-post) — Story + post / Story only / Post only; five numbered steps
-- [Website photos](docs/features/post-a-piece.md#website-photos) — site photos as ordinary photos in Post a piece
+- [Story editor](docs/features/post-a-piece.md#story-editor), [Square only](docs/features/post-a-piece.md#square-only), [Designer](docs/features/post-a-piece.md#designer) — the layer document and its editors
+- [Story and post](docs/features/post-a-piece.md#story-and-post), [Website photos](docs/features/post-a-piece.md#website-photos)
 - [Queue and Mina](docs/features/post-a-piece.md#queue-and-mina) — per-destination ticks, the queue and its tick, Mina's community
 - [Maisons](docs/features/post-a-piece.md#maisons) — house + official name; never priced by the gram
 - [Retouch](docs/features/post-a-piece.md#retouch) — Magnific (GPT Image) + Precision, then the same-piece check
@@ -215,7 +215,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Posts** (`docs/features/from-the-website.md`)
 - [Hub](docs/features/from-the-website.md#posts-hub) — `/posts`: Today, queue, site pieces in batches
-- [From the website](docs/features/from-the-website.md#from-the-website), [its story](docs/features/from-the-website.md#site-story) — the card
+- [From the website](docs/features/from-the-website.md#from-the-website), [its story](docs/features/from-the-website.md#site-story) — the card; moved to Design
 
 **Investments by Taheri** (`docs/features/investments.md`)
 - [Investments](docs/features/investments.md#investments) — the routine files it; the page and the schedule send it
@@ -227,10 +227,10 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Link page](docs/features/links-page.md#link-page) — `/links`, server-rendered, Just in, share previews
 
 **Ads** (`docs/features/ads.md`)
-- [Ads](docs/features/ads.md#ads) — Meta ad account per house; Overview, Campaigns, New ad, Setup; the helper
+- [Ads](docs/features/ads.md#ads) — Meta ad account per house; Overview, Campaigns, Plan, New ad, Setup
 
-**Ad studio** (`docs/features/ad-studio.md`)
-- [Ad studio](docs/features/ad-studio.md#ad-studio) — [five tabs](docs/features/ad-studio.md#five-tabs), both houses; [any shape](docs/features/ad-studio.md#any-shape)
+**Ad studio** (`docs/features/ad-studio.md`) — its Plan is Ads → Plan, the rest are Design sections
+- [Ad studio](docs/features/ad-studio.md#ad-studio) — both houses; [any shape](docs/features/ad-studio.md#any-shape)
 - [Board](docs/features/ad-studio.md#board) — endless canvas, Let it cook, MCP agent (`/api/studio/mcp`), Use it; a weekly board Mondays 9:00
 
 **iPhone app** (`docs/features/iphone-app.md`)

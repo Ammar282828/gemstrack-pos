@@ -41,11 +41,11 @@ import { VOICE } from '@/lib/ads/studio/brand';
 import { HANDOFF_PREFIX, type StudioHandoff } from '@/lib/ads/studio/handoff';
 import type { WeeklyState } from '@/lib/ads/studio/weekly';
 import { STORE_LINKS } from '@/lib/store-config';
-import { SoloEditor, useStoryDoc, type DesignerExtras, type Editor } from '../../website/post/story-editor';
-import { MarksSection } from '../../website/post/editor-panels';
-import { FONTS, bodyFace, headlineFace, serifFace } from '../../website/post/fonts';
-import { useSiteAssets } from '../../website/post/site-assets';
-import { api, authHeaders } from '../ads-kit';
+import { SoloEditor, useStoryDoc, type DesignerExtras, type Editor } from '../website/post/story-editor';
+import { MarksSection } from '../website/post/editor-panels';
+import { FONTS, bodyFace, headlineFace, serifFace } from '../website/post/fonts';
+import { useSiteAssets } from '../website/post/site-assets';
+import { api, authHeaders } from '../ads/ads-kit';
 import { AuthedImg, SITE_LABEL, downloadBlob, fetchAsset, runImageOp, safeName, type LibraryItem, type LibraryResponse } from './studio-kit';
 
 const LAST_KEY = 'taheri_studio_board';

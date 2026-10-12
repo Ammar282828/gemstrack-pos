@@ -289,7 +289,7 @@ export function PieceCard({ piece, shown, siteName, posted, photo, token, ig, lo
         </Button>
         <p className="text-[11px] text-muted-foreground">{going}.</p>
         <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5 -mx-2">
-          {STORE_POST_PIECE && <Button asChild variant="ghost" size="sm" className="h-8"><Link href={`/website/post?site=${encodeURIComponent(p.id)}`} title="The full designer: story and post, AI retouch, the website"><Wand2 className="h-4 w-4 mr-1.5" /> Post a piece</Link></Button>}
+          {STORE_POST_PIECE && <Button asChild variant="ghost" size="sm" className="h-8"><Link href={`/design?v=make&site=${encodeURIComponent(p.id)}`} title="The full designer: story and post, resize, AI retouch, the website"><Wand2 className="h-4 w-4 mr-1.5" /> Design</Link></Button>}
           {STORE_SITE_EDIT && <Button asChild variant="ghost" size="sm" className="h-8"><Link href={`/website/edit?id=${encodeURIComponent(p.id)}`}><PenLine className="h-4 w-4 mr-1.5" /> Edit</Link></Button>}
           {STORE_META_ADS && <Button asChild variant="ghost" size="sm" className="h-8"><Link href={`/ads/new?piece=${encodeURIComponent(p.id)}`}><Megaphone className="h-4 w-4 mr-1.5" /> Promote</Link></Button>}
           <Button variant="ghost" size="sm" className="h-8" disabled={off} onClick={onAnother}><Shuffle className="h-4 w-4 mr-1.5" /> Another</Button>
@@ -306,7 +306,7 @@ export function PieceCard({ piece, shown, siteName, posted, photo, token, ig, lo
                 {storyShown && <img src={storyShown.url} alt="The story" className="mx-auto max-h-[55vh] rounded-lg border object-contain" style={{ aspectRatio: '9 / 16' }} />}
                 <p className="text-xs">{ig?.connected
                   ? 'It goes up on Instagram at once and can’t be taken down from here. Instagram’s API can’t add a link sticker — add one by hand in the app if you want it.'
-                  : ig?.configured ? 'Instagram isn’t connected on this ERP (Post a piece → Instagram connects it), so save it and post it from the Instagram app.'
+                  : ig?.configured ? 'Instagram isn’t connected on this ERP (Design → Publish → Instagram connects it), so save it and post it from the Instagram app.'
                   : 'This ERP doesn’t post to Instagram by itself — save it and post it from the Instagram app.'}</p>
               </div>
             </AlertDialogDescription>

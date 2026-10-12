@@ -2,6 +2,10 @@
 
 _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE.md keeps a one-line index; this is the record._
 
+> **2026-10-12:** Ads is **Overview · Campaigns · Plan · New ad · Setup**. The Studio tab is gone — its research half is **Ads › Plan**,
+> its design half is **Posts › Design** ([design.md](design.md)). New ad still reads `?piece=` and `?studio=<key>`; Design's Publish
+> sheet hands a design to it (both sizes) for owner and marketing.
+
 ### Ads
 
 - **Ads** (`/ads`, 2026-09-26; owner: "connect my Ad account api and have all ad related functionality for both

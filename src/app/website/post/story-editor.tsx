@@ -26,27 +26,37 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Undo2, Redo2, Plus, LayoutTemplate, Type, ArrowUpRight, Minus, Circle, Square, Link2, Image as ImageIcon, Trash2, Save, BookmarkCheck,
   Maximize2, Minimize2, Lock, Copy, MoreHorizontal, ArrowLeft, Download, ZoomIn, ZoomOut, Shapes, PaintBucket, Layers, Palette as PaletteIcon, Upload, Clipboard, Scissors,
   ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Group, Ungroup, Unlock, Paintbrush, Pencil, ArrowRightLeft, Crop, Check, ChevronDown, ChevronUp,
+  Ruler, History as HistoryIcon, Eye, Keyboard as KeyboardIcon, LayoutGrid,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Palette } from '@/lib/social/palettes';
 import type { Frame } from '@/lib/social/story';
 import {
   carryLayers, fontCss, frameOf, hitTest, layerBox, layoutText, loadUpload, moveLayer, newCornerMark, newImageLayer, newLayerId, newLinkPill, newMonogram, newShape, newText,
-  newUploadLayer, newWordmark, imageOf, panInFrame, placementOf, reflow, renderDoc, renderDocTo, scaleLayer, uploadedImage, withPlacement,
-  type Assets, type Bind, type Box, type Fields, type ImageLayer, type Layer, type ShapeLayer, type StoryDoc, type TextLayer,
+  newUploadLayer, newWordmark, imageOf, panInFrame, placementOf, reflow, renderDoc, renderDocTo, scaleLayer, shiftRuns, uploadedImage, withPlacement,
+  type Assets, type Bind, type Box, type Fields, type FontKey, type ImageLayer, type Layer, type ShapeLayer, type StoryDoc, type TextLayer,
 } from '@/lib/social/editor';
-import { alignDeltas, distributeDeltas, intersects, snapBox, snapLines, unionBox, type AlignHow } from '@/lib/social/design';
+import { alignDeltas, distributeDeltas, intersects, snapLines, snapMove, unionBox, type AlignHow, type SpacingGuide } from '@/lib/social/design';
+import { cycleLayer, guidesOf, nextZoom, withGrid, withGuides, type Guides } from '@/lib/social/guides';
 import {
   BackgroundInspector, BrandPanel, ColourPanel, ContextToolbar, EffectsPanel, ElementsPanel, FontPanel, FramePanel, LayerInspector, LayersPanel, MobileToolbar,
-  PhotoEditPanel, PhotosPanel, PositionPanel, SelectionSummary, TemplatesPanel, TextPanel, TransparencyPanel,
+  PhotoEditPanel, PhotosPanel, SelectionSummary, TemplatesPanel, TextPanel, TransparencyPanel,
 } from './editor-panels';
+import { PositionPanel } from './panels/position';
+import { FxPanel } from './panels/blend-fx';
+import { RichTextPanel } from './panels/text-runs';
+import { GuidesPanel, StageGuides, DEFAULT_VIEW, readView, writeView, type ViewOpts } from './panels/guides';
+import { HistoryPanel } from './panels/history';
+import { ExportDialog, type ExportPage } from './panels/export';
+import { ShortcutsDialog } from './panels/shortcuts';
+import { withoutAdjust } from './panels/adjust';
 
 // ── The document and its history ───────────────────────────────────────────
 
@@ -80,7 +90,16 @@ export function useStoryDoc(initial: StoryDoc) {
   const undo = useCallback(() => setDocState(cur => { const p = past.current.pop(); if (!p) return cur; future.current.push(cur); bump(n => n + 1); return p; }), []);
   const redo = useCallback(() => setDocState(cur => { const f = future.current.pop(); if (!f) return cur; past.current.push(cur); bump(n => n + 1); return f; }), []);
   const reset = useCallback((d: StoryDoc) => { past.current = []; future.current = []; setDocState(d); bump(n => n + 1); }, []);
-  return { doc, change, checkpoint, undo, redo, reset, canUndo: past.current.length > 0, canRedo: future.current.length > 0 };
+  /** Step through the history: negative goes back that many steps, positive forward (the History panel). */
+  const goto = useCallback((steps: number) => setDocState(cur => {
+    let c = cur;
+    for (let i = 0; i < -steps && past.current.length; i++) { future.current.push(c); c = past.current.pop()!; }
+    for (let i = 0; i < steps && future.current.length; i++) { past.current.push(c); c = future.current.pop()!; }
+    last.current = null;
+    bump(n => n + 1);
+    return c;
+  }), []);
+  return { doc, change, checkpoint, undo, redo, reset, goto, past: past.current, future: future.current, canUndo: past.current.length > 0, canRedo: future.current.length > 0 };
 }
 export type StoryDocApi = ReturnType<typeof useStoryDoc>;
 
@@ -97,10 +116,11 @@ const writeTemplates = (square: boolean, t: Template[]) => { try { localStorage.
 
 let clipboard: Layer[] = [];
 let styleClipboard: { kind: Layer['kind']; style: Partial<Layer> } | null = null;
-const TEXT_STYLE_KEYS = ['font', 'size', 'color', 'spacing', 'lineHeight', 'upper', 'shadow', 'box', 'effect', 'underline', 'autoColor', 'curve', 'opacity'] as const;
-const SHAPE_STYLE_KEYS = ['color', 'stroke', 'fill', 'fill2', 'dash', 'radius', 'opacity'] as const;
-const IMAGE_STYLE_KEYS = ['radius', 'border', 'shadow', 'adjust', 'mask', 'opacity', 'shade'] as const;
-const styleKeys = (k: Layer['kind']): readonly string[] => k === 'text' ? TEXT_STYLE_KEYS : k === 'image' ? IMAGE_STYLE_KEYS : k === 'wordmark' ? ['color', 'autoColor', 'opacity'] : SHAPE_STYLE_KEYS;
+const TEXT_STYLE_KEYS = ['font', 'size', 'color', 'spacing', 'lineHeight', 'upper', 'shadow', 'box', 'effect', 'underline', 'autoColor', 'curve', 'opacity', 'blend', 'fillGradient', 'list'] as const;
+const SHAPE_STYLE_KEYS = ['color', 'stroke', 'fill', 'fill2', 'fillGradient', 'dash', 'radius', 'opacity', 'blend', 'layerFx'] as const;
+const IMAGE_STYLE_KEYS = ['radius', 'border', 'shadow', 'adjust', 'mask', 'opacity', 'shade', 'blend', 'layerFx'] as const;
+const QR_STYLE_KEYS = ['fg', 'bg', 'quiet', 'opacity', 'blend', 'layerFx'] as const;
+const styleKeys = (k: Layer['kind']): readonly string[] => k === 'text' ? TEXT_STYLE_KEYS : k === 'image' ? IMAGE_STYLE_KEYS : k === 'qr' ? QR_STYLE_KEYS : k === 'wordmark' ? ['color', 'autoColor', 'opacity', 'blend', 'layerFx'] : SHAPE_STYLE_KEYS;
 
 /** Images uploaded this visit, to add again from the Photos panel. */
 export const sessionUploads: string[] = [];
@@ -175,7 +195,8 @@ export interface DesignerExtras {
 
 // ── The editor's state and actions ─────────────────────────────────────────
 
-export type SidePanel = 'templates' | 'elements' | 'text' | 'photos' | 'brand' | 'layers' | 'background' | 'edit' | 'effects' | 'position' | 'photo' | 'font' | 'colour' | 'transparency' | 'frame' | `x:${string}`;
+export type SidePanel = 'templates' | 'elements' | 'text' | 'photos' | 'brand' | 'layers' | 'background' | 'edit' | 'effects' | 'position' | 'photo' | 'font' | 'colour' | 'transparency' | 'frame'
+  | 'guides' | 'history' | 'rich' | `x:${string}`;
 
 export function useEditor(p: StoryEditorProps) {
   const { toast } = useToast();
@@ -193,6 +214,15 @@ export function useEditor(p: StoryEditorProps) {
   // Bumped when a font or an uploaded image finishes loading, so the canvas redraws.
   const [ver, setVer] = useState(0);
   const tick = useCallback(() => setVer(n => n + 1), []);
+  // Which of the helper views are on (rulers, margins, safe zones), kept on this device; the grid and guides are the document's.
+  const [viewOpts, setViewOptsState] = useState<ViewOpts>(DEFAULT_VIEW);
+  useEffect(() => { setViewOptsState(readView()); }, []);
+  const setViewOpts = useCallback((f: (o: ViewOpts) => ViewOpts) => setViewOptsState(o => { const n = f(o); writeView(n); return n; }), []);
+  // Holding "compare" shows the photo as it was before its adjustments.
+  const [compare, setCompare] = useState(false);
+  // The words picked inside a text layer (on the canvas while typing, or in the rich-text panel), kept after the box loses focus.
+  const [textSel, setTextSel] = useState<{ id: string; from: number; to: number } | null>(null);
+  const [help, setHelp] = useState(false);
 
   useEffect(() => { setTemplates(readTemplates(!!square)); }, [square]);
 
@@ -208,8 +238,11 @@ export function useEditor(p: StoryEditorProps) {
     for (const l of doc.layers) {
       if (l.kind === 'image' && l.src && !uploadedImage(l.src)) loadUpload(l.src).then(() => alive && tick()).catch(() => undefined);
       if (l.kind === 'text') {
-        const css = fontCss(l.font, 40, assets.fonts);
-        if (!document.fonts.check(css)) document.fonts.load(css).then(() => alive && tick()).catch(() => undefined);
+        // The layer's face, and the faces of any styled words in it (rich text).
+        for (const f of new Set([l.font, ...(l.runs ?? []).map(r => r.font).filter((x): x is FontKey => !!x)])) {
+          const css = fontCss(f, 40, assets.fonts);
+          if (!document.fonts.check(css)) document.fonts.load(css).then(() => alive && tick()).catch(() => undefined);
+        }
       }
     }
     return () => { alive = false; };
@@ -334,6 +367,33 @@ export function useEditor(p: StoryEditorProps) {
     moveBy(new Map(ls.map((l, i) => [l.id, d[i]])));
   };
   const nudge = (dx: number, dy: number) => moveBy(new Map(sel.map(id => [id, { dx, dy }])), 'nudge');
+  /**
+   * New words for a text layer (typed on the canvas or in its box). Styled words (rich text) are indexed by position,
+   * so they are moved along by what was inserted or removed — for every layer showing the same field too.
+   */
+  const setWords = (l: TextLayer, value: string) => {
+    const old = l.bind ? fields[l.bind] : l.text;
+    if (old === value) return;
+    let a = 0;
+    const m = Math.min(old.length, value.length);
+    while (a < m && old[a] === value[a]) a++;
+    let b = 0;
+    while (b < m - a && old[old.length - 1 - b] === value[value.length - 1 - b]) b++;
+    const removed = old.length - a - b, added = value.length - a - b;
+    if (l.bind) {
+      const bind = l.bind;
+      onField(bind, value);
+      if (doc.layers.some(x => x.kind === 'text' && x.bind === bind && x.runs?.length)) {
+        change(d => ({ ...d, layers: d.layers.map(x => x.kind === 'text' && x.bind === bind && x.runs?.length ? { ...x, runs: shiftRuns(x.runs, a, removed, added) } : x) }), { key: `words:${bind}` });
+      }
+    } else {
+      update(l.id, x => (x.kind === 'text' ? { ...x, text: value, ...(x.runs?.length ? { runs: shiftRuns(x.runs, a, removed, added) } : {}) } : x), 'text');
+    }
+  };
+  const guides = useMemo(() => guidesOf(doc.meta, F), [doc.meta, F.w, F.h]); // eslint-disable-line react-hooks/exhaustive-deps
+  const setGuides = (g: Guides) => change(d => ({ ...d, meta: withGuides(d.meta, g) }));
+  const setGrid = (n: number) => change(d => ({ ...d, meta: withGrid(d.meta, n) }));
+  const margin = square ? 45 : 96;
   const group = () => { if (sel.length < 2) return; const g = newLayerId('grp'); updateSel(l => ({ ...l, group: g })); };
   const ungroup = () => updateSel(l => ({ ...l, group: undefined }));
   const toggleLock = () => { const lock = !selLayers.every(l => l.locked); updateSel(l => ({ ...l, locked: lock })); };
@@ -393,10 +453,24 @@ export function useEditor(p: StoryEditorProps) {
     const control = el.tagName === 'BUTTON' || (el.hasAttribute?.('role') && el.tagName !== 'CANVAS');
     return control && (key === 'Enter' || key === ' ' || key === 'Escape');
   };
-  const onKey = (e: React.KeyboardEvent | KeyboardEvent) => {
+  const onKey = (e: React.KeyboardEvent | KeyboardEvent, designer = false) => {
     if (e.defaultPrevented || ownKeys(e.target, e.key)) return;
     const mod = e.metaKey || e.ctrlKey, k = e.key.toLowerCase();
     const stop = () => e.preventDefault();
+    // ⌘⌥C / ⌘⌥V copy and paste a style. By key code: on a Mac ⌥C types "ç".
+    if (mod && e.altKey && !e.shiftKey && e.code === 'KeyC') { stop(); copyStyle(); return; }
+    if (mod && e.altKey && !e.shiftKey && e.code === 'KeyV') { stop(); pasteStyle(); return; }
+    if (e.key === '?' && !mod) { stop(); setHelp(h => !h); return; }
+    // Tab walks the layers (when the page, not a button or field, has the keyboard).
+    if (e.key === 'Tab' && !mod && !e.altKey) {
+      const t = e.target as HTMLElement | null;
+      // The small editor lets Tab leave once nothing is selected, so the keyboard is never trapped in it.
+      if ((!t || t === document.body || t.tagName === 'CANVAS') && (designer || sel.length)) {
+        const next = cycleLayer(view.layers, sel, e.shiftKey);
+        if (next) { stop(); select([next]); }
+        return;
+      }
+    }
     if (mod && k === 'z') { stop(); if (e.shiftKey) api.redo(); else api.undo(); return; }
     if (mod && k === 'y') { stop(); api.redo(); return; }
     if (mod && k === 'a') { stop(); select(view.layers.filter(l => !l.hidden).map(l => l.id)); return; }
@@ -427,13 +501,14 @@ export function useEditor(p: StoryEditorProps) {
     if (files.length) { e.preventDefault(); uploadFiles(files); } else paste();
   };
 
-  const layerName = (l: Layer) => l.name || (l.kind === 'text' ? (l.bind ? l.bind[0].toUpperCase() + l.bind.slice(1) : `“${(l.text || 'Text').slice(0, 18)}”`) : l.kind === 'wordmark' ? (l.mark === 't' ? 't mark' : 'Wordmark') : l.kind === 'image' ? (l.src ? 'Upload' : l.mask ? 'Photo frame' : 'Photo inset') : l.kind === 'shape' ? (l.shape ? l.shape[0].toUpperCase() + l.shape.slice(1) : 'Shape') : l.kind[0].toUpperCase() + l.kind.slice(1));
+  const layerName = (l: Layer) => l.name || (l.kind === 'text' ? (l.bind ? l.bind[0].toUpperCase() + l.bind.slice(1) : `“${(l.text || 'Text').slice(0, 18)}”`) : l.kind === 'wordmark' ? (l.mark === 't' ? 't mark' : 'Wordmark') : l.kind === 'qr' ? 'QR code' : l.kind === 'image' ? (l.src ? 'Upload' : l.mask ? 'Photo frame' : 'Photo inset') : l.kind === 'shape' ? (l.shape ? l.shape[0].toUpperCase() + l.shape.slice(1) : 'Shape') : l.kind[0].toUpperCase() + l.kind.slice(1));
 
   return {
     p, api, doc, view, F, fields, assets, square: !!square, onField, ver,
     sel, bgSel, one, selLayers, editing, setEditing, cropping, setCropping, panel, setPanel, grouped,
     select, selectBg, clear, withGroups, boxOf, update, updateSel, add, remove, duplicate, copy, cut, paste, copyStyle, pasteStyle, hasStyle: () => !!styleClipboard, hasClip: () => clipboard.length > 0, sendToOther,
     reorder, align, distribute, nudge, group, ungroup, toggleLock, change,
+    tick, viewOpts, setViewOpts, compare, setCompare, textSel, setTextSel, help, setHelp, setWords, guides, setGuides, setGrid, margin,
     templates, saveTemplate, useTemplate, templateDoc, dropTemplate, preset,
     uploadFiles, download, onKey, onPasteEvent, layerName,
   };
@@ -443,7 +518,7 @@ export type Editor = ReturnType<typeof useEditor>;
 // ── The canvas and everything drawn over it ────────────────────────────────
 
 type Drag = { changed?: boolean } & (
-  | { mode: 'move'; ids: string[]; sx: number; sy: number; orig: Layer[]; box0: Box; before: StoryDoc; lines: ReturnType<typeof snapLines> }
+  | { mode: 'move'; ids: string[]; sx: number; sy: number; orig: Layer[]; box0: Box; before: StoryDoc; lines: ReturnType<typeof snapLines>; others: Box[] }
   | { mode: 'photo'; sx: number; sy: number; fx: number; fy: number; before: StoryDoc }
   | { mode: 'inner'; id: string; sx: number; sy: number; fx: number; fy: number; before: StoryDoc }
   | { mode: 'resize'; id: string; cx: number; cy: number; d0: number; orig: Layer; before: StoryDoc }
@@ -472,6 +547,8 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.25);
   const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
+  /** The equal gaps a moving layer is matching, drawn with their distance. */
+  const [spacing, setSpacing] = useState<SpacingGuide[]>([]);
   const [marquee, setMarquee] = useState<Box | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -491,9 +568,10 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
-    const shown = ed.editing ? { ...view, layers: view.layers.map(l => l.id === ed.editing ? { ...l, hidden: true } : l) } : view;
+    const base = ed.compare ? withoutAdjust(view, ed.sel) : view;
+    const shown = ed.editing ? { ...base, layers: base.layers.map(l => l.id === ed.editing ? { ...l, hidden: true } : l) } : base;
     renderDoc(c.getContext('2d')!, shown, fields, assets, lettered ? { background: lettered, hideBound: true } : {});
-  }, [view, fields, assets, lettered, ed.editing, ed.ver]);
+  }, [view, fields, assets, lettered, ed.editing, ed.ver, ed.compare, ed.sel]);
 
   // Story pixels → CSS pixels, kept current as the page resizes.
   useEffect(() => {
@@ -512,7 +590,7 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
   };
   const one = ed.one;
   const box = one ? ed.boxOf(one) : null;
-  const margin = ed.square ? 45 : 96;
+  const margin = ed.margin;
   const live = (fn: (d: StoryDoc) => StoryDoc) => { if (drag.current) drag.current.changed = true; change(fn, { live: true }); };
   const openMenuAt = (clientX: number, clientY: number) => {
     const r = wrapRef.current!.getBoundingClientRect();
@@ -582,7 +660,10 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
       const movers = view.layers.filter(l => next.includes(l.id) && !l.locked);
       if (!movers.length) return;
       const others = view.layers.filter(l => !next.includes(l.id) && !l.hidden).map(ed.boxOf);
-      drag.current = { mode: 'move', ids: movers.map(l => l.id), sx: pt.x, sy: pt.y, orig: movers, box0: unionBox(movers.map(ed.boxOf)), before: doc, lines: snapLines(F, margin, others) };
+      drag.current = {
+        mode: 'move', ids: movers.map(l => l.id), sx: pt.x, sy: pt.y, orig: movers, box0: unionBox(movers.map(ed.boxOf)), before: doc,
+        lines: snapLines(F, margin, others, { grid: doc.meta?.grid, guides: doc.meta?.guides }), others,
+      };
     } else if (!touch && !ed.bgSel) {
       drag.current = { mode: 'marquee', sx: pt.x, sy: pt.y, add: e.shiftKey, base: ed.sel };
     } else {
@@ -617,11 +698,12 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
     const pt = toStory(e);
     if (d.mode === 'move') {
       const dx = pt.x - d.sx, dy = pt.y - d.sy;
-      const s = snapBox({ ...d.box0, x: d.box0.x + dx, y: d.box0.y + dy }, d.lines, 7 / scale);
+      const s = snapMove({ ...d.box0, x: d.box0.x + dx, y: d.box0.y + dy }, d.lines, d.others, 7 / scale);
       setGuides(g => {
         if ((s.v !== null && g.v === null) || (s.h !== null && g.h === null)) navigator.vibrate?.(5);
         return g.v === s.v && g.h === s.h ? g : { v: s.v, h: s.h };
       });
+      setSpacing(sp => (JSON.stringify(sp) === JSON.stringify(s.spacing) ? sp : s.spacing));
       const moved = new Map(d.orig.map(o => [o.id, moveLayer(o, dx + s.dx, dy + s.dy)]));
       live(doc0 => ({ ...doc0, layers: doc0.layers.map(l => moved.get(l.id) ?? l) }));
     } else if (d.mode === 'resize') {
@@ -754,6 +836,7 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
     if (dn && !dn.moved && dn.wasOnly && dn.hit?.kind === 'text' && !dn.hit.locked && Date.now() - dn.t < 500 && d?.mode !== 'pinch') ed.setEditing(dn.hit.id);
     if (!pointers.current.size) { drag.current = null; down.current = null; }
     setGuides({ v: null, h: null });
+    setSpacing([]);
     setDragging(false);
     setHud(null);
   };
@@ -823,6 +906,8 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
         className={cn('block w-full touch-none bg-muted outline-none cursor-default', designer ? 'rounded-sm shadow-xl' : 'rounded-xl shadow-md focus-visible:ring-2 focus-visible:ring-primary')}
         aria-label={ed.square ? 'Square photo — tap something to select it, drag to move it' : 'Story — tap something to select it, drag to move it'}
       />
+      {/* Rulers, the user's guides, grid, margins, safe zones and spacing chips. */}
+      <StageGuides ed={ed} scale={scale} designer={designer} spacing={spacing} getRect={() => canvasRef.current?.getBoundingClientRect() ?? null} />
       {/* Guides: the line a moving layer snapped to. */}
       {guides.v !== null && <div className="pointer-events-none absolute top-0 bottom-0 w-px bg-fuchsia-500" style={{ left: guides.v * scale }} />}
       {guides.h !== null && <div className="pointer-events-none absolute left-0 right-0 h-px bg-fuchsia-500" style={{ top: guides.h * scale }} />}
@@ -885,6 +970,7 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
 
       {editingLayer && <InlineText ed={ed} l={editingLayer} scale={scale} />}
       {menu && <ContextMenu ed={ed} at={menu} width={F.w * scale} onClose={() => setMenu(null)} />}
+      {ed.help && <ShortcutsDialog onClose={() => ed.setHelp(false)} />}
       {p.overlay}
     </div>
   );
@@ -917,7 +1003,8 @@ function InlineText({ ed, l, scale }: { ed: Editor; l: TextLayer; scale: number 
     <textarea
       ref={ref}
       value={value}
-      onChange={e => l.bind ? ed.onField(l.bind, e.target.value) : ed.update(l.id, { text: e.target.value }, 'text')}
+      onChange={e => ed.setWords(l, e.target.value)}
+      onSelect={e => { const t = e.currentTarget; ed.setTextSel({ id: l.id, from: t.selectionStart, to: t.selectionEnd }); }}
       onBlur={() => ed.setEditing(null)}
       onKeyDown={e => { if (e.key === 'Escape' || (e.key === 'Enter' && (e.metaKey || e.ctrlKey))) { e.preventDefault(); ed.setEditing(null); } e.stopPropagation(); }}
       onPointerDown={e => e.stopPropagation()}
@@ -1064,6 +1151,7 @@ export function PairEditor({ story, square, show, active, onActive }: {
         <Designer ed={ed} onClose={() => setDesigner(false)} F={ed.F}
           frameLabel={ed.square ? 'Post · square 1:1 · WhatsApp + website' : 'Story 9:16 · Instagram'}
           pages={both ? sides.map(s => ({ key: s.key, label: s.side.label, square: s.ed.square, off: !!s.side.placeholder })) : undefined}
+          exportPages={both ? sides.map(s => ({ key: s.key, label: s.side.label, ed: s.ed, off: !!s.side.placeholder })) : undefined}
           current={k} onPage={onActive} />
       )}
     </div>
@@ -1233,12 +1321,14 @@ const RAIL: { id: SidePanel; label: string; icon: React.ReactNode }[] = [
   { id: 'brand', label: 'Brand', icon: <PaletteIcon className="h-5 w-5" /> },
   { id: 'layers', label: 'Layers', icon: <Layers className="h-5 w-5" /> },
   { id: 'background', label: 'Background', icon: <PaintBucket className="h-5 w-5" /> },
+  { id: 'guides', label: 'Guides', icon: <Ruler className="h-5 w-5" /> },
 ];
 /** Panels that belong to a selection; they close when it goes. */
-const CONTEXT_PANELS: SidePanel[] = ['edit', 'effects', 'position', 'photo', 'font', 'colour', 'transparency', 'frame'];
+const CONTEXT_PANELS: SidePanel[] = ['edit', 'effects', 'position', 'photo', 'font', 'colour', 'transparency', 'frame', 'rich'];
 const PANEL_TITLE: Record<SidePanel, string> = {
   templates: 'Templates', elements: 'Elements', text: 'Text', photos: 'Photos & uploads', brand: 'Brand kit', layers: 'Layers', background: 'Background',
   edit: 'Edit', effects: 'Effects', position: 'Position', photo: 'Edit photo', font: 'Font', colour: 'Colour', transparency: 'Transparency', frame: 'Frame',
+  guides: 'Guides, grid & views', history: 'History', rich: 'Rich text',
 };
 
 /**
@@ -1260,10 +1350,12 @@ function useVisibleViewport() {
   return vp;
 }
 
-function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
+function Designer({ ed, onClose, frameLabel, F, pages, current, onPage, exportPages }: {
   ed: Editor; onClose: () => void; frameLabel: string; F: { w: number; h: number };
   /** With the story and the post both being made: a switch between them in the header. */
   pages?: { key: PairKey; label: string; square: boolean; off: boolean }[]; current?: PairKey; onPage?: (k: PairKey) => void;
+  /** Every page the Export dialog can save (the story and the post together); just this one when missing. */
+  exportPages?: ExportPage[];
 }) {
   const { api } = ed;
   const extras = ed.p.extras;
@@ -1304,6 +1396,8 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
   }, []);
   const [area, setArea] = useState({ w: 800, h: 600 });
   const [zoom, setZoom] = useState<number | 'fit'>('fit');
+  const stepZoomRef = useRef<(dir: 1 | -1) => void>(() => undefined);
+  const [exporting, setExporting] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [sheetTall, setSheetTall] = useState(false);
   const mobile = !!useIsMobile();
@@ -1333,7 +1427,17 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
   // Keys and pastes go to the designer while it is open; the page underneath doesn't scroll.
   useEffect(() => {
     if (!mounted) return;
-    const onKey = (e: KeyboardEvent) => ed.onKey(e);
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      const field = (e.target as HTMLElement | null)?.closest?.('input,textarea,[contenteditable=true]');
+      // ⌘+ / ⌘− / ⌘0 zoom the page, not the browser.
+      if (mod && !e.altKey && !field && (e.key === '=' || e.key === '+' || e.key === '-' || e.key === '_' || e.key === '0')) {
+        e.preventDefault();
+        if (e.key === '0') setZoom('fit'); else stepZoomRef.current(e.key === '-' || e.key === '_' ? -1 : 1);
+        return;
+      }
+      ed.onKey(e, true);
+    };
     const onPaste = (e: ClipboardEvent) => ed.onPasteEvent(e);
     window.addEventListener('keydown', onKey);
     document.addEventListener('paste', onPaste);
@@ -1347,12 +1451,8 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
   const cssW = zoom === 'fit' ? fit : F.w * zoom;
   const pct = Math.round((cssW / F.w) * 100);
   const setZoomTo = (z: number) => setZoom(Math.min(3, Math.max(0.08, z)));
-  const stepZoom = (dir: 1 | -1) => {
-    const levels = [0.1, 0.15, 0.2, 0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2];
-    const now = cssW / F.w;
-    const next = dir > 0 ? levels.find(z => z > now + 0.001) : [...levels].reverse().find(z => z < now - 0.001);
-    if (next) setZoom(next);
-  };
+  const stepZoom = (dir: 1 | -1) => setZoom(nextZoom(cssW / F.w, dir));
+  stepZoomRef.current = stepZoom;
   // ⌘/Ctrl + scroll, or a trackpad pinch, zooms the page (not the browser).
   useEffect(() => {
     const el = areaRef.current;
@@ -1376,7 +1476,10 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
       case 'layers': return <LayersPanel ed={ed} />;
       case 'background': return <BackgroundInspector ed={ed} bare />;
       case 'edit': return ed.one ? <LayerInspector ed={ed} layer={ed.one} bare /> : ed.selLayers.length > 1 ? <SelectionSummary ed={ed} /> : <p className="text-sm text-muted-foreground">Select something on the page to edit it.</p>;
-      case 'effects': return ed.one?.kind === 'text' ? <EffectsPanel ed={ed} layer={ed.one} /> : <p className="text-sm text-muted-foreground">Select some text for its effects.</p>;
+      case 'effects': return ed.one?.kind === 'text' ? <EffectsPanel ed={ed} layer={ed.one} /> : <FxPanel ed={ed} />;
+      case 'rich': return ed.one?.kind === 'text' ? <RichTextPanel ed={ed} layer={ed.one} /> : <p className="text-sm text-muted-foreground">Select some text to style its words.</p>;
+      case 'guides': return <GuidesPanel ed={ed} />;
+      case 'history': return <HistoryPanel ed={ed} />;
       case 'position': return <PositionPanel ed={ed} />;
       case 'photo': return <PhotoEditPanel ed={ed} />;
       case 'font': return ed.one?.kind === 'text' ? <FontPanel ed={ed} layer={ed.one} /> : <p className="text-sm text-muted-foreground">Select some text.</p>;
@@ -1423,12 +1526,29 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
         )}
         {extras?.status}
         <div className="ml-auto flex items-center gap-0.5 md:gap-1">
-          <Button size="icon" variant="ghost" className="h-9 w-9" onClick={api.undo} disabled={!api.canUndo} title="Undo (⌘Z)" aria-label="Undo"><Undo2 className="h-4 w-4" /></Button>
-          <Button size="icon" variant="ghost" className="h-9 w-9" onClick={api.redo} disabled={!api.canRedo} title="Redo (⇧⌘Z)" aria-label="Redo"><Redo2 className="h-4 w-4" /></Button>
-          {canFull && <Button size="icon" variant={isFull ? 'secondary' : 'ghost'} className="h-9 w-9" onClick={() => goFull(!isFull)} title={isFull ? 'Leave full screen (Esc)' : 'Full screen'} aria-label={isFull ? 'Leave full screen' : 'Full screen'}>{isFull ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</Button>}
+          <Button size="icon" variant="ghost" className="h-9 w-8 md:w-9" onClick={api.undo} disabled={!api.canUndo} title="Undo (⌘Z)" aria-label="Undo"><Undo2 className="h-4 w-4" /></Button>
+          <Button size="icon" variant="ghost" className="h-9 w-8 md:w-9" onClick={api.redo} disabled={!api.canRedo} title="Redo (⇧⌘Z)" aria-label="Redo"><Redo2 className="h-4 w-4" /></Button>
+          {canFull && <Button size="icon" variant={isFull ? 'secondary' : 'ghost'} className="hidden h-9 w-9 md:inline-flex" onClick={() => goFull(!isFull)} title={isFull ? 'Leave full screen (Esc)' : 'Full screen'} aria-label={isFull ? 'Leave full screen' : 'Full screen'}>{isFull ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</Button>}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-9 w-8 md:w-9" aria-label="View and history" title="View, history and shortcuts"><Eye className="h-4 w-4" /></Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="z-[70] w-56">
+              <DropdownMenuLabel>View</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem checked={ed.viewOpts.rulers} onCheckedChange={v => ed.setViewOpts(o => ({ ...o, rulers: !!v }))}>Rulers</DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={(ed.doc.meta?.grid ?? 0) > 0} onCheckedChange={v => ed.setGrid(v ? 60 : 0)}>Grid</DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={ed.viewOpts.margins} onCheckedChange={v => ed.setViewOpts(o => ({ ...o, margins: !!v }))}>Margins</DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={ed.viewOpts.safe} onCheckedChange={v => ed.setViewOpts(o => ({ ...o, safe: !!v }))}>Safe zones</DropdownMenuCheckboxItem>
+              <DropdownMenuItem onClick={() => setPanel('guides')}><LayoutGrid className="h-4 w-4 mr-1.5" /> Guides and grid…</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setPanel('history')}><HistoryIcon className="h-4 w-4 mr-1.5" /> History…</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => ed.setHelp(true)}><KeyboardIcon className="h-4 w-4 mr-1.5" /> Keyboard shortcuts <span className="ml-auto text-[10px] text-muted-foreground">?</span></DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setZoom('fit')}>Fit the page <span className="ml-auto text-[10px] text-muted-foreground">⌘0</span></DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button size="sm" variant="secondary" className="px-2.5 md:px-3" aria-label="Download"><Download className="h-4 w-4 md:mr-1.5" /><span className="hidden md:inline">Download</span></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="z-[70]">
+              <DropdownMenuItem onClick={() => setExporting(true)}>Export… <span className="ml-3 text-[10px] text-muted-foreground">PNG · JPG · WebP · PDF</span></DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => ed.download('png')}>PNG — sharpest</DropdownMenuItem>
               <DropdownMenuItem onClick={() => ed.download('jpg')}>JPG — smaller file</DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -1463,7 +1583,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
           {!mobile && <ContextToolbar ed={ed} />}
           <div ref={areaRef} className={cn('relative min-h-0 flex-1 overflow-auto bg-muted/60', zoom === 'fit' && 'touch-none')}>
-            <div className="flex min-h-full min-w-full items-center justify-center p-3 md:p-8" style={{ width: zoom === 'fit' ? undefined : cssW + pad }}>
+            <div className={cn('flex min-h-full min-w-full items-center justify-center', ed.viewOpts.rulers ? 'p-8 md:p-10' : 'p-3 md:p-8')} style={{ width: zoom === 'fit' ? undefined : cssW + pad + (ed.viewOpts.rulers ? 24 : 0) }}>
               <Stage key={ed.square ? 'square' : 'story'} ed={ed} designer width={cssW} />
             </div>
           </div>
@@ -1509,6 +1629,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
           )}
         </div>
       )}
+      {exporting && <ExportDialog pages={exportPages ?? [{ key: 'page', label: ed.square ? 'Post' : 'Story', ed }]} currentKey={exportPages ? (current ?? exportPages[0].key) : 'page'} baseName={ed.p.fileName || 'taheri'} onClose={() => setExporting(false)} />}
     </div>,
     document.body,
   );

@@ -25,8 +25,9 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   SALES       Orders · Invoices · Repairs · Customers · Drafts (count)
   WORKSHOP &  Workshop (Jobs · Karigars · Given items) · Stock (Pieces · Add in bulk · Labels · Scan) — Stock owners only
   STOCK
-  MARKETING   Posts (Hub · Post a piece · Investments) · Website (Add photos · Edit a piece · Photo weights)
-              · Ads (Overview · Campaigns · Studio · New ad · Setup; Ad sets lights Campaigns, Audiences/Rules are cards on Setup)
+  MARKETING   Posts (Hub · Design · Investments) · Website (Add photos · Edit a piece · Photo weights)
+              · Ads (Overview · Campaigns · Plan · New ad · Setup; Ad sets lights Campaigns, Audiences/Rules are cards on Setup)
+              (2026-10-12: Design replaced Post a piece and the Ads Studio tab — see Design below)
   MONEY       Money (Expenses · Extra revenue · Overheads · Hisaab · Shareholders) · Analytics (Overview · Sales · Products ·
               Customers · Categories — the range rides in `?range=`, `lib/analytics/range-param.ts`, and carries across tabs)
   footer      Settings (Shop · Alerts · Bank accounts · Integrations · Data · Activity · Voice)
@@ -34,7 +35,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   Settings' tabs are routes (`/settings`, `/settings/alerts`, `/settings/integrations`, `/settings/data`, `/activity-log`
   with the sign-in log and Emergency lock); an old `/settings?tab=` link redirects, `?tab=rates` opens the rate sheet. Names:
   the sidebar's word is the name everywhere (sentence case) — Invoice, Order, Finalize & invoice, Stock/piece, Hisaab, Pay
-  batch (a karigar's), Extra revenue, Bank accounts, Studio; never the Shopify note strings (`POS Invoice`, `POS-DISCOUNT`,
+  batch (a karigar's), Extra revenue, Bank accounts, Design; never the Shopify note strings (`POS Invoice`, `POS-DISCOUNT`,
   `POS Item`).
 
 ### Web matches the app
@@ -663,3 +664,37 @@ Opening Posts copies each group's description and icon to a twin that lacks them
 community's groups or link them; the owner adds them in WhatsApp, as admin of the second community.
 `/links` shows the community (now the second one's invite) instead of the channel, and so does
 taheri.shop's footer. Posts still go to the channel.
+
+## Design
+
+### Design
+
+2026-10-12. The owner: "make further improvements … more powerful than Canva, especially fine-tuning controls … instant resizing using
+AI so any design can be converted smartly into different aspect ratios … easier and smarter parsing. The ERP is a bit cluttered in
+terms of ad/post/story/whatsapp design — bring everything together smartly allowing one area where it can be posted from … Merge it
+into one Design sub-tab; deal with the existing Studio in Ads smartly." The plan, settled the same day in the owner's stead per
+their standing "do everything yourself": `docs/features/design-studio-plan.md`; what was built: `docs/features/design.md`.
+
+- **One tab, one editor, one publish sheet, one shelf.** **Design** is a tab of Posts (Hub · Design · Investments), not a sidebar row
+  (the map: one tab row per screen). Making is one workspace: a design is a master page plus any number of sizes made from it; every
+  kind (piece, post, story, WhatsApp, website photo, ad, any size) only changes defaults. Sending is one Publish sheet; keeping is one
+  Saved shelf (`designs`, with the legacy `ad_saved` read through, no migration). Board is a Design section.
+- **Supersedes:** *Post a piece* as a screen (its engine, checks, queue, drafts and Maisons stand); the Ads **Studio** tab (its
+  Plan is **Ads › Plan**, Photos / Make / Board / Saved are Design sections); the Posts hub's "Post a piece" button (now Design);
+  the per-surface "send it somewhere" code (`post-it.tsx`, board `queuePost`, hub cards) — `lib/design/publish.ts` is the one place.
+  The Post a piece and Ad studio entries elsewhere describe the engine and the history; read "Post a piece" and "Studio" as Design.
+- **Roles:** staff keep Design for pieces, posts, stories, WhatsApp and website photos; the library with scores, Board, Saved ads, Plan
+  and Meta ad stay owner + marketing (`designGate('post' | 'ads')`, two needs never merged).
+- **One call per AI action; deterministic first.** Resize re-lays by layer role and safe zones with no AI; an optional one-call plan
+  may only move what exists and is discarded on any changed word or invented id. **The jewellery is never redrawn.** Smart input holds
+  every field against the pasted text: no figure appears that wasn't in it.
+- **Instagram feed posts by API** are in (D4 = yes; Taheri, `instagram_business_content_publish`); Mina has no Instagram app, so story
+  and post go to the share sheet. WhatsApp and the website only ever get 1:1. Video and animation are phase 2.
+- **Background removal** is Magnific's `beta/remove-background` (urlencoded `image_url` through the `social_media` relay; answers
+  `high_resolution`, a PNG with alpha; verified live 2026-10-12).
+- **Addresses:** every old URL redirects with its query (`lib/design/redirects.ts`, table-tested); **every `/api` route keeps its
+  address** (the iPhone app calls `/api/ads/studio/*` and `/api/website/post/ai`, the board's agent `/api/studio/mcp`).
+  `/website/post` and `/ads/studio` stay in the map as `moved` pages so the app's native Post composer and Studio stay linked.
+- **Kept until Design has them:** `/design/classic/post` (AI restage, paint, lettering, "Ask AI") and `/design/classic/ad` ("Make it with
+  AI": art-directed and painted ads). Reachable from Design's start screen, not the menu; retire them when Design does the same.
+
