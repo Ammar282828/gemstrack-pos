@@ -198,6 +198,15 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 
 <a id="board"></a>### Board
 
+**How it handles (2026-10-12, owner: "super intuitive on the web, simple yet feature packed").** Everything on
+the board lives on it: a dock at the bottom (Photo, Note, Undo/Redo, zoom, Fit, Tidy up, Full screen) and, over
+the selected design, its own bar (Edit, Variants, another shape, Duplicate, Download, Use it ▾, Delete). Pictures
+can be dropped or pasted straight onto the board; double-clicking the ground makes a note there. Every hand-made
+change (add, move, nudge, delete, duplicate, a note's words, Tidy up) is a step with its inverse ops, so ⌘Z and
+⇧⌘Z undo and redo it (a deleted design comes back with its id and place). Keys: ⌫ delete, ⌘D duplicate, Enter
+edit, arrows nudge (⇧ ×5), N note, P photo, F fit, 0 100 %, +/− zoom, Esc deselect. The side panel keeps the
+longer forms (Let it cook with an aim, the name, every shape).
+
 - **Board** (`/ads/studio?v=board`, `board.tsx`; 2026-10-04, owner after an audit of pen.dev: "sure run it") — pen.dev's idea on the
   house's own parts: an endless canvas (drag to pan, pinch / ctrl-scroll to zoom, Fit) of **designs side by side** — each the maker's
   own layout document (`StoryDoc`) on one library photo, in one of the studio's shapes and layouts — and **sticky notes**.

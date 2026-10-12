@@ -24,8 +24,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Maximize2, Minimize2, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X, Upload, Undo2, Wand2, Type, Crown } from 'lucide-react';
+import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Maximize2, Minimize2, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X, Upload, Undo2, Wand2, Type, Crown, Redo2, LayoutGrid, ChevronDown, MousePointerClick } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
@@ -353,6 +354,33 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
     } finally { busy.current--; }
   }, [id]);
 
+  // ── Undo and redo: every change the page makes by hand is a step with its own inverse (board ops). ──
+  type Step = { undo: BoardOp[]; redo: BoardOp[] };
+  const past = useRef<Step[]>([]);
+  const future = useRef<Step[]>([]);
+  const [, setSteps] = useState(0);
+  const act = useCallback((redo: BoardOp[], undo: BoardOp[]) => {
+    past.current.push({ undo, redo });
+    if (past.current.length > 60) past.current.shift();
+    future.current = [];
+    setSteps(n => n + 1);
+    return send(redo);
+  }, [send]);
+  const undo = useCallback(() => {
+    const st = past.current.pop();
+    if (!st) return;
+    future.current.push(st); setSteps(n => n + 1);
+    send(st.undo);
+  }, [send]);
+  const redo = useCallback(() => {
+    const st = future.current.pop();
+    if (!st) return;
+    past.current.push(st); setSteps(n => n + 1);
+    send(st.redo);
+  }, [send]);
+  /** The op that puts a design back exactly as it was (same id, place and everything). */
+  const restoreOf = (f: BoardFrame): BoardOp => { const { rev: _rev, ...rest } = f; return { op: 'add', frame: rest }; };
+
   const frames = board?.frames ?? [];
   const notes = board?.notes ?? [];
   const pos = (kind: 'frame' | 'note', o: { id: string; x: number; y: number }) => (drag && drag.kind === kind && drag.id === o.id ? drag : o);
@@ -445,7 +473,8 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
     if (g.moved && drag) {
       const { x, y } = drag;
       setDrag(null);
-      send([g.kind === 'frame' ? { op: 'move', id: g.id!, x, y } : { op: 'noteMove', id: g.id!, x, y }]);
+      act([g.kind === 'frame' ? { op: 'move', id: g.id!, x, y } : { op: 'noteMove', id: g.id!, x, y }],
+        [g.kind === 'frame' ? { op: 'move', id: g.id!, x: g.ox, y: g.oy } : { op: 'noteMove', id: g.id!, x: g.ox, y: g.oy }]);
     }
   };
 
@@ -453,41 +482,74 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
   const selFrame = sel?.kind === 'frame' ? frames.find(f => f.id === sel.id) ?? null : null;
   const selNote = sel?.kind === 'note' ? notes.find(n => n.id === sel.id) ?? null : null;
 
-  const addNote = () => {
+  /** The board point under a screen point (or the middle of the view). */
+  const boardPoint = (clientX?: number, clientY?: number) => {
     const el = boxRef.current;
-    const at = el ? { x: (el.clientWidth / 2 - view.x) / view.z - 120, y: (el.clientHeight / 2 - view.y) / view.z - 80 } : { x: 0, y: 0 };
+    if (!el) return { x: 0, y: 0 };
+    const r = el.getBoundingClientRect();
+    const sx = clientX === undefined ? el.clientWidth / 2 : clientX - r.left, sy = clientY === undefined ? el.clientHeight / 2 : clientY - r.top;
+    return { x: Math.round((sx - view.x) / view.z), y: Math.round((sy - view.y) / view.z) };
+  };
+  const addNote = (clientX?: number, clientY?: number) => {
+    const c = boardPoint(clientX, clientY);
     const nid = newId('note');
-    send([{ op: 'note', note: { id: nid, text: 'Note', ...at } }]).then(() => setSel({ kind: 'note', id: nid }));
+    act([{ op: 'note', note: { id: nid, text: 'Note', x: c.x - 120, y: c.y - 80 } }], [{ op: 'noteRemove', id: nid }]).then(() => setSel({ kind: 'note', id: nid }));
+  };
+  const removeFrame = (f: BoardFrame) => { act([{ op: 'remove', id: f.id }], [restoreOf(f)]); setSel(null); };
+  const removeNote = (n: BoardNote) => { act([{ op: 'noteRemove', id: n.id }], [{ op: 'note', note: { ...n } }]); setSel(null); };
+  const setNoteText = (n: BoardNote, text: string) => act([{ op: 'noteText', id: n.id, text }], [{ op: 'noteText', id: n.id, text: n.text }]);
+
+  /** Tidy up: the designs in rows, in their reading order, an even gap apart. One step to undo. */
+  const tidy = () => {
+    if (!frames.length) return;
+    const order = [...frames].sort((a, b) => (Math.abs(a.y - b.y) > 120 ? a.y - b.y : a.x - b.x));
+    const cols = Math.max(1, Math.ceil(Math.sqrt(order.length * 1.4)));
+    const gap = 60, label = 28;
+    const x0 = Math.min(...order.map(f => f.x)), y0 = Math.min(...order.map(f => f.y));
+    const moves: BoardOp[] = [], back: BoardOp[] = [];
+    let y = y0;
+    for (let i = 0; i < order.length; i += cols) {
+      const row = order.slice(i, i + cols);
+      let x = x0;
+      for (const f of row) {
+        moves.push({ op: 'move', id: f.id, x, y }); back.push({ op: 'move', id: f.id, x: f.x, y: f.y });
+        x += framePx(f).w * BOARD_SCALE + gap;
+      }
+      y += Math.max(...row.map(f => framePx(f).h * BOARD_SCALE)) + label + gap;
+    }
+    act(moves, back).then(() => requestAnimationFrame(() => fitRef.current()));
   };
 
   /** A picture of the owner's own (device, Drive, a link, a paste): into the library, then onto the board as a frame. */
-  const addOwnPhoto = async (file: File, format: AdFormat) => {
+  const addOwnPhoto = async (file: File, format: AdFormat, at?: { x: number; y: number }) => {
     setPicker(false);
     const name = file.name.replace(/\.[a-z0-9]+$/i, '') || 'Uploaded picture';
     try {
       const id = await uploadPicture(file, name);
-      await addPhoto({ id, name, source: 'upload' } as unknown as LibraryItem, format);
+      await addPhoto({ id, name, source: 'upload' } as unknown as LibraryItem, format, at);
     } catch (e) { toast({ title: 'Couldn’t add the picture', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }); }
   };
 
-  const addPhoto = async (item: LibraryItem, format: AdFormat) => {
+  const addPhoto = async (item: LibraryItem, format: AdFormat, at?: { x: number; y: number }) => {
     setPicker(false);
     const fid = newId('frame');
-    await send([{ op: 'add', frame: {
+    await act([{ op: 'add', frame: {
+      ...(at ? { x: at.x, y: at.y } : {}),
       // The website photo's unmarked Drive original when there is one (as the maker does): no burned-in wordmark cut by the frame.
       id: fid, assetId: item.original?.id ?? item.id, marked: item.source === 'site' && !item.original, format, template: safeTemplate('headline', { marked: item.source === 'site' && !item.original, format }), label: item.name, by: 'page', doc: null,
       fields: {
         kicker: item.source === 'site' && item.collection !== 'Website' ? item.collection : '',
         headline: item.assessment?.headline || item.name, weight: item.specs ?? '', details: VOICE.ctas[0].replace(/\.$/, ''),
       },
-    } }]);
+    } }], [{ op: 'remove', id: fid }]);
     setSel({ kind: 'frame', id: fid });
   };
 
   const duplicate = (f: BoardFrame, format?: AdFormat) => {
     const { id: _id, rev: _rev, x: _x, y: _y, ...rest } = f;
     const short = format ? formatInfo(format).short : '';
-    send([{ op: 'add', near: f.id, frame: { ...rest, by: 'page', ...(format ? { format, doc: null, template: safeTemplate(f.template, { marked: f.marked, format }), label: `${f.label} · ${short}` } : { label: `${f.label} · copy` }) } }]);
+    const nid = newId('frame');
+    act([{ op: 'add', near: f.id, frame: { ...rest, id: nid, by: 'page', ...(format ? { format, doc: null, template: safeTemplate(f.template, { marked: f.marked, format }), label: `${f.label} · ${short}` } : { label: `${f.label} · copy` }) } }], [{ op: 'remove', id: nid }]).then(() => setSel({ kind: 'frame', id: nid }));
   };
 
   /** The design at full size (or the same layout in another shape: the story for Instagram). */
@@ -621,24 +683,65 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
   }, [send]);
   const onDrawn = useCallback((fid: string, rev: number) => setDrawn(d => ({ ...d, [fid]: rev })), []);
 
+  // ── Keys (the way Figma and Canva answer them), paste and drop ──
+  const keysRef = useRef<(e: KeyboardEvent) => void>(() => undefined);
+  keysRef.current = (e: KeyboardEvent) => {
+    if (editing || picker || queueFor) return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.closest('input,textarea,select,[contenteditable="true"],[role="dialog"],[role="menu"]'))) return;
+    const mod = e.metaKey || e.ctrlKey, k = e.key.toLowerCase();
+    const el = boxRef.current;
+    const mid = () => [(el?.clientWidth ?? 0) / 2, (el?.clientHeight ?? 0) / 2] as const;
+    if (mod && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+    if (mod && k === 'y') { e.preventDefault(); redo(); return; }
+    if (mod && k === 'd' && selFrame) { e.preventDefault(); duplicate(selFrame); return; }
+    if (mod) return;
+    if ((k === 'delete' || k === 'backspace') && (selFrame || selNote)) { e.preventDefault(); if (selFrame) removeFrame(selFrame); else if (selNote) removeNote(selNote); return; }
+    if (k === 'enter' && selFrame) { e.preventDefault(); setEditing(selFrame.id); return; }
+    if (k === 'escape' && sel && !full) { setSel(null); return; }
+    if (k === 'n') { e.preventDefault(); addNote(); return; }
+    if (k === 'p') { e.preventDefault(); setPicker(true); return; }
+    if (k === 'f' || (e.shiftKey && k === '!')) { e.preventDefault(); fit(); return; }
+    if (k === '0') { e.preventDefault(); const [cx, cy] = mid(); zoomAt(1 / view.z, cx, cy); return; }
+    if (k === '=' || k === '+') { e.preventDefault(); const [cx, cy] = mid(); zoomAt(1.25, cx, cy); return; }
+    if (k === '-') { e.preventDefault(); const [cx, cy] = mid(); zoomAt(1 / 1.25, cx, cy); return; }
+    if (k.startsWith('arrow') && (selFrame || selNote)) {
+      e.preventDefault();
+      const step = e.shiftKey ? 50 : 10;
+      const dx = k === 'arrowleft' ? -step : k === 'arrowright' ? step : 0, dy = k === 'arrowup' ? -step : k === 'arrowdown' ? step : 0;
+      const o = (selFrame ?? selNote)!;
+      const op = (x: number, y: number): BoardOp => (selFrame ? { op: 'move', id: o.id, x, y } : { op: 'noteMove', id: o.id, x, y });
+      act([op(o.x + dx, o.y + dy)], [op(o.x, o.y)]);
+    }
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => keysRef.current(e);
+    const onPaste = (e: ClipboardEvent) => {
+      if (editing || picker) return;
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest('input,textarea,[contenteditable="true"],[role="dialog"]')) return;
+      const f = Array.from(e.clipboardData?.files ?? []).find(x => x.type.startsWith('image/'));
+      if (!f) return;
+      e.preventDefault();
+      const c = boardPoint();
+      addOwnPhoto(f, selFrame?.format ?? 'portrait', { x: c.x - 150, y: c.y - 180 });
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('paste', onPaste);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('paste', onPaste); };
+  });
+  const [dropping, setDropping] = useState(false);
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault(); setDropping(false);
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    files.forEach((f, i) => { const c = boardPoint(e.clientX, e.clientY); addOwnPhoto(f, selFrame?.format ?? 'portrait', { x: c.x - 150 + i * 40, y: c.y - 180 + i * 40 }); });
+  };
+
   if (!board) return <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Opening the board…</p>;
 
   return (
     <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
       <div ref={fullRef} className={cn('space-y-2 min-w-0', full && 'fixed inset-0 z-[60] overflow-auto bg-background p-3 pt-[max(0.75rem,env(safe-area-inset-top))]')}>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Button size="sm" onClick={() => setPicker(true)}><ImagePlus className="h-4 w-4 mr-1" /> Add a photo</Button>
-          <Button size="sm" variant="outline" onClick={addNote}><StickyNote className="h-4 w-4 mr-1" /> Note</Button>
-          <span className="ml-auto flex items-center gap-1">
-            <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Zoom out" onClick={() => zoomAt(1 / 1.25, (boxRef.current?.clientWidth ?? 0) / 2, (boxRef.current?.clientHeight ?? 0) / 2)}><Minus className="h-4 w-4" /></Button>
-            <span className="text-xs tabular-nums w-10 text-center text-muted-foreground">{Math.round(view.z * 100)}%</span>
-            <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Zoom in" onClick={() => zoomAt(1.25, (boxRef.current?.clientWidth ?? 0) / 2, (boxRef.current?.clientHeight ?? 0) / 2)}><Plus className="h-4 w-4" /></Button>
-            <Button size="sm" variant="ghost" onClick={fit}><Maximize className="h-4 w-4 mr-1" /> Fit</Button>
-            <Button size="sm" variant={full ? 'default' : 'ghost'} onClick={toggleFull} aria-label={full ? 'Leave full screen' : 'Full screen'}>
-              {full ? <Minimize2 className="h-4 w-4 mr-1" /> : <Maximize2 className="h-4 w-4 mr-1" />}{full ? 'Exit' : 'Full screen'}
-            </Button>
-          </span>
-        </div>
         {(cooking || sending) && <p className="text-xs rounded-lg bg-primary/10 p-2 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin shrink-0" /> {cooking || sending}</p>}
         {agentBusy(board) && (
           <p className="text-xs rounded-lg border border-sky-400/50 bg-sky-400/10 p-2 flex items-center gap-2">
@@ -649,9 +752,12 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
         )}
         <div
           ref={boxRef}
-          className={cn('relative min-h-[420px] overflow-hidden rounded-xl border bg-muted/40 touch-none select-none cursor-grab active:cursor-grabbing', full ? 'h-[calc(100svh-4.5rem)]' : 'h-[68svh]')}
+          className={cn('relative min-h-[420px] overflow-hidden rounded-xl border bg-muted/40 touch-none select-none cursor-grab active:cursor-grabbing', full ? 'h-[calc(100svh-1.5rem)]' : 'h-[72svh]')}
           style={{ backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.25) 1px, transparent 1px)', backgroundSize: `${24 * view.z}px ${24 * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` }}
           onPointerDown={e => onDown(e)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+          onDoubleClick={e => { if (e.target === e.currentTarget) addNote(e.clientX, e.clientY); }}
+          onDragOver={e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDropping(true); } }}
+          onDragLeave={e => { if (e.target === e.currentTarget) setDropping(false); }} onDrop={onDrop}
         >
           <div className="absolute left-0 top-0 origin-top-left" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})` }}>
             {frames.map(f => {
@@ -665,16 +771,71 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
             })}
             {notes.map(n => {
               const p = pos('note', n);
-              return <NoteCard key={n.id} note={n} x={p.x} y={p.y} selected={sel?.kind === 'note' && sel.id === n.id} onDown={e => onDown(e, { kind: 'note', id: n.id, x: n.x, y: n.y })} onText={t => send([{ op: 'noteText', id: n.id, text: t }])} />;
+              return <NoteCard key={n.id} note={n} x={p.x} y={p.y} selected={sel?.kind === 'note' && sel.id === n.id} onDown={e => onDown(e, { kind: 'note', id: n.id, x: n.x, y: n.y })} onText={t => setNoteText(n, t)} />;
             })}
           </div>
           {!frames.length && !notes.length && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <p className="text-sm text-muted-foreground text-center max-w-xs">Add a photo to start, or connect an agent and ask it to fill the board.</p>
+            <div className="absolute inset-0 flex items-center justify-center p-6">
+              <div className="max-w-sm space-y-3 text-center">
+                <MousePointerClick className="mx-auto h-8 w-8 text-muted-foreground/60" />
+                <p className="text-sm font-medium">Start with a photo</p>
+                <p className="text-xs text-muted-foreground">Drop pictures here, paste one (⌘V), or pick from the library. Double-click anywhere for a note.</p>
+                <Button size="sm" onClick={() => setPicker(true)}><ImagePlus className="h-4 w-4 mr-1" /> Add a photo</Button>
+              </div>
             </div>
           )}
+          {dropping && <div className="pointer-events-none absolute inset-2 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-primary/10 text-sm font-medium text-primary">Drop to add to the board</div>}
+
+          {/* The selected design's own bar, floating above it. */}
+          {selFrame && !drag && !editing && (() => {
+            const p = pos('frame', selFrame), w = framePx(selFrame).w * BOARD_SCALE * view.z;
+            const left = view.x + p.x * view.z + w / 2, top = view.y + (p.y - 28) * view.z;
+            const below = top < 56;
+            const bh = framePx(selFrame).h * BOARD_SCALE * view.z;
+            return (
+              <div onPointerDown={e => e.stopPropagation()} className="absolute z-20 flex items-center gap-0.5 rounded-full border bg-background/95 p-1 shadow-lg backdrop-blur"
+                style={{ left: Math.min(Math.max(left, 170), (boxRef.current?.clientWidth ?? 400) - 170), top: below ? top + 28 * view.z + bh + 10 : top - 48, transform: 'translateX(-50%)' }}>
+                <BarButton label="Edit (Enter)" onClick={() => setEditing(selFrame.id)}><Pencil className="h-4 w-4" /><span className="hidden sm:inline">Edit</span></BarButton>
+                <BarButton label="Let it cook: 4 AI variants" disabled={!!cooking || !selFrame.assetId} onClick={() => cook(selFrame, 4, '')}><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Variants</span></BarButton>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild><button type="button" title="In another shape" className="flex h-8 items-center gap-0.5 rounded-full px-2 text-xs hover:bg-muted"><Shapes className="h-4 w-4" /><ChevronDown className="h-3 w-3" /></button></DropdownMenuTrigger>
+                  <DropdownMenuContent align="center">
+                    <DropdownMenuLabel>The same design, in another shape</DropdownMenuLabel>
+                    {FORMATS.filter(x => x !== selFrame.format).map(x => <DropdownMenuItem key={x} onClick={() => duplicate(selFrame, x)}>{formatInfo(x).label}</DropdownMenuItem>)}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <BarButton label="Duplicate (⌘D)" onClick={() => duplicate(selFrame)}><Copy className="h-4 w-4" /></BarButton>
+                <BarButton label="Download" onClick={() => download(selFrame)}><Download className="h-4 w-4" /></BarButton>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild><button type="button" disabled={!!sending} className="flex h-8 items-center gap-1 rounded-full bg-primary px-3 text-xs font-medium text-primary-foreground disabled:opacity-50"><Send className="h-3.5 w-3.5" /> Use it <ChevronDown className="h-3 w-3" /></button></DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setQueueFor(selFrame)}><Send className="h-4 w-4 mr-2" /> Queue a post (WhatsApp, Instagram)</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => toNewAd(selFrame)}><Rocket className="h-4 w-4 mr-2" /> Use in a new Meta ad</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => saveToSaved(selFrame)}><FolderOpen className="h-4 w-4 mr-2" /> Save to Saved ads</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <BarButton label="Delete (⌫)" onClick={() => removeFrame(selFrame)}><Trash2 className="h-4 w-4 text-destructive" /></BarButton>
+              </div>
+            );
+          })()}
+
+          {/* The dock: everything the board itself does, at the bottom of the board. */}
+          <div onPointerDown={e => e.stopPropagation()} className="absolute bottom-3 left-1/2 z-20 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-0.5 overflow-x-auto rounded-full border bg-background/95 p-1 shadow-lg backdrop-blur">
+            <BarButton label="Add a photo (P) — or drop, or paste" onClick={() => setPicker(true)} strong><ImagePlus className="h-4 w-4" /><span className="hidden sm:inline">Photo</span></BarButton>
+            <BarButton label="Add a note (N) — or double-click the board" onClick={() => addNote()}><StickyNote className="h-4 w-4" /><span className="hidden sm:inline">Note</span></BarButton>
+            <span className="mx-1 h-5 w-px bg-border" />
+            <BarButton label="Undo (⌘Z)" disabled={!past.current.length} onClick={undo}><Undo2 className="h-4 w-4" /></BarButton>
+            <BarButton label="Redo (⇧⌘Z)" disabled={!future.current.length} onClick={redo}><Redo2 className="h-4 w-4" /></BarButton>
+            <span className="mx-1 h-5 w-px bg-border" />
+            <BarButton label="Zoom out (−)" onClick={() => zoomAt(1 / 1.25, (boxRef.current?.clientWidth ?? 0) / 2, (boxRef.current?.clientHeight ?? 0) / 2)}><Minus className="h-4 w-4" /></BarButton>
+            <button type="button" title="Back to 100% (0)" onClick={() => zoomAt(1 / view.z, (boxRef.current?.clientWidth ?? 0) / 2, (boxRef.current?.clientHeight ?? 0) / 2)} className="w-11 text-center text-xs tabular-nums text-muted-foreground hover:text-foreground">{Math.round(view.z * 100)}%</button>
+            <BarButton label="Zoom in (+)" onClick={() => zoomAt(1.25, (boxRef.current?.clientWidth ?? 0) / 2, (boxRef.current?.clientHeight ?? 0) / 2)}><Plus className="h-4 w-4" /></BarButton>
+            <BarButton label="Fit everything (F)" onClick={fit}><Maximize className="h-4 w-4" /></BarButton>
+            <BarButton label="Tidy up: the designs in neat rows" disabled={frames.length < 2} onClick={tidy}><LayoutGrid className="h-4 w-4" /></BarButton>
+            <BarButton label={full ? 'Leave full screen (Esc)' : 'Full screen'} onClick={toggleFull}>{full ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</BarButton>
+          </div>
         </div>
-        <p className="text-[11px] text-muted-foreground">Drag the ground to move around · pinch or ctrl-scroll to zoom · double-tap a design to edit it.</p>
+        <p className="hidden text-[11px] text-muted-foreground md:block">Drag the board to move · ⌘-scroll or pinch to zoom · drop or paste pictures · double-click: a design to edit it, the board for a note · ⌫ delete · ⌘D duplicate · ⌘Z undo · arrows nudge</p>
       </div>
 
       <aside className="space-y-3">
@@ -688,13 +849,13 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
             onEdit={() => setEditing(selFrame.id)} onCook={(n, brief) => cook(selFrame, n, brief)}
             onShape={fmt => duplicate(selFrame, fmt)} onDuplicate={() => duplicate(selFrame)} onDownload={() => download(selFrame)}
             sending={!!sending} onSave={() => saveToSaved(selFrame)} onNewAd={() => toNewAd(selFrame)} onQueue={() => setQueueFor(selFrame)}
-            onRemove={() => { send([{ op: 'remove', id: selFrame.id }]); setSel(null); }} />
+            onRemove={() => removeFrame(selFrame)} />
         )}
         {selNote && (
           <section className="rounded-xl border p-3 space-y-2">
             <p className="text-sm font-semibold flex items-center gap-1.5"><StickyNote className="h-4 w-4" /> Note{selNote.by === 'agent' ? ' from the agent' : ''}</p>
             <p className="text-xs text-muted-foreground">Edit it on the board. A note is a brief for Let it cook, and the first thing a connected agent reads.</p>
-            <Button size="sm" variant="outline" onClick={() => { send([{ op: 'noteRemove', id: selNote.id }]); setSel(null); }}><Trash2 className="h-4 w-4 mr-1" /> Remove the note</Button>
+            <Button size="sm" variant="outline" onClick={() => removeNote(selNote)}><Trash2 className="h-4 w-4 mr-1" /> Remove the note</Button>
           </section>
         )}
         {!sel && <p className="text-xs text-muted-foreground rounded-xl border p-3">Tap a design to edit it, cook variants of it, or make it in another shape.</p>}
@@ -707,6 +868,16 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
         return f ? <FrameEditor key={f.id} frame={f} marks={marks} onClose={() => setEditing(null)} onSave={async patch => { await saveFrame(f.id, patch); setEditing(null); toast({ title: 'Saved to the board' }); }} /> : null;
       })()}
     </div>
+  );
+}
+
+/** A round button of the board's bars, its name as the tooltip (and for screen readers). */
+function BarButton({ label, onClick, disabled, strong, children }: { label: string; onClick: () => void; disabled?: boolean; strong?: boolean; children: React.ReactNode }) {
+  return (
+    <button type="button" title={label} aria-label={label} disabled={disabled} onClick={onClick}
+      className={cn('flex h-8 min-w-8 shrink-0 items-center justify-center gap-1 rounded-full px-2 text-xs transition-colors disabled:opacity-35', strong ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'hover:bg-muted')}>
+      {children}
+    </button>
   );
 }
 
