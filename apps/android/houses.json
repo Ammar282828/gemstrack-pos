@@ -1,0 +1,12 @@
+{
+  "taheri": {
+    "firebaseAndroidAppId": "",
+    "googleWebClientId": "",
+    "testersGroup": "shop"
+  },
+  "mina": {
+    "firebaseAndroidAppId": "",
+    "googleWebClientId": "",
+    "testersGroup": "shop"
+  }
+}

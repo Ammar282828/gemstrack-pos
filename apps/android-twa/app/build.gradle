@@ -1,0 +1,62 @@
+import groovy.json.JsonSlurper
+
+plugins { id "com.android.application" }
+
+// House facts (URL, label) come from the iPhone app's houses.json so the shells cannot drift.
+def houses = new JsonSlurper().parse(rootProject.file("../iphone/houses.json"))
+
+def keystorePath = System.getenv("ERP_KEYSTORE")
+def keystorePassword = System.getenv("ERP_KEYSTORE_PASSWORD")
+def canSign = keystorePath && keystorePassword
+
+android {
+    namespace = "shop.taheri.erp.twa"
+    compileSdk = 37
+
+    defaultConfig {
+        minSdk = 23
+        targetSdk = 37
+        versionCode = 1
+        versionName = "0.1-web"
+    }
+
+    buildFeatures { resValues = true }
+
+    flavorDimensions += "house"
+    productFlavors {
+        ["taheri", "mina"].each { key ->
+            def h = houses[key]
+            def host = new URI(h.url).host
+            create(key) {
+                dimension = "house"
+                applicationId = h.bundleId
+                manifestPlaceholders = [hostName: host, defaultUrl: h.url + "/"]
+                resValue "string", "app_name", h.homeName
+                resValue "string", "asset_statements",
+                    '[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"web","site":"https://' + host + '"}}]'
+            }
+        }
+    }
+
+    if (canSign) {
+        signingConfigs {
+            release {
+                storeFile = file(keystorePath)
+                storePassword = keystorePassword
+                keyAlias = "upload"
+                keyPassword = keystorePassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled = false
+            if (canSign) signingConfig = signingConfigs.release
+        }
+    }
+}
+
+dependencies {
+    implementation "com.google.androidbrowserhelper:androidbrowserhelper:2.6.2"
+}
