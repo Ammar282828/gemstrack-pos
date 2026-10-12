@@ -82,7 +82,7 @@ export function PublishSheet(props: PublishSheetProps) {
   if (props.open === undefined) return <PublishPanel {...props} />;
   return (
     <Sheet open={props.open} onOpenChange={props.onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto">
+      <SheetContent side="bottom" className="mx-auto max-h-[92dvh] overflow-y-auto sm:max-w-2xl sm:rounded-t-2xl">
         <SheetHeader><SheetTitle>Publish</SheetTitle></SheetHeader>
         <PublishPanel {...props} />
       </SheetContent>

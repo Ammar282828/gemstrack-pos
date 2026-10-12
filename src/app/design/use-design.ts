@@ -17,20 +17,20 @@ import { useToast } from '@/hooks/use-toast';
 import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
 import { reflow, renderDocTo, type Assets, type Fields, type StoryDoc } from '@/lib/social/editor';
 import { PHOTO, applyAdTemplate, blankAd, type AdTemplateId } from '@/lib/ads/studio/templates';
-import { fileKey, type DesignRecord, type DesignSource } from '@/lib/design/model';
+import { ID_OK, fileKey, type DesignRecord, type DesignSource } from '@/lib/design/model';
 import {
   deletePostDraft, listPostDrafts, readPostDraft, savePostDraft, thumbOf, type PostDraft,
 } from '@/lib/social/post-drafts';
 import { authHeaders } from '../ads/ads-kit';
 import { fetchAsset } from '../ads/studio/studio-kit';
+import type { SmartPhoto } from './smart-input';
 import { FONTS } from '../website/post/fonts';
 import { useSiteAssets } from '../website/post/site-assets';
 import {
   addPages, activePage, deserializeWork, displayName, editDoc, fromRecord, isDesignDraft, layOutAll, markSaved, newWork, pageOf, redoFromMaster,
   removePage, serializeWork, setActive, setCopy, setDoc, setFields, setMaster, rename, refile, toInput, toRecordLike,
-  type DesignWork, type NewPage, type NewWork,
+  type DesignWork, type NewPage, type NewWork, type WorkPage,
 } from './design-state';
-import type { ParsedPhoto } from './slots';
 
 /** The role as this page needs it. `adsOk`: owner and marketing (the library, the Board, ads). */
 export function useDesignRole(): { role: ReturnType<typeof roleForEmail>; adsOk: boolean; email: string } {
@@ -53,18 +53,16 @@ export interface StartPhoto {
 export interface StartRequest extends Omit<NewWork, 'fields' | 'source'> {
   fields?: Partial<Fields>;
   photo?: StartPhoto | null;
+  /** Instead of a template: the document each page starts as (a flat ad rebuilt as layers). Called once the marks are in. */
+  compose?: (page: { format: WorkPage['format']; frame: WorkPage['frame'] }) => StoryDoc;
 }
 
-/** A photograph the smart input found, as something to start from. */
-export function startPhotoOf(p: ParsedPhoto): StartPhoto {
+/** A photograph the smart input found, as something to start from (its file is already here). */
+export function startPhotoOf(p: SmartPhoto): StartPhoto {
   return {
-    label: p.ref.startsWith('site:') ? 'From the website' : 'Photo',
-    load: async () => {
-      if (p.blob) return p.blob;
-      if (p.ref.startsWith('site:')) return fetchSitePhoto(p.ref.slice(5));
-      if (p.ref.startsWith('lib:')) return fetchAsset(p.ref.slice(4), 2048);
-      throw new Error('That photograph can’t be fetched from here.');
-    },
+    label: p.from === 'site' ? 'From the website' : p.name || 'Photo',
+    load: async () => p.blob,
+    ...(p.ref?.startsWith('site:') ? { source: { siteId: p.ref.slice(5) } } : {}),
   };
 }
 
@@ -86,12 +84,28 @@ const writeCurrent = (id: string | null) => { try { if (id) localStorage.setItem
 
 const fail = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/** Whether a document draws the photograph with this id (as its background or on a picture layer). */
+const docUses = (d: StoryDoc, id: string): boolean => d.bg.photoId === id || d.layers.some(l => l.kind === 'image' && !l.src && l.photoId === id);
+/** The photographs these documents use besides the main one. */
+const otherPhotoIds = (docs: StoryDoc[]): string[] => {
+  const ids = new Set<string>();
+  for (const d of docs) {
+    if (d.bg.photoId) ids.add(d.bg.photoId);
+    for (const l of d.layers) if (l.kind === 'image' && !l.src) ids.add(l.photoId);
+  }
+  ids.delete(PHOTO);
+  return [...ids].filter(k => ID_OK.test(k));
+};
+
 export function useDesign() {
   const { toast } = useToast();
   const { email } = useDesignRole();
   const [work, setWork] = useState<DesignWork | null>(null);
   const [photo, setPhotoState] = useState<PhotoState | null>(null);
   const [marked, setMarked] = useState(false);
+  /** Photographs beyond the main one: an AI-extended copy a resized page uses. */
+  const [extra, setExtra] = useState<Record<string, PhotoState>>({});
+  const composeRef = useRef<StartRequest['compose'] | null>(null);
   const [starting, setStarting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draftSaved, setDraftSaved] = useState<Date | null>(null);
@@ -103,7 +117,10 @@ export function useDesign() {
   const live = !!work;
   const { marks, ready: marksReady } = useSiteAssets(live);
 
-  const assets: Assets = useMemo(() => ({ photos: photo ? { [PHOTO]: photo.img } : ({} as Assets['photos']), marks, fonts: FONTS }), [photo, marks]);
+  const assets: Assets = useMemo(() => ({
+    photos: { ...Object.fromEntries(Object.entries(extra).map(([k, v]) => [k, v.img])), ...(photo ? { [PHOTO]: photo.img } : {}) } as Assets['photos'],
+    marks, fonts: FONTS,
+  }), [photo, extra, marks]);
   const assetsRef = useRef(assets);
   assetsRef.current = assets;
 
@@ -120,6 +137,17 @@ export function useDesign() {
   const photoRef = useRef<PhotoState | null>(null);
   photoRef.current = photo;
   useEffect(() => () => { if (photoRef.current) URL.revokeObjectURL(photoRef.current.url); }, []);
+  /** A further photograph under this id (the AI-extended one the resize sheet kept). */
+  const addPhoto = useCallback(async (id: string, blob: Blob, label = 'Extended photo') => {
+    const url = URL.createObjectURL(blob);
+    try {
+      const img = await loadImage(url);
+      setExtra(prev => ({ ...prev, [id]: { blob, img, url, label } }));
+    } catch (e) { URL.revokeObjectURL(url); throw e; }
+  }, []);
+  const clearExtra = useCallback(() => setExtra(prev => { for (const v of Object.values(prev)) URL.revokeObjectURL(v.url); return {}; }), []);
+  const extraRef = useRef(extra);
+  extraRef.current = extra;
 
   // ── Laying out ──
   /** A document laid out by a template on a page's frame; anything added by hand stays. */
@@ -128,11 +156,14 @@ export function useDesign() {
     return { ...d, meta: { ...d.meta, template: t } };
   }, [marked]);
 
+  /** A fresh page's first document: the caller's own (a rebuilt flat ad), else the template. */
+  const makePage = (p: WorkPage, w: DesignWork): StoryDoc => composeRef.current?.(p) ?? layOut({ ...blankAd(p.format, p.frame) }, w.template, w.fields);
+
   // A fresh design is laid out once its photo and the house's marks are in.
   useEffect(() => {
     if (!work?.fresh || !marksReady || starting) return;
     if (!photo) return;
-    setWork(w => (w?.fresh ? layOutAll(w, p => layOut({ ...blankAd(p.format, p.frame) }, w.template, w.fields)) : w));
+    setWork(w => (w?.fresh ? layOutAll(w, p => makePage(p, w)) : w));
   }, [work?.fresh, marksReady, photo, starting, layOut]);
 
   // ── Starting, opening, closing ──
@@ -147,6 +178,8 @@ export function useDesign() {
   const start = useCallback(async (req: StartRequest) => {
     setStarting(true);
     try {
+      composeRef.current = req.compose ?? null;
+      clearExtra();
       let blob: Blob | null = null;
       if (req.photo) blob = await req.photo.load();
       if (blob) await setPhoto(blob, req.photo!.label); else setPhotoState(prev => { if (prev) URL.revokeObjectURL(prev.url); return null; });
@@ -161,16 +194,16 @@ export function useDesign() {
       toast({ title: 'Couldn’t start', description: fail(e), variant: 'destructive' });
       return false;
     } finally { setStarting(false); }
-  }, [begin, setPhoto, toast]);
+  }, [begin, setPhoto, clearExtra, toast]);
 
   // A design with no photograph is laid out too.
   useEffect(() => {
     if (!work?.fresh || photo || !marksReady || starting) return;
-    const t = setTimeout(() => setWork(w => (w?.fresh ? layOutAll(w, p => layOut({ ...blankAd(p.format, p.frame) }, w.template, w.fields)) : w)), 0);
+    const t = setTimeout(() => setWork(w => (w?.fresh ? layOutAll(w, p => makePage(p, w)) : w)), 0);
     return () => clearTimeout(t);
   }, [work?.fresh, photo, marksReady, starting, layOut]);
 
-  const close = useCallback(() => { setWork(null); writeCurrent(null); draftId.current = null; }, []);
+  const close = useCallback(() => { setWork(null); writeCurrent(null); draftId.current = null; composeRef.current = null; clearExtra(); }, [clearExtra]);
 
   /** A saved design (or a legacy saved ad), with each page's document and its photograph. */
   const openRecord = useCallback(async (rec: DesignRecord) => {
@@ -190,13 +223,19 @@ export function useDesign() {
       if (!res.ok) res = await get(fileKey('photo', 'main'));
       if (res.ok) await setPhoto(await res.blob(), rec.name); else setPhotoState(prev => { if (prev) URL.revokeObjectURL(prev.url); return null; });
       setMarked(false);
+      composeRef.current = null;
+      clearExtra();
+      for (const id of otherPhotoIds(Object.values(docs))) {
+        const r = await get(fileKey('photo', id));
+        if (r.ok) await addPhoto(id, await r.blob()).catch(() => undefined);
+      }
       const w = fromRecord(rec, docs);
       if (!w) throw new Error('This design can’t be opened.');
       begin(w, null);
     } catch (e) {
       toast({ title: 'Couldn’t open it', description: fail(e), variant: 'destructive' });
     } finally { setStarting(false); }
-  }, [begin, setPhoto, toast]);
+  }, [begin, setPhoto, addPhoto, clearExtra, toast]);
 
   /** A device draft of this page's own (a Post a piece draft is not opened here). */
   const openDraft = useCallback(async (id: string) => {
@@ -208,15 +247,19 @@ export function useDesign() {
       if (!w) throw new Error('That draft can’t be opened.');
       const blob = got.blobs.get(PHOTO);
       if (blob) await setPhoto(blob, got.draft.title); else setPhotoState(prev => { if (prev) URL.revokeObjectURL(prev.url); return null; });
+      composeRef.current = null;
+      clearExtra();
+      const others = got.draft.photos.map(p => p.id).filter(k => k !== PHOTO && got.blobs.has(k));
+      for (const k of others) await addPhoto(k, got.blobs.get(k)!).catch(() => undefined);
       draftId.current = id;
       createdAt.current = got.draft.createdAt;
-      storedPhotos.current = new Set(blob ? [PHOTO] : []);
+      storedPhotos.current = new Set([...(blob ? [PHOTO] : []), ...others]);
       writeCurrent(id);
       setWork(w);
     } catch (e) {
       toast({ title: 'Couldn’t open it', description: fail(e), variant: 'destructive' });
     } finally { setStarting(false); }
-  }, [setPhoto, toast]);
+  }, [setPhoto, addPhoto, clearExtra, toast]);
 
   // The design left open on this device comes back (never over one already open).
   const resumed = useRef(false);
@@ -236,15 +279,17 @@ export function useDesign() {
       if (!w || w.fresh || draftId.current !== id) return;
       const blobs = new Map<string, Blob>();
       if (photo) blobs.set(PHOTO, photo.blob);
+      const more = Object.entries(extraRef.current);
+      for (const [k, v] of more) blobs.set(k, v.blob);
       const draft: PostDraft = {
         id, createdAt: createdAt.current, updatedAt: new Date().toISOString(), title: displayName(w),
-        photos: photo ? [{ id: PHOTO, name: 'photo.jpg', toSite: false, toWhatsApp: false }] : [],
+        photos: [...(photo ? [PHOTO] : []), ...more.map(([k]) => k)].map(k => ({ id: k, name: `${k}.jpg`, toSite: false, toWhatsApp: false })),
         thumb: photo ? await thumbOf(photo.img) : null, state: serializeWork(w) as unknown as Record<string, unknown>,
       };
       try { await savePostDraft(draft, blobs, storedPhotos.current); setDraftSaved(new Date()); } catch { /* storage full or private mode: the design is still on screen */ }
     }, 1500);
     return () => clearTimeout(t);
-  }, [work, photo]);
+  }, [work, photo, extra]);
 
   /** The draft goes once the design is sent on (as Post a piece's does). */
   const finish = useCallback(() => {
@@ -302,6 +347,14 @@ export function useDesign() {
         c.getContext('2d')!.drawImage(a, 0, 0, c.width, c.height);
         form.append(fileKey('photo', PHOTO), await canvasToJpeg(c, 0.9), 'photo.jpg');
       }
+      for (const [k, v] of Object.entries(extraRef.current)) {
+        if (!w.pages.some(p => docUses(p.doc, k))) continue;
+        const c = document.createElement('canvas');
+        const m = Math.min(1, 2048 / Math.max(v.img.naturalWidth, v.img.naturalHeight));
+        c.width = Math.round(v.img.naturalWidth * m); c.height = Math.round(v.img.naturalHeight * m);
+        c.getContext('2d')!.drawImage(v.img, 0, 0, c.width, c.height);
+        form.append(fileKey('photo', k), await canvasToJpeg(c, 0.9), 'photo.jpg');
+      }
       const res = await fetch('/api/design/designs', { method: 'POST', headers: await authHeaders(), body: form });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || `The server answered ${res.status}.`);
@@ -316,6 +369,8 @@ export function useDesign() {
   }, [photo, render, toast]);
 
   return {
+    adoptSaved: (id: string, folder: string | null = null) => setWork(cur => (cur ? markSaved(cur, id, cur.folder ?? folder) : cur)),
+    addPhoto,
     work, photo, assets, marks, marksReady, marked, starting, saving, draftSaved, email, palette: PALETTES[0],
     start, openRecord, openDraft, close, finish, change, onDoc, patchFields, layOut, replacePhoto, render, saveToShop,
     // The pure steps, bound to the work.

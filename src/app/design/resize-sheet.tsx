@@ -240,7 +240,7 @@ export function ResizeSheet({ doc, fields, assets, subject, onCreate, master, ra
         {onClose && <Button type="button" variant="ghost" size="icon" className="h-8 w-8 min-h-0 rounded-full" onClick={onClose} aria-label="Close"><X className="h-4 w-4" /></Button>}
       </div>
 
-      {(Object.keys(SIZE_GROUPS) as SizeGroup[]).map(g => (
+      {(Object.keys(SIZE_GROUPS) as SizeGroup[]).filter(g => g !== 'story').map(g => (
         <div key={g} className="space-y-1.5">
           <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{GROUP_LABEL[g]}</div>
           <div className="flex flex-wrap gap-1.5">

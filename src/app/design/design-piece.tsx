@@ -18,9 +18,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { AlertTriangle, CheckCircle2, ImagePlus, Loader2, ShieldCheck, Sparkles, Upload, Wand2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ImagePlus, Loader2, Scissors, ShieldCheck, Sparkles, Upload, Wand2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Bind } from '@/lib/social/editor';
+import { newImageLayer, type Bind } from '@/lib/social/editor';
+import { blobToDataUrl } from '@/lib/design/publish';
+import { authHeaders } from '../ads/ads-kit';
 import { AD_FORMATS, nearestAiRatio, safeZone } from '@/lib/ads/studio/templates';
 import { VOICE } from '@/lib/ads/studio/brand';
 import { inventedFigures, type CheckVerdict, type CopyResult } from '@/lib/ads/studio/prompts';
@@ -159,6 +161,32 @@ export function PicturesPanel({ design, onAnother }: { design: DesignApi; onAnot
     } finally { setBusy(null); }
   };
 
+  /**
+   * Remove background: the piece cut out of the photograph (Magnific, a PNG with alpha) and laid on this page as a
+   * picture layer, over the house's ground, where the photograph was. Nothing is drawn by the AI, so no same-piece
+   * check; the photograph itself is kept (Layers → hide the piece to see it again, or lay the page out again).
+   */
+  const cutOut = async () => {
+    if (!photo || !page || busy) return;
+    setBusy('cutout'); setCheck(null);
+    try {
+      const form = new FormData();
+      form.append('file', photo.blob, 'photo.jpg');
+      const res = await fetch('/api/design/remove-background', { method: 'POST', headers: await authHeaders(), body: form });
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error || `The cut-out didn’t come (${res.status}).`);
+      const src = await blobToDataUrl(await res.blob());
+      const f = page.frame, pl = page.doc.bg.placement;
+      const ar = photo.img.naturalWidth / photo.img.naturalHeight;
+      const cover = Math.max(f.w, f.h * ar) * (pl.mode === 'fit' ? 1 : Math.max(1, pl.zoom || 1));
+      const dw = cover, dh = cover / ar;
+      const layer = { ...newImageLayer('cutout'), src, x: Math.round((f.w - dw) * (pl.focusX ?? 0.5)), y: Math.round((f.h - dh) * (pl.focusY ?? 0.5)), w: Math.round(dw), h: Math.round(dh), radius: 0, border: null, shadow: false, cutout: true, name: 'Piece' };
+      design.actions.setDoc(page.id, { ...page.doc, bg: { ...page.doc.bg, photoId: null }, layers: [layer, ...page.doc.layers], meta: { ...page.doc.meta } });
+      toast({ title: 'Background removed', description: 'The piece is a layer on the house’s ground. No part of it was redrawn.' });
+    } catch (e) {
+      toast({ title: 'The background wasn’t removed', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    } finally { setBusy(null); }
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3">
@@ -185,8 +213,12 @@ export function PicturesPanel({ design, onAnother }: { design: DesignApi; onAnot
               {busy === x.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}{x.label}
             </Button>
           ))}
+          <Button size="sm" variant="outline" className="h-auto min-h-8 justify-start whitespace-normal py-1 text-left text-xs" disabled={!photo || !!busy} onClick={cutOut} title="Cuts the piece out of its background; nothing is redrawn">
+            {busy === 'cutout' ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Scissors className="mr-1 h-3.5 w-3.5" />}Remove background
+          </Button>
         </div>
-        {busy && <p className="text-[11px] text-muted-foreground">Working on the photograph — {PHOTO_AI.find(x => x.id === busy)?.note.toLowerCase()}…</p>}
+        {busy && busy !== 'cutout' && <p className="text-[11px] text-muted-foreground">Working on the photograph — {PHOTO_AI.find(x => x.id === busy)?.note.toLowerCase()}…</p>}
+        {busy === 'cutout' && <p className="text-[11px] text-muted-foreground">Cutting the piece out — this takes about ten seconds…</p>}
         {check && <p className="text-[11px] text-rose-700 dark:text-rose-300">The check: the piece may have changed — {check.differences.slice(0, 3).join('; ') || 'not the same'}. Your photo stays.</p>}
         <p className="text-[10px] text-muted-foreground">Every result is compared with your photo; one that changed the piece is not used.</p>
       </div>
