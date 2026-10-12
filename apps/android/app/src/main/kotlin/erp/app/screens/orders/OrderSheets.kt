@@ -59,6 +59,8 @@ import erp.core.logic.pakistanE164
 import erp.core.models.Order
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import erp.app.ui.OwnerDeletion
+import erp.app.ui.OwnerDeleteCodeSheet
 
 // The order page's sheets: the undoing moves behind the delete code (OrderUndoSheets.swift), Book courier
 // (OrderCourierSheet), Message the customer (OrderNotifySheet) and Track (OrderTrackingSheet).
@@ -77,7 +79,7 @@ sealed interface OrderThen {
     data object Leave : OrderThen
 }
 
-class OrderUndoAsk(val deletion: OrdersDeletion, val then: OrderThen)
+class OrderUndoAsk(val deletion: OwnerDeletion, val then: OrderThen)
 
 /** The four asks, each built from the order as the screen shows it. The invoice named is the one on screen: the ERP refuses the undo if the order has been invoiced again since. */
 object OrderUndo {
@@ -86,7 +88,7 @@ object OrderUndo {
         val invoiceId = order.invoiceId ?: ""
         val said = OrderActions.undoneNote(order, invoiceId)
         return OrderUndoAsk(
-            OrdersDeletion(OrderActions.undoWhat(order), OrderActions.undoDetail(order), run = { code ->
+            OwnerDeletion(OrderActions.undoWhat(order), OrderActions.undoDetail(order), run = { code ->
                 ErpApi.shared.write("undoOrderInvoice", mapOf("orderId" to order.id, "invoiceId" to invoiceId, "deleteCode" to code))
             }),
             OrderThen.Said(Note(said.first, said.second)),
@@ -97,7 +99,7 @@ object OrderUndo {
     fun unlockAndEdit(order: Order): OrderUndoAsk {
         val invoiceId = order.invoiceId ?: ""
         return OrderUndoAsk(
-            OrdersDeletion(OrderActions.undoWhat(order), OrderActions.unlockDetail(order), run = { code ->
+            OwnerDeletion(OrderActions.undoWhat(order), OrderActions.unlockDetail(order), run = { code ->
                 ErpApi.shared.write("undoOrderInvoice", mapOf("orderId" to order.id, "invoiceId" to invoiceId, "deleteCode" to code))
             }),
             OrderThen.Edit(order.id),
@@ -108,7 +110,7 @@ object OrderUndo {
     fun refund(order: Order): OrderUndoAsk {
         val said = OrderActions.refundedNote(order)
         return OrderUndoAsk(
-            OrdersDeletion(OrderActions.refundWhat(order), OrderActions.refundDetail(order), run = { code ->
+            OwnerDeletion(OrderActions.refundWhat(order), OrderActions.refundDetail(order), run = { code ->
                 // The invoice the screen showed (none: ""), so a refund never takes one it did not say.
                 ErpApi.shared.write("refundOrder", mapOf("orderId" to order.id, "invoiceId" to (order.invoiceId ?: ""), "deleteCode" to code))
             }),
@@ -118,7 +120,7 @@ object OrderUndo {
 
     /** Delete order: with its sample photos; never an invoiced one (the menu says why instead). */
     fun delete(order: Order): OrderUndoAsk = OrderUndoAsk(
-        OrdersDeletion(OrderActions.deleteWhat(order), OrderActions.deleteDetail(order), run = { code ->
+        OwnerDeletion(OrderActions.deleteWhat(order), OrderActions.deleteDetail(order), run = { code ->
             ErpApi.shared.write("deleteOrder", mapOf("orderId" to order.id, "deleteCode" to code))
         }),
         OrderThen.Leave,
@@ -135,7 +137,7 @@ fun OrderUndoHost(ask: OrderUndoAsk?, onClear: () -> Unit) {
     val note = erp.app.ui.LocalNoteState.current
     val navigator = LocalNavigator.current
     if (ask != null) {
-        OrdersDeleteCodeSheet(
+        OwnerDeleteCodeSheet(
             deletion = ask.deletion,
             onDone = { then = ask.then },
             onDismiss = {
@@ -304,7 +306,7 @@ fun OrderNotifySheet(order: Order, onDismiss: () -> Unit, kind: OrderActions.Mes
         onDismiss = onDismiss,
         bottom = { close ->
             Button(
-                onClick = { url?.let { ordersOpen(context, Intent.ACTION_VIEW, it); close() } },
+                onClick = { url?.let { erp.app.device.openAddress(context, Intent.ACTION_VIEW, it); close() } },
                 enabled = url != null,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
@@ -399,7 +401,7 @@ fun OrderTrackingSheet(order: Order, onDismiss: () -> Unit) {
         }
         if (cn.isNotEmpty()) {
             OrdersFormSection {
-                TextButton(onClick = { ordersOpen(context, Intent.ACTION_VIEW, OrderActions.tcsUrl(cn)) }) {
+                TextButton(onClick = { erp.app.device.openAddress(context, Intent.ACTION_VIEW, OrderActions.tcsUrl(cn)) }) {
                     Icon(Icons.Filled.OpenInNew, null, Modifier.size(18.dp))
                     Text("Full tracking on TCS website", Modifier.padding(start = 8.dp))
                 }
@@ -523,7 +525,7 @@ fun OrderLeopardsSheet(order: Order, onDismiss: () -> Unit) {
             ) {
                 val tracking = onFile?.trackingUrl ?: ""
                 if (tracking.isNotEmpty()) {
-                    TextButton(onClick = { ordersOpen(context, Intent.ACTION_VIEW, tracking) }) {
+                    TextButton(onClick = { erp.app.device.openAddress(context, Intent.ACTION_VIEW, tracking) }) {
                         Icon(Icons.Filled.OpenInNew, null, Modifier.size(18.dp))
                         Text("Track $cnOnFile on Leopards", Modifier.padding(start = 8.dp))
                     }

@@ -27,6 +27,9 @@ datastore = "1.2.1"
 webkit = "1.17.1"
 coreKtx = "1.19.1"
 junit = "4.13.2"
+# Screenshot tests on the JVM: Roborazzi records and verifies, Robolectric hosts the Compose UI (4.17 ships Android 17 / SDK 37)
+roborazzi = "1.76.0"
+robolectric = "4.17"
 
 [libraries]
 # Compose: the BOM pins ui, foundation and the adaptive libraries; material3 is set apart (see above)
@@ -76,6 +79,12 @@ mlkit-document-scanner = { module = "com.google.android.gms:play-services-mlkit-
 mlkit-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "mlkitCodeScanner" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" }
+roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose", version.ref = "roborazzi" }
+roborazzi-junit-rule = { module = "io.github.takahirom.roborazzi:roborazzi-junit-rule", version.ref = "roborazzi" }
+compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
+compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -83,4 +92,5 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

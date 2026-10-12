@@ -121,8 +121,7 @@ fun OrderFinalizeScreen(id: String) {
     // The invoice made, it opens in this screen's place.
     LaunchedEffect(made) {
         val invoiceId = made ?: return@LaunchedEffect
-        navigator.back()
-        navigator.open(OrderPaths.invoice(invoiceId))
+        navigator.replace(OrderPaths.invoice(invoiceId))
     }
 
     val s = settings

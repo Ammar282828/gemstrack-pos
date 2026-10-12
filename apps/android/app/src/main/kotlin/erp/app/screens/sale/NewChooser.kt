@@ -46,13 +46,13 @@ import erp.app.ui.LedgerSection
 import erp.app.ui.Radius
 import erp.app.ui.fill
 import erp.app.ui.ledgerRow
-import erp.app.ui.readableColumn
 import erp.app.ui.theme.ErpColors
 import erp.core.entry.EntryHouse
 import erp.core.entry.SaleDraft
 import erp.core.logic.Money
 import erp.core.logic.PricingRates
 import erp.core.logic.calculateProductCosts
+import erp.app.ui.ActionRow
 
 /**
  * The one way into a sale (src/app/new/page.tsx). The decision is the thing you know first: the customer is either
@@ -76,7 +76,7 @@ fun NewChooser() {
     }
 
     Column(
-        Modifier.verticalScroll(rememberScrollState()).readableColumn().padding(16.dp),
+        Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         inProgress?.takeIf { it.lines.isNotEmpty() }?.let { draft ->

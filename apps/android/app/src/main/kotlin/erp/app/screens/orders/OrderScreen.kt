@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.AppClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.auth.LocalSession
+import erp.app.config.House
 import erp.app.data.ErpApi
 import erp.app.data.LocalBook
 import erp.app.data.rememberShelf
@@ -82,8 +84,6 @@ import erp.app.ui.FailureAlert
 import erp.app.ui.HeroAmount
 import erp.app.ui.LedgerHeading
 import erp.app.ui.LocalNoteState
-import erp.app.ui.NoteHost
-import erp.app.ui.rememberNoteState
 import erp.app.ui.ContactActions
 import erp.app.ui.MineTag
 import erp.app.ui.MoneyFeedback
@@ -102,7 +102,6 @@ import erp.app.ui.color
 import erp.app.ui.heroSheen
 import erp.app.ui.isLargeText
 import erp.app.ui.ledgerCard
-import erp.app.ui.readableColumn
 import erp.app.ui.rememberHaptics
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.theme.ErpType
@@ -154,15 +153,10 @@ fun OrderScreen(id: String) {
     rememberShelf(book.karigars)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
     val order = rememberShelfItem(book.orders, id)
-    // The shell does not host the toast yet (LocalNoteState is Inert), so the page keeps its own for Cancel invoice, Refund and the rest.
-    val noteState = rememberNoteState()
-    CompositionLocalProvider(LocalNoteState provides noteState) {
-        Box(Modifier.fillMaxSize().zoomDestination(OrderPaths.order(id))) {
-            ShelfState(loaded = orders.loaded, error = orders.error, offline = orders.offline, connectionLost = connectionLost) {
-                // Read through `items`: the shelf's lookup alone would not redraw on a change.
-                if (order != null) Detail(order) else NotAvailableState("Order not found", why = "$id is not in the book.", icon = Icons.Filled.ListAlt)
-            }
-            NoteHost(noteState)
+    Box(Modifier.fillMaxSize().zoomDestination(OrderPaths.order(id))) {
+        ShelfState(loaded = orders.loaded, error = orders.error, offline = orders.offline, connectionLost = connectionLost) {
+            // Read through `items`: the shelf's lookup alone would not redraw on a change.
+            if (order != null) Detail(order) else NotAvailableState("Order not found", why = "$id is not in the book.", icon = Icons.Filled.ListAlt)
         }
     }
 }
@@ -201,7 +195,7 @@ private fun Detail(order: Order) {
     // What the invoice still has owing, by the hub's own rule (isOwing), so the stage reads the same on both.
     val owed = invoice?.let { if (isOwing(it)) it.balanceDue else 0.0 } ?: 0.0
     val stage = stageOf(order, owed)
-    val now = remember(order, invoice) { Instant.now() }
+    val now = remember(order, invoice) { AppClock.now() }
 
     fun setStatus(status: String) {
         if (updatingStatus) return
@@ -285,7 +279,7 @@ private fun Detail(order: Order) {
 
     Column(Modifier.fillMaxSize()) {
         LazyColumn(
-            Modifier.weight(1f).fillMaxWidth().readableColumn(820.dp),
+            Modifier.weight(1f).fillMaxWidth(), // the 820 column is PlaceScreen's (readableWidth)
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -572,7 +566,7 @@ private fun MoneyCard(order: Order) {
                 if (rates.isNotEmpty()) Text(rates, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 // The shop's margin: owners and staff, never a customer, never in a house that does not cost by gold, and
                 // blurred until tapped (docs/decisions.md "Margin").
-                if (OrdersLogic.marginIsOn(OrdersMargin)) OrdersMarginRow(order)
+                if (OrdersLogic.marginIsOn(House.margin)) OrdersMarginRow(order)
             }
         }
     }
@@ -699,7 +693,7 @@ private fun ActionBar(
         }
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
-    Column(Modifier.fillMaxWidth().readableColumn(820.dp).padding(horizontal = 16.dp, vertical = 8.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         if (isLargeText()) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { buttons(Modifier.fillMaxWidth()) }
         } else {

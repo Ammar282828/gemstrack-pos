@@ -1,5 +1,6 @@
 package erp.app.screens.owner
 
+import erp.app.ui.OwnerDeletion
 import erp.core.logic.Overheads
 import erp.core.logic.RecentlyRemoved
 import erp.core.logic.ShareholderFigures
@@ -41,11 +42,11 @@ class OwnerLogicTests {
     }
 
     @Test fun theDeleteAsksCarryTheirWordsAndFinality() {
-        val ask = ownerAsk("Delete this thing", "Remove it?") { }
+        val ask = OwnerDeletion("Delete this thing", "Remove it?", run = { })
         assertEquals("Delete this thing", ask.what)
         assertEquals("Remove it?", ask.detail)
         assertTrue(ask.final)
-        assertFalse(ownerAsk("Put back", "Maybe", final = false) { }.final)
+        assertFalse(OwnerDeletion("Put back", "Maybe", run = { }, final = false).final)
     }
 
     // MARK: Overheads

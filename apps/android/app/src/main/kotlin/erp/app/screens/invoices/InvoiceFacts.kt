@@ -1,5 +1,6 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.AppClock
 import erp.app.data.ErpApi
 import erp.app.ui.Tone
 import erp.app.ui.toWhatsAppNumber
@@ -84,7 +85,7 @@ object InvoiceFacts {
     const val STALE_DAYS = 30
 
     /** The tone of an invoice's balance: owed amber, red once it is old, credit teal, settled green, a refund quiet. */
-    fun balanceTone(inv: Invoice, now: Instant = Instant.now()): Tone {
+    fun balanceTone(inv: Invoice, now: Instant = AppClock.now()): Tone {
         if (inv.status == InvoiceStatus.refunded) return Tone.quiet
         return when (balanceLine(inv.balanceDue).state) {
             BalanceState.due -> {

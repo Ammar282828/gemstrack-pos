@@ -38,6 +38,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import erp.app.ui.LocalNoteState
+import erp.app.ui.SwipeActions
+import erp.app.ui.RowAction
+import erp.app.ui.OwnerDeleteCodeSheet
+import erp.app.ui.OwnerDeletion
 import erp.app.auth.LocalSession
 import erp.app.data.Connection
 import erp.app.data.LocalBook
@@ -45,9 +50,6 @@ import erp.app.data.rememberShelfStatus
 import erp.app.nav.LocalNavigator
 import erp.app.nav.ScreenActions
 import erp.app.nav.ScreenTitle
-import erp.app.screens.owner.OwnerAsk
-import erp.app.screens.owner.OwnerAskSheet
-import erp.app.screens.owner.ownerAsk
 import erp.app.data.ErpApi
 import erp.app.ui.FigureRow
 import erp.app.ui.FigureTile
@@ -101,12 +103,12 @@ private fun LedgerBoard(path: String) {
     val customers = rememberShelfStatus(book.customers)
     val karigars = rememberShelfStatus(book.karigars)
     val connectionLost by Connection.isOffline.collectAsStateWithLifecycle()
-    val note = rememberScreenNote()
+    val note = LocalNoteState.current
     val id = MoneyPaths.ledgerID(path) ?: ""
     val ready = hisaab.loaded && customers.loaded && karigars.loaded
 
     var adding by remember { mutableStateOf<HisaabEntryMode?>(null) }
-    var deletion by remember { mutableStateOf<OwnerAsk?>(null) }
+    var deletion by remember { mutableStateOf<OwnerDeletion?>(null) }
     var menu by remember { mutableStateOf(false) }
 
     val rows = remember(hisaab.revision, id) { hisaab.items.filter { it.entityId == id } }
@@ -167,10 +169,10 @@ private fun LedgerBoard(path: String) {
                         }
                     } else {
                         cardRows("l", result.lines, { it.id }) { line ->
-                            val delete = MoneyAction("Delete", Icons.Filled.Delete, Tone.problem) { deletion = askToDelete(line.entry) }
+                            val delete = RowAction("Delete", Icons.Filled.Delete, Tone.problem) { deletion = askToDelete(line.entry) }
                             val invoiceId = line.entry.linkedInvoiceId
                             // A row that is an invoice's own balance opens the invoice (the web's link beside it).
-                            MoneySwipe(
+                            SwipeActions(
                                 end = if (onFile) delete else null,
                                 menu = if (onFile) listOf(delete) else emptyList(),
                                 onClick = if (!invoiceId.isNullOrEmpty()) ({ navigator.open(MoneyPaths.invoice(invoiceId)) }) else null,
@@ -205,28 +207,27 @@ private fun LedgerBoard(path: String) {
                 }
             }
         }
-        note.Host()
     }
 
     adding?.let { mode ->
         HisaabEntrySheet(mode, personId = id, personName = name, isCustomer = isCustomer, onDismiss = { adding = null }, onSaved = { note.show(it) })
     }
     deletion?.let { d ->
-        OwnerAskSheet(d, onDismiss = { deletion = null }, onDone = { note.show(Note("Transaction deleted")) })
+        OwnerDeleteCodeSheet(d, onDismiss = { deletion = null }, onDone = { note.show(Note("Transaction deleted")) })
     }
 }
 
 /** The web's confirmation, then the delete code with the delete. A row that follows an invoice's balance is put back by the ERP while the invoice still owes, so the sheet says so. */
-internal fun askToDelete(entry: HisaabEntry): OwnerAsk {
+internal fun askToDelete(entry: HisaabEntry): OwnerDeletion {
     val said = entry.description.ifEmpty { "No description" }
     var detail = "Delete this transaction? “$said”"
     val invoice = entry.linkedInvoiceId
     if (!invoice.isNullOrEmpty()) {
         detail += " It follows the balance of invoice $invoice, so the ERP writes it again while the invoice still owes."
     }
-    return ownerAsk(what = "Delete this ledger entry", detail = detail) { code ->
+    return OwnerDeletion(what = "Delete this ledger entry", detail = detail, run = { code ->
         ErpApi.shared.write("deleteHisaabEntry", mapOf("entryId" to entry.id, "deleteCode" to code))
-    }
+    })
 }
 
 /** Who a ledger is: customer or karigar, their name, and whether the web's page would find them to write on. */

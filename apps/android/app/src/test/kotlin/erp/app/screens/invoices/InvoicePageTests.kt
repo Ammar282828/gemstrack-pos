@@ -75,13 +75,13 @@ class InvoicePageTests {
     }
 
     @Test fun minaShowsNoMarginAndTaheriDoes() {
-        assertTrue(InvoiceWords.showsMargin(InvoiceWords.houseMargin("taheri")))
-        assertFalse(InvoiceWords.showsMargin(InvoiceWords.houseMargin("mina")))
-        assertEquals(MarginSettings.mina, InvoiceWords.houseMargin("mina"))
+        assertTrue(InvoiceWords.showsMargin(erp.app.config.House.marginFor("taheri")))
+        assertFalse(InvoiceWords.showsMargin(erp.app.config.House.marginFor("mina")))
+        assertEquals(MarginSettings.mina, erp.app.config.House.marginFor("mina"))
     }
 
     @Test fun theMarginIsSaidAsAssumedOrCostedAndNeverUntilTapped() {
-        val settings = InvoiceWords.houseMargin("taheri")
+        val settings = erp.app.config.House.marginFor("taheri")
         val noRate = invoiceMargin(invoice(grandTotal = 100_000.0), settings)
         assertTrue(noRate.assumed)
         assertEquals("≈ 10% (no 24k rate given — assumed)", InvoiceWords.marginWords(noRate, settings, percentLabel(noRate)))

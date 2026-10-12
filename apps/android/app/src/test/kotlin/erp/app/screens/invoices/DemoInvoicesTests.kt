@@ -59,8 +59,8 @@ class DemoInvoicesTests {
             }
             inv.paymentHistory.indices.forEach { InvoiceActionWords.deletingPayment(inv, it, inv.paymentHistory[it]) }
             InvoiceActionWords.deletion(inv, invoices, ledgerRows = null)
-            val m = invoiceMargin(inv, InvoiceWords.houseMargin("taheri"))
-            InvoiceWords.marginWords(m, InvoiceWords.houseMargin("taheri"), percentLabel(m))
+            val m = invoiceMargin(inv, erp.app.config.House.marginFor("taheri"))
+            InvoiceWords.marginWords(m, erp.app.config.House.marginFor("taheri"), percentLabel(m))
         }
     }
 }

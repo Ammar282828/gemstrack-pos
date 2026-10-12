@@ -322,14 +322,14 @@ private fun CustomerRows(r: OnlineOrderRow) {
     val context = LocalContext.current
     val dial = OrdersLogic.dialable(r.customer.phone)
     if (dial.isNotEmpty()) {
-        TextButton(onClick = { ordersOpen(context, Intent.ACTION_DIAL, "tel:$dial") }) {
+        TextButton(onClick = { erp.app.device.openAddress(context, Intent.ACTION_DIAL, "tel:$dial") }) {
             Icon(Icons.Filled.Call, null, Modifier.size(18.dp))
             Text(r.customer.phone, Modifier.padding(start = 8.dp))
         }
     }
     val wa = toWhatsAppNumber(r.customer.phone)
     if (wa.isNotEmpty()) {
-        TextButton(onClick = { ordersOpen(context, Intent.ACTION_VIEW, "https://wa.me/$wa") }) {
+        TextButton(onClick = { erp.app.device.openAddress(context, Intent.ACTION_VIEW, "https://wa.me/$wa") }) {
             Icon(Icons.Filled.Chat, null, Modifier.size(18.dp))
             Text("WhatsApp", Modifier.padding(start = 8.dp))
         }

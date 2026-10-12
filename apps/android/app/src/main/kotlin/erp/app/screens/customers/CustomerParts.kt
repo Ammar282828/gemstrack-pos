@@ -29,8 +29,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import erp.app.screens.invoices.InvoiceDeleteCodeSheet
-import erp.app.screens.invoices.InvoiceDeletion
 import erp.app.ui.isLargeText
 import erp.app.ui.ledgerRow
 
@@ -50,17 +48,6 @@ object CustomerLinks {
     fun whatsApp(context: Context, phone: String?) = open(context, Intent.ACTION_VIEW, CustomerKit.whatsAppUri(phone))
     fun message(context: Context, phone: String?) = open(context, Intent.ACTION_SENDTO, CustomerKit.messageUri(phone))
 }
-
-/**
- * One delete waiting for its code (the Owner group's `OwnerDeletion`). The sheet is the Invoices group's, which asks
- * the very same question of the ERP; this is the one place the Customers group names it.
- */
-// TODO(shared): replace with the shared delete-code sheet when merged.
-typealias CustomerDeletion = InvoiceDeletion
-
-@Composable
-fun CustomerDeleteCodeSheet(deletion: CustomerDeletion, onDismiss: () -> Unit, onDone: () -> Unit = {}) =
-    InvoiceDeleteCodeSheet(deletion, onDismiss = onDismiss, onDone = onDone)
 
 /** A label and what it says, the value wrapping at the right (SwiftUI's `LabeledContent`). */
 @Composable

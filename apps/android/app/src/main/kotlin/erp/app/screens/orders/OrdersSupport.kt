@@ -1,9 +1,5 @@
 package erp.app.screens.orders
 
-import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -46,7 +42,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.Public
 import erp.app.config.House
-import erp.app.data.ErpApi
 import erp.app.ui.LedgerHeading
 import erp.app.ui.Tone
 import erp.app.ui.color
@@ -54,22 +49,11 @@ import erp.app.ui.ledgerCard
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.theme.TabularDigits
 import erp.core.logic.Margin
-import erp.core.logic.MarginSettings
 import erp.core.logic.PromiseState
 import erp.core.logic.orderMargin
 import erp.core.models.Order
 import erp.core.models.OrderStatus
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import com.google.firebase.auth.FirebaseAuth
-import erp.app.ErpApp
-import kotlinx.coroutines.tasks.await
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.io.IOException
-import java.util.concurrent.TimeUnit
 
 // The few helpers the Orders screens share. Everything here carries Order(s) in its name, or is private to the
 // group, so it cannot meet another group's helpers (OrdersSupport.swift).
@@ -136,9 +120,6 @@ object OrdersTone {
     }
 }
 
-/** The shop's margin settings for this build's house (core's `EntryHouse` is only set by the entry screens). */
-val OrdersMargin: MarginSettings get() = if (House.id == "mina") MarginSettings.mina else MarginSettings.taheri
-
 /**
  * "Online": an order that came from the website and was confirmed by a person. A quiet label rather than a
  * capsule, so a card keeps to one badge (App/UI/Ledger.swift).
@@ -159,7 +140,7 @@ fun OrdersOnlineBadge(modifier: Modifier = Modifier) {
 @Composable
 fun OrdersMarginRow(order: Order, modifier: Modifier = Modifier) {
     var shown by remember { mutableStateOf(false) }
-    val settings = OrdersMargin
+    val settings = House.margin
     val m: Margin? = if (shown) orderMargin(order, settings = settings) else null
     val tint = when {
         m == null -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -187,15 +168,6 @@ fun OrdersMarginRow(order: Order, modifier: Modifier = Modifier) {
             color = tint,
             textAlign = TextAlign.End,
         )
-    }
-}
-
-/** Opens an address with the phone's own app (dial pad, WhatsApp, browser); nothing happens where there is none. */
-fun ordersOpen(context: Context, action: String, uri: String) {
-    try {
-        context.startActivity(Intent(action, Uri.parse(uri)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-    } catch (e: ActivityNotFoundException) {
-        // No app for it: the button does nothing, as an unopenable link does on the iPhone.
     }
 }
 
@@ -296,48 +268,5 @@ fun OrdersStatusLine(icon: ImageVector, text: String, tone: Tone, modifier: Modi
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
         Icon(icon, null, Modifier.size(20.dp), tint = tone.color())
         Text(text, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = tone.color())
-    }
-}
-
-// MARK: Bytes
-
-/**
- * A file from the ERP as bytes (a slip's picture or PDF). `ErpApi.data` answers text, which would damage a
- * picture: this asks the same address with the same sign-in token and keeps the body whole. Needs an
- * `ErpApi.bytes` in the shell to be deleted (see the Orders report).
- */
-object OrdersHttp {
-    private val client: OkHttpClient by lazy {
-        OkHttpClient.Builder().cache(null).followRedirects(true).followSslRedirects(false)
-            .addNetworkInterceptor { chain ->
-                val u = chain.request().url
-                if (u.scheme != "https" || u.host != House.serverUrl.toHttpUrl().host) throw IOException("Redirected away from the ERP.")
-                chain.proceed(chain.request())
-            }
-            .callTimeout(60, TimeUnit.SECONDS)
-            .build()
-    }
-
-    suspend fun bytes(path: String): ByteArray {
-        if (House.isDemo || !ErpApp.firebaseReady) throw ErpApi.Failure(0, "Not connected to the ERP in the demo.")
-        val url = ErpApi.resolve(House.serverUrl, path) ?: throw ErpApi.Failure(0, "Not an address of this ERP.")
-        val token = try {
-            FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token
-        } catch (e: Exception) {
-            null
-        }
-        val builder = Request.Builder().url(url)
-        if (token != null) builder.header("Authorization", "Bearer $token")
-        return withContext(Dispatchers.IO) {
-            try {
-                client.newCall(builder.build()).execute().use { r ->
-                    val body = r.body.bytes()
-                    if (r.code !in 200..299) throw ErpApi.Failure(r.code, ErpApi.said(String(body, Charsets.UTF_8)) ?: "The ERP answered ${r.code}.")
-                    body
-                }
-            } catch (e: IOException) {
-                throw ErpApi.Failure(0, e.message?.takeIf { it.isNotBlank() } ?: "No connection to the ERP.")
-            }
-        }
     }
 }

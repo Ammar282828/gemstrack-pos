@@ -3,4 +3,6 @@
 <paths>
     <cache-path name="erp_web" path="erp-web/" />
     <cache-path name="capture" path="capture/" />
+    <!-- Files handed to the system share sheet (device/ShareFiles.kt): a bill, a slip, any document -->
+    <cache-path name="erp_share" path="erp-share/" />
 </paths>

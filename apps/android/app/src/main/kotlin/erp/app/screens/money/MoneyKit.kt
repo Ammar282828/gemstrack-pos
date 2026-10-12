@@ -74,6 +74,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import erp.app.ui.SwipeActions
+import erp.app.ui.RowAction
 import erp.app.config.House
 import erp.app.nav.ScreenTitle
 import erp.app.ui.LedgerDivider
@@ -100,7 +102,7 @@ import java.time.ZoneOffset
 // filter of a custom span, and the small controls their forms are made of. Several of these are the shell's own
 // pieces on the iPhone (Form rows, swipe actions, the large sheet); the Android kit does not have them in a shape these
 // screens can share yet, so they are written here.
-// TODO(shared): replace MoneySheet, MoneyAction/MoneySwipe and the date/number fields with the shared kit's when merged.
+// Swipes, the delete code and the note are the shared kit's (RowAction/SwipeActions, OwnerDeleteCodeSheet, LocalNoteState). TODO(shared): MoneySheet and the date/number fields have no equivalent in the kit (its PickerRow/ToggleRow take other arguments) and stay here.
 
 /** The books of money are the owners' (the web hides them from staff), so each screen shows anyone else one line. */
 @Composable
@@ -112,24 +114,6 @@ fun MoneyOwnersOnly(title: String, why: String? = null) {
 object MoneyWords {
     /** The house's own metal for lines that name it ("12.500 g gold"): "silver" in a silver house. */
     val metal: String get() = if (House.metal == "silver") "silver" else "gold"
-}
-
-/** Where a screen says what it did: the app's own note host if there is one, else a host of its own at the screen's top. */
-class ScreenNote(val state: NoteState, val hostHere: Boolean) {
-    fun show(note: Note) = state.show(note)
-}
-
-@Composable
-fun rememberScreenNote(): ScreenNote {
-    val own = LocalNoteState.current
-    val local = rememberNoteState()
-    return remember(own, local) { if (own !== NoteState.Inert) ScreenNote(own, false) else ScreenNote(local, true) }
-}
-
-/** Put last in the screen's Box: the note, when the shell has no host. */
-@Composable
-fun ScreenNote.Host() {
-    if (hostHere) NoteHost(state)
 }
 
 // MARK: Rows in cards
@@ -397,86 +381,6 @@ fun MoneyRangeFields(filter: MoneyCustomRange, onChange: (MoneyCustomRange) -> U
 /** The picker's day with the moment's clock kept, as the iPhone's date box keeps the time of day (a new row is dated now). */
 fun pickedInstant(day: LocalDate, clockFrom: Instant = Instant.now(), zone: ZoneId = ZoneId.systemDefault()): Instant =
     day.atTime(clockFrom.atZone(zone).toLocalTime()).atZone(zone).toInstant()
-
-// MARK: Swipes
-
-/** One thing a row can do: from a swipe, a long press, or TalkBack's actions menu. */
-class MoneyAction(val label: String, val icon: ImageVector, val tone: Tone, val run: () -> Unit)
-
-/**
- * The iPhone's `.swipeActions` and `.contextMenu` in Android's terms: a swipe from the left runs [start], from the
- * right runs [end] (the row springs back, as the iPhone's row does); a long press opens [menu]; TalkBack lists all of
- * them as actions. The content draws its own background so the swipe's colour shows only as it moves.
- */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
-@Composable
-fun MoneySwipe(
-    modifier: Modifier = Modifier,
-    start: MoneyAction? = null,
-    end: MoneyAction? = null,
-    menu: List<MoneyAction> = emptyList(),
-    onClick: (() -> Unit)? = null,
-    content: @Composable () -> Unit,
-) {
-    val haptics = rememberHaptics()
-    val latestStart by rememberUpdatedState(start)
-    val latestEnd by rememberUpdatedState(end)
-    var menuOpen by remember { mutableStateOf(false) }
-    val state = rememberSwipeToDismissBoxState(confirmValueChange = { target ->
-        when (target) {
-            SwipeToDismissBoxValue.StartToEnd -> latestStart?.run?.invoke()
-            SwipeToDismissBoxValue.EndToStart -> latestEnd?.run?.invoke()
-            SwipeToDismissBoxValue.Settled -> Unit
-        }
-        false
-    })
-    val all = (listOfNotNull(start, end) + menu).distinctBy { it.label }
-    SwipeToDismissBox(
-        state = state,
-        modifier = modifier,
-        enableDismissFromStartToEnd = start != null,
-        enableDismissFromEndToStart = end != null,
-        backgroundContent = {
-            val direction = state.dismissDirection
-            val action = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> start
-                SwipeToDismissBoxValue.EndToStart -> end
-                else -> null
-            }
-            if (action != null) {
-                Box(
-                    Modifier.fillMaxSize().background(action.tone.fill()).padding(horizontal = 20.dp),
-                    contentAlignment = if (direction == SwipeToDismissBoxValue.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd,
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(action.icon, contentDescription = null, tint = Color.White)
-                        Text(action.label, color = Color.White, style = MaterialTheme.typography.labelLarge)
-                    }
-                }
-            }
-        },
-    ) {
-        Box(
-            Modifier
-                .combinedClickable(
-                    onClick = { onClick?.invoke() },
-                    onLongClick = if (menu.isEmpty()) null else ({ haptics.selection(); menuOpen = true }),
-                )
-                .semantics { customActions = all.map { a -> CustomAccessibilityAction(a.label) { a.run(); true } } },
-        ) {
-            content()
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                for (a in menu) {
-                    DropdownMenuItem(
-                        text = { Text(a.label, color = if (a.tone == Tone.problem) Tone.problem.color() else Color.Unspecified) },
-                        leadingIcon = { Icon(a.icon, contentDescription = null) },
-                        onClick = { menuOpen = false; a.run() },
-                    )
-                }
-            }
-        }
-    }
-}
 
 /** A swipe or a menu that names its words for TalkBack; here so a row's own description is not repeated. */
 fun Modifier.described(text: String): Modifier = semantics { contentDescription = text }

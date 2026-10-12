@@ -2,7 +2,6 @@ package erp.app.screens.orders
 
 import android.content.Intent
 import android.graphics.BitmapFactory
-import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -53,7 +52,7 @@ import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.theme.TabularDigits
-import erp.app.web.Files
+import erp.app.data.ErpApi
 import erp.core.logic.Money
 import erp.core.models.Order
 import erp.core.models.WebsiteSlip
@@ -174,7 +173,7 @@ fun OnlineConfirmSheet(row: OnlineOrderRow, onDismiss: () -> Unit, openOrder: (S
                 OnlineBottomButton("Confirm", Icons.Filled.Check, busy, disabled = refused != null || (preview == null && problem == null)) { confirm() }
             } else if (bankUrl != null) {
                 OnlineBottomButton("Send bank details on WhatsApp", Icons.Filled.Send, busy = false, disabled = false) {
-                    ordersOpen(context, Intent.ACTION_VIEW, bankUrl)
+                    erp.app.device.openAddress(context, Intent.ACTION_VIEW, bankUrl)
                 }
             }
         },
@@ -404,19 +403,19 @@ fun OnlineMoveSheet(order: Order, kind: OnlineMoveKind, onDismiss: () -> Unit, d
 fun OnlineSlipSheet(orderId: String, slip: WebsiteSlip, onDismiss: () -> Unit) {
     val context = LocalContext.current
     var bitmap by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
-    var pdf by remember { mutableStateOf<android.net.Uri?>(null) }
+    var pdf by remember { mutableStateOf<ByteArray?>(null) }
     var failure by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(orderId, slip.id) {
         val path = "/api/website/orders/${OnlineOrdersLogic.component(orderId)}/slips/${OnlineOrdersLogic.component(slip.id)}"
         try {
-            val data = OrdersHttp.bytes(path)
+            val data = ErpApi.shared.bytes(path, timeoutMs = 60_000)
             val picture = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { BitmapFactory.decodeByteArray(data, 0, data.size) }
             if (picture != null) {
                 bitmap = picture.asImageBitmap()
             } else {
-                // Kept in the cache only; the share sheet opens it.
-                pdf = Files.write(context, mapOf("path" to "$orderId-slip.pdf", "data" to Base64.encodeToString(data, Base64.NO_WRAP)))
+                // Written to the share cache only when opened; the sheet's viewer picker shows it.
+                pdf = data
             }
         } catch (e: CancellationException) {
             throw e
@@ -433,8 +432,7 @@ fun OnlineSlipSheet(orderId: String, slip: WebsiteSlip, onDismiss: () -> Unit) {
             file != null -> OrdersFormSection(title = "A PDF slip", footer = "Open it from the share sheet.") {
                 OutlinedButton(
                     onClick = {
-                        val view = Intent(Intent.ACTION_VIEW).setDataAndType(file, "application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        context.startActivity(Intent.createChooser(view, "Open the PDF").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        erp.app.device.viewFile(context, file, "$orderId-slip.pdf", "application/pdf", "Open the PDF")
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {

@@ -1,5 +1,6 @@
 package erp.app.data
 
+import erp.app.ui.AppClock
 import erp.app.ErpApp
 import erp.core.ERPDate
 import erp.core.Json
@@ -15,7 +16,7 @@ import java.time.Instant
 object Demo {
     private val collections: Map<String, List<Map<String, Any?>>> by lazy {
         val text = runCatching { ErpApp.instance.assets.open("demo.json").bufferedReader().use { it.readText() } }.getOrNull()
-        if (text == null) emptyMap() else parse(text, Instant.now())
+        if (text == null) emptyMap() else parse(text, AppClock.now())
     }
 
     @Suppress("UNCHECKED_CAST")

@@ -24,6 +24,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import erp.core.swiftRounded
 
 /**
  * New sale's own rules: where its routes match, what a path asks, how a SKU becomes a link, what this phone keeps,
@@ -93,10 +94,10 @@ class SaleScreensTest {
     }
 
     @Test fun halvesGoAwayFromZero() {
-        assertEquals(3.0, awayRounded(2.5))
-        assertEquals(-3.0, awayRounded(-2.5))
-        assertEquals(10.0, awayRounded(9.6))
-        assertEquals(0.0, awayRounded(0.4))
+        assertEquals(3.0, swiftRounded(2.5))
+        assertEquals(-3.0, swiftRounded(-2.5))
+        assertEquals(10.0, swiftRounded(9.6))
+        assertEquals(0.0, swiftRounded(0.4))
     }
 
     // What the phone keeps

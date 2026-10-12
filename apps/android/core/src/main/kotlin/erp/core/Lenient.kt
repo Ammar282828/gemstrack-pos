@@ -135,7 +135,7 @@ internal fun numberText(d: Double): String? {
 }
 
 /** Swift's `.rounded()`: schoolbook, a half goes away from zero (not Math.round, not half-even). */
-internal fun swiftRounded(x: Double): Double {
+fun swiftRounded(x: Double): Double {
     if (!x.isFinite()) return x
     val t = if (x < 0) ceil(x) else floor(x)
     return if (abs(x - t) >= 0.5) t + (if (x < 0) -1.0 else 1.0) else t

@@ -88,8 +88,6 @@ import erp.app.ui.MoneyRow
 import erp.app.ui.Monogram
 import erp.app.ui.MonogramSize
 import erp.app.ui.Note
-import erp.app.ui.NoteHost
-import erp.app.ui.NoteState
 import erp.app.ui.NotAvailableState
 import erp.app.ui.PaidRing
 import erp.app.ui.PaymentCustomer
@@ -100,6 +98,8 @@ import erp.app.ui.QuickAction
 import erp.app.ui.RowAmount
 import erp.app.ui.ShelfState
 import erp.app.ui.ShopDate
+import erp.app.ui.RowAction
+import erp.app.ui.SwipeActions
 import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.app.ui.fill
@@ -107,8 +107,6 @@ import erp.app.ui.isLargeText
 import erp.app.ui.ledgerCard
 import erp.app.ui.heroSheen
 import erp.app.ui.minus
-import erp.app.ui.readableColumn
-import erp.app.ui.rememberNoteState
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.theme.ErpType
 import erp.app.ui.theme.TabularDigits
@@ -133,6 +131,8 @@ import erp.core.models.InvoiceStatus
 import erp.core.models.Payment
 import erp.core.models.PaymentType
 import erp.core.logic.Money
+import erp.app.ui.OwnerDeletion
+import erp.app.ui.OwnerDeleteCodeSheet
 
 /** The invoice's own actions, each a sheet. */
 private enum class InvoiceAct { Discount, Payment, Refund, Delete }
@@ -193,8 +193,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
     val canPay = InvoiceFacts.mayTakePayments(role)
     val owner = session.isOwner
     val byCustomer = session.shop.invoiceByCustomer
-    val own = LocalNoteState.current
-    val note = if (own !== NoteState.Inert) own else rememberNoteState()
+    val note = LocalNoteState.current
 
     var paying by remember { mutableStateOf<Invoice?>(null) }
     var sending by remember { mutableStateOf<Invoice?>(null) }
@@ -203,7 +202,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
     var acting by remember { mutableStateOf<InvoiceAct?>(null) }
     var allPieces by rememberSaveable(inv.id) { mutableStateOf(false) }
     // A payment swiped away: the delete code is asked for it straight away.
-    var paymentAsk by remember { mutableStateOf<Pair<InvoiceDeletion, InvoiceActionOutcome>?>(null) }
+    var paymentAsk by remember { mutableStateOf<Pair<OwnerDeletion, InvoiceActionOutcome>?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
 
     val owing = isOwing(inv)
@@ -238,7 +237,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
                 InvoiceFacts.shareUrl(inv, House.serverUrl)?.let { link ->
                     item("Customer link", Icons.Filled.Link, false) {
                         val words = InvoiceFacts.shareMessage(inv, session.shop.name, byCustomer)
-                        InvoicePdfShare.shareText(context, InvoiceFacts.shareTitle(inv, byCustomer), "$words\n\n$link")
+                        erp.app.device.shareText(context, InvoiceFacts.shareTitle(inv, byCustomer), "$words\n\n$link")
                     }
                 }
                 HorizontalDivider()
@@ -262,7 +261,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             LazyColumn(
-                Modifier.weight(1f).fillMaxWidth().readableColumn(),
+                Modifier.weight(1f).fillMaxWidth(), // the page's column is PlaceScreen's (readableWidth: 820)
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
@@ -307,7 +306,6 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
             openWeb = { _, doing -> openWeb(doing) },
             sent = { say(it) },
         )
-        if (own === NoteState.Inert) NoteHost(note)
     }
 
     paying?.let { picked ->
@@ -322,7 +320,7 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
         null -> Unit
     }
     paymentAsk?.let { (deletion, outcome) ->
-        InvoiceDeleteCodeSheet(deletion, onDismiss = { paymentAsk = null }, onDone = { acted(outcome) })
+        OwnerDeleteCodeSheet(deletion, onDismiss = { paymentAsk = null }, onDone = { acted(outcome) })
     }
     pdf?.let { InvoicePdfDialog(it, onDismiss = { pdf = null }) }
 }
@@ -706,7 +704,7 @@ private fun LinkRow(label: String, value: String, onClick: () -> Unit) {
 /** The shop's margin (owners and staff; blurred until tapped) and the note nobody but the shop reads. */
 @Composable
 private fun ShopCard(inv: Invoice, role: String) {
-    val settings = InvoiceWords.houseMargin()
+    val settings = House.margin
     // The margin is the shop's own (lib/margin.ts): owners and staff see it, never a customer.
     val showsMargin = InvoiceWords.showsMargin(settings) && (role == "owner" || role == "staff")
     val shopNote = (inv.internalNote ?: "").trim()

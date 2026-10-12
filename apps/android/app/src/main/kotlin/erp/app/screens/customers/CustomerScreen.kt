@@ -42,6 +42,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import erp.app.ui.OwnerDeleteCodeSheet
+import erp.app.ui.OwnerDeletion
 import erp.app.auth.LocalSession
 import erp.app.config.House
 import erp.app.data.Connection
@@ -144,7 +146,7 @@ fun CustomerScreen(id: String) {
     val customer = customers.items.firstOrNull { it.id == id } ?: seed
     val loaded = seed != null || (customers.loaded && invoices.loaded && orders.loaded && repairs.loaded && (!owner || hisaabLoaded))
     val failure = customers.error ?: invoices.error ?: orders.error ?: repairs.error ?: (if (owner) hisaabError else null)
-    var deletion by remember { mutableStateOf<CustomerDeletion?>(null) }
+    var deletion by remember { mutableStateOf<OwnerDeletion?>(null) }
 
     ScreenTitle(customer?.let { CustomerKit.shown(it) } ?: "Customer")
     ScreenActions {
@@ -180,7 +182,7 @@ fun CustomerScreen(id: String) {
         var detail = if (stays == "nothing") "$name will be hidden from the lists." else "$name will be hidden from the lists. Their $stays stay where they are."
         if (f.owing.total > 0.5) detail += " They still owe ${Money.pkr(f.owing.total)}."
         detail += " Settings, then Recently removed, puts them back."
-        deletion = CustomerDeletion("Delete customer $name", detail, final = false, run = { code ->
+        deletion = OwnerDeletion("Delete customer $name", detail, final = false, run = { code ->
             ErpApi.shared.write("removeCustomer", mapOf("customerId" to c.id, "deleteCode" to code))
             note.show(Note("$name removed", "Settings, then Recently removed, puts them back."))
         })
@@ -200,7 +202,7 @@ fun CustomerScreen(id: String) {
         }
         if (own === NoteState.Inert) NoteHost(note)
     }
-    deletion?.let { CustomerDeleteCodeSheet(it, onDismiss = { deletion = null }) }
+    deletion?.let { OwnerDeleteCodeSheet(it, onDismiss = { deletion = null }, onDone = {}) }
 }
 
 @Composable
