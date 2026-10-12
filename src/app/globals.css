@@ -53,44 +53,77 @@ body {
 }
 
 @layer base {
+  /* THE APP'S PALETTE (docs/features/web-matches-app.md a.1). Four values per house and mode come
+     straight from the iPhone app's Assets.xcassets (Ground, Card, Accent, OnAccent) and a vitest
+     (lib/tones.test.ts) keeps the two copies equal. The rest are the web's equivalents of iOS's
+     system fills.
+
+     Taheri light: a grey ground #F2F3F6, white cards, and the deep gold #8A6B42 as the accent
+     (it was a near-black navy). CONTRAST: #8A6B42 is 4.9:1 on a card but ~4.4:1 on the ground, so
+     accent text under 17px/semibold goes on cards, not on the ground, or uses --foreground. Page
+     titles are --foreground; only controls and chosen states are the accent.
+
+     Cards have no border and no shadow: tone separates them (Card, ui/card.tsx). */
   :root, .theme-default {
-    /* Neutrals carry a trace of the 220 brand hue rather than being pure
-       white, and the page sits a shade below the cards so a card lifts off
-       the surface instead of relying on its border alone. */
-    --background: 220 30% 99.4%;
-    --foreground: 224 71.4% 4.1%;
+    --background: 225 18% 95.7%;
+    --foreground: 0 0% 0%;
     --card: 0 0% 100%;
-    --card-foreground: 224 71.4% 4.1%;
+    --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71.4% 4.1%;
-    --primary: 220.9 39.3% 11%;
-    --primary-foreground: 210 20% 98%;
-    --secondary: 220 14.3% 95.9%;
-    --secondary-foreground: 220.9 39.3% 11%;
-    --muted: 220 14.3% 95.9%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 34 35% 40%;
+    --primary-foreground: 0 0% 100%;
+    /* iOS's tertiary fill: chips, tracks, hover. */
+    --secondary: 240 6% 93%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 240 6% 93%;
+    /* The web keeps its AA grey: iOS's secondary label at 60% is ~3.5:1 on white. */
     --muted-foreground: 220 8.9% 46.1%;
-    --accent: 220 14.3% 95.9%;
-    --accent-foreground: 220.9 39.3% 11%;
-    --destructive: 0 84.2% 60.2%;
+    --accent: 240 6% 93%;
+    --accent-foreground: 0 0% 0%;
+    /* Red / green / amber in light are the tones' INKS, so white on the fill passes and a word in
+       the colour reads on white. They keep their names (230 uses of success / warning). */
+    --destructive: 354 100% 42%;
     --destructive-foreground: 210 20% 98%;
-    /* Paid / done / on-track and late / at-risk. Pitched at the brightness of
-       the green-500/600 and yellow-500 these replaced — the punch is the point.
-       They read as status, not as body copy; anything small and grey-on-white
-       uses --muted-foreground instead. */
-    --success: 142 71% 40%;
+    --success: 136 58% 34%;
     --success-foreground: 140 60% 99%;
-    --warning: 38 94% 42%;
+    --warning: 19 100% 39%;
     --warning-foreground: 40 60% 99%;
+    /* A field's outline only; cards get none. */
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 224 71.4% 4.1%;
+    /* List dividers: iOS's opaque separator (#C6C6C8). */
+    --separator: 240 2% 78%;
+    --ring: 34 35% 40%;
     --radius: 0.75rem;
-    --chart-1: 220.9 39.3% 11%;
+    --chart-1: 34 35% 40%;
     --chart-2: 160 60% 45%;
     --chart-3: 35.2 91.4% 58.4%;
     --chart-4: 280.7 80% 59.8%;
     --chart-5: 340.8 82.2% 61.6%;
-    
+
+    /* The app's Tone (lib/tones.ts): a fill (tints, bars, icons) and an ink (text, small icons).
+       Apple's system colours and their accessible variants. Both houses wear the same set. */
+    --tone-late: 3 100% 59%;      --tone-late-ink: 354 100% 42%;
+    --tone-owed: 35 100% 50%;     --tone-owed-ink: 19 100% 39%;
+    --tone-settled: 135 59% 49%;  --tone-settled-ink: 136 58% 34%;
+    --tone-credit: 189 63% 48%;   --tone-credit-ink: 190 100% 30%;
+    --tone-working: 211 100% 50%; --tone-working-ink: 224 100% 43%;
+    --tone-quiet: var(--muted-foreground);  --tone-quiet-ink: var(--muted-foreground);
+    --tone-house: var(--primary);           --tone-house-ink: var(--primary);
+
+    /* The app's shapes. Capsules (buttons, chips, pills, tab bar, search) are rounded-full.
+       --radius stays: it drives rounded-lg/md/sm of components that were not touched. */
+    --r-card: 1.375rem;      /* ledgerCard, FigureTile, dashboard cards */
+    --r-card-sm: 1.25rem;    /* a standalone order card */
+    --r-tile: 0.875rem;      /* QuickAction */
+    --r-leaf: 0.625rem;      /* DateLeaf, a need row's icon tile */
+    --r-control: 0.75rem;    /* form fields */
+    --r-window: 1.75rem;     /* sheets and dialogs */
+    /* The phone's tab bar, and the room the floating create buttons need above it (c.2). */
+    --tabbar-h: calc(49px + env(safe-area-inset-bottom));
+    --fab-clear: 76px;
+
     /* Unified sidebar variables, default to main theme colors */
     --sidebar-background: var(--background);
     --sidebar-foreground: var(--foreground);
@@ -129,14 +162,15 @@ body {
      The ramp is the one the light palette uses: the page sits below the cards, so a
      card lifts off the surface instead of relying on its border. */
   .dark {
-    --background: 180 24% 5%;
-    --foreground: 40 14% 96%;
-    --card: 185 15% 9%;
-    --card-foreground: 40 14% 96%;
-    --popover: 185 15% 9%;
-    --popover-foreground: 40 14% 96%;
-    --primary: 34 36% 60%;
-    --primary-foreground: 180 30% 6%;
+    --background: 180 26% 5.3%;
+    /* System white, as the app (it was a warm off-white, 40 14% 96%). */
+    --foreground: 0 0% 100%;
+    --card: 180 13% 9%;
+    --card-foreground: 0 0% 100%;
+    --popover: 180 13% 9%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 34 36% 60.4%;
+    --primary-foreground: 180 29% 6.1%;
     --secondary: 185 12% 15%;
     --secondary-foreground: 40 10% 92%;
     --muted: 185 12% 15%;
@@ -154,13 +188,21 @@ body {
     /* The storefront rules its sections with white at 10%; this is that, opaque. */
     --border: 185 10% 19%;
     --input: 185 10% 19%;
-    --ring: 34 36% 60%;
+    --separator: 240 2% 22%;
+    --ring: 34 36% 60.4%;
     --radius: 0.75rem;
-    --chart-1: 34 36% 60%;
+    --chart-1: 34 36% 60.4%;
     --chart-2: 178 40% 46%;
     --chart-3: 28 48% 68%;
     --chart-4: 340 42% 62%;
     --chart-5: 205 38% 58%;
+
+    /* In dark the ink is the fill: the system colours are already bright enough to read. */
+    --tone-late: 4 100% 61%;      --tone-late-ink: 4 100% 61%;
+    --tone-owed: 37 100% 52%;     --tone-owed-ink: 37 100% 52%;
+    --tone-settled: 135 64% 51%;  --tone-settled-ink: 135 64% 51%;
+    --tone-credit: 189 72% 56%;   --tone-credit-ink: 189 72% 56%;
+    --tone-working: 211 100% 52%; --tone-working-ink: 211 100% 52%;
 
     --sidebar-background: var(--background);
     --sidebar-foreground: var(--foreground);
@@ -188,14 +230,14 @@ body {
        saturation so the ground reads as wine, not as red; the rose is the only
        saturated colour, so buttons and headings carry it. Destructive is brick
        (hue 8) so it never reads as the rose. */
-    --background: 345 24% 9%;
-    --foreground: 20 22% 94%;
-    --card: 345 21% 12.5%;
-    --card-foreground: 20 22% 94%;
-    --popover: 345 21% 12.5%;
-    --popover-foreground: 20 22% 94%;
-    --primary: 352 52% 76%;
-    --primary-foreground: 345 32% 11%;
+    --background: 344 24% 8.8%;
+    --foreground: 0 0% 100%;
+    --card: 343 22% 12.5%;
+    --card-foreground: 0 0% 100%;
+    --popover: 343 22% 12.5%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 352 59% 77.8%;
+    --primary-foreground: 343 32% 11%;
     --secondary: 345 16% 18%;
     --secondary-foreground: 20 16% 90%;
     --muted: 345 16% 18%;
@@ -210,8 +252,9 @@ body {
     --warning-foreground: 40 60% 10%;
     --border: 345 14% 22%;
     --input: 345 14% 22%;
-    --ring: 352 52% 76%;
-    --chart-1: 352 52% 76%;
+    --separator: 343 12% 24%;
+    --ring: 352 59% 77.8%;
+    --chart-1: 352 59% 77.8%;
     --chart-2: 36 45% 62%;
     --chart-3: 190 30% 58%;
     --chart-4: 290 22% 66%;
@@ -231,12 +274,28 @@ body {
 
 
 
-  /* Mina's light theme: the shared light palette, with Mina's own maroon — the ink
-     of its wordmark, #380000 — where Taheri's light theme has its near-black navy
-     (buttons, headings, focus rings). Was Taheri's navy on both houses. */
+  /* Mina's light theme, its own neutrals (it used to inherit Taheri's): the app's cream ground
+     #F4EFE8, #FFFDF9 cards, and Mina's maroon — the ink of its wordmark, #380000 — as the accent.
+     Re-declared whole because the body carries both `theme-default` and `brand-mina`, and this
+     block (two classes) must beat `.theme-default` (one) for every token it names. */
   .brand-mina.theme-default {
+    --background: 35 35% 93.3%;
+    --foreground: 0 0% 0%;
+    --card: 40 100% 98.8%;
+    --card-foreground: 0 0% 0%;
+    --popover: 40 100% 98.8%;
+    --popover-foreground: 0 0% 0%;
     --primary: 0 100% 11%;
     --primary-foreground: 0 20% 98%;
+    --secondary: 35 20% 89%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 35 20% 89%;
+    --muted-foreground: 30 8% 42%;
+    --accent: 35 20% 89%;
+    --accent-foreground: 0 0% 0%;
+    --border: 35 20% 86%;
+    --input: 35 20% 86%;
+    --separator: 35 15% 80%;
     --ring: 0 100% 11%;
     --chart-1: 0 100% 11%;
   }
@@ -260,8 +319,10 @@ body {
     -moz-osx-font-smoothing: grayscale;
   }
   /* Ensure elegant typography by default */
+  /* The app's headings are semibold and untracked (the old rule was bold and tight); Safari applies
+     SF's own tracking to system-ui text. */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-bold tracking-tight;
+    @apply font-semibold;
   }
   h1 { @apply text-3xl; }
   h2 { @apply text-2xl; }
@@ -330,10 +391,11 @@ body {
    not the phone's own setting. <html> carries `.dark` only on the dark palette. */
 html { color-scheme: light; }
 html.dark { color-scheme: dark; }
-html.boot-light { background-color: hsl(220 30% 99.4%); }
-html.boot-dark  { background-color: hsl(180 24% 5%); }
-/* Mina's dark ground, so its first paint is maroon-black, not Taheri's green-black. */
-html[data-brand="mina"].boot-dark { background-color: hsl(345 24% 9%); }
+html.boot-light { background-color: hsl(225 18% 95.7%); }
+html.boot-dark  { background-color: hsl(180 26% 5.3%); }
+/* Mina's own grounds, so its first paint is cream or maroon-black, not Taheri's grey or green-black. */
+html[data-brand="mina"].boot-light { background-color: hsl(35 35% 93.3%); }
+html[data-brand="mina"].boot-dark { background-color: hsl(344 24% 8.8%); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Liquid Glass — Settings → Appearance → Interface style (the owner, 2026-09-27:
@@ -401,9 +463,11 @@ html.ui-glass {
   --r-popover: 1rem;
   --window-pad: 1.25rem;
   /* The content layer is not glass, but its shapes follow: cards and fields
-     rounder, so a 0.5rem card doesn't sit beside a 1.75rem pane. */
-  --r-card: 1rem;
-  --r-control: 0.625rem;
+     rounder, so a 0.5rem card doesn't sit beside a 1.75rem pane. Since 2026-10-12 these are the
+     app's own 22 / 12 (they were 16 / 10): glass is the app's look, and a 1rem card beside the
+     app's 22px card would be the one visible difference. They equal the base values in :root. */
+  --r-card: 1.375rem;
+  --r-control: 0.75rem;
 }
 html.ui-glass.dark {
   --glass-a: 0.56;
@@ -721,13 +785,11 @@ html.ui-glass .glass-toolbar { border-radius: var(--r-bar); }
 
 /* ── The content layer's shapes (not glass — HIG keeps content as content —
       but Apple's geometry, so the two layers agree). Buttons are capsules;
-      large ones (44 px and up) rounded rectangles, as the system's are; a
+      (since 2026-10-12 the 44 px default is a capsule too, as the app's is; only a
       button drawn as a field (left-aligned, a picker's trigger) takes the
       field's corner; the halves of a split button keep their shared edge.
       Fields and cards rounder; in-page tabs a pill, like the top bar's. ─────── */
 html.ui-glass .btn:not([class*="rounded-r-none"]):not([class*="rounded-l-none"]) { border-radius: 9999px; }
-html.ui-glass .btn[class~="h-11"]:not([class*="rounded-r-none"]):not([class*="rounded-l-none"]),
-html.ui-glass .btn[class~="h-12"]:not([class*="rounded-r-none"]):not([class*="rounded-l-none"]),
 html.ui-glass .btn[class*="justify-start"]:not([class*="rounded-r-none"]):not([class*="rounded-l-none"]) { border-radius: 0.875rem; }
 html.ui-glass .btn[class*="rounded-r-none"] { border-radius: 9999px 0 0 9999px; }
 html.ui-glass .btn[class*="rounded-l-none"] { border-radius: 0 9999px 9999px 0; }
@@ -814,3 +876,69 @@ html.ui-glass .glass-fab:active { transform: scale(0.94); }
    tabs carries them as a second row (app-layout.tsx), 2.75rem under the 3.5rem bar. */
 .app-inset { --app-header-h: 3.5rem; }
 @media (max-width: 767px) { .app-inset.has-page-tabs { --app-header-h: 6.25rem; } }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The app look (docs/features/web-matches-app.md, 2026-10-12)
+
+   `body.app-look` is a constant class from layout.tsx (the same on the server and every client
+   render, so nothing hydrates differently). The palette, radii and tones live in the blocks at the
+   top; what is structural and would have to be switched off together lives here. Remove the class
+   and these revert.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Fields inside an inset-rows card (LedgerSection, the app's grouped Form rows) are filled, not
+   outlined; a bare field elsewhere keeps its border. */
+body.app-look .ledger-rows .ui-field {
+  border-color: transparent;
+  background-color: hsl(var(--muted) / 0.7);
+}
+body.app-look .ledger-rows .ui-field:focus-visible,
+body.app-look .ledger-rows .ui-field:focus {
+  --tw-ring-offset-width: 0px;
+}
+
+/* A dialog on a phone is a sheet rising from the bottom (the app's .sheet): rounded top, a grabber,
+   the sheet curve at 300ms. Standard look only: Liquid Glass keeps its floating inset window.
+   An alert (AlertDialog) is not a sheet and stays a centred alert. The closing animation is
+   declared too, so Radix still waits for it and the dialog lingers rather than vanishing. */
+@media (max-width: 767px) {
+  html:not(.ui-glass) body.app-look .dialog-sheet {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    width: 100%;
+    max-width: none;
+    max-height: 92dvh;
+    transform: none;
+    border-width: 1px 0 0;
+    border-radius: var(--r-window) var(--r-window) 0 0;
+    padding-top: 1.75rem;
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  }
+  html:not(.ui-glass) body.app-look .dialog-sheet::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    width: 36px;
+    height: 5px;
+    margin-left: -18px;
+    border-radius: 9999px;
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+  html:not(.ui-glass) body.app-look .dialog-sheet[data-state="open"] {
+    animation: dialog-sheet-in 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  html:not(.ui-glass) body.app-look .dialog-sheet[data-state="closed"] {
+    animation: dialog-sheet-out 200ms cubic-bezier(0.4, 0, 1, 1) both;
+  }
+}
+@keyframes dialog-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes dialog-sheet-out {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}

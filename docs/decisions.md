@@ -36,6 +36,31 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   batch (a karigar's), Extra revenue, Bank accounts, Studio; never the Shopify note strings (`POS Invoice`, `POS-DISCOUNT`,
   `POS Item`).
 
+### Web matches the app
+
+- **The web ERP wears the iPhone/iPad app's look** (owner, 2026-10-12: "re-skin the web ERP to match the native app as much as
+  possible"; the spec is `docs/features/web-matches-app.md`, built in six work packages; this entry is WP-A, the tokens and
+  primitives). **Dark was already the app's palette; light is new.** Per house and mode the four colours (ground, card, accent,
+  on-accent) are the app's `Assets.xcassets` values and `lib/tones.test.ts` keeps the two copies equal: Taheri light is a grey
+  `#F2F3F6` ground, white cards and a **deep gold `#8A6B42` accent (it was near-black navy)**; Mina light has its own cream
+  neutrals (`#F4EFE8`, `#FFFDF9`, maroon `#380000`) instead of inheriting Taheri's. **Dark-mode text is system white**
+  (`0 0% 100%`), not each house's warm off-white. The houses are still the body's `brand-<house>` class and the variables: no
+  fork. **Cards are flat** (22px, no border, no shadow; tone separates them), buttons, chips and tabs are capsules, fields 12px,
+  sheets 28px, menus and popovers 14px; headings are semibold and untracked; **colour means something** (`lib/tones.ts`:
+  late red, owed amber, settled green, credit teal, working blue; text uses the `-ink` variant, fills the base), and one badge at
+  most per card. **Accent text under 17px/semibold goes on cards, not on the ground** (`#8A6B42` is 4.4:1 on the grey), and page
+  titles are the label colour, not the accent. Light `--destructive`/`--success`/`--warning` are now the tones' inks.
+  Structural rules hang on a constant `app-look` body class; `ledger-rows` marks an inset-rows card whose fields are filled.
+  **Dark text white, tables stay at `lg+`, phone Settings an index, "Due" grouping ported** were answered in the spec.
+  **Amends:** *The map* (on a phone the hamburger sheet and its bar are replaced by a tab bar, a Search sheet that is the whole
+  map, and a back chevron; the segmented tab row under the bar stays; light/dark stays in the account block; **Home's New**
+  bubble becomes a create cluster on the four tab roots; WP-C); *Dashboard* (figures and sections unchanged, the no-scroll
+  `lg:h-[100dvh]` layout goes and the stat cards stay visible; WP-D); *Light and dark* (mechanism untouched; every light screen
+  changes colour); *Signed-in defaults* (phone cards say "You" instead of the tinted row and bar; desktop rows keep the tint);
+  *Orders hub* (the app's "Due" grouping is added); *Liquid Glass* (radii raised to 22/12px; see its doc). **Not changed:**
+  *Motion* (the curves are the app's), *Fonts* (the system font; no new file), `/view-invoice/<id>` (customer-facing, its own
+  dress, though it reads the new tokens) and `/links`.
+
 ### The name ERP
 
 - **It's called the ERP** (owner, 2026-09-27: "my system isn't a traditional pos anymore … rename it erp everywhere"). Every

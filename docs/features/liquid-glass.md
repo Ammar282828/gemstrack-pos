@@ -39,3 +39,11 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   (`data-scrolled` from `useScrolled`) — starting at the pane's edge, or drawn always, its tint made a vertical step at the
   pane. The pane has no drawn outline: a soft shadow and a specular edge (`::after`, a masked gradient ring bright at the top
   left, fading down the side). Bottom bars (`.glass-bar`) start after the pane on a computer, open or folded.
+
+**The app's shapes** (2026-10-12, `docs/features/web-matches-app.md`): glass is the app's look, so the content layer's radii are the
+app's own: `--r-card` 1.375rem (was 1rem) and `--r-control` 0.75rem (was 0.625rem) under `html.ui-glass`, the same values the base
+`:root` now carries, so Standard and glass share one geometry and the material is the only difference. The default button (44 px) is
+a capsule in both looks, so the glass rule that made `h-11`/`h-12` buttons 0.875rem rectangles is gone (a button drawn as a field,
+`justify-start`, keeps the field's corner). A phone dialog is a bottom sheet in Standard (`.dialog-sheet`, `body.app-look`, grabber,
+the sheet curve) and stays the floating inset window under glass. The phone's bottom tab bar (WP-C) takes the `.glass-bar` recipe
+here, inset 0.75rem with a capsule behind the lit tab; in Standard it is `bg-card/90 backdrop-blur-xl` with a hairline.
