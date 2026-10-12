@@ -16,3 +16,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-09: again, with the packages' Package.resolved committed (Xcode Cloud resolves nothing itself).
 - 2026-10-12: the 10-12 review fixes (launch logo, iPad only on an iPad, sign-out, widget house, designer zoom/gradient/logo, ERPCore rules) and the UI pass: one kit (Tone, radii, Note, money rows, paid ring, hero sheen, zoom transitions, haptics), orders and invoices regrouped around who, what's owed and the next step, every screen on the kit.
 - 2026-10-12: the same, numbered 2000 and up: Xcode Cloud's 2.1 (3) and (2) sat below the Mac's 1009, so no phone was offered them.
+- 2026-10-12: as 2.2, since Xcode Cloud stamps its own build numbers (the 2000 offset did nothing) and 2.1 (1009) from the Mac outranked them.
