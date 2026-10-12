@@ -17,3 +17,5 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-12: the 10-12 review fixes (launch logo, iPad only on an iPad, sign-out, widget house, designer zoom/gradient/logo, ERPCore rules) and the UI pass: one kit (Tone, radii, Note, money rows, paid ring, hero sheen, zoom transitions, haptics), orders and invoices regrouped around who, what's owed and the next step, every screen on the kit.
 - 2026-10-12: the same, numbered 2000 and up: Xcode Cloud's 2.1 (3) and (2) sat below the Mac's 1009, so no phone was offered them.
 - 2026-10-12: as 2.2, since Xcode Cloud stamps its own build numbers (the 2000 offset did nothing) and 2.1 (1009) from the Mac outranked them.
+- 2026-10-12: a phone that cannot register for notifications now says why to the ERP (push_devices_failed).
+- 2026-10-12: Firebase no longer swizzles the app delegate (it swallowed the push token: 2.2 sat on "Registering this phone"); registration gives up with a reason after 20 s.

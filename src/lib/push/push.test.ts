@@ -2,7 +2,9 @@ import crypto from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { checkApnsKey, keyIdFromFileName, normalizeP8, openKey, sealKey } from './apns-key';
 import { apnsJwt, apnsPayload } from './apns';
-import { kindOfDoc } from './send';
+import { kindOfDoc, warnNoKey } from './send';
+import { keyCacheFresh, KEY_TTL_MS, NO_KEY_TTL_MS } from './store';
+import { vi } from 'vitest';
 
 const { privateKey, publicKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
 const pem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
@@ -54,5 +56,25 @@ describe('what goes to Apple', () => {
     expect(kindOfDoc({ kind: 'website-order' })).toBe('orders');
     expect(kindOfDoc({ kind: 'order-completed' })).toBe('orders');
     expect(kindOfDoc({ kind: 'daily-report' })).toBeNull();
+  });
+});
+
+describe('the key cache', () => {
+  const key = { p8: pem, keyId: 'ABCDE12345', teamId: 'TND272ULB5' };
+  it('keeps a found key for ten minutes but a missing one for 30 seconds', () => {
+    expect(keyCacheFresh({ key, at: 0 }, KEY_TTL_MS - 1)).toBe(true);
+    expect(keyCacheFresh({ key, at: 0 }, KEY_TTL_MS)).toBe(false);
+    expect(keyCacheFresh({ key: null, at: 0 }, NO_KEY_TTL_MS - 1)).toBe(true);
+    expect(keyCacheFresh({ key: null, at: 0 }, NO_KEY_TTL_MS)).toBe(false);
+    expect(keyCacheFresh(null)).toBe(false);
+  });
+  it('warns about a missing key once per ten minutes', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const t = Date.now() + 1e9;
+    expect(warnNoKey('sales', t)).toBe(true);
+    expect(warnNoKey('orders', t + 60_000)).toBe(false);
+    expect(warnNoKey('orders', t + 10 * 60_000)).toBe(true);
+    expect(warn).toHaveBeenCalledWith('[push] no-key: sales');
+    warn.mockRestore();
   });
 });
