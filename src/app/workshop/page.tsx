@@ -19,7 +19,6 @@ import { AgeBadge, BoardJobCard, TakenByTag } from '@/components/karigar/job-car
 import { SampleImageInput } from '@/components/shared/sample-image-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -49,13 +48,14 @@ import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import type { TakenBy } from '@/lib/store';
 import { useMineFilter } from '@/hooks/use-me';
 import { PageShell } from '@/components/shared/page-shell';
+import { Pill, ChipRow, FilterChip, Segmented, EmptyState, type Tone } from '@/components/ledger';
 import { deleteErrorText } from '@/lib/delete-code';
 
 // ── small presentational helpers ────────────────────────────────────────────
 
 const StatusDot: React.FC<{ status: KarigarJobStatus }> = ({ status }) => (
-  status === 'completed' ? <CheckCircle2 className="h-4 w-4 text-success" />
-    : status === 'in-progress' ? <CircleDot className="h-4 w-4 text-blue-500" />
+  status === 'completed' ? <CheckCircle2 className="h-4 w-4 text-tone-settled-ink" />
+    : status === 'in-progress' ? <CircleDot className="h-4 w-4 text-tone-working-ink" />
     : <Circle className="h-4 w-4 text-muted-foreground" />
 );
 
@@ -91,7 +91,7 @@ const JobRow: React.FC<{
       job.status === 'completed' && 'opacity-60',
       // Online sales are highlighted so they stand out from bench work
       // that came in through an order.
-      job.isOnline && 'bg-success/[0.06] -mx-3 px-3 rounded-md',
+      job.isOnline && 'bg-tone-settled/[.06] -mx-3 px-3 rounded-control',
     )}>
       <Checkbox
         className="mt-0.5 h-5 w-5 sm:mt-1 sm:h-4 sm:w-4 flex-shrink-0"
@@ -110,21 +110,19 @@ const JobRow: React.FC<{
 
         <div className="text-xs text-muted-foreground mt-1 flex items-center gap-x-2 gap-y-0.5 flex-wrap">
           {job.source === 'manual'
-            ? <Badge variant="secondary" className="text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>
+            ? <Pill tone="working">Stock</Pill>
             : job.isOnline
-              ? <Badge variant="secondary" className="text-2xs bg-success/15 text-success">Online</Badge>
-              : <Badge variant="outline" className="text-2xs">Order</Badge>}
+              ? <Pill tone="settled">Online</Pill>
+              : <Pill>Order</Pill>}
           {showKarigar && (
-            <Badge variant="outline" className={cn('text-2xs', job.karigarId === UNASSIGNED_ID && 'text-destructive border-destructive/40')}>
-              {job.karigarName}
-            </Badge>
+            <Pill tone={job.karigarId === UNASSIGNED_ID ? 'late' : 'quiet'}>{job.karigarName}</Pill>
           )}
           <TakenByTag job={job} />
           {meta && <span>{meta}</span>}
         </div>
 
         {job.notes && (
-          <div className="mt-1.5 rounded-md border border-warning/25 bg-warning/[0.06] px-2.5 py-1.5">
+          <div className="mt-1.5 rounded-control bg-tone-owed/[.08] px-2.5 py-1.5">
             <p className="text-2xs uppercase tracking-wide text-muted-foreground leading-none">Instructions</p>
             <p className="text-xs text-foreground/80 whitespace-pre-wrap mt-1">{job.notes}</p>
           </div>
@@ -173,7 +171,7 @@ const JobRow: React.FC<{
                 </Select>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" aria-label="Delete">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-tone-late-ink" aria-label="Delete">
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </AlertDialogTrigger>
@@ -356,17 +354,17 @@ const OrderGroupedJobs: React.FC<{
   <>
     {groupJobsByOrder(jobs).map(g => (
       <div key={g.key} className={cn(
-        'rounded-lg border px-3 py-2.5 mb-3 last:mb-0',
-        g.jobs[0]?.isOnline ? 'bg-success/[0.07] border-success/30' : 'bg-muted/20',
+        'rounded-control px-3 py-2.5 mb-3 last:mb-0',
+        g.jobs[0]?.isOnline ? 'bg-tone-settled/[.07]' : 'bg-muted/50',
       )}>
         <div className="flex items-center gap-2 flex-wrap mb-1.5">
           {g.isStock
-            ? <Badge variant="secondary" className="text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock piece</Badge>
+            ? <Pill tone="working">Stock piece</Pill>
             : g.invoiceId
               ? (
                 <Link href={`/invoices/${g.invoiceId}`} className="inline-flex items-center gap-1 hover:underline">
-                  <span className="font-mono font-bold text-sm text-success">{g.invoiceId}</span>
-                  <ExternalLink className="h-3 w-3 text-success" />
+                  <span className="font-mono font-bold text-sm text-tone-settled-ink">{g.invoiceId}</span>
+                  <ExternalLink className="h-3 w-3 text-tone-settled-ink" />
                 </Link>
               )
               : (
@@ -376,14 +374,12 @@ const OrderGroupedJobs: React.FC<{
                 </Link>
               )}
           {g.jobs[0]?.customerName && <span className="text-xs text-muted-foreground truncate">{g.jobs[0].customerName}</span>}
-          {g.jobs.length > 1 && <Badge variant="outline" className="text-2xs">{g.jobs.length} pieces</Badge>}
+          {g.jobs.length > 1 && <Pill>{g.jobs.length} pieces</Pill>}
           {showKarigar && g.jobs[0] && (
-            <Badge variant="outline" className={cn('text-2xs', g.jobs[0].karigarId === UNASSIGNED_ID && 'text-destructive border-destructive/40')}>
-              {g.jobs[0].karigarName}
-            </Badge>
+            <Pill tone={g.jobs[0].karigarId === UNASSIGNED_ID ? 'late' : 'quiet'}>{g.jobs[0].karigarName}</Pill>
           )}
         </div>
-        <div className="rounded-md bg-background border px-3">
+        <div className="rounded-control bg-card px-3">
           {g.jobs.map(j => (
             <JobRow key={j.id} job={j} onEdit={onEdit}
               onToggleDone={onToggleDone} onToggleGiven={onToggleGiven} onSetStatus={onSetStatus} onDelete={onDelete} />
@@ -515,11 +511,11 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
               : <p className="text-xs text-muted-foreground">Available on order items.</p>}
           </div>
 
-          <div className="rounded-md border border-warning/40 bg-warning/10 p-3">
-            <Label className="text-xs text-warning">Instructions</Label>
+          <div className="rounded-control bg-tone-owed/10 p-3">
+            <Label className="text-xs text-tone-owed-ink">Instructions</Label>
             <Textarea rows={4} value={instructions} onChange={e => setInstructions(e.target.value)}
               placeholder="Stones, plating, sizing, or other specifications" className="mt-1"  aria-label="Instructions"/>
-            <p className="text-2xs text-warning mt-1">
+            <p className="text-2xs text-tone-owed-ink mt-1">
               Shown to the karigar and on the workshop slip. Never printed on a customer estimate or
               invoice — keep prices and customer details out of it.
             </p>
@@ -565,17 +561,14 @@ const KarigarCard: React.FC<{
   };
 
   return (
-    <Card className={cn(
-      load.critical > 0 && 'border-destructive/40',
-      isUnassigned && load.active > 0 && 'border-destructive/60 bg-destructive/5',
-    )}>
+    <Card className={cn(isUnassigned && load.active > 0 && 'bg-tone-late/[.06]')}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <CardTitle className="text-base flex items-center gap-2">
-              {isUnassigned ? <AlertTriangle className="h-4 w-4 text-destructive" /> : <Hammer className="h-4 w-4 text-primary" />}
+            <CardTitle className="text-ios-headline flex items-center gap-2">
+              {isUnassigned ? <AlertTriangle className="h-4 w-4 text-tone-late-ink" /> : <Hammer className="h-4 w-4 text-primary" />}
               {isUnassigned ? (
-                <span className="text-destructive">Unassigned</span>
+                <span className="text-tone-late-ink">Unassigned</span>
               ) : (
                 <Link href={`/karigars/${load.karigarId}`} className="hover:underline">{load.karigarName}</Link>
               )}
@@ -587,8 +580,8 @@ const KarigarCard: React.FC<{
             </p>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            {load.critical > 0 && <Badge variant="destructive" className="text-2xs"><Flame className="h-3 w-3 mr-1" />{load.critical}</Badge>}
-            {load.overdue > load.critical && <Badge variant="outline" className="text-2xs text-warning border-warning/40 bg-warning/10">{load.overdue - load.critical} late</Badge>}
+            {load.critical > 0 && <Pill tone="late" icon={<Flame />}>{load.critical}</Pill>}
+            {load.overdue > load.critical && <Pill tone="owed">{load.overdue - load.critical} late</Pill>}
           </div>
         </div>
 
@@ -619,7 +612,7 @@ const KarigarCard: React.FC<{
           </div>
         )}
         {visible.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-3">No pending work</p>
+          <EmptyState title="No pending work" className="py-6" />
         ) : (
           // Fixed height only once the list is long enough to need scrolling:
           // Radix ScrollArea needs a definite height, and a short list should
@@ -677,12 +670,12 @@ const FocusedKarigarView: React.FC<{
         <div className="flex items-baseline gap-2 mb-2 mt-6 first:mt-0">
           <h3 className={cn(
             'text-sm font-semibold',
-            tone === 'danger' && 'text-destructive',
-            tone === 'warn' && 'text-warning',
+            tone === 'danger' && 'text-tone-late-ink',
+            tone === 'warn' && 'text-tone-owed-ink',
             tone === 'ok' && 'text-foreground',
             tone === 'muted' && 'text-muted-foreground',
           )}>{title}</h3>
-          <Badge variant="secondary" className="text-2xs">{jobs.length}</Badge>
+          <span className="text-ios-sub tabular-nums text-muted-foreground">{jobs.length}</span>
           {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
         </div>
         <Card><CardContent className="p-2 sm:p-3">
@@ -695,13 +688,13 @@ const FocusedKarigarView: React.FC<{
   return (
     <div className="space-y-4">
       {/* Summary header */}
-      <Card className={cn(load.critical > 0 && 'border-destructive/40', isUnassigned && 'border-destructive/60 bg-destructive/5')}>
+      <Card className={cn(isUnassigned && 'bg-tone-late/[.06]')}>
         <CardContent className="p-4 sm:p-6 sm:pt-5">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                {isUnassigned ? <AlertTriangle className="h-5 w-5 text-destructive" /> : <Hammer className="h-5 w-5 text-primary" />}
-                {isUnassigned ? <span className="text-destructive">Unassigned work</span>
+              <h2 className="font-serif text-ios-title2 font-semibold flex items-center gap-2">
+                {isUnassigned ? <AlertTriangle className="h-5 w-5 text-tone-late-ink" /> : <Hammer className="h-5 w-5 text-primary" />}
+                {isUnassigned ? <span className="text-tone-late-ink">Unassigned work</span>
                   : <Link href={`/karigars/${load.karigarId}`} className="hover:underline">{load.karigarName}</Link>}
               </h2>
               <p className="text-sm text-muted-foreground mt-0.5">
@@ -735,17 +728,17 @@ const FocusedKarigarView: React.FC<{
             const cells: { label: string; value: string; tone?: string }[] = [
               { label: 'Active', value: String(load.active) },
             ];
-            if (load.inProgress !== load.active) cells.push({ label: 'In progress', value: String(load.inProgress), tone: 'text-blue-600' });
-            if (late.length) cells.push({ label: `Late ${WARN_DAYS}d+`, value: String(late.length), tone: 'text-warning' });
-            if (load.critical) cells.push({ label: `Critical ${CRITICAL_DAYS}d+`, value: String(load.critical), tone: 'text-destructive' });
+            if (load.inProgress !== load.active) cells.push({ label: 'In progress', value: String(load.inProgress), tone: 'text-tone-working-ink' });
+            if (late.length) cells.push({ label: `Late ${WARN_DAYS}d+`, value: String(late.length), tone: 'text-tone-owed-ink' });
+            if (load.critical) cells.push({ label: `Critical ${CRITICAL_DAYS}d+`, value: String(load.critical), tone: 'text-tone-late-ink' });
             if (load.totalWeightG > 0) cells.push({ label: 'Gold out', value: `${load.totalWeightG.toFixed(1)}g` });
             if (load.totalValue > 0) cells.push({ label: 'Value', value: `${Math.round(load.totalValue / 1000)}k` });
             return (
               <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-x-4 sm:gap-x-8 gap-y-3">
                 {cells.map(c => (
                   <div key={c.label} className="min-w-0">
-                    <p className="text-2xs uppercase tracking-wide text-muted-foreground truncate">{c.label}</p>
-                    <p className={cn('text-lg sm:text-xl font-bold leading-tight tabular-nums', c.tone)}>{c.value}</p>
+                    <p className="text-2xs font-semibold uppercase tracking-[.6px] text-muted-foreground truncate">{c.label}</p>
+                    <p className={cn('font-serif text-ios-title2 font-semibold leading-tight tabular-nums', c.tone)}>{c.value}</p>
                   </div>
                 ))}
               </div>
@@ -755,11 +748,7 @@ const FocusedKarigarView: React.FC<{
       </Card>
 
       {active.length === 0 && !showCompleted ? (
-        <Card><CardContent className="py-12 text-center">
-          <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-success" />
-          <p className="font-medium">No pending work</p>
-          <p className="text-sm text-muted-foreground">No pending work.</p>
-        </CardContent></Card>
+        <EmptyState icon={<CheckCircle2 />} title="No pending work" />
       ) : (
         <>
           <Section title="Critical" jobs={critical} tone="danger" hint={`sitting ${CRITICAL_DAYS}+ days`} />
@@ -792,9 +781,7 @@ const JobCardMobile: React.FC<{
     <Card className={cn(
       'mb-2',
       job.status === 'completed' && 'opacity-60',
-      job.isOnline && 'bg-success/[0.06] border-success/30',
-      job.status !== 'completed' && job.urgency === 'critical' && 'border-destructive/40',
-      job.status !== 'completed' && job.urgency === 'warning' && 'border-warning/40',
+      job.isOnline && 'bg-tone-settled/[.06]',
     )}>
       <CardContent className="p-3">
         <div className="flex items-start gap-3">
@@ -802,7 +789,7 @@ const JobCardMobile: React.FC<{
             onCheckedChange={() => onToggleDone(job)} aria-label="Mark done" />
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
-              <p className={cn('font-medium leading-snug break-words', job.status === 'completed' && 'line-through')}>
+              <p className={cn('text-ios-headline font-semibold leading-snug break-words', job.status === 'completed' && 'line-through')}>
                 {job.description}
               </p>
               <span className="flex-shrink-0"><AgeBadge job={job} /></span>
@@ -811,10 +798,10 @@ const JobCardMobile: React.FC<{
 
             <div className="flex items-center gap-2 flex-wrap mt-1.5 text-xs text-muted-foreground">
               {job.invoiceId
-                ? <Link href={`/invoices/${job.invoiceId}`} className="font-mono text-success hover:underline">{job.invoiceId}</Link>
+                ? <Link href={`/invoices/${job.invoiceId}`} className="font-mono text-tone-settled-ink hover:underline">{job.invoiceId}</Link>
                 : job.orderId
                   ? <Link href={`/orders/${job.orderId}`} className="font-mono text-primary hover:underline">{job.orderId}</Link>
-                  : <Badge variant="secondary" className="text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>}
+                  : <Pill tone="working">Stock</Pill>}
               {job.customerName && <span className="truncate">{job.customerName}</span>}
               <TakenByTag job={job} />
               <span>· {format(parseISO(job.assignedDate), 'dd MMM yy')}</span>
@@ -836,7 +823,7 @@ const JobCardMobile: React.FC<{
             )}
 
             {job.notes && (
-              <div className="mt-2 rounded-md border border-warning/25 bg-warning/[0.06] px-2.5 py-1.5">
+              <div className="mt-2 rounded-control bg-tone-owed/[.08] px-2.5 py-1.5">
                 <p className="text-xs text-foreground/80 whitespace-pre-wrap">{job.notes}</p>
               </div>
             )}
@@ -1007,8 +994,8 @@ export default function WorkshopPage() {
 
   const boardCols: { key: KarigarJobStatus; label: string; icon: React.ReactNode }[] = [
     { key: 'pending', label: 'Pending', icon: <Circle className="h-4 w-4" /> },
-    { key: 'in-progress', label: 'In Progress', icon: <CircleDot className="h-4 w-4 text-blue-500" /> },
-    { key: 'completed', label: 'Completed', icon: <CheckCircle2 className="h-4 w-4 text-success" /> },
+    { key: 'in-progress', label: 'In Progress', icon: <CircleDot className="h-4 w-4 text-tone-working-ink" /> },
+    { key: 'completed', label: 'Completed', icon: <CheckCircle2 className="h-4 w-4 text-tone-settled-ink" /> },
   ];
   const attention = filtered.filter(j => j.status !== 'completed' && (j.urgency !== 'ok' || j.karigarId === UNASSIGNED_ID));
   // Deliberately ignores the karigar filter: "show me work with nobody on it"
@@ -1036,13 +1023,13 @@ export default function WorkshopPage() {
             <span><span className="font-semibold text-foreground">{stats.active}</span> active</span>
             {stats.inProgress !== stats.active && <span>· {stats.inProgress} in progress</span>}
             {stats.overdue > 0 && (
-              <span className="text-warning">· <span className="font-semibold">{stats.overdue}</span> late</span>
+              <span className="text-tone-owed-ink">· <span className="font-semibold">{stats.overdue}</span> late</span>
             )}
             {stats.critical > 0 && (
-              <span className="text-destructive">· <span className="font-semibold">{stats.critical}</span> critical</span>
+              <span className="text-tone-late-ink">· <span className="font-semibold">{stats.critical}</span> critical</span>
             )}
             {stats.unassigned > 0 && (
-              <span className="text-destructive">· <span className="font-semibold">{stats.unassigned}</span> unassigned</span>
+              <span className="text-tone-late-ink">· <span className="font-semibold">{stats.unassigned}</span> unassigned</span>
             )}
       </span>}
       action={
@@ -1092,50 +1079,25 @@ export default function WorkshopPage() {
       {/* Focus is what you are looking at; view is how it is shaped. Two
           controls, one row, instead of five tabs that mixed the two. */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-        <div className="inline-flex rounded-lg border p-0.5 gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <ChipRow label="Focus" className="min-w-0 sm:mx-0 sm:px-0">
           {([
-            { id: 'all', label: 'All work', n: filtered.filter(j => j.status !== 'completed').length, tone: '' },
-            { id: 'unassigned', label: 'Unassigned', n: unassignedJobs.length, tone: 'text-destructive' },
-            { id: 'attention', label: 'Requires attention', n: attention.length, tone: 'text-destructive' },
-            { id: 'notgiven', label: 'Not yet given', n: notGiven.length, tone: 'text-warning' },
+            { id: 'all', label: 'All work', n: filtered.filter(j => j.status !== 'completed').length },
+            { id: 'unassigned', label: 'Unassigned', n: unassignedJobs.length },
+            { id: 'attention', label: 'Requires attention', n: attention.length },
+            { id: 'notgiven', label: 'Not yet given', n: notGiven.length },
           ] as const).map(f => (
-            <button
-              key={f.id} type="button" onClick={() => setFocus(f.id)}
-              aria-pressed={focus === f.id}
-              className={cn(
-                'h-8 px-2.5 rounded-md text-xs whitespace-nowrap transition-colors flex items-center gap-1.5',
-                focus === f.id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent',
-              )}
-            >
-              {f.label}
-              {f.n > 0 && (
-                <span className={cn(
-                  'tabular-nums text-2xs px-1.5 py-0.5 rounded-full',
-                  focus === f.id ? 'bg-primary-foreground/20' : cn('bg-muted', f.tone),
-                )}>{f.n}</span>
-              )}
-            </button>
+            <FilterChip key={f.id} title={f.label} count={f.n > 0 ? f.n : undefined}
+              chosen={focus === f.id} onClick={() => setFocus(f.id)} />
           ))}
-        </div>
+        </ChipRow>
 
-        <div className="inline-flex rounded-lg border p-0.5 gap-0.5 sm:ml-auto flex-shrink-0" role="group" aria-label="View">
-          {([
-            { id: 'list', label: 'List', icon: <TableIcon className="h-4 w-4" /> },
-            { id: 'board', label: 'Board', icon: <LayoutGrid className="h-4 w-4" /> },
-            { id: 'karigar', label: 'By karigar', icon: <Users className="h-4 w-4" /> },
-          ] as const).map(v => (
-            <button
-              key={v.id} type="button" onClick={() => setView(v.id)}
-              aria-pressed={view === v.id} title={v.label} aria-label={v.label}
-              className={cn(
-                'h-8 px-2.5 rounded-md text-xs transition-colors flex items-center gap-1.5',
-                view === v.id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent',
-              )}
-            >
-              {v.icon}<span className="hidden md:inline">{v.label}</span>
-            </button>
-          ))}
-        </div>
+        <Segmented<'list' | 'board' | 'karigar'> label="View" value={view} onChange={setView}
+          className="sm:ml-auto flex-shrink-0 [&_button]:flex [&_button]:items-center [&_button]:justify-center [&_button]:gap-1.5"
+          options={[
+            { value: 'list', label: <><TableIcon className="h-4 w-4" aria-hidden /><span className="sr-only md:not-sr-only md:whitespace-nowrap">List</span></> },
+            { value: 'board', label: <><LayoutGrid className="h-4 w-4" aria-hidden /><span className="sr-only md:not-sr-only md:whitespace-nowrap">Board</span></> },
+            { value: 'karigar', label: <><Users className="h-4 w-4" aria-hidden /><span className="sr-only md:not-sr-only md:whitespace-nowrap">By karigar</span></> },
+          ]} />
       </div>
 
       {focus !== 'all' && (
@@ -1147,18 +1109,10 @@ export default function WorkshopPage() {
       )}
 
       {focus !== 'all' && focused.length === 0 && (
-        <Card><CardContent className="py-12 text-center">
-          <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-success" />
-          <p className="font-medium">
-            {focus === 'unassigned' ? 'All work is assigned' : 'No work requires attention'}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {focus === 'unassigned' ? 'No work is awaiting assignment.' : 'No overdue or unassigned work.'}
-          </p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={() => setFocus('all')}>
-            Back to all work
-          </Button>
-        </CardContent></Card>
+        <EmptyState icon={<CheckCircle2 />}
+          title={focus === 'unassigned' ? 'All work is assigned' : focus === 'attention' ? 'No work requires attention' : 'Everything assigned has been given'}
+          description={focus === 'unassigned' ? 'No work is awaiting assignment.' : focus === 'attention' ? 'No overdue or unassigned work.' : 'Every assigned piece has gone to its karigar.'}
+          action={<Button variant="outline" size="sm" onClick={() => setFocus('all')}>Back to all work</Button>} />
       )}
 
       {!(focus !== 'all' && focused.length === 0) && (
@@ -1166,13 +1120,10 @@ export default function WorkshopPage() {
         {view === 'karigar' && (
         <div className="mt-4 space-y-3">
           {karigarFilter !== 'all' && focusedLoads.length === 0 ? (
-            <Card><CardContent className="py-12 text-center text-muted-foreground">
-              <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>No work matches these filters for this karigar.</p>
-              <Button variant="outline" size="sm" className="mt-3" onClick={() => setKarigarFilter('all')}>
+            <EmptyState icon={<PackageOpen />} title="No work matches these filters for this karigar."
+              action={<Button variant="outline" size="sm" onClick={() => setKarigarFilter('all')}>
                 <ArrowLeft className="h-4 w-4 mr-1.5" />Back to all karigars
-              </Button>
-            </CardContent></Card>
+              </Button>} />
           ) : karigarFilter !== 'all' ? (
             /* One karigar selected — full width, sectioned by urgency. */
             <FocusedKarigarView
@@ -1194,16 +1145,8 @@ export default function WorkshopPage() {
                     ? 'Every karigar on one screen — idle benches included. Tap one to open their jobs.'
                     : 'Each karigar with their pieces listed underneath.'}
                 </p>
-                <div className="flex items-center gap-1 rounded-md border p-0.5">
-                  <Button size="sm" variant={karigarView === 'glance' ? 'secondary' : 'ghost'}
-                    className="h-7 text-xs" onClick={() => setKarigarView('glance')}>
-                    <Gauge className="h-3.5 w-3.5 mr-1.5" />At a glance
-                  </Button>
-                  <Button size="sm" variant={karigarView === 'cards' ? 'secondary' : 'ghost'}
-                    className="h-7 text-xs" onClick={() => setKarigarView('cards')}>
-                    <Rows3 className="h-3.5 w-3.5 mr-1.5" />Job lists
-                  </Button>
-                </div>
+                <Segmented<'glance' | 'cards'> label="Karigar layout" value={karigarView} onChange={setKarigarView}
+                  options={[{ value: 'glance', label: 'At a glance' }, { value: 'cards', label: 'Job lists' }]} />
               </div>
 
               {karigarView === 'glance' ? (
@@ -1215,9 +1158,7 @@ export default function WorkshopPage() {
                   onAssign={openAssign}
                 />
               ) : focusedLoads.length === 0 ? (
-                <Card><CardContent className="py-12 text-center text-muted-foreground">
-                  <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />No work matches these filters.
-                </CardContent></Card>
+                <EmptyState icon={<PackageOpen />} title="No work matches these filters" />
               ) : (
                 /* Single column until lg — two of these side by side on an
                    iPad's 768px portrait leaves each one unreadably narrow. */
@@ -1252,14 +1193,8 @@ export default function WorkshopPage() {
                   ? 'Every piece grouped by the stage it is at.'
                   : 'Every piece, oldest first.'}
             </p>
-            <div className="flex items-center gap-1 rounded-md border p-0.5">
-              <Button size="sm" variant={boardMode === 'karigar' ? 'secondary' : 'ghost'}
-                className="h-7 text-xs px-2" onClick={() => setBoardMode('karigar')}>Karigar</Button>
-              <Button size="sm" variant={boardMode === 'status' ? 'secondary' : 'ghost'}
-                className="h-7 text-xs px-2" onClick={() => setBoardMode('status')}>Stage</Button>
-              <Button size="sm" variant={boardMode === 'none' ? 'secondary' : 'ghost'}
-                className="h-7 text-xs px-2" onClick={() => setBoardMode('none')}>All</Button>
-            </div>
+            <Segmented<'karigar' | 'status' | 'none'> label="Group by" value={boardMode} onChange={setBoardMode}
+              options={[{ value: 'karigar', label: 'Karigar' }, { value: 'status', label: 'Stage' }, { value: 'none', label: 'All' }]} />
           </div>
 
           {(() => {
@@ -1267,9 +1202,7 @@ export default function WorkshopPage() {
 
             if (boardMode === 'none') {
               return focused.length === 0 ? (
-                <Card><CardContent className="py-12 text-center text-muted-foreground">
-                  <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />No pieces match these filters.
-                </CardContent></Card>
+                <EmptyState icon={<PackageOpen />} title="Nothing is on the bench" description="No pieces match these filters." />
               ) : (
                 <div className={grid}>
                   {focused.map(j => (
@@ -1288,7 +1221,7 @@ export default function WorkshopPage() {
                   title: l.karigarId === UNASSIGNED_ID ? 'Unassigned' : l.karigarName,
                   danger: l.karigarId === UNASSIGNED_ID,
                   icon: l.karigarId === UNASSIGNED_ID
-                    ? <AlertTriangle className="h-4 w-4 text-destructive" />
+                    ? <AlertTriangle className="h-4 w-4 text-tone-late-ink" />
                     : <Hammer className="h-4 w-4 text-primary" />,
                   critical: l.critical,
                   late: l.overdue - l.critical,
@@ -1308,9 +1241,7 @@ export default function WorkshopPage() {
 
             if (sections.length === 0) {
               return (
-                <Card><CardContent className="py-12 text-center text-muted-foreground">
-                  <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />No pieces match these filters.
-                </CardContent></Card>
+                <EmptyState icon={<PackageOpen />} title="Nothing is on the bench" description="No pieces match these filters." />
               );
             }
 
@@ -1318,16 +1249,12 @@ export default function WorkshopPage() {
               <div className="space-y-6">
                 {sections.map(sec => (
                   <section key={sec.key}>
-                    <div className="flex items-center gap-2 flex-wrap mb-2 pb-1.5 border-b">
+                    <div className="flex items-center gap-2 flex-wrap mb-2 px-1">
                       {sec.icon}
-                      <h3 className={cn('text-sm font-semibold', sec.danger && 'text-destructive')}>{sec.title}</h3>
-                      <Badge variant="secondary" className="text-2xs">{sec.jobs.length}</Badge>
-                      {sec.critical > 0 && (
-                        <Badge variant="destructive" className="text-2xs"><Flame className="h-3 w-3 mr-1" />{sec.critical}</Badge>
-                      )}
-                      {sec.late > 0 && (
-                        <Badge variant="outline" className="text-2xs text-warning border-warning/40 bg-warning/10">{sec.late} late</Badge>
-                      )}
+                      <h3 className={cn('font-serif text-ios-title3 font-semibold', sec.danger ? 'text-tone-late-ink' : 'text-foreground')}>{sec.title}</h3>
+                      <span className="text-ios-sub tabular-nums text-muted-foreground">{sec.jobs.length}</span>
+                      {sec.critical > 0 && <Pill tone="late" icon={<Flame />}>{sec.critical}</Pill>}
+                      {sec.late > 0 && <Pill tone="owed">{sec.late} late</Pill>}
                       {sec.weightG > 0 && (
                         <span className="text-2xs text-muted-foreground ml-auto tabular-nums">{sec.weightG.toFixed(1)}g out</span>
                       )}
@@ -1351,7 +1278,7 @@ export default function WorkshopPage() {
         <div className="mt-4">
           <div className="lg:hidden">
             {focused.length === 0
-              ? <Card><CardContent className="py-10 text-center text-muted-foreground">No jobs match.</CardContent></Card>
+              ? <EmptyState icon={<PackageOpen />} title="No jobs match" />
               : focused.map(j => (
                   <JobCardMobile key={j.id} job={j} onToggleDone={handleToggleDone} onToggleGiven={handleToggleGiven} onEdit={openEdit} />
                 ))}
@@ -1385,7 +1312,7 @@ export default function WorkshopPage() {
                     return (
                       <TableRow key={j.id} className={cn(
                         j.status === 'completed' && 'opacity-60',
-                        j.isOnline && 'bg-success/[0.06] hover:bg-success/[0.1]',
+                        j.isOnline && 'bg-tone-settled/[.06] hover:bg-tone-settled/10',
                       )}>
                         <TableCell className="align-middle">
                           <Checkbox checked={j.status === 'completed'}
@@ -1406,10 +1333,10 @@ export default function WorkshopPage() {
                             </div>
                           )}
                           {j.source === 'manual' && (
-                            <Badge variant="secondary" className="mt-1 text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>
+                            <Pill tone="working" className="mt-1">Stock</Pill>
                           )}
                           {j.isOnline && (
-                            <Badge variant="secondary" className="mt-1 text-2xs bg-success/15 text-success">Online</Badge>
+                            <Pill tone="settled" className="mt-1">Online</Pill>
                           )}
                         </TableCell>
 
@@ -1431,7 +1358,7 @@ export default function WorkshopPage() {
 
                         <TableCell className="align-middle">
                           {j.invoiceId
-                            ? <Link href={`/invoices/${j.invoiceId}`} className="font-mono text-sm text-success hover:underline">{j.invoiceId}</Link>
+                            ? <Link href={`/invoices/${j.invoiceId}`} className="font-mono text-sm text-tone-settled-ink hover:underline">{j.invoiceId}</Link>
                             : j.orderId
                               ? <Link href={`/orders/${j.orderId}`} className="font-mono text-sm text-primary hover:underline">{j.orderId}</Link>
                               : <span className="text-sm text-muted-foreground">—</span>}
@@ -1444,7 +1371,7 @@ export default function WorkshopPage() {
                             <KarigarAssign orderId={j.orderId} invoiceId={j.invoiceId} itemIndex={j.itemIndex}
                               currentKarigarId={j.karigarId === UNASSIGNED_ID ? undefined : j.karigarId} size="compact" />
                           ) : j.karigarId === UNASSIGNED_ID
-                            ? <Badge variant="outline" className="text-destructive border-destructive/40 text-xs">Unassigned</Badge>
+                            ? <Pill tone="late">Unassigned</Pill>
                             : <Link href={`/karigars/${j.karigarId}`} className="text-sm text-primary hover:underline">{j.karigarName}</Link>}
                         </TableCell>
 

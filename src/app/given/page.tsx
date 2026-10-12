@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { Pill, FigureTile, EmptyState, ChipRow, FilterChip } from '@/components/ledger';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -322,26 +322,11 @@ export default function GivenItemsPage() {
       action={<Button onClick={openAdd}><PlusCircle className="w-4 h-4 mr-2" /> Record item given</Button>}
     >
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Still Out</p>
-            <p className="text-2xl font-bold text-warning">{outCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Returned</p>
-            <p className="text-2xl font-bold text-success">{returnedCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Total</p>
-            <p className="text-2xl font-bold">{givenItems.length}</p>
-          </CardContent>
-        </Card>
+      {/* Summary figures */}
+      <div className="grid grid-cols-3 gap-2.5">
+        <FigureTile label="Still out" value={String(outCount)} tint={outCount > 0 ? 'owed' : undefined} />
+        <FigureTile label="Returned" value={String(returnedCount)} tint="settled" />
+        <FigureTile label="Total" value={String(givenItems.length)} />
       </div>
 
       {/* Filters */}
@@ -350,13 +335,14 @@ export default function GivenItemsPage() {
         onChange={setSearch}
         placeholder="Search by item or recipient…"
         activeCount={(statusFilter !== 'all' ? 1 : 0) + (byFilter ? 1 : 0)}
-        actions={(['all', 'out', 'returned'] as const).map(st => (
-          <Button key={st} size="sm" className="h-10 capitalize flex-1 sm:flex-none"
-            variant={statusFilter === st ? 'default' : 'outline'}
-            onClick={() => setStatusFilter(st)}>
-            {st === 'all' ? 'All' : st === 'out' ? 'Still Out' : 'Returned'}
-          </Button>
-        ))}
+        footer={
+          <ChipRow label="Status" className="-mx-2 px-2 sm:mx-0 sm:px-0">
+            {(['all', 'out', 'returned'] as const).map(st => (
+              <FilterChip key={st} title={st === 'all' ? 'All' : st === 'out' ? 'Still out' : 'Returned'}
+                chosen={statusFilter === st} onClick={() => setStatusFilter(st)} />
+            ))}
+          </ChipRow>
+        }
       >
         <TakenByPicker value={byFilter ?? ''} onChange={setByFilter} allowAny anyLabel="Given by anyone"
           aria-label="Given by" className="w-full sm:w-[170px]" />
@@ -368,42 +354,33 @@ export default function GivenItemsPage() {
           <Loader2 className="w-12 h-12 mx-auto animate-spin text-primary mb-4" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 bg-card rounded-lg shadow">
-          <HandCoins className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-1">Nothing here yet</h3>
-          <p className="text-muted-foreground text-sm">
-            {search || statusFilter !== 'all' || byFilter ? 'No items match your filter.' : 'Select "Record Item Given" to add an entry.'}
-          </p>
-        </div>
+        <EmptyState icon={<HandCoins />} title="Nothing here yet"
+          description={search || statusFilter !== 'all' || byFilter ? 'No items match your filter.' : 'Select "Record Item Given" to add an entry.'} />
       ) : (
         <>
           {/* Mobile: Cards */}
-          <div className="md:hidden space-y-3">
+          <div className="lg:hidden space-y-3">
             {filtered.map(item => (
               <Card key={item.id} className={item.status === 'returned' ? 'opacity-60' : ''}>
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start gap-2 mb-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{item.description}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-ios-headline font-semibold truncate">{item.description}</p>
+                      <p className="text-ios-foot text-muted-foreground mt-0.5">
                         {format(parseISO(item.date), 'd MMM yy')} · {RECIPIENT_ICON[item.recipientType]} {item.recipientName}
                         {item.givenBy && <> · by {item.givenBy}</>}
                       </p>
                     </div>
                     {item.status === 'out' ? (
-                      <Badge variant="outline" className="border-warning text-warning gap-1 flex-shrink-0">
-                        <Clock className="w-3 h-3" /> Out
-                      </Badge>
+                      <Pill tone="owed" icon={<Clock />} className="flex-shrink-0">Out</Pill>
                     ) : (
-                      <Badge variant="outline" className="border-success text-success gap-1 flex-shrink-0">
-                        <CheckCircle2 className="w-3 h-3" /> Returned
-                      </Badge>
+                      <Pill tone="settled" icon={<CheckCircle2 />} className="flex-shrink-0">Returned</Pill>
                     )}
                   </div>
                   {item.notes && <p className="text-xs text-muted-foreground mb-2">{item.notes}</p>}
-                  <div className="flex justify-end gap-1 border-t pt-2">
+                  <div className="flex justify-end gap-1 border-t border-separator pt-2">
                     {item.status === 'out' && (
-                      <Button size="sm" variant="outline" className="h-7 text-xs text-success border-success hover:bg-success/10"
+                      <Button size="sm" variant="outline" className="h-7 text-xs text-tone-settled-ink hover:bg-tone-settled/10"
                         onClick={() => handleMarkReturned(item)}>
                         <CheckCircle2 className="w-3 h-3 mr-1" /> Got Back
                       </Button>
@@ -413,7 +390,7 @@ export default function GivenItemsPage() {
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10" aria-label="Delete">
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-tone-late-ink hover:bg-tone-late/10" aria-label="Delete">
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </AlertDialogTrigger>
@@ -436,7 +413,7 @@ export default function GivenItemsPage() {
             ))}
           </div>
           {/* Desktop: Table */}
-          <Card className="hidden md:block">
+          <Card className="hidden lg:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -465,14 +442,10 @@ export default function GivenItemsPage() {
                     <TableCell className="text-sm">{item.givenBy || <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell>
                       {item.status === 'out' ? (
-                        <Badge variant="outline" className="border-warning text-warning gap-1">
-                          <Clock className="w-3 h-3" /> Out
-                        </Badge>
+                        <Pill tone="owed" icon={<Clock />}>Out</Pill>
                       ) : (
                         <div>
-                          <Badge variant="outline" className="border-success text-success gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> Returned
-                          </Badge>
+                          <Pill tone="settled" icon={<CheckCircle2 />}>Returned</Pill>
                           {item.returnedDate && (
                             <p className="text-2xs text-muted-foreground mt-0.5">
                               {format(parseISO(item.returnedDate), 'd MMM yy')}
@@ -487,7 +460,7 @@ export default function GivenItemsPage() {
                     <TableCell>
                       <div className="flex justify-end items-center gap-1">
                         {item.status === 'out' && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-success border-success hover:bg-success/10"
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-tone-settled-ink hover:bg-tone-settled/10"
                             onClick={() => handleMarkReturned(item)}>
                             <CheckCircle2 className="w-3 h-3 mr-1" /> Got Back
                           </Button>
@@ -497,7 +470,7 @@ export default function GivenItemsPage() {
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10" aria-label="Delete">
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-tone-late-ink hover:bg-tone-late/10" aria-label="Delete">
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
                           </AlertDialogTrigger>
