@@ -8,6 +8,7 @@ import erp.app.config.Prefs
 import erp.app.data.Connection
 import erp.app.data.FirestoreSource
 import erp.app.device.BiometricVault
+import erp.app.device.NotificationChannels
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,6 +27,7 @@ class ErpApp : Application() {
         erp.core.entry.EntryHouse.id = House.id
         Prefs.init(this)
         BiometricVault.init(this)
+        NotificationChannels.create(this)
         if (!House.isDemo) ensureFirebase()
         Connection.start(this)
     }

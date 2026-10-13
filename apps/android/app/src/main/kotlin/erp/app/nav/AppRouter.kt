@@ -2,6 +2,7 @@ package erp.app.nav
 
 import android.content.Intent
 import erp.app.config.House
+import erp.app.device.PushLogic
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,7 +23,7 @@ object AppRouter {
     fun handle(intent: Intent?) {
         val data = intent?.data
         val path = data?.let { pathFor(it.scheme, it.host, it.encodedPath, it.encodedQuery, House.serverHost) }
-            ?: intent?.getStringExtra("url")?.takeIf { it.startsWith("/") } // a notification's page
+            ?: PushLogic.pathFor(intent?.getStringExtra("url")) // a notification's page: FCM puts its data in the extras
         if (path != null) open(path)
     }
 
