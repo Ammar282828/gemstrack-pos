@@ -15,11 +15,11 @@ export async function POST(req: NextRequest) {
   if (!isDeviceToken(body?.token)) return NextResponse.json({ error: 'No phone named.' }, { status: 400 });
   const device = await readDevice(body.token);
   if (!device || device.email !== email) return NextResponse.json({ error: 'This phone is not registered to you.' }, { status: 403 });
-  const r = await pushToShop({ kind: 'orders', title: 'Test notification', body: `${STORE_CONFIG.name}: notifications reach this iPhone.`, url: '/settings/alerts' }, { token: body.token });
+  const r = await pushToShop({ kind: 'orders', title: 'Test notification', body: `${STORE_CONFIG.name}: notifications reach this phone.`, url: '/settings/alerts' }, { token: body.token });
   const said: Record<string, string> = {
     'no-key': 'No Apple push key is set yet: add it above.',
-    none: 'This iPhone is not registered for notifications yet. Open the app again and allow notifications.',
-    failed: `Apple refused it${r.error ? ` (${r.error})` : ''}.`,
+    none: 'This phone is not registered for notifications yet. Open the app again and allow notifications.',
+    failed: `The push service refused it${r.error ? ` (${r.error})` : ''}.`,
     dev: 'A development server does not send notifications.',
   };
   return NextResponse.json({ ok: r.status === 'sent', ...r, ...(said[r.status] ? { message: said[r.status] } : {}) }, { status: r.status === 'sent' ? 200 : 409 });

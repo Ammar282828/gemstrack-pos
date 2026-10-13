@@ -1,5 +1,5 @@
 /**
- * A notification to the shop's iPhones (the ERP app, apps/ios): every phone an owner signed in
+ * A notification to the shop's phones (the ERP app: iPhones by APNs, Android by FCM): every phone an owner signed in
  * on that has not switched the kind off. Sent beside the WhatsApp alerts, from the same events
  * and with the same words (an AlertDoc's title and headline), but switched per phone, not by
  * Settings' WhatsApp switches: the phone is the owner's own.
@@ -21,6 +21,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { roleForEmail } from '@/lib/roles';
 import type { AlertDoc } from '@/lib/notifications/doc';
 import { sendApns } from './apns';
+import { sendFcm } from './fcm';
 import { allDevices, forgetDevices, loadApnsKey, type PushKind } from './store';
 
 export interface PushMessage {
@@ -69,19 +70,28 @@ export async function pushToShop(m: PushMessage, only?: { token: string }): Prom
       console.log('[push: dev, not sent]', m.kind, m.title, '·', m.body);
       return { status: 'dev' };
     }
-    const key = await loadApnsKey();
-    if (!key) return { status: 'no-key' };
     const devices = (await allDevices()).filter((d) =>
       only ? d.token === only.token : roleForEmail(d.email) === 'owner' && !d.off.includes(m.kind));
+    const android = devices.filter((d) => d.platform === 'android');
+    const ios = devices.filter((d) => d.platform !== 'android');
+    // The Apple key is needed for iPhones only: Android goes through the backend's own service account.
+    const key = ios.length ? await loadApnsKey() : null;
+    if (ios.length && !android.length && !key) return { status: 'no-key' };
     if (!devices.length) return { status: 'none', phones: 0 };
     if (m.key && !(await claim(`${m.kind}_${m.key}`))) return { status: 'already' };
-    const out = await sendApns(key, devices.map((d) => ({ token: d.token, bundleId: d.bundleId })), {
-      title: m.title, body: m.body, url: m.url, thread: m.kind,
-    });
-    if (out.gone.length) await forgetDevices(out.gone);
-    if (out.failed.length) console.warn('[push] refused', out.failed.map((f) => `${f.status} ${f.reason}`).join('; '));
-    console.log(`[push] ${m.kind} "${m.title}" ${out.sent}/${devices.length}`);
-    return { status: out.sent ? 'sent' : 'failed', sent: out.sent, phones: devices.length, ...(out.failed[0] ? { error: out.failed[0].reason } : {}) };
+    const alert = { title: m.title, body: m.body, url: m.url };
+    const nothing = { sent: 0, gone: [] as string[], failed: [] as { token: string; status: number; reason: string }[] };
+    const [apns, fcm] = await Promise.all([
+      key && ios.length ? sendApns(key, ios.map((d) => ({ token: d.token, bundleId: d.bundleId })), { ...alert, thread: m.kind }) : nothing,
+      android.length ? sendFcm(android.map((d) => d.token), { ...alert, kind: m.kind }) : nothing,
+    ]);
+    const gone = [...apns.gone, ...fcm.gone];
+    const failed = [...apns.failed, ...fcm.failed];
+    const sent = apns.sent + fcm.sent;
+    if (gone.length) await forgetDevices(gone);
+    if (failed.length) console.warn('[push] refused', failed.map((f) => `${f.status} ${f.reason}`).join('; '));
+    console.log(`[push] ${m.kind} "${m.title}" ${sent}/${devices.length}`);
+    return { status: sent ? 'sent' : 'failed', sent, phones: devices.length, ...(failed[0] ? { error: failed[0].reason } : {}) };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);
     console.error('[push]', m.kind, error);

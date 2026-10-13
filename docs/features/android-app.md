@@ -66,7 +66,7 @@ is its rulebook, mirroring `apps/iphone/CONVENTIONS.md`.
   the phone's own key (`/api/widget/key`).
 - **Notifications.** FCM. `src/lib/push` sends to Android phones beside Apple's, from the same events, with the same
   words and the same per-kind switches (`push_devices` entries carry `platform: 'android'`); sent with
-  `firebase-admin` messaging under the backend's own service account.
+  `firebase-admin` messaging under the backend's own service account (no FCM key to upload). A phone registers at `/api/push/devices` with `{ token: <FCM registration token>, platform: "android", bundleId: <applicationId>, label }`. The App Hosting runtime service account (`firebase-app-hosting-compute@<project>.iam.gserviceaccount.com`) may need `roles/firebasecloudmessaging.admin` in each project to send: an owner step, unverified.
 
 ### Build and hand-out (Linux only)
 

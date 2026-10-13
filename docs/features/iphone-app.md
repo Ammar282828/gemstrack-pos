@@ -66,7 +66,7 @@ go, and a karigar marking a piece done (`/api/karigar/complete`, which never ale
 on (`push_devices`), unless that phone switched the kind off; WhatsApp's switches do not decide it. Once per event
 (`push_sent`); a development server only logs. The Apple key (one APNs key serves both houses) is uploaded in Settings →
 Alerts and kept in `app_private/apns`, sealed under a key drawn from CRON_SECRET: Taheri's Firestore rules are still
-open and Secret Manager is not writable from the ERP.
+open and Secret Manager is not writable from the ERP. `push_devices` entries carry `platform` (absent = `ios`); Android phones are sent through FCM (`lib/push/fcm.ts`, firebase-admin under the backend's own service account, no key needed; see [Android](android-app.md)), so the Apple key is required only when an iPhone is registered. The App Hosting runtime service account may need `roles/firebasecloudmessaging.admin` (an owner step, unverified).
 
 **The widget's figures** (`/api/widget/summary`, `lib/widget`): the house's rate, the drawer (Today's cash), Owed to
 you (with hisaab) and orders and repairs due, from the ERP's own functions, worked out at most every 15 minutes. Read
