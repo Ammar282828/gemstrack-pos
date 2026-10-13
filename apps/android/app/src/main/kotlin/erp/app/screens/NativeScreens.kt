@@ -11,6 +11,7 @@ import erp.app.screens.orders.OrdersRoutes
 import erp.app.screens.owner.OwnerRoutes
 import erp.app.screens.repairs.RepairsRoutes
 import erp.app.screens.sale.SaleRoutes
+import erp.app.screens.settings.SettingsRoutes
 import erp.app.screens.stock.StockRoutes
 import erp.app.screens.work.WorkRoutes
 import erp.app.screens.workshop.WorkshopRoutes
@@ -23,6 +24,8 @@ import erp.app.screens.workshop.WorkshopRoutes
 object NativeScreens {
     val all: List<ScreenRoute> by lazy {
         listOf(
+            // First, as the Swift NativeScreens has it: Settings' paths (/settings, /settings/printer …) are its own.
+            SettingsRoutes,
             HomeRoutes,
             // Before Orders: its "/orders/add" would otherwise be taken for an order's id.
             NewOrderRoutes,
