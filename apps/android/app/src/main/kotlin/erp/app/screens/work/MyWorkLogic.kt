@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import erp.app.ui.AppClock
 import erp.app.nav.ScreenRoute
 import erp.core.ERPDate
 import erp.core.Json
@@ -48,7 +49,7 @@ object MyWorkText {
 object WorkDemo {
     private fun ago(now: Instant, seconds: Long): String = ERPDate.iso(now.minusSeconds(seconds))
 
-    fun portal(now: Instant = Instant.now()): KarigarPortal? {
+    fun portal(now: Instant = AppClock.now()): KarigarPortal? {
         val day = 86_400L
         val json = """
         {"role":"karigar","preview":false,"karigar":{"id":"KAR-D1","name":"Ustad Demo"},

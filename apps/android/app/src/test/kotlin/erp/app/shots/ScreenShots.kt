@@ -8,6 +8,7 @@ import erp.app.auth.SignInScreen
 import erp.app.data.Book
 import erp.app.nav.RootGate
 import erp.app.nav.SEARCH_PATH
+import erp.app.screens.neworder.NewOrderPhoneStore
 import erp.app.screens.sale.SaleStore
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -86,6 +87,46 @@ class ScreenShots(config: ShotConfig) : ShotBase(config) {
         showPlace("/invoices/new", sheet = true)
         compose.onNode(hasContentDescription("Step 4 of 4", substring = true)).performClick()
         shoot("new-sale-4-review")
+    }
+
+    @Test fun repairs_list() {
+        onlyTaheri()
+        showPlace("/repairs")
+        shoot("repairs-list")
+    }
+
+    @Test fun repair_ticket() {
+        onlyTaheri()
+        showPlace("/repairs?id=REP-D2", below = listOf("/repairs"))
+        settle()
+        shoot("repair-ticket")
+    }
+
+    @Test fun my_work() {
+        onlyTaheri()
+        showPlace("/my-work")
+        shoot("my-work")
+    }
+
+    @Test fun drafts() {
+        onlyTaheri()
+        // Another test's unfinished sale is kept on the phone; this one shows the books alone.
+        SaleStore.clear()
+        NewOrderPhoneStore.clear()
+        showPlace("/drafts")
+        shoot("drafts")
+    }
+
+    @Test fun calendar() {
+        onlyTaheri()
+        showPlace("/calendar")
+        shoot("calendar")
+    }
+
+    @Test fun activity_log() {
+        onlyTaheri()
+        showPlace("/activity-log")
+        shoot("activity-log")
     }
 
     @Test fun sign_in() {
