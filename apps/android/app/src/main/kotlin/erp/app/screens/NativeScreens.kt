@@ -1,6 +1,7 @@
 package erp.app.screens
 
 import erp.app.nav.ScreenRoute
+import erp.app.screens.ads.AdsRoutes
 import erp.app.screens.analytics.AnalyticsRoutes
 import erp.app.screens.customers.CustomersRoutes
 import erp.app.screens.home.HomeRoutes
@@ -40,6 +41,8 @@ object NativeScreens {
             // My work (a karigar's portal) comes after Analytics in the Swift order; the owners' pages share no prefix with it.
             WorkRoutes,
             OwnerRoutes,
+            // Ads (the Marketing group's). Studio's own /ads/studio is another group's: it must come before this line's matches if it lands.
+            AdsRoutes,
         ).flatten()
     }
 }
