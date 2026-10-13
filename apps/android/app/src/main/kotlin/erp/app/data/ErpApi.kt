@@ -16,6 +16,7 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
@@ -54,13 +55,15 @@ class ErpApi private constructor() {
         }
 
     /** The one place a request is built and sent, so text and bytes cannot drift apart in auth, pinning or failure. */
-    private suspend fun open(path: String, method: String, json: Map<String, Any?>?, timeoutMs: Long, accept: String): Response {
+    private suspend fun open(path: String, method: String, json: Map<String, Any?>?, timeoutMs: Long, accept: String, form: RequestBody? = null): Response {
         // The demo has no server and no Firebase: every call answers as if offline.
         if (House.isDemo || !ErpApp.firebaseReady) throw Failure(0, "Not connected to the ERP in the demo.")
         val url = resolve(House.serverUrl, path) ?: throw Failure(0, "Not an address of this ERP.")
         val builder = Request.Builder().url(url).header("Accept", accept)
         token()?.let { builder.header("Authorization", "Bearer $it") }
-        if (json != null) {
+        if (form != null) {
+            builder.method(method, form)
+        } else if (json != null) {
             val text = JsonText.of(json) ?: throw Failure(0, "That can't be sent.")
             builder.method(method, text.toRequestBody(JSON))
         } else if (method != "GET") {
@@ -71,6 +74,25 @@ class ErpApi private constructor() {
             call.await()
         } catch (e: IOException) {
             throw Failure(0, e.message?.takeIf { it.isNotBlank() } ?: "No connection to the ERP.")
+        }
+    }
+
+    /** One part of a multipart form: a file under its field ("file", "image", "square"). The name is plain ASCII. */
+    class FormFile(val field: String, val name: String, val type: String, val bytes: ByteArray)
+
+    /**
+     * A multipart form to the ERP, as the web pages send theirs with FormData (Post a piece's photos and AI, Add photos,
+     * Edit a piece): the same sign-in, host pinning, demo refusal and failure words as `data`. Answers the route's text.
+     */
+    suspend fun upload(path: String, fields: List<Pair<String, String>>, files: List<FormFile> = emptyList(), method: String = "POST", timeoutMs: Long = 120_000): String {
+        val form = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM).apply {
+            for ((name, value) in fields) addFormDataPart(name, value)
+            for (f in files) addFormDataPart(f.field, f.name, f.bytes.toRequestBody(f.type.toMediaType()))
+        }.build()
+        return open(path, method, null, timeoutMs, "application/json", form).use { r ->
+            val text = r.body.string()
+            if (r.code !in 200..299) throw Failure(r.code, said(text) ?: "The ERP answered ${r.code}.")
+            text
         }
     }
 

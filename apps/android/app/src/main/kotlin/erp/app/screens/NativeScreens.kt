@@ -4,6 +4,7 @@ import erp.app.nav.ScreenRoute
 import erp.app.screens.customers.CustomersRoutes
 import erp.app.screens.home.HomeRoutes
 import erp.app.screens.invoices.InvoicesRoutes
+import erp.app.screens.marketing.MarketingRoutes
 import erp.app.screens.money.MoneyRoutes
 import erp.app.screens.neworder.NewOrderRoutes
 import erp.app.screens.orders.OrdersRoutes
@@ -32,6 +33,8 @@ object NativeScreens {
             MoneyRoutes,
             // After Analytics and My work in the Swift order; the owners' pages share no prefix with them.
             OwnerRoutes,
+            // Last, as in the Swift: its paths (/posts, /website/…, /marketing/…) share no prefix with the rest.
+            MarketingRoutes,
         ).flatten()
     }
 }
