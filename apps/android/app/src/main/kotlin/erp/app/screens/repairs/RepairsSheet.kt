@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.AppClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,9 +51,8 @@ import erp.app.data.LocalBook
 import erp.app.data.rememberShelfItem
 import erp.app.data.rememberShelfStatus
 import erp.app.nav.LocalNavigator
-import erp.app.screens.owner.OwnerAsk
-import erp.app.screens.owner.OwnerAskSheet
-import erp.app.screens.owner.ownerAsk
+import erp.app.ui.OwnerDeleteCodeSheet
+import erp.app.ui.OwnerDeletion
 import erp.app.ui.HeroAmount
 import erp.app.ui.LedgerHeading
 import erp.app.ui.NotAvailableState
@@ -96,7 +96,7 @@ fun RepairsSheet(id: String, seed: Repair?, onDismiss: () -> Unit) {
 
     var web by remember { mutableStateOf<String?>(null) }
     var editing by remember { mutableStateOf(false) }
-    var deletion by remember { mutableStateOf<OwnerAsk?>(null) }
+    var deletion by remember { mutableStateOf<OwnerDeletion?>(null) }
     // The ticket is gone: the sheet leaves once the code sheet has.
     var deleted by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
@@ -154,7 +154,7 @@ fun RepairsSheet(id: String, seed: Repair?, onDismiss: () -> Unit) {
     web?.let { path -> RepairsWebPage(path, onClose = { web = null }) }
     if (editing && current != null) RepairsForm(editing = current, onDismiss = { editing = false }, onSaved = { _, _ -> })
     deletion?.let { d ->
-        OwnerAskSheet(
+        OwnerDeleteCodeSheet(
             d,
             onDismiss = { deletion = null; if (deleted) onDismiss() },
             onDone = { deleted = true },
@@ -166,15 +166,15 @@ fun RepairsSheet(id: String, seed: Repair?, onDismiss: () -> Unit) {
  * The web's "cancel or delete?": Delete removes the ticket for good, and the money paid on it comes out of Extra revenue
  * with it. Said before the code is asked for.
  */
-internal fun askDelete(r: Repair): OwnerAsk {
+internal fun askDelete(r: Repair): OwnerDeletion {
     val id = r.id
     val paid = repairPaid(r)
     var detail = "${repairSummary(r)} — ${RepairsKit.customer(r)}. Delete removes it for good"
     detail += if (paid > 0) ", and the ${Money.pkr(paid)} paid comes out of Extra revenue with it." else "."
     if (r.status == RepairStatus.received || r.status == RepairStatus.ready) detail += " Cancel repair keeps the record instead."
-    return ownerAsk(what = "Delete repair $id", detail = detail) { code ->
+    return OwnerDeletion(what = "Delete repair $id", detail = detail, run = { code ->
         ErpApi.shared.write("deleteRepair", mapOf("repairId" to id, "deleteCode" to code))
-    }
+    })
 }
 
 /** The ERP's own page over the sheet, with a way back (the iPhone pushes it on the sheet's own stack). */
@@ -197,7 +197,7 @@ private fun RepairsWebPage(path: String, onClose: () -> Unit) {
 
 @Composable
 private fun Detail(r: Repair, isOwner: Boolean, shopName: String, onCustomer: (String) -> Unit, context: android.content.Context) {
-    val now = remember(r) { Instant.now() }
+    val now = remember(r) { AppClock.now() }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         HeaderCard(r, now, shopName, onCustomer, context)
         PiecesCard(r)

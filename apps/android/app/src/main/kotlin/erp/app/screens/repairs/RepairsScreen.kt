@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.AppClock
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -59,6 +60,8 @@ import erp.app.data.rememberShelfStatus
 import erp.app.nav.ScreenActions
 import erp.app.nav.ScreenTitle
 import erp.app.ui.LedgerDivider
+import erp.app.ui.RowAction
+import erp.app.ui.SwipeActions
 import erp.app.ui.LedgerHeading
 import erp.app.ui.NotAvailableState
 import erp.app.ui.NumericText
@@ -80,8 +83,6 @@ import erp.core.models.Repair
 import erp.core.models.RepairStatus
 import java.time.Instant
 
-/** The width the Repairs list reads at on a tablet (ScreenRegistry.readableWidth: /repairs 820). */
-private val ReadableWidth = 820.dp
 
 /**
  * Repairs (src/app/repairs/page.tsx, docs/decisions.md "Repairs"): a customer's own pieces, left to be mended. The list by
@@ -137,7 +138,7 @@ fun RepairsScreen(path: String) {
 
     ShelfState(loaded = repairs.loaded, error = repairs.error, offline = repairs.offline, connectionLost = connectionLost) {
         val q = query.trim().lowercase()
-        val now = remember(repairs.revision) { Instant.now() }
+        val now = remember(repairs.revision) { AppClock.now() }
         val groups = remember(repairs.revision, q) {
             val shown = if (q.isEmpty()) repairs.items else repairs.items.filter { RepairsKit.matches(it, q) }
             RepairsKit.groups(shown)
@@ -148,7 +149,7 @@ fun RepairsScreen(path: String) {
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             item(key = "search") {
-                Box(Modifier.padding(horizontal = 16.dp).readableColumn(ReadableWidth)) {
+                Box(Modifier.padding(horizontal = 16.dp)) {
                     RepairsSearchField(query, { query = it }, "Name, phone, piece or REP no.")
                 }
             }
@@ -171,7 +172,7 @@ fun RepairsScreen(path: String) {
                 val open = !g.folded || forceOpen || g.id in opened
                 if (g.folded) {
                     item(key = "f" + g.id) {
-                        Column(Modifier.padding(horizontal = 16.dp).readableColumn(ReadableWidth)) {
+                        Column(Modifier.padding(horizontal = 16.dp)) {
                             Column(Modifier.cardEdges(first = true, last = !open)) {
                                 FoldRow(g, open, forceOpen) { opened = if (g.id in opened) opened - g.id else opened + g.id }
                                 if (open) LedgerDivider()
@@ -183,7 +184,7 @@ fun RepairsScreen(path: String) {
                     items(g.rows.size, key = { i -> g.id + "/" + g.rows[i].id }) { i ->
                         val r = g.rows[i]
                         val firstInCard = !g.folded && i == 0
-                        Column(Modifier.padding(horizontal = 16.dp).readableColumn(ReadableWidth)) {
+                        Column(Modifier.padding(horizontal = 16.dp)) {
                             Column(Modifier.cardEdges(first = firstInCard, last = i == g.rows.lastIndex)) {
                                 RepairRow(r, now, desk, context, isOwner = session.isOwner, shopName = session.shop.name) {
                                     sheetSeed = null
@@ -235,7 +236,7 @@ private fun Modifier.cardEdges(first: Boolean, last: Boolean): Modifier {
 private fun GroupHeader(g: RepairsGroup) {
     val owing = if (g.folded) 0.0 else g.rows.fold(0.0) { sum, r -> sum + repairBalance(r) }
     Row(
-        Modifier.padding(horizontal = 20.dp).padding(top = 8.dp).readableColumn(ReadableWidth),
+        Modifier.padding(horizontal = 20.dp).padding(top = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom,
     ) {
         Box(Modifier.weight(1f)) { LedgerHeading(g.title) }
@@ -287,25 +288,25 @@ private fun RepairRow(
     onOpen: () -> Unit,
 ) {
     val whatsApp = if (r.status == RepairStatus.ready) RepairsKit.whatsAppUrl(r, shopName) else null
-    val ready = RepairsAction("Mark ready", Icons.Filled.CheckCircle, Tone.settled) { desk.markReady(r) }
-    val collected = RepairsAction("Collected", Icons.Filled.Inventory2, Tone.working) { desk.collect(r) }
-    val tell = whatsApp?.let { RepairsAction("Tell them", Icons.Filled.Chat, Tone.settled) { openUrl(context, it) } }
+    val ready = RowAction("Mark ready", Icons.Filled.CheckCircle, Tone.settled) { desk.markReady(r) }
+    val collected = RowAction("Collected", Icons.Filled.Inventory2, Tone.working) { desk.collect(r) }
+    val tell = whatsApp?.let { RowAction("Tell them", Icons.Filled.Chat, Tone.settled) { openUrl(context, it) } }
     val trailing = when {
         isOwner && r.status == RepairStatus.received -> ready
         isOwner && r.status == RepairStatus.ready -> collected
         else -> null
     }
-    val menu = ArrayList<RepairsAction>()
+    val menu = ArrayList<RowAction>()
     if (isOwner && r.status == RepairStatus.received) menu.add(ready)
     if (isOwner && r.status == RepairStatus.ready) menu.add(collected)
-    if (whatsApp != null) menu.add(RepairsAction("Tell them it's ready", Icons.Filled.Chat, Tone.settled) { openUrl(context, whatsApp) })
+    if (whatsApp != null) menu.add(RowAction("Tell them it's ready", Icons.Filled.Chat, Tone.settled) { openUrl(context, whatsApp) })
     if (isOwner && r.status != RepairStatus.cancelled && repairBalance(r) > 0) {
-        menu.add(RepairsAction("Take payment", Icons.Filled.Payments, Tone.house) { desk.taking = r })
+        menu.add(RowAction("Take payment", Icons.Filled.Payments, Tone.house) { desk.taking = r })
     }
     if (isOwner && (r.status == RepairStatus.received || r.status == RepairStatus.ready)) {
-        menu.add(RepairsAction("Cancel repair", Icons.Filled.Close, Tone.problem) { desk.askCancel(r) })
+        menu.add(RowAction("Cancel repair", Icons.Filled.Close, Tone.problem) { desk.askCancel(r) })
     }
-    RepairsSwipe(start = tell, end = trailing, menu = menu, onClick = onOpen) {
+    SwipeActions(start = tell, end = trailing, menu = menu, onClick = onOpen) {
         RepairRowBody(r, now, busy = desk.isBusy(r.id))
     }
 }
@@ -313,7 +314,7 @@ private fun RepairRow(
 @Composable
 private fun RepairRowBody(r: Repair, now: Instant, busy: Boolean) {
     val greyed = r.status == RepairStatus.collected || r.status == RepairStatus.cancelled
-    Column(Modifier.fillMaxWidth().alpha(if (greyed) 0.55f else 1f).ledgerRow(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(Modifier.fillMaxWidth().background(ErpColors.card).alpha(if (greyed) 0.55f else 1f).ledgerRow(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
             Text(
                 repairSummary(r), Modifier.weight(1f),
@@ -380,7 +381,7 @@ fun PromiseText(r: Repair, now: Instant, modifier: Modifier = Modifier, large: B
     )
 }
 
-internal fun promiseLine(r: Repair, t: OrderTiming, now: Instant = Instant.now()): String {
+internal fun promiseLine(r: Repair, t: OrderTiming, now: Instant = AppClock.now()): String {
     val base = "Ready by " + RepairsKit.byDay(r.promisedDate, now)
     if (t.state == PromiseState.today) return base
     val `when` = timingLabel(t)

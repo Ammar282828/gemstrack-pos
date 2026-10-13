@@ -79,86 +79,6 @@ import java.time.ZoneOffset
 
 // The few form and list pieces the Repairs screens need that the kit does not have yet (the iPhone's NavigationStack sheet,
 // Form sections, swipeActions). Kept private to this group.
-// TODO(shared): replace with the kit's FullScreenSheet / form rows / swipe actions when merged.
-
-/** One thing a row can do: from a swipe, a long press, or TalkBack's actions menu. */
-class RepairsAction(val label: String, val icon: ImageVector, val tone: Tone, val run: () -> Unit)
-
-/**
- * The iPhone's `.swipeActions` and `.contextMenu`: a swipe from the left runs [start], from the right runs [end] (the row
- * springs back); a long press opens [menu]; TalkBack lists all of them as actions. Taps go to [onClick].
- */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
-@Composable
-fun RepairsSwipe(
-    modifier: Modifier = Modifier,
-    start: RepairsAction? = null,
-    end: RepairsAction? = null,
-    menu: List<RepairsAction> = emptyList(),
-    onClick: () -> Unit,
-    content: @Composable () -> Unit,
-) {
-    val haptics = rememberHaptics()
-    val latestStart by rememberUpdatedState(start)
-    val latestEnd by rememberUpdatedState(end)
-    var menuOpen by remember { mutableStateOf(false) }
-    val state = rememberSwipeToDismissBoxState(confirmValueChange = { target ->
-        when (target) {
-            SwipeToDismissBoxValue.StartToEnd -> latestStart?.run?.invoke()
-            SwipeToDismissBoxValue.EndToStart -> latestEnd?.run?.invoke()
-            SwipeToDismissBoxValue.Settled -> Unit
-        }
-        false
-    })
-    val all = (listOfNotNull(start, end) + menu).distinctBy { it.label }
-    SwipeToDismissBox(
-        state = state,
-        modifier = modifier,
-        enableDismissFromStartToEnd = start != null,
-        enableDismissFromEndToStart = end != null,
-        backgroundContent = {
-            val direction = state.dismissDirection
-            val action = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> start
-                SwipeToDismissBoxValue.EndToStart -> end
-                else -> null
-            }
-            if (action != null) {
-                Box(
-                    Modifier.fillMaxSize().background(action.tone.fill()).padding(horizontal = 20.dp),
-                    contentAlignment = if (direction == SwipeToDismissBoxValue.StartToEnd) Alignment.CenterStart else Alignment.CenterEnd,
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(action.icon, contentDescription = null, tint = Color.White)
-                        Text(action.label, color = Color.White, style = MaterialTheme.typography.labelLarge)
-                    }
-                }
-            }
-        },
-    ) {
-        Box(
-            Modifier
-                .background(ErpColors.card)
-                .combinedClickable(
-                    role = Role.Button,
-                    onClick = onClick,
-                    onLongClick = if (menu.isEmpty()) null else ({ haptics.selection(); menuOpen = true }),
-                )
-                .semantics { customActions = all.map { a -> CustomAccessibilityAction(a.label) { a.run(); true } } },
-        ) {
-            content()
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                for (a in menu) {
-                    DropdownMenuItem(
-                        text = { Text(a.label, color = if (a.tone == Tone.problem) Tone.problem.color() else Color.Unspecified) },
-                        leadingIcon = { Icon(a.icon, contentDescription = null) },
-                        onClick = { menuOpen = false; a.run() },
-                    )
-                }
-            }
-        }
-    }
-}
 
 /**
  * A full-height sheet with a title and a close at its leading edge, a scrolling body and, when given, a bar pinned under it:
@@ -299,7 +219,7 @@ fun RepairsToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Uni
 @Composable
 fun RepairsDayRow(label: String, day: String, onPick: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    val date = runCatching { LocalDate.parse(day) }.getOrNull() ?: LocalDate.now()
+    val date = runCatching { LocalDate.parse(day) }.getOrNull() ?: erp.app.screens.work.ShopToday.date()
     Row(
         Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).clickable(role = Role.Button) { open = true },
         verticalAlignment = Alignment.CenterVertically,

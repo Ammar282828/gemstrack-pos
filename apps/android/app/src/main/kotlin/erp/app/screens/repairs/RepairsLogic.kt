@@ -1,5 +1,6 @@
 package erp.app.screens.repairs
 
+import erp.app.ui.AppClock
 import erp.app.ui.ShopDate
 import erp.app.ui.toWhatsAppNumber
 import erp.core.ERPDate
@@ -64,7 +65,7 @@ object RepairsKit {
     fun filled(s: String?): String? = (s ?: "").trim().ifEmpty { null }
 
     /** A day the way the shop says it, mid-sentence: "ready by tomorrow", "ready by Sat 10 Oct". */
-    fun byDay(iso: String?, now: Instant = Instant.now()): String {
+    fun byDay(iso: String?, now: Instant = AppClock.now()): String {
         val s = ShopDate.say(iso, now = now)
         return if (s == "Today" || s == "Tomorrow" || s == "Yesterday") s.lowercase(Locale.ROOT) else s
     }
@@ -87,11 +88,11 @@ object RepairsKit {
     }
 
     /** "Today · Cash · Advance": a payment taken on a ticket, in a line. */
-    fun paymentWords(p: RepairPayment, now: Instant = Instant.now()): String =
+    fun paymentWords(p: RepairPayment, now: Instant = AppClock.now()): String =
         listOf(ShopDate.say(p.date, now = now), p.method?.rawValue ?: "", p.note ?: "").filter { it.isNotEmpty() }.joinToString(" · ")
 
     /** Karachi's day, `n` days on from now (the form's quick dates), as "yyyy-MM-dd". */
-    fun day(adding: Int, from: Instant = Instant.now()): String = ERPDate.karachiDay(from.plusSeconds(adding * 86_400L))
+    fun day(adding: Int, from: Instant = AppClock.now()): String = ERPDate.karachiDay(from.plusSeconds(adding * 86_400L))
 
     // MARK: Promised dates
 

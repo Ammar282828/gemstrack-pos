@@ -1,5 +1,6 @@
 package erp.app.screens.work
 
+import erp.app.ui.AppClock
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -147,7 +148,7 @@ fun MyWorkScreen(path: String) {
     suspend fun load() {
         if (House.isDemo) {
             portal = WorkDemo.portal()
-            updatedAt = Instant.now()
+            updatedAt = AppClock.now()
             phase = if (portal?.karigar == null) Phase.NoAccount else Phase.Ready
             return
         }
@@ -155,7 +156,7 @@ fun MyWorkScreen(path: String) {
             val answer = ErpApi.shared.getModel<KarigarPortal>(WorkPaths.portal(previewId))
                 ?: throw ErpApi.Failure(0, "The ERP sent something unexpected.")
             portal = answer
-            updatedAt = Instant.now()
+            updatedAt = AppClock.now()
             phase = if (answer.karigar == null) Phase.NoAccount else Phase.Ready
         } catch (e: CancellationException) {
             throw e
