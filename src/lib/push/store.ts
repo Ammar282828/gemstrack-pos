@@ -15,6 +15,8 @@ export type PushKind = (typeof PUSH_KINDS)[number];
 
 export interface PushDevice {
   token: string;
+  /** Absent (older documents) means 'ios'. */
+  platform?: 'ios' | 'android';
   bundleId: string;
   email: string;
   /** Kinds this phone has switched off (Settings → Notifications on the phone). */
@@ -58,15 +60,16 @@ export async function apnsKeyStatus(): Promise<{ set: boolean; readable: boolean
   return { set: true, readable: !!openKey(s, secret()), keyId: s.keyId, teamId: s.teamId, setAt: s.setAt, setBy: s.setBy };
 }
 
-export async function saveDevice(d: { token: string; bundleId: string; email: string; label?: string; off?: PushKind[] }): Promise<PushDevice> {
+export async function saveDevice(d: { token: string; platform?: 'ios' | 'android'; bundleId: string; email: string; label?: string; off?: PushKind[] }): Promise<PushDevice> {
   const ref = DEVICES().doc(deviceId(d.token));
   const now = new Date().toISOString();
   const prev = (await ref.get()).data() as PushDevice | undefined;
   const next: PushDevice = {
     token: d.token,
+    platform: d.platform ?? prev?.platform ?? 'ios',
     bundleId: d.bundleId,
     email: d.email,
-    label: (d.label ?? prev?.label ?? 'iPhone').slice(0, 60),
+    label: (d.label ?? prev?.label ?? ((d.platform ?? prev?.platform) === 'android' ? 'Android' : 'iPhone')).slice(0, 60),
     off: (d.off ?? prev?.off ?? []).filter((k): k is PushKind => (PUSH_KINDS as readonly string[]).includes(k)),
     createdAt: prev?.createdAt ?? now,
     updatedAt: now,

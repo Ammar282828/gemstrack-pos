@@ -1,10 +1,10 @@
 /**
- * This iPhone's notifications (the ERP app): POST registers it or changes which kinds it gets,
+ * This phone's notifications (the ERP app, iPhone or Android; Android sends platform: 'android'): POST registers it or changes which kinds it gets,
  * GET reads that back, DELETE forgets it (signing out). lib/push/send.ts reads the list.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { pushGate, isBundleId, isDeviceToken } from '@/lib/push/gate';
+import { pushGate, isBundleId, isDeviceToken, isPushPlatform } from '@/lib/push/gate';
 import { PUSH_KINDS, forgetDevices, readDevice, saveDevice, type PushKind } from '@/lib/push/store';
 
 export const dynamic = 'force-dynamic';
@@ -22,10 +22,11 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const email = await pushGate(req, 'owner-or-staff');
   if (typeof email !== 'string') return email;
-  const body = await req.json().catch(() => null) as { token?: unknown; bundleId?: unknown; label?: unknown; off?: unknown } | null;
-  if (!body || !isDeviceToken(body.token) || !isBundleId(body.bundleId)) return NextResponse.json({ error: 'Not a phone.' }, { status: 400 });
+  const body = await req.json().catch(() => null) as { token?: unknown; platform?: unknown; bundleId?: unknown; label?: unknown; off?: unknown } | null;
+  const platform = body?.platform ?? 'ios';
+  if (!body || !isPushPlatform(platform) || !isDeviceToken(body.token, platform) || !isBundleId(body.bundleId)) return NextResponse.json({ error: 'Not a phone.' }, { status: 400 });
   const off = Array.isArray(body.off) ? body.off.filter((k): k is PushKind => (PUSH_KINDS as readonly string[]).includes(String(k))) : undefined;
-  const d = await saveDevice({ token: body.token, bundleId: body.bundleId, email, label: typeof body.label === 'string' ? body.label : undefined, off });
+  const d = await saveDevice({ token: body.token, platform, bundleId: body.bundleId, email, label: typeof body.label === 'string' ? body.label : undefined, off });
   return NextResponse.json({ ok: true, off: d.off });
 }
 
