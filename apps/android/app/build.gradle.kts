@@ -158,6 +158,9 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // A preview leaves the app's own code exactly as written (only the libraries are shrunk): nothing of ours
+            // can be stripped by a missing rule before the release build has been tried on a phone.
+            if (project.hasProperty("preview")) proguardFiles("proguard-preview.pro")
         }
     }
 
