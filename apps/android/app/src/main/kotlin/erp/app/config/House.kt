@@ -36,7 +36,7 @@ object House {
     const val DEMO_EXTRA = "erp.demo"
 
     /** The demo reads demo.json and never touches the server; a debug build can force it with -Derp.demo=true. */
-    @Volatile var isDemo: Boolean = BuildConfig.DEBUG && System.getProperty("erp.demo") == "true"
+    @Volatile var isDemo: Boolean = BuildConfig.PREVIEW_DEMO || (BuildConfig.DEBUG && System.getProperty("erp.demo") == "true")
         private set
 
     /** Launched with the extra `erp.demo` = true (the emulator check): made-up data, no sign-in, no Firebase. */

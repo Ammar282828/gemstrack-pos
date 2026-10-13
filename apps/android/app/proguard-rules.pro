@@ -20,3 +20,6 @@
 -dontwarn org.bouncycastle.**
 -dontwarn org.conscrypt.**
 -dontwarn org.openjsse.**
+
+# core decodes its models through companions found by type: keep them whole, they are small
+-keep class erp.core.** { *; }

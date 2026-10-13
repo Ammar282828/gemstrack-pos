@@ -132,7 +132,11 @@ android {
                 @Suppress("UNCHECKED_CAST") val fb = s["firebase"] as Map<String, Any?>
                 val url = s["url"] as String
                 applicationId = s["bundleId"] as String // the iPhone's id, so the two phones match
-                resValue("string", "app_name", s["homeName"] as String)
+                // -Ppreview: a demo build beside the installed app (its own id, "Preview" in its name, the demo books).
+                val preview = project.hasProperty("preview")
+                if (preview) applicationIdSuffix = ".preview"
+                resValue("string", "app_name", (s["homeName"] as String) + if (preview) " Preview" else "")
+                buildConfigField("boolean", "PREVIEW_DEMO", preview.toString())
                 buildConfigField("String", "HOUSE", q(id))
                 buildConfigField("String", "STORE_NAME", q(s["storeName"] as String))
                 buildConfigField("String", "HOME_NAME", q(s["homeName"] as String))
@@ -168,6 +172,9 @@ android {
         unitTests.isIncludeAndroidResources = true
         // Robolectric reaches into the JDK's file descriptors (Android 16 shared memory); Java 17+ closes them unless told.
         unitTests.all { test ->
+            // Hundreds of Robolectric screenshots in one JVM outgrow its default 512 MB: a larger heap, and a fresh JVM now and then.
+            test.maxHeapSize = "2g"
+            test.setForkEvery(100)
             test.jvmArgs(
                 "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
                 "--add-opens=java.base/java.io=ALL-UNNAMED",
