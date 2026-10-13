@@ -1,6 +1,7 @@
 package erp.app.screens
 
 import erp.app.nav.ScreenRoute
+import erp.app.screens.analytics.AnalyticsRoutes
 import erp.app.screens.customers.CustomersRoutes
 import erp.app.screens.home.HomeRoutes
 import erp.app.screens.invoices.InvoicesRoutes
@@ -30,6 +31,7 @@ object NativeScreens {
             StockRoutes,
             // The Swift order: Customers, Repairs, Stock and Workshop come between Invoices and Money.
             MoneyRoutes,
+            AnalyticsRoutes,
             // After Analytics and My work in the Swift order; the owners' pages share no prefix with them.
             OwnerRoutes,
         ).flatten()
