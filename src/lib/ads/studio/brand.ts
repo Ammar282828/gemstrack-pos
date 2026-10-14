@@ -174,7 +174,7 @@ const MINA: HouseBrand = {
     ],
   },
   markRules: [
-    'The MINA wordmark once on every ad, clear of the piece: white, about 180–210 px wide on a 1080-px frame, bottom centre (bottom right when the words sit left).',
+    'The MINA wordmark once, clear of the piece, on every ad that sells a benefit or the category (the ones with a button): white, about 180–210 px wide on a 1080-px frame, bottom centre (bottom right when the words sit left). A named-design ad — the ring’s name as the hero — carries neither mark nor button.',
     'Never stretch, rotate, outline or shadow the mark; never recolour it outside the palette.',
   ],
   visual: {
@@ -184,7 +184,8 @@ const MINA: HouseBrand = {
       'Warm ivory (#F8F1EE) for type on dark; the wordmark and button words in white.',
       'Colour and light first: let the stones and the silver shine; keep type short and clean.',
       'The hero word is Bodoni italic and big — the ring’s name or one word (“Moissanite”) at 120–190 px on a 1080-px frame. Small lines are bold, never light, so they read on a phone.',
-      'A button on the picture: a deep red (#8B1E2D) pill, radius 48, about 320 × 96 px, “Shop Now” in white.',
+      'Two kinds of ad. A named design: the name in Bodoni italic (about 130 px), one italic line on its form, the material in bold pink capitals — nothing else. A benefit or the category: a small italic lead-in (“The Best in”), the hero line big in title case, a deep red (#8B1E2D) pill (radius 48, about 315 × 100 px) with “SHOP NOW” in bold capitals, the material in bold capitals, the wordmark.',
+      'Behind the words a deep shade, not a light gradient: black — or deep red into black — from clear at 50–70% of the way down to 64–92% at the bottom.',
       'The material line in bold tracked capitals, rose pink: “Vera · Moissanite · 925 Silver”.',
       'Callouts that explain (a cut-away, a loupe on a detail): ivory pills with deep red words, joined by solid 5–7 px lines or arrows — never hairlines.',
       'Photos a touch brighter and warmer than shot (brightness +12, contrast +8, saturation +6; warmth up on gold). Editorial face shots — sunglasses, a hand to the face — and AI-cleaned light grounds are welcome.',

@@ -297,9 +297,17 @@ changes pics text etc and learn from them for future posts"). The owner reworked
 drawings in `studio_board_views`, gives a consistent look. It now lives in Mina's brand book (`brand.ts` MINA: voice, marks,
 visual), so the AI copy, the weekly board, Let it cook and any MCP agent all read it.
 
-- **The wordmark goes on every ad.** It was added to every design the owner touched: white, 180–210 px wide on a 1080 frame,
-  bottom centre (bottom right when the words sit left).
-- **A button goes on the picture.** "Shop Now" or "SHOP NOW" in white on a deep red (#8B1E2D) pill (radius 48, about 320 × 96).
+- **There are two kinds of ad, and they are treated differently.**
+  - **A named design** (Solene, Odile): the owner made the name italic and the material line bold pink, and added no mark and
+    no button.
+  - **A benefit or the category** (the vermeil cut-away, the loupe, "harder than sapphire", "proud of it"): the owner added a
+    button, the wordmark (on three of the four) and short title-case lines.
+- **The wordmark goes on benefit ads:** white, 180–210 px wide on a 1080 frame, bottom centre (bottom right when the words sit
+  left).
+- **There is a deep shade behind the words.** Each edited design got a `bg.shade`: black, or the brand's deep red into black,
+  from clear at 0.49–0.69 of the height to 0.64–0.92 at the bottom. The default bottom gradient (0.55 at 42% of the height) was
+  too light.
+- **A button goes on benefit pictures.** "Shop Now" or "SHOP NOW" in white on a deep red (#8B1E2D) pill (radius 48, about 320 × 96).
   The research said the premium brands put no CTA on the image; the owner wants one.
 - **The hero word is large Bodoni italic.**
   - Edits: Solene 120 → 132 px italic; Odile went italic; "Look closer." 104 → 188 px; "Moissanite" 134 px.
@@ -324,8 +332,13 @@ visual), so the AI copy, the weekly board, Let it cook and any MCP agent all rea
   - "Harder than sapphire" swapped the tight Kiana crop for the editorial Vera shot (sunglasses, a hand to the face), cleaned onto
     a light ground with the AI ("… · AI custom" in Uploads), and renamed its line to the ring shown.
 - **More shapes.** The fire ad was copied to 3:4 (Instagram's grid) and the proud ad to a framed 9:16.
-- **Untouched (rev 1):** every 9:16 the agent made, Elise, Fluted Dome, Blossom, fire, nikkah, choice, blaze and loan. That says
-  the owner worked on 4:5s first, not that those are approved.
+- **Brought into line, 2026-10-14** (owner: "yes bring the rest into line"). Every design still at rev 1 was rebuilt in its
+  kind's treatment, 22 in all: every 9:16, and the Elise, Fluted Dome, Blossom, fire, nikkah, choice, blaze and loan 4:5s.
+  - The ops were puts through `changeBoard`, and only on designs whose rev was still the one read.
+  - The 9:16s of the owner's own 4:5s copy their layers: the loupe's exact settings (iz 2.25, fx 0.6, fy 0.08), the re-made
+    cut-away and the Vera shot.
+  - The proof lines became title-case benefits ("More Fire Than Diamond", "Cut to Blaze", "Say Yes to the Ring, Not the Loan").
+  - The Vera story says 925 silver: Vera is rhodium only.
 
 **To learn from a later round:** read the board and its `studio_board_views`. Diff every frame's `doc` against what was written
 (bg adjust and placement; layers added, removed and changed: font, size, colour, weight, words, x/y). Look at the drawings side
