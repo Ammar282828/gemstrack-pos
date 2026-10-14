@@ -289,6 +289,53 @@ longer forms (Let it cook with an aim, the name, every shape).
     | 'phone')` (tools for the selection), and the header — `title`, `status`, `actions` (after Download; here Save), `closeLabel`,
     `hint` and `startPanel`. The board is its only host so far.
 
+<a id="house-of-mina-ad-style"></a>### House of Mina's ad style
+
+**House of Mina's ad style, from the owner's edits** (2026-10-14, owner: "i made changes to many of your designs, look at the
+changes pics text etc and learn from them for future posts"). The owner reworked the rings boards (`rings-oct-2026` and
+`rings-quiet-oct-2026` in hom-pos; revs 21 and 20). Diffing each design against what was written, and looking at the page's own
+drawings in `studio_board_views`, gives a consistent look. It now lives in Mina's brand book (`brand.ts` MINA: voice, marks,
+visual), so the AI copy, the weekly board, Let it cook and any MCP agent all read it.
+
+- **The wordmark goes on every ad.** It was added to every design the owner touched: white, 180–210 px wide on a 1080 frame,
+  bottom centre (bottom right when the words sit left).
+- **A button goes on the picture.** "Shop Now" or "SHOP NOW" in white on a deep red (#8B1E2D) pill (radius 48, about 320 × 96).
+  The research said the premium brands put no CTA on the image; the owner wants one.
+- **The hero word is large Bodoni italic.**
+  - Edits: Solene 120 → 132 px italic; Odile went italic; "Look closer." 104 → 188 px; "Moissanite" 134 px.
+  - On a light ground the hero word goes deep red, stacked one word a line ("Silver / Made / for / Every / Day").
+- **Small text is bold, not light.**
+  - The material line went bold and rose pink (#F4A4C0).
+  - The vermeil callouts went bold at 28–30 px, with their lines 2 → 5 px.
+  - Light 20 px footnotes were deleted.
+- **Benefits and the category, in title case, over technical proof.**
+  - The vermeil cut-away went from "2.5 microns of 24k gold." with "more than 14 times the US minimum for gold electroplate" and
+    an FTC footnote, to "Lesser Repolishes. Built to Last", "For the First time in Pakistan" and "2.5 microns of 24K Gold Vermeil
+    on SILVER".
+  - "Harder than sapphire" and its Mohs line became "Silver Made for Every Day".
+  - "Moissanite, and proud of it." became "The Best in / Moissanite".
+  - Silver is said proudly.
+- **Explaining callouts are graphic, not hairline.** On the loupe the hairline was replaced by ivory pills ("925 Silver",
+  "Gold Vermeil") in deep red type, a 7 px white arrow from the ring to the loupe, and the loupe zoomed 2.25× onto the cut face
+  (an ellipse mask with a shadow).
+- **The photos are brighter and warmer.**
+  - Adjustments: brightness +12, contrast +8, saturation +6 on the cut-away and the sapphire ad; warmth +42 on the hand shot.
+  - The cut-away was re-made in the Studio's AI with richer gold on a redder maroon.
+  - "Harder than sapphire" swapped the tight Kiana crop for the editorial Vera shot (sunglasses, a hand to the face), cleaned onto
+    a light ground with the AI ("… · AI custom" in Uploads), and renamed its line to the ring shown.
+- **More shapes.** The fire ad was copied to 3:4 (Instagram's grid) and the proud ad to a framed 9:16.
+- **Untouched (rev 1):** every 9:16 the agent made, Elise, Fluted Dome, Blossom, fire, nikkah, choice, blaze and loan. That says
+  the owner worked on 4:5s first, not that those are approved.
+
+**To learn from a later round:** read the board and its `studio_board_views`. Diff every frame's `doc` against what was written
+(bg adjust and placement; layers added, removed and changed: font, size, colour, weight, words, x/y). Look at the drawings side
+by side, and put the pattern in MINA's rules here and in `brand.ts`. Revs above 1 with `by: 'page'` are the owner's.
+
+**Checks the owner's copy still needs** (raised 2026-10-14, not changed):
+- "For the First time in Pakistan" is a claim: is 24K vermeil at 2.5 µm really first here?
+- "Lesser Repolishes" reads better as "Fewer re-polishes".
+- The Vera line says "24K gold vermeil", but Vera is rhodium-plated and white in the shot.
+
 <a id="five-tabs"></a>### Five tabs
 
 - **The Studio has five tabs** (2026-10-04, owner: "audit and consolidate ads tab"; there were eight): **Plan** (What to run —

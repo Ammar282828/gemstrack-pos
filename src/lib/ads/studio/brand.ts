@@ -13,7 +13,9 @@
  * House of Mina (2026-09-29, owner: "do the same thing for houseofmina"): from what the ERP
  * already says in Mina's name — its voice in the caption prompts (its own community posts), its
  * link page and post footer, its palette and mark — and the market research of that day. It has
- * no vault; nothing here is invented beyond what those say.
+ * no vault; nothing here is invented beyond what those say. Its ad look and the voice of its ad headlines
+ * were then read off the owner's own edits to the rings boards (2026-10-12/14, owner: "look at the changes,
+ * pics, text etc and learn from them for future posts"): docs/features/ad-studio.md#house-of-mina-ad-style.
  *
  * Kept as text in code rather than read at run time: these rules decide what the model approves.
  */
@@ -149,14 +151,17 @@ const MINA: HouseBrand = {
     feel: ['modern', 'confident', 'clean', 'witty', 'colour-led'],
     never: ['gushing', 'salesy', 'fussy', 'generic'],
     rules: [
-      'Colour and light first: say what the piece does in the light, not what it is made of.',
+      'Colour and light first: say what the piece does in the light — and say the silver proudly (“925 silver”, “24K gold vermeil on silver”): it is what the house sells.',
       'Short, vivid lines. One idea a line. A little wit where it fits.',
+      'Ad headlines lead with the benefit or the category in plain words, in title case, as the owner writes them: “Built to Last”, “Silver Made for Every Day”, “The Best in Moissanite”.',
+      'On the picture: one hero word or line, at most one short support line, and a button. Technical proof (hardness, dispersion, US standards) and footnotes stay off the picture; the caption and the page carry them.',
+      'The ring is named as the photo shows it: the name on the picture must be the ring in the picture.',
       'Its own posts read like “Cut to catch every light in the room.” and “Red, blue, green. Pick your side.”',
       'Specs are welcome when given — the silver, the stones, a weight or a price — stated plainly, exactly as given.',
       'British spelling.',
     ],
     closers: ['Bespoke, designed in-house.', 'Pick your side.', 'Made to be worn, every day.'],
-    ctas: ['DM to order.', 'Order on WhatsApp.', 'Shop now.', 'See the whole catalogue.', 'Shipped worldwide.'],
+    ctas: ['Shop Now', 'DM to order.', 'Order on WhatsApp.', 'See the whole catalogue.', 'Shipped worldwide.'],
     avoid: ['gushing superlatives', 'white gold (for silver)', 'real / natural (unless the catalogue says so)'],
   },
   audience: {
@@ -169,16 +174,21 @@ const MINA: HouseBrand = {
     ],
   },
   markRules: [
-    'The MINA wordmark once per surface, clear of the piece.',
+    'The MINA wordmark once on every ad, clear of the piece: white, about 180–210 px wide on a 1080-px frame, bottom centre (bottom right when the words sit left).',
     'Never stretch, rotate, outline or shadow the mark; never recolour it outside the palette.',
   ],
   visual: {
     gold: '#E8A5AE', lightGold: '#F2C4CB', ground: '#140B0B', ground2: '#2A1416', bone: '#F8F1EE',
     rules: [
-      'A deep maroon-black ground (#140B0B) with the house’s dusty rose (#E8A5AE) as the one accent.',
-      'Warm ivory (#F8F1EE), not pure white, for type on dark.',
+      'A deep maroon-black ground (#140B0B), or a light, airy one; dusty rose (#E8A5AE) and rose pink (#F4A4C0) for small words; deep red (#8B1E2D) for buttons and for headlines on light grounds.',
+      'Warm ivory (#F8F1EE) for type on dark; the wordmark and button words in white.',
       'Colour and light first: let the stones and the silver shine; keep type short and clean.',
-      'Every visual comes as a pair: the story (1080 × 1920) and the square or 4:5.',
+      'The hero word is Bodoni italic and big — the ring’s name or one word (“Moissanite”) at 120–190 px on a 1080-px frame. Small lines are bold, never light, so they read on a phone.',
+      'A button on the picture: a deep red (#8B1E2D) pill, radius 48, about 320 × 96 px, “Shop Now” in white.',
+      'The material line in bold tracked capitals, rose pink: “Vera · Moissanite · 925 Silver”.',
+      'Callouts that explain (a cut-away, a loupe on a detail): ivory pills with deep red words, joined by solid 5–7 px lines or arrows — never hairlines.',
+      'Photos a touch brighter and warmer than shot (brightness +12, contrast +8, saturation +6; warmth up on gold). Editorial face shots — sunglasses, a hand to the face — and AI-cleaned light grounds are welcome.',
+      'Every visual comes in three shapes: the story (1080 × 1920), the 4:5 and the 3:4 (Instagram’s grid).',
     ],
   },
   market: [

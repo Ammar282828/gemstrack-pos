@@ -232,6 +232,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 **Ad studio** (`docs/features/ad-studio.md`) — its Plan is Ads → Plan, the rest are Design sections
 - [Ad studio](docs/features/ad-studio.md#ad-studio) — both houses; [any shape](docs/features/ad-studio.md#any-shape)
 - [Board](docs/features/ad-studio.md#board) — endless canvas, Let it cook, MCP agent (`/api/studio/mcp`), Use it; a weekly board Mondays 9:00
+- [Mina's ad style](docs/features/ad-studio.md#house-of-mina-ad-style) — from the owner's edits: wordmark + red Shop Now pill on every ad, big Bodoni italic hero, bold pink caps, benefits over proof; in `brand.ts`
 
 **iPhone app** (`docs/features/iphone-app.md`)
 - [iPhone app](docs/features/iphone-app.md#iphone-app) — `apps/ios`, Capacitor over the live ERP; TestFlight by `ios.yml`
