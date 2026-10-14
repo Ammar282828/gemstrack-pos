@@ -26,7 +26,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Maximize2, Minimize2, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X, Upload, Undo2, Wand2, Type, Crown, Redo2, LayoutGrid, ChevronDown, MousePointerClick } from 'lucide-react';
+import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Maximize2, Minimize2, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X, Upload, Undo2, Wand2, Type, Crown, Redo2, LayoutGrid, ChevronDown, MousePointerClick, PanelRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
@@ -256,6 +256,11 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
   // Full screen: the board alone, edge to edge (the browser's full screen where it has one; an iPhone has none, so
   // the board also covers the page itself). Esc or the button leaves.
   const [full, setFull] = useState(false);
+  // The stage (2026-10-14, owner: "the board designer should take up 95% of the screen from the get go"): the
+  // board opens as a 95vw × 95svh sheet over the page; the side panel is a drawer on top of it. "Close" returns
+  // to the board inside the page (its picker and buttons); the dock brings the stage back.
+  const [stage, setStage] = useState(true);
+  const [drawer, setDrawer] = useState(false);
   const fullRef = useRef<HTMLDivElement>(null);
   const toggleFull = () => {
     const next = !full;
@@ -408,6 +413,11 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
   const fitRef = useRef(fit);
   fitRef.current = fit;
   useEffect(() => { if (board && !fitted.current) { fitted.current = true; requestAnimationFrame(fit); } }, [board, fit]);
+  // The box changed size (stage, inline, full screen): fit what is on it again.
+  const sized = useRef(true);
+  useEffect(() => { if (sized.current) { sized.current = false; return; } const r = requestAnimationFrame(() => fitRef.current()); return () => cancelAnimationFrame(r); }, [stage, full]);
+  // Picking a design brings its panel up over the board; picking nothing puts it away.
+  useEffect(() => { setDrawer(!!sel); }, [sel?.kind, sel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const zoomAt = useCallback((k: number, cx: number, cy: number) => {
     setView(v => {
@@ -743,10 +753,15 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
   };
 
   if (!board) return <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Opening the board…</p>;
+  const overlay = stage || full;
 
   return (
-    <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
-      <div ref={fullRef} className={cn('space-y-2 min-w-0', full && 'fixed inset-0 z-[60] overflow-auto bg-background p-3 pt-[max(0.75rem,env(safe-area-inset-top))]')}>
+    <div className={cn(!overlay && 'grid gap-3 lg:grid-cols-[1fr_320px]')}>
+      {stage && !full && <div aria-hidden className="fixed inset-0 z-[59] bg-black/50" />}
+      <div ref={fullRef} className={cn('min-w-0',
+        full ? 'space-y-2 fixed inset-0 z-[60] overflow-auto bg-background p-3 pt-[max(0.75rem,env(safe-area-inset-top))]'
+          : stage ? 'fixed inset-x-[2.5vw] top-[2.5svh] z-[60] flex h-[95svh] flex-col gap-2 rounded-2xl border bg-background p-2 shadow-2xl'
+            : 'space-y-2')}>
         {(cooking || sending) && <p className="text-xs rounded-lg bg-primary/10 p-2 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin shrink-0" /> {cooking || sending}</p>}
         {agentBusy(board) && (
           <p className="text-xs rounded-lg border border-sky-400/50 bg-sky-400/10 p-2 flex items-center gap-2">
@@ -757,7 +772,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
         )}
         <div
           ref={boxRef}
-          className={cn('relative min-h-[420px] overflow-hidden rounded-xl border bg-muted/40 touch-none select-none cursor-grab active:cursor-grabbing', full ? 'h-[calc(100svh-1.5rem)]' : 'h-[72svh]')}
+          className={cn('relative min-h-[420px] overflow-hidden rounded-xl border bg-muted/40 touch-none select-none cursor-grab active:cursor-grabbing', full ? 'h-[calc(100svh-1.5rem)]' : stage ? 'min-h-0 flex-1' : 'h-[72svh]')}
           style={{ backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.25) 1px, transparent 1px)', backgroundSize: `${24 * view.z}px ${24 * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` }}
           onPointerDown={e => onDown(e)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
           onDoubleClick={e => { if (e.target === e.currentTarget) addNote(e.clientX, e.clientY); }}
@@ -838,12 +853,16 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
             <BarButton label="Fit everything (F)" onClick={fit}><Maximize className="h-4 w-4" /></BarButton>
             <BarButton label="Tidy up: the designs in neat rows" disabled={frames.length < 2} onClick={tidy}><LayoutGrid className="h-4 w-4" /></BarButton>
             <BarButton label={full ? 'Leave full screen (Esc)' : 'Full screen'} onClick={toggleFull}>{full ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</BarButton>
+            {overlay && <BarButton label={drawer ? 'Hide the panel' : 'The panel: board name and the picked design'} onClick={() => setDrawer(d => !d)} strong={drawer}><PanelRight className="h-4 w-4" /></BarButton>}
+            <BarButton label={stage || full ? 'Close the big view (the board inside the page)' : 'Open the board big'} onClick={() => { if (full) toggleFull(); setStage(!(stage || full)); }}>{stage || full ? <X className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}</BarButton>
           </div>
         </div>
-        <p className="hidden text-[11px] text-muted-foreground md:block">Drag the board to move · ⌘-scroll or pinch to zoom · drop or paste pictures · double-click: a design to edit it, the board for a note · ⌫ delete · ⌘D duplicate · ⌘Z undo · arrows nudge</p>
+        <p className={cn('hidden text-[11px] text-muted-foreground', !overlay && 'md:block')}>Drag the board to move · ⌘-scroll or pinch to zoom · drop or paste pictures · double-click: a design to edit it, the board for a note · ⌫ delete · ⌘D duplicate · ⌘Z undo · arrows nudge</p>
       </div>
 
-      <aside className="space-y-3">
+      <aside className={cn('space-y-3', overlay && (drawer && !editing
+        ? 'fixed z-[60] overflow-y-auto rounded-2xl border bg-background/95 p-3 shadow-2xl backdrop-blur max-sm:inset-x-3 max-sm:bottom-20 max-sm:max-h-[55svh] sm:bottom-20 sm:right-[calc(2.5vw+0.5rem)] sm:top-[calc(2.5svh+0.5rem)] sm:w-[340px]'
+        : 'hidden'))}>
         <BoardName board={board} onRename={async name => { await send([{ op: 'rename', name }]); onRenamed(); }} onDelete={async () => {
           if (!window.confirm(`Delete “${board.name}” and its ${frames.length} designs?`)) return;
           try { await api(`/api/ads/studio/boards/${board.id}`, { method: 'DELETE' }); onGone(); } catch (e) { fail('Couldn’t delete it', e); }

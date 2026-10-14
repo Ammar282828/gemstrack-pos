@@ -1386,7 +1386,8 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage, exportPa
     const onChange = () => setIsFull(document.fullscreenElement === document.documentElement);
     document.addEventListener('fullscreenchange', onChange);
     let want = false;
-    try { want = localStorage.getItem('designer_fullscreen') === '1'; } catch { /* private mode */ }
+    // Never chosen: a computer opens full screen at once (2026-10-14, owner: the designer at full size from the start); a phone already covers the page.
+    try { const v = localStorage.getItem('designer_fullscreen'); want = v === '1' || (v === null && window.matchMedia('(min-width: 768px)').matches); } catch { /* private mode */ }
     if (want && document.fullscreenEnabled && !document.fullscreenElement) { entered.current = true; void document.documentElement.requestFullscreen?.().then(() => setIsFull(true)).catch(() => undefined); }
     else onChange();
     return () => {
@@ -1407,6 +1408,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage, exportPa
   useEffect(() => {
     const el = areaRef.current;
     if (!el) return;
+    setArea({ w: el.clientWidth, h: el.clientHeight });   // at once: the first frame is already the full size, not the 800×600 guess
     const ro = new ResizeObserver(() => setArea({ w: el.clientWidth, h: el.clientHeight }));
     ro.observe(el);
     return () => ro.disconnect();

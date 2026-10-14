@@ -18,6 +18,8 @@ import { adScore } from './assessment';
 import { changeBoard, createBoard, getBoard, getView, listBoards, viewRevs } from './board';
 import { BOARD_SCALE, framePx, isTemplateId, safeTemplate, wordsOf, type BoardFrame, type BoardOp } from './board-shape';
 import { isAdFormat } from './templates';
+import { addUpload } from './uploads';
+import { MAIN, replacePicture } from './board-pictures';
 import { FONT_LABEL } from '@/lib/social/editor';
 
 export const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
@@ -41,6 +43,22 @@ const FIELDS = obj({
 const FORMAT = S('The shape.', { enum: Object.keys(AD_FORMATS) });
 const TEMPLATE = S('The layout.', { enum: AD_TEMPLATES.map(t => t.id) });
 
+/** The most picture bytes upload_photo takes, decoded. */
+export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+const MAX_UPLOAD_MB = MAX_UPLOAD_BYTES / 1024 / 1024;
+
+/** Base64 (or a data: URL) to bytes; throws with what was wrong. */
+export function decodePicture(data: unknown): Buffer {
+  if (typeof data !== 'string' || !data.trim()) throw new Error('upload_photo needs `data`: the picture file as base64.');
+  const raw = data.trim().replace(/^data:[^,]*;base64,/i, '').replace(/\s+/g, '');
+  if (raw.length > Math.ceil(MAX_UPLOAD_BYTES / 3) * 4 + 4) throw new Error(`That picture is over ${MAX_UPLOAD_MB} MB.`);
+  if (!raw || !/^[A-Za-z0-9+/_-]+={0,2}$/.test(raw)) throw new Error('`data` is not valid base64.');
+  const buf = Buffer.from(raw.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+  if (!buf.length) throw new Error('`data` is not valid base64.');
+  if (buf.length > MAX_UPLOAD_BYTES) throw new Error(`That picture is over ${MAX_UPLOAD_MB} MB.`);
+  return buf;
+}
+
 export const TOOLS = [
   { name: 'get_style', description: 'Read FIRST. The house brief (voice, hard rules, marks, visual rules), the layouts, the shapes, the design document format and how to work on a board.', inputSchema: obj({}) },
   { name: 'list_boards', description: 'The boards, newest first.', inputSchema: obj({}) },
@@ -55,6 +73,8 @@ export const TOOLS = [
   { name: 'add_note', description: 'Leave a sticky note on a board for the owner (a question, the reasoning behind a set of designs).', inputSchema: obj({ board: S('Board id.'), text: S('The note.'), x: N('Left (optional).'), y: N('Top (optional).') }, ['board', 'text']) },
   { name: 'remove_note', description: 'Take a note off a board.', inputSchema: obj({ board: S('Board id.'), id: S('Note id.') }, ['board', 'id']) },
   { name: 'view_design', description: 'Look at a design as the page drew it. If the page hasn\'t drawn its latest change yet, says so (the board must be open in the ERP).', inputSchema: obj({ board: S('Board id.'), id: S('Design id.') }, ['board', 'id']) },
+  { name: 'upload_photo', description: `Put a picture of your own in the photo library, exactly as the ERP's own uploads are kept (a non-picture is refused; it is stored upright, at most 2400 px, under 900 KB, PNG if it has transparency). Send the file's bytes as base64 (a data: URL also works); at most ${MAX_UPLOAD_MB} MB decoded. Answers the library id (\`up:…\`) and size, which add_design, replace_design_photo, find_photos and view_photo take.`, inputSchema: obj({ data: S('The picture file, base64 (or a data: URL).'), name: S('Its name in the library (a filename also works).'), filename: S('The original filename, used as the name when none is given.'), mime: S('Its type, e.g. image/jpeg (optional; must be an image).') }, ['data']) },
+  { name: 'replace_design_photo', description: 'Swap the photo of a design for another library photo (find_photos, or upload_photo\'s id). Only the picture changes: the words, layers, layout, crop, placement, template, fields and label stay. Pass `layer` (an image layer\'s id from get_board with docs:true, or "bg" for a library background) to swap that picture instead of the design\'s own photo. Then view_design once the page has redrawn it.', inputSchema: obj({ board: S('Board id.'), id: S('Design id.'), photo: S('Library photo id (find_photos, upload_photo).'), layer: S('Optional: an image layer id, or "bg", to replace that picture instead of the design\'s own photo.') }, ['board', 'id', 'photo']) },
 ] as const;
 
 function styleGuide(): string {
@@ -156,6 +176,31 @@ export async function callTool(name: string, args: Record<string, unknown>, who:
       if (problems.length) return oops(`Not changed — ${problems.join('; ')}.`);
       await change(b.id, [{ op: 'put', id: cur.id, patch }]);
       return text(patch.doc === null ? 'Changed; the page lays it out afresh when the board is open.' : 'Changed.');
+    }
+    case 'upload_photo': {
+      if (args.mime !== undefined && !/^image\/[\w.+-]+$/i.test(String(args.mime))) return oops(`Not a picture (${String(args.mime).slice(0, 40)}).`);
+      let buf: Buffer;
+      try { buf = decodePicture(args.data); } catch (e) { return oops(e instanceof Error ? e.message : String(e)); }
+      const u = await addUpload(buf, { name: String(args.name || args.filename || ''), by });
+      return json({ id: `up:${u.id}`, name: u.name, w: u.w, h: u.h, note: 'In the library. add_design or replace_design_photo take this id; view_photo shows it.' });
+    }
+    case 'replace_design_photo': {
+      const b = await boardOf(args.board);
+      const cur = b.frames.find(f => f.id === args.id);
+      if (!cur) return oops(`No design “${String(args.id)}” on this board.`);
+      const photo = String(args.photo ?? '');
+      const asset = (await listAssets()).assets.find(a => a.id === photo);
+      if (!asset) return oops(`No photo “${photo}” — find_photos gives the ids.`);
+      const target = typeof args.layer === 'string' && args.layer ? args.layer : MAIN;
+      if (target !== MAIN && !cur.doc) return oops('That design has no layout document yet, so it has no layers to replace — the page lays it out when the board is open.');
+      const pick = { assetId: asset.original?.id ?? photo, marked: asset.source === 'site' && !asset.original };
+      let next;
+      try { next = replacePicture({ doc: cur.doc as NonNullable<BoardFrame['doc']>, assetId: cur.assetId, marked: cur.marked }, target, pick); }
+      catch (e) { return oops(e instanceof Error ? e.message : String(e)); }
+      const patch: Partial<BoardFrame> = { by: 'agent', assetId: next.assetId, marked: next.marked };
+      if (target !== MAIN) patch.doc = next.doc;
+      await change(b.id, [{ op: 'put', id: cur.id, patch }]);
+      return text('Photo replaced; words, layers and crop kept. The page redraws it when the board is open; then view_design shows it.');
     }
     case 'move_design': { const b = await boardOf(args.board); await change(b.id, [{ op: 'move', id: String(args.id), x: Number(args.x), y: Number(args.y) }]); return text('Moved.'); }
     case 'remove_design': { const b = await boardOf(args.board); await change(b.id, [{ op: 'remove', id: String(args.id) }]); return text('Removed.'); }

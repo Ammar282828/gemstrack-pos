@@ -207,7 +207,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 <a id="board"></a>### Board
 
 **How it handles (2026-10-12, owner: "super intuitive on the web, simple yet feature packed").** Everything on
-the board lives on it: a dock at the bottom (Photo, Note, Undo/Redo, zoom, Fit, Tidy up, Full screen) and, over
+the board lives on it: a dock at the bottom (Photo, Note, Undo/Redo, zoom, Fit, Tidy up, Full screen, panel, close) and, over
 the selected design, its own bar (Edit, Variants, another shape, Duplicate, Download, Use it ▾, Delete). Pictures
 can be dropped or pasted straight onto the board; double-clicking the ground makes a note there. Every hand-made
 change (add, move, nudge, delete, duplicate, a note's words, Tidy up) is a step with its inverse ops, so ⌘Z and
@@ -229,10 +229,10 @@ longer forms (Let it cook with an aim, the name, every shape).
   shape), Duplicate, Download (full size JPEG), Remove. Measured: two variants in 24 s.
   **An agent over MCP** (`/api/studio/mcp`, `board-agent.ts`, tested): **Connect an agent** makes a key (`tstudio_…`, kept as a
   SHA-256 hash in `app_settings/studio_agent`, shown once, revocable there, 600 calls an hour) and the `claude mcp add --transport
-  http …` line. Plain JSON-RPC (Streamable HTTP, JSON answers only; notifications get 202). Thirteen tools: `get_style` (the house
+  http …` line. Plain JSON-RPC (Streamable HTTP, JSON answers only; notifications get 202). Fifteen tools: `get_style` (the house
   brief from `brand.ts`, the shapes, the layouts, the StoryDoc format, how to work), `list_boards`, `create_board`, `get_board` (notes
   first — the owner's instructions), `find_photos` (the library with the ERP's specs line and the assessment), `view_photo`,
-  `add_design`, `update_design`, `move_design`, `remove_design`, `add_note`, `remove_note`, `view_design`. **The agent never lays
+  `add_design`, `update_design`, `move_design`, `remove_design`, `add_note`, `remove_note`, `view_design`, and (2026-10-14) **`upload_photo`** and **`replace_design_photo`**. **The agent never lays
   out:** it gives a layout and words, and the page — the only place with the photo, the fonts and a canvas — lays the design out the
   next time the board is open, draws it, and posts a 720-px JPEG to `studio_board_views/{board}__{frame}` with the rev it shows;
   `view_design` returns that picture (or says it is stale / not drawn yet). Words an agent writes pass `wordProblems`: no sale words
@@ -241,6 +241,14 @@ longer forms (Let it cook with an aim, the name, every shape).
   layers, ≤ 60 KB, no uploaded pictures). Tried end to end on 2026-10-04 (local, real Firestore and Vertex): the agent added two
   designs and a note, its "22K and only 3g — 20% off" was refused, the page drew them, `view_design` returned the drawing; the test
   board and key were deleted after.
+  **Photos from the agent** (2026-10-14). `upload_photo { data (base64 or a data: URL), name?, filename?, mime? }` puts a picture in the
+  library through the ERP's own `addUpload` (`uploads.ts`: refuses a non-picture, upright, ≤ 2400 px, < 900 KB, PNG if transparent;
+  ≤ 20 MB decoded, over that or bad base64 or a non-image `mime` is refused) and answers `{ id: "up:<id>", name, w, h }`, the id
+  `find_photos`, `view_photo`, `add_design` and `replace_design_photo` take. `replace_design_photo { board, id, photo, layer? }` swaps
+  only the picture (`replacePicture`, `board-pictures.ts`): the frame's `assetId` (a site photo's unmarked original, as `add_design`
+  does) and `marked`; the document (words, layers, crop/placement, `photo` id), template, fields and label stay, and the rev moves so
+  the page redraws it for `view_design`. With `layer` (an image layer's id, or `bg` for a `lib:` background) it swaps that picture
+  instead, keeping its place, size and crop. Same agent key, same house project as every tool; no other way in.
   **Out of the board, and this week's board** (2026-10-04, owner "yes" to both). Each design's panel has **Use it**: *Queue a
   post* (the design to the chosen WhatsApp places — the channel ticked first — and/or an Instagram story, the same layout at 9:16;
   it joins Post a Piece's queue **held**, so nothing goes out from the board: Posts → Hub sends it or sets a time), *Use in a new
@@ -370,3 +378,10 @@ by side, and put the pattern in MINA's rules here and in `brand.ts`. Revs above 
   again, and nothing was running (the one campaign ended 2026-10-01). The fourth — the pixel not on taheri.shop — was fixed in
   taheri-site (`src/lib/analytics.js`).
 
+
+**The board's size** (2026-10-14, owner: "the board designer should take up 95% of the screen from the get go"). `BoardView` opens as a
+*stage*: a fixed sheet 95vw × 95svh over a dimmed page (`stage`), the canvas filling it, the side panel (board name, the picked design) a
+drawer over the board (right on a computer, a bottom sheet on a phone; the dock's panel button, and it opens on picking a design and
+hides under the designer). The dock's X closes the stage to the board inside the page (72svh, with its picker); the same button
+reopens it; Full screen is still the edge-to-edge page. The per-design designer is already a full-viewport portal; it now measures its
+canvas area before the first frame and, on a computer that never chose, asks the browser for full screen when it opens.
