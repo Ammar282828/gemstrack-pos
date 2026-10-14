@@ -190,6 +190,7 @@ const MINA: HouseBrand = {
       'Callouts that explain (a cut-away, a loupe on a detail): ivory pills with deep red words, joined by solid 5–7 px lines or arrows — never hairlines.',
       'Photos a touch brighter and warmer than shot (brightness +12, contrast +8, saturation +6; warmth up on gold). Editorial face shots — sunglasses, a hand to the face — and AI-cleaned light grounds are welcome.',
       'Every visual comes in three shapes: the story (1080 × 1920), the 4:5 and the 3:4 (Instagram’s grid).',
+      'A 9:16 is composed for Stories, not squeezed into the Reels safe zone: the piece large, its centre about a third of the way down; the words from about 1000 px to 1500 px; only the bottom fifth left clear (the owner, 2026-10-14: “the 9 by 16s all look off” when everything sat in the top two-thirds).',
     ],
   },
   market: [

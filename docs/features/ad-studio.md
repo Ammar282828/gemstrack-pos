@@ -340,6 +340,14 @@ visual), so the AI copy, the weekly board, Let it cook and any MCP agent all rea
   - The proof lines became title-case benefits ("More Fire Than Diamond", "Cut to Blaze", "Say Yes to the Ring, Not the Loan").
   - The Vera story says 925 silver: Vera is rhodium only.
 
+**9:16s are composed for Stories** (2026-10-14, owner: "fix the 9 by 16s they all look off"). Keeping everything inside the
+Reels safe band (y 269–1248) left a dead, dark third under every story, and the designs looked top-heavy. The stories were re-cut:
+- the ring larger (a crop of about 0.55 of the photo's width), centred about a third of the way down;
+- the words from about y 1000 to 1500, with hero lines 124–196 px and a deep shade from about 0.46 of the height;
+- only the bottom fifth (Stories' own bar) left clear.
+
+In Reels the lowest line or the mark may sit under the caption. That trade is accepted.
+
 **To learn from a later round:** read the board and its `studio_board_views`. Diff every frame's `doc` against what was written
 (bg adjust and placement; layers added, removed and changed: font, size, colour, weight, words, x/y). Look at the drawings side
 by side, and put the pattern in MINA's rules here and in `brand.ts`. Revs above 1 with `by: 'page'` are the owner's.
