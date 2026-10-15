@@ -429,6 +429,12 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Where the Workshop list starts: "you" (the signed-in person, Taheri's) or "anyone" (owner, 2026-10-15). Only the default.
+  - variable: NEXT_PUBLIC_STORE_WORKSHOP_START
+    value: "anyone"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_STORE_WEBSITE_FEATURED
     value: "0"
     availability:

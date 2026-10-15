@@ -556,6 +556,10 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
 
 ### Signed-in defaults
 
+- **Workshop start is a house setting** (2026-10-15, owner: "for houseofmina Workshop default should be anyone"):
+  `NEXT_PUBLIC_STORE_WORKSHOP_START` "you" (default, Taheri: the signed-in person) or "anyone" (Mina); `STORE_WORKSHOP_START` in
+  `lib/store-config.ts` → the web `/workshop` and `/api/app/me` `shop.workshopStart` → the iPhone Workshop board. Only the starting
+  filter; it stays shown and changeable.
 - **Given by** (2026-10-10, owner: "when adding something to given items … also register who from taheri gave those items"):
   a given item carries `givenBy`, a Taken by name, on the Given page (form, list, a filter), the iPhone app's Given items and
   voice's "give something out". It starts on the signed-in person and is always shown and changeable; `/api/app/write`

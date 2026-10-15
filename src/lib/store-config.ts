@@ -274,6 +274,11 @@ export const STORE_INVOICE_WHATSAPP_PDF = process.env.NEXT_PUBLIC_STORE_INVOICE_
  *  doesn't hold it (Taheri, 2026-10-05; lib/customer-sizes.ts). House of Mina sets "0". */
 export const STORE_SIZE_TO_PROFILE = process.env.NEXT_PUBLIC_STORE_SIZE_TO_PROFILE !== '0';
 
+/** Who the Workshop list starts on: "you" (the signed-in person, Taheri's) or "anyone" (House of Mina, owner 2026-10-15).
+ *  Only the starting filter; it stays visible and changeable. Anything but "anyone" reads as "you". */
+export const STORE_WORKSHOP_START: 'you' | 'anyone' =
+  (process.env.NEXT_PUBLIC_STORE_WORKSHOP_START || '').trim().toLowerCase() === 'anyone' ? 'anyone' : 'you';
+
 /**
  * Website → Edit a piece: a piece already on this house's website, changed from
  * the counter — its photograph re-made (cropped, the weight and the mark stamped

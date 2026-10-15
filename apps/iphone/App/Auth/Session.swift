@@ -37,6 +37,8 @@ final class Session {
         var invoiceWhatsappPdf: Bool
         /// Sizes on an order are offered to the customer's profile (STORE_SIZE_TO_PROFILE).
         var sizeToProfile: Bool
+        /// Where the Workshop starts: "you" (this account's own pieces) or "anyone" (STORE_WORKSHOP_START). Absent in an older answer: "you".
+        var workshopStart: String?
 
         /// Before the ERP has answered (the demo, an old cached answer): nothing assumed beyond the house.
         static var fallback: Shop {

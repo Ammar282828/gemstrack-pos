@@ -13,7 +13,7 @@ import {
   WorkshopJob, KarigarWorkload, UNASSIGNED_ID, WARN_DAYS, CRITICAL_DAYS,
 } from '@/lib/workshop';
 import { detailsTarget } from '@/lib/workshop-details';
-import { STORE_CONFIG } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_WORKSHOP_START } from '@/lib/store-config';
 import { KarigarAssign } from '@/components/karigar/karigar-assign';
 import { KarigarGlance } from '@/components/karigar/karigar-glance';
 import { AgeBadge, BoardJobCard, TakenByTag } from '@/components/karigar/job-card';
@@ -878,7 +878,7 @@ export default function WorkshopPage() {
   const [boardMode, setBoardMode] = useState<'karigar' | 'status' | 'none'>('karigar');
   const [typeFilter, setTypeFilter] = useState<'all' | 'order' | 'stock'>('all');
   // Starts on whoever is signed in (lib/people.ts); Anyone is one tap away.
-  const [takenByFilter, setTakenByFilter] = useMineFilter('workshop', { startOnAnyone: !!karigarParam });
+  const [takenByFilter, setTakenByFilter] = useMineFilter('workshop', { startOnAnyone: !!karigarParam, startOnMe: STORE_WORKSHOP_START !== 'anyone' });
   // Inside "By Karigar": the whole-bench summary, or the per-karigar cards.
   const [karigarView, setKarigarView] = useState<'glance' | 'cards'>('glance');
 

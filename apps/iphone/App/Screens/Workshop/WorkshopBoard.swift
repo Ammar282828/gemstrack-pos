@@ -91,7 +91,7 @@ struct WorkshopBoard: View {
         if seeded { return }
         seeded = true
         if asksForWholeBench { return }
-        filter.takenBy = session.shop.person ?? ""
+        filter.takenBy = session.shop.workshopStart == "anyone" ? "" : (session.shop.person ?? "")
     }
 
     private var loaded: Bool {
