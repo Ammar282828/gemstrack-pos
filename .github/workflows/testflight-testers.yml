@@ -23,14 +23,19 @@ on:
         required: true
   schedule:
     - cron: '17 5 * * *'
+  # A cloud session cannot press Run workflow (403) and must not commit an email (gemstrack-pos is public): it opens
+  # an issue here (private) titled "testers <house>" with the emails as its body; the job reads it, then closes it.
+  issues:
+    types: [opened]
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   testers:
     # gemstrack-pos carries this file too; the key is here only.
-    if: github.repository == 'Ammar282828/taheri-pos'
+    if: github.repository == 'Ammar282828/taheri-pos' && (github.event_name != 'issues' || startsWith(github.event.issue.title, 'testers '))
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -42,11 +47,17 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
-          HOUSE: ${{ inputs.house }}
-          EMAILS: ${{ inputs.emails }}
+          HOUSE: ${{ inputs.house || (github.event_name == 'issues' && (contains(github.event.issue.title, 'mina') && 'mina' || 'taheri')) || '' }}
+          EMAILS: ${{ inputs.emails || github.event.issue.body }}
         run: |
           if [ -n "$HOUSE" ]; then
             node apps/ios/scripts/asc.mjs testers "$HOUSE" "$EMAILS"
           else
             for h in taheri mina; do node apps/ios/scripts/asc.mjs testers "$h" "" || echo "::warning::$h: testers not swept"; done
           fi
+      - name: Close the request
+        if: always() && github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue close "${{ github.event.issue.number }}" --repo "$GITHUB_REPOSITORY" --comment "Done (${{ job.status }})."
