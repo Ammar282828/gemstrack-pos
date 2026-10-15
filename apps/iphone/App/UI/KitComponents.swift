@@ -270,23 +270,47 @@ struct ZoomSource: ViewModifier {
     @Environment(\.zoomNamespace) private var namespace
 
     func body(content: Content) -> some View {
-        if let namespace { content.matchedTransitionSource(id: id, in: namespace) } else { content }
+        if let namespace {
+            content.matchedTransitionSource(id: id, in: namespace)
+                .simultaneousGesture(TapGesture().onEnded { ZoomTap.mark(id) })
+        } else { content }
     }
 }
 
-/// A page that grows from the row with the same id.
+/// The row just tapped. A page zooms only when it was opened from its own row: opened any other way (after a
+/// save, from search, a link, the dashboard) iOS has no row to grow from and zooms from a stray bubble instead
+/// (owner, 2026-10-15: "a weird animation bubble" when finishing an order or invoice).
+enum ZoomTap {
+    // Only ever touched on the main thread (a tap, a view being made).
+    nonisolated(unsafe) private static var last: (id: String, at: Date)?
+    static func mark(_ id: String) { last = (id, Date()) }
+    /// True once, for the page of the row tapped in the last two seconds.
+    static func take(_ id: String) -> Bool {
+        guard let l = last, l.id == id, Date().timeIntervalSince(l.at) < 2 else { return false }
+        last = nil
+        return true
+    }
+}
+
+/// A page that grows from the row with the same id, when that row opened it.
 struct ZoomDestination: ViewModifier {
     let id: String
     @Environment(\.zoomNamespace) private var namespace
+    @State private var fromRow: Bool
+
+    init(id: String) {
+        self.id = id
+        _fromRow = State(initialValue: ZoomTap.take(id))
+    }
 
     func body(content: Content) -> some View {
-        if let namespace { content.navigationTransition(.zoom(sourceID: id, in: namespace)) } else { content }
+        if fromRow, let namespace { content.navigationTransition(.zoom(sourceID: id, in: namespace)) } else { content }
     }
 }
 
 extension View {
-    /// Set once per NavigationStack, on the stack itself (RootView does it for the tabs, PlaceStack and the
-    /// create sheet); screens never call it.
+    /// Set once per NavigationStack, on the stack itself (RootView does it for the tabs and PlaceStack; never a
+    /// sheet); screens never call it.
     func zoomScope() -> some View { modifier(ZoomScope()) }
 
     /// On a row (or card) that opens a page: the page zooms out of it. Use the destination's route path as

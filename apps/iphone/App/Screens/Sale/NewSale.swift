@@ -92,6 +92,7 @@ struct SaleForm: View {
         Group {
             if let id = made {
                 InvoiceScreen(id: id)
+                    .environment(\.zoomNamespace, nil)  // swapped in place after a save: no row to zoom from
                     .overlay(alignment: .top) { ratesNoteBanner }
                     .transition(.opacity)
             } else if !book.settings.loaded {

@@ -606,6 +606,7 @@ struct NewOrderLanding: View {
     var body: some View {
         if waited || book.orders.items.contains(where: { $0.id == id }) {
             OrderScreen(id: id)
+                .environment(\.zoomNamespace, nil)  // swapped in place after a save: no row to zoom from
         } else {
             VStack(spacing: 12) {
                 SkeletonLoading().controlSize(.large)

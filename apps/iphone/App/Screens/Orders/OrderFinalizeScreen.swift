@@ -29,6 +29,7 @@ struct OrderFinalizeScreen: View {
         Group {
             if let made {
                 InvoiceScreen(id: made)
+                    .environment(\.zoomNamespace, nil)  // swapped in place after a save: no row to zoom from
             } else if !session.isOwner {
                 ContentUnavailableView("Only an owner can invoice an order", systemImage: "lock", description: Text("Ask an owner to finalize it."))
             } else if let order, let settings = book.settings.value {

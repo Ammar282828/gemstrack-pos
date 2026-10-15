@@ -148,7 +148,7 @@ struct RootView: View {
                         }
                     }
             }
-            .zoomScope()
+            // No zoomScope here: a page opened inside the sheet has no row to grow from (it would zoom out of a bubble).
             .presentationSizing(.page)
         }
         // The one poll of the online-orders count (the dashboard and the Orders badge both read it).
