@@ -17,6 +17,8 @@ struct PostsHub: View {
     struct Opened: Identifiable { let id: String }
 
     private var hasPostPiece: Bool { MarketingKit.has("/website/post", role: session.role) }
+    /// Posts › Design (the web's place for anything made and sent anywhere, 2026-10-12): the ERP's page, in the app.
+    private var hasDesign: Bool { MarketingKit.has("/design", role: session.role) }
     private var hasInvestments: Bool { MarketingKit.has("/website/investments", role: session.role) }
     private var hasWebsite: Bool { MarketingKit.has("/website/photos", role: session.role) }
 
@@ -48,6 +50,9 @@ struct PostsHub: View {
         Section {
             if hasPostPiece {
                 MarketingLink(title: "New piece", subtitle: "Post a piece: new photographs, a story, a caption", symbol: "camera", path: "/website/post?new=1")
+            }
+            if hasDesign {
+                MarketingLink(title: "Design", subtitle: "Posts, stories and ads in any size, resize, publish, saved designs: the ERP's Design", symbol: "paintpalette", path: "/design")
             }
             if hasInvestments {
                 MarketingLink(title: "Investments", subtitle: "The day's gold post", symbol: "chart.line.uptrend.xyaxis", path: "/website/investments")

@@ -130,7 +130,7 @@ as version 2.0; `apps/iphone/CONVENTIONS.md` is its rulebook.
   demo) and **Shopify** (Settings → Integrations: the connection, its permissions, a selective one-way import of
   orders; owners only) have no web page behind them. Re-making a site photo on Edit a piece still opens the ERP's page.
 - **The designer engine is the web's own.** `App/Resources/Design/design-<house>.js` is `src/lib/social` bundled with
-  the house's fonts and wordmark and run in a web view on the phone, with no network. **Whenever `src/lib/social`
+  the house's fonts and wordmark and run in a web view on the phone, with no network. **Whenever `src/lib/social` (or `lib/ads/studio` templates, `lib/website/maisons`)
   changes, run `node apps/iphone/scripts/design-bundle.mjs` and commit both files**; a phone otherwise draws the
   old design. A design is held as raw JSON (`MarketingValue`), never decoded into Swift fields, so a field the web adds
   survives a save from the phone and the reverse. Board designs are editable in full on the web and the phone
@@ -205,3 +205,38 @@ jobs run only by hand.
      project file, so a Mina workflow made on `ERP.xcodeproj` joins Taheri's product and builds Taheri's app.
   - The Mac's clone needs a remote called `origin` on taheri-pos (Xcode Cloud reads it; `hom` sorts first
      otherwise and is gemstrack-pos, where no `claude/` branch lives).
+
+### Parity with the web, 2026-10-15
+
+Owner: "all the recent ERP fixes, make sure they got added [to the iOS app] also". Every web change since 2026-10-09 was
+read; what the app lacked was brought over, the rest is listed so it is not asked twice.
+
+**Ported (ERPCore first, with the TypeScript tests as XCTest cases):**
+- **Analytics default is this month**, the 1st to today (`lib/analytics/range-param.ts` → `AnalyticsRange.swift`, tested). The
+  app's period picker is now ERPCore's `AnalyticsPeriod`; "This month" leads the quick choices. A phone that stored
+  "Last 30 days" keeps it; a fresh one, or an unreadable key, opens on this month.
+- **Home's money card is "This month"** (the web's was "Last 30 days"): revenue, expenses (partner drawings out) and net since
+  the 1st, with one chart point a day. The week of bars under "Taken today" still reads the trailing 30 days, so it never
+  shrinks at a month's start.
+- **Due grouping** (`lib/orders-due.ts`, the web extracted it from the app's `OrdersLogic`) now lives in ERPCore
+  (`OrdersDue.swift`, `OrdersDueTests` mirror `orders-due.test.ts`); `OrdersLogic` calls it.
+- **Calendar money in lac and crore** (`dayLac` over `axisLac`: 85k · 2.9L · 56L · 1.2Cr; the month's figures as "PKR 29.6 lac"):
+  `Money.axisLac`, `ShopCalendar.dayMoney`, tested.
+- **Studio board:** a replaced picture starts centred and unzoomed (`board-pictures.ts` `freshCrops`); a new design can start
+  from Photos, Files or Drive, or a link (an image address or an Instagram post's, `/api/ads/studio/fetch-image`); Tidy up in
+  the board's tools menu; a put that updates a design's other sizes says how many (`linked`, `board-links.ts`).
+- **Designer:** the engine bundles were rebuilt (button pills, linked sizes' words, the bg shade, server-draw parity, and the six
+  jewellery faces already bundled); the font and blend pickers list the v2 names.
+- **Where the web moved:** Posts › Design and Ads › Plan are ERP pages in the app, offered as rows on the Posts hub and Ads
+  overview (and by the map, Search and the sidebar). The native Post a piece composer and Studio stay at `/website/post` and
+  `/ads/studio`: the web keeps those addresses in its map as `moved` pages for exactly this, and no API route moved. Settings →
+  Shop details is `/settings/shop` on the web now; the native Shop screen answers it too.
+
+**Already the same:** customer detail's one owed figure (the list's `lib/owed.ts`), Given by (`8707e3f` shipped its app half),
+Posts' website weight (server, and the web card the hub opens), Studio uploads' transparency, order photos, push, Shopify
+notices, the "Web matches the app" series (the web copied the app's look), tones, Settings index, Calendar layout.
+
+**Not native, on purpose:** Design's own workspace (the v2 designer's panels, AI resize, smart input, publish sheet, the page
+strip) is the ERP's page in the app; the phone's designer renders every v2 field (blend, effects, rich text, gradients, QR,
+adjust) through the bundled engine and keeps what it cannot edit. Saved designs of the new store (`designs`) are on the Design
+page's Saved shelf; the phone's Saved ads are the legacy `ad_saved` rows, which the web shows too until it re-saves them.

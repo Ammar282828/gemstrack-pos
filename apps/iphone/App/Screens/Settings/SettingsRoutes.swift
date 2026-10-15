@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Settings (owners): the iPhone Settings app's shape over the ERP's own tabs (lib/nav.ts SETTINGS).
 ///
-/// `/settings` is the list; the web's Shop tab is `/settings`, so the native Shop is
-/// `/app/settings/shop` and the list's "Change numbering" opens the ERP's page (`?web=1`). What is
+/// `/settings` is the list; the native Shop is `/app/settings/shop`, and `/settings/shop` (where the web's Shop details
+/// moved) opens it too. The list's "Change numbering" opens the ERP's page (`/settings/shop?web=1`). What is
 /// simple is edited here; the activity log is the Work group's (ActivityLogScreen) and Recently removed the
 /// Owner group's. Voice, Labels (Stock › Labels, still at /settings/printer), Backups and the contact and hisaab
 /// imports are native too; what stays the ERP's pages, opened inside the app: a backup's Restore (it writes a
@@ -16,6 +16,9 @@ enum SettingsRoutes {
         [
             .exact("/settings") { SettingsRoot() },
             .exact("/app/settings/shop") { ShopSettings() },
+            // The web's Shop tab moved to /settings/shop when /settings became the phone's index (2026-10-12): the map and
+            // Search now say that address, so it opens the same native screen.
+            .exact("/settings/shop") { ShopSettings() },
             .exact("/settings/alerts") { AlertSettings() },
             .exact("/settings/payment-methods") { BankAccountSettings() },
             .exact("/settings/integrations") { IntegrationSettings() },

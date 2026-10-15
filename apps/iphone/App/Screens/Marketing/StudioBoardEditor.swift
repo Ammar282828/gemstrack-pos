@@ -873,18 +873,36 @@ struct StudioBoardEditor: View {
         }
     }
 
-    /// A picture into its place: the main photo, an inset (keeping its frame, crop and spot), or a new inset.
+    /// A picture into its place: the main photo, an inset (keeping its frame and spot), or a new inset. A new picture
+    /// starts centred and unzoomed: the old one's crop means nothing to it (board-pictures.ts replacePicture, 2026-10-15).
     private func place(_ key: String, _ target: Target, marked: Bool = false) {
         switch target {
-        case .main: edit { $0.asset = key; $0.marked = marked }
+        case .main: edit { $0.asset = key; $0.marked = marked; $0.doc = Self.freshCrops($0.doc, "photo") }
         case .inset(let id):
             if insetOriginals[id] == nil, let l = layer(id) { insetOriginals[id] = MarketingValue(["photoId": l.s("photoId"), "src": l["src"].any]) }
             updateLayer(id) { n in
                 n["photoId"] = .string("lib:" + key)
-                var o = n.object; o["src"] = nil; n = .object(o)
+                var o = n.object; o["src"] = nil; o["iz"] = nil; o["fx"] = .number(0.5); o["fy"] = .number(0.5); n = .object(o)
             }
         case .add: act("image", "rounded", ["photoId": "lib:" + key])
         }
+    }
+    /// Every crop of picture `ref` back to centred and unzoomed: the background's placement, and each image layer showing
+    /// it (board-pictures.ts freshCrops).
+    static func freshCrops(_ doc: MarketingValue, _ ref: String) -> MarketingValue {
+        var d = doc
+        func fresh(_ p: MarketingValue) -> MarketingValue {
+            var o = p.object; o["focusX"] = .number(0.5); o["focusY"] = .number(0.5); o["zoom"] = .number(1); return .object(o)
+        }
+        if d["bg"].s("photoId") == ref || (ref == "photo" && d["bg"].s("photoId").isEmpty) {
+            if d["placements"] != .null, d["placements"][ref] != .null { d["placements"][ref] = fresh(d["placements"][ref]) }
+            if d["bg"]["placement"] != .null { d["bg"]["placement"] = fresh(d["bg"]["placement"]) }
+        }
+        d["layers"] = .array(d["layers"].array.map { (l: MarketingValue) -> MarketingValue in
+            guard l.s("kind") == "image", l.s("photoId") == ref, l.s("src").isEmpty else { return l }
+            var o = l.object; o["iz"] = nil; o["fx"] = .number(0.5); o["fy"] = .number(0.5); return .object(o)
+        })
+        return d
     }
     private func addLayer(_ n: MarketingValue) {
         edit { $0.doc["layers"] = .array($0.doc["layers"].array + [n]) }
@@ -1194,6 +1212,53 @@ struct StudioBoardPhotoPicker: View {
     @State private var format = "portrait"
     @State private var items: [MarketingValue]?
     @State private var problem: String?
+    // A new design can start from outside the library (da4b590, 2026-10-12): the phone's photos, Files (Drive,
+    // iCloud, Dropbox) or a link, which become an upload and then a design.
+    @State private var device: PhotosPickerItem?
+    @State private var filesOpen = false
+    @State private var link = ""
+    @State private var bringing = false
+
+    /// A picture from outside into the library as an upload (the same /api/ads/studio/uploads as the designer's),
+    /// then onto the board in the chosen shape.
+    private func bring(_ name: String, _ data: @escaping () async throws -> Data) {
+        Task {
+            bringing = true; problem = nil; defer { bringing = false }
+            do {
+                let bytes = try await data()
+                let id = try await board.upload(bytes, name: name)
+                pick(MarketingValue(["id": id, "name": name, "source": "upload"]), format)
+            } catch { problem = error.localizedDescription }
+        }
+    }
+
+    /// "Instagram photo" for an Instagram post, else the address's last piece (the web's own naming).
+    private static func linkName(_ raw: String) -> String {
+        guard let u = URL(string: raw.trimmingCharacters(in: .whitespacesAndNewlines)), let host = u.host else { return "Picture from a link" }
+        if host.contains("instagram") { return "Instagram photo" }
+        return u.pathComponents.filter { $0 != "/" }.last ?? host
+    }
+
+    private var outsideSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                PhotosPicker(selection: $device, matching: .images) { Label("Photos", systemImage: "photo.on.rectangle") }
+                Button { filesOpen = true } label: { Label("Files or Drive", systemImage: "folder") }
+            }
+            .buttonStyle(.bordered).disabled(bringing)
+            HStack {
+                TextField("Image link, or an Instagram post's link", text: $link)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
+                Button("Add") {
+                    let address = link
+                    bring(Self.linkName(address)) { try await ERPAPI.shared.data("/api/ads/studio/fetch-image?url=" + AdsQuery.escape(address.trimmingCharacters(in: .whitespacesAndNewlines))) }
+                    link = ""
+                }
+                .disabled(bringing || link.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            if bringing { ProgressView("Bringing the picture…").font(.footnote) }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -1204,6 +1269,7 @@ struct StudioBoardPhotoPicker: View {
                             ForEach(board.formats.map { $0.s("id") }, id: \.self) { Text(board.formatInfo($0).s("label", $0)).tag($0) }
                         }
                         .pickerStyle(.menu)
+                        outsideSection
                     }
                     if let problem { Text(problem).font(.footnote).foregroundStyle(Tone.problem.color) }
                     if let items {
@@ -1233,6 +1299,25 @@ struct StudioBoardPhotoPicker: View {
             .searchable(text: $q, prompt: "Search — ring, emerald, bangles…")
             .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
+            .onChange(of: device) { _, item in
+                guard let item else { return }
+                bring("Photo from this phone") {
+                    guard let data = try await item.loadTransferable(type: Data.self) else { throw ERPAPI.Failure(status: 0, message: "Choose a readable photo.") }
+                    return data
+                }
+                device = nil
+            }
+            .fileImporter(isPresented: $filesOpen, allowedContentTypes: [.image]) { result in
+                switch result {
+                case .failure(let error): if (error as? CocoaError)?.code != .userCancelled { problem = error.localizedDescription }
+                case .success(let url):
+                    bring(url.deletingPathExtension().lastPathComponent) {
+                        let scoped = url.startAccessingSecurityScopedResource()
+                        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                        return try Data(contentsOf: url)
+                    }
+                }
+            }
         }
         .presentationSizing(.page)
         .task(id: q) {

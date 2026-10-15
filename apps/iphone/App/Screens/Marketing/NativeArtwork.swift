@@ -115,7 +115,10 @@ struct ArtworkProperties: View {
         return words.prefix(1).uppercased() + words.dropFirst()
     }
     static let choices: [String: [String]] = [
-        "font": ["condensed", "light", "regular", "bold", "serif", "serif-italic", "futura", "cormorant", "cormorant-italic", "playfair", "script", "montserrat", "montserrat-bold", "cinzel"],
+        "font": ["condensed", "light", "regular", "bold", "serif", "serif-italic", "futura", "cormorant", "cormorant-italic", "playfair", "script", "montserrat", "montserrat-bold", "cinzel",
+                 // Designer v2's jewellery set (src/lib/social/editor.ts FontKey, 2026-10-12); the bundled engine carries the faces.
+                 "cormorant-infant", "italiana", "jost", "tenor", "dm-serif", "marcellus"],
+        "blend": ["normal", "multiply", "screen", "overlay", "soft-light", "hard-light", "color-dodge", "darken", "lighten"],
         "align": ["left", "center", "right"], "gradient": ["none", "top", "bottom", "both"], "mode": ["fill", "fit"], "dash": ["solid", "dash", "dot"],
         "mask": ["rounded", "ellipse", "arch", "heart", "star", "hexagon", "diamond", "sparkle", "gem", "pill"],
     ]

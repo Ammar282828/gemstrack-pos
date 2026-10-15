@@ -126,6 +126,7 @@ struct StudioBoards: View {
                     Menu {
                         Button("This week’s board", systemImage: "calendar") { asking = .weekly }
                         Button("Connect an agent", systemImage: "key") { sheet = .agents }
+                        Button("Tidy up", systemImage: "square.grid.2x2") { Task { await board.tidy() } }.disabled(board.frames.count < 2)
                         Button("Rename board", systemImage: "pencil") { nameText = board.value.s("name"); asking = .rename }.disabled(board.current.isEmpty)
                         Button("Refresh", systemImage: "arrow.clockwise") { Task { await board.refresh(force: true) } }
                         if !compact { Button(inspectorShown ? "Hide details" : "Show details", systemImage: "sidebar.trailing") { inspectorShown.toggle() } }

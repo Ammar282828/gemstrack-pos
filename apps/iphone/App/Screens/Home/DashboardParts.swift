@@ -520,9 +520,9 @@ struct DashSaleRow: View {
     }
 }
 
-// MARK: The last 30 days
+// MARK: This month
 
-/// Revenue, expenses and net over the last 30 days, and the days drawn quietly beneath. Expenses and net are
+/// Revenue, expenses and net since the 1st, and the days drawn quietly beneath. Expenses and net are
 /// the owners' books, so staff see revenue alone.
 struct DashMonthCard: View {
     let figures: DashFigures
@@ -530,22 +530,22 @@ struct DashMonthCard: View {
     var linked = false
 
     private var netTint: Color {
-        if figures.net30 > 0.5 { return Tone.settled.color }
-        if figures.net30 < -0.5 { return Tone.late.color }
+        if figures.netMonth > 0.5 { return Tone.settled.color }
+        if figures.netMonth < -0.5 { return Tone.late.color }
         return .primary
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 8) {
-                stat("Revenue", figures.revenue30, .primary)
+                stat("Revenue", figures.revenueMonth, .primary)
                 if showCosts {
-                    stat("Expenses", figures.expenses30, .primary)
-                    stat("Net", figures.net30, netTint)
+                    stat("Expenses", figures.expensesMonth, .primary)
+                    stat("Net", figures.netMonth, netTint)
                 }
                 if linked { DashChevron() }
             }
-            if figures.revenue30 > 0 { chart }
+            if figures.revenueMonth > 0 && figures.monthDays.count > 1 { chart }
         }
         .ledgerCard()
     }
@@ -567,7 +567,7 @@ struct DashMonthCard: View {
 
     private var chart: some View {
         VStack(spacing: 4) {
-            Chart(figures.days) { (d: DashDay) in
+            Chart(figures.monthDays) { (d: DashDay) in
                 AreaMark(x: .value("Day", d.day), y: .value("Taken", d.amount))
                     .interpolationMethod(.monotone)
                     .foregroundStyle(Theme.accent.opacity(0.18))
@@ -578,9 +578,9 @@ struct DashMonthCard: View {
             .chartXAxis(.hidden)
             .chartYAxis(.hidden)
             .frame(height: 72)
-            .accessibilityLabel("Taken each day over the last 30 days")
+            .accessibilityLabel("Taken each day this month")
             HStack {
-                Text(DashDate.dayMonth(figures.days.first?.day ?? figures.now))
+                Text(DashDate.dayMonth(figures.monthDays.first?.day ?? figures.now))
                 Spacer()
                 Text("Today")
             }

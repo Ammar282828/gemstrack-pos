@@ -176,15 +176,12 @@ public enum ShopCalendar {
         return Array<Int?>(repeating: nil, count: lead) + days.map { Optional($0) }
     }
 
-    /// A day's money in a cell that has room for about six characters (`dayMoney`): 850, 12k, 1.5M.
+    /// A day's takings in the room a calendar cell has (about five characters, lac and crore as the shop says
+    /// them): 85k · 2.9L · 56L · 1.2Cr (`dayLac`, calendar/page.tsx, 2026-10-10). From 10 lac the decimal goes,
+    /// so a busy day is not cut to "56.…". It replaced `dayMoney` (12k, 1.5M), which the web retired.
     public static func dayMoney(_ n: Double) -> String {
-        if n >= 999_500 {
-            var s = JS.toFixed(n / 1_000_000, 1)
-            if s.hasSuffix(".0") { s.removeLast(2) }
-            return s + "M"
-        }
-        if n >= 1000 { return JS.number(JS.round(n / 1000)) + "k" }
-        return JS.number(JS.round(n))
+        let lac = n / 100_000
+        return lac >= 10 && lac < 100 ? "\(Int(JS.round(lac)))L" : Money.axisLac(n)
     }
 
     /// The time of day a row shows, in Karachi: "4:05 pm"; empty when the date does not read.

@@ -199,6 +199,9 @@ final class StudioBoardModel {
             guard asked == generation else { return [] }
             value = r["board"]
             draw()
+            // A design's other sizes take its linked words on the server (board-links.ts); say how many did.
+            let linked = r["linked"].array.count
+            if linked > 0 { said = linked == 1 ? "1 other size took the change." : "\(linked) other sizes took the change." }
             return r["added"].array.map(\.string)
         } catch {
             guard asked == generation else { return [] }
@@ -301,6 +304,29 @@ final class StudioBoardModel {
         ]
         let added = await change([["op": "add", "frame": frame]])
         return added.first
+    }
+
+    /// Tidy up (board.tsx): the designs in rows, in their reading order, an even gap apart.
+    func tidy() async {
+        let order = frames.sorted { (a: MarketingValue, b: MarketingValue) in abs(a.n("y") - b.n("y")) > 120 ? a.n("y") < b.n("y") : a.n("x") < b.n("x") }
+        guard order.count > 1 else { return }
+        let columns = max(1, Int((Double(order.count) * 1.4).squareRoot().rounded(.up)))
+        let gap = 60.0
+        let x0 = order.map { $0.n("x") }.min() ?? 0
+        var y = order.map { $0.n("y") }.min() ?? 0
+        var moves: [[String: Any]] = []
+        var start = 0
+        while start < order.count {
+            let row = order[start..<min(start + columns, order.count)]
+            var x = x0
+            for f in row {
+                moves.append(["op": "move", "id": f.s("id"), "x": x, "y": y])
+                x += pixels(f).width * Self.scale + gap
+            }
+            y += (row.map { pixels($0).height * Self.scale }.max() ?? 0) + Self.label + gap
+            start += columns
+        }
+        await change(moves)
     }
 
     /// A note in the server's own spot for it: down the left of the board, beside the designs.

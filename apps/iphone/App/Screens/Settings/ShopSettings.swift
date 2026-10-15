@@ -92,7 +92,7 @@ private struct ShopForm: View {
                 LabeledContent("Next invoice", value: Self.next("INV", settings.lastInvoiceNumber))
                 LabeledContent("Next order", value: Self.next("ORD", settings.lastOrderNumber))
                 LabeledContent("Next repair", value: Self.next("REP", settings.lastRepairNumber ?? 0))
-                NavigationLink(value: Route(path: "/settings?web=1")) { Text("Change numbering") }
+                NavigationLink(value: Route(path: "/settings/shop?web=1")) { Text("Change numbering") }
             } header: {
                 LedgerHeading(title: "Document numbering")
             } footer: {

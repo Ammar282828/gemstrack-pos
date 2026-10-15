@@ -101,12 +101,12 @@ struct CalendarScreen: View {
     private func tiles(_ m: ShopCalendarMonth) -> some View {
         VStack(spacing: 10) {
             FigureRow(alignment: .top, spacing: 10) {
-                FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkr(m.total), tint: Tone.settled.color)
+                FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkrLac(m.total), tint: Tone.settled.color)
                 FigureTile(label: "Sales", value: "\(m.sales)")
             }
             FigureRow(alignment: .top, spacing: 10) {
                 FigureTile(label: "Orders", value: "\(m.orders)")
-                FigureTile(label: "Avg. trading day", value: m.perTradingDay > 0 ? Money.pkr(m.perTradingDay.rounded()) : "—")
+                FigureTile(label: "Avg. trading day", value: m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "—")
             }
         }
         .padding(.vertical, 4)

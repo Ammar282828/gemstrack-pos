@@ -315,7 +315,7 @@ struct Dashboard: View {
 
     private func monthSection(_ f: DashFigures) -> some View {
         let path: String? = session.isOwner ? "/analytics" : nil
-        return DisclosureGroup("Last 30 days") {
+        return DisclosureGroup("This month") {
             linked(path) {
                 DashMonthCard(figures: f, showCosts: session.isOwner, linked: path != nil)
             }.padding(.top, 12)

@@ -39,32 +39,6 @@ enum OrdersGrouping: String, CaseIterable, Identifiable {
     var calendarCut: OrdersGrouping { calendar == nil ? .day : self }
 }
 
-/// The Due view's sections, in the order they are chased. "This week" is the bench week the ERP calls
-/// urgent (URGENT_WINDOW_DAYS), so a card in it carries the same amber promise as anywhere else.
-enum OrdersDueBucket: String, CaseIterable {
-    case late, today, week, later, undated
-
-    var title: String {
-        switch self {
-        case .late: return "Late"
-        case .today: return "Today"
-        case .week: return "This week"
-        case .later: return "Later"
-        case .undated: return "No date"
-        }
-    }
-
-    var hint: String {
-        switch self {
-        case .late: return "past the day promised"
-        case .today: return "promised for today"
-        case .week: return "in the next \(URGENT_WINDOW_DAYS) days: start them now"
-        case .later: return "more than a week away"
-        case .undated: return "no day promised: oldest first"
-        }
-    }
-}
-
 /// What an order asks for next (components/order/next-step.tsx): the one reading the hub's cards and the
 /// order page's bar both use.
 ///   Awaiting transfer  Check transfer (the transfer's moves: the slips, Transfer received, Let it lapse)
@@ -152,9 +126,7 @@ enum OrdersLogic {
 
     /// Still to be handed over: not invoiced, not cancelled or refunded. A finished piece not yet invoiced
     /// still has its promise to keep.
-    static func isOpen(_ order: Order) -> Bool {
-        !hasInvoice(order) && order.status != .cancelled && order.status != .refunded
-    }
+    static func isOpen(_ order: Order) -> Bool { OrdersDue.isOpen(order) }
 
     /// Online orders are the ones placed on the website and confirmed by a person.
     static func isOnline(_ order: Order) -> Bool {
@@ -183,35 +155,11 @@ enum OrdersLogic {
 
     // MARK: The Due view
 
-    static func dueBucket(_ t: OrderTiming) -> OrdersDueBucket {
-        // An order with no day promised is undated here, whatever the age rule calls it.
-        guard t.due != nil else { return .undated }
-        switch t.state {
-        case .late: return .late
-        case .today: return .today
-        case .upcoming: return -t.daysLate <= URGENT_WINDOW_DAYS ? .week : .later
-        case .noPromise: return .undated
-        }
-    }
+    static func dueBucket(_ t: OrderTiming) -> OrdersDueBucket { OrdersDue.bucket(t) }
 
-    /// The open orders by how soon they were promised: in each section the soonest promise first (so the
-    /// latest of the late), and the undated oldest first, as they have waited longest.
+    /// The open orders by how soon they were promised (ERPCore's OrdersDue, tested against orders-due.ts).
     static func dueGroups(_ orders: [Order], now: Date) -> [(bucket: OrdersDueBucket, orders: [Order])] {
-        var members: [OrdersDueBucket: [(order: Order, due: Date?)]] = [:]
-        for o in orders where isOpen(o) {
-            let t = orderTiming(o, now: now)
-            members[dueBucket(t), default: []].append((o, t.due))
-        }
-        return OrdersDueBucket.allCases.compactMap { b in
-            guard let rows = members[b], !rows.isEmpty else { return nil }
-            let sorted = rows.sorted { a, c in
-                if let da = a.due, let dc = c.due, da != dc { return da < dc }
-                let ta = takenAt(a.order), tc = takenAt(c.order)
-                if ta != tc { return ta < tc }
-                return a.order.id < c.order.id
-            }
-            return (b, sorted.map(\.order))
-        }
+        OrdersDue.groups(orders, now: now)
     }
 
     // MARK: Whose it is
