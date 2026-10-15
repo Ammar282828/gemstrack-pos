@@ -19,3 +19,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-12: as 2.2, since Xcode Cloud stamps its own build numbers (the 2000 offset did nothing) and 2.1 (1009) from the Mac outranked them.
 - 2026-10-12: a phone that cannot register for notifications now says why to the ERP (push_devices_failed).
 - 2026-10-12: Firebase no longer swizzles the app delegate (it swallowed the push token: 2.2 sat on "Registering this phone"); registration gives up with a reason after 20 s.
+- 2026-10-15: Shopify chip back on Invoices; parity with the web since 10-09 (design engine v2, Design and Plan, board photos from Files/Drive/links, Analytics this month); push token fix carried.
