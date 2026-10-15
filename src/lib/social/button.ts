@@ -5,6 +5,9 @@
  * now one text layer whose background (`box`) is the pill, at the pill's size (`box.w`, `box.h`): the words are
  * typed into it, and it moves, sizes, resizes and links to the other sizes as one.
  *
+ * - A button is placed by its pill (editor.ts asButton): `x` is the pill's left edge, middle or right edge by `align`,
+ *   the words always in its middle; it grows away from that edge as the words get longer, keeping `box.pad` round
+ *   them, and stays one line.
  * - newButton: a fresh one, for Add → Elements.
  * - buttonFromShape: a rectangle on the design becomes a button; the words already on it go inside (same look),
  *   else it gets words to type over.
@@ -23,9 +26,9 @@ export function newButton(o: { label?: string; fill: string; ink: string; frame:
   return {
     id: id('text'), kind: 'text', role: 'cta', name: 'Button', text: o.label ?? 'SHOP NOW',
     x: Math.round(o.frame.w / 2), y: Math.round(o.frame.h * 0.62 - h * 0.18), size: Math.round(h * 0.36),
-    font: 'montserrat-bold', color: o.ink, align: 'center', width: Math.round(w * 0.9), fit: true,
+    font: 'montserrat-bold', color: o.ink, align: 'center', width: Math.round(o.frame.w * 0.9), fit: false,
     spacing: 0.12, lineHeight: 1, upper: true, shadow: false,
-    box: { color: o.fill, radius: Math.round(h / 2), pad: Math.round(h * 0.2), w, h },
+    box: { color: o.fill, radius: Math.round(h / 2), pad: Math.round(h * 0.32), w, h },
     rotate: 0, opacity: 1,
   };
 }
@@ -56,13 +59,16 @@ export function buttonFromShape(doc: StoryDoc, shapeId: string, boxOf: (l: Layer
   if (!canBeButton(shape)) return null;
   const fill = shape.fill ?? shape.color;
   const bg = { color: fill, radius: Math.min(shape.radius, Math.round(Math.min(shape.w, shape.h) / 2)), pad: 0, w: Math.round(shape.w), h: Math.round(shape.h) };
+  // The room round the words as they sit in the pill: kept when they grow, so longer words never touch its edge.
+  const roomOf = (tb: Box) => Math.max(0, Math.floor(Math.min((shape.h - tb.h) / 2, (shape.w - tb.w) / 2)));
   const on = wordsOn(doc, shape, boxOf);
   let button: TextLayer;
   if (on) {
     // Centred where the shape's middle is: its own box, measured without a background, decides its top.
     const centred: TextLayer = { ...on, align: 'center', x: Math.round(shape.x + shape.w / 2) };
     const b = boxOf({ ...centred, box: null });
-    button = { ...centred, y: Math.round(on.y + (shape.y + shape.h / 2) - (b.y + b.h / 2)), box: bg, width: Math.max(on.width, Math.round(shape.w * 0.9)), role: on.role ?? 'cta' };
+    // One line, however long the words get: the pill grows round them instead of wrapping them inside it.
+    button = { ...centred, y: Math.round(on.y + (shape.y + shape.h / 2) - (b.y + b.h / 2)), box: { ...bg, pad: roomOf(b) }, width: Math.max(on.width, Math.round(shape.w * 3)), fit: false, role: on.role ?? 'cta' };
     delete button.flow;   // it stays where the shape was, out of any stack
     if (shape.opacity !== 1 && on.opacity === 1) button.opacity = shape.opacity;
   } else {
@@ -70,10 +76,14 @@ export function buttonFromShape(doc: StoryDoc, shapeId: string, boxOf: (l: Layer
     button = {
       id: id('text'), kind: 'text', role: 'cta', name: 'Button', text: o.label ?? 'SHOP NOW',
       x: Math.round(shape.x + shape.w / 2), y: Math.round(shape.y + shape.h / 2 - size * 0.36), size,
-      font: 'montserrat-bold', color: o.ink, align: 'center', width: Math.round(shape.w * 0.9), fit: true,
-      spacing: 0.12, lineHeight: 1, upper: true, shadow: false, box: bg, rotate: 0, opacity: shape.opacity,
+      font: 'montserrat-bold', color: o.ink, align: 'center', width: Math.round(shape.w * 3), fit: false,
+      spacing: 0.12, lineHeight: 1, upper: true, shadow: false, box: { ...bg, pad: Math.round(shape.h * 0.32) }, rotate: 0, opacity: shape.opacity,
     };
   }
+  // Anchored by the side of the frame it sits on, so longer words grow it away from that side (editor.ts asButton).
+  const fw = doc.frame?.w ?? 1080, mid = shape.x + shape.w / 2;
+  if (mid < fw * 0.4) button = { ...button, align: 'left', x: Math.round(shape.x) };
+  else if (mid > fw * 0.6) button = { ...button, align: 'right', x: Math.round(shape.x + shape.w) };
   const layers = doc.layers.filter(l => l.id !== shape.id).map(l => (on && l.id === on.id ? button : l));
   if (!on) layers.splice(doc.layers.findIndex(l => l.id === shape.id), 0, button);
   return { doc: { ...doc, layers }, id: button.id };

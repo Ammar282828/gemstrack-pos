@@ -649,6 +649,17 @@ export function panInFrame(l: ImageLayer, img: Pic | undefined, fx0: number, fy0
 
 const ratioOf = (img: Pic | undefined) => (img && img.naturalWidth ? img.naturalHeight / img.naturalWidth : 1);
 
+/**
+ * A button (a text whose background has a set size, social/button.ts) is placed by its pill: `x` is the pill's left
+ * edge, middle or right edge by `align`, and the words sit in the pill's middle. So longer words grow the pill away
+ * from where it was put (a left-hand button never runs off the left). The text as drawn: centred on the pill.
+ */
+export function asButton(l: TextLayer, textW: number): TextLayer {
+  if (!l.box?.w || l.align === 'center') return l;
+  const W = Math.max(textW + l.box.pad * 2, l.box.w);
+  return { ...l, align: 'center', x: l.align === 'left' ? l.x + W / 2 : l.x - W / 2 };
+}
+
 export function layerBox(l: Layer, fields: Fields, a: Assets): Box {
   switch (l.kind) {
     case 'text': {
@@ -663,7 +674,8 @@ export function layerBox(l: Layer, fields: Fields, a: Assets): Box {
         return grow(b.x, b.y, b.w, b.h);
       }
       const t = layoutText(mctx(), l, fields, a.fonts);
-      return grow(l.align === 'left' ? l.x : l.align === 'center' ? l.x - t.w / 2 : l.x - t.w, l.y, t.w, t.h);
+      const p = asButton(l, t.w);
+      return grow(p.align === 'left' ? p.x : p.align === 'center' ? p.x - t.w / 2 : p.x - t.w, p.y, t.w, t.h);
     }
     case 'wordmark': {
       const m = a.marks[l.mark] ?? a.marks.wordmark;
@@ -782,7 +794,8 @@ function rgba(hex: string, alpha: number): string {
 export const effectOf = (l: TextLayer): TextEffect | null =>
   l.effect ?? (l.shadow ? { kind: 'shadow', color: '#000000', offset: 16, angle: 90, blur: 36, thickness: 0, transparency: 65 } : null);
 
-function drawText(ctx: Ctx, l: TextLayer, fields: Fields, a: Assets) {
+function drawText(ctx: Ctx, l0: TextLayer, fields: Fields, a: Assets) {
+  const l = l0.box?.w && !isCurved(l0) ? asButton(l0, layoutText(ctx, l0, fields, a.fonts).w) : l0;
   const curved = isCurved(l);
   const t = curved ? null : layoutText(ctx, l, fields, a.fonts);
   const bent = curved ? curveLayout(ctx, l, fields, a.fonts) : null;

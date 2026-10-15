@@ -8,7 +8,7 @@
  */
 
 import {
-  frameOf, layerBox, layoutText, textOf,
+  asButton, frameOf, layerBox, layoutText, textOf,
   type Assets, type Box, type Box01, type Fields, type FontKey, type ImageLayer, type Layer, type StoryDoc, type TextLayer,
 } from '@/lib/social/editor';
 import { intersects } from '@/lib/social/design';
@@ -79,10 +79,12 @@ export function makeMeasure(fields: Fields, assets: Assets): Measure {
   return {
     box: l => {
       if (l.kind !== 'text') return layerBox(l, fields, assets);
+      // As the engine's layerBox: the words grown by the pad, and to a button's size, round their middle.
       const e = estimateText(l, fields), pad = l.box ? l.box.pad : 0;
-      const w = e.w + pad * 2, h = e.h + pad * 2;
-      const x = l.align === 'left' ? l.x - pad : l.align === 'center' ? l.x - w / 2 : l.x - w + pad;
-      return { x, y: l.y - pad, w: Math.max(w, 20), h: Math.max(h, 20) };
+      const p = asButton(l, e.w);
+      const tx = p.align === 'left' ? p.x : p.align === 'center' ? p.x - e.w / 2 : p.x - e.w;
+      const W = Math.max(e.w + pad * 2, l.box?.w ?? 0, 20), H = Math.max(e.h + pad * 2, l.box?.h ?? 0, 20);
+      return { x: tx + e.w / 2 - W / 2, y: l.y + e.h / 2 - H / 2, w: W, h: H };
     },
     textSize: l => estimateText(l, fields).size,
   };

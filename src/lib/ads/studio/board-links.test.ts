@@ -35,6 +35,13 @@ describe('board-links', () => {
     expect((linkedChanges(p, after, [s])[0].doc!.layers[0] as TextLayer).size).toBe(150);
   });
 
+  it('a button changed in one size keeps its own scale in the other', () => {
+    const a = frame('a', 'portrait', doc(1350, text('b1', 'SHOP NOW', { link: 'kb', size: 34, box: { color: '#8B1E2D', radius: 48, pad: 33, w: 315, h: 101 } })));
+    const b = frame('b', 'story', doc(1920, text('b2', 'SHOP NOW', { link: 'kb', size: 68, box: { color: '#8B1E2D', radius: 96, pad: 66, w: 630, h: 202 } })));
+    const after = { ...a, doc: { ...a.doc!, layers: [{ ...a.doc!.layers[0], box: { color: '#000000', radius: 48, pad: 33, w: 330, h: 101 } }] } };
+    expect((linkedChanges(a, after, [b])[0].doc!.layers[0] as TextLayer).box).toEqual({ color: '#000000', radius: 96, pad: 66, w: 660, h: 202 });
+  });
+
   it('carries only what changed, so a tweak made in one size alone survives', () => {
     const tuned = { ...s, doc: { ...s.doc!, layers: s.doc!.layers.map(l => (l.id === 'h2' ? { ...l, color: '#FFFFFF' } : l)) } };
     const after = { ...p, doc: { ...p.doc!, layers: p.doc!.layers.map(l => (l.id === 'h' ? { ...l, text: 'New' } : l)) } };

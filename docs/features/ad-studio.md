@@ -363,7 +363,12 @@ ratios".) `board-links.ts`, called by `applyOps` on every `put`, so the page, th
 (2026-10-15, owner: "also add text ability inside buttons".) `social/button.ts`. A button was a rounded rectangle with a line of
 text over it: two layers to move together, which a resize laid out apart. A button is now **one text layer** whose background
 (`box`) is the pill at a set size (`box.w`, `box.h`; the words in its middle; `layerBox` grows to it, so it is hit, dragged and
-sized as one). **Add → Elements → Button**; a selected rectangle has **Words in it**, which makes it a button with the words already
+sized as one). **A button is placed by its pill** (`editor.ts` `asButton`): `x` is the pill's left edge, middle or right edge by `align` (a
+pill on the left of the frame is anchored left, on the right anchored right), the words always in its middle, one line, `box.pad`
+kept round them, so longer words grow the pill away from where it was put. Typing on the canvas keeps the pill drawn and the field
+over the words; the side handles size the pill; a linked twin takes a changed pill at its own scale. (2026-10-15, owner: "the button
+fix fucked the whitespace and design and text in buttons": the first cut had no pad, wrapped at the pill's width, hid the pill while
+typing and put the field at its top edge.) **Add → Elements → Button**; a selected rectangle has **Words in it**, which makes it a button with the words already
 on it inside (looking the same) or new words; the text's Background section has the button's width and height. The resizer also
 keeps a shape behind a line of words with its words (`keepBackings`). The rings boards' 30 pills were turned into buttons on
 2026-10-15 (each drawn before and after: under 0.25% of pixels moved). The iPhone and Android engines draw a button's box around

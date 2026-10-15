@@ -1,17 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { Box, Layer, ShapeLayer, StoryDoc, TextLayer } from './editor';
+import { asButton } from './editor';
 import { buttonFromShape, canBeButton, newButton, wordsOn } from './button';
 
 // A stand-in measure: text is 0.5 em a letter wide and one size tall, its top at y; the box as the engine grows it.
-const boxOf = (l: Layer): Box => {
-  if (l.kind === 'text') {
-    const w = l.text.length * l.size * 0.5, h = l.size;
+const boxOf = (l0: Layer): Box => {
+  if (l0.kind === 'text') {
+    const w = l0.text.length * l0.size * 0.5, h = l0.size;
+    const l = asButton(l0, w);
     const x = l.align === 'left' ? l.x : l.align === 'center' ? l.x - w / 2 : l.x - w;
     if (!l.box) return { x, y: l.y, w, h };
     const W = Math.max(w + l.box.pad * 2, l.box.w ?? 0), H = Math.max(h + l.box.pad * 2, l.box.h ?? 0);
     return { x: x + w / 2 - W / 2, y: l.y + h / 2 - H / 2, w: W, h: H };
   }
-  const s = l as ShapeLayer;
+  const s = l0 as ShapeLayer;
   return { x: s.x, y: s.y, w: s.w, h: s.h };
 };
 const rect = (o: Partial<ShapeLayer> = {}): ShapeLayer => ({ id: 'pill', kind: 'rect', x: 100, y: 1000, w: 400, h: 100, color: '#000', stroke: 0, fill: '#8B1E2D', curve: 0, radius: 50, rotate: 0, opacity: 1, ...o });
@@ -27,16 +29,20 @@ describe('buttons', () => {
     expect(r.id).toBe('cta');
     expect(r.doc.layers.map(l => l.id)).toEqual(['cta', 'other']);
     const b = r.doc.layers[0] as TextLayer;
-    expect(b.box).toEqual({ color: '#8B1E2D', radius: 50, pad: 0, w: 400, h: 100 });
+    expect(b.box).toEqual({ color: '#8B1E2D', radius: 50, pad: 30, w: 400, h: 100 });   // the room round the words kept
     expect(b.flow).toBeUndefined();
+    expect(b).toMatchObject({ align: 'left', x: 100, fit: false });   // anchored by its left edge, on the left
     expect(boxOf(b)).toEqual({ x: 100, y: 1000, w: 400, h: 100 });   // looks exactly as the pill did
+    // Longer words: one line, the pill grows to the right, the same room round them.
+    const long = { ...b, text: 'SHOP THE WHOLE COLLECTION' };
+    expect(boxOf(long)).toEqual({ x: 100, y: 1000, w: 500 + 60, h: 100 });
   });
 
   it('a pill without words gets words to type over, in its place in the stack', () => {
     const r = buttonFromShape(doc(words({ id: 'far', y: 100 }), rect()), 'pill', boxOf, { ink: '#fff', label: 'Book now' })!;
     expect(r.doc.layers.map(l => l.kind)).toEqual(['text', 'text']);
     const b = r.doc.layers[1] as TextLayer;
-    expect(b).toMatchObject({ text: 'Book now', align: 'center', x: 300, box: { w: 400, h: 100, color: '#8B1E2D' } });
+    expect(b).toMatchObject({ text: 'Book now', align: 'left', x: 100, box: { w: 400, h: 100, color: '#8B1E2D' } });
   });
 
   it('only a level rectangle; words elsewhere are not taken', () => {

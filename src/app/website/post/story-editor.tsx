@@ -39,7 +39,7 @@ import { cn } from '@/lib/utils';
 import type { Palette } from '@/lib/social/palettes';
 import type { Frame } from '@/lib/social/story';
 import {
-  carryLayers, fontCss, frameOf, hitTest, layerBox, layoutText, loadUpload, moveLayer, newCornerMark, newImageLayer, newLayerId, newLinkPill, newMonogram, newShape, newText,
+  asButton, carryLayers, fontCss, frameOf, hitTest, layerBox, layoutText, loadUpload, moveLayer, newCornerMark, newImageLayer, newLayerId, newLinkPill, newMonogram, newShape, newText,
   newUploadLayer, newWordmark, imageOf, panInFrame, placementOf, reflow, renderDoc, renderDocTo, scaleLayer, shiftRuns, uploadedImage, withPlacement,
   type Assets, type Bind, type Box, type Fields, type FontKey, type ImageLayer, type Layer, type ShapeLayer, type StoryDoc, type TextLayer,
 } from '@/lib/social/editor';
@@ -573,7 +573,11 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
     const c = canvasRef.current;
     if (!c) return;
     const base = ed.compare ? withoutAdjust(view, ed.sel) : view;
-    const shown = ed.editing ? { ...base, layers: base.layers.map(l => l.id === ed.editing ? { ...l, hidden: true } : l) } : base;
+    // A text with a background (a button) keeps it while its words are typed: only the words go.
+    const typing = (l: Layer): Layer => l.kind === 'text' && l.box
+      ? { ...l, color: 'rgba(0,0,0,0)', fillGradient: null, effect: null, shadow: false, layerFx: undefined, runs: l.runs?.map(r => ({ ...r, color: 'rgba(0,0,0,0)', gradient: undefined })) }
+      : { ...l, hidden: true };
+    const shown = ed.editing ? { ...base, layers: base.layers.map(l => l.id === ed.editing ? typing(l) : l) } : base;
     renderDoc(c.getContext('2d')!, shown, fields, assets, lettered ? { background: lettered, hideBound: true } : {});
   }, [view, fields, assets, lettered, ed.editing, ed.ver, ed.compare, ed.sel]);
 
@@ -733,7 +737,18 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
       const along = mx * cos + my * sin, across = -mx * sin + my * cos;
       const o = d.orig;
       let next: Layer = o;
-      if (o.kind === 'text') {
+      if (o.kind === 'text' && o.box?.w) {
+        // A button: its sides size the pill (the words stay one line in its middle).
+        const grow = d.side === 'r' ? along : d.side === 'l' ? -along : 0;
+        const growH = d.side === 'b' ? across : d.side === 't' ? -across : 0;
+        const bw = Math.max(40, Math.round(d.box0.w + grow)), bh = Math.max(24, Math.round(d.box0.h + growH));
+        // The pill's anchor (x) stays on the side not dragged: its left edge, middle or right edge by align.
+        const horiz = d.side === 'l' || d.side === 'r';
+        const sx = !horiz ? 0 : o.align === 'center' ? along / 2 : (o.align === 'left') === (d.side === 'l') ? along : 0;
+        const sy = d.side === 'b' ? across / 2 : d.side === 't' ? across / 2 : 0;
+        next = { ...o, box: { ...o.box, w: bw, h: bh, radius: Math.min(o.box.radius, Math.round(Math.min(bw, bh) / 2)) }, x: Math.round(o.x + sx * cos - sy * sin), y: Math.round(o.y + sx * sin + sy * cos), flow: undefined };
+        setHud(`${bw} × ${bh}`);
+      } else if (o.kind === 'text') {
         const pad = o.box?.pad ?? 0;
         const grow = d.side === 'r' ? along : -along;
         const width = Math.max(60, Math.round(d.box0.w - pad * 2 + grow));
@@ -902,7 +917,7 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
 
   // What the side handles do for this kind of layer.
   const sides: ('l' | 'r' | 't' | 'b')[] = !one || one.locked ? []
-    : one.kind === 'text' ? (one.curve ? [] : ['l', 'r'])
+    : one.kind === 'text' ? (one.curve ? [] : one.box?.w ? ['l', 'r', 't', 'b'] : ['l', 'r'])
       : one.kind === 'rect' || one.kind === 'circle' || one.kind === 'shape' || (one.kind === 'image' && one.h) ? ['l', 'r', 't', 'b'] : [];
   const isLine = one && (one.kind === 'arrow' || one.kind === 'line') && !one.rotate;
   const union = ed.selLayers.length ? unionBox(ed.selLayers.map(ed.boxOf)) : null;
@@ -1035,14 +1050,19 @@ const MiniButton = ({ title, onClick, children }: { title: string; onClick: (e: 
  * colour. Never below 16 px as far as the browser knows — an iPhone zooms the
  * whole page into any smaller field — and scaled down to the true size instead.
  */
-function InlineText({ ed, l, scale }: { ed: Editor; l: TextLayer; scale: number }) {
+function InlineText({ ed, l: layer, scale }: { ed: Editor; l: TextLayer; scale: number }) {
+  let l = layer;
   const ref = useRef<HTMLTextAreaElement>(null);
   const ctx = useMemo(() => document.createElement('canvas').getContext('2d')!, []);
   const t = layoutText(ctx, l, ed.fields, ed.assets.fonts);
   const b = ed.boxOf(l);
   const value = l.bind ? ed.fields[l.bind] : l.text;
-  const w = Math.max(b.w, l.fit ? b.w : Math.min(l.width, ed.F.w)) + 24;
+  // A button's field sits over its words in the pill (the pill stays drawn), not at the pill's edge.
+  const button = !!l.box?.w;
+  if (button) l = asButton(l, t.w);   // over the words where the pill puts them
+  const w = button ? Math.max(t.w + 24, b.w) : Math.max(b.w, l.fit ? b.w : Math.min(l.width, ed.F.w)) + 24;
   const left = l.align === 'left' ? l.x : l.align === 'center' ? l.x - w / 2 : l.x - w;
+  const top = button || l.box ? l.y : b.y, height = button || l.box ? t.h : b.h;
   const px = t.size * scale;
   const k = px < 16 ? px / 16 : 1;
   // Focused in the same tap that asked for it, or an iPhone won't raise the keyboard.
@@ -1063,7 +1083,8 @@ function InlineText({ ed, l, scale }: { ed: Editor; l: TextLayer; scale: number 
       enterKeyHint="done"
       className="absolute z-20 resize-none overflow-hidden bg-black/10 outline-2 outline-dashed outline-sky-500 p-0"
       style={{
-        left: left * scale, top: b.y * scale, width: (w * scale) / k, minHeight: (b.h * scale) / k,
+        left: left * scale, top: top * scale, width: (w * scale) / k, minHeight: (height * scale) / k,
+        ...(l.box ? { background: 'transparent' } : {}),
         font: fontCss(l.font, px / k, ed.assets.fonts), letterSpacing: `${(l.spacing * t.size * scale) / k}px`, lineHeight: l.lineHeight,
         color: l.autoColor ? '#ffffff' : l.color, textAlign: l.align, textTransform: l.upper ? 'uppercase' : 'none',
         transformOrigin: 'top left', transform: `${l.rotate ? `rotate(${l.rotate}deg) ` : ''}${k < 1 ? `scale(${k})` : ''}` || undefined,

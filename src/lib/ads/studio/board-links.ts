@@ -19,7 +19,7 @@
  * follow it. Tested.
  */
 
-import type { Fields, Layer, StoryDoc, TextLayer } from '@/lib/social/editor';
+import { scaleBox, type Fields, type Layer, type StoryDoc, type TextLayer } from '@/lib/social/editor';
 import type { BoardFrame } from './board-shape';
 import { AD_FORMATS } from './templates';
 
@@ -126,6 +126,8 @@ export function linkedChanges(before: BoardFrame, after: BoardFrame, others: Boa
         }
         const t = layers[i] as Text;
         let next = setShared(t, e.l, e.keys);
+        // A background (a button's pill) at the twin's own scale, as its words are.
+        if (e.keys.includes('box') && e.l.box && e.l.size > 0) next.box = scaleBox(e.l.box, (e.ratio !== 1 ? t.size * e.ratio : t.size) / e.l.size);
         if (e.ratio !== 1) next.size = round(t.size * e.ratio);
         // A twin found by its words or field takes the key, so it stays linked.
         if (e.key !== linkKey(t)) { next = { ...next, link: e.key }; delete next.unlinked; }
