@@ -41,22 +41,29 @@ internal class NavMotion(private val reduce: Boolean, private val density: Densi
     private val none = ContentTransform(EnterTransition.None, ExitTransition.None)
     private val slide = tween<androidx.compose.ui.unit.IntOffset>(Motion.TravelMillis, easing = Motion.TravelEasing)
 
-    /** Open: the new page slides in from the edge, solid, over the old one, which eases a quarter of the way aside. */
+    // Material's shared axis on X, as Google's own apps open and close pages on Android: the pages move 30 dp, and
+    // fade *through* (the old one gone in the first 35%, the new one in over the rest), so never both at once.
+    private val axis get() = with(density) { 30.dp.roundToPx() }
+    private val move = tween<androidx.compose.ui.unit.IntOffset>(300, easing = Motion.TravelEasing)
+    private val outFade = tween<Float>(105, easing = androidx.compose.animation.core.FastOutLinearInEasing)
+    private val inFade = tween<Float>(195, delayMillis = 105, easing = androidx.compose.animation.core.LinearOutSlowInEasing)
+
+    /** Open: in from the right, the old page out to the left. */
     fun push(s: AnimatedContentTransitionScope<Scene<NavKey>>): ContentTransform = with(s) {
         if (reduce) return none
         ContentTransform(
-            slideInHorizontally(slide) { w -> w },
-            slideOutHorizontally(slide) { w -> -w / 4 },
+            slideInHorizontally(move) { axis } + fadeIn(inFade),
+            slideOutHorizontally(move) { -axis } + fadeOut(outFade),
             targetContentZIndex = 1f,
         )
     }
 
-    /** Back: the page slides away to the edge, solid, uncovering the one beneath as it eases back into place. */
+    /** Back (the button): the same axis reversed. */
     fun pop(s: AnimatedContentTransitionScope<Scene<NavKey>>): ContentTransform = with(s) {
         if (reduce) return none
         ContentTransform(
-            slideInHorizontally(slide) { w -> -w / 4 },
-            slideOutHorizontally(slide) { w -> w },
+            slideInHorizontally(move) { -axis } + fadeIn(inFade),
+            slideOutHorizontally(move) { axis } + fadeOut(outFade),
             targetContentZIndex = -1f,
         )
     }
