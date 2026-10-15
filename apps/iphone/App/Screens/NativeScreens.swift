@@ -23,6 +23,8 @@ enum NativeScreens {
             OwnerRoutes.all,
             // Posts, the website's pieces and the Ads overview and campaigns; the heavy editors stay the ERP's pages.
             MarketingRoutes.all,
+            // Posts › Design: the shell (start, workspace, Saved). `?web=1` still opens the ERP's page.
+            DesignRoutes.all,
         ].flatMap { $0 }
     }
 }
