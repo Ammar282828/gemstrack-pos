@@ -142,6 +142,7 @@ const MINA: HouseBrand = {
   hardRules: [
     'Never invent a figure: a price, weight or stone appears only exactly as the ERP or the catalogue gives it.',
     'The metal is 925 sterling silver — never call it white gold or platinum; plating is named only as the catalogue names it.',
+    'A rhodium-plated piece (white in the photo, rhodium in the catalogue) says so after the silver: “925 silver · tarnish-resistant plating” (the owner, 2026-10-15). A gold-vermeil piece keeps “24k gold vermeil · 925 silver”.',
     'Stones are named as the catalogue names them; never “natural” or “real” unless the catalogue says so.',
     'No hashtags in an ad.',
     'No cluttered or cheap-looking visuals: no stickers, no bursts, no stock clip-art.',
