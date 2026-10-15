@@ -234,6 +234,8 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Board](docs/features/ad-studio.md#board) — endless canvas, Let it cook, MCP agent (`/api/studio/mcp`), Use it; a weekly board Mondays 9:00
 - [Server draws the board](docs/features/ad-studio.md#server-draw) — `server-draw.ts` on @napi-rs/canvas: agents and the weekly board lay out and draw without the page; `/draw` settles a board
 - [The background, by hand](docs/features/ad-studio.md#free-background) — drag/scroll/pinch/double-click the photo; a new picture starts centred; one shade with on-page dots
+- [Sizes, linked](docs/features/ad-studio.md#sizes) — `group` per ad; linked texts carry what changed to every size (size by ratio, place kept); unlink keeps the key; a new size is the design resized
+- [Buttons](docs/features/ad-studio.md#buttons) — one text with a sized background (`box.w/h`); Words in it on a rectangle; Add → Button
 - [Mina's ad style](docs/features/ad-studio.md#house-of-mina-ad-style) — from the owner's edits: named designs = italic name + pink caps only; benefit ads add a red SHOP NOW pill + wordmark; a deep shade; benefits over proof; in `brand.ts`
 
 **iPhone app** (`docs/features/iphone-app.md`)

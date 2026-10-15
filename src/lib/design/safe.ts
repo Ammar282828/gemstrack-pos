@@ -19,9 +19,14 @@ export const SAFE_KINDS: { id: SafeKind; label: string }[] = [
   { id: 'link', label: 'Link ad' },
 ];
 
-/** The bands that keep words clear in this frame: the story's top 14% and bottom 35% on a 9:16, none elsewhere. */
+/**
+ * The bands that keep words clear in this frame: on a 9:16 Story, the top 14% (the profile and the bar) and the
+ * bottom fifth (the reply bar); none elsewhere. A Reel's bottom 35% is the 'reel' kind: holding a Story to it put
+ * the words up over the piece when a design was resized to 9:16 (the owner, 2026-10-14: "the 9 by 16s all look
+ * off"; docs/features/ad-studio.md#house-of-mina-ad-style keeps only the bottom fifth clear).
+ */
 export function safeBands(f: Frame, kind: SafeKind = 'story'): SafeBands {
-  if (kind === 'story') return { ...safeZone(f), left: 0, right: 0 };
+  if (kind === 'story') { const z = safeZone(f); return { top: z.top, bottom: z.bottom ? Math.round(f.h * 0.2) : 0, left: 0, right: 0 }; }
   if (kind === 'reel') return { top: Math.round(f.h * 0.14), bottom: Math.round(f.h * 0.35), left: 0, right: Math.round(f.w * 0.15) };
   if (kind === 'feed-grid') {
     // A tall post shows as its centre 1:1 on the profile grid.

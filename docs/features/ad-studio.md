@@ -340,6 +340,38 @@ change the background"). The fixes are in `lib/social/bg-gesture.ts` (tested), `
   controls (colours, opacity, angle, zoom, darken) sit under "Fine-tune" and show whenever a shade exists. They used to hide
   when the background wasn't a photo while the shade was still drawn.
 
+<a id="sizes"></a>### Sizes, linked
+
+(2026-10-15, owner: "for all designs that have a different size variant, let me link and unlink the texts so i can mass edit the
+ratios".) `board-links.ts`, called by `applyOps` on every `put`, so the page, the agent and the weekly board all follow it.
+- **A design's sizes share `group`** (`BoardFrame.group`; the agent sees it as `sizes`). "In another shape" puts the new size in the
+  original's group; the weekly board's 4:5 and 9:16 are one group; a copy or a cooked variant is not (it is another ad).
+- **"In another shape" resizes the owner's own design** (`lib/design/resize.ts`: their words, buttons and edits) instead of laying the
+  template out afresh, which had shown the fields' old words (the fire 3:4 and the proud 9:16 on the rings board did). Every text of
+  the original is linked first (quietly: its sizes already on the board are not touched).
+- **A text is linked by `link`** (a key shared with its twins), or a bound text by its field. Saving a design carries **only what
+  changed** on a linked text to its twins: the words and their styles, font, colour, case, spacing, effects, its button. Size goes as
+  a ratio; place, width and alignment stay each size's own. Field changes go to the sizes too.
+- **Unlink** (the chain button on a selected text in the designer) sets `unlinked` and keeps the key: that text is free both ways, and
+  linking it again finds the same twins (and makes them match it). Linking a text that has no twin finds the same words (case, line
+  breaks and full stops aside) or the same field in each size, else copies it there in proportion. **Link all** (nothing selected)
+  links every loose text. The toast after Save says how many sizes changed; the agent's `update_design` has `only_this_size`.
+- A copied or pasted text is a new one (its link dropped).
+
+<a id="buttons"></a>### Buttons
+
+(2026-10-15, owner: "also add text ability inside buttons".) `social/button.ts`. A button was a rounded rectangle with a line of
+text over it: two layers to move together, which a resize laid out apart. A button is now **one text layer** whose background
+(`box`) is the pill at a set size (`box.w`, `box.h`; the words in its middle; `layerBox` grows to it, so it is hit, dragged and
+sized as one). **Add → Elements → Button**; a selected rectangle has **Words in it**, which makes it a button with the words already
+on it inside (looking the same) or new words; the text's Background section has the button's width and height. The resizer also
+keeps a shape behind a line of words with its words (`keepBackings`). The rings boards' 30 pills were turned into buttons on
+2026-10-15 (each drawn before and after: under 0.25% of pixels moved). The iPhone and Android engines draw a button's box around
+its words only (no `w`/`h`) until they learn it.
+
+**The resizer's 9:16 is a Story** (`safe.ts`): the top 14% and the bottom fifth kept clear, not a Reel's 35% (which put the words
+over the ring); the `reel` kind keeps 35%. The templates' own `safeZone` is unchanged.
+
 <a id="house-of-mina-ad-style"></a>### House of Mina's ad style
 
 **House of Mina's ad style, from the owner's edits** (2026-10-14, owner: "i made changes to many of your designs, look at the

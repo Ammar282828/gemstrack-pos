@@ -19,7 +19,7 @@
 import { AD_TEMPLATES, applyAdTemplate, isAdFormat, type AdFormat, type AdTemplateId, type RateBoard } from '@/lib/ads/studio/templates';
 import { VISUAL } from '@/lib/ads/studio/brand';
 import {
-  frameOf, textOf, withPlacement,
+  frameOf, scaleBox, textOf, withPlacement,
   type Assets, type Box, type Box01, type Fields, type ImageLayer, type Layer, type LayerFx, type MarkLayer, type QrLayer, type ShapeLayer, type StoryDoc, type TextLayer,
 } from '@/lib/social/editor';
 import type { Frame, Placement } from '@/lib/social/story';
@@ -132,7 +132,7 @@ function scaleText(l: TextLayer, k: number, sf: Frame, region: Box): TextLayer {
     size: clamp(Math.round(l.size * k), 12, 600),
     width,
     ...(l.flow ? { flow: { gap: Math.round(l.flow.gap * k) } } : {}),
-    box: l.box ? { ...l.box, pad: Math.round(l.box.pad * k), radius: Math.round(l.box.radius * k) } : null,
+    box: scaleBox(l.box, k),
   };
 }
 
@@ -522,6 +522,33 @@ function clearMarks(doc: StoryDoc, fields: Fields, m: Measure, room: Box, seen: 
   return changed ? { ...doc, layers } : doc;
 }
 
+/**
+ * A shape behind a line of words (a button's pill, a label's band) goes where its words went, at their new scale.
+ * Each is laid out on its own above, so a pill could stay at the bottom while its "SHOP NOW" moved up (seen on the
+ * Mina rings boards, 2026-10-15).
+ */
+function keepBackings(src: StoryDoc, out: StoryDoc, fields: Fields, m: Measure): StoryDoc {
+  const sf = frameOf(src);
+  const texts = shownTexts(src, fields);
+  const moved = new Map<string, Layer>();
+  for (const sh of src.layers) {
+    if ((sh.kind !== 'rect' && sh.kind !== 'shape' && sh.kind !== 'circle') || sh.hidden) continue;
+    const b = m.box(sh);
+    if (area(b) > sf.w * sf.h * 0.2) continue;   // a band or panel under the whole design, not one line's backing
+    // The words it backs: their middle inside it, they fill a good part of it.
+    const t = texts.find(l => { const tb = m.box(l), cx = tb.x + tb.w / 2, cy = tb.y + tb.h / 2; return cx > b.x && cx < b.x + b.w && cy > b.y && cy < b.y + b.h && area(tb) > area(b) * 0.12; });
+    const t1 = t && out.layers.find(l => l.id === t.id);
+    if (!t || !t1 || t1.kind !== 'text' || !out.layers.some(l => l.id === sh.id)) continue;
+    const a0 = m.box(t), a1 = m.box(t1);
+    if (!a0.w || !a0.h) continue;
+    const k = a1.h / a0.h;
+    const cx = a1.x + a1.w / 2 + (b.x + b.w / 2 - (a0.x + a0.w / 2)) * k, cy = a1.y + a1.h / 2 + (b.y + b.h / 2 - (a0.y + a0.h / 2)) * k;
+    const w = Math.round(b.w * k), h = Math.round(b.h * k);
+    moved.set(sh.id, { ...sh, x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w, h } as Layer);
+  }
+  return moved.size ? { ...out, layers: out.layers.map(l => moved.get(l.id) ?? l) } : out;
+}
+
 // ── resize() ───────────────────────────────────────────────────────────────
 
 interface Candidate { strategy: Strategy; doc: StoryDoc; needsExtend: boolean; notes: string[] }
@@ -533,7 +560,8 @@ export function resizeOne(doc: StoryDoc, fields: Fields, assets: Assets, tf: Fra
   const bands = safeBands(tf);
   const seen = { assets, subject, photoAspect: c.photoAspect };
   const cands: Candidate[] = [];
-  const add = (strategy: Strategy, d: StoryDoc, needsExtend: boolean, notes: string[]) => cands.push({ strategy, doc: d, needsExtend, notes });
+  const flowed = reflowDoc(doc, fields, m);
+  const add = (strategy: Strategy, d: StoryDoc, needsExtend: boolean, notes: string[]) => cands.push({ strategy, doc: keepBackings(flowed, d, fields, m), needsExtend, notes });
 
   const t = templateRelay(doc, tf, c, o);
   if (t) {

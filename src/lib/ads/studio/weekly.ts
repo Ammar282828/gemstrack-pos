@@ -18,7 +18,7 @@ import { adScore } from './assessment';
 import { artDirect } from './art-direct';
 import { changeBoard, createBoard } from './board';
 import { settleBoard } from './server-draw';
-import { BOARD_SCALE, GAP, safeTemplate } from './board-shape';
+import { BOARD_SCALE, GAP, newId, safeTemplate } from './board-shape';
 import { AD_FORMATS } from './templates';
 
 const STATE = 'app_settings/studio_weekly';
@@ -135,7 +135,8 @@ export async function runWeeklySlice(budgetMs: number): Promise<WeeklyState & { 
         const d = await artDirect(photo, { name: p.name, collection: p.collection, specs: p.specs, price: '', brief: 'This week’s new piece, for the WhatsApp channel and Instagram.', format: 'portrait (4:5)', destination: 'a WhatsApp chat with the shop' });
         const fields = { kicker: d.kicker || (p.collection !== 'Website' ? p.collection : ''), headline: d.headline, weight: p.specs, details: d.cta };
         const y = row * (AD_FORMATS.story.frame.h * BOARD_SCALE + GAP + 28);
-        const common = { assetId: p.photo, marked: p.marked, fields, why: d.why, by: 'ai' as const, doc: null };
+        // The two are sizes of one ad: a word changed in one changes in both (board-links.ts).
+        const common = { assetId: p.photo, marked: p.marked, fields, why: d.why, by: 'ai' as const, doc: null, group: newId('size') };
         const { added } = await changeBoard(state.board!, [
           { op: 'add', frame: { ...common, template: safeTemplate(d.layout, { marked: p.marked, format: 'portrait' }), label: `${p.name} · 4:5`, format: 'portrait', x: 0, y } },
           { op: 'add', frame: { ...common, template: safeTemplate(d.layout, { marked: p.marked, format: 'story' }), label: `${p.name} · 9:16`, format: 'story', x: AD_FORMATS.portrait.frame.w * BOARD_SCALE + GAP, y } },

@@ -294,6 +294,8 @@ export function useEditor(p: StoryEditorProps) {
     return src.map(l => {
       let c = { ...moveLayer(l, offset, offset), id: newLayerId(l.kind), locked: false } as Layer;
       if (c.group) { if (!groups.has(c.group)) groups.set(c.group, newLayerId('grp')); c = { ...c, group: groups.get(c.group) }; }
+      // A copy is a new text: not linked to the other sizes (lib/ads/studio/board-links.ts) as its original is.
+      if (c.kind === 'text' && (c.link || c.unlinked)) { const { link: _l, unlinked: _u, ...rest } = c; c = rest; }
       if (c.kind === 'text' && c.bind) {
         const b = c.bind;
         if (doc.layers.some(x => x.kind === 'text' && x.bind === b)) c = { ...c, bind: undefined, text: fields[b] };

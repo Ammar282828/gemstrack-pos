@@ -103,7 +103,11 @@ export interface TextLayer extends Base {
   lineHeight: number;  // × size
   upper: boolean;
   shadow: boolean;
-  box: { color: string; radius: number; pad: number } | null;
+  /**
+   * A colour behind the words: `pad` around them, and for a button (social/button.ts) at least `w` × `h`, the words
+   * in its middle. The words are typed straight into it; it moves, sizes and links as the text does.
+   */
+  box: { color: string; radius: number; pad: number; w?: number; h?: number } | null;
   /**
    * Part of a preset's stack: its top follows the layer above it (plus `gap`)
    * as the words change length, so a headline that grows to two lines pushes
@@ -125,6 +129,10 @@ export interface TextLayer extends Base {
   runs?: TextRun[];
   list?: 'bullet' | 'number' | null;
   fillGradient?: Gradient | null;
+  /** The same words in the design's other sizes (lib/ads/studio/board-links.ts); a bound text is linked by its field. */
+  link?: string;
+  /** Linked no more: kept with its key so linking again finds the same texts. */
+  unlinked?: boolean;
 }
 /**
  * The shop's mark, from its SVG: the "taheri" wordmark or the "t" monogram.
@@ -644,15 +652,18 @@ const ratioOf = (img: Pic | undefined) => (img && img.naturalWidth ? img.natural
 export function layerBox(l: Layer, fields: Fields, a: Assets): Box {
   switch (l.kind) {
     case 'text': {
-      const pad = l.box ? l.box.pad : 0;
+      // The words' own box, grown by the background's pad (and to a button's size) around its middle.
+      const grow = (x: number, y: number, w: number, h: number): Box => {
+        const pad = l.box ? l.box.pad : 0;
+        const W = Math.max(w + pad * 2, l.box?.w ?? 0, 20), H = Math.max(h + pad * 2, l.box?.h ?? 0, 20);
+        return { x: x + w / 2 - W / 2, y: y + h / 2 - H / 2, w: W, h: H };
+      };
       if (isCurved(l)) {
         const b = curveLayout(mctx(), l, fields, a.fonts).box;
-        return { x: b.x - pad, y: b.y - pad, w: Math.max(b.w + pad * 2, 20), h: Math.max(b.h + pad * 2, 20) };
+        return grow(b.x, b.y, b.w, b.h);
       }
       const t = layoutText(mctx(), l, fields, a.fonts);
-      const w = t.w + pad * 2, h = t.h + pad * 2;
-      const x = l.align === 'left' ? l.x - pad : l.align === 'center' ? l.x - w / 2 : l.x - w + pad;
-      return { x, y: l.y - pad, w: Math.max(w, 20), h: Math.max(h, 20) };
+      return grow(l.align === 'left' ? l.x : l.align === 'center' ? l.x - t.w / 2 : l.x - t.w, l.y, t.w, t.h);
     }
     case 'wordmark': {
       const m = a.marks[l.mark] ?? a.marks.wordmark;
@@ -714,11 +725,17 @@ export function reflow(doc: StoryDoc, fields: Fields, a: Assets): StoryDoc {
   return changed ? { ...doc, layers } : doc;
 }
 
+/** A text's background at k times the size (a button's own size with it). */
+export function scaleBox(b: TextLayer['box'], k: number): TextLayer['box'] {
+  if (!b) return null;
+  return { ...b, pad: Math.round(b.pad * k), radius: Math.round(b.radius * k), ...(b.w ? { w: Math.round(b.w * k) } : {}), ...(b.h ? { h: Math.round(b.h * k) } : {}) };
+}
+
 /** Grow or shrink a layer by a factor around its own anchor. */
 export function scaleLayer(l: Layer, k: number): Layer {
   const c = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
   switch (l.kind) {
-    case 'text': return { ...l, size: c(Math.round(l.size * k), 12, 600), width: c(Math.round(l.width * k), 80, 2400), box: l.box ? { ...l.box, pad: Math.round(l.box.pad * k), radius: Math.round(l.box.radius * k) } : null };
+    case 'text': return { ...l, size: c(Math.round(l.size * k), 12, 600), width: c(Math.round(l.width * k), 80, 2400), box: scaleBox(l.box, k) };
     case 'wordmark': return { ...l, width: c(Math.round(l.width * k), 60, 1080) };
     case 'image': return { ...l, w: c(Math.round(l.w * k), 40, 2400), ...(l.h ? { h: c(Math.round(l.h * k), 40, 3000) } : {}) };
     case 'qr': return { ...l, w: c(Math.round(l.w * k), 60, 2400) };

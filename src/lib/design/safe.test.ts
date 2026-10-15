@@ -3,10 +3,11 @@ import { AD_FORMATS, safeZone } from '@/lib/ads/studio/templates';
 import { metaCrop, overlayRects, safeBands, safeKindsFor, safeRect } from './safe';
 
 describe('safe bands', () => {
-  it('are the story’s own for a 9:16', () => {
+  it('are a Story’s for a 9:16: the top 14% and the bottom fifth (a Reel keeps 35%)', () => {
     const f = AD_FORMATS.story.frame;
     const z = safeZone(f);
-    expect(safeBands(f)).toEqual({ top: z.top, bottom: z.bottom, left: 0, right: 0 });
+    expect(safeBands(f)).toEqual({ top: z.top, bottom: Math.round(1920 * 0.2), left: 0, right: 0 });
+    expect(safeBands(f, 'reel').bottom).toBe(Math.round(1920 * 0.35));
     expect(z.top).toBe(Math.round(1920 * 0.14));
     expect(z.bottom).toBe(Math.round(1920 * 0.35));
   });

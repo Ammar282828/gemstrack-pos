@@ -26,7 +26,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Maximize2, Minimize2, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X, Upload, Undo2, Wand2, Type, Crown, Redo2, LayoutGrid, ChevronDown, MousePointerClick, PanelRight } from 'lucide-react';
+import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Maximize2, Minimize2, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X, Upload, Undo2, Wand2, Type, Crown, Redo2, LayoutGrid, ChevronDown, MousePointerClick, PanelRight, Link2, Link2Off } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
@@ -41,6 +41,8 @@ import { VOICE } from '@/lib/ads/studio/brand';
 import { HANDOFF_PREFIX, type StudioHandoff } from '@/lib/ads/studio/handoff';
 import type { WeeklyState } from '@/lib/ads/studio/weekly';
 import { STORE_LINKS } from '@/lib/store-config';
+import { linkAll, linkKey, linkedCount, sizesOf, toggleLink } from '@/lib/ads/studio/board-links';
+import { resizeOne } from '@/lib/design/resize';
 import { SoloEditor, useStoryDoc, type DesignerExtras, type Editor } from '../website/post/story-editor';
 import { MarksSection } from '../website/post/editor-panels';
 import { FONTS, bodyFace, headlineFace, serifFace } from '../website/post/fonts';
@@ -355,12 +357,13 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
   }, [id, fail, load]);
 
   /** The designer's Save: one `put`, and unlike `send` it throws, so the designer stays open (nothing lost) when it fails. */
-  const saveFrame = useCallback(async (fid: string, patch: Partial<BoardFrame>) => {
+  const saveFrame = useCallback(async (fid: string, patch: Partial<BoardFrame>): Promise<number> => {
     const ops: BoardOp[] = [{ op: 'put', id: fid, patch: { ...patch, by: 'page' } }];
     busy.current++;
     try {
-      const r = await api<{ board: Board }>(`/api/ads/studio/boards/${id}`, { method: 'PATCH', body: { ops } });
+      const r = await api<{ board: Board; linked?: string[] }>(`/api/ads/studio/boards/${id}`, { method: 'PATCH', body: { ops } });
       setBoard(r.board);
+      return r.linked?.length ?? 0;   // its other sizes that took the change (board-links.ts)
     } finally { busy.current--; }
   }, [id]);
 
@@ -560,11 +563,35 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
     setSel({ kind: 'frame', id: fid });
   };
 
-  const duplicate = (f: BoardFrame, format?: AdFormat) => {
-    const { id: _id, rev: _rev, x: _x, y: _y, ...rest } = f;
-    const short = format ? formatInfo(format).short : '';
+  /**
+   * A copy, or the design in another size. A size is the owner's own design resized (lib/design/resize.ts: their
+   * words, pictures and edits carried over, not the template laid afresh), in the original's group with every text
+   * linked, so a change to the words in one size goes to all of them (board-links.ts; unlink a text to free it).
+   */
+  const duplicate = async (f: BoardFrame, format?: AdFormat) => {
+    const { id: _id, rev: _rev, x: _x, y: _y, group: _g, ...rest } = f;
     const nid = newId('frame');
-    act([{ op: 'add', near: f.id, frame: { ...rest, id: nid, by: 'page', ...(format ? { format, doc: null, template: safeTemplate(f.template, { marked: f.marked, format }), label: `${f.label} · ${short}` } : { label: `${f.label} · copy` }) } }], [{ op: 'remove', id: nid }]).then(() => setSel({ kind: 'frame', id: nid }));
+    if (!format) {
+      await act([{ op: 'add', near: f.id, frame: { ...rest, id: nid, by: 'page', label: `${f.label} · copy` } }], [{ op: 'remove', id: nid }]);
+      setSel({ kind: 'frame', id: nid });
+      return;
+    }
+    const group = f.group ?? f.id;
+    let src = f.doc, doc: StoryDoc | null = null;
+    if (f.doc) {
+      try {
+        const pic = f.assetId ? await photoOf(f.assetId) : null;
+        const a = assetsFor(pic, marks, await extrasOf(f.doc));
+        src = linkAll(f.doc);
+        doc = resizeOne(src, f.fields, a, formatInfo(format).frame, { photoMarked: f.marked }).doc;
+      } catch { src = f.doc; doc = null; }   // laid out from its template instead
+    }
+    const ops: BoardOp[] = [];
+    // The keys go on the original quietly: its sizes already on the board are not touched by making another.
+    if (f.group !== group || src !== f.doc) ops.push({ op: 'put', id: f.id, quiet: true, patch: { group, ...(src !== f.doc ? { doc: src } : {}) } });
+    ops.push({ op: 'add', near: f.id, frame: { ...rest, id: nid, by: 'page', group, format, doc, template: safeTemplate(f.template, { marked: f.marked, format }), label: `${f.label.replace(/ · (?:\d+(?:\.\d+)?:\d+|copy)$/, '')} · ${formatInfo(format).short}` } });
+    await act(ops, [{ op: 'remove', id: nid }]);
+    setSel({ kind: 'frame', id: nid });
   };
 
   /** The design at full size (or the same layout in another shape: the story for Instagram). */
@@ -678,7 +705,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
       let made = 0;
       for (const [i, d] of out.entries()) {
         if (!d) continue;
-        const { id: _id, rev: _rev, x: _x, y: _y, ...rest } = f;
+        const { id: _id, rev: _rev, x: _x, y: _y, group: _g, ...rest } = f;   // a variant is another ad, not a size of this one
         const added = await send([{ op: 'add', near, frame: {
           ...rest, by: 'ai', doc: null, template: safeTemplate(d.layout as AdTemplateId, { marked: f.marked, format: f.format }), why: d.why, label: `${f.label} · ${i + 1}`,
           fields: { ...f.fields, kicker: d.kicker || '', headline: d.headline || f.fields.headline, details: d.cta || f.fields.details },
@@ -889,7 +916,11 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
       {queueShown && <QueueDialog key={queueShown.id} frame={queueShown} open={!!queueFor} onClose={() => setQueueFor(null)} onQueue={o => { if (queueFor) queuePost(queueFor, o); }} />}
       {editing && (() => {
         const f = frames.find(x => x.id === editing);
-        return f ? <FrameEditor key={f.id} frame={f} marks={marks} onClose={() => setEditing(null)} onSave={async patch => { await saveFrame(f.id, patch); setEditing(null); toast({ title: 'Saved to the board' }); }} /> : null;
+        return f ? <FrameEditor key={f.id} frame={f} sizes={sizesOf(frames, f)} marks={marks} onClose={() => setEditing(null)} onSave={async patch => {
+          const n = await saveFrame(f.id, patch);
+          setEditing(null);
+          toast({ title: 'Saved to the board', ...(n ? { description: `Linked text changed in ${n} other size${n > 1 ? 's' : ''} too.` } : {}) });
+        }} /> : null;
       })()}
     </div>
   );
@@ -1118,7 +1149,7 @@ const FIELD_ROWS: [Bind, string, number][] = [['kicker', 'Small line', 60], ['he
  * of its own rather than a dialog, so the designer it opens takes clicks and keys. Save is one `put`;
  * pictures uploaded in the designer are put in the library first (board-pictures.ts rewriteUploads).
  */
-function FrameEditor({ frame: f, marks, onClose, onSave }: { frame: BoardFrame; marks: Assets['marks']; onClose: () => void; onSave: (p: Partial<BoardFrame>) => Promise<void> }) {
+function FrameEditor({ frame: f, sizes, marks, onClose, onSave }: { frame: BoardFrame; sizes: BoardFrame[]; marks: Assets['marks']; onClose: () => void; onSave: (p: Partial<BoardFrame>) => Promise<void> }) {
   const { toast } = useToast();
   const [start] = useState(f);   // the design as opened: the board's poll may hand a newer one in meanwhile
   const [assetId, setAssetId] = useState<string | null>(start.assetId);
@@ -1399,6 +1430,8 @@ function FrameEditor({ frame: f, marks, onClose, onSave }: { frame: BoardFrame; 
   ];
 
   /** Tools for what is selected, first in the toolbar (and the phone's bar). */
+  // The design's other sizes, by shape ("9:16, 3:4"), for the link button.
+  const sizesLabel = [...new Set(sizes.map(x => formatInfo(x.format).short))].join(', ');
   const tools = (ed: Editor, where: 'toolbar' | 'phone') => {
     edRef.current = ed;
     const T = ({ icon, label, onClick, primary }: { icon: React.ReactNode; label: string; onClick: () => void; primary?: boolean }) => where === 'toolbar'
@@ -1412,11 +1445,23 @@ function FrameEditor({ frame: f, marks, onClose, onSave }: { frame: BoardFrame; 
       {ed.bgSel && <T icon={<Maximize className={i} />} label="Crop" onClick={() => ed.setPanel('background')} />}
       {restorable(target) && <T icon={<Undo2 className={i} />} label="Original" onClick={() => restore(target)} />}
     </>);
-    if (ed.one?.kind === 'text') return <T primary icon={<Sparkles className={i} />} label={ed.one.bind ? 'Words · AI' : 'Words'} onClick={() => ed.setPanel('x:words')} />;
+    const words = <T primary={!sizes.length} icon={<Sparkles className={i} />} label={ed.one?.kind === 'text' && ed.one.bind ? 'Words · AI' : 'Words'} onClick={() => ed.setPanel('x:words')} />;
+    if (ed.one?.kind === 'text') {
+      if (!sizes.length) return words;
+      const t = ed.one, n = linkedCount(sizes, t);
+      return (<>
+        <T primary icon={linkKey(t) ? <Link2 className={i} /> : <Link2Off className={i} />}
+          label={linkKey(t) ? (where === 'toolbar' ? `Linked · ${n ? sizesLabel : 'on save'}` : 'Linked') : 'Unlinked'}
+          onClick={() => { ed.update(t.id, l => toggleLink(l)); toast({ title: linkKey(t) ? 'Unlinked: this text is this size’s own' : `Linked: saves carry it to ${sizesLabel}` }); }} />
+        {words}
+      </>);
+    }
     if (ed.selLayers.length) return null;
+    const loose = doc.doc.layers.filter(l => l.kind === 'text' && !linkKey(l));
     return (<>
       <T primary icon={<Plus className={i} />} label="Add" onClick={() => ed.setPanel('x:add')} />
       <T icon={<Pencil className={i} />} label="Words" onClick={() => ed.setPanel('x:words')} />
+      {sizes.length > 0 && loose.length > 0 && <T icon={<Link2 className={i} />} label="Link all" onClick={() => { doc.change(d => ({ ...d, layers: d.layers.map(l => (l.kind === 'text' && !linkKey(l) ? toggleLink(l) : l)) })); toast({ title: `${loose.length} text${loose.length > 1 ? 's' : ''} linked`, description: `Save to carry them to ${sizesLabel}.` }); }} />}
       {assetId && <T icon={<ImagePlus className={i} />} label="Replace photo" onClick={() => setPicking({ target: MAIN })} />}
     </>);
   };

@@ -88,7 +88,7 @@ async function picture(id: string, alpha: boolean): Promise<Image> {
 }
 
 /** Everything the design draws: its photo, the library pictures laid on it, the marks and the faces. */
-async function assetsOf(f: Pick<BoardFrame, 'assetId' | 'doc'>): Promise<Assets> {
+export async function assetsOf(f: Pick<BoardFrame, 'assetId' | 'doc'>): Promise<Assets> {
   ensureFonts();
   const ids = extraIds(f.doc);
   const [main, marks, ...extras] = await Promise.all([

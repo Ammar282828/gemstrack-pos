@@ -10,6 +10,7 @@
 
 import { FONT_KEYS, type Fields, type Layer, type StoryDoc } from '@/lib/social/editor';
 import { gradientProblem } from '@/lib/social/gradient';
+import { linkedChanges, sizesOf } from './board-links';
 import { AD_FORMATS, isAdFormat, type AdFormat, type AdTemplateId } from './templates';
 
 export const TEMPLATE_IDS = ['clean', 'headline', 'framed', 'heritage', 'band', 'certified', 'rate', 'investment'] as const satisfies readonly AdTemplateId[];
@@ -39,6 +40,8 @@ export interface BoardFrame {
   rev: number;
   /** The AI's reason for the design, when the AI made it. */
   why?: string;
+  /** The design's other sizes share this (board-links.ts): their linked texts are edited as one. */
+  group?: string;
 }
 
 export interface BoardNote { id: string; x: number; y: number; text: string; by: 'page' | 'agent' }
@@ -56,7 +59,8 @@ export interface Board {
 export type BoardOp =
   /** `near`: the design it came from — the new one goes in the first free place to its right. */
   | { op: 'add'; frame: Partial<BoardFrame> & { assetId: string | null }; near?: string }
-  | { op: 'put'; id: string; patch: Partial<Omit<BoardFrame, 'id' | 'rev'>> }
+  /** `quiet`: the change stays on this design; its other sizes don't take it (board-links.ts). */
+  | { op: 'put'; id: string; patch: Partial<Omit<BoardFrame, 'id' | 'rev'>>; quiet?: boolean }
   | { op: 'move'; id: string; x: number; y: number }
   | { op: 'remove'; id: string }
   | { op: 'note'; note: Partial<BoardNote> & { text: string } }
@@ -259,6 +263,8 @@ function cleanFrameInput(v: Partial<BoardFrame>, base?: BoardFrame): Omit<BoardF
     doc,
     by: v.by === 'agent' || v.by === 'ai' || v.by === 'page' ? v.by : base?.by ?? 'page',
     ...(v.why !== undefined || base?.why ? { why: str(v.why ?? base?.why, 400) } : {}),
+    // null takes a design out of its sizes; missing keeps what it had.
+    ...(v.group === null ? {} : v.group !== undefined ? (str(v.group, 40) ? { group: str(v.group, 40) } : {}) : base?.group ? { group: base.group } : {}),
     ...(v.x !== undefined ? { x: num(v.x, 0) } : {}),
     ...(v.y !== undefined ? { y: num(v.y, 0) } : {}),
   };
@@ -268,11 +274,12 @@ function cleanFrameInput(v: Partial<BoardFrame>, base?: BoardFrame): Omit<BoardF
  * Apply operations to a board (a copy is returned; the board's rev is not touched — the store does that).
  * Throws (status 400/404) on an operation that can't be applied, naming it.
  */
-export function applyOps(board: Board, ops: BoardOp[]): { board: Board; added: string[] } {
+export function applyOps(board: Board, ops: BoardOp[]): { board: Board; added: string[]; linked: string[] } {
   let frames = board.frames.slice();
   let notes = board.notes.slice();
   let name = board.name;
   const added: string[] = [];
+  const linked = new Set<string>();
   const notFound = (what: string, id: string) => Object.assign(new Error(`There is no ${what} “${id}” on this board.`), { status: 404 });
   for (const o of ops) {
     switch (o.op) {
@@ -288,8 +295,21 @@ export function applyOps(board: Board, ops: BoardOp[]): { board: Board; added: s
       case 'put': {
         const i = frames.findIndex(f => f.id === o.id);
         if (i < 0) throw notFound('design', o.id);
-        const c = cleanFrameInput(o.patch as Partial<BoardFrame>, frames[i]);
-        frames[i] = { ...frames[i], ...c, x: c.x ?? frames[i].x, y: c.y ?? frames[i].y, rev: frames[i].rev + 1 };
+        const before = frames[i];
+        const c = cleanFrameInput(o.patch as Partial<BoardFrame>, before);
+        const { group: _g, ...kept } = before;
+        const after: BoardFrame = { ...kept, ...c, x: c.x ?? before.x, y: c.y ?? before.y, rev: before.rev + 1 };
+        frames[i] = after;
+        // Its other sizes take the change to their linked texts (board-links.ts); a size the same batch also
+        // puts is left to that put.
+        if (!o.quiet && (o.patch.doc !== undefined || o.patch.fields !== undefined)) {
+          const others = sizesOf(frames, after).filter(x => !ops.some(p => p.op === 'put' && p.id === x.id));
+          for (const ch of linkedChanges(before, after, others)) {
+            const j = frames.findIndex(f => f.id === ch.id);
+            frames[j] = { ...frames[j], ...(ch.doc ? { doc: ch.doc } : {}), ...(ch.fields ? { fields: ch.fields } : {}), by: after.by, rev: frames[j].rev + 1 };
+            linked.add(ch.id);
+          }
+        }
         break;
       }
       case 'move': {
@@ -336,7 +356,7 @@ export function applyOps(board: Board, ops: BoardOp[]): { board: Board; added: s
         throw Object.assign(new Error(`Unknown operation ${(o as { op?: unknown }).op}.`), { status: 400 });
     }
   }
-  return { board: { ...board, name, frames, notes }, added };
+  return { board: { ...board, name, frames, notes }, added, linked: [...linked] };
 }
 
 /** Every line of words a design shows: its fields and its text layers. */

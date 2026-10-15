@@ -42,6 +42,7 @@ import { GradientToggle, gradientFrom } from './panels/gradient-editor';
 import { freshPlacement, SHADE_PRESETS, shadePresetOf, withShade } from '@/lib/social/bg-gesture';
 import { QrControls, QrSection } from './panels/qr';
 import { RichTextPanel } from './panels/text-runs';
+import { buttonFromShape, canBeButton, newButton } from '@/lib/social/button';
 import { BrandKitPanel } from './panels/brand-kit';
 export { PositionPanel } from './panels/position';
 
@@ -146,6 +147,7 @@ export function LayerInspector({ ed, layer: l, bare }: { ed: Editor; layer: Laye
           <label className="flex items-center gap-1.5"><Switch checked={!!l.box} onCheckedChange={v => set({ box: v ? { color: '#FFFFFF', radius: 24, pad: 20 } : null })} /> Background</label>
         </div>
         {l.box && <Row label="Background"><ColourRow value={l.box.color} onChange={c => set(x => ({ ...(x as TextLayer), box: { ...(x as TextLayer).box!, color: c } }), 'boxc')} /></Row>}
+        <BoxSizeRows ed={ed} l={l} />
         <Row label="Effect">
           <Select value={effectOf(l)?.kind ?? 'none'} onValueChange={v => set({ effect: v === 'none' ? null : effectDefaults(v as EffectKind, l.color), shadow: false })} recentsKey={false}>
             <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
@@ -532,6 +534,7 @@ export function ContextToolbar({ ed }: { ed: Editor }) {
           {(s.kind === 'arrow' || s.kind === 'line') && <Row label="Bend"><Num value={s.curve} min={-300} max={300} step={5} onChange={v => ed.update(s.id, { curve: v }, 'curve')} /></Row>}
         </PopoverContent>
       </Popover>
+      {canBeButton(s) && <Tool title="Put words in it: it becomes one button you type into" onClick={() => makeButton(ed, s.id)}><Type className="h-4 w-4" /><span className="hidden sm:inline">Words in it</span></Tool>}
       <Tool title="Flip" onClick={() => ed.update(s.id, { flipX: !s.flipX })}><FlipHorizontal2 className="h-4 w-4" /></Tool>
       <Tool title="Blend, shadow, glow, outline" active={ed.panel === 'effects'} onClick={() => openPanel('effects')}><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Effects</span></Tool>
       <Tool title="All settings, gradient fill" active={ed.panel === 'edit'} onClick={() => openPanel('edit')}><SlidersHorizontal className="h-4 w-4" /></Tool>
@@ -540,6 +543,36 @@ export function ContextToolbar({ ed }: { ed: Editor }) {
   }
   const host = ed.p.lettered ? null : ed.p.extras?.tools?.(ed, 'toolbar');
   return <div className="flex h-12 shrink-0 items-center gap-0.5 overflow-x-auto border-b px-2">{host}{host ? <span className="mx-1 h-5 w-px shrink-0 bg-border" /> : null}{body}</div>;
+}
+
+/**
+ * A rectangle becomes a button with its words inside (social/button.ts): the words already on it, else new ones.
+ * Measured on the design as drawn (stacked words where they show), written back into the document.
+ */
+export function makeButton(ed: Editor, shapeId: string) {
+  const ink = ed.p.palette.dark ? '#111111' : '#FFFFFF';
+  const r = buttonFromShape(ed.view, shapeId, ed.boxOf, { ink });
+  if (!r) return;
+  const button = r.doc.layers.find(l => l.id === r.id)!;
+  ed.change(d => {
+    const mine = new Map(d.layers.map(l => [l.id, l] as const));
+    mine.set(r.id, button);
+    return { ...d, layers: r.doc.layers.map(l => mine.get(l.id)).filter((l): l is Layer => !!l) };
+  });
+  ed.select([r.id]);
+}
+
+/** A text's background, and its size when it is a button. */
+function BoxSizeRows({ ed, l }: { ed: Editor; l: TextLayer }) {
+  if (!l.box) return null;
+  const set = (patch: Partial<NonNullable<TextLayer['box']>>, key: string) => ed.update(l.id, x => ({ ...(x as TextLayer), box: { ...(x as TextLayer).box!, ...patch } }), key);
+  const b = ed.boxOf(l);
+  return l.box.w || l.box.h ? (<>
+    <Row label="Button width"><Num value={l.box.w ?? Math.round(b.w)} min={20} max={2000} step={4} onChange={v => set({ w: v }, 'boxw')} /></Row>
+    <Row label="Button height"><Num value={l.box.h ?? Math.round(b.h)} min={20} max={1000} step={2} onChange={v => set({ h: v }, 'boxh')} /></Row>
+  </>) : (
+    <button type="button" className="text-xs text-primary" onClick={() => set({ w: Math.round(b.w), h: Math.round(b.h) }, 'boxw')}>Make it a button (a set size, the words in its middle)</button>
+  );
 }
 
 // ── The designer's rail ────────────────────────────────────────────────────
@@ -643,6 +676,7 @@ export function ElementsPanel({ ed }: { ed: Editor }) {
         <div className="grid grid-cols-2 gap-2">
           {BADGES.map(b => <Button key={b.id} variant="outline" size="sm" className="justify-start" onClick={() => ed.add(b.make(accent, F))}><Shapes className="h-4 w-4 mr-1.5" /> {b.label}</Button>)}
           <Button variant="outline" size="sm" className="justify-start" onClick={() => ed.add(newLinkPill(ed.p.websiteLabel))}><Link2 className="h-4 w-4 mr-1.5" /> Link pill</Button>
+          <Button variant="outline" size="sm" className="justify-start" onClick={() => ed.add(newButton({ fill: accent, ink: palette.dark ? '#111111' : '#FFFFFF', frame: F }))}><Type className="h-4 w-4 mr-1.5" /> Button</Button>
         </div>
       </Section>
       <QrSection ed={ed} />
@@ -865,6 +899,7 @@ export function EffectsPanel({ ed, layer: l }: { ed: Editor; layer: TextLayer })
           <Row label="Colour"><ColourRow value={l.box.color} onChange={c => ed.update(l.id, x => ({ ...(x as TextLayer), box: { ...(x as TextLayer).box!, color: c } }), 'boxc')} extra={docColours(ed)} /></Row>
           <Row label="Roundness"><Num value={l.box.radius} min={0} max={120} onChange={v => ed.update(l.id, x => ({ ...(x as TextLayer), box: { ...(x as TextLayer).box!, radius: v } }), 'boxr')} /></Row>
           <Row label="Spread"><Num value={l.box.pad} min={0} max={120} onChange={v => ed.update(l.id, x => ({ ...(x as TextLayer), box: { ...(x as TextLayer).box!, pad: v } }), 'boxp')} /></Row>
+          <BoxSizeRows ed={ed} l={l} />
         </>)}
       </Section>
     </div>
