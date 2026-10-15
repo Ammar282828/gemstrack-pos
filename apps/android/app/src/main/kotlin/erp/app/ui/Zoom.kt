@@ -118,9 +118,10 @@ private fun Modifier.zoom(id: String, source: Boolean, corner: Dp): Modifier {
         this@zoom.sharedBounds(
             sharedContentState = rememberSharedContentState(key = "zoom:$id"),
             animatedVisibilityScope = scopes.visibility,
-            // The two pages' own contents cross-fade inside the moving container.
-            enter = if (reduce) EnterTransition.None else fadeIn(Motion.enter()),
-            exit = if (reduce) ExitTransition.None else fadeOut(Motion.exit()),
+            // The arriving content covers the leaving one before it lets go, so the moving shape is solid all the
+            // way: in over the first half of the travel, out over the second (never both half-clear at once).
+            enter = if (reduce) EnterTransition.None else fadeIn(tween(Motion.TravelMillis / 2, easing = Motion.EnterEasing)),
+            exit = if (reduce) ExitTransition.None else fadeOut(tween(Motion.TravelMillis / 3, delayMillis = Motion.TravelMillis * 2 / 3, easing = Motion.ExitEasing)),
             boundsTransform = transform,
             resizeMode = if (source) {
                 SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.FillWidth)

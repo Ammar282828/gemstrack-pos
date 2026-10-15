@@ -46,12 +46,14 @@ internal class NavMotion(private val reduce: Boolean, private val density: Densi
 
     private val enterFade = tween<Float>(Motion.EnterMillis, delayMillis = 70, easing = Motion.EnterEasing)
     private val exitFade = tween<Float>(Motion.ExitMillis, easing = Motion.ExitEasing)
+    private val quickOut = tween<Float>(90, easing = Motion.ExitEasing)
     private val travel = tween<androidx.compose.ui.unit.IntOffset>(Motion.TravelMillis, easing = Motion.TravelEasing)
 
     fun push(s: AnimatedContentTransitionScope<Scene<NavKey>>): ContentTransform = with(s) {
         if (reduce) return none
         if (ZoomRegistry.morphs(path(targetState))) {
-            ContentTransform(fadeIn(tween(Motion.EnterMillis, easing = Motion.EnterEasing)), fadeOut(exitFade), targetContentZIndex = 1f)
+            // The list stays put under the growing card (no blank behind it); the page's own bars fade in.
+            ContentTransform(fadeIn(tween(Motion.EnterMillis, easing = Motion.EnterEasing)), ExitTransition.KeepUntilTransitionsFinished, targetContentZIndex = 1f)
         } else {
             ContentTransform(
                 slideInHorizontally(travel) { axis } + fadeIn(enterFade),
@@ -64,10 +66,12 @@ internal class NavMotion(private val reduce: Boolean, private val density: Densi
     fun pop(s: AnimatedContentTransitionScope<Scene<NavKey>>): ContentTransform = with(s) {
         if (reduce) return none
         if (ZoomRegistry.morphs(path(initialState))) {
-            ContentTransform(fadeIn(tween(Motion.EnterMillis, easing = Motion.EnterEasing)), fadeOut(exitFade), targetContentZIndex = -1f)
+            // Back: the list is there at once and solid (fading it in left a see-through veil); the page's bars go
+            // quickly, and the shrinking card does the rest.
+            ContentTransform(EnterTransition.None, fadeOut(quickOut), targetContentZIndex = -1f)
         } else {
             ContentTransform(
-                slideInHorizontally(travel) { -axis } + fadeIn(enterFade),
+                slideInHorizontally(travel) { -axis },
                 slideOutHorizontally(travel) { axis } + fadeOut(exitFade),
                 targetContentZIndex = -1f,
             )
@@ -78,12 +82,12 @@ internal class NavMotion(private val reduce: Boolean, private val density: Densi
     fun predictivePop(s: AnimatedContentTransitionScope<Scene<NavKey>>, edge: Int): ContentTransform = with(s) {
         if (reduce) return none
         if (ZoomRegistry.morphs(path(initialState))) {
-            // The page folds into its row (the shared bounds do it); only the fades are ours.
-            ContentTransform(fadeIn(tween(Motion.EnterMillis, easing = Motion.EnterEasing)), fadeOut(exitFade), targetContentZIndex = -1f)
+            // The page folds into its row (the shared bounds do it); the list under it is solid from the start.
+            ContentTransform(EnterTransition.None, fadeOut(quickOut), targetContentZIndex = -1f)
         } else {
             val toRight = edge == 0
             ContentTransform(
-                fadeIn(tween(Motion.EnterMillis, easing = Motion.EnterEasing), initialAlpha = 0.6f),
+                EnterTransition.None,
                 scaleOut(tween(Motion.TravelMillis, easing = Motion.TravelEasing), targetScale = 0.9f) +
                     slideOutHorizontally(travel) { w -> if (toRight) w / 10 else -w / 10 } +
                     fadeOut(tween(Motion.TravelMillis, easing = Motion.ExitEasing)),
