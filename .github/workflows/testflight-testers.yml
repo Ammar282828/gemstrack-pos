@@ -73,7 +73,16 @@ jobs:
           ASC_CONTACT_PHONE: ${{ secrets.ASC_CONTACT_PHONE }}
           ASC_CONTACT_FEEDBACK_EMAIL: ${{ secrets.ASC_CONTACT_FEEDBACK_EMAIL }}
           HOUSE: ${{ contains(github.event.issue.title, 'mina') && 'mina' || 'taheri' }}
+          BODY: ${{ github.event.issue.body }}
         run: |
+          # The reviewer's contact may come in the issue (private) as "first: / last: / email: / phone:" lines when no
+          # secret holds it; masked here, and the issue body is wiped when the request closes.
+          field() { printf '%s\n' "$BODY" | sed -n "s/^[[:space:]]*$1:[[:space:]]*//Ip" | head -1 | tr -d '\r'; }
+          for k in first last email phone; do v=$(field $k); [ -n "$v" ] && echo "::add-mask::$v"; done
+          : "${ASC_CONTACT_FIRST_NAME:=$(field first)}" "${ASC_CONTACT_LAST_NAME:=$(field last)}"
+          : "${ASC_CONTACT_EMAIL:=$(field email)}" "${ASC_CONTACT_PHONE:=$(field phone)}"
+          : "${ASC_CONTACT_FEEDBACK_EMAIL:=$ASC_CONTACT_EMAIL}"
+          export ASC_CONTACT_FIRST_NAME ASC_CONTACT_LAST_NAME ASC_CONTACT_EMAIL ASC_CONTACT_PHONE ASC_CONTACT_FEEDBACK_EMAIL
           # stdout is the link alone (the rest is on stderr); it is kept even when a later step fails.
           set +e
           node apps/ios/scripts/asc.mjs public-link "$HOUSE" --submit > link.txt
@@ -88,6 +97,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           LINK: ${{ steps.public.outputs.link }}
         run: |
+          gh issue edit "${{ github.event.issue.number }}" --repo "$GITHUB_REPOSITORY" --body "(cleared)" || true
           msg="Done (${{ job.status }})."
           if [ -n "$LINK" ]; then msg="Public TestFlight link: $LINK
           
