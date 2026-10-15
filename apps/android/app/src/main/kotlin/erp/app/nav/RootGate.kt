@@ -254,10 +254,10 @@ fun StackHost(
                         val scope = androidx.navigation3.ui.LocalNavAnimatedContentScope.current
                         val root = key == stack.firstOrNull()
                         val path = (key as Route).path
-                        erp.app.ui.ProvideSharedScopes(shared, scope) {
-                            RoundedOnExit(scope, enabled = !erp.app.ui.ZoomRegistry.morphs(path)) {
-                                PlaceScreen(path, isRoot = root, onClose = if (root) onClose else null, trailing = if (root) trailing else null)
-                            }
+                        // No row-to-page morph (owner, 2026-10-15: the morph showed the old page's words until it
+                        // finished): pages slide, solid, as Android's own do. zoomSource/zoomDestination stay inert.
+                        RoundedOnExit(scope, enabled = true) {
+                            PlaceScreen(path, isRoot = root, onClose = if (root) onClose else null, trailing = if (root) trailing else null)
                         }
                     }
                 },

@@ -75,7 +75,7 @@ app, `apps/iphone` (read `apps/iphone/CONVENTIONS.md` too: its rules hold here, 
     `LocalNavigator.current.replace(path)` for a form that hands over to what it made, and `ScreenRegistry.readableWidth`
     (PlaceScreen already puts a native page in its column: do not add another unless the page needs a narrower one).
 
-## Motion
+## Motion (pages slide; no row-to-page morph since 2026-10-15)
 
 The ERP's three curves and 150-400 ms live in `ui/Motion.kt` (docs/decisions.md "Motion"); everything is instant under
 `LocalReduceMotion` (the system's "Remove animations"). Nothing loops, nothing animates on scroll, and per-frame work

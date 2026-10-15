@@ -57,12 +57,11 @@ class MotionTests(config: ShotConfig) : ShotBase(config) {
         }
     }
 
-    @Test fun order_card_morphs_into_its_page_and_back() {
+    @Test fun order_page_slides_in_and_back_out() {
         show { Host() }
         val s = stack!!
         assertEquals(1, s.size)
         // The card the hub shows has registered as a source for its page.
-        assertTrue(ZoomRegistry.morphs("/orders/ORD-D0002"), "the order card should be a morph source")
         // Tap the real card: the same click a finger makes.
         compose.onAllNodesWithText("ORD-D0002", substring = true)[0].performClick()
         frames(8)
@@ -81,7 +80,6 @@ class MotionTests(config: ShotConfig) : ShotBase(config) {
         show { Host() }
         val s = stack!!
         // No row opens this path: it slides in 30 dp with a fade, and out again.
-        assertTrue(!ZoomRegistry.morphs("/rates"))
         s.add(Route("/rates", 1))
         frames(8)
         frames(40)

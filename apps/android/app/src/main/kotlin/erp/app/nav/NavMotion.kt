@@ -39,61 +39,42 @@ import erp.app.ui.ZoomRegistry
  */
 internal class NavMotion(private val reduce: Boolean, private val density: Density) {
     private val none = ContentTransform(EnterTransition.None, ExitTransition.None)
+    private val slide = tween<androidx.compose.ui.unit.IntOffset>(Motion.TravelMillis, easing = Motion.TravelEasing)
 
-    private fun path(scene: Scene<NavKey>): String? = (scene.entries.lastOrNull()?.contentKey as? Route)?.path
-
-    private val axis get() = with(density) { 30.dp.roundToPx() }
-
-    private val enterFade = tween<Float>(Motion.EnterMillis, delayMillis = 70, easing = Motion.EnterEasing)
-    private val exitFade = tween<Float>(Motion.ExitMillis, easing = Motion.ExitEasing)
-    private val quickOut = tween<Float>(90, easing = Motion.ExitEasing)
-    private val travel = tween<androidx.compose.ui.unit.IntOffset>(Motion.TravelMillis, easing = Motion.TravelEasing)
-
+    /** Open: the new page slides in from the edge, solid, over the old one, which eases a quarter of the way aside. */
     fun push(s: AnimatedContentTransitionScope<Scene<NavKey>>): ContentTransform = with(s) {
         if (reduce) return none
-        if (ZoomRegistry.morphs(path(targetState))) {
-            // The list stays put under the growing card (no blank behind it); the page's own bars fade in.
-            ContentTransform(fadeIn(tween(Motion.EnterMillis, easing = Motion.EnterEasing)), ExitTransition.KeepUntilTransitionsFinished, targetContentZIndex = 1f)
-        } else {
-            ContentTransform(
-                slideInHorizontally(travel) { axis } + fadeIn(enterFade),
-                slideOutHorizontally(travel) { -axis } + fadeOut(exitFade),
-                targetContentZIndex = 1f,
-            )
-        }
+        ContentTransform(
+            slideInHorizontally(slide) { w -> w },
+            slideOutHorizontally(slide) { w -> -w / 4 },
+            targetContentZIndex = 1f,
+        )
     }
 
+    /** Back: the page slides away to the edge, solid, uncovering the one beneath as it eases back into place. */
     fun pop(s: AnimatedContentTransitionScope<Scene<NavKey>>): ContentTransform = with(s) {
         if (reduce) return none
-        if (ZoomRegistry.morphs(path(initialState))) {
-            // Back: the list is there at once and solid (fading it in left a see-through veil); the page's bars go
-            // quickly, and the shrinking card does the rest.
-            ContentTransform(EnterTransition.None, fadeOut(quickOut), targetContentZIndex = -1f)
-        } else {
-            ContentTransform(
-                slideInHorizontally(travel) { -axis },
-                slideOutHorizontally(travel) { axis } + fadeOut(exitFade),
-                targetContentZIndex = -1f,
-            )
-        }
+        ContentTransform(
+            slideInHorizontally(slide) { w -> -w / 4 },
+            slideOutHorizontally(slide) { w -> w },
+            targetContentZIndex = -1f,
+        )
     }
 
-    /** [edge] is the side the gesture starts from (0 left, 1 right): the page leaves toward the other. */
+    /**
+     * The back gesture, scrubbed by the finger as Android's own predictive back: the page shrinks a little with rounded
+     * corners and drifts away from the edge the gesture started at; the page beneath is solid the whole time. Letting
+     * go finishes the slide off; pulling back cancels it.
+     */
     fun predictivePop(s: AnimatedContentTransitionScope<Scene<NavKey>>, edge: Int): ContentTransform = with(s) {
         if (reduce) return none
-        if (ZoomRegistry.morphs(path(initialState))) {
-            // The page folds into its row (the shared bounds do it); the list under it is solid from the start.
-            ContentTransform(EnterTransition.None, fadeOut(quickOut), targetContentZIndex = -1f)
-        } else {
-            val toRight = edge == 0
-            ContentTransform(
-                EnterTransition.None,
-                scaleOut(tween(Motion.TravelMillis, easing = Motion.TravelEasing), targetScale = 0.9f) +
-                    slideOutHorizontally(travel) { w -> if (toRight) w / 10 else -w / 10 } +
-                    fadeOut(tween(Motion.TravelMillis, easing = Motion.ExitEasing)),
-                targetContentZIndex = -1f,
-            )
-        }
+        val toRight = edge == 0
+        ContentTransform(
+            slideInHorizontally(slide) { w -> if (toRight) -w / 4 else w / 4 },
+            scaleOut(tween(Motion.TravelMillis, easing = Motion.TravelEasing), targetScale = 0.9f) +
+                slideOutHorizontally(slide) { w -> if (toRight) w else -w },
+            targetContentZIndex = -1f,
+        )
     }
 }
 
