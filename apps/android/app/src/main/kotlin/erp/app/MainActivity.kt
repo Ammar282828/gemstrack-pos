@@ -14,6 +14,7 @@ import erp.app.device.Foreground
 import erp.app.nav.AppRoot
 import erp.app.nav.AppRouter
 import erp.app.nav.ThemeChoice
+import erp.app.widget.WidgetSync
 import kotlinx.coroutines.launch
 
 // FragmentActivity (a ComponentActivity) because BiometricPrompt, the delete code's and the lock's, wants one.
@@ -75,6 +76,8 @@ class MainActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         AppLock.resumed(this, signedIn)
+        // The widget's figures are as fresh as the app coming to the front.
+        if (signedIn && session.isOwner && !House.isDemo) WidgetSync.refreshSoon(this)
         lifecycleScope.launch { AppLock.unlockIfNeeded(this@MainActivity) }
     }
 

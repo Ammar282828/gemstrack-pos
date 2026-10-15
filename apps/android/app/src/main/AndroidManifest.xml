@@ -4,7 +4,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- Asked for only when a feature needs it (alerts, later), never at launch -->
+    <!-- Asked for after an owner signs in (the iPhone asks then too), never at launch -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
@@ -54,6 +54,34 @@
                 <data android:scheme="erp" />
             </intent-filter>
         </activity>
+
+        <!-- Notifications: a refreshed token, and an alert that arrives while the app is open (lib/push/fcm.ts sends channelId = kind) -->
+        <service
+            android:name=".device.ErpMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="orders" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_erp" />
+
+        <!-- The home-screen widget; its picker label is the flavor's app_name ("Taheri ERP" / "Mina ERP") -->
+        <receiver
+            android:name=".widget.ErpWidgetReceiver"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/erp_widget_info" />
+        </receiver>
 
         <!-- Files a page shares (a PDF) and photos for file inputs, from the cache folders in xml/file_paths.xml only -->
         <provider

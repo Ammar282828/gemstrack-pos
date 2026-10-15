@@ -32,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.auth.LocalSession
 import erp.app.device.AppLock
 import erp.app.device.BiometricVault
+import erp.app.device.WidgetLinker
 import erp.app.nav.ScreenTitle
 import erp.app.nav.ThemeChoice
 import erp.app.ui.ActionRow
@@ -52,7 +53,7 @@ import kotlinx.coroutines.launch
  * Settings → Alerts switches for WhatsApp are not touched), how it looks, the lock, the delete code kept behind the
  * fingerprint, and the home-screen widget's place. Settings for the whole shop stay the ERP's (/settings).
  *
- * Push is built against [PushStatus] (the FCM work plugs in behind it); the widget is a placeholder until the widget phase.
+ * Push is built against [PushStatus] (device/DeviceLinks.kt's `Push` behind it); the widget's key is minted by [WidgetLinker].
  */
 @Composable
 fun PhoneSettings() {
@@ -77,6 +78,10 @@ fun PhoneSettings() {
     val registrationError by push.registrationError.collectAsStateWithLifecycle()
     val linked by push.registeredOnServer.collectAsStateWithLifecycle()
     val deviceTheme by ThemeChoice.device.collectAsStateWithLifecycle()
+
+    var widgetLinked by remember { mutableStateOf(runCatching { WidgetLinker.isLinked() }.getOrDefault(false)) }
+    var linking by remember { mutableStateOf(false) }
+    var linkFailed by remember { mutableStateOf(false) }
 
     var lockOn by rememberSaveable { mutableStateOf(AppLock.enabled) }
     val canLock = remember { runCatching { AppLock.available(context) }.getOrDefault(false) }
@@ -206,8 +211,23 @@ fun PhoneSettings() {
         }
 
         SettingsSection(footer = "Add it from the home screen: touch and hold, then Widgets → ${erp.app.config.House.storeName}.") {
-            ValueRow("Home-screen widget") { ReadOnly("Comes with the widget phase") }
+            ValueRow("Home-screen widget") { ReadOnly(if (widgetLinked) "Linked" else "Not linked") }
             SettingsNavRow("Preview widgets", Icons.Filled.Widgets, "/app/widgets")
+            ActionRow(
+                if (linking) "Linking…" else if (widgetLinked) "Link again" else "Link the widget",
+                onClick = {
+                    scope.launch {
+                        linking = true
+                        linkFailed = !WidgetLinker.link(force = true)
+                        widgetLinked = WidgetLinker.isLinked()
+                        linking = false
+                    }
+                },
+                enabled = !linking,
+            )
+            if (linkFailed) {
+                SmallPrint("Couldn't reach the ERP to link the widget. The widget keeps its current link.", modifier = Modifier.fillMaxWidth().ledgerRow())
+            }
         }
     }
 }

@@ -12,7 +12,8 @@ import androidx.core.content.ContextCompat
 import erp.app.config.House
 import erp.app.config.Prefs
 import erp.app.data.ErpApi
-import erp.app.device.DeviceLinks
+import erp.app.device.Push
+import erp.app.device.PushLogic
 import erp.app.device.Foreground
 import java.net.URLEncoder
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +25,7 @@ class PushNotRegistered : Exception("This phone isn't linked for notifications y
 
 /**
  * What "This phone" needs of the push layer (the iPhone's `Push.shared`), so the screen is built against this and not
- * against Firebase Cloud Messaging, which another piece of work adds (DeviceLinks.afterSignIn / beforeSignOut).
+ * against Firebase Cloud Messaging (device/DeviceLinks.kt `Push` is the real one behind it).
  * Everything here is the ERP's own routes with this phone's token: /api/push/devices GET / POST / DELETE and
  * /api/push/test. Replace [PhonePush.current] to change where the answers come from (a test does).
  */
@@ -38,7 +39,7 @@ interface PushStatus {
     /** Why the last registration did not happen, in words. */
     val registrationError: StateFlow<String?>
 
-    /** Asks the push layer to link this phone (the token to the ERP): the FCM work answers it. */
+    /** Asks the push layer to link this phone (the token to the ERP). */
     suspend fun register()
 
     /** Whether the ERP has this phone on its list. */
@@ -57,7 +58,7 @@ interface PushStatus {
 /** The default [PushStatus]: the iPhone's routes with the token that [DeviceLinks] keeps (`erp.pushToken` in the preferences). */
 class ServerPushStatus(
     private val token: () -> String? = { Prefs.string(TOKEN_KEY) },
-    private val link: suspend () -> Unit = { DeviceLinks.afterSignIn() },
+    private val link: suspend () -> Unit = { Push.register() },
 ) : PushStatus {
     private val _registered = MutableStateFlow(false)
     override val registeredOnServer: StateFlow<Boolean> = _registered.asStateFlow()
@@ -70,7 +71,7 @@ class ServerPushStatus(
         _error.value = null
         _registering.value = true
         try {
-            // TODO(fcm): DeviceLinks.afterSignIn() takes the FCM token, keeps it under TOKEN_KEY and POSTs it to /api/push/devices.
+            // Push.register: asks for notifications if not yet asked, takes the FCM token, keeps it, files it with the ERP.
             link()
             _registered.value = token() != null && PhoneLogic.isRegistered(runCatching { devices(token()!!) }.getOrNull())
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -110,8 +111,8 @@ class ServerPushStatus(
     private suspend fun devices(token: String): Any? = ErpApi.shared.get("/api/push/devices?token=" + URLEncoder.encode(token, "UTF-8"))
 
     companion object {
-        /** The iPhone's key for it (UserDefaults `erp.pushToken`); the FCM work keeps the token here. */
-        const val TOKEN_KEY = "erp.pushToken"
+        /** The iPhone's key for it (UserDefaults `erp.pushToken`); [Push] keeps the token here. */
+        const val TOKEN_KEY = PushLogic.TOKEN_KEY
     }
 }
 

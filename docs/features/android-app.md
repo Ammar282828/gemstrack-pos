@@ -60,13 +60,21 @@ is its rulebook, mirroring `apps/iphone/CONVENTIONS.md`.
   `SectionCard`, `heroSheen`, `MoneyRow`, `HeroAmount`, `PaidRing`, `Pill`, `FilterChip`, `Monogram`, the `Note`
   toast, haptics on money events, shared-element list→detail. Font scaling, TalkBack labels, Reduce Motion
   (`ANIMATOR_DURATION_SCALE` = 0) are first-class.
-- **Device.** Voice (Android's recogniser → `/api/voice/native`), documents scanned with ML Kit's document scanner,
-  biometric unlock for the delete code (BiometricPrompt + Keystore), PDFs from `/api/app/pdf/*` shown natively and
-  shared, deep links (`https://<erp host>/…` App Links and `erp://`), Glance widgets from `/api/widget/summary` with
-  the phone's own key (`/api/widget/key`).
+- **Device.** Voice (`screens/voice`: Android's recogniser for live words plus a recording of up to a minute, AAC in
+  `.m4a`, sent to `/api/voice/native` as `{audio: base64}`; if the recorder came out empty or silent, the live words go as
+  `{text}` instead, because the recogniser and the recorder share the microphone and nothing here could try a phone). It
+  is a sheet from the create menu, owners only, and the page its answer chooses opens after the sheet has closed; a card
+  that needs a form drafts the New order / New sale on the phone, as the iPhone's. Documents scanned with ML Kit's
+  document scanner, biometric unlock for the delete code (BiometricPrompt + Keystore), PDFs from `/api/app/pdf/*` shown
+  natively and shared, deep links (`https://<erp host>/…` App Links and `erp://`). **Widgets** (`widget/`, Glance): the
+  small, medium and large faces of the iPhone's widget (no lock screen on Android) drawn from `/api/widget/summary` with
+  the phone's own key (`/api/widget/key`, minted once while signed in, sealed with a Keystore AES key in the app's
+  preferences; it opens nothing else). WorkManager refreshes every 30 minutes and when the app comes to the front; the
+  widget draws what was last kept and a tap opens the app. Its picker label is the flavor's name ("Taheri ERP" /
+  "Mina ERP"). Settings → Widgets previews the same faces in plain Compose, from the same layout plan.
 - **Notifications.** FCM. `src/lib/push` sends to Android phones beside Apple's, from the same events, with the same
   words and the same per-kind switches (`push_devices` entries carry `platform: 'android'`); sent with
-  `firebase-admin` messaging under the backend's own service account (no FCM key to upload). A phone registers at `/api/push/devices` with `{ token: <FCM registration token>, platform: "android", bundleId: <applicationId>, label }`. The App Hosting runtime service account (`firebase-app-hosting-compute@<project>.iam.gserviceaccount.com`) may need `roles/firebasecloudmessaging.admin` in each project to send: an owner step, unverified.
+  `firebase-admin` messaging under the backend's own service account (no FCM key to upload). A phone registers at `/api/push/devices` with `{ token: <FCM registration token>, platform: "android", bundleId: <applicationId>, label: <Build.MODEL> }`, owners only, after an owner's sign-in (that is when Android 13+ is asked for `POST_NOTIFICATIONS`, as the iPhone asks then, never at launch), again whenever FCM refreshes the token, and is forgotten on sign-out (`DELETE {token}`, capped at 3 s, while the sign-in token is good). It only happens when the house's Android app is registered in Firebase (`House.firebaseOptions`), never in the demo. Four channels, made at app start and named as the server's `kind`: `sales` "Sales", `payments` "Payments", `orders` "Orders", `karigar` "Karigar work". A notification shown while the app is open is built by `ErpMessagingService`; a tap, in either case, opens the `url` in its data over the tabs (`AppRouter`, from the intent's extras when the app was in the background). The App Hosting runtime service account (`firebase-app-hosting-compute@<project>.iam.gserviceaccount.com`) may need `roles/firebasecloudmessaging.admin` in each project to send: an owner step, unverified.
 
 ### Build and hand-out (Linux only)
 
@@ -120,3 +128,4 @@ key and handed over directly.
   books, ErpApi, Navigation 3 with per-tab stacks and adaptive bars, the ERP page with the full bridge, biometric vault,
   document scanner, speech, deep links, demo mode). No emulator here (no KVM): screens are checked by JVM screenshot tests.
 - Phase 2 in progress: Orders, Invoices, New sale.
+- 2026-10-13 — Phase 5 (device): notifications (FCM client), Glance widgets and voice, as above. Not run on a phone: no emulator here, so the recorder/recogniser sharing the microphone, FCM delivery and the launcher's widget sizes are unverified.

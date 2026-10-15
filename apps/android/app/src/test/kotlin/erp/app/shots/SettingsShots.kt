@@ -144,7 +144,6 @@ class SettingsShots(config: ShotConfig) : ShotBase(config) {
     }
 
     @Test fun settings_widgets() {
-        onlyTaheri()
         showPlace("/app/widgets", below = listOf("/settings", "/app/phone"))
         shoot("settings-widgets")
     }
