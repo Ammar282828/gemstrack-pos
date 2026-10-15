@@ -21,6 +21,7 @@ struct DesignWorkspaceView: View {
     @State private var morePicked: [PhotosPickerItem] = []
     @State private var sitePicker = false
     @State private var camera = false
+    @State private var devicePicker = false
     @State private var removing: DesignPageState?
     @State private var safe = true
     @State private var saved = 0
@@ -36,6 +37,7 @@ struct DesignWorkspaceView: View {
             ArtworkEditor(doc: model.docBinding(target.pageId), photos: model.photos, fields: model.work?.fields ?? [:], ad: model.work?.kind == "ad")
         }
         .sheet(item: $model.sheet) { $0.content }
+        .photosPicker(isPresented: $devicePicker, selection: $picked, matching: .images)
         .sheet(isPresented: $sitePicker) {
             NativeSitePhotoPicker { piece, data in
                 sitePicker = false
@@ -194,7 +196,8 @@ struct DesignWorkspaceView: View {
             Menu {
                 Button { onChangePhoto() } label: { Label("Browse photos", systemImage: "photo.on.rectangle") }
                 Button { sitePicker = true } label: { Label("From the website", systemImage: "globe") }
-                PhotosPicker(selection: $picked, matching: .images) { Label("This device", systemImage: "iphone") }
+                // A PhotosPicker inside a Menu loses its sheet when the menu closes: the picker is presented from the screen (`.photosPicker`).
+                Button { devicePicker = true } label: { Label("This device", systemImage: "iphone") }
                 if UIImagePickerController.isSourceTypeAvailable(.camera) { Button { camera = true } label: { Label("Camera", systemImage: "camera") } }
             } label: { Label(model.photos["photo"] == nil ? "Choose a photograph" : "Change the photograph", systemImage: "photo.badge.plus").frame(maxWidth: .infinity) }
                 .buttonStyle(.glass).controlSize(.large)

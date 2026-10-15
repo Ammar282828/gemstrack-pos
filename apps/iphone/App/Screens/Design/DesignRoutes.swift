@@ -167,7 +167,8 @@ struct DesignScreen: View {
             await startFromSite(site)
         } else if AdsQuery.value("new", in: path) == "1" {
             await workspace.close()
-        } else {
+        } else if AdsQuery.value("kind", in: path) == nil && AdsQuery.value("play", in: path) == nil {
+            // A kind or a play asked for the start screen; only a plain visit brings the design left open back.
             await workspace.resume()
         }
     }

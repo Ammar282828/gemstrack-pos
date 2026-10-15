@@ -125,10 +125,16 @@ struct DesignPublishSheet: View {
             if p.row("whatsapp") != nil || p.row("channel") != nil { whatsappBlock }
             instagramBlock("instagram-story", "Instagram story", "camera.viewfinder", bind(\.storyOn))
             instagramBlock("instagram-post", "Instagram post", "photo", bind(\.postOn))
-            if p.ok("meta-ad") { placeToggle("Meta ad", "megaphone", bind(\.metaOn), dest: "meta-ad", note: p.metaOn ? "Opens New ad with the picture\(DesignDestinations.storyPage(p.pages) != nil ? " and the 9:16 beside it" : "")." : nil) }
+            if p.ok("meta-ad") { placeToggle("Meta ad", "megaphone", bind(\.metaOn), dest: "meta-ad", note: metaNote) }
             if p.ok("site-replace") { placeToggle("Replace the photo on the website", "arrow.triangle.2.circlepath", bind(\.replaceOn), dest: "site-replace", note: nil) }
             Toggle(isOn: bind(\.saveOn)) { Label("Save the design", systemImage: "square.and.arrow.down") }.tint(Theme.accent)
         }
+    }
+
+    private var metaNote: String? {
+        guard p.metaOn else { return nil }
+        let beside = DesignDestinations.storyPage(p.pages) != nil ? " and the 9:16 beside it" : ""
+        return "Opens New ad with the picture" + beside + "."
     }
 
     private func placeToggle(_ title: String, _ symbol: String, _ on: Binding<Bool>, dest: String, note: String?) -> some View {
@@ -195,7 +201,9 @@ struct DesignPublishSheet: View {
 
     private var whatsappBlock: some View {
         let wa = p.row("whatsapp"), ch = p.row("channel")
-        let targets = (wa?.available == true ? wa?.targets ?? [] : []) + (ch?.available == true ? ch?.targets ?? [] : [])
+        var targets: [DesignPublishModel.Target] = []
+        if wa?.available == true { targets += wa?.targets ?? [] }
+        if ch?.available == true { targets += ch?.targets ?? [] }
         return VStack(alignment: .leading, spacing: 8) {
             Toggle(isOn: bind(\.waOn)) { Label("WhatsApp", systemImage: "message") }.tint(Theme.accent).disabled(targets.isEmpty)
             if targets.isEmpty { Text(wa?.reason ?? ch?.reason ?? "This shop has no WhatsApp community set.").font(.footnote).foregroundStyle(.secondary) }

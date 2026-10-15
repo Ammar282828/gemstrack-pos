@@ -224,7 +224,7 @@ final class DesignSmartModel {
     }
 
     /// The average colour round the picture's edge as #RRGGBB: the ground the cut-out piece stands on (flat-ad.ts edgeColour).
-    static func edgeColour(_ data: Data) -> String {
+    nonisolated static func edgeColour(_ data: Data) -> String {
         guard let image = UIImage(data: data)?.cgImage else { return "#1B1B1B" }
         let n = 48
         var pixels = [UInt8](repeating: 0, count: n * n * 4)

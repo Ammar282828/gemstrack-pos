@@ -34,7 +34,7 @@ final class ERPUITests: XCTestCase {
         "/drafts", "/calendar", "/activity-log", "/my-work?preview=KAR-D1",
         "/products/add", "/products/RNG-D110/edit", "/overheads", "/shareholders", "/settings/recently-removed",
         "/settings", "/app/settings/shop", "/settings/alerts", "/settings/payment-methods", "/settings/data",
-        "/posts", "/marketing/pieces", "/marketing/website", "/ads", "/ads/campaigns",
+        "/posts", "/marketing/pieces", "/marketing/website", "/ads", "/ads/campaigns", "/design", "/design?v=saved", "/ads/studio",
         "/orders/online", "/orders/ORD-D0002/slip", "/products/bulk-add", "/invoices/new?scan=bill", "/orders/add?scan=parchi",
         "/ads/new", "/ads/adset", "/ads/audiences", "/ads/rules", "/ads/setup",
         "/website/photos", "/website/edit", "/website/weights", "/website/investments", "/website/from-site",

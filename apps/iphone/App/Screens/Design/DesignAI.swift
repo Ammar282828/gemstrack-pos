@@ -125,7 +125,7 @@ extension DesignWorkspaceModel {
                 let png = try await WebsiteForm.send("/api/design/remove-background", fields: [], files: [.init(field: "file", name: "photo.jpg", type: "image/jpeg", data: forAI(source))], timeout: 100)
                 guard UIImage(data: png) != nil else { throw ERPAPI.Failure(status: 0, message: "The cut-out didn’t come.") }
                 let placement = page.doc["bg"]["placement"]
-                let ar = image.size.width / image.size.height
+                let ar = Double(image.size.width / image.size.height)
                 let zoom = placement.n("zoom", 1)
                 let cover = max(page.w, page.h * ar) * (placement.s("mode") == "fit" ? 1 : max(1, zoom == 0 ? 1 : zoom))
                 let dw = cover, dh = cover / ar
@@ -353,6 +353,14 @@ struct DesignSettingSheet: View {
     private var own: String { model.work.map { DesignAspect.nearest($0.activePage.w, $0.activePage.h) } ?? "1:1" }
     private var shapes: [String] { var s = ["9:16", "4:5", "1:1"]; if !s.contains(own) { s.insert(own, at: 0) }; return s }
     private var scenes: [MarketingValue] { model.catalogue["scenes"].array }
+    private static func shapeName(_ s: String) -> String {
+        switch s {
+        case "9:16": return "Story 9:16"
+        case "4:5": return "Portrait 4:5"
+        case "1:1": return "Square"
+        default: return s
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -379,7 +387,7 @@ struct DesignSettingSheet: View {
                     TextField("A velvet tray in window light…", text: $custom, axis: .vertical).lineLimit(1...4)
                 }
                 Section("Shape") {
-                    Picker("Shape", selection: $shape) { ForEach(shapes, id: \.self) { Text($0 == "9:16" ? "Story 9:16" : $0 == "4:5" ? "Portrait 4:5" : $0 == "1:1" ? "Square" : $0).tag($0) } }.pickerStyle(.segmented)
+                    Picker("Shape", selection: $shape) { ForEach(shapes, id: \.self) { Text(Self.shapeName($0)).tag($0) } }.pickerStyle(.segmented)
                 }
                 Section {
                     Button { go() } label: { Label("Photograph it", systemImage: "photo.artframe").frame(maxWidth: .infinity) }

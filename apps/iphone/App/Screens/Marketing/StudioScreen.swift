@@ -70,7 +70,7 @@ struct StudioPlan: View {
                             LabeledContent("Format", value: play.s("format") + (play["pair"].bool ? " + story" : ""))
                             LabeledContent("Layout", value: play.s("template")); LabeledContent("Call to action", value: play.s("cta"))
                         }.font(.subheadline)
-                        Button("Make this") { Task { await model.startPlay(play) } }.buttonStyle(.glass)
+                        Button("Make this") { model.route = Route(path: "/design?v=make&kind=ad&play=" + (play.s("id").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? play.s("id"))) }.buttonStyle(.glass)
                     }.padding(.vertical, 6)
                 }
             }

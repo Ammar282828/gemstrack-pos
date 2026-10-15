@@ -388,7 +388,7 @@ final class DesignPublishModel {
         if let storyDest, storyQueued == nil {
             let manual = igMode("instagram-story") == "share"
             steps.append(Step(id: "instagram-story", dest: "instagram-story", label: "Instagram story", manual: manual,
-                              share: { [self] in (try await picture(storyDest.id, DesignDestinations.outputPx("instagram-story", storyDest)), base + "-story.jpg") },
+                              share: { [self] in (data: try await picture(storyDest.id, DesignDestinations.outputPx("instagram-story", storyDest)), name: base + "-story.jpg") },
                               run: { [self] in try await DesignSend.story(try await picture(storyDest.id, DesignDestinations.outputPx("instagram-story", storyDest))) }))
         }
         // Each place its own step, so one that fails is retried alone: never a group twice.
@@ -438,7 +438,7 @@ final class DesignPublishModel {
         if let postDest {
             let caption = ig
             steps.append(Step(id: "instagram-post", dest: "instagram-post", label: "Instagram post", manual: igMode("instagram-post") == "share",
-                              share: { [self] in (try await picture(postDest.id, DesignDestinations.outputPx("instagram-post", postDest)), base + "-post.jpg") },
+                              share: { [self] in (data: try await picture(postDest.id, DesignDestinations.outputPx("instagram-post", postDest)), name: base + "-post.jpg") },
                               run: { [self] in try await DesignSend.post(try await picture(postDest.id, DesignDestinations.outputPx("instagram-post", postDest)), caption: caption) }))
         }
         if let metaDest {
