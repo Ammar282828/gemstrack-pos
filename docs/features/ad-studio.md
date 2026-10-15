@@ -379,6 +379,11 @@ over the ring); the `reel` kind keeps 35%. The templates' own `safeZone` is unch
 
 <a id="house-of-mina-ad-style"></a>### House of Mina's ad style
 
+**Rhodium pieces** (2026-10-15, owner: "next to 925 silver, for rhodium products add tarnish resistant plating"): the material
+line of a white-metal, rhodium-plated piece reads "925 silver · tarnish-resistant plating" — on two lines when the name and stone
+come first (the mark then sits beside the button). Applied to the three JPEG-retouched shoot boards (Rings · silver, Rings · gold &
+pearl, Bracelets & opal: 65 designs × 4:5, 9:16, 3:4, built from the catalogue match of each photo).
+
 **House of Mina's ad style, from the owner's edits** (2026-10-14, owner: "i made changes to many of your designs, look at the
 changes pics text etc and learn from them for future posts"). The owner reworked the rings boards (`rings-oct-2026` and
 `rings-quiet-oct-2026` in hom-pos; revs 21 and 20). Diffing each design against what was written, and looking at the page's own
