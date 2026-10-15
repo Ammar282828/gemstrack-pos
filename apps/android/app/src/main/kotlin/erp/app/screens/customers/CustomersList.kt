@@ -1,5 +1,6 @@
 package erp.app.screens.customers
 
+import erp.app.ui.appearOnce
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -239,7 +240,7 @@ private fun LazyListScope.group(
             bottomStart = if (last) Radius.card else 0.dp, bottomEnd = if (last) Radius.card else 0.dp,
         )
         // The rows of a group are one card; the last leaves the gap to the next group.
-        Column(Modifier.padding(bottom = if (last) GAP else 0.dp).clip(shape)) {
+        Column(Modifier.appearOnce(i).padding(bottom = if (last) GAP else 0.dp).clip(shape)) {
             CustomerRow(c, stats[c.id], onClick = { open(c.id) })
             if (!last) LedgerDivider()
         }
@@ -265,7 +266,7 @@ private fun CustomerRow(c: Customer, stats: CustomerKit.Stats?, onClick: () -> U
         menu = menu,
         onClick = onClick,
     ) {
-        Box(Modifier.fillMaxWidth().background(ErpColors.card).zoomSource(CustomerKit.path(c.id))) {
+        Box(Modifier.fillMaxWidth().background(ErpColors.card).zoomSource(CustomerKit.path(c.id), Radius.tile)) {
             CustRowLabel(c, stats)
         }
     }

@@ -1,11 +1,9 @@
 package erp.app.ui
 
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -88,22 +86,15 @@ fun SectionCard(
 fun Modifier.heroSheen(padding: Dp = 16.dp): Modifier {
     val accent = ErpColors.accent
     val reduce = reduceMotion()
-    // 0..1 over eight seconds; the light crosses in the first third and the card rests the remainder.
-    val phase = if (reduce) {
-        null
-    } else {
-        rememberInfiniteTransition(label = "sheen").animateFloat(
-            initialValue = 0f, targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(8000, easing = LinearEasing), RepeatMode.Restart),
-            label = "sheenPhase",
-        )
-    }
+    // One pass of light when the card first appears, then it rests: nothing on a screen loops.
+    val phase = remember { Animatable(if (reduce) 1f else 0f) }
+    if (!reduce) LaunchedEffect(Unit) { phase.animateTo(1f, tween(1100, delayMillis = 250, easing = Motion.TravelEasing)) }
     return fillMaxWidth()
         .clip(Radius.cardShape)
         .background(ErpColors.card)
         .drawBehind {
             drawRect(Brush.linearGradient(listOf(accent.copy(alpha = 0.10f), Color.Transparent), Offset.Zero, Offset(size.width * 0.5f, size.height * 0.5f)))
-            val t = ((phase?.value ?: 1f) / 0.33f).coerceAtMost(1f)
+            val t = phase.value
             if (t < 1f) {
                 val x = -size.width * 0.5f + (size.width * 2f) * t
                 drawRect(

@@ -1,5 +1,7 @@
 package erp.app.screens.ads
 
+import androidx.compose.foundation.layout.Box
+import erp.app.ui.zoomDestination
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -74,6 +76,11 @@ private fun number(v: Any?): Double = when (v) {
  */
 @Composable
 fun AdsObjectScreen(path: String) {
+    Box(Modifier.fillMaxSize().zoomDestination(path)) { AdsObjectBody(path) }
+}
+
+@Composable
+private fun AdsObjectBody(path: String) {
     val backend = LocalAdsBackend.current
     val navigator = LocalNavigator.current
     val scope = rememberCoroutineScope()

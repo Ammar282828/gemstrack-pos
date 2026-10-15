@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.zoomSource
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -174,6 +175,7 @@ fun <T : Any> LazyListScope.workshopCardRows(
     columns: Int,
     keyPrefix: String,
     key: (T) -> String,
+    zoomId: ((T) -> String)? = null,
     content: @Composable (T) -> Unit,
 ) {
     val n = maxOf(1, columns)
@@ -181,7 +183,7 @@ fun <T : Any> LazyListScope.workshopCardRows(
     items(rows.size, key = { "$keyPrefix:" + key(rows[it].first()) }) { r ->
         val row = rows[r]
         Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Top) {
-            for (item in row) Column(Modifier.weight(1f).ledgerCard()) { content(item) }
+            for (item in row) Column(Modifier.weight(1f).let { m -> if (zoomId != null) m.zoomSource(zoomId(item)) else m }.ledgerCard()) { content(item) }
             repeat(n - row.size) { Spacer(Modifier.weight(1f)) }
         }
     }

@@ -1,5 +1,7 @@
 package erp.app.screens.invoices
 
+import erp.app.ui.appearOnce
+import erp.app.ui.pressScale
 import erp.app.ui.AppClock
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
@@ -247,7 +249,7 @@ fun InvoicesList() {
                                     topStart = if (first) Radius.card else 0.dp, topEnd = if (first) Radius.card else 0.dp,
                                     bottomStart = if (last) Radius.card else 0.dp, bottomEnd = if (last) Radius.card else 0.dp,
                                 )
-                                Column(Modifier.padding(horizontal = 16.dp).readableColumn().clip(shape)) {
+                                Column(Modifier.appearOnce(if (group === groups.first()) i else Int.MAX_VALUE).padding(horizontal = 16.dp).readableColumn().clip(shape)) {
                                     SwipeActions(
                                         // The bill to the customer: the commonest thing after a sale, the same send as the invoice page's.
                                         start = RowAction("Send on WhatsApp", Icons.AutoMirrored.Filled.Message, Tone.credit) { sending = inv },
@@ -255,7 +257,7 @@ fun InvoicesList() {
                                         menu = actions(inv),
                                         onClick = { navigator.open(InvoiceFacts.path(inv.id)) },
                                     ) {
-                                        InvoiceListRow(inv, mine = mine(inv), dated = grouping != InvoiceGrouping.day, modifier = Modifier.zoomSource(InvoiceFacts.path(inv.id)))
+                                        InvoiceListRow(inv, mine = mine(inv), dated = grouping != InvoiceGrouping.day, modifier = Modifier.zoomSource(InvoiceFacts.path(inv.id), Radius.tile))
                                     }
                                     if (!last) LedgerDivider()
                                 }
@@ -530,13 +532,14 @@ private fun InvoiceCard(
     var menu by remember { mutableStateOf(false) }
     Column(
         Modifier
+            .zoomSource(InvoiceFacts.path(inv.id))
             // The hairline is the card's own edge: on before the padding (after it, it drew a second card inside).
             .ledgerCard(padding = 0.dp)
             .border(BorderStroke(1.dp, ErpColors.accent.copy(alpha = if (mine) 0.22f else 0.08f)), Radius.cardShape)
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.clickable(role = Role.Button, onClick = open).zoomSource(InvoiceFacts.path(inv.id))) {
+        Box(Modifier.pressScale().clickable(role = Role.Button, onClick = open)) {
             Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
                 RowIdentity(inv, mine, dated, Modifier.weight(1f))
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {

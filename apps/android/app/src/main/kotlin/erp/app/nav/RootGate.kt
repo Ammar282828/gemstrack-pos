@@ -232,18 +232,37 @@ fun StackHost(
             override val canGoBack: Boolean get() = stack.size > 1
         }
     }
+    val reduce = erp.app.ui.reduceMotion()
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val motion = remember(reduce, density) { NavMotion(reduce, density) }
     CompositionLocalProvider(LocalNavigator provides navigator) {
-        NavDisplay(
-            backStack = stack,
-            modifier = modifier,
-            onBack = { navigator.back() },
-            entryProvider = { key ->
-                NavEntry(key) {
-                    val root = key == stack.firstOrNull()
-                    PlaceScreen((key as Route).path, isRoot = root, onClose = if (root) onClose else null, trailing = if (root) trailing else null)
-                }
-            },
-        )
+        // The layout the shared elements travel in: a row opening a page morphs inside this stack, over its own pages.
+        @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
+        androidx.compose.animation.SharedTransitionLayout(modifier) {
+            val shared = this
+            NavDisplay(
+                backStack = stack,
+                modifier = Modifier.fillMaxSize(),
+                onBack = { navigator.back() },
+                sharedTransitionScope = shared,
+                sizeTransform = null,
+                transitionSpec = { motion.push(this) },
+                popTransitionSpec = { motion.pop(this) },
+                predictivePopTransitionSpec = { edge -> motion.predictivePop(this, edge) },
+                entryProvider = { key ->
+                    NavEntry(key) {
+                        val scope = androidx.navigation3.ui.LocalNavAnimatedContentScope.current
+                        val root = key == stack.firstOrNull()
+                        val path = (key as Route).path
+                        erp.app.ui.ProvideSharedScopes(shared, scope) {
+                            RoundedOnExit(scope, enabled = !erp.app.ui.ZoomRegistry.morphs(path)) {
+                                PlaceScreen(path, isRoot = root, onClose = if (root) onClose else null, trailing = if (root) trailing else null)
+                            }
+                        }
+                    }
+                },
+            )
+        }
     }
 }
 

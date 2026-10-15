@@ -1,5 +1,7 @@
 package erp.app.screens.money
 
+import erp.app.ui.Radius
+import erp.app.ui.zoomSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -228,7 +230,7 @@ private fun AccountRows(a: HisaabAccount, onOpen: (String) -> Unit) {
             }
         }
     } else {
-        AccountRow(a, listInvoices = true, modifier = Modifier.clickable(role = Role.Button) { onOpen(MoneyPaths.ledger(a.id, a.isCustomer)) })
+        AccountRow(a, listInvoices = true, modifier = Modifier.zoomSource(MoneyPaths.ledger(a.id, a.isCustomer), Radius.tile).clickable(role = Role.Button) { onOpen(MoneyPaths.ledger(a.id, a.isCustomer)) })
     }
 }
 

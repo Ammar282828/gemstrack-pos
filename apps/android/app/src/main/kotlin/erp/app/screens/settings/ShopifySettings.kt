@@ -26,7 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import erp.app.ui.ErpPullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -211,7 +211,7 @@ internal fun ShopifyInnerForm(initialStatus: ShopifyStatus? = null, initialOrder
     val pickedTotal = pickedOrders.sumOf { it.amount }
     val allVisibleOn = visible.isNotEmpty() && visible.all { it.id in picked }
 
-    PullToRefreshBox(isRefreshing = false, onRefresh = { scope.launch { load() } }) {
+    ErpPullToRefreshBox(isRefreshing = false, onRefresh = { scope.launch { load() } }) {
         SettingsPage {
             // MARK: Status
             SettingsSection("Connection") {

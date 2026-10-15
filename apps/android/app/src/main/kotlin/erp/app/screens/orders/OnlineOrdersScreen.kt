@@ -37,7 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import erp.app.ui.ErpPullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -125,7 +125,7 @@ fun OnlineOrdersScreen() {
                         colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
                     ) { Text("Try again") }
                 }
-                OnlineOrdersStore.Phase.Loaded -> PullToRefreshBox(
+                OnlineOrdersStore.Phase.Loaded -> ErpPullToRefreshBox(
                     isRefreshing = refreshing,
                     onRefresh = { scope.launch { refreshing = true; OnlineOrdersStore.load(); refreshing = false } },
                 ) {

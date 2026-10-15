@@ -36,7 +36,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import erp.app.ui.ErpPullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -219,7 +219,7 @@ private fun OverheadsBoard() {
                 val target = Overheads.overheadTotal(items)
                 val earned = current?.earned ?: 0.0
                 val p = Overheads.overheadProgress(target, earned, now)
-                PullToRefreshBox(
+                ErpPullToRefreshBox(
                     isRefreshing = refreshing,
                     onRefresh = { scope.launch { refreshing = true; load(); refreshing = false } },
                     modifier = Modifier.fillMaxSize(),

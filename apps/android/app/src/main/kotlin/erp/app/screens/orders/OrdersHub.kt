@@ -1,5 +1,7 @@
 package erp.app.screens.orders
 
+import erp.app.ui.appearOnce
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import erp.app.ui.AppClock
 import android.content.Intent
 import androidx.compose.foundation.clickable
@@ -275,9 +277,9 @@ fun OrdersHub() {
                                 Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, if (open) "Hide" else "Show", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
-                        if (open) items(g.orders, key = { "o-" + g.id + "-" + it.id }) { order -> Card(order, view, isOwner, person, busy, actions, grouping) }
+                        if (open) itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }) { i, order -> Card(order, view, isOwner, person, busy, actions, grouping, i) }
                     } else {
-                        items(g.orders, key = { "o-" + g.id + "-" + it.id }) { order -> Card(order, view, isOwner, person, busy, actions, grouping) }
+                        itemsIndexed(g.orders, key = { _, it -> "o-" + g.id + "-" + it.id }) { i, order -> Card(order, view, isOwner, person, busy, actions, grouping, i) }
                     }
                 }
                 if (sections.isEmpty()) {
@@ -346,9 +348,11 @@ private fun Card(
     busy: Set<String>,
     actions: OrderCardActions,
     grouping: OrdersGrouping,
+    index: Int = Int.MAX_VALUE,
 ) {
     val owed = OrdersLogic.owed(order, view.owedOn)
     OrderCard(
+        modifier = Modifier.appearOnce(index),
         order = order,
         stage = stageOf(order, owed),
         owed = owed,

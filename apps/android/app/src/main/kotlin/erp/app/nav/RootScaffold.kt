@@ -1,6 +1,30 @@
 package erp.app.nav
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.vector.ImageVector
+import erp.app.ui.Motion
+import erp.app.ui.reduceMotion
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -131,7 +155,7 @@ fun RootScaffold() {
                     icon = {
                         // The Orders row carries the online-orders count for owners.
                         val badge = if (e.count == "online" && role == "owner" && shop.websiteSelling) waiting else 0
-                        BadgedBox(badge = { if (badge > 0) Badge { Text(if (badge > 99) "99+" else badge.toString()) } }) { Icon(NavIcon.vector(e.icon), null) }
+                        BadgedBox(badge = { PoppingBadge(badge) }) { TabIcon(NavIcon.outline(e.icon), NavIcon.vector(e.icon), selected == e.id) }
                     },
                     label = { Text(if (e.id == "home") "Home" else e.label) },
                 )
@@ -143,28 +167,33 @@ fun RootScaffold() {
                 navigationSuiteType = layout,
                 selected = selected == SEARCH_TAB,
                 onClick = { if (selected == SEARCH_TAB) popToRoot(stacks[SEARCH_TAB]) else chosen = SEARCH_TAB },
-                icon = { Icon(Icons.Rounded.Search, null) },
+                icon = { TabIcon(Icons.Outlined.Search, Icons.Rounded.Search, selected == SEARCH_TAB) },
                 label = { Text("Search") },
             )
         },
     ) {
         Box(Modifier.fillMaxSize()) {
-            // Every tab keeps its stack; the chosen one is drawn.
-            key(selected) {
+            // Every tab keeps its stack; the chosen one is drawn. Switching tabs is a fade-through: no sliding between
+            // places that are peers, the old one out, the new one in with a little scale.
+            val reduce = reduceMotion()
+            AnimatedContent(
+                targetState = selected,
+                modifier = Modifier.fillMaxSize(),
+                transitionSpec = { fadeThrough(reduce) },
+                label = "tab",
+            ) { tab ->
                 CompositionLocalProvider(
                     LocalBottomBar provides !wide,
                     LocalCreateInBar provides (if (wide && canCreate) create else null),
                 ) {
-                    stacks[selected]?.let { StackHost(it, Modifier.fillMaxSize()) }
+                    stacks[tab]?.let { StackHost(it, Modifier.fillMaxSize()) }
                 }
             }
             if (!wide && canCreate) CreateButton(create, Modifier.align(Alignment.BottomEnd).padding(16.dp))
         }
     }
 
-    creating?.let { path ->
-        CreateSheet(path, onClose = { creating = null })
-    }
+    CreateSheet(creating, onClose = { creating = null })
 }
 
 private const val SEARCH_TAB = "search"
@@ -190,7 +219,13 @@ private fun CreateButton(spec: CreateSpec, modifier: Modifier) {
         modifier = modifier,
         button = {
             ToggleFloatingActionButton(checked = expanded, onCheckedChange = { expanded = it }) {
-                Icon(if (expanded) Icons.Rounded.Close else Icons.Rounded.Add, if (expanded) "Close the create menu" else "Create: new sale, new order, scan or voice")
+                // The + turns a quarter-turn into a ×, on the button's own morph; the colour and size follow it.
+                Icon(
+                    Icons.Rounded.Add, if (expanded) "Close the create menu" else "Create: new sale, new order, scan or voice",
+                    with(ToggleFloatingActionButtonDefaults) {
+                        Modifier.animateIcon({ checkedProgress }).graphicsLayer { rotationZ = checkedProgress * 45f }
+                    },
+                )
             }
         },
     ) {
@@ -213,24 +248,79 @@ fun createItems(spec: CreateSpec): List<CreateItem> = buildList {
     if (spec.voice) add(CreateItem("Voice", "/voice", Icons.Rounded.Mic))
 }
 
-/** A full-screen sheet over the tabs with a back stack of its own: a create action, a link, a notification. */
+/**
+ * A full-screen sheet over the tabs with a back stack of its own: a create action, a link, a notification. It rises
+ * from the corner the create button sits in (scale from the bottom end, slide and fade) and sinks back there on
+ * close; the window stays up for the exit, then goes. With animations off it only appears and goes.
+ */
 @Composable
-private fun CreateSheet(path: String, onClose: () -> Unit) {
+private fun CreateSheet(path: String?, onClose: () -> Unit) {
+    val reduce = reduceMotion()
+    // The last path stays while the sheet leaves, so it closes with its content.
+    var last by remember { mutableStateOf(path) }
+    if (path != null) last = path
+    val visible = remember { MutableTransitionState(false) }
+    visible.targetState = path != null
+    if (last == null) return
+    if (!visible.targetState && visible.isIdle && !visible.currentState) {
+        last = null
+        return
+    }
+    val shown = last ?: return
     Dialog(
         onDismissRequest = onClose,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        key(path) {
-            val stack = rememberNavBackStack(Route(path))
+        key(shown) {
+            val stack = rememberNavBackStack(Route(shown))
             // The dialog has its own back dispatcher: a screen on the sheet's stack goes first, then the sheet.
             BackHandler(enabled = stack.size > 1) { stack.removeAt(stack.lastIndex) }
-            androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                Box(Modifier.fillMaxSize()) {
-                    StackHost(stack, Modifier.fillMaxSize(), onClose = onClose)
-                    // A dialog is a window above the app's own banner: the same note, shown again here (the app's copy buzzes).
-                    NoteHost(LocalNoteState.current, haptics = false)
+            AnimatedVisibility(
+                visibleState = visible,
+                enter = if (reduce) EnterTransition.None else
+                    slideInVertically(spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)) { it / 5 } +
+                        scaleIn(Motion.enter(), initialScale = 0.86f, transformOrigin = TransformOrigin(1f, 1f)) + fadeIn(Motion.enter()),
+                exit = if (reduce) ExitTransition.None else
+                    slideOutVertically(Motion.exit()) { it / 6 } +
+                        scaleOut(Motion.exit(), targetScale = 0.92f, transformOrigin = TransformOrigin(1f, 1f)) + fadeOut(Motion.exit()),
+            ) {
+                androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    Box(Modifier.fillMaxSize()) {
+                        StackHost(stack, Modifier.fillMaxSize(), onClose = onClose)
+                        // A dialog is a window above the app's own banner: the same note, shown again here (the app's copy buzzes).
+                        NoteHost(LocalNoteState.current, haptics = false)
+                    }
                 }
             }
         }
     }
 }
+
+/** The outline until the tab is chosen, then the filled icon, crossfaded quickly. */
+@Composable
+private fun TabIcon(outline: ImageVector, filled: ImageVector, selected: Boolean) {
+    val reduce = reduceMotion()
+    Crossfade(selected, animationSpec = Motion.enter(reduce), label = "tabIcon") { on -> Icon(if (on) filled else outline, null) }
+}
+
+/** The count on a tab pops in with a small scale, and goes the same way; the number itself changes in place. */
+@Composable
+private fun PoppingBadge(count: Int) {
+    val reduce = reduceMotion()
+    var shown by remember { mutableStateOf(count) }
+    if (count > 0) shown = count
+    AnimatedVisibility(
+        visible = count > 0,
+        enter = if (reduce) EnterTransition.None else scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)) + fadeIn(Motion.enter()),
+        exit = if (reduce) ExitTransition.None else scaleOut(Motion.exit()) + fadeOut(Motion.exit()),
+    ) {
+        Badge { Text(if (shown > 99) "99+" else shown.toString()) }
+    }
+}
+
+/** Material's fade-through: the old tab fades out, then the new one fades in from a little smaller. 90 + 210 ms. */
+private fun fadeThrough(reduce: Boolean): ContentTransform =
+    if (reduce) ContentTransform(EnterTransition.None, ExitTransition.None)
+    else (fadeIn(tween(210, delayMillis = 90, easing = Motion.EnterEasing)) +
+        scaleIn(tween(210, delayMillis = 90, easing = Motion.EnterEasing), initialScale = 0.94f))
+        .togetherWith(fadeOut(tween(90, easing = Motion.ExitEasing)))

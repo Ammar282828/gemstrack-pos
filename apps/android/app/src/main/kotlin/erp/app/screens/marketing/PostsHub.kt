@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.zoomSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -328,7 +329,7 @@ private fun SiteSection(state: PostsState, hasInvestments: Boolean) {
                         val navigator = LocalNavigator.current
                         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(strip, key = { it.id }) { p ->
-                                Box(Modifier.width(112.dp).clickable(role = Role.Button) { navigator.open(MarketingKit.piecePath(p.id)) }) { PostPieceTile(p, state.posted[p.id]) }
+                                Box(Modifier.width(112.dp).zoomSource(MarketingKit.piecePath(p.id), Radius.tile).clickable(role = Role.Button) { navigator.open(MarketingKit.piecePath(p.id)) }) { PostPieceTile(p, state.posted[p.id]) }
                             }
                         }
                     }

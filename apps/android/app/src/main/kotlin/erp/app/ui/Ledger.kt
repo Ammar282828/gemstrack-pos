@@ -70,7 +70,11 @@ fun Pill(text: String, color: Color, modifier: Modifier = Modifier, icon: ImageV
 }
 
 @Composable
-private fun PillBody(text: String, ink: Color, wash: Color, modifier: Modifier, icon: ImageVector?) {
+private fun PillBody(text: String, inkTo: Color, washTo: Color, modifier: Modifier, icon: ImageVector?) {
+    // A status that changes cross-fades its colour (150 ms) instead of blinking.
+    val spec = Motion.exit<Color>(reduceMotion()).let { if (reduceMotion()) it else androidx.compose.animation.core.tween(150) }
+    val ink by androidx.compose.animation.animateColorAsState(inkTo, spec, label = "pillInk")
+    val wash by androidx.compose.animation.animateColorAsState(washTo, spec, label = "pillWash")
     Row(
         modifier
             .clip(CircleShape)

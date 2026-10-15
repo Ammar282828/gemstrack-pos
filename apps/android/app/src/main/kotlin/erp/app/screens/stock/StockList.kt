@@ -1,5 +1,6 @@
 package erp.app.screens.stock
 
+import erp.app.ui.appearOnce
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -241,7 +242,7 @@ private fun ListView(
                     bottomStart = if (last) Radius.card else 0.dp, bottomEnd = if (last) Radius.card else 0.dp,
                 )
                 val menu = actions(p)
-                Column(Modifier.clip(shape)) {
+                Column(Modifier.appearOnce(i).clip(shape)) {
                     SwipeActions(
                         start = menu.firstOrNull { it.label == "Sell" },
                         end = menu.firstOrNull { it.label == "Edit" },
@@ -276,11 +277,11 @@ internal fun StockPrice(price: Double?, modifier: Modifier = Modifier) {
 private fun StockRow(row: StockRowModel) {
     val p = row.product
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().zoomSource(StockKit.piecePath(p.sku), Radius.tile).padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        StockImage(p.imageUrl, p.name, p.sku, Modifier.size(52.dp).clip(Radius.thumbShape).zoomSource(StockKit.piecePath(p.sku)))
+        StockImage(p.imageUrl, p.name, p.sku, Modifier.size(52.dp).clip(Radius.thumbShape))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(p.name, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(p.sku, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
@@ -325,8 +326,8 @@ private fun GridView(
 @Composable
 private fun StockCard(row: StockRowModel) {
     val p = row.product
-    Column(Modifier.ledgerCard(padding = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        StockImage(p.imageUrl, p.name, p.sku, Modifier.fillMaxWidth().aspectRatio(1f).clip(Radius.tileShape).zoomSource(StockKit.piecePath(p.sku)))
+    Column(Modifier.zoomSource(StockKit.piecePath(p.sku)).ledgerCard(padding = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        StockImage(p.imageUrl, p.name, p.sku, Modifier.fillMaxWidth().aspectRatio(1f).clip(Radius.tileShape))
         Text(p.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text(p.sku, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         Text(

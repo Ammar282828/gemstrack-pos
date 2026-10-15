@@ -1,5 +1,6 @@
 package erp.app.screens.orders
 
+import erp.app.ui.pressScale
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -135,6 +136,7 @@ fun OrderCard(
     Column(
         // The hairline is the card's own edge, so it goes on before the padding (after it, it drew a second card inside).
         Modifier
+            .zoomSource(path)
             .ledgerCard(padding = 0.dp)
             .border(1.dp, accent.copy(alpha = if (mine) 0.22f else 0.08f), Radius.cardShape)
             .padding(20.dp),
@@ -142,7 +144,7 @@ fun OrderCard(
     ) {
         Box {
             Box(
-                Modifier.zoomSource(path).combinedClickable(
+                Modifier.pressScale().combinedClickable(
                     onClickLabel = "Open ${order.id}",
                     onClick = { actions.open(path) },
                     onLongClickLabel = "Actions for ${order.id}",

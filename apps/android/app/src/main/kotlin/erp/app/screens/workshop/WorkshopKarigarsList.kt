@@ -212,11 +212,11 @@ fun WorkshopKarigarsList() {
                 }
                 if (show != KarigarsShowing.free && working.isNotEmpty()) {
                     item(key = "h:working") { Column(Modifier.padding(bottom = 8.dp)) { LedgerHeading("Working", count = working.size) } }
-                    workshopCardRows(working, columns, "working", key = { it.id }) { k -> KarigarCard(k, loads[k.id], batches[k.id]) { navigator.open(WorkshopLogic.karigarPath(k.id)) } }
+                    workshopCardRows(working, columns, "working", key = { it.id }, zoomId = { WorkshopLogic.karigarPath(it.id) }) { k -> KarigarCard(k, loads[k.id], batches[k.id]) { navigator.open(WorkshopLogic.karigarPath(k.id)) } }
                 }
                 if (show != KarigarsShowing.working && free.isNotEmpty()) {
                     item(key = "h:free") { Column(Modifier.padding(bottom = 8.dp)) { LedgerHeading("Free", count = free.size) } }
-                    workshopCardRows(free, columns, "free", key = { it.id }) { k -> KarigarCard(k, loads[k.id], batches[k.id]) { navigator.open(WorkshopLogic.karigarPath(k.id)) } }
+                    workshopCardRows(free, columns, "free", key = { it.id }, zoomId = { WorkshopLogic.karigarPath(it.id) }) { k -> KarigarCard(k, loads[k.id], batches[k.id]) { navigator.open(WorkshopLogic.karigarPath(k.id)) } }
                 }
                 if ((show == KarigarsShowing.working && working.isEmpty()) || (show == KarigarsShowing.free && free.isEmpty()) || matchedCount == 0) {
                     item(key = "empty") {

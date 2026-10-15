@@ -1,5 +1,6 @@
 package erp.app.screens.money
 
+import erp.app.ui.zoomDestination
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -138,7 +139,7 @@ private fun LedgerBoard(path: String) {
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().zoomDestination(path)) {
         ShelfState(loaded = ready, error = hisaab.error, offline = hisaab.offline, connectionLost = connectionLost) {
             if (notFound) {
                 // The web says "Entity not found. It may have been deleted."

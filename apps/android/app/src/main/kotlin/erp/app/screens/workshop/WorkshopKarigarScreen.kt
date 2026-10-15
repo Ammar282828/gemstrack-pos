@@ -1,5 +1,6 @@
 package erp.app.screens.workshop
 
+import erp.app.ui.zoomDestination
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -239,7 +240,10 @@ fun WorkshopKarigarScreen(id: String) {
     val karigar = karigars.items.firstOrNull { it.id == id }
     ScreenTitle(karigar?.name?.ifEmpty { null } ?: "Karigar")
 
-    ShelfState(loaded = loaded, error = firstError, offline = karigars.offline, connectionLost = connectionLost) {
+    ShelfState(
+        loaded = loaded, error = firstError, offline = karigars.offline, connectionLost = connectionLost,
+        modifier = Modifier.fillMaxSize().zoomDestination(WorkshopLogic.karigarPath(id)),
+    ) {
         if (karigar == null || !karigar.deletedAt.isNullOrEmpty()) {
             NotAvailableState(
                 "Karigar not found", why = "They may have been removed. Settings, Recently removed puts them back.",

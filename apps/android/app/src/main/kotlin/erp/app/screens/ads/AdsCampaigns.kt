@@ -1,5 +1,6 @@
 package erp.app.screens.ads
 
+import erp.app.ui.zoomSource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -389,7 +390,7 @@ private fun AdStrip(ads: List<AdItem>, cur: String, onDetails: (String, String) 
 /** The "Ads and pictures" view: an ad as a card with its picture. */
 @Composable
 private fun AdCard(ad: AdItem, cur: String, busy: String?, onSwitch: (AdsTarget, Boolean) -> Unit, onDetails: (String, String) -> Unit) {
-    Column(Modifier.ledgerCard(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.zoomSource(AdsCampaignsLogic.objectPath("ad", ad.id)).ledgerCard(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.clickable(role = Role.Button, onClickLabel = "Open ${ad.name}") { onDetails("ad", ad.id) }, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             AdsPicture(ad.image, ad.name, ad.id, Modifier.fillMaxWidth().aspectRatio(1f).clip(Radius.cardShape))
             Text(ad.name, style = MaterialTheme.typography.titleMedium)

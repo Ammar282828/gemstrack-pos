@@ -1,5 +1,7 @@
 package erp.app.screens.home
 
+import erp.app.ui.pressScale
+import erp.app.ui.zoomSource
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -212,7 +214,7 @@ fun DashStat(label: String, onClick: (() -> Unit)?, modifier: Modifier = Modifie
     val link = onClick != null
     val base = modifier.fillMaxHeight().ledgerCard(padding = 12.dp)
     Column(
-        (if (link) base.clickable(role = Role.Button, onClick = onClick) else base).semantics(mergeDescendants = true) {},
+        (if (link) base.pressScale().clickable(role = Role.Button, onClick = onClick) else base).semantics(mergeDescendants = true) {},
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -424,7 +426,7 @@ internal fun needSpoken(n: DashNeed): String {
 fun DashNeedRow(need: DashNeed, onOpen: (String) -> Unit, onRates: (() -> Unit)?) {
     val tone = needTone(need.tone)
     val go: () -> Unit = if (need.opensRates && onRates != null) onRates else ({ onOpen(need.path) })
-    DashLink(go, needSpoken(need), Modifier.fillMaxWidth().defaultMinSize(minHeight = MinTouchTarget)) {
+    DashLink(go, needSpoken(need), Modifier.fillMaxWidth().defaultMinSize(minHeight = MinTouchTarget).let { if (need.opensRates) it else it.zoomSource(need.path, Radius.tile) }) {
         Row(Modifier.padding(vertical = 11.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(NEED_SIDE).clip(RoundedCornerShape(NEED_SIDE * 0.3f)).background(tone.fill().copy(alpha = 0.13f)), contentAlignment = Alignment.Center) {
                 Icon(needSymbol(need.kind), contentDescription = null, Modifier.size(18.dp), tint = tone.color())
@@ -465,7 +467,7 @@ internal fun dueSpoken(due: DashDue): String {
 @Composable
 fun DashDueRow(due: DashDue, onOpen: (String) -> Unit) {
     val words = PromiseWords.say(due.timing)
-    DashLink({ onOpen(due.path) }, dueSpoken(due), Modifier.fillMaxWidth().defaultMinSize(minHeight = MinTouchTarget)) {
+    DashLink({ onOpen(due.path) }, dueSpoken(due), Modifier.fillMaxWidth().defaultMinSize(minHeight = MinTouchTarget).zoomSource(due.path, Radius.tile)) {
         Row(Modifier.padding(vertical = 9.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             DateLeaf(due.timing.due, tone = dueLeafTone(due), size = DUE_LEAF)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -511,7 +513,7 @@ fun DashSaleRow(invoice: Invoice, now: Instant, onOpen: (String) -> Unit) {
     val whenText = ShopDate.say(invoice.createdAt, withTime = true, now = now)
     val standing = saleStanding(invoice)
     val worth = invoiceSaleValue(invoice)
-    DashLink({ onOpen(DashPath.invoice(invoice.id)) }, "$name, $whenText, ${Money.pkrLac(worth)}, ${standing.text}", Modifier.fillMaxWidth().defaultMinSize(minHeight = MinTouchTarget)) {
+    DashLink({ onOpen(DashPath.invoice(invoice.id)) }, "$name, $whenText, ${Money.pkrLac(worth)}, ${standing.text}", Modifier.fillMaxWidth().defaultMinSize(minHeight = MinTouchTarget).zoomSource(DashPath.invoice(invoice.id), Radius.tile)) {
         Row(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Monogram(invoice.customerName, size = SALE_MONOGRAM)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {

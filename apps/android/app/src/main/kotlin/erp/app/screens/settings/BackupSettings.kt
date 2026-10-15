@@ -22,7 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import erp.app.ui.ErpPullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -213,7 +213,7 @@ private fun BackupPage() {
         )
     }
 
-    PullToRefreshBox(isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; loadList(); refreshing = false } }) {
+    ErpPullToRefreshBox(isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; loadList(); refreshing = false } }) {
         SettingsPage {
             // MARK: Export Backup
             val l = list

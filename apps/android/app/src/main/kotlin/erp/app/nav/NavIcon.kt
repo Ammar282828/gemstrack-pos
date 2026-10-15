@@ -51,6 +51,8 @@ import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.rounded.Unarchive
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.outlined.*
 
 /**
  * The ERP's icons (lucide) as Material icons. A name not here falls back to a plain square, and the map is
@@ -76,8 +78,30 @@ object NavIcon {
         "UsersRound" to { Icons.Rounded.Groups }, "Wallet" to { Icons.Rounded.AccountBalanceWallet }, "Wrench" to { Icons.Rounded.Build },
     )
 
+    /** The same places drawn as outlines: the bar shows these until a tab is chosen, then crossfades to the filled one. */
+    private val outlined: Map<String, () -> ImageVector> = mapOf(
+        "ArchiveRestore" to { Icons.Outlined.Unarchive }, "Banknote" to { Icons.Outlined.Payments }, "Bell" to { Icons.Outlined.Notifications },
+        "BookUser" to { Icons.Outlined.ContactPage }, "Boxes" to { Icons.Outlined.Inventory2 }, "Briefcase" to { Icons.Outlined.BusinessCenter },
+        "Calendar" to { Icons.Outlined.CalendarMonth }, "Camera" to { Icons.Outlined.PhotoCamera }, "ChartColumn" to { Icons.Outlined.BarChart },
+        "ChartPie" to { Icons.Outlined.PieChart }, "CirclePlus" to { Icons.Outlined.AddCircleOutline }, "ClipboardList" to { Icons.AutoMirrored.Outlined.Assignment },
+        "Coins" to { Icons.Outlined.Paid }, "Contact" to { Icons.Outlined.Contacts }, "Database" to { Icons.Outlined.Storage },
+        "FileClock" to { Icons.Outlined.PendingActions }, "Gem" to { Icons.Outlined.Diamond }, "Globe" to { Icons.Outlined.Language },
+        "Hammer" to { Icons.Outlined.Construction }, "History" to { Icons.Outlined.History }, "House" to { Icons.Outlined.Home },
+        "ImagePlus" to { Icons.Outlined.AddPhotoAlternate }, "Import" to { Icons.Outlined.Download }, "Landmark" to { Icons.Outlined.AccountBalance },
+        "Layers" to { Icons.Outlined.Layers }, "LayoutGrid" to { Icons.Outlined.GridView }, "ListChecks" to { Icons.Outlined.Checklist },
+        "Megaphone" to { Icons.Outlined.Campaign }, "Mic" to { Icons.Outlined.Mic }, "Package" to { Icons.Outlined.Inventory },
+        "Palette" to { Icons.Outlined.Palette }, "PenLine" to { Icons.Outlined.Edit }, "Plug" to { Icons.Outlined.Power },
+        "Receipt" to { Icons.Outlined.Receipt }, "Rocket" to { Icons.Outlined.RocketLaunch }, "RotateCcw" to { Icons.AutoMirrored.Outlined.Undo },
+        "Scale" to { Icons.Outlined.Scale }, "ScanLine" to { Icons.Outlined.QrCodeScanner }, "Send" to { Icons.AutoMirrored.Outlined.Send },
+        "Settings" to { Icons.Outlined.Settings }, "SlidersHorizontal" to { Icons.Outlined.Tune }, "Tag" to { Icons.Outlined.Sell },
+        "Target" to { Icons.Outlined.Adjust }, "TrendingUp" to { Icons.AutoMirrored.Outlined.TrendingUp }, "Users" to { Icons.Outlined.People },
+        "UsersRound" to { Icons.Outlined.Groups }, "Wallet" to { Icons.Outlined.AccountBalanceWallet }, "Wrench" to { Icons.Outlined.Build },
+    )
+
     /** The lucide names this app draws. */
     val known: Set<String> get() = icons.keys
 
     fun vector(lucide: String?): ImageVector = lucide?.let { icons[it]?.invoke() } ?: Icons.Rounded.CropSquare
+
+    fun outline(lucide: String?): ImageVector = lucide?.let { outlined[it]?.invoke() } ?: Icons.Outlined.CropSquare
 }

@@ -74,3 +74,23 @@ app, `apps/iphone` (read `apps/iphone/CONVENTIONS.md` too: its rules hold here, 
     for a file from the ERP, `House.margin`, `LocalNoteState` (the shell hosts the toast: never make your own host),
     `LocalNavigator.current.replace(path)` for a form that hands over to what it made, and `ScreenRegistry.readableWidth`
     (PlaceScreen already puts a native page in its column: do not add another unless the page needs a narrower one).
+
+## Motion
+
+The ERP's three curves and 150-400 ms live in `ui/Motion.kt` (docs/decisions.md "Motion"); everything is instant under
+`LocalReduceMotion` (the system's "Remove animations"). Nothing loops, nothing animates on scroll, and per-frame work
+is read in the layer (`graphicsLayer {}`), never in composition.
+
+- **A list row that opens a page morphs into it and back.** Put `Modifier.zoomSource(path)` on the row or card
+  (`corner =` its radius if it is not a card), and `Modifier.zoomDestination(path)` on the page's root, where **`path` is
+  the page's route path, the same string `navigator.open(path)` is given** (`OrderPaths.order(id)`, `InvoiceFacts.path(id)`).
+  `StackHost` provides the shared-transition scopes; the bounds travel in a `SharedTransitionLayout`, clipped to a
+  corner that falls from the row's to square. Back, the button and the predictive gesture, folds the page into the row.
+  Only the first source of an id on screen morphs (an invoice in Home's Needs you and Recent sales is one id).
+  A page no row opens gets Material's shared axis (30 dp + fade); the back gesture scales it to 0.9 with rounded corners.
+  Wrap the whole page (`ShelfState(modifier = Modifier.fillMaxSize().zoomDestination(path))`), not a part of it.
+- **Tabs** fade through (`RootScaffold`); the create sheet rises from the corner of the create button.
+- **Small things use the kit:** `Modifier.pressScale()` on a tappable card (0.98 and a spring back), `Modifier.appearOnce(index)`
+  on a list's rows (first six, once, saved with the row), `NumericText`/`HeroAmount` for figures that change, `Pill` (colour
+  cross-fades), `LedgerSection(collapsible)` / `motionContentSize()` for sections, `ErpPullToRefreshBox` for refresh
+  (the expressive indicator), `NoteHost` for toasts. Tests: `shots/MotionTests` runs open -> back with a paused clock.

@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.app.ui.zoomDestination
+import erp.app.ui.zoomSource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -189,7 +191,7 @@ fun PostPiecesScreen() {
                         }
                     } else {
                         items(items.take(shown), key = { it.id }) { p ->
-                            Box(Modifier.clickable { navigator.open(MarketingKit.piecePath(p.id)) }.ledgerCard(10.dp)) { PostPieceTile(p, state.posted[p.id]) }
+                            Box(Modifier.zoomSource(MarketingKit.piecePath(p.id)).clickable { navigator.open(MarketingKit.piecePath(p.id)) }.ledgerCard(10.dp)) { PostPieceTile(p, state.posted[p.id]) }
                         }
                         if (items.size > shown) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
@@ -215,10 +217,12 @@ fun PostPieceScreen(id: String) {
     val piece = state.piece(id)
     ScreenTitle(piece?.name ?: "Piece")
     LaunchedEffect(id) { if (PostsStore.state.value.piece(id) == null) PostsStore.load() }
-    when {
-        piece != null -> Box(Modifier.fillMaxSize().readableColumn(720.dp)) { PieceDetail(piece, state) }
-        state.piecesPhase == PostsPhase.Loaded -> NotAvailableState("That piece is not on the website any more", icon = Icons.Filled.GridView)
-        else -> SkeletonLoading(Modifier.fillMaxSize())
+    Box(Modifier.fillMaxSize().zoomDestination(MarketingKit.piecePath(id))) {
+        when {
+            piece != null -> Box(Modifier.fillMaxSize().readableColumn(720.dp)) { PieceDetail(piece, state) }
+            state.piecesPhase == PostsPhase.Loaded -> NotAvailableState("That piece is not on the website any more", icon = Icons.Filled.GridView)
+            else -> SkeletonLoading(Modifier.fillMaxSize())
+        }
     }
 }
 
