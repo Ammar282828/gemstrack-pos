@@ -57,7 +57,7 @@ struct DesignScreen: View {
                 Menu {
                     if workspace.isOpen {
                         // PHASE 2: DesignHooks.resize.
-                        Button { DesignHooks.shared.resize(workspace) } label: { Label("Resize…", systemImage: "arrow.up.left.and.arrow.down.right") }
+                        Button { go(.make); DesignHooks.shared.resize(workspace) } label: { Label("Resize…", systemImage: "arrow.up.left.and.arrow.down.right") }
                         Button { Task { await workspace.close(); await shelf.loadDrafts(); go(.make) } } label: { Label("Close this design", systemImage: "xmark") }
                     }
                     NavigationLink(value: Route(path: "/design?web=1&v=" + current.rawValue)) { Label("Open in the ERP", systemImage: "safari") }
@@ -65,12 +65,15 @@ struct DesignScreen: View {
             }
         }
         .noteToast($note)
+        .navigationDestination(item: $workspace.route) { PlaceScreen(path: $0.path) }
         .failureAlert($workspace.error, title: "Could not finish")
         .websiteBusy(workspace.starting ? "Opening…" : nil)
         .task { await boot() }
         .onAppear {
             workspace.speak = { n in Note.show(n, in: $note, reduce: reduceMotion) }
             start.speak = workspace.speak
+            // A design started from elsewhere (a flat picture rebuilt as layers) lands in the workspace like any other.
+            start.launch = { req in Task { if await workspace.start(req) { start.photo = nil; start.fields = [:]; start.price = ""; go(.make) } } }
         }
         .onDisappear { Task { await workspace.flush() } }
     }
@@ -91,7 +94,7 @@ struct DesignScreen: View {
         case .board:
             DesignBoardSection()
         case .saved:
-            DesignSavedView(shelf: shelf, onOpen: openSaved, onOpenDraft: openDraft)
+            DesignSavedView(shelf: shelf, onOpen: openSaved, onOpenDraft: openDraft, adsOk: access.ads)
         }
     }
 
@@ -152,6 +155,11 @@ struct DesignScreen: View {
         Task { await workspace.loadCatalogue() }
         await shelf.loadDrafts()
         if let kind = AdsQuery.value("kind", in: path), DesignKinds.valid.contains(kind), access.ads || kind != "ad" { start.choose(kind) }
+        // Ads → Plan's "Make this" (?play=): the Ad starts at the play's shape(s), layout and goal (the engine's own plays, as the web's PLAYS).
+        if let id = AdsQuery.value("play", in: path), access.ads {
+            await workspace.loadCatalogue()
+            if let play = workspace.catalogue["plays"].array.first(where: { $0.s("id") == id }) { start.usePlay(play) }
+        }
         if let id = AdsQuery.value("draft", in: path) {
             if let row = shelf.draftRows.first(where: { $0.id == id }) { openDraft(row) }
             else { workspace.error = "That draft could not be opened. It may have been cleared from this phone." }

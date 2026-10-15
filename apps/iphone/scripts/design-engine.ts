@@ -9,6 +9,10 @@ import { isMaisonFolder, maisonFileName, MAISON_HOUSES } from '../../../src/lib/
 import { PLAYS, STAGES } from '../../../src/lib/ads/studio/plays';
 import { PLAYBOOK } from '../../../src/lib/ads/studio/playbook';
 import { BRAND } from '../../../src/lib/ads/studio/brand';
+import { resizeOne, swapPhoto } from '../../../src/lib/design/resize';
+import { mergePlan, planOf, summariseLayers } from '../../../src/lib/design/resize-ai';
+import { wordProblems } from '../../../src/lib/design/publish';
+import { makeMeasure } from '../../../src/lib/design/score';
 import { weightLabel, detailsLine, whatsappCaption, websiteFileName } from '../../../src/lib/social/caption';
 
 declare const NATIVE_MARK: string;
@@ -43,6 +47,30 @@ async function run(input: any) {
   }
   const frame = E.frameOf(doc);
   const action = input.action ?? 'render';
+  // Resize (design.md "AI resize"): the same pure engine the web's resize sheet runs, so the phone and the web lay a design out alike.
+  // 'resize' answers every target frame at once with the three deterministic layouts' winner plus what the AI step is shown (layer
+  // summaries, the plan, a small JPEG); 'resizeMerge' lays the route's plans on those results and keeps one only if it scores as well.
+  // The Publish sheet's house rules on the words about to go out (publish.ts wordProblems): sale words, hashtags, figures the specs don't give.
+  if (action === 'words') return { problems: wordProblems(input.texts ?? {}, input.facts ?? '') };
+  if (action === 'resize' || action === 'resizeMerge') {
+    const m = makeMeasure(fields, assets);
+    const rates = input.rates?.rows ? input.rates : input.rates ? A.rateBoard(input.rates, new Date().toLocaleDateString('en-GB', {weekday:'long',day:'numeric',month:'long',timeZone:'Asia/Karachi'})) : null;
+    const subject = input.subject ?? undefined;
+    if (action === 'resizeMerge') {
+      const merged = (input.items ?? []).map((it: any) => mergePlan(it.det, it.plan ?? null, fields, assets, { subject, measure: m }));
+      return JSON.parse(JSON.stringify({ results: merged }));
+    }
+    const jpeg = (d: E.StoryDoc) => {
+      try { return E.renderDocTo(E.reflow(d, fields, assets), fields, assets, 256, {}).toDataURL('image/jpeg', 0.6).split(',')[1]; } catch { return undefined; }
+    };
+    const from = input.swap?.from && input.swap?.to ? swapPhoto(doc, input.swap.from, input.swap.to) : doc;
+    const opts = { subject, rates, photoMarked: !!input.photoMarked, measure: m };
+    const results = (input.targets ?? []).map((tf: { w: number; h: number }) => {
+      const r = resizeOne(from, fields, assets, tf, opts);
+      return { ...r, ai: { layers: summariseLayers(r.doc, fields, m), plan: planOf(r, fields, m), thumb: jpeg(r.doc) } };
+    });
+    return JSON.parse(JSON.stringify({ source: { frame, layers: summariseLayers(doc, fields, m), thumb: jpeg(doc) }, results }));
+  }
   const additions: E.Layer[] = [];
   if (action === 'preset') doc = E.applyPreset(doc, input.value, palette, fields, assets, { weightOwnLine: input.weightOwnLine !== false, wordmark: true });
   if (action === 'square') doc = E.applySquarePreset(doc, input.value === 'catalogue-t' ? 'catalogue' : input.value, fields, assets);

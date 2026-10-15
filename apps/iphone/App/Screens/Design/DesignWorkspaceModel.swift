@@ -27,6 +27,8 @@ struct DesignStartRequest {
     var fields: [String: String] = [:]
     var copy: [String: String] = [:]
     var template = "headline"
+    /// A page's document built by the caller rather than laid out by a template (a flat picture rebuilt as layers).
+    var compose: ((DesignPageState) -> MarketingValue)?
 }
 
 /// The design being made: the work (DesignWork), its photographs, what is drawn from them, and the three places it lives: the
@@ -50,8 +52,20 @@ final class DesignWorkspaceModel {
     /// The engine's catalogue (layouts, palettes), read once.
     private(set) var catalogue = MarketingValue.null
     var marked = false
+    /// Phase 2: an address a sheet asks the screen to open (the Meta ad's New ad), the one AI tool running, an AI picture waiting for a
+    /// look, and the photographs before the AI ones ("Back to the photo before").
+    var route: Route?
+    var aiBusy: String?
+    var candidate: DesignCandidate?
+    private(set) var photoUndo: [DesignPhotoStep] = []
+    /// The same-piece check that came with the photograph in use, when the AI made it.
+    private(set) var photoCheck: MarketingValue?
+    /// "Also remove tags and strings": whether Enhance and Retouch take the website's marks off too (per device).
+    var tidy = UserDefaults.standard.bool(forKey: "design.tidy")
+    func setTidy(_ on: Bool) { tidy = on; UserDefaults.standard.set(on, forKey: "design.tidy") }
 
     let engine = NativeArtwork()
+    @ObservationIgnored private var composeNow: ((DesignPageState) -> MarketingValue)?
     @ObservationIgnored var speak: ((Note) -> Void)?
     @ObservationIgnored private var previewPhotos: [String: Data] = [:]
     @ObservationIgnored private var photosChanged = true
@@ -149,6 +163,7 @@ final class DesignWorkspaceModel {
         createdAt = Date()
         UserDefaults.standard.set(draftID, forKey: Self.currentKey)
         thumbs = [:]; previews = [:]
+        photoUndo = []; photoCheck = nil; candidate = nil; aiBusy = nil
         setPhotos(map)
         work = w
         serial += 1
@@ -169,6 +184,7 @@ final class DesignWorkspaceModel {
             var fields = req.photo?.fields ?? [:]
             for (k, v) in req.fields where !v.isEmpty { fields[k] = v }
             marked = req.photo?.marked ?? false
+            composeNow = req.compose
             let w = DesignWork.new(kind: req.kind, sizes: req.sizes, fields: fields, source: req.photo?.source ?? [:], copy: req.copy, template: req.template)
             begin(w, draft: nil, photos: map)
             await layOutFresh()
@@ -185,7 +201,11 @@ final class DesignWorkspaceModel {
         let mine = token
         do {
             var docs: [String: MarketingValue] = [:]
-            for p in w.pages { docs[p.id] = try await layOut(p, template: w.template, fields: w.fields) }
+            for p in w.pages {
+                if let compose = composeNow { docs[p.id] = compose(p) }
+                else { docs[p.id] = try await layOut(p, template: w.template, fields: w.fields) }
+            }
+            composeNow = nil
             guard mine == token, var cur = work, cur.fresh else { return }
             for i in cur.pages.indices { if let d = docs[cur.pages[i].id] { cur.pages[i].doc = d } }
             cur.fresh = false
@@ -367,6 +387,105 @@ final class DesignWorkspaceModel {
             for (k, v) in source { w.source[k] = v }
             w.dirty = true
         }
+    }
+
+    // MARK: Pictures (phase 2: the AI tools, further photographs)
+
+    /// A further photograph under its own id (an extended copy a resized page uses, another angle of the piece).
+    func addPhoto(_ id: String, _ data: Data) {
+        guard DesignRecords.idOK(id), let jpeg = WebsitePhoto.jpegCopy(data) else { return }
+        var map = photos
+        map[id] = jpeg
+        setPhotos(map)
+        mutate { $0.dirty = true }
+    }
+
+    func removePhoto(_ id: String) {
+        guard id != "photo" else { return }
+        var map = photos
+        map[id] = nil
+        setPhotos(map)
+        mutate { $0.dirty = true }
+    }
+
+    /// Other angles of the piece ("More photos of this piece"): they go out as squares of their own.
+    var moreIds: [String] { photos.keys.filter { $0.hasPrefix("more-") }.sorted() }
+
+    func addMore(_ data: Data) {
+        guard moreIds.count < 8 else { error = "A piece takes up to 8 more photographs."; return }
+        addPhoto("more-" + String(Int(Date().timeIntervalSince1970 * 1000), radix: 36) + String(UInt32.random(in: 0..<1296), radix: 36), data)
+    }
+
+    /// An AI picture in the photograph's place. The one before it is kept, one step back at a time.
+    func takeAIPhoto(_ data: Data, check: MarketingValue?, clean: Bool) {
+        guard let jpeg = WebsitePhoto.jpegCopy(data) else { error = "The AI’s picture could not be read."; return }
+        if let old = photos["photo"] { photoUndo.append(DesignPhotoStep(data: old, marked: marked, check: photoCheck)); if photoUndo.count > 5 { photoUndo.removeFirst() } }
+        var map = photos
+        map["photo"] = jpeg
+        setPhotos(map)
+        if clean { marked = false }
+        photoCheck = check
+        mutate { $0.dirty = true }
+    }
+
+    var canUndoPhoto: Bool { !photoUndo.isEmpty }
+
+    func undoPhoto() {
+        guard let last = photoUndo.popLast() else { return }
+        var map = photos
+        map["photo"] = last.data
+        setPhotos(map)
+        marked = last.marked
+        photoCheck = last.check
+        mutate { $0.dirty = true }
+    }
+
+    // MARK: Pages made for a shape (phase 2: the resize engine, for Publish's "Make 1:1 from this" and "Re-do from the master")
+
+    /// The master's design on another shape (workspace.tsx `resizedTo`): one engine call, no AI.
+    func resizedDoc(to w: Double, _ h: Double) async throws -> MarketingValue {
+        guard let cur = work else { throw ERPAPI.Failure(status: 0, message: "No design is open.") }
+        var options: [String: Any] = ["action": "resize", "targets": [["w": w, "h": h]], "photoMarked": marked]
+        let subject = cur.masterPage.doc["meta"]["subject"]
+        if subject != .null { options["subject"] = subject.any }
+        let r = try await engine.run(doc: cur.masterPage.doc, photos: photos.mapValues { WebsitePhoto.jpegCopy($0, longestEdge: 1200) ?? $0 }, fields: cur.fields, options: options)
+        let doc = r["results"].array.first?["doc"] ?? .null
+        guard doc != .null else { throw ERPAPI.Failure(status: 0, message: "That didn’t resize.") }
+        return doc
+    }
+
+    /// The website's own page is the catalogue's photograph (the weight stamped, the mark), not a poster.
+    func catalogueDoc(w: Double, h: Double) async throws -> MarketingValue {
+        guard let cur = work else { throw ERPAPI.Failure(status: 0, message: "No design is open.") }
+        let r = try await engine.run(doc: DesignWork.blankDoc(w: w, h: h), photos: photos, fields: cur.fields, options: ["action": "square", "value": "catalogue"])
+        return r["doc"]
+    }
+
+    /// A page of a destination's shape that the design hasn't got ("Make 1:1 from this"). WhatsApp's square and the website's are the
+    /// same shape but not the same picture: each has a page of its own.
+    func makeSize(_ presetId: String) async {
+        guard let cur = work, let p = DesignSizes.size(presetId) else { return }
+        let same: (DesignPageState) -> Bool = { x in
+            presetId == "website" || presetId == "whatsapp" ? x.label == p.label : x.w == p.w && x.h == p.h && x.format == p.format
+        }
+        guard !cur.pages.contains(where: same) else { return }
+        do {
+            let doc: MarketingValue
+            if presetId == "website" { doc = try await catalogueDoc(w: p.w, h: p.h) } else { doc = try await resizedDoc(to: p.w, p.h) }
+            guard let latest = work, !latest.pages.contains(where: same) else { return }
+            addPages([NewDesignPage(id: nil, label: p.label, format: p.format, w: p.w, h: p.h, doc: doc, origin: presetId == "website" ? "manual" : "resized", syncedFrom: nil)])
+        } catch { self.error = "Couldn’t make that size. " + error.localizedDescription }
+    }
+
+    /// "Re-do from the master" on a resized page that is behind it.
+    func redoPage(_ pageId: String) async {
+        guard let cur = work, let page = cur.page(pageId) else { return }
+        do {
+            let doc: MarketingValue
+            if DesignSizes.isCatalogue(label: page.label) { doc = try await catalogueDoc(w: page.w, h: page.h) } else { doc = try await resizedDoc(to: page.w, page.h) }
+            redoFromMaster(pageId, doc)
+            say("Done again from the master", detail: page.label)
+        } catch { self.error = "Couldn’t do it again. " + error.localizedDescription }
     }
 
     // MARK: Save to the shop

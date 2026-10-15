@@ -63,8 +63,10 @@ struct DesignSavedView: View {
     let shelf: DesignShelf
     let onOpen: (DesignRecord) -> Void
     let onOpenDraft: (DesignDraftRow) -> Void
+    /// Owner and marketing: the ads already in the ad account can be kept in a folder.
+    var adsOk = false
 
-    private static let all = "__all", unfiled = "__unfiled", device = "__device"
+    private static let all = "__all", unfiled = "__unfiled", device = "__device", account = "__account"
     @State private var view = DesignSavedView.all
     @State private var q = ""
     @State private var detail: DesignRecord?
@@ -99,6 +101,7 @@ struct DesignSavedView: View {
                     if (counts[""] ?? 0) > 0 { FilterChip(title: "Unfiled", count: counts[""], chosen: view == Self.unfiled) { view = Self.unfiled } }
                     ForEach(shelf.folders) { f in FilterChip(title: f.name, count: counts[f.id] ?? 0, chosen: view == f.id) { view = f.id } }
                     FilterChip(title: "On this phone", count: shelf.draftRows.count, chosen: view == Self.device) { view = Self.device }
+                    if adsOk { FilterChip(title: "In the ad account", chosen: view == Self.account) { view = Self.account } }
                     FilterChip(title: "New folder", chosen: false) { renaming = nil; folderText = ""; asking = true }
                 }
                 .chipRowInList()
@@ -109,7 +112,9 @@ struct DesignSavedView: View {
                     Button("Delete folder", role: .destructive) { deletingFolder = folder }
                 }.houseRows()
             }
-            if view == Self.device { drafts } else { designs }
+            if view == Self.device { drafts }
+            else if view == Self.account && adsOk { DesignAccountAds(folders: shelf.folders) { Task { await shelf.load() } } }
+            else { designs }
         }
         .listStyle(.insetGrouped).modifier(HouseGround())
         .searchable(text: $q, prompt: "Find a design")

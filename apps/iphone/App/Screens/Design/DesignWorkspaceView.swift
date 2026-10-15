@@ -18,6 +18,7 @@ struct DesignWorkspaceView: View {
 
     @State private var editing: DesignEditTarget?
     @State private var picked: PhotosPickerItem?
+    @State private var morePicked: [PhotosPickerItem] = []
     @State private var sitePicker = false
     @State private var camera = false
     @State private var removing: DesignPageState?
@@ -49,6 +50,7 @@ struct DesignWorkspaceView: View {
             }.ignoresSafeArea()
         }
         .onChange(of: picked) { _, item in if let item { Task { await take(item) } } }
+        .onChange(of: morePicked) { _, items in if !items.isEmpty { Task { await takeMore(items) } } }
         .confirmationDialog("Take “\(removing?.label ?? "this size")” out of this design?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
             Button("Take it out", role: .destructive) { if let p = removing { saved += 1; model.removePage(p.id) } }
         }
@@ -60,6 +62,7 @@ struct DesignWorkspaceView: View {
             VStack(alignment: .leading, spacing: 16) {
                 header(w)
                 strip(w)
+                DesignCandidateBanner(model: model)
                 stage(w)
                 words(w)
                 photograph
@@ -195,6 +198,45 @@ struct DesignWorkspaceView: View {
                 if UIImagePickerController.isSourceTypeAvailable(.camera) { Button { camera = true } label: { Label("Camera", systemImage: "camera") } }
             } label: { Label(model.photos["photo"] == nil ? "Choose a photograph" : "Change the photograph", systemImage: "photo.badge.plus").frame(maxWidth: .infinity) }
                 .buttonStyle(.glass).controlSize(.large)
+            moreRow
+            DesignAITools(model: model, access: access)
+        }
+    }
+
+    /// Other angles of the piece: they go out with it as squares of their own (publish.ts `more`).
+    private var moreRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("More photos of this piece").font(.subheadline.weight(.medium))
+                Spacer(minLength: 0)
+                PhotosPicker(selection: $morePicked, maxSelectionCount: 8, matching: .images) { Label("Add", systemImage: "plus") }.buttonStyle(.glass)
+            }
+            if !model.moreIds.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(model.moreIds, id: \.self) { id in
+                            ZStack(alignment: .topTrailing) {
+                                Group {
+                                    if let data = model.photos[id], let image = WebsitePhoto.thumbnail(data, maxPixel: 160) { Image(uiImage: image).resizable().scaledToFill() }
+                                    else { Rectangle().fill(Theme.ground) }
+                                }
+                                .frame(width: 56, height: 56).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+                                Button { model.removePhoto(id) } label: { Image(systemName: "xmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(.white, .black.opacity(0.7)) }
+                                    .buttonStyle(.plain).offset(x: 5, y: -5).accessibilityLabel("Take this photo out")
+                            }
+                        }
+                    }.padding(.top, 5)
+                }
+            }
+            Text(model.moreIds.isEmpty ? "Other angles of the same piece go out with it as squares of their own." : "Publish sends each to the website and WhatsApp as a square of its own, on the same page design.")
+                .font(.caption2).foregroundStyle(.secondary)
+        }
+    }
+
+    private func takeMore(_ items: [PhotosPickerItem]) async {
+        defer { morePicked = [] }
+        for item in items {
+            if let data = try? await item.loadTransferable(type: Data.self), WebsitePhoto.jpegCopy(data) != nil { model.addMore(data) }
         }
     }
 

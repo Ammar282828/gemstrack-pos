@@ -15,13 +15,31 @@ final class DesignStartModel {
     var price = ""
     var photo: DesignStartPhoto?
     var sheet: DesignSheet?
+    /// Pieces the smart input found beyond the one in use: they wait on the start screen for their own turn.
+    var waiting: [DesignFound] = []
+    /// Ads → Plan's "Make this" (?play=): the Ad starts at the play's shape(s), layout and goal (start.tsx `play`).
+    var play: MarketingValue?
+    /// Owner and marketing: the Ad kind is theirs, so a suggestion of it is taken only by them.
+    var adsAllowed = false
     @ObservationIgnored var speak: ((Note) -> Void)?
+    /// Starts a design from a request built elsewhere (a flat picture rebuilt as layers); the screen sets it.
+    @ObservationIgnored var launch: ((DesignStartRequest) -> Void)?
 
     func say(_ title: String, detail: String = "", failed: Bool = false) { speak?(Note(title: title, detail: detail, failed: failed)) }
 
     func choose(_ k: String) {
         kind = k
         sizes = DesignKinds.card(k).sizes
+        if k != "ad" { play = nil }
+    }
+
+    /// start.tsx playSizes: the play's format, and the 9:16 beside it when it goes out as a pair.
+    func usePlay(_ p: MarketingValue) {
+        play = p
+        kind = "ad"
+        let ids = [p.s("format")] + (p["pair"].bool && p.s("format") != "story" ? ["story"] : [])
+        let valid = ids.filter { $0 != "custom" && DesignSizes.size($0) != nil }
+        sizes = valid.isEmpty ? DesignKinds.card("ad").sizes : valid
     }
 
     func toggle(_ id: String) {
@@ -35,7 +53,9 @@ final class DesignStartModel {
     var request: DesignStartRequest {
         var copy: [String: String] = [:]
         if !price.trimmingCharacters(in: .whitespaces).isEmpty { copy["price"] = price }
-        return DesignStartRequest(kind: kind, sizes: choices, photo: photo, fields: fields, copy: copy)
+        let playing = kind == "ad" ? play : nil
+        if let playing, !playing.s("goal").isEmpty { copy["goal"] = playing.s("goal") }
+        return DesignStartRequest(kind: kind, sizes: choices, photo: photo, fields: fields, copy: copy, template: playing.map { $0.s("template", "headline") } ?? "headline")
     }
 
     /// PHASE 2: what the smart input found fills the form, as start.tsx `use` does: its words, its main photograph, its price,
@@ -44,7 +64,12 @@ final class DesignStartModel {
         fields = found.filter { !$0.value.isEmpty }
         price = foundPrice
         if let photo { self.photo = photo }
-        if let suggested, DesignKinds.valid.contains(suggested) { choose(suggested) }
+        if let suggested, DesignKinds.valid.contains(suggested), adsAllowed || suggested != "ad" { choose(suggested) }
+    }
+
+    /// One found piece becomes the form (start.tsx `use`).
+    func use(_ f: DesignFound) {
+        apply(fields: f.fields, price: f.price, photo: f.photo, kind: f.kind)
     }
 }
 
@@ -156,6 +181,7 @@ struct DesignStartView: View {
         .scrollDismissesKeyboard(.interactively)
         // "Where you left off" reads the shelf and the phone's drafts each time the start screen comes up.
         .task { await shelf.load(); await shelf.loadDrafts() }
+        .onAppear { start.adsAllowed = access.ads }
         .onChange(of: picked) { _, item in if let item { Task { await take(item) } } }
         .sheet(isPresented: $sitePicker) {
             NativeSitePhotoPicker { piece, data in
@@ -188,6 +214,20 @@ struct DesignStartView: View {
                     Button("Clear") { start.fields = [:]; start.price = "" }.font(.footnote)
                 }
             }
+            if !start.waiting.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Also found").font(.caption).foregroundStyle(.secondary)
+                    ForEach(start.waiting) { f in
+                        HStack {
+                            Text(f.name.isEmpty ? "A piece" : f.name).font(.subheadline).lineLimit(1)
+                            Spacer(minLength: 0)
+                            Button("Use") { start.use(f); start.waiting.removeAll { $0.id == f.id } }.buttonStyle(.glass)
+                            Button { start.waiting.removeAll { $0.id == f.id } } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
+                                .buttonStyle(.plain).accessibilityLabel("Put it aside")
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -202,6 +242,14 @@ struct DesignStartView: View {
 
     private var making: some View {
         SectionCard("What are you making?") {
+            if let play = start.play, start.kind == "ad" {
+                HStack(spacing: 8) {
+                    Text("Making ").font(.subheadline) + Text(play.s("title")).font(.subheadline.weight(.semibold)) + Text(" — “\(play.s("cta"))” · \(play.s("where"))").font(.subheadline)
+                    Spacer(minLength: 0)
+                    Button("Not this play") { start.play = nil }.font(.footnote)
+                }
+                .padding(10).background(Theme.accent.opacity(0.12), in: .rect(cornerRadius: Radius.tile, style: .continuous))
+            }
             LazyVGrid(columns: columns, spacing: 10) {
                 ForEach(cards) { c in
                     Button { start.choose(c.kind) } label: {
