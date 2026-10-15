@@ -62,7 +62,7 @@ private fun inPeriod(iso: String?, period: Period): Boolean {
     return (period.from?.let { t >= JS.ms(it) } ?: true) && (period.to?.let { t <= JS.ms(it) } ?: true)
 }
 
-private val LEGACY_ORDER_ADVANCE = Regex("""(?iU)^Advance from Order\. Cash: (\S*)\. Exchange: (-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)""")
+private val LEGACY_ORDER_ADVANCE = Regex("""(?i)^Advance from Order\. Cash: ([^\s\p{Z}]*)\. Exchange: (-?\p{Nd}+(?:\.\p{Nd}+)?(?:e[+-]?\p{Nd}+)?)""")
 
 /** `Number(text) || 0`. */
 private fun numberOrZero(text: String): Double {

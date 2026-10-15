@@ -87,7 +87,8 @@ fun describePlating(item: PieceMaterial): String? {
     return if (parts.isEmpty()) null else parts.joinToString(" · ")
 }
 
-private val LINE_BREAK = Regex("""(?U)\s*\n+\s*""")
+// Unicode spaces spelled out: Android's regex (ICU) refuses the Unicode-classes flag, and a refused pattern here kills the class.
+private val LINE_BREAK = Regex("""[\s\p{Z}]*\n+[\s\p{Z}]*""")
 
 /**
  * What is actually set into a piece, for the customer's copy.
