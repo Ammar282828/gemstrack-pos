@@ -51,6 +51,8 @@ object AppLock {
     private val _unlocking = MutableStateFlow(false)
     val unlocking: StateFlow<Boolean> = _unlocking.asStateFlow()
     private var leftAt: Long? = null
+    // Pages are Activities: the app is "in the background" only when none of them is resumed.
+    private var front = 0
 
     var enabled: Boolean
         get() = Prefs.bool(ENABLED_KEY) ?: true
@@ -62,19 +64,21 @@ object AppLock {
 
     /** The window is leaving the front (onPause): the recents snapshot must show nothing. */
     fun paused(signedIn: Boolean) {
+        front = (front - 1).coerceAtLeast(0)
         if (House.isDemo) return
-        _covered.value = signedIn
+        if (front == 0) _covered.value = signedIn
     }
 
     /** Fully in the background (onStop). */
     fun stopped(signedIn: Boolean, now: Long = System.currentTimeMillis()) {
-        if (House.isDemo) return
+        if (House.isDemo || front > 0) return // another page of ours is in front: this one only went under it
         _covered.value = signedIn
         if (leftAt == null) leftAt = now
     }
 
     /** Back in front (onResume). */
     fun resumed(context: Context, signedIn: Boolean, now: Long = System.currentTimeMillis()) {
+        front++
         if (House.isDemo) return
         _covered.value = false
         val left = leftAt

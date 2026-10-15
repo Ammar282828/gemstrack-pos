@@ -65,6 +65,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -74,6 +75,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.window.core.layout.WindowSizeClass
+import erp.app.PageActivity
 import erp.app.R
 import erp.app.auth.LocalSession
 import erp.app.data.LocalBook
@@ -116,13 +118,10 @@ fun RootScaffold() {
         key(id) { rememberNavBackStack(Route(if (id == SEARCH_TAB) SEARCH_PATH else tabs.first { it.id == id }.href)) }
     }
 
-    // One sheet over the tabs for create actions, links and tapped notifications, with its own back stack.
-    var creating by rememberSaveable { mutableStateOf<String?>(null) }
-    val incoming by AppRouter.open.collectAsStateWithLifecycle()
-    LaunchedEffect(incoming) { incoming?.let { creating = it; AppRouter.consumed() } }
-
+    // Create actions open as a page of their own (a PageActivity: the system's transition), like any pushed page.
+    val context = LocalContext.current
     val canCreate = role != "marketing"
-    val create = CreateSpec(map.newSale?.href, voice = role == "owner", open = { creating = it })
+    val create = CreateSpec(map.newSale?.href, voice = role == "owner", open = { PageActivity.start(context, it) })
 
     // Online orders waiting beside Orders, as the web's sidebar counts them (nav.ts `count: 'online'`). Owners confirm them.
     val waiting by OnlineInbox.waiting.collectAsStateWithLifecycle()
@@ -192,8 +191,6 @@ fun RootScaffold() {
             if (!wide && canCreate) CreateButton(create, Modifier.align(Alignment.BottomEnd).padding(16.dp))
         }
     }
-
-    CreateSheet(creating, onClose = { creating = null })
 }
 
 private const val SEARCH_TAB = "search"
@@ -246,54 +243,6 @@ fun createItems(spec: CreateSpec): List<CreateItem> = buildList {
     add(CreateItem("New order", "/orders/add", Icons.AutoMirrored.Rounded.Assignment))
     add(CreateItem("Scan", "/scan", Icons.Rounded.QrCodeScanner))
     if (spec.voice) add(CreateItem("Voice", "/voice", Icons.Rounded.Mic))
-}
-
-/**
- * A full-screen sheet over the tabs with a back stack of its own: a create action, a link, a notification. It rises
- * from the corner the create button sits in (scale from the bottom end, slide and fade) and sinks back there on
- * close; the window stays up for the exit, then goes. With animations off it only appears and goes.
- */
-@Composable
-private fun CreateSheet(path: String?, onClose: () -> Unit) {
-    val reduce = reduceMotion()
-    // The last path stays while the sheet leaves, so it closes with its content.
-    var last by remember { mutableStateOf(path) }
-    if (path != null) last = path
-    val visible = remember { MutableTransitionState(false) }
-    visible.targetState = path != null
-    if (last == null) return
-    if (!visible.targetState && visible.isIdle && !visible.currentState) {
-        last = null
-        return
-    }
-    val shown = last ?: return
-    Dialog(
-        onDismissRequest = onClose,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-    ) {
-        key(shown) {
-            val stack = rememberNavBackStack(Route(shown))
-            // The dialog has its own back dispatcher: a screen on the sheet's stack goes first, then the sheet.
-            BackHandler(enabled = stack.size > 1) { stack.removeAt(stack.lastIndex) }
-            AnimatedVisibility(
-                visibleState = visible,
-                enter = if (reduce) EnterTransition.None else
-                    slideInVertically(spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)) { it / 5 } +
-                        scaleIn(Motion.enter(), initialScale = 0.86f, transformOrigin = TransformOrigin(1f, 1f)) + fadeIn(Motion.enter()),
-                exit = if (reduce) ExitTransition.None else
-                    slideOutVertically(Motion.exit()) { it / 6 } +
-                        scaleOut(Motion.exit(), targetScale = 0.92f, transformOrigin = TransformOrigin(1f, 1f)) + fadeOut(Motion.exit()),
-            ) {
-                androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    Box(Modifier.fillMaxSize()) {
-                        StackHost(stack, Modifier.fillMaxSize(), onClose = onClose)
-                        // A dialog is a window above the app's own banner: the same note, shown again here (the app's copy buzzes).
-                        NoteHost(LocalNoteState.current, haptics = false)
-                    }
-                }
-            }
-        }
-    }
 }
 
 /** The outline until the tab is chosen, then the filled icon, crossfaded quickly. */

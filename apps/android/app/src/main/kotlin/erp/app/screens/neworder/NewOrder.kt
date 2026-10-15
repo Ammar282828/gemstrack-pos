@@ -199,17 +199,9 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?) {
         sync(now = true)
     }
 
-    /** Where the new order goes: its own page replaces this one (the stack's top, or over the tabs from the create sheet). */
+    /** Where the new order goes: its own page replaces this one. */
     fun leaveTo(path: String?) {
-        if (path == null) {
-            navigator.back()
-        } else if (navigator.canGoBack) {
-            navigator.back()
-            navigator.open(path)
-        } else {
-            AppRouter.open(path)
-            navigator.back()
-        }
+        if (path == null) navigator.back() else navigator.replace(path)
     }
 
     fun orderPath(id: String): String = "/orders/" + java.net.URLEncoder.encode(id, "UTF-8").replace("+", "%20")

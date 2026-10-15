@@ -55,6 +55,15 @@
             </intent-filter>
         </activity>
 
+        <!-- Every page pushed from a tab or the create menu: its own Activity, so Android draws the open/close
+             transition and the cross-activity predictive back itself (no custom animations anywhere). -->
+        <activity
+            android:name=".PageActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Erp"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density" />
+
         <!-- Notifications: a refreshed token, and an alert that arrives while the app is open (lib/push/fcm.ts sends channelId = kind) -->
         <service
             android:name=".device.ErpMessagingService"

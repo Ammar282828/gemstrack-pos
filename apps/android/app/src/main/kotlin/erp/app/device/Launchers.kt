@@ -16,19 +16,20 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * asked as suspending calls by the device features: the iPhone's `Presenter.top`.
  */
 object Foreground {
-    private var ref: WeakReference<FragmentActivity>? = null
-    private var launch: Launchers? = null
+    // Every page is an Activity now, so more than one is alive: the top one (the last attached) is the one in front.
+    private class Entry(val ref: WeakReference<FragmentActivity>, val launchers: Launchers)
+    private val entries = ArrayList<Entry>()
 
-    val activity: FragmentActivity? get() = ref?.get()
-    val launchers: Launchers? get() = launch
+    val activity: FragmentActivity? get() = entries.lastOrNull()?.ref?.get()
+    val launchers: Launchers? get() = entries.lastOrNull()?.launchers
 
     fun attach(activity: FragmentActivity) {
-        ref = WeakReference(activity)
-        launch = Launchers(activity)
+        entries.removeAll { it.ref.get() == null || it.ref.get() === activity }
+        entries.add(Entry(WeakReference(activity), Launchers(activity)))
     }
 
     fun detach(activity: FragmentActivity) {
-        if (ref?.get() === activity) { ref = null; launch = null }
+        entries.removeAll { it.ref.get() == null || it.ref.get() === activity }
     }
 }
 

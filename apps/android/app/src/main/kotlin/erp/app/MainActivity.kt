@@ -34,7 +34,7 @@ class MainActivity : FragmentActivity() {
         val started = System.currentTimeMillis()
         splash.setKeepOnScreenCondition { session.state.value == Session.State.Starting && System.currentTimeMillis() - started < 1000 }
         if (savedInstanceState == null) {
-            AppRouter.handle(intent)
+            AppRouter.handle(this, intent)
             // A cold start of a signed-in app asks for the fingerprint too; a fresh sign-in does not.
             if (session.state.value == Session.State.SignedIn) AppLock.launched(this, signedIn = true)
         }
@@ -58,7 +58,7 @@ class MainActivity : FragmentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         // A link or a tapped notification opens its page over whatever is showing.
-        AppRouter.handle(intent)
+        AppRouter.handle(this, intent)
     }
 
     private val signedIn: Boolean get() = session.state.value == Session.State.SignedIn

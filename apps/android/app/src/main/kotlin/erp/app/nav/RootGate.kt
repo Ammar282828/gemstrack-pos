@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,6 +45,7 @@ import erp.app.auth.Session
 import erp.app.auth.SignInScreen
 import erp.app.auth.findActivity
 import erp.app.config.Prefs
+import erp.app.PageActivity
 import erp.app.data.LocalBook
 import erp.app.device.CrashReportDialog
 import erp.app.ui.LocalNoteState
@@ -91,6 +93,19 @@ object ThemeChoice {
 /** The whole app under the house's theme, the session and the books (MainActivity's one call). */
 @Composable
 fun AppRoot(session: Session) {
+    AppShell(session) {
+        RootGate()
+        CrashReportDialog()
+    }
+}
+
+/**
+ * What every Activity of the app wears (MainActivity's tabs and each PageActivity): the theme the shop and the phone
+ * choose, the system bars, the session, the one toast host, and the lock over it all. One place, so a page opened
+ * as its own Activity looks and behaves exactly as the tabs do.
+ */
+@Composable
+fun AppShell(session: Session, content: @Composable BoxScope.() -> Unit) {
     val book = LocalBook.current
     val settings by book.settings.value.collectAsStateWithLifecycle()
     val device by ThemeChoice.device.collectAsStateWithLifecycle()
@@ -103,14 +118,13 @@ fun AppRoot(session: Session) {
     ForcedNightMode(forced) {
         ErpTheme(themeOverride = when (forced) { true -> "taheri"; false -> "default"; null -> null }) {
             SystemBars(dark)
-            // One toast for the whole app: the banner sits over every screen (the create sheet carries its own copy,
-            // being a window of its own), so `LocalNoteState.current.show(Note(...))` works wherever it is called.
+            // One toast per Activity: the banner sits over every screen, so `LocalNoteState.current.show(Note(...))`
+            // works wherever it is called (a page on top of the tabs shows it on the page).
             val note = rememberNoteState()
             CompositionLocalProvider(LocalSession provides session, LocalNoteState provides note) {
                 Box(Modifier.fillMaxSize()) {
-                    RootGate()
+                    content()
                     NoteHost(note)
-                    CrashReportDialog()
                 }
                 LockLayer()
             }
@@ -213,16 +227,17 @@ fun StackHost(
     onClose: (() -> Unit)? = null,
     trailing: (@Composable androidx.compose.foundation.layout.RowScope.() -> Unit)? = null,
 ) {
-    val navigator = remember(stack, onClose) {
+    val context = LocalContext.current
+    val navigator = remember(stack, onClose, context) {
         object : Navigator {
+            // A page is its own Activity (the system's open and Back animations): the stack here is only the tab's root.
+            // A stack seeded with more than the root (the screenshot tests') still pops and swaps in place.
             override fun open(path: String) {
-                if ((stack.lastOrNull() as? Route)?.path != path) stack.add(Route(path, stack.size))
+                if ((stack.lastOrNull() as? Route)?.path != path) PageActivity.start(context, path)
             }
 
             override fun replace(path: String) {
-                if (stack.isEmpty()) return open(path)
-                // Same depth as the one it replaces, so it keeps that place's state key.
-                stack[stack.lastIndex] = Route(path, stack.lastIndex)
+                if (stack.size > 1) stack[stack.lastIndex] = Route(path, stack.lastIndex) else open(path)
             }
 
             override fun back() {
@@ -233,7 +248,6 @@ fun StackHost(
         }
     }
     CompositionLocalProvider(LocalNavigator provides navigator) {
-        // Navigation 3's own transitions for opening and Back, as the app's first build had them (owner, 2026-10-15).
         NavDisplay(
                 backStack = stack,
                 modifier = modifier,
@@ -250,7 +264,7 @@ fun StackHost(
 
 /** Covers the app while it is locked or being photographed for the recents screen. */
 @Composable
-private fun LockLayer() {
+internal fun LockLayer() {
     val locked by erp.app.device.AppLock.locked.collectAsStateWithLifecycle()
     val covered by erp.app.device.AppLock.covered.collectAsStateWithLifecycle()
     val unlocking by erp.app.device.AppLock.unlocking.collectAsStateWithLifecycle()

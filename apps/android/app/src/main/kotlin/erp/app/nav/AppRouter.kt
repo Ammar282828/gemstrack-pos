@@ -1,30 +1,27 @@
 package erp.app.nav
 
+import android.content.Context
 import android.content.Intent
+import erp.app.PageActivity
 import erp.app.config.House
+import erp.app.device.Foreground
 import erp.app.device.PushLogic
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Where a link or a tapped notification (anything outside a screen) wants to go: the place opens over the tabs.
+ * Where a link or a tapped notification (anything outside a screen) wants to go: the place opens over the tabs, as a PageActivity.
  * `https://<erp host>/…` is an App Link, `erp://orders/ORD-000123` is the app's own address.
  */
 object AppRouter {
-    private val _open = MutableStateFlow<String?>(null)
-    val open: StateFlow<String?> = _open.asStateFlow()
+    /** Opens the place as a page over whatever is in front (its own Activity, so it gets the system's transition). */
+    fun open(path: String) {
+        Foreground.activity?.let { PageActivity.start(it, path) }
+    }
 
-    fun open(path: String) { _open.value = path }
-
-    /** The root has taken it. */
-    fun consumed() { _open.value = null }
-
-    fun handle(intent: Intent?) {
+    fun handle(from: Context, intent: Intent?) {
         val data = intent?.data
         val path = data?.let { pathFor(it.scheme, it.host, it.encodedPath, it.encodedQuery, House.serverHost) }
             ?: PushLogic.pathFor(intent?.getStringExtra("url")) // a notification's page: FCM puts its data in the extras
-        if (path != null) open(path)
+        if (path != null) PageActivity.start(from, path)
     }
 
     /** The ERP path a link names, or null for anything that is not ours. */

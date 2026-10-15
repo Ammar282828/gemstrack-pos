@@ -96,14 +96,8 @@ fun VoiceScreen(model: VoiceModel? = null) {
     val navigator = LocalNavigator.current
     val scope = rememberCoroutineScope()
 
-    // Two sheets in one update can drop the second: this one closes, and the page the ERP chose opens after it.
-    fun open(path: String) {
-        scope.launch {
-            navigator.back()
-            delay(300)
-            AppRouter.open(path)
-        }
-    }
+    // The page the ERP chose takes this one's place.
+    fun open(path: String) = navigator.replace(path)
 
     fun fill(card: VoiceCard, path: String) {
         try {
