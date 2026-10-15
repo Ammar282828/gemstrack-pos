@@ -374,7 +374,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   - a notice gives only the order's id; the order and its transactions are **read back from Shopify** with the token, so no
     secret is needed and duplicates (each notice goes to two addresses: `pos.houseofmina.store` and the hosted.app one, kept as
     the spare the .shop outage argued for) or out-of-order ones end in Shopify's latest word;
-  - only an invoice the ERP already has changes — the pull stays the way in, for orders, customers and stock (their notices
+  - only an invoice the ERP already has changes (a new web order is imported by its create notice, below) — the pull stays the catch-up, for orders, customers and stock (their notices
     do nothing; the products one would have made a stock row for each of the Birthstone Stack's 1,824 variants);
   - Shopify's successful sale/capture becomes a payment once (`shopifyTransactionIds`, kept through an edit by
     `INVOICE_PROVENANCE`), only up to what is owed, never Cash (the drawer never saw it: COD and bank deposit are Bank Transfer,
@@ -384,6 +384,14 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   - an order the ERP pushed out itself (`pos-import`) is left alone: its note "POS Invoice INV-…" made the old handler mark
     the invoice paid in full on any Shopify edit (INV-000228 owed Rs 29,000).
   Catch-up for missed notices: `npx tsx --env-file=.env.mina.local scripts/shopify-mirror-orders.ts` (dry run; `--apply`).
+  - **A new web order now arrives on its own** (2026-10-15, owner: "cant see shopify orders in ios app"; House of Mina's
+    #1440 never reached the ERP because the notice only updated invoices already there and the pull is manual). An
+    `orders/create` or `orders/updated` notice with no invoice yet **imports that one order through the pull's own code**
+    (`importShopifyOrder` in `_order-mirror.ts`, which the pull calls too: `mapInvoice`, id `SHOPIFY-<n>`, orders above #1381),
+    create-if-absent in a transaction (no `SHOPIFY-<n>`, no invoice with that `shopifyOrderId`/`#<n>`), so duplicate notices
+    and retries import it once; then the mirror adds its payments (`shopifyTransactionIds`) and the "New Shopify order"
+    alert goes out as before. `pos-import` orders and checkout-link orders are still left alone; products and customers notices
+    still do nothing. The pull remains for catch-up: `npx tsx --env-file=.env.mina.local scripts/shopify-missing-orders.ts --since 2026-10-09` (dry run; `--apply`).
 
 ### Advance method
 

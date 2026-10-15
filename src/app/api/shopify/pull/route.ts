@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchAllPages, mapCustomer, mapInvoice, mapProduct, getShopifyCredentials } from '../_lib';
+import { fetchAllPages, mapCustomer, mapProduct, getShopifyCredentials } from '../_lib';
 import { adminDb } from '@/lib/firebase-admin';
-import { mirrorShopifyOrderById } from '../_order-mirror';
+import { importShopifyOrder, mirrorShopifyOrderById, SINCE_ORDER_NUMBER } from '../_order-mirror';
 import { verifyRequestEmail, isOwnerEmail } from '@/lib/karigar-auth';
 
 /** Only a signed-in owner may list or import Shopify orders. Without this the
@@ -60,11 +60,6 @@ async function existingSets() {
 /** A storefront with many sized variants can have tens of thousands of them;
  *  the picker stays usable by capping the page and searching server-side. */
 const PRODUCT_PAGE = 300;
-
-/** Only orders placed after this Shopify order number are offered for import.
- *  Everything below it predates the POS and is deliberately not backfilled.
- *  Override per request with ?since=<number>. */
-const SINCE_ORDER_NUMBER = 1381;
 
 export async function GET(request: NextRequest) {
   try {
@@ -202,7 +197,7 @@ export async function POST(request: NextRequest) {
           continue;
         }
         try {
-          await adminDb.collection('invoices').doc(`SHOPIFY-${o.order_number}`).set(mapInvoice(o), { merge: true });
+          await importShopifyOrder(o, { force: true });
           imported.orders++;
           // Its payments as Shopify took them (dated, by method, so Cash In sees them) and its state;
           // from here the orders notice keeps it current.
