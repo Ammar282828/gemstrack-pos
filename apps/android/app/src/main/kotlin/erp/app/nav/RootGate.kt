@@ -232,37 +232,19 @@ fun StackHost(
             override val canGoBack: Boolean get() = stack.size > 1
         }
     }
-    val reduce = erp.app.ui.reduceMotion()
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val motion = remember(reduce, density) { NavMotion(reduce, density) }
     CompositionLocalProvider(LocalNavigator provides navigator) {
-        // The layout the shared elements travel in: a row opening a page morphs inside this stack, over its own pages.
-        @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
-        androidx.compose.animation.SharedTransitionLayout(modifier) {
-            val shared = this
-            NavDisplay(
+        // Navigation 3's own transitions for opening and Back, as the app's first build had them (owner, 2026-10-15).
+        NavDisplay(
                 backStack = stack,
-                modifier = Modifier.fillMaxSize(),
+                modifier = modifier,
                 onBack = { navigator.back() },
-                sharedTransitionScope = shared,
-                sizeTransform = null,
-                transitionSpec = { motion.push(this) },
-                popTransitionSpec = { motion.pop(this) },
-                predictivePopTransitionSpec = { edge -> motion.predictivePop(this, edge) },
                 entryProvider = { key ->
                     NavEntry(key) {
-                        val scope = androidx.navigation3.ui.LocalNavAnimatedContentScope.current
                         val root = key == stack.firstOrNull()
-                        val path = (key as Route).path
-                        // No row-to-page morph (owner, 2026-10-15: the morph showed the old page's words until it
-                        // finished): pages slide, solid, as Android's own do. zoomSource/zoomDestination stay inert.
-                        RoundedOnExit(scope, enabled = true) {
-                            PlaceScreen(path, isRoot = root, onClose = if (root) onClose else null, trailing = if (root) trailing else null)
-                        }
+                        PlaceScreen((key as Route).path, isRoot = root, onClose = if (root) onClose else null, trailing = if (root) trailing else null)
                     }
                 },
             )
-        }
     }
 }
 
