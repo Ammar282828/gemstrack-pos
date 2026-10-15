@@ -393,12 +393,6 @@ async function publicLink(name, submit) {
     await api('PATCH', `/v1/builds/${build.id}`, { data: { type: 'builds', id: build.id, attributes: { usesNonExemptEncryption: false } } });
     say(`Set export compliance (usesNonExemptEncryption false) on build ${label}`);
   }
-  const inGroup = (await api('GET', `/v1/betaGroups/${group.id}/builds?limit=50`)).data.some((b) => b.id === build.id);
-  if (inGroup) say(`Build ${label} is already in "Public"`);
-  else {
-    await api('POST', `/v1/betaGroups/${group.id}/relationships/builds`, { data: [{ type: 'builds', id: build.id }] });
-    say(`Added build ${label} to "Public"`);
-  }
 
   // 3. What beta review needs. Read first; mask anything personal.
   const missing = [];
@@ -470,6 +464,15 @@ async function publicLink(name, submit) {
     throw new Error(`${h.storeName}: not submitted. The owner must fill in App Store Connect → ${h.storeName} → TestFlight → Test Information: ${owes.join(', ')} (or set the ASC_CONTACT_* secrets: FIRST_NAME, LAST_NAME, PHONE, EMAIL, FEEDBACK_EMAIL). The link above works once beta review passes.`);
   }
   say('  note: this app has no demo mode a reviewer can reach (the demo is a launch argument of the simulator build); the review notes say so.');
+
+  // Only now: Apple refuses a build for an external group until Test Information is complete (422 "not in an
+  // externally assignable state").
+  const inGroup = (await api('GET', `/v1/betaGroups/${group.id}/builds?limit=50`)).data.some((b) => b.id === build.id);
+  if (inGroup) say(`Build ${label} is already in "Public"`);
+  else {
+    await api('POST', `/v1/betaGroups/${group.id}/relationships/builds`, { data: [{ type: 'builds', id: build.id }] });
+    say(`Added build ${label} to "Public"`);
+  }
 
   // 4. Beta review.
   const detailNow = await maybe(`/v1/builds/${build.id}/buildBetaDetail`);
