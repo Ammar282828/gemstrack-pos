@@ -102,7 +102,11 @@ object GoogleAuth {
         } catch (e: Failure) {
             throw e
         } catch (e: GetCredentialCancellationException) {
-            throw Failure.cancelled()
+            // Google closes the sheet the same way when it refuses the app (an unregistered key, a client not yet
+            // live): silent for the quiet check, but the account sheet says what Google said.
+            if (silent) throw Failure.cancelled()
+            throw Failure("closed", "Google closed sign-in without signing you in" +
+                (e.message?.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ". Try \"Sign in through the browser\" below.")
         } catch (e: NoCredentialException) {
             throw Failure.failed(if (silent) "Sign in again." else "No Google account on this phone to sign in with. Add one in Settings, then try again.")
         } catch (e: GetCredentialProviderConfigurationException) {
@@ -110,7 +114,7 @@ object GoogleAuth {
         } catch (e: GoogleIdTokenParsingException) {
             throw Failure.failed("Google's answer couldn't be read.")
         } catch (e: GetCredentialException) {
-            throw Failure.failed(e.message?.takeIf { it.isNotBlank() } ?: "Couldn't open Google sign-in.")
+            throw Failure.failed((e.message?.takeIf { it.isNotBlank() } ?: "Couldn't open Google sign-in.") + " (${e.type})")
         }
     }
 

@@ -17,6 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -71,6 +72,9 @@ fun SignInScreen(session: Session) {
                     // The button says what is happening; the page itself never goes to a loading state.
                     Button(onClick = { activity?.let(session::signIn) }, enabled = !signingIn && activity != null) {
                         Text(if (signingIn) "Signing in…" else "Sign in with Google")
+                    }
+                    TextButton(onClick = { activity?.let(session::signInThroughBrowser) }, enabled = !signingIn && activity != null) {
+                        Text("Sign in through the browser")
                     }
                 }
                 error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center) }

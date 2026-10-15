@@ -9,6 +9,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.OAuthProvider
 import erp.app.ErpApp
 import erp.app.config.House
 import erp.app.config.Prefs
@@ -117,6 +118,32 @@ class Session(private val context: Context) {
         } catch (e: Exception) {
             _error.value = say(e)
             _state.value = State.SignedOut
+        }
+    }
+
+    /**
+     * Google through the browser: Firebase's own sign-in page in a Custom Tab, the same Firebase user. It needs no
+     * Android OAuth client, so it works when the account sheet is refused (a key Google has not taken up yet).
+     */
+    fun signInThroughBrowser(activity: Activity) {
+        scope.launch {
+            if (!ErpApp.ensureFirebase()) { _state.value = State.NeedsSetup; return@launch }
+            _state.value = State.SigningIn
+            _error.value = null
+            try {
+                val provider = OAuthProvider.newBuilder("google.com")
+                    .addCustomParameter("prompt", "select_account")
+                    .setScopes(listOf("email", "profile"))
+                    .build()
+                val auth = FirebaseAuth.getInstance()
+                (auth.pendingAuthResult ?: auth.startActivityForSignInWithProvider(activity, provider)).await()
+                loadMe()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _error.value = say(e)
+                _state.value = State.SignedOut
+            }
         }
     }
 
