@@ -70,7 +70,7 @@ async function api(method, url, body) {
   if (res.status === 204) return null;
   const json = await res.json().catch(() => null);
   if (!res.ok) {
-    const why = json?.errors?.map((e) => e.detail || e.title).join('; ') || res.statusText;
+    const why = json?.errors?.map((e) => [e.detail || e.title, e.source?.pointer].filter(Boolean).join(' at ')).join('; ') || res.statusText;
     const err = new Error(`${method} ${url.split('?')[0]}: ${res.status} ${why}`);
     err.status = res.status;
     throw err;
@@ -79,6 +79,12 @@ async function api(method, url, body) {
 }
 
 const q = encodeURIComponent;
+
+/** A name Apple accepts from an address: letters only ("mina_khalid@" → Mina Khalid; Apple refused the underscore, 409). */
+function personName(email, fallbackLast) {
+  const words = email.split('@')[0].split(/[^A-Za-z]+/).filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
+  return { firstName: words[0] || 'Tester', lastName: words.slice(1).join(' ') || fallbackLast };
+}
 
 async function bundleIdFor(h, create) {
   const found = (await api('GET', `/v1/bundleIds?filter[identifier]=${q(h.bundleId)}&filter[platform]=IOS&limit=20`)).data
@@ -271,7 +277,7 @@ async function testers(name, emails) {
         await api('POST', '/v1/userInvitations', {
           data: {
             type: 'userInvitations',
-            attributes: { email, firstName: email.split('@')[0], lastName: h.homeName, roles: ['MARKETING'], allAppsVisible: false, provisioningAllowed: false },
+            attributes: { email, ...personName(email, h.homeName), roles: ['MARKETING'], allAppsVisible: false, provisioningAllowed: false },
             relationships: { visibleApps: { data: [{ type: 'apps', id: app.id }] } },
           },
         });
