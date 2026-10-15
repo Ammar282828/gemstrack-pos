@@ -347,7 +347,9 @@ struct InvoicesList: View {
 
     private func chipRow(_ scoped: [Invoice]) -> some View {
         ChipRow {
-            ForEach([InvoiceChip.all, .unpaid, .paid]) { c in
+            // Shopify's web orders arrive as invoices (never in Orders): their chip sits in the row, as on the web's
+            // Show row, whenever there are any. Parked in the toolbar menu alone (a8d9e4e) it hid them from the owner.
+            ForEach(rowChips(scoped)) { c in
                 FilterChip(title: c.title, count: scoped.filter { c.matches($0) }.count, chosen: c == chip) {
                     chip = c
                 }
@@ -355,9 +357,16 @@ struct InvoicesList: View {
         }
     }
 
+    /// The chips in the row: All, Unpaid, Paid, and Shopify while there are Shopify invoices (or it is chosen).
+    private func rowChips(_ scoped: [Invoice]) -> [InvoiceChip] {
+        var chips: [InvoiceChip] = [.all, .unpaid, .paid]
+        if chip == .shopify || scoped.contains(where: { InvoiceChip.shopify.matches($0) }) { chips.append(.shopify) }
+        return chips
+    }
+
     /// Something the chips do not show is narrowing the list.
     private var filterActive: Bool {
-        !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || (chip != .all && chip != .unpaid && chip != .paid)
+        !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || chip == .credit
     }
 
     /// What the list is narrowed to, and a way back.

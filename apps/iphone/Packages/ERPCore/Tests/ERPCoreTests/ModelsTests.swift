@@ -47,6 +47,26 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(inv.status)
     }
 
+    /// Shopify's web orders live in `invoices` (source "shopify"), in the shapes the pull, the old CSV import and the
+    /// mirror left (House of Mina, 188 of them): none may fail to read, or the phone would drop them.
+    func testShopifyInvoiceShapesAllDecode() throws {
+        let item = ##"{"sku":"SHOP-1001","name":"Band - XS","categoryId":"","metalType":"gold","karat":"21k","metalWeightG":0,"stoneWeightG":0,"quantity":1,"unitPrice":15000,"itemTotal":15000,"metalCost":0,"wastageCost":0,"wastagePercentage":0,"makingCharges":15000,"diamondChargesIfAny":0,"stoneChargesIfAny":0,"miscChargesIfAny":0}"##
+        let base = ##""customerId":"shopify-1","customerName":"Test Buyer","customerContact":"+92 300 0000002","items":[\##(item)],"subtotal":15000,"discountAmount":0,"grandTotal":15000,"amountPaid":15000,"balanceDue":0,"createdAt":"2024-10-05T12:26:45.000Z","ratesApplied":{},"paymentHistory":[{"amount":15000,"date":"2024-10-05T12:26:45.000Z","notes":"Shopify payment"}],"source":"shopify""##
+        let shapes = [
+            ##"{"id":"SHOPIFY-1001","shopifyOrderName":"#1001",\##(base)}"##,
+            ##"{"id":"SHOPIFY-1002","adjustmentsAmount":0,"shopifyOrderId":"123","shopifyOrderNumber":1002,"notes":"Imported from Shopify Order #1002","shopifyFinancialStatus":"paid","shopifyFulfillment":"fulfilled",\##(base)}"##,
+            ##"{"id":"SHOPIFY-1003","shopifyOrderId":"124","shopifyOrderNumber":1003,"shopifySyncedAt":"2026-10-10T05:20:48+05:00","shopifyTransactionIds":["9"],"shopifyFinancialStatus":"paid",\##(base)}"##,
+            ##"{"id":"SHOPIFY-1004","shopifyOrderName":"#1004","customerEmail":"a@example.com","fulfillmentStatus":"unfulfilled","shippingAddress":"Somewhere","shippingCost":300,"shippingMethod":"Standard",\##(base)}"##,
+        ]
+        for json in shapes {
+            let inv = try decode(Invoice.self, json)
+            XCTAssertTrue(inv.id.hasPrefix("SHOPIFY-"))
+            XCTAssertEqual((inv.source ?? "").hasPrefix("shopify"), true)
+            XCTAssertEqual(inv.grandTotal, 15000)
+            XCTAssertEqual(inv.items.count, 1)
+        }
+    }
+
     func testInvoiceMessy() throws {
         // Items as a map (out of order), money as strings, an unknown status and method, no rates.
         let inv = try decode(Invoice.self, """
