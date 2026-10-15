@@ -217,7 +217,8 @@ export function cleanDoc(v: unknown): StoryDoc {
   const frame = d.frame && typeof d.frame === 'object'
     ? { w: Math.round(num(d.frame.w, 1080, 200, 4000)), h: Math.round(num(d.frame.h, 1350, 200, 4000)) }
     : undefined;
-  const out: StoryDoc = { ...(d as StoryDoc), layers, ...(frame ? { frame } : {}) };
+  // Through JSON: a key left `undefined` (the resizer's `flow: undefined`) is dropped, which Firestore would refuse.
+  const out: StoryDoc = JSON.parse(JSON.stringify({ ...(d as StoryDoc), layers, ...(frame ? { frame } : {}) }));
   if (JSON.stringify(out).length > MAX_DOC_BYTES) throw bad('it is bigger than 60 KB');
   return out;
 }

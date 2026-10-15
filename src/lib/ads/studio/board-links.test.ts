@@ -93,6 +93,12 @@ describe('board-links', () => {
     expect(out.frames.find(f => f.id === 'p')!.group).toBe('g');
   });
 
+  it('a layout with an undefined key saves (the resizer leaves flow: undefined)', () => {
+    const d = { ...p.doc!, layers: [{ ...p.doc!.layers[0], flow: undefined }] };
+    const { board: out } = applyOps(board(p, s), [{ op: 'put', id: 'p', quiet: true, patch: { doc: d } }]);
+    expect('flow' in out.frames[0].doc!.layers[0]).toBe(false);
+  });
+
   it('a group of null takes a design out of its sizes', () => {
     const { board: out } = applyOps(board(p, s), [{ op: 'put', id: 'p', patch: { group: null as unknown as string } }]);
     expect(out.frames.find(f => f.id === 'p')!.group).toBeUndefined();
