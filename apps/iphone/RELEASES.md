@@ -20,3 +20,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-12: a phone that cannot register for notifications now says why to the ERP (push_devices_failed).
 - 2026-10-12: Firebase no longer swizzles the app delegate (it swallowed the push token: 2.2 sat on "Registering this phone"); registration gives up with a reason after 20 s.
 - 2026-10-15: Shopify chip back on Invoices; parity with the web since 10-09 (design engine v2, Design and Plan, board photos from Files/Drive/links, Analytics this month); push token fix carried.
+- 2026-10-15: native Design (make, pages, resize, smart input, publish, AI tools, saved), designer v2 tools, marketing grouped as the ERP, Mina's Workshop starts on Anyone.
