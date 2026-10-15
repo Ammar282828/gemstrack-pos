@@ -66,7 +66,10 @@ object AppLock {
     fun paused(signedIn: Boolean) {
         front = (front - 1).coerceAtLeast(0)
         if (House.isDemo) return
-        if (front == 0) _covered.value = signedIn
+        // Between two of our pages nothing is in front for a moment: covering then flashed the logo on every
+        // open and Back. Android 13+ keeps the app out of the recents snapshot itself (applyRecentsPolicy), so the
+        // cover waits for onStop there; older phones still need it here, before the snapshot is taken.
+        if (front == 0 && android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) _covered.value = signedIn
     }
 
     /** Fully in the background (onStop). */
