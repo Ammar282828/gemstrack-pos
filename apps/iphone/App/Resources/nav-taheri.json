@@ -317,7 +317,8 @@
           "href": "/website/post",
           "label": "Post a piece",
           "icon": "Camera",
-          "staff": true
+          "staff": true,
+          "moved": true
         }
       ]
     },
@@ -454,7 +455,8 @@
         {
           "href": "/ads/studio",
           "label": "Studio",
-          "icon": "Palette"
+          "icon": "Palette",
+          "moved": true
         },
         {
           "href": "/ads/audiences",

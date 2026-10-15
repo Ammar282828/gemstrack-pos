@@ -11,6 +11,8 @@ struct NavPlace: Decodable, Hashable, Identifiable {
     let staff: Bool?
     let keywords: [String]?
     let match: [String]?
+    /// nav.ts `moved`: the address redirects (Post a piece, the Studio, into Design). The route stays; search lists no row for it.
+    let moved: Bool?
     var id: String { href }
     var title: String { heading ?? label }
 }
@@ -30,7 +32,7 @@ struct NavEntry: Decodable, Hashable, Identifiable {
     let pages: [NavPlace]?
     let count: String?
 
-    var place: NavPlace { NavPlace(href: href, label: label, heading: heading, icon: icon, staff: staff, keywords: keywords, match: match) }
+    var place: NavPlace { NavPlace(href: href, label: label, heading: heading, icon: icon, staff: staff, keywords: keywords, match: match, moved: nil) }
 }
 
 struct NavMap: Decodable {
@@ -97,7 +99,7 @@ struct NavMap: Decodable {
         var out: [NavHit] = actions.map { NavHit(place: $0, entry: nil) }
         for e in [newSale].compactMap({ $0 }) + entries + [settings].compactMap({ $0 }) {
             out.append(NavHit(place: e.place, entry: e))
-            for t in (e.tabs ?? []) + (e.pages ?? []) where t.href != e.href { out.append(NavHit(place: t, entry: e)) }
+            for t in (e.tabs ?? []) + (e.pages ?? []) where t.href != e.href && t.moved != true { out.append(NavHit(place: t, entry: e)) }
         }
         var seen = Set<String>()
         return out.filter { seen.insert($0.id).inserted }

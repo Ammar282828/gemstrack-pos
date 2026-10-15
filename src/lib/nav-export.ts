@@ -19,6 +19,8 @@ export interface ExportedPlace {
   staff?: boolean;
   keywords?: string[];
   match?: string[];
+  /** The address only redirects now (Post a piece, the Studio → Design): the app keeps its screen but lists no row. */
+  moved?: boolean;
 }
 export interface ExportedEntry extends ExportedPlace {
   id: string;
@@ -51,6 +53,7 @@ function place(p: Place): ExportedPlace {
     ...(p.staff ? { staff: true } : {}),
     ...(p.keywords?.length ? { keywords: p.keywords } : {}),
     ...(p.match?.length ? { match: p.match } : {}),
+    ...(p.moved ? { moved: true } : {}),
   };
 }
 

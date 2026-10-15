@@ -384,12 +384,6 @@ struct AdsOverviewScreen: View {
     private var linksSection: some View {
         Section {
             MarketingLink(title: "Campaigns", subtitle: "Every campaign, ad set and ad; run or pause them", symbol: "checklist", path: "/ads/campaigns")
-            if MarketingKit.has("/ads/plan", role: session.role) {
-                MarketingLink(title: "Plan", subtitle: "What to run and why: the plays, ad days and rules, competitors", symbol: "map", path: "/ads/plan")
-            }
-            if MarketingKit.has("/ads/studio", role: session.role) {
-                MarketingLink(title: "Studio", subtitle: "Make the creative before the ad", symbol: "paintpalette", path: "/ads/studio")
-            }
             MarketingLink(title: "New ad", subtitle: "Boost a piece or an Instagram post", symbol: "paperplane", path: "/ads/new")
             MarketingLink(title: "Setup", subtitle: "The Meta connection, ad account, audiences and rules", symbol: "slider.horizontal.3", path: "/ads/setup")
         } footer: {
