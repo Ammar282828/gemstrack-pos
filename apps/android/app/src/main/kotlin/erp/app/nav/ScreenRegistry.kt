@@ -111,6 +111,7 @@ object ScreenRegistry {
     /** The screen for a path: the ERP's page where `?web=1` asks for it or nothing native matches. */
     @Composable
     fun Screen(path: String) {
+        erp.app.device.CrashCatcher.route = path
         if (wantsWeb(path)) return WebScreen(withoutWebFlag(path))
         val r = routes.firstOrNull { it.matches(path) }
         if (r != null) r.make(path) else WebScreen(path)

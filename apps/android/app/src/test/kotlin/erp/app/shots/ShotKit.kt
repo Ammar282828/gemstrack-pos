@@ -84,6 +84,8 @@ abstract class ShotBase(protected val config: ShotConfig) {
         RuntimeEnvironment.setQualifiers(config.qualifiers)
         // Skeletons shimmer forever: the clock is stepped by hand so the screen can be called settled.
         compose.mainClock.autoAdvance = false
+        // A test that shows several screens in turn (the real-orders sweep) must not find the last one's nodes.
+        scenario?.close()
         val s = ActivityScenario.launch(ComponentActivity::class.java)
         scenario = s
         s.onActivity { activity ->

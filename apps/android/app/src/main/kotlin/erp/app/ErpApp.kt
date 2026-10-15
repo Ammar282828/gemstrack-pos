@@ -8,6 +8,7 @@ import erp.app.config.Prefs
 import erp.app.data.Connection
 import erp.app.data.FirestoreSource
 import erp.app.device.BiometricVault
+import erp.app.device.CrashCatcher
 import erp.app.device.NotificationChannels
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ class ErpApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        CrashCatcher.install(this)
         // core knows no BuildConfig: the New order / New sale rules learn the house here, once.
         erp.core.entry.EntryHouse.id = House.id
         Prefs.init(this)

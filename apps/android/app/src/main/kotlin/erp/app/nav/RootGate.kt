@@ -45,6 +45,7 @@ import erp.app.auth.SignInScreen
 import erp.app.auth.findActivity
 import erp.app.config.Prefs
 import erp.app.data.LocalBook
+import erp.app.device.CrashReportDialog
 import erp.app.ui.LocalNoteState
 import erp.app.ui.NoteHost
 import erp.app.ui.rememberNoteState
@@ -109,6 +110,7 @@ fun AppRoot(session: Session) {
                 Box(Modifier.fillMaxSize()) {
                     RootGate()
                     NoteHost(note)
+                    CrashReportDialog()
                 }
                 LockLayer()
             }
