@@ -39,6 +39,7 @@ import { AlignButtons, IB, Num, Pills, Row, Section, Tool, ColourRow, ShapeIcon,
 import { AdjustControls, CutoutSwitch } from './panels/adjust';
 import { BlendControl, FxControls } from './panels/blend-fx';
 import { GradientToggle, gradientFrom } from './panels/gradient-editor';
+import { freshPlacement, SHADE_PRESETS, shadePresetOf, withShade } from '@/lib/social/bg-gesture';
 import { QrControls, QrSection } from './panels/qr';
 import { RichTextPanel } from './panels/text-runs';
 import { BrandKitPanel } from './panels/brand-kit';
@@ -356,16 +357,26 @@ export function BackgroundInspector({ ed, bare }: { ed: Editor; bare?: boolean }
       {!bare && <p className="text-sm font-medium">{square ? 'Photos & crop' : 'Photo & colours'}</p>}
       <Row label={square ? 'Editing' : 'Photo'}>
         <div className="flex gap-1.5 overflow-x-auto">{photos.map(p => (
-          <button key={p.id} type="button" onClick={() => setBg(square ? { photoId: p.id } : { photoId: p.id, placement: { ...pl, focusX: 0.5, focusY: 0.5, zoom: 1 } })} className={cn('h-10 w-10 shrink-0 rounded overflow-hidden border-2', bg.photoId === p.id ? 'border-primary' : 'border-transparent')}><img src={p.url} alt="" className="h-full w-full object-cover" /></button>
+          <button key={p.id} type="button" onClick={() => square ? setBg({ photoId: p.id }) : change(d => withPlacement({ ...d, bg: { ...d.bg, photoId: p.id } }, freshPlacement(placementOf(d))))} className={cn('h-10 w-10 shrink-0 rounded overflow-hidden border-2', bg.photoId === p.id ? 'border-primary' : 'border-transparent')}><img src={p.url} alt="" className="h-full w-full object-cover" /></button>
         ))}</div>
       </Row>
       {square && <p className="text-[11px] text-muted-foreground">{ed.p.photoNote ?? 'Every photo going to WhatsApp or the website is shown here. The words and marks are shared; each photo keeps its own crop — drag or pinch it to choose what shows.'}</p>}
       <Row label="Show"><Pills value={pl.mode} options={[['fill', ed.p.cropLabel ?? (square ? 'Crop to square' : 'Fill the frame')], ['fit', 'Whole photo']]} onChange={v => setPl({ mode: v as 'fill' | 'fit', focusX: 0.5, focusY: 0.5 })} /></Row>
-      <Row label="Zoom"><Num value={pl.zoom} min={1} max={3} step={0.05} onChange={v => setPl({ zoom: v }, 'zoom')} /></Row>
+      {photo && <p className="text-[11px] text-muted-foreground">Drag the photo to move it, scroll or pinch to zoom, double-click to reset.</p>}
       {photoTools}
-      <Row label="Darken"><Num value={bg.dim} min={0} max={0.7} step={0.05} onChange={v => setBg({ dim: v }, 'dim')} /></Row>
-      <Row label="Shade"><Pills value={bg.gradient} options={[['none', 'None'], ['top', 'Top'], ['bottom', 'Bottom'], ['both', 'Both']]} onChange={v => setBg({ gradient: v as StoryDoc['bg']['gradient'] })} /></Row>
-      {photo && <ShadeControls value={bg.shade ?? null} onChange={(g, key) => setBg({ shade: g }, key)} extra={docColours(ed)} />}
+      {/* One shade: a tap puts it on (and clears the old preset), the two dots on the page move where it fades. */}
+      <Row label="Shade"><Pills value={shadePresetOf(bg) ?? ''} options={SHADE_PRESETS.map(x => [x.id, x.label] as [string, string])}
+        onChange={v => change(d => ({ ...d, bg: withShade(d.bg, SHADE_PRESETS.find(x => x.id === v)?.shade ?? null) }))} /></Row>
+      {bg.gradient !== 'none' && !bg.shade && <p className="text-[11px] text-muted-foreground">An older shade is on ({bg.gradient}); pick one above to replace it.</p>}
+      {(photo || bg.shade) && (
+        <details className="text-xs"><summary className="cursor-pointer text-muted-foreground">Fine-tune: colours, darkness, zoom</summary>
+          <div className="space-y-2.5 pt-2">
+            <Row label="Zoom"><Num value={pl.zoom} min={1} max={6} step={0.05} onChange={v => setPl({ zoom: v }, 'zoom')} /></Row>
+            <Row label="Darken"><Num value={bg.dim} min={0} max={0.7} step={0.05} onChange={v => setBg({ dim: v }, 'dim')} /></Row>
+            <ShadeControls value={bg.shade ?? null} onChange={(g, key) => change(d => ({ ...d, bg: { ...d.bg, shade: g, ...(g ? { gradient: 'none' as const } : {}) } }), { key: key ? `bg:${key}` : undefined })} extra={docColours(ed)} />
+          </div>
+        </details>
+      )}
       {!bg.fill && <Row label="Behind"><ColourRow value={bg.color} onChange={c => setBg({ color: c }, 'color')} extra={docColours(ed)} /></Row>}
       {!bg.fill && (<>
         <label className="flex items-center gap-1.5 text-xs"><Switch checked={!!bg.color2} onCheckedChange={v => setBg({ color2: v ? '#C9973F' : null })} /> Gradient behind</label>
@@ -742,7 +753,7 @@ export function PhotosPanel({ ed }: { ed: Editor }) {
                   <img src={p.url} alt="" className="h-full w-full object-cover" />
                 </button>
                 <div className="flex gap-1">
-                  <button type="button" className="flex-1 rounded border px-1 py-0.5 text-[10px] hover:bg-muted" onClick={() => ed.api.change(d => ({ ...d, bg: { ...d.bg, photoId: p.id } }))}>Background</button>
+                  <button type="button" className="flex-1 rounded border px-1 py-0.5 text-[10px] hover:bg-muted" onClick={() => ed.api.change(d => withPlacement({ ...d, bg: { ...d.bg, photoId: p.id } }, freshPlacement(placementOf(d))))}>Background</button>
                   <button type="button" className="flex-1 rounded border px-1 py-0.5 text-[10px] hover:bg-muted" onClick={() => ed.add(newFrame('ellipse', p.id, F))}>In a frame</button>
                 </div>
               </div>

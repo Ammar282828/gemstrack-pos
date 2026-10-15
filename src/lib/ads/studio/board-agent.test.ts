@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('@/lib/firebase-admin', () => ({ adminDb: {} }));
 vi.mock('./assets', () => ({ listAssets: vi.fn(), loadAssessments: vi.fn(), assetJpeg: vi.fn() }));
 vi.mock('./uploads', () => ({ addUpload: vi.fn() }));
+vi.mock('./server-draw', () => ({ settleBoard: vi.fn(async () => []) }));
 vi.mock('./board', () => ({ changeBoard: vi.fn(), createBoard: vi.fn(), getBoard: vi.fn(), getView: vi.fn(), listBoards: vi.fn(), viewRevs: vi.fn() }));
 
 const { wordProblems, TOOLS, callTool, decodePicture, MAX_UPLOAD_BYTES } = await import('./board-agent');
@@ -106,12 +107,13 @@ describe('replace_design_photo', () => {
     expect(ops[0].patch).toMatchObject({ assetId: 'drive:o', marked: false });
   });
 
-  it('replaces an image layer, keeping its place, crop and the other layers', async () => {
+  it('replaces an image layer, keeping its place and the other layers; its crop starts centred', async () => {
     setup();
     await callTool('replace_design_photo', { board: 'b1', id: 'f1', photo: 'up:new', layer: 'i1' }, 'k');
     const ops = vi.mocked(changeBoard).mock.calls[0][1] as { patch: { doc: typeof doc; assetId?: string } }[];
     const d = ops[0].patch.doc;
-    expect(d.layers[1]).toMatchObject({ photoId: 'lib:up:new', x: 5, w: 100, fx: 0.4, fy: 0.5, iz: 1.2 });
+    expect(d.layers[1]).toMatchObject({ photoId: 'lib:up:new', x: 5, w: 100, fx: 0.5, fy: 0.5 });
+    expect(d.layers[1]).not.toHaveProperty('iz');
     expect(d.layers[0]).toEqual(doc.layers[0]);
     expect(d.bg).toEqual(doc.bg);
   });

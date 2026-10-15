@@ -297,6 +297,49 @@ longer forms (Let it cook with an aim, the name, every shape).
     | 'phone')` (tools for the selection), and the header — `title`, `status`, `actions` (after Download; here Save), `closeLabel`,
     `hint` and `startPanel`. The board is its only host so far.
 
+<a id="server-draw"></a>### The server draws the board
+
+**The server draws the board** (2026-10-15, owner: "i want the server to draw so i can edit without openiong the board").
+Before this, only the page could lay a design out and draw it. An agent's new design sat "not laid out", and `view_design`
+showed an old picture or none, until someone opened the board. Now `lib/ads/studio/server-draw.ts` runs the page's own code on
+`@napi-rs/canvas` (Skia, as in Chrome): `applyAdTemplate` to lay out, then `reflow` and `renderDocTo` to draw.
+- **Fonts.** The house's faces are in `server-fonts/` as fixed weights cut from `src/fonts`. This canvas ignores a variable
+  font's weight axis, so Figtree 300/400/700, Bodoni 400/500 and the rest are separate files. Regenerate them (fontTools
+  `instancer`) if `src/fonts` changes.
+- **The marks** are read from `public/` (`STORE_SITE_MARK_SVG`, the monogram).
+- **Browser globals.** The renderer reaches for `document.createElement('canvas')`, `Path2D`, `ImageData` and `DOMMatrix`.
+  `withCanvasDocument` puts stand-ins on `globalThis` only for the synchronous layout-and-draw, and removes them before any await.
+- **Memory.** One design at a time per instance (`serial`). Pictures are fetched at 1600 px, as the page does; a design takes
+  about 0.8–1.3 s and under 300 MB.
+- **When it runs.**
+  - The MCP tools `add_design`, `update_design` and `replace_design_photo` lay out and draw at once.
+  - `view_design` draws first when the drawing is missing or stale.
+  - The weekly routine draws each pair it adds.
+  - `POST /api/ads/studio/boards/<id>/draw` (`{ ids? }`) settles a whole board, for changes written straight to Firestore.
+- **The page.** It still draws what it shows, and skips sending a view the server already drew for that rev.
+- **Checked against the page.** The server's pictures matched the page's own `studio_board_views` for the rings boards: bg
+  adjust, `bg.shade`, marks, the framed and heritage layouts.
+- **Build.** `next.config.ts` keeps `@napi-rs/canvas` external, and `outputFileTracingIncludes` ships `server-fonts/` and
+  `public/` marks with `/api/**`.
+
+<a id="free-background"></a>**The background, by hand** (2026-10-15, owner: "moving the background around, or adding a new background its all
+buggy. make everything very free, i shouldnt have to deal with sliders for basic things"; "the gradient on photo is buggy if you
+change the background"). The fixes are in `lib/social/bg-gesture.ts` (tested), `story-editor.tsx` and `editor-panels.tsx`.
+- **Drag moves the photo.** A plain mouse drag on the background moves the photo at once; Shift+drag draws the selection box.
+  Before, the first drag drew a box unless the background was already selected.
+- **No jump when panning.** On an axis where the photo has no room, the focus is left alone. It used to jump to an edge (a
+  divide by a dummy 1), and the next zoom threw the photo into a corner.
+- **Zoom about the pointer.** Scroll or pinch zooms around the pointer, up to 6× (pinch was capped at 3× and zoomed about
+  the centre; there was no scroll zoom).
+- **Double-click resets** the photo to centred and unzoomed.
+- **A new picture starts centred.** It keeps the place, size, frame and mask of the one it replaces, but its crop starts
+  centred and unzoomed (`replacePicture` / `freshCrops`). The Background panel and Photos panel do the same. Before, it
+  inherited the old photo's crop.
+- **One gradient.** The Shade pills (None, Bottom, Top, Left, Darken) write the single `bg.shade` and clear the old preset
+  `bg.gradient`, so the two never stack. Two dots on the page drag where the fade starts and where it is darkest. The fine
+  controls (colours, opacity, angle, zoom, darken) sit under "Fine-tune" and show whenever a shade exists. They used to hide
+  when the background wasn't a photo while the shade was still drawn.
+
 <a id="house-of-mina-ad-style"></a>### House of Mina's ad style
 
 **House of Mina's ad style, from the owner's edits** (2026-10-14, owner: "i made changes to many of your designs, look at the

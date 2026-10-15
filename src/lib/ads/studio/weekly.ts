@@ -17,6 +17,7 @@ import { listAssets, loadAssessments, usedAssetIds, assetJpeg, type StudioAsset 
 import { adScore } from './assessment';
 import { artDirect } from './art-direct';
 import { changeBoard, createBoard } from './board';
+import { settleBoard } from './server-draw';
 import { BOARD_SCALE, GAP, safeTemplate } from './board-shape';
 import { AD_FORMATS } from './templates';
 
@@ -135,10 +136,12 @@ export async function runWeeklySlice(budgetMs: number): Promise<WeeklyState & { 
         const fields = { kicker: d.kicker || (p.collection !== 'Website' ? p.collection : ''), headline: d.headline, weight: p.specs, details: d.cta };
         const y = row * (AD_FORMATS.story.frame.h * BOARD_SCALE + GAP + 28);
         const common = { assetId: p.photo, marked: p.marked, fields, why: d.why, by: 'ai' as const, doc: null };
-        await changeBoard(state.board!, [
+        const { added } = await changeBoard(state.board!, [
           { op: 'add', frame: { ...common, template: safeTemplate(d.layout, { marked: p.marked, format: 'portrait' }), label: `${p.name} · 4:5`, format: 'portrait', x: 0, y } },
           { op: 'add', frame: { ...common, template: safeTemplate(d.layout, { marked: p.marked, format: 'story' }), label: `${p.name} · 9:16`, format: 'story', x: AD_FORMATS.portrait.frame.w * BOARD_SCALE + GAP, y } },
         ], by);
+        // Laid out and drawn now, so the board is ready to read on the phone without being opened first (server-draw.ts).
+        await settleBoard(state.board!, { ids: added, by }).catch(e => console.warn('[weekly] server draw:', e instanceof Error ? e.message : e));
         state = { ...state, pending: state.pending.slice(1), done: state.done + 1 };
         row++;
       } catch (e) {

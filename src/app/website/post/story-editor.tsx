@@ -43,6 +43,7 @@ import {
   newUploadLayer, newWordmark, imageOf, panInFrame, placementOf, reflow, renderDoc, renderDocTo, scaleLayer, shiftRuns, uploadedImage, withPlacement,
   type Assets, type Bind, type Box, type Fields, type FontKey, type ImageLayer, type Layer, type ShapeLayer, type StoryDoc, type TextLayer,
 } from '@/lib/social/editor';
+import { dragShadeEnd, freshPlacement, panPhoto, shadeEnds, zoomPhotoAt } from '@/lib/social/bg-gesture';
 import { alignDeltas, distributeDeltas, intersects, snapLines, snapMove, unionBox, type AlignHow, type SpacingGuide } from '@/lib/social/design';
 import { cycleLayer, guidesOf, nextZoom, withGrid, withGuides, type Guides } from '@/lib/social/guides';
 import {
@@ -525,7 +526,8 @@ type Drag = { changed?: boolean } & (
   | { mode: 'side'; id: string; side: 'l' | 'r' | 't' | 'b'; sx: number; sy: number; orig: Layer; box0: Box; before: StoryDoc }
   | { mode: 'end'; id: string; end: 0 | 1; orig: ShapeLayer; before: StoryDoc }
   | { mode: 'rotate'; id: string; cx: number; cy: number; orig: Layer; before: StoryDoc }
-  | { mode: 'pinch'; id: string | 'bg'; d0: number; a0: number; orig: Layer | null; zoom0: number; before: StoryDoc }
+  | { mode: 'pinch'; id: string | 'bg'; d0: number; a0: number; orig: Layer | null; zoom0: number; before: StoryDoc; pl0?: ReturnType<typeof placementOf>; mx?: number; my?: number }
+  | { mode: 'shade'; end: 'start' | 'end'; before: StoryDoc }
   | { mode: 'marquee'; sx: number; sy: number; add: boolean; base: string[] }
 );
 
@@ -584,6 +586,8 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
 
   useEffect(() => () => { if (frame.current) cancelAnimationFrame(frame.current); if (press.current) clearTimeout(press.current); }, []);
 
+  /** The background photo's size, when the design has one. */
+  const bgPhoto = () => { const img = doc.bg.photoId ? assets.photos[doc.bg.photoId] : null; return img && img.naturalWidth ? { w: img.naturalWidth, h: img.naturalHeight } : null; };
   const toStory = (e: { clientX: number; clientY: number }) => {
     const r = canvasRef.current!.getBoundingClientRect();
     return { x: (e.clientX - r.left) / r.width * F.w, y: (e.clientY - r.top) / r.height * F.h };
@@ -616,7 +620,8 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
         down.current = null;
         return;
       }
-      drag.current = { mode: 'pinch', id: target, d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, a0: Math.atan2(b.y - a.y, b.x - a.x), orig: target === 'bg' ? null : one, zoom0: placement.zoom, before: doc };
+      const mid = toStory({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 });
+      drag.current = { mode: 'pinch', id: target, d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, a0: Math.atan2(b.y - a.y, b.x - a.x), orig: target === 'bg' ? null : one, zoom0: placement.zoom, before: doc, pl0: placement, mx: mid.x, my: mid.y };
       down.current = null;
       return;
     }
@@ -664,7 +669,8 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
         mode: 'move', ids: movers.map(l => l.id), sx: pt.x, sy: pt.y, orig: movers, box0: unionBox(movers.map(ed.boxOf)), before: doc,
         lines: snapLines(F, margin, others, { grid: doc.meta?.grid, guides: doc.meta?.guides }), others,
       };
-    } else if (!touch && !ed.bgSel) {
+    } else if (!touch && (e.shiftKey || !bgPhoto())) {
+      // Shift+drag (or a design with no photo behind) draws a selection box; a plain drag moves the photo.
       drag.current = { mode: 'marquee', sx: pt.x, sy: pt.y, add: e.shiftKey, base: ed.sel };
     } else {
       ed.selectBg();
@@ -685,7 +691,13 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
         const o = d.orig, iz = Math.round(Math.min(4, Math.max(1, d.zoom0 * k)) * 100) / 100;
         setHud(`${Math.round(iz * 100)}%`);
         live(doc0 => ({ ...doc0, layers: doc0.layers.map(l => l.id === o.id ? { ...o, iz, ...panInFrame({ ...o, iz }, imageOf(o, assets), o.fx ?? 0.5, o.fy ?? 0.5, 0, 0) } as Layer : l) }));
-      } else if (d.id === 'bg' || !d.orig) live(doc0 => withPlacement(doc0, { ...placementOf(doc0), zoom: Math.min(3, Math.max(1, d.zoom0 * k)) }));
+      } else if (d.id === 'bg' || !d.orig) {
+        const img = bgPhoto();
+        if (!img || !d.pl0) return;
+        const next = zoomPhotoAt(img, F, d.pl0, d.zoom0 * k, d.mx ?? F.w / 2, d.my ?? F.h / 2);
+        setHud(`${Math.round(next.zoom * 100)}%`);
+        live(doc0 => withPlacement(doc0, next));
+      }
       else {
         const o = d.orig;
         const turn = ((Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) - d.a0) * 180) / Math.PI;
@@ -753,16 +765,12 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
       const next = panInFrame(o, imageOf(o, assets), d.fx, d.fy, pt.x - d.sx, pt.y - d.sy);
       live(doc0 => ({ ...doc0, layers: doc0.layers.map(l => l.id === d.id ? { ...l, ...next } as Layer : l) }));
     } else if (d.mode === 'photo') {
-      const photo = doc.bg.photoId ? assets.photos[doc.bg.photoId] : null;
-      if (!photo) return;
-      const pl = placementOf(doc);
-      const iw = photo.naturalWidth, ih = photo.naturalHeight;
-      const sc = (pl.mode === 'fill' ? Math.max(F.w / iw, F.h / ih) : Math.min(F.w / iw, F.h / ih)) * pl.zoom;
-      const spareX = Math.abs(iw * sc - F.w) || 1, spareY = Math.abs(ih * sc - F.h) || 1;
+      const img = bgPhoto();
+      if (!img) return;
       const k = F.w / canvasRef.current!.getBoundingClientRect().width;
-      const dirX = iw * sc > F.w ? -1 : 1, dirY = ih * sc > F.h ? -1 : 1;
-      const cl = (v: number) => Math.min(1, Math.max(0, v));
-      live(doc0 => withPlacement(doc0, { ...pl, focusX: cl(d.fx + dirX * (e.clientX - d.sx) * k / spareX), focusY: cl(d.fy + dirY * (e.clientY - d.sy) * k / spareY) }));
+      live(doc0 => withPlacement(doc0, panPhoto(img, F, placementOf(doc0), { focusX: d.fx, focusY: d.fy }, (e.clientX - d.sx) * k, (e.clientY - d.sy) * k)));
+    } else if (d.mode === 'shade') {
+      live(doc0 => doc0.bg.shade ? { ...doc0, bg: { ...doc0.bg, shade: dragShadeEnd(doc0.bg.shade, F, d.end, pt.x, pt.y) } } : doc0);
     } else if (d.mode === 'marquee') {
       setMarquee({ x: Math.min(d.sx, pt.x), y: Math.min(d.sy, pt.y), w: Math.abs(pt.x - d.sx), h: Math.abs(pt.y - d.sy) });
     }
@@ -814,6 +822,24 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
     window.addEventListener('keydown', onKey, true);
     return () => { el.removeEventListener('wheel', onWheel); window.removeEventListener('keydown', onKey, true); };
   }, [ed.cropping]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Scrolling over the background photo zooms it about the pointer — when it is selected, or nothing is and the pointer
+  // is over no layer. Ctrl/⌘ + scroll still zooms the page.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el || ed.cropping || lettered) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return;
+      const img = bgPhoto();
+      if (!img) return;
+      const pt = toStory(e);
+      if (!ed.bgSel && (ed.sel.length || hitTest(view, pt.x, pt.y, fields, assets))) return;
+      e.preventDefault();
+      if (!ed.bgSel) ed.selectBg();
+      change(d0 => { const pl = placementOf(d0); return withPlacement(d0, zoomPhotoAt(img, F, pl, pl.zoom * Math.exp(-e.deltaY * 0.0025), pt.x, pt.y)); }, { key: 'bg-zoom' });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
   // Cropping ends when the picture is no longer the one selected.
   useEffect(() => { if (ed.cropping && ed.one?.id !== ed.cropping) ed.setCropping(null); }, [ed.one?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -902,6 +928,8 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
           if (hit?.kind === 'text' && !hit.locked) { ed.select([hit.id]); ed.setEditing(hit.id); }
           // Into a picture: move the photo inside its frame (or its clipping mask).
           if (hit?.kind === 'image' && !hit.locked) startCrop(hit);
+          // On the background photo itself: back to centred and unzoomed.
+          if (!hit && bgPhoto()) { ed.selectBg(); change(d0 => withPlacement(d0, freshPlacement(placementOf(d0)))); }
         }}
         className={cn('block w-full touch-none bg-muted outline-none cursor-default', designer ? 'rounded-sm shadow-xl' : 'rounded-xl shadow-md focus-visible:ring-2 focus-visible:ring-primary')}
         aria-label={ed.square ? 'Square photo — tap something to select it, drag to move it' : 'Story — tap something to select it, drag to move it'}
@@ -936,6 +964,25 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
           </div>
         );
       })}
+      {/* The shade over the photo: drag its two dots to move where the fade starts and ends. */}
+      {ed.bgSel && !lettered && doc.bg.shade && (() => {
+        const g = doc.bg.shade;
+        const ends = shadeEnds(g, F);
+        const startShade = (end: 'start' | 'end') => (e: React.PointerEvent) => {
+          e.stopPropagation(); (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+          (wrapRef.current as HTMLElement | null)?.setPointerCapture?.(e.pointerId);
+          down.current = null;
+          drag.current = { mode: 'shade', end, before: doc };
+        };
+        return (<>
+          <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"><line x1={ends.start.x * scale} y1={ends.start.y * scale} x2={ends.end.x * scale} y2={ends.end.y * scale} stroke="white" strokeWidth={2} strokeDasharray="4 4" /></svg>
+          {(['start', 'end'] as const).map(k => (
+            <span key={k} onPointerDown={startShade(k)} className={cn(HANDLE, 'cursor-move', k === 'end' ? '!bg-neutral-800' : '')}
+              style={{ left: Math.min(F.w, Math.max(0, ends[k].x)) * scale - 8, top: Math.min(F.h, Math.max(0, ends[k].y)) * scale - 8 }}
+              title={k === 'start' ? 'Drag: where the shade begins' : 'Drag: where it is darkest'} />
+          ))}
+        </>);
+      })()}
       {/* An arrow's or line's two ends. */}
       {isLine && one && !one.locked && !ed.editing && (() => {
         const s = one as ShapeLayer;

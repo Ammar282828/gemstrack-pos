@@ -9,7 +9,12 @@ const nextConfig: NextConfig = {
   // that is loaded by path, and this route is the only thing that wants it.
   // jsPDF too: the monthly report is drawn on the server (lib/reports), and bundled, the server
   // would take jsPDF's browser build ("module"); from node_modules Node takes its own ("main").
-  serverExternalPackages: ['heic-convert', 'heic-decode', 'libheif-js', 'jspdf', 'jspdf-autotable'],
+  // @napi-rs/canvas is a native Skia binary: the board is drawn on the server with it (lib/ads/studio/server-draw.ts).
+  serverExternalPackages: ['heic-convert', 'heic-decode', 'libheif-js', 'jspdf', 'jspdf-autotable', '@napi-rs/canvas'],
+  // Read from disk by server-draw.ts, so traced into every route that may draw a board.
+  outputFileTracingIncludes: {
+    '/api/**/*': ['./src/lib/ads/studio/server-fonts/**/*', './public/brand/**/*', './public/*.png', './public/*.svg'],
+  },
   images: {
     unoptimized: true,
     remotePatterns: [

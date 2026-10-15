@@ -33,7 +33,7 @@ import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
 import { applyPalette, newImageLayer, newText, reflow, renderDocTo, type Assets, type Bind, type Fields, type StoryDoc } from '@/lib/social/editor';
 import { AD_FORMATS, AD_FORMAT_ORDER, AD_TEMPLATES, MORE_FORMAT_ORDER, PHOTO, applyAdTemplate, blankAd, formatInfo, type AdFormat, type AdTemplateId } from '@/lib/ads/studio/templates';
 import { BOARD_SCALE, applyOps, framePx, newId, safeTemplate, type Board, type BoardFrame, type BoardNote, type BoardOp } from '@/lib/ads/studio/board-shape';
-import { MAIN, assetOfRef, extraIds, libRef, pictureSlots, replacePicture, rewriteUploads, uploadSrcs, type PictureSlot, type PictureTarget } from '@/lib/ads/studio/board-pictures';
+import { MAIN, assetOfRef, extraIds, libRef, pictureSlots, replacePicture, rewriteUploads, uploadSrcs, type PictureSlot, type PictureTarget, freshCrops } from '@/lib/ads/studio/board-pictures';
 import type { BoardSummary } from '@/lib/ads/studio/board';
 import type { CopyResult, Direction } from '@/lib/ads/studio/prompts';
 import { SCENES, nearestAspect } from '@/lib/social/prompts';
@@ -1196,7 +1196,9 @@ function FrameEditor({ frame: f, marks, onClose, onSave }: { frame: BoardFrame; 
 
   const replace = (target: PictureTarget, pick: { assetId: string; marked?: boolean }) => {
     if (target === MAIN || (target === 'bg' && (!doc.doc.bg.photoId || doc.doc.bg.photoId === MAIN))) {
+      // The new photo's crop starts centred (board-pictures.ts freshCrops): the old one's means nothing to it.
       setAssetId(pick.assetId); setMarked(!!pick.marked);
+      doc.change(d => freshCrops(d, MAIN));
       return;
     }
     doc.change(d => replacePicture({ doc: d, assetId, marked }, target, pick).doc);
