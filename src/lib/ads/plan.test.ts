@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adsetParams, callToAction, campaignParams, creativeSpec, defaultName, enhancementsRejected, DEFAULT_ICE_BREAKERS, NO_ENHANCEMENTS, planProblems, planSummary, welcomeMessage, WHATSAPP_LINK, type AdPlan, type PlanContext } from './plan';
+import { adsetParams, callToAction, campaignParams, creativeSpec, URL_TAGS, defaultName, enhancementsRejected, DEFAULT_ICE_BREAKERS, NO_ENHANCEMENTS, planProblems, planSummary, welcomeMessage, WHATSAPP_LINK, type AdPlan, type PlanContext } from './plan';
 import { defaultDraft } from './targeting';
 
 const NOW = Date.parse('2026-09-25T10:00:00Z');
@@ -60,6 +60,12 @@ describe('adsetParams', () => {
 });
 
 describe('creativeSpec', () => {
+  it('website and sales ads carry UTM tags; chat ads, which never reach the site, do not', () => {
+    expect(creativeSpec(plan({ goal: 'sales' }), ctx).url_tags).toBe(URL_TAGS);
+    expect(creativeSpec(plan({ goal: 'website' }), ctx).url_tags).toBe(URL_TAGS);
+    expect(creativeSpec(plan(), ctx)).not.toHaveProperty('url_tags');
+    expect(URL_TAGS).toContain('utm_campaign={{campaign.name}}');
+  });
   it('a WhatsApp photo ad opens WhatsApp with the greeting, and asks Meta to change nothing', () => {
     const c = creativeSpec(plan(), ctx);
     expect(c.object_story_spec).toEqual({

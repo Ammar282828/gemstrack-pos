@@ -104,3 +104,27 @@ export function customerRows(customers: CustomerLike[], invoices: InvoiceLike[],
   }
   return rows;
 }
+
+/**
+ * Website audiences, from the house's Meta pixel — what Ads Manager calls a "Website" custom audience, and
+ * the source of the "Lookalike – House of Mina's pixel – Website using Purchase" audiences the agency made
+ * there (2026-08). Meta keeps website visitors for at most 180 days.
+ */
+export const WEBSITE_EVENTS: { key: string; label: string; hint: string }[] = [
+  { key: 'all', label: 'Everyone who visited the website', hint: 'Any page' },
+  { key: 'ViewContent', label: 'Looked at a piece', hint: 'Opened a product page' },
+  { key: 'AddToCart', label: 'Added something to the cart', hint: 'Whether or not they bought' },
+  { key: 'InitiateCheckout', label: 'Started checkout', hint: 'Reached the checkout page' },
+  { key: 'Purchase', label: 'Bought on the website', hint: 'The best one to make a lookalike from' },
+  { key: 'cart_not_bought', label: 'Added to cart but did not buy', hint: 'The classic retargeting list' },
+];
+
+export function websiteRule(pixelId: string, days: number, event: string): Record<string, unknown> | null {
+  const retention_seconds = Math.min(180, Math.max(1, Math.round(days))) * 86_400;
+  const source = [{ id: pixelId, type: 'pixel' }];
+  const did = (ev: string) => ({ event_sources: source, retention_seconds, filter: { operator: 'and', filters: [{ field: 'event', operator: 'eq', value: ev }] } });
+  if (event === 'all') return { inclusions: { operator: 'or', rules: [{ event_sources: source, retention_seconds, filter: { operator: 'and', filters: [{ field: 'url', operator: 'i_contains', value: '' }] } }] } };
+  if (event === 'cart_not_bought') return { inclusions: { operator: 'or', rules: [did('AddToCart')] }, exclusions: { operator: 'or', rules: [did('Purchase')] } };
+  if (!WEBSITE_EVENTS.some(e => e.key === event)) return null;
+  return { inclusions: { operator: 'or', rules: [did(event)] } };
+}

@@ -13,7 +13,7 @@
 import { graph, graphAll, MetaAdsError } from './meta';
 import { metricsOf, type InsightRow, type Metrics, type RangeKey, type TreeCampaign, type TreeAdSet, type TreeAd, emptyMetrics } from './shape';
 
-export const BASE_FIELDS = ['spend', 'impressions', 'reach', 'frequency', 'clicks', 'inline_link_clicks', 'ctr', 'cpm', 'cpc', 'actions'];
+export const BASE_FIELDS = ['spend', 'impressions', 'reach', 'frequency', 'clicks', 'inline_link_clicks', 'ctr', 'cpm', 'cpc', 'actions', 'action_values'];
 
 /** The fields Meta's "(#100) … field(s) … invalid" error names, among the ones asked for. */
 export function fieldsRejected(message: string, asked: string[]): string[] {
@@ -49,7 +49,7 @@ export function previousPeriod(since: string, until: string): { since: string; u
 }
 
 export async function daily(act: string, r: RangeKey): Promise<{ date: string; metrics: Metrics }[]> {
-  const rows = await insights(act, ['spend', 'impressions', 'reach', 'clicks', 'inline_link_clicks', 'actions'], { ...range(r), time_increment: 1 }, 400);
+  const rows = await insights(act, ['spend', 'impressions', 'reach', 'clicks', 'inline_link_clicks', 'actions', 'action_values'], { ...range(r), time_increment: 1 }, 400);
   return rows.map(row => ({ date: String(row.date_start), metrics: metricsOf(row) })).sort((a, b) => a.date.localeCompare(b.date));
 }
 
@@ -69,7 +69,7 @@ const PLACEMENT: Record<string, string> = {
 const cap = (s: string) => s.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
 
 export async function breakdowns(act: string, r: RangeKey): Promise<{ ageGender: Breakdown[]; placement: Breakdown[]; region: Breakdown[] }> {
-  const fields = ['spend', 'impressions', 'reach', 'clicks', 'actions'];
+  const fields = ['spend', 'impressions', 'reach', 'clicks', 'actions', 'action_values'];
   const [ag, pl, rg] = await Promise.all([
     insights(act, fields, { ...range(r), breakdowns: 'age,gender' }, 200).catch(() => []),
     insights(act, fields, { ...range(r), breakdowns: 'publisher_platform,platform_position' }, 200).catch(() => []),
@@ -82,6 +82,7 @@ export async function breakdowns(act: string, r: RangeKey): Promise<{ ageGender:
       const m = list.map(metricsOf).reduce((acc, x) => {
         acc.spend += x.spend; acc.impressions += x.impressions; acc.reach += x.reach; acc.clicks += x.clicks;
         for (const [a, v] of Object.entries(x.actions)) acc.actions[a] = (acc.actions[a] ?? 0) + v;
+        for (const [a, v] of Object.entries(x.values)) acc.values[a] = (acc.values[a] ?? 0) + v;
         return acc;
       }, emptyMetrics());
       return { key: k, label: label(k), metrics: m };

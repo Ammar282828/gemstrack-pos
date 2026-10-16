@@ -168,6 +168,8 @@ export interface InsightRow {
   spend?: string; impressions?: string; reach?: string; frequency?: string;
   clicks?: string; inline_link_clicks?: string; ctr?: string; cpm?: string; cpc?: string;
   actions?: ActionRow[];
+  /** What the actions were worth (purchases: their order value), in the account's currency. */
+  action_values?: ActionRow[];
   date_start?: string; date_stop?: string;
   [k: string]: unknown;
 }
@@ -176,6 +178,8 @@ export interface Metrics {
   spend: number; impressions: number; reach: number; frequency: number;
   clicks: number; linkClicks: number; ctr: number; cpm: number; cpc: number;
   actions: Record<string, number>;
+  /** `action_values`: the order value behind each action type (purchases), in the account's currency. */
+  values: Record<string, number>;
 }
 
 const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
@@ -183,10 +187,12 @@ const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n
 export function metricsOf(row: InsightRow | null | undefined): Metrics {
   const actions: Record<string, number> = {};
   for (const a of row?.actions ?? []) actions[a.action_type] = (actions[a.action_type] ?? 0) + num(a.value);
+  const values: Record<string, number> = {};
+  for (const a of row?.action_values ?? []) values[a.action_type] = (values[a.action_type] ?? 0) + num(a.value);
   return {
     spend: num(row?.spend), impressions: num(row?.impressions), reach: num(row?.reach), frequency: num(row?.frequency),
     clicks: num(row?.clicks), linkClicks: num(row?.inline_link_clicks), ctr: num(row?.ctr), cpm: num(row?.cpm), cpc: num(row?.cpc),
-    actions,
+    actions, values,
   };
 }
 
@@ -199,6 +205,7 @@ export function sumMetrics(list: Metrics[]): Metrics {
     out.spend += m.spend; out.impressions += m.impressions; out.reach += m.reach;
     out.clicks += m.clicks; out.linkClicks += m.linkClicks;
     for (const [k, v] of Object.entries(m.actions)) out.actions[k] = (out.actions[k] ?? 0) + v;
+    for (const [k, v] of Object.entries(m.values ?? {})) out.values[k] = (out.values[k] ?? 0) + v;
   }
   out.ctr = out.impressions ? (out.clicks / out.impressions) * 100 : 0;
   out.cpm = out.impressions ? (out.spend / out.impressions) * 1000 : 0;
@@ -216,6 +223,25 @@ export function resultOf(m: Metrics, goal: string | undefined): { label: string;
   const value = (r.action ?? []).reduce((best, a) => Math.max(best, m.actions[a] ?? 0), 0);
   return { label: r.label, value };
 }
+
+/**
+ * Purchases the ads brought and what they were worth, the way Ads Manager's Results / Purchases conversion
+ * value / Purchase ROAS columns read them. Meta reports one purchase under several names (omni_purchase is
+ * the deduplicated total of the website, in-app and offline ones), so the biggest of them is taken, never
+ * their sum. `roas` is sales per rupee spent (Ads Manager's "Purchase ROAS"); null when nothing was spent.
+ */
+export const PURCHASE_ACTIONS = ['omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'purchase', 'onsite_web_purchase'];
+export function salesOf(m: Metrics): { purchases: number; value: number; roas: number | null; costPerPurchase: number | null } {
+  const best = (rec: Record<string, number> | undefined) => PURCHASE_ACTIONS.reduce((b, a) => Math.max(b, rec?.[a] ?? 0), 0);
+  const purchases = best(m.actions), value = best(m.values);
+  return {
+    purchases, value,
+    roas: m.spend > 0 ? value / m.spend : null,
+    costPerPurchase: purchases > 0 ? m.spend / purchases : null,
+  };
+}
+/** "5.8×" — ROAS the way the owner reads it (sales for every rupee of ad spend). */
+export const roasText = (r: number | null) => (r === null ? '—' : `${r >= 10 ? r.toFixed(0) : r.toFixed(1)}×`);
 
 /** The actions worth a line on a summary, biggest first, without the ones that merely contain others. */
 export function headlineActions(m: Metrics, limit = 6): { type: string; label: string; value: number }[] {

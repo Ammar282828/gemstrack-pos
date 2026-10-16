@@ -3,6 +3,7 @@
  * POST { kind: 'customers', name, segment }                 → a customer list from the POS (hashed here)
  *      { kind: 'refresh', id, segment }                     → add today's customers to one
  *      { kind: 'engagers', name, days, event }              → the house's Instagram engagers
+ *      { kind: 'website', name, days, event }               → website visitors, from the pixel
  *      { kind: 'lookalike', name, origin, percent, country } → people like an audience
  * DELETE ?id= → gone (ads using it keep their other targeting).
  */
@@ -11,7 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore, ownerOnly } from '@/lib/ads/gate';
 import { MetaAdsError } from '@/lib/ads/meta';
 import { requireAccount } from '@/lib/ads/settings';
-import { createCustomerAudience, createEngagementAudience, createLookalike, deleteAudience, listAudiences, refreshCustomerAudience, ENGAGEMENT_EVENTS } from '@/lib/ads/audiences';
+import { createCustomerAudience, createEngagementAudience, createLookalike, createWebsiteAudience, deleteAudience, listAudiences, refreshCustomerAudience, ENGAGEMENT_EVENTS, WEBSITE_EVENTS } from '@/lib/ads/audiences';
 import { SEGMENTS, type Segment } from '@/lib/ads/audience-rows';
 import { logAds } from '@/lib/ads/log';
 
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
   if (who instanceof NextResponse) return who;
   try {
     const { act, settings } = await requireAccount();
-    return NextResponse.json({ audiences: await listAudiences(act), segments: SEGMENTS, events: ENGAGEMENT_EVENTS, instagram: settings.instagramUsername }, { headers: noStore });
+    return NextResponse.json({ audiences: await listAudiences(act), segments: SEGMENTS, events: ENGAGEMENT_EVENTS, websiteEvents: WEBSITE_EVENTS, pixel: !!settings.pixelId, instagram: settings.instagramUsername }, { headers: noStore });
   } catch (e) {
     return adsFail(e, 'audiences');
   }
@@ -56,6 +57,14 @@ export async function POST(req: NextRequest) {
         if (!settings.instagramUserId) throw new MetaAdsError('Choose the shop’s Instagram account on the Setup tab first.', 409);
         const days = Number(b.days) || 365;
         out = await createEngagementAudience(act, settings.instagramUserId, nameOf(b.name, `@${settings.instagramUsername ?? 'instagram'} engagers — ${days} days`), days, String(b.event ?? 'ig_business_profile_all'));
+        break;
+      }
+      case 'website': {
+        if (!settings.pixelId) throw new MetaAdsError('Choose the shop’s pixel on the Setup tab first.', 409);
+        const days = Math.min(180, Number(b.days) || 30);
+        const event = String(b.event ?? 'all');
+        const label = WEBSITE_EVENTS.find(e => e.key === event)?.label ?? 'Website visitors';
+        out = await createWebsiteAudience(act, settings.pixelId, nameOf(b.name, `Website — ${label} — ${days} days (${today})`), days, event);
         break;
       }
       case 'lookalike': {

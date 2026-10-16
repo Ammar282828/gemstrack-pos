@@ -68,3 +68,27 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   turns that refusal into `APP_NOT_LIVE`; Setup step 1 reads what the switch asks for with the app token (`appLiveReadiness`:
   privacy policy URL, category, a real icon — Meta exposes no mode field) and gives the values (`APP_PAGES`: taheri.shop's
   `/privacy` and `/data-deletion`, `META_APP_PRIVACY_URL` / `_DATA_DELETION_URL` to change them).
+
+### Ads Manager gaps closed (2026-10-16)
+
+Owner: "check if there is absolutely anything that i can do on the ad manager that i cant do in my erp and add it".
+Checked against six months of Mina's activity log (the agency, xMedia House, works in Power Editor; the owner in the ERP)
+and every campaign: all are Sales, Advantage+ audience, automatic bidding, optimising for Purchase.
+
+- **Sales and ROAS** (`salesOf`, `roasText` in `shape.ts`, tested): insights now ask for `action_values`, so purchases carry
+  their order value. Overview: Sales from ads · ROAS · Cost per purchase tiles when anything sold, and purchases lead
+  `mainAction` (it used to fall back to link clicks on a sales account). Campaigns: sales and ROAS on every campaign, ad set and
+  ad row, "Best ROAS" in the gallery sort; Overview's top ads show ROAS. Purchases are the biggest of `omni_purchase`,
+  `offsite_conversion.fb_pixel_purchase`, `purchase`, `onsite_web_purchase` (one purchase, several names), never their sum.
+- **Website audiences** (`websiteRule` in `audience-rows.ts`, tested; `createWebsiteAudience`; Audiences → Website visitors):
+  from the chosen pixel, 7–180 days: every visitor, viewed a piece, added to cart, started checkout, bought, and added to cart
+  but did not buy (Purchase excluded). Lookalikes take any of them as the source, as the agency's "Lookalike – pixel –
+  Website using Purchase" audiences did.
+- **UTM tags** (`URL_TAGS` in `plan.ts`, tested): every website/sales creative the ERP makes carries
+  `utm_source=meta&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_term={{adset.name}}&utm_content={{ad.name}}`,
+  so Shopify reports which ad a visit and an order came from. Chat ads carry none.
+- Already covered, no change: Advantage+ audience's hard minimum age (`age_min` ≤ 25) and custom audiences as suggestions
+  (Meta treats them so when `advantage_audience` is 1).
+- **Still Ads Manager only**, by value: catalogue (Advantage+ catalog / dynamic product) ads from the Shopify catalog
+  (750891657483482); partnership (creator) ads, which the influencer campaigns are; new video uploads; Conversions API
+  (check first whether Shopify's Facebook & Instagram app already sends server events for the site); A/B tests; bid and cost caps; dayparting; CSV export.

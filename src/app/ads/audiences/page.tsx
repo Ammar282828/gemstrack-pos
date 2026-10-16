@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * Ads → Audiences: the ad account's audiences, and the three kinds worth making
+ * Ads → Audiences: the ad account's audiences, and the four kinds worth making
  * from here — the shop's own customers (from the POS customer book, hashed on
  * the server before Meta sees them), people who engaged with the house's
- * Instagram, and lookalikes of either. Any of them can then be reached or left
+ * Instagram, website visitors from the pixel, and lookalikes of any. Any of them can be reached or left
  * out on New ad → Who sees it.
  */
 
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { UsersRound, Loader2, RefreshCw, Trash2, Contact, Instagram, Sparkles, ShieldCheck, RotateCw } from 'lucide-react';
+import { UsersRound, Loader2, RefreshCw, Trash2, Contact, Instagram, Sparkles, ShieldCheck, RotateCw, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_META_ADS, STORE_CONFIG } from '@/lib/store-config';
 import { compact } from '@/lib/ads/shape';
@@ -23,7 +23,7 @@ import type { Segment } from '@/lib/ads/audience-rows';
 import { api, useAdsStatus, NotReady, ErrorLine } from '../ads-kit';
 
 interface Audience { id: string; name: string; kind: string; description: string | null; size: [number, number] | null; ready: boolean; status: string | null; created: string | null; retentionDays: number | null }
-interface Data { audiences: Audience[]; segments: { key: Segment; label: string; hint: string }[]; events: { key: string; label: string }[]; instagram: string | null }
+interface Data { audiences: Audience[]; segments: { key: Segment; label: string; hint: string }[]; events: { key: string; label: string }[]; websiteEvents?: { key: string; label: string; hint: string }[]; pixel?: boolean; instagram: string | null }
 
 export default function AudiencesRoute() {
   if (!STORE_META_ADS) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn’t run Meta ads from the ERP.</p>;
@@ -42,6 +42,8 @@ function Audiences() {
   const [segment, setSegment] = useState<Segment>('buyers');
   const [days, setDays] = useState(365);
   const [event, setEvent] = useState('ig_business_profile_all');
+  const [webEvent, setWebEvent] = useState('Purchase');
+  const [webDays, setWebDays] = useState(180);
   const [origin, setOrigin] = useState('');
   const [percent, setPercent] = useState(1);
   const [country, setCountry] = useState('PK');
@@ -116,6 +118,26 @@ function Audiences() {
               </select>
             </div>
             <Button variant="outline" className="w-full h-11" disabled={!!busy || !data} onClick={() => make({ kind: 'engagers', days, event }, 'engagers')}>{busy === 'engagers' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Instagram className="h-4 w-4 mr-1.5" />} Make the engagers audience</Button>
+          </section>
+
+          <section className="rounded-xl border p-4 space-y-3">
+            <h2 className="font-semibold flex items-center gap-2"><Globe className="h-5 w-5" /> Website visitors</h2>
+            <p className="text-sm text-muted-foreground">People the shop’s pixel saw on the website. Show ads again to those who looked or added to cart and didn’t buy, or make a lookalike of the buyers. Meta keeps website visitors for up to 180 days.</p>
+            {data && !data.pixel ? <p className="text-sm text-muted-foreground">Choose the shop’s pixel on the Setup tab first.</p> : (
+              <>
+                <div className="grid gap-1.5 sm:grid-cols-2">
+                  {(data?.websiteEvents ?? []).map(e => (
+                    <button key={e.key} type="button" onClick={() => setWebEvent(e.key)} className={cn('rounded-lg border p-2.5 text-left', webEvent === e.key ? 'border-primary ring-1 ring-primary' : '')}>
+                      <span className="block text-sm font-medium">{e.label}</span><span className="block text-[11px] text-muted-foreground">{e.hint}</span>
+                    </button>
+                  ))}
+                </div>
+                <select value={webDays} onChange={e => setWebDays(Number(e.target.value))} className="h-10 w-full rounded-md border bg-background px-2 text-sm">
+                  {[7, 14, 30, 60, 90, 180].map(d => <option key={d} value={d}>in the last {d} days</option>)}
+                </select>
+                <Button variant="outline" className="w-full h-11" disabled={!!busy || !data} onClick={() => make({ kind: 'website', days: webDays, event: webEvent }, 'website')}>{busy === 'website' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Globe className="h-4 w-4 mr-1.5" />} Make the website audience</Button>
+              </>
+            )}
           </section>
 
           <section className="rounded-xl border p-4 space-y-3">

@@ -6,6 +6,8 @@
  *               SHA-256 before anything is sent; Meta matches the hashes to
  *               accounts and never receives a readable phone or email
  *   engagers    everyone who engaged with the house's Instagram in the last N days
+ *   website     people the house's pixel saw on its website: every visitor, or those who viewed a
+ *               piece, added to cart, began checkout or bought, or added to cart and did not buy
  *   lookalike   people like one of the above, in a country, 1–10%
  *
  * Every audience is checked to be this house's before it is changed or deleted.
@@ -16,7 +18,8 @@
 import { createHash } from 'crypto';
 import { adminDb } from '@/lib/firebase-admin';
 import { actId, graph, graphAll, MetaAdsError } from './meta';
-import { customerRows, SCHEMA, type Segment, type CustomerLike, type InvoiceLike } from './audience-rows';
+import { customerRows, SCHEMA, websiteRule, type Segment, type CustomerLike, type InvoiceLike } from './audience-rows';
+export { WEBSITE_EVENTS } from './audience-rows';
 
 export interface Audience {
   id: string; name: string; kind: string; description: string | null;
@@ -143,6 +146,15 @@ export async function createEngagementAudience(act: string, igUserId: string, na
         rule: { inclusions: { operator: 'or', rules: [{ event_sources: [{ id: igUserId, type: 'ig_business' }], retention_seconds: retention, filter: { operator: 'and', filters: [{ field: 'event', operator: 'eq', value: event }] } }] } },
       },
     });
+  } catch (e) { termsHint(e, act); }
+}
+
+export async function createWebsiteAudience(act: string, pixelId: string, name: string, days: number, event: string): Promise<{ id: string }> {
+  if (!/^\d+$/.test(pixelId)) throw new MetaAdsError('Choose the shop’s pixel on the Setup tab first.', 409);
+  const rule = websiteRule(pixelId, days, event);
+  if (!rule) throw new MetaAdsError('Which website visitors?', 400);
+  try {
+    return await graph<{ id: string }>(`${actId(act)}/customaudiences`, { method: 'POST', params: { name, prefill: 1, rule } });
   } catch (e) { termsHint(e, act); }
 }
 

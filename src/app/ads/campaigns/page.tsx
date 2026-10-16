@@ -25,7 +25,7 @@ import { FolderKanban, Plus, RefreshCw, Loader2, ChevronRight, MoreVertical, Pen
 import { cn } from '@/lib/utils';
 import { STORE_META_ADS } from '@/lib/store-config';
 import {
-  money, count, compact, resultOf, objectiveLabel, RESULT_FOR_GOAL, sumMetrics, adsManagerUrl,
+  money, count, compact, resultOf, objectiveLabel, RESULT_FOR_GOAL, sumMetrics, adsManagerUrl, salesOf, roasText,
   type Metrics, type RangeKey, type AdsAccount, type TreeCampaign, type TreeAdSet, type TreeAd, type Level,
 } from '@/lib/ads/shape';
 import { parseTargeting, describeAudience, type AudienceDraft } from '@/lib/ads/targeting';
@@ -64,10 +64,13 @@ function Trend({ now, before, neutral }: { now: number; before: number | undefin
 function Numbers({ m, goal, cur, className, before }: { m: Metrics; goal?: string; cur: string; className?: string; before?: Metrics }) {
   const r = resultOf(m, goal);
   const rb = before ? resultOf(before, goal) : null;
+  // Purchases' order value and ROAS — Ads Manager's Purchase ROAS column, on every row that sold something.
+  const sales = salesOf(m);
   return (
     <span className={cn('text-[11px] text-muted-foreground tabular-nums', className)}>
       <b className="text-foreground font-semibold">{money(m.spend, cur)}</b> <Trend now={m.spend} before={before?.spend} neutral />
       {r ? <> · {count(r.value)} {r.label.toLowerCase()} <Trend now={r.value} before={rb?.value} />{r.value ? ` · ${money(m.spend / r.value, cur, { cents: true })} each` : ''}</> : null}
+      {sales.value > 0 ? <> · <b className="text-foreground font-semibold">{money(sales.value, cur)} sales</b> <Trend now={sales.value} before={before ? salesOf(before).value : undefined} /> · <b className={cn('font-semibold', (sales.roas ?? 0) >= 1 ? 'text-success' : 'text-destructive')}>{roasText(sales.roas)} ROAS</b></> : null}
       {' · '}{compact(m.reach)} reached
     </span>
   );
@@ -449,9 +452,9 @@ function previewSrc(html: string): string | null {
 }
 
 /** Every ad as its picture, big enough to see: what it says, where it sits, how it is doing, run/pause, and Ads Manager. */
-type GallerySort = 'spend' | 'results' | 'cost' | 'ctr' | 'name';
+type GallerySort = 'spend' | 'results' | 'cost' | 'roas' | 'ctr' | 'name';
 const SORTS: { key: GallerySort; label: string }[] = [
-  { key: 'spend', label: 'Most spent' }, { key: 'results', label: 'Most results' }, { key: 'cost', label: 'Cheapest result' }, { key: 'ctr', label: 'Best click-through' }, { key: 'name', label: 'Name' },
+  { key: 'spend', label: 'Most spent' }, { key: 'results', label: 'Most results' }, { key: 'cost', label: 'Cheapest result' }, { key: 'roas', label: 'Best ROAS' }, { key: 'ctr', label: 'Best click-through' }, { key: 'name', label: 'Name' },
 ];
 
 function Gallery({ campaigns, cur, accountId, busy, filter, onOpen, onToggle }: {
@@ -466,6 +469,7 @@ function Gallery({ campaigns, cur, accountId, busy, filter, onOpen, onToggle }: 
     .sort((x, y) => sort === 'spend' ? y.metrics.spend - x.metrics.spend
       : sort === 'results' ? (resultOf(y.metrics, y.goal)?.value ?? 0) - (resultOf(x.metrics, x.goal)?.value ?? 0)
       : sort === 'cost' ? cost(x) - cost(y)
+      : sort === 'roas' ? (salesOf(y.metrics).roas ?? -1) - (salesOf(x.metrics).roas ?? -1)
       : sort === 'ctr' ? y.metrics.ctr - x.metrics.ctr
       : x.name.localeCompare(y.name));
   if (!all.length) return <p className="text-sm text-muted-foreground">No ads here.</p>;
@@ -493,6 +497,7 @@ function Gallery({ campaigns, cur, accountId, busy, filter, onOpen, onToggle }: 
               <p className="text-[11px] text-muted-foreground tabular-nums">
                 <b className="text-foreground">{money(a.metrics.spend, cur)}</b>
                 {r ? ` · ${count(r.value)} ${r.label.toLowerCase()}` : ` · ${compact(a.metrics.reach)} reached`}
+                {salesOf(a.metrics).value > 0 ? ` · ${money(salesOf(a.metrics).value, cur)} sales · ${roasText(salesOf(a.metrics).roas)} ROAS` : ''}
                 {a.button ? ` · “${a.button}”` : ''}
               </p>
               {a.issues.length > 0 && <p className="text-[11px] text-destructive line-clamp-2">{a.issues.join(' · ')}</p>}

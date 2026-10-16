@@ -233,8 +233,21 @@ function linkFor(p: AdPlan, ctx: PlanContext, own?: string): string {
   return (own || p.link || '').trim() || profileUrl(ctx);
 }
 
-/** The creative: a boosted post, or new photos as a single image or carousel ad. */
+/**
+ * UTM tags on every link to the website, so Shopify's own reports (and Google Analytics) say which campaign,
+ * ad set and ad a visit and an order came from — before 2026-10-16 the ERP's ads arrived as plain
+ * "instagram" (the 15 October Birthstone Stack spike could not be told from organic). Meta fills the
+ * {{…}} macros at delivery; Ads Manager's own "URL parameters" field is this.
+ */
+export const URL_TAGS = 'utm_source=meta&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_term={{adset.name}}&utm_content={{ad.name}}';
+
+/** The creative: a boosted post, or new photos as a single image or carousel ad — website links tagged. */
 export function creativeSpec(p: AdPlan, ctx: PlanContext, opts: { enhancements?: Record<string, unknown> } = {}): Record<string, unknown> {
+  const spec = untaggedCreative(p, ctx, opts);
+  return goesToSite(p.goal) ? { ...spec, url_tags: URL_TAGS } : spec;
+}
+
+function untaggedCreative(p: AdPlan, ctx: PlanContext, opts: { enhancements?: Record<string, unknown> } = {}): Record<string, unknown> {
   const dof = { creative_features_spec: opts.enhancements ?? NO_ENHANCEMENTS };
   if (p.source.kind === 'post') {
     const cta = callToAction(p, linkFor(p, ctx), ctx);
