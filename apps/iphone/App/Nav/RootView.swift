@@ -158,6 +158,8 @@ struct RootView: View {
         // The simulator check opens one page over the tabs (`-ERPDemoOpen /invoices/INV-D0002`).
         .task {
             if House.isDemo, let p = UserDefaults.standard.string(forKey: "ERPDemoOpen"), p.hasPrefix("/") { creating = Route(path: p) }
+            // A notification of another business switched to it: the page it named was set before this screen existed.
+            if let r = AppRouter.shared.open { creating = r; AppRouter.shared.open = nil }
         }
         // A tapped notification opens its page over whatever is showing.
         .onChange(of: AppRouter.shared.open) { _, r in

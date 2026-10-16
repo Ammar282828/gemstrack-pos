@@ -3,7 +3,6 @@ import UIKit
 import ImageIO
 import Observation
 import FirebaseAuth
-import FirebaseCore
 import ERPCore
 
 // What the Website screens share (Add photos, Edit a piece, Photo weights, Investments): a form with files
@@ -28,9 +27,11 @@ enum WebsiteForm {
     }
 
     static func send(_ path: String, fields: [(String, String)], files: [File] = [], timeout: TimeInterval = 120) async throws -> Data {
-        if House.isDemo || FirebaseApp.app() == nil { throw ERPAPI.Failure(status: 0, message: "Not connected to the ERP in the demo.") }
-        guard let url = URL(string: path, relativeTo: House.serverURL)?.absoluteURL,
-              url.scheme == "https", url.host == House.serverURL.host else {
+        let biz = House.business
+        if House.isDemo { throw ERPAPI.Failure(status: 0, message: "Not connected to the ERP in the demo.") }
+        guard let auth = Businesses.shared.auth(for: biz) else { throw ERPAPI.Failure(status: 0, message: "\(biz.displayName) isn't set up for sign-in in this build.") }
+        guard let url = URL(string: path, relativeTo: biz.url)?.absoluteURL,
+              url.scheme == "https", url.host == biz.url.host else {
             throw ERPAPI.Failure(status: 0, message: "Not an address of this ERP.")
         }
         let boundary = "erp-form-" + UUID().uuidString
@@ -51,7 +52,7 @@ enum WebsiteForm {
         request.httpMethod = "POST"
         request.timeoutInterval = timeout
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        if let token = try? await Auth.auth().currentUser?.getIDToken() {
+        if let token = try? await auth.currentUser?.getIDToken() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -221,7 +222,9 @@ private struct WebsiteFeaturedAnswer: Decodable {
 @MainActor
 @Observable
 final class WebsiteStore {
-    static let shared = WebsiteStore()
+    /// Replaced, not cleared, when the person switches business (Businesses.switch): none of it is the next one's.
+    static var shared = WebsiteStore()
+    static func reset() { shared = WebsiteStore() }
 
     private(set) var settings: WebsiteSettings?
     /// False until the set of the day has been read; then `featured` is it, or nil for none.

@@ -347,7 +347,9 @@ struct Dashboard: View {
 @MainActor
 @Observable
 final class OnlineInbox {
-    static let shared = OnlineInbox()
+    /// Replaced, not cleared, when the person switches business (Businesses.switch): none of it is the next one's.
+    static var shared = OnlineInbox()
+    static func reset() { shared = OnlineInbox() }
 
     private(set) var waiting = 0
     private(set) var ratePause: DashRatePause?

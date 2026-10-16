@@ -9,7 +9,9 @@ import ERPCore
 @MainActor
 @Observable
 final class PostsStore {
-    static let shared = PostsStore()
+    /// Replaced, not cleared, when the person switches business (Businesses.switch): none of it is the next one's.
+    static var shared = PostsStore()
+    static func reset() { shared = PostsStore() }
 
     enum Phase: Equatable {
         case idle

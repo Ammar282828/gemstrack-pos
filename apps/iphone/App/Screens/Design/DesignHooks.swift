@@ -29,7 +29,9 @@ struct DesignSheet: Identifiable {
 
 @MainActor
 final class DesignHooks {
-    static let shared = DesignHooks()
+    /// Replaced, not cleared, when the person switches business (Businesses.switch): none of it is the next one's.
+    static var shared = DesignHooks()
+    static func reset() { shared = DesignHooks() }
 
     /// "Resize…" in the workspace and "Size" in the page strip: the master's design on another shape (AI resize).
     var resize: (DesignWorkspaceModel) -> Void = { model in

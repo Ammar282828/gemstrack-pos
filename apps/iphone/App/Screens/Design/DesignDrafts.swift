@@ -24,7 +24,7 @@ actor DesignDraftDisk {
 
     /// The same scope the Post a piece drafts use (PostComposerModel.load).
     @MainActor static func current() -> DesignDraftDisk { DesignDraftDisk(scope: DesignDraftDisk.scope()) }
-    @MainActor static func scope() -> String { House.isDemo ? "demo" : (Auth.auth().currentUser?.uid ?? "signed-out") }
+    @MainActor static func scope() -> String { House.isDemo ? "demo" : (Businesses.shared.auth?.currentUser?.uid ?? "signed-out") }
 
     private func make() throws { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
 

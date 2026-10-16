@@ -327,7 +327,7 @@ struct AdsLastChoice: Decodable {
     let days: Int?
     let goal: String?
 
-    private static let key = "ads.newAd.last"
+    private static var key: String { BizKey("ads.newAd.last") }
 
     private enum K: String, CodingKey { case audience, amount, budgetKind, days, goal }
 

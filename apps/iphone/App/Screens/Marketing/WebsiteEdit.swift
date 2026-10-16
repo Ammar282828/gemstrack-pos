@@ -201,7 +201,9 @@ struct WebsiteEditTile: View {
 @MainActor
 @Observable
 final class WebsiteEdits {
-    static let shared = WebsiteEdits()
+    /// Replaced, not cleared, when the person switches business (Businesses.switch): none of it is the next one's.
+    static var shared = WebsiteEdits()
+    static func reset() { shared = WebsiteEdits() }
 
     enum Phase: Equatable {
         case idle

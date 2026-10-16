@@ -273,7 +273,7 @@ extension SaleDraft {
 /// with the figure it set, and a box still holding that figure is not written back. Typing a different figure
 /// over it makes it the person's own again.
 enum SaleScanHeld {
-    static let key = "erp.saleBillRates"
+    static var key: String { BizKey("erp.saleBillRates") }
 
     static func load() -> [String: String] {
         (UserDefaults.standard.dictionary(forKey: key) as? [String: String]) ?? [:]

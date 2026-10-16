@@ -59,6 +59,13 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
    descriptions and figure details wrap; keep every field and action reachable by scrolling rather than
    shrinking text or clipping information to fit a fixed card height.
 
+13. **One app, many businesses.** `House` is a facade over `Businesses.shared.current` (Config/Businesses.swift): every
+   property is computed, so never keep a House/Theme value in a `static let` or a stored global. A setting that belongs
+   to one business is read and written through `BizKey("name")`; Firebase through `Businesses.shared.auth` /
+   `.firestore` / `.firebaseApp` (never `Auth.auth()` or `Firestore.firestore()`); a long-lived singleton that holds
+   a business's data gets `static var shared` + `static func reset()` and is added to
+   `Businesses.resetPerBusinessState()`. Built-ins ship in `Resources/businesses.json` (`node scripts/businesses.mjs`).
+
 ## Kit components
 
 Reach for these before writing a screen's own. Files: `App/UI/Ledger.swift`, `KitComponents.swift`, `Note.swift`.

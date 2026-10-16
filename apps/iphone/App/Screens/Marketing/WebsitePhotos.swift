@@ -37,7 +37,7 @@ struct WebsitePhotosScreen: View {
     @State private var said: String?
     @State private var failure: String?
 
-    private static let folderKey = "erp.website.photoFolder"
+    private static var folderKey: String { BizKey("erp.website.photoFolder") }
     /// The photos route's own limit (25 MB).
     private static let maxBytes = 25 * 1024 * 1024
 

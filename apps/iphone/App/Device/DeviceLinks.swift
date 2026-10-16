@@ -12,17 +12,20 @@ enum DeviceLinks {
 
     /// Never waits more than a few seconds: offline, the sign-out must still happen (the unregister is
     /// a courtesy to the server, tried first while the token is good, then let go).
-    @MainActor static func beforeSignOut(unregister: Bool = true) async {
+    @MainActor static func beforeSignOut(unregister: Bool = true, business: Business = House.business) async {
         if unregister {
             // Whichever ends first: the request (itself capped at 3 s) or 3 s, should getting the token hang.
             await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
                 let once = Once(done)
-                Task { @MainActor in await Push.shared.unregister(); once.fire() }
+                Task { @MainActor in await Push.shared.unregister(business: business); once.fire() }
                 Task { @MainActor in try? await Task.sleep(for: .seconds(3)); once.fire() }
             }
         }
-        ERPWidgetLink.clear()
-        WidgetCenter.shared.reloadAllTimelines()
+        // The widget is linked to one business at a time (its key is for that ERP): only that business's sign-out clears it.
+        if ERPWidgetLink.load().map({ $0.url == business.serverURL }) ?? true {
+            ERPWidgetLink.clear()
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
 }
 
@@ -32,6 +35,13 @@ enum DeviceLinks {
 final class AppRouter {
     static let shared = AppRouter()
     var open: Route?
+
+    /// Opens a page of a business that may not be the open one (a tapped notification names its business):
+    /// the business is switched to first, then the page opens over its screens.
+    func route(path: String, business id: String?) {
+        if let id, id != House.id, Businesses.shared.business(id) != nil { Businesses.shared.switch(to: id) }
+        open = Route(path: path)
+    }
 }
 
 @MainActor
@@ -43,6 +53,7 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
     private(set) var registrationError: String?
     private(set) var registering = false
     private var registrationTask: Task<Void, Never>?
+    /// The phone's push token is the device's; each signed-in business is told of it (`link`).
     private var token: String? {
         get { UserDefaults.standard.string(forKey: tokenKey) }
         set { UserDefaults.standard.set(newValue, forKey: tokenKey) }
@@ -77,9 +88,16 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
         registrationTask = Task { await link(hex) }
     }
 
+    /// Tells every business somebody is signed in to about this phone, so an alert from any of them arrives (the
+    /// payload names its business, `didReceive` below). What is shown is the open business's own answer.
     private func link(_ hex: String) async {
+        let open = House.business
+        let body: [String: Any] = ["token": hex, "bundleId": Bundle.main.bundleIdentifier ?? "", "label": UIDevice.current.model]
+        for b in Businesses.shared.signedInBusinesses() where b.id != open.id {
+            _ = try? await ERPAPI.shared.send("/api/push/devices", body, business: b)
+        }
         do {
-            try await ERPAPI.shared.send("/api/push/devices", ["token": hex, "bundleId": Bundle.main.bundleIdentifier ?? "", "label": UIDevice.current.model])
+            try await ERPAPI.shared.send("/api/push/devices", body, business: open)
             guard !Task.isCancelled else { return }
             registeredOnServer = true
             registrationError = nil
@@ -107,11 +125,11 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
         Task { _ = try? await ERPAPI.shared.send("/api/push/register-failed", body, timeout: 5) }
     }
 
-    func unregister() async {
+    /// This phone leaves one business's alerts; the token is the device's and stays for the others.
+    func unregister(business: Business = House.business) async {
         registrationTask?.cancel()
         registrationTask = nil
-        if let t = token { _ = try? await ERPAPI.shared.send("/api/push/devices", method: "DELETE", ["token": t], timeout: 3) }
-        token = nil
+        if let t = token { _ = try? await ERPAPI.shared.send("/api/push/devices", method: "DELETE", ["token": t], timeout: 3, business: business) }
         registeredOnServer = false
         registering = false
         registrationError = nil
@@ -149,8 +167,11 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        guard let url = response.notification.request.content.userInfo["url"] as? String, url.hasPrefix("/") else { return }
-        await MainActor.run { AppRouter.shared.open = Route(path: url) }
+        let info = response.notification.request.content.userInfo
+        guard let url = info["url"] as? String, url.hasPrefix("/") else { return }
+        // A payload may name its business (the ERP's push sender); without one, the page opens in the open business.
+        let business = info["business"] as? String
+        await MainActor.run { AppRouter.shared.route(path: url, business: business) }
     }
 }
 
@@ -160,6 +181,7 @@ enum WidgetLinker {
     /// has arrived, so a failed relink (offline) never leaves a working widget unlinked. False if no key came.
     @discardableResult
     @MainActor static func link(force: Bool = false) async -> Bool {
+        // The widget shows one business (the one linked last, i.e. signed in to or switched to most recently): the next task makes it per business.
         if !force, let l = ERPWidgetLink.load(), l.url == House.serverURL.absoluteString { return true }
         guard let r = try? await ERPAPI.shared.send("/api/widget/key", ["label": "iPhone widget"]), let key = r["key"] as? String else { return false }
         ERPWidgetLink.save(.init(url: House.serverURL.absoluteString, key: key, house: House.storeName))

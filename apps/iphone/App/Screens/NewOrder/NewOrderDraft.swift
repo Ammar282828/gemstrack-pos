@@ -384,7 +384,8 @@ extension NewOrderDraftStore {
 /// One serial queue, so a write that was already on its way can never land after a newer one (or after
 /// a clear), and the encoding (photos included) stays off the main thread.
 enum NewOrderDraftStore {
-    static let key = "erp.orderDraft"
+    /// Per business (BizKey): an order begun in one business is never opened in another.
+    static var key: String { BizKey("erp.orderDraft") }
 
     /// More than this and the photos are left out, so the rest of the order is always kept.
     private static let ceiling = 3_000_000

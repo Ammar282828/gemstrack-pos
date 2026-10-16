@@ -45,14 +45,27 @@ struct NavMap: Decodable {
     let settings: NavEntry?
     let actions: [NavPlace]
 
-    static let current: NavMap = {
-        guard let url = Bundle.main.url(forResource: "nav-\(House.id)", withExtension: "json"),
+    /// The open business's map. The built-ins have their own file (nav-taheri.json, nav-mina.json, exported from
+    /// nav.ts); an added business has none yet, so it opens on Taheri's map: the places are the same ERP's, and
+    /// a place the business doesn't have answers its own 404 in the page. (Next: the ERP serves its own map.)
+    static var current: NavMap {
+        let art = House.art
+        lock.lock(); defer { lock.unlock() }
+        if let cached = cache, cached.art == art { return cached.map }
+        guard let url = Bundle.main.url(forResource: "nav-\(art)", withExtension: "json"),
               let data = try? Data(contentsOf: url),
               let map = try? JSONDecoder().decode(NavMap.self, from: data) else {
-            fatalError("Resources/nav-\(House.id).json is missing: run `npm run nav:export`.")
+            fatalError("Resources/nav-\(art).json is missing: run `npm run nav:export`.")
         }
+        cache = (art, map)
         return map
-    }()
+    }
+
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var cache: (art: String, map: NavMap)?
+
+    /// The business changed: the next read loads the right file (or keeps the same one, when the art is the same).
+    static func invalidate() { lock.lock(); cache = nil; lock.unlock() }
 
     /// The map as a person sees it (src/lib/nav.ts forRole): owners everything; staff only the places
     /// marked for them; a marketing account the Marketing group whole and nothing else.

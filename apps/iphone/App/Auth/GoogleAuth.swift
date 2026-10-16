@@ -28,37 +28,43 @@ final class GoogleAuth: NSObject, ASWebAuthenticationPresentationContextProvidin
     }
 
     private var session: ASWebAuthenticationSession?
-    private var cached: (tokens: Tokens, until: Date)?
-    private let refreshKey = "google.refresh"
+    /// The ID token in hand, per business: each has its own Google client and its own sign-in.
+    private var cached: [String: (tokens: Tokens, until: Date)] = [:]
 
-    private var clientID: String { House.googleClientID }
-    private var scheme: String { "com.googleusercontent.apps." + clientID.replacingOccurrences(of: ".apps.googleusercontent.com", with: "") }
-    private var redirect: String { scheme + ":/oauth2redirect" }
+    /// The keychain account of a business's refresh token. The single-house builds kept it as "google.refresh";
+    /// Businesses moves that to Taheri's (the only business an earlier install had).
+    nonisolated static func refreshAccount(_ id: String) -> String { "google.refresh.\(id)" }
 
-    var canRefreshSilently: Bool { Keychain.get(refreshKey) != nil }
+    private func clientID(_ b: Business) -> String { b.ios.googleClientId }
+    private func scheme(_ b: Business) -> String { "com.googleusercontent.apps." + clientID(b).replacingOccurrences(of: ".apps.googleusercontent.com", with: "") }
+    private func redirect(_ b: Business) -> String { scheme(b) + ":/oauth2redirect" }
 
-    /// A Google ID token: the one in hand if it has ten minutes left, else a silent refresh, else the sheet.
-    func idToken(interactive: Bool = true) async throws -> Tokens {
-        if let c = cached, c.until > Date().addingTimeInterval(600) { return c.tokens }
-        if let refresh = Keychain.get(refreshKey), let t = try? await exchange(["grant_type": "refresh_token", "refresh_token": refresh]) { return t }
+    func canRefreshSilently(_ b: Business = House.business) -> Bool { Keychain.get(Self.refreshAccount(b.id)) != nil }
+
+    /// A Google ID token for a business (the open one unless said): the one in hand if it has ten minutes left,
+    /// else a silent refresh, else the sheet.
+    func idToken(interactive: Bool = true, business b: Business = House.business) async throws -> Tokens {
+        if let c = cached[b.id], c.until > Date().addingTimeInterval(600) { return c.tokens }
+        if let refresh = Keychain.get(Self.refreshAccount(b.id)), let t = try? await exchange(["grant_type": "refresh_token", "refresh_token": refresh], business: b) { return t }
         guard interactive else { throw Failure.failed("Sign in again.") }
-        return try await signIn()
+        return try await signIn(business: b)
     }
 
-    func signIn() async throws -> Tokens {
-        guard clientID.hasSuffix(".apps.googleusercontent.com") else { throw Failure.notConfigured }
+    func signIn(business b: Business = House.business) async throws -> Tokens {
+        let cid = clientID(b), sch = scheme(b), red = redirect(b)
+        guard cid.hasSuffix(".apps.googleusercontent.com") else { throw Failure.notConfigured }
         let verifier = Self.randomURLSafe(32)
         let challenge = Self.base64URL(Data(SHA256.hash(data: Data(verifier.utf8))))
         let state = Self.randomURLSafe(16)
         var url = URLComponents(string: "https://accounts.google.com/o/oauth2/v2/auth")!
         url.queryItems = [
-            .init(name: "client_id", value: clientID), .init(name: "redirect_uri", value: redirect),
+            .init(name: "client_id", value: cid), .init(name: "redirect_uri", value: red),
             .init(name: "response_type", value: "code"), .init(name: "scope", value: "openid email profile"),
             .init(name: "code_challenge", value: challenge), .init(name: "code_challenge_method", value: "S256"),
             .init(name: "state", value: state), .init(name: "prompt", value: "select_account"),
         ]
         let callback: URL = try await withCheckedThrowingContinuation { cont in
-            let s = ASWebAuthenticationSession(url: url.url!, callbackURLScheme: scheme) { url, error in
+            let s = ASWebAuthenticationSession(url: url.url!, callbackURLScheme: sch) { url, error in
                 if let error {
                     cont.resume(throwing: (error as? ASWebAuthenticationSessionError)?.code == .canceledLogin ? Failure.cancelled : Failure.failed(error.localizedDescription))
                 } else if let url { cont.resume(returning: url) } else { cont.resume(throwing: Failure.failed("No answer from Google.")) }
@@ -73,31 +79,31 @@ final class GoogleAuth: NSObject, ASWebAuthenticationPresentationContextProvidin
         let value = { (n: String) in items.first { $0.name == n }?.value }
         if let e = value("error") { throw e == "access_denied" ? Failure.cancelled : Failure.failed("Google said: \(e)") }
         guard value("state") == state, let code = value("code") else { throw Failure.failed("Google's answer didn't match this sign-in.") }
-        return try await exchange(["grant_type": "authorization_code", "code": code, "code_verifier": verifier, "redirect_uri": redirect])
+        return try await exchange(["grant_type": "authorization_code", "code": code, "code_verifier": verifier, "redirect_uri": red], business: b)
     }
 
-    func signOut() {
-        cached = nil
-        Keychain.set(nil, for: refreshKey)
+    func signOut(_ b: Business = House.business) {
+        cached[b.id] = nil
+        Keychain.set(nil, for: Self.refreshAccount(b.id))
     }
 
-    private func exchange(_ form: [String: String]) async throws -> Tokens {
+    private func exchange(_ form: [String: String], business b: Business) async throws -> Tokens {
         var request = URLRequest(url: URL(string: "https://oauth2.googleapis.com/token")!)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         var allowed = CharacterSet.alphanumerics; allowed.insert(charactersIn: "-._~")
-        request.httpBody = (form.merging(["client_id": clientID]) { a, _ in a })
+        request.httpBody = (form.merging(["client_id": clientID(b)]) { a, _ in a })
             .map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: allowed) ?? $0.value)" }
             .joined(separator: "&").data(using: .utf8)
         let (data, _) = try await URLSession.shared.data(for: request)
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
         guard let id = json["id_token"] as? String else {
-            if form["grant_type"] == "refresh_token" { Keychain.set(nil, for: refreshKey) }
+            if form["grant_type"] == "refresh_token" { Keychain.set(nil, for: Self.refreshAccount(b.id)) }
             throw Failure.failed("Google didn't sign you in (\(json["error_description"] as? String ?? json["error"] as? String ?? "no token")).")
         }
-        if let r = json["refresh_token"] as? String { Keychain.set(r, for: refreshKey) }
+        if let r = json["refresh_token"] as? String { Keychain.set(r, for: Self.refreshAccount(b.id)) }
         let tokens = Tokens(idToken: id, accessToken: json["access_token"] as? String ?? "")
-        cached = (tokens, Date().addingTimeInterval(TimeInterval((json["expires_in"] as? Int) ?? 3600)))
+        cached[b.id] = (tokens, Date().addingTimeInterval(TimeInterval((json["expires_in"] as? Int) ?? 3600)))
         return tokens
     }
 

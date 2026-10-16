@@ -21,9 +21,9 @@ enum RateKeys {
         var id: String { title }
     }
 
-    static let main: Field = House.metal == "silver"
+    static var main: Field { House.metal == "silver"
         ? Field(key: "silverRatePerGram", label: "Silver", value: \.silverRatePerGram)
-        : Field(key: "goldRatePerGram21k", label: "21K", value: \.goldRatePerGram21k)
+        : Field(key: "goldRatePerGram21k", label: "21K", value: \.goldRatePerGram21k) }
 
     /// The house's own metal first: a silver house files silver under Silver, not "Other metals".
     static var groups: [Group] {

@@ -559,7 +559,9 @@ struct WebsiteGoldDaySheet: View {
 @MainActor
 @Observable
 final class WebsiteGold {
-    static let shared = WebsiteGold()
+    /// Replaced, not cleared, when the person switches business (Businesses.switch): none of it is the next one's.
+    static var shared = WebsiteGold()
+    static func reset() { shared = WebsiteGold() }
 
     enum Phase: Equatable {
         case idle

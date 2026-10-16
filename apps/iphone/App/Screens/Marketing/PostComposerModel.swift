@@ -110,7 +110,7 @@ final class PostComposerModel {
     }
     func load() async {
         guard !loaded else { return }
-        let scope = House.isDemo ? "demo" : (Auth.auth().currentUser?.uid ?? "signed-out")
+        let scope = House.isDemo ? "demo" : (Businesses.shared.auth?.currentUser?.uid ?? "signed-out")
         let storage = NativePostDisk(scope: scope); disk = storage
         do { drafts = try await storage.list(); if let latest = drafts.first { draft = latest } } catch { self.error = "Drafts could not be read: \(error.localizedDescription)" }
         loaded = true

@@ -33,7 +33,7 @@ private struct DataForm: View {
             Section {
                 NavigationLink(value: Route(path: "/settings/contact-import")) { Label("Import contacts", systemImage: "person.crop.circle.badge.plus") }
                 NavigationLink(value: Route(path: "/settings/hisaab-import")) { Label("Import hisaab", systemImage: "square.and.arrow.down") }
-                if House.id == "taheri" {
+                if House.id == "taheri" || House.isDemo {
                     NavigationLink(value: Route(path: "/settings/import-taheri")) { Label("Import Taheri Software book", systemImage: "books.vertical") }
                 }
             } header: {

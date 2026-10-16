@@ -191,7 +191,7 @@ final class DesignPublishModel {
         ig = w?.copy["ig"] ?? ""
         adText = w?.copy["adText"] ?? ""
         adHeadline = w?.copy["adHeadline"] ?? (w?.fields["headline"] ?? "")
-        let key = "design.publish." + (w?.id ?? w?.displayName ?? "design")
+        let key = BizKey("design.publish." + (w?.id ?? w?.displayName ?? "design"))
         memoryKey = key
         memory = (UserDefaults.standard.dictionary(forKey: key) as? [String: String]) ?? [:]
     }
@@ -239,10 +239,10 @@ final class DesignPublishModel {
 
     /// The remembered collection and WhatsApp places, once the rows say what exists.
     private func seed() {
-        let last = UserDefaults.standard.string(forKey: "taheri_post_folder") ?? ""
+        let last = UserDefaults.standard.string(forKey: BizKey("taheri_post_folder")) ?? ""
         if !last.isEmpty, collections.contains(where: { $0.folder == last }) { folder = last }
         let all = (row("whatsapp")?.targets ?? []) + (row("channel")?.targets ?? [])
-        let wanted = (UserDefaults.standard.string(forKey: "design_wa_targets") ?? "").split(separator: ",").map(String.init).filter { k in all.contains { $0.key == k } }
+        let wanted = (UserDefaults.standard.string(forKey: BizKey("design_wa_targets")) ?? "").split(separator: ",").map(String.init).filter { k in all.contains { $0.key == k } }
         waKeys = wanted.isEmpty ? Array((row("whatsapp")?.targets ?? []).prefix(1)).map(\.key) + (row("channel")?.targets ?? []).map(\.key) : wanted
         if !ok("website") { websiteOn = false }
         if !ok("whatsapp") && !ok("channel") { waOn = false }
@@ -253,8 +253,8 @@ final class DesignPublishModel {
     /// The collection and the WhatsApp places are remembered on this device, as the web's sheet does.
     func remember() {
         guard seeded else { return }
-        if !folder.isEmpty { UserDefaults.standard.set(folder, forKey: "taheri_post_folder") }
-        if !waKeys.isEmpty { UserDefaults.standard.set(waKeys.joined(separator: ","), forKey: "design_wa_targets") }
+        if !folder.isEmpty { UserDefaults.standard.set(folder, forKey: BizKey("taheri_post_folder")) }
+        if !waKeys.isEmpty { UserDefaults.standard.set(waKeys.joined(separator: ","), forKey: BizKey("design_wa_targets")) }
     }
 
     func refreshHealth() async {
