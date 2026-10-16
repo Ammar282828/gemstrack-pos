@@ -17,7 +17,8 @@
  * an agent never overwrite each other; the page asks for what changed every few seconds.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useLingering } from '@/hooks/use-lingering';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +27,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Maximize2, Minimize2, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X, Upload, Undo2, Wand2, Type, Crown, Redo2, LayoutGrid, ChevronDown, MousePointerClick, PanelRight, Link2, Link2Off } from 'lucide-react';
+import { Bot, CalendarDays, Copy, Download, FolderOpen, Loader2, Maximize, Maximize2, Minimize2, Minus, Pencil, Plus, Rocket, Send, Shapes, Sparkles, StickyNote, Trash2, ImagePlus, Files, KeyRound, X, Upload, Undo2, Wand2, Type, Crown, Redo2, LayoutGrid, ChevronDown, ChevronLeft, ChevronRight, Check as CheckIcon, MousePointerClick, PanelRight, Link2, Link2Off } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
@@ -42,8 +43,9 @@ import { HANDOFF_PREFIX, type StudioHandoff } from '@/lib/ads/studio/handoff';
 import type { WeeklyState } from '@/lib/ads/studio/weekly';
 import { STORE_LINKS } from '@/lib/store-config';
 import { linkAll, linkKey, linkedCount, sizesOf, toggleLink } from '@/lib/ads/studio/board-links';
+import { tidyLayout } from '@/lib/ads/studio/board-tidy';
 import { resizeOne } from '@/lib/design/resize';
-import { SoloEditor, useStoryDoc, type DesignerExtras, type Editor } from '../website/post/story-editor';
+import { SoloEditor, useStoryDoc, type DesignerExtras, type Editor, type SidePanel } from '../website/post/story-editor';
 import { MarksSection } from '../website/post/editor-panels';
 import { FONTS, bodyFace, headlineFace, serifFace } from '../website/post/fonts';
 import { useSiteAssets } from '../website/post/site-assets';
@@ -65,13 +67,15 @@ const ANGLES = ['', 'bold and graphic, one strong line', 'quiet luxury — very 
 
 interface Pic { img: HTMLImageElement; blob: Blob; url: string }
 const pics = new Map<string, Promise<Pic>>();
+/** The same pictures once here, to read at once: the designer moving to the next design draws it in its first frame. */
+const picsDone = new Map<string, Pic>();
 /** `alpha`: a library picture laid on the design (inset, background, logo) keeps its transparency (a PNG); the design's own photo is always a JPEG. */
 function photoOf(id: string, alpha = false): Promise<Pic> {
   const key = alpha ? `alpha|${id}` : id;
   let p = pics.get(key);
   if (!p) {
     p = fetchAsset(id, 1600, alpha).then(async blob => ({ blob, img: await loadImage(blob), url: URL.createObjectURL(blob) }));
-    p.catch(() => pics.delete(key));
+    p.then(x => picsDone.set(key, x), () => pics.delete(key));
     pics.set(key, p);
   }
   return p;
@@ -85,7 +89,7 @@ const fontsReady = () => (fontsOnce ??= Promise.all(
 /** A picture this page already has (an upload, an AI result): kept as if fetched, so it isn't fetched back. */
 function remember(id: string, blob: Blob) {
   const p = loadImage(blob).then(img => ({ blob, img, url: URL.createObjectURL(blob) }));
-  p.catch(() => { pics.delete(id); pics.delete(`alpha|${id}`); });
+  p.then(x => { picsDone.set(id, x); picsDone.set(`alpha|${id}`, x); }, () => { pics.delete(id); pics.delete(`alpha|${id}`); });
   pics.set(id, p);
   pics.set(`alpha|${id}`, p);
 }
@@ -111,6 +115,12 @@ async function extrasOf(doc: StoryDoc | null | undefined): Promise<Extras> {
   const ids = extraIds(doc);
   const got = await Promise.all(ids.map(id => photoOf(assetOfRef(id)!, true).catch(() => null)));
   return Object.fromEntries(ids.flatMap((id, i) => (got[i] ? [[id, got[i]!]] : [])));
+}
+/** The pictures of extrasOf that are already here (null when any is still to come). */
+function extrasNow(doc: StoryDoc | null | undefined): Extras | null {
+  const out: Extras = {};
+  for (const id of extraIds(doc)) { const x = picsDone.get(`alpha|${assetOfRef(id)}`); if (!x) return null; out[id] = x; }
+  return out;
 }
 const assetsFor = (pic: Pic | null, marks: Assets['marks'], extras: Extras = {}): Assets => ({
   photos: { ...(pic ? { [PHOTO]: pic.img } : {}), ...Object.fromEntries(Object.entries(extras).map(([k, v]) => [k, v.img])) } as Assets['photos'],
@@ -282,6 +292,14 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
     return () => { document.removeEventListener('fullscreenchange', onChange); window.removeEventListener('keydown', onKey); };
   }, []);
   const [editing, setEditing] = useState<string | null>(null);
+  // The board's drawing of each design, for the designer's strip (FrameCard draws them; batched to one render a frame).
+  const thumbsRef = useRef<Record<string, string>>({});
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
+  const thumbFrame = useRef(0);
+  const onThumb = useCallback((fid: string, url: string) => {
+    thumbsRef.current = { ...thumbsRef.current, [fid]: url };
+    if (!thumbFrame.current) thumbFrame.current = requestAnimationFrame(() => { thumbFrame.current = 0; setThumbs(thumbsRef.current); });
+  }, []);
   const [cooking, setCooking] = useState<string | null>(null);
   const { marks, ready: marksReady } = useSiteAssets(true);
   const [fontsOk, setFontsOk] = useState(false);
@@ -346,9 +364,14 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
     try { setBoard(applyOps(cur, ops).board); } catch { /* the server says why */ }
     busy.current++;
     try {
-      const r = await api<{ board: Board; added: string[] }>(`/api/ads/studio/boards/${id}`, { method: 'PATCH', body: { ops } });
-      setBoard(r.board);
-      return r.added;
+      // The server takes 60 changes a request (board.ts): Tidy on a big board moves more.
+      const added: string[] = [];
+      for (let i = 0; i < ops.length; i += 60) {
+        const r = await api<{ board: Board; added: string[] }>(`/api/ads/studio/boards/${id}`, { method: 'PATCH', body: { ops: ops.slice(i, i + 60) } });
+        setBoard(r.board);
+        added.push(...r.added);
+      }
+      return added;
     } catch (e) {
       fail('That didn’t save', e);
       load().catch(() => undefined);
@@ -415,12 +438,26 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
   }, []);
   const fitRef = useRef(fit);
   fitRef.current = fit;
+  /** The board's designs as read: row by row (tops within a short step of each other), left to right. */
+  const reading = useMemo(() => [...frames].sort((a, b) => Math.round(a.y / 160) - Math.round(b.y / 160) || a.x - b.x), [frames]);
+  /** Bring a design into view (keeping the zoom) when it is off the visible board. */
+  const reveal = useCallback((fid: string) => requestAnimationFrame(() => {
+    const el = boxRef.current, f = boardRef.current?.frames.find(x => x.id === fid);
+    if (!el || !f) return;
+    setView(v => {
+      const w = framePx(f).w * BOARD_SCALE * v.z, h = (framePx(f).h * BOARD_SCALE + 28) * v.z;
+      const left = v.x + f.x * v.z, top = v.y + (f.y - 28) * v.z;
+      if (left >= 0 && top >= 0 && left + w <= el.clientWidth && top + h <= el.clientHeight) return v;
+      return { ...v, x: el.clientWidth / 2 - (f.x * v.z + w / 2), y: el.clientHeight / 2 - ((f.y - 28) * v.z + h / 2) };
+    });
+  }), []);
   useEffect(() => { if (board && !fitted.current) { fitted.current = true; requestAnimationFrame(fit); } }, [board, fit]);
   // The box changed size (stage, inline, full screen): fit what is on it again.
   const sized = useRef(true);
   useEffect(() => { if (sized.current) { sized.current = false; return; } const r = requestAnimationFrame(() => fitRef.current()); return () => cancelAnimationFrame(r); }, [stage, full]);
   // Picking a design brings its panel up over the board; picking nothing puts it away.
-  useEffect(() => { setDrawer(!!sel); }, [sel?.kind, sel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const quietSel = useRef(false);   // picked on the way back from the designer: the panel stays as it was
+  useEffect(() => { if (quietSel.current) { quietSel.current = false; return; } setDrawer(!!sel); }, [sel?.kind, sel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const zoomAt = useCallback((k: number, cx: number, cy: number) => {
     setView(v => {
@@ -518,23 +555,17 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
   const setNoteText = (n: BoardNote, text: string) => act([{ op: 'noteText', id: n.id, text }], [{ op: 'noteText', id: n.id, text: n.text }]);
 
   /** Tidy up: the designs in rows, in their reading order, an even gap apart. One step to undo. */
+  /** Neat rows, each ad's sizes side by side (2026-10-16: a shoot's 4:5, 9:16 and 3:4 were split across rows), as many ads a row as fill the board's shape. */
   const tidy = () => {
     if (!frames.length) return;
-    const order = [...frames].sort((a, b) => (Math.abs(a.y - b.y) > 120 ? a.y - b.y : a.x - b.x));
-    const cols = Math.max(1, Math.ceil(Math.sqrt(order.length * 1.4)));
-    const gap = 60, label = 28;
-    const x0 = Math.min(...order.map(f => f.x)), y0 = Math.min(...order.map(f => f.y));
+    const el = boxRef.current;
     const moves: BoardOp[] = [], back: BoardOp[] = [];
-    let y = y0;
-    for (let i = 0; i < order.length; i += cols) {
-      const row = order.slice(i, i + cols);
-      let x = x0;
-      for (const f of row) {
-        moves.push({ op: 'move', id: f.id, x, y }); back.push({ op: 'move', id: f.id, x: f.x, y: f.y });
-        x += framePx(f).w * BOARD_SCALE + gap;
-      }
-      y += Math.max(...row.map(f => framePx(f).h * BOARD_SCALE)) + label + gap;
+    const placed = tidyLayout(frames, el ? el.clientWidth / Math.max(1, el.clientHeight) : 1.6);
+    for (const f of frames) {
+      const p = placed.get(f.id);
+      if (p && (p.x !== f.x || p.y !== f.y)) { moves.push({ op: 'move', id: f.id, ...p }); back.push({ op: 'move', id: f.id, x: f.x, y: f.y }); }
     }
+    if (!moves.length) { fit(); return; }
     act(moves, back).then(() => requestAnimationFrame(() => fitRef.current()));
   };
 
@@ -812,7 +843,7 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
               return (
                 <FrameCard key={f.id} frame={f} x={p.x} y={p.y} selected={sel?.kind === 'frame' && sel.id === f.id} fresh={fresh.has(f.id)}
                   marks={marks} ready={marksReady && fontsOk} boardId={board.id} drawnRev={drawn[f.id]}
-                  onDown={e => onDown(e, { kind: 'frame', id: f.id, x: f.x, y: f.y })} onLaidOut={onLaidOut} onDrawn={onDrawn}
+                  onDown={e => onDown(e, { kind: 'frame', id: f.id, x: f.x, y: f.y })} onLaidOut={onLaidOut} onDrawn={onDrawn} onThumb={onThumb}
                   onOpen={() => setEditing(f.id)} />
               );
             })}
@@ -916,11 +947,13 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
       {queueShown && <QueueDialog key={queueShown.id} frame={queueShown} open={!!queueFor} onClose={() => setQueueFor(null)} onQueue={o => { if (queueFor) queuePost(queueFor, o); }} />}
       {editing && (() => {
         const f = frames.find(x => x.id === editing);
-        return f ? <FrameEditor key={f.id} frame={f} sizes={sizesOf(frames, f)} marks={marks} onClose={() => setEditing(null)} onSave={async patch => {
-          const n = await saveFrame(f.id, patch);
-          setEditing(null);
-          toast({ title: 'Saved to the board', ...(n ? { description: `Linked text changed in ${n} other size${n > 1 ? 's' : ''} too.` } : {}) });
-        }} /> : null;
+        // Back on the board, the design just edited is picked and in view.
+        return f ? <FrameEditor key={f.id} frame={f} sizes={sizesOf(frames, f)} order={reading} thumbs={thumbs} marks={marks}
+          onClose={() => {
+            setEditing(null); quietSel.current = sel?.kind !== 'frame' || sel.id !== f.id; setSel({ kind: 'frame', id: f.id }); reveal(f.id);
+            setFresh(new Set([f.id])); setTimeout(() => setFresh(new Set()), 1600);
+          }}
+          onSave={patch => saveFrame(f.id, patch)} onSwitch={setEditing} /> : null;
       })()}
     </div>
   );
@@ -938,9 +971,10 @@ function BarButton({ label, onClick, disabled, strong, children }: { label: stri
 
 // ── A design on the board ──────────────────────────────────────────────────
 
-function FrameCard({ frame: f, x, y, selected, fresh, marks, ready, boardId, drawnRev, onDown, onLaidOut, onDrawn, onOpen }: {
+function FrameCard({ frame: f, x, y, selected, fresh, marks, ready, boardId, drawnRev, onDown, onLaidOut, onDrawn, onThumb, onOpen }: {
   frame: BoardFrame; x: number; y: number; selected: boolean; fresh: boolean; marks: Assets['marks']; ready: boolean; boardId: string; drawnRev: number | undefined;
-  onDown: (e: React.PointerEvent) => void; onLaidOut: (f: BoardFrame, doc: StoryDoc) => void; onDrawn: (id: string, rev: number) => void; onOpen: () => void;
+  onDown: (e: React.PointerEvent) => void; onLaidOut: (f: BoardFrame, doc: StoryDoc) => void; onDrawn: (id: string, rev: number) => void;
+  onThumb: (id: string, url: string) => void; onOpen: () => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -959,7 +993,10 @@ function FrameCard({ frame: f, x, y, selected, fresh, marks, ready, boardId, dra
         if (!f.doc) { onLaidOut(f, layOut(f, a)); return; }
         const shown = await canvasToJpeg(drawTo(f.doc, f.fields, a, SHOW_PX), 0.86);
         if (!live) return;
-        setUrl(old => { if (old) URL.revokeObjectURL(old); return URL.createObjectURL(shown); });
+        const next = URL.createObjectURL(shown);
+        // The old drawing goes a moment later: the designer's strip may still be showing it.
+        setUrl(old => { if (old) setTimeout(() => URL.revokeObjectURL(old), 2000); return next; });
+        onThumb(f.id, next);
         setErr(null);
         // The agent's copy: drawn again only when the design has changed since.
         if (drawnRev !== f.rev && sending.current !== f.rev) {
@@ -1145,19 +1182,28 @@ const FIELD_ROWS: [Bind, string, number][] = [['kicker', 'Small line', 60], ['he
  * me edit any present text and picture … add text, different fonts, elements … also ai features"): the
  * Canva-style designer (text, fonts, elements, photos and uploads, brand, layers, background, undo, align,
  * snap) beside the design's pictures — each replaced from the library or this device, or edited by the
- * image AI, the original restorable until Save — and its words, written by the AI on request. Full screen
- * of its own rather than a dialog, so the designer it opens takes clicks and keys. Save is one `put`;
- * pictures uploaded in the designer are put in the library first (board-pictures.ts rewriteUploads).
+ * image AI, the original restorable while the design is open — and its words, written by the AI on request.
+ * Full screen of its own rather than a dialog, so the designer it opens takes clicks and keys.
+ *
+ * The board stays one step away (2026-10-16, owner: "editing one ad shouldn't remove me from everything else,
+ * make it seamless and very smooth to use"): every change is saved as it is made (one `put` a moment later;
+ * pictures uploaded in the designer go to the library first, board-pictures.ts rewriteUploads); the strip under
+ * the page is the whole board, its sizes are tabs beside the name, and ‹ › or [ ] move to the next design
+ * without closing — the panel that was open stays open.
  */
-function FrameEditor({ frame: f, sizes, marks, onClose, onSave }: { frame: BoardFrame; sizes: BoardFrame[]; marks: Assets['marks']; onClose: () => void; onSave: (p: Partial<BoardFrame>) => Promise<void> }) {
+function FrameEditor({ frame: f, sizes, order, thumbs, marks, onClose, onSave, onSwitch }: {
+  frame: BoardFrame; sizes: BoardFrame[]; order: BoardFrame[]; thumbs: Record<string, string>; marks: Assets['marks'];
+  onClose: () => void; onSave: (p: Partial<BoardFrame>) => Promise<number>; onSwitch: (id: string) => void;
+}) {
   const { toast } = useToast();
   const [start] = useState(f);   // the design as opened: the board's poll may hand a newer one in meanwhile
   const [assetId, setAssetId] = useState<string | null>(start.assetId);
   const [marked, setMarked] = useState(start.marked);
   const [label, setLabel] = useState(start.label);
-  const [pic, setPic] = useState<Pic | null>(null);
+  // Pictures already fetched are drawn in the first frame (moving between designs shows no "Fetching…" between them).
+  const [pic, setPic] = useState<Pic | null>(() => (start.assetId ? picsDone.get(start.assetId) ?? null : null));
   const [picErr, setPicErr] = useState(false);
-  const [extras, setExtras] = useState<Extras>({});
+  const [extras, setExtras] = useState<Extras>(() => extrasNow(start.doc) ?? {});
   const [fields, setFields] = useState<Fields>(start.fields);
   const [template, setTemplate] = useState<AdTemplateId>(start.template);
   const [palette, setPalette] = useState(PALETTES[0]);
@@ -1174,6 +1220,8 @@ function FrameEditor({ frame: f, sizes, marks, onClose, onSave }: { frame: Board
     let live = true;
     setPicErr(false);
     if (!assetId) { setPic(null); return; }
+    const now = picsDone.get(assetId);
+    if (now) { setPic(now); return; }
     photoOf(assetId).then(p => live && setPic(p)).catch(() => { if (live) { setPic(null); setPicErr(true); } });
     return () => { live = false; };
   }, [assetId]);
@@ -1197,24 +1245,81 @@ function FrameEditor({ frame: f, sizes, marks, onClose, onSave }: { frame: Board
     const laid = layOut({ ...start, fields, template }, assets);
     doc.reset(laid);
     setOrigin(pictureMap(laid)); setOriginBg(laid.bg.photoId ?? MAIN);
+    savedRef.current = JSON.stringify({ ...curRef.current, doc: laid }); setSaved(savedRef.current);   // laid out, not yet changed
   }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const dirty = doc.canUndo || assetId !== start.assetId || marked !== start.marked || template !== start.template || label !== start.label
-    || FIELD_ROWS.some(([b]) => fields[b] !== start.fields[b]);
-  const dirtyRef = useRef(dirty);
-  dirtyRef.current = dirty;
+  // ── Saved as you go (2026-10-16, owner: "editing one ad shouldn't remove me from everything else, make it
+  // seamless"): each change goes to the board a moment after it is made, so there is no Save to remember and
+  // nothing to discard; closing, or moving to another design, waits for the last one.
+  const cur = { doc: doc.doc, fields, template, label, assetId, marked };
+  const snap = useMemo(() => JSON.stringify(cur), [doc.doc, fields, template, label, assetId, marked]); // eslint-disable-line react-hooks/exhaustive-deps
+  const curRef = useRef(cur);
+  curRef.current = cur;
+  const savedRef = useRef<string | null>(start.doc ? snap : null);   // what the board has (set once a new design is laid out)
+  const [saved, setSaved] = useState(savedRef.current);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'failed'>('idle');
+  const [linked, setLinked] = useState(0);
+  const inflight = useRef<Promise<void> | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+  /** Send what is on the page now, unless the board has it. One at a time; throws when it fails. */
+  const persist = useCallback(async (): Promise<void> => {
+    clearTimeout(timer.current);
+    while (inflight.current) await inflight.current.catch(() => undefined);
+    const c = curRef.current, s = JSON.stringify(c);
+    if (savedRef.current === null || s === savedRef.current) return;
+    const run = (async () => {
+      setSaveState('saving');
+      let d = c.doc;
+      // Pictures uploaded in the designer go to the library first (the board keeps no data: URLs).
+      const srcs = uploadSrcs(d);
+      if (srcs.length) {
+        const map: Record<string, string> = {};
+        for (const [i, src] of srcs.entries()) map[src] = await uploadPicture(await (await fetch(src)).blob(), `${c.label || 'Design'} · upload ${i + 1}`);
+        d = rewriteUploads(d, map);
+        if (curRef.current.doc === c.doc) doc.change(() => d, { key: 'uploads' });
+      }
+      const n = await onSaveRef.current({ ...c, doc: d });
+      savedRef.current = d === c.doc ? s : JSON.stringify({ ...c, doc: d });
+      setSaved(savedRef.current); setLinked(n); setSaveState('idle'); setRetry(0);
+    })();
+    inflight.current = run;
+    try { await run; } catch (e) { setSaveState('failed'); throw e; } finally { if (inflight.current === run) inflight.current = null; }
+  }, [doc]);
+  const warned = useRef(false);
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
-    const warn = (e: BeforeUnloadEvent) => { if (dirtyRef.current) { e.preventDefault(); e.returnValue = ''; } };
+    if (savedRef.current === null || snap === savedRef.current) return;
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      persist().then(() => { warned.current = false; }, e => {
+        if (!warned.current) { warned.current = true; fail('Not saved yet — trying again', e); }
+        setRetry(r => r + 1);
+      });
+    }, retry ? 4000 : 700);
+  }, [snap, retry]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pending = snap !== saved;
+  const pendingRef = useRef(false);
+  pendingRef.current = pending || saveState === 'saving';
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => { if (pendingRef.current) { persist().catch(() => undefined); e.preventDefault(); e.returnValue = ''; } };
     window.addEventListener('beforeunload', warn);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { window.removeEventListener('beforeunload', warn); document.body.style.overflow = overflow; };
-  }, []);
-  const cancel = () => {
-    if (busy && !window.confirm('Something is still working. Close anyway?')) return;
-    if (dirty && !window.confirm('Discard your changes to this design?')) return;
-    onClose();
+    return () => { window.removeEventListener('beforeunload', warn); document.body.style.overflow = overflow; clearTimeout(timer.current); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  /** Save what is left, then leave (to the board, or to another design). */
+  const [leaving, setLeaving] = useState(false);
+  const leave = async (then: () => void) => {
+    if (leaving) return;
+    if (busy && !window.confirm(`${busy.replace(/…$/, '')} is still working; its result would be lost. Leave anyway?`)) return;
+    setLeaving(true);
+    try { await persist(); then(); } catch (e) {
+      if (window.confirm(`The last change didn’t save (${e instanceof Error ? e.message : String(e)}). Leave without it?`)) then();
+    } finally { setLeaving(false); }
   };
+  const cancel = () => leave(onClose);
 
   const fail = (title: string, e: unknown) => toast({ title, description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
   useEffect(() => {
@@ -1320,7 +1425,7 @@ function FrameEditor({ frame: f, sizes, marks, onClose, onSave }: { frame: Board
       setChecks(c => ({ ...c, [target]: r.check }));
       toast(r.check && !r.check.samePiece
         ? { title: 'Look closely', description: `The check thinks the piece changed: ${r.check.differences.slice(0, 2).join('; ') || 'not the same'}. Restore the original if so.`, variant: 'destructive' }
-        : { title: 'Done', description: r.check ? 'The check says it is the same piece. The original is one tap away until you save.' : 'The original is one tap away until you save.' });
+        : { title: 'Done', description: r.check ? 'The check says it is the same piece. The original is one tap away while this design is open.' : 'The original is one tap away while this design is open.' });
       if (isMain && clean && wasMarked) toast({ title: 'The logo is off the photo', description: 'Add the house’s mark from Elements → The shop’s marks, or pick a layout again.' });
     } catch (e) { fail('The AI couldn’t do that', e); } finally { setBusy(null); }
   };
@@ -1340,25 +1445,6 @@ function FrameEditor({ frame: f, sizes, marks, onClose, onSave }: { frame: Board
   };
   const setField = (b: Bind, v: string) => setFields(x => ({ ...x, [b]: v }));
   const freeText = doc.doc.layers.filter((l): l is Extract<typeof l, { kind: 'text' }> => l.kind === 'text' && !l.bind);
-
-  // ── Save ──
-  const save = async () => {
-    if (busy) return;
-    setBusy('Saving…');
-    try {
-      let d = doc.doc;
-      const srcs = uploadSrcs(d);
-      const map: Record<string, string> = {};
-      for (const [i, s] of srcs.entries()) {
-        setBusy(`Putting picture ${i + 1} of ${srcs.length} in the library…`);
-        map[s] = await uploadPicture(await (await fetch(s)).blob(), `${label || 'Design'} · upload ${i + 1}`);
-      }
-      d = rewriteUploads(d, map);
-      if (d !== doc.doc) doc.change(() => d);
-      setBusy('Saving…');
-      await onSave({ doc: d, fields, template, label, assetId, marked });
-    } catch (e) { fail('That didn’t save — your changes are still here', e); setBusy(null); }
-  };
 
   // ── The designer, canvas first: the host's panels (Add, Pictures, Words) in its rail, tools for what is selected ──
   const edRef = useRef<Editor | null>(null);
@@ -1451,8 +1537,8 @@ function FrameEditor({ frame: f, sizes, marks, onClose, onSave }: { frame: Board
       const t = ed.one, n = linkedCount(sizes, t);
       return (<>
         <T primary icon={linkKey(t) ? <Link2 className={i} /> : <Link2Off className={i} />}
-          label={linkKey(t) ? (where === 'toolbar' ? `Linked · ${n ? sizesLabel : 'on save'}` : 'Linked') : 'Unlinked'}
-          onClick={() => { ed.update(t.id, l => toggleLink(l)); toast({ title: linkKey(t) ? 'Unlinked: this text is this size’s own' : `Linked: saves carry it to ${sizesLabel}` }); }} />
+          label={linkKey(t) ? (where === 'toolbar' ? `Linked · ${n ? sizesLabel : 'as you edit'}` : 'Linked') : 'Unlinked'}
+          onClick={() => { ed.update(t.id, l => toggleLink(l)); toast({ title: linkKey(t) ? 'Unlinked: this text is this size’s own' : `Linked: changes go to ${sizesLabel} too` }); }} />
         {words}
       </>);
     }
@@ -1461,20 +1547,76 @@ function FrameEditor({ frame: f, sizes, marks, onClose, onSave }: { frame: Board
     return (<>
       <T primary icon={<Plus className={i} />} label="Add" onClick={() => ed.setPanel('x:add')} />
       <T icon={<Pencil className={i} />} label="Words" onClick={() => ed.setPanel('x:words')} />
-      {sizes.length > 0 && loose.length > 0 && <T icon={<Link2 className={i} />} label="Link all" onClick={() => { doc.change(d => ({ ...d, layers: d.layers.map(l => (l.kind === 'text' && !linkKey(l) ? toggleLink(l) : l)) })); toast({ title: `${loose.length} text${loose.length > 1 ? 's' : ''} linked`, description: `Save to carry them to ${sizesLabel}.` }); }} />}
+      {sizes.length > 0 && loose.length > 0 && <T icon={<Link2 className={i} />} label="Link all" onClick={() => { doc.change(d => ({ ...d, layers: d.layers.map(l => (l.kind === 'text' && !linkKey(l) ? toggleLink(l) : l)) })); toast({ title: `${loose.length} text${loose.length > 1 ? 's' : ''} linked`, description: `Changes to them now go to ${sizesLabel} too.` }); }} />}
       {assetId && <T icon={<ImagePlus className={i} />} label="Replace photo" onClick={() => setPicking({ target: MAIN })} />}
     </>);
   };
 
+  // ── Moving between designs without leaving: the next and previous on the board, the design's other sizes ──
+  const at = order.findIndex(x => x.id === start.id);
+  const prev = at > 0 ? order[at - 1] : null, next = at >= 0 && at < order.length - 1 ? order[at + 1] : null;
+  const group = [start, ...sizes].sort((a, b) => FORMATS.indexOf(a.format) - FORMATS.indexOf(b.format));
+  const go = (id: string | undefined) => { if (id && id !== start.id) void leave(() => onSwitch(id)); };
+  const goRef = useRef(go);
+  goRef.current = go;
+  const pickingRef = useRef(picking);
+  pickingRef.current = picking;
+  useEffect(() => {
+    // [ and ] (as in a slideshow): before the designer's own keys, and never while typing.
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key !== '[' && e.key !== ']') || e.metaKey || e.ctrlKey || e.altKey || pickingRef.current) return;
+      if ((e.target as HTMLElement | null)?.closest?.('input,textarea,select,[contenteditable="true"]')) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      goRef.current(e.key === '[' ? prevRef.current?.id : nextRef.current?.id);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, []);
+  const prevRef = useRef(prev), nextRef = useRef(next);
+  prevRef.current = prev; nextRef.current = next;
+  // The designs one step away are fetched now, so moving to them is instant.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      for (const x of [next, prev, ...sizes, order[at + 2], order[at - 2]]) {
+        if (!x) continue;
+        if (x.assetId) photoOf(x.assetId).catch(() => undefined);
+        extrasOf(x.doc).catch(() => undefined);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const navBtn = 'flex h-8 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 min-h-0';
   const designerExtras: DesignerExtras = {
-    panels, tools, hide: ['photos'], startPanel: 'x:add', closeLabel: 'Cancel',
-    hint: 'Click to select · drag, resize and turn on the page · Delete · ⌘Z / ⇧⌘Z undo · ⌘D duplicate · arrows nudge (⇧ more) · Esc deselect · right-click for order, lock, align',
-    title: <input value={label} onChange={e => setLabel(e.target.value.slice(0, 80))} aria-label="Design name" placeholder="Design"
-      className="h-8 min-w-0 max-w-[40vw] rounded-md border border-transparent bg-transparent px-1.5 text-sm font-medium outline-none hover:border-border focus:border-primary sm:max-w-[260px]" />,
+    panels, tools, hide: ['photos'], startPanel: lastPanel === undefined ? 'x:add' : lastPanel, onPanel: p => { lastPanel = p; }, closeLabel: 'Board',
+    hint: '[ ] the previous / next design · click to select · drag, resize and turn · ⌘Z / ⇧⌘Z undo · ⌘D duplicate · arrows nudge · right-click for order, lock, align · saved as you go',
+    title: (
+      <div className="flex min-w-0 items-center gap-0.5">
+        <button type="button" className={cn(navBtn, 'hidden md:flex')} disabled={!prev || leaving} onClick={() => go(prev?.id)} title={prev ? `Previous: ${prev.label || 'Design'} ( [ )` : undefined} aria-label="Previous design"><ChevronLeft className="h-4 w-4" /></button>
+        <button type="button" className={cn(navBtn, 'hidden md:flex')} disabled={!next || leaving} onClick={() => go(next?.id)} title={next ? `Next: ${next.label || 'Design'} ( ] )` : undefined} aria-label="Next design"><ChevronRight className="h-4 w-4" /></button>
+        <input value={label} onChange={e => setLabel(e.target.value.slice(0, 80))} aria-label="Design name" placeholder="Design"
+          className="h-8 min-w-0 max-w-[36vw] rounded-md border border-transparent bg-transparent px-1.5 text-sm font-medium outline-none hover:border-border focus:border-primary sm:max-w-[220px]" />
+        {group.length > 1 && (
+          <div className="hidden shrink-0 items-center rounded-full border p-0.5 sm:flex" role="tablist" aria-label="This design’s sizes">
+            {group.map(g => (
+              <button key={g.id} type="button" role="tab" aria-selected={g.id === start.id} disabled={leaving} onClick={() => go(g.id)} title={`${formatInfo(g.format).label}${g.id === start.id ? '' : ' — linked text follows'}`}
+                className={cn('min-h-0 rounded-full px-2 py-1 text-[11px] font-medium tabular-nums', g.id === start.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                {formatInfo(g.format).short}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    ),
     status: busy
       ? <span className="flex min-w-0 items-center gap-1 truncate rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary"><Loader2 className="h-3 w-3 shrink-0 animate-spin" /><span className="truncate max-w-[30vw] sm:max-w-[280px]">{busy}</span></span>
-      : <span className={cn('hidden sm:flex shrink-0 items-center gap-1 text-[11px]', dirty ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}><span className={cn('h-1.5 w-1.5 rounded-full', dirty ? 'bg-amber-500' : 'bg-emerald-500')} />{dirty ? 'Unsaved' : 'Saved'} · {F.short}</span>,
-    actions: <Button size="sm" className="ml-1" disabled={!ready || !!busy} onClick={save}>{busy === 'Saving…' ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Save{dirty ? <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-amber-300" /> : null}</Button>,
+      : saveState === 'failed'
+        ? <span className="flex shrink-0 items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" />Not saved · retrying</span>
+        : <span className="hidden shrink-0 items-center gap-1 text-[11px] text-muted-foreground lg:flex">
+          {saveState === 'saving' || pending ? <><Loader2 className="h-3 w-3 animate-spin" />Saving</> : <><CheckIcon className="h-3 w-3" />Saved{linked && sizes.length ? ` · ${sizesLabel} too` : ''}</>}
+        </span>,
+    actions: <Button size="sm" className="ml-1" disabled={leaving} onClick={cancel}>{leaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Done</Button>,
+    strip: order.length > 1 ? <FrameStrip order={order} current={start.id} group={start.group} thumbs={thumbs} onPick={go} /> : undefined,
   };
 
   return (<>
@@ -1483,7 +1625,7 @@ function FrameEditor({ frame: f, sizes, marks, onClose, onSave }: { frame: Board
       placeholder: ready ? undefined : (
         <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-background text-sm text-muted-foreground">
           <Loader2 className="h-6 w-6 animate-spin" /> Fetching the photo…
-          <Button size="sm" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button size="sm" variant="ghost" onClick={onClose}>Back to the board</Button>
         </div>
       ),
       props: {
@@ -1501,6 +1643,46 @@ function FrameEditor({ frame: f, sizes, marks, onClose, onSave }: { frame: Board
     <PhotoPicker open={!!picking} onOpenChange={o => { if (!o) setPicking(null); }} onPick={onLibrary} onFile={onFile} above
       title={picking?.target === 'add' ? 'Add a picture to the design' : 'Replace the picture'} />
   </>);
+}
+
+/** The designer's panel last open, kept as it moves from design to design (undefined: none opened yet). */
+let lastPanel: SidePanel | null | undefined;
+/** Where the strip was scrolled, so the next design's strip starts there and glides to it. */
+let stripScroll = 0;
+
+/**
+ * The board under the page, in reading order: every design as it looks now (the board's own drawings, redrawn
+ * as changes save), this one lit, its other sizes marked. Tap one to move to it.
+ */
+function FrameStrip({ order, current, group, thumbs, onPick }: { order: BoardFrame[]; current: string; group?: string; thumbs: Record<string, string>; onPick: (id: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const mobile = !!useIsMobile();
+  const H = mobile ? 52 : 64;
+  useLayoutEffect(() => {
+    const sc = ref.current, el = sc?.querySelector<HTMLElement>('[data-current]');
+    if (!sc || !el) return;
+    sc.scrollLeft = stripScroll;
+    sc.scrollTo({ left: el.offsetLeft - sc.clientWidth / 2 + el.offsetWidth / 2, behavior: 'smooth' });
+  }, [current]);
+  return (
+    <div ref={ref} onScroll={e => { stripScroll = e.currentTarget.scrollLeft; }} role="listbox" aria-label="The board’s designs"
+      className="flex shrink-0 items-end gap-1.5 overflow-x-auto overscroll-x-contain border-t bg-background px-3 py-2 [scrollbar-width:thin]">
+      {order.map((x, i) => {
+        const px = framePx(x), w = Math.round(H * px.w / px.h), on = x.id === current;
+        const sib = !on && !!group && x.group === group;
+        const gap = i > 0 && (!x.group || x.group !== order[i - 1].group);
+        return (
+          <button key={x.id} type="button" role="option" aria-selected={on} data-current={on ? '' : undefined} onClick={() => onPick(x.id)}
+            title={`${x.label || 'Design'} · ${formatInfo(x.format).short}`}
+            className={cn('relative shrink-0 overflow-hidden rounded-[3px] bg-muted min-h-0 transition-[box-shadow,opacity]', gap && 'ml-2.5',
+              on ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : sib ? 'ring-1 ring-primary/60 opacity-95' : 'opacity-75 hover:opacity-100')}
+            style={{ width: w, height: H }}>
+            {thumbs[x.id] ? <img src={thumbs[x.id]} alt="" draggable={false} className="h-full w-full object-cover" /> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 /** Add: the few things a design is made of, each one tap — the designer's full panels behind them. */

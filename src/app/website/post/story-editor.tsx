@@ -191,7 +191,12 @@ export interface DesignerExtras {
   actions?: React.ReactNode;
   closeLabel?: string;
   hint?: string;
-  startPanel?: SidePanel;
+  /** The panel open at the start; null opens none (a host that moves between designs keeps the one last open). */
+  startPanel?: SidePanel | null;
+  /** Told when the open panel changes. */
+  onPanel?: (p: SidePanel | null) => void;
+  /** A row under the page (the board's designs, to move between them without leaving the designer). */
+  strip?: React.ReactNode;
 }
 
 // ── The editor's state and actions ─────────────────────────────────────────
@@ -211,7 +216,7 @@ export function useEditor(p: StoryEditorProps) {
   /** The picture whose photo is being moved inside its frame (double-click it, or the frame button). */
   const [cropping, setCropping] = useState<string | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [panel, setPanel] = useState<SidePanel | null>(p.extras?.startPanel ?? 'templates');
+  const [panel, setPanel] = useState<SidePanel | null>(p.extras?.startPanel !== undefined ? p.extras.startPanel : 'templates');
   // Bumped when a font or an uploaded image finishes loading, so the canvas redraws.
   const [ver, setVer] = useState(0);
   const tick = useCallback(() => setVer(n => n + 1), []);
@@ -1420,6 +1425,10 @@ function useVisibleViewport() {
   return vp;
 }
 
+/** Full screen the designer entered (not the board's own), and how many designers are open: one handing over to the next keeps it. */
+let fullByDesigner = false;
+let liveDesigners = 0;
+
 function Designer({ ed, onClose, frameLabel, F, pages, current, onPage, exportPages }: {
   ed: Editor; onClose: () => void; frameLabel: string; F: { w: number; h: number };
   /** With the story and the post both being made: a switch between them in the header. */
@@ -1443,9 +1452,8 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage, exportPa
   const rootRef = useRef<HTMLDivElement>(null);
   const canFull = typeof document !== 'undefined' && !!document.fullscreenEnabled;
   const [isFull, setIsFull] = useState(false);
-  const entered = useRef(false);   // full screen this designer asked for (the board's own is left alone on close)
   const goFull = useCallback((on: boolean) => {
-    entered.current = on;
+    fullByDesigner = on;
     try { localStorage.setItem('designer_fullscreen', on ? '1' : '0'); } catch { /* private mode */ }
     // The whole page, not the designer alone: its menus and colour pickers open in portals on <body>,
     // which a full-screen designer element would hide.
@@ -1456,13 +1464,21 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage, exportPa
     const onChange = () => setIsFull(document.fullscreenElement === document.documentElement);
     document.addEventListener('fullscreenchange', onChange);
     let want = false;
-    // Never chosen: a computer opens full screen at once (2026-10-14, owner: the designer at full size from the start); a phone already covers the page.
-    try { const v = localStorage.getItem('designer_fullscreen'); want = v === '1' || (v === null && window.matchMedia('(min-width: 768px)').matches); } catch { /* private mode */ }
-    if (want && document.fullscreenEnabled && !document.fullscreenElement) { entered.current = true; void document.documentElement.requestFullscreen?.().then(() => setIsFull(true)).catch(() => undefined); }
+    // Only when chosen on this device: the browser's full screen hid the page around the designer (2026-10-16,
+    // owner: "editing one ad shouldn't remove me from everything else"); the button is one tap away.
+    try { want = localStorage.getItem('designer_fullscreen') === '1'; } catch { /* private mode */ }
+    if (want && document.fullscreenEnabled && !document.fullscreenElement) { fullByDesigner = true; void document.documentElement.requestFullscreen?.().then(() => setIsFull(true)).catch(() => undefined); }
     else onChange();
+    liveDesigners++;
     return () => {
       document.removeEventListener('fullscreenchange', onChange);
-      if (entered.current && document.fullscreenElement === document.documentElement) void document.exitFullscreen().catch(() => undefined);
+      liveDesigners--;
+      // Left only once no designer follows: moving to the board's next design keeps the full screen it had.
+      setTimeout(() => {
+        if (liveDesigners || !fullByDesigner) return;
+        fullByDesigner = false;
+        if (document.fullscreenElement === document.documentElement) void document.exitFullscreen().catch(() => undefined);
+      }, 0);
     };
   }, []);
   const [area, setArea] = useState({ w: 800, h: 600 });
@@ -1473,9 +1489,10 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage, exportPa
   const [sheetTall, setSheetTall] = useState(false);
   const mobile = !!useIsMobile();
   const vp = useVisibleViewport();
-  useEffect(() => { setMounted(true); }, []);
+  // Before the first paint: a designer that replaces another (the board's next design) shows no blank frame between them.
+  useLayoutEffect(() => { setMounted(true); }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = areaRef.current;
     if (!el) return;
     setArea({ w: el.clientWidth, h: el.clientHeight });   // at once: the first frame is already the full size, not the 800×600 guess
@@ -1487,6 +1504,8 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage, exportPa
   // A phone opens on the design itself; a computer on the templates.
   const { setPanel, panel } = ed;
   useEffect(() => { if (mobile) setPanel(null); }, [mobile, setPanel]);
+  const onPanel = extras?.onPanel;
+  useEffect(() => { onPanel?.(panel); }, [panel]); // eslint-disable-line react-hooks/exhaustive-deps
   // A selection's own panels close when nothing is selected; typing on a phone closes whatever is open.
   const nothing = ed.selLayers.length === 0 && !ed.bgSel;
   useEffect(() => { if (nothing && panel && CONTEXT_PANELS.includes(panel) && panel !== 'photo') setPanel(null); }, [nothing, panel, setPanel]);
@@ -1659,6 +1678,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage, exportPa
               <Stage key={ed.square ? 'square' : 'story'} ed={ed} designer width={cssW} />
             </div>
           </div>
+          {!mobile && extras?.strip}
           {!mobile && (
             <footer className="flex h-10 shrink-0 items-center gap-1 border-t px-2 text-xs text-muted-foreground">
               <span className="truncate">{extras?.hint ?? 'Drag a box round several · double-click words to type · ⌘C / ⌘V between story and post · right-click for more'}</span>
@@ -1687,6 +1707,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage, exportPa
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">{panelBody}</div>
         </div>
       )}
+      {mobile && !ed.editing && !panel && extras?.strip}
       {mobile && !ed.editing && (
         <div className="shrink-0 border-t bg-background pb-[env(safe-area-inset-bottom)]">
           {ed.selLayers.length ? <MobileToolbar ed={ed} /> : (

@@ -232,6 +232,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 **Ad studio** (`docs/features/ad-studio.md`) — its Plan is Ads → Plan, the rest are Design sections
 - [Ad studio](docs/features/ad-studio.md#ad-studio) — both houses; [any shape](docs/features/ad-studio.md#any-shape)
 - [Board](docs/features/ad-studio.md#board) — endless canvas, Let it cook, MCP agent (`/api/studio/mcp`), Use it; a weekly board Mondays 9:00
+- [Editing on the board](docs/features/ad-studio.md#board-designer-flow) — saved as you go; ‹ › / [ ], size tabs and the strip move between designs without closing; Tidy keeps an ad's sizes together
 - [Server draws the board](docs/features/ad-studio.md#server-draw) — `server-draw.ts` on @napi-rs/canvas: agents and the weekly board lay out and draw without the page; `/draw` settles a board
 - [The background, by hand](docs/features/ad-studio.md#free-background) — drag/scroll/pinch/double-click the photo; a new picture starts centred; one shade with on-page dots
 - [Sizes, linked](docs/features/ad-studio.md#sizes) — `group` per ad; linked texts carry what changed to every size (size by ratio, place kept); unlink keeps the key; a new size is the design resized

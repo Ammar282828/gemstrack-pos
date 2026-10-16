@@ -223,7 +223,7 @@ longer forms (Let it cook with an aim, the name, every shape).
   agent working at once never overwrite each other; the page asks `?since=<rev>` every 4 s. A design's `rev` goes up on every change
   (not on a move). A website photo is used through its **unmarked Drive original** when there is one (as the maker does), else as
   itself with `marked` (layouts add no wordmark).
-  **Per design:** Edit (the maker's `SoloEditor` in a dialog; Save to the board), **Let it cook** (2–6 variants: Make it with AI's
+  **Per design:** Edit (the maker's `SoloEditor`, saved as you go — [below](#board-designer-flow)), **Let it cook** (2–6 variants: Make it with AI's
   `op=direct` once per variant, each asked from another angle — `ANGLES` — plus the owner's aim or a note, three at a time for the
   Vertex quota; each lands beside the last, `by: 'ai'`, with the model's `why`), **In another shape** (a copy laid out afresh in any
   shape), Duplicate, Download (full size JPEG), Remove. Measured: two variants in 24 s.
@@ -281,21 +281,39 @@ longer forms (Let it cook with an aim, the name, every shape).
   selection. **Pictures:** the design's photo or any inset is replaced from the library or the device; **With AI** runs the
   existing tools on the selected picture — Enhance, Logo and labels off, Retouch, Extend to the design's shape (`PHOTO_AI`, through
   `runImageOp` in `studio-kit.tsx` to `/api/website/post/ai`, its gate unchanged) — and the words come from `/api/ads/studio/copy`.
-  Each accepted result is kept as an upload, and the original is one tap away until Save. Cancel asks first when there are unsaved
-  changes. **Save is one put** of the design on the board, so reopening, the board's picture, Download, Saved ads, a new ad and the
+  Each accepted result is kept as an upload, and the original is one tap away while the design is open. **Every change is saved as
+  it is made** (below): one put of the design on the board, so reopening, the board's picture, Download, Saved ads, a new ad and the
   post queue all draw the same pictures. The native app's editor (`StudioBoardEditor.swift`) does the same over the same routes.
+  - <a id="board-designer-flow"></a>**The board stays one step away** (2026-10-16, owner: "the board needs work, its not intuitive
+    to use, editing one ad shouldnt remove me from everything else, make it seemless and very smooth to use"):
+    - **Saved as you go.** A change goes to the board 0.7 s after it is made (`persist`: one at a time; pictures uploaded first;
+      a failure toasts once and retries every 4 s). No Save button and no "discard?" question: the header says Saving / Saved
+      (· the other sizes that took a linked change), **Done** and **← Board** wait for the last save, and closing the tab warns
+      only while one is pending.
+    - **Moving without closing.** Beside the name: **‹ ›** (or **[ ]**, as in a slideshow) for the previous and next design in
+      reading order (rows, then left to right), and the design's **sizes as tabs** (4:5 · 9:16 · 3:4). Under the page, **the
+      strip**: every design on the board as the board draws it (redrawn as saves land), this one lit, its sizes ringed; tap one to
+      go there. Each move saves first, then opens the next design in place: its photo is already fetched (the neighbours and sizes
+      are fetched while you work), the panel that was open stays open, and full screen stays on.
+    - **No forced full screen.** The designer no longer asks the browser for full screen on its own (it had hidden the page); the
+      button remembers the choice per device.
+    - **Back on the board**, the design last edited is picked, glows a moment and is panned into view if it was off screen.
+    - **Tidy up** (`board-tidy.ts`, tested) keeps each ad's sizes side by side and puts as many ads a row as suit the board's shape
+      (the shoot boards had been one ad a row, a column that fitted at 8%; tidied 2026-10-16). Big changes go to the server 60 ops a
+      request (its limit), so Tidy works on a board of any size.
   - **`POST /api/ads/studio/uploads`** (multipart `file`, optional `name`; the Ad studio's gate; ≤ 25 MB, answered 413 from the
     `Content-Length` before the body is read) puts a picture in the library (`uploads.ts addUpload`) and answers
     `{ asset: { id: "up:<id>", name, w, h } }`.
   - **The `lib:up:<id>` convention.** A picture the design holds beyond its own photo is a layer whose `photoId` is
     `lib:<asset id>`, so an upload is `lib:up:<id>` (`board-pictures.ts`, tested); the page fetches each like any library photo.
-  - **Pictures are uploaded one by one before the single board put.** Anything added or made by the AI in the designer is sent to
-    `/uploads` at once; the board changes only on Save. A save that fails (or a designer closed without saving) can therefore leave
-    `studio_uploads` rows nothing uses. Known and acceptable: they are small and the library lists them as uploads.
+  - **Pictures are uploaded one by one before the board put.** Anything added or made by the AI in the designer is sent to
+    `/uploads` at once. A picture undone or replaced before it is used can therefore leave `studio_uploads` rows nothing uses.
+    Known and acceptable: they are small and the library lists them as uploads.
   - **`DesignerExtras`** (`story-editor.tsx`, the `extras` prop of `SoloEditor`) is how a page adds to the designer without forking
     it: `panels` (rail panels with ids `x:<name>`, here Pictures and Words), `hide` (its own panels to leave out), `tools(ed, 'toolbar'
-    | 'phone')` (tools for the selection), and the header — `title`, `status`, `actions` (after Download; here Save), `closeLabel`,
-    `hint` and `startPanel`. The board is its only host so far.
+    | 'phone')` (tools for the selection), and the header — `title`, `status`, `actions` (after Download; here Done), `closeLabel`,
+    `hint`, `startPanel` (null: none open), `onPanel` (told when the panel changes) and `strip` (a row under the page; on a phone
+    above the bar, while no sheet is open). The board is its only host so far.
 
 <a id="server-draw"></a>### The server draws the board
 
@@ -355,7 +373,7 @@ ratios".) `board-links.ts`, called by `applyOps` on every `put`, so the page, th
 - **Unlink** (the chain button on a selected text in the designer) sets `unlinked` and keeps the key: that text is free both ways, and
   linking it again finds the same twins (and makes them match it). Linking a text that has no twin finds the same words (case, line
   breaks and full stops aside) or the same field in each size, else copies it there in proportion. **Link all** (nothing selected)
-  links every loose text. The toast after Save says how many sizes changed; the agent's `update_design` has `only_this_size`.
+  links every loose text. The header's Saved says which sizes took the change; the agent's `update_design` has `only_this_size`.
 - A copied or pasted text is a new one (its link dropped).
 
 <a id="buttons"></a>### Buttons
