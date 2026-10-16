@@ -94,7 +94,7 @@ function Tests() {
                 );
               })}
             </ul>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <label className="text-xs text-muted-foreground space-y-1">Starts<Input type="datetime-local" value={start} onChange={e => setStart(e.target.value)} className="h-11 text-base sm:text-sm" /></label>
               <label className="text-xs text-muted-foreground space-y-1">Ends<Input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} className="h-11 text-base sm:text-sm" /></label>
             </div>
@@ -114,26 +114,22 @@ function Tests() {
             {data && !data.tests.length && <p className="text-sm text-muted-foreground">None yet.</p>}
             {(data?.tests ?? []).map(t => (
               <div key={t.id} className="rounded-lg border p-3 space-y-2">
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-sm font-medium truncate">{t.name}</p>
-                  <span className="text-[11px] text-muted-foreground shrink-0">{fmt(t.start)} – {fmt(t.end)}{t.running ? ' · running' : ''}</span>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+                  <p className="text-sm font-medium">{t.name}</p>
+                  <span className="text-[11px] text-muted-foreground">{fmt(t.start)} – {fmt(t.end)}{t.running ? ' · running' : ''}</span>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs tabular-nums">
-                    <thead><tr className="text-muted-foreground text-left"><th className="font-normal py-1">Side</th><th className="font-normal text-right">Spent</th><th className="font-normal text-right">{t.cells[0]?.resultLabel ?? 'Results'}</th><th className="font-normal text-right">Per result</th><th className="font-normal text-right">ROAS</th></tr></thead>
-                    <tbody>
-                      {t.cells.map(c => (
-                        <tr key={c.name} className="border-t">
-                          <td className="py-1.5 pr-2"><span className="font-semibold">{c.name}</span>{t.ahead === c.name && <Trophy className="inline h-3 w-3 ml-1 text-amber-500" aria-label="Ahead" />}<span className="block text-[11px] text-muted-foreground truncate max-w-[11rem]">{c.adsets.map(a => a.name).join(', ')}</span></td>
-                          <td className="text-right">{money(c.spend, cur)}</td>
-                          <td className="text-right">{count(c.result)}</td>
-                          <td className="text-right">{c.costPerResult === null ? '—' : money(c.costPerResult, cur)}</td>
-                          <td className="text-right">{roasText(c.roas)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ul className="divide-y">
+                  {t.cells.map(c => (
+                    <li key={c.name} className="py-2">
+                      <p className="text-xs"><span className="font-semibold">{c.name}</span>{t.ahead === c.name && <Trophy className="inline h-3 w-3 ml-1 text-amber-500" aria-label="Ahead" />}<span className="text-muted-foreground"> · {c.adsets.map(a => a.name).join(', ')}</span></p>
+                      <dl className="mt-1 grid grid-cols-4 gap-2 text-xs tabular-nums">
+                        {([['Spent', money(c.spend, cur)], [c.resultLabel, count(c.result)], ['Each', c.costPerResult === null ? '—' : money(c.costPerResult, cur)], ['ROAS', roasText(c.roas)]] as const).map(([k, v]) => (
+                          <div key={k} className="min-w-0"><dt className="text-[10px] text-muted-foreground truncate">{k}</dt><dd className={cn('font-medium', k === 'Each' && t.ahead === c.name && 'text-primary')}>{v}</dd></div>
+                        ))}
+                      </dl>
+                    </li>
+                  ))}
+                </ul>
                 {t.ahead && <p className="text-[11px] text-muted-foreground">{t.ahead} is ahead on cost per result so far. Give it the full run before deciding; Meta’s verdict says how sure it is.</p>}
               </div>
             ))}

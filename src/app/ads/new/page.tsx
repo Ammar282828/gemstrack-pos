@@ -227,7 +227,7 @@ function NewAd() {
     if (!catalogId) return;
     setSets(null); setSetId('');
     api<{ sets: { id: string; name: string; products: number | null }[] }>(`/api/ads/catalog?catalog=${catalogId}`)
-      .then(d => { setSets(d.sets); const all = d.sets.find(x => /all products/i.test(x.name)) ?? d.sets[0]; if (all) setSetId(all.id); })
+      .then(d => { setSets(d.sets); if (d.sets[0]) setSetId(d.sets[0].id); })
       .catch(e => setCatError(e instanceof Error ? e.message : String(e)));
   }, [catalogId]);
 

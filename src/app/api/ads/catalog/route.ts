@@ -10,6 +10,7 @@ import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
 import { graphAll } from '@/lib/ads/meta';
 import { requireAccount } from '@/lib/ads/settings';
 import { businessOf } from '@/lib/ads/business';
+import { catalogSets } from '@/lib/ads/catalog-sets';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
     if (catalog) {
       if (!/^\d+$/.test(catalog)) return NextResponse.json({ error: 'No such catalogue.' }, { status: 400 });
       const sets = await graphAll<{ id: string; name: string; product_count?: number }>(`${catalog}/product_sets`, { fields: 'id,name,product_count' }, 200);
-      return NextResponse.json({ sets: sets.map(s => ({ id: s.id, name: s.name, products: s.product_count ?? null })) }, { headers: noStore });
+      return NextResponse.json({ sets: catalogSets(sets) }, { headers: noStore });
     }
     const { act } = await requireAccount();
     const business = await businessOf(act);

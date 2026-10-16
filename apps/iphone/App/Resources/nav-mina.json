@@ -418,7 +418,8 @@
           ],
           "match": [
             "/ads/audiences",
-            "/ads/rules"
+            "/ads/rules",
+            "/ads/tests"
           ]
         }
       ],
@@ -453,6 +454,16 @@
           "icon": "ListChecks",
           "keywords": [
             "automated rules"
+          ]
+        },
+        {
+          "href": "/ads/tests",
+          "label": "A/B tests",
+          "icon": "ListChecks",
+          "keywords": [
+            "split test",
+            "experiment",
+            "ab test"
           ]
         }
       ]
