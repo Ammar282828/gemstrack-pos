@@ -45,8 +45,8 @@ const s = {
   ERP_FIREBASE_SENDER_ID: h.firebase.senderId,
   ERP_FIREBASE_STORAGE_BUCKET: h.firebase.storageBucket,
   ERP_FIREBASE_APP_ID: h.firebase.iosAppId || '',
-  ERP_APPICON: `AppIcon-${name}`,
-  // Alternate app icons (space-separated asset names; the Settings toggle sets them). The merged app offers Mina's.
+  ERP_APPICON: h.appIcon || `AppIcon-${name}`, // the one app's is AppIcon-erp (scripts/erp-icon.mjs); Mina's own old build keeps AppIcon-mina
+  // Alternate app icons (space-separated asset names; the Settings toggle sets them). The merged app offers Taheri's and Mina's (its primary is AppIcon-erp).
   ERP_ALT_ICONS: (h.alternateIcons || []).join(' '),
   ERP_LAUNCH_COLOR: `Launch-${name}`,
   ERP_LAUNCH_MARK: `LaunchLogo-${name}`,

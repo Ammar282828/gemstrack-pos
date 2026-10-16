@@ -25,7 +25,7 @@ struct PhoneSettings: View {
     @State private var widgetLinked = ERPWidgetLink.entry(for: House.id) != nil
     @State private var iconBusy = false
     @State private var iconError: String?
-    @AppStorage(AppIcon.modeKey) private var iconMode = AppIcon.Mode.follow.rawValue
+    @AppStorage(AppIcon.modeKey) private var iconMode = AppIcon.Mode.erp.rawValue
     @State private var linking = false
     @State private var linkFailed = false
     @AppStorage("deviceTheme") private var deviceTheme = ""
@@ -144,6 +144,7 @@ struct PhoneSettings: View {
             if AppIcon.supported {
                 Section {
                     Picker("App icon", selection: Binding(get: { iconMode }, set: { chooseIcon($0) })) {
+                        Text("ERP").tag(AppIcon.Mode.erp.rawValue)
                         Text("Follow the business").tag(AppIcon.Mode.follow.rawValue)
                         Text("Taheri").tag(AppIcon.Mode.taheri.rawValue)
                         Text("House of Mina").tag(AppIcon.Mode.mina.rawValue)
@@ -200,7 +201,7 @@ struct PhoneSettings: View {
 
     private func chooseIcon(_ raw: String, force: Bool = false) {
         guard force || raw != iconMode else { return }
-        let mode = AppIcon.Mode(rawValue: raw) ?? .follow
+        let mode = AppIcon.Mode(rawValue: raw) ?? .erp
         iconBusy = true
         iconError = nil
         Task {

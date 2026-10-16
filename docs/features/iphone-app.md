@@ -280,8 +280,8 @@ signing in to, with a "Switch business" button.
   `WidgetConfigurationIntent` whose "Business" is any linked one; the first until chosen). Colours and the wordmark come from the entry: Taheri's and
   Mina's from the asset catalogue, any other from its hex palette with its name for a wordmark. Nothing reads the build's Info.plist. With nothing linked
   it says "Open the app and sign in".
-- **Icon.** The primary icon is Taheri's; Mina's is an alternate (`ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = AppIcon-mina`, from `houses.json`
-  `alternateIcons`). Settings → This phone → App icon: follow the business / Taheri / House of Mina. It changes only on that tap (iOS shows an alert on
+- **Icon.** The primary icon is the app's own, `AppIcon-erp` (a champagne-gold diamond outline on ink; `apps/iphone/scripts/erp-icon.mjs` draws it, `houses.json` `appIcon`); Taheri's and Mina's are alternates (`ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = AppIcon-taheri AppIcon-mina`, from `houses.json`
+  `alternateIcons`). Settings → This phone → App icon: ERP (default) / follow the business / Taheri / House of Mina. It changes only on that tap (iOS shows an alert on
   every change, so a business switch never does it); "follow" sets the open business's icon when chosen and offers an update button after a switch.
 
 **The build.** `house.mjs taheri` is the merged app's bundle and asset base ("ERP"); `ERP_HOUSE` no longer drives behaviour at run time, only the launch

@@ -4,7 +4,9 @@
     "storeName": "Taheri ERP",
     "shortName": "Taheri ERP",
     "homeName": "ERP",
+    "appIcon": "AppIcon-erp",
     "alternateIcons": [
+      "AppIcon-taheri",
       "AppIcon-mina"
     ],
     "url": "https://erp.taheri.shop",
