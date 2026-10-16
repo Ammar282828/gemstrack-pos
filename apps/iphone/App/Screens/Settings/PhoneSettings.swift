@@ -22,7 +22,10 @@ struct PhoneSettings: View {
     @State private var testing = false
     @State private var testResult: String?
     @State private var error: String?
-    @State private var widgetLinked = ERPWidgetLink.load() != nil
+    @State private var widgetLinked = ERPWidgetLink.entry(for: House.id) != nil
+    @State private var iconBusy = false
+    @State private var iconError: String?
+    @AppStorage(AppIcon.modeKey) private var iconMode = AppIcon.Mode.follow.rawValue
     @State private var linking = false
     @State private var linkFailed = false
     @AppStorage("deviceTheme") private var deviceTheme = ""
@@ -80,6 +83,17 @@ struct PhoneSettings: View {
             }
             if let error { Section { Text(error).foregroundStyle(Tone.problem.color) } }
 
+            // Every business signed in on this phone is told of it, so an alert from any of them arrives (Push.link).
+            if Businesses.shared.list.count > 1 && !House.isDemo {
+                Section {
+                    ForEach(Businesses.shared.list) { b in businessPush(b) }
+                } header: {
+                    LedgerHeading(title: "Notifications by business")
+                } footer: {
+                    Text("An alert names its business: tapping one opens that business. Which kinds come is chosen above for the open business; open another to set its own.")
+                }
+            }
+
 
             Section {
                 Picker("Appearance", selection: $deviceTheme) {
@@ -104,6 +118,9 @@ struct PhoneSettings: View {
 
             Section {
                 LabeledContent("Home-screen widget", value: widgetLinked ? "Linked" : "Not linked")
+                if ERPWidgetLink.all().count > 1 {
+                    LabeledContent("Businesses on the widget", value: ERPWidgetLink.all().map(\.name).joined(separator: ", "))
+                }
                 NavigationLink(value: Route(path: "/app/widgets")) {
                     Label("Preview widgets", systemImage: "rectangle.on.rectangle")
                 }
@@ -111,7 +128,7 @@ struct PhoneSettings: View {
                     Task {
                         linking = true
                         linkFailed = !(await WidgetLinker.link(force: true))
-                        widgetLinked = ERPWidgetLink.load() != nil
+                        widgetLinked = ERPWidgetLink.entry(for: House.id) != nil
                         linking = false
                     }
                 }
@@ -121,7 +138,27 @@ struct PhoneSettings: View {
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             } footer: {
-                Text("Add it from the home screen: touch and hold, then Edit → Add Widget → \(House.storeName).")
+                Text("Add it from the home screen: touch and hold, then Edit → Add Widget → ERP. Touch and hold the widget, then Edit Widget, to choose the business it shows. \(House.storeName) is linked when you sign in to it.")
+            }
+
+            if AppIcon.supported {
+                Section {
+                    Picker("App icon", selection: Binding(get: { iconMode }, set: { chooseIcon($0) })) {
+                        Text("Follow the business").tag(AppIcon.Mode.follow.rawValue)
+                        Text("Taheri").tag(AppIcon.Mode.taheri.rawValue)
+                        Text("House of Mina").tag(AppIcon.Mode.mina.rawValue)
+                    }
+                    .disabled(iconBusy)
+                    if iconMode == AppIcon.Mode.follow.rawValue, AppIcon.currentArt != AppIcon.art(for: House.business) {
+                        Button("Change the icon to \(House.business.name)") { chooseIcon(AppIcon.Mode.follow.rawValue, force: true) }
+                            .disabled(iconBusy)
+                    }
+                    if let iconError { Text(iconError).font(.footnote).foregroundStyle(Tone.problem.color) }
+                } header: {
+                    LedgerHeading(title: "App icon")
+                } footer: {
+                    Text("Following the business changes the icon to the open business's when you choose it here. iOS shows an alert each time the icon changes, so switching business never changes it on its own.")
+                }
             }
             }
             .houseRows()
@@ -133,6 +170,45 @@ struct PhoneSettings: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await refresh() } }
+        }
+    }
+
+    /// One business's line: its push state on this phone.
+    private func businessPush(_ b: Business) -> some View {
+        let signedIn = Businesses.shared.auth(for: b)?.currentUser != nil
+        return HStack(spacing: 12) {
+            BusinessBadge(business: b, size: 30)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(b.displayName).lineLimit(1)
+                if b.id == House.id { Text("Open now").font(.caption).foregroundStyle(.secondary) }
+            }
+            Spacer(minLength: 8)
+            if !signedIn {
+                Pill("Signed out", tone: .quiet)
+            } else if b.id == House.id && Push.shared.registeredOnServer {
+                Pill("Linked", tone: .settled, symbol: "bell.badge")
+            } else {
+                switch Push.shared.states[b.id] {
+                case .linked?: Pill("Linked", tone: .settled, symbol: "bell.badge")
+                case .failed?: Pill("Not linked", tone: .problem, symbol: "bell.slash")
+                case nil: Pill("Not linked yet", tone: .owed)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func chooseIcon(_ raw: String, force: Bool = false) {
+        guard force || raw != iconMode else { return }
+        let mode = AppIcon.Mode(rawValue: raw) ?? .follow
+        iconBusy = true
+        iconError = nil
+        Task {
+            do {
+                try await AppIcon.apply(mode)
+                iconMode = mode.rawValue
+            } catch { iconError = "The icon didn't change: \(error.localizedDescription)" }
+            iconBusy = false
         }
     }
 

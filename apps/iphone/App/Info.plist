@@ -36,8 +36,6 @@
 	<string>$(ERP_GOOGLE_CLIENT_ID)</string>
 	<key>ERPGround</key>
 	<string>$(ERP_GROUND)</string>
-	<key>ERPHouse</key>
-	<string>$(ERP_HOUSE)</string>
 	<key>ERPMetal</key>
 	<string>$(ERP_METAL)</string>
 	<key>ERPServerURL</key>

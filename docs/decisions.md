@@ -711,3 +711,14 @@ their standing "do everything yourself": `docs/features/design-studio-plan.md`; 
   `/design/classic/post` and `/design/classic/ad` are redirects (with `?draft=`); a draft of the old Post a piece screen opens as a
   design ([Old drafts](features/design.md#old-drafts)).
 
+### One app, many businesses
+
+2026-10-16. The owner: one iPhone app for all his businesses, to switch between them and to add more.
+
+- **One app, `shop.taheri.erp`, "ERP".** A business is a run-time thing, not a build: Taheri and House of Mina ship in the app, any other is added by typing
+  its ERP address and is described by `GET /api/app/business`. Every difference between businesses stays a variable (the server's), as on the web.
+- **Each business is its own.** Own Firebase app and sign-in, books, drafts, push registration and widget entry; switching rebuilds the screens and never
+  signs anyone out. Removing a business signs it out and clears it from the phone; a built-in is hidden, not deleted.
+- **The icon never changes by itself.** Taheri's is primary, Mina's an alternate; Settings → This phone sets it, because iOS alerts on every change.
+- **House of Mina's own app is deprecated** (kept building until its testers move). House of Mina inside the one app needs `shop.taheri.erp` registered as an
+  iOS app in its Firebase project (`docs/features/iphone-app.md`).

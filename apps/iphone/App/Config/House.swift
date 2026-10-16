@@ -20,6 +20,9 @@ enum House {
     /// The id of the bundled art this business wears ("taheri", "mina"); an added business has none and
     /// takes Taheri's for the files that ship with the app (nav menus, the artwork engine).
     static var art: String { business.art ?? "taheri" }
+    /// The same, but nil for an added business: for a screen that belongs to one of the built-ins (the Taheri Software
+    /// import) and must not appear for a business that merely borrows Taheri's files.
+    static var bundledArt: String? { business.art }
 
     /// How the shop's own margin is worked out (lib/margin.ts, the house's COST_RATTI_LESS and
     /// STORE_EST_MARGIN): Taheri costs a sale at 24K less 6 ratti, else 10%; Mina has no costing, 40%.

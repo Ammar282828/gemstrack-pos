@@ -26,10 +26,17 @@ struct ERPApp: App {
 /// business changes, so every `@State` below it (a tab, a draft in progress, a sheet) starts from nothing.
 private struct BusinessHost: View {
     var body: some View {
-        let business = Businesses.shared.current
+        let store = Businesses.shared
+        let business = store.current
         BusinessRoot(session: Sessions.shared.session(for: business))
             .id(business.id)
             .task { await Businesses.shared.refresh() }
+            // The switcher sits above the screens, not in them: a switch rebuilds those, and the sheet closes itself.
+            .sheet(isPresented: Bindable(store).switcherOpen) {
+                NavigationStack { BusinessesScreen(inSheet: true) }
+                    .tint(Theme.accent)
+                    .presentationDetents([.medium, .large])
+            }
     }
 }
 
@@ -51,6 +58,8 @@ private struct BusinessRoot: View {
         .environment(\.locale, Locale(identifier: "en_PK"))
         .animation(.easeOut(duration: 0.2), value: lock.locked || lock.covered)
         .onChange(of: scenePhase) { _, phase in lock.phase(phase, signedIn: session.state == .signedIn) }
+        // The list of businesses names people's emails: it does not stay over the lock.
+        .onChange(of: lock.locked) { _, locked in if locked { Businesses.shared.switcherOpen = false } }
         // A cold start of a signed-in app asks for the face too; a fresh sign-in does not.
         .onChange(of: session.state) { old, new in
             if old == .starting && new == .signedIn { lock.launched(signedIn: true) }

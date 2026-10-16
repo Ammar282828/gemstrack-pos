@@ -72,7 +72,7 @@ struct WidgetPreviewScreen: View {
     }
 
     private func card(size: ERPWidgetSize, width: CGFloat, height: CGFloat) -> some View {
-        ERPWidgetFace(summary: summary, size: size, appName: House.storeName, accented: look == .tinted)
+        ERPWidgetFace(summary: summary, size: size, look: ERPWidgetLook(House.business), accented: look == .tinted)
             .padding(16)
             .frame(width: width, height: height)
             .background { backdrop }
@@ -88,7 +88,7 @@ struct WidgetPreviewScreen: View {
         if look == .tinted {
             Color(white: 0.15)
         } else {
-            ERPWidgetPaper()
+            ERPWidgetPaper(look: ERPWidgetLook(House.business))
         }
     }
 }

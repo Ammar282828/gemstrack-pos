@@ -78,14 +78,15 @@ final class Session {
         /// Where the Workshop starts: "you" (this account's own pieces) or "anyone" (STORE_WORKSHOP_START). Absent in an older answer: "you".
         var workshopStart: String?
 
-        /// Before the ERP has answered (the demo, an old cached answer): nothing assumed beyond the house.
-        /// The business's own switches (the descriptor's `flags`), else Taheri's and Mina's as they were.
+        /// Before the ERP has answered (the demo, an old cached answer): nothing assumed beyond the business. Its own
+        /// switches are the descriptor's `flags` (the built-ins' businesses.json, an added business's /api/app/business);
+        /// a missing one is Taheri's, the code's default.
         static var fallback: Shop {
-            let b = House.business, f = b.flags, mina = b.id == "mina"
+            let b = House.business, f = b.flags
             return Shop(name: b.name, person: nil, takenBy: [], expenseCategories: [],
-                        partnership: f?.partnership ?? mina, websiteSelling: f?.websiteSelling ?? !mina,
-                        invoiceByCustomer: f?.invoiceByCustomer ?? !mina, invoiceWhatsappPdf: f?.invoiceWhatsappPdf ?? !mina,
-                        sizeToProfile: f?.sizeToProfile ?? !mina, workshopStart: f?.workshopStart)
+                        partnership: f?.partnership ?? false, websiteSelling: f?.websiteSelling ?? true,
+                        invoiceByCustomer: f?.invoiceByCustomer ?? true, invoiceWhatsappPdf: f?.invoiceWhatsappPdf ?? true,
+                        sizeToProfile: f?.sizeToProfile ?? true, workshopStart: f?.workshopStart)
         }
 
         static var demo: Shop {

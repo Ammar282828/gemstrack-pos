@@ -21,6 +21,12 @@ struct SettingsRoot: View {
             Section { account }
 
             Section {
+                SettingsLinkRow(title: "Businesses", symbol: "building.2.fill", color: .orange, path: "/app/businesses")
+            } footer: {
+                Text("Switch between the shops on this phone, or add another by its ERP's address.")
+            }
+
+            Section {
                 SettingsLinkRow(title: "Shop", symbol: "storefront.fill", color: .blue, path: "/app/settings/shop")
                 SettingsLinkRow(title: "Alerts", symbol: "bell.badge.fill", color: .red, path: "/settings/alerts")
                 SettingsLinkRow(title: "Bank accounts", symbol: "building.columns.fill", color: .green, path: "/settings/payment-methods")

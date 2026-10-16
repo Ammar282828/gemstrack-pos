@@ -2,7 +2,9 @@
   "taheri": {
     "bundleId": "shop.taheri.erp",
     "storeName": "Taheri ERP",
-    "homeName": "Taheri ERP",
+    "shortName": "Taheri ERP",
+    "homeName": "ERP",
+    "alternateIcons": ["AppIcon-mina"],
     "url": "https://erp.taheri.shop",
     "metal": "gold",
     "ground": "#0A1111",
@@ -19,7 +21,9 @@
   "mina": {
     "bundleId": "store.houseofmina.erp",
     "storeName": "House of Mina ERP",
+    "shortName": "Mina ERP",
     "homeName": "Mina ERP",
+    "deprecated": "Since 2026-10-16 the one app (shop.taheri.erp, \"ERP\") holds House of Mina too. This separate Mina app keeps shipping only until its testers have moved.",
     "url": "https://erp.houseofmina.store",
     "metal": "silver",
     "ground": "#FAF7F2",

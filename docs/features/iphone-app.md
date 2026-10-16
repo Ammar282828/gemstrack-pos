@@ -240,3 +240,67 @@ notices, the "Web matches the app" series (the web copied the app's look), tones
 strip) is the ERP's page in the app; the phone's designer renders every v2 field (blend, effects, rich text, gradients, QR,
 adjust) through the bundled engine and keeps what it cannot edit. Saved designs of the new store (`designs`) are on the Design
 page's Saved shelf; the phone's Saved ads are the legacy `ad_saved` rows, which the web shows too until it re-saves them.
+
+### One app, many businesses (2026-10-16)
+
+Owner: one app for all his businesses, to switch between them and to add more. Until now each house was its own app
+(Taheri `shop.taheri.erp`, House of Mina `store.houseofmina.erp`, one build per house by `house.mjs`). Now the default build is
+**one app, `shop.taheri.erp`, "ERP" on the home screen**, and the house is a thing the app holds at run time.
+
+**What a business is.** A `Business` (`App/Config/Business.swift`) is exactly the ERP's `GET /api/app/business`
+(`src/app/api/app/business/route.ts`, public, cached five minutes): id, the shop's name, ERP address, metal, margin rule, light and dark
+palette, logo, icon, the iOS sign-in identifiers (Google client and the Firebase iOS app) and the shop's switches (`flags`). Taheri and
+House of Mina ship in the app (`Resources/businesses.json`, written by `scripts/businesses.mjs` from `houses.json`), so a first launch needs
+no network and they keep their bundled art. `House` is a facade over the open business; nothing keeps a business's value in a static
+(CONVENTIONS rule 13). `House.id == "mina"` branches are gone: Mina's foil order follows `metal`, the shop's defaults follow `flags`, and the two
+that have no server flag (the Taheri Software import, the Mina catalogue's photo note) check `House.bundledArt`, the bundled art, so an added
+business never borrows them.
+
+**Adding one.** Settings → Businesses (owners), Search → Businesses (everyone), or the chip → Businesses…: type the ERP's address
+(`erp.houseofmina.store`). `Businesses.describe(address:)` reads `/api/app/business` over https from that host only (the descriptor may not
+name another host, or it could point the sign-in token at a stranger), judges it (`Business.problem`: an id, a name, readable colours, an iOS
+sign-in), and the sheet shows the name, logo and colours as a card **before** "Add". Adding keeps it and opens it, at its sign-in. The five-minute
+refresh (`Businesses.refresh`) keeps names, colours and switches current without an app update; it never moves a business's address or its
+Firebase identity.
+
+**The chip and the sheet.** Each tab root's leading toolbar (and the iPad sidebar's header) holds the open business's mark and name; tap opens the
+Businesses sheet, touch and hold lists the businesses for a one-touch switch. With one business the chip stays, quiet, as the way to add. The sheet
+lists each business with its address and who is signed in; tap to switch (a selection tick, the root rebuilt on the new business); swipe or Edit to
+remove. A built-in is **hidden**, not deleted (it comes back by typing its address); the last business cannot go. Removing signs that business out
+(its alerts unregistered, its Firebase user, Google token, books on disk, drafts, widget link and logo). The sign-in page says which business you are
+signing in to, with a "Switch business" button.
+
+**Per business.** Sign-in (one Firebase app each; Taheri keeps the default app, so existing installs stay signed in), data (Firestore cache per app,
+`BizKey` defaults), session and role, push, widget.
+- **Push.** The phone has one token; every business signed in on it is told of it (`Push.link`), and a payload names its business, so a tap opens that
+  business first. Settings → This phone lists each business and whether it is linked (the kinds are chosen for the open business).
+- **Widget.** One widget, many businesses. The keychain item the app and widget share is a list of `{id, name, url, key, palette, brand}` (`Shared/
+  ERPWidgetLink.swift`); sign-in adds the open business's entry, sign-out or removal takes only its own, and a one-house build's single link is moved
+  into the list. The widget (kind `ERPToday`, so widgets already placed keep their place) is configurable (`SelectBusinessIntent`, an App Intents
+  `WidgetConfigurationIntent` whose "Business" is any linked one; the first until chosen). Colours and the wordmark come from the entry: Taheri's and
+  Mina's from the asset catalogue, any other from its hex palette with its name for a wordmark. Nothing reads the build's Info.plist. With nothing linked
+  it says "Open the app and sign in".
+- **Icon.** The primary icon is Taheri's; Mina's is an alternate (`ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = AppIcon-mina`, from `houses.json`
+  `alternateIcons`). Settings → This phone → App icon: follow the business / Taheri / House of Mina. It changes only on that tap (iOS shows an alert on
+  every change, so a business switch never does it); "follow" sets the open business's icon when chosen and offers an update button after a switch.
+
+**The build.** `house.mjs taheri` is the merged app's bundle and asset base ("ERP"); `ERP_HOUSE` no longer drives behaviour at run time, only the launch
+screen, the primary icon and the global accent colour. The `ERPHouse` Info.plist keys are gone.
+
+**The Mina Firebase step (once, by the owner).** For House of Mina to sign in inside the one app, its Firebase project needs the merged app's bundle id:
+1. Firebase console → project `hom-pos-52710474-ceeea` → Add app → iOS, bundle id **`shop.taheri.erp`**; download nothing, note the **App ID**
+   (`1:288366939838:ios:…`) and the iOS OAuth client Google makes for it (its client id ends `.apps.googleusercontent.com`; its reversed id is the URL scheme
+   the app registers).
+2. Set the new values in `apphosting.mina.yaml`: `APP_IOS_FIREBASE_APP_ID` (the new App ID) and `APP_IOS_GOOGLE_CLIENT_ID` (the new iOS client id), keeping
+   `APP_IOS_FIREBASE_API_KEY` if the project's key is unchanged; those are what `storeAppIos()` reads and `/api/app/business` sends. Put the same two in
+   `houses.json` for `mina` (`firebase.iosAppId`, `googleClientId`) and rerun `node scripts/businesses.mjs`, so the bundled copy matches. Until then
+   Mina's descriptor carries the old Mina app's ids (a temporary note in the YAML says so), which belong to another bundle id: Mina lists fine in the one app but
+   Google sign-in to it fails there, and the old Mina app keeps working.
+3. Deploy (both houses, as always). The app refreshes Mina's descriptor on its next launch.
+
+**The old Mina app is deprecated.** `store.houseofmina.erp` (`project-mina.yml`, Mina's Xcode Cloud product, `houses.json` `mina`) keeps building and shipping
+until its testers have moved to the one app; then delete the project file, Mina's workflows and the `mina` entry. Its sign-in and data are its own, so
+moving means signing in again in the one app.
+
+**Checks.** `swiftc -parse` only for `App/` here; the Mac build is the compiler. UI test `testTheBusinessesSheetOpensFromTheChip` (demo) opens the sheet from the
+chip; launch arguments (`-ERPDemo`, `-ERPDemoTab`, `-ERPDemoOpen`) work as before, and `/app/businesses` is in the every-place list.

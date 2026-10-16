@@ -296,10 +296,10 @@ enum ArtworkGradients {
     static let gold = foil([(0, "#8C6A25"), (0.3, "#E9C979"), (0.5, "#FBEFC4"), (0.7, "#C9973F"), (1, "#7A5A1E")])
     static let rose = foil([(0, "#8E5B4B"), (0.35, "#EBB8A0"), (0.55, "#FBE3D4"), (0.8, "#C4856C"), (1, "#7C4A3C")])
     static let silver = foil([(0, "#7C7F86"), (0.3, "#E3E5EA"), (0.5, "#FAFAFC"), (0.72, "#B4B8C0"), (1, "#6E7178")])
-    /// FOILS: the house's own first (gold and rose for Taheri, silver for House of Mina).
+    /// FOILS: the house's own first (gold and rose for a gold house, silver for a silver one: the descriptor's `metal`).
     static var foils: [(id: String, label: String, gradient: MarketingValue)] {
         let all = [("gold", "Gold foil", gold), ("rose", "Rose gold", rose), ("silver", "Silver foil", silver)]
-        let ordered = House.id == "mina" ? [all[2], all[1], all[0]] : all
+        let ordered = House.metal == "silver" ? [all[2], all[1], all[0]] : all
         return ordered.map { (id: $0.0, label: $0.1, gradient: $0.2) }
     }
     static let others: [(id: String, label: String, gradient: MarketingValue)] = [

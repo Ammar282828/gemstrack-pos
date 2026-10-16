@@ -1,3 +1,7 @@
+# DEPRECATED (2026-10-16): House of Mina's own app. The one app (shop.taheri.erp, "ERP"; project.yml) holds House of Mina as
+# a business now. This file stays so Mina's Xcode Cloud product keeps building the old app until its testers have moved to
+# the one app; then delete this file, Mina's workflows and the `mina` entry of houses.json.
+#
 # House of Mina's project for Xcode Cloud (docs/features/iphone-app.md "Xcode Cloud"): project.yml under
 # another name. Xcode Cloud keeps one product per project file, so Mina's app needs a file of its own
 # (ERPMina.xcodeproj) or its workflows land on Taheri's product and build Taheri's app.

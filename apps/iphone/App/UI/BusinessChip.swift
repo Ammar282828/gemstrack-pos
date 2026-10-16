@@ -1,0 +1,111 @@
+import SwiftUI
+
+// The business switcher's small parts: the badge (a business's logo or its first letter, in its own accent), and the
+// chip that heads every tab root and the iPad sidebar. The sheet and the list are Screens/Settings/BusinessesScreen.swift.
+
+/// A business's mark: its icon from its ERP when it arrives, else its first letter on its accent. Drawn from the
+/// business's own palette, not `Theme`, so a business that is not open looks like itself in the list.
+struct BusinessBadge: View {
+    let business: Business
+    var size: CGFloat = 28
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let side = scheme == .dark ? business.palette.dark : business.palette.light
+        let accent = Color(hex: side.accent) ?? .gray
+        ZStack {
+            Circle().fill(accent)
+            Text(business.initial)
+                .font(.system(size: size * 0.46, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color(hex: side.onAccent) ?? .white)
+            if let icon = business.icon.flatMap(URL.init(string:)), icon.scheme == "https" {
+                AsyncImage(url: icon) { phase in
+                    if let image = phase.image { image.resizable().scaledToFill().transition(.opacity) }
+                }
+                .clipShape(Circle())
+            }
+        }
+        .frame(width: size, height: size)
+        .overlay { Circle().strokeBorder(.primary.opacity(0.12), lineWidth: 0.5) }
+        .accessibilityHidden(true)
+    }
+}
+
+/// A business's whole logo at the width it is given: the bundled one for a built-in, else the one its ERP serves (kept
+/// on disk), else its name.
+struct BusinessLogo: View {
+    let business: Business
+    @Environment(\.colorScheme) private var scheme
+    @State private var fetched: UIImage?
+
+    var body: some View {
+        Group {
+            if let art = business.art {
+                Image("BrandLogo-\(art)").resizable().scaledToFit()
+            } else if let fetched {
+                Image(uiImage: fetched).resizable().scaledToFit()
+            } else {
+                Text(business.name).font(.title2.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.5)
+            }
+        }
+        .frame(maxWidth: 200, maxHeight: 48, alignment: .leading)
+        .task(id: "\(business.id)|\(scheme == .dark)") {
+            guard business.art == nil else { return }
+            fetched = await BusinessLogos.load(business, dark: scheme == .dark)
+        }
+        .accessibilityLabel(business.displayName)
+    }
+}
+
+/// The open business at the top of the app: its mark and name. Tap opens the Businesses sheet; touch and hold lists
+/// the businesses to switch between at once. With only one business it stays, quietly (no arrows, the secondary
+/// colour): it is still the way to add another.
+struct BusinessChip: View {
+    /// The iPad sidebar's row is wider and says the ERP's whole name.
+    var wide = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let store = Businesses.shared
+        let current = store.current
+        let many = store.list.count > 1
+        Menu {
+            if many {
+                ForEach(store.list) { b in
+                    Button {
+                        switchTo(b)
+                    } label: {
+                        if b.id == current.id { Label(b.displayName, systemImage: "checkmark") } else { Text(b.displayName) }
+                    }
+                }
+                Divider()
+            }
+            Button("Businesses…", systemImage: "building.2") { store.switcherOpen = true }
+        } label: {
+            HStack(spacing: 6) {
+                BusinessBadge(business: current, size: wide ? 28 : 22)
+                if wide {
+                    Text(current.displayName).font(.headline).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Text(current.name).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                }
+                if many {
+                    Image(systemName: "chevron.up.chevron.down").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                }
+            }
+            .foregroundStyle(many ? Color.primary : Color.secondary)
+            .contentShape(Rectangle())
+        } primaryAction: {
+            store.switcherOpen = true
+        }
+        .accessibilityLabel("Business: \(current.displayName)")
+        .accessibilityHint(many ? "Opens the list of businesses. Touch and hold to switch." : "Opens the list of businesses, where you can add one.")
+        .accessibilityIdentifier("business.chip")
+    }
+
+    private func switchTo(_ b: Business) {
+        guard b.id != Businesses.shared.current.id else { return }
+        UISelectionFeedbackGenerator().selectionChanged()
+        Motion.run(Motion.travel, reduce: reduceMotion) { Businesses.shared.switch(to: b.id) }
+    }
+}

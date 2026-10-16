@@ -163,7 +163,9 @@ struct WebsiteEditPieceScreen: View {
     private func photoNote(_ p: WebsiteEditPiece) -> String {
         var notes: [String] = []
         if !lastAI.isEmpty { notes.append("Last time: \(lastAI.joined(separator: ", ")). Editing starts from the original photo.") }
-        if House.id == "mina" && p.photoSource != nil {
+        // The MINA mark is the Mina catalogue's framing (docs/features/mina-catalogue.md); no server flag names it, so this
+        // stays a brand check on the bundled Mina art, not on a business id.
+        if House.bundledArt == "mina" && p.photoSource != nil {
             notes.append(p.sourceMarked
                 ? "This photo carries the house's mark already: add nothing more, or clear it first in the editor (AI → Enhance and clear old labels)."
                 : "The editor starts from the photo before the catalogue framed it and put the MINA mark on; the mark goes back top right.")

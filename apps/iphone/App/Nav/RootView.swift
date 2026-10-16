@@ -36,7 +36,10 @@ struct RootGate: View {
                 Group {
                     if session.role == "karigar" {
                         // A karigar's own work, native (MyWorkScreen reads the portal's /api/karigar/me; the ERP's /my-work).
-                        NavigationStack { MyWorkScreen(path: "/my-work") }
+                        NavigationStack {
+                            MyWorkScreen(path: "/my-work")
+                                .toolbar { ToolbarItem(placement: .topBarLeading) { BusinessChip() } }
+                        }
                     } else {
                         RootView()
                     }
@@ -128,7 +131,12 @@ struct RootView: View {
         .tabViewStyle(.sidebarAdaptable)
         // The house's whole logo heads an iPad's sidebar, as the ERP's own sidebar is headed.
         .tabViewSidebarHeader {
-            HouseLogo().frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
+            VStack(alignment: .leading, spacing: 10) {
+                HouseLogo().frame(maxWidth: .infinity, alignment: .leading)
+                // Which business this is, and the way to the others (an iPhone has it in each tab's bar).
+                BusinessChip(wide: true)
+            }
+            .padding(.vertical, 8)
         }
         .sheet(isPresented: $voice, onDismiss: {
             if let p = pendingRoute { pendingRoute = nil; creating = p }
@@ -277,6 +285,7 @@ struct PlaceScreen: View {
     /// an owner's opens the form, anyone else's a page to read).
     var isRoot = false
     @Environment(Session.self) private var session
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var chosen: String?
 
     var body: some View {
@@ -297,6 +306,10 @@ struct PlaceScreen: View {
             .modifier(OptionalGround(on: ScreenRegistry.hasNative(current), width: ScreenRegistry.readableWidth(for: current)))
             .modifier(TeamNotePresentation(shown: isRoot))
             .toolbar {
+                // The business at the top of every tab (an iPad keeps it in the sidebar's header).
+                if isRoot && !sizeClass.isPadLayout {
+                    ToolbarItem(placement: .topBarLeading) { BusinessChip() }
+                }
                 if isRoot {
                     ToolbarItem(placement: .topBarLeading) { RateChip() }
                 }

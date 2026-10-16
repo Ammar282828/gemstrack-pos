@@ -149,6 +149,8 @@ struct Business: Codable, Sendable, Equatable, Identifiable {
     var url: URL { URL(string: serverURL) ?? URL(string: "https://erp.taheri.shop")! }
     var host: String { url.host ?? "" }
     var isDemo: Bool { id == Self.demoID }
+    /// The first letter, for a badge where the logo is not at hand.
+    var initial: String { String(name.trimmingCharacters(in: .whitespaces).prefix(1)).uppercased() }
     /// What the app calls this business where it says "<Name> ERP".
     var displayName: String { storeName ?? (name.lowercased().hasSuffix("erp") ? name : "\(name) ERP") }
 
@@ -181,15 +183,7 @@ struct Business: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
-extension UIColor {
-    /// "#BE9F76" (the leading # optional); nil for anything else.
-    convenience init?(hex: String?) {
-        guard var s = hex?.trimmingCharacters(in: .whitespaces), !s.isEmpty else { return nil }
-        if s.hasPrefix("#") { s.removeFirst() }
-        guard s.count == 6, let v = UInt64(s, radix: 16) else { return nil }
-        self.init(red: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: 1)
-    }
-}
+// UIColor(hex:) is Shared/ERPWidgetLink.swift's: the widget reads the same hex palettes.
 
 extension Business.Palette {
     /// One colour that follows the phone's appearance (the device's choice wins, decision "Light and dark").

@@ -71,6 +71,9 @@ final class Businesses {
     private(set) var list: [Business]
     private(set) var current: Business
     @ObservationIgnored private var removed: [String]
+    /// The "Businesses" sheet is open (the chip, the sign-in page and Settings open it; ERPApp's BusinessHost presents it
+    /// above the screens, which a switch rebuilds underneath).
+    var switcherOpen = false
 
     struct Failure: LocalizedError {
         let errorDescription: String?
@@ -91,11 +94,10 @@ final class Businesses {
 
     // MARK: Adding
 
-    /// Adds the business whose ERP is at `address` ("erp.example.shop", "https://erp.example.shop/anything"):
-    /// the origin over https, its descriptor read and judged, kept. An address already added is refreshed.
-    /// Does not switch to it; the caller does.
-    @discardableResult
-    func add(address: String) async throws -> Business {
+    /// Reads and judges the business whose ERP is at `address` ("erp.example.shop", "https://erp.example.shop/anything"):
+    /// the origin over https, its descriptor fetched and checked. Keeps nothing: the Businesses sheet shows what comes
+    /// back as a preview card, and `add` keeps it.
+    func describe(address: String) async throws -> Business {
         guard !House.isDemo else { throw Failure("The demo can't add a business.") }
         let origin = try Self.origin(of: address)
         var request = URLRequest(url: origin.appendingPathComponent("api/app/business"))
@@ -119,6 +121,14 @@ final class Businesses {
             b.id = Self.slug(b.id + "-" + (origin.host ?? ""))
         }
         if let why = b.problem { throw Failure(why) }
+        return b
+    }
+
+    /// Adds the business whose ERP is at `address` (see `describe`), kept. An address already added is refreshed.
+    /// Does not switch to it; the caller does.
+    @discardableResult
+    func add(address: String) async throws -> Business {
+        let b = try await describe(address: address)
         if let i = list.firstIndex(where: { $0.id == b.id }) {
             list[i] = Self.keepingIdentity(of: list[i], updatedBy: b)
             if current.id == b.id { current = list[i] }
@@ -174,6 +184,7 @@ final class Businesses {
         guard list.count > 1, let gone = business(id), !House.isDemo else { return }
         if current.id == id, let next = list.first(where: { $0.id != id }) { `switch`(to: next.id) }
         await Sessions.shared.signOutForRemoval(gone)
+        ERPWidgetLink.remove(id: id)
         list.removeAll { $0.id == id }
         if Business.bundledIDs.contains(id) { removed.append(id) }
         persist()
@@ -246,6 +257,7 @@ final class Businesses {
         }
         BusinessBox.shared.set(current: current, list: list)
         persist()
+        WidgetLinker.sync(list)
     }
 
     private func persist() {

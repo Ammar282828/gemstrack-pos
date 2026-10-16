@@ -41,7 +41,7 @@ const out = Object.entries(houses).map(([id, h]) => ({
   version: 1,
   id,
   name: own[id].name,
-  shortName: h.homeName,
+  shortName: h.shortName || h.homeName,
   storeName: h.storeName,
   serverURL: h.url,
   metal: h.metal,

@@ -7,6 +7,12 @@
 // Cloud's and a Mac's (automatic signing: Xcode Cloud signs in the cloud for the team it is given,
 // ci_scripts/ci_post_clone.sh), with the build number Xcode Cloud counts.
 //
+// The default build is the MERGED app: shop.taheri.erp, home-screen name "ERP", holding every business (Taheri, House of
+// Mina, any added by address; Config/Businesses.swift). "taheri" is only its bundle and asset base, and ERP_HOUSE no longer
+// drives behaviour at run time: it picks the launch screen, the primary app icon and the global accent colour. House of Mina's
+// own app (`mina`, store.houseofmina.erp) is DEPRECATED: it keeps building for Xcode Cloud so its testers can move over, and
+// is removed once they have.
+//
 // Writes House.xcconfig (read by every target, project.yml configFiles) from houses.json, and
 // prints the same values KEY=VALUE for $GITHUB_ENV. Then `xcodegen` makes ERP.xcodeproj.
 
@@ -20,6 +26,7 @@ const houses = JSON.parse(fs.readFileSync(path.join(dir, 'houses.json'), 'utf8')
 const name = process.argv[2];
 const h = houses[name];
 if (!h) { console.error(`usage: node scripts/house.mjs <${Object.keys(houses).join('|')}> [--sign team appProfile widgetProfile]`); process.exit(1); }
+if (h.deprecated) console.error(`note: the ${name} app is deprecated. ${h.deprecated}`);
 const sign = process.argv[3] === '--sign' ? { team: process.argv[4], app: process.argv[5], widget: process.argv[6] } : null;
 const auto = process.argv[3] === '--auto' ? { team: process.argv[4] || '', build: process.argv[5] || '' } : null;
 
@@ -39,6 +46,8 @@ const s = {
   ERP_FIREBASE_STORAGE_BUCKET: h.firebase.storageBucket,
   ERP_FIREBASE_APP_ID: h.firebase.iosAppId || '',
   ERP_APPICON: `AppIcon-${name}`,
+  // Alternate app icons (space-separated asset names; the Settings toggle sets them). The merged app offers Mina's.
+  ERP_ALT_ICONS: (h.alternateIcons || []).join(' '),
   ERP_LAUNCH_COLOR: `Launch-${name}`,
   ERP_LAUNCH_MARK: `LaunchLogo-${name}`,
 };

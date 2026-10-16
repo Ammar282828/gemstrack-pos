@@ -33,7 +33,9 @@ private struct DataForm: View {
             Section {
                 NavigationLink(value: Route(path: "/settings/contact-import")) { Label("Import contacts", systemImage: "person.crop.circle.badge.plus") }
                 NavigationLink(value: Route(path: "/settings/hisaab-import")) { Label("Import hisaab", systemImage: "square.and.arrow.down") }
-                if House.id == "taheri" || House.isDemo {
+                // No server flag says "this house has a Taheri Software book" (it is Taheri's one-off), so this stays a brand
+                // check: the bundled Taheri art (the demo wears it), never an added business that only borrows its files.
+                if House.bundledArt == "taheri" {
                     NavigationLink(value: Route(path: "/settings/import-taheri")) { Label("Import Taheri Software book", systemImage: "books.vertical") }
                 }
             } header: {

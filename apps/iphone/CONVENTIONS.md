@@ -65,6 +65,12 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
    `.firestore` / `.firebaseApp` (never `Auth.auth()` or `Firestore.firestore()`); a long-lived singleton that holds
    a business's data gets `static var shared` + `static func reset()` and is added to
    `Businesses.resetPerBusinessState()`. Built-ins ship in `Resources/businesses.json` (`node scripts/businesses.mjs`).
+14. **The switcher and the widget.** `BusinessChip` heads every tab root (and the iPad sidebar); the list, adding and removing are
+   `BusinessesScreen` (`/app/businesses`, also the chip's sheet, presented by `ERPApp`'s `BusinessHost` via
+   `Businesses.shared.switcherOpen`). The widget links are one per business in `ERPWidgetLink` (Shared); the widget reads
+   nothing of the build's Info.plist for its look. A branch on `House.id == "mina"` is a bug: use a descriptor field
+   (`metal`, `flags`) or, if the server has none, `House.bundledArt` and say so in a comment. The app icon changes only
+   from Settings (`AppIcon`), never on a switch.
 
 ## Kit components
 

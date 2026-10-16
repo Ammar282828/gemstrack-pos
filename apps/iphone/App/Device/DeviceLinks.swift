@@ -21,11 +21,10 @@ enum DeviceLinks {
                 Task { @MainActor in try? await Task.sleep(for: .seconds(3)); once.fire() }
             }
         }
-        // The widget is linked to one business at a time (its key is for that ERP): only that business's sign-out clears it.
-        if ERPWidgetLink.load().map({ $0.url == business.serverURL }) ?? true {
-            ERPWidgetLink.clear()
-            WidgetCenter.shared.reloadAllTimelines()
-        }
+        // The widget holds one link per business (its key is for that ERP): only this business's sign-out or removal
+        // takes its link; the others keep showing.
+        ERPWidgetLink.remove(id: business.id)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }
 
@@ -52,6 +51,9 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
     private(set) var registeredOnServer = false
     private(set) var registrationError: String?
     private(set) var registering = false
+    /// Whether each signed-in business has this phone's token (Settings → This phone lists them): by business id.
+    enum LinkState: Equatable { case linked, failed(String) }
+    private(set) var states: [String: LinkState] = [:]
     private var registrationTask: Task<Void, Never>?
     /// The phone's push token is the device's; each signed-in business is told of it (`link`).
     private var token: String? {
@@ -94,17 +96,22 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
         let open = House.business
         let body: [String: Any] = ["token": hex, "bundleId": Bundle.main.bundleIdentifier ?? "", "label": UIDevice.current.model]
         for b in Businesses.shared.signedInBusinesses() where b.id != open.id {
-            _ = try? await ERPAPI.shared.send("/api/push/devices", body, business: b)
+            do {
+                _ = try await ERPAPI.shared.send("/api/push/devices", body, business: b)
+                states[b.id] = .linked
+            } catch { states[b.id] = .failed(error.localizedDescription) }
         }
         do {
             try await ERPAPI.shared.send("/api/push/devices", body, business: open)
             guard !Task.isCancelled else { return }
             registeredOnServer = true
             registrationError = nil
+            states[open.id] = .linked
         } catch {
             guard !Task.isCancelled else { return }
             registeredOnServer = false
             registrationError = error.localizedDescription
+            states[open.id] = .failed(error.localizedDescription)
         }
         registering = false
     }
@@ -130,6 +137,9 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
         registrationTask?.cancel()
         registrationTask = nil
         if let t = token { _ = try? await ERPAPI.shared.send("/api/push/devices", method: "DELETE", ["token": t], timeout: 3, business: business) }
+        states[business.id] = nil
+        // The flags below are the open business's: another business leaving (a removal) must not unlink this one.
+        guard business.id == House.id else { return }
         registeredOnServer = false
         registering = false
         registrationError = nil
@@ -175,18 +185,64 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
     }
 }
 
-/// The home-screen widget's key (/api/widget/key), in the keychain the widget shares.
+/// The home-screen widget's keys (/api/widget/key), one per business, in the keychain the widget shares.
 enum WidgetLinker {
-    /// `force` asks for a fresh key even when one is kept; the kept link is replaced only once the new key
-    /// has arrived, so a failed relink (offline) never leaves a working widget unlinked. False if no key came.
+    /// Links the open business. `force` asks for a fresh key even when one is kept; the kept link is replaced only once
+    /// the new key has arrived, so a failed relink (offline) never leaves a working widget unlinked. False if no key came.
+    /// Other businesses' links are never touched here: each is made when that business is signed in to.
     @discardableResult
     @MainActor static func link(force: Bool = false) async -> Bool {
-        // The widget shows one business (the one linked last, i.e. signed in to or switched to most recently): the next task makes it per business.
-        if !force, let l = ERPWidgetLink.load(), l.url == House.serverURL.absoluteString { return true }
-        guard let r = try? await ERPAPI.shared.send("/api/widget/key", ["label": "iPhone widget"]), let key = r["key"] as? String else { return false }
-        ERPWidgetLink.save(.init(url: House.serverURL.absoluteString, key: key, house: House.storeName))
+        let b = House.business
+        if !force, let kept = ERPWidgetLink.entry(for: b.id), kept.url == b.serverURL {
+            // The key stays; the name and colours follow the business (it may have changed them).
+            let fresh = ERPWidgetLink.Link(business: b, key: kept.key)
+            if fresh != kept { ERPWidgetLink.save(fresh); WidgetCenter.shared.reloadAllTimelines() }
+            return true
+        }
+        guard let r = try? await ERPAPI.shared.send("/api/widget/key", ["label": "iPhone widget"], business: b),
+              let key = r["key"] as? String else { return false }
+        // Signed out or switched away while the key was made: it is not kept for a business that no longer has a sign-in.
+        guard Businesses.shared.auth(for: b)?.currentUser != nil || House.isDemo else { return false }
+        ERPWidgetLink.save(.init(business: b, key: key))
         WidgetCenter.shared.reloadAllTimelines()
         return true
+    }
+
+    /// The businesses were described again (a new colour, name or logo): the widget's links follow, keeping their keys.
+    @MainActor static func sync(_ list: [Business]) {
+        var changed = false
+        for b in list {
+            guard let kept = ERPWidgetLink.entry(for: b.id) else { continue }
+            let fresh = ERPWidgetLink.Link(business: b, key: kept.key)
+            if fresh != kept { ERPWidgetLink.save(fresh); changed = true }
+        }
+        if changed { WidgetCenter.shared.reloadAllTimelines() }
+    }
+}
+
+extension ERPWidgetLink.Link {
+    /// A business's entry: its address and the key made for it, with the name and colours the widget draws it in.
+    init(business b: Business, key: String) {
+        self.init(id: b.id, name: b.displayName, url: b.serverURL, key: key, palette: .init(b.palette), brand: b.art)
+    }
+}
+
+extension ERPWidgetLink.Palette {
+    init(_ p: Business.Palette) {
+        self.init(light: .init(p.light), dark: .init(p.dark))
+    }
+}
+
+extension ERPWidgetLink.Side {
+    init(_ s: Business.Side) {
+        self.init(accent: s.accent, ground: s.ground, card: s.card, onAccent: s.onAccent)
+    }
+}
+
+extension ERPWidgetLook {
+    /// How a business looks on the widget, for the app's preview of it.
+    init(_ b: Business) {
+        self.init(ERPWidgetLink.Link(business: b, key: ""))
     }
 }
 
