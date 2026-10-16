@@ -50,8 +50,9 @@ const out = Object.entries(houses).map(([id, h]) => ({
   logo: { light: h.url + own[id].logo.light, dark: h.url + own[id].logo.dark, aspect: own[id].logo.aspect },
   icon: `${h.url}/icons/${id}/icon-512.png`,
   ios: {
-    googleClientId: h.googleClientId,
-    firebase: { apiKey: h.firebase.apiKey, appId: h.firebase.iosAppId, projectId: h.firebase.projectId, senderId: h.firebase.senderId, storageBucket: h.firebase.storageBucket },
+    // The one app (shop.taheri.erp) has its own iOS app in each other house's Firebase project (oneApp).
+    googleClientId: h.oneApp?.googleClientId || h.googleClientId,
+    firebase: { apiKey: h.oneApp?.firebase?.apiKey || h.firebase.apiKey, appId: h.oneApp?.firebase?.iosAppId || h.firebase.iosAppId, projectId: h.firebase.projectId, senderId: h.firebase.senderId, storageBucket: h.firebase.storageBucket },
   },
   flags: own[id].flags,
 }));

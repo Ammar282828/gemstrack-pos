@@ -82,10 +82,10 @@
     },
     "icon": "https://erp.houseofmina.store/icons/mina/icon-512.png",
     "ios": {
-      "googleClientId": "288366939838-dpvb39065ba49p7854bk87n0377t4n7n.apps.googleusercontent.com",
+      "googleClientId": "288366939838-mgf4cvjppgl1odsif69837258ce2kg2s.apps.googleusercontent.com",
       "firebase": {
-        "apiKey": "AIzaSyBJsDVAI_b7RvnSf-cpnSNLXQ-R0OH0qU4",
-        "appId": "1:288366939838:ios:0645865ce04bf0008798ef",
+        "apiKey": "AIzaSyD8TRSZEwpYYPiAGSz2FkjgxxKSJa4VEHE",
+        "appId": "1:288366939838:ios:b765f9330f8080358798ef",
         "projectId": "hom-pos-52710474-ceeea",
         "senderId": "288366939838",
         "storageBucket": "hom-pos-52710474-ceeea.firebasestorage.app"

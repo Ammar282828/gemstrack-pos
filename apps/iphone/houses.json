@@ -4,7 +4,9 @@
     "storeName": "Taheri ERP",
     "shortName": "Taheri ERP",
     "homeName": "ERP",
-    "alternateIcons": ["AppIcon-mina"],
+    "alternateIcons": [
+      "AppIcon-mina"
+    ],
     "url": "https://erp.taheri.shop",
     "metal": "gold",
     "ground": "#0A1111",
@@ -35,6 +37,13 @@
       "senderId": "288366939838",
       "storageBucket": "hom-pos-52710474-ceeea.firebasestorage.app",
       "iosAppId": "1:288366939838:ios:0645865ce04bf0008798ef"
+    },
+    "oneApp": {
+      "googleClientId": "288366939838-mgf4cvjppgl1odsif69837258ce2kg2s.apps.googleusercontent.com",
+      "firebase": {
+        "apiKey": "AIzaSyD8TRSZEwpYYPiAGSz2FkjgxxKSJa4VEHE",
+        "iosAppId": "1:288366939838:ios:b765f9330f8080358798ef"
+      }
     }
   }
 }

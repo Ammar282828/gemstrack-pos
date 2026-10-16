@@ -36,18 +36,17 @@ env:
       - BUILD
       - RUNTIME
   # The one native app (bundle shop.taheri.erp) signs in to Mina with these: public identifiers, not secrets.
-  # TEMPORARY: they are the old store.houseofmina.erp app's. Replace them with the shop.taheri.erp iOS app's once the
   # owner registers that bundle in Mina's Firebase project (and its OAuth client), or Google sign-in in the merged app fails.
   - variable: APP_IOS_GOOGLE_CLIENT_ID
-    value: "288366939838-dpvb39065ba49p7854bk87n0377t4n7n.apps.googleusercontent.com"
+    value: "288366939838-mgf4cvjppgl1odsif69837258ce2kg2s.apps.googleusercontent.com"
     availability:
       - RUNTIME
   - variable: APP_IOS_FIREBASE_API_KEY
-    value: "AIzaSyBJsDVAI_b7RvnSf-cpnSNLXQ-R0OH0qU4"
+    value: "AIzaSyD8TRSZEwpYYPiAGSz2FkjgxxKSJa4VEHE"
     availability:
       - RUNTIME
   - variable: APP_IOS_FIREBASE_APP_ID
-    value: "1:288366939838:ios:0645865ce04bf0008798ef"
+    value: "1:288366939838:ios:b765f9330f8080358798ef"
     availability:
       - RUNTIME
   - variable: NEXT_PUBLIC_STORE_LOGO_URL
