@@ -23,3 +23,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-15: native Design (make, pages, resize, smart input, publish, AI tools, saved), designer v2 tools, marketing grouped as the ERP, Mina's Workshop starts on Anyone.
 - 2026-10-15: no bubble when finishing an order, invoice or sheet (the zoom only from the row tapped).
 - 2026-10-16: one app, many businesses (switch, add by ERP address, a widget per business); named ERP.
+- 2026-10-16: House of Mina signs in inside the one app (her Firebase project's iOS app for shop.taheri.erp).
