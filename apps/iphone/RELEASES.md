@@ -24,3 +24,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-15: no bubble when finishing an order, invoice or sheet (the zoom only from the row tapped).
 - 2026-10-16: one app, many businesses (switch, add by ERP address, a widget per business); named ERP.
 - 2026-10-16: House of Mina signs in inside the one app (her Firebase project's iOS app for shop.taheri.erp).
+- 2026-10-16: the one app's own icon (ERP); Taheri and House of Mina as alternates.
