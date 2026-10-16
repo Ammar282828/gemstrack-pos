@@ -476,6 +476,15 @@ In Reels the lowest line or the mark may sit under the caption. That trade is ac
 (bg adjust and placement; layers added, removed and changed: font, size, colour, weight, words, x/y). Look at the drawings side
 by side, and put the pattern in MINA's rules here and in `brand.ts`. Revs above 1 with `by: 'page'` are the owner's.
 
+**The owner's type, 2026-10-16** ("i made some changes in the boards, check and see, font changes spacing etc. fix the rest up"):
+on the silver shoot board the owner restyled six ads in all their sizes. The small capitals moved off Tenor Sans to the house
+sans and grew to about 24 px: the piece's line regular, the material bold, the button's words bold. Named designs keep the
+italic name and line plus one pink bold capitals material line, with no separate stone line. Top-anchored named designs on a
+light shirt get a larger name (about 1.3×) and a regular-sans line. Carried to the other 177 designs of the three shoot boards
+(`.claude-tmp/restyle.mts`, not idempotent: its moves would repeat). The owner's own designs were left alone, except the Zara
+4:5: its leftover stone line was removed and its line moved off the enlarged name, to match its 9:16 and 3:4. The rules are now
+in `brand.ts`.
+
 **Checks the owner's copy still needs** (raised 2026-10-14, not changed):
 - "For the First time in Pakistan" is a claim: is 24K vermeil at 2.5 µm really first here?
 - "Lesser Repolishes" reads better as "Fewer re-polishes".
