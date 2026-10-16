@@ -19,6 +19,7 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { fingersOn, useNoPageZoom, wheelPx } from '@/hooks/use-no-page-zoom';
 import { useLingering } from '@/hooks/use-lingering';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -466,19 +467,62 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
     });
   }, []);
 
+  // Wheel and trackpad (2026-10-16, owner: "zoom in zoom out for the board is buggy, my trackpad zooming shouldn't
+  // zoom the page in"). The listener had been added once, while the board was still loading and this box didn't
+  // exist yet, so it never was: every pinch went to the browser and zoomed the page. Now it is added once the box
+  // is there; a pinch (ctrl + wheel in Chrome, Edge and Firefox; gesture events in Safari) zooms about the
+  // fingers, two-finger scrolling pans, and a burst of events is applied once a frame, not once an event.
+  const hasBox = !!board;
   useEffect(() => {
     const el = boxRef.current;
     if (!el) return;
+    let k = 1, dx = 0, dy = 0, cx = 0, cy = 0, raf = 0;
+    const flush = () => {
+      raf = 0;
+      const kk = k, ddx = dx, ddy = dy, px = cx, py = cy;
+      k = 1; dx = 0; dy = 0;
+      setView(v => {
+        let n = { ...v, x: v.x + ddx, y: v.y + ddy };
+        if (kk !== 1) {
+          const z = Math.min(3, Math.max(0.06, n.z * kk));
+          n = { z, x: px - (px - n.x) * (z / n.z), y: py - (py - n.y) * (z / n.z) };
+        }
+        return n;
+      });
+    };
+    const queue = () => { touched.current = Date.now(); if (!raf) raf = requestAnimationFrame(flush); };
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      touched.current = Date.now();
       const r = el.getBoundingClientRect();
-      if (e.ctrlKey || e.metaKey) zoomAt(Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
-      else setView(v => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
+      if (e.ctrlKey || e.metaKey) { k *= Math.exp(-wheelPx(e, el.clientHeight) * 0.01); cx = e.clientX - r.left; cy = e.clientY - r.top; }
+      else { dx -= e.deltaX * (e.deltaMode === 1 ? 16 : 1); dy -= e.deltaY * (e.deltaMode === 1 ? 16 : 1); }
+      queue();
+    };
+    // Safari: the pinch's own scale, from where it started.
+    type Gesture = Event & { scale: number; clientX: number; clientY: number };
+    let last = 1;
+    const touch = fingersOn(el);
+    const onStart = (e: Event) => { e.preventDefault(); last = 1; };
+    const onChange = (e: Event) => {
+      e.preventDefault();
+      if (touch.down()) return;   // a touch pinch: the pointers zoom it
+      const g = e as Gesture, r = el.getBoundingClientRect();
+      k *= g.scale / last; last = g.scale; cx = g.clientX - r.left; cy = g.clientY - r.top;
+      queue();
     };
     el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [zoomAt]);
+    el.addEventListener('gesturestart', onStart, { passive: false } as AddEventListenerOptions);
+    el.addEventListener('gesturechange', onChange, { passive: false } as AddEventListenerOptions);
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('gesturestart', onStart);
+      el.removeEventListener('gesturechange', onChange);
+      if (raf) cancelAnimationFrame(raf);
+      touch.stop();
+    };
+  }, [hasBox]);
+  // Over the board's own panels and bars too: the browser never zooms the page while the board is open big.
+  useNoPageZoom(stage || full || !!editing);
 
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<{ kind: 'pan' | 'frame' | 'note'; id?: string; sx: number; sy: number; ox: number; oy: number; moved: boolean; pinch?: { d: number; z: number } } | null>(null);
@@ -768,6 +812,13 @@ function BoardView({ id, onGone, onRenamed }: { id: string; onGone: () => void; 
     if (mod && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
     if (mod && k === 'y') { e.preventDefault(); redo(); return; }
     if (mod && k === 'd' && selFrame) { e.preventDefault(); duplicate(selFrame); return; }
+    // ⌘+ / ⌘− / ⌘0 zoom the board, not the browser.
+    if (mod && (k === '=' || k === '+' || k === '-' || k === '_' || k === '0')) {
+      e.preventDefault();
+      const [cx, cy] = mid();
+      if (k === '0') { if (e.shiftKey) fit(); else zoomAt(1 / view.z, cx, cy); } else zoomAt(k === '-' || k === '_' ? 1 / 1.25 : 1.25, cx, cy);
+      return;
+    }
     if (mod) return;
     if ((k === 'delete' || k === 'backspace') && (selFrame || selNote)) { e.preventDefault(); if (selFrame) removeFrame(selFrame); else if (selNote) removeNote(selNote); return; }
     if (k === 'enter' && selFrame) { e.preventDefault(); setEditing(selFrame.id); return; }

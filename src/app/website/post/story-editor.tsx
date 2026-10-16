@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { fingersOn, useNoPageZoom, wheelPx } from '@/hooks/use-no-page-zoom';
 import {
   Undo2, Redo2, Plus, LayoutTemplate, Type, ArrowUpRight, Minus, Circle, Square, Link2, Image as ImageIcon, Trash2, Save, BookmarkCheck,
   Maximize2, Minimize2, Lock, Copy, MoreHorizontal, ArrowLeft, Download, ZoomIn, ZoomOut, Shapes, PaintBucket, Layers, Palette as PaletteIcon, Upload, Clipboard, Scissors,
@@ -1551,11 +1552,27 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage, exportPa
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      setZoom(z => { const now = z === 'fit' ? fit / F.w : z; return Math.min(3, Math.max(0.08, now * Math.exp(-e.deltaY * 0.01))); });
+      const k = Math.exp(-wheelPx(e, el.clientHeight) * 0.01);
+      setZoom(z => { const now = z === 'fit' ? fit / F.w : z; return Math.min(3, Math.max(0.08, now * k)); });
+    };
+    // Safari's pinch: gesture events, its scale from where it started.
+    let last = 1;
+    const touch = fingersOn(el);
+    const onStart = (e: Event) => { e.preventDefault(); last = 1; };
+    const onChange = (e: Event) => {
+      e.preventDefault();
+      if (touch.down()) return;   // a touch pinch is the page's own (the photo, a layer)
+      const s = (e as Event & { scale: number }).scale, k = s / last;
+      last = s;
+      setZoom(z => { const now = z === 'fit' ? fit / F.w : z; return Math.min(3, Math.max(0.08, now * k)); });
     };
     el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
+    el.addEventListener('gesturestart', onStart, { passive: false } as AddEventListenerOptions);
+    el.addEventListener('gesturechange', onChange, { passive: false } as AddEventListenerOptions);
+    return () => { el.removeEventListener('wheel', onWheel); el.removeEventListener('gesturestart', onStart); el.removeEventListener('gesturechange', onChange); touch.stop(); };
   }, [mounted, fit, F.w]);
+  // Never the browser's page, wherever the pinch lands (the rail, a panel, the strip): the designer covers it.
+  useNoPageZoom(mounted);
 
   const panelBody = (() => {
     switch (panel) {

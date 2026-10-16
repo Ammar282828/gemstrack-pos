@@ -298,6 +298,13 @@ longer forms (Let it cook with an aim, the name, every shape).
     - **No forced full screen.** The designer no longer asks the browser for full screen on its own (it had hidden the page); the
       button remembers the choice per device.
     - **Back on the board**, the design last edited is picked, glows a moment and is panned into view if it was off screen.
+    - <a id="board-zoom"></a>**Pinch and wheel** (2026-10-16, owner: "zoom in zoom out for the board is buggy, my trackpad zooming
+      shouldn't zoom the page in"): the board's wheel listener had been added while the board was still loading, before its box
+      existed, so it never was and every pinch zoomed the browser's page. Now a trackpad pinch (ctrl + wheel in Chrome, Edge and
+      Firefox; gesture events in Safari, skipped while fingers are on the glass so an iPad's touch pinch isn't counted twice) zooms
+      the board about the fingers, two fingers pan, a burst is applied once a frame, a mouse notch is capped, and ⌘+ / ⌘− / ⌘0
+      (⇧⌘0 fits) zoom the board. While the board is open big or a design is being edited, `useNoPageZoom` (`hooks/use-no-page-zoom.ts`)
+      stops the browser zooming anywhere on the page — the drawer, the bars, the designer's rail, panels and strip included.
     - **Tidy up** (`board-tidy.ts`, tested) keeps each ad's sizes side by side and puts as many ads a row as suit the board's shape
       (the shoot boards had been one ad a row, a column that fitted at 8%; tidied 2026-10-16). Big changes go to the server 60 ops a
       request (its limit), so Tidy works on a board of any size.
