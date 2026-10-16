@@ -12,10 +12,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveKarigar, verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
-import {
-  STORE_BRAND, STORE_CONFIG, STORE_TAKEN_BY, STORE_PARTNERSHIP, STORE_WEBSITE_SELLING, STORE_INVOICE_BY_CUSTOMER,
-  STORE_INVOICE_WHATSAPP_PDF, STORE_SIZE_TO_PROFILE, STORE_WORKSHOP_START,
-} from '@/lib/store-config';
+import { STORE_BRAND, STORE_CONFIG, STORE_TAKEN_BY } from '@/lib/store-config';
+import { shopFlags } from '@/lib/app-shop';
 import { EXPENSE_CATEGORIES } from '@/lib/expense-categories';
 import { personFor } from '@/lib/people';
 
@@ -36,12 +34,7 @@ export async function GET(req: NextRequest) {
       person: personFor(email) ?? null,
       takenBy: [...STORE_TAKEN_BY],
       expenseCategories: [...EXPENSE_CATEGORIES],
-      partnership: STORE_PARTNERSHIP,
-      websiteSelling: STORE_WEBSITE_SELLING,
-      invoiceByCustomer: STORE_INVOICE_BY_CUSTOMER,
-      invoiceWhatsappPdf: STORE_INVOICE_WHATSAPP_PDF,
-      sizeToProfile: STORE_SIZE_TO_PROFILE,
-      workshopStart: STORE_WORKSHOP_START,
+      ...shopFlags(),
     },
   });
 }

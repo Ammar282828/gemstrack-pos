@@ -375,3 +375,47 @@ export const STORE_DESIGN = STORE_POST_PIECE || STORE_AD_STUDIO || STORE_SITE_PO
 const lines = (v: string | undefined) => (v ?? '').replace(/\\n/g, '\n').trim();
 export const STORE_POST_TAGLINE = lines(process.env.NEXT_PUBLIC_STORE_POST_TAGLINE);
 export const STORE_POST_FOOTER = lines(process.env.NEXT_PUBLIC_STORE_POST_FOOTER);
+
+/**
+ * The house's colours for the native app (GET /api/app/business): the app dresses itself from this when it
+ * switches business, as #RRGGBB. Defaults are Taheri's (the iPhone app's Accent/Ground/Card/OnAccent colour
+ * sets). A house sets NEXT_PUBLIC_STORE_PALETTE to a compact JSON string
+ * `{"light":{"accent":"#…","ground":"#…","card":"#…","onAccent":"#…"},"dark":{…}}`; anything missing or not a
+ * #RRGGBB falls back to Taheri's for that colour. Empty is unset (the local env generator writes it empty).
+ */
+export type PaletteSide = { accent: string; ground: string; card: string; onAccent: string };
+export type StorePalette = { light: PaletteSide; dark: PaletteSide };
+const TAHERI_PALETTE: StorePalette = {
+  light: { accent: '#8A6B42', ground: '#F2F3F6', card: '#FFFFFF', onAccent: '#FFFFFF' },
+  dark: { accent: '#BE9F76', ground: '#0A1111', card: '#141A1A', onAccent: '#0B1414' },
+};
+export const parsePalette = (raw: string | undefined): StorePalette => {
+  let given: Record<string, Record<string, unknown> | undefined> = {};
+  try { given = JSON.parse((raw || '').trim() || '{}') ?? {}; } catch { /* unset */ }
+  const side = (k: 'light' | 'dark'): PaletteSide => {
+    const out = { ...TAHERI_PALETTE[k] };
+    for (const c of Object.keys(out) as (keyof PaletteSide)[]) {
+      const v = given[k]?.[c];
+      if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v.trim())) out[c] = v.trim().toUpperCase();
+    }
+    return out;
+  };
+  return { light: side('light'), dark: side('dark') };
+};
+export const STORE_PALETTE: StorePalette = parsePalette(process.env.NEXT_PUBLIC_STORE_PALETTE);
+
+/**
+ * What the one native app (bundle shop.taheri.erp) signs in with for this house: the iOS OAuth client and the
+ * iOS Firebase app. Public identifiers (they ship inside the app), not secrets. Server-side variables, read
+ * at run time. Defaults are Taheri's; the project, sender and bucket come from the web's Firebase values.
+ */
+export const storeAppIos = () => ({
+  googleClientId: process.env.APP_IOS_GOOGLE_CLIENT_ID?.trim() || '948018742883-9jb931ki5kuhckfo4c6400k1mh5ucpg0.apps.googleusercontent.com',
+  firebase: {
+    apiKey: process.env.APP_IOS_FIREBASE_API_KEY?.trim() || 'AIzaSyAl3W_9_Z9j0sR7rGIwwM1uiiXvOxGQ7IA',
+    appId: process.env.APP_IOS_FIREBASE_APP_ID?.trim() || '1:948018742883:ios:2288410141abf27f089a56',
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() || 'gemstrack-pos',
+    senderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?.trim() || '948018742883',
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || 'gemstrack-pos.firebasestorage.app',
+  },
+});

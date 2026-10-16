@@ -28,6 +28,28 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # The native app's colours for this house (GET /api/app/business; lib/store-config.ts STORE_PALETTE): the iPhone
+  # app's Accent/Ground/Card/OnAccent colour sets. Taheri's are the code's defaults.
+  - variable: NEXT_PUBLIC_STORE_PALETTE
+    value: '{"light":{"accent":"#380000","ground":"#F4EFE8","card":"#FFFDF9","onAccent":"#FBF9F9"},"dark":{"accent":"#E8A5AE","ground":"#1C1114","card":"#27191D","onAccent":"#251318"}}'
+    availability:
+      - BUILD
+      - RUNTIME
+  # The one native app (bundle shop.taheri.erp) signs in to Mina with these: public identifiers, not secrets.
+  # TEMPORARY: they are the old store.houseofmina.erp app's. Replace them with the shop.taheri.erp iOS app's once the
+  # owner registers that bundle in Mina's Firebase project (and its OAuth client), or Google sign-in in the merged app fails.
+  - variable: APP_IOS_GOOGLE_CLIENT_ID
+    value: "288366939838-dpvb39065ba49p7854bk87n0377t4n7n.apps.googleusercontent.com"
+    availability:
+      - RUNTIME
+  - variable: APP_IOS_FIREBASE_API_KEY
+    value: "AIzaSyBJsDVAI_b7RvnSf-cpnSNLXQ-R0OH0qU4"
+    availability:
+      - RUNTIME
+  - variable: APP_IOS_FIREBASE_APP_ID
+    value: "1:288366939838:ios:0645865ce04bf0008798ef"
+    availability:
+      - RUNTIME
   - variable: NEXT_PUBLIC_STORE_LOGO_URL
     value: /house-of-mina-logo.png
     availability:
