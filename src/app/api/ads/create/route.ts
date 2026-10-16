@@ -9,7 +9,7 @@ import { adsFail, adsGate } from '@/lib/ads/gate';
 import { createAd } from '@/lib/ads/create';
 import { planContext } from '@/lib/ads/context';
 import { logAds } from '@/lib/ads/log';
-import { GOALS, type AdPlan } from '@/lib/ads/plan';
+import { GOALS, isSource, type AdPlan } from '@/lib/ads/plan';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -19,7 +19,7 @@ function isPlan(p: unknown): p is AdPlan {
   const x = p as AdPlan;
   return !!x && typeof x === 'object'
     && GOALS.some(g => g.key === x.goal)
-    && !!x.source && (x.source.kind === 'post' || (x.source.kind === 'photos' && Array.isArray(x.source.photos)))
+    && isSource(x.source)
     && typeof x.text === 'string' && typeof x.headline === 'string' && typeof x.link === 'string'
     && !!x.audience && Array.isArray(x.audience.places)
     && !!x.budget && typeof x.budget.amount === 'number'

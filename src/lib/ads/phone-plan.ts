@@ -8,7 +8,7 @@
  * Tested (phone-plan.test.ts).
  */
 
-import { GOALS, defaultName, goalOf, goesToSite, planProblems, planSummary, type AdPlan, type GoalKey, type PlanContext } from './plan';
+import { GOALS, defaultName, isSource, goalOf, goesToSite, planProblems, planSummary, type AdPlan, type GoalKey, type PlanContext } from './plan';
 import { describeAudience, IG_POSITIONS } from './targeting';
 import { adCount, designProblems, type AdSetDesign } from './adset-design';
 import { hijriLabel, karachiDay, quietDaysBetween } from './studio/calendar';
@@ -83,7 +83,7 @@ export function isPlanShape(p: unknown): p is AdPlan {
   const x = p as AdPlan;
   return !!x && typeof x === 'object'
     && GOALS.some(g => g.key === x.goal)
-    && !!x.source && (x.source.kind === 'post' || (x.source.kind === 'photos' && Array.isArray(x.source.photos)))
+    && isSource(x.source)
     && typeof x.text === 'string' && typeof x.headline === 'string' && typeof x.link === 'string'
     && !!x.audience && Array.isArray(x.audience.places)
     && !!x.budget && typeof x.budget.amount === 'number'

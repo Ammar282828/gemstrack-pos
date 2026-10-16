@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { FolderKanban, Plus, RefreshCw, Loader2, ChevronRight, MoreVertical, Pencil, Wallet, CalendarClock, Copy, Archive, Trash2, Users, Eye, ExternalLink, Search, AlertTriangle, LayoutGrid, ListTree, ChevronsDownUp, ChevronsUpDown, ArrowUpRight, ArrowDownRight, Sparkles, Layers } from 'lucide-react';
+import { FolderKanban, Plus, RefreshCw, Loader2, ChevronRight, MoreVertical, Pencil, Wallet, CalendarClock, Copy, Archive, Trash2, Users, Eye, ExternalLink, Search, AlertTriangle, LayoutGrid, ListTree, ChevronsDownUp, ChevronsUpDown, ArrowUpRight, ArrowDownRight, Sparkles, Layers, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_META_ADS } from '@/lib/store-config';
 import {
@@ -29,6 +29,7 @@ import {
   type Metrics, type RangeKey, type AdsAccount, type TreeCampaign, type TreeAdSet, type TreeAd, type Level,
 } from '@/lib/ads/shape';
 import { parseTargeting, describeAudience, type AudienceDraft } from '@/lib/ads/targeting';
+import { campaignsCsv } from '@/lib/ads/export';
 import { api, useAdsStatus, useRange, RangePicker, NotReady, AccountAlerts, ErrorLine, StatusPill } from '../ads-kit';
 import { AudienceEditor } from '../audience-editor';
 
@@ -49,6 +50,16 @@ type Dialogs =
   | null;
 
 const running = (s: string) => s === 'ACTIVE';
+
+/** The campaigns on screen (filtered as shown) as a spreadsheet — Ads Manager's Export, from the ERP. */
+function download(campaigns: TreeCampaign[], range: string) {
+  const blob = new Blob([campaignsCsv(campaigns)], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `ads-${range}-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 const problem = (s: string, issues: string[]) => ['DISAPPROVED', 'WITH_ISSUES', 'PENDING_BILLING_INFO'].includes(s) || issues.length > 0;
 const LEVEL_WORD: Record<Level, string> = { campaign: 'campaign', adset: 'ad set', ad: 'ad' };
 
@@ -256,7 +267,8 @@ function Campaigns() {
             {view === 'tree' && <button type="button" onClick={() => { setAllOpen(v => !v); setOpen({}); }} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground min-h-0">
               {allOpen ? <><ChevronsDownUp className="h-3.5 w-3.5" /> Fold all</> : <><ChevronsUpDown className="h-3.5 w-3.5" /> Open all</>}
             </button>}
-            {data && <a href={adsManagerUrl(data.account.id, 'account')} target="_blank" rel="noopener" className="ml-auto inline-flex items-center gap-1 text-xs text-primary">Ads Manager <ExternalLink className="h-3 w-3" /></a>}
+            {data && <button type="button" onClick={() => download(campaigns, range)} className="ml-auto inline-flex items-center gap-1 text-xs text-primary min-h-0"><Download className="h-3 w-3" /> Download (CSV)</button>}
+            {data && <a href={adsManagerUrl(data.account.id, 'account')} target="_blank" rel="noopener" className="inline-flex items-center gap-1 text-xs text-primary">Ads Manager <ExternalLink className="h-3 w-3" /></a>}
           </div>
           {error && <ErrorLine error={error} onRetry={load} />}
           {!data && loading && <div className="flex items-center gap-2 text-sm text-muted-foreground py-6"><Loader2 className="h-4 w-4 animate-spin" /> Asking Meta…</div>}

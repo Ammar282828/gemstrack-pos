@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adsetParams, callToAction, campaignParams, creativeSpec, URL_TAGS, defaultName, enhancementsRejected, DEFAULT_ICE_BREAKERS, NO_ENHANCEMENTS, planProblems, planSummary, welcomeMessage, WHATSAPP_LINK, type AdPlan, type PlanContext } from './plan';
+import { adsetParams, isSource, callToAction, campaignParams, creativeSpec, URL_TAGS, defaultName, enhancementsRejected, DEFAULT_ICE_BREAKERS, NO_ENHANCEMENTS, planProblems, planSummary, welcomeMessage, WHATSAPP_LINK, type AdPlan, type PlanContext } from './plan';
 import { defaultDraft } from './targeting';
 
 const NOW = Date.parse('2026-09-25T10:00:00Z');
@@ -238,5 +238,79 @@ describe('Online orders (the pixel’s purchases)', () => {
     const ld = (c.object_story_spec as { link_data: { link: string; call_to_action: unknown } }).link_data;
     expect(ld.link).toBe('https://houseofmina.store/products/a');
     expect(ld.call_to_action).toEqual({ type: 'SHOP_NOW', value: { link: 'https://houseofmina.store/products/a' } });
+  });
+});
+
+describe('bidding and hours', () => {
+  const sales = (over: Partial<AdPlan> = {}) => plan({ goal: 'sales', link: 'https://houseofmina.store/products/elsa', ...over });
+  const sctx = { ...ctx, pixelId: 'PX1' };
+  it('a cost cap and a bid cap go in as Meta’s bid strategies, in paisa', () => {
+    expect(adsetParams(sales({ bidding: { kind: 'cost_cap', amount: 2500 } }), 'C1', sctx)).toMatchObject({ bid_strategy: 'COST_CAP', bid_amount: 250000 });
+    expect(adsetParams(sales({ bidding: { kind: 'bid_cap', amount: 300 } }), 'C1', sctx)).toMatchObject({ bid_strategy: 'LOWEST_COST_WITH_BID_CAP', bid_amount: 30000 });
+    expect(adsetParams(sales(), 'C1', sctx)).toMatchObject({ bid_strategy: 'LOWEST_COST_WITHOUT_CAP' });
+  });
+  it('a ROAS floor optimises for purchase value, and only on Online orders', () => {
+    const p = adsetParams(sales({ bidding: { kind: 'min_roas', roas: 3 } }), 'C1', sctx);
+    expect(p).toMatchObject({ bid_strategy: 'LOWEST_COST_WITH_MIN_ROAS', bid_constraints: { roas_average_floor: 30000 }, optimization_goal: 'VALUE' });
+    expect(planProblems(plan({ bidding: { kind: 'min_roas', roas: 3 } }), ctx).join(' ')).toMatch(/Online orders/);
+    expect(planProblems(sales({ bidding: { kind: 'cost_cap', amount: 0 } }), sctx).join(' ')).toMatch(/cost per result/);
+  });
+  it('set hours become a day-parting schedule, which needs a total budget', () => {
+    const hours = { days: [5, 6, 0], from: 18 * 60, to: 23 * 60 };
+    const total = { kind: 'total' as const, amount: 10000, start: null, end: new Date(Date.now() + 7 * 86_400_000).toISOString() };
+    expect(adsetParams(sales({ hours, budget: total }), 'C1', sctx)).toMatchObject({
+      pacing_type: ['day_parting'],
+      adset_schedule: [{ start_minute: 1080, end_minute: 1380, days: [0, 5, 6], timezone_type: 'USER' }],
+      lifetime_budget: 1000000,
+    });
+    expect(planProblems(sales({ hours }), sctx).join(' ')).toMatch(/total budget/);
+  });
+});
+
+describe('video, partnership and catalogue ads', () => {
+  const shop = { ...ctx, pixelId: 'PX' };
+  it('a video: video_data with its cover hash, the button, video changes switched off', () => {
+    const p = plan({ goal: 'website', source: { kind: 'video', videoId: 'V1', thumbHash: 'TH' } });
+    expect(planProblems(p, ctx)).toEqual([]);
+    const c = creativeSpec(p, ctx) as { object_story_spec: { video_data: Record<string, unknown> }; degrees_of_freedom_spec: { creative_features_spec: Record<string, unknown> }; url_tags: string };
+    expect(c.object_story_spec.video_data).toMatchObject({ video_id: 'V1', image_hash: 'TH', message: p.text, title: 'Emerald jhumkas', call_to_action: { type: 'SHOP_NOW', value: { link: p.link } } });
+    expect(c.degrees_of_freedom_spec.creative_features_spec.video_auto_crop).toEqual({ enroll_status: 'OPT_OUT' });
+    expect(c.url_tags).toBe(URL_TAGS);
+    expect(planProblems(plan({ source: { kind: 'video', videoId: 'V1', thumbHash: '' } }), ctx)).toContain('Wait for Meta to finish the video (it needs a cover picture).');
+    expect(planProblems(plan({ goal: 'messages', source: { kind: 'video', videoId: 'V1', thumbHash: 'TH' } }), ctx).join()).toMatch(/doesn’t work with a new video/);
+  });
+  it('a creator’s post: the ad code, both names, no words of our own', () => {
+    const p = plan({ goal: 'whatsapp', text: '', source: { kind: 'partner', adCode: 'ABCDEF123' } });
+    expect(planProblems(p, ctx)).toEqual([]);
+    expect(creativeSpec(p, ctx)).toMatchObject({
+      object_id: 'P1', branded_content: { instagram_boost_post_access_token: 'ABCDEF123', ad_format: 1 },
+      instagram_branded_content: { sponsor_id: 'IG1' }, facebook_branded_content: { sponsor_page_id: 'P1' },
+      call_to_action: { type: 'WHATSAPP_MESSAGE' },
+    });
+    expect(planProblems(plan({ source: { kind: 'partner', adCode: 'x' } }), ctx)).toContain('Paste the creator’s partnership ad code.');
+  });
+  it('the catalogue: catalogue on the campaign, set on the ad set, retargeting or prospecting, template creative', () => {
+    const src = { kind: 'catalog' as const, catalogId: 'CAT', setId: 'SET', setName: 'All products', who: 'viewers' as const };
+    const p = plan({ goal: 'sales', link: '', headline: '', source: src });
+    expect(planProblems(p, shop)).toEqual([]);
+    expect(campaignParams(p)).toMatchObject({ objective: 'OUTCOME_SALES', promoted_object: { product_catalog_id: 'CAT' } });
+    const a = adsetParams(p, 'C1', shop) as { promoted_object: unknown; targeting: Record<string, unknown> };
+    expect(a.promoted_object).toEqual({ product_set_id: 'SET', pixel_id: 'PX', custom_event_type: 'PURCHASE' });
+    const spec = (a.targeting.product_audience_specs as { inclusions: { rule: unknown }[]; exclusions: unknown[] }[])[0];
+    expect(a.targeting.targeting_automation).toEqual({ advantage_audience: 0 });
+    expect(spec.inclusions.map(i => i.rule)).toEqual([{ event: { eq: 'ViewContent' } }, { event: { eq: 'AddToCart' } }]);
+    const broad = adsetParams(plan({ goal: 'sales', source: { ...src, who: 'everyone' } }), 'C1', shop) as { targeting: Record<string, unknown> };
+    expect(broad.targeting.product_audience_specs).toBeUndefined();
+    expect(broad.targeting.excluded_product_audience_specs).toBeDefined();
+    const c = creativeSpec(p, shop) as { product_set_id: string; object_story_spec: { template_data: Record<string, unknown> } };
+    expect(c.product_set_id).toBe('SET');
+    expect(c.object_story_spec.template_data).toMatchObject({ name: '{{product.name}}', description: '{{product.price}}', call_to_action: { type: 'SHOP_NOW' } });
+    expect(planProblems(plan({ goal: 'whatsapp', source: src }), shop)).toContain('Catalogue ads run for “Online orders” only.');
+    expect(planSummary(p, 'PKR')[1]).toMatch(/Catalogue ads from “All products”/);
+  });
+  it('knows a sound source', () => {
+    expect(isSource({ kind: 'video', videoId: '1', thumbHash: 'h' })).toBe(true);
+    expect(isSource({ kind: 'catalog', catalogId: '1', setId: '2', who: 'nobody' })).toBe(false);
+    expect(isSource({ kind: 'nothing' })).toBe(false);
   });
 });

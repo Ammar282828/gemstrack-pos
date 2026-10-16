@@ -170,6 +170,10 @@ function AdsSetup() {
           <p className="font-medium flex items-center gap-2"><ListChecks className="h-4 w-4 text-primary" />Rules</p>
           <p className="text-xs text-muted-foreground mt-0.5">Meta&apos;s automated rules, and every change logged.</p>
         </Link>
+        <Link href="/ads/tests" className="rounded-lg border bg-card p-4 hover:bg-accent/50 transition-colors">
+          <p className="font-medium flex items-center gap-2"><ListChecks className="h-4 w-4 text-primary" />A/B tests</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Two to five ad sets against each other, audiences kept apart, Meta picks the winner.</p>
+        </Link>
       </div>
 
       {app && (

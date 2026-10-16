@@ -74,7 +74,13 @@ export interface AdPlan {
   /** An existing Instagram post (its media id), or new photos (1 = single image, 2–10 = carousel). */
   source: { kind: 'post'; mediaId: string; permalink?: string; thumb?: string | null; caption?: string }
     /** `vertical`: a 9:16 version of a single photo for stories, reels and Status — one ad, each place its own size. */
-    | { kind: 'photos'; photos: PlanPhoto[]; vertical?: PlanPhoto | null };
+    | { kind: 'photos'; photos: PlanPhoto[]; vertical?: PlanPhoto | null }
+    /** A video uploaded to the ad account (Meta's video library); `thumbHash` is its cover, uploaded as an ad image. */
+    | { kind: 'video'; videoId: string; thumbHash: string; thumb?: string | null; name?: string }
+    /** A creator's post run as a partnership ad: the creator's ad code (Instagram's "Partnership ad code"). */
+    | PartnerSource
+    /** Advantage+ catalogue ads: Meta picks, from a product set, the pieces each person is most likely to buy. */
+    | CatalogSource;
   /** What the ad says (new photos only — a boosted post keeps its own caption). */
   text: string;
   headline: string;
@@ -85,8 +91,49 @@ export interface AdPlan {
   budget: { kind: 'daily' | 'total'; amount: number; start: string | null; end: string | null };
   /** Paused to look over in Campaigns first, or live as soon as Meta approves it. */
   launch: 'paused' | 'live';
+  /**
+   * How Meta bids (Ads Manager's "Bid strategy"). Absent or `lowest`: highest volume, no cap. `cost_cap`: keep the
+   * average cost per result at about `amount`; `bid_cap`: never bid more than `amount` in one auction; `min_roas`
+   * (Online orders only): aim for purchases worth at least `roas` × the spend, optimising for purchase value.
+   */
+  bidding?: Bidding;
+  /** Show the ad only on these days and hours (Ads Manager's "Run ads on a schedule"); needs a total budget. */
+  hours?: AdHours | null;
   name: string;
 }
+
+export interface PartnerSource { kind: 'partner'; adCode: string; mediaId?: string; creator?: string; permalink?: string; thumb?: string | null }
+/** `who`: `everyone` finds new buyers (recent buyers left out); `viewers` shows people the pieces they looked at or carted in the last 14 days and didn't buy. */
+export interface CatalogSource { kind: 'catalog'; catalogId: string; setId: string; setName?: string; who: 'everyone' | 'viewers' }
+
+/** A source sound enough to hand to Meta (the rest is planProblems' and Meta's to judge). */
+export function isSource(x: unknown): x is AdPlan['source'] {
+  const s = x as AdPlan['source'];
+  if (!s || typeof s !== 'object') return false;
+  if (s.kind === 'post') return typeof s.mediaId === 'string';
+  if (s.kind === 'photos') return Array.isArray(s.photos);
+  if (s.kind === 'video') return typeof s.videoId === 'string' && typeof s.thumbHash === 'string';
+  if (s.kind === 'partner') return typeof s.adCode === 'string';
+  if (s.kind === 'catalog') return typeof s.catalogId === 'string' && typeof s.setId === 'string' && (s.who === 'everyone' || s.who === 'viewers');
+  return false;
+}
+
+/** Sources that run as they are, with no new words or pictures of the shop's own. */
+export const asIs = (s: AdPlan['source']) => s.kind === 'post' || s.kind === 'partner';
+
+export type Bidding = { kind: 'lowest' } | { kind: 'cost_cap' | 'bid_cap'; amount: number } | { kind: 'min_roas'; roas: number };
+/** Days 0 = Sunday … 6 = Saturday; minutes from midnight in the ad account's time zone, `from` < `to`. */
+export interface AdHours { days: number[]; from: number; to: number }
+
+export const BIDDING: { key: Bidding['kind']; label: string; hint: string }[] = [
+  { key: 'lowest', label: 'Most results', hint: 'Meta spends the budget for as many results as it can (the usual choice).' },
+  { key: 'cost_cap', label: 'Cost per result about…', hint: 'Meta keeps the average cost per result near your figure; it may spend less of the budget.' },
+  { key: 'bid_cap', label: 'Never bid more than…', hint: 'A hard ceiling on each auction bid; for people who know their numbers.' },
+  { key: 'min_roas', label: 'Sales of at least … × spend', hint: 'Online orders only: Meta aims for purchases worth at least this many times what it spends.' },
+];
+
+/** Meta's bid_constraints scale for a minimum ROAS: 1.0× is 10,000. */
+export const roasFloor = (roas: number) => Math.round(roas * 10_000);
 
 export interface PlanContext {
   pageId: string | null;
@@ -111,6 +158,10 @@ export const NO_ENHANCEMENTS: Record<string, { enroll_status: 'OPT_OUT' }> = Obj
   'music_generation', 'multi_photo_to_video', 'text_optimizations', 'add_text_overlay', 'creative_stickers',
   'replace_media_text', 'text_overlay_translation', 'inline_comment',
 ].map(k => [k, { enroll_status: 'OPT_OUT' as const }]));
+
+/** A video's own Advantage+ changes (Meta's v22 split of the old bundle), also off. */
+export const VIDEO_NO_ENHANCEMENTS: Record<string, { enroll_status: 'OPT_OUT' }> = Object.fromEntries(
+  ['video_auto_crop', 'video_uncrop', 'video_filtering'].map(k => [k, { enroll_status: 'OPT_OUT' as const }]));
 
 export const WHATSAPP_LINK = 'https://api.whatsapp.com/send';
 
@@ -150,11 +201,27 @@ export function planProblems(p: AdPlan, ctx: PlanContext): string[] {
     if (!p.text.trim()) out.push('Write what the ad says.');
   }
   if (p.source.kind === 'post' && goal.photosOnly) out.push(`“${goal.label}” works with new photos, not a boosted post.`);
+  if (p.source.kind === 'video') {
+    if (!p.source.videoId) out.push('Upload the video.');
+    else if (!p.source.thumbHash) out.push('Wait for Meta to finish the video (it needs a cover picture).');
+    if (goal.postOnly || goal.photosOnly) out.push(`“${goal.label}” doesn’t work with a new video.`);
+    if (!p.text.trim()) out.push('Write what the ad says.');
+  }
+  if (p.source.kind === 'partner') {
+    if (!/^\S{6,}$/.test(p.source.adCode.trim())) out.push('Paste the creator’s partnership ad code.');
+    if (goal.photosOnly) out.push(`“${goal.label}” works with new photos, not a creator’s post.`);
+    if (p.goal === 'profile' || p.goal === 'engagement') out.push(`“${goal.label}” isn’t offered for partnership ads here.`);
+  }
+  if (p.source.kind === 'catalog') {
+    if (p.goal !== 'sales') out.push('Catalogue ads run for “Online orders” only.');
+    if (!p.source.catalogId || !p.source.setId) out.push('Choose the catalogue and the set of pieces.');
+    if (!p.text.trim()) out.push('Write what the ad says.');
+  }
   if (p.goal === 'channel' && !isChannelLink(p.link)) out.push('Give the WhatsApp channel’s link (whatsapp.com/channel/…).');
   if (p.goal === 'sales' && !ctx.pixelId) out.push('“Online orders” needs the website’s pixel — choose it on the Setup tab (the website pixel step).');
   if (goesToSite(p.goal)) {
     const ok = (l?: string) => /^https?:\/\/\S+\.\S+/.test((l ?? '').trim());
-    const fine = ok(p.link) || (p.source.kind === 'photos' && p.source.photos.length > 0 && p.source.photos.every(x => ok(x.link)));
+    const fine = ok(p.link) || p.source.kind === 'catalog' || (p.source.kind === 'photos' && p.source.photos.length > 0 && p.source.photos.every(x => ok(x.link)));
     if (!fine) out.push('Give the website address the ad opens.');
   }
   if (!(p.budget.amount > 0)) out.push('Set a budget.');
@@ -170,6 +237,17 @@ export function planProblems(p: AdPlan, ctx: PlanContext): string[] {
   if (p.budget.end && Date.parse(p.budget.end) <= now) out.push('The end date has passed.');
   if (p.budget.start && p.budget.end && Date.parse(p.budget.end) <= Date.parse(p.budget.start)) out.push('The end comes before the start.');
   if (!p.audience.places.length) out.push('Choose where the ad shows.');
+  const b = p.bidding;
+  if (b && (b.kind === 'cost_cap' || b.kind === 'bid_cap') && !(b.amount > 0)) out.push(b.kind === 'cost_cap' ? 'Give the cost per result to aim for.' : 'Give the highest bid.');
+  if (b?.kind === 'min_roas') {
+    if (p.goal !== 'sales') out.push('A minimum sales-to-spend works only with “Online orders”.');
+    if (!(b.roas >= 0.01 && b.roas <= 100)) out.push('Give the sales-to-spend to aim for, like 3 for three times the spend.');
+  }
+  if (p.hours) {
+    if (p.budget.kind !== 'total') out.push('Running on set hours needs a total budget (Meta’s rule), not a daily one.');
+    if (!p.hours.days.length) out.push('Choose the days it runs.');
+    if (!(p.hours.to > p.hours.from)) out.push('The hours end before they start.');
+  }
   return out;
 }
 
@@ -177,7 +255,11 @@ const day = (t: number) => new Date(t).toISOString().slice(0, 10);
 
 /** The name Meta files it under: "WhatsApp chats · Emerald jhumkas · 2026-09-25". */
 export function defaultName(p: Pick<AdPlan, 'goal' | 'headline' | 'source'>, now = Date.now()): string {
-  const what = p.headline.trim() || (p.source.kind === 'post' ? (p.source.caption ?? '').split('\n')[0].slice(0, 40).trim() || 'Instagram post' : 'New ad');
+  const s = p.source;
+  const what = p.headline.trim() || (s.kind === 'post' ? (s.caption ?? '').split('\n')[0].slice(0, 40).trim() || 'Instagram post'
+    : s.kind === 'partner' ? `Partnership${s.creator ? ` with @${s.creator}` : ''}`
+    : s.kind === 'catalog' ? `Catalogue${s.setName ? ` · ${s.setName}` : ''}`
+    : s.kind === 'video' ? (s.name || 'Video') : 'New ad');
   return `${goalOf(p.goal).label} · ${what} · ${day(now)}`;
 }
 
@@ -185,6 +267,7 @@ export function campaignParams(p: AdPlan): Record<string, unknown> {
   return {
     name: p.name,
     objective: goalOf(p.goal).objective,
+    ...(p.source.kind === 'catalog' ? { promoted_object: { product_catalog_id: p.source.catalogId } } : {}),
     status: 'PAUSED',
     special_ad_categories: [],
     // Required since v24 when the budget sits on the ad set, as it does here.
@@ -201,16 +284,52 @@ export function adsetParams(p: AdPlan, campaignId: string, ctx: PlanContext): Re
     billing_event: 'IMPRESSIONS',
     optimization_goal: p.goal === 'website' ? websiteOptimization(ctx) : goal.optimization,
     bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
-    targeting: buildTargeting(p.audience),
+    targeting: catalogTargeting(p, buildTargeting(p.audience)),
   };
   if (goal.destination) params.destination_type = goal.destination;
   if (goal.promotesPage && ctx.pageId) params.promoted_object = { page_id: ctx.pageId };
   if (p.goal === 'sales' && ctx.pixelId) params.promoted_object = { pixel_id: ctx.pixelId, custom_event_type: 'PURCHASE' };
+  if (p.source.kind === 'catalog') params.promoted_object = { product_set_id: p.source.setId, ...(ctx.pixelId ? { pixel_id: ctx.pixelId } : {}), custom_event_type: 'PURCHASE' };
   if (p.budget.kind === 'daily') params.daily_budget = toMinor(p.budget.amount, ctx.currency);
   else params.lifetime_budget = toMinor(p.budget.amount, ctx.currency);
   if (p.budget.start) params.start_time = new Date(p.budget.start).toISOString();
   if (p.budget.end) params.end_time = new Date(p.budget.end).toISOString();
+  Object.assign(params, biddingParams(p.bidding, p.goal, ctx.currency));
+  if (p.hours) Object.assign(params, scheduleParams(p.hours));
   return params;
+}
+
+const DAYS_14 = 14 * 86_400;
+const event = (name: string) => ({ retention_seconds: DAYS_14, rule: { event: { eq: name } } });
+
+/** Who a catalogue ad finds: lookers and carters who didn't buy, or everyone but recent buyers. */
+export function catalogTargeting(p: AdPlan, t: Record<string, unknown>): Record<string, unknown> {
+  if (p.source.kind !== 'catalog') return t;
+  const set = p.source.setId;
+  if (p.source.who === 'viewers') {
+    // Advantage+ audience would widen it past the lookers, which is the point of this choice; kept to them.
+    return { ...t, targeting_automation: { advantage_audience: 0 }, product_audience_specs: [{ product_set_id: set, inclusions: [event('ViewContent'), event('AddToCart')], exclusions: [event('Purchase')] }] };
+  }
+  return { ...t, excluded_product_audience_specs: [{ product_set_id: set, inclusions: [event('Purchase')] }] };
+}
+
+/** The ad set's bid strategy fields, for Ads Manager's choices. Also used to change an existing ad set. */
+export function biddingParams(b: Bidding | undefined, goal: GoalKey | null, currency: string): Record<string, unknown> {
+  if (!b || b.kind === 'lowest') return {};
+  if (b.kind === 'cost_cap') return { bid_strategy: 'COST_CAP', bid_amount: toMinor(b.amount, currency) };
+  if (b.kind === 'bid_cap') return { bid_strategy: 'LOWEST_COST_WITH_BID_CAP', bid_amount: toMinor(b.amount, currency) };
+  if (b.kind === 'min_roas') {
+    // A ROAS floor optimises for purchase value, not the number of purchases.
+    return { bid_strategy: 'LOWEST_COST_WITH_MIN_ROAS', bid_constraints: { roas_average_floor: roasFloor(b.roas) }, ...(goal === 'sales' || goal === null ? { optimization_goal: 'VALUE' } : {}) };
+  }
+  return {};
+}
+
+/** Days and hours in Meta's adset_schedule (dayparting), which runs only with a lifetime budget. */
+export function scheduleParams(h: AdHours): Record<string, unknown> {
+  const days = [...new Set(h.days.filter(d => d >= 0 && d <= 6))].sort();
+  const from = Math.max(0, Math.min(1440, Math.round(h.from / 60) * 60)), to = Math.max(0, Math.min(1440, Math.round(h.to / 60) * 60));
+  return { pacing_type: ['day_parting'], adset_schedule: [{ start_minute: from, end_minute: to, days, timezone_type: 'USER' }] };
 }
 
 /** The button, for a goal: chat buttons open the chat; the others a link. */
@@ -249,6 +368,58 @@ export function creativeSpec(p: AdPlan, ctx: PlanContext, opts: { enhancements?:
 
 function untaggedCreative(p: AdPlan, ctx: PlanContext, opts: { enhancements?: Record<string, unknown> } = {}): Record<string, unknown> {
   const dof = { creative_features_spec: opts.enhancements ?? NO_ENHANCEMENTS };
+  if (p.source.kind === 'partner') {
+    const cta = goesToSite(p.goal) || p.goal === 'whatsapp' || p.goal === 'instagram_dm' ? callToAction(p, linkFor(p, ctx), ctx) : null;
+    // The creator's post, with both names in its header (ad_format 1); the ad code carries the creator's permission.
+    return {
+      name: p.name,
+      object_id: ctx.pageId,
+      branded_content: { instagram_boost_post_access_token: p.source.adCode.trim(), ad_format: 1 },
+      instagram_branded_content: { sponsor_id: ctx.instagramUserId },
+      facebook_branded_content: { sponsor_page_id: ctx.pageId },
+      ...(cta ? { call_to_action: cta } : {}),
+    };
+  }
+  if (p.source.kind === 'catalog') {
+    // Meta fills {{product.…}} from the catalogue for each person; enhancements don't apply to catalogue ads.
+    return {
+      name: p.name,
+      product_set_id: p.source.setId,
+      object_story_spec: {
+        page_id: ctx.pageId,
+        instagram_user_id: ctx.instagramUserId,
+        template_data: {
+          message: p.text,
+          link: (p.link || '').trim() || profileUrl(ctx),
+          name: p.headline.trim() || '{{product.name}}',
+          description: '{{product.price}}',
+          call_to_action: { type: p.button },
+          multi_share_end_card: false,
+        },
+      },
+    };
+  }
+  if (p.source.kind === 'video') {
+    const link = linkFor(p, ctx);
+    const cta = callToAction(p, link, ctx);
+    const welcome = p.goal === 'whatsapp' ? welcomeMessage(ctx.whatsappGreeting, ctx.iceBreakers) : null;
+    return {
+      name: p.name,
+      object_story_spec: {
+        page_id: ctx.pageId,
+        instagram_user_id: ctx.instagramUserId,
+        video_data: {
+          video_id: p.source.videoId,
+          image_hash: p.source.thumbHash,
+          message: p.text,
+          ...(p.headline.trim() ? { title: p.headline.trim() } : {}),
+          ...(cta ? { call_to_action: cta } : {}),
+          ...(welcome ? { page_welcome_message: welcome } : {}),
+        },
+      },
+      degrees_of_freedom_spec: { creative_features_spec: { ...(opts.enhancements ?? NO_ENHANCEMENTS), ...VIDEO_NO_ENHANCEMENTS } },
+    };
+  }
   if (p.source.kind === 'post') {
     const cta = callToAction(p, linkFor(p, ctx), ctx);
     return {
@@ -362,7 +533,11 @@ export function planSummary(p: AdPlan, currency: string): string[] {
     : `${money(p.budget.amount, currency)} in total${days ? ` over ${days} day${days === 1 ? '' : 's'}` : ''}`;
   return [
     `Goal: ${g.label}`,
-    p.source.kind === 'post' ? 'The Instagram post, as it is' : p.source.photos.length > 1 ? `${p.source.photos.length} photos, as a carousel` : p.source.vertical ? 'One photo, with its story-size version for stories and reels' : 'One photo',
+    p.source.kind === 'post' ? 'The Instagram post, as it is'
+      : p.source.kind === 'video' ? 'A new video'
+      : p.source.kind === 'partner' ? `A creator’s post${p.source.creator ? ` (@${p.source.creator})` : ''}, as a partnership ad under both names`
+      : p.source.kind === 'catalog' ? `Catalogue ads from “${p.source.setName ?? 'the product set'}”, ${p.source.who === 'viewers' ? 'to people who looked at or carted a piece in the last 14 days and didn’t buy' : 'to new buyers (recent buyers left out)'}`
+      : p.source.photos.length > 1 ? `${p.source.photos.length} photos, as a carousel` : p.source.vertical ? 'One photo, with its story-size version for stories and reels' : 'One photo',
     `Who: ${describeAudience(p.audience)}`,
     `Budget: ${spend}`,
     p.launch === 'live' ? 'Starts as soon as Meta approves it (usually within the hour)' : 'Saved paused — nothing is spent until it is switched on',

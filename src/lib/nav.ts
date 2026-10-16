@@ -180,7 +180,7 @@ export const NAV: NavEntry[] = [
       // What to run and why (the Studio's Plan half; its design half is Posts › Design). NEXT_PUBLIC_STORE_AD_STUDIO.
       { href: '/ads/plan', label: 'Plan', icon: MapIcon, when: () => STORE_AD_STUDIO, keywords: ['plays', 'what to run', 'competitors', 'rivals', 'ad days', 'guide', 'rules', 'strategy'] },
       { href: '/ads/new', label: 'New ad', icon: Rocket, keywords: ['boost', 'promote', 'advertise', 'meta ad'] },
-      { href: '/ads/setup', label: 'Setup', icon: SlidersHorizontal, keywords: ['connect', 'pixel', 'permissions', 'ad account'], match: ['/ads/audiences', '/ads/rules'] },
+      { href: '/ads/setup', label: 'Setup', icon: SlidersHorizontal, keywords: ['connect', 'pixel', 'permissions', 'ad account'], match: ['/ads/audiences', '/ads/rules', '/ads/tests'] },
     ],
     pages: [
       { href: '/ads/adset', label: 'Ad sets', icon: LayoutGrid, keywords: ['ad set', 'audience test'] },
@@ -188,6 +188,7 @@ export const NAV: NavEntry[] = [
       { href: '/ads/studio', label: 'Studio', icon: Palette, when: () => STORE_AD_STUDIO, moved: true },
       { href: '/ads/audiences', label: 'Audiences', icon: UsersRound, keywords: ['lookalike', 'custom audience'] },
       { href: '/ads/rules', label: 'Rules', icon: ListChecks, keywords: ['automated rules'] },
+      { href: '/ads/tests', label: 'A/B tests', icon: ListChecks, keywords: ['split test', 'experiment', 'ab test'] },
     ],
   },
   {
