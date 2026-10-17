@@ -256,6 +256,9 @@ changes to the ios app". As before, the phone gathers choices and the server kee
   new buyers). Advanced: bidding (cost cap, bid cap, minimum ROAS for online orders) and set days and hours (which move the
   budget to a total one, Meta's rule). `bidding` and `hours` go in the plan; `/api/ads/plan` says what stops it.
 - **A/B tests** (`AdsTests.swift`, `/ads/tests`, linked from Setup): make a split test of 2–5 ad sets and read each side.
+- The "UI check" workflow (CHECKS.md) has never reported on a commit (no Xcode Cloud check on 9cebeeb or 4075675): it
+  was likely never made in Xcode Cloud (setup step 5). A release is the compile check meanwhile: one that fails stops at
+  the archive and sends nothing to TestFlight.
 
 ### One app, many businesses (2026-10-16)
 
