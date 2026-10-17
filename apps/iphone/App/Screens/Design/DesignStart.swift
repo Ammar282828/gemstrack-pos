@@ -384,8 +384,9 @@ struct DesignDraftLine: View {
             .frame(width: 44, height: 44).background(Theme.ground).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.title).font(.subheadline.weight(.medium)).lineLimit(1)
-                Text((row.old == nil ? "Draft on this phone" : "Earlier Post a piece draft") + " · " + ShopDate.stamp(row.updated, withTime: false))
-                    .font(.footnote).foregroundStyle(.secondary)
+                // Where it is kept is the shelf's filter (On this phone): the line says when.
+                Text(ShopDate.stamp(row.updated, withTime: false))
+                    .font(.footnote).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 0)
             Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary)
@@ -407,7 +408,7 @@ struct DesignRecordLine: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.name).font(.subheadline.weight(.medium)).lineLimit(1)
                 Text(DesignKinds.label(record.kind) + " · \(record.pages.count) size" + (record.pages.count == 1 ? "" : "s") + " · " + ShopDate.say(record.updated))
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.footnote).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 0)
             Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary)

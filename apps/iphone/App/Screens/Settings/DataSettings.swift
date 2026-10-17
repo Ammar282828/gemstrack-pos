@@ -2,9 +2,8 @@ import SwiftUI
 import ERPCore
 
 /// Settings → Data (src/app/settings/data): drafts, backups, what was removed, the imports and the
-/// shop's defaults. Backups and the contact and hisaab imports are native (BackupSettings, ContactImportSettings,
-/// HisaabImportSettings), and so is Restore shop defaults (/api/app/write `restoreShopDefaults`, ops-settings3.ts); the
-/// Taheri Software book's one-off import stays the ERP's page.
+/// shop's defaults. Backups and the imports are native (BackupSettings, ContactImportSettings, HisaabImportSettings,
+/// TaheriBookImportSettings), and so is Restore shop defaults (/api/app/write `restoreShopDefaults`, ops-settings3.ts).
 struct DataSettings: View {
     var body: some View {
         SettingsGate(title: "Data") { DataForm(settings: $0) }
@@ -46,8 +45,6 @@ private struct DataForm: View {
                 }
             } header: {
                 LedgerHeading(title: "Imports")
-            } footer: {
-                Text("Bring records in from a phone or another app.")
             }
 
             Section {

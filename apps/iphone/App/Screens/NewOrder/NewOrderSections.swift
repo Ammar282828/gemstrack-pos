@@ -144,7 +144,8 @@ struct NewOrderPiecesFooter: View {
     let count: Int
 
     var body: some View {
-        Text(count == 0 ? "Add one or more pieces to see the price." : NewOrderFormat.pieces(count) + " on this order")
+        // Only while there is nothing yet: a count of what is on screen says nothing (CONVENTIONS rule 15).
+        if count == 0 { Text("Add one or more pieces to see the price.") }
     }
 }
 
@@ -237,7 +238,7 @@ struct NewOrderRatesSection: View {
     }
 
     private var footer: String {
-        var s = "Applies to every piece on this order, and is kept on it. A rate typed here is used for this order only: today's rates are changed with the rate chip."
+        var s = "A rate typed here is used for this order only: today's rates are changed with the rate chip."
         if hasPalladium { s += " A palladium rate left at zero falls back to the shop's flat palladium rate." }
         if hasSilver { s += " Silver is priced at the shop's rate, which already holds its making and wastage." }
         return s
@@ -312,8 +313,6 @@ struct NewOrderExchangeSection: View {
             }
         } header: {
             LedgerHeading(title: "Exchange / trade-in")
-        } footer: {
-            Text("Old gold or a piece the customer hands over, taken off the bill at an agreed value.")
         }
     }
 

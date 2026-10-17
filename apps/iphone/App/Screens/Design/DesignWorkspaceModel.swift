@@ -107,7 +107,8 @@ final class DesignWorkspaceModel {
     }
 
     /// A page laid out by a template (or, for the website's own page, the catalogue's photograph); anything added by hand stays.
-    private func layOut(_ p: DesignPageState, template: String, fields: [String: String]) async throws -> MarketingValue {
+    /// Make it with AI (DesignAI) lays every size out with the layout the art director chose.
+    func layOut(_ p: DesignPageState, template: String, fields: [String: String]) async throws -> MarketingValue {
         let options: [String: Any]
         if DesignSizes.isCatalogue(label: p.label) { options = ["action": "square", "value": "catalogue"] }
         else { options = ["action": "ad", "value": template, "photoMarked": marked] }

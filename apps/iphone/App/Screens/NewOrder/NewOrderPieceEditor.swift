@@ -190,7 +190,7 @@ struct NewOrderPieceEditor: View {
             } header: {
                 LedgerHeading(title: "Size")
             } footer: {
-                Text(scale.multi ? scale.label + ". Leave either blank if not applicable." : scale.label)
+                Text(scale.label)
             }
         }
     }
@@ -303,8 +303,6 @@ struct NewOrderPieceEditor: View {
             Toggle("Customer provided a physical sample", isOn: $piece.sampleGiven)
         } header: {
             LedgerHeading(title: "References")
-        } footer: {
-            Text("All optional.")
         }
     }
 

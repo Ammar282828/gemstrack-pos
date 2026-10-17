@@ -53,8 +53,6 @@ struct NewOrderScanScreen: View {
                         SkeletonLoading()
                         Text(photos.count > 1 ? "Reading \(photos.count) photos…" : "Reading it…")
                     }
-                } footer: {
-                    Text("Usually a few seconds; up to a minute when the shop's AI is busy.")
                 }
             }
             if let problem {
@@ -91,7 +89,7 @@ struct NewOrderScanScreen: View {
             LedgerHeading(title: "The slip")
         } footer: {
             Text(photos.isEmpty
-                 ? "A parchi, front and back, or a picture of the piece: up to six, read together as one order. Nothing is saved here: the form is filled in for you to check."
+                 ? "Up to six photos, read together as one order. Nothing is saved here: the form is filled in for you to check."
                  : "Read together as one order. The first photo goes on the order as its reference picture, unless the reading says which photo shows which piece.")
         }
     }

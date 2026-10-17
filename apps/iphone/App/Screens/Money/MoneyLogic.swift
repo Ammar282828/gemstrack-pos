@@ -22,12 +22,6 @@ enum MoneyPaths {
         s.addingPercentEncoding(withAllowedCharacters: componentSafe) ?? s
     }
 
-    /// The ERP's own pages, for what is not native (the ledger's WhatsApp reminder): `?web=1` asks for the
-    /// ERP page even where a native screen exists.
-    static let expensesWeb = "/expenses?web=1"
-    static let revenueWeb = "/additional-revenue?web=1"
-    static let hisaabWeb = "/hisaab?web=1"
-
     // The pages' PDFs, drawn by the ERP's server with the pages' own drawers and sums (/api/app/pdf/*,
     // owners only). GET with the filters in the query: the PDF screen only GETs.
 
@@ -73,8 +67,8 @@ enum MoneyPaths {
     static func invoice(_ id: String) -> String { "/invoices/" + encode(id) }
 
     /// One person's ledger: "/hisaab/<id>?type=customer|karigar".
-    static func ledger(_ id: String, isCustomer: Bool, web: Bool = false) -> String {
-        "/hisaab/" + encode(id) + "?type=" + (isCustomer ? "customer" : "karigar") + (web ? "&web=1" : "")
+    static func ledger(_ id: String, isCustomer: Bool) -> String {
+        "/hisaab/" + encode(id) + "?type=" + (isCustomer ? "customer" : "karigar")
     }
 
     /// "/hisaab/CUST-1?type=customer" is the ledger of "CUST-1". Nil for the list and for a deeper path.

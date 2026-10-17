@@ -52,8 +52,6 @@ struct SaleScanScreen: View {
                         SkeletonLoading()
                         Text("Reading it…")
                     }
-                } footer: {
-                    Text("Usually a few seconds; up to a minute when the shop's AI is busy.")
                 }
             }
             if let problem {
@@ -87,7 +85,7 @@ struct SaleScanScreen: View {
             LedgerHeading(title: "The bill")
         } footer: {
             Text(photo == nil
-                 ? "A handwritten bill or estimate, with or without a breakdown, on the counter or already on this phone. The lines go on the sale for you to check: nothing is invoiced here."
+                 ? "The lines go on the sale for you to check: nothing is invoiced here."
                  : "Retake or choose another to read again.")
         }
     }

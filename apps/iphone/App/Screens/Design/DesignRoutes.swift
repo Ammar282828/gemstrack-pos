@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// Design (docs/features/design.md): one place to make anything and keep it. `/design` and its `?v=` sections are native
-/// here; `?web=1` still opens the ERP's own page (ScreenRegistry). The old Post a piece and Studio screens keep their routes
-/// (`/website/post`, `/ads/studio`) in Marketing.
+/// here, every section of them. The old Post a piece and Studio screens keep their routes (`/website/post`, `/ads/studio`) in
+/// Marketing; nothing in the app goes to `/design/classic/{post,ad}`: the photograph's AI tools and "Make the ad with AI"
+/// are the workspace's own (DesignAI).
 enum DesignRoutes {
     static var all: [ScreenRoute] {
         [ScreenRoute(matches: { (path: String) in ScreenRoute.bare(path) == "/design" }, make: { (path: String) in AnyView(DesignScreen(path: path)) })]
@@ -53,15 +54,16 @@ struct DesignScreen: View {
         .modifier(HouseGround())
         .navigationTitle("Design").navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    if workspace.isOpen {
+            // The web page's sections are all here (Make, Photos, Board, Saved, and the workspace's Resize, Publish and AI
+            // tools), so there is no ERP page to fall back on; the menu is the open design's.
+            if workspace.isOpen {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
                         // PHASE 2: DesignHooks.resize.
                         Button { go(.make); DesignHooks.shared.resize(workspace) } label: { Label("Resize…", systemImage: "arrow.up.left.and.arrow.down.right") }
                         Button { Task { await workspace.close(); await shelf.loadDrafts(); go(.make) } } label: { Label("Close this design", systemImage: "xmark") }
-                    }
-                    NavigationLink(value: Route(path: "/design?web=1&v=" + current.rawValue)) { Label("Open in the ERP", systemImage: "safari") }
-                } label: { Label("More", systemImage: "ellipsis") }
+                    } label: { Label("More", systemImage: "ellipsis") }
+                }
             }
         }
         .noteToast($note)

@@ -160,12 +160,11 @@ private struct ShareholdersBoard: View {
     private func tilesSection(_ t: ShareholderFigures.Totals) -> some View {
         let share = t.revShare - t.expShare
         return Section {
-            VStack(spacing: 10) {
-                FigureRow(alignment: .top, spacing: 10) {
-                    FigureTile(label: "Revenue", value: ShareholderMoney.fmt(t.totalRevenue), tint: Tone.settled.color)
-                    FigureTile(label: "Expenses", value: ShareholderMoney.fmt(t.totalExpenses))
-                }
-                FigureTile(label: "Each partner's share", value: ShareholderMoney.signed(share), tint: share >= 0 ? Tone.settled.color : Tone.owed.color)
+            // One row of figures (rule 15); only a share that is a loss is coloured.
+            FigureRow(alignment: .top, spacing: 10) {
+                FigureTile(label: "Revenue", value: ShareholderMoney.fmt(t.totalRevenue))
+                FigureTile(label: "Expenses", value: ShareholderMoney.fmt(t.totalExpenses))
+                FigureTile(label: "Each partner's share", value: ShareholderMoney.signed(share), tint: share >= 0 ? Color.primary : Tone.owed.color)
             }
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             .listRowBackground(Color.clear)
@@ -184,30 +183,25 @@ private struct ShareholdersBoard: View {
         let tone: Color = owed ? Tone.credit.color : (claim < 0 ? Tone.owed.color : Color.primary)
         return Section {
             Group {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(words).foregroundStyle(.secondary)
-                    Spacer(minLength: 8)
-                    HeroAmount(amount: abs(claim.rounded()), tone: tone)
-                }
+                // The claim is the partner's one figure (one hero for the screen is the totals above): coloured only when
+                // money is owed one way or the other. What it is made of is in the rows under it, uncoloured.
+                TwoLine(title: words, subtitle: "Contributed \(ShareholderMoney.fmt(p.contributed)) · salary \(ShareholderMoney.fmt(p.salaryPaid)) · drawn \(ShareholderMoney.fmt(p.withdrawn))",
+                        trailing: claim == 0 ? nil : Money.pkr(abs(claim.rounded())), trailingTint: tone)
+                    .lineLimit(1)
                 LabeledContent("Loan to the business") { RowAmount(amount: abs(p.balance.loanBalance.rounded())) }
                 LabeledContent("Equity in the business") { RowAmount(amount: abs(p.balance.equityBalance.rounded())) }
                 LabeledContent("Half of profit & loss") {
-                    Text(ShareholderMoney.signed(p.balance.netPnL))
-                        .monospacedDigit()
-                        .foregroundStyle(p.balance.netPnL >= 0 ? Tone.settled.color : Tone.owed.color)
-                }
-                HStack(spacing: 8) {
-                    smallFigure("Contributed", p.contributed, symbol: "arrow.down.left")
-                    smallFigure("Salary", p.salaryPaid, symbol: "banknote")
-                    smallFigure("Capital drawn", p.withdrawn, symbol: "arrow.up.right")
+                    Text(ShareholderMoney.signed(p.balance.netPnL)).monospacedDigit()
                 }
             }
-            Group {
+            Menu {
                 Button { asking = ShareholderAsk(move: .salary, who: p.id) } label: { Label("Pay salary", systemImage: "banknote") }
                 Button { asking = ShareholderAsk(move: .contribution, who: p.id) } label: { Label("Add a contribution", systemImage: "plus.circle") }
                 Button { asking = ShareholderAsk(move: .withdrawal, who: p.id) } label: {
                     Label("Withdraw capital", systemImage: "arrow.up.right.circle")
                 }
+            } label: {
+                Label("Record for \(p.name)", systemImage: "plus.circle")
             }
             Group {
                 if p.rows.isEmpty && p.salaries.isEmpty {
@@ -217,30 +211,22 @@ private struct ShareholdersBoard: View {
                 ForEach(p.rows) { (r: ShareholderLedgerRow) in ledgerRow(r, of: p) }
             }
         } header: {
-            Text(p.name).font(.headline).foregroundStyle(.primary).textCase(nil)
+            LedgerHeading(title: p.name)
         } footer: {
             if !(p.rows.isEmpty && p.salaries.isEmpty) {
-                Text("Withdrawing capital reduces their stake; it is not a salary. Swipe an entry to delete it.")
+                Text("Withdrawing capital reduces their stake; it is not a salary.")
             }
         }
-    }
-
-    private func smallFigure(_ label: String, _ amount: Double, symbol: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Label(label, systemImage: symbol).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-            Text(ShareholderMoney.fmt(amount)).font(.subheadline.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func salaryRow(_ e: Expense, of p: ShareholderFigures.Position) -> some View {
         let shown = e.description.replacingOccurrences(of: "\(p.name) salary \u{2014} ", with: "")
         return TwoLine(
             title: shown,
-            subtitle: "\(OwnerText.shortDate(e.date)) · Salary · recorded as a business cost",
-            trailing: ShareholderMoney.fmt(e.amount),
-            trailingTint: Theme.accent
+            subtitle: "\(OwnerText.shortDate(e.date)) · Salary",
+            trailing: ShareholderMoney.fmt(e.amount)
         )
+        .lineLimit(1)
         .swipeActions {
             Button(role: .destructive) {
                 deletion = OwnerDeletion(
@@ -258,14 +244,15 @@ private struct ShareholdersBoard: View {
     private func ledgerRow(_ r: ShareholderLedgerRow, of p: ShareholderFigures.Position) -> some View {
         let isIn = r.type == .payment
         var sub = "\(OwnerText.shortDate(r.date)) · \(r.category == .loan ? "Loan" : "Equity")"
-        if r.linkedExpenseId != nil { sub += " · logged as an expense" }
+        if r.linkedExpenseId != nil { sub += " · in Expenses" }
         let linked = r.linkedExpenseId != nil
         return TwoLine(
             title: r.description,
             subtitle: sub,
-            trailing: "\(isIn ? "+" : "\u{2212}")\(ShareholderMoney.fmt(r.amount))",
-            trailingTint: isIn ? Tone.settled.color : Tone.owed.color
+            // The sign says which way it went; the direction is no alarm.
+            trailing: "\(isIn ? "+" : "\u{2212}")\(ShareholderMoney.fmt(r.amount))"
         )
+        .lineLimit(1)
         .swipeActions {
             Button(role: .destructive) {
                 deletion = OwnerDeletion(
@@ -288,19 +275,15 @@ private struct ShareholdersBoard: View {
         if f.gap != nil || f.totals.drawings > 0 {
             Section {
                 if let g = f.gap {
-                    Label {
+                    Group {
                         Text("\(g.ahead.name) has drawn \(ShareholderMoney.fmt(g.ahead.salaryPaid - g.behind.salaryPaid)) more salary than \(g.behind.name). A salary is a business cost split 50/50, so that gap has moved about \(ShareholderMoney.fmt(g.transferred)) from \(g.behind.name) to \(g.ahead.name). Equal salaries cancel out entirely.")
-                    } icon: {
-                        Image(systemName: "info.circle")
                     }
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 }
                 if f.totals.drawings > 0 {
-                    Label {
+                    Group {
                         Text("\(ShareholderMoney.fmt(f.totals.drawings)) of drawings sits in Expenses under \u{201C}\(Partnership.partnerDrawings)\u{201D}. It is left out of the profit split above, because a draw already reduces that partner's own equity \u{2014} counting it as a shared cost as well would charge them for it twice.")
-                    } icon: {
-                        Image(systemName: "info.circle")
                     }
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -419,8 +402,6 @@ private struct ShareholdersBoard: View {
                 }
                 .buttonStyle(.houseProminent)
                 .disabled(savingFloor)
-            } else {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(Tone.settled.color)
             }
         }
     }

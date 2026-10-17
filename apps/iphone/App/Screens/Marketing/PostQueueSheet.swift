@@ -97,10 +97,11 @@ struct PostQueueSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(e.headline.isEmpty ? "A piece" : e.headline).font(.headline)
                 Text(statusWords(e)).font(.subheadline).foregroundStyle(e.status == "failed" ? Tone.problem.color : Color.secondary)
-                if e.units > 0 {
+                // Only part-way: each place below says what of it went, so the whole is shown once, as a bar.
+                if e.done > 0 && e.done < e.units {
                     ProgressView(value: Double(e.done), total: Double(e.units))
                         .tint(Theme.accent)
-                    Text("\(e.done) of \(e.units) gone").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                        .accessibilityLabel("\(e.done) of \(e.units) gone")
                 }
             }
         }
@@ -125,7 +126,6 @@ struct PostQueueSheet: View {
         let id: String
         let title: String
         let detail: String
-        let symbol: String
         /// The sends that make it up.
         let units: [String]
     }
@@ -136,17 +136,16 @@ struct PostQueueSheet: View {
         if e.toWebsite && !site.isEmpty {
             let photos = "\(e.sitePhotos) photo\(e.sitePhotos == 1 ? "" : "s")"
             let shelf = e.websiteCollection.isEmpty ? store.siteName : "\(store.siteName) · \(e.websiteCollection)"
-            out.append(Place(id: "website", title: "Website", detail: shelf + " · " + photos + (e.websiteFeatured ? " · featured" : ""), symbol: "globe", units: site))
+            out.append(Place(id: "website", title: "Website", detail: shelf + " · " + photos + (e.websiteFeatured ? " · featured" : ""), units: site))
         }
         if e.unitKeys.contains("instagram") {
-            out.append(Place(id: "instagram", title: "Instagram story", detail: "The story picture", symbol: "camera", units: ["instagram"]))
+            out.append(Place(id: "instagram", title: "Instagram story", detail: "The story picture", units: ["instagram"]))
         }
         for key in e.whatsapp {
             let units = e.unitKeys.filter { $0.hasPrefix("wa:\(key):") }
             guard !units.isEmpty else { continue }
             let photos = "\(units.count) photo\(units.count == 1 ? "" : "s"), the caption on the first"
-            out.append(Place(id: "wa:" + key, title: store.placeLabel(key), detail: "WhatsApp · " + photos,
-                             symbol: key == "channel" ? "megaphone" : "person.3", units: units))
+            out.append(Place(id: "wa:" + key, title: store.placeLabel(key), detail: "WhatsApp · " + photos, units: units))
         }
         return out
     }
@@ -155,22 +154,18 @@ struct PostQueueSheet: View {
         let e = entry
         let gone = p.units.filter { e?.doneKeys.contains($0) ?? false }.count
         let problem = p.units.compactMap { e?.unitErrors[$0] }.first
+        // Two lines, no icon per row; gone is a quiet word, only a failure is coloured (CONVENTIONS rule 15).
         return HStack(spacing: 12) {
-            Image(systemName: p.symbol)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(Theme.onAccent)
-                .frame(width: 32, height: 32)
-                .background(Theme.accent.gradient, in: .rect(cornerRadius: 8))
             VStack(alignment: .leading, spacing: 2) {
-                Text(p.title)
+                Text(p.title).lineLimit(1)
                 Text(problem ?? p.detail)
                     .font(.caption)
                     .foregroundStyle(problem == nil ? Color.secondary : Tone.problem.color)
-
+                    .lineLimit(1)
             }
             Spacer(minLength: 6)
             if gone == p.units.count {
-                Label("Gone", systemImage: "checkmark.circle.fill").labelStyle(.iconOnly).foregroundStyle(Tone.settled.color)
+                Text("Gone").font(.caption).foregroundStyle(.secondary)
             } else if problem != nil {
                 Label("Failed", systemImage: "exclamationmark.circle.fill").labelStyle(.iconOnly).foregroundStyle(Tone.problem.color)
             } else if gone > 0 {

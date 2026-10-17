@@ -140,15 +140,19 @@ struct RepairsScreen: View {
         }
     }
 
+    /// The group's title and one figure: what it still owes, else how many it holds. A folded group says its count
+    /// in its own row, so its header says none.
     private func groupHeader(_ g: RepairsGroup) -> some View {
         let owing = g.folded ? 0 : g.rows.reduce(0.0) { (sum: Double, r: Repair) -> Double in sum + RepairsKit.repairBalance(r) }
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(g.title)
                 .font(.subheadline.weight(.semibold))
             Spacer(minLength: 8)
-            Text("\(g.rows.count)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if owing <= 0 && !g.folded {
+                Text("\(g.rows.count)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             if owing > 0 {
                 HStack(spacing: 4) {
                     MoneyText(amount: owing)
@@ -243,8 +247,9 @@ struct RepairsScreen: View {
     }
 }
 
-/// A ticket on the list: what it is, who for, when it was promised (late in red), what it still owes,
-/// and the karigar if it is with one.
+/// A ticket on the list, in two lines: what it is and what it still owes; then who it is for, its number, and a
+/// promise only when it needs a look (due today, or late in red). The phone, the karigar and the dates are the
+/// ticket's sheet (rule 15).
 struct RepairsRow: View {
     let repair: Repair
     let now: Date
@@ -253,7 +258,7 @@ struct RepairsRow: View {
     private var greyed: Bool { repair.status == .collected || repair.status == .cancelled }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(RepairsKit.repairSummary(repair))
                     .font(.headline)
@@ -261,57 +266,33 @@ struct RepairsRow: View {
                 Spacer(minLength: 8)
                 if busy { SkeletonLoading() } else { money }
             }
-            Text(who)
+            secondLine
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            RepairsPromiseText(repair: repair, now: now)
-            Text(facts)
-                .font(.caption)
-                .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
         .opacity(greyed ? 0.55 : 1)
         .padding(.vertical, 2)
     }
 
-    /// "Hira Sample · +923000000103".
-    private var who: String {
-        var s = RepairsKit.customer(repair)
-        if let phone = RepairsKit.filled(repair.customerContact) { s += " · " + phone }
-        return s
+    /// "Hira Sample · REP-000012", and "· Ready by Tue 6 Oct · 2 days late" when the promise needs a look.
+    private var secondLine: Text {
+        let quiet = Text(RepairsKit.customer(repair) + " · " + repair.id).foregroundStyle(.secondary)
+        guard let t = RepairsKit.timing(repair, now: now), t.state == .late || t.state == .today else { return quiet }
+        var promise = "Ready by " + RepairsKit.byDay(repair.promisedDate)
+        let when = timingLabel(t)
+        if t.state != .today && !when.isEmpty { promise += " · " + when }
+        let tone = t.state == .late ? Tone.late.color : Tone.owed.color
+        return quiet + Text(" · ").foregroundStyle(.secondary) + Text(promise).fontWeight(t.state == .late ? .semibold : .regular).foregroundStyle(tone)
     }
 
-    /// "REP-000012 · in Tue 6 Oct · with Ustad Demo".
-    private var facts: String {
-        var parts: [String] = [repair.id]
-        switch repair.status {
-        case .ready:
-            if let d = RepairsKit.filled(repair.readyAt) { parts.append("ready " + RepairsKit.byDay(d)) }
-        case .collected:
-            if let d = RepairsKit.filled(repair.collectedAt) { parts.append("collected " + RepairsKit.byDay(d)) }
-        default:
-            parts.append("in " + RepairsKit.byDay(repair.receivedAt))
-        }
-        if let k = RepairsKit.filled(repair.karigarName) { parts.append("with " + k) }
-        return parts.joined(separator: " · ")
-    }
-
+    /// What it still owes, plain; a ticket paid in full says nothing (the expected state).
     @ViewBuilder
     private var money: some View {
         let owing = RepairsKit.repairBalance(repair)
         if owing > 0 {
-            VStack(alignment: .trailing, spacing: 0) {
-                MoneyText(amount: owing, exact: true)
-                    .font(.subheadline.weight(.semibold))
-                Text("due")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-        } else if RepairsKit.repairTotal(repair) > 0 {
-            Text("paid")
-                .font(.caption)
-                .foregroundStyle(Tone.settled.color)
+            MoneyText(amount: owing, exact: true)
+                .font(.subheadline.weight(.semibold))
+                .accessibilityLabel("\(Money.pkr(owing)) due")
         }
     }
 }

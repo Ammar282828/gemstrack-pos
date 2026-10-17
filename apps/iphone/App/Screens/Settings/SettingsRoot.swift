@@ -4,15 +4,30 @@ import SwiftUI
 /// Each row opens its own screen, the web's tabs in its order; Backups and the imports are under Data, Labels
 /// under Integrations (and Stock), as on the web.
 struct SettingsRoot: View {
+    /// "/settings?tab=rates": the rates live in the rate sheet now, as on the web, so it opens over the list.
+    var opensRates = false
     @Environment(Session.self) private var session
     @State private var signingOut = false
+    @State private var rates = false
+    /// Once: coming back from a screen pushed over the list does not open the sheet again.
+    @State private var ratesOpened = false
 
     var body: some View {
-        if session.isOwner {
-            list
-        } else {
-            NotAvailableState("Owners only", why: "Settings are the owners’.", symbol: "lock")
-                .navigationTitle("Settings")
+        Group {
+            if session.isOwner {
+                list
+            } else {
+                NotAvailableState("Owners only", why: "Settings are the owners’.", symbol: "lock")
+                    .navigationTitle("Settings")
+            }
+        }
+        .onAppear {
+            guard opensRates, !ratesOpened else { return }
+            ratesOpened = true
+            rates = true
+        }
+        .sheet(isPresented: $rates) {
+            if session.isOwner { RateSheet() } else { RateReadout() }
         }
     }
 
@@ -22,8 +37,6 @@ struct SettingsRoot: View {
 
             Section {
                 SettingsLinkRow(title: "Businesses", symbol: "building.2.fill", color: .orange, path: "/app/businesses")
-            } footer: {
-                Text("Switch between the shops on this phone, or add another by its ERP's address.")
             }
 
             Section {

@@ -121,13 +121,11 @@ struct ExpensesScreen: View {
                     Label("Expense report (PDF)", systemImage: "doc.richtext")
                 }
                 .disabled(shown.isEmpty)
-            } footer: {
-                Text("The ERP's report for the period, grouping, category and search chosen here, to print or share.")
             }
         }.houseRows()
         }
         .listStyle(.insetGrouped)
-        .safeAreaBar(edge: .top, spacing: 0) { categoryChips(scoped) }
+        .safeAreaBar(edge: .top, spacing: 0) { categoryChips }
     }
 
     /// The page's Report for what is on screen; named as the browser saves it.
@@ -145,7 +143,7 @@ struct ExpensesScreen: View {
         return "\(period.title) · \(caption)"
     }
 
-    /// Search and the period: everything but the category, so each chip can count what it would show.
+    /// Search and the period: everything but the category, which the chips choose.
     private func scopedLines(_ range: MoneyDayRange) -> [MoneyLine<Expense>] {
         let needle = search.trimmingCharacters(in: .whitespacesAndNewlines)
         var out: [MoneyLine<Expense>] = []
@@ -178,11 +176,15 @@ struct ExpensesScreen: View {
     /// then the biggest day/week/month, which the page works out (`summary.biggest`) but leaves unshown.
     private func figures(_ s: ExpenseSummary) -> some View {
         let per = grouping.title.lowercased()
+        // One hero, the total, with how many payments under it; the rest waits in the breakdown (rule 15).
         return VStack(spacing: 10) {
-            FigureRow(alignment: .top, spacing: 10) {
-                FigureTile(label: "Total expenses", value: Money.pkr(s.total), tint: Theme.accent)
-                FigureTile(label: "Payments", value: "\(s.count)", detail: category.isEmpty ? nil : category)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(category.isEmpty ? "Total expenses" : category).font(.subheadline).foregroundStyle(.secondary)
+                HeroAmount(amount: s.total)
+                Text("\(s.count) payment\(s.count == 1 ? "" : "s")").font(.footnote).foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .heroSheen()
             DisclosureGroup("Spending breakdown") {
                 VStack(spacing: 12) {
                     TwoLine(title: "Average per \(per)", trailing: Money.pkr(s.perBucket))
@@ -197,14 +199,9 @@ struct ExpensesScreen: View {
         .padding(.vertical, 4)
     }
 
+    /// The group's name and what it came to: one trailing figure, no second line (rule 15).
     private func groupHeader(_ group: MoneyGroup<Expense>) -> some View {
-        let n = group.rows.count
-        let count = "\(n) item\(n == 1 ? "" : "s")"
-        let detail = group.sub.isEmpty ? count : "\(group.sub) · \(count)"
-        return VStack(alignment: .leading, spacing: 6) {
-            LedgerHeading(title: group.label, trailing: Money.pkr(group.total))
-            Text(detail).font(.footnote).foregroundStyle(.secondary)
-        }
+        LedgerHeading(title: group.sub.isEmpty ? group.label : "\(group.label) · \(group.sub)", trailing: Money.pkr(group.total))
     }
 
     // MARK: Rows
@@ -216,6 +213,7 @@ struct ExpensesScreen: View {
             subtitle: subtitle(e),
             trailing: Money.pkr(e.amount)
         )
+        .lineLimit(1)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if ExpenseEditing.isDrawing(e, partnership: session.shop.partnership) {
                 Button { openShareholders = true } label: { Label("Shareholders", systemImage: "person.2") }
@@ -283,14 +281,14 @@ struct ExpensesScreen: View {
     }
 
     @ViewBuilder
-    private func categoryChips(_ scoped: [MoneyLine<Expense>]) -> some View {
+    private var categoryChips: some View {
         let names = usedCategories
         if !names.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    chip("All", count: scoped.count, selected: category.isEmpty) { category = "" }
+                    chip("All", selected: category.isEmpty) { category = "" }
                     ForEach(names, id: \.self) { (name: String) in
-                        chip(name, count: scoped.filter { $0.item.category == name }.count, selected: category == name) {
+                        chip(name, selected: category == name) {
                             category = name
                         }
                     }
@@ -301,8 +299,9 @@ struct ExpensesScreen: View {
         }
     }
 
-    private func chip(_ title: String, count: Int, selected: Bool, action: @escaping () -> Void) -> some View {
-        FilterChip(title: title, count: count, chosen: selected, action: action)
+    /// No counts: the hero says how many payments, once (rule 15).
+    private func chip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        FilterChip(title: title, chosen: selected, action: action)
     }
 
     // MARK: Period and grouping

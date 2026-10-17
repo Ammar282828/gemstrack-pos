@@ -17,11 +17,8 @@ enum StockKit {
         return part.addingPercentEncoding(withAllowedCharacters: allowed) ?? part
     }
 
-    /// "/products/RNG-0001": the piece page. `web` asks for the ERP's own page (its QR and CSV for
-    /// the label printer, and Delete, which asks for the delete code there).
-    static func piecePath(_ sku: String, web: Bool = false) -> String {
-        "/products/" + encode(sku) + (web ? "?web=1" : "")
-    }
+    /// "/products/RNG-0001": the piece page.
+    static func piecePath(_ sku: String) -> String { "/products/" + encode(sku) }
 
     /// The product form for a piece (StockPieceForm), photo and all. "?web=1" after it is the ERP's own form.
     static func editPath(_ sku: String) -> String { "/products/" + encode(sku) + "/edit" }
@@ -37,7 +34,7 @@ enum StockKit {
         return sku.removingPercentEncoding ?? sku
     }
 
-    /// "/products/add?voice=1": a new piece the ERP's voice assistant filled in, kept in that page's own memory.
+    /// "/products/add?voice=1": a new piece the voice assistant filled in (StockVoiceSeed), as the ERP's page takes it.
     static func fromVoice(_ path: String) -> Bool {
         URLComponents(string: path)?.queryItems?.contains { $0.name == "voice" && $0.value == "1" } ?? false
     }
@@ -57,6 +54,22 @@ enum StockKit {
         if bare.hasSuffix("/edit") { return "Edit piece" }
         let last = bare.split(separator: "/").last.map(String.init) ?? ""
         return last.removingPercentEncoding ?? last
+    }
+
+    // MARK: Deleting a piece
+
+    /// The store's words for it, as its delete-code dialog says them (lib/writes/product-delete.ts `deleteProductWhat`).
+    static func deleteWhat(_ p: Product) -> String { "Delete product \(p.name.isEmpty ? p.sku : p.name)" }
+
+    /// A piece's Delete, the piece page's and the list's: the code asked in the owners' sheet, then the ERP's
+    /// `deleteProduct` (ops-stock3.ts), which checks it. Gone for good, as the web says: stock has no Recently removed.
+    @MainActor
+    static func deletion(_ p: Product, then done: @escaping () -> Void = {}) -> OwnerDeletion {
+        let name = p.name.isEmpty ? p.sku : "\(p.name) (\(p.sku))"
+        return OwnerDeletion(what: deleteWhat(p), detail: "This will permanently delete \(name) from stock.") { code in
+            _ = try await ERPAPI.shared.write("deleteProduct", ["sku": p.sku, "deleteCode": code])
+            done()
+        }
     }
 
     // MARK: Categories
@@ -378,11 +391,31 @@ enum StockImageDecoder {
     }
 }
 
+// MARK: The voice assistant's new piece
+
+/// What was said for a new piece (lib/voice/commands.ts `new_piece`, a `Partial<Product>`), handed over by the
+/// voice sheet (NativeVoiceHandoff) for the one form that opens on "/products/add?voice=1". The web keeps it in
+/// sessionStorage for five minutes and its page takes it once (lib/voice/handoff.ts); here the form reads it as
+/// it opens and lets it go once shown. Kept for the business it was said in, so a switch never fills the next one.
+@MainActor
+enum StockVoiceSeed {
+    private static var held: (business: String, at: Date, piece: [String: Any])?
+
+    static func put(_ piece: [String: Any], now: Date = Date()) { held = (business: House.id, at: now, piece: piece) }
+
+    /// The piece said, if it was said in this business in the last five minutes.
+    static func peek(now: Date = Date()) -> [String: Any]? {
+        guard let held, held.business == House.id, now.timeIntervalSince(held.at) < 5 * 60 else { return nil }
+        return held.piece
+    }
+
+    static func clear() { held = nil }
+}
+
 // MARK: Opening the ERP's own pages
 
 extension View {
-    /// Pushes a place when `go` is set: the sale, the product form, or an ERP page (a piece's own page
-    /// with Delete).
+    /// Pushes a place when `go` is set: the sale, the product form, or an ERP page.
     func stockDestination(_ go: Binding<Route?>) -> some View {
         navigationDestination(item: go) { (r: Route) in
             StockDestination(path: r.path)

@@ -5,8 +5,8 @@ import ERPCore
 /// Website → Edit a piece (src/app/website/edit/page.tsx): every piece on the house's website (taheri.shop, or
 /// the House of Mina catalogue), hidden ones too, with what the counter changed. Search, "Changed here",
 /// "Hidden" and the collections; a piece opens natively (WebsiteEditPieceScreen) for its words, its weight,
-/// hiding it and putting things back. Re-making its photograph (crop, the weight and the mark stamped on,
-/// the designer, the AI) is the ERP's square editor, opened in the app from the piece.
+/// hiding it and putting things back, and for re-making its photograph (crop, the weight and the mark stamped
+/// on, the designer, the AI: WebsitePhotoEdit, the web's square editor drawn by the bundled engine).
 struct WebsiteEditScreen: View {
     private var store: WebsiteEdits { WebsiteEdits.shared }
 
@@ -73,15 +73,14 @@ struct WebsiteEditScreen: View {
 
     private var grid: some View {
         let items = filtered
-        let changedCount = store.pieces.filter { (p: WebsiteEditPiece) in p.changed }.count
-        let hiddenCount = store.pieces.filter { (p: WebsiteEditPiece) in p.hidden }.count
         return ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         MarketingChip(title: "Everything", selected: filter == .all) { filter = .all }
-                        MarketingChip(title: "Changed here", count: changedCount > 0 ? changedCount : nil, selected: filter == .changed) { filter = .changed }
-                        MarketingChip(title: "Hidden", count: hiddenCount > 0 ? hiddenCount : nil, selected: filter == .hidden) { filter = .hidden }
+                        // No counts on these: neither is a call to act, and the line below counts what shows.
+                        MarketingChip(title: "Changed here", selected: filter == .changed) { filter = .changed }
+                        MarketingChip(title: "Hidden", selected: filter == .hidden) { filter = .hidden }
                     }
                 }
                 .scrollClipDisabled()
@@ -94,7 +93,7 @@ struct WebsiteEditScreen: View {
                     }
                 }
                 .scrollClipDisabled()
-                Text("\(items.count) of \(store.pieces.count) pieces · it shows on \(store.siteName) within a minute; the original photo is kept to put back")
+                Text("\(items.count) of \(store.pieces.count) pieces")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 if items.isEmpty {
@@ -136,11 +135,11 @@ struct WebsiteEditScreen: View {
             ForEach(store.recent.prefix(15)) { (r: WebsiteEditRecent) in
                 NavigationLink(value: Route(path: WebsiteEditScreen.piecePath(r.key))) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(r.name.isEmpty ? "A piece" : r.name).foregroundStyle(Theme.accent)
+                        Text(r.name.isEmpty ? "A piece" : r.name).lineLimit(1)
                         Text(WebsiteEditScreen.recentWords(r))
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .lineLimit(2)
+                            .lineLimit(1)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -161,17 +160,9 @@ struct WebsiteEditTile: View {
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                 .opacity(piece.hidden ? 0.45 : 1)
-                .overlay(alignment: .topLeading) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        if piece.hidden { badge("Hidden", symbol: "eye.slash") }
-                        if piece.photoEdited { badge("New photo", symbol: "photo") }
-                        if piece.wordsChanged { badge("Words changed", symbol: "pencil") }
-                    }
-                    .padding(6)
-                }
             Text(piece.words.name.isEmpty ? "A piece" : piece.words.name)
                 .font(.subheadline.weight(.medium))
-                .lineLimit(2)
+                .lineLimit(1)
             Text(detail)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -179,20 +170,15 @@ struct WebsiteEditTile: View {
         }
     }
 
-    /// "Rings · 4.2g".
+    /// "Hidden · New photo · Rings · 4.2g": what was changed here in the quiet line, no tags on the photo (CONVENTIONS rule 15).
     private var detail: String {
         var parts: [String] = []
+        if piece.hidden { parts.append("Hidden") }
+        if piece.photoEdited { parts.append("New photo") }
+        else if piece.wordsChanged { parts.append("Words changed") }
         if !piece.collection.isEmpty { parts.append(piece.collection) }
         if let g = piece.weightGrams { parts.append(WebsiteNumber.grams(g) + "g") }
         return parts.joined(separator: " · ")
-    }
-
-    private func badge(_ text: String, symbol: String) -> some View {
-        Label(text, systemImage: symbol)
-            .font(.caption2.weight(.medium))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 6).padding(.vertical, 3)
-            .background(Color.black.opacity(0.6), in: .capsule)
     }
 }
 

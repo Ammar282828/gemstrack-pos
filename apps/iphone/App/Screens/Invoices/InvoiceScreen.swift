@@ -7,7 +7,8 @@ import ERPCore
 /// server and shown here (PDFDocumentScreen), to print or share; Taheri's WhatsApp send has the server draw
 /// and send it from the shop's line, and House of Mina's link goes from here. Edit is New sale's own form;
 /// the discount, deleting a payment, a refund and deleting the invoice are native sheets (InvoiceAction*,
-/// owners, the last three behind the delete code).
+/// owners, the last three behind the delete code); the Shopify payment link is made here too
+/// (InvoicePaymentLink). Nothing opens the ERP's page.
 ///
 /// Laid out as the order's page is (a List on the house's ground, 2026-10-12): one receipt at the head (who,
 /// when, what is still due beside a ring of what is paid), the quick row (ring, write, print), then the pieces
@@ -35,6 +36,10 @@ struct InvoiceScreen: View {
     /// A payment swiped away: the delete code is asked for it straight away (InvoiceActionPaymentSheet.deletion).
     @State private var paymentDeletion: OwnerDeletion?
     @State private var paymentOutcome: InvoiceActionOutcome?
+    /// The shop floor's answer to an owner's move: the server refuses staff, so it is said here instead.
+    @State private var ownersOnly: String?
+    /// The payment link to make (InvoicePaymentLink): set to start it.
+    @State private var linking: Invoice?
 
     private var canPay: Bool { InvoiceFacts.mayTakePayments(role: session.role) }
 
@@ -131,7 +136,9 @@ struct InvoiceScreen: View {
         .invoiceActionCode($paymentDeletion) {
             if let outcome = paymentOutcome { acted(outcome) }
         }
-        .invoiceWhatsAppSend($sending, web: $web) { sent in say(sent) }
+        .invoiceWhatsAppSend($sending) { sent in say(sent) }
+        .invoicePaymentLink($linking) { made in say(made) }
+        .failureAlert($ownersOnly, title: "An owner's")
         .noteToast($note)
     }
 
@@ -177,8 +184,12 @@ struct InvoiceScreen: View {
                             Text(piecesLine(inv))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                                .lineLimit(2)
-                            if isShopify(inv) { Pill("Shopify") }
+                                .lineLimit(1)
+                            // A Shopify sale: a small glyph, not a tag (CONVENTIONS rule 15); Details says it in words.
+                            if isShopify(inv) {
+                                Image(systemName: "bag").font(.caption).foregroundStyle(.secondary)
+                                    .accessibilityLabel("Shopify")
+                            }
                         }
                     }
                 }
@@ -198,7 +209,7 @@ struct InvoiceScreen: View {
                 figures(inv)
                 // Whoever opens it next sees the PDF went, so it is not sent twice.
                 if let sent = inv.sentOnWhatsApp {
-                    Label("PDF sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))", systemImage: "checkmark.circle.fill")
+                    Text("PDF sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -220,21 +231,27 @@ struct InvoiceScreen: View {
 
     private func isShopify(_ inv: Invoice) -> Bool { (inv.source ?? "").hasPrefix("shopify") }
 
-    /// What is due as the big figure, the ring of what is paid beside it, and both sums in a line under.
+    /// What is due as the big figure, the ring of what is paid beside it, and both sums in a line under. A settled
+    /// invoice is quiet (CONVENTIONS rule 15): its total, and nothing to chase, so no ring and no second line.
     private func figures(_ inv: Invoice) -> some View {
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
             : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+        let settled = inv.status != .refunded && balanceLine(inv.balanceDue).state == .paid
         return layout {
             VStack(alignment: .leading, spacing: 4) {
                 leadFigure(inv)
-                Text("Total \(Money.pkr(inv.grandTotal)) · Paid \(Money.pkr(inv.amountPaid))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
+                if !settled {
+                    Text("Total \(Money.pkr(inv.grandTotal)) · Paid \(Money.pkr(inv.amountPaid))")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            PaidRing(paid: inv.amountPaid, total: inv.grandTotal)
+            if !settled && inv.status != .refunded {
+                PaidRing(paid: inv.amountPaid, total: inv.grandTotal)
+            }
         }
     }
 
@@ -253,11 +270,9 @@ struct InvoiceScreen: View {
                 Text("In credit").font(.subheadline).foregroundStyle(.secondary)
                 HeroAmount(amount: line.amount, tone: Tone.credit.color)
             case .paid:
-                Text("Paid in full")
-                    .font(.system(.largeTitle, design: .serif).weight(.semibold))
-                    .foregroundStyle(Tone.settled.color)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+                // Paid is what an invoice is meant to be: the total in the ink, "Paid in full" said quietly.
+                Text("Paid in full").font(.subheadline).foregroundStyle(.secondary)
+                HeroAmount(amount: inv.grandTotal, tone: .primary)
             }
         }
     }
@@ -399,16 +414,15 @@ struct InvoiceScreen: View {
                     Label(owing(inv) ? "Take payment" : "Take payment as credit", systemImage: "banknote")
                 }
             }
-            // Paid past the total: the customer's credit, on their hisaab (decision "Invoice credit").
-            if line.state == .credit && inv.status != .refunded && !inv.paymentHistory.isEmpty {
-                Label("\(line.label) · \(Money.pkr(line.amount)), on \(InvoiceFacts.customerName(inv, walkIn: "the customer"))'s hisaab",
-                      systemImage: "arrow.uturn.left.circle.fill")
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(Tone.credit.color)
-            }
         } header: {
-            LedgerHeading(title: "Payments", count: inv.paymentHistory.count > 1 ? inv.paymentHistory.count : nil,
-                          trailing: Money.pkr(inv.amountPaid))
+            // What was paid is the receipt's own line; the heading is a title.
+            LedgerHeading(title: "Payments")
+        } footer: {
+            // Paid past the total: the customer's credit, on their hisaab (decision "Invoice credit"). The sum is the
+            // receipt's figure; this says where the money sits.
+            if line.state == .credit && inv.status != .refunded && !inv.paymentHistory.isEmpty {
+                Text("The credit is on \(InvoiceFacts.customerName(inv, walkIn: "the customer"))'s hisaab.")
+            }
         }
     }
 
@@ -551,11 +565,6 @@ struct InvoiceScreen: View {
         return name.isEmpty || isWalkInName(name)
     }
 
-    /// The ERP's own page for this invoice; `doing` is what it does as it opens (InvoiceFacts.path).
-    private func openWeb(_ inv: Invoice, doing: String? = nil) {
-        web = Route(path: InvoiceFacts.path(inv.id, web: true, doing: doing))
-    }
-
     /// The number the ERP page's box starts with: the invoice's, else its customer's.
     private func whatsAppPhone(_ inv: Invoice) -> String {
         InvoiceFacts.whatsAppPhone(inv, customer: inv.customerId.flatMap { book.customers.item($0) })
@@ -587,6 +596,10 @@ struct InvoiceScreen: View {
                     Label("Customer link", systemImage: "link")
                 }
             }
+            // Shopify's checkout for what is owed, made fresh each time and copied (invoices/page.tsx).
+            if InvoiceFacts.offersPaymentLink(inv) {
+                Button { linking = inv } label: { Label(InvoiceFacts.paymentLinkTitle(inv), systemImage: "link.badge.plus") }
+            }
         }
         Section("Change") {
             Button { web = Route(path: InvoiceFacts.editPath(inv.id)) } label: { Label("Edit", systemImage: "pencil") }
@@ -600,9 +613,6 @@ struct InvoiceScreen: View {
                 Button { act(.discount, inv) } label: { Label("Change discount", systemImage: "percent") }
             }
         }
-        Section("More") {
-            Button { openWeb(inv) } label: { Label("Open in the ERP", systemImage: "globe") }
-        }
         Section {
             if inv.status != .refunded {
                 Button(role: .destructive) { act(.refund, inv) } label: { Label("Refund…", systemImage: "arrow.uturn.backward") }
@@ -611,10 +621,10 @@ struct InvoiceScreen: View {
         }
     }
 
-    /// An owner's sheet; the shop floor keeps the ERP's page, which says it is an owner's (the server refuses
-    /// staff either way).
+    /// An owner's sheet; the shop floor is told so here, as the server would refuse it (each is the store's own
+    /// Firestore write on the web, which staff cannot make).
     private func act(_ a: InvoiceAct, _ inv: Invoice) {
-        if session.isOwner { acting = a } else { openWeb(inv) }
+        if session.isOwner { acting = a } else { ownersOnly = a.ownersOnly }
     }
 
     /// After a sheet: its note on the page, or back to the list when the invoice is gone.
@@ -661,8 +671,22 @@ private struct InvoicePieceRow: View {
     /// Owners see the price broken into metal, wastage, making and stones, as the order's pieces do.
     var showBreakdown = false
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// Two lines until tapped (CONVENTIONS rule 15); the stones and the breakdown open under them.
+    @State private var open = false
+
+    private var hasMore: Bool { !settings.isEmpty || (showBreakdown && !costs.isEmpty) }
 
     var body: some View {
+        Button {
+            if hasMore { open.toggle() }
+        } label: {
+            lines
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(hasMore ? (open ? "Hides the details" : "Shows the stones and the breakdown") : "")
+    }
+
+    private var lines: some View {
         VStack(alignment: .leading, spacing: 4) {
             // The name leading and the price trailing; at accessibility sizes the price goes under the name.
             let layout = typeSize.isAccessibilitySize
@@ -679,17 +703,22 @@ private struct InvoicePieceRow: View {
                 Text(facts.joined(separator: " · "))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .lineLimit(open ? nil : 1)
             }
-            ForEach(settings, id: \.self) { line in
-                Text(line).font(.caption).foregroundStyle(.secondary)
-            }
-            if showBreakdown && !costs.isEmpty {
-                Text(costs.joined(separator: " · "))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
+            if open {
+                ForEach(settings, id: \.self) { line in
+                    Text(line).font(.caption).foregroundStyle(.secondary)
+                }
+                if showBreakdown && !costs.isEmpty {
+                    Text(costs.joined(separator: " · "))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
     }
@@ -749,8 +778,8 @@ private struct InvoicePieceRow: View {
     }
 }
 
-/// One payment: how it came (its symbol), when, any reference or note, and the amount. A refund (a row below
-/// zero, lib/writes/invoice-refund.ts) reads as one, quietly.
+/// One payment in two lines: how it came and the amount; then when, any reference or note. No symbol per row
+/// (CONVENTIONS rule 15). A refund (a row below zero, lib/writes/invoice-refund.ts) reads as one, quietly.
 private struct InvoicePaymentRow: View {
     let payment: Payment
 
@@ -758,18 +787,12 @@ private struct InvoicePaymentRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(tone.color)
-                .frame(width: 34, height: 34)
-                .background(tone.color.opacity(0.12), in: .circle)
-                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.subheadline.weight(.medium))
                 Text(detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    .lineLimit(1)
             }
             Spacer(minLength: 8)
             if refund {
@@ -783,19 +806,6 @@ private struct InvoicePaymentRow: View {
             }
         }
         .accessibilityElement(children: .combine)
-    }
-
-    private var tone: Tone { refund ? .quiet : .settled }
-
-    private var symbol: String {
-        if refund { return "arrow.uturn.backward" }
-        switch payment.method {
-        case .cash?: return "banknote"
-        case .card?: return "creditcard"
-        case .bankTransfer?: return "building.columns"
-        case .cheque?: return "doc.text"
-        case .unknown?, nil: return "arrow.down.circle"
-        }
     }
 
     /// The method (older records predate payment types and have none), or Refund.
@@ -884,4 +894,14 @@ private struct InvoiceMarginRow: View {
 enum InvoiceAct: String, Identifiable {
     case discount, payment, refund, delete
     var id: String { rawValue }
+
+    /// What the shop floor is told: each is an owner's (ops-invoice-actions.ts), and the server refuses staff.
+    var ownersOnly: String {
+        switch self {
+        case .discount: return "Changing the discount is an owner's. Ask an owner to change it."
+        case .payment: return "Deleting a payment is an owner's. Ask an owner to delete it."
+        case .refund: return "A refund is an owner's. Ask an owner to refund this invoice."
+        case .delete: return "Deleting an invoice is an owner's. Ask an owner to delete it."
+        }
+    }
 }

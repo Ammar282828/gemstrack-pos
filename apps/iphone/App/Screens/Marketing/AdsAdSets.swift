@@ -298,8 +298,6 @@ struct AdsAdSetsScreen: View {
                         Label("Another ad set", systemImage: "plus")
                     }
                     .disabled(sets.count >= 6)
-                } footer: {
-                    Text("It starts as a copy of the last, so a test changes one thing. Six at most.")
                 }
                 adsSection
                 makeSections

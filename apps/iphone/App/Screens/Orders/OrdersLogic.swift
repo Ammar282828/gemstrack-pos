@@ -78,7 +78,7 @@ enum OrdersLogic {
     // MARK: Statuses
 
     /// What the status menu offers: never a bare "Refunded" (docs/decisions.md "Orders hub"; the
-    /// server refuses it too). Refund order is the ERP's own page.
+    /// server refuses it too). Refund order is the order page's own move (OrderUndoSheets).
     static let settableStatuses = ["Pending", "In Progress", "Completed", "Cancelled"]
 
     /// The hub's status filter: the ERP's ORDER_STATUSES, all of them (it filters, it does not write).

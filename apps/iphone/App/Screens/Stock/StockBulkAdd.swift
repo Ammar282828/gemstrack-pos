@@ -265,8 +265,6 @@ private struct StockBulkEditor: View {
             }
         } header: {
             LedgerHeading(title: "Weights to add · \(rows.count)")
-        } footer: {
-            Text("Swipe a row to take it out.")
         }
     }
 
@@ -447,16 +445,12 @@ private struct StockBulkEditor: View {
                 }
             } header: {
                 LedgerHeading(title: "Added")
-            } footer: {
-                Text("Photos are added on each piece's ERP page.")
             }
             .houseRows()
             Section {
                 Button { startAgain() } label: {
                     Label("Add more pieces", systemImage: "plus.square.on.square")
                 }
-            } footer: {
-                Text("The setup stays as it is; the weights start again.")
             }
             .houseRows()
         }

@@ -305,6 +305,9 @@ enum NativeVoiceHandoff {
                 guard let product = book.products.items.first(where: { $0.sku == sku }) else { continue }
                 SaleDraftStore.add(product)
             }
+        } else if kind == "piece" {
+            // A new piece for stock: the product form opens on it (/products/add?voice=1, StockPieceForm).
+            StockVoiceSeed.put(payload)
         } else {
             throw ERPAPI.Failure(status: 0, message: "Open the native form and enter the details shown above.")
         }

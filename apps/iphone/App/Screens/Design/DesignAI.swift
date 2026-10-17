@@ -7,6 +7,7 @@ import PhotosUI
 //        retouch | restage | custom, the photograph at most 2048 px; every result comes back with a same-piece check.
 //   Remove background  POST /api/design/remove-background (Magnific; a PNG with alpha, no pixel redrawn, so no check)
 //   Flat image → layers  POST /api/design/layers (owner and marketing)
+//   Make the ad with AI  POST /api/ads/studio/auto op direct (owner and marketing, an ad), as the Studio's "Make it with AI"
 // One tool at a time (the Vertex quota is tiny); a result the check doubts waits for a look instead of going in unseen.
 
 /// The photograph before an AI one, for "Back to the photo before".
@@ -38,6 +39,18 @@ enum DesignAIRules {
         guard let c = check, c != .null else { return false }
         return c["samePiece"].bool && (c["confidence"] == .null ? 1 : c.n("confidence")) >= 0.8
     }
+    /// What the ad's goal sends people to, as the art director is told it (lib/ads/plan.ts GOALS `hint`).
+    static let goalHints: [String: String] = [
+        "whatsapp": "People tap and start a WhatsApp chat with the shop.",
+        "messages": "Each person gets the app they use — WhatsApp or Instagram Direct.",
+        "instagram_dm": "People tap and message the shop on Instagram.",
+        "website": "People tap through to the piece on the website.",
+        "sales": "Meta looks for people who buy on the website — needs its pixel recording orders.",
+        "channel": "People tap through to the shop’s WhatsApp channel and follow it.",
+        "profile": "People tap through to the shop’s Instagram profile.",
+        "engagement": "More people engage with the post itself.",
+        "reach": "As many different people as the budget allows.",
+    ]
     static let askIdeas = ["Remove the hand and props", "Warmer, golden-hour light", "Deep green velvet background", "Soft bokeh lights behind", "Clean white studio background", "Add a subtle reflection below"]
 }
 
@@ -104,6 +117,71 @@ extension DesignWorkspaceModel {
                 }
                 takeAIPhoto(data, check: check, clean: clean)
                 say(label + ": done", detail: check != nil ? "The check: the same piece as before." : "Not checked: compare it with the original.")
+            } catch { explain(error) }
+        }
+    }
+
+    /// Make the ad with AI (ai-tools.tsx `makeAd`, the Studio's "Make it with AI", /api/ads/studio/auto op `direct`): an art
+    /// director's layout and words from the photograph and its details, the logo off and the photo extended when the shape needs
+    /// it, then the same layout on every size. A prepared photo the check doubts is not used: the words and layout go in on the
+    /// photograph as it was.
+    func makeAd(brief: String) async {
+        guard let w = work, w.kind == "ad", let source = photos["photo"], let image = UIImage(data: source), image.size.height > 0 else { return }
+        let page = w.activePage
+        let aspect = DesignAspect.nearest(page.w, page.h)
+        let format = catalogue["formats"].array.first { $0.s("id") == page.format } ?? .null
+        let params: [String: Any] = [
+            "name": w.name.isEmpty ? (w.fields["headline"] ?? "") : w.name, "collection": "", "specs": w.fields["weight"] ?? "",
+            "price": w.copy["price"] ?? "", "brief": brief, "format": page.format, "aspect": aspect,
+            "shape": format.s("label", page.label), "trimTo": format.s("short"),
+            "destination": DesignAIRules.goalHints[w.copy["goal"] ?? "whatsapp"] ?? "a WhatsApp chat with the shop",
+            "kicker": w.fields["kicker"] ?? "", "headline": w.fields["headline"] ?? "", "cta": w.fields["details"] ?? "",
+        ]
+        let ratio = Double(image.size.width / image.size.height) / (page.w / max(1, page.h))
+        let extend = ratio > 1.3 || ratio < 0.77
+        let isMarked = marked
+        await guarded("Designing the ad from the photo and its details, about a minute") {
+            do {
+                let picture = forAI(source)
+                // The photograph is prepared beside the direction, as the web does: extended to the shape, or its marks taken off.
+                let prepared = Task { () -> MarketingValue? in
+                    if extend { return try? await MarketingRequest.ai("reframe", images: [picture], params: ["aspect": aspect, "tidy": isMarked]) }
+                    if isMarked { return try? await MarketingRequest.ai("enhance", images: [picture], params: ["tidy": true]) }
+                    return nil
+                }
+                let bytes = try await WebsiteForm.send("/api/ads/studio/auto", fields: [("op", "direct"), ("params", WebsiteForm.text(params))],
+                                                       files: [.init(field: "image", name: "photo.jpg", type: "image/jpeg", data: picture)], timeout: 300)
+                let d = try JSONDecoder().decode(MarketingValue.self, from: bytes)["direction"]
+                let fixed = await prepared.value
+                var next = w.fields
+                for (key, from) in [("kicker", "kicker"), ("headline", "headline"), ("details", "cta")] where !d.s(from).isEmpty { next[key] = d.s(from) }
+                for (k, v) in next where v != w.fields[k] { setField(k, v) }
+                if let text = d["primaryText"].array.first?.string, !text.isEmpty { setCopy("adText", text) }
+                if let headline = d["adHeadlines"].array.first?.string, !headline.isEmpty { setCopy("adHeadline", headline) }
+                // The photograph's "same piece?" check decides: a result that changed the piece never goes into an ad unseen.
+                let check = fixed.flatMap { $0["check"] == .null ? nil : $0["check"] }
+                let changed = check.map { !$0["samePiece"].bool } ?? false
+                if let fixed, !changed, let data = Data(base64Encoded: fixed["image"].s("data")), WebsitePhoto.jpegCopy(data) != nil {
+                    takeAIPhoto(data, check: check, clean: true)
+                }
+                // The same layout on every size of the design, each from a blank page that keeps its photograph's placement.
+                let layout = d.s("layout").isEmpty ? (page.doc["meta"].s("template")) : d.s("layout")
+                if !layout.isEmpty, let now = work {
+                    for p in now.pages {
+                        var blank = p
+                        var doc = DesignWork.blankDoc(w: p.w, h: p.h)
+                        if p.doc["bg"]["placement"] != .null { doc["bg"]["placement"] = p.doc["bg"]["placement"] }
+                        blank.doc = doc
+                        let laid = try await layOut(blank, template: layout, fields: now.fields)
+                        setDoc(p.id, laid)
+                    }
+                }
+                if changed {
+                    say("Kept your photo", detail: "The AI changed the piece: \((check?["differences"].array.prefix(2).map(\.string) ?? []).joined(separator: "; ")). The words and layout are in.", failed: true)
+                } else {
+                    let scene = catalogue["scenes"].array.first { $0.s("id") == d.s("scene") }?.s("label")
+                    say("The ad is made", detail: [d.s("why"), scene.map { "A new setting would suit it: \($0) (New setting…)." } ?? ""].filter { !$0.isEmpty }.joined(separator: " "))
+                }
             } catch { explain(error) }
         }
     }
@@ -281,6 +359,9 @@ struct DesignAITools: View {
                 tool("Ask AI… (anything, in your words)", "text.bubble", off) { model.sheet = DesignSheet(title: "Ask AI") { DesignAskSheet(model: model) } }
                 tool("Remove background", "scissors", off) { Task { await model.cutOut() } }
                 if access.ads { tool("Flat image → layers", "square.3.layers.3d", off) { Task { await model.splitLayers() } } }
+                if access.ads && model.work?.kind == "ad" {
+                    tool("Make the ad with AI…", "wand.and.rays", off) { model.sheet = DesignSheet(title: "Make it with AI") { DesignMakeAdSheet(model: model) } }
+                }
                 if model.canUndoPhoto {
                     Button { model.undoPhoto() } label: { Label("Back to the photo before", systemImage: "arrow.uturn.backward").frame(maxWidth: .infinity, alignment: .leading) }
                         .buttonStyle(.plain).disabled(model.aiBusy != nil).font(.subheadline)
@@ -451,5 +532,38 @@ struct DesignAskSheet: View {
         let op = DesignPhotoOp.ask(instruction, aspect: shape == "same" ? nil : shape)
         dismiss()
         Task { await model.photoTool(op) }
+    }
+}
+
+/// "Make the ad with AI" (ai-tools.tsx, the make dialog for an ad): an aim, if there is one, then the art director.
+struct DesignMakeAdSheet: View {
+    let model: DesignWorkspaceModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var brief = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Aim (optional), e.g. Eid gifting", text: $brief, axis: .vertical).lineLimit(1...4)
+                } footer: {
+                    Text("Lays the ad out from the photograph and its details: the layout, the words on the picture and the ad’s own text and headline, on every size. The photo is extended to the shape if it needs it. Then you look at it.")
+                }
+                Section {
+                    Button { go() } label: { Label("Make it", systemImage: "wand.and.rays").frame(maxWidth: .infinity) }
+                        .buttonStyle(.houseProminent)
+                }
+            }
+            .houseForm()
+            .navigationTitle("Make the ad with AI").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func go() {
+        let aim = brief
+        dismiss()
+        Task { await model.makeAd(brief: aim) }
     }
 }

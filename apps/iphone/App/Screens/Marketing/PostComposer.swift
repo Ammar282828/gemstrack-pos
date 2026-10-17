@@ -214,10 +214,10 @@ Section {
             DisclosureGroup("Connections and recent problems") {
                 Button("Check again") { Task { await model.checkHealth() } }
                 ForEach(model.health["checks"].array, id: \.text) { check in
-                    VStack(alignment: .leading, spacing: 5) {
-                        Label(check.s("label"), systemImage: check.s("status") == "ok" ? "checkmark.circle" : "exclamationmark.triangle")
-                        Text(check.s("detail")).font(.footnote).foregroundStyle(.secondary)
-                        if !check.s("fix").isEmpty { Text(check.s("fix")).font(.footnote) }
+                    // Two lines, no icon per check: a failing one is coloured and says its fix; a working one is quiet.
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(check.s("label")).foregroundStyle(check.s("status") == "fail" ? Tone.problem.color : check.s("status") == "warn" ? Tone.owed.color : Color.primary).lineLimit(1)
+                        Text(check.s("fix").isEmpty ? check.s("detail") : check.s("fix")).font(.footnote).foregroundStyle(.secondary).lineLimit(2)
                     }
                 }
                 MarketingDetails(fields: ["Recent problems": model.health["errors"].any])
@@ -233,9 +233,8 @@ Section {
                 ForEach(model.drafts) { saved in
                     Button { Task { await model.open(saved); draftsOpen = false } } label: {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(saved.title)
-                            Text(saved.updated, style: .date).font(.caption).foregroundStyle(.secondary)
-                            Text("\(saved.photos.count) photo\(saved.photos.count == 1 ? "" : "s")").font(.caption).foregroundStyle(.secondary)
+                            Text(saved.title).lineLimit(1)
+                            Text("\(ShopDate.stamp(saved.updated, withTime: false)) · \(saved.photos.count) photo\(saved.photos.count == 1 ? "" : "s")").font(.caption).foregroundStyle(.secondary).lineLimit(1)
                         }
                     }
                     // A draft holds its photos: deleting it asks first (decision "Delete code": every delete asks).

@@ -20,13 +20,13 @@ struct WebsiteMenu: View {
                 } else {
                     Section {
                         ForEach(tabs) { (t: NavPlace) in
-                            MarketingLink(title: t.label, subtitle: Self.about[t.href], symbol: NavIcon.symbol(for: t.icon), path: t.href)
+                            MarketingLink(title: t.label, symbol: NavIcon.symbol(for: t.icon), path: t.href)
                         }
                     } footer: {
                         Text("What changes here is on the website within a minute; each change says where it goes first.")
                     }
                     Section {
-                        MarketingLink(title: "Posts", subtitle: "What went out, the queue, the site's pieces", symbol: "paperplane.fill", path: "/posts")
+                        MarketingLink(title: "Posts", symbol: "paperplane.fill", path: "/posts")
                     }
                 }
             }
@@ -36,11 +36,4 @@ struct WebsiteMenu: View {
         .navigationTitle("Website")
         .navigationBarTitleDisplayMode(.large)
     }
-
-    /// What each page is for, in the ERP's words.
-    private static let about: [String: String] = [
-        "/website/photos": "Upload photographs to a collection on the site",
-        "/website/edit": "Rename it, change its words or weight, hide it, re-make its photo",
-        "/website/weights": "Record the weight the site draws on a photograph",
-    ]
 }

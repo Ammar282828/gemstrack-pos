@@ -3,8 +3,9 @@ import Charts
 import ERPCore
 
 // The dashboard's pieces (src/app/page.tsx: Headline, Panel, TaskRow, DueRow, RecentInvoiceRow, the 30-day link),
-// redrawn on the ledger (App/UI/Ledger.swift, 2026-10-09): one hero for today, three small cards under it, and
-// each list a card of rows that lead with what they are about (a symbol, a promised day, a person).
+// redrawn on the ledger (App/UI/Ledger.swift, 2026-10-09): one hero for today, two small cards under it, and
+// each list a card of two-line rows that lead with what they are about (a tone's dot, a promised day, a person).
+// Quiet (CONVENTIONS.md rule 15, 2026-10-17): the normal state says nothing, one colour per row, a figure once.
 // Content sits on the house's ground and cards; nothing here is glass (CONVENTIONS.md rule 4).
 // There are no buttons: every card and row is a link to the place it names (an owner's "Set today's rate"
 // opens the rate form instead), and New sale is the app's bar.
@@ -117,9 +118,9 @@ struct DashWeekBars: View {
     }
 }
 
-// MARK: The three cards
+// MARK: The small cards
 
-/// One of the three small cards under Today: its name, its figure, a line under it. Cards side by side stand
+/// One of the small cards under Today: its name, its figure, a line under it. Cards side by side stand
 /// the same height (the row is sized to the tallest).
 struct DashStat<Content: View>: View {
     let label: String
@@ -193,7 +194,8 @@ struct DashStatNote: View {
     }
 }
 
-/// This month against last: "+12%" once it has passed the whole of last month, else how far along it is ("62% of Sep").
+/// This month against last: "+12% on Sep" once it has passed the whole of last month, else how far along it is
+/// ("62% of Sep"). Quiet words, not a badge: it is a fact, not something to act on.
 struct DashMonthChange: View {
     let ratio: Double?
     let now: Date
@@ -203,12 +205,12 @@ struct DashMonthChange: View {
             let last = DashDate.lastMonth(now)
             if ratio > 1 {
                 let up = max(1, Int(((ratio - 1) * 100).rounded()))
-                Pill("+\(up)%", tone: .settled)
+                DashStatNote(text: "+\(up)% on \(DashDate.shortMonth(last))")
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("\(up)% more than all of \(DashDate.monthName(last))")
             } else {
                 let share = Int((ratio * 100).rounded())
-                Pill("\(share)% of \(DashDate.shortMonth(last))", tone: .quiet)
+                DashStatNote(text: "\(share)% of \(DashDate.shortMonth(last))")
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("\(share)% of \(DashDate.monthName(last))")
             }
@@ -284,49 +286,29 @@ struct DashEmpty: View {
     }
 }
 
-/// "Needs you" with nothing in it: calm, in the settled tone.
-struct DashAllClear: View {
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.title3)
-                .foregroundStyle(Tone.settled.color)
-            Text("All clear")
-                .font(.subheadline.weight(.semibold))
-            Text("Nothing late, unpaid or waiting")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-            Spacer(minLength: 0)
-        }
-        .padding(.vertical, 14)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("All clear: nothing late, unpaid or waiting")
-    }
-}
-
 // MARK: Needs you
 
-/// The rows of "Needs you", their symbols sized with the reader's text.
+/// The rows of "Needs you".
 struct DashNeedList: View {
     let needs: [DashNeed]
-    /// Opens the rate form for a row that asks for today's rate. Nil (anyone but an owner) leaves it a link.
+    /// Opens the rate sheet for a row that asks for today's rate. Nil leaves it a link.
     var onRates: (() -> Void)?
 
-    @ScaledMetric(relativeTo: .subheadline) private var side: CGFloat = 30
-
     var body: some View {
-        DashRows(items: needs, inset: side + 12) { (n: DashNeed) in
-            DashNeedRow(need: n, side: side, onRates: onRates)
+        DashRows(items: needs, inset: DashNeedRow.dot + 12) { (n: DashNeed) in
+            DashNeedRow(need: n, onRates: onRates)
         }
     }
 }
 
-/// One thing waiting on a decision: what it is about (a symbol in its tone), what to know, what it comes to.
+/// One thing waiting on a decision: a dot in its tone (the row's one colour; a data row has no symbol, rule 15),
+/// what it is, one line to know, what it comes to.
 struct DashNeedRow: View {
     let need: DashNeed
-    var side: CGFloat = 30
     var onRates: (() -> Void)?
+
+    /// The tone's dot, so the hairlines can be set in past it.
+    static let dot: CGFloat = 8
 
     /// Red for what is late, amber for what is owed or soon, quiet for a date worth knowing.
     private var tone: Tone {
@@ -334,21 +316,6 @@ struct DashNeedRow: View {
         case .danger: return .late
         case .warn: return .owed
         case .plain: return .quiet
-        }
-    }
-
-    private var symbol: String {
-        switch need.kind {
-        case .rate: return "chart.line.uptrend.xyaxis"
-        case .online: return "globe"
-        case .late: return "clock.badge.exclamationmark"
-        case .bench: return "hammer"
-        case .unassigned: return "person.crop.circle.badge.questionmark"
-        case .unpaid: return "banknote"
-        case .repairReady: return "wrench.and.screwdriver"
-        case .birthday: return "gift"
-        case .anniversary: return "heart"
-        case .other: return "exclamationmark.circle"
         }
     }
 
@@ -368,21 +335,18 @@ struct DashNeedRow: View {
 
     private var content: some View {
         HStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(tone.color)
-                .frame(width: side, height: side)
-                .background(tone.color.opacity(0.13), in: .rect(cornerRadius: side * 0.3, style: .continuous))
+            Circle()
+                .fill(tone == .quiet ? Color.secondary.opacity(0.4) : tone.color)
+                .frame(width: Self.dot, height: Self.dot)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(need.title)
                     .font(.subheadline.weight(.semibold))
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
+                    .lineLimit(1)
                 Text(need.detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
+                    .lineLimit(1)
             }
             Spacer(minLength: 8)
             if let amount = need.amount {
@@ -407,14 +371,6 @@ struct DashDueRow: View {
     /// The size of the leaf, so the hairlines can be set in past it.
     static let leaf: CGFloat = 40
 
-    private var leafTone: Tone {
-        switch due.timing.state {
-        case .late: return .late
-        case .today: return .owed
-        default: return .quiet
-        }
-    }
-
     private var pressing: Bool { due.timing.state == .late || due.timing.state == .today }
 
     /// "ORD-000123", "Repair · REP-000045"; with the sum when the right-hand side is taken by how it stands.
@@ -432,7 +388,8 @@ struct DashDueRow: View {
     var body: some View {
         NavigationLink(value: Route(path: due.path)) {
             HStack(spacing: 12) {
-                DateLeaf(date: due.timing.due, tone: leafTone, size: Self.leaf)
+                // The leaf stays quiet: the words beside it carry a late or today promise's colour, once.
+                DateLeaf(date: due.timing.due, tone: .quiet, size: Self.leaf)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(due.customer)
                         .font(.subheadline.weight(.semibold))
@@ -463,14 +420,15 @@ struct DashDueRow: View {
         } else if due.amount > 0 {
             RowAmount(amount: due.amount)
         } else {
-            Pill(words.text, tone: .quiet)
+            Text(words.text).font(.caption).foregroundStyle(.secondary).lineLimit(1)
         }
     }
 }
 
 // MARK: Recent sales
 
-/// A recent sale: who (a monogram and the name), when, what it was worth, and whether it is paid.
+/// A recent sale: who (a monogram and the name), when, what it was worth, and only what needs a look:
+/// still due, in credit or refunded. Paid is the normal state and says nothing (rule 15).
 struct DashSaleRow: View {
     let invoice: Invoice
 
@@ -480,12 +438,12 @@ struct DashSaleRow: View {
     private var name: String { DashText.name(invoice.customerName) }
     private var when: String { ShopDate.say(invoice.createdAt, withTime: true) }
 
-    /// Paid, what is still due, or the customer's credit; a refund says so instead.
-    private var standing: (text: String, tone: Tone) {
+    /// What is still due, the customer's credit, or a refund; nil when paid.
+    private var standing: (text: String, tone: Tone)? {
         if invoice.status == .refunded { return ("Refunded", .quiet) }
         let b = balanceLine(invoice.balanceDue)
         switch b.state {
-        case .paid: return ("Paid", .settled)
+        case .paid: return nil
         case .due: return ("\(Money.pkrLac(b.amount)) due", .owed)
         case .credit: return ("In credit", .credit)
         }
@@ -507,14 +465,14 @@ struct DashSaleRow: View {
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 3) {
                     RowAmount(amount: invoiceSaleValue(invoice), lac: true)
-                    Pill(standing.text, tone: standing.tone)
+                    if let standing { Pill(standing.text, tone: standing.tone) }
                 }
                 DashChevron()
             }
             .padding(.vertical, 10)
             .contentShape(Rectangle())
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(name), \(when), \(Money.pkrLac(invoiceSaleValue(invoice))), \(standing.text)")
+            .accessibilityLabel("\(name), \(when), \(Money.pkrLac(invoiceSaleValue(invoice))), \(standing?.text ?? "Paid")")
         }
         .buttonStyle(.plain)
     }
@@ -522,8 +480,8 @@ struct DashSaleRow: View {
 
 // MARK: This month
 
-/// Revenue, expenses and net since the 1st, and the days drawn quietly beneath. Expenses and net are
-/// the owners' books, so staff see revenue alone.
+/// Revenue, expenses and net since the 1st, against last month in quiet words, and the days drawn beneath.
+/// Expenses and net are the owners' books, so staff see revenue alone.
 struct DashMonthCard: View {
     let figures: DashFigures
     let showCosts: Bool
@@ -545,6 +503,7 @@ struct DashMonthCard: View {
                 }
                 if linked { DashChevron() }
             }
+            if figures.monthAgainstLast != nil { DashMonthChange(ratio: figures.monthAgainstLast, now: figures.now) }
             if figures.revenueMonth > 0 && figures.monthDays.count > 1 { chart }
         }
         .ledgerCard()

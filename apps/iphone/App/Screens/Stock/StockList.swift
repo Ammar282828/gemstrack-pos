@@ -17,17 +17,20 @@ struct StockRowModel: Identifiable {
 /// Stock: every piece in the shop, what each sells for at today's rates, and what they come to
 /// (src/app/products/page.tsx). Owners' screen by the ERP's own choice (nav.ts: staff read pieces
 /// to sell them, but Stock is where pieces are priced, edited and removed). Adding and editing a piece
-/// are the native product form (StockPieceForm), adding many at once is StockBulkAdd; deleting and the
-/// label printer stay the ERP's pages.
+/// are the native product form (StockPieceForm), adding many at once is StockBulkAdd; a long press deletes one
+/// behind the delete code (`deleteProduct`), as the piece page does.
 struct StockList: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @AppStorage("stock.layout") private var layoutRaw = StockLayout.list.rawValue
     @State private var search = ""
     /// nil is every category; "" is the pieces with none.
     @State private var category: String?
     @State private var go: Route?
+    @State private var deletion: OwnerDeletion?
+    @State private var note: Note?
 
     private var layout: StockLayout { StockLayout(rawValue: layoutRaw) ?? .list }
 
@@ -40,6 +43,10 @@ struct StockList: View {
         .searchable(text: $search, prompt: "Search by name or SKU")
         .toolbar { toolbarButtons }
         .stockDestination($go)
+        .sheet(item: $deletion) { (d: OwnerDeletion) in
+            OwnerDeleteCodeSheet(deletion: d) {}
+        }
+        .noteToast($note)
         .task {
             book.products.need()
             book.settings.need()
@@ -107,7 +114,7 @@ struct StockList: View {
             } else {
                 Section {
                     ForEach(shown) { row in
-                        StockRow(row: row, go: $go, mayEdit: session.isOwner)
+                        StockRow(row: row, go: $go, mayEdit: session.isOwner, onDelete: askToDelete)
                     }
                 }
             }
@@ -126,7 +133,7 @@ struct StockList: View {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 12)], spacing: 12) {
                         ForEach(shown) { row in
                             StockCard(row: row)
-                                .stockContextMenu(row.product, go: $go, mayEdit: session.isOwner)
+                                .stockContextMenu(row.product, go: $go, mayEdit: session.isOwner, onDelete: askToDelete)
                         }
                     }
                 }
@@ -179,14 +186,15 @@ struct StockList: View {
         return counts
     }
 
+    /// A chip names its category without a count: the header already says how many are shown (rule 15).
     private func chipRow(_ all: [Product]) -> some View {
         let counts: [String: Int] = categoryCounts(all)
         let options: [StockKit.Category] = StockKit.categoryOptions(counts: counts, keep: category)
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                chipButton("All", count: all.count, id: nil)
+                chipButton("All", id: nil)
                 ForEach(options) { (c: StockKit.Category) in
-                    chipButton(c.title, count: counts[c.id] ?? 0, id: c.id)
+                    chipButton(c.title, id: c.id)
                 }
             }
             .padding(.horizontal)
@@ -194,18 +202,26 @@ struct StockList: View {
         }
     }
 
-    private func chipButton(_ title: String, count: Int, id: String?) -> some View {
-        FilterChip(title: title, count: count, chosen: category == id) { category = id }
+    private func chipButton(_ title: String, id: String?) -> some View {
+        FilterChip(title: title, chosen: category == id) { category = id }
     }
 
+    // MARK: Delete
+
+    /// The code first, then the ERP deletes it; the owners' shelf is live, so the row goes by itself. The web's toast.
+    private func askToDelete(_ p: Product) {
+        deletion = StockKit.deletion(p) {
+            Note.show(Note(title: "Product Deleted", detail: "Product with SKU \(p.sku) has been deleted."), in: $note, reduce: reduceMotion)
+        }
+    }
 }
 
 // MARK: Rows
 
 extension View {
     /// What a long press offers on a piece: sell it (onto the sale in progress, as Scan does), or
-    /// (owners) edit it (the native form) or delete it (the ERP's page, which asks for the delete code).
-    fileprivate func stockContextMenu(_ p: Product, go: Binding<Route?>, mayEdit: Bool) -> some View {
+    /// (owners) edit it (the native form) or delete it (`onDelete`, which asks for the delete code).
+    fileprivate func stockContextMenu(_ p: Product, go: Binding<Route?>, mayEdit: Bool, onDelete: @escaping (Product) -> Void) -> some View {
         contextMenu {
             // Selling is the owners' (createInvoice): staff are not offered a sale they cannot save.
             if mayEdit {
@@ -218,7 +234,7 @@ extension View {
             }
             if mayEdit {
                 Button { go.wrappedValue = Route(path: StockKit.editPath(p.sku)) } label: { Label("Edit", systemImage: "pencil") }
-                Button(role: .destructive) { go.wrappedValue = Route(path: StockKit.piecePath(p.sku, web: true)) } label: {
+                Button(role: .destructive) { onDelete(p) } label: {
                     Label("Delete", systemImage: "trash")
                 }
             }
@@ -251,6 +267,7 @@ private struct StockRow: View {
     let row: StockRowModel
     @Binding var go: Route?
     let mayEdit: Bool
+    let onDelete: (Product) -> Void
 
     var body: some View {
         let p = row.product
@@ -261,9 +278,8 @@ private struct StockRow: View {
                     .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                     .zoomSource(id: StockKit.piecePath(p.sku))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(p.name).font(.body.weight(.medium)).lineLimit(2)
-                    Text(p.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
-                    Text(detail(p)).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Text(p.name).font(.body.weight(.medium)).lineLimit(1)
+                    Text(detail(p)).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 8)
                 StockPrice(price: row.price).layoutPriority(1)
@@ -284,12 +300,12 @@ private struct StockRow: View {
                     .tint(Theme.accent)
             }
         }
-        .stockContextMenu(p, go: $go, mayEdit: mayEdit)
+        .stockContextMenu(p, go: $go, mayEdit: mayEdit, onDelete: onDelete)
     }
 
-    /// "Gold 21K · 3.4g · Rings".
+    /// "RIN-000004 · Gold 21K · 3.4g": the one quiet line; the category is the chips' and the piece page's.
     private func detail(_ p: Product) -> String {
-        [StockKit.metalLine(p), StockKit.grams(p.metalWeightG), StockKit.categoryTitle(p.categoryId)].joined(separator: " · ")
+        [p.sku, StockKit.metalLine(p), StockKit.grams(p.metalWeightG)].joined(separator: " · ")
     }
 }
 
@@ -305,13 +321,13 @@ private struct StockCard: View {
                     .aspectRatio(1, contentMode: .fit)
                     .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                     .zoomSource(id: StockKit.piecePath(p.sku))
-                Text(p.name).font(.subheadline.weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)
-                Text(p.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
-                Text("\(StockKit.metalLine(p)) · \(StockKit.grams(p.metalWeightG))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                StockPrice(price: row.price)
+                Text(p.name).font(.subheadline.weight(.semibold)).lineLimit(1).multilineTextAlignment(.leading)
+                // The SKU and the price on one line; the metal and weight are the piece page's.
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(p.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
+                    Spacer(minLength: 4)
+                    StockPrice(price: row.price)
+                }
             }
             .ledgerCard(padding: 10)
         }

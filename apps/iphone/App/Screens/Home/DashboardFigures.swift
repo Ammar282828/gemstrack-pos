@@ -607,7 +607,8 @@ struct DashFigures {
         // taheri.shop sells only at a rate set in the last 36 hours.
         if let ratePause {
             let last = DashDate.dayMonth(iso: ratePause.ratesUpdatedAt)
-            // An owner's row opens the rate form; anyone else's keeps the web's link.
+            // The row opens the rate sheet (Dashboard: the form for an owner, the rates for anyone else); the path is
+            // the web's, which the native /settings honours too.
             out.append(DashNeed(id: "\(out.count)|/settings?tab=rates", path: "/settings?tab=rates", tone: .danger,
                                 title: "Set today's gold rate — online selling is paused",
                                 detail: last.isEmpty ? "The rate chip at the top" : "Last set \(last) · the rate chip at the top",

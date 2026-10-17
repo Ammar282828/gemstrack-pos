@@ -178,8 +178,6 @@ struct HisaabLedgerScreen: View {
                 tiles(result)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
-            } header: {
-                Text(isCustomer ? "Customer ledger" : "Karigar ledger").textCase(nil)
             }
             Section {
                 if result.lines.isEmpty {
@@ -197,7 +195,7 @@ struct HisaabLedgerScreen: View {
                     }
                 }
             } header: {
-                LedgerHeading(title: "Transactions · \(result.lines.count)")
+                LedgerHeading(title: "Transactions", count: result.lines.count)
             } footer: {
                 if onFile && !result.lines.isEmpty {
                     Text("Swipe a transaction to delete it. It asks for the delete code.")
@@ -307,62 +305,53 @@ struct HisaabLedgerScreen: View {
 
 // MARK: One row
 
-/// What was written, when, how much each way, and the balance after it. "You gave" is a debit (owed),
-/// "You got" a credit (settled): the web's words in the kit's tones; a positive balance is owed to the shop.
+/// What was written and the move, then one quiet line: when, any second move, and the balance after it (rule 15:
+/// two lines, the move the row's one colour). "You gave" is a debit (owed), "You got" a credit (settled): the web's
+/// words in the kit's tones; a positive balance is owed to the shop.
 private struct HisaabLedgerRow: View {
     let line: HisaabLedgerLine
     let showGold: Bool
 
+    /// Each way the row moved, cash first: the first leads the row, the rest go on the quiet line.
+    private var moves: [(text: String, owed: Bool)] {
+        let e = line.entry
+        var out: [(text: String, owed: Bool)] = []
+        if e.cashDebit > 0 { out.append(("You gave \(Money.pkr(e.cashDebit))", true)) }
+        if e.cashCredit > 0 { out.append(("You got \(Money.pkr(e.cashCredit))", false)) }
+        if e.goldDebitGrams > 0 { out.append(("You gave \(MoneyFormat.grams(e.goldDebitGrams))", true)) }
+        if e.goldCreditGrams > 0 { out.append(("You got \(MoneyFormat.grams(e.goldCreditGrams))", false)) }
+        return out
+    }
+
+    private var quiet: String {
+        var parts = [ShopDate.say(line.entry.date)]
+        parts += moves.dropFirst().map { $0.text }
+        parts.append("balance \(Money.pkr(line.cash))")
+        if showGold { parts.append("\(MoneyFormat.grams(line.gold)) \(MoneyWords.metal)") }
+        return parts.joined(separator: " · ")
+    }
+
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(line.entry.description.isEmpty ? "No description" : line.entry.description)
                     .font(.body.weight(.medium))
-                    .lineLimit(2)
-                Text(ShopDate.say(line.entry.date))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                if let lead = moves.first {
+                    Text(lead.text)
+                        .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(lead.owed ? Tone.owed.color : Tone.settled.color)
+                        .lineLimit(1)
+                }
             }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 2) {
-                moves
-                balances
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var moves: some View {
-        let e = line.entry
-        if e.cashDebit > 0 {
-            Text("You gave \(Money.pkr(e.cashDebit))").font(.subheadline.weight(.semibold)).foregroundStyle(Tone.owed.color)
-        }
-        if e.cashCredit > 0 {
-            Text("You got \(Money.pkr(e.cashCredit))").font(.subheadline.weight(.semibold)).foregroundStyle(Tone.settled.color)
-        }
-        if e.goldDebitGrams > 0 {
-            Text("You gave \(MoneyFormat.grams(e.goldDebitGrams))").font(.caption).foregroundStyle(Tone.owed.color)
-        }
-        if e.goldCreditGrams > 0 {
-            Text("You got \(MoneyFormat.grams(e.goldCreditGrams))").font(.caption).foregroundStyle(Tone.settled.color)
-        }
-    }
-
-    @ViewBuilder
-    private var balances: some View {
-        Text("Balance \(Money.pkr(line.cash))")
-            .font(.caption)
-            .foregroundStyle(tone(line.cash))
-        if showGold {
-            Text("\(MoneyFormat.grams(line.gold)) \(MoneyWords.metal)")
+            Text(quiet)
                 .font(.caption)
-                .foregroundStyle(tone(line.gold))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
-    }
-
-    private func tone(_ balance: Double) -> Color {
-        if abs(balance) < 0.001 { return Color.secondary }
-        return balance > 0 ? Tone.owed.color : Tone.credit.color
     }
 }
 

@@ -118,7 +118,6 @@ struct CustomersList: View {
                 CustSummary(
                     customerCount: f.customerCount,
                     owed: f.owed,
-                    owingCount: f.groups.owing.count,
                     boughtRecently: f.groups.active.count + f.groups.owing.count,
                     lifetime: f.lifetime,
                     showHisaab: session.isOwner
@@ -135,9 +134,9 @@ struct CustomersList: View {
                 Section { empty(matched: f.matchedCount) }
                     .listRowBackground(Color.clear)
             } else {
-                group("Owing money", "most owed first", shown.owing, f.stats)
-                group("Recent", "bought in the last \(CustomerKit.dormantAfterMonths) months", shown.active, f.stats)
-                group("Quiet", "no sale in a year", shown.quiet, f.stats)
+                group("Owing money", shown.owing, f.stats)
+                group("Recent", shown.active, f.stats)
+                group("Quiet", shown.quiet, f.stats)
             }
             // Clearing up the book is an owner's: the web's merge and removals are browser writes the shop floor cannot make.
             if session.isOwner {
@@ -166,17 +165,15 @@ struct CustomersList: View {
         }
     }
 
-    @ViewBuilder private func group(_ title: String, _ hint: String, _ people: [Customer], _ stats: [String: CustomerKit.Stats]) -> some View {
+    @ViewBuilder private func group(_ title: String, _ people: [Customer], _ stats: [String: CustomerKit.Stats]) -> some View {
         if !people.isEmpty {
             Section {
                 ForEach(people) { c in
                     row(c, stats[c.id])
                 }
             } header: {
-                VStack(alignment: .leading, spacing: 6) {
-                    LedgerHeading(title: title, count: people.count)
-                    Text(hint).font(.footnote).foregroundStyle(.secondary)
-                }
+                // The title and its count only: what the group means is plain from its name (rule 15).
+                LedgerHeading(title: title, count: people.count)
             }
             .houseRows()
         }
@@ -239,13 +236,13 @@ struct CustomersList: View {
 private struct CustSummary: View {
     let customerCount: Int
     let owed: Owed
-    let owingCount: Int
     let boughtRecently: Int
     let lifetime: Double
     let showHisaab: Bool
 
     private var owedDetail: String {
-        var parts = ["\(owingCount) customer\(owingCount == 1 ? "" : "s")"]
+        // How many owe is the Owing money heading's count, said there once.
+        var parts: [String] = []
         if owed.walkIn > 0 { parts.append("walk-ins \(Money.pkr(owed.walkIn))") }
         if owed.nameOnly > 0 { parts.append("typed names \(Money.pkr(owed.nameOnly))") }
         if showHisaab && owed.ledger > 0 { parts.append("hisaab \(Money.pkr(owed.ledger))") }
@@ -257,8 +254,10 @@ private struct CustSummary: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Owed to you").font(.subheadline).foregroundStyle(.secondary)
                 HeroAmount(amount: owed.total)
-                Text(owedDetail).font(.footnote).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                if !owedDetail.isEmpty {
+                    Text(owedDetail).font(.footnote).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Divider()
             DisclosureGroup("Customer overview") {
@@ -275,7 +274,8 @@ private struct CustSummary: View {
     }
 }
 
-/// One customer in the list: name, number, what they owe (or, if nothing, what they have spent).
+/// One customer in the list, two lines (rule 15): the name and what they owe (amber) or have spent (plain);
+/// under it one quiet line, the number and their sales.
 private struct CustRowLabel: View {
     let customer: Customer
     let stats: CustomerKit.Stats?
@@ -289,7 +289,7 @@ private struct CustRowLabel: View {
             if !last.isEmpty { sales += " · last \(last)" }
             lines.append(sales)
         }
-        return lines.joined(separator: "\n")
+        return lines.joined(separator: " · ")
     }
 
     private var trailing: String? {
@@ -306,9 +306,9 @@ private struct CustRowLabel: View {
         HStack(alignment: .top, spacing: 12) {
             Monogram(name: CustomerKit.shown(customer))
             TwoLine(title: CustomerKit.shown(customer), subtitle: subtitle,
-                    trailing: trailing, trailingTint: owes ? Tone.owed.color : .primary,
-                    trailingLabel: owes ? "Owed" : "Lifetime sales")
+                    trailing: trailing, trailingTint: owes ? Tone.owed.color : .primary)
+                .lineLimit(1)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
     }
 }

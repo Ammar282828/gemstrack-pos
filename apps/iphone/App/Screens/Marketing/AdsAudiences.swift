@@ -225,8 +225,6 @@ struct AdsAudiencesScreen: View {
             .disabled(data == nil)
         } header: {
             LedgerHeading(title: data?.instagram.map { (ig: String) in "Instagram engagers · @\(ig)" } ?? "Instagram engagers")
-        } footer: {
-            Text("People who already know the shop on Instagram: usually the cheapest to turn into chats.")
         }
     }
 
@@ -259,8 +257,6 @@ struct AdsAudiencesScreen: View {
             }
         } header: {
             LedgerHeading(title: "Website visitors")
-        } footer: {
-            Text("People the shop's pixel saw on the website. Show ads again to those who looked or added to cart and didn't buy, or make a lookalike of the buyers.")
         }
     }
 
@@ -288,7 +284,7 @@ struct AdsAudiencesScreen: View {
         } header: {
             LedgerHeading(title: "Lookalike")
         } footer: {
-            Text("New people who resemble an audience above. 1% is the closest match; bigger reaches more people, less alike. Meta needs at least 100 matched people in the country to start from.")
+            Text("1% is the closest match. Meta needs at least 100 matched people in the country to start from.")
         }
     }
 
@@ -312,10 +308,13 @@ struct AdsAudiencesScreen: View {
         let made = a.created.map { (c: String) in ShopDate.say(c) } ?? ""
         let line = [a.kind, size, made].filter { (s: String) in !s.isEmpty }.joined(separator: " · ")
         return HStack(spacing: 10) {
+            // Two lines: the name (with Meta's status beside it, the row's one colour, when there is one), then the quiet line.
             VStack(alignment: .leading, spacing: 2) {
-                Text(a.name)
-                Text(line).font(.caption).foregroundStyle(.secondary)
-                if let st = a.status { Text(st).font(.caption).foregroundStyle(Tone.owed.color) }
+                HStack(spacing: 6) {
+                    Text(a.name).lineLimit(1)
+                    if let st = a.status { Text(st).font(.caption).foregroundStyle(Tone.owed.color).lineLimit(1) }
+                }
+                Text(line).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             if busy == a.id {

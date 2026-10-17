@@ -9,10 +9,13 @@ import ERPCore
 ///
 /// The photograph is re-made here as the web's square editor re-makes it (WebsiteEditPhoto.swift): its own shape or
 /// square, the layouts that stamp the weight and the house's mark, the designer (crop, filters, anything else), AI
-/// Enhance and Ask AI, drawn by the web's own engine and sent with the words in the web's form. The ERP's page stays a
-/// tap away. Every save changes the public site, so it lists exactly what changes and where before it is sent.
+/// Enhance and Ask AI, drawn by the web's own engine and sent with the words in the web's form. Open in Design takes the
+/// photograph to the designer, as the web's button does. Every save changes the public site, so it lists exactly what
+/// changes and where before it is sent.
 struct WebsiteEditPieceScreen: View {
     let id: String
+
+    @Environment(Session.self) private var session
 
     private var store: WebsiteEdits { WebsiteEdits.shared }
 
@@ -168,8 +171,10 @@ struct WebsiteEditPieceScreen: View {
             if let url = URL(string: p.url), !p.url.isEmpty {
                 Link(destination: url) { Label("Open on \(siteName)", systemImage: "safari") }
             }
-            MarketingLink(title: "Open in the ERP", subtitle: "The same piece on the ERP's page", symbol: "globe",
-                          path: WebsiteEditScreen.piecePath(p.id) + "&web=1")
+            if MarketingKit.has("/design", role: session.role) {
+                MarketingLink(title: "Open in Design", symbol: "wand.and.stars",
+                              path: "/design?v=make&site=" + WebsiteNumber.query(p.id))
+            }
         } header: {
             LedgerHeading(title: headerWords(p))
         } footer: {

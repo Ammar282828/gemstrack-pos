@@ -63,10 +63,8 @@ struct MyWorkScreen: View {
                         Task { await load() }
                     }
                     .buttonStyle(.glass)
-                    // A karigar has nothing else in the app: the ERP's own portal is the way through meanwhile.
-                    if isKarigar {
-                        NavigationLink("Open the web portal") { WebScreen(path: "/") }
-                    }
+                    // The web portal reads the same /api/karigar/me, so it would fail the same way: trying again is the way
+                    // through. A karigar keeps Sign out in the toolbar.
                 }
             case .ready:
                 if let portal { content(portal) }
@@ -168,16 +166,7 @@ struct MyWorkScreen: View {
                 }
                 .houseRows()
             }
-            Section {
-                figures(p.summary)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-            } footer: {
-                if let updatedAt {
-                    Text("Updated \(MyWorkText.clock(updatedAt)) · refreshes automatically")
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-            }
+            // The counts are the headings' own (Urgent 2, Late 1, In hand 4): no tiles above them saying it again.
             Section {
                 Picker("Show", selection: $tab) {
                     ForEach(Pane.allCases) { (t: Pane) in Text(t.rawValue).tag(t) }
@@ -185,6 +174,11 @@ struct MyWorkScreen: View {
                 .pickerStyle(.segmented)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
+            } footer: {
+                if let updatedAt {
+                    Text("Updated \(MyWorkText.clock(updatedAt))")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
             }
             switch tab {
             case .work: work(p, readOnly: readOnly)
@@ -192,16 +186,6 @@ struct MyWorkScreen: View {
             }
         }
         .listStyle(.insetGrouped)
-    }
-
-    /// To do, Late (a week or more) and Urgent (two weeks or more).
-    private func figures(_ s: KarigarPortalSummary) -> some View {
-        FigureRow(alignment: .top, spacing: 10) {
-            FigureTile(label: "To do", value: "\(s.active)")
-            FigureTile(label: "Late", value: "\(s.late)", tint: s.late > 0 ? Tone.owed.color : .primary)
-            FigureTile(label: "Urgent", value: "\(s.critical)", tint: s.critical > 0 ? Tone.late.color : .primary)
-        }
-        .padding(.vertical, 4)
     }
 
     // MARK: My Work
@@ -221,16 +205,16 @@ struct MyWorkScreen: View {
             }
             .houseRows()
         } else {
-            group("Urgent", jobs: s.critical, symbol: "flame", tone: Tone.late.color, hint: "14+ days", readOnly: readOnly)
-            group("Late", jobs: s.late, symbol: "clock", tone: Tone.owed.color, hint: "7–14 days", readOnly: readOnly)
-            group("In hand", jobs: s.onTrack, symbol: nil, tone: .secondary, hint: "on track", readOnly: readOnly)
+            group("Urgent 14d+", jobs: s.critical, tone: .late, readOnly: readOnly)
+            group("Late 7d+", jobs: s.late, tone: .owed, readOnly: readOnly)
+            group("In hand", jobs: s.onTrack, tone: .quiet, readOnly: readOnly)
         }
-        group("Completed", jobs: s.done, symbol: "checkmark.circle", tone: .secondary, hint: nil, readOnly: readOnly)
+        group("Completed", jobs: s.done, tone: .quiet, readOnly: readOnly)
     }
 
     /// One heading of the page and its orders, each order a card of its pieces.
     @ViewBuilder
-    private func group(_ title: String, jobs: [KarigarPortalJob], symbol: String?, tone: Color, hint: String?, readOnly: Bool) -> some View {
+    private func group(_ title: String, jobs: [KarigarPortalJob], tone: Tone, readOnly: Bool) -> some View {
         if !jobs.isEmpty {
             Section {
                 ForEach(KarigarPortalRules.groups(jobs)) { (g: KarigarPortalGroup) in
@@ -238,15 +222,7 @@ struct MyWorkScreen: View {
                     ForEach(g.jobs) { (j: KarigarPortalJob) in pieceRow(j, readOnly: readOnly) }
                 }
             } header: {
-                HStack(spacing: 6) {
-                    if let symbol { Image(systemName: symbol) }
-                    Text(title.uppercased()).fontWeight(.bold)
-                    Text("\(jobs.count)").foregroundStyle(.secondary)
-                    Spacer()
-                    if let hint { Text(hint).font(.caption2).foregroundStyle(.secondary) }
-                }
-                .foregroundStyle(tone)
-                .textCase(nil)
+                LedgerHeading(title: title, count: jobs.count, tone: tone)
             }
             .houseRows()
         }
@@ -270,12 +246,15 @@ struct MyWorkScreen: View {
                     Text(g.orderId ?? "").font(Font.headline.monospaced())
                 }
                 Text(pieces + handed + age)
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
             Spacer(minLength: 8)
+            // The one colour on the heading, and only when it is late.
             if !allDone && urgency != "ok" {
-                Pill("\(g.ageDays)d", tone: urgency == "critical" ? .late : .owed)
+                Text("\(g.ageDays)d").font(.subheadline.weight(.semibold)).monospacedDigit()
+                    .foregroundStyle((urgency == "critical" ? Tone.late : Tone.owed).color)
             }
         }
         .opacity(allDone ? 0.55 : 1)
@@ -290,7 +269,7 @@ struct MyWorkScreen: View {
                     .strikethrough(j.isDone)
                 specs(j)
                 if j.sampleGiven {
-                    Pill("Sample provided", tone: .quiet)
+                    Text("Sample provided").font(.subheadline).foregroundStyle(.secondary)
                 }
                 if let picture = j.sampleImage, !picture.isEmpty {
                     WorkSamplePhoto(uri: picture, key: j.id)
@@ -302,7 +281,7 @@ struct MyWorkScreen: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
-                    .background(Tone.owed.color.opacity(0.1), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
+                    .background(Theme.ground, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                 }
             }
         }
@@ -372,47 +351,31 @@ struct MyWorkScreen: View {
                 goldRow(line)
             }
         } header: {
-            Label("Gold", systemImage: "scalemass").textCase(nil)
+            LedgerHeading(title: "Gold")
         }
         .houseRows()
 
         Section {
-            VStack(alignment: .leading, spacing: 2) {
-                HeroAmount(amount: a.totalPaid)
-                Text("total paid to you").font(.caption).foregroundStyle(.secondary)
-            }
+            HeroAmount(amount: a.totalPaid)
             ForEach(Array(a.payments.enumerated()), id: \.offset) { _, payment in
                 paymentRow(payment)
             }
         } header: {
-            Label("Payments received", systemImage: "banknote").textCase(nil)
+            LedgerHeading(title: "Paid to you")
         }
         .houseRows()
     }
 
+    /// What it was and the grams (the arrow says which way; the direction is no alarm), then its date.
     private func goldRow(_ l: KarigarPortalGoldLine) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(KarigarPortalRules.date(l.date, shortYear: true)).font(.caption).foregroundStyle(.secondary)
-                Text(l.description).font(.subheadline)
-            }
-            Spacer(minLength: 8)
-            Text(l.goldOut != 0 ? "↑ " + KarigarPortalRules.grams(l.goldOut) : "↓ " + KarigarPortalRules.grams(l.goldIn))
-                .font(.subheadline.weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(l.goldOut != 0 ? Tone.owed.color : Tone.settled.color)
-        }
+        TwoLine(title: l.description, subtitle: KarigarPortalRules.date(l.date, shortYear: true),
+                trailing: l.goldOut != 0 ? "↑ " + KarigarPortalRules.grams(l.goldOut) : "↓ " + KarigarPortalRules.grams(l.goldIn))
+            .lineLimit(1)
     }
 
     private func paymentRow(_ p: KarigarPortalPayment) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(KarigarPortalRules.date(p.date, shortYear: true)).font(.caption).foregroundStyle(.secondary)
-                Text(p.description).font(.subheadline)
-            }
-            Spacer(minLength: 8)
-            Text(Money.grouped(p.amount)).font(.subheadline.weight(.semibold)).monospacedDigit()
-        }
+        TwoLine(title: p.description, subtitle: KarigarPortalRules.date(p.date, shortYear: true), trailing: Money.grouped(p.amount))
+            .lineLimit(1)
     }
 }
 

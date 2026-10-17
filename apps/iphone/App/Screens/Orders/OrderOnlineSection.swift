@@ -6,12 +6,11 @@ import ERPCore
 /// lapse are native (OnlineMoveSheet): both message the customer and the first books money, so each says
 /// first, word for word, what goes and to whom, and what it books. Bank details on WhatsApp opens this phone's
 /// WhatsApp with the amount written in, as the web's button does; the person sends it. The Leopards moves (book,
-/// a CN typed in, tracking, Delivered) are the order page's courier work: `leopards` when it is passed, the
-/// ERP's page until then.
+/// a CN typed in, tracking, Delivered) are the order page's courier work (OrderLeopardsSheet): the page's own
+/// sheet when `leopards` is passed, else this section's.
 struct OrderOnlineSection: View {
     let order: Order
-    let openWeb: (OrdersWebTarget) -> Void
-    /// The native Leopards moves, when the order page has them; nil opens the ERP's page.
+    /// The page's Leopards sheet, when it holds one; nil opens this section's own.
     var leopards: (() -> Void)? = nil
 
     @Environment(Session.self) private var session
@@ -19,6 +18,7 @@ struct OrderOnlineSection: View {
     @State private var move: OnlineMoveSheet.Kind?
     @State private var slip: WebsiteSlip?
     @State private var told: OnlineTold?
+    @State private var leopardsOpen = false
     /// Counted so a transfer booked, or an order let lapse, is felt once.
     @State private var paidTick = 0
     @State private var lapseTick = 0
@@ -39,6 +39,7 @@ struct OrderOnlineSection: View {
                     }
                     .moneyFeedback(success: paidTick, failure: 0)
                     .destructiveFeedback(trigger: lapseTick)
+                    .sheet(isPresented: $leopardsOpen) { OrderLeopardsSheet(order: order) }
                 if let told {
                     Label(told.words, systemImage: told.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                         .font(.subheadline)
@@ -89,7 +90,7 @@ struct OrderOnlineSection: View {
         } else if w.paymentStatus == .transferReceived && (order.leopards?.deliveredAt ?? "").isEmpty {
             let shipped = !(order.leopards?.cn ?? "").isEmpty
             Button {
-                if let leopards { leopards() } else { openWeb(.orderPage(order.id)) }
+                if let leopards { leopards() } else { leopardsOpen = true }
             } label: {
                 Label(shipped ? "Tracking and Delivered" : "Book with Leopards, or enter a CN",
                       systemImage: shipped ? "shippingbox" : "truck.box")
@@ -116,7 +117,8 @@ struct OrderOnlineSection: View {
 
     private func tone(_ s: WebsitePaymentStatus) -> Color {
         switch s {
-        case .transferReceived: return Tone.settled.color
+        // The transfer in is what the order waits for: said in the ink, not green (CONVENTIONS rule 15).
+        case .transferReceived: return .primary
         case .expired, .refunded: return .secondary
         default: return Tone.owed.color
         }
@@ -150,11 +152,10 @@ struct OrderOnlineSection: View {
            w.paymentStatus != .transferReceived, w.paymentStatus != .expired {
             let ended = when <= Date()
             let relative = RelativeDateTimeFormatter().localizedString(for: when, relativeTo: Date())
-            Label(
+            Text(
                 ended
                     ? "The price hold ended \(relative). Check the bank before anything else."
-                    : "Price held until \(ShopDate.say(until, withTime: true)) (\(relative))",
-                systemImage: "clock"
+                    : "Price held until \(ShopDate.say(until, withTime: true)) (\(relative))"
             )
             .font(.footnote)
             .foregroundStyle(ended ? Tone.late.color : Color.secondary)
@@ -176,7 +177,7 @@ struct OrderOnlineSection: View {
         let wrong = (s.amount ?? 0) > 0 && abs((s.amount ?? 0) - OrdersLogic.onlineTotal(order)) > 0.5
         return VStack(alignment: .leading, spacing: 2) {
             HStack {
-                Label("Slip " + ShopDate.say(s.at, withTime: true), systemImage: "doc.text")
+                Text("Slip " + ShopDate.say(s.at, withTime: true))
                     .foregroundStyle(mayAct ? Theme.accent : Color.primary)
                 Spacer()
                 if let amount = s.amount, amount > 0 {
@@ -191,6 +192,7 @@ struct OrderOnlineSection: View {
                 Text(detail.joined(separator: " · "))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
         }
         .contentShape(.rect)

@@ -145,45 +145,27 @@ private struct OverheadsBoard: View {
 
     // MARK: This month, first
 
+    /// One hero figure (rule 15): what is still to earn (or how far above it the month is), the bar under it, then one row
+    /// of what the month needs, what it has taken and the days left.
     private func thisMonthSection(target: Double, earned: Double, p: OverheadProgress) -> some View {
         let met = p.shortfall == 0 && target > 0
         return Section {
-            VStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(met ? "Covered, above the benchmark by" : "Still to earn").font(.subheadline).foregroundStyle(.secondary)
+                HeroAmount(amount: met ? earned - target : p.shortfall)
+                ProgressView(value: p.percent, total: 100).tint(Theme.accent)
                 FigureRow(alignment: .top, spacing: 10) {
-                    FigureTile(label: "Needed this month", value: OwnerText.pkr(target), tint: Theme.accent)
+                    FigureTile(label: "Needed", value: OwnerText.pkr(target))
                     FigureTile(label: "Revenue so far", value: OwnerText.pkr(earned))
+                    FigureTile(label: "Days left", value: "\(p.daysLeft)", detail: met ? nil : OwnerText.pkr(p.perDayNeeded) + "/day")
                 }
-                VStack(alignment: .leading, spacing: 10) {
-                    ProgressView(value: p.percent, total: 100).tint(Theme.accent)
-                    if met {
-                        Label("Covered \u{2014} \(OwnerText.pkr(earned - target)) above the benchmark", systemImage: "chart.line.uptrend.xyaxis")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(Tone.settled.color)
-                    } else {
-                        HStack(spacing: 4) {
-                            RowAmount(amount: p.shortfall, tone: Theme.accent)
-                            Text("still to earn").foregroundStyle(.secondary)
-                        }
-                        .font(.subheadline)
-                    }
-                    Label(daysLine(p, met: met), systemImage: "calendar")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .ledgerCard(padding: 14)
             }
-            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-            .listRowBackground(Color.clear)
+            .padding(16)
+            .listRowInsets(EdgeInsets())
         } header: {
-            Text("What \(monthName) has to cover before anything is profit. Scored from \(Overheads.monthLabel(Overheads.benchmarkStart)).")
+            Text("What \(monthName) has to cover before anything is profit.")
                 .textCase(nil)
         }
-    }
-
-    /// "22 days left · PKR 8,455/day".
-    private func daysLine(_ p: OverheadProgress, met: Bool) -> String {
-        let days = "\(p.daysLeft) day\(p.daysLeft == 1 ? "" : "s") left"
-        return met ? days : "\(days) · \(OwnerText.pkr(p.perDayNeeded))/day"
     }
 
     // MARK: The record
@@ -206,24 +188,15 @@ private struct OverheadsBoard: View {
             + " · average \(OwnerText.pkr(s.averageRevenue)) · running \(OwnerText.signed(s.cumulativeSurplus))"
     }
 
+    /// The month and what it came to against the target; only a month that fell short is coloured.
     private func monthRow(_ r: OverheadMonthRow) -> some View {
-        let tone: Color = r.inProgress ? Color.secondary : (r.met ? Tone.settled.color : Tone.owed.color)
-        let symbol = r.inProgress ? "minus.circle.fill" : (r.met ? "checkmark.circle.fill" : "arrow.down.right.circle.fill")
-        return HStack(spacing: 12) {
-            Image(systemName: symbol).foregroundStyle(tone)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(r.inProgress ? "\(r.label) · so far" : r.label).lineLimit(1)
-                Text("\(OwnerText.pkr(r.earned)) of \(OwnerText.pkr(r.target))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-            Spacer(minLength: 8)
-            Text(OwnerText.signed(r.surplus))
-                .font(.subheadline.weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(r.inProgress ? Color.secondary : (r.surplus >= 0 ? Tone.settled.color : Tone.owed.color))
-        }
+        TwoLine(
+            title: r.inProgress ? "\(r.label) · so far" : r.label,
+            subtitle: "\(OwnerText.pkr(r.earned)) of \(OwnerText.pkr(r.target))",
+            trailing: OwnerText.signed(r.surplus),
+            trailingTint: r.inProgress ? Color.secondary : (r.surplus >= 0 ? Color.primary : Tone.owed.color)
+        )
+        .lineLimit(1)
     }
 
     // MARK: The sheet that produces the target

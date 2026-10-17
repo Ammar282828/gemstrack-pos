@@ -133,17 +133,16 @@ struct AdsOverviewScreen: View {
     }
 
     private func accountSection(_ d: AdOverview) -> some View {
-        let words = AdsStatusWords.ofAccount(d.account.status)
-        return Section {
+        Section {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(d.account.name).font(.headline)
                     if let funding = d.account.funding, !funding.isEmpty {
-                        Text(funding).font(.subheadline).foregroundStyle(.secondary)
+                        Text(funding).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
                 Spacer()
-                StatusBadge(words.label, color: AdsStatusWords.color(words.tone))
+                AdsAccountBadge(status: d.account.status)
             }
         } footer: {
             Text(periodLine(d))
@@ -164,6 +163,8 @@ struct AdsOverviewScreen: View {
 
     // MARK: Figures
 
+    /// One hero figure (what was spent), then one row of two (the result the account buys, and who it reached), then the
+    /// rest as plain rows (CONVENTIONS rule 15: one hero, at most one FigureRow).
     private func figuresSection(_ d: AdOverview, _ cur: String) -> some View {
         let t = d.totals
         let b = d.before
@@ -172,35 +173,49 @@ struct AdsOverviewScreen: View {
             .compactMap { (s: String?) in s }
             .joined(separator: " · ")
         let reachNote = AdsFormat.change(t.reach, b?.reach) ?? "\(AdsFormat.compact(t.impressions)) views"
-        return Section {
-            VStack(spacing: 10) {
+        return Group {
+            Section {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Spent").font(.subheadline).foregroundStyle(.secondary)
+                    Text(AdsFormat.money(t.spend, cur))
+                        .font(.system(.largeTitle, design: .serif).weight(.semibold))
+                        .monospacedDigit()
+                        .contentTransition(.numericText(value: t.spend))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                    Text(spentNote).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                }
+                .padding(.vertical, 4)
                 FigureRow(spacing: 10) {
-                    FigureTile(label: "Spent", value: AdsFormat.money(t.spend, cur), detail: spentNote)
+                    mainTile(t, b, main, cur)
                     FigureTile(label: "People reached", value: AdsFormat.compact(t.reach), detail: reachNote)
                 }
-                HStack(spacing: 10) {
-                    mainTile(t, b, main, cur)
-                    FigureTile(label: "Click-through", value: AdsFormat.pct(t.ctr),
-                               detail: "\(AdsFormat.money(t.cpm, cur)) per 1,000 views")
-                }
-                salesTiles(t, b, cur)
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
             }
-            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-            .listRowBackground(Color.clear)
+            Section {
+                LabeledContent("Click-through") { Text(AdsFormat.pct(t.ctr)).monospacedDigit() }
+                LabeledContent("Per 1,000 views") { Text(AdsFormat.money(t.cpm, cur)).monospacedDigit() }
+                salesRows(t, b, cur)
+            }
         }
     }
 
     /// What the ads sold, when they sold anything (ads/page.tsx: Sales from ads · ROAS · Cost per purchase).
     @ViewBuilder
-    private func salesTiles(_ t: AdMetrics, _ b: AdMetrics?, _ cur: String) -> some View {
+    private func salesRows(_ t: AdMetrics, _ b: AdMetrics?, _ cur: String) -> some View {
         let s = AdsResults.sales(t)
         if s.purchases > 0 || s.value > 0 {
             let before = b.map { (m: AdMetrics) in AdsResults.sales(m) }
-            FigureRow(spacing: 10) {
-                FigureTile(label: "Sales from ads", value: AdsFormat.money(s.value, cur),
-                           detail: AdsFormat.change(s.value, before?.value) ?? "\(AdsFormat.count(s.purchases)) order\(s.purchases == 1 ? "" : "s")")
-                FigureTile(label: "ROAS", value: AdsResults.roasText(s.roas),
-                           detail: s.costPerPurchase.map { (c: Double) in "\(AdsFormat.money(c, cur)) per order" } ?? "Sales for every rupee spent")
+            LabeledContent("Sales from ads") {
+                Text(AdsFormat.money(s.value, cur)).monospacedDigit()
+            }
+            if let change = AdsFormat.change(s.value, before?.value) {
+                LabeledContent("Sales against before", value: change)
+            }
+            LabeledContent("ROAS") { Text(AdsResults.roasText(s.roas)).monospacedDigit() }
+            if let c = s.costPerPurchase {
+                LabeledContent("Per order") { Text(AdsFormat.money(c, cur)).monospacedDigit() }
             }
         }
     }
@@ -221,7 +236,9 @@ struct AdsOverviewScreen: View {
 
     @ViewBuilder
     private func broughtSection(_ d: AdOverview) -> some View {
-        let actions = AdsResults.headlineActions(d.totals, limit: 10)
+        // The headline result is the tile above: not again here.
+        let shown = AdsResults.headlineResult(d.totals).label
+        let actions = AdsResults.headlineActions(d.totals, limit: 10).filter { (a: AdsResults.Line) in a.label != shown }
         if !actions.isEmpty {
             Section {
                 ForEach(actions) { (a: AdsResults.Line) in
@@ -237,14 +254,13 @@ struct AdsOverviewScreen: View {
 
     @ViewBuilder
     private func attentionSection(_ d: AdOverview) -> some View {
-        Section {
-            if d.attention.isEmpty {
-                Label("Nothing needs attention.", systemImage: "checkmark.circle").foregroundStyle(Tone.settled.color)
-            } else {
+        // Nothing to look at says nothing (CONVENTIONS rule 15).
+        if !d.attention.isEmpty {
+            Section {
                 ForEach(d.attention) { (a: AdAttention) in attentionItem(a) }
+            } header: {
+                LedgerHeading(title: "Needs a look", count: d.attention.count)
             }
-        } header: {
-            LedgerHeading(title: "Needs a look", count: d.attention.count)
         }
     }
 
@@ -259,11 +275,12 @@ struct AdsOverviewScreen: View {
 
     private func attentionBody(_ a: AdAttention) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: a.severity == "tip" ? "lightbulb" : "exclamationmark.triangle.fill")
-                .foregroundStyle(a.severity == "bad" ? Tone.problem.color : (a.severity == "warn" ? Tone.owed.color : Color.secondary))
+            // The title carries the one colour (a problem red, a warning amber, a tip plain): no icon per row.
             VStack(alignment: .leading, spacing: 4) {
                 Text(a.title).font(.body.weight(.medium))
-                Text(a.why).font(.subheadline).foregroundStyle(.secondary)
+                    .foregroundStyle(a.severity == "bad" ? Tone.problem.color : (a.severity == "warn" ? Tone.owed.color : Color.primary))
+                    .lineLimit(1)
+                Text(a.why).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
                 if a.doing == "pause" {
                     Button("Pause") { Task { await run(a, running: false) } }
                         .buttonStyle(.glass)
@@ -325,8 +342,6 @@ struct AdsOverviewScreen: View {
                 .accessibilityLabel("Spend each day over the range")
             } header: {
                 LedgerHeading(title: "Day by day")
-            } footer: {
-                Text("Spend each day, in \(cur.uppercased()).")
             }
         }
     }
@@ -401,12 +416,12 @@ struct AdsOverviewScreen: View {
     @ViewBuilder
     private var linksSection: some View {
         Section {
-            MarketingLink(title: "Campaigns", subtitle: "Every campaign, ad set and ad; run or pause them", symbol: "checklist", path: "/ads/campaigns")
-            MarketingLink(title: "New ad", subtitle: "Boost a piece or an Instagram post", symbol: "paperplane", path: "/ads/new")
-            MarketingLink(title: "Setup", subtitle: "The Meta connection, ad account, audiences and rules", symbol: "slider.horizontal.3", path: "/ads/setup")
+            MarketingLink(title: "Campaigns", symbol: "checklist", path: "/ads/campaigns")
+            MarketingLink(title: "New ad", symbol: "paperplane", path: "/ads/new")
+            MarketingLink(title: "Setup", symbol: "slider.horizontal.3", path: "/ads/setup")
         } footer: {
             if let d = data, !d.at.isEmpty {
-                Text("From Meta, \(MarketingTime.clock(d.at)). Today's numbers keep changing for a few hours; reach across days can't be added up, so \"people reached\" is Meta's own count for the whole range.")
+                Text("From Meta, \(MarketingTime.clock(d.at)). Today's numbers keep changing for a few hours.")
             }
         }
     }

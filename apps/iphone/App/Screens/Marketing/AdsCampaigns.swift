@@ -5,7 +5,7 @@ import ERPCore
 /// each with its status and the range's numbers against the time before, and the web's run / pause
 /// switch (turning one on asks first, since it spends), and the budget and end date (AdsBudgetSheet, which
 /// shows the money before and after and asks). Audience, rename, duplicate, archive and delete, and an
-/// ad's previews, stay the ERP's page: one tap opens it.
+/// ad's previews, are each one's own screen (AdsObjectScreen): one tap opens it.
 struct AdsCampaignsScreen: View {
     var path = "/ads/campaigns"
     @State private var gallery = false
@@ -215,8 +215,6 @@ struct AdsCampaignsScreen: View {
                         if let csvFile {
                             ShareLink(item: csvFile) { Label("Save or send \(csvFile.lastPathComponent)", systemImage: "square.and.arrow.up") }
                         }
-                    } footer: {
-                        Text("Every campaign, ad set and ad in the range, with spend, results, purchases, sales and ROAS.")
                     }
                 }
                 if list.isEmpty {
@@ -246,7 +244,7 @@ struct AdsCampaignsScreen: View {
         let goal: String? = c.adsets.count == 1 ? c.adsets[0].optimizationGoal : nil
         return Section {
             campaignRow(c, goal, cur)
-            DisclosureGroup("\(c.adsets.count) ad set\(c.adsets.count == 1 ? "" : "s")", isExpanded: Binding(get: { allExpanded || expanded.contains(c.id) }, set: { on in
+            DisclosureGroup(([AdsObjective.label(c.objective)].filter { !$0.isEmpty } + ["\(c.adsets.count) ad set\(c.adsets.count == 1 ? "" : "s")"]).joined(separator: " · "), isExpanded: Binding(get: { allExpanded || expanded.contains(c.id) }, set: { on in
                 allExpanded = false; if on { expanded.insert(c.id) } else { expanded.remove(c.id) }
             })) {
                 ForEach(c.adsets) { (s: AdSet) in adSetRow(s, cur) }
@@ -254,18 +252,17 @@ struct AdsCampaignsScreen: View {
         }
     }
 
+    /// Two lines (CONVENTIONS rule 15): the name with its status when it isn't running, then the range's numbers. The
+    /// objective and the ad sets are the disclosure's words; the end date rides on the budget, which opens to change both.
     private func campaignRow(_ c: AdCampaign, _ goal: String?, _ cur: String) -> some View {
-        let bits: [String] = [
-            AdsObjective.label(c.objective),
-            "\(c.adsets.count) ad set\(c.adsets.count == 1 ? "" : "s")",
-            c.stopTime.map { (t: String) in "ends \(ShopDate.say(t))" } ?? "",
-        ].filter { (s: String) in !s.isEmpty }
-        return HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(c.name).font(.headline).fixedSize(horizontal: false, vertical: true)
-                AdsStatusBadge(status: c.effectiveStatus)
-                Text(bits.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
-                let b = budget(c.dailyBudget, c.lifetimeBudget, cur)
+                HStack(spacing: 6) {
+                    Text(c.name).font(.headline).lineLimit(1)
+                    AdsStatusBadge(status: c.effectiveStatus)
+                }
+                let b = [budget(c.dailyBudget, c.lifetimeBudget, cur), c.stopTime.map { (t: String) in "ends \(ShopDate.say(t))" } ?? ""]
+                    .filter { (w: String) in !w.isEmpty }.joined(separator: " · ")
                 if !b.isEmpty {
                     budgetButton(AdsBudgetTarget(level: "campaign", id: c.id, name: c.name, daily: c.dailyBudget,
                                                  lifetime: c.lifetimeBudget, end: c.stopTime, currency: cur), b)
@@ -286,11 +283,12 @@ struct AdsCampaignsScreen: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(s.name).font(.body.weight(.medium)).fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 6) {
+                        Text(s.name).font(.body.weight(.medium)).lineLimit(1)
                         AdsStatusBadge(status: s.effectiveStatus)
-                        if let learning = s.learning { Text(learning).font(.caption).foregroundStyle(Tone.owed.color) }
                     }
+                    // Learning is Meta's normal first week: a quiet word, not a warning.
+                    if let learning = s.learning { Text(learning).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
                     let b = budget(s.dailyBudget, s.lifetimeBudget, cur)
                     if !b.isEmpty {
                         budgetButton(AdsBudgetTarget(level: "adset", id: s.id, name: s.name, daily: s.dailyBudget,
@@ -311,7 +309,7 @@ struct AdsCampaignsScreen: View {
         .padding(.vertical, 2)
     }
 
-    /// The ads of an ad set as pictures; each opens the ERP's page for it (previews and Meta's review notes).
+    /// The ads of an ad set as pictures; each opens its own screen (previews and Meta's review notes).
     private func adStrip(_ ads: [AdItem], _ cur: String) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(alignment: .top, spacing: 10) {
@@ -439,6 +437,7 @@ struct AdsCampaignsScreen: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             .monospacedDigit()
+            .lineLimit(1)
     }
 
     @ViewBuilder

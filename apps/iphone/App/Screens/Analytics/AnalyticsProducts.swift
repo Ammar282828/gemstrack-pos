@@ -44,6 +44,7 @@ struct AnaProductsPage: View {
             } else {
                 ForEach(Array(figures.topProducts.prefix(showTop ? figures.topProducts.count : 3))) { (p: AnaTopProduct) in
                     TwoLine(title: p.name, subtitle: topLine(p), trailing: Money.lacCrore(p.revenue))
+                        .lineLimit(1)
                 }
                 if figures.topProducts.count > 3 { Button(showTop ? "Show fewer" : "Show top 10") { showTop.toggle() } }
             }
@@ -53,9 +54,9 @@ struct AnaProductsPage: View {
         .houseRows()
     }
 
-    /// "SKU: R-104 · Qty 2", or "Not in stock" for a piece described for one bill.
+    /// "R-104 · Qty 2", or "Not in stock" for a piece described for one bill.
     private func topLine(_ p: AnaTopProduct) -> String {
-        let sku = AnaSku.isStock(p.sku) ? "SKU: " + p.sku : "Not in stock"
+        let sku = AnaSku.isStock(p.sku) ? p.sku : "Not in stock"
         return sku + " · Qty " + AnaFormat.count(p.quantity)
     }
 
@@ -112,6 +113,7 @@ struct AnaProductsPage: View {
             } else {
                 ForEach(Array(list.prefix(showAll || !search.isEmpty ? list.count : 5))) { (p: AnaBreakdown.ProductRow) in
                     TwoLine(title: p.name, subtitle: rowLine(p), trailing: Money.lacCrore(p.revenue))
+                        .lineLimit(1)
                 }
                 if list.count > 5 && search.isEmpty { Button(showAll ? "Show fewer" : "Show all · \(list.count)") { showAll.toggle() } }
             }

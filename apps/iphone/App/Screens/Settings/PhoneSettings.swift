@@ -184,13 +184,12 @@ struct PhoneSettings: View {
                 if b.id == House.id { Text("Open now").font(.caption).foregroundStyle(.secondary) }
             }
             Spacer(minLength: 8)
+            // Linked is the normal state and says nothing (rule 15); only what is not linked gets a word.
             if !signedIn {
                 Pill("Signed out", tone: .quiet)
-            } else if b.id == House.id && Push.shared.registeredOnServer {
-                Pill("Linked", tone: .settled, symbol: "bell.badge")
-            } else {
+            } else if !(b.id == House.id && Push.shared.registeredOnServer) {
                 switch Push.shared.states[b.id] {
-                case .linked?: Pill("Linked", tone: .settled, symbol: "bell.badge")
+                case .linked?: EmptyView()
                 case .failed?: Pill("Not linked", tone: .problem, symbol: "bell.slash")
                 case nil: Pill("Not linked yet", tone: .owed)
                 }

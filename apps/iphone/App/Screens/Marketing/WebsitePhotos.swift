@@ -172,7 +172,7 @@ struct WebsitePhotosScreen: View {
             }
             if reading { MarketingReading(text: "Reading the photographs…") }
         } footer: {
-            Text(folder.isEmpty ? "Choose a collection first." : "JPEG, PNG, WebP or HEIC · up to 25 MB each · add as many as you like.")
+            if folder.isEmpty { Text("Choose a collection first.") }
         }
     }
 
@@ -198,7 +198,7 @@ struct WebsitePhotosScreen: View {
         return HStack(alignment: .top, spacing: 12) {
             picture(item)
             VStack(alignment: .leading, spacing: 6) {
-                Text(displayName(item)).lineLimit(2)
+                Text(displayName(item)).lineLimit(1)
                 statusLine(item)
                 if isMaison && editable {
                     Picker("House", selection: houseBinding(item.id)) {
@@ -259,9 +259,10 @@ struct WebsitePhotosScreen: View {
     private func statusLine(_ item: WebsitePhotoItem) -> some View {
         switch item.status {
         case .done:
-            Label("On the website", systemImage: "checkmark.circle.fill").font(.caption).foregroundStyle(Tone.settled.color)
+            // Done is the expected end: a quiet word, the dimmed photo says the rest (CONVENTIONS rule 15).
+            Text("On the website").font(.caption).foregroundStyle(.secondary)
         case .failed:
-            Label(item.error ?? "Failed", systemImage: "xmark.circle.fill").font(.caption).foregroundStyle(Tone.problem.color)
+            Text(item.error ?? "Failed").font(.caption).foregroundStyle(Tone.problem.color).lineLimit(2)
         case .uploading:
             Text("Sending…").font(.caption).foregroundStyle(.secondary)
         case .queued:
@@ -303,7 +304,7 @@ struct WebsitePhotosScreen: View {
     private var afterSection: some View {
         Section {
             if MarketingKit.has("/website/weights", role: session.role) {
-                MarketingLink(title: "Record their weights", subtitle: "Photo weights: the weight the site draws on each", symbol: "scalemass", path: "/website/weights")
+                MarketingLink(title: "Record their weights", symbol: "scalemass", path: "/website/weights")
             }
             if let url = collectionURL {
                 Link(destination: url) {

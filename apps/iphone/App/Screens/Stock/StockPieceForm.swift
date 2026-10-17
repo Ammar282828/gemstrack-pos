@@ -13,10 +13,15 @@ import ERPCore
 /// The web form puts the wastage back to 10% (25% with diamonds) whenever the metal, the diamonds, the
 /// stones or the category changes, and also as it opens. Here an edit opens on the piece's own wastage, so
 /// changing only its name never moves its price; every other reset is the web's, on opening and on change.
+///
+/// "/products/add?voice=1" (`fromVoice`) opens on what was said to the voice assistant (StockVoiceSeed), as the
+/// web's add page opens on its handoff; the person checks it and presses Save, as there.
 struct StockPieceForm: View {
     /// nil adds a piece.
     let sku: String?
     var onCreated: ((Product) -> Void)? = nil
+    /// A new piece filled in from the voice assistant.
+    var fromVoice = false
 
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -46,7 +51,7 @@ struct StockPieceForm: View {
             .navigationTitle("Edit piece")
             .navigationBarTitleDisplayMode(.inline)
         } else {
-            StockPieceEditor(original: nil, onCreated: onCreated)
+            StockPieceEditor(original: nil, onCreated: onCreated, seed: fromVoice ? StockVoiceSeed.peek() : nil)
         }
     }
 
@@ -68,6 +73,8 @@ private struct StockPieceEditor: View {
     /// The piece being edited, as it was when the form opened; nil adds one.
     let original: Product?
     let onCreated: ((Product) -> Void)?
+    /// Opened on the voice assistant's piece: let go of it once shown, so it fills one form, as the web's is taken once.
+    private let voiced: Bool
 
     @Environment(Book.self) private var book
     @Environment(\.dismiss) private var dismiss
@@ -85,15 +92,17 @@ private struct StockPieceEditor: View {
         let name: String
     }
 
-    init(original: Product?, onCreated: ((Product) -> Void)? = nil) {
+    init(original: Product?, onCreated: ((Product) -> Void)? = nil, seed: [String: Any]? = nil) {
         self.original = original
         self.onCreated = onCreated
+        voiced = original == nil && seed != nil
         var start: StockPieceFields
         if let original {
             start = StockPieceFields(original)
             start.settle(keepWastage: true)
         } else {
             start = StockPieceFields()
+            if let seed { start.fill(fromVoice: seed) }
             start.settle()
         }
         _f = State(initialValue: start)
@@ -128,6 +137,7 @@ private struct StockPieceEditor: View {
         .sensoryFeedback(.success, trigger: tick)
         .interactiveDismissDisabled(saving)
         .navigationBarBackButtonHidden(saving)
+        .onAppear { if voiced { StockVoiceSeed.clear() } }
     }
 
     private var form: some View {
@@ -266,8 +276,6 @@ private struct StockPieceEditor: View {
             }
         } header: {
             LedgerHeading(title: "Second metal")
-        } footer: {
-            Text("Optional.")
         }
     }
 
@@ -435,8 +443,6 @@ private struct StockPieceEditor: View {
                 Button { startAnother() } label: {
                     Label("Add another piece", systemImage: "plus.square.on.square")
                 }
-            } footer: {
-                Text("Another piece starts in the same category.")
             }
             .houseRows()
         }
@@ -574,6 +580,31 @@ struct StockPieceFields: Equatable {
         platingType = p.platingType ?? ""
         platingNote = p.platingNote ?? ""
         nickelFree = p.nickelFree
+    }
+
+    /// What was said for a new piece (voice's `new_piece`, a `Partial<Product>`) over the form's defaults, as the
+    /// web's `{ ...getSafeDefaultValues(), ...seed }`. The form's own rules then run as it opens (`settle`), as the
+    /// web's effect does: there too a silver piece drops a spoken making, and the wastage goes to the standard one.
+    mutating func fill(fromVoice seed: [String: Any]) {
+        func number(_ key: String) -> Double? {
+            if let n = seed[key] as? NSNumber { return n.doubleValue }
+            if let t = seed[key] as? String { return Double(t.trimmingCharacters(in: .whitespaces)) }
+            return nil
+        }
+        func text(_ key: String) -> String? { (seed[key] as? String).flatMap { $0.isEmpty ? nil : $0 } }
+        if let c = text("categoryId") { categoryId = c }
+        if let k = text("karat") { karat = k.lowercased() }
+        if let w = number("metalWeightG") { weight = Self.box(w, 3) }
+        if let m = number("makingCharges") { making = Self.box(m, 2) }
+        if let w = number("wastagePercentage") { wastage = NewOrderFormat.trimmed(w, digits: 2) }
+        if let d = text("stoneDetails") { stoneDetails = d }
+        if let c = number("stoneCharges") { stoneCharges = Self.box(c, 2) }
+        if let z = text("size") { size = z }
+        if let d = text("description") { description = d }
+        if seed["isCustomPrice"] as? Bool == true {
+            fixed = true
+            if let price = number("customPrice") { customPrice = Self.box(price, 2) }
+        }
     }
 
     /// A number in its box: blank for 0 (decisions.md "Number fields").

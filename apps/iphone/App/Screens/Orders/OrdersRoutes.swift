@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The Orders group: the hub and the order page. New order (/orders/add) stays the ERP's own page:
-/// "/orders/add" also matches the item route below, so OrderScreen hands it to WebScreen itself.
+/// The Orders group: the hub and the order page. New order (/orders/add) is the New order group's, which comes
+/// first in NativeScreens; "/orders/add" also matches the item route below, so OrderScreen shows NewOrder itself.
 enum OrdersRoutes {
     static var all: [ScreenRoute] {
         [

@@ -65,9 +65,13 @@ struct TodaysCashScreen: View {
             } header: {
                 Text(DashDate.dayLabel(now)).textCase(nil)
             }
-            LedgerSection("By how it was paid") {
-                ForEach(METHODS, id: \.self) { (m: CashMethod) in
-                    methodRow(m, t.byMethod[m] ?? 0)
+            // Only the methods that took something today: a column of zeros is noise.
+            let methods = METHODS.filter { (t.byMethod[$0] ?? 0) != 0 }
+            if !methods.isEmpty {
+                LedgerSection("By how it was paid") {
+                    ForEach(methods, id: \.self) { (m: CashMethod) in
+                        methodRow(m, t.byMethod[m] ?? 0)
+                    }
                 }
             }
             LedgerSection("Came in") {
@@ -82,7 +86,7 @@ struct TodaysCashScreen: View {
             if !t.expenseLines.isEmpty {
                 LedgerSection("Paid out") {
                     ForEach(Array(t.expenseLines.enumerated()), id: \.offset) { _, e in
-                        TwoLine(title: e.description, subtitle: e.category, trailing: Money.pkr(e.amount))
+                        TwoLine(title: e.description, subtitle: e.category, trailing: Money.pkr(e.amount)).lineLimit(1)
                     }
                 } footer: {
                     Text("Expenses carry no method, so every one the business paid today counts as leaving the drawer; one a partner paid out of pocket does not.")
@@ -93,17 +97,19 @@ struct TodaysCashScreen: View {
         .listStyle(.insetGrouped)
     }
 
+    /// One hero (the drawer) and one row of figures under it (rule 15); an exchange shows only on a day that had one.
     private func tiles(_ t: TodaysCash) -> some View {
-        let n = t.expenseLines.count
-        return VStack(spacing: 10) {
-            HStack(alignment: .top, spacing: 10) {
-                FigureTile(label: "In the drawer", value: Money.pkr(t.netCash), detail: "Cash in, less what was paid out",
-                           tint: t.netCash < 0 ? Tone.owed.color : Theme.accent)
-                FigureTile(label: "Money in", value: Money.pkr(t.totalIn), detail: "Every method")
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("In the drawer").font(.subheadline).foregroundStyle(.secondary)
+                HeroAmount(amount: t.netCash, tone: t.netCash < 0 ? Tone.owed.color : .primary)
             }
-            HStack(alignment: .top, spacing: 10) {
-                FigureTile(label: "Paid out", value: Money.pkr(t.expenses), detail: "\(n) expense\(n == 1 ? "" : "s")")
-                FigureTile(label: "Exchange", value: Money.pkr(t.exchange), detail: "Taken in exchange — not cash")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .heroSheen()
+            FigureRow(spacing: 10) {
+                FigureTile(label: "Money in", value: Money.pkr(t.totalIn))
+                FigureTile(label: "Paid out", value: Money.pkr(t.expenses))
+                if t.exchange != 0 { FigureTile(label: "Exchange, not cash", value: Money.pkr(t.exchange)) }
             }
         }
         .padding(.vertical, 4)
@@ -140,7 +146,7 @@ struct TodaysCashScreen: View {
         let title = (l.source == .extra || l.who.isEmpty) ? l.ref : "\(l.ref) · \(l.who)"
         let subtitle = "\(sourceWord(l.source)) · \(l.method.rawValue) · \(DashDate.clock(iso: l.at))"
         return NavigationLink(value: Route(path: path(for: l))) {
-            TwoLine(title: title, subtitle: subtitle, trailing: Money.pkr(l.amount))
+            TwoLine(title: title, subtitle: subtitle, trailing: Money.pkr(l.amount)).lineLimit(1)
         }
     }
 }

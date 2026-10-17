@@ -148,9 +148,7 @@ struct RepairsSheet: View {
                     Spacer(minLength: 8)
                     Pill(RepairsKit.label(r.status), tone: RepairsKit.tone(r.status))
                 }
-                Text("\(r.id) · in \(RepairsKit.byDay(r.receivedAt))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                // The number is the sheet's title and the day it came in is under Details: the promise only.
                 RepairsPromiseText(repair: r, now: Date(), font: .subheadline)
             }
             customerRow(r)
@@ -207,20 +205,17 @@ struct RepairsSheet: View {
     }
 
     private func pieceRow(_ p: RepairPiece) -> some View {
-        HStack(alignment: .firstTextBaseline) {
+        let quiet = [p.work, (p.weightG ?? 0) > 0 ? RepairsKit.grams(p.weightG ?? 0) : ""].filter { !$0.isEmpty }.joined(separator: " · ")
+        return HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(p.item.isEmpty ? "Piece" : p.item)
                     .fontWeight(.medium)
-                if !p.work.isEmpty {
-                    Text(p.work)
+                    .lineLimit(1)
+                if !quiet.isEmpty {
+                    Text(quiet)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                }
-                if let w = p.weightG, w > 0 {
-                    Text(RepairsKit.grams(w))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                        .lineLimit(1)
                 }
             }
             Spacer(minLength: 8)
@@ -241,7 +236,7 @@ struct RepairsSheet: View {
             LabeledContent("Total", value: Money.pkr(total))
             if paid > 0 {
                 LabeledContent("Paid") {
-                    Text(Money.pkr(paid)).foregroundStyle(Tone.settled.color).monospacedDigit()
+                    Text(Money.pkr(paid)).monospacedDigit()
                 }
             }
             LabeledContent("Balance due") {
@@ -274,7 +269,8 @@ struct RepairsSheet: View {
     private func detailsSection(_ r: Repair) -> some View {
         Section {
             LabeledContent("Taken in", value: ShopDate.say(r.receivedAt, withTime: true))
-            if let d = RepairsKit.filled(r.promisedDate) {
+            // The promise is said under the title while the ticket is in the shop; here once it has moved on.
+            if r.status != .received, let d = RepairsKit.filled(r.promisedDate) {
                 LabeledContent("Ready by", value: ShopDate.say(d))
             }
             if let d = RepairsKit.filled(r.readyAt) {

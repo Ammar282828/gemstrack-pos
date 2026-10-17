@@ -2,6 +2,7 @@ import { STORE_TAKEN_BY } from './store-config';
 
 import { ORDER_PHOTOS, droppedPhotoIds, splitItemPhotos } from '@/lib/order-photos';
 import { withItemDetails, type InvoiceItemDetails } from '@/lib/workshop-details';
+import { withOrderItemDetails } from '@/lib/writes/piece-details';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { staticCategories, categoryTitle, categorySingular, type Category } from './categories';
@@ -199,7 +200,7 @@ const readsThroughServer = (): boolean => { const r = effectiveRole(); return r 
 import { clientPort } from '@/lib/db-client-port';
 import { recordInvoicePayment, removeInvoicePayment } from '@/lib/writes/invoice-payment';
 import { type ExchangeEntry, exchangeTotal, invoiceExchangeFields, orderExchanges } from '@/lib/exchange';
-import { orderAdvancePayments, withoutOrderAdvance } from '@/lib/order-payment';
+import { orderAdvancePayments } from '@/lib/order-payment';
 import { statusFromPieces } from '@/lib/order-stage';
 import { isWalkInName, shouldCreateCustomer } from '@/lib/walk-in';
 import { createOrder } from '@/lib/writes/create-order';
@@ -207,6 +208,7 @@ import { orderEditPatch } from '@/lib/writes/update-order';
 import { finalizeHisaabRow, invoiceFromOrder } from '@/lib/writes/finalize-order';
 import { setInvoiceCustomer as writeInvoiceCustomer } from '@/lib/writes/invoice-customer';
 import { recordOrderAdvance as writeOrderAdvance } from '@/lib/writes/order-advance';
+import { deleteOrderAdvance as writeDeleteOrderAdvance, removeOrderPiece as writeRemoveOrderPiece } from '@/lib/writes/order-pieces';
 import { rateChangeLog, rateConfirmLog } from '@/lib/writes/rates';
 import { createInvoice as createInvoiceWrite } from '@/lib/writes/create-invoice';
 import { addExpense as writeAddExpense } from '@/lib/writes/expenses';
@@ -215,6 +217,7 @@ import { addGivenItem as writeAddGiven, markGivenItemReturned as writeGivenRetur
 import { addKarigar as writeAddKarigar, updateCustomer as writeUpdateCustomer, updateKarigar as writeUpdateKarigar } from '@/lib/writes/people';
 import { addRepair as writeAddRepair, recordRepairPayment as writeRepairPayment, setRepairStatus as writeRepairStatus } from '@/lib/writes/repairs';
 import { addProduct as writeAddProduct, updateProduct as writeUpdateProduct } from '@/lib/writes/products';
+import { deleteProduct as writeDeleteProduct, deleteProductWhat } from '@/lib/writes/product-delete';
 import { alertsOnStatus, orderStatusPatch, pieceDonePatch, pieceGivenPatch, pieceKarigarPatch } from '@/lib/writes/order-status';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { canHoldCredit, creditDescription, inCredit, isCreditRow } from '@/lib/invoice-credit';
@@ -2137,15 +2140,14 @@ export const useAppStore = create<AppState>()(
       },
       deleteProduct: async (sku) => {
         if(get().settings.databaseLocked) return;
-        await requireDeleteCode(`Delete product ${get().products.find(p => p.sku === sku)?.name || sku}`);
-        const productName = get().products.find(p => p.sku === sku)?.name || sku;
+        await requireDeleteCode(deleteProductWhat(sku, get().products.find(p => p.sku === sku)?.name));
         console.log(`[GemsTrack Store deleteProduct] Attempting to delete product SKU ${sku}.`);
         try {
-          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, sku));
+          // The one copy the phone runs too (lib/writes/product-delete.ts), with its log line.
+          await writeDeleteProduct(clientPort, sku, { log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? '') });
           set(state => {
             state.cart = state.cart.filter(item => item.sku !== sku);
           });
-          await addActivityLog('product.delete', `Deleted product: ${productName}`, `SKU: ${sku}`, sku);
           console.log(`[GemsTrack Store deleteProduct] Product SKU ${sku} deleted successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store deleteProduct] Error deleting product SKU ${sku} from Firestore:`, error);
@@ -3124,34 +3126,8 @@ export const useAppStore = create<AppState>()(
         const order = get().orders.find(o => o.id === orderId);
         if (!order) throw new Error('Order not found');
 
-        const updatedItems = order.items.map((item, i) => {
-          if (i !== itemIndex) return item;
-          const next: OrderItem = { ...item };
-          const setOrClear = (key: 'size' | 'stoneDetails' | 'diamondDetails' | 'adminNote' | 'referenceSku', value?: string) => {
-            const v = (value ?? '').trim();
-            if (v) next[key] = v;
-            else delete next[key];
-          };
-          // The description prints on the customer's estimate/invoice, so it
-          // is updated when given but never cleared to an empty string.
-          if (patch.description !== undefined && patch.description.trim()) {
-            next.description = patch.description.trim();
-          }
-          if ('size' in patch) setOrClear('size', patch.size);
-          if ('stoneDetails' in patch) setOrClear('stoneDetails', patch.stoneDetails);
-          if ('diamondDetails' in patch) setOrClear('diamondDetails', patch.diamondDetails);
-          if ('adminNote' in patch) setOrClear('adminNote', patch.adminNote);
-          if ('referenceSku' in patch) setOrClear('referenceSku', patch.referenceSku);
-          if (patch.estimatedWeightG !== undefined) next.estimatedWeightG = Number(patch.estimatedWeightG) || 0;
-          if (patch.sampleImageDataUri !== undefined) {
-            // A new photo replaces whatever the piece had (an old inline one or an earlier document);
-            // removing it clears both.
-            delete next.samplePhotoId;
-            if (patch.sampleImageDataUri) next.sampleImageDataUri = patch.sampleImageDataUri;
-            else delete next.sampleImageDataUri;
-          }
-          return next;
-        });
+        // The rule the iPhone app's Details writes too (lib/writes/piece-details.ts).
+        const updatedItems = withOrderItemDetails(order.items, itemIndex, patch);
         const split = splitItemPhotos(updatedItems);
 
         try {
@@ -3328,17 +3304,11 @@ export const useAppStore = create<AppState>()(
         if (!order) throw new Error("Order not found");
         if (order.items.length <= 1) throw new Error("Cannot remove the last item from an order. Delete the order instead.");
 
-        const updatedItems = order.items.filter((_, i) => i !== itemIndex);
-        const newSubtotal = updatedItems.reduce((sum, item) => sum + (item.totalEstimate || item.manualPrice || 0), 0);
-        const newGrandTotal = newSubtotal;
-        const newSummary = updatedItems.length === 1
-          ? (updatedItems[0].description || 'Custom order')
-          : updatedItems.map(i => i.description).filter(Boolean).join(', ') || 'Custom order';
-
         try {
-          const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
-          await setDoc(orderDocRef, { items: updatedItems, subtotal: newSubtotal, grandTotal: newGrandTotal, summary: newSummary }, { merge: true });
-          await addActivityLog('order.update', `Removed item from order: ${orderId}`, `Item: ${order.items[itemIndex]?.description}`, orderId);
+          // The one copy (lib/writes/order-pieces.ts), the iPhone app's too: the piece shown is the piece taken.
+          await writeRemoveOrderPiece(clientPort, { orderId, index: itemIndex, description: order.items[itemIndex]?.description || '' }, {
+            log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? ''),
+          });
           syncOrderShopify(orderId, 'upsert');
         } catch (error) {
           console.error(`Error removing item from order ${orderId}:`, error);
@@ -3508,27 +3478,12 @@ export const useAppStore = create<AppState>()(
         // Once invoiced, the advances are the invoice's payments, and cash counts them there.
         if (local.invoiceId) throw new Error(`${orderId} is invoiced: delete the payment on ${local.invoiceId} instead.`);
         await requireDeleteCode(`Delete the advance of PKR ${line.amount.toLocaleString()} on ${orderId}`);
-        const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
-        const updated = await runTransaction(db, async (transaction) => {
-          const snap = await transaction.get(orderRef);
-          if (!snap.exists()) throw new Error('Order not found!');
-          const o = { ...(snap.data() as Order), id: orderId };
-          const cut = withoutOrderAdvance(o, lineIndex);
-          if (!cut || Math.abs(cut.removed.amount - line.amount) > 0.005) throw new Error('The advances on this order changed. Open it again and try once more.');
-          // The balance as recording an advance works it out.
-          const grandTotal = o.subtotal - (Number(o.discountAmount) || 0) - cut.advancePayment - (o.advanceInExchangeValue || 0);
-          transaction.update(orderRef, {
-            advancePayment: cut.advancePayment, advances: cut.advances, grandTotal,
-            ...(cut.dropMethod ? { advanceMethod: deleteField() } : {}),
-          });
-          const next = { ...o, advancePayment: cut.advancePayment, advances: cut.advances, grandTotal } as Order;
-          if (cut.dropMethod) delete next.advanceMethod;
-          return next;
+        // The one copy (lib/writes/order-pieces.ts), the iPhone app's too: the line shown is the line taken.
+        const updated = await writeDeleteOrderAdvance(clientPort, { orderId, lineIndex, amount: line.amount }, { deleteField }, {
+          log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? ''),
         });
         set(state => ({ orders: state.orders.map(o => o.id === orderId ? updated : o) }) as Partial<AppState>);
         syncOrderShopify(orderId, 'upsert');
-        addActivityLog('order.update', `Advance deleted from Order ${orderId}`,
-          `Amount: ${line.amount.toLocaleString()} of ${String(line.date).slice(0, 10)} | Advance now ${updated.advancePayment.toLocaleString()}, balance ${updated.grandTotal.toLocaleString()}`, orderId);
         return updated;
       },
       

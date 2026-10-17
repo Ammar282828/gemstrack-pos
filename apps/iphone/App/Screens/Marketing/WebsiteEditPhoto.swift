@@ -143,6 +143,47 @@ final class WebsitePhotoEdit {
         }
     }
 
+    /// The Posts tray's Crop & design (src/app/posts/piece-design.tsx): always square, never a kept design; the catalogue's
+    /// photo from before it was marked (Mina), anything else as the site shows it (the tray's own copy); the layout the
+    /// piece starts with, the weight on it where the card was stamping it.
+    func beginSquare(_ piece: PostPiece, sitePhoto: Data, weightOn: Bool, fields: [String: String]) async {
+        guard !loading, !ready else { return }
+        loading = true
+        problem = nil
+        defer { loading = false }
+        do {
+            var bytes = sitePhoto
+            // As on Edit a piece, the MINA mark is the catalogue's framing; no server flag names it (photoNote there).
+            if House.bundledArt == "mina" && piece.photoSource != nil {
+                bytes = try await ERPAPI.shared.data("/api/website/site-pieces/image?id=\(WebsiteNumber.query(piece.id))&original=1&size=3000", timeout: 120)
+            }
+            guard let image = UIImage(data: bytes), image.size.width > 0 else {
+                throw ERPAPI.Failure(status: 0, message: "The photograph didn’t come as a picture.")
+            }
+            photos = [Photo(id: Self.sitePhoto, label: "The website’s photo", data: bytes,
+                            size: CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale))]
+            let start = try await engine.run(doc: .null, photos: [:], fields: [:], options: [
+                "action": "siteLayouts", "weightOn": weightOn,
+                "sitePiece": ["photoSource": piece.photoSource as Any? ?? NSNull(), "sourceMarked": piece.sourceMarked] as [String: Any],
+            ])
+            layouts = start["layouts"].array
+            layout = start.s("start", "clean")
+            shape = "square"
+            doc = try await square(blank("square"), layout, fields)
+            firstSig = sig(fields)
+            ready = true
+        } catch {
+            problem = error.localizedDescription
+        }
+    }
+
+    /// The tray's design as it goes out: WhatsApp's square, 1600 px (piece-design.tsx SEND_PX).
+    func squareJpeg(fields: [String: String]) async throws -> Data {
+        let r = try await engine.run(doc: doc, photos: photoData, fields: fields, options: ["px": 1600, "quality": 0.92, "site": true])
+        guard let data = Data(base64Encoded: r.s("image")), !data.isEmpty else { throw ERPAPI.Failure(status: 0, message: "The design could not be drawn.") }
+        return data
+    }
+
     /// A layout laid on a design (editor.ts applySquarePreset, through the engine).
     private func square(_ d: MarketingValue, _ id: String, _ fields: [String: String]) async throws -> MarketingValue {
         let r = try await engine.run(doc: d, photos: photoData, fields: fields, options: ["action": "square", "value": id, "site": true])
@@ -233,6 +274,8 @@ struct WebsitePhotoEditRows: View {
     @Bindable var edit: WebsitePhotoEdit
     let fields: [String: String]
     let busy: Bool
+    /// The tray's design is always square (WhatsApp only gets 1:1): no shape to choose.
+    var shapes = true
     let onAI: (_ op: String, _ params: [String: Any], _ label: String) -> Void
     @State private var designing = false
     @State private var asking = false
@@ -253,12 +296,14 @@ struct WebsitePhotoEditRows: View {
             if let problem = edit.problem {
                 Text(problem).font(.footnote).foregroundStyle(Tone.problem.color)
             }
-            Picker("Shape", selection: Binding(get: { edit.shape }, set: { (s: String) in Task { await edit.chooseShape(s, fields: fields) } })) {
-                Text("Its own shape").tag("own")
-                Text("Square").tag("square")
+            if shapes {
+                Picker("Shape", selection: Binding(get: { edit.shape }, set: { (s: String) in Task { await edit.chooseShape(s, fields: fields) } })) {
+                    Text("Its own shape").tag("own")
+                    Text("Square").tag("square")
+                }
+                .pickerStyle(.segmented)
+                .disabled(busy)
             }
-            .pickerStyle(.segmented)
-            .disabled(busy)
             Picker("On the photo", selection: Binding(get: { edit.layout }, set: { (id: String) in Task { await edit.chooseLayout(id, fields: fields) } })) {
                 ForEach(edit.layouts, id: \.text) { (x: MarketingValue) in Text(x.s("label")).tag(x.s("id")) }
             }

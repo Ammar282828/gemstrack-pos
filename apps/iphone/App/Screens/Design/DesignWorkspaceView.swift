@@ -187,10 +187,7 @@ struct DesignWorkspaceView: View {
         SectionCard("The photograph") {
             HStack(spacing: 12) {
                 DesignPhotoThumb(model: model)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(model.photos["photo"] == nil ? "No photograph" : "The design’s photograph").font(.subheadline.weight(.medium))
-                    Text("Your layouts stay; the new picture shows in them.").font(.footnote).foregroundStyle(.secondary)
-                }
+                Text(model.photos["photo"] == nil ? "No photograph" : "The design’s photograph").font(.subheadline.weight(.medium))
                 Spacer(minLength: 0)
             }
             Menu {
@@ -231,8 +228,11 @@ struct DesignWorkspaceView: View {
                     }.padding(.top, 5)
                 }
             }
-            Text(model.moreIds.isEmpty ? "Other angles of the same piece go out with it as squares of their own." : "Publish sends each to the website and WhatsApp as a square of its own, on the same page design.")
-                .font(.caption2).foregroundStyle(.secondary)
+            // Said once there is one, as it is where they go (the website and WhatsApp).
+            if !model.moreIds.isEmpty {
+                Text("Publish sends each to the website and WhatsApp as a square of its own, on the same page design.")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
         }
     }
 

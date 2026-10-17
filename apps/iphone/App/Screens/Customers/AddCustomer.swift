@@ -164,8 +164,6 @@ struct AddCustomer: View {
                         Text(CustomerKit.sourceLabel(s)).tag(s.rawValue)
                     }
                 }
-            } footer: {
-                Text("Where they came from: used for walk-in and referral analytics.")
             }
 
             if let error {

@@ -30,7 +30,9 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
    SF Symbols only; `NavIcon.symbol(for:)` maps the ERP's lucide names.
 5. **Every ERP place stays reachable.** Menus come from `App/Resources/nav-<house>.json` (exported from
    `src/lib/nav.ts`, `npm run nav:export`). A screen is registered by its ERP path in `ScreenRegistry`;
-   any path without a native screen opens `WebScreen(path:)`, the ERP page inside the app.
+   any path without a native screen opens `WebScreen(path:)`, the ERP page inside the app. A button never opens
+   the ERP page on purpose (no `?web=1`, no "Open in the ERP"): what it does is built natively. A link inside an
+   ERP page to a place with a native screen opens that screen (WebBridge `open`).
 6. **Words.** The ERP's own words (docs/decisions.md "The name ERP", "Customer copy"): "Owed to you",
    "In the drawer", "Taken by", "hisaab", "karigar". Never "Najmi Market" or "Saddar".
 7. **Comments say why**, in the ERP's voice, briefly, as in `src/lib`.
@@ -71,6 +73,23 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
    nothing of the build's Info.plist for its look. A branch on `House.id == "mina"` is a bug: use a descriptor field
    (`metal`, `flags`) or, if the server has none, `House.bundledArt` and say so in a comment. The app icon changes only
    from Settings (`AppIcon`), never on a switch.
+
+15. **Quiet screens** (owner, 2026-10-17: "the invoices tab is very noisy — fix that everywhere"). A screen says
+   what needs a look and nothing else; the normal state is silent. Every screen is held to these:
+   - **A row is two lines.** Line one: who (or what) and the sum. Line two: one quiet line (what was sold · the
+     number · the time), one line, truncated. No third line, no wrapped caption under it.
+   - **The expected state has no badge.** Paid, done, active, connected, in stock, on time: nothing. Only what
+     needs someone gets colour: owed, late, a problem, in credit. One coloured thing per row at most.
+   - **No duplicate figures.** A number shows once per screen: not in a chip's count, a section header and a
+     tile at the same time. Chips carry a count only where it is a call to act (Unpaid, Late).
+   - **One hero figure per screen**, then at most a single `FigureRow`. No card per figure where a row says it.
+   - **Section headers:** a title and at most one trailing figure. No second coloured line under a header.
+   - **No tags for the obvious.** "You", "Shopify", a source or a kind: a small glyph in `.secondary` where it
+     matters for the job (a Shopify sale), else nothing. Filtering and the detail page carry the rest.
+   - **Words:** no subtitle under a link that repeats its title, no footer that explains the obvious. A footer is
+     for a consequence (money moves, something is deleted, a customer is messaged).
+   - **Icons:** a menu or a settings list may lead with icons; a data row does not get one per line.
+   - **Details belong to the detail page.** A list shows enough to find the thing and see if it needs a look.
 
 ## Kit components
 

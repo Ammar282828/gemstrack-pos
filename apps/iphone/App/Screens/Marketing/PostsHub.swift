@@ -3,16 +3,20 @@ import ERPCore
 
 /// Posts → Hub (src/app/posts/page.tsx): what went out today, where Taheri's gold post is, what waits in
 /// the queue, and the website's pieces. A queued piece opens natively to be sent, held, timed or removed
-/// (PostQueueSheet: where it goes is said in full before it goes). What makes a post (Post a piece's
-/// designer and story editor, the tray with its captions, Investments) and spreading the queue over a day
-/// are the ERP's own pages, opened in the app.
+/// (PostQueueSheet: where it goes is said in full before it goes); the whole queue is sent at once or spread
+/// over the day (PostQueueSpreadSheet). Pick, caption and send is the tray (PostTrayScreen).
 struct PostsHub: View {
     @Environment(Session.self) private var session
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var store: PostsStore { PostsStore.shared }
     @State private var showAllToday = false
     @State private var go: Route?
     /// A queued piece opened to send, hold, time or remove (PostQueueSheet).
     @State private var opened: Opened?
+    @State private var spreading = false
+    @State private var confirmingAll = false
+    @State private var sendingAll = false
+    @State private var note: Note?
 
     struct Opened: Identifiable { let id: String }
 
@@ -38,6 +42,16 @@ struct PostsHub: View {
         .navigationDestination(item: $go) { (r: Route) in PlaceScreen(path: r.path) }
         .refreshable { await store.load(gold: hasInvestments) }
         .sheet(item: $opened) { (o: Opened) in PostQueueSheet(id: o.id) }
+        .sheet(isPresented: $spreading) {
+            PostQueueSpreadSheet { (n: Note) in Note.show(n, in: $note, reduce: reduceMotion) }
+        }
+        .confirmationDialog(sendAllTitle, isPresented: $confirmingAll, titleVisibility: .visible) {
+            Button(store.failingChecks.isEmpty ? "Send" : "Send anyway") { Task { await sendAll() } }
+            Button("Not yet", role: .cancel) {}
+        } message: {
+            Text(sendAllWords)
+        }
+        .noteToast($note)
         .task { await store.load(gold: hasInvestments) }
     }
 
@@ -47,11 +61,11 @@ struct PostsHub: View {
     private var makeSection: some View {
         Section {
             if hasInvestments {
-                MarketingLink(title: "Investments", subtitle: "The day's gold post", symbol: "chart.line.uptrend.xyaxis", path: "/website/investments")
+                MarketingLink(title: "Investments", symbol: "chart.line.uptrend.xyaxis", path: "/website/investments")
             }
-            MarketingLink(title: "Pick, caption and send", subtitle: "Website pieces to the groups and the channel, or into the queue", symbol: "paperplane", path: MarketingKit.postsWeb)
+            MarketingLink(title: "Pick, caption and send", symbol: "paperplane", path: MarketingKit.trayPath())
             if hasWebsite {
-                MarketingLink(title: "The website", subtitle: "Add photos, edit a piece, photo weights", symbol: "globe", path: MarketingKit.websitePath)
+                MarketingLink(title: "The website", symbol: "globe", path: MarketingKit.websitePath)
             }
         }
     }
@@ -65,12 +79,10 @@ struct PostsHub: View {
         if !failing.isEmpty {
             Section {
                 ForEach(failing) { (c: PostCheck) in
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("\(c.group): \(c.label)").font(.body.weight(.medium))
-                            Text(c.fix ?? c.detail).font(.subheadline).foregroundStyle(.secondary)
-                        }
+                    // The section says what it is; each row's one colour is its title.
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(c.group): \(c.label)").font(.body.weight(.medium)).foregroundStyle(Tone.owed.color).lineLimit(1)
+                        Text(c.fix ?? c.detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
                     }
                 }
             } header: {
@@ -100,11 +112,8 @@ struct PostsHub: View {
                 }
             }
         } header: {
-            LedgerHeading(title: "Today")
-        } footer: {
-            if let latest = today.first {
-                Text("\(today.count) out · last \(MarketingTime.clock(latest.at))")
-            }
+            // The count once, in the header; each row carries its own time.
+            LedgerHeading(title: "Today", count: today.isEmpty ? nil : today.count)
         }
     }
 
@@ -126,7 +135,7 @@ struct PostsHub: View {
         let title = s.title.isEmpty ? (storyOnly ? "A story" : "A post") : s.title
         return HStack(spacing: 12) {
             sentPicture(s, storyOnly: storyOnly)
-            TwoLine(title: title, subtitle: places, trailing: MarketingTime.clock(s.at))
+            TwoLine(title: title, subtitle: places, trailing: MarketingTime.clock(s.at)).lineLimit(1)
         }
     }
 
@@ -181,11 +190,44 @@ struct PostsHub: View {
         if !items.isEmpty {
             Section {
                 ForEach(items) { (e: PostQueueEntry) in queueRow(e) }
-                MarketingLink(title: "Spread the queue over the day", subtitle: "In the ERP", symbol: "clock", path: MarketingKit.postsWeb)
+                let waiting = store.waiting.count
+                if waiting > 0 {
+                    Button { confirmingAll = true } label: {
+                        Label(sendingAll ? "Sending…" : waiting > 1 ? "Send all \(waiting) now" : "Send it now", systemImage: "paperplane")
+                    }
+                    .disabled(sendingAll)
+                    Button { spreading = true } label: { Label("Spread over the day", systemImage: "clock") }
+                        .disabled(sendingAll)
+                }
             } header: {
                 LedgerHeading(title: "In the queue")
             }
         }
+    }
+
+    private var sendAllTitle: String {
+        let n = store.waiting.count
+        return n > 1 ? "Send all \(n) pieces now?" : "Send it now?"
+    }
+
+    /// Each piece and where it goes, in the order they go, and what is failing now (queue-panel.tsx's confirm).
+    private var sendAllWords: String {
+        var out = store.waiting.map { (e: PostQueueEntry) in "• \(e.headline.isEmpty ? "Untitled" : e.headline) → \(store.queueWhere(e))" }.joined(separator: "\n")
+        out += "\n\nOne after another, in this order. A post can't be unsent from here."
+        let failing = store.failingChecks
+        if !failing.isEmpty {
+            out += "\n\nThis will probably fail:\n" + failing.map { (c: PostCheck) in "\(c.label): \(c.fix ?? c.detail)" }.joined(separator: "\n")
+        }
+        return out
+    }
+
+    private func sendAll() async {
+        sendingAll = true
+        defer { sendingAll = false }
+        let r = await store.sendAll()
+        let whole = r.sent == r.of
+        Note.show(Note(title: whole ? "All \(r.of) sent" : "\(r.sent) of \(r.of) sent",
+                       detail: whole ? "" : "The ones that failed say why; sending again sends only what didn't go.", failed: !whole), in: $note, reduce: reduceMotion)
     }
 
     /// Opens the piece: where it goes, word for word, and Send now, Hold, a time or Remove.
@@ -195,7 +237,7 @@ struct PostsHub: View {
                 StockImage(imageUrl: e.thumb, name: e.headline, key: e.id, decodeDataURI: true)
                     .frame(width: 44, height: 44)
                     .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                TwoLine(title: e.headline.isEmpty ? "A piece" : e.headline, subtitle: queueNote(e))
+                TwoLine(title: e.headline.isEmpty ? "A piece" : e.headline, subtitle: queueNote(e)).lineLimit(1)
                 queueBadge(e)
                 Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
             }
@@ -204,27 +246,23 @@ struct PostsHub: View {
         .buttonStyle(.plain)
     }
 
+    /// The row's one quiet line: when it goes (or went) and where. The state is in these words, not a tag.
     private func queueNote(_ e: PostQueueEntry) -> String {
         let places = store.queueWhere(e)
         switch e.status {
         case "scheduled": return "\(ShopDate.say(e.dueAt, withTime: true)) · \(places)"
         case "failed": return e.lastError ?? "It did not all go. \(places)"
         case "sent": return "Sent \(MarketingTime.clock(e.sentAt)) · \(places)"
-        default: return places
+        case "sending": return "Sending · \(places)"
+        case "draft": return "Still arriving · \(places)"
+        default: return "Held · \(places)"
         }
     }
 
+    /// Only what needs someone is a tag (CONVENTIONS rule 15): a piece that didn't all go.
+    @ViewBuilder
     private func queueBadge(_ e: PostQueueEntry) -> some View {
-        let words: (String, Tone)
-        switch e.status {
-        case "scheduled": words = ("Scheduled", .working)
-        case "sending": words = ("Sending", .owed)
-        case "sent": words = ("Sent", .settled)
-        case "failed": words = ("Failed", .problem)
-        case "draft": words = ("Making", .quiet)
-        default: words = ("Held", .quiet)
-        }
-        return Pill(words.0, tone: words.1)
+        if e.status == "failed" { Pill("Failed", tone: .problem) }
     }
 
     // MARK: The website's pieces
@@ -268,14 +306,14 @@ struct PostsHub: View {
                 }
                 .listRowInsets(EdgeInsets())
             }
-            MarketingLink(title: "All \(store.pieces.count) pieces", subtitle: "Search by name or collection", symbol: "square.grid.2x2", path: MarketingKit.piecesPath)
+            MarketingLink(title: "All \(store.pieces.count) pieces", symbol: "square.grid.2x2", path: MarketingKit.piecesPath)
         } header: {
             LedgerHeading(title: fresh.isEmpty ? "From \(store.siteName)" : "New on \(store.siteName)")
         }
     }
 }
 
-/// A website piece as a tile: its photo, its name, and when it last went out (or its collection).
+/// A website piece as a tile: its photo, its name, and when it last went out (or that it is new, or its collection).
 struct PostPieceTile: View {
     let piece: PostPiece
     var posted: String?
@@ -285,16 +323,7 @@ struct PostPieceTile: View {
             StockImage(imageUrl: piece.thumb, name: piece.name, key: piece.id)
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
-                .overlay(alignment: .topLeading) {
-                    if piece.newArrival {
-                        Text("New")
-                            .font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(.ultraThinMaterial, in: .capsule)
-                            .padding(6)
-                    }
-                }
-            Text(piece.name).font(.caption.weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)
+            Text(piece.name).font(.caption.weight(.semibold)).lineLimit(1).multilineTextAlignment(.leading)
             Text(note).font(.caption2).foregroundStyle(noteColor).lineLimit(1)
         }
     }
@@ -305,8 +334,9 @@ struct PostPieceTile: View {
         return .secondary
     }
 
+    /// When it last went out, else "New" in the quiet line (no tag on the photo), else its collection.
     private var note: String {
         if let ago = MarketingTime.postedAgo(posted) { return ago }
-        return piece.collection
+        return piece.newArrival ? ["New", piece.collection].filter { !$0.isEmpty }.joined(separator: " · ") : piece.collection
     }
 }

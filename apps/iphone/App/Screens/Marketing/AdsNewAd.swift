@@ -661,8 +661,6 @@ struct AdsNewAdScreen: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
             }
-        } footer: {
-            Text("The post runs as it is: its photo, caption, likes and comments. Tap one.")
         }
     }
 
@@ -736,8 +734,6 @@ struct AdsNewAdScreen: View {
             } else {
                 MarketingReading(text: "Reading the website…")
             }
-        } footer: {
-            Text("Each piece is added as a photo below (several make a carousel), with its own link.")
         }
     }
 
@@ -1034,7 +1030,7 @@ struct AdsNewAdScreen: View {
                 }
                 Section {
                     MarketingLink(title: "See it in Campaigns", symbol: "checklist", path: "/ads/campaigns")
-                    MarketingLink(title: "Test it on another audience", subtitle: "The same ad in more ad sets, side by side",
+                    MarketingLink(title: "Test it on another audience",
                                   symbol: "square.stack.3d.up", path: adSetPath(m))
                     Button { again() } label: { Label("Make another", systemImage: "plus") }
                 }

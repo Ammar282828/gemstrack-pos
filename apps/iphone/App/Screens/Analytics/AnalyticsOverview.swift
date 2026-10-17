@@ -62,18 +62,19 @@ struct AnaOverviewPage: View {
         let f = figures
         let net = f.totalSales - f.totalExpenses
         let netPct = f.totalSales > 0 ? net / f.totalSales * 100 : 0
-        let netDetail = f.totalSales > 0 ? "\(AnaFormat.fixed(netPct, 1))% margin" : "No revenue in period"
-        let netTint: Color = net >= 0 ? Tone.settled.color : Tone.owed.color
-        return VStack(spacing: 10) {
-            FigureRow(alignment: .top, spacing: 10) {
-                FigureTile(label: "Revenue", value: Money.pkrLac(f.totalSales), detail: "Sales in this period", tint: Tone.settled.color)
-                if showCosts {
-                    FigureTile(label: "Expenses", value: Money.pkrLac(f.totalExpenses), detail: "Paid out in this period", tint: Tone.owed.color)
-                }
+        let netDetail = f.totalSales > 0 ? "\(AnaFormat.fixed(netPct, 1))% margin" : nil
+        let netTint: Color = net >= 0 ? .primary : Tone.owed.color
+        // One hero (the period's revenue), then one row of the rest; colour only for a net loss (rule 15).
+        return VStack(spacing: 12) {
+            VStack(spacing: 2) {
+                Text("Revenue").font(.subheadline).foregroundStyle(.secondary)
+                HeroAmount(amount: f.totalSales, lac: true)
             }
+            .frame(maxWidth: .infinity)
             if showCosts {
                 FigureRow(alignment: .top, spacing: 10) {
-                    FigureTile(label: "Est. profit", value: Money.pkrLac(f.estProfit), detail: estDetail, tint: Theme.accent)
+                    FigureTile(label: "Expenses", value: Money.pkrLac(f.totalExpenses))
+                    FigureTile(label: "Est. profit", value: Money.pkrLac(f.estProfit), detail: estDetail)
                     FigureTile(label: "Net profit", value: Money.pkrLac(net), detail: netDetail, tint: netTint)
                 }
             }
@@ -194,11 +195,9 @@ struct AnaOverviewPage: View {
                             subtitle: c.grams > 0 ? AnaFormat.weight(c.grams) : "No weight recorded",
                             trailing: AnaFormat.count(c.coins))
                     TwoLine(title: "Realised / gram",
-                            subtitle: "Revenue over grams, all-in",
                             trailing: c.ratePerGram > 0 ? Money.pkrLac(c.ratePerGram) : "—")
                     if c.outstanding > 0 {
                         TwoLine(title: "Outstanding",
-                                subtitle: "Still owed on coin bills",
                                 trailing: Money.pkrLac(c.outstanding),
                                 trailingTint: Tone.owed.color)
                     }
@@ -224,15 +223,13 @@ struct AnaOverviewPage: View {
         // Gold taken off an invoice's total is in Cash In but was never in revenue.
         let gap = f.totalSales - (f.cashIn - f.exchangeOffInvoices)
         let netSign = net >= 0 ? "+" : "−"
-        let netTint: Color = net >= 0 ? Tone.settled.color : Tone.owed.color
+        // Only cash going out faster than it comes in is coloured; in and out are plain sums.
+        let netTint: Color = net >= 0 ? .primary : Tone.owed.color
         return Section {
-            TwoLine(title: "Cash in", trailing: Money.pkrLac(f.cashIn), trailingTint: Tone.settled.color)
+            TwoLine(title: "Cash in", trailing: Money.pkrLac(f.cashIn))
             if showCosts {
-                TwoLine(title: "Cash out", subtitle: "Every expense paid in this period",
-                        trailing: Money.pkrLac(f.cashOut), trailingTint: Tone.owed.color)
-                TwoLine(title: "Net cash flow",
-                        subtitle: net >= 0 ? "Business gained cash in this period" : "Business spent more cash than it took in",
-                        trailing: netSign + Money.pkrLac(abs(net)), trailingTint: netTint)
+                TwoLine(title: "Cash out", trailing: Money.pkrLac(f.cashOut))
+                TwoLine(title: "Net cash flow", trailing: netSign + Money.pkrLac(abs(net)), trailingTint: netTint)
             }
             DisclosureGroup("Cash breakdown") {
             ForEach(cashInParts) { (p: AnaCashPart) in
@@ -241,11 +238,10 @@ struct AnaOverviewPage: View {
                     .foregroundStyle(.secondary)
             }
             if gap > 0 {
-                Text("\(Money.pkrLac(gap)) of recognised revenue is not yet collected: it sits as customer receivables and uninvoiced open orders. That gap is the difference between revenue (what was earned) and Cash in, leaving out gold taken off a bill (it is off the revenue too).")
+                Text("\(Money.pkrLac(gap)) of revenue is not yet collected: customer receivables and uninvoiced open orders (gold taken off a bill is in neither).")
                     .font(.footnote)
-                    .foregroundStyle(Tone.owed.color)
+                    .foregroundStyle(.secondary)
             }
-                Text("Cash flow counts money received and paid. Revenue also includes unpaid sales and open orders.").font(.footnote).foregroundStyle(.secondary)
             }
         } header: {
             LedgerHeading(title: "Cash flow")

@@ -320,13 +320,28 @@ struct AdsRangeMenu: View {
     }
 }
 
-/// An ad object's status as a coloured word.
+/// An ad object's status, said only when it isn't the expected one (CONVENTIONS rule 15): running says nothing,
+/// paused or archived is a quiet word, and only what needs someone (in review, rejected, has issues) is a coloured badge.
 struct AdsStatusBadge: View {
     let status: String
 
     var body: some View {
         let words = AdsStatusWords.of(status)
-        StatusBadge(words.label, color: AdsStatusWords.color(words.tone))
+        switch words.tone {
+        case .good: EmptyView()
+        case .idle: Text(words.label).font(.caption).foregroundStyle(.secondary)
+        case .warn, .bad: StatusBadge(words.label, color: AdsStatusWords.color(words.tone))
+        }
+    }
+}
+
+/// The ad account's status, the same way: an active account says nothing.
+struct AdsAccountBadge: View {
+    let status: Int
+
+    var body: some View {
+        let words = AdsStatusWords.ofAccount(status)
+        if words.tone != .good { StatusBadge(words.label, color: AdsStatusWords.color(words.tone)) }
     }
 }
 

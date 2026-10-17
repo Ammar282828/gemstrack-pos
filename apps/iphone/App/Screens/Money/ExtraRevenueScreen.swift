@@ -71,8 +71,6 @@ struct ExtraRevenueScreen: View {
                 figures(shown)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
-            } header: {
-                Text("Income not tied to an order or invoice.").textCase(nil)
             }
             if months.isEmpty {
                 Section { emptyState }
@@ -118,21 +116,20 @@ struct ExtraRevenueScreen: View {
         var total = 0.0
         for line in shown { total += line.item.amount }
         let count = shown.count
-        return FigureRow(alignment: .top, spacing: 10) {
-            FigureTile(label: "Total revenue", value: Money.pkr(total), tint: Theme.accent)
-            FigureTile(label: "Entries", value: "\(count)")
+        // One hero, the total, with how many entries under it (rule 15).
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("Total revenue").font(.subheadline).foregroundStyle(.secondary)
+            HeroAmount(amount: total)
+            Text("\(count) entr\(count == 1 ? "y" : "ies")").font(.footnote).foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .heroSheen()
         .padding(.vertical, 4)
     }
 
+    /// The month and what it came to: one trailing figure, no second line (rule 15).
     private func monthHeader(_ month: MoneyMonth<AdditionalRevenue>) -> some View {
-        let n = month.rows.count
-        let count = "\(n) entr\(n == 1 ? "y" : "ies")"
-        let detail = month.hint.isEmpty ? count : "\(month.hint) · \(count)"
-        return VStack(alignment: .leading, spacing: 6) {
-            LedgerHeading(title: month.title, trailing: Money.pkr(month.total))
-            Text(detail).font(.footnote).foregroundStyle(.secondary)
-        }
+        LedgerHeading(title: month.title, trailing: Money.pkr(month.total))
     }
 
     // MARK: Rows
@@ -146,12 +143,14 @@ struct ExtraRevenueScreen: View {
             NavigationLink(value: Route(path: MoneyPaths.repair(repairId))) {
                 TwoLine(
                     title: r.description,
-                    subtitle: when.isEmpty ? "Change this on the repair" : "\(when) · Change this on the repair",
+                    subtitle: when.isEmpty ? "Repair" : "\(when) · Repair",
                     trailing: Money.pkr(r.amount)
                 )
+                .lineLimit(1)
             }
         } else {
             TwoLine(title: r.description, subtitle: when, trailing: Money.pkr(r.amount))
+                .lineLimit(1)
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button(role: .destructive) { askDelete(r) } label: { Label("Delete", systemImage: "trash") }
                     Button { editing = r } label: { Label("Edit", systemImage: "pencil") }

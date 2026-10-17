@@ -14,9 +14,7 @@ struct NewChooser: View {
     var body: some View {
         List { Group {
             if let draft = inProgress, !draft.lines.isEmpty {
-                Section { progressRow(draft) } footer: {
-                    Text("Kept on this phone, and in Drafts for the counter.")
-                }
+                Section { progressRow(draft) }
             }
 
             // One line each, as the system's own "New" menus put it.
@@ -48,8 +46,6 @@ struct NewChooser: View {
                 NavigationLink(value: Route(path: "/drafts")) {
                     Label("Drafts", systemImage: "tray.full")
                 }
-            } footer: {
-                Text("Orders and sales not yet saved, from every device in the shop.")
             }
         }.houseRows()
         }

@@ -123,8 +123,6 @@ struct AdsAudienceSheet: View {
             }
         } header: {
             LedgerHeading(title: "Where")
-        } footer: {
-            Text("People who live in, or were recently in, these places. A city takes the people around it too.")
         }
     }
 
@@ -278,7 +276,7 @@ struct AdsAudienceSheet: View {
         } header: {
             LedgerHeading(title: "Interests")
         } footer: {
-            Text(draft.interests.isEmpty ? "None: Meta finds the people itself (often the cheapest)." : "Shown to people with any of these interests.")
+            if draft.interests.isEmpty { Text("None: Meta finds the people itself (often the cheapest).") }
         }
     }
 

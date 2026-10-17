@@ -30,6 +30,7 @@ enum MarketingRoutes {
             ScreenRoute(matches: { ScreenRoute.bare($0) == "/website/post" }, make: { AnyView(PostComposerScreen(path: $0)) }),
             ScreenRoute(matches: { ScreenRoute.bare($0) == "/marketing/queue" }, make: { AnyView(PostQueueSheet(id: AdsQuery.value("id", in: $0) ?? "", embedded: true)) }),
             .exact(MarketingKit.piecesPath) { PostPiecesScreen() },
+            ScreenRoute(matches: { ScreenRoute.bare($0) == MarketingKit.trayPrefix }, make: { AnyView(PostTrayScreen(path: $0)) }),
             piece,
             .exact("/ads") { AdsOverviewScreen() },
             ScreenRoute(matches: { ScreenRoute.bare($0) == "/ads/campaigns" }, make: { AnyView(AdsCampaignsScreen(path: $0)) }),

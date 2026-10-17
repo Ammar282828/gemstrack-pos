@@ -204,7 +204,7 @@ struct AdsVideoSection: View {
                         .frame(width: 56, height: 56)
                         .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(v.name).lineLimit(2)
+                        Text(v.name).lineLimit(1)
                         switch v.phase {
                         case .sending:
                             ProgressView(value: v.sent)
@@ -212,7 +212,7 @@ struct AdsVideoSection: View {
                         case .processing:
                             Text("Meta is processing it (a minute or two)…").font(.caption).foregroundStyle(.secondary)
                         case .ready:
-                            Label("Ready, with Meta's cover frame", systemImage: "checkmark.circle.fill").font(.caption).foregroundStyle(Tone.settled.color)
+                            Text("Ready, with Meta's cover frame").font(.caption).foregroundStyle(.secondary)
                         case .failed:
                             Text(v.error ?? "It didn't reach Meta.").font(.caption).foregroundStyle(Tone.problem.color)
                         }
@@ -316,7 +316,7 @@ struct AdsPartnerSection: View {
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         if c.ok {
-                            Text(c.creator.map { (who: String) in "Ready: @\(who)'s post" } ?? "Ready").foregroundStyle(Tone.settled.color)
+                            Text(c.creator.map { (who: String) in "Ready: @\(who)'s post" } ?? "Ready")
                         } else {
                             Text(c.why ?? "Meta couldn't check the code. It can still be tried.").foregroundStyle(Tone.owed.color)
                         }

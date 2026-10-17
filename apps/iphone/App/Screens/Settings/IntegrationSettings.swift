@@ -32,8 +32,6 @@ private struct IntegrationsForm: View {
                     NavigationLink(value: Route(path: "/app/settings/website")) {
                         Label("Selling on the website", systemImage: "globe")
                     }
-                } footer: {
-                    Text("Whether the site takes orders, and at what rate.")
                 }
             }
 
@@ -65,8 +63,6 @@ private struct IntegrationsForm: View {
                 }
             } header: {
                 LedgerHeading(title: "Meta")
-            } footer: {
-                Text("The Facebook login, ad account, Page, Instagram and pixel.")
             }
 
             Section {

@@ -435,8 +435,6 @@ struct NewOrder: View {
         if edit == nil && !draft.isBlank {
             Section {
                 Button("Start over", role: .destructive) { confirmReset = true }
-            } footer: {
-                Text("Your order is kept on this phone, and in Drafts for the counter, until you save it or start over.")
             }
         }
     }

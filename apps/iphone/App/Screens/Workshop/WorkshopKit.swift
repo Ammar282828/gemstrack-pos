@@ -18,9 +18,6 @@ struct WorkshopPlace: Identifiable, Hashable {
     static func karigar(_ id: String) -> WorkshopPlace {
         WorkshopPlace(path: WorkshopLogic.karigarPath(id))
     }
-    /// The ERP's own Workshop page, where an order's or a sold piece's making details (its name, size, sample
-    /// picture and instructions) are changed: the one thing on the board the phone does not do yet.
-    static let workshopPage = WorkshopPlace(path: "/workshop?web=1", title: "Workshop")
 }
 
 private struct WorkshopPlaceView: View {
@@ -51,41 +48,6 @@ extension View {
     }
 }
 
-/// How old a piece is, in the colour every workshop surface uses: grey, orange from a week, red from two.
-struct WorkshopAgeBadge: View {
-    let job: WorkshopJob
-
-    var body: some View {
-        if job.isDone {
-            StatusBadge("Done", tone: .settled)
-        } else {
-            StatusBadge("\(job.ageDays)d", color: tone)
-                .monospacedDigit()
-        }
-    }
-
-    private var tone: Color {
-        switch job.urgency {
-        case .critical: return Tone.late.color
-        case .warning: return Tone.owed.color
-        case .ok: return .secondary
-        }
-    }
-}
-
-/// A count in the colour of its urgency, for section headers: "2 critical", "3 late".
-struct WorkshopUrgencyBadges: View {
-    let critical: Int
-    let late: Int
-
-    var body: some View {
-        HStack(spacing: 6) {
-            if critical > 0 { StatusBadge("\(critical) critical", tone: .late) }
-            if late > 0 { StatusBadge("\(late) late", tone: .owed) }
-        }
-    }
-}
-
 /// Who a piece can be given to: the karigars with work first, then the others.
 struct WorkshopChoices {
     let working: [Karigar]
@@ -105,7 +67,7 @@ struct WorkshopActions {
     let assign: (WorkshopJob, String) -> Void
     /// A stock job's status: Pending, In Progress, Completed.
     let status: (WorkshopJob, KarigarJobStatus) -> Void
-    /// A stock job's making details, in a sheet.
+    /// A piece's making details, in a sheet: a stock job's own, or an order's piece or a sold piece's.
     let details: (WorkshopJob) -> Void
     /// A stock job deleted, once the delete code is typed.
     let delete: (WorkshopJob) -> Void

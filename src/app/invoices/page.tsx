@@ -20,8 +20,8 @@ import type { DateRange } from "react-day-picker";
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { doc, getDoc, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { clientPort } from '@/lib/db-client-port';
+import { importShopifyCsv, shopifyCsvPreview } from '@/lib/writes/shopify-csv-import';
 import { mergeInstructions } from '@/lib/workshop';
 import { describePlating } from '@/lib/materials';
 import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
@@ -230,140 +230,9 @@ const DocumentRow: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMark
     );
 };
 
-// --- CSV Parsing ---
-function parseCSVRow(line: string): string[] {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') { inQuotes = !inQuotes; }
-    else if (ch === ',' && !inQuotes) { result.push(current); current = ''; }
-    else { current += ch; }
-  }
-  result.push(current);
-  return result;
-}
-
-function parseCSV(content: string): Record<string, string>[] {
-  const lines = content.trim().split('\n');
-  const headers = parseCSVRow(lines[0]);
-  return lines.slice(1).map(line => {
-    const values = parseCSVRow(line);
-    const row: Record<string, string> = {};
-    headers.forEach((h, i) => { row[h.trim()] = (values[i] || '').trim(); });
-    return row;
-  });
-}
-
-async function importShopifyCSV(
-  csvContent: string,
-  onProgress: (msg: string) => void,
-): Promise<number> {
-  const rows = parseCSV(csvContent);
-  onProgress(`Parsed ${rows.length} rows…`);
-
-  // Group rows by Shopify order Name (multi-item orders have one row per line item)
-  // Only accept valid Shopify order names like #1001 — skip corrupt/metadata rows
-  const VALID_ORDER_NAME = /^#\d+$/;
-  const orderMap = new Map<string, { header: Record<string, string>; items: Record<string, string>[] }>();
-  for (const row of rows) {
-    const name = row['Name'];
-    if (!name || !VALID_ORDER_NAME.test(name)) continue;
-    if (!orderMap.has(name)) orderMap.set(name, { header: row, items: [] });
-    orderMap.get(name)!.items.push(row);
-  }
-  onProgress(`${rows.length} rows → ${orderMap.size} unique orders…`);
-
-  // Get current lastInvoiceNumber
-  const settingsSnap = await getDoc(doc(db, 'app_settings', 'global'));
-  let lastInvoiceNumber: number = (settingsSnap.data()?.lastInvoiceNumber as number) || 7;
-  onProgress(`Starting from INV-${String(lastInvoiceNumber + 1).padStart(6, '0')}…`);
-
-  // Sort orders chronologically
-  const sortedOrders = [...orderMap.values()].sort((a, b) =>
-    new Date(a.header['Created at']).getTime() - new Date(b.header['Created at']).getTime()
-  );
-
-  let batch = writeBatch(db);
-  let batchCount = 0;
-  let imported = 0;
-
-  for (const order of sortedOrders) {
-    const h = order.header;
-    const createdAt = h['Created at'] ? new Date(h['Created at']).toISOString() : new Date().toISOString();
-    const billingName = h['Billing Name'] || h['Shipping Name'] || 'Walk-in Customer';
-    const total = parseFloat(h['Total']) || 0;
-    const subtotal = parseFloat(h['Subtotal']) || total;
-    const discount = parseFloat(h['Discount Amount']) || 0;
-    const financialStatus = h['Financial Status'] || 'paid';
-    const amountPaid = financialStatus === 'paid' ? total : 0;
-    const balanceDue = total - amountPaid;
-
-    const items = order.items.map(row => {
-      const price = parseFloat(row['Lineitem price']) || 0;
-      const qty = parseInt(row['Lineitem quantity']) || 1;
-      const sku = row['Lineitem sku'] || `SHOP-${h['Name'].replace('#', '')}-${(row['Lineitem name'] || '').slice(0, 8)}`;
-      return {
-        sku,
-        name: row['Lineitem name'] || 'Item',
-        categoryId: '',
-        metalType: 'gold',
-        karat: '21k',
-        metalWeightG: 0,
-        stoneWeightG: 0,
-        quantity: qty,
-        unitPrice: price,
-        itemTotal: price * qty,
-        metalCost: 0,
-        wastageCost: 0,
-        wastagePercentage: 0,
-        makingCharges: price * qty,
-        diamondChargesIfAny: 0,
-        stoneChargesIfAny: 0,
-        miscChargesIfAny: 0,
-      };
-    });
-    const itemSubtotal = items.reduce((sum, item) => sum + (item.itemTotal || 0), 0);
-    const adjustmentsAmount = total - (itemSubtotal - discount);
-
-    lastInvoiceNumber++;
-    const invoiceId = `INV-${String(lastInvoiceNumber).padStart(6, '0')}`;
-
-    const invoice = {
-      id: invoiceId,
-      shopifyOrderName: h['Name'],
-      customerId: '',
-      customerName: billingName,
-      customerContact: h['Billing Phone'] || h['Phone'] || '',
-      items,
-      subtotal: itemSubtotal,
-      discountAmount: discount,
-      ...(adjustmentsAmount !== 0 && { adjustmentsAmount }),
-      grandTotal: total,
-      amountPaid,
-      balanceDue,
-      createdAt,
-      ratesApplied: {},
-      paymentHistory: amountPaid > 0 ? [{ amount: amountPaid, date: createdAt, notes: 'Shopify payment' }] : [],
-      source: 'shopify_import',
-    };
-
-    batch.set(doc(db, 'invoices', invoiceId), invoice);
-    batchCount++;
-    imported++;
-
-    if (batchCount >= 400) {
-      await batch.commit();
-      onProgress(`Committed batch (${imported} so far)…`);
-      batch = writeBatch(db);
-      batchCount = 0;
-    }
-  }
-
-  if (batchCount > 0) await batch.commit();
-  await updateDoc(doc(db, 'app_settings', 'global'), { lastInvoiceNumber });
-  return imported;
+// Import Shopify CSV: lib/writes/shopify-csv-import.ts, the one copy the iPhone app runs on the server too.
+async function importShopifyCSV(csvContent: string, onProgress: (msg: string) => void): Promise<number> {
+  return (await importShopifyCsv(clientPort, csvContent, onProgress)).imported;
 }
 
 function monthKeyOf(iso: string | undefined): string {
@@ -500,9 +369,7 @@ export default function DocumentsPage() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const content = ev.target?.result as string;
-      const rows = parseCSV(content);
-      const firstNames = rows.slice(0, 5).map(r => r['Billing Name'] || r['Shipping Name'] || 'Walk-in');
-      setImportPreview({ rows: rows.length, firstNames });
+      setImportPreview(shopifyCsvPreview(content));
     };
     reader.readAsText(file);
   };

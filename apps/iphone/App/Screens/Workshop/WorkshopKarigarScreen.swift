@@ -9,7 +9,7 @@ import ERPCore
 /// received with its surcharge, starting and settling a pay batch, the settled batches and the payments outside any,
 /// deleting a settled batch or a silver entry (the delete code). Every figure is ERPCore KarigarPay's
 /// (lib/karigar-pay.ts), the one the ERP writes when a batch is settled. Assigning him stock work is the Workshop's
-/// sheet. Removing him stays the ERP's page (see `erpSection`).
+/// sheet. Editing him, his own view and removing him (the delete code) are the last section (`erpSection`).
 struct WorkshopKarigarScreen: View {
     let id: String
 
@@ -201,12 +201,8 @@ struct WorkshopKarigarScreen: View {
                 LabeledContent("Total paid (all time)") {
                     Text(Money.pkr(pay.totalPaid)).monospacedDigit().foregroundStyle(Color.primary)
                 }
-                LabeledContent("Active pay batch") {
-                    if let open = pay.open, !open.batch.label.isEmpty {
-                        Text(open.batch.label)
-                    } else {
-                        Text("None").foregroundStyle(.secondary)
-                    }
+                if let open = pay.open, !open.batch.label.isEmpty {
+                    LabeledContent("Active pay batch") { Text(open.batch.label) }
                 }
             }
         } header: {
@@ -235,7 +231,7 @@ struct WorkshopKarigarScreen: View {
                 NavigationLink(value: Route(path: hisaabPath(karigar))) {
                     TwoLine(
                         title: "Gold khata",
-                        subtitle: "given less received, in Hisaab",
+                        subtitle: nil,
                         trailing: WorkshopLogic.grams3(p.khataNet),
                         trailingTint: p.khataNet > 0.0005 ? Tone.owed.color : Color.primary
                     )
@@ -252,13 +248,14 @@ struct WorkshopKarigarScreen: View {
         } header: {
             LedgerHeading(title: "Now")
         } footer: {
-            Text(nowFootnote(silver))
+            // The one thing worth saying about these figures: they are not to be added up. Silver is its own section.
+            if session.isOwner { Text("The pieces' estimated weight and the gold khata are two measures, never added.") }
         }
     }
 
-    /// "March 2026: PKR 40,000 paid" while a pay batch is open, else just where the figure comes from.
-    private func cashHint(_ open: KarigarPay.InBatch?) -> String {
-        guard let open, !open.batch.label.isEmpty else { return "Hisaab cash" }
+    /// "March 2026: PKR 40,000 paid" while a pay batch is open, else nothing (the row says what it is).
+    private func cashHint(_ open: KarigarPay.InBatch?) -> String? {
+        guard let open, !open.batch.label.isEmpty else { return nil }
         return "\(open.batch.label): \(Money.pkr(open.total)) paid"
     }
 
@@ -268,19 +265,6 @@ struct WorkshopKarigarScreen: View {
         }
         var s = p.metals.map { $0.label }.joined(separator: ", ")
         if p.unweighed > 0 { s += " · \(p.unweighed) unweighed" }
-        return s
-    }
-
-    private func nowFootnote(_ silver: KarigarPay.Silver?) -> String {
-        var s = "The pieces' weight is what the jobs say they will weigh"
-        if session.isOwner {
-            s += "; the gold khata is what was handed over and brought back. Two measures, never added."
-        } else {
-            s += "."
-        }
-        if let silver, !silver.rows.isEmpty {
-            s += " Silver received: \(WorkshopLogic.grams3(silver.grams)) \u{00B7} \(Money.pkr(silver.surcharge)) surcharge."
-        }
         return s
     }
 
@@ -317,13 +301,14 @@ struct WorkshopKarigarScreen: View {
             trailing: "\(j.ageDays) d",
             trailingTint: ageTint(j)
         )
+        .lineLimit(1)
     }
 
     private func ageTint(_ j: WorkshopJob) -> Color {
         switch j.urgency {
         case .critical: return Tone.late.color
         case .warning: return Tone.owed.color
-        case .ok: return .primary
+        case .ok: return .secondary
         }
     }
 
@@ -340,7 +325,7 @@ struct WorkshopKarigarScreen: View {
         Section {
             ForEach(p.given) { it in
                 NavigationLink(value: Route(path: "/given")) {
-                    TwoLine(title: it.description, subtitle: nil, trailing: it.date.isEmpty ? nil : ShopDate.say(it.date))
+                    TwoLine(title: it.description, subtitle: nil, trailing: it.date.isEmpty ? nil : ShopDate.say(it.date)).lineLimit(1)
                 }
             }
         } header: {
@@ -379,8 +364,9 @@ struct WorkshopKarigarScreen: View {
             title: j.description,
             subtitle: sub.joined(separator: " · "),
             trailing: statusWords(j.status),
-            trailingTint: j.status == .completed ? Tone.settled.color : Color.primary
+            trailingTint: .secondary
         )
+        .lineLimit(1)
     }
 
     private func statusWords(_ s: KarigarJobStatus) -> String {
@@ -410,21 +396,16 @@ struct WorkshopKarigarScreen: View {
                         .foregroundStyle(Color.accentColor)
                 }
             } header: {
-                LedgerHeading(title: "Hisaab")
-            } footer: {
-                Text("\(rows.count) entries · net = gold still with the karigar")
+                LedgerHeading(title: "Hisaab", count: rows.count)
             }
         }
     }
 
     private func khataTiles(_ p: WorkshopPosition) -> some View {
-        let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
-        let net = p.khataNet
-        let netTint: Color = net > 0.0005 ? Tone.owed.color : (net < -0.0005 ? Tone.settled.color : Color.primary)
-        return LazyVGrid(columns: columns, spacing: 10) {
+        // The net is Now's Gold khata above: said once.
+        return FigureRow {
             FigureTile(label: "Given", value: WorkshopLogic.grams3(p.khataGiven))
             FigureTile(label: "Received", value: WorkshopLogic.grams3(p.khataBack))
-            FigureTile(label: "Net (out)", value: WorkshopLogic.grams3(net), tint: netTint)
         }
         .padding(.vertical, 4)
         .listRowInsets(EdgeInsets())
@@ -435,9 +416,9 @@ struct WorkshopKarigarScreen: View {
         TwoLine(
             title: e.description.isEmpty ? "Entry" : e.description,
             subtitle: ShopDate.say(e.date),
-            trailing: hisaabAmount(e),
-            trailingTint: hisaabTint(e)
+            trailing: hisaabAmount(e)
         )
+        .lineLimit(1)
     }
 
     /// "↑ 12.500g" gold given, "↓ 3.000g" received, else the cash.
@@ -447,12 +428,6 @@ struct WorkshopKarigarScreen: View {
         if e.cashDebit > 0 { return Money.pkr(e.cashDebit) }
         if e.cashCredit > 0 { return "− " + Money.pkr(e.cashCredit) }
         return "—"
-    }
-
-    private func hisaabTint(_ e: HisaabEntry) -> Color {
-        if e.goldDebitGrams > 0 { return Tone.owed.color }
-        if e.goldCreditGrams > 0 { return Tone.settled.color }
-        return .primary
     }
 
     // MARK: Pay batch (owners only)
@@ -483,21 +458,13 @@ struct WorkshopKarigarScreen: View {
                 }
                 .tint(Tone.settled.color)
             } header: {
-                HStack(spacing: 6) {
-                    Image(systemName: "lock.open")
-                    Text(open.batch.label.isEmpty ? "Pay batch" : open.batch.label)
-                    StatusBadge("Active", tone: .settled)
-                }
-                .textCase(nil)
+                LedgerHeading(title: open.batch.label.isEmpty ? "Pay batch" : open.batch.label)
             } footer: {
                 Text(startedWords(open))
             }
         } else {
             Section {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("No active pay batch").font(.headline)
-                    Text("Start a new hisaab to track payments in batches.").font(.subheadline).foregroundStyle(.secondary)
-                }
+                Text("No active pay batch").foregroundStyle(.secondary)
                 Button { ask = .start } label: {
                     Label("Start a pay batch", systemImage: "plus.circle")
                 }
@@ -522,6 +489,7 @@ struct WorkshopKarigarScreen: View {
             subtitle: [ShopDate.say(e.date), e.category].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "),
             trailing: PaymentText.pkr(e.amount)
         )
+        .lineLimit(1)
     }
 
     // MARK: Silver (owners only)
@@ -558,6 +526,7 @@ struct WorkshopKarigarScreen: View {
                 .filter { !$0.isEmpty }.joined(separator: " \u{00B7} "),
             trailing: PaymentText.pkr(t.totalSurcharge)
         )
+        .lineLimit(1)
     }
 
     /// The web's "Delete this silver transaction?": the record goes for good, nothing else with it.
@@ -585,7 +554,7 @@ struct WorkshopKarigarScreen: View {
                         Label("Delete batch", systemImage: "trash")
                     }
                 } label: {
-                    TwoLine(title: s.batch.label, subtitle: settledWords(s), trailing: PaymentText.pkr(s.total))
+                    TwoLine(title: s.batch.label, subtitle: settledWords(s), trailing: PaymentText.pkr(s.total)).lineLimit(1)
                 }
             }
         } header: {
@@ -625,7 +594,7 @@ struct WorkshopKarigarScreen: View {
             DisclosureGroup(isExpanded: expandedBinding("direct")) {
                 ForEach(pay.direct) { e in paymentRow(e) }
             } label: {
-                TwoLine(title: "Direct payments", subtitle: "Not part of any hisaab \u{00B7} \(n) payment\(n == 1 ? "" : "s")", trailing: PaymentText.pkr(pay.directTotal))
+                TwoLine(title: "\(n) payment\(n == 1 ? "" : "s")", subtitle: "Not part of any hisaab", trailing: PaymentText.pkr(pay.directTotal)).lineLimit(1)
             }
         } header: {
             LedgerHeading(title: "Direct payments")

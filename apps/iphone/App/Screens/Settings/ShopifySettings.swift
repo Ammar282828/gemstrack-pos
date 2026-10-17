@@ -183,7 +183,8 @@ private struct ShopifyInnerForm: View {
         !s.configured ? "minus.circle" : (s.connected == true ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
     }
     private func statusTint(_ s: ShopifyStatus) -> Color {
-        !s.configured ? .secondary : (s.connected == true ? Tone.settled.color : Tone.owed.color)
+        // Connected is the normal state: quiet. Only what needs attention is coloured (rule 15).
+        !s.configured ? .secondary : (s.connected == true ? .secondary : Tone.owed.color)
     }
 
     /// /api/shopify/auth?shop=… (as the web's Re-authorize button). It sets its state cookie and sends the
@@ -218,7 +219,7 @@ private struct ShopifyInnerForm: View {
                 LabeledContent("Required") {
                     Label(missing.isEmpty ? "All granted" : "\(missing.count) missing",
                           systemImage: missing.isEmpty ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(missing.isEmpty ? Tone.settled.color : Tone.owed.color)
+                        .foregroundStyle(missing.isEmpty ? Color.secondary : Tone.owed.color)
                 }
                 DisclosureGroup("Permissions") {
                     ForEach(scopeNeeds) { need in
@@ -259,7 +260,7 @@ private struct ShopifyInnerForm: View {
     private func scopeChip(_ title: String, _ ok: Bool) -> some View {
         Label(title, systemImage: ok ? "checkmark.circle.fill" : "xmark.circle")
             .font(.footnote)
-            .foregroundStyle(ok ? Tone.settled.color : Tone.problem.color)
+            .foregroundStyle(ok ? Color.secondary : Tone.problem.color)
             .accessibilityLabel("\(title) \(ok ? "granted" : "missing")")
     }
 
@@ -411,11 +412,10 @@ private struct ShopifyInnerForm: View {
                         Spacer(minLength: 8)
                         if o.amount > 0 { Text(money(o.amount)).font(.subheadline).monospacedDigit() }
                     }
-                    if !o.subtitle.isEmpty {
-                        Text(o.subtitle).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                    }
-                    if !o.date.isEmpty {
-                        Text(ShopDate.say(o.date, withTime: false)).font(.caption).foregroundStyle(.secondary)
+                    // One quiet line under the order: who and when (rule 15); the rest is on the order once imported.
+                    let quiet = [o.subtitle, o.date.isEmpty ? "" : ShopDate.say(o.date, withTime: false)].filter { !$0.isEmpty }
+                    if !quiet.isEmpty {
+                        Text(quiet.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
             }

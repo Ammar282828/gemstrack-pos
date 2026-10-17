@@ -348,15 +348,17 @@ private struct ContactImportPage: View {
         Section {
             ForEach(p.fresh) { (f: SettingsPendingContact) in
                 let off = dropped.contains(f.id)
+                // Two lines and no symbol or badge per row (rule 15): the kind and the tags are words on the quiet line.
+                let quiet = [f.kind == "karigar" ? "Karigar" : "Customer",
+                             "\(f.phone ?? "no number")\(f.extraPhones.isEmpty ? "" : " (+\(f.extraPhones.count) more)")"]
+                    + f.tags.map { $0.uppercased() }
                 HStack(spacing: 12) {
-                    Image(systemName: f.kind == "karigar" ? "hammer" : "person.2").foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(f.name).fontWeight(.medium).strikethrough(off).lineLimit(1)
-                        Text("\(f.phone ?? "no number")\(f.extraPhones.isEmpty ? "" : " (+\(f.extraPhones.count) more)")")
+                        Text(quiet.joined(separator: " · "))
                             .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                     Spacer(minLength: 8)
-                    ForEach(f.tags, id: \.self) { (t: String) in StatusBadge(t.uppercased(), color: .secondary) }
                     Button {
                         if off { dropped.remove(f.id) } else { dropped.insert(f.id) }
                     } label: {

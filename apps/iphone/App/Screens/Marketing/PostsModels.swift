@@ -20,9 +20,16 @@ struct PostPiece: Decodable, Identifiable, Hashable {
     let added: Double?
     let newArrival: Bool
     let hidden: Bool
+    /// The photo already shows its weight (the tray then stamps none by default).
+    let weightOnPhoto: Bool
+    /// "attributes" (taheri.shop's own photographs, whose weights the counter keeps) or "pieces" (the catalogue's).
+    let source: String?
+    /// The catalogue's photo before it was marked, which a design starts from (Mina).
+    let photoSource: String?
+    let sourceMarked: Bool
 
     private enum K: String, CodingKey {
-        case id, name, url, image, thumb, collection, weightGrams, facts, about, added, newArrival, hidden
+        case id, name, url, image, thumb, collection, weightGrams, facts, about, added, newArrival, hidden, weightOnPhoto, source, photoSource, sourceMarked
     }
 
     init(from decoder: Decoder) throws {
@@ -40,6 +47,10 @@ struct PostPiece: Decodable, Identifiable, Hashable {
         added = c.double(.added)
         newArrival = c.bool(.newArrival, default: false)
         hidden = c.bool(.hidden, default: false)
+        weightOnPhoto = c.bool(.weightOnPhoto, default: false)
+        source = c.string(.source)
+        photoSource = c.string(.photoSource).flatMap { (s: String) -> String? in s.isEmpty ? nil : s }
+        sourceMarked = c.bool(.sourceMarked, default: false)
     }
 }
 
@@ -287,39 +298,53 @@ struct PostGoldParts: Decodable {
     }
 }
 
-/// /api/website/post: where a post goes, to name the places in the day's list.
+/// /api/website/post: where a post goes, to name the places in the day's list and to choose them in the tray.
 struct PostAudience: Decodable {
     struct Place: Decodable, Hashable {
         let key: String
         let label: String
         let name: String
-        private enum K: String, CodingKey { case key, label, name }
+        /// Members, when WhatsApp said.
+        let size: Int?
+        private enum K: String, CodingKey { case key, label, name, size }
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: K.self)
             key = c.string(.key, default: "")
             label = c.string(.label, default: "")
             name = c.string(.name, default: "")
+            size = c.int(.size)
         }
     }
 
     let communityName: String?
     let groups: [Place]
+    /// The shop's WhatsApp channel, where one is set (WAHA only).
+    let channelName: String?
+    let channelFollowers: Int?
 
-    private enum K: String, CodingKey { case community, groups }
+    private enum K: String, CodingKey { case community, groups, channel }
     private struct Named: Decodable {
         let name: String
-        private enum E: String, CodingKey { case name }
+        let followers: Int?
+        private enum E: String, CodingKey { case name, followers }
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: E.self)
             name = c.string(.name, default: "")
+            followers = c.int(.followers)
         }
     }
 
-    init() { communityName = nil; groups = [] }
+    init() { communityName = nil; groups = []; channelName = nil; channelFollowers = nil }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: K.self)
         communityName = c.object(.community, of: Named.self)?.name
         groups = c.list(.groups, of: Place.self)
+        let channel = c.object(.channel, of: Named.self)
+        channelName = channel?.name
+        channelFollowers = channel?.followers
     }
+
+    /// No community is set for this shop (WHATSAPP_COMMUNITY_CHAT_ID): nothing can be sent from the tray.
+    var canSend: Bool { communityName != nil }
 }

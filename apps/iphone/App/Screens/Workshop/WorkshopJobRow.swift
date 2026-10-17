@@ -5,8 +5,8 @@ import ERPCore
 /// whether it has left the shop, and what an owner does to it, each a write through the ERP. An order's piece and a
 /// sold piece (an invoice's line): pick a karigar, tick it Given, tick it Done. A stock job (written up by hand, for
 /// the shop's own stock, a repair or a sample) keeps the karigar it was written for: tick it Given, set its status,
-/// change its making details, delete it (the delete code). Assigning, handing over and finishing are three different
-/// moments, and a name picked is not gold gone. An order's or a sold piece's making details are the ERP's page.
+/// delete it (the delete code). Any piece's making details are changed in its Details sheet. Assigning, handing over and
+/// finishing are three different moments, and a name picked is not gold gone.
 struct WorkshopJobRow: View {
     let job: WorkshopJob
     /// Name the karigar on the row (the stage and list layouts; the karigar layout already says it).
@@ -23,7 +23,6 @@ struct WorkshopJobRow: View {
     }
 
     private var isStock: Bool { job.source == .manual }
-    @State private var instructionsOpen = false
 
     /// The stock job's status in the ERP's words.
     private var stockStatus: KarigarJobStatus {
@@ -35,11 +34,11 @@ struct WorkshopJobRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 8) {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 3) {
                     titleLine
-                    badgeLine
+                    secondaryLine
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Menu { menuItems } label: {
@@ -50,16 +49,6 @@ struct WorkshopJobRow: View {
                 .buttonStyle(.borderless)
                 .accessibilityLabel("Actions for " + job.description)
             }
-            referenceLine
-            if job.isOnline {
-                Label("Online sale", systemImage: "bag").font(.caption).foregroundStyle(.secondary)
-            }
-            if showKarigar && !job.isUnassigned && (job.isDone || (isStock && canWrite)) {
-                Label(job.karigarName, systemImage: "hammer").font(.subheadline).foregroundStyle(.secondary)
-            }
-            specLine
-            notesBox
-            Divider()
             controls
             if busy { SkeletonLoading("Updating job").frame(height: 20) }
         }
@@ -69,65 +58,60 @@ struct WorkshopJobRow: View {
         .contextMenu { menuItems }
     }
 
-    // MARK: What it is
+    // MARK: What it is (rule 15: two lines, one colour, and only for what needs a look)
 
+    /// Line one: what it is, and the one thing that needs someone, if any (late, or nobody on it).
     private var titleLine: some View {
-        Text(job.description)
-            .font(.headline)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private var badgeLine: some View {
-        FigureRow(spacing: 8) {
-            Label(stageWords, systemImage: stageSymbol)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(stageTone)
-                .contentTransition(.symbolEffect(.replace))
-            WorkshopAgeBadge(job: job)
-        }
-    }
-
-    private var stageWords: String {
-        if job.isDone { return "Completed" }
-        if job.isUnassigned { return "Needs a karigar" }
-        return job.hasGiven ? "On the bench" : "Ready to give"
-    }
-
-    private var stageSymbol: String {
-        if job.isDone { return "checkmark.circle" }
-        if job.isUnassigned { return "person.badge.plus" }
-        return job.hasGiven ? "hammer" : "shippingbox"
-    }
-
-    private var stageTone: Color {
-        if job.isDone { return Tone.settled.color }
-        if job.isUnassigned { return Tone.owed.color }
-        return job.hasGiven ? Theme.accent : Tone.owed.color
-    }
-
-    /// The order (or invoice) it came off, its customer, and who took it: "on every order in the Workshop".
-    @ViewBuilder
-    private var referenceLine: some View {
-        if let place = referencePlace {
-            VStack(alignment: .leading, spacing: 6) {
-                Button { actions.open(place) } label: {
-                    HStack(spacing: 2) {
-                        Text(job.invoiceId ?? job.orderId ?? "")
-                            .font(.caption.monospaced().weight(.medium))
-                        Image(systemName: "chevron.right").font(.caption2.weight(.semibold))
-                    }
-                    .frame(minHeight: 44, alignment: .leading)
-                }
-                .buttonStyle(.borderless)
-                Text(referenceWords)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(job.description)
+                .font(.headline)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            if let flag {
+                Text(flag.words)
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(flag.tone.color)
+                    .lineLimit(1)
             }
-        } else {
-            Label("Stock work", systemImage: "shippingbox")
-                .font(.caption).foregroundStyle(.secondary)
         }
+    }
+
+    /// What needs a look: a piece two weeks out is late, one a week out is due a word, one with nobody on it needs a
+    /// karigar. On time, on the bench, done: nothing.
+    private var flag: (words: String, tone: Tone)? {
+        if job.isDone { return nil }
+        switch job.urgency {
+        case .critical: return ("\(job.ageDays)d", Tone.late)
+        case .warning: return ("\(job.ageDays)d", Tone.owed)
+        case .ok: return job.isUnassigned ? ("Needs a karigar", Tone.owed) : nil
+        }
+    }
+
+    /// Line two, quiet and one line: where it came from, who has it, its size and weight. The instructions, who took the
+    /// order and the order's page are in the menu.
+    private var secondaryLine: some View {
+        HStack(spacing: 4) {
+            // The one source worth a glyph: an online sale is made for a courier, not the counter.
+            if job.isOnline { Image(systemName: "bag").accessibilityLabel("Online sale") }
+            Text(secondaryWords)
+        }
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+    }
+
+    private var secondaryWords: String {
+        var parts: [String] = []
+        if let ref = job.invoiceId ?? job.orderId { parts.append(ref) } else { parts.append("Stock work") }
+        if let c = job.customerName, !c.isEmpty { parts.append(c) }
+        if showKarigar && !job.isUnassigned { parts.append(job.karigarName) }
+        let meta = WorkshopLogic.meta(job)
+        if !meta.isEmpty { parts.append(meta) }
+        if job.isDone { parts.append(job.hasGiven ? "Done, given " + ShopDate.say(job.givenAt) : "Done") }
+        // Owners have the switch below; anyone else reads whether it went here.
+        else if !canWrite && !job.isUnassigned { parts.append(job.hasGiven ? "Given " + ShopDate.say(job.givenAt) : "Not given yet") }
+        return parts.joined(separator: " · ")
     }
 
     /// The order's own page, or the invoice's page: a sold piece sits on its invoice.
@@ -137,39 +121,9 @@ struct WorkshopJobRow: View {
         return nil
     }
 
-    private var referenceWords: String {
-        var parts: [String] = []
-        if let c = job.customerName, !c.isEmpty { parts.append(c) }
-        parts.append("Taken by " + ((job.takenBy ?? "").isEmpty ? "not recorded" : (job.takenBy ?? "")))
-        return parts.joined(separator: " · ")
-    }
-
-    @ViewBuilder
-    private var specLine: some View {
-        let meta = WorkshopLogic.meta(job)
-        if !meta.isEmpty {
-            Text(meta).font(.caption).foregroundStyle(.secondary)
-        }
-    }
-
-    @ViewBuilder
-    private var notesBox: some View {
-        if let notes = job.notes, !notes.isEmpty {
-            DisclosureGroup(isExpanded: $instructionsOpen) {
-                Text(notes)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 8)
-            } label: {
-                Label("Instructions", systemImage: "note.text")
-                    .font(.subheadline.weight(.medium))
-                    .frame(minHeight: 44)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous))
-        }
+    /// Who took the order or wrote the invoice, for the menu.
+    private var takenByWords: String {
+        "Taken by " + ((job.takenBy ?? "").isEmpty ? "not recorded" : (job.takenBy ?? ""))
     }
 
     // MARK: Who has it, and whether it has gone
@@ -180,20 +134,13 @@ struct WorkshopJobRow: View {
             // A stock job's controls stay while it is done too (the web's): its status can go back, it can be deleted.
             VStack(alignment: .leading, spacing: 12) {
                 if !job.isDone && !job.isUnassigned { givenToggle }
-                FigureRow(spacing: 12) {
-                    statusMenu
-                    Button { actions.details(job) } label: {
-                        Label("Details", systemImage: "pencil").font(.subheadline)
-                            .frame(minHeight: 44)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(busy)
-                }
+                // Details and Delete are in the menu.
+                statusMenu
             }
             .padding(.top, 2)
         } else if canWrite && !job.isDone {
             // Who has it, and whether it has gone: nothing else on the card. A piece with nobody yet has nothing to
-            // hand over, so no switch; the ERP's details are in the card's menu.
+            // hand over, so no switch; its making details are in the card's menu.
             VStack(alignment: .leading, spacing: 12) {
                 FigureRow(spacing: 12) {
                     assignMenu
@@ -208,17 +155,13 @@ struct WorkshopJobRow: View {
                 if !job.isUnassigned { givenToggle }
             }
             .padding(.top, 2)
-        } else if !job.isDone {
-            readOnlyControls
-        } else {
-            Label(job.hasGiven ? "Given " + ShopDate.say(job.givenAt) : "Completed", systemImage: "checkmark.circle")
-                .font(.subheadline).foregroundStyle(.secondary)
         }
+        // Read only, or done: line two says who has it and whether it went; nothing more on the card.
     }
 
-    /// An order's or a sold piece's making details (name, size, weight, instructions, sample picture) are edited on
-    /// the ERP's Workshop page; a stock job's are the Details sheet.
-    private var showsDetails: Bool { isOwner && !isStock }
+    /// An order's or a sold piece's making details (name, size, weight, instructions, sample picture), from the menu; a
+    /// stock job's Details sit on the card too.
+    private var showsDetails: Bool { canWrite && !isStock }
 
     private var statusMenu: some View {
         Menu {
@@ -295,28 +238,15 @@ struct WorkshopJobRow: View {
         return "Given to karigar"
     }
 
-    /// A piece the phone does not change (staff's view): who has it and whether it went.
-    @ViewBuilder
-    private var readOnlyControls: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            VStack(alignment: .leading, spacing: 6) {
-                Image(systemName: "hammer").foregroundStyle(.secondary)
-                if job.isUnassigned {
-                    Text("No karigar yet").foregroundStyle(Tone.owed.color)
-                } else {
-                    Text(job.karigarName).fontWeight(.medium)
-                    Text(job.hasGiven ? "Given " + ShopDate.say(job.givenAt) : "Not given yet")
-                        .foregroundStyle(job.hasGiven ? Color.secondary : Tone.owed.color)
-                }
-            }
-            .font(.subheadline)
-        }
-    }
-
     // MARK: Long press
 
     @ViewBuilder
     private var menuItems: some View {
+        // What the card leaves out: who took it and the karigar's instructions.
+        Section {
+            Text(takenByWords)
+            if let notes = job.notes, !notes.isEmpty { Text("Instructions: " + notes) }
+        }
         if let place = referencePlace {
             Button { actions.open(place) } label: {
                 Label("Open " + (job.invoiceId ?? job.orderId ?? ""), systemImage: "doc.text")
@@ -327,9 +257,9 @@ struct WorkshopJobRow: View {
                 Label("Open " + job.karigarName, systemImage: "hammer")
             }
         }
-        if showsDetails {
-            Button { actions.open(WorkshopPlace.workshopPage) } label: {
-                Label("Details in the ERP", systemImage: "arrow.up.right.square")
+        if showsDetails && !busy {
+            Button { actions.details(job) } label: {
+                Label("Details", systemImage: "pencil")
             }
         }
         if canWrite && !busy {

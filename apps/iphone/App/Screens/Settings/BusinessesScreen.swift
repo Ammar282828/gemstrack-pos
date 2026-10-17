@@ -36,7 +36,7 @@ struct BusinessesScreen: View {
                 } header: {
                     LedgerHeading(title: "Your businesses", count: store.list.count)
                 } footer: {
-                    Text("Each business keeps its own sign-in, books, drafts and alerts on this phone. Tap one to open it.")
+                    Text("Each business keeps its own sign-in, books, drafts and alerts on this phone.")
                 }
                 addSection
             }
@@ -75,9 +75,9 @@ struct BusinessesScreen: View {
         Button { choose(b) } label: {
             HStack(spacing: 14) {
                 BusinessBadge(business: b, size: 44)
+                // Two lines (rule 15): the name, then one quiet line of where it is and who is signed in.
                 VStack(alignment: .leading, spacing: 2) {
                     Text(b.displayName).font(.headline).foregroundStyle(.primary).lineLimit(1)
-                    Text(b.host).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                     status(b)
                 }
                 Spacer(minLength: 8)
@@ -98,15 +98,16 @@ struct BusinessesScreen: View {
         .accessibilityHint(isOpen ? "Open now" : "Opens this business")
     }
 
+    /// Signed in is the normal state, in quiet words; only a business with no iPhone sign-in gets a colour.
     @ViewBuilder private func status(_ b: Business) -> some View {
         if House.isDemo {
-            Label("Demo: made-up books", systemImage: "play.circle").font(.caption).foregroundStyle(.secondary)
+            Text("Demo: made-up books").font(.caption).foregroundStyle(.secondary).lineLimit(1)
         } else if b.firebaseOptions == nil {
-            Label("iPhone sign-in not set up", systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(Tone.owed.color)
+            Text("\(b.host) · iPhone sign-in not set up").font(.caption).foregroundStyle(Tone.owed.color).lineLimit(1)
         } else if let email = who[b.id] {
-            Label(email, systemImage: "checkmark.circle.fill").font(.caption).foregroundStyle(Tone.settled.color).lineLimit(1)
+            Text("\(b.host) · \(email)").font(.caption).foregroundStyle(.secondary).lineLimit(1)
         } else {
-            Label("Signed out", systemImage: "person.crop.circle.badge.questionmark").font(.caption).foregroundStyle(.secondary)
+            Text("\(b.host) · signed out").font(.caption).foregroundStyle(.secondary).lineLimit(1)
         }
     }
 

@@ -5,8 +5,9 @@ import ERPCore
 /// karigars, and the money. Setting the status, ticking a piece done, recording an advance, editing,
 /// finalizing, the slip, cancelling or unlocking the invoice, refunding, deleting (behind the delete code),
 /// booking and tracking the courier and sending the customer an update are native (OrderUndoSheets,
-/// OrderCourierSheet, OrderTrackingSheet, OrderLeopardsSheet, OrderNotifySheet); giving a piece out is the
-/// ERP's own page, one tap away.
+/// OrderCourierSheet, OrderTrackingSheet, OrderLeopardsSheet, OrderNotifySheet), and so is everything else the
+/// page does: picking a piece's karigar, giving pieces out (the Workshop board), taking a piece off and deleting
+/// an advance (behind the delete code), and each piece's sample photo.
 ///
 /// The page reads as the ledger (App/UI/Ledger.swift, reordered in the iPhone review of 2026-10-12): the hero
 /// card first (who it is for, what is owed, when it was promised, how far it has come, how to reach them);
@@ -26,6 +27,8 @@ struct OrderScreen: View {
     @State private var confirmCancel = false
     @State private var updatingStatus = false
     @State private var ticking: Int?
+    /// A piece whose karigar is being picked.
+    @State private var assigning: Int?
     @State private var failure: String?
     @State private var undo: OrderUndoAsk?
     @State private var booking = false
@@ -42,9 +45,9 @@ struct OrderScreen: View {
     @State private var cancelTick = 0
 
     var body: some View {
-        // New order is the ERP's own page, and "/orders/" + "add" reaches this screen as an order id.
+        // "/orders/" + "add" can reach this screen as an order id: it is New order's form (NewOrderRoutes).
         if id == "add" {
-            WebScreen(path: "/orders/add")
+            NewOrder()
         } else {
             screen
         }
@@ -87,7 +90,7 @@ struct OrderScreen: View {
             Group {
                 if let told { toldSection(told) }
                 if OrdersLogic.isOnline(order) {
-                    OrderOnlineSection(order: order, openWeb: { web = $0 }, leopards: { leopardsOpen = true })
+                    OrderOnlineSection(order: order, leopards: { leopardsOpen = true })
                 }
                 piecesSection(order)
                 if OrdersLogic.hasInvoice(order) {
@@ -190,8 +193,8 @@ struct OrderScreen: View {
         return parts.joined(separator: " \u{00B7} ")
     }
 
-    /// What is still owed, as the page's one big figure (amber), or Paid / In credit in a pill once nothing is.
-    /// A cancelled or refunded order has no money left to say.
+    /// What is still owed, as the page's one big figure (amber), or what is in credit (teal); paid says nothing
+    /// (CONVENTIONS rule 15). A cancelled or refunded order has no money left to say.
     @ViewBuilder
     private func heroFigure(_ order: Order, stage: OrderStage, owed: Double, invoice: Invoice?) -> some View {
         if stage != .closed {
@@ -204,17 +207,19 @@ struct OrderScreen: View {
                         .tracking(0.6)
                     HeroAmount(amount: due, tone: Tone.owed.color)
                 } else if due < -0.5 {
-                    Pill("In credit", tone: .credit)
+                    Text("IN CREDIT")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .tracking(0.6)
                     HeroAmount(amount: -due, tone: Tone.credit.color)
-                } else {
-                    Pill("Paid", tone: .settled, symbol: "checkmark")
                 }
             }
         }
     }
 
     /// The promised day as a leaf, and how it is going: red once late, amber on the day and inside the bench
-    /// week (with "Urgent"), quiet once the order is finished (components/shared/promise-line.tsx).
+    /// week, quiet once the order is finished (components/shared/promise-line.tsx). The line's own colour says
+    /// it is urgent: no second tag.
     private func promiseRow(_ order: Order, now: Date) -> some View {
         let t = orderTiming(order, now: now)
         let p = OrdersLogic.promise(order, now: now)
@@ -224,11 +229,8 @@ struct OrderScreen: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(OrdersLogic.promiseLine(order, now: now))
                     .font(.subheadline.weight(tone == .quiet ? .regular : .semibold))
-                    .foregroundStyle(tone == .late ? tone.color : (p.undated ? Color.secondary : Color.primary))
+                    .foregroundStyle(tone == .quiet ? (p.undated ? Color.secondary : Color.primary) : tone.color)
                     .monospacedDigit()
-                if p.urgent && t.state != .late {
-                    Pill("Urgent", tone: .owed)
-                }
             }
             Spacer(minLength: 0)
         }
@@ -297,22 +299,30 @@ struct OrderScreen: View {
         let lines = OrdersLogic.advanceLines(order)
         let exchanges = orderExchanges(order)
         let rates = OrdersLogic.rateLine(order)
-        // One advance and no exchange is the split's Paid figure already; the line only says more than that.
-        let showAdvance = order.advancePayment > 0 && (lines.count > 1 || exchangeValue > 0)
+        let canDelete = OrderActions.canDeleteAdvance(order, isOwner: session.isOwner)
+        // One advance and no exchange is the split's Paid figure already; the line only says more than that, or
+        // carries the advance's delete for an owner.
+        let showAdvance = order.advancePayment > 0 && (lines.count > 1 || exchangeValue > 0 || (canDelete && lines.count == 1))
         Section {
-            // The page's own sums, so the three always add up: the pieces less the discount, what has come in
-            // (the cash advances and the gold taken in exchange: both are payment, decision "Exchange as cash"),
-            // and the balance due (OrdersLogic.balance).
-            MoneySplit(total: subtotal - discount, paid: order.advancePayment + exchangeValue,
-                       due: OrdersLogic.balance(order), paidLabel: "Paid")
-                .padding(.vertical, 6)
+            // The page's own sums: the pieces less the discount, and what has come in (the cash advances and the
+            // gold taken in exchange: both are payment, decision "Exchange as cash"). What is still due is the hero's
+            // one figure (OrdersLogic.balance), so it is not said again here (CONVENTIONS rule 15).
+            MoneyRow("Total", subtotal - discount, emphasis: true)
+            MoneyRow("Paid", order.advancePayment + exchangeValue)
             DisclosureGroup("Breakdown") {
                 MoneyRow("Pieces", subtotal)
                 if discount > 0 { MoneyRow("Discount", -discount, signed: true) }
-                if showAdvance { MoneyRow("Advance paid", -order.advancePayment, signed: true) }
+                if showAdvance {
+                    // One advance: its delete sits on this line; several: each line has its own below.
+                    MoneyRow("Advance paid", -order.advancePayment, signed: true)
+                        .advanceDeletion(canDelete && lines.count == 1 ? lines.first : nil) { l in undo = OrderUndo.deleteAdvance(order, line: l) }
+                }
                 // Each advance with its day and how it was paid: these become the invoice's payments.
                 if lines.count > 1 {
-                    ForEach(lines) { l in advanceLine(l) }
+                    ForEach(lines) { l in
+                        advanceLine(l)
+                            .advanceDeletion(canDelete ? l : nil) { l in undo = OrderUndo.deleteAdvance(order, line: l) }
+                    }
                 }
                 if exchangeValue > 0 { MoneyRow("Taken in exchange", -exchangeValue, signed: true) }
                 ForEach(Array(exchanges.enumerated()), id: \.offset) { pair in
@@ -362,9 +372,10 @@ struct OrderScreen: View {
         let invoiceId = order.invoiceId ?? ""
         let rates = OrdersLogic.rateLine(order)
         Section {
+            // What is due is the hero's figure; here the total and what came in.
             if let inv = invoice {
-                MoneySplit(total: inv.grandTotal, paid: inv.amountPaid, due: inv.balanceDue)
-                    .padding(.vertical, 6)
+                MoneyRow("Total", inv.grandTotal, emphasis: true)
+                MoneyRow("Paid", inv.amountPaid)
             }
             if !rates.isEmpty {
                 Text(rates)
@@ -372,16 +383,7 @@ struct OrderScreen: View {
                     .foregroundStyle(.secondary)
             }
             NavigationLink(value: Route(path: "/invoices/\(invoiceId)")) {
-                HStack {
-                    Label("Invoiced \u{00B7} \(invoiceId)", systemImage: "doc.text")
-                    Spacer(minLength: 8)
-                    if owed > 0.5 {
-                        Text(Money.pkr(owed) + " owed")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Tone.owed.color)
-                            .monospacedDigit()
-                    }
-                }
+                Text("Invoiced \u{00B7} \(invoiceId)")
             }
         } header: {
             LedgerHeading(title: "Money")
@@ -405,6 +407,9 @@ struct OrderScreen: View {
 
     private func piecesSection(_ order: Order) -> some View {
         let invoiced = OrdersLogic.hasInvoice(order)
+        let canRemove = OrderActions.canRemovePiece(order, isOwner: session.isOwner)
+        // The page's inline picker: an owner's (setPieceKarigar), until the order is invoiced.
+        let karigars = session.isOwner && !invoiced ? workshopLive(book.karigars.items) : []
         let counts = pieceCounts(order.items)
         // Open pieces first; the finished ones follow, quieter. Each keeps its own index for the tick.
         let unfinished: [Int] = order.items.indices.filter { !order.items[$0].isCompleted }
@@ -418,9 +423,25 @@ struct OrderScreen: View {
                     karigar: karigarName(order.items[i]),
                     canTick: session.isOwner && !invoiced,
                     busy: ticking == i,
-                    showBreakdown: session.isOwner
-                ) { done in
-                    tick(order, i, done)
+                    showBreakdown: session.isOwner,
+                    onTick: { done in tick(order, i, done) },
+                    assign: karigars.isEmpty ? nil : OrderPieceAssign(karigars: karigars, busy: assigning == i) { kid in
+                        assign(order, i, kid)
+                    }
+                )
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    if canRemove {
+                        Button(role: .destructive) { undo = OrderUndo.removePiece(order, index: i) } label: {
+                            Label("Remove", systemImage: "trash")
+                        }
+                    }
+                }
+                .contextMenu {
+                    if canRemove {
+                        Button(role: .destructive) { undo = OrderUndo.removePiece(order, index: i) } label: {
+                            Label("Remove this piece", systemImage: "trash")
+                        }
+                    }
                 }
             }
             if order.items.isEmpty {
@@ -434,15 +455,8 @@ struct OrderScreen: View {
                 }
             }
         } header: {
-            VStack(alignment: .leading, spacing: 8) {
-                LedgerHeading(title: "Pieces", count: counts.total,
-                              trailing: counts.total > 0 ? "\(counts.done) of \(counts.total) done" : nil)
-                if counts.total > 0 {
-                    ProgressView(value: Double(counts.done), total: Double(counts.total))
-                        .tint(counts.done == counts.total ? Tone.settled.color : Theme.accent)
-                        .accessibilityLabel("\(counts.done) of \(counts.total) pieces done")
-                }
-            }
+            // A title and one figure (CONVENTIONS rule 15): how far the pieces have come.
+            LedgerHeading(title: "Pieces", trailing: counts.total > 0 ? "\(counts.done) of \(counts.total) done" : nil)
         }
     }
 
@@ -656,12 +670,10 @@ struct OrderScreen: View {
                     }
                 }
             }
-            Section("More") {
-                if canUndo {
+            if canUndo {
+                Section("More") {
                     Button { undo = OrderUndo.unlockAndEdit(order) } label: { Label("Unlock & edit", systemImage: "lock.open") }
                 }
-                // Giving a piece out, and anything else the page has.
-                Button { web = .orderPage(order.id) } label: { Label("Open in the ERP", systemImage: "globe") }
             }
             if canUndo || canRefund || canDelete {
                 Section {
@@ -723,6 +735,21 @@ struct OrderScreen: View {
         }
     }
 
+    /// Owners pick a piece's karigar: the bench's own write, which moves a Pending order on once every piece has
+    /// one (lib/writes/order-status.ts).
+    private func assign(_ order: Order, _ index: Int, _ karigarId: String) {
+        if assigning != nil || (order.items.indices.contains(index) && (order.items[index].karigarId ?? "none") == karigarId) { return }
+        assigning = index
+        Task { @MainActor in
+            do {
+                _ = try await ERPAPI.shared.write("setPieceKarigar", ["orderId": order.id, "index": index, "karigarId": karigarId])
+            } catch {
+                failure = error.localizedDescription
+            }
+            assigning = nil
+        }
+    }
+
     /// Owners tick a piece done; the last one finishes the order, and unticking a finished one sends it
     /// back to the karigars (the server works that out: lib/order-stage.ts).
     private func tick(_ order: Order, _ index: Int, _ done: Bool) {
@@ -740,6 +767,22 @@ struct OrderScreen: View {
 }
 
 extension View {
+    /// An advance line's delete, when it has one: a swipe and a held press, as a payment's on an invoice.
+    @ViewBuilder
+    fileprivate func advanceDeletion(_ line: OrdersLogic.AdvanceLine?, _ ask: @escaping (OrdersLogic.AdvanceLine) -> Void) -> some View {
+        if let line {
+            self
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) { ask(line) } label: { Label("Delete", systemImage: "trash") }
+                }
+                .contextMenu {
+                    Button(role: .destructive) { ask(line) } label: { Label("Delete this advance", systemImage: "trash") }
+                }
+        } else {
+            self
+        }
+    }
+
     /// A card standing alone in an Orders list: no row background, separator or inset of its own.
     func ordersCardRow() -> some View {
         self

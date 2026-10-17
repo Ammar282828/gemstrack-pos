@@ -54,6 +54,8 @@ struct AdsStatusAnswer: Decodable {
         let live: Live?
         let privacyPage: String
         let deletionPage: String
+        /// Where Facebook's login comes back to on this house's ERP (meta.ts redirectUri).
+        let redirectUri: String?
 
         struct Live: Decodable {
             let privacyPolicyUrl: String?
@@ -72,7 +74,7 @@ struct AdsStatusAnswer: Decodable {
             var ready: Bool { privacyPolicyUrl != nil && category != nil && icon }
         }
 
-        private enum K: String, CodingKey { case id, secret, secretName, tokenSecret, tokenStore, project, loginConfigId, loginConfigFromEnv, live, pages }
+        private enum K: String, CodingKey { case id, secret, secretName, tokenSecret, tokenStore, project, loginConfigId, loginConfigFromEnv, live, pages, redirectUri }
         private enum T: String, CodingKey { case exists, write }
         private enum P: String, CodingKey { case privacy, deletion }
 
@@ -92,6 +94,7 @@ struct AdsStatusAnswer: Decodable {
             project = c.string(.project, default: "")
             loginConfigId = c.string(.loginConfigId).flatMap { (s: String) -> String? in s.isEmpty ? nil : s }
             loginConfigFromEnv = c.bool(.loginConfigFromEnv, default: false)
+            redirectUri = c.string(.redirectUri).flatMap { (s: String) -> String? in s.isEmpty ? nil : s }
             live = c.object(.live, of: Live.self)
             if let p = try? c.nestedContainer(keyedBy: P.self, forKey: .pages) {
                 privacyPage = p.string(.privacy, default: "")

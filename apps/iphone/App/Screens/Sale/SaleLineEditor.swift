@@ -121,10 +121,6 @@ struct SaleLineEditor: View {
             }
         } header: {
             LedgerHeading(title: "The piece")
-        } footer: {
-            if create {
-                Text("Describe the piece you are billing. It goes on this invoice only: your stock is untouched.")
-            }
         }
     }
 
@@ -146,7 +142,7 @@ struct SaleLineEditor: View {
             } header: {
                 LedgerHeading(title: "Size")
             } footer: {
-                Text(scale.multi ? scale.label + ". Leave either blank if not applicable." : scale.label)
+                Text(scale.label)
             }
         } else {
             LedgerSection("Size") {

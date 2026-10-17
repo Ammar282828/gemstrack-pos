@@ -552,16 +552,13 @@ struct QuickAction: View {
 
 // MARK: The signed-in person's own
 
-/// "You", beside a row taken by whoever is signed in (decision "Signed-in defaults": lit in place, never
-/// sorted or filtered). It replaces the tinted row and its bar.
+/// A row taken by whoever is signed in (decision "Signed-in defaults": lit in place, never sorted or filtered):
+/// a small figure in the quiet colour, not a capsule (CONVENTIONS rule 15, "No tags for the obvious").
 struct MineTag: View {
     var body: some View {
-        Text("You")
-            .font(.caption2.weight(.bold))
-            .foregroundStyle(Theme.accent)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .overlay(Capsule().strokeBorder(Theme.accent.opacity(0.5), lineWidth: 1))
+        Image(systemName: "person.fill")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
             .accessibilityLabel("Taken by you")
     }
 }

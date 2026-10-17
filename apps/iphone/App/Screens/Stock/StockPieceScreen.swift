@@ -3,15 +3,21 @@ import ERPCore
 
 /// One piece in stock (src/app/products/[sku]/page.tsx): its photo, what it sells for at today's
 /// rates and how that adds up, and what it is made of. Selling it opens the sale form and Edit the
-/// native product form (StockPieceForm); printing its tag and deleting it (which asks for the delete
-/// code) are the ERP's own pages. A piece that has left the stock reads "Sold", with the invoice it
-/// went out on.
+/// native product form (StockPieceForm); Print tag its QR and its label CSV (StockPieceTagSheet), and
+/// Delete asks for the delete code and the ERP deletes it (`deleteProduct`). A piece that has left the
+/// stock reads "Sold", with the invoice it went out on.
 struct StockPieceScreen: View {
     let sku: String
 
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
+    @Environment(\.dismiss) private var dismiss
     @State private var go: Route?
+    @State private var tagging: Product?
+    @State private var deletion: OwnerDeletion?
+    /// Set once the ERP has deleted the piece: the page goes back to the list as the code's sheet closes, as the
+    /// web's goes to /products.
+    @State private var deleted = false
 
     var body: some View {
         ShelfState(loaded: book.products.loaded, error: book.products.error, offline: book.products.offline) {
@@ -25,6 +31,13 @@ struct StockPieceScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .zoomDestination(id: StockKit.piecePath(sku))
         .stockDestination($go)
+        .sheet(item: $tagging) { (p: Product) in
+            StockPieceTagSheet(product: p)
+        }
+        .sheet(item: $deletion, onDismiss: { if deleted { dismiss() } }) { (d: OwnerDeletion) in
+            OwnerDeleteCodeSheet(deletion: d) { deleted = true }
+        }
+        .destructiveFeedback(trigger: deleted)
         .task {
             book.products.need()
             book.settings.need()
@@ -41,7 +54,7 @@ struct StockPieceScreen: View {
             heroSection(p)
             priceSection(p, costs, settings)
             if !p.isCustomPrice { specsSection(p) }
-            if session.isOwner { erpSection(p) }
+            if session.isOwner { actionsSection(p) }
             }
             .houseRows()
         }
@@ -75,10 +88,10 @@ struct StockPieceScreen: View {
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-            VStack(alignment: .leading, spacing: 6) {
-                Pill(StockKit.categoryTitle(p.categoryId), tone: .house)
+            // The SKU is the page's title; the category is said once, quietly, not as a pill.
+            VStack(alignment: .leading, spacing: 4) {
                 Text(p.name).font(.title2.weight(.bold))
-                Text(p.sku).font(.subheadline.monospaced()).foregroundStyle(.secondary)
+                Text(StockKit.categoryTitle(p.categoryId)).font(.subheadline).foregroundStyle(.secondary)
             }
             .padding(.vertical, 2)
         }
@@ -125,7 +138,7 @@ struct StockPieceScreen: View {
         return costs.totalPrice > 0 ? Money.pkr(costs.totalPrice) : "Price N/A"
     }
 
-    /// Metal, wastage, making, diamonds, stones and sundries, then the total. Silver has no wastage
+    /// Metal, wastage, making, diamonds, stones and sundries (the total is the hero). Silver has no wastage
     /// or making line: its rate carries them (lib/pricing.ts).
     @ViewBuilder
     private func breakdown(_ p: Product, _ c: ProductCosts, _ settings: Settings?) -> some View {
@@ -140,7 +153,7 @@ struct StockPieceScreen: View {
         if p.hasDiamonds { moneyRow("Diamond charges", c.diamondCharges) }
         moneyRow(p.hasDiamonds ? "Other stone charges" : "Stone charges", c.stoneCharges)
         moneyRow("Misc. charges", c.miscCharges)
-        MoneyRow("Total", c.totalPrice, emphasis: true)
+        // The total is the hero above: not said twice.
     }
 
     private func moneyRow(_ label: String, _ amount: Double) -> some View {
@@ -188,28 +201,26 @@ struct StockPieceScreen: View {
         }
     }
 
-    // MARK: Edit, and the ERP's own pages
+    // MARK: Edit, the tag and Delete
 
-    /// Edit is the native product form. Print tag and Delete are the ERP's page: its label printer takes
-    /// the tag's QR and CSV, and Delete asks for the delete code there. Owners only (Stock is theirs).
+    /// Edit is the native product form; Print tag the tag's QR and the CSV its label printer takes; Delete asks
+    /// for the delete code, which the ERP checks as it deletes. Owners only (Stock is theirs).
     @ViewBuilder
-    private func erpSection(_ p: Product) -> some View {
+    private func actionsSection(_ p: Product) -> some View {
         Section {
             NavigationLink(value: Route(path: StockKit.editPath(p.sku))) {
                 Label("Edit", systemImage: "pencil")
             }
-        }
-        Section {
-            NavigationLink(value: Route(path: StockKit.piecePath(p.sku, web: true))) {
+            Button { tagging = p } label: {
                 Label("Print tag", systemImage: "printer")
             }
-            NavigationLink(value: Route(path: StockKit.piecePath(p.sku, web: true))) {
+        }
+        Section {
+            Button(role: .destructive) { deletion = StockKit.deletion(p) } label: {
                 Label("Delete", systemImage: "trash").foregroundStyle(Tone.problem.color)
             }
-        } header: {
-            LedgerHeading(title: "On the ERP's page")
         } footer: {
-            Text("These open the ERP's own page. Delete asks for the delete code there.")
+            Text("Delete asks for the delete code. The piece is gone for good.")
         }
     }
 }

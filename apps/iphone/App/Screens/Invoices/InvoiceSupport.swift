@@ -17,18 +17,13 @@ enum InvoiceFacts {
         return part.addingPercentEncoding(withAllowedCharacters: allowed) ?? part
     }
 
-    /// "/invoices/INV-000123": the invoice page. `web` asks for the ERP's own page (a native
-    /// screen's "Open in the ERP": print, send, refund, delete). `doing` is what that page does as it
-    /// opens, once (invoice-viewer.tsx `?do=`, the voice assistant's): "print" draws the PDF Print saves
-    /// and hands it to the phone's share sheet; "share" sends it on WhatsApp.
-    static func path(_ id: String, web: Bool = false, doing: String? = nil) -> String {
-        var query: [String] = []
-        if web { query.append("web=1") }
-        if let doing { query.append("do=" + doing) }
-        return "/invoices/" + encode(id) + (query.isEmpty ? "" : "?" + query.joined(separator: "&"))
+    /// "/invoices/INV-000123": the invoice page, native (InvoiceScreen): everything the ERP's page does is
+    /// done there, so the app never asks for that page (`?web=1`) or for what it does as it opens (`?do=`).
+    static func path(_ id: String) -> String {
+        "/invoices/" + encode(id)
     }
 
-    /// The sale form on an invoice (components/sale/sale-page.tsx), which has no native screen.
+    /// The sale form on an invoice (components/sale/sale-page.tsx): New sale's own form, native (SaleRoutes).
     static func editPath(_ id: String) -> String { "/invoices/" + encode(id) + "/edit" }
 
     /// Still owing after this many days reads red, not orange. A way to see the old debts at a
@@ -106,9 +101,10 @@ enum InvoiceFacts {
 
     /// The page a customer is sent (lib/share-token.ts `invoiceShareUrl`): `/view-invoice/<id>?t=<key>`.
     /// That page answers only to the invoice's own key, so an invoice from before keys existed has
-    /// no link here: the ERP page makes its key as it sends (Send on WhatsApp).
-    static func shareURL(_ inv: Invoice) -> URL? {
-        guard let key = inv.shareToken, !key.isEmpty else { return nil }
+    /// no link here until Send on WhatsApp gives it one (`giveShareKey`); `key` is that one, until the
+    /// invoice on the shelf carries it.
+    static func shareURL(_ inv: Invoice, key given: String? = nil) -> URL? {
+        guard let key = given ?? inv.shareToken, !key.isEmpty else { return nil }
         var origin = House.serverURL.absoluteString
         while origin.hasSuffix("/") { origin.removeLast() }
         return URL(string: "\(origin)/view-invoice/\(component(inv.id))?t=\(component(key))")
@@ -220,6 +216,37 @@ enum InvoiceFacts {
         return (out["fileName"] as? String ?? "The PDF", out["to"] as? String ?? phone)
     }
 
+    /// The link's key for an invoice from before keys existed, given as the page gives it when it first sends the
+    /// link (lib/writes/invoice-share-key.ts, through /api/app/write): an owner's, as that page's own write is.
+    @MainActor
+    static func giveShareKey(_ inv: Invoice) async throws -> String {
+        let out = try await ERPAPI.shared.write("giveInvoiceShareKey", ["invoiceId": inv.id])
+        guard let key = out["shareToken"] as? String, !key.isEmpty else {
+            throw ERPAPI.Failure(status: 0, message: "The ERP gave no key for the link. Try again.")
+        }
+        return key
+    }
+
+    // MARK: The payment link (invoices/page.tsx `handleSendPaymentLink`)
+
+    /// Shopify's checkout for what is owed: the ERP makes or refreshes the invoice's draft order every time, so
+    /// the link matches the invoice as it is now (/api/shopify/push/draft-order, owners and staff).
+    @MainActor
+    static func paymentLink(_ inv: Invoice) async throws -> URL {
+        let out = try await ERPAPI.shared.send("/api/shopify/push/draft-order", ["invoiceId": inv.id])
+        guard let s = out["checkoutUrl"] as? String, let url = URL(string: s) else {
+            throw ERPAPI.Failure(status: 0, message: "Shopify gave no checkout link. Try again.")
+        }
+        ServerShelf.wake()
+        return url
+    }
+
+    /// The list's button: an invoice the page calls Unpaid (`getDocStatus`: not refunded, a balance above 0). Its
+    /// words say whether a link was made before.
+    static func offersPaymentLink(_ inv: Invoice) -> Bool { inv.status != .refunded && inv.balanceDue > 0 }
+
+    static func paymentLinkTitle(_ inv: Invoice) -> String { (inv.shopifyCheckoutUrl ?? "").isEmpty ? "Payment link" : "Copy payment link" }
+
     // MARK: Send on WhatsApp (invoice-viewer.tsx)
 
     /// The number the ERP page's WhatsApp box starts with: the invoice's own, else its customer's, as the ERP
@@ -275,25 +302,33 @@ extension View {
     }
 }
 
-// MARK: The balance, as one pill
+// MARK: The balance, said only when it needs a look
 
-/// Where an invoice's balance stands, the one badge a row carries: "Paid", "PKR 86,000 due" (red once it is
-/// old), "PKR 3,000 credit", "Refunded" (invoice-credit.ts `balanceLine`, never a negative balance).
+/// Where an invoice's balance stands, as words and not a capsule (CONVENTIONS rule 15): "PKR 86,000 due" amber
+/// (red once it is old), "PKR 3,000 credit" teal, "Refunded" quiet; a settled invoice says nothing, since paid is
+/// what an invoice is meant to be (invoice-credit.ts `balanceLine`, never a negative balance).
 struct InvoiceBalancePill: View {
     let invoice: Invoice
 
     var body: some View {
         let line = balanceLine(invoice.balanceDue)
-        let tone = InvoiceFacts.balanceTone(invoice)
         if invoice.status == .refunded {
-            Pill("Refunded", tone: .quiet)
+            words("Refunded", .secondary)
         } else {
             switch line.state {
-            case .due: Pill("\(Money.pkr(line.amount)) due", tone: tone)
-            case .credit: Pill("\(Money.pkr(line.amount)) credit", tone: .credit)
-            case .paid: Pill("Paid", tone: .settled)
+            case .due: words("\(Money.pkr(line.amount)) due", InvoiceFacts.balanceTone(invoice).color)
+            case .credit: words("\(Money.pkr(line.amount)) credit", Tone.credit.color)
+            case .paid: EmptyView()
             }
         }
+    }
+
+    private func words(_ text: String, _ colour: Color) -> some View {
+        Text(text)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(colour)
+            .monospacedDigit()
+            .lineLimit(1)
     }
 }
 
@@ -302,27 +337,34 @@ struct InvoiceBalancePill: View {
 /// The ERP page's Send via WhatsApp, by house (STORE_INVOICE_WHATSAPP_PDF), the same from the invoice page and
 /// from a swipe on the list: set `invoice` and it runs. Taheri sends the PDF itself from the shop's line: the ERP
 /// draws it (Print's PDF), sends it and notes the send on the invoice, so it is asked first and then done from
-/// here (InvoiceFacts.sendPDF). With no number on file, or for another number, the ERP's page opens (`web`) for one
-/// to be typed. House of Mina writes the message and the customer's link into WhatsApp on this phone
-/// (InvoiceWhatsAppSheet), unless the invoice predates its link's key, which the page makes as it sends.
+/// here (InvoiceFacts.sendPDF). With no number on file, or for another number, the number is typed here first, as
+/// in the page's box (InvoicePDFNumberSheet). House of Mina writes the message and the customer's link into
+/// WhatsApp on this phone (InvoiceWhatsAppSheet); an invoice from before links had keys is given its key first,
+/// as the page gives it as it sends (an owner's: the page's own Firestore write).
 private struct InvoiceWhatsAppSend: ViewModifier {
     @Binding var invoice: Invoice?
-    @Binding var web: Route?
     let sent: (InvoiceNote) -> Void
 
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
     /// Taheri's send from the shop's line, asked first: it really sends.
     @State private var confirming: Invoice?
+    /// Taheri's send to a number typed here: none on file, or another one.
+    @State private var typing: Invoice?
     /// House of Mina's: the number and the words, then WhatsApp on this phone.
     @State private var linking: Invoice?
+    /// Keys given here, by invoice, until the shelf's invoice carries its own.
+    @State private var keys: [String: String] = [:]
     /// Taheri's PDF on its way from the shop's line, and the ERP's words when it could not go.
     @State private var sendingPDF = false
     @State private var failedOn: Invoice?
     @State private var failure: String?
+    /// Why an old invoice's link could not be given its key.
+    @State private var keyFailure: String?
 
     func body(content: Content) -> some View {
         content
+            .failureAlert($keyFailure, title: "No link yet")
             .onChange(of: invoice) { _, picked in
                 guard let picked else { return }
                 invoice = nil
@@ -332,21 +374,24 @@ private struct InvoiceWhatsAppSend: ViewModifier {
                                 titleVisibility: .visible, presenting: confirming) { (inv: Invoice) in
                 Button(inv.sentOnWhatsApp == nil ? "Send the PDF" : "Send it again") { Task { await sendPDF(inv) } }
                 // The ERP page's box takes another number; its Send goes to whatever is typed there.
-                Button("Another number…") { openWeb(inv) }
+                Button("Another number…") { typing = inv }
             } message: { (inv: Invoice) in
                 Text(words(inv))
             }
             // As the web's error toast: the shop's line could not send, so the link can go from this phone instead.
             .alert("Could not send the PDF", isPresented: failureShown) {
-                if let inv = failedOn, InvoiceFacts.shareURL(inv) != nil {
+                if let inv = failedOn, InvoiceFacts.shareURL(inv, key: keys[inv.id]) != nil {
                     Button("Send a link") { linking = inv }
                 }
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(failure ?? "")
             }
+            .sheet(item: $typing) { (inv: Invoice) in
+                InvoicePDFNumberSheet(invoice: inv, phone: phone(inv)) { (said: InvoiceNote) in sent(said) }
+            }
             .sheet(item: $linking) { (inv: Invoice) in
-                InvoiceWhatsAppSheet(invoice: inv, phone: phone(inv))
+                InvoiceWhatsAppSheet(invoice: inv, phone: phone(inv), key: keys[inv.id])
             }
             .overlay(alignment: .top) {
                 if sendingPDF {
@@ -365,17 +410,27 @@ private struct InvoiceWhatsAppSend: ViewModifier {
         InvoiceFacts.whatsAppPhone(inv, customer: inv.customerId.flatMap { book.customers.item($0) })
     }
 
-    private func openWeb(_ inv: Invoice, doing: String? = nil) {
-        web = Route(path: InvoiceFacts.path(inv.id, web: true, doing: doing))
-    }
-
     private func start(_ inv: Invoice) {
         if session.shop.invoiceWhatsappPdf {
-            if CustomerKit.whatsAppNumber(phone(inv)).isEmpty { openWeb(inv) } else { confirming = inv }
-        } else if InvoiceFacts.shareURL(inv) == nil {
-            openWeb(inv, doing: "share")
+            if CustomerKit.whatsAppNumber(phone(inv)).isEmpty { typing = inv } else { confirming = inv }
+        } else if InvoiceFacts.shareURL(inv, key: keys[inv.id]) == nil {
+            Task { await giveKey(inv) }
         } else {
             linking = inv
+        }
+    }
+
+    /// The page gives an old invoice its link's key as it sends; here it is asked for first, then the sheet opens.
+    private func giveKey(_ inv: Invoice) async {
+        guard session.isOwner else {
+            keyFailure = "This invoice is from before links had keys. An owner sends its first link, which gives it one."
+            return
+        }
+        do {
+            keys[inv.id] = try await InvoiceFacts.giveShareKey(inv)
+            linking = inv
+        } catch {
+            keyFailure = error.localizedDescription
         }
     }
 
@@ -421,9 +476,8 @@ private struct InvoiceWhatsAppSend: ViewModifier {
 }
 
 extension View {
-    /// Send on WhatsApp for whichever invoice `invoice` is set to (InvoiceWhatsAppSend); `web` opens the ERP's page
-    /// where a number has to be typed, `sent` says it went.
-    func invoiceWhatsAppSend(_ invoice: Binding<Invoice?>, web: Binding<Route?>, sent: @escaping (InvoiceNote) -> Void) -> some View {
-        modifier(InvoiceWhatsAppSend(invoice: invoice, web: web, sent: sent))
+    /// Send on WhatsApp for whichever invoice `invoice` is set to (InvoiceWhatsAppSend); `sent` says it went.
+    func invoiceWhatsAppSend(_ invoice: Binding<Invoice?>, sent: @escaping (InvoiceNote) -> Void) -> some View {
+        modifier(InvoiceWhatsAppSend(invoice: invoice, sent: sent))
     }
 }

@@ -302,6 +302,28 @@ AdsPlanScreen on the Studio's own Plan) and the one-off Taheri book import (kept
   cache, a 200 MB disk cache, one download per address) instead of AsyncImage; a customer's and a piece's figures are
   memoised on the shelves' revisions; pages find their record by id rather than walking the shelf.
 
+
+### No buttons to the web, and quiet screens, 2026-10-17
+
+Owner: "A lot of the buttons still lead to old non native screens", then "Also invoices tab is very noisy / Fix that
+noisy issue everywhere / Scan ALL screens". Every `?web=1`, "Open in the ERP" and `WebScreen(` inside a native screen
+is gone (CONVENTIONS rule 5); and a link on an ERP page to a place with a native screen opens that screen (WebBridge
+`open`: a link's click asks first; a `router.push` after a save opens the screen and the page steps back).
+- **Orders:** karigar per piece, remove a piece and delete an advance (delete code; ops-orders2, lib/writes/order-pieces,
+  the browser's too: removing a piece now keeps the discount and advances in the balance), the piece's sample photo,
+  Leopards always native. **Invoices:** the PDF to another number, a first link's key (`giveInvoiceShareKey`), payment
+  links, Shopify CSV import (ops-invoices2, lib/writes/shopify-csv-import: numbers reserved first, never overwriting).
+- **Stock:** the tag sheet (QR, CSV for WEPrint), delete with the delete code (`deleteProduct`, ops-stock3, the
+  browser's too), voice add into the native form (`StockVoiceSeed`).
+- **Workshop and work:** a job's details (`updateOrderPieceDetails`, `updateInvoicePieceDetails`), Revert in the activity
+  log, sign-ins and the emergency lock (`lockDatabase`; ops-work2), a draft from another device in the native form
+  (`WorkDraftContinue`, `WorkDraftSync.adopt`), Design's "Make the ad with AI".
+- **Posts:** the tray (pick, weight, caption, AI caption, story, crop and design, send or queue), Send all and Spread
+  over the day (QueuePlan, SiteWeight in ERPCore); Meta's one-time steps on Setup.
+- **Settings:** the Taheri book import (`importTaheriBook`, ops-settings4), `/settings?tab=`.
+- **Quiet screens** (CONVENTIONS rule 15) across every folder: two-line rows, no badge for the expected state (Paid,
+  running, connected), one coloured thing per row, each figure once, one hero figure, headers with one figure,
+  footers only for consequences.
 ### One app, many businesses (2026-10-16)
 
 Owner: one app for all his businesses, to switch between them and to add more. Until now each house was its own app

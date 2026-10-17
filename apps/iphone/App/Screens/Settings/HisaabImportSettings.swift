@@ -136,8 +136,6 @@ private struct HisaabImportPage: View {
             .foregroundStyle(.secondary)
         } header: {
             LedgerHeading(title: "Instructions and required format")
-        } footer: {
-            Text("Import historical transactions for a customer or karigar from a CSV file (e.g., exported from Easy Khata).")
         }
     }
 
@@ -206,11 +204,10 @@ private struct HisaabImportPage: View {
     private var previewSection: some View {
         Section {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                // A good row says nothing; only a date that did not read or a missing amount is red (rule 15).
                 HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: row.isValidDate ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(row.isValidDate ? Tone.settled.color : Tone.problem.color)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(row.description.isEmpty ? "—" : row.description).lineLimit(2)
+                        Text(row.description.isEmpty ? "—" : row.description).lineLimit(1)
                         Text(row.isValidDate ? OwnerText.shortDate(row.date) : "Invalid Date")
                             .font(.caption)
                             .foregroundStyle(row.isValidDate ? Color.secondary : Tone.problem.color)
@@ -224,7 +221,7 @@ private struct HisaabImportPage: View {
                 }
             }
         } header: {
-            LedgerHeading(title: "Preview data (\(rows.count) rows)")
+            LedgerHeading(title: "Preview data", count: rows.count)
         }
     }
 

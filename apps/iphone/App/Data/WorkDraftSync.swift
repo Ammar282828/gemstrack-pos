@@ -100,6 +100,18 @@ final class WorkDraftSync {
         return out["exists"] as? Bool
     }
 
+    /// A draft from Drafts continued on this phone (DraftsScreen): from now on this phone's work is that draft, so the
+    /// next change writes over it and saving the order or sale removes it, as the web's form does with `?draft=`.
+    /// The phone's own draft before it, if it was sent, stays in Drafts as it was.
+    func adopt(id draftId: String, createdAt: String) {
+        waiting?.cancel()
+        lastSent = ""
+        UserDefaults.standard.set(draftId, forKey: idKey)
+        UserDefaults.standard.set(createdAt.isEmpty ? Date().ISO8601Format() : createdAt, forKey: createdKey)
+        // It is in Drafts already: one finished at the counter since lets go of the phone's copy too.
+        UserDefaults.standard.set(true, forKey: landedKey)
+    }
+
     private func send(_ snap: Snapshot, gen: Int) {
         let values = snap.values
         guard gen == generation, JSONSerialization.isValidJSONObject(values),

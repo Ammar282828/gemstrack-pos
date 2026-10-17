@@ -2,10 +2,11 @@ import SwiftUI
 import ERPCore
 
 /// The order page's undoing moves, native (src/app/orders/[id]/page.tsx): the invoiced banner's Cancel invoice
-/// and Unlock & edit, and the ⋯ menu's Refund order and Delete order. Each says what it will do in the page's
-/// own words and asks for the delete code in the one sheet the owners' pages use (OwnerDeleteCodeSheet, Face ID
-/// key `delete-code`); the ERP checks the code with the change itself (/api/app/write, ops-orders.ts), so
-/// nothing moves unless it was right. Afterwards, as the page: a note, the edit form, or back to the list.
+/// and Unlock & edit, the ⋯ menu's Refund order and Delete order, and the trash on a piece and on an advance.
+/// Each says what it will do in the page's own words and asks for the delete code in the one sheet the owners'
+/// pages use (OwnerDeleteCodeSheet, Face ID key `delete-code`); the ERP checks the code with the change itself
+/// (/api/app/write, ops-orders.ts and ops-orders2.ts), so nothing moves unless it was right. Afterwards, as the
+/// page: a note, the edit form, or back to the list.
 struct OrderUndoAsk: Identifiable {
     enum Then {
         /// The page's toast.
@@ -21,7 +22,7 @@ struct OrderUndoAsk: Identifiable {
     let then: Then
 }
 
-/// The four asks, each built from the order as the screen shows it. The invoice named is the one on screen:
+/// The asks, each built from the order as the screen shows it. The invoice named is the one on screen:
 /// the ERP refuses the undo if the order has been invoiced again since.
 @MainActor
 enum OrderUndo {
@@ -67,6 +68,37 @@ enum OrderUndo {
                 _ = try await ERPAPI.shared.write("deleteOrder", ["orderId": order.id, "deleteCode": code])
             },
             then: .leave
+        )
+    }
+
+    /// Remove a piece (the page's trash on a piece): the piece the screen showed, by its place and its name, so a
+    /// list that moved since is refused rather than the wrong piece taken (ops-orders2.ts).
+    static func removePiece(_ order: Order, index: Int) -> OrderUndoAsk {
+        let description = order.items.indices.contains(index) ? order.items[index].description : ""
+        let said = OrderActions.removedPieceNote(index: index)
+        return OrderUndoAsk(
+            deletion: OwnerDeletion(what: OrderActions.removePieceWhat(order, index: index),
+                                    detail: OrderActions.removePieceDetail(order, index: index)) { code in
+                _ = try await ERPAPI.shared.write("removeOrderPiece", [
+                    "orderId": order.id, "index": index, "description": description, "deleteCode": code,
+                ])
+            },
+            then: .note(Note(title: said.title, detail: said.detail))
+        )
+    }
+
+    /// Delete an advance (the page's trash on an advance line): the line by its place and its amount.
+    static func deleteAdvance(_ order: Order, line: OrdersLogic.AdvanceLine) -> OrderUndoAsk {
+        let said = OrderActions.deletedAdvanceNote(order, amount: line.amount, balance: OrdersLogic.balance(order))
+        return OrderUndoAsk(
+            deletion: OwnerDeletion(what: OrderActions.deleteAdvanceWhat(order, amount: line.amount),
+                                    detail: OrderActions.deleteAdvanceDetail(order, day: ShopDate.say(line.date),
+                                                                             method: line.method, amount: line.amount)) { code in
+                _ = try await ERPAPI.shared.write("deleteOrderAdvance", [
+                    "orderId": order.id, "lineIndex": line.id, "amount": line.amount, "deleteCode": code,
+                ])
+            },
+            then: .note(Note(title: said.title, detail: said.detail))
         )
     }
 }

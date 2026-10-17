@@ -51,16 +51,18 @@ extension SaleForm {
     func lineRow(_ line: SaleLine, _ f: SaleFigures) -> some View {
         // A piece gone from the shelf since it went on the sale (sold at the counter, or on another phone).
         let gone = book.products.loaded && !line.isOneOff && book.products.item(line.sku) == nil
+        // Two lines (CONVENTIONS rule 15): a fixed price or a silver rate is part of the quiet line, not a caption
+        // of its own; only a piece gone from stock says more, since it needs a look.
+        var quiet = spec(line)
+        if line.isCustomPrice {
+            quiet += " · fixed"
+        } else if line.metalType == "silver", let rate = line.silverRatePerGram, rate > 0 {
+            quiet += " · \(SaleNumber.grams(rate))/g"
+        }
         return VStack(alignment: .leading, spacing: 4) {
-            TwoLine(title: line.name.isEmpty ? (line.stockSku ?? "New piece") : line.name, subtitle: spec(line), trailing: Money.pkr(f.price(of: line.sku)))
-            if line.isCustomPrice {
-                Text("Fixed price: \(Money.pkr(line.customPrice ?? 0))").font(.caption).foregroundStyle(Tone.owed.color)
-            }
-            if line.metalType == "silver", !line.isCustomPrice, let rate = line.silverRatePerGram, rate > 0 {
-                Text("Rate: \(SaleNumber.grams(rate))/g").font(.caption).foregroundStyle(.secondary)
-            }
+            TwoLine(title: line.name.isEmpty ? (line.stockSku ?? "New piece") : line.name, subtitle: quiet, trailing: Money.pkr(f.price(of: line.sku)))
             if gone {
-                Label("No longer in stock", systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(Tone.problem.color)
+                Text("No longer in stock").font(.caption).foregroundStyle(Tone.problem.color)
             }
         }
         .contentShape(.rect)
@@ -113,9 +115,6 @@ extension SaleForm {
             }
         } header: {
             LedgerHeading(title: "Pieces")
-        } footer: {
-            let n = draft.lines.count
-            Text("\(n) piece\(n == 1 ? "" : "s"). Tap to edit; swipe to remove.")
         }
     }
 
@@ -275,8 +274,6 @@ extension SaleForm {
             }
         } header: {
             LedgerHeading(title: "Exchange / trade-in")
-        } footer: {
-            Text("Gold or anything else the customer hands over, taken off the bill at an agreed value.")
         }
     }
 
@@ -511,8 +508,6 @@ extension SaleForm {
             }
         } header: {
             LedgerHeading(title: "Delivery")
-        } footer: {
-            Text("Off unless ticked: most sales are handed over at the counter.")
         }
     }
 
@@ -547,7 +542,8 @@ extension SaleForm {
             switch line.state {
             case .due: return Text("Due \(Money.pkr(line.amount))").foregroundStyle(Tone.owed.color)
             case .credit: return Text("In credit \(Money.pkr(line.amount))").foregroundStyle(Tone.credit.color)
-            case .paid: return Text("Paid in full").foregroundStyle(Tone.settled.color)
+            // Paid is what a sale is meant to be: said quietly (CONVENTIONS rule 15).
+            case .paid: return Text("Paid in full").foregroundStyle(.secondary)
             }
         }()
         return ViewThatFits(in: .horizontal) {

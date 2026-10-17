@@ -272,13 +272,11 @@ struct AlertConnectionSections: View {
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(r.title)
-                        Text(r.when(settings) + (on ? "" : " · off"))
-                            .font(.caption).foregroundStyle(.secondary)
-                        if let last {
-                            Text(last.text)
-                                .font(.caption)
-                                .foregroundStyle(last.bad ? Tone.problem.color : Color.secondary)
-                        }
+                        // One quiet line: when it goes and how the last one went, red only when it failed (rule 15).
+                        Text(([r.when(settings) + (on ? "" : " · off")] + (last.map { [$0.text] } ?? [])).joined(separator: " · "))
+                            .font(.caption)
+                            .foregroundStyle(last?.bad == true ? Tone.problem.color : Color.secondary)
+                            .lineLimit(1)
                     }
                     Spacer(minLength: 8)
                     Button {

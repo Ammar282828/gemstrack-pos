@@ -363,7 +363,7 @@ struct StudioBoardEditor: View {
                 }
             }
             .padding(.vertical, 4)
-        } header: { LedgerHeading(title: "Stickers") } footer: { Text("Each is a text layer: size, colour and turn it like any words.") }.houseRows()
+        } header: { LedgerHeading(title: "Stickers") }.houseRows()
     }
 
     // MARK: Edit (the chosen layer, or the list of layers)

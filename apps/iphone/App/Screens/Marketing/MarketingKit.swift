@@ -5,7 +5,8 @@ import ERPCore
 // views (a chip, a link row) that look the same on Posts, Ads and Website.
 
 enum MarketingKit {
-    static let postsWeb = "/posts?web=1"
+    /// The Posts tray (PostTrayScreen): pick website pieces, caption them, send them or queue them.
+    static let trayPrefix = "/marketing/tray"
     static let piecesPath = "/marketing/pieces"
     static let piecePrefix = "/marketing/piece"
     static let websitePath = "/marketing/website"
@@ -15,6 +16,12 @@ enum MarketingKit {
     static func piecePath(_ id: String) -> String {
         let escaped = id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
         return "\(piecePrefix)?id=\(escaped)"
+    }
+
+    /// The tray, empty or starting on one piece.
+    static func trayPath(_ id: String? = nil) -> String {
+        guard let id else { return trayPrefix }
+        return "\(trayPrefix)?id=" + (id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "")
     }
 
     static func pieceId(in path: String) -> String? {

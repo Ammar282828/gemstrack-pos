@@ -18,6 +18,7 @@ import { useAppStore } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { planBookImport, type BookPlan, type Planned, type IncomingCustomer, type IncomingKarigar, type TaheriBook } from '@/lib/import/taheri-book';
 import bookJson from '@/lib/import/taheri-book.json';
+import { bookImportRows, bookWillAdd, ledgerCounts } from '@/lib/writes/taheri-book-import';
 import { PageShell } from '@/components/shared/page-shell';
 import { PageBack } from '@/components/shared/page-back';
 import { Button } from '@/components/ui/button';
@@ -53,11 +54,7 @@ export default function ImportTaheriPage() {
    * across two names, and the copy holding it is not the one anybody will pick from a
    * dropdown afterwards.
    */
-  const ledgerCount = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const e of hisaabEntries) m.set(e.entityId, (m.get(e.entityId) ?? 0) + 1);
-    return m;
-  }, [hisaabEntries]);
+  const ledgerCount = useMemo(() => ledgerCounts(hisaabEntries.map((e) => e.entityId)), [hisaabEntries]);
 
   /** Half-matches are opt-IN. The safe default is to leave the live book alone. */
   const [takeConflicts, setTakeConflicts] = useState(false);
@@ -70,11 +67,9 @@ export default function ImportTaheriPage() {
   );
 
   const c = plan.counts;
-  const willAdd = c.customersNew + c.karigarsNew
-    + (takeConflicts ? c.customersConflict + c.karigarsConflict : 0);
-
-  const wanted = <T,>(rows: Planned<T>[]) =>
-    rows.filter((r) => r.verdict === 'new' || (takeConflicts && r.verdict !== 'settled'));
+  // The one copy of what Import adds (lib/writes/taheri-book-import.ts), which the iPhone app runs on the server.
+  const willAdd = bookWillAdd(plan, takeConflicts);
+  const wanted = <T,>(rows: Planned<T>[]) => bookImportRows(rows, takeConflicts);
 
   const run = async () => {
     setRunning(true);
