@@ -48,7 +48,7 @@ private struct InvoicePaymentLink: ViewModifier {
         do {
             let url = try await InvoiceFacts.paymentLink(inv)
             UIPasteboard.general.url = url
-            made(InvoiceNote(title: refreshed ? "Link Refreshed & Copied" : "Payment Link Created",
+            made(InvoiceNote(title: refreshed ? "Link refreshed and copied" : "Payment link created",
                              detail: "Checkout link copied to clipboard. Share it with the customer via WhatsApp or SMS."))
         } catch {
             failure = error.localizedDescription
@@ -100,9 +100,10 @@ struct InvoiceCSVImportSheet: View {
             Form { Group {
                 if let done {
                     Section {
-                        Label("Import Complete", systemImage: "checkmark.circle.fill")
+                        Label("Import complete", systemImage: "checkmark.circle.fill")
                             .font(.headline)
                             .foregroundStyle(Tone.settled.color)
+                            .symbolEffect(.bounce, value: done)
                         Text(done.imported == 0
                              ? "The file held no Shopify orders (names like #1001), so nothing was imported."
                              : "\(done.imported) invoice\(done.imported == 1 ? "" : "s") saved, \(done.first) to \(done.last).")
@@ -161,26 +162,14 @@ struct InvoiceCSVImportSheet: View {
             }
             .safeAreaBar(edge: .bottom, spacing: 0) {
                 if done == nil {
-                    Button {
-                        Task { await runImport() }
-                    } label: {
-                        Group {
-                            if importing {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Label(preview.map { "Import \($0.orders) order\($0.orders == 1 ? "" : "s")" } ?? "Import",
-                                      systemImage: "tray.and.arrow.down")
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.houseProminent)
-                    .controlSize(.large)
-                    .disabled(csv == nil || reading || importing || (preview?.orders ?? 0) == 0)
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
+                    ActionBar(primary: ActionBar.Action(
+                        preview.map { "Import \($0.orders) order\($0.orders == 1 ? "" : "s")" } ?? "Import",
+                        systemImage: "tray.and.arrow.down", isBusy: importing,
+                        isDisabled: csv == nil || reading || (preview?.orders ?? 0) == 0
+                    ) { Task { await runImport() } })
                 }
             }
+            .savedFeedback(trigger: done)
             .fileImporter(isPresented: $picking, allowedContentTypes: [.commaSeparatedText, .plainText]) { result in
                 if case let .success(url) = result { Task { await read(url) } }
                 if case let .failure(error) = result { failure = error.localizedDescription }
@@ -226,7 +215,7 @@ struct InvoiceCSVImportSheet: View {
             let count = out["imported"] as? Int ?? 0
             done = Done(imported: count, first: out["first"] as? String ?? "", last: out["last"] as? String ?? "")
             if count > 0 {
-                imported(InvoiceNote(title: "Imported \(count) invoices", detail: "Shopify CSV import complete."))
+                imported(InvoiceNote(title: "Imported \(count) invoice\(count == 1 ? "" : "s")", detail: "Shopify CSV import complete."))
             }
         } catch {
             failure = error.localizedDescription

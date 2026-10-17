@@ -245,9 +245,10 @@ struct InvoicesList: View {
     var body: some View {
         let all = book.invoices.items
         ShelfState(loaded: book.invoices.loaded, error: book.invoices.error, offline: book.invoices.offline) {
-            content(all).motion(chip)
+            content(all)
         }
         .navigationTitle("Invoices")
+        .hubTitleDisplay()
         .searchable(text: $search, prompt: "Search invoices")
         .toolbar {
             ToolbarItem(placement: .primaryAction) { filterMenu(all) }
@@ -314,16 +315,11 @@ struct InvoicesList: View {
                                     }
                                 }
                                 .ledgerCard(padding: 20)
-                                // The signed-in person's own sale is lit a little (decision "Signed-in defaults"), as an order's card is.
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                                        .strokeBorder(Theme.accent.opacity(isMine(inv) ? 0.22 : 0.08), lineWidth: 1)
-                                        .allowsHitTesting(false)
-                                }
+                                // The card carries the row's own actions (rule 16); the row says "You" itself.
+                                .contextMenu { invoiceActions(inv) }
                             }
                         }
                     }
-                    if groups.isEmpty { emptyState }
                 }.padding(24)
             }
           } else {
@@ -335,20 +331,21 @@ struct InvoicesList: View {
                 if filterActive { filterCaption.stripRow() }
                 summaryStrip(all).stripRow()
             }
-            if groups.isEmpty {
-                Section { emptyState }.houseRows()
-            } else {
-                ForEach(groups) { group in
-                    Section {
-                        ForEach(group.rows) { inv in row(inv) }
-                    } header: {
-                        InvoiceSectionHeader(section: group)
-                    }
+            ForEach(groups) { group in
+                Section {
+                    ForEach(group.rows) { inv in row(inv) }
+                } header: {
+                    InvoiceSectionHeader(section: group)
                 }
+                .houseRows()
             }
         }
         .listStyle(.insetGrouped)
           }
+        }
+        // Nothing to show is an overlay of the list, never a row inside it (rule 16).
+        .overlay {
+            if groups.isEmpty { emptyState.padding(.top, 120) }
         }
     }
 
@@ -359,7 +356,7 @@ struct InvoicesList: View {
             ForEach(rowChips(scoped)) { c in
                 // Unpaid's count is the Owed to you card's own "n invoices": said once (CONVENTIONS rule 15).
                 FilterChip(title: c.title, count: c == .unpaid ? nil : scoped.filter { c.matches($0) }.count, chosen: c == chip) {
-                    chip = c
+                    Motion.run(Motion.enter, reduce: reduceMotion) { chip = c }
                 }
             }
         }
@@ -386,11 +383,14 @@ struct InvoicesList: View {
             Spacer()
             Button("Clear") { clearFilters() }
                 .font(.caption.weight(.semibold)).buttonStyle(.borderless)
+                .frame(minHeight: 44)
         }
     }
 
     private func clearFilters() {
-        chip = .all; takenBy = ""; month = ""; rangeFrom = nil; rangeTo = nil
+        Motion.run(Motion.enter, reduce: reduceMotion) {
+            chip = .all; takenBy = ""; month = ""; rangeFrom = nil; rangeTo = nil
+        }
     }
 
     /// A payment taken from a swipe: what is left, said as the sheet closes.
@@ -415,11 +415,11 @@ struct InvoicesList: View {
         let s = InvoiceSummary.of(base, now: Date())
         // One slim card, the three figures side by side (owner, 2026-10-17, of the hero card and two tiles that filled
         // the first screen: "this takes too much space"). Each still taps to show what it counts.
-        return HStack(spacing: 0) {
+        return FigureRow(alignment: .center, spacing: 0) {
             figureButton("Owed to you", s.owed, s.owedCount, .owed, tone: s.owed >= 1 ? Tone.owed.color : nil)
-            Divider().frame(height: 34)
+            stripDivider
             figureButton("Today", s.today, s.todayCount, .today)
-            Divider().frame(height: 34)
+            stripDivider
             figureButton("This month", s.month, s.monthCount, .month)
         }
         .padding(.vertical, 10)
@@ -427,18 +427,24 @@ struct InvoicesList: View {
         .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
     }
 
+    /// A hairline between the side-by-side figures; stacked at accessibility sizes there is nothing to divide.
+    @ViewBuilder
+    private var stripDivider: some View {
+        if !typeSize.isAccessibilitySize { Divider().frame(height: 34) }
+    }
+
     private func figureButton(_ title: String, _ amount: Double, _ count: Int, _ figure: InvoiceSummary.Figure,
                               tone: Color? = nil) -> some View {
         Button { pick(figure) } label: {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.caption).foregroundStyle(chosen(figure) ? Theme.accent : Color.secondary).lineLimit(1)
+                Text(title).font(.caption).foregroundStyle(chosen(figure) ? Theme.accent : Color.secondary).lineLimit(2)
                 Text(Money.pkrLac(amount, digits: 1))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(tone ?? Color.primary)
                     .monospacedDigit()
                     .contentTransition(.numericText(value: amount))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 8)
@@ -453,15 +459,6 @@ struct InvoicesList: View {
         .buttonStyle(.plain)
         .accessibilityLabel("\(title), \(Money.pkr(amount)), \(count) invoice\(count == 1 ? "" : "s")")
         .accessibilityAddTraits(chosen(figure) ? .isSelected : [])
-    }
-
-    /// The accent edge on the figure the list is showing.
-    @ViewBuilder
-    private func chosenEdge(_ f: InvoiceSummary.Figure) -> some View {
-        if chosen(f) {
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .strokeBorder(Theme.accent, lineWidth: 1.5)
-        }
     }
 
     private var todayKey: String { ERPDate.karachiDay(Date()) }
@@ -497,14 +494,18 @@ struct InvoicesList: View {
 
     @ViewBuilder
     private var emptyState: some View {
-        let filtering = !search.isEmpty || !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || chip != .all
-        if filtering {
+        let searching = !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let filtering = !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || chip != .all
+        if searching {
+            ContentUnavailableView.search(text: search)
+        } else if filtering {
             ContentUnavailableView {
                 Label("No matches", systemImage: "doc.text.magnifyingglass")
             } description: {
                 Text("Try adjusting your search or filter.")
             } actions: {
                 Button("Clear filters") { search = ""; clearFilters() }
+                    .buttonStyle(.bordered)
             }
         } else {
             ContentUnavailableView {
@@ -513,6 +514,7 @@ struct InvoicesList: View {
                 Text("A sale you make will be here, with what is still owed on it.")
             } actions: {
                 NavigationLink(value: SaleLinks.newSale) { Text("New sale") }
+                    .buttonStyle(.houseProminent)
             }
         }
     }
@@ -524,20 +526,18 @@ struct InvoicesList: View {
             // The bill to the customer: the commonest thing after a sale, the same send as the invoice page's.
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button { sending = inv } label: { Label("Send on WhatsApp", systemImage: "message") }
-                    .tint(Tone.credit.color)
+                    .tint(.green)
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 if canPay && isOwing(inv) {
                     Button { paying = inv } label: { Label("Take payment", systemImage: "banknote") }
-                        .tint(Tone.settled.color)
+                        .tint(Theme.accent)
                 }
             }
             .contextMenu {
                 invoiceActions(inv)
             }
             // The signed-in person's own sales are lit where they stand, not sorted or filtered (2026-10-05).
-            .listRowBackground(Theme.card)
-            .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
     }
 
     @ViewBuilder
@@ -599,11 +599,11 @@ struct InvoicesList: View {
                 Label(rangeFrom.map { InvoiceCalendar.caption(from: $0, to: rangeTo) } ?? "Date range", systemImage: "calendar")
             }
             if rangeFrom != nil {
-                Button { rangeFrom = nil; rangeTo = nil } label: { Label("Clear the date range", systemImage: "xmark.circle") }
+                Button { Motion.run(Motion.enter, reduce: reduceMotion) { rangeFrom = nil; rangeTo = nil } } label: { Label("Clear the date range", systemImage: "xmark.circle") }
             }
             if filtering {
                 Button("Clear filters", systemImage: "xmark.circle") {
-                    chip = .all; takenBy = ""; month = ""; rangeFrom = nil; rangeTo = nil
+                    clearFilters()
                 }
             }
             // The page's Import Shopify CSV: an owner's, as its own Firestore write is.
@@ -716,13 +716,8 @@ private struct InvoiceSectionHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             LedgerHeading(title: section.title, count: section.rows.count, trailing: Money.pkr(section.billed))
-            if section.owed >= 1 {
-                Text(section.hint.isEmpty ? "\(Money.pkr(section.owed)) still owed" : "\(section.hint) · \(Money.pkr(section.owed)) still owed")
-                    .font(.caption.weight(.semibold))
-                    .monospacedDigit()
-                    // Quiet: the rows' own pills carry the amber (CONVENTIONS rule 15, one coloured thing).
-                    .foregroundStyle(.secondary)
-            } else if !section.hint.isEmpty {
+            // What is still owed is on each row's pill, not said again here (CONVENTIONS rule 15).
+            if !section.hint.isEmpty {
                 Text(section.hint).font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -740,8 +735,6 @@ private struct InvoiceListRow: View {
     let dated: Bool
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    private var shopify: Bool { (invoice.source ?? "").hasPrefix("shopify") }
-
     var body: some View {
         NavigationLink(value: Route(path: InvoiceFacts.path(invoice.id))) {
             let stacked = typeSize.isAccessibilitySize
@@ -756,7 +749,7 @@ private struct InvoiceListRow: View {
                             .fixedSize(horizontal: false, vertical: true)
                         if let sold = InvoiceFacts.whatSold(invoice), !sold.isEmpty {
                             Text(sold).font(.subheadline).foregroundStyle(.secondary)
-                                .lineLimit(2)
+                                .lineLimit(1)
                         }
                         reference
                     }
@@ -779,13 +772,11 @@ private struct InvoiceListRow: View {
             HStack(spacing: 6) {
                 referenceText
                 if mine { MineTag() }
-                if shopify { Pill("Shopify") }
             }
             VStack(alignment: .leading, spacing: 4) {
                 referenceText
                 HStack(spacing: 6) {
                     if mine { MineTag() }
-                    if shopify { Pill("Shopify") }
                 }
             }
         }
@@ -808,6 +799,7 @@ private struct InvoiceRangeSheet: View {
     @State private var from: Date
     @State private var until: Date
     @State private var hasEnd: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(from: String?, to: String?, apply: @escaping (_ from: String?, _ to: String?) -> Void) {
         self.apply = apply
@@ -822,7 +814,9 @@ private struct InvoiceRangeSheet: View {
             Form {
                 Section {
                     DatePicker("From", selection: $from, displayedComponents: .date)
-                    Toggle("Up to a last day", isOn: $hasEnd.animation())
+                    Toggle("Up to a last day", isOn: Binding(get: { hasEnd }, set: { new in
+                        Motion.run(Motion.enter, reduce: reduceMotion) { hasEnd = new }
+                    }))
                     if hasEnd {
                         DatePicker("To", selection: $until, in: from..., displayedComponents: .date)
                     }
@@ -830,6 +824,7 @@ private struct InvoiceRangeSheet: View {
                     Text(hasEnd ? "Both days are included." : "Everything from that day up to today.")
                 }.houseRows()
             }
+            .houseForm()
             .navigationTitle("Date range")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

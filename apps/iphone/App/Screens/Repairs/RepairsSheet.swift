@@ -23,6 +23,8 @@ struct RepairsSheet: View {
     @State private var deletion: OwnerDeletion?
     /// The ticket is gone: the sheet leaves once the code sheet has.
     @State private var deleted = false
+    /// Delete is asked once more before the code: it cannot be taken back.
+    @State private var confirmingDelete = false
 
     private var current: Repair? { book.repairs.item(id) ?? seed }
 
@@ -40,7 +42,12 @@ struct RepairsSheet: View {
         }
         .repairsDesk(desk)
         .sheet(isPresented: $editing) {
-            if let r = current { RepairsForm(editing: r) { _, _ in } }
+            if let r = current { RepairsForm(editing: r) { _, _ in }.presentationSizing(.page) }
+        }
+        .confirmDestructive(isPresented: $confirmingDelete, title: "Delete \(id)?",
+                            message: "It is removed for good. The delete code is asked next.",
+                            action: "Delete repair") {
+            if let r = current { askDelete(r) }
         }
         .sheet(isPresented: deletionShown, onDismiss: afterDeletion) {
             if let d = deletion {
@@ -96,7 +103,8 @@ struct RepairsSheet: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
-        .safeAreaBar(edge: .bottom) {
+        .modifier(HouseGround())
+        .safeAreaBar(edge: .bottom, spacing: 0) {
             if session.isOwner && RepairsKit.hasActions(r) { actionBar(r) }
         }
     }
@@ -106,7 +114,7 @@ struct RepairsSheet: View {
     @ToolbarContentBuilder
     private var sheetToolbar: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button("Close", systemImage: "xmark") { dismiss() }
+            Button(role: .close) { dismiss() }
         }
         ToolbarItem(placement: .primaryAction) { ticketMenu }
     }
@@ -123,13 +131,15 @@ struct RepairsSheet: View {
                 Button { editing = true } label: {
                     Label("Edit", systemImage: "pencil")
                 }
+                // Cancel keeps the record; Delete removes it: two different things, apart.
                 if cancellable {
                     Button(role: .destructive) { desk.askCancel(r) } label: {
                         Label("Cancel repair", systemImage: "xmark.circle")
                     }
                 }
-                Button(role: .destructive) { askDelete(r) } label: {
-                    Label("Delete", systemImage: "trash")
+                Divider()
+                Button(role: .destructive) { confirmingDelete = true } label: {
+                    Label("Delete repair…", systemImage: "trash")
                 }
             }
         } label: {
@@ -200,7 +210,7 @@ struct RepairsSheet: View {
                 pieceRow(r.pieces[i])
             }
         } header: {
-            LedgerHeading(title: "Pieces (\(r.pieces.count))")
+            LedgerHeading(title: "Pieces", count: r.pieces.count)
         }
     }
 
@@ -223,8 +233,7 @@ struct RepairsSheet: View {
             }
             Spacer(minLength: 8)
             if let price = p.price, price > 0 {
-                Text(Money.pkr(price))
-                    .monospacedDigit()
+                RowAmount(amount: price)
             }
         }
     }
@@ -236,14 +245,15 @@ struct RepairsSheet: View {
         let paid = RepairsKit.repairPaid(r)
         let owing = RepairsKit.repairBalance(r)
         return Section {
-            LabeledContent("Total", value: Money.pkr(total))
+            MoneyRow("Total", total)
             if paid > 0 {
-                LabeledContent("Paid") {
-                    Text(Money.pkr(paid)).monospacedDigit()
-                }
+                MoneyRow("Paid", paid)
             }
-            LabeledContent("Balance due") {
-                HeroAmount(amount: owing)
+            // Nothing owed is the expected state: no big zero (CONVENTIONS rule 15).
+            if owing >= 1 {
+                LabeledContent("Balance due") {
+                    HeroAmount(amount: owing)
+                }
             }
             ForEach(r.payments.indices, id: \.self) { i in
                 paymentLine(r.payments[i])
@@ -262,6 +272,7 @@ struct RepairsSheet: View {
             Text(words)
             Spacer(minLength: 8)
             Text(Money.pkr(p.amount)).monospacedDigit()
+                .contentTransition(.numericText(value: p.amount))
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -309,41 +320,21 @@ struct RepairsSheet: View {
 
     // MARK: The next step
 
+    /// The next step is the bar's one prominent action; a balance is taken beside it, or is the action itself once
+    /// the ticket has nothing else to move on to.
     private func actionBar(_ r: Repair) -> some View {
         let busy = desk.isBusy(r.id)
         let owing = r.status != .cancelled && RepairsKit.repairBalance(r) > 0
-        return GlassEffectContainer(spacing: 12) {
-            HStack(spacing: 12) {
-                if r.status == .received {
-                    primaryButton("Mark ready", "checkmark.circle", busy: busy) { desk.markReady(r) }
-                }
-                if r.status == .ready {
-                    primaryButton("Collected", "shippingbox", busy: busy) { desk.collect(r) }
-                }
-                if owing {
-                    secondaryButton("Take payment", "banknote", busy: busy) { desk.taking = r }
-                }
-            }
+        let pay = ActionBar.Action("Take payment", systemImage: "banknote", isBusy: busy) { desk.taking = r }
+        switch r.status {
+        case .received:
+            return ActionBar(primary: ActionBar.Action("Mark ready", systemImage: "checkmark.circle", isBusy: busy) { desk.markReady(r) },
+                             secondary: owing ? [pay] : [])
+        case .ready:
+            return ActionBar(primary: ActionBar.Action("Collected", systemImage: "shippingbox", isBusy: busy) { desk.collect(r) },
+                             secondary: owing ? [pay] : [])
+        default:
+            return ActionBar(primary: pay)
         }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
-    }
-
-    private func primaryButton(_ title: String, _ symbol: String, busy: Bool, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: symbol).frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.houseProminent)
-        .controlSize(.large)
-        .disabled(busy)
-    }
-
-    private func secondaryButton(_ title: String, _ symbol: String, busy: Bool, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: symbol).frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.glass)
-        .controlSize(.large)
-        .disabled(busy)
     }
 }

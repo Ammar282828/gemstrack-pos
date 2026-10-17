@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import ERPCore
 
 /// What both the list and a repair's sheet do to a ticket: Ready, Collected, a payment, Cancel. One
@@ -34,6 +35,10 @@ final class RepairsDesk {
     private(set) var busy: Set<String> = []
     /// Bumped as a payment lands, so the screen can tap for it (`moneyFeedback`).
     private(set) var paymentsTaken = 0
+    /// Bumped when a write is refused, so the money tap can warn (`moneyFeedback`'s failure).
+    private(set) var refusals = 0
+    /// What was just done, said on the screen's toast (Ready, Collected, Cancelled).
+    var note: Note?
     /// Tickets whose balance was taken on the way out but whose status write has not landed: a retry
     /// must not charge twice.
     @ObservationIgnored private var balanceTaken: Set<String> = []
@@ -58,7 +63,22 @@ final class RepairsDesk {
         let id = r.id
         run(id) {
             _ = try await ERPAPI.shared.write("setRepairStatus", ["repairId": id, "status": status])
+            self.say(Note(title: Self.words(id, status)))
         }
+    }
+
+    /// "REP-000012 is ready".
+    private static func words(_ id: String, _ status: String) -> String {
+        switch status {
+        case "ready": return "\(id) is ready"
+        case "collected": return "\(id) is collected"
+        case "cancelled": return "\(id) is cancelled"
+        default: return "\(id) updated"
+        }
+    }
+
+    private func say(_ n: Note) {
+        Motion.run(Motion.enter, reduce: UIAccessibility.isReduceMotionEnabled) { note = n }
     }
 
     // MARK: Money
@@ -95,6 +115,7 @@ final class RepairsDesk {
                 try? await Task.sleep(for: .seconds(1.5))
             } catch {
                 self.failure = error.localizedDescription
+                self.refusals += 1
             }
             self.busy.remove(id)
         }
@@ -121,7 +142,8 @@ private struct RepairsDeskModifier: ViewModifier {
             .sheet(item: payingBinding) { r in handBackSheet(r) }
             .sheet(item: takingBinding) { r in paymentSheet(r) }
             .failureAlert(failureBinding, title: "Not changed")
-            .moneyFeedback(success: desk.paymentsTaken, failure: false)
+            .noteToast(noteBinding)
+            .moneyFeedback(success: desk.paymentsTaken, failure: desk.refusals)
     }
 
     // MARK: The questions
@@ -168,6 +190,10 @@ private struct RepairsDeskModifier: ViewModifier {
         Binding(get: { desk.taking }, set: { desk.taking = $0 })
     }
 
+    private var noteBinding: Binding<Note?> {
+        Binding(get: { desk.note }, set: { desk.note = $0 })
+    }
+
     private var failureBinding: Binding<String?> {
         Binding(get: { desk.failure }, set: { desk.failure = $0 })
     }
@@ -176,6 +202,7 @@ private struct RepairsDeskModifier: ViewModifier {
         PaymentSheet(title: "Hand back \(r.id)", owed: RepairsKit.repairBalance(r), askReference: false) { amount, method, _ in
             try await desk.takeAndCollect(r, amount: amount, method: method)
         }
+        .houseForm()
     }
 
     private func paymentSheet(_ r: Repair) -> some View {
@@ -183,5 +210,6 @@ private struct RepairsDeskModifier: ViewModifier {
         return PaymentSheet(title: "Payment on \(r.id)", owed: balance >= 1 ? balance : nil, askReference: false) { amount, method, _ in
             try await desk.takePayment(r, amount: amount, method: method)
         }
+        .houseForm()
     }
 }

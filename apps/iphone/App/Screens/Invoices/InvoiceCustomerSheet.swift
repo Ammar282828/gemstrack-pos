@@ -47,11 +47,6 @@ struct InvoiceCustomerSheet: View {
         NavigationStack {
             Form { Group {
                 Section {
-                    Text(explanation)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                Section {
                     // The book is offered as the name is typed (customer-autocomplete.tsx); a number typed first
                     // finds its customer too. Typing again lets go of a pick.
                     CustomerField(
@@ -64,17 +59,16 @@ struct InvoiceCustomerSheet: View {
                         pick: { c in pickCustomer(c) }
                     )
                 } header: {
-                    Text("Customer")
+                    LedgerHeading(title: "Customer")
                 } footer: {
-                    Text(customerNote)
-                }
-                if let error {
-                    Section { Text(error).foregroundStyle(Tone.problem.color) }
+                    Text(customerNote.isEmpty ? explanation : explanation + " " + customerNote)
                 }
                 }
                 .houseRows()
             }
             .houseForm()
+            .scrollDismissesKeyboard(.interactively)
+            .failureAlert($error)
             .navigationTitle(named ? "Change the customer" : "Who was it for?")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -86,13 +80,13 @@ struct InvoiceCustomerSheet: View {
                     if saving {
                         ProgressView().controlSize(.small)
                     } else {
-                        Button("Save") { Task { await save() } }
+                        Button("Save", role: .confirm) { Task { await save() } }
                             .disabled(!canSave)
                     }
                 }
             }
         }
-        // Full height: the book's suggestions open under the name as it is typed.
+        // Long, not a short sheet: the book's suggestions open under the name as it is typed.
         .interactiveDismissDisabled(saving)
         .task {
             book.customers.need()

@@ -37,8 +37,6 @@ struct InvoiceWhatsAppSheet: View {
                     TextField("WhatsApp number", text: $phone, prompt: Text("0300 1234567"))
                         .keyboardType(.phonePad)
                         .textContentType(.telephoneNumber)
-                } header: {
-                    Text("WhatsApp number")
                 } footer: {
                     if CustomerKit.whatsAppNumber(phone).isEmpty {
                         Text("Enter the customer's WhatsApp number.")
@@ -52,7 +50,7 @@ struct InvoiceWhatsAppSheet: View {
                             .font(.subheadline)
                             .textSelection(.enabled)
                     } header: {
-                        Text("The message")
+                        LedgerHeading(title: "The message")
                     } footer: {
                         Text("WhatsApp opens with it written: press send there.")
                     }
@@ -61,6 +59,8 @@ struct InvoiceWhatsAppSheet: View {
                 .houseRows()
             }
             .houseForm()
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
             .navigationTitle("Send on WhatsApp")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -68,22 +68,12 @@ struct InvoiceWhatsAppSheet: View {
                     Button(role: .cancel) { dismiss() }
                 }
             }
-            .safeAreaBar(edge: .bottom, spacing: 0) {
-                Button {
-                    if let url {
-                        openURL(url)
-                        dismiss()
-                    }
-                } label: {
-                    Label("Open WhatsApp", systemImage: "message")
-                        .frame(maxWidth: .infinity)
+            .actionBar(primary: ActionBar.Action("Open WhatsApp", systemImage: "message", isDisabled: url == nil) {
+                if let url {
+                    openURL(url)
+                    dismiss()
                 }
-                .buttonStyle(.houseProminent)
-                .controlSize(.large)
-                .disabled(url == nil)
-                .padding(.horizontal)
-                .padding(.bottom, 8)
-            }
+            })
         }
         .presentationDetents([.medium, .large])
     }
@@ -119,8 +109,6 @@ struct InvoicePDFNumberSheet: View {
                     TextField("WhatsApp number", text: $phone, prompt: Text("0300 1234567"))
                         .keyboardType(.phonePad)
                         .textContentType(.telephoneNumber)
-                } header: {
-                    Text("WhatsApp number")
                 } footer: {
                     if number.isEmpty {
                         Text("Enter the customer's WhatsApp number.")
@@ -134,6 +122,8 @@ struct InvoicePDFNumberSheet: View {
                 .houseRows()
             }
             .houseForm()
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
             .navigationTitle("Send the PDF")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -142,25 +132,10 @@ struct InvoicePDFNumberSheet: View {
                         .disabled(sending)
                 }
             }
-            .safeAreaBar(edge: .bottom, spacing: 0) {
-                Button {
-                    Task { await send() }
-                } label: {
-                    Group {
-                        if sending {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Label(invoice.sentOnWhatsApp == nil ? "Send the PDF" : "Send it again", systemImage: "paperplane")
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.houseProminent)
-                .controlSize(.large)
-                .disabled(number.isEmpty || sending)
-                .padding(.horizontal)
-                .padding(.bottom, 8)
-            }
+            .actionBar(primary: ActionBar.Action(invoice.sentOnWhatsApp == nil ? "Send the PDF" : "Send it again",
+                                                 systemImage: "paperplane", isBusy: sending, isDisabled: number.isEmpty) {
+                Task { await send() }
+            })
             .failureAlert($failure, title: "Could not send the PDF")
         }
         .presentationDetents([.medium, .large])

@@ -79,8 +79,10 @@ struct InvoiceScreen: View {
         } description: {
             Text("It may have been refunded in full, which removes it.")
         } actions: {
-            NavigationLink(value: Route(path: "/invoices")) { Text("All invoices") }
             NavigationLink(value: Route(path: "/invoices/new")) { Text("New sale") }
+                .buttonStyle(.houseProminent)
+            NavigationLink(value: Route(path: "/invoices")) { Text("All invoices") }
+                .buttonStyle(.bordered)
         }
     }
 
@@ -101,8 +103,6 @@ struct InvoiceScreen: View {
         }
         .listStyle(.insetGrouped)
         .modifier(HouseGround())
-        // The figures roll to their new numbers as a payment or a discount lands.
-        .motion(inv.balanceDue)
         .safeAreaBar(edge: .bottom, spacing: 0) { paymentBar(inv) }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -128,7 +128,6 @@ struct InvoiceScreen: View {
         .sheet(item: $acting) { a in
             switch a {
             case .discount: InvoiceActionDiscountSheet(invoice: inv, onDone: acted)
-            case .payment: InvoiceActionPaymentSheet(invoice: inv, onDone: acted)
             case .refund: InvoiceActionRefundSheet(invoice: inv, onDone: acted)
             case .delete: InvoiceActionDeleteSheet(invoice: inv, onDone: acted)
             }
@@ -138,7 +137,7 @@ struct InvoiceScreen: View {
         }
         .invoiceWhatsAppSend($sending) { sent in say(sent) }
         .invoicePaymentLink($linking) { made in say(made) }
-        .failureAlert($ownersOnly, title: "An owner's")
+        .failureAlert($ownersOnly, title: "Owners only")
         .noteToast($note)
     }
 
@@ -185,7 +184,6 @@ struct InvoiceScreen: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
-                            if isShopify(inv) { Pill("Shopify") }
                         }
                     }
                 }
@@ -194,12 +192,10 @@ struct InvoiceScreen: View {
                     Button { settingCustomer = true } label: {
                         Label("Name the customer", systemImage: "person.crop.circle.badge.plus")
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Theme.accent)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(Theme.accent.opacity(0.12), in: .capsule)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    .frame(minHeight: 44)
                 }
                 PerforationDivider()
                 figures(inv)
@@ -235,14 +231,20 @@ struct InvoiceScreen: View {
         return layout {
             VStack(alignment: .leading, spacing: 4) {
                 leadFigure(inv)
-                Text("Total \(Money.pkr(inv.grandTotal)) · Paid \(Money.pkr(inv.amountPaid))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
+                // Paid in full says it once, in the lead; the sums are under Pieces and Payments (rule 15).
+                if balanceLine(inv.balanceDue).state != .paid || inv.status == .refunded {
+                    Text("Total \(Money.pkr(inv.grandTotal)) · Paid \(Money.pkr(inv.amountPaid))")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .contentTransition(.numericText(value: inv.balanceDue))
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             PaidRing(paid: inv.amountPaid, total: inv.grandTotal)
         }
+        // The figures roll to their new numbers as a payment or a discount lands: on them, not on the whole list.
+        .motion(inv.balanceDue)
     }
 
     /// Due while owing (amber, red once old), In credit, or Paid in full; a refunded invoice says Refunded instead.
@@ -265,7 +267,7 @@ struct InvoiceScreen: View {
                     .font(.system(.largeTitle, design: .serif).weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+                    .minimumScaleFactor(0.8)
             }
         }
     }
@@ -402,9 +404,10 @@ struct InvoiceScreen: View {
             ForEach(Array(inv.paymentHistory.enumerated()), id: \.offset) { pair in
                 paymentRow(inv, index: pair.offset, payment: pair.element)
             }
-            if mayTakePayment(inv) && (inv.paymentHistory.isEmpty || !owing(inv)) {
+            // While money is owed the bar at the foot is the one Take payment; this row is for a paid invoice (credit).
+            if mayTakePayment(inv) && !owing(inv) {
                 Button { paying = inv } label: {
-                    Label(owing(inv) ? "Take payment" : "Take payment as credit", systemImage: "banknote")
+                    Label("Take payment as credit", systemImage: "banknote")
                 }
             }
             // Paid past the total: the customer's credit, on their hisaab (decision "Invoice credit"). The sum is the
@@ -505,8 +508,7 @@ struct InvoiceScreen: View {
                     Text(shopNote).font(.subheadline)
                 }
             } header: {
-                InvoiceQuietHeading(title: "For the shop (never printed)", symbol: "lock.fill")
-                    .textCase(nil)
+                LedgerHeading(title: "For the shop (never printed)")
             }
         }
     }
@@ -520,36 +522,14 @@ struct InvoiceScreen: View {
         canPay && (owing(inv) || canHoldCredit(inv.customerId))
     }
 
-    /// Taking a payment is THE action of an invoice that is owed. At accessibility sizes the sum goes under the words.
+    /// Taking a payment is THE action of an invoice that is owed: the kit's action bar (it stacks at accessibility sizes).
     @ViewBuilder
     private func paymentBar(_ inv: Invoice) -> some View {
         if canPay && owing(inv) {
-            ViewThatFits(in: .horizontal) {
-                payButton(inv, stacked: false)
-                payButton(inv, stacked: true)
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 8)
+            ActionBar(primary: ActionBar.Action("Take payment · \(Money.pkr(inv.balanceDue))", systemImage: "banknote") {
+                paying = inv
+            })
         }
-    }
-
-    private func payButton(_ inv: Invoice, stacked: Bool) -> some View {
-        Button { paying = inv } label: {
-            Group {
-                if stacked {
-                    VStack(spacing: 2) {
-                        Label("Take payment", systemImage: "banknote")
-                        Text(Money.pkr(inv.balanceDue)).monospacedDigit()
-                    }
-                } else {
-                    Label("Take payment · \(Money.pkr(inv.balanceDue))", systemImage: "banknote")
-                        .lineLimit(1)
-                }
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.houseProminent)
-        .controlSize(.large)
     }
 
     // MARK: The menu
@@ -605,14 +585,19 @@ struct InvoiceScreen: View {
                         Label(unnamed(inv) ? "Name the customer" : "Change customer", systemImage: "person.crop.circle")
                     }
                 }
-                Button { act(.discount, inv) } label: { Label("Change discount", systemImage: "percent") }
+                if session.isOwner {
+                    Button { act(.discount, inv) } label: { Label("Change discount", systemImage: "percent") }
+                }
             }
         }
-        Section {
-            if inv.status != .refunded {
-                Button(role: .destructive) { act(.refund, inv) } label: { Label("Refund…", systemImage: "arrow.uturn.backward") }
+        // Owners' only (the server refuses staff): not offered to the shop floor at all.
+        if session.isOwner {
+            Section {
+                if inv.status != .refunded {
+                    Button(role: .destructive) { act(.refund, inv) } label: { Label("Refund…", systemImage: "arrow.uturn.backward") }
+                }
+                Button(role: .destructive) { act(.delete, inv) } label: { Label("Delete invoice…", systemImage: "trash") }
             }
-            Button(role: .destructive) { act(.delete, inv) } label: { Label("Delete invoice…", systemImage: "trash") }
         }
     }
 
@@ -624,24 +609,18 @@ struct InvoiceScreen: View {
 
     /// After a sheet: its note on the page, or back to the list when the invoice is gone.
     private func acted(_ o: InvoiceActionOutcome) {
-        if o.removed { dismiss() } else { say(o.note) }
+        // Said either way: after a delete or a full refund the page stays a moment under its toast, then goes.
+        say(o.note)
+        if o.removed {
+            Task {
+                try? await Task.sleep(for: .seconds(1.6))
+                dismiss()
+            }
+        }
     }
 }
 
 // MARK: Lines of the cards
-
-/// A quiet card's heading: a small symbol and its words, in the secondary colour.
-private struct InvoiceQuietHeading: View {
-    let title: String
-    let symbol: String
-
-    var body: some View {
-        Label(title, systemImage: symbol)
-            .font(.footnote.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .accessibilityAddTraits(.isHeader)
-    }
-}
 
 /// One piece: what it is and its price, then its metal, weight and stock number, what is set into it, and the
 /// breakdown the printed bill carries.
@@ -760,13 +739,14 @@ private struct InvoicePaymentRow: View {
     let payment: Payment
 
     private var refund: Bool { payment.amount < 0 }
+    @ScaledMetric(relativeTo: .subheadline) private var iconSize: CGFloat = 34
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: symbol)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(tone.color)
-                .frame(width: 34, height: 34)
+                .frame(width: iconSize, height: iconSize)
                 .background(tone.color.opacity(0.12), in: .circle)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
@@ -782,7 +762,7 @@ private struct InvoicePaymentRow: View {
                     .font(.subheadline.weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
             } else {
                 RowAmount(amount: payment.amount)
             }
@@ -833,11 +813,13 @@ private struct InvoicePaymentRow: View {
 private struct InvoiceMarginRow: View {
     let invoice: Invoice
     @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Button { shown.toggle() } label: {
+        Button { Motion.run(Motion.enter, reduce: reduceMotion) { shown.toggle() } } label: {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Label("We earn", systemImage: shown ? "eye.slash" : "eye")
+                    .contentTransition(.symbolEffect(.replace))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 8)
@@ -847,6 +829,7 @@ private struct InvoiceMarginRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(shown ? "Hide our margin" : "Show our margin")
+        .selectionFeedback(trigger: shown)
     }
 
     @ViewBuilder
@@ -859,7 +842,7 @@ private struct InvoiceMarginRow: View {
                 .multilineTextAlignment(.trailing)
                 .foregroundStyle(tone(m))
         } else {
-            Text("00.0% · PKR 00,000")
+            Text("00.0% · \(Money.pkr(0))")
                 .font(.subheadline.weight(.medium))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
@@ -887,14 +870,13 @@ private struct InvoiceMarginRow: View {
 
 /// The invoice's own actions, each a sheet (InvoiceAction*).
 enum InvoiceAct: String, Identifiable {
-    case discount, payment, refund, delete
+    case discount, refund, delete
     var id: String { rawValue }
 
     /// What the shop floor is told: each is an owner's (ops-invoice-actions.ts), and the server refuses staff.
     var ownersOnly: String {
         switch self {
         case .discount: return "Changing the discount is an owner's. Ask an owner to change it."
-        case .payment: return "Deleting a payment is an owner's. Ask an owner to delete it."
         case .refund: return "A refund is an owner's. Ask an owner to refund this invoice."
         case .delete: return "Deleting an invoice is an owner's. Ask an owner to delete it."
         }

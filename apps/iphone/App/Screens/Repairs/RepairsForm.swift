@@ -29,6 +29,8 @@ struct RepairsForm: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var customerId: String?
     @State private var name = ""
@@ -47,6 +49,9 @@ struct RepairsForm: View {
     @State private var error: String?
     /// An edit is filled from its ticket once, as the form opens.
     @State private var filled = false
+    /// The form as it opened, to tell whether a swipe-down or Cancel would lose something typed.
+    @State private var baseline: String?
+    @State private var confirmingDiscard = false
 
     var body: some View {
         NavigationStack {
@@ -60,35 +65,51 @@ struct RepairsForm: View {
                     advanceSection
                 }
                 shopSection
-                if let error {
-                    Section { Text(error).foregroundStyle(Tone.problem.color) }
-                }
                 }
                 .houseRows()
             }
+            .houseForm()
             .navigationTitle(editing.map { "Repair \($0.id)" } ?? "New repair")
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
+            .failureAlert($error)
             .disabled(saving)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(role: .cancel) {
+                        if dirty { confirmingDiscard = true } else { dismiss() }
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { Task { await save() } }
+                    Button("Save", role: .confirm) { Task { await save() } }
                         .disabled(!canSave)
                 }
             }
+            .confirmDestructive(isPresented: $confirmingDiscard,
+                                title: editing == nil ? "Discard this repair?" : "Discard your changes?",
+                                message: "What you typed is not saved.", action: "Discard") { dismiss() }
         }
-        .interactiveDismissDisabled(saving)
+        .interactiveDismissDisabled(saving || dirty)
         .onAppear {
             book.customers.need()
             book.karigars.need()
             book.repairs.need()
             book.orders.need()
+            book.invoices.need()
             if let r = editing { fill(from: r) } else { seedTakenBy() }
+            if baseline == nil { baseline = snapshot }
         }
     }
+
+    /// Everything typed or chosen, as one string: it differs from the opening one once something is changed.
+    private var snapshot: String {
+        let typed = pieces.map { "\($0.item)|\($0.work)|\($0.weight)|\($0.price)" }.joined(separator: ";")
+        let day = hasDate ? ERPDate.karachiDay(promised) : ""
+        return [customerId ?? "", name, phone, typed, day, karigarId, takenBy, note, advance, method].joined(separator: "\u{1F}")
+    }
+
+    private var dirty: Bool { baseline != nil && snapshot != baseline }
 
     /// The ticket as it is on file, in the form's own boxes (the web's form opens with them filled).
     private func fill(from r: Repair) {
@@ -181,30 +202,23 @@ struct RepairsForm: View {
 
     // MARK: Who
 
-    private var nameBinding: Binding<String> {
-        Binding(
-            get: { name },
-            set: { newName in
-                // Typing over a picked name lets go of the customer, as the web's autocomplete does.
-                if newName != name { customerId = nil }
-                name = newName
-            }
-        )
-    }
-
     private var customerSection: some View {
         Section {
-            NavigationLink {
-                RepairsCustomerPicker(customers: people) { c in pick(c) }
-            } label: {
-                Label("Pick from your customers", systemImage: "person.crop.circle")
-            }
-            TextField("Name", text: nameBinding)
-                .textContentType(.name)
-                .textInputAutocapitalization(.words)
-            TextField("Phone", text: $phone)
-                .keyboardType(.phonePad)
-                .textContentType(.telephoneNumber)
+            // The book is offered as the name is typed, as New sale and the invoice's customer sheet have it.
+            CustomerField(
+                name: name,
+                pickedId: customerId,
+                phone: $phone,
+                book: people,
+                recent: { CustomerField.recent(invoices: book.invoices.items, orders: book.orders.items, book: people) },
+                type: { text in
+                    // Typing over a picked name lets go of the customer, as the web's autocomplete does.
+                    guard text != name else { return }
+                    customerId = nil
+                    name = text
+                },
+                pick: { c in pick(c) }
+            )
         } header: {
             LedgerHeading(title: "Customer")
         } footer: {
@@ -212,7 +226,13 @@ struct RepairsForm: View {
         }
     }
 
-    private func pick(_ c: Customer) {
+    private func pick(_ c: Customer?) {
+        guard let c else {
+            customerId = nil
+            name = ""
+            phone = ""
+            return
+        }
         customerId = c.id
         name = c.name
         if let p = RepairsKit.filled(c.phone) { phone = p }
@@ -224,7 +244,7 @@ struct RepairsForm: View {
         Section {
             ForEach($pieces) { $piece in
                 pieceFields($piece)
-                    .swipeActions {
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         if pieces.count > 1 {
                             Button(role: .destructive) { remove(piece.id) } label: {
                                 Label("Remove", systemImage: "trash")
@@ -238,9 +258,7 @@ struct RepairsForm: View {
                 Label("Add another piece", systemImage: "plus.circle")
             }
             if total > 0 {
-                LabeledContent("Total") {
-                    MoneyText(amount: total, exact: true).fontWeight(.semibold)
-                }
+                MoneyRow("Total", total, emphasis: true)
             }
         } header: {
             LedgerHeading(title: "Pieces")
@@ -274,12 +292,14 @@ struct RepairsForm: View {
 
     private var whenSection: some View {
         Section {
-            Toggle("Ready by a date", isOn: $hasDate)
+            Toggle("Ready by a date", isOn: Binding(get: { hasDate }, set: { new in
+                Motion.run(Motion.enter, reduce: reduceMotion) { hasDate = new }
+            }))
             if hasDate {
                 // Stored as yyyy-MM-dd, Karachi's day.
-                DatePicker("Ready by", selection: $promised, displayedComponents: .date)
+                DatePicker("Date", selection: $promised, displayedComponents: .date)
                     .environment(\.timeZone, ERPDate.karachi)
-                HStack(spacing: 8) {
+                AdaptiveStack(spacing: 8, alignment: .center) {
                     quickDate(3, "3 days")
                     quickDate(7, "1 week")
                     quickDate(14, "2 weeks")
@@ -293,7 +313,8 @@ struct RepairsForm: View {
     private func quickDate(_ days: Int, _ title: String) -> some View {
         Button(title) { promised = RepairsKit.days(adding: days) }
             .buttonStyle(.bordered)
-            .controlSize(.small)
+            .controlSize(.regular)
+            .frame(minHeight: 44)
     }
 
     // MARK: Advance
@@ -303,14 +324,15 @@ struct RepairsForm: View {
             TextField("Amount in rupees", text: $advance.wholeRupees)
                 .keyboardType(.numberPad)
             if advanceAmount > 0 {
-                Text(Money.pkrLac(advanceAmount)).foregroundStyle(.secondary)
                 Picker("How it was paid", selection: $method) {
                     ForEach(PaymentMethods.all, id: \.self) { Text($0) }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(typeSize.isAccessibilitySize ? .menu : .segmented)
             }
         } header: {
-            LedgerHeading(title: "Advance taken now (optional)")
+            LedgerHeading(title: "Advance")
+        } footer: {
+            Text(advanceAmount > 0 ? "\(Money.pkrLac(advanceAmount)), taken now and written to Extra revenue." : "Optional: money taken now.")
         }
     }
 
@@ -322,7 +344,7 @@ struct RepairsForm: View {
         if !r.payments.isEmpty {
             Section {
                 ForEach(r.payments.indices, id: \.self) { i in
-                    LabeledContent(RepairsKit.paymentWords(r.payments[i]), value: Money.pkr(r.payments[i].amount))
+                    MoneyRow(RepairsKit.paymentWords(r.payments[i]), r.payments[i].amount)
                 }
             } header: {
                 LedgerHeading(title: "Paid so far")
@@ -346,7 +368,7 @@ struct RepairsForm: View {
             TextField("Note for the shop", text: $note, axis: .vertical)
                 .lineLimit(2...5)
         } header: {
-            LedgerHeading(title: "Karigar, taken by, note")
+            LedgerHeading(title: "For the shop")
         } footer: {
             Text("The note is for the shop only: it is never printed or sent.")
         }
@@ -452,52 +474,5 @@ struct RepairsForm: View {
             repair["advanceMethod"] = method
         }
         return repair
-    }
-}
-
-/// Pick a customer from the book, with search by name or number.
-struct RepairsCustomerPicker: View {
-    let customers: [Customer]
-    let onPick: (Customer) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var query = ""
-
-    private var shown: [Customer] {
-        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if q.isEmpty { return customers }
-        return customers.filter { (c: Customer) -> Bool in
-            c.name.lowercased().contains(q) || (c.phone ?? "").lowercased().contains(q)
-        }
-    }
-
-    var body: some View {
-        List { Group {
-            ForEach(shown) { c in
-                Button {
-                    onPick(c)
-                    dismiss()
-                } label: {
-                    TwoLine(title: c.name, subtitle: c.phone)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-            }
-            .houseRows()
-        }
-        .listStyle(.insetGrouped)
-        .overlay {
-            if shown.isEmpty {
-                if query.isEmpty {
-                    ContentUnavailableView("No customers yet", systemImage: "person.2")
-                } else {
-                    ContentUnavailableView.search(text: query)
-                }
-            }
-        }
-        .navigationTitle("Customers")
-        .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $query, prompt: "Name or phone")
     }
 }

@@ -43,11 +43,7 @@ struct RepairsScreen: View {
                 .presentationSizing(.page)
         }
         .repairsDesk(desk)
-        .alert("Repair not found", isPresented: missingShown) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("\(missing ?? "That ticket") may have been deleted.")
-        }
+        .failureAlert(missingMessage, title: "Repair not found")
         .onAppear {
             book.repairs.need()
             readLink()
@@ -83,8 +79,8 @@ struct RepairsScreen: View {
         }
     }
 
-    private var missingShown: Binding<Bool> {
-        Binding(get: { missing != nil }, set: { if !$0 { missing = nil } })
+    private var missingMessage: Binding<String?> {
+        Binding(get: { missing.map { "\($0) may have been deleted." } }, set: { if $0 == nil { missing = nil } })
     }
 
     // MARK: The list
@@ -104,6 +100,8 @@ struct RepairsScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        // A ticket moving to another group slides there instead of jumping.
+        .motion(shown.map { "\($0.id)-\($0.status)" })
         .overlay {
             if groups.isEmpty { emptyState(searching: !q.isEmpty) }
         }
@@ -114,11 +112,9 @@ struct RepairsScreen: View {
         if searching {
             ContentUnavailableView.search(text: query)
         } else {
-            ContentUnavailableView(
-                "No repairs yet",
-                systemImage: "wrench.and.screwdriver",
-                description: Text(session.isOwner ? "Tap + when a customer leaves pieces to be mended." : "Repairs the shop takes in will show here.")
-            )
+            EmptyState("No repairs yet", symbol: "wrench.and.screwdriver",
+                       message: session.isOwner ? "When a customer leaves pieces to be mended, they are written up here." : "Repairs the shop takes in will show here.",
+                       action: session.isOwner ? (title: "New repair", run: { creating = true }) : nil)
         }
     }
 
@@ -142,26 +138,9 @@ struct RepairsScreen: View {
 
     private func groupHeader(_ g: RepairsGroup) -> some View {
         let owing = g.folded ? 0 : g.rows.reduce(0.0) { (sum: Double, r: Repair) -> Double in sum + RepairsKit.repairBalance(r) }
-        return HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(g.title)
-                .font(.subheadline.weight(.semibold))
-            Spacer(minLength: 8)
-            // A folded group says its count in its own row, so its header does not repeat it.
-            if !g.folded {
-                Text("\(g.rows.count)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            if owing >= 1 {
-                HStack(spacing: 4) {
-                    MoneyText(amount: owing)
-                    Text("due")
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-        }
-        .textCase(nil)
+        // A folded group says its count in its own row, so its header does not repeat it.
+        return LedgerHeading(title: g.title, count: g.folded ? nil : g.rows.count,
+                             trailing: owing >= 1 ? "\(Money.pkr(owing)) due" : nil)
     }
 
     private func expansion(_ id: String, forceOpen: Bool) -> Binding<Bool> {
@@ -199,11 +178,11 @@ struct RepairsScreen: View {
     private func trailingSwipe(_ r: Repair) -> some View {
         if session.isOwner && r.status == .received {
             Button { desk.markReady(r) } label: { Label("Mark ready", systemImage: "checkmark.circle") }
-                .tint(Tone.settled.color)
+                .tint(Theme.accent)
         }
         if session.isOwner && r.status == .ready {
             Button { desk.collect(r) } label: { Label("Collected", systemImage: "shippingbox") }
-                .tint(Tone.working.color)
+                .tint(.gray)
         }
     }
 
@@ -211,7 +190,7 @@ struct RepairsScreen: View {
     private func leadingSwipe(_ r: Repair) -> some View {
         if r.status == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
             Button { openURL(url) } label: { Label("Tell them", systemImage: "message") }
-                .tint(Tone.settled.color)
+                .tint(.green)
         }
     }
 
@@ -254,14 +233,20 @@ struct RepairsRow: View {
     let busy: Bool
 
     private var greyed: Bool { repair.status == .collected || repair.status == .cancelled }
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            // The summary leads and the sum trails; at accessibility sizes the sum goes under the words.
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+            layout {
                 Text(RepairsKit.repairSummary(repair))
                     .font(.headline)
-                    .lineLimit(1)
-                Spacer(minLength: 8)
+                    .foregroundStyle(greyed ? Color.secondary : Color.primary)
+                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 if busy { SkeletonLoading() } else { money }
             }
             Text(who)
@@ -274,16 +259,11 @@ struct RepairsRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
-        .opacity(greyed ? 0.55 : 1)
         .padding(.vertical, 2)
     }
 
-    /// "Hira Sample · +923000000103".
-    private var who: String {
-        var s = RepairsKit.customer(repair)
-        if let phone = RepairsKit.filled(repair.customerContact) { s += " · " + phone }
-        return s
-    }
+    /// The customer; their number is on the ticket, not on every row.
+    private var who: String { RepairsKit.customer(repair) }
 
     /// "REP-000012 · in Tue 6 Oct · with Ustad Demo".
     private var facts: String {
@@ -308,7 +288,7 @@ struct RepairsRow: View {
                 MoneyText(amount: owing, exact: true)
                     .font(.subheadline.weight(.semibold))
                 Text("due")
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }

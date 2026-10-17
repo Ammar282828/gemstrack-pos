@@ -51,7 +51,8 @@ enum RepairsKit {
     /// nothing, as a cancelled order does.
     static func tone(_ s: RepairStatus) -> Tone {
         switch s {
-        case .received: return .owed
+        // Amber is money owed; a ticket in the shop is work in hand (blue).
+        case .received: return .working
         case .ready: return .settled
         case .collected, .cancelled, .unknown: return .quiet
         }

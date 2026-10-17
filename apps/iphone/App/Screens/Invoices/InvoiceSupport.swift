@@ -389,6 +389,7 @@ private struct InvoiceWhatsAppSend: ViewModifier {
     @State private var failure: String?
     /// Why an old invoice's link could not be given its key.
     @State private var keyFailure: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         content
@@ -415,6 +416,7 @@ private struct InvoiceWhatsAppSend: ViewModifier {
             } message: {
                 Text(failure ?? "")
             }
+            .sensoryFeedback(.error, trigger: failure) { _, now in now != nil }
             .sheet(item: $typing) { (inv: Invoice) in
                 InvoicePDFNumberSheet(invoice: inv, phone: phone(inv)) { (said: InvoiceNote) in sent(said) }
             }
@@ -465,8 +467,8 @@ private struct InvoiceWhatsAppSend: ViewModifier {
     /// invoice-viewer.tsx `handleSendWhatsApp`: sent, said as its toast says it; refused, the ERP's words.
     private func sendPDF(_ inv: Invoice) async {
         guard !sendingPDF else { return }
-        withAnimation { sendingPDF = true }
-        defer { withAnimation { sendingPDF = false } }
+        Motion.run(reduce: reduceMotion) { sendingPDF = true }
+        defer { Motion.run(Motion.exit, reduce: reduceMotion) { sendingPDF = false } }
         do {
             let out = try await InvoiceFacts.sendPDF(inv, to: phone(inv))
             let name = InvoiceFacts.customerName(inv, walkIn: "")

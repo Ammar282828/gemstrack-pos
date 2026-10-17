@@ -49,18 +49,18 @@ struct InvoiceActionDiscountSheet: View {
         NavigationStack {
             Form { Group {
                 Section {
-                    LabeledContent("Subtotal") { MoneyText(amount: invoice.subtotal, exact: true) }
-                    LabeledContent("Discount") { MoneyText(amount: invoice.discountAmount, exact: true) }
+                    MoneyRow("Subtotal", invoice.subtotal)
+                    MoneyRow("Discount", invoice.discountAmount)
                     if getInvoiceExchangeTotal(invoice) > 0 {
-                        LabeledContent("Exchange") { Text(Money.minus(getInvoiceExchangeTotal(invoice))).monospacedDigit() }
+                        MoneyRow("Exchange", -getInvoiceExchangeTotal(invoice), signed: true)
                     }
-                    LabeledContent("Grand total") { MoneyText(amount: invoice.grandTotal, exact: true) }
+                    MoneyRow("Grand total", invoice.grandTotal)
                     if invoice.amountPaid != 0 {
-                        LabeledContent("Paid") { MoneyText(amount: invoice.amountPaid, exact: true) }
+                        MoneyRow("Paid", invoice.amountPaid)
                     }
-                    LabeledContent(balanceLine(invoice.balanceDue).label) { MoneyText(amount: balanceLine(invoice.balanceDue).amount, exact: true) }
+                    MoneyRow(balanceLine(invoice.balanceDue).label, balanceLine(invoice.balanceDue).amount)
                 } header: {
-                    Text("Now")
+                    LedgerHeading(title: "Now")
                 }
                 Section {
                     TextField("Discount in rupees", text: $amountText.wholeRupees)
@@ -72,7 +72,7 @@ struct InvoiceActionDiscountSheet: View {
                         amountText = n > 0 ? PaymentText.field(n) : ""
                     }
                 } header: {
-                    Text("Discount")
+                    LedgerHeading(title: "Discount")
                 } footer: {
                     if let problem {
                         Text(problem).foregroundStyle(Tone.problem.color)
@@ -82,22 +82,21 @@ struct InvoiceActionDiscountSheet: View {
                 }
                 if let after, changed {
                     Section {
-                        LabeledContent("Grand total") { MoneyText(amount: after.grandTotal, exact: true) }
-                            .font(.headline)
-                        LabeledContent(balanceLine(after.balanceDue).label) { MoneyText(amount: balanceLine(after.balanceDue).amount, exact: true) }
+                        MoneyRow("Grand total", after.grandTotal, emphasis: true)
+                        MoneyRow(balanceLine(after.balanceDue).label, balanceLine(after.balanceDue).amount)
                     } header: {
-                        Text("After")
+                        LedgerHeading(title: "After")
                     } footer: {
                         Text(followers(after))
                     }
-                }
-                if let error {
-                    Section { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()
             }
             .houseForm()
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
+            .failureAlert($error)
             .navigationTitle("Change the discount")
             .navigationBarTitleDisplayMode(.inline)
             .disabled(saving)
@@ -116,7 +115,6 @@ struct InvoiceActionDiscountSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
         .interactiveDismissDisabled(saving)
     }
 

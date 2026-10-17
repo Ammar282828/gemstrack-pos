@@ -22,6 +22,7 @@ struct InvoiceActionRefundSheet: View {
     @State private var reason = ""
     @State private var deletion: OwnerDeletion?
     @State private var outcome: InvoiceActionOutcome?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var amount: Double { PaymentText.amount(amountText) ?? 0 }
     private var said: String { reason.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -36,7 +37,9 @@ struct InvoiceActionRefundSheet: View {
         NavigationStack {
             Form { Group {
                 Section {
-                    Picker("Refund", selection: $mode) {
+                    Picker("Refund", selection: Binding(get: { mode }, set: { new in
+                        Motion.run(Motion.enter, reduce: reduceMotion) { mode = new }
+                    })) {
                         Text("Full refund").tag(Mode.full)
                         Text("Partial refund").tag(Mode.partial)
                     }
@@ -51,9 +54,7 @@ struct InvoiceActionRefundSheet: View {
                         Text(InvoiceActionDeleteSheet.detail(invoice, book: book))
                             .font(.subheadline)
                     } header: {
-                        Text("What goes")
-                    } footer: {
-                        Text("Same as Delete: the invoice is removed.")
+                        LedgerHeading(title: "What goes")
                     }
                 } else {
                     partialSections
@@ -62,6 +63,8 @@ struct InvoiceActionRefundSheet: View {
                 .houseRows()
             }
             .houseForm()
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
             .navigationTitle("Refund \(invoice.id)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -69,21 +72,10 @@ struct InvoiceActionRefundSheet: View {
                     Button(role: .cancel) { dismiss() }
                 }
             }
-            // The one action, full width at the foot, in the colour of a thing that cannot be taken back.
-            .safeAreaBar(edge: .bottom, spacing: 0) {
-                Button { ask() } label: {
-                    Label(mode == .full ? "Yes, refund invoice" : "Record partial refund", systemImage: "arrow.uturn.backward")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.glassProminent)
-                .tint(Tone.problem.color)
-                .controlSize(.large)
-                .disabled(mode == .partial && after == nil)
-                .padding(.horizontal)
-                .padding(.bottom, 8)
-            }
+            // The one action, at the foot: a thing that cannot be taken back is the bar's destructive role.
+            .actionBar(primary: ActionBar.Action(refundTitle, systemImage: "arrow.uturn.backward", role: .destructive,
+                                                 isDisabled: mode == .partial && after == nil) { ask() })
         }
-        .presentationDetents([.large])
         .task {
             book.invoices.need()
             book.hisaab.need()
@@ -92,6 +84,11 @@ struct InvoiceActionRefundSheet: View {
             if let outcome { onDone(outcome) }
             dismiss()
         }
+    }
+
+    private var refundTitle: String {
+        if mode == .full { return "Refund invoice" }
+        return amount > 0 ? "Refund \(PaymentText.pkr(amount))" : "Record partial refund"
     }
 
     @ViewBuilder
@@ -103,7 +100,7 @@ struct InvoiceActionRefundSheet: View {
                 .monospacedDigit()
             TextField("Reason", text: $reason, prompt: Text("e.g. damaged item (optional)"))
         } header: {
-            Text("Refund")
+            LedgerHeading(title: "Refund")
         } footer: {
             if amount > 0 && amount > invoice.amountPaid + 0.5 {
                 // The web takes it; said so nobody hands back more than came in by a slip of the keys.
@@ -114,11 +111,10 @@ struct InvoiceActionRefundSheet: View {
         }
         if let after {
             Section {
-                LabeledContent("Paid") { MoneyText(amount: after.amountPaid, exact: true) }
-                LabeledContent(balanceLine(after.balanceDue).label) { MoneyText(amount: balanceLine(after.balanceDue).amount, exact: true) }
-                    .font(.headline)
+                MoneyRow("Paid", after.amountPaid)
+                MoneyRow(balanceLine(after.balanceDue).label, balanceLine(after.balanceDue).amount, emphasis: true)
             } header: {
-                Text("After")
+                LedgerHeading(title: "After")
             } footer: {
                 Text(partialFollowers(after))
             }
