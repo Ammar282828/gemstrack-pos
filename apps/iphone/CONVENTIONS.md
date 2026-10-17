@@ -85,6 +85,47 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
      explains the obvious; a footer is for a consequence (money moves, something is deleted, a customer is messaged).
    - A wrapping caption is held to one line where the detail page already says it.
 
+16. **Every screen behaves the same** (UI scan, 2026-10-17: twelve audits of every screen found each one solving
+   the same things its own way). Rule 15 still holds: keep each screen's layout; these are the defaults *inside* it.
+   - **Glass is the control layer only.** Floating bars, toolbars, the tab bar, sheets, the Create button. A button
+     inside a List row, a card or a Form is `.bordered` / `.borderless` (or a plain row), never `.glass` /
+     `.glassProminent` / `.houseProminent`; no `.ultraThinMaterial` / `.regularMaterial` on content. Two or more glass
+     controls side by side sit in one `GlassEffectContainer` (`ActionBar` does this).
+   - **One primary action per screen, and it never scrolls away.** On a page or a sheet whose job is one action
+     (Save, Send, Take payment, Mark done, Publish), that action is the `.actionBar(...)` at the bottom (prominent,
+     full width, busy state, a one-line summary such as the balance). A short sheet (≤ one screen of fields) may use
+     the toolbar's confirm instead. Never both, never a second Save at the foot of the form.
+   - **Sheets.** Their own `NavigationStack`; Cancel is `.cancellationAction`, the confirm is `.confirmationAction`
+     (a read-only sheet has one `Button(role: .close)` leading). `.presentationDetents` fits the content
+     (`[.medium, .large]` for a short form; nothing for a long one; never `[.large]` alone);
+     `.interactiveDismissDisabled(busy || dirty)` on anything that saves or moves money; `.houseForm()` on a Form.
+   - **Titles.** A tab's root and a hub (a list you pick from) use the large title (`hubTitleDisplay()`); a detail
+     page, an editor and every sheet use `.inline`.
+   - **Errors.** A refused action is `.failureAlert($failure)`; a page that could not load is `ErrorState(message,
+     retry:)`; nothing is said in red text at the foot of a form. Empty is `EmptyState`, a search with no hits
+     `ContentUnavailableView.search(text:)`, both as an `.overlay` of the list, never a row inside it.
+   - **Destructive.** Every delete, remove, sign out, clear or empty asks first (`.confirmDestructive(...)`), sits in
+     its own last section (or the bottom of a Menu after a `Divider`), and gives `destructiveFeedback`.
+   - **Feel.** Every money write has `.moneyFeedback`; every other save, tick, toggle or send gives
+     `.savedFeedback(trigger:)` (success) and a refusal `.refusedFeedback(trigger:)`; a filter or segment change gives
+     selection feedback (`FilterChip` has it). Haptics fire on the event, never on each keystroke, and a scan that
+     found nothing is a warning, not a success.
+   - **Motion.** Every state change that moves layout runs through `Motion.run` / `.motion(value)`: rows inserting or
+     leaving, a section appearing (`.transition(.opacity.combined(with: .move(edge: .top)))`), show more / fewer,
+     filters, steps. Every figure that changes uses `.contentTransition(.numericText(value:))` inside that animation;
+     symbol swaps use `.contentTransition(.symbolEffect(.replace))`. No `.animation(_:)` on a whole tree (only on the
+     one view that changes, keyed by its value). Never `.id(x)` on a container to force a refresh: it kills scroll,
+     focus and the transition.
+   - **Lists.** Rows are the List's own (swipe actions, context menu, virtualised); a grid of cards inside one row is for the
+     iPad's width only, and its cards still carry a context menu with the row's swipe actions;
+     `ForEach` is keyed by a stable id, never `\.offset`. Every list or form that has a text field takes
+     `.scrollDismissesKeyboard(.interactively)`; a number keypad gets the keyboard Done (`.keyboardDone()`).
+   - **Dynamic Type.** No `.font(.system(size:))` for text (a glyph inside a fixed shape may); no
+     `minimumScaleFactor` below 0.8 on a figure; any label-plus-value row stacks at accessibility sizes (`FigureRow`,
+     `MoneyRow`, `AdaptiveStack`). Icon-only buttons carry an `accessibilityLabel` and a 44 pt target.
+   - **Words.** Sentence case for every button and title ("Settle and carry over", not "Settle & Carry Over"); a
+     count agrees with its noun ("1 piece"); no developer words a shop reads (Vertex, PITR, scopes, err, ids).
+
 ## Kit components
 
 Reach for these before writing a screen's own. Files: `App/UI/Ledger.swift`, `KitComponents.swift`, `Note.swift`.
@@ -112,3 +153,8 @@ Reach for these before writing a screen's own. Files: `App/UI/Ledger.swift`, `Ki
 - **Sheets' forms:** `.houseForm()`. **Steps:** `EntrySteps(selection:, states:)` shows done / needs a look.
 - **People and dates:** `Monogram(name:, size: Monogram.Size.row | .card | .hero)`; `ShopDate.say(iso)` or
   `ShopDate.stamp(date, withTime:)`.
+- **Rule 16's pieces** (`App/UI/Surface.swift`): `.actionBar(primary:secondary:summary:)` (bottom glass bar, one
+  prominent action, busy state, stacks at AX sizes, hides over the keyboard); `ErrorState(message, retry:)`;
+  `EmptyState(title, symbol:, message:, action:)`; `LoadingRow(label)`; `.confirmDestructive(isPresented:, title:,
+  message:, action:, perform:)`; `.savedFeedback(trigger:)` / `.refusedFeedback(trigger:)` /
+  `.selectionFeedback(trigger:)`; `.keyboardDone()`; `AdaptiveStack { }` (HStack, VStack at AX sizes).
