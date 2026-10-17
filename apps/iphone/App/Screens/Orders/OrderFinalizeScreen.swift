@@ -81,8 +81,8 @@ struct OrderFinalizeScreen: View {
             }
             Section {
                 LabeledContent("Discount") {
-                    TextField("0", text: $discount)
-                        .keyboardType(.decimalPad)
+                    TextField("0", text: $discount.wholeRupees)
+                        .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
                         .monospacedDigit()
                 }
@@ -169,7 +169,7 @@ struct OrderFinalizeScreen: View {
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 2) {
-                if abs(due) > 0.5 {
+                if abs(due) >= 1 {
                     RowAmount(amount: abs(due), tone: due < 0 ? Tone.credit.color : Tone.owed.color)
                     Text(due < 0 ? "In credit" : "Due").font(.caption).foregroundStyle(.secondary)
                 } else {
@@ -222,9 +222,10 @@ struct OrderFinalizeScreen: View {
         }
     }
 
+    /// A number-pad box is a sum of money, kept to whole rupees (owner, 2026-10-17: "there should be no decimals").
     private func field(_ title: String, _ text: Binding<String>, keyboard: UIKeyboardType, placeholder: String = "0") -> some View {
         LabeledContent(title) {
-            TextField(placeholder, text: text)
+            TextField(placeholder, text: keyboard == .numberPad ? text.wholeRupees : text)
                 .keyboardType(keyboard)
                 .multilineTextAlignment(.trailing)
                 .monospacedDigit()

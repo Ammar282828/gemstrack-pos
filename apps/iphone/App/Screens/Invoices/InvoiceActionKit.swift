@@ -39,7 +39,7 @@ enum InvoiceActionWords {
     /// `keepsCredit`: the write also keeps the invoice's credit row (deleting a payment does, `followCredit`;
     /// the discount's write does not, and the ledger sync puts that right later).
     static func ledger(_ inv: Invoice, balanceDue: Double, keepsCredit: Bool = false) -> String {
-        if balanceDue > 0 {
+        if balanceDue >= 1 {
             return canHoldCredit(inv.customerId)
                 ? "\(who(inv))'s hisaab shows \(PaymentText.pkr(balanceDue)) owed on it."
                 : "Its walk-in ledger row shows \(PaymentText.pkr(balanceDue)) owed."

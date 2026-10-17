@@ -39,7 +39,7 @@ struct AddExpenseSheet: View {
     private static let typed = "__typed__"
 
     /// The web's number box: digits and one dot, two decimals.
-    private var amount: Double { MoneyParse.amount(amountText) ?? 0 }
+    private var amount: Double { MoneyParse.rupees(amountText) ?? 0 }
 
     private var chosenCategory: String {
         let name = category == Self.typed ? typedCategory : category
@@ -91,8 +91,8 @@ struct AddExpenseSheet: View {
                         .lineLimit(1...3)
                 }
                 LedgerSection("How much") {
-                    TextField("Amount in rupees", text: $amountText)
-                        .keyboardType(.decimalPad)
+                    TextField("Amount in rupees", text: $amountText.wholeRupees)
+                        .keyboardType(.numberPad)
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }

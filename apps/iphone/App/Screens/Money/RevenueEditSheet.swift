@@ -27,7 +27,7 @@ struct RevenueEditSheet: View {
         _amountText = State(initialValue: editing.map { ExpenseEditing.typed($0.amount) } ?? "")
     }
 
-    private var amount: Double { MoneyParse.amount(amountText) ?? 0 }
+    private var amount: Double { MoneyParse.rupees(amountText) ?? 0 }
     private var cleanedWhat: String { what.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var canSave: Bool { amount >= 0.01 && !cleanedWhat.isEmpty && !saving }
 
@@ -40,8 +40,8 @@ struct RevenueEditSheet: View {
                         .lineLimit(1...3)
                 }
                 LedgerSection("How much") {
-                    TextField("Amount in rupees", text: $amountText)
-                        .keyboardType(.decimalPad)
+                    TextField("Amount in rupees", text: $amountText.wholeRupees)
+                        .keyboardType(.numberPad)
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }

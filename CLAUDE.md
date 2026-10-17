@@ -231,6 +231,9 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 **Ads** (`docs/features/ads.md`)
 - [Ads](docs/features/ads.md#ads) — Meta ad account per house; Overview, Campaigns, Plan, New ad, Setup
 
+**Insights** (`docs/features/insights.md`)
+- [Insights](docs/features/insights.md#insights) — Instagram + Facebook, organic beside paid, through the Ads login; hourly snapshot keeps stories and follower counts
+
 **Ad studio** (`docs/features/ad-studio.md`) — its Plan is Ads → Plan, the rest are Design sections
 - [Ad studio](docs/features/ad-studio.md#ad-studio) — both houses; [any shape](docs/features/ad-studio.md#any-shape)
 - [Board](docs/features/ad-studio.md#board) — endless canvas, Let it cook, MCP agent (`/api/studio/mcp`), Use it; a weekly board Mondays 9:00

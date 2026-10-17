@@ -200,7 +200,7 @@ struct OrderScreen: View {
         if stage != .closed {
             let due = OrdersLogic.hasInvoice(order) ? (invoice?.balanceDue ?? owed) : OrdersLogic.balance(order)
             VStack(alignment: .leading, spacing: 4) {
-                if due > 0.5 {
+                if due >= 1 {
                     Text("OWED")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
@@ -563,7 +563,7 @@ struct OrderScreen: View {
     private func barStep(_ order: Order, stage: OrderStage, owed: Double) -> OrderNextStep? {
         guard let step = OrdersLogic.nextStep(order, stage: stage, owed: owed) else { return nil }
         switch step {
-        case .invoice(_, let due): return due > 0.5 ? step : nil
+        case .invoice(_, let due): return due >= 1 ? step : nil
         case .checkTransfer: return session.role == "owner" || session.role == "staff" ? step : nil
         default: return step
         }
@@ -712,7 +712,7 @@ struct OrderScreen: View {
     private func advanceSheet(_ order: Order) -> some View {
         let balance = OrdersLogic.balance(order)
         // The note is the web's own default; it can be changed, and needs three characters (order-dialogs.tsx).
-        return PaymentSheet(title: "Record an advance", owed: balance > 0 ? balance : nil, note: "Advance payment received") { amount, method, note in
+        return PaymentSheet(title: "Record an advance", owed: balance >= 1 ? balance : nil, note: "Advance payment received") { amount, method, note in
             _ = try await ERPAPI.shared.write("recordOrderAdvance", [
                 "orderId": order.id,
                 "amount": amount,

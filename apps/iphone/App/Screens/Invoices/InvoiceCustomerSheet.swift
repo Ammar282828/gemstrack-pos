@@ -25,7 +25,7 @@ struct InvoiceCustomerSheet: View {
         return !n.isEmpty && !isWalkInName(n)
     }
 
-    private var owes: Bool { invoice.balanceDue > 0.5 }
+    private var owes: Bool { invoice.balanceDue >= 1 }
 
     private var typed: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
 

@@ -315,7 +315,7 @@ private struct ShareholdersBoard: View {
 
     private func distributionSection(_ positions: [ShareholderFigures.Position]) -> some View {
         let s = floorSettings
-        let cash = max(0, MoneyParse.amount(cashText) ?? 0)
+        let cash = max(0, MoneyParse.rupees(cashText) ?? 0)
         // The calculator holds back the floor as saved, as the page's does (onFloorChange fires on load and save).
         let d = Partnership.calculateDistribution(
             cashOnHand: cash, workingCapitalFloor: max(0, s.workingCapitalFloor),
@@ -333,8 +333,8 @@ private struct ShareholdersBoard: View {
                 .foregroundStyle(Tone.owed.color)
             }
             LabeledContent("Cash available") {
-                TextField("0", text: $cashText)
-                    .keyboardType(.decimalPad)
+                TextField("0", text: $cashText.wholeRupees)
+                    .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
             }
@@ -401,13 +401,13 @@ private struct ShareholdersBoard: View {
     /// The floor, edited where it is shown and saved with a stamp (`setWorkingCapitalFloor`).
     private func floorRow(_ s: PartnershipSettings) -> some View {
         let typed = floorText ?? PaymentText.field(s.workingCapitalFloor)
-        let parsed = max(0, MoneyParse.amount(typed) ?? 0)
-        let changed = parsed != s.workingCapitalFloor
+        let parsed = max(0, MoneyParse.rupees(typed) ?? 0)
+        let changed = parsed != s.workingCapitalFloor.rounded()
         return HStack(spacing: 10) {
             Text("Working capital floor")
             Spacer(minLength: 8)
-            TextField("0", text: Binding(get: { typed }, set: { floorText = $0 }))
-                .keyboardType(.decimalPad)
+            TextField("0", text: Binding(get: { typed }, set: { floorText = PaymentText.whole($0) }))
+                .keyboardType(.numberPad)
                 .multilineTextAlignment(.trailing)
                 .monospacedDigit()
                 .frame(maxWidth: 130)

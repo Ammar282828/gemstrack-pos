@@ -318,6 +318,7 @@ struct InvoicesList: View {
                                 .overlay {
                                     RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                                         .strokeBorder(Theme.accent.opacity(isMine(inv) ? 0.22 : 0.08), lineWidth: 1)
+                                        .allowsHitTesting(false)
                                 }
                             }
                         }
@@ -412,37 +413,45 @@ struct InvoicesList: View {
     private func summaryStrip(_ all: [Invoice]) -> some View {
         let base = takenBy.isEmpty ? all : all.filter { $0.takenBy == takenBy }
         let s = InvoiceSummary.of(base, now: Date())
-        return VStack(alignment: .leading, spacing: 12) {
-            Button { pick(.owed) } label: {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Owed to you").font(.subheadline).foregroundStyle(.secondary)
-                    Text(Money.pkr(s.owed))
-                        .font(.system(.largeTitle, design: .serif).weight(.semibold))
-                        .foregroundStyle(s.owed > 0 ? Tone.owed.color : Color.primary)
-                        .monospacedDigit()
-                        .contentTransition(.numericText(value: s.owed))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-                    Text("\(s.owedCount) invoice\(s.owedCount == 1 ? "" : "s")").font(.footnote).foregroundStyle(.secondary)
-                }
-                .ledgerCard()
-                .overlay { chosenEdge(.owed) }
-            }
-            .buttonStyle(.plain)
-            .accessibilityAddTraits(chosen(.owed) ? .isSelected : [])
-            FigureRow {
-                figureButton("Today", s.today, s.todayCount, .today)
-                figureButton("This month", s.month, s.monthCount, .month)
-            }
+        // One slim card, the three figures side by side (owner, 2026-10-17, of the hero card and two tiles that filled
+        // the first screen: "this takes too much space"). Each still taps to show what it counts.
+        return HStack(spacing: 0) {
+            figureButton("Owed to you", s.owed, s.owedCount, .owed, tone: s.owed >= 1 ? Tone.owed.color : nil)
+            Divider().frame(height: 34)
+            figureButton("Today", s.today, s.todayCount, .today)
+            Divider().frame(height: 34)
+            figureButton("This month", s.month, s.monthCount, .month)
         }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 6)
+        .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
     }
 
-    private func figureButton(_ title: String, _ amount: Double, _ count: Int, _ figure: InvoiceSummary.Figure) -> some View {
+    private func figureButton(_ title: String, _ amount: Double, _ count: Int, _ figure: InvoiceSummary.Figure,
+                              tone: Color? = nil) -> some View {
         Button { pick(figure) } label: {
-            FigureTile(label: title, value: Money.pkrLac(amount), detail: "\(count) invoice\(count == 1 ? "" : "s")")
-                .overlay { chosenEdge(figure) }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.caption).foregroundStyle(chosen(figure) ? Theme.accent : Color.secondary).lineLimit(1)
+                Text(Money.pkrLac(amount, digits: 1))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(tone ?? Color.primary)
+                    .monospacedDigit()
+                    .contentTransition(.numericText(value: amount))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background {
+                if chosen(figure) {
+                    RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).fill(Theme.accent.opacity(0.12))
+                }
+            }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(Money.pkr(amount)), \(count) invoice\(count == 1 ? "" : "s")")
         .accessibilityAddTraits(chosen(figure) ? .isSelected : [])
     }
 
@@ -707,7 +716,7 @@ private struct InvoiceSectionHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             LedgerHeading(title: section.title, count: section.rows.count, trailing: Money.pkr(section.billed))
-            if section.owed > 0.5 {
+            if section.owed >= 1 {
                 Text(section.hint.isEmpty ? "\(Money.pkr(section.owed)) still owed" : "\(section.hint) · \(Money.pkr(section.owed)) still owed")
                     .font(.caption.weight(.semibold))
                     .monospacedDigit()

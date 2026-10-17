@@ -518,6 +518,12 @@ enum MoneyParse {
         if out.isEmpty || out == "." { return nil }
         return Double(out)
     }
+
+    /// A sum of money typed into a box, in whole rupees (owner, 2026-10-17: "there should be no decimals"):
+    /// any paise pasted in are rounded away, as the ERP rounds every sum to the rupee.
+    static func rupees(_ raw: String) -> Double? {
+        amount(raw).map { $0.rounded() }
+    }
 }
 
 /// Filing a karigar's payment under one of his hisaabs (expense-form.tsx).
@@ -644,7 +650,7 @@ enum HisaabBook {
         }
         if sums[WALK_IN_ENTITY] != nil {
             var rows: [HisaabUnpaid] = []
-            for inv in invoices where walkInInvoiceIds.contains(inv.id) && inv.balanceDue > 0 && inv.status != .refunded {
+            for inv in invoices where walkInInvoiceIds.contains(inv.id) && inv.balanceDue >= 1 && inv.status != .refunded {
                 rows.append(HisaabUnpaid(id: inv.id, grandTotal: inv.grandTotal, amountPaid: inv.amountPaid, balanceDue: inv.balanceDue))
             }
             unpaidBy[WALK_IN_ENTITY] = rows

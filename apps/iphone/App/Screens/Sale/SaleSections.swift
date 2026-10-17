@@ -168,7 +168,7 @@ extension SaleForm {
     @ViewBuilder
     func discountSection(_ f: SaleFigures) -> some View {
         Section {
-            SaleNumberField(label: "Amount (PKR)", text: $draft.discount)
+            SaleNumberField(label: "Amount (PKR)", text: $draft.discount, rupees: true)
         } header: {
             LedgerHeading(title: "Discount")
         } footer: {
@@ -217,8 +217,8 @@ extension SaleForm {
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 TextField("What it is (e.g. old ring)", text: exchangeBinding(row.id, .description))
-                TextField("Amount", text: exchangeBinding(row.id, .value))
-                    .keyboardType(.decimalPad)
+                TextField("Amount", text: exchangeBinding(row.id, .value).wholeRupees)
+                    .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
                     .frame(width: 110)
@@ -290,8 +290,8 @@ extension SaleForm {
         let single = draft.payments.count < 2
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
-                TextField("Amount (PKR)", text: row.amount)
-                    .keyboardType(.decimalPad)
+                TextField("Amount (PKR)", text: row.amount.wholeRupees)
+                    .keyboardType(.numberPad)
                     .monospacedDigit()
                 Button(single ? "Paid in full" : "The rest") { draft.payRest(row.wrappedValue.id, total: f.total) }
                     .buttonStyle(.glass)
@@ -501,7 +501,7 @@ extension SaleForm {
                 TextField("Receiver name", text: $draft.delivery.contactName, prompt: Text("If not the customer"))
                 TextField("Receiver phone", text: $draft.delivery.contactPhone, prompt: Text("Optional"))
                     .keyboardType(.phonePad)
-                SaleNumberField(label: "Delivery charge (PKR)", text: $draft.delivery.charge, prompt: "0 if free")
+                SaleNumberField(label: "Delivery charge (PKR)", text: $draft.delivery.charge, prompt: "0 if free", rupees: true)
                 TextField("Instructions", text: $draft.delivery.notes, prompt: Text("Landmark, timing, gate code"))
             }
         } header: {

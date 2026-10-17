@@ -224,7 +224,7 @@ struct Dashboard: View {
 
     /// Owed is amber, never red: money still to come is not an alarm.
     private func owedCard(_ f: DashFigures) -> some View {
-        let owing = f.totalOutstanding > 0
+        let owing = f.totalOutstanding >= 1
         let n = f.unpaid.count
         return DashStat(label: "Owed to you", linked: true) {
             if owing {

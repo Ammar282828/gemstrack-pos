@@ -182,14 +182,10 @@ enum OrderActions {
         return String(x)
     }
 
-    /// "45,500.00": `toLocaleString('en-US', { minimumFractionDigits: 2 })` (three decimals at most, as there).
+    /// "45,500": whole rupees, never ".00" (owner, 2026-10-17: "there should be no decimals"; the web's
+    /// order-message.ts says it the same way now).
     static func amount(_ n: Double) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.locale = Locale(identifier: "en_US")
-        f.minimumFractionDigits = 2
-        f.maximumFractionDigits = 3
-        return f.string(from: NSNumber(value: n.isFinite ? n : 0)) ?? String(n)
+        Money.grouped(n.isFinite ? n : 0)
     }
 
     // MARK: Book courier (the page's ShopifyCourierOption)

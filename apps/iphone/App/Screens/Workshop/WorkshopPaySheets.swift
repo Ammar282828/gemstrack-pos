@@ -66,7 +66,7 @@ struct WorkshopPaySheet: View {
 
     private static let typed = "__typed__"
 
-    private var amount: Double { MoneyParse.amount(amountText) ?? 0 }
+    private var amount: Double { MoneyParse.rupees(amountText) ?? 0 }
     private var cleanedWhat: String { what.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var chosenCategory: String {
         (category == Self.typed ? typedCategory : category).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -97,8 +97,8 @@ struct WorkshopPaySheet: View {
                     Text("Added to \(batch.label).")
                 }
                 LedgerSection("Amount (PKR)") {
-                    TextField("0.00", text: $amountText)
-                        .keyboardType(.decimalPad)
+                    TextField("0", text: $amountText.wholeRupees)
+                        .keyboardType(.numberPad)
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }
@@ -258,7 +258,7 @@ struct WorkshopSilverSheet: View {
                 Button("Record silver") { Task { await save() } }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Surcharge \(PaymentText.pkr(total)): \(WorkshopLogic.grams3(grams)) at \(PaymentText.pkr(rate)) a gram, kept under his silver transactions. No expense and no Hisaab entry is written.")
+                Text("Surcharge \(PaymentText.pkr(total)): \(WorkshopLogic.grams3(grams)) at PKR \(RateKeys.say(rate)) a gram, kept under his silver transactions. No expense and no Hisaab entry is written.")
             }
         }
         .presentationDetents([.medium, .large])
