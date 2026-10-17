@@ -469,6 +469,55 @@
       ]
     },
     {
+      "id": "insights",
+      "group": "marketing",
+      "href": "/insights",
+      "label": "Insights",
+      "icon": "ChartColumn",
+      "keywords": [
+        "instagram insights",
+        "facebook insights",
+        "followers",
+        "reach",
+        "engagement",
+        "analytics",
+        "organic",
+        "reels",
+        "stories"
+      ],
+      "tabs": [
+        {
+          "href": "/insights",
+          "label": "Overview",
+          "heading": "Insights",
+          "icon": "ChartColumn"
+        },
+        {
+          "href": "/insights/posts",
+          "label": "Posts",
+          "icon": "Rows3",
+          "keywords": [
+            "post performance",
+            "reels",
+            "stories",
+            "best post"
+          ]
+        },
+        {
+          "href": "/insights/audience",
+          "label": "Audience",
+          "icon": "UsersRound",
+          "keywords": [
+            "demographics",
+            "age",
+            "gender",
+            "cities",
+            "when followers online"
+          ]
+        }
+      ]
+    },
+    {
       "id": "money",
       "group": "money",
       "href": "/expenses",

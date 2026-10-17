@@ -25,7 +25,7 @@ import {
   Wallet, TrendingUp, Settings as SettingsIcon, Calendar, Briefcase, Package, Gem, Layers, ImagePlus, Scale,
   PenLine, Coins, Target, BookUser, PieChart, Landmark, Tag, ArchiveRestore, RotateCcw, Mic, History, Palette,
   Rocket, BarChart3, UsersRound, ListChecks, SlidersHorizontal, Contact, Import, Database, ScanLine, Camera,
-  LayoutGrid, Bell, Plug, Banknote, Map as MapIcon,
+  LayoutGrid, Bell, Plug, Banknote, Map as MapIcon, Rows3,
 } from 'lucide-react';
 import {
   STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE,
@@ -189,6 +189,18 @@ export const NAV: NavEntry[] = [
       { href: '/ads/audiences', label: 'Audiences', icon: UsersRound, keywords: ['lookalike', 'custom audience'] },
       { href: '/ads/rules', label: 'Rules', icon: ListChecks, keywords: ['automated rules'] },
       { href: '/ads/tests', label: 'A/B tests', icon: ListChecks, keywords: ['split test', 'experiment', 'ab test'] },
+    ],
+  },
+  {
+    // Instagram and the Facebook Page, organic beside paid (lib/social-insights; owner, 2026-10-17:
+    // "all analytics possible to track on the instagram and facebook … through ads and organically").
+    // Through the Ads connection, so it lives where Ads does; owners and the marketing account.
+    id: 'insights', group: 'marketing', href: '/insights', label: 'Insights', icon: BarChart3, when: () => STORE_META_ADS,
+    keywords: ['instagram insights', 'facebook insights', 'followers', 'reach', 'engagement', 'analytics', 'organic', 'reels', 'stories'],
+    tabs: [
+      { href: '/insights', label: 'Overview', heading: 'Insights', icon: BarChart3 },
+      { href: '/insights/posts', label: 'Posts', icon: Rows3, keywords: ['post performance', 'reels', 'stories', 'best post'] },
+      { href: '/insights/audience', label: 'Audience', icon: UsersRound, keywords: ['demographics', 'age', 'gender', 'cities', 'when followers online'] },
     ],
   },
   {
