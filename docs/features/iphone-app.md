@@ -388,3 +388,17 @@ moving means signing in again in the one app.
 
 **Checks.** `swiftc -parse` only for `App/` here; the Mac build is the compiler. UI test `testTheBusinessesSheetOpensFromTheChip` (demo) opens the sheet from the
 chip; launch arguments (`-ERPDemo`, `-ERPDemoTab`, `-ERPDemoOpen`) work as before, and `/app/businesses` is in the every-place list.
+
+### The UI scan (2026-10-17)
+
+Twelve read-only audits, one per screen group, found every screen solving the same things its own way: a bottom
+bar built by hand 23 times, 86 hand-made empty states, red error text at the foot of forms, glass buttons inside
+rows, deletes and sign-out with no question, a success tap fired twice (the toast already taps), sums shrunk to half
+size at large text, and almost no motion in Orders or Marketing. The answer is `apps/iphone/CONVENTIONS.md` rule 16
+and its kit (`App/UI/Surface.swift`: `.actionBar`, `ErrorState`, `EmptyState`, `confirmDestructive`, the feedback
+modifiers, `keyboardDone`, `AdaptiveStack`), applied to every folder with each screen's layout kept (rule 15).
+
+Left for later, because each is a redesign rather than a rule: one designer instead of two (`ArtworkEditor` beside
+the Board's canvas, whose model is the better one), pinch/rotate and multi-select on the canvas, New sale and New
+order sharing one piece editor and one step order, the Workshop's cards as real list rows (swipe actions), the
+Studio's own tab strip, a shared money/weight field, and Search holding the map and the account rows.
