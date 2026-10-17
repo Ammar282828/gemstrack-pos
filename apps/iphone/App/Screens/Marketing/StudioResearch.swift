@@ -129,9 +129,10 @@ struct StudioSaved: View {
             if account.isEmpty { Text("No ads in the account.").foregroundStyle(.secondary) }
             ForEach(account, id: \.text) { ad in
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 6) {
-                        Text(ad.s("name")).font(.headline).lineLimit(1)
-                        AdsStatusBadge(status: ad.s("effective_status"))
+                    Text(ad.s("name")).font(.headline)
+                    // Running, the expected state, says nothing (CONVENTIONS rule 15).
+                    if AdsStatusWords.of(ad.s("effective_status")).tone != .good {
+                        Text(ad.s("effective_status")).font(.caption).foregroundStyle(.secondary)
                     }
                     NavigationLink("Ad details", value: Route(path: "/ads/object?id=" + ad.s("id") + "&kind=ad"))
                     Menu("Keep in a folder") {

@@ -65,9 +65,12 @@ struct AnaSalesPage: View {
         }
     }
 
-    /// What the chart is bounded by (not the period), and its one colour; the average is the chart's dashed line.
     private var monthlyNote: String {
-        "Every month on record, whatever the period above." + (history.monthlyAverage > 0 ? " The best month is green." : "")
+        var text = "Every month on record, regardless of the period above."
+        if history.monthlyAverage > 0 {
+            text += " Averaging \(Money.pkrLac(history.monthlyAverage)) across months with sales; the best month is green."
+        }
+        return text
     }
 
     // MARK: Yearly performance
@@ -82,14 +85,14 @@ struct AnaSalesPage: View {
             } header: {
                 LedgerHeading(title: "Yearly performance")
             } footer: {
-                Text("Tap a year to set Analytics to it.")
+                Text(showCosts
+                     ? "All-time revenue, expenses and profit by year. Tap a year to filter Analytics to it."
+                     : "All-time revenue by year. Tap a year to filter Analytics to it.")
             }
             .houseRows()
         }
     }
 
-    /// The year and its revenue, then one quiet line: its net profit and margin (red only for a loss) and what is
-    /// still unpaid. Its expenses and estimated profit are the Overview's once the year is tapped (rule 15).
     private func yearRow(_ y: AnaYear) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .firstTextBaseline) {
@@ -97,22 +100,30 @@ struct AnaSalesPage: View {
                 Spacer(minLength: 8)
                 Text(Money.lacCrore(y.revenue)).font(.subheadline.weight(.semibold)).monospacedDigit()
             }
-            yearLine(y)
+            Text(yearDetail(y)).font(.caption).foregroundStyle(.secondary)
+            if showCosts {
+                HStack(spacing: 6) {
+                    Text("Net profit \(Money.lacCrore(y.netProfit))")
+                        .foregroundStyle(y.netProfit >= 0 ? Tone.settled.color : Tone.owed.color)
+                    Text(y.revenue > 0 ? "\(AnaFormat.fixed(y.netProfit / y.revenue * 100, 1))% margin" : "—")
+                        .foregroundStyle(.secondary)
+                }
                 .font(.caption)
                 .monospacedDigit()
-                .lineLimit(1)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
     }
 
-    private func yearLine(_ y: AnaYear) -> Text {
-        let unpaid = y.unpaid > 0 ? "Unpaid \(Money.lacCrore(y.unpaid))" : ""
-        guard showCosts else { return Text(unpaid.isEmpty ? "Nothing unpaid" : unpaid).foregroundStyle(.secondary) }
-        let margin = y.revenue > 0 ? " · \(AnaFormat.fixed(y.netProfit / y.revenue * 100, 1))% margin" : ""
-        let net = Text("Net profit \(Money.lacCrore(y.netProfit))")
-            .foregroundStyle(y.netProfit >= 0 ? Color.secondary : Tone.owed.color)
-        return net + Text(margin + (unpaid.isEmpty ? "" : " · " + unpaid)).foregroundStyle(.secondary)
+    private func yearDetail(_ y: AnaYear) -> String {
+        var parts: [String] = []
+        parts.append(y.unpaid > 0 ? "Unpaid \(Money.lacCrore(y.unpaid))" : "Nothing unpaid")
+        if showCosts {
+            parts.append("Expenses \(Money.lacCrore(y.expenses))")
+            parts.append("Est. profit \(Money.lacCrore(y.profit))")
+        }
+        return parts.joined(separator: " · ")
     }
 
     // MARK: Daily summary
@@ -131,6 +142,8 @@ struct AnaSalesPage: View {
             }
         } header: {
             LedgerHeading(title: "Daily summary")
+        } footer: {
+            Text("Tap a day for its report.")
         }
         .houseRows()
     }
@@ -191,7 +204,6 @@ struct AnaDaySheet: View {
                     } else {
                         ForEach(invoices) { (inv: Invoice) in
                             TwoLine(title: inv.id, subtitle: inv.customerName, trailing: Money.lacCrore(invoiceSaleValue(inv)))
-                                .lineLimit(1)
                         }
                     }
                 }
@@ -201,7 +213,6 @@ struct AnaDaySheet: View {
                     } else {
                         ForEach(lines) { (l: Line) in
                             TwoLine(title: l.item.name, subtitle: l.item.sku, trailing: Money.lacCrore(l.item.itemTotal))
-                                .lineLimit(1)
                         }
                     }
                 }

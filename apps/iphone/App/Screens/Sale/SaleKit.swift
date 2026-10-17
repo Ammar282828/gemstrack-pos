@@ -93,9 +93,10 @@ struct SaleCustomerPicker: View {
         NavigationStack {
             List { Group {
                 Section {
-                    // The walk-in is a row like the people below it, with no glyph per row (CONVENTIONS rule 15).
+                    // The walk-in is a row like the people below it: its monogram is the figure of nobody in particular.
                     Button { pick(nil); dismiss() } label: {
                         HStack(spacing: 12) {
+                            Monogram(name: "", size: Monogram.Size.row)
                             Text("Walk-in").fontWeight(.medium)
                             Spacer(minLength: 0)
                         }
@@ -108,8 +109,11 @@ struct SaleCustomerPicker: View {
                 Section {
                     ForEach(people) { c in
                         Button { pick(c); dismiss() } label: {
-                            TwoLine(title: c.name, subtitle: c.phone)
-                                .contentShape(.rect)
+                            HStack(spacing: 12) {
+                                Monogram(name: c.name, size: Monogram.Size.row)
+                                TwoLine(title: c.name, subtitle: c.phone)
+                            }
+                            .contentShape(.rect)
                         }
                         .buttonStyle(.plain)
                     }

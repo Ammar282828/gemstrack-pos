@@ -97,11 +97,10 @@ struct DesignSavedView: View {
         List {
             Section {
                 ChipRow {
-                    // No counts on the chips (rule 15): a folder's size is no call to act; the list under it says it.
-                    FilterChip(title: "All", chosen: view == Self.all) { view = Self.all }
-                    if (counts[""] ?? 0) > 0 { FilterChip(title: "Unfiled", chosen: view == Self.unfiled) { view = Self.unfiled } }
-                    ForEach(shelf.folders) { f in FilterChip(title: f.name, chosen: view == f.id) { view = f.id } }
-                    FilterChip(title: "On this phone", chosen: view == Self.device) { view = Self.device }
+                    FilterChip(title: "All", count: shelf.items.count, chosen: view == Self.all) { view = Self.all }
+                    if (counts[""] ?? 0) > 0 { FilterChip(title: "Unfiled", count: counts[""], chosen: view == Self.unfiled) { view = Self.unfiled } }
+                    ForEach(shelf.folders) { f in FilterChip(title: f.name, count: counts[f.id] ?? 0, chosen: view == f.id) { view = f.id } }
+                    FilterChip(title: "On this phone", count: shelf.draftRows.count, chosen: view == Self.device) { view = Self.device }
                     if adsOk { FilterChip(title: "In the ad account", chosen: view == Self.account) { view = Self.account } }
                     FilterChip(title: "New folder", chosen: false) { renaming = nil; folderText = ""; asking = true }
                 }
@@ -157,8 +156,6 @@ struct DesignSavedView: View {
                     Button { detail = r } label: { DesignRecordLine(record: r) }
                         .buttonStyle(.plain).zoomSource(id: "design:" + r.id)
                 }
-            } header: {
-                LedgerHeading(title: folder?.name ?? (view == Self.unfiled ? "Unfiled" : "Designs"), count: shown.count)
             }.houseRows()
         }
     }
@@ -175,9 +172,7 @@ struct DesignSavedView: View {
                     Button { onOpenDraft(d) } label: { DesignDraftLine(row: d) }.buttonStyle(.plain)
                         .swipeActions { Button("Delete", role: .destructive) { deletingDraft = d } }
                 }
-            } header: {
-                LedgerHeading(title: "On this phone", count: shelf.draftRows.count)
-            }.houseRows()
+            } footer: { Text("Earlier Post a piece drafts open here as designs.") }.houseRows()
         }
     }
 

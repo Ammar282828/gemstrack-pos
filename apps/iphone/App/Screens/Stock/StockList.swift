@@ -278,8 +278,9 @@ private struct StockRow: View {
                     .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                     .zoomSource(id: StockKit.piecePath(p.sku))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(p.name).font(.body.weight(.medium)).lineLimit(1)
-                    Text(detail(p)).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                    Text(p.name).font(.body.weight(.medium)).lineLimit(2)
+                    Text(p.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
+                    Text(detail(p)).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 StockPrice(price: row.price).layoutPriority(1)
@@ -303,9 +304,9 @@ private struct StockRow: View {
         .stockContextMenu(p, go: $go, mayEdit: mayEdit, onDelete: onDelete)
     }
 
-    /// "RIN-000004 · Gold 21K · 3.4g": the one quiet line; the category is the chips' and the piece page's.
+    /// "Gold 21K · 3.4g · Rings".
     private func detail(_ p: Product) -> String {
-        [p.sku, StockKit.metalLine(p), StockKit.grams(p.metalWeightG)].joined(separator: " · ")
+        [StockKit.metalLine(p), StockKit.grams(p.metalWeightG), StockKit.categoryTitle(p.categoryId)].joined(separator: " · ")
     }
 }
 
@@ -321,13 +322,13 @@ private struct StockCard: View {
                     .aspectRatio(1, contentMode: .fit)
                     .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
                     .zoomSource(id: StockKit.piecePath(p.sku))
-                Text(p.name).font(.subheadline.weight(.semibold)).lineLimit(1).multilineTextAlignment(.leading)
-                // The SKU and the price on one line; the metal and weight are the piece page's.
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(p.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
-                    Spacer(minLength: 4)
-                    StockPrice(price: row.price)
-                }
+                Text(p.name).font(.subheadline.weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)
+                Text(p.sku).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
+                Text("\(StockKit.metalLine(p)) · \(StockKit.grams(p.metalWeightG))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                StockPrice(price: row.price)
             }
             .ledgerCard(padding: 10)
         }

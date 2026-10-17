@@ -140,26 +140,27 @@ struct WorkshopGivenScreen: View {
 
     // MARK: A row
 
-    /// Two lines (rule 15): what it is, and "Out" in amber while it is (back is the expected end: nothing); then one quiet
-    /// line of when, who and by whom. The note is in the menu.
     private func row(_ item: GivenItem) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 8) {
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(item.description).font(.headline).lineLimit(1)
-                        Spacer(minLength: 4)
-                        if item.status == .out {
-                            Text("Out").font(.caption.weight(.semibold)).foregroundStyle(Tone.owed.color)
-                        }
-                    }
-                    Text(recipientWords(item)).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                }
+                Text(item.description).font(.headline).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
                 Menu { itemMenu(item) } label: {
                     Image(systemName: "ellipsis").frame(width: 44, height: 44)
                 }
                 .buttonStyle(.borderless)
                 .accessibilityLabel("Actions for " + item.description)
+            }
+            statusBadge(item)
+            Label {
+                Text(recipientWords(item))
+            } icon: {
+                Image(systemName: icon(item.recipientType))
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            if let notes = item.notes, !notes.isEmpty {
+                Text(notes).font(.caption).foregroundStyle(.secondary)
             }
             if canReturn(item) {
                 gotBack(item)
@@ -173,9 +174,6 @@ struct WorkshopGivenScreen: View {
 
     @ViewBuilder
     private func itemMenu(_ item: GivenItem) -> some View {
-            if let notes = item.notes, !notes.isEmpty {
-                Section { Text(notes) }
-            }
             if canReturn(item) {
                 Button { markReturned(item) } label: {
                     Label("Got back", systemImage: "checkmark.circle")
@@ -200,17 +198,12 @@ struct WorkshopGivenScreen: View {
         session.isOwner && item.status == .out
     }
 
-    /// "3 Oct 2026 · Ustad Demo · by Ammar", and "· back 9 Oct" once it is.
+    /// "3 Oct 2026 · Ustad Demo · by Ammar".
     private func recipientWords(_ item: GivenItem) -> String {
         let when = item.date.isEmpty ? "" : ShopDate.say(item.date)
         let who = item.recipientName.isEmpty ? "—" : item.recipientName
         let by = (item.givenBy ?? "").isEmpty ? "" : " · by " + (item.givenBy ?? "")
-        var back = ""
-        if item.status == .returned {
-            let on = (item.returnedDate ?? "").isEmpty ? "" : ShopDate.say(item.returnedDate ?? "")
-            back = on.isEmpty ? " · back" : " · back " + on
-        }
-        return (when.isEmpty ? who : when + " · " + who) + by + back
+        return (when.isEmpty ? who : when + " · " + who) + by
     }
 
     private func icon(_ t: GivenItemRecipientType) -> String {
@@ -231,6 +224,18 @@ struct WorkshopGivenScreen: View {
         }
     }
 
+    @ViewBuilder
+    private func statusBadge(_ item: GivenItem) -> some View {
+        if item.status == .out {
+            StatusBadge("Out", tone: .owed)
+        } else {
+            // Back is the expected end: no badge (rule 15), only when.
+            if let back = item.returnedDate, !back.isEmpty {
+                Text("Back " + ShopDate.say(back)).font(.caption2).foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private func gotBack(_ item: GivenItem) -> some View {
         HStack {
             Spacer()
@@ -243,6 +248,7 @@ struct WorkshopGivenScreen: View {
                         .frame(minHeight: 44)
                 }
                 .buttonStyle(.bordered)
+                .tint(Tone.settled.color)
             }
         }
     }

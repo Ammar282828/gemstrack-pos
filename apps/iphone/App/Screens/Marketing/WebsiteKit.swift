@@ -357,7 +357,7 @@ struct WebsiteSetOfTheDay: View {
                         StockImage(imageUrl: f.thumb, name: f.file, key: f.key)
                             .frame(width: 52, height: 52)
                             .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                        TwoLine(title: f.file, subtitle: f.collection).lineLimit(1)
+                        TwoLine(title: f.file, subtitle: f.collection)
                         if busy { SkeletonLoading() }
                     }
                     if withNote {

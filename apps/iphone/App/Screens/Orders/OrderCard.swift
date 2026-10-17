@@ -6,8 +6,8 @@ import ERPCore
 // (components/order/next-step.tsx). Two rows rather than one, because a row that holds both a link
 // and buttons answers every tap with all of them; here each row has one kind of control.
 //
-// The customer and what is owed lead; one quiet line follows (CONVENTIONS rule 15). The detail page holds the
-// stage track, the pieces' progress and the contact.
+// The customer and order number lead. Status, money and the promise get separate space, so a narrow
+// phone never squeezes progress counts into ellipses. The detail page holds the complete stage track.
 
 /// Calling or writing to the customer from a card's swipe.
 enum OrderContactKind {
@@ -25,9 +25,11 @@ struct OrderCardActions {
     var contact: (Order, OrderContactKind) -> Void
 }
 
-/// The card's own leading edge, which the next-step row lines up under: the row's inset, so the step sits under the name.
+/// The card's own leading edge, which the next-step row lines up under: the row's inset, the monogram, the gap.
 private enum OrderCardMetrics {
     static let inset: CGFloat = 16
+    static let monogram: CGFloat = Monogram.Size.row
+    static let gap: CGFloat = 12
 }
 
 struct OrderCardRows: View {
@@ -37,7 +39,7 @@ struct OrderCardRows: View {
     let owed: Double
     let now: Date
     let isOwner: Bool
-    /// Taken by the signed-in person: a small glyph on the card (docs/decisions.md "Signed-in defaults").
+    /// Taken by the signed-in person: the card is lit in place (docs/decisions.md "Signed-in defaults").
     let mine: Bool
     let busy: Bool
     let actions: OrderCardActions
@@ -63,6 +65,7 @@ struct OrderCardRows: View {
             }
             .buttonStyle(.plain)
             .zoomSource(id: "/orders/\(order.id)")
+            Divider()
             HStack(spacing: 8) {
                 if let step {
                     OrderNextStepRow(order: order, step: step, canAdvance: canAdvance, busy: busy, actions: actions, showsAdvanceMenu: false)
@@ -71,8 +74,12 @@ struct OrderCardRows: View {
                     .buttonStyle(.borderless).accessibilityLabel("Actions for \(order.id)")
             }
         }
-        // No rule and no lit edge (CONVENTIONS rule 15): the row's own glyph says whose it is.
-        .ledgerCard(padding: 16)
+        .ledgerCard(padding: 20)
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .strokeBorder(Theme.accent.opacity(mine ? 0.22 : 0.08), lineWidth: 1)
+                .allowsHitTesting(false)
+        }
         .contextMenu { menu }
       } else {
         NavigationLink(value: Route(path: "/orders/\(order.id)")) {
@@ -145,10 +152,7 @@ struct OrderCardRows: View {
     }
 }
 
-/// The card's summary in two lines (CONVENTIONS rule 15): who and what is still owed; then what it is, its number,
-/// the stage (unless the heading says it) and the promised day, with small glyphs for an online order and one taken
-/// by whoever is signed in. One thing is coloured: a missed or today's promise if there is one, else what is owed
-/// (amber) or in credit (teal). Paid says nothing. The pieces, the track and the contact are the order's own page.
+/// The card's summary. Complete piece, payment and contact details remain on the order.
 struct OrderCardHead: View {
     let order: Order
     let stage: OrderStage
@@ -157,74 +161,115 @@ struct OrderCardHead: View {
     let greyed: Bool
     let mine: Bool
     var showsStage = true
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        let chase = chasedPromise
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(OrdersLogic.customerName(order))
-                    .font(.headline)
-                    .foregroundStyle(greyed ? Color.secondary : Color.primary)
-                    .lineLimit(1)
-                Spacer(minLength: 8)
-                money(coloured: chase == nil)
-            }
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(reference(promised: chase == nil))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                if OrdersLogic.isOnline(order) { OrdersOnlineBadge() }
-                if mine { MineTag() }
-                Spacer(minLength: 8)
-                if let chase {
-                    Text(chase.text)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(chase.tone.color)
-                        .lineLimit(1)
-                        .fixedSize()
+        let counts = pieceCounts(order.items)
+        let wide = !typeSize.isAccessibilitySize
+        VStack(alignment: .leading, spacing: 10) {
+            // Who first, and what is owed beside them; the name takes two lines before the sum gives way.
+            let layout = wide
+                ? AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+                : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            layout {
+                HStack(alignment: .top, spacing: 12) {
+                    Monogram(name: OrdersLogic.customerName(order), size: Monogram.Size.row)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(OrdersLogic.customerName(order))
+                            .font(.headline)
+                            .foregroundStyle(greyed ? Color.secondary : Color.primary)
+                            .lineLimit(2)
+                        HStack(spacing: 6) {
+                            Text(order.id).font(.caption).foregroundStyle(.secondary)
+                            if mine { MineTag() }
+                            if OrdersLogic.isOnline(order) { OrdersOnlineBadge() }
+                        }
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                money
+                    .layoutPriority(1)
             }
+            let what = OrdersLogic.cardWhat(order)
+            Text(what.text + (what.extra.map { " \u{00B7} " + $0 } ?? ""))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+            stateRow(counts)
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
     }
 
-    /// "Gold ring +1 more · ORD-12 · Making · Due 14 Oct": the quiet line. The day goes here unless it is late or
-    /// today, which is the row's coloured word instead.
-    private func reference(promised: Bool) -> String {
-        let what = OrdersLogic.cardWhat(order)
-        var parts = [what.text + (what.extra.map { " \u{00B7} " + $0 } ?? ""), order.id]
-        if showsStage || stage == .closed {
-            parts.append(stage == .closed ? order.status.rawValue : (STAGES[stage]?.title ?? stage.rawValue))
+    /// Where it stands (the four bars, and the stage's word unless the heading says it) and the promise.
+    @ViewBuilder
+    private func stateRow(_ counts: PieceCounts) -> some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+        layout {
+            if stage != .closed {
+                StageTrack(stage: stage)
+                    .frame(width: typeSize.isAccessibilitySize ? nil : 88)
+            }
+            if showsStage || stage == .closed {
+                Text(stageWords(counts))
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(stageTone.color)
+                    .lineLimit(2)
+            }
+            if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
+            promise
         }
-        if promised, OrdersLogic.isOpen(order), let due = orderTiming(order, now: now).due {
-            parts.append("Due " + OrdersLogic.dueDay(due))
-        }
-        return parts.filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")
     }
 
-    /// A promise that needs chasing (late, today, or urgent inside the bench week): its words and colour.
-    private var chasedPromise: (text: String, tone: Tone)? {
-        guard OrdersLogic.isOpen(order) else { return nil }
+    private func stageWords(_ counts: PieceCounts) -> String {
+        let title = stage == .closed ? order.status.rawValue : (STAGES[stage]?.title ?? stage.rawValue)
+        guard counts.total > 0, !greyed, stage != .closed, stage != .done else { return title }
+        return title + " \u{00B7} " + (counts.unassigned > 0 ? "\(counts.unassigned) unassigned" : "\(counts.done) of \(counts.total) done")
+    }
+
+    private var stageTone: Tone {
+        switch stage {
+        case .karigar: return .working
+        case .ready: return .settled
+        // Done is what an order is meant to reach: no colour for it (CONVENTIONS rule 15).
+        case .transfer, .payment: return .owed
+        default: return .quiet
+        }
+    }
+
+    /// Late is red, today amber, anything else a quiet date.
+    @ViewBuilder private var promise: some View {
         let timing = orderTiming(order, now: now)
         let promise = OrdersLogic.promise(order, now: now)
-        guard timing.due != nil, promise.chase, timing.state == .late || timing.state == .today || promise.urgent else { return nil }
-        let words = PromiseWords.say(timing)
-        return (words.text, words.tone)
+        if OrdersLogic.isOpen(order), let due = timing.due {
+            let urgent = promise.chase && (timing.state == .late || timing.state == .today || promise.urgent)
+            let words = PromiseWords.say(timing)
+            Text(urgent ? words.text : "Due " + OrdersLogic.dueDay(due))
+                .font(.caption.weight(urgent ? .semibold : .regular))
+                .foregroundStyle(urgent ? words.tone.color : Color.secondary)
+                .fixedSize()
+        }
     }
 
-    /// What is still owed or in credit; nothing once paid, and nothing for a cancelled or refunded order. In the
-    /// ink when the promise is the row's coloured word.
-    @ViewBuilder private func money(coloured: Bool) -> some View {
+    /// What is still owed (amber) or in credit (teal); nothing once paid (CONVENTIONS rule 15: the expected state
+    /// has no badge).
+    @ViewBuilder private var money: some View {
         if stage != .closed {
             let due = OrdersLogic.stillOwed(order, invoiceOwed: owed)
             if abs(due) > 0.5 {
-                RowAmount(amount: abs(due), tone: coloured ? (due < 0 ? Tone.credit.color : Tone.owed.color) : Color.primary)
-                    .accessibilityLabel((due < 0 ? "In credit " : "Owed ") + Money.pkr(abs(due)))
+                VStack(alignment: wideAlignment, spacing: 2) {
+                    RowAmount(amount: abs(due), tone: due < 0 ? Tone.credit.color : Tone.owed.color)
+                    Text(due < 0 ? "In credit" : "Owed")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: true)
             }
         }
     }
+
+    private var wideAlignment: HorizontalAlignment { typeSize.isAccessibilitySize ? .leading : .trailing }
 }
 
 /// One visible next action, with secondary money actions in the overflow menu. An invoiced order

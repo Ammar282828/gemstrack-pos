@@ -193,7 +193,7 @@ struct OrderScreen: View {
         return parts.joined(separator: " \u{00B7} ")
     }
 
-    /// What is still owed, as the page's one big figure (amber), or what is in credit (teal); paid says nothing
+    /// What is still owed, as the page's one big figure (amber), or In credit in a pill; paid says nothing
     /// (CONVENTIONS rule 15). A cancelled or refunded order has no money left to say.
     @ViewBuilder
     private func heroFigure(_ order: Order, stage: OrderStage, owed: Double, invoice: Invoice?) -> some View {
@@ -207,10 +207,7 @@ struct OrderScreen: View {
                         .tracking(0.6)
                     HeroAmount(amount: due, tone: Tone.owed.color)
                 } else if due < -0.5 {
-                    Text("IN CREDIT")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .tracking(0.6)
+                    Pill("In credit", tone: .credit)
                     HeroAmount(amount: -due, tone: Tone.credit.color)
                 }
             }
@@ -218,8 +215,7 @@ struct OrderScreen: View {
     }
 
     /// The promised day as a leaf, and how it is going: red once late, amber on the day and inside the bench
-    /// week, quiet once the order is finished (components/shared/promise-line.tsx). The line's own colour says
-    /// it is urgent: no second tag.
+    /// week (with "Urgent"), quiet once the order is finished (components/shared/promise-line.tsx).
     private func promiseRow(_ order: Order, now: Date) -> some View {
         let t = orderTiming(order, now: now)
         let p = OrdersLogic.promise(order, now: now)
@@ -229,8 +225,11 @@ struct OrderScreen: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(OrdersLogic.promiseLine(order, now: now))
                     .font(.subheadline.weight(tone == .quiet ? .regular : .semibold))
-                    .foregroundStyle(tone == .quiet ? (p.undated ? Color.secondary : Color.primary) : tone.color)
+                    .foregroundStyle(tone == .late ? tone.color : (p.undated ? Color.secondary : Color.primary))
                     .monospacedDigit()
+                if p.urgent && t.state != .late {
+                    Pill("Urgent", tone: .owed)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -304,11 +303,12 @@ struct OrderScreen: View {
         // carries the advance's delete for an owner.
         let showAdvance = order.advancePayment > 0 && (lines.count > 1 || exchangeValue > 0 || (canDelete && lines.count == 1))
         Section {
-            // The page's own sums: the pieces less the discount, and what has come in (the cash advances and the
-            // gold taken in exchange: both are payment, decision "Exchange as cash"). What is still due is the hero's
-            // one figure (OrdersLogic.balance), so it is not said again here (CONVENTIONS rule 15).
-            MoneyRow("Total", subtotal - discount, emphasis: true)
-            MoneyRow("Paid", order.advancePayment + exchangeValue)
+            // The page's own sums, so the three always add up: the pieces less the discount, what has come in
+            // (the cash advances and the gold taken in exchange: both are payment, decision "Exchange as cash"),
+            // and the balance due (OrdersLogic.balance).
+            MoneySplit(total: subtotal - discount, paid: order.advancePayment + exchangeValue,
+                       due: OrdersLogic.balance(order), paidLabel: "Paid")
+                .padding(.vertical, 6)
             DisclosureGroup("Breakdown") {
                 MoneyRow("Pieces", subtotal)
                 if discount > 0 { MoneyRow("Discount", -discount, signed: true) }
@@ -372,10 +372,9 @@ struct OrderScreen: View {
         let invoiceId = order.invoiceId ?? ""
         let rates = OrdersLogic.rateLine(order)
         Section {
-            // What is due is the hero's figure; here the total and what came in.
             if let inv = invoice {
-                MoneyRow("Total", inv.grandTotal, emphasis: true)
-                MoneyRow("Paid", inv.amountPaid)
+                MoneySplit(total: inv.grandTotal, paid: inv.amountPaid, due: inv.balanceDue)
+                    .padding(.vertical, 6)
             }
             if !rates.isEmpty {
                 Text(rates)
@@ -383,7 +382,8 @@ struct OrderScreen: View {
                     .foregroundStyle(.secondary)
             }
             NavigationLink(value: Route(path: "/invoices/\(invoiceId)")) {
-                Text("Invoiced \u{00B7} \(invoiceId)")
+                // What is owed is the page's big figure and the split above; the link names the invoice only.
+                Label("Invoiced \u{00B7} \(invoiceId)", systemImage: "doc.text")
             }
         } header: {
             LedgerHeading(title: "Money")
@@ -455,8 +455,16 @@ struct OrderScreen: View {
                 }
             }
         } header: {
-            // A title and one figure (CONVENTIONS rule 15): how far the pieces have come.
-            LedgerHeading(title: "Pieces", trailing: counts.total > 0 ? "\(counts.done) of \(counts.total) done" : nil)
+            // How far the pieces have come, and its bar; the count is not said twice (CONVENTIONS rule 15).
+            VStack(alignment: .leading, spacing: 8) {
+                LedgerHeading(title: "Pieces",
+                              trailing: counts.total > 0 ? "\(counts.done) of \(counts.total) done" : nil)
+                if counts.total > 0 {
+                    ProgressView(value: Double(counts.done), total: Double(counts.total))
+                        .tint(counts.done == counts.total ? Tone.settled.color : Theme.accent)
+                        .accessibilityLabel("\(counts.done) of \(counts.total) pieces done")
+                }
+            }
         }
     }
 

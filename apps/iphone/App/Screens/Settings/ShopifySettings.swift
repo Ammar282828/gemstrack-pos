@@ -412,10 +412,11 @@ private struct ShopifyInnerForm: View {
                         Spacer(minLength: 8)
                         if o.amount > 0 { Text(money(o.amount)).font(.subheadline).monospacedDigit() }
                     }
-                    // One quiet line under the order: who and when (rule 15); the rest is on the order once imported.
-                    let quiet = [o.subtitle, o.date.isEmpty ? "" : ShopDate.say(o.date, withTime: false)].filter { !$0.isEmpty }
-                    if !quiet.isEmpty {
-                        Text(quiet.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    if !o.subtitle.isEmpty {
+                        Text(o.subtitle).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    }
+                    if !o.date.isEmpty {
+                        Text(ShopDate.say(o.date, withTime: false)).font(.caption).foregroundStyle(.secondary)
                     }
                 }
             }

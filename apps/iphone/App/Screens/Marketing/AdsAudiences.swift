@@ -308,13 +308,10 @@ struct AdsAudiencesScreen: View {
         let made = a.created.map { (c: String) in ShopDate.say(c) } ?? ""
         let line = [a.kind, size, made].filter { (s: String) in !s.isEmpty }.joined(separator: " · ")
         return HStack(spacing: 10) {
-            // Two lines: the name (with Meta's status beside it, the row's one colour, when there is one), then the quiet line.
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(a.name).lineLimit(1)
-                    if let st = a.status { Text(st).font(.caption).foregroundStyle(Tone.owed.color).lineLimit(1) }
-                }
-                Text(line).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(a.name)
+                Text(line).font(.caption).foregroundStyle(.secondary)
+                if let st = a.status { Text(st).font(.caption).foregroundStyle(Tone.owed.color) }
             }
             Spacer(minLength: 8)
             if busy == a.id {

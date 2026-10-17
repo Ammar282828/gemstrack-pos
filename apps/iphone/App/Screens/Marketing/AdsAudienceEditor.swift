@@ -123,6 +123,8 @@ struct AdsAudienceSheet: View {
             }
         } header: {
             LedgerHeading(title: "Where")
+        } footer: {
+            Text("People who live in, or were recently in, these places. A city takes the people around it too.")
         }
     }
 

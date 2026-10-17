@@ -117,10 +117,9 @@ private struct RecentlyRemovedList: View {
             }
             .disabled(busy != nil)
         } header: {
-            LedgerHeading(title: "Removed", count: total)
+            Text("\(total) removed").font(.headline).foregroundStyle(.primary).textCase(nil)
         } footer: {
-            // Who is here is the lists below; what matters is that nothing is gone yet.
-            Text("Nothing here has been destroyed. Their history is exactly where they left it.")
+            Text("\(customers.count) customer(s), \(karigars.count) karigar(s). Nothing here has been destroyed. Their history is exactly where they left it.")
         }
     }
 
@@ -155,14 +154,16 @@ private struct RecentlyRemovedList: View {
 
     private func row(id: String, name: String, sub: String?, removedAt: String?, kind: Kind, history: RecentlyRemoved.History?) -> some View {
         let carries = RecentlyRemoved.carriesText(history)
+        let line = [sub ?? "", carries.isEmpty ? "no history" : carries].filter { !$0.isEmpty }.joined(separator: " \u{2014} ")
         let when = ShopDate.say(removedAt)
-        // Two lines (rule 15): who, then one quiet line of their number, what they carry and when they went.
-        let line = [sub ?? "", carries.isEmpty ? "no history" : carries, when.isEmpty ? "" : "removed " + when]
-            .filter { !$0.isEmpty }.joined(separator: " · ")
         return HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
+            Image(systemName: kind == .customer ? "person.2" : "hammer").foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
                 Text(name.isEmpty ? id : name).fontWeight(.medium).lineLimit(1)
-                Text(line).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Text(line).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                if !when.isEmpty {
+                    Text("Removed \(when)").font(.caption).foregroundStyle(.tertiary)
+                }
             }
             Spacer(minLength: 8)
             Button {

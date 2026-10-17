@@ -88,10 +88,10 @@ struct StockPieceScreen: View {
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-            // The SKU is the page's title; the category is said once, quietly, not as a pill.
-            VStack(alignment: .leading, spacing: 4) {
+            // The SKU is the page's title, so it is not said again under the name.
+            VStack(alignment: .leading, spacing: 6) {
+                Pill(StockKit.categoryTitle(p.categoryId), tone: .house)
                 Text(p.name).font(.title2.weight(.bold))
-                Text(StockKit.categoryTitle(p.categoryId)).font(.subheadline).foregroundStyle(.secondary)
             }
             .padding(.vertical, 2)
         }
@@ -211,11 +211,11 @@ struct StockPieceScreen: View {
             NavigationLink(value: Route(path: StockKit.editPath(p.sku))) {
                 Label("Edit", systemImage: "pencil")
             }
+        }
+        Section {
             Button { tagging = p } label: {
                 Label("Print tag", systemImage: "printer")
             }
-        }
-        Section {
             Button(role: .destructive) { deletion = StockKit.deletion(p) } label: {
                 Label("Delete", systemImage: "trash").foregroundStyle(Tone.problem.color)
             }

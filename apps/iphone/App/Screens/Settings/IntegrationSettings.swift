@@ -63,6 +63,8 @@ private struct IntegrationsForm: View {
                 }
             } header: {
                 LedgerHeading(title: "Meta")
+            } footer: {
+                Text("The Facebook login, ad account, Page, Instagram and pixel.")
             }
 
             Section {

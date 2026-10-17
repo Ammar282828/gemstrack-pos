@@ -83,10 +83,14 @@ struct WebsiteInvestmentsScreen: View {
                 scheduleSection
                 if gold.todays == nil {
                     Section {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Today's post hasn't arrived yet.").foregroundStyle(Tone.owed.color)
-                            Text("The routine runs at 11:00 and files it here when it finishes\((gold.schedule?.enabled ?? false) ? "; the schedule sends it once it's here" : ""). If it ran and nothing came, check its last step on claude.ai, or add today's by hand.")
-                                .font(.caption).foregroundStyle(.secondary)
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Today's post hasn't arrived yet.")
+                                Text("The routine runs at 11:00 and files it here when it finishes\((gold.schedule?.enabled ?? false) ? "; the schedule sends it once it's here" : ""). If it ran and nothing came, check its last step on claude.ai, or add today's by hand.")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "clock").foregroundStyle(Tone.owed.color)
                         }
                     }
                 }
@@ -113,9 +117,12 @@ struct WebsiteInvestmentsScreen: View {
         let sent = targets.filter { (t: WebsiteGoldStatus.Target) in p.sent[t.id] != nil }.count
         return HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
-                // Today says so in the title, a held day on its quiet line: no tags (CONVENTIONS rule 15).
-                Text(p.date == gold.today ? "Today" : WebsiteGoldTime.longDate(p.date)).font(.body.weight(.semibold))
-                Text((p.hold ? "Held · " : "") + p.headline).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(WebsiteGoldTime.longDate(p.date)).font(.body.weight(.semibold))
+                    if p.date == gold.today { Pill("Today", tone: .house) }
+                    if p.hold { Pill("Held", tone: .quiet) }
+                }
+                Text(p.headline).font(.subheadline).foregroundStyle(.secondary).lineLimit(3)
             }
             Spacer(minLength: 8)
             Text("\(sent)/\(targets.count) sent").font(.caption).foregroundStyle(.secondary).monospacedDigit()
@@ -136,7 +143,7 @@ struct WebsiteInvestmentsScreen: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
-                .tint(Theme.accent)
+                .tint(Tone.settled.color)
                 if s.enabled, WebsiteGoldTime.minutesSince(s.lastTick).map({ (m: Int) in m > 15 }) ?? true {
                     Label(s.lastTick == nil
                           ? "The scheduler hasn't checked in yet. It runs every 5 minutes; if this stays, nothing goes out by itself."
@@ -418,10 +425,10 @@ struct WebsiteGoldDaySheet: View {
                 }
             }
             if scheduled, let line = part?.line {
-                Text(line)
+                // A plan on time is the expected state: only a warning is coloured.
+                Label(line, systemImage: "calendar.badge.clock")
                     .font(.caption)
                     .foregroundStyle(part?.tone == "warn" ? Tone.owed.color : Color.secondary)
-                    .lineLimit(1)
             }
             HStack(spacing: 16) {
                 Button(went == nil ? "Send now" : "Send again…") { ask = .send([t.id], force: went != nil) }

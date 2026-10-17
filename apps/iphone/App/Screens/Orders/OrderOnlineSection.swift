@@ -152,10 +152,11 @@ struct OrderOnlineSection: View {
            w.paymentStatus != .transferReceived, w.paymentStatus != .expired {
             let ended = when <= Date()
             let relative = RelativeDateTimeFormatter().localizedString(for: when, relativeTo: Date())
-            Text(
+            Label(
                 ended
                     ? "The price hold ended \(relative). Check the bank before anything else."
-                    : "Price held until \(ShopDate.say(until, withTime: true)) (\(relative))"
+                    : "Price held until \(ShopDate.say(until, withTime: true)) (\(relative))",
+                systemImage: "clock"
             )
             .font(.footnote)
             .foregroundStyle(ended ? Tone.late.color : Color.secondary)
@@ -177,7 +178,7 @@ struct OrderOnlineSection: View {
         let wrong = (s.amount ?? 0) > 0 && abs((s.amount ?? 0) - OrdersLogic.onlineTotal(order)) > 0.5
         return VStack(alignment: .leading, spacing: 2) {
             HStack {
-                Text("Slip " + ShopDate.say(s.at, withTime: true))
+                Label("Slip " + ShopDate.say(s.at, withTime: true), systemImage: "doc.text")
                     .foregroundStyle(mayAct ? Theme.accent : Color.primary)
                 Spacer()
                 if let amount = s.amount, amount > 0 {

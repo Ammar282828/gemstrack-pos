@@ -167,23 +167,22 @@ struct CustomerSpamSheet: View {
                 Image(systemName: on ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundStyle(on ? Theme.accent : Color.secondary)
-                // Two lines (rule 15): the name, a Shopify sign-up's quiet bag beside it; then the email and why, in one
-                // quiet line rather than a badge per reason.
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(CustomerKit.trim(c.customer.name).isEmpty ? "(no name)" : c.customer.name)
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(.primary)
-                        if CustomerKit.filled(c.customer.shopifyCustomerId) != nil {
-                            Image(systemName: "bag").font(.caption).foregroundStyle(.secondary)
-                                .accessibilityLabel("From Shopify")
-                        }
-                    }
-                    .lineLimit(1)
-                    Text(([CustomerKit.filled(c.customer.email) ?? "no email"] + c.reasons).joined(separator: " · "))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(CustomerKit.trim(c.customer.name).isEmpty ? "(no name)" : c.customer.name)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
+                    Text(CustomerKit.filled(c.customer.email) ?? "no email")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    // The reasons wrap onto lines rather than being cut (ArtworkFlow, the word chips' layout).
+                    ArtworkFlow(spacing: 6) {
+                        ForEach(c.reasons, id: \.self) { (r: String) in
+                            Pill(r, tone: .owed)
+                        }
+                        if CustomerKit.filled(c.customer.shopifyCustomerId) != nil {
+                            Pill("Shopify", tone: .working)
+                        }
+                    }
                 }
                 Spacer(minLength: 0)
             }
@@ -215,7 +214,7 @@ struct CustomerSpamSheet: View {
                 Text("Removing hides them; Settings, then Recently removed, puts them back. It asks for the delete code once.")
                 // The web's own warning: a storefront's bots sign up again until the store stops them.
                 if found.contains(where: { CustomerKit.filled($0.customer.shopifyCustomerId) != nil }) {
-                    Text("Rows with a bag came from the Shopify store. Removing them here hides them in the ERP; if the storefront spam goes on they may sync back. A sign-up CAPTCHA in Shopify stops the source.")
+                    Text("Rows tagged Shopify came from the Shopify store. Removing them here hides them in the ERP; if the storefront spam goes on they may sync back. A sign-up CAPTCHA in Shopify stops the source.")
                         .foregroundStyle(Tone.owed.color)
                 }
             }
@@ -347,7 +346,7 @@ struct CustomerSpamSheet: View {
         if !r.removed.isEmpty {
             Section {
                 ForEach(r.removed.indices, id: \.self) { (i: Int) in
-                    Text(r.removed[i])
+                    Label(r.removed[i], systemImage: "person.badge.minus")
                 }
             } header: {
                 LedgerHeading(title: "Removed", count: r.removed.count)

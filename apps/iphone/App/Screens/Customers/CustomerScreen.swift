@@ -264,47 +264,51 @@ struct CustomerScreen: View {
 
     // MARK: Their invoices, orders, repairs
 
-    // A customer with none of a kind has no section for it: an empty list says nothing worth a line (rule 15).
-
-    @ViewBuilder private func invoicesSection(_ list: [Invoice]) -> some View {
-        if !list.isEmpty {
-            Section {
+    private func invoicesSection(_ list: [Invoice]) -> some View {
+        Section {
+            if list.isEmpty {
+                Text("No sales history found for this customer.").foregroundStyle(.secondary)
+            } else {
                 ForEach(list) { inv in
                     NavigationLink(value: CustomerKit.place("/invoices/", inv.id)) {
                         CustInvoiceRow(invoice: inv)
                     }
                 }
-            } header: {
-                LedgerHeading(title: "Invoices", count: list.count)
             }
+        } header: {
+            LedgerHeading(title: "Invoices · \(list.count)")
         }
     }
 
-    @ViewBuilder private func ordersSection(_ list: [Order]) -> some View {
-        if !list.isEmpty {
-            Section {
+    private func ordersSection(_ list: [Order]) -> some View {
+        Section {
+            if list.isEmpty {
+                Text("No custom orders found for this customer.").foregroundStyle(.secondary)
+            } else {
                 ForEach(list) { order in
                     NavigationLink(value: CustomerKit.place("/orders/", order.id)) {
                         CustOrderRow(order: order)
                     }
                 }
-            } header: {
-                LedgerHeading(title: "Orders", count: list.count)
             }
+        } header: {
+            LedgerHeading(title: "Orders · \(list.count)")
         }
     }
 
-    @ViewBuilder private func repairsSection(_ list: [Repair]) -> some View {
-        if !list.isEmpty {
-            Section {
+    private func repairsSection(_ list: [Repair]) -> some View {
+        Section {
+            if list.isEmpty {
+                Text("No repairs for this customer.").foregroundStyle(.secondary)
+            } else {
                 ForEach(list) { repair in
                     NavigationLink(value: CustomerKit.place("/repairs?id=", repair.id)) {
                         CustRepairRow(repair: repair)
                     }
                 }
-            } header: {
-                LedgerHeading(title: "Repairs", count: list.count)
             }
+        } header: {
+            LedgerHeading(title: "Repairs · \(list.count)")
         }
     }
 
@@ -314,6 +318,9 @@ struct CustomerScreen: View {
 
     private func hisaabSection(_ rows: [HisaabEntry], id: String) -> some View {
         Section {
+            if rows.isEmpty {
+                Text("Nothing is written in their hisaab.").foregroundStyle(.secondary)
+            }
             ForEach(rows.prefix(Self.hisaabShown)) { row in
                 CustHisaabRow(entry: row)
             }
@@ -349,7 +356,6 @@ private struct CustInvoiceRow: View {
     var body: some View {
         TwoLine(title: invoice.id, subtitle: subtitle, trailing: Money.pkr(invoice.grandTotal),
                 trailingTint: (!refunded && line.state == .due) ? Tone.owed.color : .primary)
-            .lineLimit(1)
     }
 }
 
@@ -364,21 +370,16 @@ private struct CustOrderRow: View {
         let n = order.items.count
         if n > 0 { parts.append("\(n) piece\(n == 1 ? "" : "s")") }
         if invoiced { parts.append("invoiced") }
-        if order.status == .cancelled { parts.append("cancelled") }
-        if order.status == .refunded { parts.append("refunded") }
         return parts.joined(separator: " · ")
     }
-
-    /// Only an open order carries its stage; done or closed is the quiet line's word, not a badge (rule 15).
-    private var open: Bool { order.status == .pending || order.status == .inProgress }
 
     var body: some View {
         // The order's total is stored net of its advances, so it is the balance still to pay (order-payment.ts).
         HStack(spacing: 8) {
             TwoLine(title: order.id, subtitle: subtitle, trailing: Money.pkr(order.grandTotal),
                     trailingTint: (closed || invoiced) ? .secondary : .primary)
-                .lineLimit(1)
-            if open { StatusBadge(order: order.status) }
+            // Completed is the expected end: no badge for it (rule 15). Open, cancelled and refunded keep theirs.
+            if order.status != .completed { StatusBadge(order: order.status) }
         }
     }
 }
@@ -396,13 +397,12 @@ private struct CustRepairRow: View {
     }
 
     var body: some View {
-        // An open repair's stage is the row's one colour; collected or cancelled is said quietly.
         let status = CustomerKit.repairStatus(repair.status)
         HStack(spacing: 8) {
-            TwoLine(title: CustomerKit.repairSummary(repair), subtitle: open ? subtitle : subtitle + " · " + status.text.lowercased(),
-                    trailing: (open && balance > 0) ? Money.pkr(balance) : nil)
-                .lineLimit(1)
-            if open { Pill(status.text, tone: status.tone) }
+            TwoLine(title: CustomerKit.repairSummary(repair), subtitle: subtitle,
+                    trailing: (open && balance > 0) ? Money.pkr(balance) : nil, trailingTint: Tone.owed.color)
+            // Collected is the expected end: no pill for it (rule 15).
+            if repair.status != .collected { Pill(status.text, tone: status.tone) }
         }
     }
 }
@@ -430,6 +430,5 @@ private struct CustHisaabRow: View {
     var body: some View {
         TwoLine(title: CustomerKit.filled(entry.description) ?? "Entry", subtitle: subtitle,
                 trailing: amount, trailingTint: net > 0 ? Tone.owed.color : Tone.settled.color)
-            .lineLimit(1)
     }
 }

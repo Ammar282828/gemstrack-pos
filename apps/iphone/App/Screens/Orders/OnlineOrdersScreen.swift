@@ -114,7 +114,7 @@ struct OnlineOrdersScreen: View {
             customerRows(r)
             if let moved = OnlineOrdersLogic.movedLine(r) {
                 let dearer = (OnlineOrdersLogic.moved(r)?.amount ?? 0) > 0
-                Text(moved)
+                Label(moved, systemImage: "chart.line.uptrend.xyaxis")
                     .font(.footnote)
                     .foregroundStyle(dearer ? Tone.owed.color : Color.secondary)
             }
@@ -122,23 +122,28 @@ struct OnlineOrdersScreen: View {
         }
     }
 
-    /// Two lines (CONVENTIONS rule 15): who it is from and the total; then the number the customer quotes, how
-    /// long ago, and the delivery charge when there is one. The screen says Online already.
+    /// Who it is from first (the section says Online already); the number the customer quotes and how long ago
+    /// are the quiet line, and the total sits at the right.
     private func whoRow(_ r: OnlineOrderRow) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .top, spacing: 12) {
+            Monogram(name: r.customer.name, size: Monogram.Size.row)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(r.customer.name.isEmpty ? "Customer" : r.customer.name)
                     .font(.headline)
-                    .lineLimit(1)
-                Spacer(minLength: 8)
-                RowAmount(amount: r.grandTotal)
+                    .lineLimit(2)
+                Text(["Online", r.id, OnlineOrdersLogic.ago(r.placedAt)].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
-            Text([r.id, OnlineOrdersLogic.ago(r.placedAt), r.deliveryCharge > 0 ? "incl. \(Money.pkr(r.deliveryCharge)) delivery" : ""]
-                    .filter { !$0.isEmpty }.joined(separator: " \u{00B7} "))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .lineLimit(1)
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
+                RowAmount(amount: r.grandTotal)
+                Text(r.deliveryCharge > 0 ? "incl. \(Money.pkr(r.deliveryCharge)) delivery" : "free delivery")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .layoutPriority(1)
         }
         .accessibilityElement(children: .combine)
     }
@@ -178,8 +183,12 @@ struct OnlineOrdersScreen: View {
             }
         }
         VStack(alignment: .leading, spacing: 2) {
-            Text([r.delivery.address, r.delivery.city].filter { !$0.isEmpty }.joined(separator: ", "))
-                .font(.subheadline)
+            Label {
+                Text([r.delivery.address, r.delivery.city].filter { !$0.isEmpty }.joined(separator: ", "))
+            } icon: {
+                Image(systemName: "mappin.and.ellipse")
+            }
+            .font(.subheadline)
             if let notes = r.delivery.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
                 Text("“\(notes)”")
                     .font(.caption)

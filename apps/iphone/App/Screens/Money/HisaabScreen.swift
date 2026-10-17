@@ -155,7 +155,7 @@ struct HisaabScreen: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
             } footer: {
-                Text("On invoices counts walk-in sales too.")
+                Text("On invoices counts walk-in sales too. The dashboard's “Owed to you” adds the hand-written balances here.")
             }
             if shown.isEmpty {
                 Section { emptyState }
@@ -173,15 +173,15 @@ struct HisaabScreen: View {
                     Label("Summary PDF", systemImage: "doc.richtext")
                 }
             } footer: {
-                Text("Takes the search, not the chips.")
+                Text("Everyone outstanding whose name matches the search, as the ERP prints it; the chips here are not applied. To add an entry, tap + and choose the account.")
             }
         }.houseRows()
         }
         .listStyle(.insetGrouped)
-        .safeAreaBar(edge: .top, spacing: 0) { chipRow }
+        .safeAreaBar(edge: .top, spacing: 0) { chipRow(scoped) }
     }
 
-    /// Search and the kind of person: everything but the side, which the chips choose.
+    /// Search and the kind of person: everything but the side, so each chip can count what it would show.
     private func scope(_ all: [HisaabAccount]) -> [HisaabAccount] {
         let q = search.trimmingCharacters(in: .whitespacesAndNewlines)
         var out: [HisaabAccount] = []
@@ -256,11 +256,11 @@ struct HisaabScreen: View {
 
     // MARK: Chips and the menu
 
-    private var chipRow: some View {
+    private func chipRow(_ scoped: [HisaabAccount]) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(HisaabChip.allCases) { (c: HisaabChip) in
-                    chipButton(c)
+                    chipButton(c, count: scoped.filter { c.matches($0) }.count)
                 }
             }
             .padding(.horizontal)
@@ -268,9 +268,8 @@ struct HisaabScreen: View {
         }
     }
 
-    private func chipButton(_ c: HisaabChip) -> some View {
-        // No counts: the tiles above say what each side comes to, once (rule 15).
-        FilterChip(title: c.title, chosen: c == chip) { chip = c }
+    private func chipButton(_ c: HisaabChip, count: Int) -> some View {
+        FilterChip(title: c.title, count: count, chosen: c == chip) { chip = c }
     }
 
     private var filterMenu: some View {
@@ -290,22 +289,25 @@ struct HisaabScreen: View {
 
 // MARK: One account
 
-/// A person (or the walk-in line), two lines (rule 15): the name and what they owe or are owed; under it one quiet
-/// line, who they are, which way the money goes, the metal and how many invoices owe. Each invoice is on their ledger
-/// (its balance row opens it); the walk-in's are rows of their own.
+/// A person (or the walk-in line) with what they owe or are owed, the metal beside the cash, and the
+/// invoices still owing (the web's card).
 private struct HisaabAccountRow: View {
     let account: HisaabAccount
-    /// A customer's line counts the invoices that are owing; the walk-in's are rows of their own.
+    /// A customer's card lists the invoices that are owing; the walk-in's are rows of their own.
     let listInvoices: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            top
-            Text(line)
-                .font(.caption)
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: account.isCustomer ? "person.fill" : "briefcase.fill")
+                .foregroundStyle(Theme.accent)
+                .frame(width: 36, height: 36)
+                .background(Theme.accent.opacity(0.14), in: .circle)
+            VStack(alignment: .leading, spacing: 3) {
+                top
+                middle
+                if account.gold != 0 { goldLine }
+                if listInvoices && !account.unpaid.isEmpty { invoices }
+            }
         }
     }
 
@@ -321,15 +323,34 @@ private struct HisaabAccountRow: View {
         }
     }
 
-    private var line: String {
-        var parts = [account.isWalkIn ? "Sales with no customer named" : (account.isCustomer ? "Customer" : "Karigar")]
-        if account.hasCash { parts.append(account.cash > 0 ? "to receive" : "to pay") }
-        if account.gold != 0 {
-            parts.append("\(MoneyFormat.grams(abs(account.gold))) \(MoneyWords.metal) \(account.gold > 0 ? "to receive" : "to pay")")
+    private var middle: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(account.isWalkIn ? "Sales with no customer named" : (account.isCustomer ? "Customer" : "Karigar"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            if account.hasCash {
+                Text(account.cash > 0 ? "to receive" : "to pay")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
-        let n = account.unpaid.count
-        if listInvoices && n > 0 { parts.append("\(n) invoice\(n == 1 ? "" : "s") owing") }
-        return parts.joined(separator: " · ")
+    }
+
+    private var goldLine: some View {
+        let word = account.gold > 0 ? "to receive" : "to pay"
+        return Text("\(MoneyFormat.grams(abs(account.gold))) \(MoneyWords.metal) \(word)")
+            .font(.caption)
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
+    }
+
+    /// Every invoice still owing, as the web's card lists them.
+    private var invoices: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Divider().padding(.vertical, 2)
+            ForEach(account.unpaid) { inv in HisaabUnpaidLine(invoice: inv) }
+        }
     }
 }
 

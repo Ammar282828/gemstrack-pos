@@ -165,9 +165,11 @@ struct OrdersHub: View {
             }
             members[b.key, default: []].append(order)
         }
+        // A bare year under a heading says something only when it is not this one.
+        let thisYear = String(ERPDate.karachiDay(now).prefix(4))
         return keys.map { key in
             let b = info[key]!
-            return OrdersSection(id: key, title: b.title, tone: .quiet,
+            return OrdersSection(id: key, title: b.title, hint: b.hint == thisYear ? "" : b.hint, tone: .quiet,
                                  folds: false, orders: members[key] ?? [])
         }
     }
@@ -179,6 +181,7 @@ struct OrdersHub: View {
             OrdersSection(
                 id: "due-" + g.bucket.rawValue,
                 title: g.bucket.title,
+                hint: g.bucket.hint,
                 tone: g.bucket == .late ? .late : .quiet,
                 folds: false,
                 orders: g.orders
@@ -198,6 +201,7 @@ struct OrdersHub: View {
             return OrdersSection(
                 id: st.rawValue,
                 title: info?.title ?? st.rawValue,
+                hint: info?.hint ?? "",
                 tone: .quiet,
                 folds: st == .done || st == .closed,
                 orders: rows
@@ -232,7 +236,13 @@ struct OrdersHub: View {
     }
 
     private func groupHeading(_ g: OrdersSection) -> some View {
-        OrdersSectionHeader(title: g.title, count: g.orders.count, tone: g.tone)
+        OrdersSectionHeader(
+                title: g.title,
+                hint: g.hint,
+                count: g.orders.count,
+                value: g.orders.reduce(0) { $0 + $1.subtotal },
+                tone: g.tone
+        )
     }
 
     /// The same columns for every group, so a day with one order keeps a card's width rather than the window's.
@@ -501,23 +511,34 @@ struct OrdersHub: View {
 private struct OrdersSection: Identifiable {
     let id: String
     let title: String
+    let hint: String
     /// Late is red; nothing else is.
     let tone: Tone
     let folds: Bool
     let orders: [Order]
 }
 
-/// A group's heading: its title and how many (CONVENTIONS rule 15: a title and at most one figure). What the
-/// group is worth and its hint are left to the cards and the filter; Late keeps its colour in the title.
+/// A section's name in the serif with how many orders it holds beside it and what they come to on the right,
+/// and its hint under it ("finished: invoice it", "past the day promised").
 struct OrdersSectionHeader: View {
     let title: String
+    let hint: String
     let count: Int
+    let value: Double
     var tone: Tone = .quiet
 
     var body: some View {
-        LedgerHeading(title: title, count: count, tone: tone)
-            .accessibilityLabel("\(title), \(count) order\(count == 1 ? "" : "s")")
-            .textCase(nil)
-            .padding(.top, 4)
+        VStack(alignment: .leading, spacing: 2) {
+            LedgerHeading(title: title, count: count, trailing: "worth " + Money.pkrLac(value), tone: tone)
+                .accessibilityLabel("\(title), \(count) order\(count == 1 ? "" : "s"), worth \(Money.pkrLac(value))")
+            if !hint.isEmpty {
+                Text(hint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .textCase(nil)
+        .padding(.top, 4)
     }
 }

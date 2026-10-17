@@ -205,17 +205,20 @@ struct RepairsSheet: View {
     }
 
     private func pieceRow(_ p: RepairPiece) -> some View {
-        let quiet = [p.work, (p.weightG ?? 0) > 0 ? RepairsKit.grams(p.weightG ?? 0) : ""].filter { !$0.isEmpty }.joined(separator: " · ")
-        return HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(p.item.isEmpty ? "Piece" : p.item)
                     .fontWeight(.medium)
-                    .lineLimit(1)
-                if !quiet.isEmpty {
-                    Text(quiet)
+                if !p.work.isEmpty {
+                    Text(p.work)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                }
+                if let w = p.weightG, w > 0 {
+                    Text(RepairsKit.grams(w))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
                 }
             }
             Spacer(minLength: 8)

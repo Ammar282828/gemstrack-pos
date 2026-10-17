@@ -734,6 +734,8 @@ struct AdsNewAdScreen: View {
             } else {
                 MarketingReading(text: "Reading the website…")
             }
+        } footer: {
+            Text("Each piece is added as a photo below (several make a carousel), with its own link.")
         }
     }
 

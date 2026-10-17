@@ -34,12 +34,12 @@ struct StudioLibrary: View {
                         Button { opened = StudioAssetChoice(item: item) } label: {
                             HStack(alignment: .top, spacing: 12) {
                                 MarketingPhoto(path: item.s("thumb")).frame(width: 92, height: 92).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                                // Two lines: the name, then one quiet line (collection · score · used); not assessed says nothing.
                                 VStack(alignment: .leading, spacing: 5) {
-                                    Text(item.s("name")).foregroundStyle(.primary).lineLimit(1)
-                                    Text([item.s("collection"), item["adScore"] != .null ? "ad score \(Int(item.n("adScore")))" : "",
-                                          item["usedInAds"].bool ? "used in an ad" : ""].filter { !$0.isEmpty }.joined(separator: " · "))
-                                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                    Text(item.s("name")).foregroundStyle(.primary)
+                                    Text(item.s("collection")).font(.caption).foregroundStyle(.secondary)
+                                    if item["adScore"] != .null { Text("Ad score · \(Int(item.n("adScore")))").font(.caption).foregroundStyle(Theme.accent) }
+                                    else { Text("Not assessed").font(.caption).foregroundStyle(.secondary) }
+                                    if item["usedInAds"].bool { Text("Used in an ad").font(.caption).foregroundStyle(.secondary) }
                                 }
                             }.padding(.vertical, 5)
                         }

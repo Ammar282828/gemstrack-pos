@@ -196,8 +196,7 @@ struct DraftsScreen: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Only the consequence: a draft goes on its own.
-            Text("A draft is removed once it is saved, and after \(DRAFT_MAX_AGE_DAYS) days untouched.")
+            Text("New orders and sales, kept as they are typed — on every device. One leaves this list the moment it is saved as an order or invoice, and after \(DRAFT_MAX_AGE_DAYS) days untouched. Orders and invoices that already exist are never drafted.")
             if !session.isOwner {
                 Text("Drafts begun on other devices are listed for the shop's owners; this shows what is kept on this phone.")
             }
@@ -265,9 +264,10 @@ struct DraftsScreen: View {
                     Text(Money.pkr(d.total)).font(.subheadline.weight(.semibold)).monospacedDigit()
                 }
             }
-            // One quiet line (rule 15): what is in it and when and where it was last typed.
-            Text([d.detail, lastTyped(row)].filter { !$0.isEmpty }.joined(separator: " · "))
-                .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+            if !d.detail.isEmpty {
+                Text(d.detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+            }
+            Text(lastTyped(row)).font(.caption).foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(.rect)
@@ -326,13 +326,13 @@ struct DraftsScreen: View {
         }
     }
 
-    /// "Today 4:05 pm on iPhone" (and a note when the photos were too big to keep).
+    /// "Last typed Today 4:05 pm on iPhone" (and a note when the photos were too big to keep).
     private func lastTyped(_ row: DraftRow) -> String {
         let d = row.draft
         if row.phoneOnly { return "On this phone" }
-        var line = ShopDate.say(d.updatedAt, withTime: true)
+        var line = "Last typed " + ShopDate.say(d.updatedAt, withTime: true)
         if !d.device.isEmpty { line += " on " + d.device }
-        if d.leftOut.contains("photos") { line += " · photos left out" }
+        if d.leftOut.contains("photos") { line += " · sample photos too large to keep" }
         return line
     }
 

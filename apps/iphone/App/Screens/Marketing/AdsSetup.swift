@@ -193,10 +193,11 @@ struct AdsSetupScreen: View {
         .refreshable { await load() }
     }
 
-    /// A step's title; only a step that still needs something is marked (CONVENTIONS rule 15: done says nothing).
     private func stepHeader(_ n: Int, _ title: String, done: Bool?) -> some View {
-        HStack(spacing: 6) {
-            if done == false { Image(systemName: "xmark.circle.fill").foregroundStyle(Tone.problem.color).accessibilityLabel("Needs doing") }
+        let symbol = done == nil ? "circle" : (done == true ? "checkmark.circle.fill" : "xmark.circle.fill")
+        let tint: Color = done == nil ? .secondary : (done == true ? Tone.settled.color : Tone.problem.color)
+        return HStack(spacing: 6) {
+            Image(systemName: symbol).foregroundStyle(tint)
             Text("\(n). \(title)")
         }
     }
@@ -209,7 +210,7 @@ struct AdsSetupScreen: View {
         if !lines.isEmpty {
             Section {
                 ForEach(lines, id: \.self) { (l: String) in
-                    Text(l).font(.subheadline).foregroundStyle(Tone.owed.color)
+                    Label(l, systemImage: "exclamationmark.triangle.fill").font(.subheadline).foregroundStyle(Tone.owed.color)
                 }
             } header: {
                 LedgerHeading(title: "Before every kind of ad can run")
@@ -345,9 +346,9 @@ struct AdsSetupScreen: View {
     /// One thing Meta's Live switch asks for: ticked when the app has it (read from Meta), else the value to give it.
     private func liveRow(_ label: String, ok: Bool, known: Bool, now: String?, give: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            // Only what Meta says is missing is marked; what it has says nothing.
             HStack(spacing: 6) {
-                if known && !ok { Image(systemName: "xmark.circle.fill").foregroundStyle(Tone.problem.color).accessibilityLabel("Missing") }
+                Image(systemName: known && ok ? "checkmark.circle.fill" : (known ? "xmark.circle.fill" : "circle"))
+                    .foregroundStyle(known && ok ? Tone.settled.color : (known ? Tone.problem.color : Color.secondary))
                 Text(label)
             }
             if known && ok {
@@ -543,6 +544,8 @@ struct AdsSetupScreen: View {
             }
         } header: {
             stepHeader(6, "The Facebook Page behind new ads", done: settings?.pageId != nil)
+        } footer: {
+            Text("Meta runs every new ad through a Facebook Page, even an Instagram-only one (the Page doesn't show on Instagram). Viewing and running existing ads needs none.")
         }
     }
 
@@ -601,9 +604,13 @@ struct AdsSetupScreen: View {
         }
         if let id = st.id {
             VStack(alignment: .leading, spacing: 4) {
-                // Receiving is the expected state: plain words; only silence is coloured (CONVENTIONS rule 15).
-                Text("Pixel \(id) \(st.live ? "is receiving from the website" : "has not received anything this week")")
-                    .foregroundStyle(st.live ? Color.primary : Tone.owed.color)
+                // Receiving is the expected state: plain words; only silence is marked and coloured (CONVENTIONS rule 15).
+                if st.live {
+                    Text("Pixel \(id) is receiving from the website")
+                } else {
+                    Label("Pixel \(id) has not received anything this week", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Tone.owed.color)
+                }
                 if let last = st.lastFired { Text("Last received \(ShopDate.say(last, withTime: true)).").font(.caption) }
                 if st.onSite == false {
                     Text("\(st.sites.map { (x: AdsPixelSite) in x.host }.joined(separator: " and ")) doesn't load it yet: \(st.carried.isEmpty ? "the website needs its loader (it reads the id from this ERP's /api/public/pixel)" : "the site carries a different pixel (above)").")
@@ -617,8 +624,8 @@ struct AdsSetupScreen: View {
         ForEach(p.pixels) { (x: AdsPixelRow) in
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(x.name).lineLimit(1)
-                    Text("\(x.id) · \(x.lastFired.map { (l: String) in "last \(ShopDate.say(l))" } ?? "never fired")").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(x.name)
+                    Text("\(x.id) · \(x.lastFired.map { (l: String) in "last \(ShopDate.say(l))" } ?? "never fired")").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
                 if st.id == x.id {

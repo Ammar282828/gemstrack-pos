@@ -184,12 +184,8 @@ struct InvoiceScreen: View {
                             Text(piecesLine(inv))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                            // A Shopify sale: a small glyph, not a tag (CONVENTIONS rule 15); Details says it in words.
-                            if isShopify(inv) {
-                                Image(systemName: "bag").font(.caption).foregroundStyle(.secondary)
-                                    .accessibilityLabel("Shopify")
-                            }
+                                .lineLimit(2)
+                            if isShopify(inv) { Pill("Shopify") }
                         }
                     }
                 }
@@ -209,7 +205,7 @@ struct InvoiceScreen: View {
                 figures(inv)
                 // Whoever opens it next sees the PDF went, so it is not sent twice.
                 if let sent = inv.sentOnWhatsApp {
-                    Text("PDF sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))")
+                    Label("PDF sent to \(sent.to) · \(ShopDate.say(sent.at, withTime: true))", systemImage: "checkmark.circle.fill")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -231,27 +227,21 @@ struct InvoiceScreen: View {
 
     private func isShopify(_ inv: Invoice) -> Bool { (inv.source ?? "").hasPrefix("shopify") }
 
-    /// What is due as the big figure, the ring of what is paid beside it, and both sums in a line under. A settled
-    /// invoice is quiet (CONVENTIONS rule 15): its total, and nothing to chase, so no ring and no second line.
+    /// What is due as the big figure, the ring of what is paid beside it, and both sums in a line under.
     private func figures(_ inv: Invoice) -> some View {
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
             : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
-        let settled = inv.status != .refunded && balanceLine(inv.balanceDue).state == .paid
         return layout {
             VStack(alignment: .leading, spacing: 4) {
                 leadFigure(inv)
-                if !settled {
-                    Text("Total \(Money.pkr(inv.grandTotal)) · Paid \(Money.pkr(inv.amountPaid))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
+                Text("Total \(Money.pkr(inv.grandTotal)) · Paid \(Money.pkr(inv.amountPaid))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            if !settled && inv.status != .refunded {
-                PaidRing(paid: inv.amountPaid, total: inv.grandTotal)
-            }
+            PaidRing(paid: inv.amountPaid, total: inv.grandTotal)
         }
     }
 
@@ -270,9 +260,12 @@ struct InvoiceScreen: View {
                 Text("In credit").font(.subheadline).foregroundStyle(.secondary)
                 HeroAmount(amount: line.amount, tone: Tone.credit.color)
             case .paid:
-                // Paid is what an invoice is meant to be: the total in the ink, "Paid in full" said quietly.
-                Text("Paid in full").font(.subheadline).foregroundStyle(.secondary)
-                HeroAmount(amount: inv.grandTotal, tone: .primary)
+                // Paid is what an invoice is meant to be: said in the ink, not as a green badge (CONVENTIONS rule 15).
+                Text("Paid in full")
+                    .font(.system(.largeTitle, design: .serif).weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
         }
     }
@@ -414,15 +407,17 @@ struct InvoiceScreen: View {
                     Label(owing(inv) ? "Take payment" : "Take payment as credit", systemImage: "banknote")
                 }
             }
-        } header: {
-            // What was paid is the receipt's own line; the heading is a title.
-            LedgerHeading(title: "Payments")
-        } footer: {
             // Paid past the total: the customer's credit, on their hisaab (decision "Invoice credit"). The sum is the
-            // receipt's figure; this says where the money sits.
+            // receipt's figure, so it is not said again here (CONVENTIONS rule 15).
             if line.state == .credit && inv.status != .refunded && !inv.paymentHistory.isEmpty {
-                Text("The credit is on \(InvoiceFacts.customerName(inv, walkIn: "the customer"))'s hisaab.")
+                Label("\(line.label), on \(InvoiceFacts.customerName(inv, walkIn: "the customer"))'s hisaab",
+                      systemImage: "arrow.uturn.left.circle.fill")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(Tone.credit.color)
             }
+        } header: {
+            // What was paid is the receipt's own line; the heading keeps the count.
+            LedgerHeading(title: "Payments", count: inv.paymentHistory.count > 1 ? inv.paymentHistory.count : nil)
         }
     }
 
@@ -671,22 +666,8 @@ private struct InvoicePieceRow: View {
     /// Owners see the price broken into metal, wastage, making and stones, as the order's pieces do.
     var showBreakdown = false
     @Environment(\.dynamicTypeSize) private var typeSize
-    /// Two lines until tapped (CONVENTIONS rule 15); the stones and the breakdown open under them.
-    @State private var open = false
-
-    private var hasMore: Bool { !settings.isEmpty || (showBreakdown && !costs.isEmpty) }
 
     var body: some View {
-        Button {
-            if hasMore { open.toggle() }
-        } label: {
-            lines
-        }
-        .buttonStyle(.plain)
-        .accessibilityHint(hasMore ? (open ? "Hides the details" : "Shows the stones and the breakdown") : "")
-    }
-
-    private var lines: some View {
         VStack(alignment: .leading, spacing: 4) {
             // The name leading and the price trailing; at accessibility sizes the price goes under the name.
             let layout = typeSize.isAccessibilitySize
@@ -703,22 +684,17 @@ private struct InvoicePieceRow: View {
                 Text(facts.joined(separator: " · "))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .lineLimit(open ? nil : 1)
             }
-            if open {
-                ForEach(settings, id: \.self) { line in
-                    Text(line).font(.caption).foregroundStyle(.secondary)
-                }
-                if showBreakdown && !costs.isEmpty {
-                    Text(costs.joined(separator: " · "))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
+            ForEach(settings, id: \.self) { line in
+                Text(line).font(.caption).foregroundStyle(.secondary)
+            }
+            if showBreakdown && !costs.isEmpty {
+                Text(costs.joined(separator: " · "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
     }
@@ -778,8 +754,8 @@ private struct InvoicePieceRow: View {
     }
 }
 
-/// One payment in two lines: how it came and the amount; then when, any reference or note. No symbol per row
-/// (CONVENTIONS rule 15). A refund (a row below zero, lib/writes/invoice-refund.ts) reads as one, quietly.
+/// One payment: how it came (its symbol), when, any reference or note, and the amount. A refund (a row below
+/// zero, lib/writes/invoice-refund.ts) reads as one, quietly.
 private struct InvoicePaymentRow: View {
     let payment: Payment
 
@@ -787,12 +763,18 @@ private struct InvoicePaymentRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(tone.color)
+                .frame(width: 34, height: 34)
+                .background(tone.color.opacity(0.12), in: .circle)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.subheadline.weight(.medium))
                 Text(detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
             }
             Spacer(minLength: 8)
             if refund {
@@ -806,6 +788,19 @@ private struct InvoicePaymentRow: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private var tone: Tone { refund ? .quiet : .settled }
+
+    private var symbol: String {
+        if refund { return "arrow.uturn.backward" }
+        switch payment.method {
+        case .cash?: return "banknote"
+        case .card?: return "creditcard"
+        case .bankTransfer?: return "building.columns"
+        case .cheque?: return "doc.text"
+        case .unknown?, nil: return "arrow.down.circle"
+        }
     }
 
     /// The method (older records predate payment types and have none), or Refund.

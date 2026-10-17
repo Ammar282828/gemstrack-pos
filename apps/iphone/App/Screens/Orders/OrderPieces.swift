@@ -2,11 +2,11 @@ import SwiftUI
 import FirebaseFirestore
 import ERPCore
 
-/// One piece of an order, as the bench and the counter both need it (src/app/orders/[id]/page.tsx), in two
-/// lines (CONVENTIONS rule 15): what it is and its price; then who has it (amber while nobody does) and the
-/// specification the order captured. A tap opens the stones, the instructions for the karigar and the price's
-/// breakdown under them. The tick is the web's "Mark as Complete"; the karigar is picked on the piece, as the
-/// page's inline picker (KarigarAssign).
+/// One piece of an order, as the bench and the counter both need it (src/app/orders/[id]/page.tsx):
+/// what it is, every specification the order captured (one line of facts, not a table), who has it and
+/// whether it has left the shop, the instructions for the karigar, and its price. The tick is the web's
+/// "Mark as Complete"; the karigar is picked on the piece, as the page's inline picker (KarigarAssign), and the
+/// piece's sample photo leads the row when it has one.
 struct OrderPieceRow: View {
     let index: Int
     let item: OrderItem
@@ -21,8 +21,7 @@ struct OrderPieceRow: View {
     /// Who makes it, picked here (owners, until the order is invoiced); nil shows the karigar only.
     var assign: OrderPieceAssign? = nil
 
-    /// The stones, the instructions and the breakdown, shown on a tap.
-    @State private var open = false
+    @State private var priceOpen = false
     /// The sample photo kept in its own document, once read (OrderPiecePhoto.stored).
     @State private var storedPhoto: String?
 
@@ -31,20 +30,13 @@ struct OrderPieceRow: View {
             if let uri = OrderPiecePhoto.inline(item) ?? storedPhoto {
                 OrderPiecePhoto(uri: uri, item: item)
             }
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
                 heading
-                HStack(alignment: .firstTextBaseline, spacing: 0) {
-                    karigarLine
-                    factLine
-                }
-                if open {
-                    notes
-                    if showBreakdown && !item.isManualPrice && item.totalEstimate != nil { breakdown }
-                }
+                factLine
+                karigarLine
+                notes
+                price
             }
-            .contentShape(Rectangle())
-            .onTapGesture { if hasMore { Motion.run(reduce: reduceMotion) { open.toggle() } } }
-            .accessibilityHint(hasMore ? (open ? "Hides the details" : "Shows the stones, the instructions and the breakdown") : "")
             // A finished piece sits quieter than one still to make.
             .opacity(item.isCompleted ? 0.7 : 1)
             Spacer(minLength: 0)
@@ -54,25 +46,19 @@ struct OrderPieceRow: View {
         .task(id: item.samplePhotoId) { storedPhoto = await OrderPiecePhoto.stored(item) }
     }
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    /// Something under the two lines to open.
-    private var hasMore: Bool {
-        clean(item.diamondDetails) != nil || clean(item.stoneDetails) != nil || clean(item.adminNote) != nil
-            || (showBreakdown && !item.isManualPrice && item.totalEstimate != nil)
-    }
-
     // MARK: What it is
 
-    /// The piece and its price on one line.
     private var heading: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        VStack(alignment: .leading, spacing: 2) {
+            if let category = OrdersLogic.categorySingular(item.itemCategory) {
+                Text(category.uppercased())
+                    .font(.caption2.weight(.semibold))
+                    .tracking(0.6)
+                    .foregroundStyle(.secondary)
+            }
             Text(item.description.isEmpty ? "Piece \(index + 1)" : item.description)
                 .font(.headline)
                 .foregroundStyle(item.isCompleted ? Color.secondary : Color.primary)
-                .lineLimit(open ? nil : 1)
-            Spacer(minLength: 8)
-            if let total = item.totalEstimate { RowAmount(amount: total) }
         }
         .accessibilityElement(children: .combine)
     }
@@ -82,8 +68,6 @@ struct OrderPieceRow: View {
     /// "Wastage in grams").
     private var facts: [String] {
         var out: [String] = []
-        if let category = OrdersLogic.categorySingular(item.itemCategory),
-           !item.description.localizedCaseInsensitiveContains(category) { out.append(category) }
         let metal = describeMetal(item.metalType, item.karat)
         if !metal.isEmpty { out.append(metal) }
         if !item.isManualPrice && item.estimatedWeightG > 0 {
@@ -108,7 +92,7 @@ struct OrderPieceRow: View {
             Text(all.joined(separator: " · "))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .lineLimit(open ? nil : 1)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -142,28 +126,23 @@ struct OrderPieceRow: View {
     }
 
     private var karigarWords: some View {
-        // Amber only while the piece is still to make and nobody has it, or it has not left the shop yet.
-        let waiting = !item.isCompleted
-        return HStack(spacing: 4) {
+        HStack(spacing: 6) {
+            Image(systemName: "hammer")
+                .foregroundStyle(karigar == nil && !item.isCompleted ? Tone.owed.color : Color.secondary)
             if let karigar {
                 Text(karigar).fontWeight(.medium)
                 Text("· " + givenWords)
-                    .foregroundStyle(waiting && item.givenAt == nil ? Tone.owed.color : Color.secondary)
+                    .foregroundStyle(item.givenAt == nil && !item.isCompleted ? Tone.owed.color : Color.secondary)
             } else {
-                Text("Not given out").foregroundStyle(waiting ? Tone.owed.color : Color.secondary)
+                Text("Not given out").foregroundStyle(item.isCompleted ? Color.secondary : Tone.owed.color)
             }
             if assign != nil {
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
-            if !facts.isEmpty {
-                Text("· ").foregroundStyle(.secondary)
-            }
         }
         .font(.subheadline)
-        .lineLimit(1)
-        .fixedSize()
         .accessibilityElement(children: .combine)
     }
 
@@ -202,7 +181,38 @@ struct OrderPieceRow: View {
         .background(Color.secondary.opacity(0.12), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
     }
 
-    // MARK: The price's breakdown, on a tap: owners only
+    // MARK: Price, last: subordinate to what the piece is
+
+    @ViewBuilder
+    private var price: some View {
+        if let total = item.totalEstimate {
+            if showBreakdown && !item.isManualPrice {
+                Button {
+                    priceOpen.toggle()
+                } label: {
+                    HStack {
+                        Text("Item total").foregroundStyle(.secondary)
+                        Spacer()
+                        Text(Money.pkr(total)).fontWeight(.semibold).monospacedDigit()
+                        Image(systemName: priceOpen ? "chevron.up" : "chevron.down")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.subheadline)
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.primary)
+                if priceOpen { breakdown }
+            } else {
+                HStack {
+                    Text("Item total").foregroundStyle(.secondary)
+                    Spacer()
+                    Text(Money.pkr(total)).fontWeight(.semibold).monospacedDigit()
+                }
+                .font(.subheadline)
+            }
+        }
+    }
 
     private var breakdown: some View {
         VStack(spacing: 2) {

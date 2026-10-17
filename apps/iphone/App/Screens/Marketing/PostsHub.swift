@@ -79,10 +79,12 @@ struct PostsHub: View {
         if !failing.isEmpty {
             Section {
                 ForEach(failing) { (c: PostCheck) in
-                    // The section says what it is; each row's one colour is its title.
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("\(c.group): \(c.label)").font(.body.weight(.medium)).foregroundStyle(Tone.owed.color).lineLimit(1)
-                        Text(c.fix ?? c.detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(c.group): \(c.label)").font(.body.weight(.medium))
+                            Text(c.fix ?? c.detail).font(.subheadline).foregroundStyle(.secondary)
+                        }
                     }
                 }
             } header: {
@@ -112,8 +114,11 @@ struct PostsHub: View {
                 }
             }
         } header: {
-            // The count once, in the header; each row carries its own time.
-            LedgerHeading(title: "Today", count: today.isEmpty ? nil : today.count)
+            LedgerHeading(title: "Today")
+        } footer: {
+            if let latest = today.first {
+                Text("\(today.count) out · last \(MarketingTime.clock(latest.at))")
+            }
         }
     }
 
@@ -135,7 +140,7 @@ struct PostsHub: View {
         let title = s.title.isEmpty ? (storyOnly ? "A story" : "A post") : s.title
         return HStack(spacing: 12) {
             sentPicture(s, storyOnly: storyOnly)
-            TwoLine(title: title, subtitle: places, trailing: MarketingTime.clock(s.at)).lineLimit(1)
+            TwoLine(title: title, subtitle: places, trailing: MarketingTime.clock(s.at))
         }
     }
 
@@ -237,7 +242,7 @@ struct PostsHub: View {
                 StockImage(imageUrl: e.thumb, name: e.headline, key: e.id, decodeDataURI: true)
                     .frame(width: 44, height: 44)
                     .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                TwoLine(title: e.headline.isEmpty ? "A piece" : e.headline, subtitle: queueNote(e)).lineLimit(1)
+                TwoLine(title: e.headline.isEmpty ? "A piece" : e.headline, subtitle: queueNote(e))
                 queueBadge(e)
                 Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
             }
@@ -246,23 +251,28 @@ struct PostsHub: View {
         .buttonStyle(.plain)
     }
 
-    /// The row's one quiet line: when it goes (or went) and where. The state is in these words, not a tag.
     private func queueNote(_ e: PostQueueEntry) -> String {
         let places = store.queueWhere(e)
         switch e.status {
         case "scheduled": return "\(ShopDate.say(e.dueAt, withTime: true)) · \(places)"
         case "failed": return e.lastError ?? "It did not all go. \(places)"
         case "sent": return "Sent \(MarketingTime.clock(e.sentAt)) · \(places)"
-        case "sending": return "Sending · \(places)"
-        case "draft": return "Still arriving · \(places)"
-        default: return "Held · \(places)"
+        default: return places
         }
     }
 
-    /// Only what needs someone is a tag (CONVENTIONS rule 15): a piece that didn't all go.
-    @ViewBuilder
+    /// Sent is the expected end: no tag, the line already says when (CONVENTIONS rule 15).
     private func queueBadge(_ e: PostQueueEntry) -> some View {
-        if e.status == "failed" { Pill("Failed", tone: .problem) }
+        let words: (String, Tone)?
+        switch e.status {
+        case "scheduled": words = ("Scheduled", .working)
+        case "sending": words = ("Sending", .owed)
+        case "failed": words = ("Failed", .problem)
+        case "draft": words = ("Making", .quiet)
+        case "sent": words = nil
+        default: words = ("Held", .quiet)
+        }
+        return Group { if let words { Pill(words.0, tone: words.1) } }
     }
 
     // MARK: The website's pieces
@@ -313,7 +323,7 @@ struct PostsHub: View {
     }
 }
 
-/// A website piece as a tile: its photo, its name, and when it last went out (or that it is new, or its collection).
+/// A website piece as a tile: its photo, its name, and when it last went out (or its collection).
 struct PostPieceTile: View {
     let piece: PostPiece
     var posted: String?
@@ -323,7 +333,16 @@ struct PostPieceTile: View {
             StockImage(imageUrl: piece.thumb, name: piece.name, key: piece.id)
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
-            Text(piece.name).font(.caption.weight(.semibold)).lineLimit(1).multilineTextAlignment(.leading)
+                .overlay(alignment: .topLeading) {
+                    if piece.newArrival {
+                        Text("New")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(.ultraThinMaterial, in: .capsule)
+                            .padding(6)
+                    }
+                }
+            Text(piece.name).font(.caption.weight(.semibold)).lineLimit(2).multilineTextAlignment(.leading)
             Text(note).font(.caption2).foregroundStyle(noteColor).lineLimit(1)
         }
     }
@@ -334,9 +353,8 @@ struct PostPieceTile: View {
         return .secondary
     }
 
-    /// When it last went out, else "New" in the quiet line (no tag on the photo), else its collection.
     private var note: String {
         if let ago = MarketingTime.postedAgo(posted) { return ago }
-        return piece.newArrival ? ["New", piece.collection].filter { !$0.isEmpty }.joined(separator: " · ") : piece.collection
+        return piece.collection
     }
 }

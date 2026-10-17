@@ -37,6 +37,8 @@ struct SettingsRoot: View {
 
             Section {
                 SettingsLinkRow(title: "Businesses", symbol: "building.2.fill", color: .orange, path: "/app/businesses")
+            } footer: {
+                Text("Switch between the shops on this phone, or add another by its ERP's address.")
             }
 
             Section {

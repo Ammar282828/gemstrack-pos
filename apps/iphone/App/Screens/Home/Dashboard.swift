@@ -222,17 +222,20 @@ struct Dashboard: View {
         linked("/workshop") { onTheBench(f) }
     }
 
-    /// Owed is amber, never red: money still to come is not an alarm. Nothing owed says so and nothing more.
+    /// Owed is amber, never red: money still to come is not an alarm.
     private func owedCard(_ f: DashFigures) -> some View {
+        let owing = f.totalOutstanding > 0
         let n = f.unpaid.count
-        let notes = [n > 0 ? "\(n) unpaid" : nil, f.owedInHisaab > 0 ? "\(Money.lacCrore(f.owedInHisaab)) in hisaab" : nil].compactMap { $0 }
         return DashStat(label: "Owed to you", linked: true) {
-            if f.totalOutstanding > 0 {
+            if owing {
                 DashStatAmount(amount: f.totalOutstanding, tint: Tone.owed.color)
             } else {
                 DashStatValue(text: "Nil")
             }
-            if !notes.isEmpty { DashStatNote(text: notes.joined(separator: " · ")) }
+            DashStatNote(text: "\(n) unpaid")
+            if f.owedInHisaab > 0 {
+                DashStatNote(text: "\(Money.lacCrore(f.owedInHisaab)) in hisaab", tint: Color.secondary)
+            }
         }
     }
 
@@ -255,7 +258,7 @@ struct Dashboard: View {
             DashHeader(title: "Needs you", count: needs.count)
             Group {
                 if needs.isEmpty {
-                    DashEmpty(text: "All clear.")
+                    DashAllClear()
                 } else {
                     DashNeedList(needs: allNeeds ? needs : Array(needs.prefix(3)), onRates: { rateSheet = true })
                 }

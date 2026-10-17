@@ -74,22 +74,15 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
    (`metal`, `flags`) or, if the server has none, `House.bundledArt` and say so in a comment. The app icon changes only
    from Settings (`AppIcon`), never on a switch.
 
-15. **Quiet screens** (owner, 2026-10-17: "the invoices tab is very noisy — fix that everywhere"). A screen says
-   what needs a look and nothing else; the normal state is silent. Every screen is held to these:
-   - **A row is two lines.** Line one: who (or what) and the sum. Line two: one quiet line (what was sold · the
-     number · the time), one line, truncated. No third line, no wrapped caption under it.
-   - **The expected state has no badge.** Paid, done, active, connected, in stock, on time: nothing. Only what
-     needs someone gets colour: owed, late, a problem, in credit. One coloured thing per row at most.
-   - **No duplicate figures.** A number shows once per screen: not in a chip's count, a section header and a
-     tile at the same time. Chips carry a count only where it is a call to act (Unpaid, Late).
-   - **One hero figure per screen**, then at most a single `FigureRow`. No card per figure where a row says it.
-   - **Section headers:** a title and at most one trailing figure. No second coloured line under a header.
-   - **No tags for the obvious.** "You", "Shopify", a source or a kind: a small glyph in `.secondary` where it
-     matters for the job (a Shopify sale), else nothing. Filtering and the detail page carry the rest.
-   - **Words:** no subtitle under a link that repeats its title, no footer that explains the obvious. A footer is
-     for a consequence (money moves, something is deleted, a customer is messaged).
-   - **Icons:** a menu or a settings list may lead with icons; a data row does not get one per line.
-   - **Details belong to the detail page.** A list shows enough to find the thing and see if it needs a look.
+15. **Quiet screens** (owner, 2026-10-17: "the invoices tab is very noisy", then "I liked the old card ui for invoices
+   and orders, just wanted it to be less noisy"). Keep each screen's layout as it is: its cards, monograms, tiles,
+   stage tracks and row shapes. Take away only the noise inside them:
+   - **The expected state has no badge.** Paid, done, active, connected, running: nothing. Colour is for what needs
+     someone (owed, late, a problem, in credit), one coloured thing per row or card.
+   - **No number twice** on a screen, and no second coloured line under a header that repeats a row's figure.
+   - **No tags for the obvious** ("You" is a small quiet glyph), no subtitle that repeats its title, no footer that
+     explains the obvious; a footer is for a consequence (money moves, something is deleted, a customer is messaged).
+   - A wrapping caption is held to one line where the detail page already says it.
 
 ## Kit components
 

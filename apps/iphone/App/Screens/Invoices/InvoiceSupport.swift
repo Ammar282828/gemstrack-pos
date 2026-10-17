@@ -302,33 +302,26 @@ extension View {
     }
 }
 
-// MARK: The balance, said only when it needs a look
+// MARK: The balance, as one pill
 
-/// Where an invoice's balance stands, as words and not a capsule (CONVENTIONS rule 15): "PKR 86,000 due" amber
-/// (red once it is old), "PKR 3,000 credit" teal, "Refunded" quiet; a settled invoice says nothing, since paid is
-/// what an invoice is meant to be (invoice-credit.ts `balanceLine`, never a negative balance).
+/// Where an invoice's balance stands, the one badge a row carries: "PKR 86,000 due" (red once it is old),
+/// "PKR 3,000 credit", "Refunded" (invoice-credit.ts `balanceLine`, never a negative balance). A settled invoice
+/// carries none: paid is what an invoice is meant to be (CONVENTIONS rule 15).
 struct InvoiceBalancePill: View {
     let invoice: Invoice
 
     var body: some View {
         let line = balanceLine(invoice.balanceDue)
+        let tone = InvoiceFacts.balanceTone(invoice)
         if invoice.status == .refunded {
-            words("Refunded", .secondary)
+            Pill("Refunded", tone: .quiet)
         } else {
             switch line.state {
-            case .due: words("\(Money.pkr(line.amount)) due", InvoiceFacts.balanceTone(invoice).color)
-            case .credit: words("\(Money.pkr(line.amount)) credit", Tone.credit.color)
+            case .due: Pill("\(Money.pkr(line.amount)) due", tone: tone)
+            case .credit: Pill("\(Money.pkr(line.amount)) credit", tone: .credit)
             case .paid: EmptyView()
             }
         }
-    }
-
-    private func words(_ text: String, _ colour: Color) -> some View {
-        Text(text)
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(colour)
-            .monospacedDigit()
-            .lineLimit(1)
     }
 }
 

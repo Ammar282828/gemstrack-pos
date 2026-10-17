@@ -244,8 +244,7 @@ private struct LabelDesigner: View {
             } header: {
                 LedgerHeading(title: "Tag builder")
             } footer: {
-                // Only the save's state: what the builder is for is plain from it (rule 15).
-                if edited || saving || saved != nil { Text(edited || saving ? "Saving…" : "Layout saved.") }
+                Text("Design the tag and export pieces to CSV for a label printing app like WEPrint. \(edited || saving ? "Saving…" : saved != nil ? "Layout saved." : "")")
             }
 
             exportSection

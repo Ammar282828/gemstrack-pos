@@ -51,18 +51,16 @@ extension SaleForm {
     func lineRow(_ line: SaleLine, _ f: SaleFigures) -> some View {
         // A piece gone from the shelf since it went on the sale (sold at the counter, or on another phone).
         let gone = book.products.loaded && !line.isOneOff && book.products.item(line.sku) == nil
-        // Two lines (CONVENTIONS rule 15): a fixed price or a silver rate is part of the quiet line, not a caption
-        // of its own; only a piece gone from stock says more, since it needs a look.
-        var quiet = spec(line)
-        if line.isCustomPrice {
-            quiet += " · fixed"
-        } else if line.metalType == "silver", let rate = line.silverRatePerGram, rate > 0 {
-            quiet += " · \(SaleNumber.grams(rate))/g"
-        }
         return VStack(alignment: .leading, spacing: 4) {
-            TwoLine(title: line.name.isEmpty ? (line.stockSku ?? "New piece") : line.name, subtitle: quiet, trailing: Money.pkr(f.price(of: line.sku)))
+            TwoLine(title: line.name.isEmpty ? (line.stockSku ?? "New piece") : line.name, subtitle: spec(line), trailing: Money.pkr(f.price(of: line.sku)))
+            if line.isCustomPrice {
+                Text("Fixed price: \(Money.pkr(line.customPrice ?? 0))").font(.caption).foregroundStyle(Tone.owed.color)
+            }
+            if line.metalType == "silver", !line.isCustomPrice, let rate = line.silverRatePerGram, rate > 0 {
+                Text("Rate: \(SaleNumber.grams(rate))/g").font(.caption).foregroundStyle(.secondary)
+            }
             if gone {
-                Text("No longer in stock").font(.caption).foregroundStyle(Tone.problem.color)
+                Label("No longer in stock", systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(Tone.problem.color)
             }
         }
         .contentShape(.rect)

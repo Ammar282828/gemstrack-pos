@@ -244,7 +244,7 @@ struct AdsCampaignsScreen: View {
         let goal: String? = c.adsets.count == 1 ? c.adsets[0].optimizationGoal : nil
         return Section {
             campaignRow(c, goal, cur)
-            DisclosureGroup(([AdsObjective.label(c.objective)].filter { !$0.isEmpty } + ["\(c.adsets.count) ad set\(c.adsets.count == 1 ? "" : "s")"]).joined(separator: " · "), isExpanded: Binding(get: { allExpanded || expanded.contains(c.id) }, set: { on in
+            DisclosureGroup("\(c.adsets.count) ad set\(c.adsets.count == 1 ? "" : "s")", isExpanded: Binding(get: { allExpanded || expanded.contains(c.id) }, set: { on in
                 allExpanded = false; if on { expanded.insert(c.id) } else { expanded.remove(c.id) }
             })) {
                 ForEach(c.adsets) { (s: AdSet) in adSetRow(s, cur) }
@@ -252,17 +252,18 @@ struct AdsCampaignsScreen: View {
         }
     }
 
-    /// Two lines (CONVENTIONS rule 15): the name with its status when it isn't running, then the range's numbers. The
-    /// objective and the ad sets are the disclosure's words; the end date rides on the budget, which opens to change both.
+    /// The ad sets are counted once, on the disclosure below (CONVENTIONS rule 15).
     private func campaignRow(_ c: AdCampaign, _ goal: String?, _ cur: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        let bits: [String] = [
+            AdsObjective.label(c.objective),
+            c.stopTime.map { (t: String) in "ends \(ShopDate.say(t))" } ?? "",
+        ].filter { (s: String) in !s.isEmpty }
+        return HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(c.name).font(.headline).lineLimit(1)
-                    AdsStatusBadge(status: c.effectiveStatus)
-                }
-                let b = [budget(c.dailyBudget, c.lifetimeBudget, cur), c.stopTime.map { (t: String) in "ends \(ShopDate.say(t))" } ?? ""]
-                    .filter { (w: String) in !w.isEmpty }.joined(separator: " · ")
+                Text(c.name).font(.headline).fixedSize(horizontal: false, vertical: true)
+                AdsStatusBadge(status: c.effectiveStatus)
+                if !bits.isEmpty { Text(bits.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary) }
+                let b = budget(c.dailyBudget, c.lifetimeBudget, cur)
                 if !b.isEmpty {
                     budgetButton(AdsBudgetTarget(level: "campaign", id: c.id, name: c.name, daily: c.dailyBudget,
                                                  lifetime: c.lifetimeBudget, end: c.stopTime, currency: cur), b)
@@ -283,12 +284,11 @@ struct AdsCampaignsScreen: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
+                    Text(s.name).font(.body.weight(.medium)).fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 6) {
-                        Text(s.name).font(.body.weight(.medium)).lineLimit(1)
                         AdsStatusBadge(status: s.effectiveStatus)
+                        if let learning = s.learning { Text(learning).font(.caption).foregroundStyle(Tone.owed.color) }
                     }
-                    // Learning is Meta's normal first week: a quiet word, not a warning.
-                    if let learning = s.learning { Text(learning).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
                     let b = budget(s.dailyBudget, s.lifetimeBudget, cur)
                     if !b.isEmpty {
                         budgetButton(AdsBudgetTarget(level: "adset", id: s.id, name: s.name, daily: s.dailyBudget,
@@ -437,7 +437,6 @@ struct AdsCampaignsScreen: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             .monospacedDigit()
-            .lineLimit(1)
     }
 
     @ViewBuilder

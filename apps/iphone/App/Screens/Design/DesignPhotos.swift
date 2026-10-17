@@ -60,7 +60,7 @@ struct DesignSitePieces: View {
                 else if !loaded { SkeletonLoading("Reading the website").padding(.horizontal, 16) }
                 else if filtered.isEmpty { NotAvailableState("No pieces", why: "Nothing on the website matches.", symbol: "globe") }
                 else {
-                    Text("\(filtered.count) of \(pieces.count) pieces").font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
+                    Text("\(filtered.count) of \(pieces.count) pieces. Tap one to design it.").font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 10)], spacing: 10) {
                         ForEach(Array(filtered.prefix(shown)), id: \.text) { p in
                             Button { onPick(DesignPhotoSources.site(p)) } label: { PieceCell(name: p.s("name"), sub: p.s("collection"), thumb: p.s("thumb", p.s("image"))) }
@@ -100,7 +100,7 @@ private struct PieceCell: View {
             MarketingPhoto(path: thumb)
                 .frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit)
                 .background(Theme.ground).clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
-            Text(name).font(.caption.weight(.medium)).lineLimit(1)
+            Text(name).font(.caption.weight(.medium)).lineLimit(2).multilineTextAlignment(.leading)
             if !sub.isEmpty { Text(sub).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

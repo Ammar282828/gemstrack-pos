@@ -184,14 +184,17 @@ struct WorkshopBoard: View {
         }
     }
 
-    /// What the bench holds of ours, folded away: the pieces and the benches are the tiles above, what is late is Needs
-    /// attention and each karigar's heading, so only the metal and its value are said here.
+    /// The whole bench in figures, folded away: the pieces and the benches are the tiles above (rule 15: not said twice).
     private func glanceSection(_ loads: [WorkshopLoad]) -> some View {
+        let late = loads.reduce(0) { $0 + $1.late }
+        let critical = loads.reduce(0) { $0 + $1.critical }
         let grams = loads.reduce(0.0) { $0 + $1.totalWeightG }
         let value = loads.reduce(0.0) { $0 + $1.totalValue }
         return Section {
             DisclosureGroup("Bench totals", isExpanded: $showTotals) {
-            FigureRow {
+            FigureGrid {
+                FigureTile(label: "Late \(WorkshopLogic.warnDays)d+", value: "\(late)", tint: late > 0 ? Tone.owed.color : Color.primary)
+                FigureTile(label: "Critical \(WorkshopLogic.criticalDays)d+", value: "\(critical)", tint: critical > 0 ? Tone.late.color : Color.primary)
                 FigureTile(label: "Metal out", value: grams > 0 ? WorkshopLogic.number(grams, digits: 1) + "g" : "—")
                 if session.isOwner {
                     FigureTile(label: "Value out", value: value > 0 ? Money.pkrLac(value) : "—")
@@ -214,30 +217,42 @@ struct WorkshopBoard: View {
         }
     }
 
-    /// His name (the way to his page) and one figure: what is late, in its colour, else how many pieces he has.
-    /// Oldest, grams and the rest are on his page.
     private func karigarHeader(_ load: WorkshopLoad) -> some View {
-        let late = load.late + load.critical
-        return HStack(alignment: .firstTextBaseline, spacing: 8) {
-            if load.isUnassigned {
-                Text("Unassigned").font(.subheadline.weight(.semibold)).foregroundStyle(Tone.owed.color)
-            } else {
-                Button { opened = WorkshopPlace.karigar(load.karigarId) } label: {
-                    Text(load.karigarName).font(.subheadline.weight(.semibold)).foregroundStyle(Color.primary)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Image(systemName: load.isUnassigned ? "exclamationmark.triangle.fill" : "hammer")
+                        .foregroundStyle(load.isUnassigned ? Tone.owed.color : Color.accentColor)
+                    Text(load.isUnassigned ? "Unassigned" : load.karigarName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(load.isUnassigned ? Tone.owed.color : Color.primary)
                 }
-                .buttonStyle(.borderless)
-                .frame(minHeight: 44)
-                .accessibilityHint("Opens his page")
+                Text(headerCounts(load))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            if late > 0 && !load.isUnassigned {
-                Text("\(late) late").font(.caption.weight(.semibold)).monospacedDigit()
-                    .foregroundStyle((load.critical > 0 ? Tone.late : Tone.owed).color)
-            } else {
-                Text("\(load.active)").font(.caption).monospacedDigit().foregroundStyle(.secondary)
+            WorkshopUrgencyBadges(critical: load.critical, late: load.late)
+            if !load.isUnassigned {
+                Button { opened = WorkshopPlace.karigar(load.karigarId) } label: {
+                    Image(systemName: "person.crop.circle")
+                }
+                .buttonStyle(.borderless)
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityLabel("Open " + load.karigarName)
             }
         }
         .textCase(nil)
+    }
+
+    /// "4 active · 2 in progress · oldest 9d · 12.5g out".
+    private func headerCounts(_ load: WorkshopLoad) -> String {
+        var parts = ["\(load.active) active"]
+        if load.inProgress != load.active && load.inProgress > 0 { parts.append("\(load.inProgress) in progress") }
+        if load.oldestActiveDays > 0 { parts.append("oldest \(load.oldestActiveDays)d") }
+        if load.active > 0 && load.totalWeightG > 0 { parts.append(WorkshopLogic.number(load.totalWeightG, digits: 1) + "g out") }
+        if load.completed > 0 && load.active == 0 { parts.append("\(load.completed) done") }
+        return parts.joined(separator: " · ")
     }
 
     /// The karigars with nothing on the bench: these are the people the next job can go to.
@@ -250,11 +265,16 @@ struct WorkshopBoard: View {
                 DisclosureGroup(isExpanded: $showFree) {
                     ForEach(idle) { k in
                         NavigationLink(value: Route(path: WorkshopLogic.karigarPath(k.id))) {
-                            Text(k.name)
+                            Label(k.name, systemImage: "hammer")
                         }
                     }
                 } label: {
-                    Text("\(idle.count) free").foregroundStyle(.secondary)
+                    Label("\(idle.count) free", systemImage: "moon")
+                        .foregroundStyle(.secondary)
+                }
+            } footer: {
+                if !showFree {
+                    Text(idle.map { $0.name }.joined(separator: ", "))
                 }
             }
         }
@@ -272,21 +292,27 @@ struct WorkshopBoard: View {
             let late = active.filter { $0.urgency == .warning }.sorted { $0.ageDays > $1.ageDays }
             let onTrack = active.filter { $0.urgency == .ok }.sorted { $0.ageDays > $1.ageDays }
             let done = load.jobs.filter { $0.isDone }
-            focusedSummary(load)
-            urgencySection("Critical \(WorkshopLogic.criticalDays)d+", tone: .late, jobs: critical, choices: choices)
-            urgencySection("Late \(WorkshopLogic.warnDays)d+", tone: .owed, jobs: late, choices: choices)
-            urgencySection("On track", tone: .quiet, jobs: onTrack, choices: choices)
+            focusedSummary(load, orders: Set(active.compactMap { $0.orderId }).count)
+            urgencySection("Critical", hint: "sitting \(WorkshopLogic.criticalDays)+ days", tone: .late, jobs: critical, choices: choices)
+            urgencySection("Late", hint: "\(WorkshopLogic.warnDays)–\(WorkshopLogic.criticalDays) days", tone: .owed, jobs: late, choices: choices)
+            urgencySection("On track", hint: "", tone: .quiet, jobs: onTrack, choices: choices)
             if filter.status == .all || filter.status == .completed {
-                urgencySection("Completed", tone: .quiet, jobs: done, choices: choices)
+                urgencySection("Completed", hint: "", tone: .quiet, jobs: done, choices: choices)
             }
         }
     }
 
-    private func focusedSummary(_ load: WorkshopLoad) -> some View {
+    private func focusedSummary(_ load: WorkshopLoad, orders: Int) -> some View {
         Section {
             Button { opened = WorkshopPlace.karigar(load.karigarId) } label: {
                 HStack {
-                    Text(load.isUnassigned ? "Unassigned work" : load.karigarName).font(.title3.weight(.semibold))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(load.isUnassigned ? "Unassigned work" : load.karigarName).font(.title3.weight(.semibold))
+                        let sentence = focusedSentence(load, orders: orders)
+                        if !sentence.isEmpty {
+                            Text(sentence).font(.subheadline).foregroundStyle(.secondary)
+                        }
+                    }
                     Spacer()
                     if !load.isUnassigned { Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary) }
                 }
@@ -297,13 +323,21 @@ struct WorkshopBoard: View {
         }
     }
 
+    /// How many orders and how old the oldest: the active count is the first figure below (rule 15: not said twice).
+    private func focusedSentence(_ load: WorkshopLoad, orders: Int) -> String {
+        var parts: [String] = []
+        if orders > 0 { parts.append("across \(orders) order\(orders == 1 ? "" : "s")") }
+        if load.oldestActiveDays > 0 { parts.append("oldest \(load.oldestActiveDays) days") }
+        return parts.joined(separator: " · ")
+    }
+
     @ViewBuilder
-    private func urgencySection(_ title: String, tone: Tone, jobs: [WorkshopJob], choices: WorkshopChoices) -> some View {
+    private func urgencySection(_ title: String, hint: String, tone: Tone, jobs: [WorkshopJob], choices: WorkshopChoices) -> some View {
         if !jobs.isEmpty {
             Section {
                 jobCards(WorkshopLogic.byOrder(jobs), showKarigar: false, choices: choices)
             } header: {
-                LedgerHeading(title: title, count: jobs.count, tone: tone)
+                LedgerHeading(title: title, count: jobs.count, trailing: hint.isEmpty ? nil : hint, tone: tone)
             }
         }
     }
@@ -337,9 +371,19 @@ struct WorkshopBoard: View {
         }
     }
 
-    /// The stage and its count: what is late shows on each card.
     private func stageHeader(_ stage: Stage, _ jobs: [WorkshopJob]) -> some View {
-        LedgerHeading(title: stage.title, count: jobs.count)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Label(stage.title, systemImage: stage.symbol)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.primary)
+            Spacer(minLength: 8)
+            WorkshopUrgencyBadges(
+                critical: jobs.filter { $0.urgency == .critical }.count,
+                late: jobs.filter { $0.urgency == .warning }.count
+            )
+            Text("\(jobs.count)").font(.caption).foregroundStyle(.secondary)
+        }
+        .textCase(nil)
     }
 
     // MARK: Every piece
@@ -609,7 +653,7 @@ struct WorkshopBoard: View {
     }
 
     /// A stock job as it is on file: its sheet edits its own fields (the board's line merges the instructions). An order's
-    /// piece or a sold piece opens the web's Details dialog, the order piece with the sample picture it holds.
+    /// piece or a sold piece opens the Details sheet (the web's Details dialog), the order piece with its sample picture.
     private func openDetails(_ job: WorkshopJob) {
         switch WorkshopLogic.writeTarget(job) {
         case .stock(let id):

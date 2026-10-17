@@ -93,8 +93,8 @@ struct WorkshopKarigarsList: View {
         return List { Group {
             figures(live, loads, batches)
             showPicker
-            if show != .free { section("Working", people: working, loads, batches) }
-            if show != .working { section("Free", people: free, loads, batches) }
+            if show != .free { section("Working", hint: "busiest first", people: working, loads, batches) }
+            if show != .working { section("Free", hint: "nothing on the bench", people: free, loads, batches) }
             if (show == .working && working.isEmpty) || (show == .free && free.isEmpty) || matched.isEmpty {
                 Section { emptyState.listRowBackground(Color.clear) }
             }
@@ -133,13 +133,11 @@ struct WorkshopKarigarsList: View {
             critical += l.critical
             grams += l.totalWeightG
         }
-        // One row of figures (rule 15): who is working and who is free are the sections' counts below.
+        // Who is working and who is free are the sections' counts below (rule 15: not said twice).
         return Section {
-            FigureRow {
+            FigureGrid {
                 FigureTile(label: "Pieces out", value: "\(pieces)", detail: grams > 0 ? WorkshopLogic.number(grams, digits: 0) + "g of metal" : nil)
-                if critical > 0 {
-                    FigureTile(label: "Over \(WorkshopLogic.criticalDays) days", value: "\(critical)", tint: Tone.late.color)
-                }
+                FigureTile(label: "Over \(WorkshopLogic.criticalDays) days", value: "\(critical)", tint: critical > 0 ? Tone.late.color : Color.primary)
                 if session.isOwner {
                     FigureTile(label: "Open hisaabs", value: "\(batches.count)")
                 }
@@ -167,7 +165,7 @@ struct WorkshopKarigarsList: View {
     // MARK: Sections and rows
 
     @ViewBuilder
-    private func section(_ title: String, people: [Karigar], _ loads: [String: WorkshopLoad], _ batches: [String: KarigarBatch]) -> some View {
+    private func section(_ title: String, hint: String, people: [Karigar], _ loads: [String: WorkshopLoad], _ batches: [String: KarigarBatch]) -> some View {
         if !people.isEmpty {
             Section {
                 WorkshopCards(items: people) { k in
@@ -179,47 +177,46 @@ struct WorkshopKarigarsList: View {
         }
     }
 
-    /// Two lines: his name and what he holds (what is late, in its colour, else the count); then one quiet line of the
-    /// metal out, his open hisaab and his number. The rest is his page.
     private func row(_ k: Karigar, _ load: WorkshopLoad?, _ batch: KarigarBatch?) -> some View {
         NavigationLink(value: Route(path: WorkshopLogic.karigarPath(k.id))) {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(k.name).font(.headline).lineLimit(1)
-                    Spacer(minLength: 8)
-                    bench(load)
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 8) {
+                    Text(k.name).font(.headline).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
                     Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
                 }
-                let quiet = secondary(load, batch, contact: k.contact)
-                if !quiet.isEmpty {
-                    Text(quiet).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                bench(load)
+                if let batch, !batch.label.isEmpty {
+                    Label(batch.label, systemImage: "book.closed")
+                        .font(.caption).foregroundStyle(Theme.accent)
+                }
+                if let contact = k.contact, !contact.isEmpty {
+                    Label(contact, systemImage: "phone").font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
         .buttonStyle(.plain)
     }
 
-    /// What he is holding, as one figure: pieces over two weeks in red, a week in amber, else how many (Free says nothing).
+    /// What this karigar is holding, in one line: "3 pieces · 1 over 14d · 2 late · 8.5g out". Free says nothing: he
+    /// sits under Free.
     @ViewBuilder
     private func bench(_ load: WorkshopLoad?) -> some View {
         if let load, load.active > 0 {
-            if load.critical > 0 {
-                Text("\(load.critical) over \(WorkshopLogic.criticalDays)d").font(.subheadline.weight(.semibold)).monospacedDigit().foregroundStyle(Tone.late.color)
-            } else if load.late > 0 {
-                Text("\(load.late) late").font(.subheadline.weight(.semibold)).monospacedDigit().foregroundStyle(Tone.owed.color)
-            } else {
-                Text(WorkshopLogic.pieces(load.active)).font(.subheadline).monospacedDigit()
+            VStack(alignment: .leading, spacing: 8) {
+                Text(WorkshopLogic.pieces(load.active)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                FigureRow(spacing: 8) {
+                    if load.critical > 0 { StatusBadge("\(load.critical) over \(WorkshopLogic.criticalDays)d", tone: .late) }
+                    if load.late > 0 { StatusBadge("\(load.late) late", tone: .owed) }
+                }
+                if load.totalWeightG > 0 {
+                    Text(WorkshopLogic.number(load.totalWeightG, digits: 1) + "g out")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
             }
         }
-    }
-
-    private func secondary(_ load: WorkshopLoad?, _ batch: KarigarBatch?, contact: String?) -> String {
-        var parts: [String] = []
-        if let load, load.active > 0, load.critical > 0 || load.late > 0 { parts.append(WorkshopLogic.pieces(load.active)) }
-        if let load, load.active > 0, load.totalWeightG > 0 { parts.append(WorkshopLogic.number(load.totalWeightG, digits: 1) + "g out") }
-        if let batch, !batch.label.isEmpty { parts.append(batch.label) }
-        if let contact, !contact.isEmpty { parts.append(contact) }
-        return parts.joined(separator: " · ")
     }
 
     private var emptyState: some View {

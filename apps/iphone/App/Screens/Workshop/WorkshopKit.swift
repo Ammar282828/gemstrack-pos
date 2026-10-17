@@ -48,6 +48,40 @@ extension View {
     }
 }
 
+/// How old a piece is, in the colour every workshop surface uses: grey, orange from a week, red from two. A done piece
+/// shows nothing: done is the expected end (rule 15).
+struct WorkshopAgeBadge: View {
+    let job: WorkshopJob
+
+    var body: some View {
+        if !job.isDone {
+            StatusBadge("\(job.ageDays)d", color: tone)
+                .monospacedDigit()
+        }
+    }
+
+    private var tone: Color {
+        switch job.urgency {
+        case .critical: return Tone.late.color
+        case .warning: return Tone.owed.color
+        case .ok: return .secondary
+        }
+    }
+}
+
+/// A count in the colour of its urgency, for section headers: "2 critical", "3 late".
+struct WorkshopUrgencyBadges: View {
+    let critical: Int
+    let late: Int
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if critical > 0 { StatusBadge("\(critical) critical", tone: .late) }
+            if late > 0 { StatusBadge("\(late) late", tone: .owed) }
+        }
+    }
+}
+
 /// Who a piece can be given to: the karigars with work first, then the others.
 struct WorkshopChoices {
     let working: [Karigar]

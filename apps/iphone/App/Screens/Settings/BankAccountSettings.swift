@@ -68,7 +68,6 @@ private struct BankAccountsForm: View {
                 ForEach(accounts) { a in
                     Button { editing = a } label: {
                         TwoLine(title: a.bankName, subtitle: [a.accountName, a.accountNumber].filter { !$0.isEmpty }.joined(separator: " · "))
-                            .lineLimit(1)
                             .foregroundStyle(.primary)
                     }
                 }

@@ -176,15 +176,11 @@ struct ExpensesScreen: View {
     /// then the biggest day/week/month, which the page works out (`summary.biggest`) but leaves unshown.
     private func figures(_ s: ExpenseSummary) -> some View {
         let per = grouping.title.lowercased()
-        // One hero, the total, with how many payments under it; the rest waits in the breakdown (rule 15).
         return VStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(category.isEmpty ? "Total expenses" : category).font(.subheadline).foregroundStyle(.secondary)
-                HeroAmount(amount: s.total)
-                Text("\(s.count) payment\(s.count == 1 ? "" : "s")").font(.footnote).foregroundStyle(.secondary)
+            FigureRow(alignment: .top, spacing: 10) {
+                FigureTile(label: "Total expenses", value: Money.pkr(s.total), tint: Theme.accent)
+                FigureTile(label: "Payments", value: "\(s.count)", detail: category.isEmpty ? nil : category)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .heroSheen()
             DisclosureGroup("Spending breakdown") {
                 VStack(spacing: 12) {
                     TwoLine(title: "Average per \(per)", trailing: Money.pkr(s.perBucket))
@@ -199,9 +195,14 @@ struct ExpensesScreen: View {
         .padding(.vertical, 4)
     }
 
-    /// The group's name and what it came to: one trailing figure, no second line (rule 15).
     private func groupHeader(_ group: MoneyGroup<Expense>) -> some View {
-        LedgerHeading(title: group.sub.isEmpty ? group.label : "\(group.label) · \(group.sub)", trailing: Money.pkr(group.total))
+        let n = group.rows.count
+        let count = "\(n) item\(n == 1 ? "" : "s")"
+        let detail = group.sub.isEmpty ? count : "\(group.sub) · \(count)"
+        return VStack(alignment: .leading, spacing: 6) {
+            LedgerHeading(title: group.label, trailing: Money.pkr(group.total))
+            Text(detail).font(.footnote).foregroundStyle(.secondary)
+        }
     }
 
     // MARK: Rows
@@ -213,7 +214,6 @@ struct ExpensesScreen: View {
             subtitle: subtitle(e),
             trailing: Money.pkr(e.amount)
         )
-        .lineLimit(1)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if ExpenseEditing.isDrawing(e, partnership: session.shop.partnership) {
                 Button { openShareholders = true } label: { Label("Shareholders", systemImage: "person.2") }
@@ -299,7 +299,7 @@ struct ExpensesScreen: View {
         }
     }
 
-    /// No counts: the hero says how many payments, once (rule 15).
+    /// No counts: the Payments tile says how many, once (rule 15).
     private func chip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
         FilterChip(title: title, chosen: selected, action: action)
     }

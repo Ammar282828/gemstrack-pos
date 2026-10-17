@@ -221,8 +221,8 @@ struct AdsRulesScreen: View {
                 ForEach(data.rules) { (r: AdsRuleRow) in
                     HStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(r.name).lineLimit(1)
-                            Text(r.summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            Text(r.name)
+                            Text(r.summary).font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 8)
                         if busy == r.id {
@@ -253,11 +253,10 @@ struct AdsRulesScreen: View {
                 }
                 ForEach(data.log) { (r: AdsLogRow) in
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(r.words(currency)).font(.subheadline.weight(.medium)).lineLimit(1)
+                        Text(r.words(currency)).font(.subheadline.weight(.medium))
                         Text([ShopDate.say(r.at, withTime: true), r.name ?? r.target ?? "", r.by].filter { (s: String) in !s.isEmpty }.joined(separator: " · "))
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
                     }
                 }
             }

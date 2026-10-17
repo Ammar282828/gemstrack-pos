@@ -200,6 +200,7 @@ private struct BackupPage: View {
             LedgerHeading(title: "Export backup")
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
+                Text("Download all your data as a JSON file you can store locally or import later.")
                 if list != nil { Text("\(BackupPage.grouped(totalDocs)) records selected") }
                 if !lastExport.isEmpty { Text("Last export: \(ShopDate.say(lastExport, withTime: true))") }
             }
@@ -364,7 +365,7 @@ private struct BackupPage: View {
                 } else {
                     ForEach(soldHits) { (p: Product) in
                         HStack(spacing: 12) {
-                            TwoLine(title: p.name, subtitle: p.sku).lineLimit(1)
+                            TwoLine(title: p.name, subtitle: p.sku)
                             Button {
                                 Task { await reAdd(p) }
                             } label: {
@@ -378,6 +379,8 @@ private struct BackupPage: View {
             }
         } header: {
             LedgerHeading(title: "Sold product recovery")
+        } footer: {
+            Text("Search for a sold product by its original SKU or name to re-add it to active inventory.")
         }
     }
 

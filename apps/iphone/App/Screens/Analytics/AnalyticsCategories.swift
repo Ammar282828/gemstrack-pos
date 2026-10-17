@@ -36,7 +36,6 @@ struct AnaCategoriesPage: View {
         Section {
             ForEach(rows) { (c: AnaBreakdown.CategoryRow) in
                 TwoLine(title: c.name, subtitle: line(c), trailing: Money.lacCrore(c.revenue))
-                    .lineLimit(1)
             }
         } header: {
             LedgerHeading(title: "By category")

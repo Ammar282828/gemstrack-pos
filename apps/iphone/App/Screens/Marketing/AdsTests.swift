@@ -184,21 +184,21 @@ struct AdsTestsScreen: View {
     private func testCard(_ t: AdsTest, _ cur: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(t.name).font(.headline)
-            // Running is the expected state: only the dates. Each version is a two-line row, not a card of tiles.
+            // Running is the expected state: only the dates.
             Text("\(ShopDate.say(t.start)) to \(ShopDate.say(t.end))").font(.caption).foregroundStyle(.secondary)
             ForEach(t.cells) { (c: AdsTestCell) in
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 4) {
-                        Text(c.name).font(.subheadline.weight(.semibold)).lineLimit(1)
-                        if t.ahead == c.name { Image(systemName: "trophy.fill").font(.caption).foregroundStyle(Tone.owed.color).accessibilityLabel("Ahead") }
-                        Spacer(minLength: 8)
-                        Text(AdsFormat.money(c.spend, cur)).font(.subheadline).monospacedDigit()
+                        Text(c.name).font(.subheadline.weight(.semibold))
+                        if t.ahead == c.name { Image(systemName: "trophy.fill").font(.caption).foregroundStyle(Tone.owed.color) }
+                        Text(c.adsets.joined(separator: ", ")).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     }
-                    Text(["\(AdsFormat.count(c.result)) \(c.resultLabel.lowercased())",
-                          c.costPerResult.map { (v: Double) in "\(AdsFormat.money(v, cur)) each" } ?? "",
-                          "\(AdsResults.roasText(c.roas)) ROAS", c.adsets.joined(separator: ", ")]
-                        .filter { (w: String) in !w.isEmpty }.joined(separator: " · "))
-                        .font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                    FigureRow(spacing: 8) {
+                        FigureTile(label: "Spent", value: AdsFormat.money(c.spend, cur))
+                        FigureTile(label: c.resultLabel, value: AdsFormat.count(c.result))
+                        FigureTile(label: "Each", value: c.costPerResult.map { (v: Double) in AdsFormat.money(v, cur) } ?? "—")
+                        FigureTile(label: "ROAS", value: AdsResults.roasText(c.roas))
+                    }
                 }
             }
             if let ahead = t.ahead {

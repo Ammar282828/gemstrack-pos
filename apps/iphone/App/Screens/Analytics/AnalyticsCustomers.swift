@@ -58,7 +58,7 @@ struct AnaCustomersPage: View {
                 TwoLine(title: c.name, subtitle: subtitle, trailing: Money.lacCrore(c.totalSpent)).lineLimit(1)
             }
         } else {
-            TwoLine(title: c.name, subtitle: subtitle, trailing: Money.lacCrore(c.totalSpent)).lineLimit(1)
+            TwoLine(title: c.name, subtitle: subtitle, trailing: Money.lacCrore(c.totalSpent))
         }
     }
 
@@ -80,7 +80,7 @@ struct AnaCustomersPage: View {
                 }
                 DisclosureGroup("Source breakdown") {
                 ForEach(sources) { (s: AnaSourceRow) in
-                    TwoLine(title: s.label, subtitle: sourceLine(s, total), trailing: Money.lacCrore(s.revenue)).lineLimit(1)
+                    TwoLine(title: s.label, subtitle: sourceLine(s, total), trailing: Money.lacCrore(s.revenue))
                 }
                     Text("A sale’s source comes from the sale, then the customer. Missing sources are Unclassified.").font(.footnote).foregroundStyle(.secondary)
                 }
@@ -148,7 +148,7 @@ struct AnaCustomersPage: View {
                 TwoLine(title: c.name, subtitle: rowLine(c), trailing: Money.lacCrore(c.totalSpent)).lineLimit(1)
             }
         } else {
-            TwoLine(title: c.name, subtitle: rowLine(c), trailing: Money.lacCrore(c.totalSpent)).lineLimit(1)
+            TwoLine(title: c.name, subtitle: rowLine(c), trailing: Money.lacCrore(c.totalSpent))
         }
     }
 }

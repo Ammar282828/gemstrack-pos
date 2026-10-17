@@ -276,6 +276,8 @@ private struct StockPieceEditor: View {
             }
         } header: {
             LedgerHeading(title: "Second metal")
+        } footer: {
+            Text("Optional.")
         }
     }
 
@@ -443,6 +445,8 @@ private struct StockPieceEditor: View {
                 Button { startAnother() } label: {
                     Label("Add another piece", systemImage: "plus.square.on.square")
                 }
+            } footer: {
+                Text("Another piece starts in the same category.")
             }
             .houseRows()
         }

@@ -181,6 +181,8 @@ private struct EditCustomerForm: View {
                 .keyboardType(.phonePad)
         } header: {
             LedgerHeading(title: "Phone")
+        } footer: {
+            Text("The spare slot. A contact import fills this rather than overwriting the number above.")
         }
     }
 
@@ -218,6 +220,8 @@ private struct EditCustomerForm: View {
             sizeRow("Chain", $draft.chainLength, example: "e.g. 18 in")
         } header: {
             LedgerHeading(title: "Sizes")
+        } footer: {
+            Text("What the shop needs before it can make anything. Written the way it is quoted at the counter, not forced into a number.")
         }
     }
 

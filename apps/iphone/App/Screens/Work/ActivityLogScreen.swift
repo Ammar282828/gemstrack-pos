@@ -137,7 +137,8 @@ struct ActivityLogScreen: View {
                     }
                 }
             } header: {
-                LedgerHeading(title: "Newest first", count: list.count)
+                Text("Everything done in the ERP, newest first · \(list.count) \(list.count == 1 ? "entry" : "entries")")
+                    .textCase(nil)
             }
             .houseRows()
 
@@ -280,22 +281,24 @@ struct ActivityLogScreen: View {
         }
     }
 
-    /// Two lines (rule 15): what was done and when; then its details, quiet, on one line. No icon or colour per kind: the
-    /// filter carries the kind, and a line is no alarm.
     private func row(_ e: ActivityLogEntry) -> some View {
+        let tint = tone(ActivityLogRules.tone(e.eventType)).color
         let revertable = ActivityLogRules.isRevertable(e.eventType)
-        return VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(e.description).font(.subheadline.weight(.semibold)).lineLimit(1)
-                Spacer(minLength: 8)
-                Text(ShopDate.say(e.timestamp, withTime: true))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+        return HStack(alignment: .top, spacing: 12) {
+            Image(systemName: symbol(e.eventType))
+                .foregroundStyle(tint)
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(e.description).font(.subheadline.weight(.semibold)).foregroundStyle(tint)
+                if !e.details.isEmpty {
+                    Text(e.details).font(.footnote).foregroundStyle(.secondary)
+                }
             }
-            if !e.details.isEmpty {
-                Text(e.details).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
-            }
+            Spacer(minLength: 8)
+            Text(ShopDate.say(e.timestamp, withTime: true))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if revertable {
@@ -307,6 +310,33 @@ struct ActivityLogScreen: View {
             if revertable {
                 Button(role: .destructive) { askRevert(e) } label: { Label("Revert this action", systemImage: "arrow.uturn.backward") }
             }
+        }
+    }
+
+    private func tone(_ kind: ActivityLogRules.Tone) -> Tone {
+        switch kind {
+        case .created: return .settled
+        case .updated: return .working
+        case .deleted: return .owed
+        case .other: return .quiet
+        }
+    }
+
+    /// The icon of the thing it was done to (the page's own, as SF Symbols).
+    private func symbol(_ eventType: String) -> String {
+        if eventType.hasSuffix(".refund") { return "arrow.uturn.backward" }
+        switch eventType.split(separator: ".").first.map(String.init) ?? "" {
+        case "product": return "diamond"
+        case "customer": return "person"
+        case "karigar", "job": return "hammer"
+        case "invoice": return "receipt"
+        case "order": return "list.clipboard"
+        case "expense": return "banknote"
+        case "revenue": return "chart.line.uptrend.xyaxis"
+        case "given": return "shippingbox.and.arrow.backward"
+        case "repair": return "wrench.and.screwdriver"
+        case "rates": return "dollarsign.circle"
+        default: return "clock.arrow.circlepath"
         }
     }
 }

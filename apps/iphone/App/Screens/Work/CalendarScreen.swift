@@ -83,6 +83,7 @@ struct CalendarScreen: View {
             Section {
                 tiles(figures)
                     .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
             }
             Section {
                 monthGrid(books)
@@ -96,18 +97,19 @@ struct CalendarScreen: View {
         .listStyle(.insetGrouped)
     }
 
-    /// The month on screen: its money as the one hero figure, then one row of its sales, orders and average trading day.
+    /// The month on screen: its money, its sales and orders, and the average day that took anything.
     private func tiles(_ m: ShopCalendarMonth) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(ShopCalendar.title(year: year, month: month)).font(.subheadline).foregroundStyle(.secondary)
-            HeroAmount(amount: m.total, lac: true)
+        VStack(spacing: 10) {
             FigureRow(alignment: .top, spacing: 10) {
+                FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkrLac(m.total), tint: Tone.settled.color)
                 FigureTile(label: "Sales", value: "\(m.sales)")
+            }
+            FigureRow(alignment: .top, spacing: 10) {
                 FigureTile(label: "Orders", value: "\(m.orders)")
                 FigureTile(label: "Avg. trading day", value: m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "—")
             }
         }
-        .padding(16)
+        .padding(.vertical, 4)
     }
 
     private var legend: some View {
@@ -230,23 +232,26 @@ struct CalendarScreen: View {
                 ForEach(events) { e in eventRow(e) }
             }
         } header: {
-            LedgerHeading(title: ShopCalendar.longDay(selected), count: events.isEmpty ? nil : events.count)
+            LedgerHeading(title: "Events for \(ShopCalendar.longDay(selected))")
         }
         .houseRows()
     }
 
     private func eventRow(_ e: ShopCalendarEvent) -> some View {
         let path = e.isInvoice ? WorkPaths.invoice(e.docId) : WorkPaths.order(e.docId)
-        // Two lines (rule 15): who and the sum; then the number, sale or order, and the time.
         return NavigationLink(value: Route(path: path)) {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(e.customerName.isEmpty ? "Walk-in" : e.customerName).font(.headline).lineLimit(1)
-                    Spacer(minLength: 8)
-                    Text(Money.pkr(e.grandTotal)).font(.subheadline.weight(.semibold)).monospacedDigit()
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: e.isInvoice ? "receipt" : "list.clipboard")
+                    .foregroundStyle(e.isInvoice ? Tone.settled.color : Tone.working.color)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(e.docId).font(.subheadline.monospaced().weight(.semibold)).lineLimit(1)
+                    Text(e.customerName.isEmpty ? "Walk-in" : e.customerName)
+                        .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    Text(ShopCalendar.clock(iso: e.createdAt)).font(.caption).foregroundStyle(.tertiary)
                 }
-                Text([e.docId, e.isInvoice ? "Sale" : "Order", ShopCalendar.clock(iso: e.createdAt)].filter { !$0.isEmpty }.joined(separator: " · "))
-                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Spacer(minLength: 8)
+                Text(Money.pkr(e.grandTotal)).font(.subheadline.weight(.semibold)).monospacedDigit()
             }
         }
     }
@@ -259,14 +264,21 @@ struct CalendarScreen: View {
             Section {
                 ForEach(due) { o in
                     NavigationLink(value: Route(path: WorkPaths.order(o.id))) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text((o.customerName ?? "").isEmpty ? "Walk-in" : (o.customerName ?? "")).font(.headline).lineLimit(1)
-                            Text(o.id + " · " + o.status.rawValue).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "calendar.badge.clock").foregroundStyle(Tone.owed.color).frame(width: 24)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(o.id).font(.subheadline.monospaced().weight(.semibold)).lineLimit(1)
+                                Text((o.customerName ?? "").isEmpty ? "Walk-in" : (o.customerName ?? ""))
+                                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                            Spacer(minLength: 8)
+                            // Completed is the expected end: no badge (rule 15).
+                            if o.status != .completed { StatusBadge(order: o.status) }
                         }
                     }
                 }
             } header: {
-                LedgerHeading(title: "Promised for this day", count: due.count)
+                LedgerHeading(title: "Promised for this day")
             }
             .houseRows()
         }

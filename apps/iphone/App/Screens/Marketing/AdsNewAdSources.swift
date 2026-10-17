@@ -204,7 +204,7 @@ struct AdsVideoSection: View {
                         .frame(width: 56, height: 56)
                         .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(v.name).lineLimit(1)
+                        Text(v.name).lineLimit(2)
                         switch v.phase {
                         case .sending:
                             ProgressView(value: v.sent)

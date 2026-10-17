@@ -62,9 +62,8 @@ struct StudioPlan: View {
             LedgerSection(stage.s("title")) {
                 ForEach(model.catalogue["plays"].array.filter { $0.s("stage") == stage.s("id") }, id: \.text) { play in
                     VStack(alignment: .leading, spacing: 10) {
-                        // No icon per play (CONVENTIONS rule 15): a core play says so in its quiet line.
-                        Text(play.s("title")).font(.headline).lineLimit(1)
-                        Text((play["core"].bool ? "Core · " : "") + play.s("where")).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                        Label(play.s("title"), systemImage: play["core"].bool ? "star.fill" : "megaphone").font(.headline)
+                        Text(play.s("where")).font(.subheadline).foregroundStyle(.secondary)
                         DisclosureGroup("Why, who and budget") {
                             Text(play.s("why"))
                             LabeledContent("Who", value: play.s("who")); LabeledContent("Budget", value: play.s("budget")); LabeledContent("Judge it by", value: play.s("judge"))

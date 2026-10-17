@@ -321,9 +321,10 @@ is gone (CONVENTIONS rule 5); and a link on an ERP page to a place with a native
 - **Posts:** the tray (pick, weight, caption, AI caption, story, crop and design, send or queue), Send all and Spread
   over the day (QueuePlan, SiteWeight in ERPCore); Meta's one-time steps on Setup.
 - **Settings:** the Taheri book import (`importTaheriBook`, ops-settings4), `/settings?tab=`.
-- **Quiet screens** (CONVENTIONS rule 15) across every folder: two-line rows, no badge for the expected state (Paid,
-  running, connected), one coloured thing per row, each figure once, one hero figure, headers with one figure,
-  footers only for consequences.
+- **Quiet screens** (CONVENTIONS rule 15). A first pass restructured the screens (two-line rows, no monograms or
+  tiles); the owner: "I liked the old card ui for invoices and orders, just wanted it to be less noisy, revert that
+  anywhere else". So every screen keeps its 10-16 layout, cards, monograms, tiles and stage tracks, and only the noise
+  inside goes: no badge for the expected state (Paid, done, running, connected), no number twice, no obvious footers.
 ### One app, many businesses (2026-10-16)
 
 Owner: one app for all his businesses, to switch between them and to add more. Until now each house was its own app

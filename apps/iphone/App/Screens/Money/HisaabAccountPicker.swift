@@ -72,8 +72,11 @@ struct HisaabAccountPicker: View {
                 }
                 ForEach(shown) { (c: Contact) in
                     Button { pick(c) } label: {
-                        // No symbol per row: the quiet line already says customer or karigar (rule 15).
                         HStack(spacing: 12) {
+                            Image(systemName: c.isCustomer ? "person.fill" : "briefcase.fill")
+                                .foregroundStyle(Theme.accent)
+                                .frame(width: 32, height: 32)
+                                .background(Theme.accent.opacity(0.14), in: .circle)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(c.name.isEmpty ? c.id : c.name).font(.body.weight(.medium)).lineLimit(1)
                                 Text(c.isCustomer ? "Customer" : "Karigar").font(.caption).foregroundStyle(.secondary)

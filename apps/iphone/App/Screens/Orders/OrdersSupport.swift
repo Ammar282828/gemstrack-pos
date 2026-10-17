@@ -44,14 +44,14 @@ extension View {
     }
 }
 
-/// "Online": an order that came from the website and was confirmed by a person. A small glyph in the secondary
-/// colour, not a tag (CONVENTIONS rule 15): the hub's Online filter and the order's own panel say the rest.
+/// "Online": an order that came from the website and was confirmed by a person. A quiet label rather than a
+/// capsule, so a card keeps to one badge (App/UI/Ledger.swift).
 struct OrdersOnlineBadge: View {
     var body: some View {
-        Image(systemName: "globe")
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-            .accessibilityLabel("Online")
+        Label("Online", systemImage: "globe")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(Tone.working.color)
+            .lineLimit(1)
     }
 }
 

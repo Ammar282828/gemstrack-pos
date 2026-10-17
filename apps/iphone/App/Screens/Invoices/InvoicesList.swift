@@ -54,6 +54,8 @@ enum InvoiceChip: String, CaseIterable, Identifiable {
 struct InvoiceSection: Identifiable {
     let id: String
     let title: String
+    /// A word under the heading when nothing is owed on it ("Oldest first"); "" for none.
+    let hint: String
     let rows: [Invoice]
     let billed: Double
     let owed: Double
@@ -208,7 +210,8 @@ enum InvoiceCalendar {
 
 /// Every invoice, and what is still owed on it (src/app/invoices/page.tsx), as the ledger (Ledger.swift): the
 /// chips and the three figures scroll with the list, so the large title stays clear; a day's heading says what it
-/// billed; a row is two lines and only an invoice that needs a look carries colour (CONVENTIONS rule 15).
+/// billed and what is still owed on it; a row leads with who, says what was sold, and carries one pill (none when
+/// paid, CONVENTIONS rule 15).
 struct InvoicesList: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -295,19 +298,27 @@ struct InvoicesList: View {
                         InvoiceSectionHeader(section: group)
                         LazyVGrid(columns: CardColumns.grid(geometry.size.width - 48), alignment: .leading, spacing: 20) {
                             ForEach(group.rows) { inv in
-                                // The row as the phone has it; Take payment only while it is owed, the rest in the menu.
-                                HStack(alignment: .center, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 12) {
                                     row(inv).buttonStyle(.plain)
-                                    if canPay && isOwing(inv) {
-                                        Button { paying = inv } label: { Image(systemName: "banknote").frame(width: 44, height: 44) }
-                                            .buttonStyle(.borderless)
-                                            .accessibilityLabel("Take payment on \(inv.id)")
+                                    Divider()
+                                    HStack {
+                                        if canPay && isOwing(inv) {
+                                            Button("Take payment", systemImage: "banknote") { paying = inv }
+                                                .buttonStyle(.borderless).font(.subheadline.weight(.medium))
+                                                .frame(minHeight: 44)
+                                        }
+                                        Spacer()
+                                        Menu { invoiceActions(inv) } label: {
+                                            Image(systemName: "ellipsis").frame(width: 44, height: 44)
+                                        }.accessibilityLabel("Actions for \(inv.id)")
                                     }
-                                    Menu { invoiceActions(inv) } label: {
-                                        Image(systemName: "ellipsis").frame(width: 44, height: 44)
-                                    }.accessibilityLabel("Actions for \(inv.id)")
                                 }
-                                .ledgerCard(padding: 16)
+                                .ledgerCard(padding: 20)
+                                // The signed-in person's own sale is lit a little (decision "Signed-in defaults"), as an order's card is.
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                                        .strokeBorder(Theme.accent.opacity(isMine(inv) ? 0.22 : 0.08), lineWidth: 1)
+                                }
                             }
                         }
                     }
@@ -345,8 +356,8 @@ struct InvoicesList: View {
             // Shopify's web orders arrive as invoices (never in Orders): their chip sits in the row, as on the web's
             // Show row, whenever there are any. Parked in the toolbar menu alone (a8d9e4e) it hid them from the owner.
             ForEach(rowChips(scoped)) { c in
-                // A count only where it is a call to act (CONVENTIONS rule 15): what is still unpaid.
-                FilterChip(title: c.title, count: c == .unpaid ? scoped.filter { c.matches($0) }.count : nil, chosen: c == chip) {
+                // Unpaid's count is the Owed to you card's own "n invoices": said once (CONVENTIONS rule 15).
+                FilterChip(title: c.title, count: c == .unpaid ? nil : scoped.filter { c.matches($0) }.count, chosen: c == chip) {
                     chip = c
                 }
             }
@@ -395,8 +406,7 @@ struct InvoicesList: View {
 
     // MARK: The three figures
 
-    /// Owed to you in the serif, the screen's one hero (a tap shows the unpaid; how many is the Unpaid chip's count),
-    /// then Today and This month in one FigureRow: the whole book's, or the
+    /// Owed to you in the serif (a tap shows the unpaid), then Today and This month: the whole book's, or the
     /// chosen person's (Taken by), whatever else is filtered, so the figures hold still while the list below them
     /// is searched. Always in view: a fold hid the one number the counter opens this page for.
     private func summaryStrip(_ all: [Invoice]) -> some View {
@@ -407,12 +417,13 @@ struct InvoicesList: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Owed to you").font(.subheadline).foregroundStyle(.secondary)
                     Text(Money.pkr(s.owed))
-                        .font(.system(.title, design: .serif).weight(.semibold))
+                        .font(.system(.largeTitle, design: .serif).weight(.semibold))
                         .foregroundStyle(s.owed > 0 ? Tone.owed.color : Color.primary)
                         .monospacedDigit()
                         .contentTransition(.numericText(value: s.owed))
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
+                    Text("\(s.owedCount) invoice\(s.owedCount == 1 ? "" : "s")").font(.footnote).foregroundStyle(.secondary)
                 }
                 .ledgerCard()
                 .overlay { chosenEdge(.owed) }
@@ -420,15 +431,15 @@ struct InvoicesList: View {
             .buttonStyle(.plain)
             .accessibilityAddTraits(chosen(.owed) ? .isSelected : [])
             FigureRow {
-                figureButton("Today", s.today, .today)
-                figureButton("This month", s.month, .month)
+                figureButton("Today", s.today, s.todayCount, .today)
+                figureButton("This month", s.month, s.monthCount, .month)
             }
         }
     }
 
-    private func figureButton(_ title: String, _ amount: Double, _ figure: InvoiceSummary.Figure) -> some View {
+    private func figureButton(_ title: String, _ amount: Double, _ count: Int, _ figure: InvoiceSummary.Figure) -> some View {
         Button { pick(figure) } label: {
-            FigureTile(label: title, value: Money.pkrLac(amount))
+            FigureTile(label: title, value: Money.pkrLac(amount), detail: "\(count) invoice\(count == 1 ? "" : "s")")
                 .overlay { chosenEdge(figure) }
         }
         .buttonStyle(.plain)
@@ -664,7 +675,7 @@ struct InvoicesList: View {
             members[key, default: []].append(inv)
         }
         return order.map { key in
-            makeSection(id: key, title: titles[key] ?? "", rows: members[key] ?? [])
+            makeSection(id: key, title: titles[key] ?? "", hint: "", rows: members[key] ?? [])
         }
     }
 
@@ -673,73 +684,109 @@ struct InvoicesList: View {
         let owing = rows.filter { isOwing($0) }.sorted { $0.createdAt < $1.createdAt }
         let settled = rows.filter { !isOwing($0) }
         var out: [InvoiceSection] = []
-        if !owing.isEmpty { out.append(makeSection(id: "owing", title: "Awaiting payment", rows: owing)) }
-        if !settled.isEmpty { out.append(makeSection(id: "settled", title: "Settled", rows: settled)) }
+        if !owing.isEmpty { out.append(makeSection(id: "owing", title: "Awaiting payment", hint: "Oldest first", rows: owing)) }
+        if !settled.isEmpty { out.append(makeSection(id: "settled", title: "Settled", hint: "Nothing outstanding", rows: settled)) }
         return out
     }
 
-    private func makeSection(id: String, title: String, rows: [Invoice]) -> InvoiceSection {
+    private func makeSection(id: String, title: String, hint: String, rows: [Invoice]) -> InvoiceSection {
         var billed = 0.0
         var owed = 0.0
         for inv in rows {
             billed += inv.grandTotal
             if isOwing(inv) { owed += inv.balanceDue }
         }
-        return InvoiceSection(id: id, title: title, rows: rows, billed: billed, owed: owed)
+        return InvoiceSection(id: id, title: title, hint: hint, rows: rows, billed: billed, owed: owed)
     }
 }
 
-/// A section's heading: its day and one figure (CONVENTIONS rule 15). What it billed, or, for Awaiting payment,
-/// what is still owed on it: that is the figure the group is there for.
+/// A section's heading: its day, how many, what it billed; under it what is still owed on it.
 private struct InvoiceSectionHeader: View {
     let section: InvoiceSection
 
     var body: some View {
-        LedgerHeading(title: section.title, trailing: Money.pkr(section.id == "owing" ? section.owed : section.billed))
-            .padding(.bottom, 2)
+        VStack(alignment: .leading, spacing: 2) {
+            LedgerHeading(title: section.title, count: section.rows.count, trailing: Money.pkr(section.billed))
+            if section.owed > 0.5 {
+                Text(section.hint.isEmpty ? "\(Money.pkr(section.owed)) still owed" : "\(section.hint) · \(Money.pkr(section.owed)) still owed")
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+                    // Quiet: the rows' own pills carry the amber (CONVENTIONS rule 15, one coloured thing).
+                    .foregroundStyle(.secondary)
+            } else if !section.hint.isEmpty {
+                Text(section.hint).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .textCase(nil)
+        .padding(.bottom, 2)
     }
 }
 
-/// One invoice in two lines (CONVENTIONS rule 15): who it was for and what it came to; then what was sold, its
-/// number and time, a small glyph for a Shopify sale or one taken by whoever is signed in, and the balance only
-/// when it needs a look (due, credit, refunded). The rest is the invoice's own page.
+/// One invoice: who it was for, what was sold, its number and time; what it came to with where its balance stands under it.
 private struct InvoiceListRow: View {
     let invoice: Invoice
     /// Taken by whoever is signed in.
     let mine: Bool
     /// Grouped by more than a day: the row says its day, not only its time.
     let dated: Bool
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var shopify: Bool { (invoice.source ?? "").hasPrefix("shopify") }
 
     var body: some View {
         NavigationLink(value: Route(path: InvoiceFacts.path(invoice.id))) {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(InvoiceFacts.customerName(invoice)).font(.headline).lineLimit(1)
-                    Spacer(minLength: 8)
-                    RowAmount(amount: invoice.grandTotal)
-                }
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(reference).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                    if shopify {
-                        Image(systemName: "bag").font(.caption2).foregroundStyle(.secondary)
-                            .accessibilityLabel("Shopify")
+            let stacked = typeSize.isAccessibilitySize
+            let layout = stacked
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+                : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+            layout {
+                HStack(alignment: .top, spacing: 12) {
+                    Monogram(name: invoice.customerName, size: Monogram.Size.row)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(InvoiceFacts.customerName(invoice)).font(.headline)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let sold = InvoiceFacts.whatSold(invoice), !sold.isEmpty {
+                            Text(sold).font(.subheadline).foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                        reference
                     }
-                    if mine { MineTag() }
-                    Spacer(minLength: 8)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: stacked ? .leading : .trailing, spacing: 4) {
+                    RowAmount(amount: invoice.grandTotal)
                     InvoiceBalancePill(invoice: invoice)
                 }
+                .fixedSize(horizontal: !stacked, vertical: true)
             }
             .accessibilityElement(children: .combine)
         }
     }
 
-    /// "Gold ring +1 more · INV-000123 · 3:45 pm" under its day's heading; the day instead of the time under a
-    /// week's or a month's.
-    private var reference: String {
+    /// "INV-000123 · 3:45 pm" under its day's heading, "INV-000123 · Tue 6 Oct" under a week's, with "You" and
+    /// "Shopify" beside it, or under it where the line is too narrow for all three.
+    private var reference: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) {
+                referenceText
+                if mine { MineTag() }
+                if shopify { Pill("Shopify") }
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                referenceText
+                HStack(spacing: 6) {
+                    if mine { MineTag() }
+                    if shopify { Pill("Shopify") }
+                }
+            }
+        }
+    }
+
+    private var referenceText: some View {
         let when = dated ? ShopDate.say(invoice.createdAt) : InvoiceFacts.time(invoice.createdAt)
-        return [InvoiceFacts.whatSold(invoice) ?? "", invoice.id, when].filter { !$0.isEmpty }.joined(separator: " · ")
+        return Text([invoice.id, when].filter { !$0.isEmpty }.joined(separator: " · "))
+            .font(.caption).foregroundStyle(.secondary)
+            .lineLimit(1)
     }
 }
 

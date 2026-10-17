@@ -101,6 +101,8 @@ struct CustomerMergeSheet: View {
             } else if visible.isEmpty {
                 Section {
                     Text("No duplicates auto-detected.").foregroundStyle(.secondary)
+                } footer: {
+                    Text("Customers who share a number, or whose names are almost the same, show up here.")
                 }
             } else {
                 ForEach(visible) { (pair: CustomerDuplicates.Found) in
