@@ -117,8 +117,7 @@ struct OrderOnlineSection: View {
 
     private func tone(_ s: WebsitePaymentStatus) -> Color {
         switch s {
-        // The transfer in is what the order waits for: said in the ink, not green (CONVENTIONS rule 15).
-        case .transferReceived: return .primary
+        case .transferReceived: return Tone.settled.color
         case .expired, .refunded: return .secondary
         default: return Tone.owed.color
         }

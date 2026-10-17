@@ -77,7 +77,8 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
 15. **Quiet screens** (owner, 2026-10-17: "the invoices tab is very noisy", then "I liked the old card ui for invoices
    and orders, just wanted it to be less noisy"). Keep each screen's layout as it is: its cards, monograms, tiles,
    stage tracks and row shapes. Take away only the noise inside them:
-   - **The expected state has no badge.** Paid, done, active, connected, running: nothing. Colour is for what needs
+   - **The expected state has no badge** (but an order keeps its status: its stage words in their colour and Paid,
+     owner 2026-10-17 "i liked the status of the orders"). Elsewhere Paid, done, active, connected, running: nothing. Colour is for what needs
      someone (owed, late, a problem, in credit), one coloured thing per row or card.
    - **No number twice** on a screen, and no second coloured line under a header that repeats a row's figure.
    - **No tags for the obvious** ("You" is a small quiet glyph), no subtitle that repeats its title, no footer that
