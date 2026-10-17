@@ -5,14 +5,18 @@ import SwiftUI
 
 /// Revenue today and this month, the shared pinned note and supporting shop figures, from the ERP every half hour
 /// (/api/widget/summary, with the key the app keeps for each business in the shared keychain, ERPWidgetLink). One
-/// widget, many businesses: the person picks which one in Edit Widget (the first linked business until they do).
-/// The faces are Shared/ERPWidgetViews.swift.
+/// widget, many businesses: the person picks which one in Edit Widget (the first linked business until they do). The
+/// large and extra large widgets can carry a second business under the first (owner, 2026-10-17: "Big widget should
+/// let me add both business"), each in its own colours. The faces are Shared/ERPWidgetViews.swift.
 
 struct ERPEntry: TimelineEntry {
     let date: Date
     let summary: ERPSummary?
     /// The business shown; nil when none is linked.
     let link: ERPWidgetLink.Link?
+    /// The second business on a large widget, with its figures; nil for one business.
+    var second: ERPWidgetLink.Link? = nil
+    var secondSummary: ERPSummary? = nil
 }
 
 // MARK: Which business
@@ -49,6 +53,9 @@ struct SelectBusinessIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "Business")
     var business: BusinessEntity?
+
+    @Parameter(title: "Second business", description: "Large widgets only: shown under the first.")
+    var second: BusinessEntity?
 }
 
 // MARK: Figures
@@ -64,6 +71,13 @@ struct ERPProvider: AppIntentTimelineProvider {
         return all.first
     }
 
+    /// The large widget's second business: the one chosen, if it is still linked and not the first.
+    private func second(for configuration: SelectBusinessIntent, after first: ERPWidgetLink.Link?, in context: Context) -> ERPWidgetLink.Link? {
+        guard context.family == .systemLarge || context.family == .systemExtraLarge,
+              let id = configuration.second?.id, id != first?.id else { return nil }
+        return ERPWidgetLink.all().first { $0.id == id }
+    }
+
     func placeholder(in context: Context) -> ERPEntry {
         let first = ERPWidgetLink.all().first
         return ERPEntry(date: Date(), summary: .sample(house: first?.name ?? "ERP"), link: first)
@@ -71,15 +85,28 @@ struct ERPProvider: AppIntentTimelineProvider {
 
     func snapshot(for configuration: SelectBusinessIntent, in context: Context) async -> ERPEntry {
         let link = link(for: configuration)
-        if context.isPreview { return ERPEntry(date: Date(), summary: cached(link) ?? .sample(house: link?.name ?? "ERP"), link: link) }
-        return ERPEntry(date: Date(), summary: await fetch(link) ?? cached(link), link: link)
+        let other = second(for: configuration, after: link, in: context)
+        if context.isPreview {
+            return ERPEntry(date: Date(), summary: cached(link) ?? .sample(house: link?.name ?? "ERP"), link: link,
+                            second: other, secondSummary: other.map { cached($0) ?? .sample(house: $0.name) })
+        }
+        return await entry(link, other)
     }
 
     func timeline(for configuration: SelectBusinessIntent, in context: Context) async -> Timeline<ERPEntry> {
         let link = link(for: configuration)
-        let fresh = await fetch(link)
+        let made = await entry(link, second(for: configuration, after: link, in: context))
         let next = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date().addingTimeInterval(1800)
-        return Timeline(entries: [ERPEntry(date: Date(), summary: fresh ?? cached(link), link: link)], policy: .after(next))
+        return Timeline(entries: [made], policy: .after(next))
+    }
+
+    /// Both businesses' figures, asked for at once.
+    private func entry(_ link: ERPWidgetLink.Link?, _ other: ERPWidgetLink.Link?) async -> ERPEntry {
+        async let first = fetch(link)
+        async let next = fetch(other)
+        let a = await first, b = await next
+        return ERPEntry(date: Date(), summary: a ?? cached(link), link: link,
+                        second: other, secondSummary: other == nil ? nil : (b ?? cached(other)))
     }
 
     private func fetch(_ link: ERPWidgetLink.Link?) async -> ERPSummary? {
@@ -129,8 +156,27 @@ struct ERPWidgetEntryView: View {
     }
 
     var body: some View {
-        ERPWidgetFace(summary: entry.summary, size: size, look: look, accented: renderingMode == .accented)
-            .containerBackground(for: .widget) { background }
+        if let other = entry.second, size == .large || size == .extraLarge {
+            // Two businesses, one above the other: each a medium face on its own paper.
+            let otherLook = ERPWidgetLook(other)
+            VStack(spacing: 0) {
+                ERPWidgetFace(summary: entry.summary, size: .medium, look: look, accented: renderingMode == .accented)
+                    .frame(maxHeight: .infinity)
+                    .padding(.bottom, 12)
+                ERPWidgetFace(summary: entry.secondSummary, size: .medium, look: otherLook, accented: renderingMode == .accented)
+                    .frame(maxHeight: .infinity)
+                    .padding(.top, 12)
+            }
+            .containerBackground(for: .widget) {
+                VStack(spacing: 0) {
+                    ERPWidgetPaper(look: look)
+                    ERPWidgetPaper(look: otherLook)
+                }
+            }
+        } else {
+            ERPWidgetFace(summary: entry.summary, size: size, look: look, accented: renderingMode == .accented)
+                .containerBackground(for: .widget) { background }
+        }
     }
 
     @ViewBuilder private var background: some View {
@@ -147,7 +193,7 @@ struct ERPWidget: Widget {
             ERPWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("Today at the shop")
-        .description("Revenue today and this month, with the shop’s pinned message. Touch and hold, then Edit Widget, to choose the business.")
+        .description("Revenue today and this month, with the shop’s pinned message. Touch and hold, then Edit Widget, to choose the business; a large widget can show a second one under it.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge, .accessoryRectangular, .accessoryInline])
     }
 }

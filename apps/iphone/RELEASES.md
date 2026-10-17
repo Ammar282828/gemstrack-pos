@@ -29,3 +29,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-17: Posts as the web has it since 10-16: the board's designer saves as you go and moves between designs in place, Tidy in sixties (boards over 60 designs), and the design engines rebuilt to Mina's new type rules.
 - 2026-10-17: no ERP pages left behind native screens (stock photos, PDFs for repairs, expenses and hisaab, the hisaab reminder, spam clean-up, the five settings, re-make a site photo, Ads → Plan), the form-completion bubble gone, photos and big pages faster.
 - 2026-10-17: no button opens the web any more (orders, invoices, stock, workshop, activity log, drafts, posts tray, Taheri book import; links on an ERP page open native screens), and every screen quieter: two-line rows, no Paid badges, each figure once.
+- 2026-10-17: the large widget can show a second business under the first (Edit Widget → Second business), each in its own colours.
