@@ -22,11 +22,47 @@ enum MoneyPaths {
         s.addingPercentEncoding(withAllowedCharacters: componentSafe) ?? s
     }
 
-    /// The ERP's own pages for what is not native (the expense report's PDF, the Hisaab page's own
-    /// tools): `?web=1` asks for the ERP page even where a native screen exists.
+    /// The ERP's own pages, for what is not native (the ledger's WhatsApp reminder): `?web=1` asks for the
+    /// ERP page even where a native screen exists.
     static let expensesWeb = "/expenses?web=1"
     static let revenueWeb = "/additional-revenue?web=1"
     static let hisaabWeb = "/hisaab?web=1"
+
+    // The pages' PDFs, drawn by the ERP's server with the pages' own drawers and sums (/api/app/pdf/*,
+    // owners only). GET with the filters in the query: the PDF screen only GETs.
+
+    /// The Expenses page's report for the filters on screen (src/lib/expense-report.ts reads them): the
+    /// period as the web names it, a custom range's days, the grouping, the category ("" is All), the search.
+    static func expenseReport(period: ExpensePeriod, fromDay: String?, toDay: String?, grouping: ExpenseGrouping, category: String, search: String) -> String {
+        let id: String
+        switch period {
+        case .thisMonth: id = "this-month"
+        case .lastMonth: id = "last-month"
+        case .last30: id = "last-30"
+        case .thisYear: id = "this-year"
+        case .all: id = "all"
+        case .custom: id = "custom"
+        }
+        var q = "period=" + id + "&grouping=" + grouping.rawValue
+        q += "&category=" + component(category.isEmpty ? "All" : category)
+        q += "&search=" + component(search.trimmingCharacters(in: .whitespacesAndNewlines))
+        if period == .custom, let from = fromDay, !from.isEmpty {
+            q += "&start=" + component(from)
+            if let to = toDay, !to.isEmpty { q += "&end=" + component(to) }
+        }
+        return "/api/app/pdf/expenses?" + q
+    }
+
+    /// The Hisaab page's Summary PDF; `q` keeps the names holding it, as the page's search does.
+    static func hisaabSummary(search: String) -> String {
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        return "/api/app/pdf/hisaab" + (q.isEmpty ? "" : "?q=" + component(q))
+    }
+
+    /// One person's Ledger Statement, as the ledger page's Print saves it.
+    static func ledgerPDF(_ id: String, isCustomer: Bool) -> String {
+        "/api/app/pdf/hisaab/" + encode(id) + "?type=" + (isCustomer ? "customer" : "karigar")
+    }
 
     /// The partners' page: a drawing is changed there, with its withdrawal (lib/writes/expense-admin.ts).
     static let shareholders = "/shareholders"

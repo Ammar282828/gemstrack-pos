@@ -3,14 +3,15 @@ import SwiftUI
 /// Settings (owners): the iPhone Settings app's shape over the ERP's own tabs (lib/nav.ts SETTINGS).
 ///
 /// `/settings` is the list; the native Shop is `/app/settings/shop`, and `/settings/shop` (where the web's Shop details
-/// moved) opens it too. The list's "Change numbering" opens the ERP's page (`/settings/shop?web=1`). What is
-/// simple is edited here; the activity log is the Work group's (ActivityLogScreen) and Recently removed the
-/// Owner group's. Voice, Labels (Stock › Labels, still at /settings/printer), Backups and the contact and hisaab
-/// imports are native too; what stays the ERP's pages, opened inside the app: a backup's Restore (it writes a
-/// whole file over the live books), the Taheri Software book's one-off import, Meta's connection and Shopify's
-/// sign-in (OAuth opens in Safari from the native Shopify screen, `/app/settings/shopify`).
+/// moved) opens it too, numbering and all (`setCounters`, with the delete code). What is simple is edited here; the
+/// activity log is the Work group's (ActivityLogScreen) and Recently removed the Owner group's. Voice, Labels
+/// (Stock › Labels, still at /settings/printer), Backups (a backup's Restore too, /api/app/backup/restore), the
+/// contact and hisaab imports, the website's selling settings (`/app/settings/website`) and the alerts' connection,
+/// test and Send now are native too; what stays the ERP's pages, opened inside the app: the Taheri Software book's
+/// one-off import, Meta's connection and Shopify's sign-in (OAuth opens in Safari from the native Shopify screen,
+/// `/app/settings/shopify`).
 /// Simple settings go through /api/app/write `updateSettings` (lib/writes/settings.ts); the rest through their
-/// own writes (ops-settings2.ts).
+/// own writes (ops-settings2.ts, ops-settings3.ts).
 enum SettingsRoutes {
     static var all: [ScreenRoute] {
         [
@@ -23,6 +24,7 @@ enum SettingsRoutes {
             .exact("/settings/payment-methods") { BankAccountSettings() },
             .exact("/settings/integrations") { IntegrationSettings() },
             .exact("/app/settings/shopify") { ShopifySettings() },
+            .exact("/app/settings/website") { WebsiteSellingSettings() },
             .exact("/settings/data") { DataSettings() },
             .exact("/settings/voice") { VoiceSettings() },
             .exact("/settings/printer") { LabelSettings() },

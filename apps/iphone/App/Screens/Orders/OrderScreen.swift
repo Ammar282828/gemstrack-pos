@@ -53,7 +53,7 @@ struct OrderScreen: View {
     private var screen: some View {
         ShelfState(loaded: book.orders.loaded, error: book.orders.error, offline: book.orders.offline) {
             // Read through `items`: the shelf's lookup is not observed, so a change would not redraw.
-            if let order = book.orders.items.first(where: { $0.id == id }) {
+            if let order = book.orders.item(id) {
                 detail(order)
             } else {
                 ContentUnavailableView("Order not found", systemImage: "list.clipboard", description: Text("\(id) is not in the book."))
@@ -124,7 +124,7 @@ struct OrderScreen: View {
 
     private func invoiceOf(_ order: Order) -> Invoice? {
         guard let invoiceId = order.invoiceId, !invoiceId.isEmpty else { return nil }
-        return book.invoices.items.first(where: { $0.id == invoiceId })
+        return book.invoices.item(invoiceId)
     }
 
     // MARK: Who, what is owed, when, how far

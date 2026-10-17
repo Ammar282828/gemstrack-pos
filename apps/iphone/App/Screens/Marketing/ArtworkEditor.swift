@@ -7,6 +7,9 @@ struct ArtworkEditor: View {
     let photos: [String: Data]
     let fields: [String: String]
     var ad = false
+    /// The catalogue's list the Layout menu offers as square layouts, in place of the frame's own (Edit a piece: "siteSquares",
+    /// its website photo's layouts, in its own shape as well as square).
+    var layoutGroup: String? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var engine = NativeArtwork()
     @State private var response = MarketingValue.null
@@ -65,8 +68,9 @@ struct ArtworkEditor: View {
                 Section {
                     Menu("Add") { addMenu }
                     Menu("Layout") {
-                        let group = ad ? "templates" : (height < 1400 ? "squares" : "presets")
-                        ForEach(catalogue[group].array, id: \.text) { i in Button(i.s("label")) { act(ad ? "ad" : (height < 1400 ? "square" : "preset"), i.s("id")) } }
+                        let group = layoutGroup ?? (ad ? "templates" : (height < 1400 ? "squares" : "presets"))
+                        let action = layoutGroup != nil ? "square" : ad ? "ad" : (height < 1400 ? "square" : "preset")
+                        ForEach(catalogue[group].array, id: \.text) { i in Button(i.s("label")) { act(action, i.s("id")) } }
                     }
                     Menu("Colours") { ForEach(catalogue["palettes"].array, id: \.text) { p in Button(p.s("label")) { act("palette", "", ["palette": p.s("id")]) } } }
                     if !selected.isEmpty { selectionTools }

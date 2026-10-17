@@ -550,9 +550,14 @@ struct NewOrder: View {
                 WorkDraftSync.sale.drop()
             }
             offerSizes(made)
-            // Blank, so a keep that was already on its way writes nothing back.
-            draft = NewOrderDraft.fresh()
-            created = id
+            // Blank, so a keep that was already on its way writes nothing back. The form gives way to the order with no
+            // animation: its glass Save button can't fade and would shrink into a "bubble" over the order.
+            var still = Transaction()
+            still.disablesAnimations = true
+            withTransaction(still) {
+                draft = NewOrderDraft.fresh()
+                created = id
+            }
         } catch let e as ERPAPI.Failure {
             // The ERP has seen this very order already (a second tap, a retry): it is made, not lost.
             let seen = e.status == 409 && e.message.hasPrefix("This was already sent")

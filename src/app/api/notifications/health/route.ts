@@ -11,5 +11,7 @@ import { whatsAppStatus } from '@/lib/whatsapp';
  */
 export async function GET() {
   const status = await whatsAppStatus();
-  return NextResponse.json(status, { status: status.ok ? 200 : 503 });
+  // `error` says it in words for a caller that reads only that on a 503 (the iPhone app's ERPAPI).
+  const error = status.ok ? undefined : !status.configured ? 'Not configured' : ['Not ready', status.state, status.detail].filter(Boolean).join(' — ');
+  return NextResponse.json({ ...status, ...(error && { error }) }, { status: status.ok ? 200 : 503 });
 }

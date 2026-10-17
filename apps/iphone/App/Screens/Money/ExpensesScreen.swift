@@ -5,7 +5,8 @@ import ERPCore
 /// month with a subtotal for each group, with the page's tiles, a category filter and search. Adding,
 /// editing and deleting are native (a swipe or a long press on a row): Delete asks for the delete code,
 /// which the ERP checks with the delete itself. A partner's drawing is the Shareholders page's, where it
-/// goes with its withdrawal, so its row points there instead. The report PDF is drawn by the ERP's page.
+/// goes with its withdrawal, so its row points there instead. The report PDF is the page's own (Report), drawn by
+/// the ERP's server for the filters on screen (src/lib/expense-report-pdf.ts, /api/app/pdf/expenses).
 /// The period and the grouping are two different questions, as on the web: how far back to look, and
 /// how coarsely to bucket what is there.
 struct ExpensesScreen: View {
@@ -22,7 +23,7 @@ struct ExpensesScreen: View {
     @State private var adding = false
     @State private var editing: Expense?
     @State private var deletion: OwnerDeletion?
-    @State private var openWeb = false
+    @State private var report: InvoicePDFTarget?
     @State private var openShareholders = false
     @State private var note: ExpenseSavedNote?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -62,8 +63,8 @@ struct ExpensesScreen: View {
                 Note.show(ExpenseSavedNote(title: "Expense deleted", detail: "The record has been removed."), in: $note, reduce: reduceMotion)
             }
         }
-        .navigationDestination(isPresented: $openWeb) {
-            PlaceScreen(path: MoneyPaths.expensesWeb)
+        .navigationDestination(item: $report) { t in
+            PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
         }
         .navigationDestination(isPresented: $openShareholders) {
             PlaceScreen(path: MoneyPaths.shareholders)
@@ -116,16 +117,26 @@ struct ExpensesScreen: View {
                 }
             }
             Section {
-                Button { openWeb = true } label: {
+                Button { report = reportTarget() } label: {
                     Label("Expense report (PDF)", systemImage: "doc.richtext")
                 }
+                .disabled(shown.isEmpty)
             } footer: {
-                Text("The report is drawn by the ERP's page, for the period and filters chosen there.")
+                Text("The ERP's report for the period, grouping, category and search chosen here, to print or share.")
             }
         }.houseRows()
         }
         .listStyle(.insetGrouped)
         .safeAreaBar(edge: .top, spacing: 0) { categoryChips(scoped) }
+    }
+
+    /// The page's Report for what is on screen; named as the browser saves it.
+    private func reportTarget() -> InvoicePDFTarget {
+        let path = MoneyPaths.expenseReport(period: period, fromDay: custom.fromDay, toDay: custom.toDay,
+                                            grouping: grouping, category: category, search: search)
+        return InvoicePDFTarget(path: path,
+                                fileName: "Expense-Report-\(MoneyCalendar.pickedDay(Date())).pdf",
+                                title: "Expense report")
     }
 
     /// "This month · 1 Oct – 8 Oct 2026".

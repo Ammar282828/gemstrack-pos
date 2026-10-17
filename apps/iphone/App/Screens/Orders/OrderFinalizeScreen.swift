@@ -23,7 +23,7 @@ struct OrderFinalizeScreen: View {
     @State private var failure: String?
     @State private var made: String?
 
-    private var order: Order? { book.orders.items.first { $0.id == id } }
+    private var order: Order? { book.orders.item(id) }
 
     var body: some View {
         Group {
@@ -247,7 +247,10 @@ struct OrderFinalizeScreen: View {
                 if book.invoices.item(invoiceId) != nil { break }
                 try? await Task.sleep(for: .milliseconds(250))
             }
-            made = invoiceId
+            // The invoice replaces the form with no animation: the glass Make invoice button can't fade (the "bubble").
+            var still = Transaction()
+            still.disablesAnimations = true
+            withTransaction(still) { made = invoiceId }
         } catch let e as ERPAPI.Failure {
             failure = e.message
         } catch {

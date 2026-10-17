@@ -12,8 +12,8 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 import { useAppStore } from '@/lib/store';
 import { DEFAULT_WEBSITE_CONFIG, WEBSITE_CONFIG_DOC, type WebsiteCategoryPricing, type WebsiteConfig } from '@/lib/website/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -76,7 +76,16 @@ export function WebsiteSettings() {
   const save = async () => {
     setSaving(true);
     try {
-      await setDoc(doc(db, 'app_settings', WEBSITE_CONFIG_DOC), { ...cfg, updatedAt: new Date().toISOString() });
+      // Through the server's one check and write (lib/writes/website-config.ts), as the iPhone app saves it.
+      const token = await auth?.currentUser?.getIdToken();
+      const response = await fetch('/api/app/write', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ op: 'saveWebsiteConfig', config: cfg, requestId: crypto.randomUUID() }),
+      });
+      const out = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(out.error || `The ERP answered ${response.status}.`);
+      if (out.config) setCfg({ ...DEFAULT_WEBSITE_CONFIG, ...out.config });
       setDirty(false);
       toast({ title: 'Website settings saved', description: cfg.enabled ? 'The site will show prices at the next rate refresh.' : 'Selling is switched off; the site shows no prices.' });
     } catch (e) {

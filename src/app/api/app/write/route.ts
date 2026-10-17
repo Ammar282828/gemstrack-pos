@@ -51,6 +51,7 @@ import { ORDER_OPS, runOrderOp } from './ops-orders';
 import { INVOICE_ACTION_OPS, runInvoiceActionOp } from './ops-invoice-actions';
 import { WORKSHOP_OPS, runWorkshopOp } from './ops-workshop';
 import { SETTINGS2_OPS, runSettings2Op } from './ops-settings2';
+import { SETTINGS3_OPS, runSettings3Op } from './ops-settings3';
 
 export const dynamic = 'force-dynamic';
 
@@ -102,6 +103,7 @@ const GROUPS: { roles: OpRoles; run: OpHandler }[] = [
   { roles: INVOICE_ACTION_OPS, run: runInvoiceActionOp },
   { roles: WORKSHOP_OPS, run: runWorkshopOp },
   { roles: SETTINGS2_OPS, run: runSettings2Op },
+  { roles: SETTINGS3_OPS, run: runSettings3Op },
 ];
 
 const OPS: OpRoles = Object.assign({}, OWN_OPS, ...GROUPS.map((g) => g.roles));

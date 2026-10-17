@@ -2,8 +2,8 @@ import SwiftUI
 import ERPCore
 
 /// Settings → Alerts (NotificationsCard, settings-sections.tsx): who gets the shop's WhatsApp alerts
-/// and which reports go out when. The gateway's health check, the test message and "Send now" stay
-/// the ERP's page. The phone's own push notifications are "This phone".
+/// and which reports go out when, whether WhatsApp can send, a test, and "Send now" (AlertConnection.swift).
+/// The phone's own push notifications are "This phone".
 struct AlertSettings: View {
     var body: some View {
         SettingsGate(title: "Alerts") { AlertsForm(settings: $0) }
@@ -18,6 +18,8 @@ private struct AlertsForm: View {
     @State private var newNumber = ""
     @State private var times: Times
     @State private var timeSave: Task<Void, Never>?
+    @State private var note: Note?
+    @State private var failure: String?
 
     private struct Times: Equatable {
         var checklist: Date
@@ -76,12 +78,9 @@ private struct AlertsForm: View {
                 switches("Reports", Self.reports)
                 switches("Checks", Self.checks)
                 schedule
-                Section {
-                    NavigationLink(value: Route(path: "/settings/alerts?web=1")) { Text("Connection, test and send now") }
-                } footer: {
-                    Text("Whether WhatsApp is linked, and sending a report by hand.")
-                }
             }
+
+            AlertConnectionSections(settings: settings, enabled: enabled, phones: phones, note: $note, failure: $failure)
 
             SettingsErrorSection(writer: writer)
             }
@@ -93,6 +92,8 @@ private struct AlertsForm: View {
             writer.settled()
         }
         .onChange(of: times) { _, _ in scheduleTimeSave() }
+        .noteToast($note)
+        .failureAlert($failure, title: "Not sent")
     }
 
     private var recipients: some View {

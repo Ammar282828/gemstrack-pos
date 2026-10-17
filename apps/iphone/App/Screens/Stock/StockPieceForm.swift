@@ -6,9 +6,9 @@ import ERPCore
 /// saved through the ERP (`addProduct` / `updateProduct` on /api/app/write, lib/writes/products.ts): the
 /// same SKU numbering, names and gold coin rules as the browser's store. Owners only, as Stock is.
 ///
-/// The photo is the one thing not here: the web uploads it to Firebase Storage from the browser, and the
-/// ERP has no route a phone could send one through, so Photo opens the ERP's own edit page. An edit never
-/// sends the photo, the tag's QR or the Shopify ids, so what is on file stays.
+/// The photo saves on its own, as the web's upload does (StockPiecePhotoField, /api/app/product-photo): the
+/// form's Save never sends the photo, the tag's QR or the Shopify ids, so what is on file stays. A new piece
+/// takes its photo once it is saved and has its SKU.
 ///
 /// The web form puts the wastage back to 10% (25% with diamonds) whenever the metal, the diamonds, the
 /// stones or the category changes, and also as it opens. Here an edit opens on the piece's own wastage, so
@@ -383,24 +383,16 @@ private struct StockPieceEditor: View {
 
     // MARK: Photo
 
-    /// Photos are the ERP's page: it uploads them from the browser, and the phone has no way to send one.
+    /// The photo saves as soon as it is picked, on its own (the web uploads it the moment it is chosen too).
     @ViewBuilder
     private var photoSection: some View {
         if let original {
-            let photo: String? = StockKit.filled(original.imageUrl)
             Section {
-                if let photo {
-                    StockImage(imageUrl: photo, name: original.name, key: original.sku, decodeDataURI: true)
-                        .frame(width: 96, height: 96)
-                        .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
-                }
-                NavigationLink(value: Route(path: StockKit.editPath(original.sku) + "?web=1")) {
-                    Label(photo == nil ? "Add a photo in the ERP" : "Change the photo in the ERP", systemImage: "photo")
-                }
+                StockPiecePhotoField(sku: original.sku, name: original.name, imageUrl: original.imageUrl)
             } header: {
                 LedgerHeading(title: "Photo")
             } footer: {
-                Text("The photo is uploaded on the ERP's own page. Everything else saves here, and saving here keeps the photo.")
+                Text("A photo saves as soon as it is picked or taken. Saving the form keeps the photo.")
             }
         } else {
             Section {
@@ -409,7 +401,7 @@ private struct StockPieceEditor: View {
             } header: {
                 LedgerHeading(title: "Photo")
             } footer: {
-                Text("The photo is uploaded on the ERP's own page, which opens from here after saving.")
+                Text("The piece needs its SKU first: the photo is added from here after saving.")
             }
         }
     }
@@ -432,14 +424,19 @@ private struct StockPieceEditor: View {
                 .listRowBackground(Color.clear)
             }
             Section {
-                NavigationLink(value: Route(path: StockKit.editPath(s.sku) + "?web=1")) {
-                    Label("Add a photo", systemImage: "photo")
-                }
+                StockPiecePhotoField(sku: s.sku, name: s.name, imageUrl: book.products.item(s.sku)?.imageUrl)
+            } header: {
+                LedgerHeading(title: "Photo")
+            } footer: {
+                Text("A photo saves as soon as it is picked or taken.")
+            }
+            .houseRows()
+            Section {
                 Button { startAnother() } label: {
                     Label("Add another piece", systemImage: "plus.square.on.square")
                 }
             } footer: {
-                Text("The photo is added on the ERP's own page. Another piece starts in the same category.")
+                Text("Another piece starts in the same category.")
             }
             .houseRows()
         }

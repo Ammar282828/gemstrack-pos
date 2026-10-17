@@ -47,7 +47,7 @@ struct InvoiceScreen: View {
     private let firstPieces = 5
 
     var body: some View {
-        let invoice = book.invoices.items.first { $0.id == id }
+        let invoice = book.invoices.item(id)
         Group {
             if let invoice {
                 detail(invoice)

@@ -19,7 +19,8 @@ import { ArrowLeft } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, doc, Timestamp } from 'firebase/firestore';
+import { reviveTimestamps } from '@/lib/backup-collections';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { AmountInput } from '@/components/ui/amount-input';
@@ -231,7 +232,8 @@ const ImportCard: React.FC = () => {
         for (let i = 0; i < ids.length; i += 400) {
           const batch = writeBatch(db);
           ids.slice(i, i + 400).forEach(id => {
-            batch.set(doc(db, colId, id), parsedData[colId][id], { merge: true });
+            // The file's dates go back as dates (backupReplacer wrote them as { seconds, nanoseconds }).
+            batch.set(doc(db, colId, id), reviveTimestamps(parsedData[colId][id], (sec, ns) => new Timestamp(sec, ns)) as Record<string, unknown>, { merge: true });
           });
           await batch.commit();
           written += Math.min(400, ids.length - i);

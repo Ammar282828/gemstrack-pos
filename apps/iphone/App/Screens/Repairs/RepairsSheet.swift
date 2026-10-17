@@ -5,8 +5,9 @@ import ERPCore
 /// What is on it: its pieces, the money, where it stands and who has it. Ready, Collected, Take payment,
 /// Edit, Cancel and Delete are native and owners' (the ERP lets only an owner write a repair); Delete asks
 /// for the delete code, which the ERP checks with the delete, and takes the money paid out of Extra
-/// revenue with the ticket. Print receipt is the ERP's page: the receipt is drawn in the browser
-/// (src/lib/repair-pdf.ts, jsPDF and the page's QR codes). It has its own NavigationStack, as a sheet must.
+/// revenue with the ticket. Print receipt is the receipt the ERP's page saves (src/lib/repair-pdf.ts), drawn by
+/// its server (/api/app/pdf/repair/[id]) and shown here to print or share. It has its own NavigationStack, as a
+/// sheet must.
 struct RepairsSheet: View {
     let id: String
     /// What the ERP answered when the ticket was written, until the shelf has it.
@@ -17,7 +18,7 @@ struct RepairsSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var desk = RepairsDesk()
-    @State private var web: RepairsWebTarget?
+    @State private var receipt: InvoicePDFTarget?
     @State private var editing = false
     @State private var deletion: OwnerDeletion?
     /// The ticket is gone: the sheet leaves once the code sheet has.
@@ -31,9 +32,11 @@ struct RepairsSheet: View {
                 .navigationTitle(id)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { sheetToolbar }
-                // The customer's page, and the ERP's own page for Print receipt.
+                // The customer's page, and the receipt.
                 .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
-                .navigationDestination(item: $web) { target in PlaceScreen(path: target.path) }
+                .navigationDestination(item: $receipt) { t in
+                    PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
+                }
         }
         .repairsDesk(desk)
         .sheet(isPresented: $editing) {
@@ -108,12 +111,12 @@ struct RepairsSheet: View {
         ToolbarItem(placement: .primaryAction) { ticketMenu }
     }
 
-    /// Print receipt is the ERP's page for this ticket (it draws the PDF), open to everyone who can read
-    /// the ticket; Edit, Cancel and Delete are native and owners'. Cancel keeps the record.
+    /// Print receipt is the ERP's receipt for this ticket, open to everyone who can read the ticket (the
+    /// ERP prints it for owners and staff); Edit, Cancel and Delete are native and owners'. Cancel keeps the record.
     private var ticketMenu: some View {
         let cancellable = current.map { $0.status == .received || $0.status == .ready } ?? false
         return Menu {
-            Button { web = RepairsWebTarget(path: RepairsKit.webPath(id)) } label: {
+            Button { receipt = RepairsKit.receipt(id) } label: {
                 Label("Print receipt", systemImage: "printer")
             }
             if session.isOwner, let r = current {

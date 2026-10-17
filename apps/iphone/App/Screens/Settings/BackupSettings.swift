@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import FirebaseCore
 import ERPCore
 
@@ -8,9 +9,10 @@ import ERPCore
 ///   one at a time and put together here as the page's own file (`{ exportedAt, collections, data }`), which its
 ///   Restore reads. The file goes to the share sheet, to be saved to Files or sent. When it was last made is this
 ///   phone's, as the page keeps its own per browser.
-/// - Restore from Backup stays the ERP's page: it writes every record in a file over the live books, across every
-///   collection the file names, with no shared write behind it and no way back. Moved to the server it would be
-///   an Admin write past the Firestore rules that bound the browser's copy, so it is opened there.
+/// - Restore from Backup: a backup file picked in Files, read here and shown (its date, each collection and how many
+///   records), then merged into the live records a collection's slice (400) at a time through
+///   /api/app/backup/restore, which asks the delete code with every slice and keeps to the collections a backup
+///   copies. Merged as the page merges: a record in the file is written over the live one; nothing is deleted.
 /// - Sold Product Recovery: a sold piece found by its SKU or name and re-added to stock under a new SKU
 ///   (/api/app/write `reAddSoldProduct`). The sold pieces are read only once a search is typed.
 /// - Cloud Database Backups (PITR): Google's, opened in the Cloud Console.
@@ -74,6 +76,12 @@ private struct BackupPage: View {
     @State private var note: OwnerNote?
     @State private var failure: String?
 
+    @State private var pickingBackup = false
+    @State private var backupFile: RestoreFile?
+    @State private var restoreCode = ""
+    @State private var confirmingRestore = false
+    @State private var restoreProgress: RestoreProgress?
+
     var body: some View {
         Form { Group {
             exportSection
@@ -90,6 +98,20 @@ private struct BackupPage: View {
         .failureAlert($failure, title: "Could not do that")
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {}
+        }
+        .fileImporter(isPresented: $pickingBackup, allowedContentTypes: [.json]) { result in
+            switch result {
+            case .success(let url): readBackup(url)
+            case .failure(let e): failure = e.localizedDescription
+            }
+        }
+        .confirmationDialog("Write this backup over the live records?", isPresented: $confirmingRestore, titleVisibility: .visible) {
+            Button("Restore \(BackupPage.grouped(backupFile?.restorable(known).reduce(0) { $0 + $1.docs.count } ?? 0)) records", role: .destructive) {
+                Task { await restore() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Every record in the file replaces the same record in the books as it is now, field by field: today’s balances, payments and statuses on those records go back to the backup’s. Records added since the backup stay. This can’t be undone.")
         }
         .task { await loadList() }
         .refreshable { await loadList() }
@@ -222,16 +244,102 @@ private struct BackupPage: View {
 
     // MARK: Restore from Backup
 
+    /// The collections the ERP restores (the backup's own list); before it has answered, the file's are sent and the ERP refuses any other.
+    private var known: Set<String>? { list.map { Set($0.collections.map(\.id)) } }
+
+    private func label(_ id: String) -> String { collections.first { $0.id == id }?.label ?? id }
+
     private var restoreSection: some View {
         Section {
-            NavigationLink(value: Route(path: "/settings/backups?web=1")) {
-                Label("Restore from Backup in the ERP", systemImage: "arrow.counterclockwise")
+            Button { pickingBackup = true } label: {
+                Label(backupFile == nil ? "Choose a backup file" : "Choose another file", systemImage: "doc.badge.arrow.down")
+            }
+            .disabled(restoreProgress != nil)
+            if let file = backupFile {
+                LabeledContent("File", value: file.name)
+                LabeledContent("Exported", value: ERPDate.parse(file.exportedAt) != nil ? ShopDate.say(file.exportedAt, withTime: true) : file.exportedAt)
+                ForEach(file.collections) { (c: RestoreFile.Part) in
+                    let restorable = known?.contains(c.id) ?? true
+                    LabeledContent {
+                        Text(restorable ? BackupPage.grouped(c.docs.count) : "not restored")
+                            .monospacedDigit()
+                            .foregroundStyle(restorable ? Color.primary : Color.secondary)
+                    } label: {
+                        Text(label(c.id))
+                    }
+                }
+                if let p = restoreProgress {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ProgressView(value: Double(p.written), total: Double(max(p.total, 1)))
+                        Text("\(label(p.collection)): slice \(p.part) of \(p.parts) · \(BackupPage.grouped(p.written)) of \(BackupPage.grouped(p.total)) records")
+                            .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    }
+                } else {
+                    SecureField("Delete code", text: $restoreCode)
+                        .keyboardType(.numberPad)
+                        .textContentType(.oneTimeCode)
+                    Button(role: .destructive) { confirmingRestore = true } label: {
+                        Label("Restore \(BackupPage.grouped(file.restorable(known).reduce(0) { $0 + $1.docs.count })) records", systemImage: "arrow.counterclockwise")
+                    }
+                    .disabled(restoreCode.count < 4 || file.restorable(known).isEmpty)
+                    Button("Clear", role: .cancel) { backupFile = nil; restoreCode = "" }
+                }
             }
         } header: {
             LedgerHeading(title: "Restore from backup")
         } footer: {
-            Text("Upload a previously exported JSON backup. Documents are merged — existing records are updated, nothing is deleted. It writes over the live books, so it is done on the ERP’s own page.")
+            Text("A JSON backup exported here or on the ERP. Records are merged: each one in the file is written over the live one, nothing is deleted. Asks for the delete code.")
         }
+    }
+
+    private func readBackup(_ url: URL) {
+        do {
+            let text = try SettingsFiles.text(at: url)
+            backupFile = try RestoreFile(name: url.lastPathComponent, text: text)
+            restoreCode = ""
+        } catch {
+            backupFile = nil
+            failure = error.localizedDescription
+        }
+    }
+
+    /// A slice (400 records) at a time, a collection after another; a refusal stops it and says how far it got.
+    private func restore() async {
+        guard let file = backupFile else { return }
+        let parts = file.restorable(known)
+        let total = parts.reduce(0) { $0 + $1.docs.count }
+        guard total > 0 else { return }
+        var written = 0
+        let code = restoreCode
+        do {
+            for c in parts {
+                let ids = c.docs.keys.sorted()
+                let slices = stride(from: 0, to: ids.count, by: RestoreFile.slice).map { Array(ids[$0..<min($0 + RestoreFile.slice, ids.count)]) }
+                for (i, slice) in slices.enumerated() {
+                    restoreProgress = RestoreProgress(collection: c.id, part: i + 1, parts: slices.count, written: written, total: total)
+                    var docs: [String: Any] = [:]
+                    for id in slice { docs[id] = c.docs[id] }
+                    _ = try await ERPAPI.shared.send("/api/app/backup/restore", [
+                        "collection": c.id, "docs": docs, "deleteCode": code,
+                        "exportedAt": file.exportedAt, "part": i + 1, "parts": slices.count,
+                    ], timeout: 120)
+                    written += slice.count
+                }
+            }
+            restoreProgress = nil
+            backupFile = nil
+            restoreCode = ""
+            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) {
+                note = OwnerNote(title: "Restore complete", detail: "\(BackupPage.grouped(written)) records restored.")
+            }
+        } catch {
+            restoreProgress = nil
+            if (error as? ERPAPI.Failure)?.status == 403 { restoreCode = "" }
+            failure = written == 0
+                ? "Restore failed: \(error.localizedDescription)"
+                : "Restore stopped after \(BackupPage.grouped(written)) of \(BackupPage.grouped(total)) records: \(error.localizedDescription) Restoring the same file again is safe."
+        }
+        await loadList()
     }
 
     // MARK: Sold Product Recovery
@@ -351,5 +459,53 @@ private struct BackupPage: View {
             let gone = out["deleted"] as? Int ?? 0
             Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Success", detail: "\(gone) latest products deleted.") }
         }
+    }
+}
+
+/// Where a restore has got to.
+private struct RestoreProgress: Equatable {
+    let collection: String
+    let part: Int
+    let parts: Int
+    let written: Int
+    let total: Int
+}
+
+/// A backup file as the page reads it: `{ exportedAt, data: { <collection>: { <id>: document } } }`.
+private struct RestoreFile {
+    /// The page's batch, and the most /api/app/backup/restore takes at a time.
+    static let slice = 400
+
+    struct Part: Identifiable {
+        let id: String
+        let docs: [String: Any]
+    }
+
+    let name: String
+    let exportedAt: String
+    let collections: [Part]
+
+    struct Unreadable: LocalizedError {
+        let errorDescription: String?
+    }
+
+    init(name: String, text: String) throws {
+        guard let json = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any] else {
+            throw Unreadable(errorDescription: "That file is not a backup: it is not JSON.")
+        }
+        guard let data = json["data"] as? [String: Any] else {
+            throw Unreadable(errorDescription: "Invalid backup format — missing data field.")
+        }
+        self.name = name
+        exportedAt = json["exportedAt"] as? String ?? "Unknown"
+        collections = data.keys.sorted().map { Part(id: $0, docs: (data[$0] as? [String: Any] ?? [:]).filter { $0.value is [String: Any] }) }
+        if collections.allSatisfy({ $0.docs.isEmpty }) {
+            throw Unreadable(errorDescription: "That backup holds no records.")
+        }
+    }
+
+    /// The collections that will be sent: the ones the ERP restores, with records in them.
+    func restorable(_ known: Set<String>?) -> [Part] {
+        collections.filter { !$0.docs.isEmpty && (known?.contains($0.id) ?? true) }
     }
 }

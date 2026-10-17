@@ -6,7 +6,8 @@ import ERPCore
 ///
 /// "/orders/add" also matches the Orders group's `.item("/orders/")`, which would hand "add" to
 /// OrderScreen as if it were an order id, so this group's term goes BEFORE OrdersRoutes in
-/// `NativeScreens.all`. The AI slip reader and the voice order stay on the ERP's page (`?web=1`).
+/// `NativeScreens.all`. The AI slip reader (NewOrderScanScreen, /api/vision/order) and the voice order
+/// (NativeVoice, /api/voice/native) are native too; `?web=1` still opens the ERP's page.
 /// "/orders/<id>/slip" is the order's workshop slip, drawn by the ERP's server (PDFDocumentScreen); the
 /// ERP itself has no page there.
 enum NewOrderRoutes {

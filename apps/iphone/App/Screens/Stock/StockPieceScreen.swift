@@ -224,6 +224,9 @@ private struct StockSoldView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Bumped as the page appears, so the seal bounces once (not under Reduce Motion).
     @State private var sealed = 0
+    /// The invoices that carry this piece, found once per change of the invoices (every invoice's every line was
+    /// read on each drawing of the page).
+    @State private var found = Memo<[Invoice]>()
 
     var body: some View {
         content
@@ -235,8 +238,10 @@ private struct StockSoldView: View {
         if !book.invoices.loaded {
             SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            let sales: [Invoice] = book.invoices.items.filter { (inv: Invoice) -> Bool in
-                inv.items.contains { (item: InvoiceItem) -> Bool in item.sku == sku }
+            let sales: [Invoice] = found([book.invoices.revision, sku.hashValue]) {
+                book.invoices.items.filter { (inv: Invoice) -> Bool in
+                    inv.items.contains { (item: InvoiceItem) -> Bool in item.sku == sku }
+                }
             }
             if sales.isEmpty {
                 ContentUnavailableView {

@@ -25,10 +25,12 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ExpenseForm } from '@/components/expense/expense-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { format, parseISO, isWithinInterval } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from "react-day-picker";
-import { PERIODS, GRADUATIONS, periodRange, bucketOf, type PeriodId, type Graduation } from '@/lib/date-grouping';
+import { PERIODS, GRADUATIONS, periodRange, type PeriodId, type Graduation } from '@/lib/date-grouping';
+import { expenseFilterLine, filterExpenses, groupExpenses } from '@/lib/expense-report';
+import { drawExpenseReportPdf, expenseReportFileName } from '@/lib/expense-report-pdf';
 import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -36,18 +38,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { SwipeToDelete } from '@/components/ui/swipe-to-delete';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import { SHAREHOLDERS } from '@/lib/shareholders';
-import { fitText } from '@/lib/pdf-text';
 import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
-
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
 
 const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString()}`;
 
@@ -95,40 +88,17 @@ export default function ExpensesPage() {
 
   const filteredExpenses = useMemo(() => {
     if (!appReady) return [];
-    const needle = searchTerm.trim().toLowerCase();
-    return expenses
-      .filter(e => {
-        if (categoryFilter !== 'All' && e.category !== categoryFilter) return false;
-        if (range) {
-          const d = parseISO(e.date);
-          if (!isWithinInterval(d, { start: range.start, end: range.end })) return false;
-        }
-        if (!needle) return true;
-        const k = e.karigarId ? karigars.find(x => x.id === e.karigarId)?.name || '' : '';
-        return e.description.toLowerCase().includes(needle)
-          || e.category.toLowerCase().includes(needle)
-          || k.toLowerCase().includes(needle);
-      })
-      .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+    // The server's report for the iPhone app filters with the same function (lib/expense-report.ts).
+    return filterExpenses(expenses, {
+      range,
+      category: categoryFilter,
+      search: searchTerm,
+      karigarName: id => karigars.find(x => x.id === id)?.name || '',
+    });
   }, [expenses, searchTerm, appReady, range, categoryFilter, karigars]);
 
   /** Rows bucketed by the chosen graduation, each with its own subtotal. */
-  const groups = useMemo(() => {
-    const out: { key: string; label: string; sub: string; total: number; rows: Expense[] }[] = [];
-    const index = new Map<string, number>();
-    for (const e of filteredExpenses) {
-      const b = bucketOf(parseISO(e.date), graduation);
-      let i = index.get(b.key);
-      if (i === undefined) {
-        i = out.length;
-        index.set(b.key, i);
-        out.push({ ...b, total: 0, rows: [] });
-      }
-      out[i].total += e.amount;
-      out[i].rows.push(e);
-    }
-    return out;
-  }, [filteredExpenses, graduation]);
+  const groups = useMemo(() => groupExpenses(filteredExpenses, graduation), [filteredExpenses, graduation]);
 
   const summary = useMemo(() => {
     const total = filteredExpenses.reduce((s, e) => s + e.amount, 0);
@@ -158,54 +128,15 @@ export default function ExpensesPage() {
       return;
     }
     const iOSWin = openPDFWindowForIOS();
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    doc.setFont("helvetica", "bold").setFontSize(18);
-    doc.text(`Expense Report`, 14, 22);
-    doc.setFont("helvetica", "normal").setFontSize(10);
-    doc.text(`As of: ${format(new Date(), 'PPpp')}`, pageWidth - 14, 22, { align: 'right' });
-    const filterSummary = [
-      `Period: ${periodLabel}${range ? ` (${format(range.start, 'PP')} – ${format(range.end, 'PP')})` : ''}`,
-      `Grouped by: ${graduation}`,
-      `Category: ${categoryFilter}`,
-      `Search: ${searchTerm || 'None'}`,
-    ].join(' | ');
-    // A long search term used to run straight off the page.
-    fitText(doc, `Filters: ${filterSummary}`, 14, 29, doc.internal.pageSize.getWidth() - 28);
-
-    // The PDF follows the same graduation as the screen, subtotals included,
-    // so a printed report matches what was on screen when it was asked for.
-    const body: any[] = [];
-    for (const g of groups) {
-      body.push([{ content: `${g.label}${g.sub ? ` · ${g.sub}` : ''}`, colSpan: 3, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
-                 { content: g.total.toLocaleString(undefined, { minimumFractionDigits: 2 }), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 240, 240] } }]);
-      for (const e of g.rows) {
-        body.push([
-          format(parseISO(e.date), 'dd-MMM-yyyy'),
-          e.category,
-          e.description,
-          e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 }),
-        ]);
-      }
-    }
-
-    doc.autoTable({
-      head: [["Date", "Category", "Description", "Amount (PKR)"]],
-      body,
-      startY: 40,
-      margin: { left: 14, right: 14 },
-      theme: 'grid',
-      headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-      columnStyles: { 3: { halign: 'right' } },
+    // The one drawer, which the server also prints the iPhone app's report with (lib/expense-report-pdf.ts).
+    const asOf = new Date();
+    const doc = drawExpenseReportPdf({
+      groups,
+      total: summary.total,
+      filterLine: expenseFilterLine({ period, grouping: graduation, category: categoryFilter, search: searchTerm }, range),
+      asOf,
     });
-
-    const finalY = (doc as any).lastAutoTable.finalY;
-    doc.setFont("helvetica", "bold").setFontSize(12);
-    doc.text(
-      `Total Expenses: PKR ${summary.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-      pageWidth - 14, finalY + 10, { align: 'right' },
-    );
-    await savePDF(doc, `Expense-Report-${format(new Date(), 'yyyy-MM-dd')}.pdf`, iOSWin);
+    await savePDF(doc, expenseReportFileName(asOf), iOSWin);
     toast({ title: "Report downloaded", description: "The expense report PDF has been generated." });
   };
 

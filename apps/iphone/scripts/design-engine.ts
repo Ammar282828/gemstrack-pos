@@ -14,6 +14,7 @@ import { mergePlan, planOf, summariseLayers } from '../../../src/lib/design/resi
 import { wordProblems } from '../../../src/lib/design/publish';
 import { makeMeasure } from '../../../src/lib/design/score';
 import { weightLabel, detailsLine, whatsappCaption, websiteFileName } from '../../../src/lib/social/caption';
+import { siteLayouts, siteStartLayout } from '../../../src/lib/social/site-design';
 
 declare const NATIVE_MARK: string;
 declare const NATIVE_FONTS: string;
@@ -35,7 +36,9 @@ async function run(input: any) {
     images.set(id, { src, img }); photos[id] = img;
   }
   for (const key of [...images.keys()]) if (!(key in (input.photos ?? {}))) images.delete(key);
-  const assets: E.Assets = { photos, marks: { wordmark: mark }, fonts, ink: input.house === 'mina' ? '#540000' : '#111111' };
+  // A website photograph (Edit a piece) takes the site's own mark ink (store-config STORE_SITE_MARK_INK): the catalogue's maroon.
+  const ink = input.site ? (input.house === 'mina' ? '#3A0000' : '#111111') : input.house === 'mina' ? '#540000' : '#111111';
+  const assets: E.Assets = { photos, marks: { wordmark: mark }, fonts, ink };
   let doc: E.StoryDoc = structuredClone(input.doc ?? defaults(Object.keys(photos)[0] ?? null));
   const fields: E.Fields = { kicker: '', headline: '', weight: '', details: '', ...input.fields };
   const selected = new Set<string>(input.selected ?? []);
@@ -52,6 +55,12 @@ async function run(input: any) {
   // summaries, the plan, a small JPEG); 'resizeMerge' lays the route's plans on those results and keeps one only if it scores as well.
   // The Publish sheet's house rules on the words about to go out (publish.ts wordProblems): sale words, hashtags, figures the specs don't give.
   if (action === 'words') return { problems: wordProblems(input.texts ?? {}, input.facts ?? '') };
+  // Edit a piece's photograph (site-design.ts): the layouts this house's website photo offers and the one a design starts on.
+  // The phone draws no monogram (every t becomes the full logo below), so the t's layout is never offered.
+  if (action === 'siteLayouts') {
+    const house = input.house === 'mina' ? 'mina' : 'taheri';
+    return { layouts: siteLayouts(house, false), start: siteStartLayout(house, { photoSource: input.sitePiece?.photoSource ?? null, sourceMarked: !!input.sitePiece?.sourceMarked }) };
+  }
   if (action === 'resize' || action === 'resizeMerge') {
     const m = makeMeasure(fields, assets);
     const rates = input.rates?.rows ? input.rates : input.rates ? A.rateBoard(input.rates, new Date().toLocaleDateString('en-GB', {weekday:'long',day:'numeric',month:'long',timeZone:'Asia/Karachi'})) : null;
@@ -109,7 +118,7 @@ async function run(input: any) {
     caption: whatsappCaption(piece, input.context ?? { whatsappNumbers: [] }), weight: weightLabel(piece), details: detailsLine(piece, false),
     names: Array.from({ length: input.count ?? 1 }, (_, i) => isMaisonFolder(input.folder) ? maisonFileName(input.maisonHouse ?? '', input.name ?? piece.headline ?? '', i) : websiteFileName(input.name ?? piece.headline ?? '', i)),
     catalogue: {
-      plays: PLAYS, stages: STAGES, playbook: PLAYBOOK, maisonHouses: MAISON_HOUSES, presets: E.PRESETS, squares: E.SQUARE_PRESETS.filter(x => x.id !== 'catalogue-t'), palettes: PALETTES,
+      plays: PLAYS, stages: STAGES, playbook: PLAYBOOK, maisonHouses: MAISON_HOUSES, presets: E.PRESETS, squares: E.SQUARE_PRESETS.filter(x => x.id !== 'catalogue-t'), siteSquares: siteLayouts(input.house === 'mina' ? 'mina' : 'taheri', false), palettes: PALETTES,
       fonts: Object.entries(E.FONT_LABEL).map(([id, label]) => ({ id, label })), effects: E.EFFECTS.map(x => ({ id: x.kind, label: x.label })),
       shapes: Object.entries(D.SHAPES).map(([id, v]) => ({ id, label: v.label })), masks: D.MASK_PICKS,
       filters: D.FILTERS, textStyles: E.TEXT_STYLES.map(({ id, label }) => ({ id, label })), badges: E.BADGES.map(({ id, label }) => ({ id, label })),

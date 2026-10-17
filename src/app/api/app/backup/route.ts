@@ -9,7 +9,7 @@
  *   more than the biggest collection, and puts the file together itself in the page's format.
  *
  * Owners only: it is the whole of the books. Read-only. The page's Restore (a file merged into every
- * collection it names) is not here: it stays the ERP's page.
+ * collection it names) is ./restore, a collection's slice at a time, with the delete code.
  */
 
 import { NextRequest, NextResponse } from 'next/server';

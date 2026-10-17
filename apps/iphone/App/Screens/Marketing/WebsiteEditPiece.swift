@@ -7,10 +7,10 @@ import ERPCore
 /// the weight, and hiding it; each field shows the site's own and goes back to it. "Put the original photo
 /// back" and "Undo every change" are the route's own reverts.
 ///
-/// The photograph is re-made in the ERP's square editor (crop by pinch, the layouts that stamp the weight and
-/// the house's mark, the designer, AI Enhance and Ask AI): a canvas this screen does not imitate, so it opens
-/// that page in the app (`?web=1`). Every save changes the public site, so it lists exactly what changes and
-/// where before it is sent.
+/// The photograph is re-made here as the web's square editor re-makes it (WebsiteEditPhoto.swift): its own shape or
+/// square, the layouts that stamp the weight and the house's mark, the designer (crop, filters, anything else), AI
+/// Enhance and Ask AI, drawn by the web's own engine and sent with the words in the web's form. The ERP's page stays a
+/// tap away. Every save changes the public site, so it lists exactly what changes and where before it is sent.
 struct WebsiteEditPieceScreen: View {
     let id: String
 
@@ -33,6 +33,9 @@ struct WebsiteEditPieceScreen: View {
     @State private var busy: String?
     @State private var said: String?
     @State private var failure: String?
+    /// The photo being re-made; nil until "Re-make the photo", and again after a photo is put back.
+    @State private var photo: WebsitePhotoEdit?
+    @State private var photoWarning: String?
 
     enum Confirm: Identifiable {
         case save
@@ -125,16 +128,38 @@ struct WebsiteEditPieceScreen: View {
 
     private func photoSection(_ p: WebsiteEditPiece) -> some View {
         Section {
-            StockImage(imageUrl: p.image, name: p.words.name, key: p.id + (p.change?.at ?? ""))
-                .aspectRatio(1, contentMode: .fit)
-                .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
-                .opacity(p.hidden ? 0.5 : 1)
-                .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
-            Text(p.photoEdited ? "The website shows a photo made here. The original is kept." : "The website's photo, unchanged.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            MarketingLink(title: "Re-make the photo", subtitle: "Crop it, put the weight and the logo on, fix the light: the ERP's editor",
-                          symbol: "crop", path: WebsiteEditScreen.piecePath(p.id) + "&web=1")
+            if let photo, photo.ready {
+                WebsitePhotoEditRows(edit: photo, fields: photoFields(p), busy: busy != nil) { (op: String, params: [String: Any], label: String) in
+                    Task { await runAI(photo, op, params, label) }
+                }
+                if let photoWarning {
+                    Label(photoWarning, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Tone.owed.color)
+                }
+                Text(photo.changed(photoFields(p)) ? "The photo will be replaced when you save." : p.photoEdited ? "The website shows a photo made here." : "The website's photo, unchanged.")
+                    .font(.subheadline)
+                    .foregroundStyle(photo.changed(photoFields(p)) ? .primary : .secondary)
+            } else {
+                StockImage(imageUrl: p.image, name: p.words.name, key: p.id + (p.change?.at ?? ""))
+                    .aspectRatio(1, contentMode: .fit)
+                    .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
+                    .opacity(p.hidden ? 0.5 : 1)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+                Text(p.photoEdited ? "The website shows a photo made here. The original is kept." : "The website's photo, unchanged.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                if let problem = photo?.problem {
+                    Text(problem).font(.footnote).foregroundStyle(Tone.problem.color)
+                }
+                Button { Task { await beginPhoto(p) } } label: {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(photo?.loading == true ? "Fetching the photo…" : "Re-make the photo")
+                            Text("Crop it, put the weight and the logo on, fix the light").font(.caption).foregroundStyle(.secondary)
+                        }
+                    } icon: { Image(systemName: "crop") }
+                }
+                .disabled(photo?.loading == true || busy != nil)
+            }
             if original != nil || p.photoEdited {
                 Button(role: .destructive) { confirm = .photo } label: {
                     Label("Put the original photo back", systemImage: "arrow.counterclockwise")
@@ -143,6 +168,8 @@ struct WebsiteEditPieceScreen: View {
             if let url = URL(string: p.url), !p.url.isEmpty {
                 Link(destination: url) { Label("Open on \(siteName)", systemImage: "safari") }
             }
+            MarketingLink(title: "Open in the ERP", subtitle: "The same piece on the ERP's page", symbol: "globe",
+                          path: WebsiteEditScreen.piecePath(p.id) + "&web=1")
         } header: {
             LedgerHeading(title: headerWords(p))
         } footer: {
@@ -162,7 +189,7 @@ struct WebsiteEditPieceScreen: View {
     /// What the editor would warn about this photograph (edit/page.tsx, beside the layouts).
     private func photoNote(_ p: WebsiteEditPiece) -> String {
         var notes: [String] = []
-        if !lastAI.isEmpty { notes.append("Last time: \(lastAI.joined(separator: ", ")). Editing starts from the original photo.") }
+        if !lastAI.isEmpty { notes.append("Last time: \(lastAI.joined(separator: ", ")). Editing starts from the original photo: run the AI again if you want it on this one.") }
         // The MINA mark is the Mina catalogue's framing (docs/features/mina-catalogue.md); no server flag names it, so this
         // stays a brand check on the bundled Mina art, not on a business id.
         if House.bundledArt == "mina" && p.photoSource != nil {
@@ -238,11 +265,11 @@ struct WebsiteEditPieceScreen: View {
     private func saveSection(_ p: WebsiteEditPiece) -> some View {
         Section {
             Button { confirm = .save } label: {
-                Label(dirty(p) ? "Save to \(siteName)" : "Nothing changed yet", systemImage: "square.and.arrow.down")
+                Label(anyChange(p) ? "Save to \(siteName)" : "Nothing changed yet", systemImage: "square.and.arrow.down")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.houseProminent)
-            .disabled(!dirty(p) || name.trimmingCharacters(in: .whitespaces).isEmpty || busy != nil)
+            .disabled(!anyChange(p) || name.trimmingCharacters(in: .whitespaces).isEmpty || busy != nil)
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
             if p.changed {
@@ -283,6 +310,30 @@ struct WebsiteEditPieceScreen: View {
             || hidden != p.hidden || weightValue != p.weightGrams
     }
 
+    /// The words or the photo differ from what the site shows.
+    private func anyChange(_ p: WebsiteEditPiece) -> Bool { dirty(p) || (photo?.changed(photoFields(p)) ?? false) }
+
+    private var weightLabel: String {
+        // caption.ts weightLabel: the weight as typed, "12.4g", or nothing for no weight.
+        var w = weight.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")
+        if w.lowercased().hasSuffix("g") { w = String(w.dropLast()).trimmingCharacters(in: .whitespaces) }
+        guard let v = Double(w), v.isFinite, v > 0 else { return "" }
+        return w + "g"
+    }
+
+    /// What the photo's bound words read (edit/page.tsx `fields`): the collection, the name, the weight, and the
+    /// karat, metal and stone (taheri.shop) or the catalogue's facts.
+    private func photoFields(_ p: WebsiteEditPiece) -> [String: String] {
+        let details: String
+        if p.hasTags {
+            let metal = [tags.karat, tags.metal].filter { (s: String) in !s.isEmpty }.joined(separator: " ")
+            details = [metal, tags.stone].filter { (s: String) in !s.isEmpty && s.lowercased() != "none" }.joined(separator: " | ")
+        } else {
+            details = p.facts.joined(separator: " | ")
+        }
+        return ["kicker": p.collection, "headline": name, "weight": weightLabel, "details": details]
+    }
+
     /// The whole of what the piece should say (the route sends back "put back" for anything equal to the site's own).
     private func wordsNow(_ p: WebsiteEditPiece) -> [String: Any] {
         var w: [String: Any] = ["name": name, "about": about, "hidden": hidden]
@@ -320,6 +371,11 @@ struct WebsiteEditPieceScreen: View {
             if name != p.words.name { lines.append("Name: “\(name.trimmingCharacters(in: .whitespaces))”") }
             if about != p.words.about { lines.append("A new description") }
             for t in tagChanged(p) { lines.append("\(t.label): \(t.value.isEmpty ? "(none)" : t.value)") }
+            if let photo, photo.changed(photoFields(p)) {
+                let w = photo.stamped(photoFields(p)) ? ", with \(weightLabel) on it" : ""
+                let ai = photo.ai.isEmpty ? "" : " (\(photo.ai.joined(separator: ", ").lowercased()))"
+                lines.insert("The photo is replaced\(w)\(ai). The original is kept.", at: 0)
+            }
             if !p.hasTags && factsLines.joined(separator: "\n") != p.words.facts.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines) {
                 lines.append("New details")
             }
@@ -369,12 +425,30 @@ struct WebsiteEditPieceScreen: View {
         said = nil
         defer { busy = nil }
         do {
-            let d = try await post([("id", p.id), ("words", WebsiteForm.text(wordsNow(p)))])
+            var fields: [(String, String)] = [("id", p.id), ("words", WebsiteForm.text(wordsNow(p)))]
+            var files: [WebsiteForm.File] = []
+            let drawn = photoFields(p)
+            let photoChanged = photo?.changed(drawn) ?? false
+            if let photo, photoChanged {
+                // The photo with the words: the web's form exactly (file, stamped, design, shape, ai).
+                busy = "Drawing the photo…"
+                let jpeg = try await photo.jpeg(fields: drawn)
+                busy = "Saving on \(siteName)…"
+                files.append(WebsiteForm.File(field: "file", name: "photo.jpg", type: "image/jpeg", data: jpeg))
+                fields.append(("stamped", photo.stamped(drawn) ? "1" : "0"))
+                fields.append(("design", photo.kept.text))
+                fields.append(("shape", photo.shape))
+                fields.append(("ai", WebsiteForm.text(photo.ai)))
+            }
+            let d = try await WebsiteForm.json("/api/website/edits", fields: fields, files: files, timeout: 130, as: WebsiteEditSaved.self)
+            if photoChanged { photo?.saved(drawn) }
             if let fresh = d.piece {
                 take(fresh)
                 store.replace(fresh)
             }
-            said = d.note ?? (hidden ? "Saved. The piece leaves \(siteName) within a minute." : "Saved on \(siteName). It shows within a minute.")
+            said = d.note ?? (photoChanged ? "Saved on \(siteName). The new photo shows within a minute; the original is kept to put back any time."
+                : hidden ? "Saved. The piece leaves \(siteName) within a minute." : "Saved on \(siteName). It shows within a minute.")
+            await load()
         } catch {
             failure = error.localizedDescription
         }
@@ -391,10 +465,33 @@ struct WebsiteEditPieceScreen: View {
                 take(fresh)
                 store.replace(fresh)
             }
+            // The editor starts again from what the site now has, as the web's does.
+            photo = nil
+            photoWarning = nil
             said = photoOnly ? "The original photo is back on \(siteName) within a minute." : "Everything put back: \(siteName) shows the piece as it was built, within a minute."
             await load()
         } catch {
             failure = error.localizedDescription
+        }
+    }
+
+    // MARK: The photo
+
+    private func beginPhoto(_ p: WebsiteEditPiece) async {
+        let edit = photo ?? WebsitePhotoEdit(pieceID: p.id)
+        photo = edit
+        await edit.begin(p, fields: photoFields(p))
+        if !edit.lastAI.isEmpty { lastAI = edit.lastAI }
+    }
+
+    private func runAI(_ edit: WebsitePhotoEdit, _ op: String, _ params: [String: Any], _ label: String) async {
+        busy = "The AI is working on the photo (about a minute)…"
+        photoWarning = nil
+        defer { busy = nil }
+        do {
+            photoWarning = try await edit.runAI(op, params: params, label: label)
+        } catch {
+            failure = "Couldn't change the photo. " + error.localizedDescription
         }
     }
 }

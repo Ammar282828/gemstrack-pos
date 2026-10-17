@@ -26,3 +26,13 @@ if (!admin.apps.length) {
 
 export const adminDb = admin.firestore();
 export const adminAuth = admin.auth();
+
+/**
+ * The house's Storage bucket, where the browser puts a piece's photo (product-form.tsx, the client SDK's
+ * `getStorage()`): the same NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, with the same fallback as lib/firebase.ts, so
+ * a photo the phone sends lands beside the ones the web sent. A function, not a constant: the routes that
+ * never touch Storage never load it.
+ */
+export const adminBucket = () => admin.storage().bucket(
+  process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || 'hom-pos-52710474-ceeea.firebasestorage.app',
+);

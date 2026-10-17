@@ -273,6 +273,35 @@ Owner: "Why isnt the posts region ported yet". What the web's Posts → Design b
   plating line, Bodoni italic and Tenor capitals, the owner's type edits), so the phone drew the old style.
 - Not ported: the board's trackpad and ⌘-zoom fix (582822c) is the browser's; the phone's board pinches natively.
 
+### No web pages left, 2026-10-17
+
+Owner: "Check for others also and natively port them to ios", then "port all of them / Also make the app smoother
+faster / And look for that bubble bug on form completion". Of the map's 61 places only Ads → Plan opened the web (now
+AdsPlanScreen on the Studio's own Plan) and the one-off Taheri book import (kept). The hand-offs inside native screens:
+- **Stock photo:** `POST /api/app/product-photo` (multipart; HEIC → JPEG, ≤ 2000 px; owners) uploads to the web's
+  `product_images/` with a download token (`adminBucket()`) and saves it with the shared write `setProductPhoto`;
+  `StockPiecePhotoField` (Photos or camera, remove).
+- **Repairs receipt, Expense report, Hisaab summary and ledger PDFs:** drawn on the server by the web's own drawers
+  (`/api/app/pdf/repair/[id]`, `/expenses`, `/hisaab`, `/hisaab/[id]`; lib/expense-report*, hisaab-report, hisaab-pdf,
+  wall-clock for Karachi's days on a UTC server); the web's buttons use the same drawers. The ledger's WhatsApp
+  reminder is `/api/app/hisaab/[id]/reminder` (reminderMessage, the web's words) and opens WhatsApp from the phone.
+- **Customers → Clean up spam:** lib/customer-spam.ts, ported to ERPCore (CustomerSpam, same cases); a review sheet,
+  one delete code, `removeCustomer` per pick.
+- **Settings:** website selling (`saveWebsiteConfig`, the web form now saves through it too), alerts' connection, test
+  and Send now (the notifications routes), Restore from backup (`/api/app/backup/restore`: delete code, 400 a request,
+  dates revived from `{seconds, nanoseconds}` — the web's restore now revives them too), Restore shop defaults
+  (`restoreShopDefaults`, previewed first), Change numbering (`setCounters`, delete code; `cleanSettingsPatch` still
+  refuses counters).
+- **Website → Re-make the photo:** the site layouts in the bundled engine; shape, layouts, the designer, AI, saved to
+  `/api/website/edits` as the web saves it.
+- Kept on the web on purpose: Meta's one-time dashboard steps (instructions), and a draft begun in the web's form.
+- **The bubble on finishing a form** (owner, 10-15 and 10-17): New sale, New order and Make invoice swapped their form
+  for the result on an animation, and the glass Save button (glassProminent) shrank into a blob over the result. The
+  swap is now immediate; the Note toast is a material card, not glass.
+- **Smoother:** piece photos load through `RemoteImageStore` (downsampled to the frame off the main thread, a memory
+  cache, a 200 MB disk cache, one download per address) instead of AsyncImage; a customer's and a piece's figures are
+  memoised on the shelves' revisions; pages find their record by id rather than walking the shelf.
+
 ### One app, many businesses (2026-10-16)
 
 Owner: one app for all his businesses, to switch between them and to add more. Until now each house was its own app

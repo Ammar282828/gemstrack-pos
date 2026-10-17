@@ -17,6 +17,9 @@ struct CustomerScreen: View {
     private let seed: Customer?
     @State private var deletion: OwnerDeletion?
     @State private var note: OwnerNote?
+    /// The customer's figures, worked out once per change of the books rather than on every drawing (every
+    /// invoice, order, repair and hisaab row was walked each time the page moved).
+    @State private var reckoned = Memo<Facts>()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(id: String, seed: Customer? = nil) {
@@ -33,8 +36,9 @@ struct CustomerScreen: View {
         let owing: CustomerKit.Owing
     }
 
-    // `items`, not `item(_:)`: the shelf's lookup is not observed, so it would not redraw when they arrive.
-    private var customer: Customer? { book.customers.items.first { $0.id == id } ?? seed }
+    // `item(_:)` reads `items` first, so the page still redraws when the customers arrive, and finds them at once
+    // rather than walking the whole book on every drawing.
+    private var customer: Customer? { book.customers.item(id) ?? seed }
 
     private var ledger: [HisaabEntry]? { session.isOwner ? book.hisaab.items : nil }
 
@@ -94,6 +98,11 @@ struct CustomerScreen: View {
     }
 
     private func facts(for c: Customer) -> Facts {
+        reckoned([book.invoices.revision, book.orders.revision, book.repairs.revision, book.hisaab.revision,
+                  book.customers.revision, session.isOwner ? 1 : 0, c.id.hashValue]) { reckon(c) }
+    }
+
+    private func reckon(_ c: Customer) -> Facts {
         let owed = CustomerKit.owed(invoices: book.invoices.items, customers: book.customers.items, ledger: ledger)
         let mine = book.hisaab.items.filter { $0.entityType == .customer && $0.entityId == c.id }
         return Facts(

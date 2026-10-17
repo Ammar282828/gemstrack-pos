@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * The repair receipt: the customer's proof that their pieces are with us.
  *
@@ -9,16 +7,22 @@
  * wanted, again when they go back (it then shows what was paid). A line to sign
  * at both ends, because for gold "it came back lighter" is the one argument a
  * repair counter has, and the weights are on this paper.
+ *
+ * One drawer, drawRepairPdf, for the browser's Print receipt and the server's copy (the iPhone app's,
+ * /api/app/pdf/repair/[id] through lib/app-pdf.ts): its pictures and its way of writing a day are
+ * handed in (pdf-inputs.ts) rather than looked for on a page.
  */
 
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { format, parseISO } from 'date-fns';
 import { STORE_LOGO_ASPECT } from '@/lib/store-config';
-import { type Repair, repairBalance, repairTotal } from '@/lib/store';
+import type { Repair } from '@/lib/store';
+// The sums from their own module, not the store's re-export: the store is the browser's.
+import { repairBalance, repairTotal } from '@/lib/repairs';
 import { openPDFWindowForIOS, savePDF } from '@/lib/utils';
-import { loadPdfLogo } from '@/lib/pdf-logo';
-import { drawDocHeader, drawDocFooter, drawTotals, drawRowRule, alignHeadCell, tableStyles, hairline, label, FOOTER_HEIGHT, type TotalRow } from '@/lib/pdf-chrome';
+import { browserPdfImages, drawFooter, type PdfDates, type PdfImages } from '@/lib/pdf-inputs';
+import { drawDocHeader, drawTotals, drawRowRule, alignHeadCell, tableStyles, hairline, label, FOOTER_HEIGHT, type TotalRow } from '@/lib/pdf-chrome';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -35,17 +39,30 @@ const COLUMNS = {
 } as const;
 
 const pkr = (n: number) => `PKR ${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-const day = (iso?: string) => {
-  if (!iso) return '';
+/** The device's day, as the browser always wrote it. */
+const deviceDay = (iso: string) => {
   try { return format(parseISO(iso), 'd MMM yyyy'); } catch { return iso; }
 };
 
-export async function buildRepairPdf(r: Repair): Promise<jsPDF> {
+export const repairPdfFileName = (r: Pick<Repair, 'id'>) => `Repair-${r.id}.pdf`;
+
+export interface RepairPdfOptions {
+  images: PdfImages;
+  /** Left out, the device's clock (the browser); the server passes KARACHI_DATES. */
+  dates?: PdfDates;
+}
+
+/** The receipt, drawn from the ticket and the pictures handed in; touches no page. */
+export function drawRepairPdf(r: Repair, { images, dates }: RepairPdfOptions): jsPDF {
+  const day = (iso?: string) => {
+    if (!iso) return '';
+    return dates ? (dates.dayMonthYear(iso) || iso) : deviceDay(iso);
+  };
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 10;
-  const logo = await loadPdfLogo();
+  const logo = images.logo;
   const drawHeader = (pageNum: number) => drawDocHeader(doc, {
     pageWidth, pageHeight, margin, title: 'Repair receipt',
     logoDataUrl: logo?.dataUrl ?? null, logoFormat: logo?.format ?? 'PNG', logoAspect: STORE_LOGO_ASPECT, pageNum,
@@ -118,20 +135,20 @@ export async function buildRepairPdf(r: Repair): Promise<jsPDF> {
   label(doc, 'For the shop', margin, signY + 12, { size: 5.5 });
   label(doc, r.status === 'collected' ? 'Collected by' : 'Customer', pageWidth - margin - 50, signY + 12, { size: 5.5 });
 
-  drawDocFooter(doc, {
-    pageWidth, pageHeight, margin,
-    linksQr: document.getElementById('links-qr-code') as HTMLCanvasElement | null,
-    whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
-    instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
-  });
+  drawFooter(doc, { pageWidth, pageHeight, margin }, images);
   return doc;
+}
+
+/** The browser's: its logo and the printing page's hidden code canvases. */
+export async function buildRepairPdf(r: Repair): Promise<jsPDF> {
+  return drawRepairPdf(r, { images: await browserPdfImages() });
 }
 
 export async function saveRepairPdf(r: Repair): Promise<void> {
   if (typeof window === 'undefined') return;
   const iOSWin = openPDFWindowForIOS();
   try {
-    await savePDF(await buildRepairPdf(r), `Repair-${r.id}.pdf`, iOSWin);
+    await savePDF(await buildRepairPdf(r), repairPdfFileName(r), iOSWin);
   } catch (e) {
     iOSWin?.close();
     throw e;

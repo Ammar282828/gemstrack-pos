@@ -27,3 +27,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-16: the one app's own icon (ERP); Taheri and House of Mina as alternates.
 - 2026-10-17: Ads as the web has them since 10-16: sales and ROAS, CSV to the share sheet, website audiences, a new video, a creator's post, the catalogue, bidding and set hours, A/B tests.
 - 2026-10-17: Posts as the web has it since 10-16: the board's designer saves as you go and moves between designs in place, Tidy in sixties (boards over 60 designs), and the design engines rebuilt to Mina's new type rules.
+- 2026-10-17: no ERP pages left behind native screens (stock photos, PDFs for repairs, expenses and hisaab, the hisaab reminder, spam clean-up, the five settings, re-make a site photo, Ads → Plan), the form-completion bubble gone, photos and big pages faster.

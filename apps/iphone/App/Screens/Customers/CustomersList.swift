@@ -13,6 +13,7 @@ struct CustomersList: View {
     @State private var search = ""
     @State private var showing: Showing = .everyone
     @State private var merging = false
+    @State private var cleaning = false
 
     init() {}
 
@@ -61,6 +62,9 @@ struct CustomersList: View {
         }
         .sheet(isPresented: $merging) {
             CustomerMergeSheet()
+        }
+        .sheet(isPresented: $cleaning) {
+            CustomerSpamSheet()
         }
         .task {
             book.customers.need()
@@ -141,12 +145,12 @@ struct CustomersList: View {
                     Button { merging = true } label: {
                         Label("Merge duplicates", systemImage: "person.2")
                     }
-                    // The spam finder (gibberish names and addresses with no number, history or address) stays the ERP's.
-                    NavigationLink(value: Route(path: "/customers?web=1")) {
+                    // The spam finder: gibberish names or emails with no number, address or history (lib/customer-spam.ts).
+                    Button { cleaning = true } label: {
                         Label("Clean up spam", systemImage: "trash")
                     }
                 } footer: {
-                    Text("Merging moves one customer's invoices, orders and hisaab to another, and asks for the delete code. Cleaning up spam opens on the ERP's own page.")
+                    Text("Merging moves one customer's invoices, orders and hisaab to another. Cleaning up spam hides the bot sign-ups you tick. Both ask for the delete code.")
                 }
                 .houseRows()
             }

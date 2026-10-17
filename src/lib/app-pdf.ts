@@ -17,9 +17,10 @@ import { roleForEmail } from '@/lib/roles';
 import { staffView } from '@/lib/staff-view';
 import { drawInvoicePdf, invoicePdfFileName } from '@/lib/invoice-pdf';
 import { drawOrderSlipPdf, orderSlipFileName } from '@/lib/order-slip-pdf';
+import { drawRepairPdf, repairPdfFileName } from '@/lib/repair-pdf';
 import { KARACHI_DATES } from '@/lib/pdf-inputs';
 import { serverPdfImages } from '@/lib/pdf-inputs-server';
-import type { Customer, Invoice, Order } from '@/lib/store';
+import type { Customer, Invoice, Order, Repair } from '@/lib/store';
 
 /** Who the paper is for: everything for an owner, the shop floor's copy for staff. */
 export type PdfViewer = 'owner' | 'staff';
@@ -78,6 +79,17 @@ export async function orderSlipPdf(id: string, viewer: PdfViewer): Promise<Serve
   if (!order) return null;
   const doc = drawOrderSlipPdf(order, { images: await serverPdfImages(), dates: KARACHI_DATES });
   return { bytes: new Uint8Array(doc.output('arraybuffer')), fileName: orderSlipFileName(order) };
+}
+
+/**
+ * The repair receipt, as Print receipt saves it (lib/repair-pdf.ts); null when there is no such ticket.
+ * Staff read repairs (roles.ts) and the receipt prints nothing of the shop's own (`internalNote`).
+ */
+export async function repairPdf(id: string, viewer: PdfViewer): Promise<ServerPdf | null> {
+  const repair = (await read('repairs', id, viewer)) as Repair | null;
+  if (!repair) return null;
+  const doc = drawRepairPdf(repair, { images: await serverPdfImages(), dates: KARACHI_DATES });
+  return { bytes: new Uint8Array(doc.output('arraybuffer')), fileName: repairPdfFileName(repair) };
 }
 
 /**

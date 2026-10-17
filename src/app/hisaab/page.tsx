@@ -16,14 +16,13 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
-import { WALK_IN_ENTITY, WALK_IN_NAME } from '@/lib/walk-in';
+import { WALK_IN_ENTITY } from '@/lib/walk-in';
+import { hisaabAccounts, searchAccounts } from '@/lib/hisaab-report';
+import { drawHisaabSummaryPdf, hisaabSummaryFileName } from '@/lib/hisaab-pdf';
 
 
 type InvoiceBalance = {
@@ -232,44 +231,18 @@ export default function HisaabPage() {
       return { accountSummaries: [], totalReceivable: 0, totalPayable: 0, totalReceivableGold: 0, totalPayableGold: 0 };
     }
 
-    const summaryMap: { [entityId: string]: AccountSummary } = {};
-
-    // Walk-in sales left owing have no customer to hold them (lib/walk-in.ts), so their
-    // entries sit under the entity 'walk-in' — one row, or "You will Get" would miss them.
-    const walkInInvoiceIds = new Set<string>();
-    hisaabEntries.forEach(entry => {
-      if (!entry.entityId) return;
-      const walkIn = entry.entityId === WALK_IN_ENTITY;
-      if (walkIn && entry.linkedInvoiceId) walkInInvoiceIds.add(entry.linkedInvoiceId);
-      if (!summaryMap[entry.entityId]) {
-        summaryMap[entry.entityId] = {
-          entityId: entry.entityId,
-          entityName: walkIn ? WALK_IN_NAME : entry.entityName,
-          entityType: entry.entityType,
-          cashBalance: 0,
-          goldBalance: 0,
-          unpaidInvoices: [],
-        };
-      }
-      summaryMap[entry.entityId].cashBalance += (entry.cashDebit - entry.cashCredit);
-      summaryMap[entry.entityId].goldBalance += (entry.goldDebitGrams - entry.goldCreditGrams);
-    });
+    // The sums are the server's too (lib/hisaab-report.ts: the iPhone app's Summary PDF).
+    const { accounts, walkInInvoiceIds } = hisaabAccounts(hisaabEntries);
 
     // Attach unpaid invoices to each customer summary
-    for (const [entityId, invoices] of Object.entries(unpaidInvoicesByCustomer)) {
-      if (summaryMap[entityId]) {
-        summaryMap[entityId].unpaidInvoices = invoices;
-      }
-    }
-    if (summaryMap[WALK_IN_ENTITY] && Array.isArray(generatedInvoices)) {
-      summaryMap[WALK_IN_ENTITY].unpaidInvoices = generatedInvoices
-        .filter(inv => walkInInvoiceIds.has(inv.id) && inv.balanceDue > 0 && inv.status !== 'Refunded')
-        .map(inv => ({ id: inv.id, grandTotal: inv.grandTotal, amountPaid: inv.amountPaid, balanceDue: inv.balanceDue }));
-    }
-
-    const summaries = Object.values(summaryMap)
-        .filter(summary => Math.abs(summary.cashBalance) > 0.001 || Math.abs(summary.goldBalance) > 0.001)
-        .sort((a,b) => a.entityName.localeCompare(b.entityName));
+    const summaries: AccountSummary[] = accounts.map(a => ({
+      ...a,
+      unpaidInvoices: a.entityId === WALK_IN_ENTITY
+        ? (Array.isArray(generatedInvoices) ? generatedInvoices : [])
+            .filter(inv => walkInInvoiceIds.has(inv.id) && inv.balanceDue > 0 && inv.status !== 'Refunded')
+            .map(inv => ({ id: inv.id, grandTotal: inv.grandTotal, amountPaid: inv.amountPaid, balanceDue: inv.balanceDue }))
+        : unpaidInvoicesByCustomer[a.entityId] ?? [],
+    }));
 
     const totalReceivable = summaries.reduce((acc, s) => acc + Math.max(0, s.cashBalance), 0);
     const totalPayable = summaries.reduce((acc, s) => acc + Math.abs(Math.min(0, s.cashBalance)), 0);
@@ -282,12 +255,7 @@ export default function HisaabPage() {
   }, [hisaabEntries, unpaidInvoicesByCustomer, generatedInvoices]);
   
   const filteredSummaries = useMemo(() => {
-    if (!searchTerm) {
-      return accountSummaries;
-    }
-    return accountSummaries.filter(summary =>
-      summary.entityName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return searchAccounts(accountSummaries, searchTerm);
   }, [accountSummaries, searchTerm]);
 
   const handlePrintReport = async () => {
@@ -297,41 +265,9 @@ export default function HisaabPage() {
     }
 
     const iOSWin = openPDFWindowForIOS();
-    const doc = new jsPDF();
-    doc.setFont("helvetica", "bold").setFontSize(18);
-    doc.text(`Hisaab Summary Report`, 14, 22);
-    doc.setFontSize(10);
-    doc.text(`As of: ${format(new Date(), 'PPpp')}`, 14, 29);
-
-    const tableColumns = ["#", "Name", "Type", "Cash Balance (PKR)", `${STORE_METAL_WORD} Balance (g)`];
-    const tableRows = filteredSummaries.map((summary, index) => {
-        const cashBalanceText = summary.cashBalance > 0 
-            ? `${summary.cashBalance.toLocaleString()} (Receivable)` 
-            : `${Math.abs(summary.cashBalance).toLocaleString()} (Payable)`;
-        
-        const goldBalanceText = summary.goldBalance > 0 
-            ? `${summary.goldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})} (Receivable)`
-            : `${Math.abs(summary.goldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})} (Payable)`;
-
-        return [
-            index + 1,
-            summary.entityName,
-            summary.entityType.charAt(0).toUpperCase() + summary.entityType.slice(1),
-            cashBalanceText,
-            goldBalanceText
-        ];
-    });
-
-    doc.autoTable({
-        head: [tableColumns],
-        body: tableRows,
-        startY: 40,
-        margin: { left: 14, right: 14 },
-        theme: 'grid',
-        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-    });
-
-    await savePDF(doc, `Hisaab-Summary-${format(new Date(), 'yyyy-MM-dd')}.pdf`, iOSWin);
+    // The one drawer, which the server also prints the iPhone app's summary with (lib/hisaab-pdf.ts).
+    const asOf = new Date();
+    await savePDF(drawHisaabSummaryPdf(filteredSummaries, asOf), hisaabSummaryFileName(asOf), iOSWin);
     toast({ title: "Report Downloaded", description: "Hisaab summary PDF has been generated." });
   };
 

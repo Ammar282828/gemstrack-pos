@@ -40,7 +40,10 @@ struct NoteBanner: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .glassEffect(.regular, in: .rect(cornerRadius: 20))
+        // A frosted card, not Liquid Glass: glass can't fade or slide, so a note rising after a save drew a stray
+        // "bubble" as it formed and as it went (owner, 2026-10-15 and again 2026-10-17).
+        .background(.regularMaterial, in: .rect(cornerRadius: 20, style: .continuous))
+        .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
         .accessibilityElement(children: .combine)
     }
 }

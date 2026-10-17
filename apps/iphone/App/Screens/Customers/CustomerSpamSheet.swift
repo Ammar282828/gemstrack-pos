@@ -1,0 +1,367 @@
+import SwiftUI
+import ERPCore
+
+/// Clean up spam (the Customers page's "Review Spam Accounts" dialog): bot sign-ups, found by the ERP's own rules
+/// (`CustomerSpam`, lib/customer-spam.ts): a gibberish name or a random email, and no phone, no address and no
+/// order, invoice or hisaab row at all, so a real customer who merely lacks a number is never offered.
+///
+/// Everyone flagged starts ticked, as on the web; untick whoever to keep. The delete code is asked once: the first
+/// removal is sent with it from the code sheet (so a wrong code is said there), and the rest follow with the same
+/// code, one `removeCustomer` each (lib/writes/customer-admin.ts), with the count as they go and what was not
+/// removed, and why, at the end. Removing hides a customer; Settings, then Recently removed, puts them back.
+/// Owners only, as the web's removal is a browser write the shop floor cannot make, and only owners read the hisaab
+/// this checks.
+struct CustomerSpamSheet: View {
+    @Environment(Book.self) private var book
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Nil while it looks.
+    @State private var found: [CustomerSpam.Candidate]?
+    /// Who is ticked (customer ids), and everyone the list has offered so far: a newly flagged one starts ticked.
+    @State private var selected: Set<String> = []
+    @State private var offered: Set<String> = []
+    @State private var deletion: OwnerDeletion?
+    @State private var run: Run?
+    @State private var note: Note?
+
+    /// One clean-up: who is to go, in the list's order, how far it has got, and what came of each.
+    private struct Run {
+        let queue: [CustomerSpam.Candidate]
+        /// The code the first removal proved; the rest are sent with it.
+        var code: String?
+        /// The next one to send.
+        var next = 0
+        var removed: [String] = []
+        var failed: [(name: String, why: String)] = []
+        var finished = false
+
+        var done: Int { removed.count + failed.count }
+    }
+
+    private var ready: Bool {
+        book.customers.loaded && book.invoices.loaded && book.orders.loaded && book.hisaab.loaded
+    }
+
+    private var failure: String? {
+        book.customers.error ?? book.invoices.error ?? book.orders.error ?? book.hisaab.error
+    }
+
+    /// Re-looked whenever the books move, but never under a clean-up that is running or being summed up.
+    private var booksRevision: [Int] {
+        [book.customers.revision, book.invoices.revision, book.orders.revision, book.hisaab.revision]
+    }
+
+    var body: some View {
+        NavigationStack {
+            ShelfState(loaded: ready, error: failure, offline: book.customers.offline) {
+                list
+            }
+            .navigationTitle("Clean up spam")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    if run?.finished == true {
+                        Button("Done") { dismiss() }
+                    } else {
+                        Button(role: .cancel) { dismiss() }
+                            .disabled(working)
+                    }
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .interactiveDismissDisabled(working)
+        .sheet(item: $deletion) { (d: OwnerDeletion) in
+            OwnerDeleteCodeSheet(deletion: d) {
+                Task { await removeTheRest() }
+            }
+        }
+        .noteToast($note)
+        .destructiveFeedback(trigger: run?.removed.count ?? 0)
+        .task {
+            book.customers.need()
+            book.invoices.need()
+            book.orders.need()
+            book.hisaab.need()
+        }
+        .task(id: booksRevision) { await look() }
+    }
+
+    private var working: Bool { run != nil && run?.finished == false }
+
+    /// The flagged again whenever the books change, as the web's list follows its store.
+    private func look() async {
+        guard ready, run == nil else { return }
+        // The live book, as the web's `customers` (a removed customer is not in it).
+        let people = book.customers.items.filter { !CustomerKit.isRemoved($0) }
+        let orders = book.orders.items, invoices = book.invoices.items, hisaab = book.hisaab.items
+        let result = await Task.detached(priority: .userInitiated) { () -> [CustomerSpam.Candidate] in
+            let transacted = CustomerSpam.transactedIds(orders: orders, invoices: invoices, hisaab: hisaab)
+            return CustomerSpam.detect(people, transacted: transacted)
+        }.value
+        guard run == nil else { return }
+        let ids = Set(result.map(\.id))
+        selected = selected.intersection(ids).union(ids.subtracting(offered))
+        offered.formUnion(ids)
+        found = result
+    }
+
+    // MARK: The list
+
+    private var list: some View {
+        List {
+            Group {
+                if let run {
+                    progressSection(run)
+                    if run.finished { summarySections(run) }
+                } else if let found {
+                    if found.isEmpty {
+                        Section {
+                            Text("No spam accounts found.").foregroundStyle(.secondary)
+                        } footer: {
+                            Text("A customer is flagged only with no phone, no address and no order, invoice or hisaab, and a gibberish name or a random email.")
+                        }
+                    } else {
+                        candidatesSection(found)
+                        actionSection(found)
+                    }
+                } else {
+                    Section {
+                        HStack(spacing: 10) {
+                            SkeletonLoading()
+                            Text("Looking for spam…").foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .houseRows()
+        }
+        .listStyle(.insetGrouped)
+    }
+
+    private func candidatesSection(_ found: [CustomerSpam.Candidate]) -> some View {
+        let all = selected.count == found.count
+        return Section {
+            Button {
+                selected = all ? [] : Set(found.map(\.id))
+            } label: {
+                tick(all, "Select all (\(selected.count)/\(found.count))")
+            }
+            ForEach(found) { (c: CustomerSpam.Candidate) in
+                row(c)
+            }
+        } header: {
+            LedgerHeading(title: "Suspected bot accounts", count: found.count)
+        } footer: {
+            Text("Every one has no phone, no address and no orders. Untick any you want to keep.")
+        }
+    }
+
+    private func row(_ c: CustomerSpam.Candidate) -> some View {
+        let on = selected.contains(c.id)
+        return Button {
+            if on { selected.remove(c.id) } else { selected.insert(c.id) }
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(on ? Theme.accent : Color.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(CustomerKit.trim(c.customer.name).isEmpty ? "(no name)" : c.customer.name)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
+                    Text(CustomerKit.filled(c.customer.email) ?? "no email")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    // The reasons wrap onto lines rather than being cut (ArtworkFlow, the word chips' layout).
+                    ArtworkFlow(spacing: 6) {
+                        ForEach(c.reasons, id: \.self) { (r: String) in
+                            Pill(r, tone: .owed)
+                        }
+                        if CustomerKit.filled(c.customer.shopifyCustomerId) != nil {
+                            Pill("Shopify", tone: .working)
+                        }
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    private func tick(_ on: Bool, _ title: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                .font(.title3)
+                .foregroundStyle(on ? Theme.accent : Color.secondary)
+            Text(title).foregroundStyle(.primary)
+        }
+    }
+
+    @ViewBuilder
+    private func actionSection(_ found: [CustomerSpam.Candidate]) -> some View {
+        let picked = found.filter { selected.contains($0.id) }
+        Section {
+            Button(role: .destructive) { ask(picked) } label: {
+                Label(picked.count == 1 ? "Delete 1 selected" : "Delete \(picked.count) selected", systemImage: "trash")
+            }
+            .disabled(picked.isEmpty)
+        } footer: {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Removing hides them; Settings, then Recently removed, puts them back. It asks for the delete code once.")
+                // The web's own warning: a storefront's bots sign up again until the store stops them.
+                if found.contains(where: { CustomerKit.filled($0.customer.shopifyCustomerId) != nil }) {
+                    Text("Rows tagged Shopify came from the Shopify store. Removing them here hides them in the ERP; if the storefront spam goes on they may sync back. A sign-up CAPTCHA in Shopify stops the source.")
+                        .foregroundStyle(Tone.owed.color)
+                }
+            }
+        }
+    }
+
+    // MARK: Removing
+
+    /// Says what happens, then asks for the code once.
+    private func ask(_ picked: [CustomerSpam.Candidate]) {
+        guard !picked.isEmpty else { return }
+        let n = picked.count
+        let what = n == 1 ? "Delete customer \(CustomerKit.shown(picked[0].customer))" : "Delete \(n) spam customers"
+        let detail = (n == 1 ? "They will be hidden from the lists." : "All \(n) will be hidden from the lists.")
+            + " Settings, then Recently removed, puts them back."
+        deletion = OwnerDeletion(what: what, detail: detail, final: false) { code in
+            try await removeFirst(picked, code: code)
+        }
+    }
+
+    /// The first removal, from the code sheet: until one goes through, a refused code is the sheet's to say. One that
+    /// cannot be removed for its own sake (already removed elsewhere) is noted and the next is tried.
+    private func removeFirst(_ queue: [CustomerSpam.Candidate], code: String) async throws {
+        var r = Run(queue: queue)
+        run = r
+        while r.next < queue.count {
+            let c = queue[r.next]
+            do {
+                try await remove(c, code: code)
+                r.removed.append(CustomerKit.shown(c.customer))
+                r.code = code
+                r.next += 1
+                run = r
+                return
+            } catch let f as ERPAPI.Failure where Self.isAboutTheCode(f) {
+                // Nothing went: the sheet says why and the list comes back as it was.
+                run = nil
+                throw f
+            } catch let f as ERPAPI.Failure where f.status == 409 || f.status == 400 {
+                r.failed.append((CustomerKit.shown(c.customer), f.message))
+                r.next += 1
+                run = r
+            } catch {
+                run = nil
+                throw error
+            }
+        }
+        // None could be removed, so the code was never put to the test: what happened is said all the same.
+        r.finished = true
+        run = r
+    }
+
+    /// The rest, with the code the first one proved, after the code sheet has closed.
+    private func removeTheRest() async {
+        guard var r = run, let code = r.code else {
+            if run != nil { finish() }
+            return
+        }
+        while r.next < r.queue.count {
+            let c = r.queue[r.next]
+            do {
+                try await remove(c, code: code)
+                r.removed.append(CustomerKit.shown(c.customer))
+            } catch {
+                r.failed.append((CustomerKit.shown(c.customer), error.localizedDescription))
+            }
+            r.next += 1
+            run = r
+        }
+        finish()
+    }
+
+    private func remove(_ c: CustomerSpam.Candidate, code: String) async throws {
+        _ = try await ERPAPI.shared.write("removeCustomer", ["customerId": c.id, "deleteCode": code])
+    }
+
+    private func finish() {
+        guard var r = run else { return }
+        r.finished = true
+        run = r
+        let gone = r.removed.count
+        Note.show(Note(title: gone == 1 ? "1 customer removed" : "\(gone) customers removed",
+                       detail: r.failed.isEmpty ? "Settings, then Recently removed, puts them back." : "\(r.failed.count) not removed.",
+                       failed: gone == 0),
+                  in: $note, reduce: reduceMotion)
+    }
+
+    /// A refusal of the code itself (none typed, wrong, too many tries, none set for the shop), as delete-code-gate.ts words them.
+    private static func isAboutTheCode(_ f: ERPAPI.Failure) -> Bool {
+        f.status == 403 || f.status == 429 || f.status == 503 || (f.status == 400 && f.message.localizedCaseInsensitiveContains("delete code"))
+    }
+
+    // MARK: How it went
+
+    private func progressSection(_ r: Run) -> some View {
+        Section {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(r.finished ? "Finished" : "Removing \(min(r.done + 1, r.queue.count)) of \(r.queue.count)…")
+                    .font(.body.weight(.medium))
+                ProgressView(value: Double(r.done), total: Double(max(1, r.queue.count)))
+                    .tint(Theme.accent)
+                Text("\(r.removed.count) removed" + (r.failed.isEmpty ? "" : ", \(r.failed.count) not removed"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            .padding(.vertical, 4)
+        } header: {
+            LedgerHeading(title: "Clean-up")
+        } footer: {
+            if !r.finished { Text("Keep this open until it finishes.") }
+        }
+    }
+
+    @ViewBuilder
+    private func summarySections(_ r: Run) -> some View {
+        if !r.failed.isEmpty {
+            Section {
+                ForEach(r.failed.indices, id: \.self) { (i: Int) in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(r.failed[i].name).font(.body.weight(.medium))
+                        Text(r.failed[i].why).font(.caption).foregroundStyle(Tone.problem.color)
+                    }
+                }
+            } header: {
+                LedgerHeading(title: "Not removed", count: r.failed.count, tone: .problem)
+            }
+        }
+        if !r.removed.isEmpty {
+            Section {
+                ForEach(r.removed.indices, id: \.self) { (i: Int) in
+                    Label(r.removed[i], systemImage: "person.badge.minus")
+                }
+            } header: {
+                LedgerHeading(title: "Removed", count: r.removed.count)
+            } footer: {
+                Text("Settings, then Recently removed, puts them back.")
+            }
+        }
+        Section {
+            Button {
+                run = nil
+                found = nil
+                Task { await look() }
+            } label: {
+                Label("Look again", systemImage: "arrow.clockwise")
+            }
+        }
+    }
+}
