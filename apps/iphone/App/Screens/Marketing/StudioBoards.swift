@@ -42,7 +42,6 @@ struct StudioBoards: View {
 
     private var screen: some View {
         VStack(spacing: 0) {
-            controls
             banners
             GeometryReader { geo in
                 canvas
@@ -51,6 +50,8 @@ struct StudioBoards: View {
             }
         }
         .accessibilityIdentifier("studio.board")
+        // The strip of tools is the control layer: pinned at the foot, in reach of a thumb, not scrolling with the page.
+        .safeAreaBar(edge: .bottom, spacing: 0) { controls }
         .noteToast($note)
         .onChange(of: board.said) { _, said in
             guard let said else { return }
@@ -150,7 +151,7 @@ struct StudioBoards: View {
                     Image(systemName: offer.s("by").hasPrefix("agent:") ? "sparkles" : "plus.rectangle.on.rectangle").foregroundStyle(Theme.accent)
                     Text((offer.s("by").hasPrefix("agent:") ? "The agent made a new board: " : "A new board: ") + offer.s("name"))
                     Spacer()
-                    Button("Open it") { Task { await board.choose(offer.s("id")) } }.buttonStyle(.houseProminent)
+                    Button("Open it") { Task { await board.choose(offer.s("id")) } }.buttonStyle(.bordered)
                     Button("Not now", systemImage: "xmark") { board.offer = nil }.labelStyle(.iconOnly)
                 })
             }
@@ -175,11 +176,10 @@ struct StudioBoards: View {
                 VStack(spacing: 16) {
                     if !board.loaded { SkeletonLoading("Loading the boards") }
                     else if let problem = board.listProblem {
-                        ContentUnavailableView("Couldn’t load the boards", systemImage: "wifi.exclamationmark", description: Text(problem))
-                        Button("Try again", systemImage: "arrow.clockwise") { Task { await board.loadList(initial: true) } }.buttonStyle(.houseProminent)
+                        ErrorState(problem) { Task { await board.loadList(initial: true) } }
                     } else {
                         ContentUnavailableView("A place for your ideas", systemImage: "rectangle.3.group", description: Text("A board holds designs side by side — your own, the AI’s variants and an agent’s — with notes beside them."))
-                        Button("Make the first board", systemImage: "plus") { nameText = "New board"; asking = .create }.buttonStyle(.houseProminent)
+                        Button("Make the first board", systemImage: "plus") { nameText = "New board"; asking = .create }.buttonStyle(.bordered)
                     }
                 }
                 .frame(width: viewport.width, height: max(viewport.height, 300))
@@ -268,9 +268,11 @@ struct StudioBoards: View {
         }
         .padding(12 * z)
         .frame(width: StudioBoardModel.noteSize.width * z, alignment: .topLeading)
+        // A sticky note's own paper (blue for the agent's, yellow for a person's): content colours that are the note's
+        // data, like a design's pixels, so they stay the same in light and dark.
         .foregroundStyle(agent ? Color(red: 0.03, green: 0.18, blue: 0.29) : Color(red: 0.27, green: 0.18, blue: 0.05))
-        .background(agent ? Color(red: 0.88, green: 0.95, blue: 1.0) : Color(red: 0.99, green: 0.93, blue: 0.71), in: .rect(cornerRadius: 6))
-        .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(isSelected ? Theme.accent : .clear, lineWidth: 3) }
+        .background(agent ? Color(red: 0.88, green: 0.95, blue: 1.0) : Color(red: 0.99, green: 0.93, blue: 0.71), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous).strokeBorder(isSelected ? Theme.accent : .clear, lineWidth: 3) }
         .shadow(color: .black.opacity(0.1), radius: 3, y: 1)
         .offset(offset(n, bounds: b))
         .onTapGesture { selected = id }
@@ -458,7 +460,7 @@ private struct StudioFramePanel: View {
             }
             Stepper("\(count) variants", value: $count, in: 2...6)
             Button("Cook \(count)", systemImage: "sparkles") { Task { await board.cook(frame, count: count, brief: brief) } }
-                .buttonStyle(.houseProminent)
+                .buttonStyle(.bordered)
                 .disabled(board.working != nil || frame.s("assetId").isEmpty)
             if frame.s("assetId").isEmpty { Text("This design has no photo to work from.").font(.footnote).foregroundStyle(.secondary) }
         } header: { LedgerHeading(title: "Let it cook") }.houseRows()
@@ -498,6 +500,7 @@ private struct StudioNotePanel: View {
     let removed: () -> Void
     @State private var text = ""
     @State private var gone = false
+    @State private var removing = false
 
     var body: some View {
         Section {
@@ -508,11 +511,12 @@ private struct StudioNotePanel: View {
         .task(id: note.s("text")) { text = note.s("text") }
         .onDisappear { save() }
         Section {
-            Button("Remove the note", systemImage: "trash", role: .destructive) {
-                let id = note.s("id"); gone = true; removed()
-                Task { await board.change([["op": "noteRemove", "id": id]]) }
-            }
+            Button("Remove the note", systemImage: "trash", role: .destructive) { removing = true }
         }.houseRows()
+        .confirmDestructive(isPresented: $removing, title: "Remove this note?", action: "Remove") {
+            let id = note.s("id"); gone = true; removed()
+            Task { await board.change([["op": "noteRemove", "id": id]]) }
+        }
     }
 
     private func save() {

@@ -29,6 +29,7 @@ struct AdsBudgetSheet: View {
     @State private var confirming = false
     @State private var busy = false
     @State private var failure: String?
+    @State private var savedTick = 0
 
     init(target: AdsBudgetTarget, saved: @escaping () async -> Void) {
         self.target = target
@@ -117,9 +118,6 @@ struct AdsBudgetSheet: View {
                 } footer: {
                     Text(isDaily ? "Off runs it until it is paused." : "A total budget is spent by its end date.")
                 }
-                if let failure {
-                    Section { Label(failure, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color) }
-                }
                 }
                 .houseRows()
             }
@@ -127,15 +125,16 @@ struct AdsBudgetSheet: View {
             .navigationTitle(target.level == "campaign" ? "Campaign budget" : "Ad set budget")
             .navigationBarTitleDisplayMode(.inline)
             .disabled(busy)
+            .interactiveDismissDisabled(busy)
+            .failureAlert($failure, title: "Meta didn't take that")
+            .savedFeedback(trigger: savedTick)
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    if busy {
-                        SkeletonLoading()
-                    } else {
-                        Button("Review") { confirming = true }
-                            .disabled(after == nil || !(budgetChanged || endChanged))
-                    }
+                    Button("Review") { confirming = true }
+                        .disabled(busy || after == nil || !(budgetChanged || endChanged))
                 }
             }
             .confirmationDialog("Change it at Meta?", isPresented: $confirming, titleVisibility: .visible) {
@@ -185,6 +184,7 @@ struct AdsBudgetSheet: View {
                 try await AdsAPI.setEnd(level: target.level, id: target.id, end: endAfter)
             }
             await saved()
+            savedTick += 1
             dismiss()
         } catch {
             failure = error.localizedDescription

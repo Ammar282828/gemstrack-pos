@@ -45,15 +45,14 @@ struct StudioAgentSettings: View {
                             UIPasteboard.general.setItems([["public.utf8-plain-text": command]], options: [.expirationDate: Date().addingTimeInterval(600)])
                             copied = true
                         }
-                        .buttonStyle(.houseProminent)
+                        .buttonStyle(.bordered)
                         Text("Then ask Claude, for example: “Fill the Eid board with six ring ads from the studio.” Keep the board open on a phone or the web: it lays out and draws what the agent adds.")
                             .font(.footnote).foregroundStyle(.secondary)
                     } else {
                         Button(making ? "Making a key…" : "Make a key", systemImage: "key") { Task { await make() } }
-                            .buttonStyle(.houseProminent).disabled(making || House.isDemo)
+                            .buttonStyle(.bordered).disabled(making || House.isDemo)
                         if House.isDemo { Text("The demo can’t make keys.").font(.footnote).foregroundStyle(.secondary) }
                     }
-                    if let problem { Text(problem).font(.footnote).foregroundStyle(Tone.problem.color) }
                 } header: { LedgerHeading(title: "Connect an agent") }.houseRows()
 
                 Section {
@@ -76,6 +75,8 @@ struct StudioAgentSettings: View {
                 } header: { LedgerHeading(title: "Keys") }.houseRows()
             }
             .modifier(HouseGround())
+            .failureAlert($problem)
+            .sensoryFeedback(.success, trigger: copied) { _, now in now }
             .navigationTitle("Agent").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .confirmationDialog("Revoke this key? An agent using it stops at once.", isPresented: Binding(get: { revoking != nil }, set: { if !$0 { revoking = nil } }), titleVisibility: .visible) {

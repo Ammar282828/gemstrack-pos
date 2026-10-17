@@ -28,9 +28,9 @@ struct PostQueueSheet: View {
             else {
                 NavigationStack {
                     content.toolbar {
-                        ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
+                        ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                     }
-                }.presentationDetents([.large])
+                }
                 // Not swiped away mid-send: the answer (or the error) is shown here.
                 .interactiveDismissDisabled(busy != nil)
             }
@@ -40,7 +40,7 @@ struct PostQueueSheet: View {
     private var content: some View {
         Group {
             if let e = entry { page(e) }
-            else { ContentUnavailableView("No longer in the queue", systemImage: "tray", description: Text("It was sent, removed, or changed on another device.")) }
+            else { EmptyState("No longer in the queue", symbol: "tray", message: "It was sent, removed, or changed on another device.") }
         }
         .modifier(HouseGround())
         .navigationTitle("In the queue")
@@ -54,9 +54,6 @@ struct PostQueueSheet: View {
             Section { header(e) }
             if let said {
                 Section { Label(said, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color) }
-            }
-            if let failure {
-                Section { Label(failure, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color) }
             }
             Section {
                 ForEach(places(e)) { (p: Place) in placeRow(p) }
@@ -75,8 +72,15 @@ struct PostQueueSheet: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
-        .disabled(busy != nil)
-        .overlay { if busy != nil { SkeletonLoading(busy ?? "").padding(20).glassEffect(.regular, in: .rect(cornerRadius: 18)) } }
+        .websiteBusy(busy)
+        .failureAlert($failure)
+        .sensoryFeedback(.success, trigger: said) { _, now in now != nil }
+        .safeAreaBar(edge: .bottom, spacing: 0) {
+            if ["held", "scheduled", "failed"].contains(e.status) {
+                ActionBar(primary: .init(e.status == "failed" ? "Send what is left now" : "Send now", systemImage: "paperplane.fill",
+                                         isBusy: busy != nil) { confirmingSend = true })
+            }
+        }
         .confirmationDialog("Send this now?", isPresented: $confirmingSend, titleVisibility: .visible) {
             Button("Send now") { Task { await send(e) } }
         } message: {
@@ -161,7 +165,7 @@ struct PostQueueSheet: View {
                 .font(.body.weight(.semibold))
                 .foregroundStyle(Theme.onAccent)
                 .frame(width: 32, height: 32)
-                .background(Theme.accent.gradient, in: .rect(cornerRadius: 8))
+                .background(Theme.accent, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(p.title)
                 Text(problem ?? p.detail)
@@ -192,19 +196,9 @@ struct PostQueueSheet: View {
 
     @ViewBuilder
     private func actions(_ e: PostQueueEntry) -> some View {
-        let canSend = ["held", "scheduled", "failed"].contains(e.status)
         let canTime = ["held", "scheduled", "failed"].contains(e.status)
-        if canSend || canTime || e.status != "sending" {
+        if canTime || e.status != "sending" {
             Section {
-                if canSend {
-                    Button { confirmingSend = true } label: {
-                        Label(e.status == "failed" ? "Send what is left now" : "Send now", systemImage: "paperplane.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.houseProminent)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
-                }
                 if canTime {
                     if picking {
                         DatePicker("Send at", selection: $when, in: Date()..., displayedComponents: [.date, .hourAndMinute])

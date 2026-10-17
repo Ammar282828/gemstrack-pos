@@ -326,7 +326,7 @@ struct AdsStatusBadge: View {
 
     var body: some View {
         let words = AdsStatusWords.of(status)
-        if words.tone != .good { StatusBadge(words.label, color: AdsStatusWords.color(words.tone)) }
+        if words.tone != .good { Pill(words.label, tone: AdsStatusWords.tone(words.tone)) }
     }
 }
 
@@ -336,7 +336,7 @@ struct AdsAccountBadge: View {
 
     var body: some View {
         let words = AdsStatusWords.ofAccount(status)
-        if words.tone != .good { StatusBadge(words.label, color: AdsStatusWords.color(words.tone)) }
+        if words.tone != .good { Pill(words.label, tone: AdsStatusWords.tone(words.tone)) }
     }
 }
 

@@ -98,7 +98,7 @@ enum MarketingTime {
     }
 }
 
-/// A filter chip: the chosen one is the house's filled button, the others glass (as Stock's categories).
+/// A filter chip: the kit's FilterChip (rule 16: filters are not glass), kept under this name for the screens.
 struct MarketingChip: View {
     let title: String
     var count: Int?
@@ -106,19 +106,7 @@ struct MarketingChip: View {
     let action: () -> Void
 
     var body: some View {
-        if selected {
-            Button(action: action) { label }.buttonStyle(.houseProminent)
-        } else {
-            Button(action: action) { label }.buttonStyle(.glass)
-        }
-    }
-
-    private var label: some View {
-        HStack(spacing: 5) {
-            Text(title)
-            if let count { Text("\(count)").font(.caption).monospacedDigit().opacity(0.7) }
-        }
-        .font(.subheadline.weight(.medium))
+        FilterChip(title: title, count: count, chosen: selected, action: action)
     }
 }
 

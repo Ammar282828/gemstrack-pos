@@ -8,6 +8,7 @@ struct AdsObjectScreen: View {
     @State private var response: [String: Any]?
     @State private var failure: String?
     @State private var busy = false
+    @State private var savedTick = 0
     @State private var name = ""
     @State private var hasEnd = false
     @State private var end = Date().addingTimeInterval(7 * 86_400)
@@ -30,11 +31,7 @@ struct AdsObjectScreen: View {
         Group {
             if response != nil { form }
             else if let failure {
-                ContentUnavailableView {
-                    Label("Couldn't load this \(level)", systemImage: "megaphone")
-                } description: { Text(failure) } actions: {
-                    Button("Try again") { self.failure = nil; Task { await load() } }.buttonStyle(.houseProminent)
-                }
+                ErrorState(failure) { self.failure = nil; Task { await load() } }
             }
             else { SkeletonLoading().frame(maxWidth: .infinity, maxHeight: .infinity) }
         }
@@ -73,7 +70,6 @@ struct AdsObjectScreen: View {
 
     private var form: some View {
         Form {
-            if let failure { Section { Text(failure).foregroundStyle(Tone.problem.color) }.houseRows() }
             if busy { Section { SkeletonLoading("Saving…") }.houseRows() }
             LedgerSection("Status") {
                 AdsStatusBadge(status: object["effective_status"] as? String ?? "")
@@ -128,6 +124,9 @@ struct AdsObjectScreen: View {
             }
         }
         .refreshable { await load() }
+        .failureAlert($failure, title: "Meta didn't take that")
+        .savedFeedback(trigger: savedTick)
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var previewSection: some View {
@@ -170,6 +169,7 @@ struct AdsObjectScreen: View {
         do {
             var body = fields; body["action"] = action; body["level"] = level
             _ = try await ERPAPI.shared.send("/api/ads/object/\(AdsQuery.escape(id))", body)
+            savedTick += 1
             if action == "delete" || action == "archive" { dismiss() } else { await load() }
         } catch { failure = error.localizedDescription }
     }

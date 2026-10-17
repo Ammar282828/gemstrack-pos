@@ -25,13 +25,7 @@ struct WebsiteEditScreen: View {
             case .off:
                 NotAvailableState("This shop doesn't edit its website from here", symbol: "globe")
             case .failed(let message):
-                ContentUnavailableView {
-                    Label("Couldn't read the website", systemImage: "wifi.exclamationmark")
-                } description: {
-                    Text(message)
-                } actions: {
-                    Button("Try again") { Task { await store.load(fresh: true) } }.buttonStyle(.glass)
-                }
+                ErrorState(message) { Task { await store.load(fresh: true) } }
             case .idle, .loading:
                 SkeletonLoading("Reading \(store.siteName)…").controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .loaded:
@@ -112,7 +106,7 @@ struct WebsiteEditScreen: View {
                     }
                     if items.count > shown {
                         Button("Show more (\(items.count - shown) left)") { shown += WebsiteEditScreen.pageSize }
-                            .buttonStyle(.glass)
+                            .buttonStyle(.bordered)
                             .frame(maxWidth: .infinity)
                     }
                 }
@@ -131,8 +125,7 @@ struct WebsiteEditScreen: View {
     }
 
     private var recentCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Recent changes", systemImage: "clock.arrow.circlepath").font(.headline)
+        SectionCard("Recent changes") {
             ForEach(store.recent.prefix(15)) { (r: WebsiteEditRecent) in
                 NavigationLink(value: Route(path: WebsiteEditScreen.piecePath(r.key))) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -147,7 +140,6 @@ struct WebsiteEditScreen: View {
                 .buttonStyle(.plain)
             }
         }
-        .ledgerCard(padding: 14)
     }
 }
 
@@ -190,9 +182,9 @@ struct WebsiteEditTile: View {
     private func badge(_ text: String, symbol: String) -> some View {
         Label(text, systemImage: symbol)
             .font(.caption2.weight(.medium))
-            .foregroundStyle(.white)
+            .foregroundStyle(.primary)
             .padding(.horizontal, 6).padding(.vertical, 3)
-            .background(Color.black.opacity(0.6), in: .capsule)
+            .background(Theme.card, in: .capsule)
     }
 }
 

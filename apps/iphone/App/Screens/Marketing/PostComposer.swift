@@ -15,11 +15,11 @@ struct PostComposerScreen: View {
     @State private var confirmation: String?
     @State private var queued: Route?
     @State private var deletingDraft: NativePostDraft?
+    @State private var startingOver = false
     @Environment(\.openURL) private var openURL
     private var d: NativePostDraft { model.draft }
     private var form: some View {
         Form {
-            if let error = model.error { Section { Text(error).foregroundStyle(Tone.problem.color); Button("Dismiss") { model.error = nil } }.houseRows() }
             if let said = model.said { Section { Text(said) }.houseRows() }
             photoSection
             designSection
@@ -27,6 +27,19 @@ struct PostComposerScreen: View {
             publishSection
             healthSection
         }
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
+        .failureAlert($model.error)
+        .safeAreaBar(edge: .bottom, spacing: 0) { if !model.frozen { publishBar } }
+        .sensoryFeedback(.success, trigger: model.said) { _, now in now != nil }
+        .confirmDestructive(isPresented: $startingOver, title: "Start a new piece?",
+                            message: "What is on screen is kept in Drafts.", action: "New piece") { Task { await model.startOver() } }
+    }
+    /// Publish is the page's one action, pinned; adding to the queue sits beside it.
+    private var publishBar: some View {
+        ActionBar(primary: .init("Publish", isDisabled: !model.problems.isEmpty) { confirmation = "send" },
+                  secondary: [.init("Add to queue", isDisabled: !model.problems.isEmpty) { confirmation = "queue" }],
+                  summary: model.problems.isEmpty ? nil : model.problems.joined(separator: " "))
     }
     private var observedForm: some View {
         form
@@ -35,7 +48,7 @@ struct PostComposerScreen: View {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button("Drafts") { draftsOpen = true }
-                    Button("New piece") { Task { await model.startOver() } }
+                    Button("New piece") { startingOver = true }
                     Button("Check connections") { Task { await model.refreshConnections() } }
                 } label: { Label("More", systemImage: "ellipsis") }
             }
@@ -47,7 +60,7 @@ struct PostComposerScreen: View {
     }
     private var presentedForm: some View {
         observedForm
-        .sheet(isPresented: $camera) { NewOrderCamera { image in camera = false; if let image, let data = WebsitePhoto.jpeg(image) { Task { await model.add(data, name: "Camera photo") } } }.ignoresSafeArea() }
+        .fullScreenCover(isPresented: $camera) { NewOrderCamera { image in camera = false; if let image, let data = WebsitePhoto.jpeg(image) { Task { await model.add(data, name: "Camera photo") } } }.ignoresSafeArea() }
         .sheet(isPresented: $sitePicker) { NativeSitePhotoPicker { piece, data in
             Task { if d.words.s("headline").isEmpty { model.draft.words["headline"] = piece["name"] }; if d.words.s("weight").isEmpty, piece.n("weightGrams") > 0 { model.draft.words["weight"] = .string(WebsiteNumber.grams(piece.n("weightGrams"))) }; await model.add(data, name: piece.s("name"), from: MarketingValue(["id": piece.s("id"), "name": piece.s("name"), "url": piece.s("url"), "marked": piece["photoSource"] == .null || piece["sourceMarked"].bool])) }
         } }
@@ -79,7 +92,7 @@ struct PostComposerScreen: View {
     private var photoSection: some View {
 Section {
                 TextField("Headline", text: word("headline"), axis: .vertical).font(.title3.weight(.semibold)).lineLimit(1...4)
-                if d.photos.isEmpty { ContentUnavailableView("Start with a photo", systemImage: "photo.on.rectangle", description: Text("Choose photos, take one, or bring in a website piece.")) }
+                if d.photos.isEmpty { Label("Choose photos, take one, or bring in a website piece.", systemImage: "photo.on.rectangle").foregroundStyle(.secondary) }
                 else { photoStrip }
                 if !model.frozen {
                     // Twelve photos is the most a piece takes: past that the picker would only fail.
@@ -122,9 +135,6 @@ Section {
                     else { Button("Send what remains") { confirmation = "send" } }
                     Button("Next piece") { Task { await model.startOver() } }
                 } else {
-                    if !model.problems.isEmpty { Text(model.problems.joined(separator: " ")).font(.footnote).foregroundStyle(.secondary) }
-                    Button("Add to queue") { confirmation = "queue" }.disabled(!model.problems.isEmpty)
-                    Button("Publish") { confirmation = "send" }.buttonStyle(.houseProminent).disabled(!model.problems.isEmpty)
                     if model.manualStory { Button("Share or save story") { Task { await shareDesign("story") } } }
                 }
             }.houseRows()
@@ -227,9 +237,6 @@ Section {
     private var draftSheet: some View {
         NavigationStack {
             List {
-                if model.drafts.isEmpty {
-                    ContentUnavailableView("No drafts", systemImage: "doc", description: Text("A piece you start is kept here, on this device, until it goes out."))
-                }
                 ForEach(model.drafts) { saved in
                     Button { Task { await model.open(saved); draftsOpen = false } } label: {
                         VStack(alignment: .leading, spacing: 4) {
@@ -243,6 +250,7 @@ Section {
                 }
             }
             .houseRows()
+            .overlay { if model.drafts.isEmpty { EmptyState("No drafts", symbol: "doc", message: "A piece you start is kept here, on this device, until it goes out.") } }
             .modifier(HouseGround()).navigationTitle("Drafts")
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { draftsOpen = false } } }
             .confirmationDialog("Delete “\(deletingDraft?.title ?? "this draft")” and its photos?", isPresented: Binding(get: { deletingDraft != nil }, set: { if !$0 { deletingDraft = nil } }), titleVisibility: .visible) {
@@ -268,17 +276,18 @@ struct NativePostAISheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let error = model.error { Section { Text(error).foregroundStyle(Tone.problem.color) }.houseRows() }
                 Section { TextField(request.op == "letter" ? "Lettering style" : "Your brief", text: $instruction, axis: .vertical).lineLimit(3...8)
                     if ["reframe", "restage", "custom"].contains(request.op) { Picker("Shape", selection: $aspect) { ForEach(["9:16", "4:5", "1:1", "5:4", "3:4", "4:3", "2:3", "3:2", "16:9", "21:9"], id: \.self) { Text($0).tag($0) } } }
                     if request.op == "restage" { Picker("Setting", selection: $scene) { Text("Use my brief").tag(""); ForEach(model.storyPreview["catalogue"]["scenes"].array, id: \.text) { Text($0.s("label")).tag($0.s("id")) } } }
                     if ["enhance", "reframe"].contains(request.op) { Toggle("Tidy labels and background", isOn: $tidy) }
                     DisclosureGroup("Edit the full prompt") { TextField("Full prompt (optional)", text: $rawPrompt, axis: .vertical).lineLimit(4...14) }
-                    Button("Make \(request.target)") { Task { await run() } }.buttonStyle(.houseProminent).disabled(running)
                 }.houseRows()
                 Text("A new version is kept beside the original. Check the piece and words before it goes out.").font(.footnote).foregroundStyle(.secondary)
             }.modifier(HouseGround()).navigationTitle(request.target.capitalized).navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(running) } }.interactiveDismissDisabled(running)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(running) }
+                    ToolbarItem(placement: .confirmationAction) { Button("Make \(request.target)") { Task { await run() } }.disabled(running) }
+                }.interactiveDismissDisabled(running).failureAlert($model.error).scrollDismissesKeyboard(.interactively)
         }
     }
     private func run() async {
@@ -311,13 +320,14 @@ struct NativeSitePhotoPicker: View {
     private var shown: [MarketingValue] { pieces.filter { q.isEmpty || ($0.s("name") + " " + $0.s("collection")).localizedCaseInsensitiveContains(q) } }
     var body: some View {
         NavigationStack { List {
-            if let error { Text(error).foregroundStyle(Tone.problem.color) }
             if !loaded && error == nil { SkeletonLoading("Loading the website’s pieces") }
-            else if loaded && shown.isEmpty { ContentUnavailableView(q.isEmpty ? "No pieces on the website" : "Nothing matches “\(q)”", systemImage: "globe") }
             ForEach(shown, id: \.text) { p in
                 Button { Task { await take(p) } } label: { HStack(spacing: 12) { MarketingPhoto(path: p.s("thumb", p.s("image"))).frame(width: 64, height: 64); VStack(alignment: .leading, spacing: 4) { Text(p.s("name")).foregroundStyle(.primary); Text(p.s("collection")).font(.caption).foregroundStyle(.secondary) } } }
             }
-        }.houseRows().modifier(HouseGround()).searchable(text: $q).navigationTitle("From the website").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }.task { do { pieces = try await MarketingRequest.get("/api/website/site-pieces")["pieces"].array.filter { !$0["hidden"].bool }; loaded = true } catch { self.error = error.localizedDescription } }.websiteBusy(busy) }
+        }.houseRows().modifier(HouseGround()).searchable(text: $q).navigationTitle("From the website").navigationBarTitleDisplayMode(.inline)
+            .overlay { if loaded && shown.isEmpty { if q.isEmpty { EmptyState("No pieces on the website", symbol: "globe") } else { ContentUnavailableView.search(text: q) } } }
+            .failureAlert($error)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }.task { do { pieces = try await MarketingRequest.get("/api/website/site-pieces")["pieces"].array.filter { !$0["hidden"].bool }; loaded = true } catch { self.error = error.localizedDescription } }.websiteBusy(busy) }
     }
     private func take(_ p: MarketingValue) async { busy = "Bringing the photo…"; defer { busy = nil }; do { let data = try await ERPAPI.shared.data("/api/website/site-pieces/image?id=\(AdsQuery.escape(p.s("id")))&size=3000" + (p["photoSource"] == .null ? "" : "&original=1")); picked(p, data) } catch { self.error = error.localizedDescription } }
 }

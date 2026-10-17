@@ -169,6 +169,8 @@ struct AdsRulesScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
         .refreshable { await loadRules() }
     }
 

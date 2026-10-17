@@ -19,6 +19,9 @@ struct PostTrayScreen: View {
     @State private var working: String?
     @State private var story: Story?
     @State private var started = false
+    @State private var clearing = false
+    @State private var sentTick = 0
+    @State private var refusedTick = 0
 
     struct Story: Identifiable {
         let id = UUID()
@@ -43,7 +46,7 @@ struct PostTrayScreen: View {
                 } else {
                     stripSection
                     whereSection
-                    sendSection
+                    blockersSection
                     if let card = model.activeCard {
                         PostTrayCardSections(card: card, model: model, siteName: store.siteName, posted: store.posted[card.id],
                                              access: access, locked: model.busy != nil, onStory: { Task { await makeStory(card) } },
@@ -65,6 +68,14 @@ struct PostTrayScreen: View {
                     .disabled(model.busy != nil)
             }
         }
+        .safeAreaBar(edge: .bottom, spacing: 0) {
+            if !model.cards.isEmpty { sendBar }
+        }
+        .savedFeedback(trigger: sentTick)
+        .refusedFeedback(trigger: refusedTick)
+        .confirmDestructive(isPresented: $clearing, title: "Clear all \(model.cards.count)?",
+                            message: "They come off the tray. The pieces themselves are untouched.",
+                            action: "Clear all") { model.clear() }
         .task { await start() }
         .sheet(isPresented: $picking) {
             NavigationStack {
@@ -106,9 +117,7 @@ struct PostTrayScreen: View {
             Button { picking = true } label: {
                 Label("Choose pieces", systemImage: "square.grid.2x2").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.houseProminent)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
+            .buttonStyle(.bordered)
             Button { if let why = model.shuffle() { failure = why } } label: { Label("Shuffle a piece", systemImage: "shuffle") }
                 .disabled(store.pieces.isEmpty)
         }
@@ -132,7 +141,7 @@ struct PostTrayScreen: View {
             }
             .listRowInsets(EdgeInsets())
             if model.cards.count > 1 {
-                Button("Clear all \(model.cards.count)", role: .destructive) { model.clear() }
+                Button("Clear all \(model.cards.count)", role: .destructive) { clearing = true }
                     .disabled(model.busy != nil)
             }
         }
@@ -149,12 +158,16 @@ struct PostTrayScreen: View {
             }
             .overlay(alignment: .topLeading) {
                 Text("\(number)").font(.caption2.weight(.semibold)).monospacedDigit()
+                    .foregroundStyle(Theme.onAccent)
                     .padding(.horizontal, 5).padding(.vertical, 1)
-                    .background(.ultraThinMaterial, in: .capsule)
+                    .background(Theme.accent, in: .capsule)
                     .padding(3)
             }
             .overlay {
-                if c.sending { SkeletonLoading().padding(8).background(.ultraThinMaterial, in: .rect(cornerRadius: Radius.thumb, style: .continuous)) }
+                if c.sending {
+                    RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous).fill(Theme.card.opacity(0.7))
+                        .overlay { ProgressView() }
+                }
             }
             .overlay(alignment: .bottom) {
                 if c.failed != nil {
@@ -195,36 +208,28 @@ struct PostTrayScreen: View {
         .disabled(model.busy != nil)
     }
 
-    private var sendSection: some View {
-        let n = model.cards.count
-        return Section {
-            HStack(spacing: 10) {
-                Button { confirming = true } label: {
-                    Label(model.busy == "send" ? "Sending…" : n > 1 ? "Send all \(n)" : "Send it", systemImage: "paperplane.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.houseProminent)
-                Button { Task { await queue() } } label: {
-                    Label(model.busy == "queue" ? "Queuing…" : "Later", systemImage: "clock")
-                }
-                .buttonStyle(.glass)
-            }
-            .disabled(!model.canSend)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
-        } footer: {
-            VStack(alignment: .leading, spacing: 4) {
-                if model.targets.isEmpty {
-                    Text("Choose where they go.")
-                } else {
-                    Text("To \(PostTrayModel.listOf(model.targets.map(model.label)))\(n > 1 ? ", one after another" : ""). Later puts \(n > 1 ? "them" : "it") in the queue, to send at a time or spread over the day.")
-                }
-                if !model.blockers.isEmpty {
-                    Text(model.blockers.map { (c: PostCheck) in "\(c.label): \(c.fix ?? c.detail)" }.joined(separator: " · "))
-                        .foregroundStyle(Tone.problem.color)
-                }
+    /// What would fail, said where the choice is made (the bar below says where it goes).
+    @ViewBuilder
+    private var blockersSection: some View {
+        if !model.blockers.isEmpty {
+            Section {
+                Text(model.blockers.map { (c: PostCheck) in "\(c.label): \(c.fix ?? c.detail)" }.joined(separator: " · "))
+                    .foregroundStyle(Tone.problem.color)
             }
         }
+    }
+
+    /// The page's one action, pinned: send now, or put it in the queue for later.
+    private var sendBar: some View {
+        let n = model.cards.count
+        let summary = model.targets.isEmpty
+            ? "Choose where they go."
+            : "To \(PostTrayModel.listOf(model.targets.map(model.label)))\(n > 1 ? ", one after another" : ""). Later puts \(n > 1 ? "them" : "it") in the queue."
+        return ActionBar(
+            primary: .init(n > 1 ? "Send all \(n)" : "Send it", systemImage: "paperplane.fill",
+                           isBusy: model.busy == "send", isDisabled: !model.canSend) { confirming = true },
+            secondary: [.init("Later", systemImage: "clock", isBusy: model.busy == "queue", isDisabled: !model.canSend) { Task { await queue() } }],
+            summary: summary)
     }
 
     // MARK: Before it goes
@@ -266,6 +271,7 @@ struct PostTrayScreen: View {
     /// The first thing worth saying, with the rest after it.
     private func say(_ notes: [Note]) {
         guard let first = notes.first(where: { $0.failed }) ?? notes.first else { return }
+        if first.failed { refusedTick += 1 } else { sentTick += 1 }
         let rest = notes.filter { $0 != first }.map { (n: Note) in n.title + (n.detail.isEmpty ? "" : ": " + n.detail) }
         let detail = ([first.detail] + rest).filter { !$0.isEmpty }.joined(separator: " ")
         Note.show(Note(title: first.title, detail: detail, failed: first.failed), in: $note, reduce: reduceMotion)
@@ -334,14 +340,6 @@ struct PostTrayScreen: View {
                              : "This ERP doesn't post to Instagram by itself: save it and post it from the Instagram app.")
                     }
                     Section {
-                        if connected {
-                            Button { Task { await postStory(s, user: user) } } label: {
-                                Label(user.isEmpty ? "Post story" : "Post story to @\(user)", systemImage: "camera.aperture").frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.houseProminent)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets())
-                        }
                         if let file = s.file {
                             ShareLink(item: file) { Label("Save or share", systemImage: "square.and.arrow.up") }
                         }
@@ -352,7 +350,15 @@ struct PostTrayScreen: View {
             .listStyle(.insetGrouped)
             .navigationTitle("The story")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { story = nil } } }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Not now") { story = nil } }
+                if connected {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(user.isEmpty ? "Post story" : "Post to @\(user)") { Task { await postStory(s, user: user) } }
+                            .disabled(working != nil)
+                    }
+                }
+            }
             .websiteBusy(working)
         }
         .interactiveDismissDisabled(working != nil)

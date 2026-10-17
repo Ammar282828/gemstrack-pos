@@ -439,13 +439,7 @@ struct InsightsOverviewScreen: View {
             } else if let data {
                 content(data)
             } else if let problem {
-                ContentUnavailableView {
-                    Label("Insights aren't ready", systemImage: "chart.bar")
-                } description: {
-                    Text(problem)
-                } actions: {
-                    if !House.isDemo { Button("Try again") { Task { await load(fresh: true) } }.buttonStyle(.glass) }
-                }
+                ErrorState(problem, retry: House.isDemo ? nil : { Task { await load(fresh: true) } })
             } else {
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }

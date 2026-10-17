@@ -61,13 +61,7 @@ struct WebsiteEditPieceScreen: View {
                 ContentUnavailableView("That piece isn't on the website's list", systemImage: "photo",
                                        description: Text("It may have been taken off the site, or renamed there."))
             } else if let problem {
-                ContentUnavailableView {
-                    Label("Couldn't read the piece", systemImage: "wifi.exclamationmark")
-                } description: {
-                    Text(problem)
-                } actions: {
-                    Button("Try again") { Task { await load() } }.buttonStyle(.glass)
-                }
+                ErrorState(problem) { Task { await load() } }
             } else {
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -120,13 +114,30 @@ struct WebsiteEditPieceScreen: View {
                     }
                     .tint(Theme.accent)
                 }
-                saveSection(p)
             }
             .houseRows()
         }
         .listStyle(.insetGrouped)
         .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
         .refreshable { await load() }
+        .sensoryFeedback(.success, trigger: said) { _, now in now != nil }
+        .toolbar {
+            if p.changed {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button(role: .destructive) { confirm = .all } label: {
+                            Label("Undo every change to this piece", systemImage: "arrow.uturn.backward.circle")
+                        }
+                    } label: { Label("More", systemImage: "ellipsis") }
+                    .accessibilityLabel("More")
+                }
+            }
+        }
+        .actionBar(
+            primary: .init("Save to \(siteName)", systemImage: "square.and.arrow.down", isBusy: busy != nil,
+                           isDisabled: !anyChange(p) || name.trimmingCharacters(in: .whitespaces).isEmpty) { confirm = .save },
+            summary: anyChange(p) ? "It shows on \(siteName) within a minute." : "Nothing changed yet.")
     }
 
     private func photoSection(_ p: WebsiteEditPiece) -> some View {
@@ -264,26 +275,6 @@ struct WebsiteEditPieceScreen: View {
             LedgerHeading(title: "Weight")
         } footer: {
             Text(p.hasTags ? "Prices follow it; the site shows it on photos without one." : "For the photo and captions; the catalogue doesn't print weights.")
-        }
-    }
-
-    private func saveSection(_ p: WebsiteEditPiece) -> some View {
-        Section {
-            Button { confirm = .save } label: {
-                Label(anyChange(p) ? "Save to \(siteName)" : "Nothing changed yet", systemImage: "square.and.arrow.down")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.houseProminent)
-            .disabled(!anyChange(p) || name.trimmingCharacters(in: .whitespaces).isEmpty || busy != nil)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
-            if p.changed {
-                Button(role: .destructive) { confirm = .all } label: {
-                    Label("Undo every change to this piece", systemImage: "arrow.uturn.backward.circle")
-                }
-            }
-        } footer: {
-            Text("It shows on \(siteName) within a minute; the next deploy writes it into the pages search engines read.")
         }
     }
 

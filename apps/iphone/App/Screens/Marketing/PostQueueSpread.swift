@@ -13,8 +13,17 @@ struct PostQueueSpreadSheet: View {
     @State private var last = PostQueueSpreadSheet.soon(10)
     @State private var busy: String?
     @State private var failure: String?
+    @State private var scheduled = 0
 
     private var store: PostsStore { PostsStore.shared }
+
+    init(onDone: @escaping (Note) -> Void) {
+        self.onDone = onDone
+        let start = Self.soon(10)
+        let end = defaultSpreadEnd(Date())
+        _first = State(initialValue: start)
+        _last = State(initialValue: end > start ? end : start)
+    }
 
     var body: some View {
         NavigationStack {
@@ -45,17 +54,8 @@ struct PostQueueSpreadSheet: View {
                             Text("\(c.label): \(c.fix ?? c.detail)").font(.footnote)
                         }
                     } header: {
-                        Text("Something they need is failing now").foregroundStyle(Tone.problem.color)
+                        LedgerHeading(title: "Something they need is failing now", tone: .problem)
                     }
-                }
-                Section {
-                    Button { Task { await schedule() } } label: {
-                        Label("Schedule them", systemImage: "clock").frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.houseProminent)
-                    .disabled(waiting.isEmpty)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
                 }
             }
             .houseForm()
@@ -64,17 +64,15 @@ struct PostQueueSpreadSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Schedule them") { Task { await schedule() } }.disabled(store.waiting.isEmpty || busy != nil)
+                }
             }
             .websiteBusy(busy)
             .failureAlert($failure)
-            .onAppear {
-                let start = Self.soon(10)
-                let end = defaultSpreadEnd(Date())
-                first = start
-                last = end > start ? end : start
-            }
+            .savedFeedback(trigger: scheduled)
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(busy != nil)
     }
 
@@ -96,6 +94,7 @@ struct PostQueueSpreadSheet: View {
             let span = times.count > 1 ? "from \(MarketingTime.clock(times[0].ISO8601Format())) to \(MarketingTime.clock(times[times.count - 1].ISO8601Format()))"
                 : "at \(MarketingTime.clock(times.first?.ISO8601Format()))"
             onDone(Note(title: "\(waiting.count) \(PostTrayModel.noun(waiting.count)) spread \(span)", detail: "They go by themselves: the app can be closed."))
+            scheduled += 1
             dismiss()
         } catch {
             failure = error.localizedDescription

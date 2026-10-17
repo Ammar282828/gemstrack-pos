@@ -17,6 +17,7 @@ struct PostsHub: View {
     @State private var confirmingAll = false
     @State private var sendingAll = false
     @State private var note: Note?
+    @State private var sentTick = 0
 
     struct Opened: Identifiable { let id: String }
 
@@ -52,6 +53,8 @@ struct PostsHub: View {
             Text(sendAllWords)
         }
         .noteToast($note)
+        .savedFeedback(trigger: sentTick)
+        .motion(store.queueShown.map(\.id))
         .task { await store.load(gold: hasInvestments) }
     }
 
@@ -197,12 +200,12 @@ struct PostsHub: View {
                 ForEach(items) { (e: PostQueueEntry) in queueRow(e) }
                 let waiting = store.waiting.count
                 if waiting > 0 {
+                    Button { spreading = true } label: { Label("Spread over the day", systemImage: "clock") }
+                        .disabled(sendingAll)
                     Button { confirmingAll = true } label: {
                         Label(sendingAll ? "Sending…" : waiting > 1 ? "Send all \(waiting) now" : "Send it now", systemImage: "paperplane")
                     }
                     .disabled(sendingAll)
-                    Button { spreading = true } label: { Label("Spread over the day", systemImage: "clock") }
-                        .disabled(sendingAll)
                 }
             } header: {
                 LedgerHeading(title: "In the queue")
@@ -231,6 +234,7 @@ struct PostsHub: View {
         defer { sendingAll = false }
         let r = await store.sendAll()
         let whole = r.sent == r.of
+        if whole { sentTick += 1 }
         Note.show(Note(title: whole ? "All \(r.of) sent" : "\(r.sent) of \(r.of) sent",
                        detail: whole ? "" : "The ones that failed say why; sending again sends only what didn't go.", failed: !whole), in: $note, reduce: reduceMotion)
     }
@@ -287,7 +291,7 @@ struct PostsHub: View {
         case .failed(let message):
             Section {
                 Text(message).foregroundStyle(.secondary)
-                Button("Try again") { Task { await store.load(gold: hasInvestments) } }
+                Button("Try again") { Task { await store.load(gold: hasInvestments) } }.buttonStyle(.bordered)
             } header: {
                 LedgerHeading(title: "From the website")
             }
@@ -337,8 +341,9 @@ struct PostPieceTile: View {
                     if piece.newArrival {
                         Text("New")
                             .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Theme.onAccent)
                             .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(.ultraThinMaterial, in: .capsule)
+                            .background(Theme.accent, in: .capsule)
                             .padding(6)
                     }
                 }
@@ -349,7 +354,7 @@ struct PostPieceTile: View {
 
     /// Amber when it went out today, the web's cue not to send it again.
     private var noteColor: Color {
-        if let days = MarketingTime.daysAgo(posted), days < 1 { return .orange }
+        if let days = MarketingTime.daysAgo(posted), days < 1 { return Tone.owed.color }
         return .secondary
     }
 

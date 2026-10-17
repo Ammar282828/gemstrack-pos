@@ -37,7 +37,7 @@ struct StudioLibrary: View {
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text(item.s("name")).foregroundStyle(.primary)
                                     Text(item.s("collection")).font(.caption).foregroundStyle(.secondary)
-                                    if item["adScore"] != .null { Text("Ad score · \(Int(item.n("adScore")))").font(.caption).foregroundStyle(Theme.accent) }
+                                    if item["adScore"] != .null { Text("Ad score · \(Int(item.n("adScore")))").font(.caption).foregroundStyle(.secondary) }
                                     else { Text("Not assessed").font(.caption).foregroundStyle(.secondary) }
                                     if item["usedInAds"].bool { Text("Used in an ad").font(.caption).foregroundStyle(.secondary) }
                                 }
@@ -54,6 +54,7 @@ struct StudioLibrary: View {
             assessment
             drive
         }
+        .scrollDismissesKeyboard(.interactively)
         .searchable(text: $q, prompt: "Name, subject or collection")
         .task(id: queryKey) { if !House.isDemo { do { try await Task.sleep(for: .milliseconds(250)); await load() } catch {} } }
         .refreshable { await load(fresh: true) }
@@ -117,7 +118,6 @@ struct StudioAssetSheet: View {
                     MarketingPhoto(path: "/api/ads/studio/image?id=" + AdsQuery.escape(item.s("id")) + "&size=1200").frame(height: 300)
                     Text(item.s("name")).font(.headline)
                     Text(item.s("specs")).font(.subheadline).foregroundStyle(.secondary)
-                    Button("Make an ad with it") { Task { await model.choose(item); if model.error == nil { dismiss() } } }.buttonStyle(.houseProminent)
                     Button("Share original") { Task { await model.run("Preparing photo…") { let data = try await ERPAPI.shared.data("/api/ads/studio/image?id=" + AdsQuery.escape(item.s("id")) + "&size=2400"); let url = FileManager.default.temporaryDirectory.appendingPathComponent("photo-\(UUID().uuidString).jpg"); try data.write(to: url); share = MarketingFileShare(items: [url]) } } }
                     Button(item["assessment"] == .null ? "Assess photo" : "Assess again") { Task { await assess() } }
                 }.houseRows()
@@ -135,7 +135,12 @@ struct StudioAssetSheet: View {
                 }
                 if let url = URL(string: item.s("page")), url.scheme == "https" { Section { Link("View on the website", destination: url) }.houseRows() }
             }.modifier(HouseGround()).navigationTitle("Photo").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .safeAreaBar(edge: .bottom, spacing: 0) {
+                ActionBar(primary: .init("Make an ad with it", systemImage: "wand.and.stars", isBusy: model.busy != nil) {
+                    Task { await model.choose(item); if model.error == nil { dismiss() } }
+                })
+            }
             .sheet(item: $share) { MarketingShareSheet(items: $0.items) }.websiteBusy(model.busy)
         }
     }

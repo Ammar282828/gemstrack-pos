@@ -28,7 +28,7 @@ struct StudioScreen: View {
             if tab == "plan", !["plays", "guide", "rivals"].contains(model.part) { model.part = "plays" }
         }
         .navigationDestination(item: $model.route) { PlaceScreen(path: $0.path) }
-        .failureAlert($model.error, title: "Could not finish")
+        .failureAlert($model.error)
         .websiteBusy(model.busy)
     }
     @ViewBuilder private var page: some View {
@@ -70,7 +70,7 @@ struct StudioPlan: View {
                             LabeledContent("Format", value: play.s("format") + (play["pair"].bool ? " + story" : ""))
                             LabeledContent("Layout", value: play.s("template")); LabeledContent("Call to action", value: play.s("cta"))
                         }.font(.subheadline)
-                        Button("Make this") { model.route = Route(path: "/design?v=make&kind=ad&play=" + (play.s("id").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? play.s("id"))) }.buttonStyle(.glass)
+                        Button("Make this") { model.route = Route(path: "/design?v=make&kind=ad&play=" + (play.s("id").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? play.s("id"))) }.buttonStyle(.bordered)
                     }.padding(.vertical, 6)
                 }
             }
@@ -123,6 +123,21 @@ struct StudioMaker: View {
             if let said = model.said { Section { Text(said).font(.footnote); Button("Dismiss") { model.said = nil } }.houseRows() }
             source
             if model.photo != nil { design; words; ai; checks; destinations; saving }
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
+        .safeAreaBar(edge: .bottom, spacing: 0) {
+            if model.photo != nil {
+                ActionBar(primary: .init("Continue to New ad", systemImage: "arrow.right", isBusy: model.busy != nil) { Task { await model.newAd() } })
+            }
+        }
+        .toolbar {
+            if model.photo != nil {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(model.savedID == nil ? "Save design" : "Save changes") { Task { await model.save(asNew: false) } }
+                        .disabled(model.busy != nil)
+                }
+            }
         }
         .task(id: model.renderKey) { await model.preview() }
         .task { if !House.isDemo { folders = (try? await MarketingRequest.get("/api/ads/studio/saved")["folders"].array) ?? [] } }
@@ -223,14 +238,12 @@ struct StudioMaker: View {
             Picker("Destination", selection: $model.goal) { ForEach([("whatsapp", "WhatsApp chats"), ("messages", "WhatsApp or Instagram chats"), ("channel", "WhatsApp channel"), ("profile", "Instagram profile"), ("website", "Website"), ("sales", "Online sales")], id: \.0) { key, label in Text(label).tag(key) } }
             if ["website", "sales", "channel"].contains(model.goal) { TextField("Destination link", text: $model.link).textInputAutocapitalization(.never).keyboardType(.URL) }
             if ["portrait", "square"].contains(model.format) { Toggle("Include a 9:16 version", isOn: $model.pair) }
-            Button("Continue to New ad") { Task { await model.newAd() } }.buttonStyle(.houseProminent)
             Button("Post it") { Task { await model.post() } }
         }.houseRows()
     }
     private var saving: some View {
         Section {
             Picker("Folder", selection: $model.folder) { Text("No folder").tag(""); ForEach(folders, id: \.text) { Text($0.s("name")).tag($0.s("id")) } }
-            Button(model.savedID == nil ? "Save design" : "Save changes") { Task { await model.save(asNew: false) } }
             if model.savedID != nil { Button("Save as a new design") { Task { await model.save(asNew: true) } } }
         }.houseRows()
     }
@@ -267,7 +280,7 @@ struct AdsPlanScreen: View {
             model.part = ["plays", "guide", "rivals"].contains(s) ? s : "plays"
         }
         .navigationDestination(item: $model.route) { PlaceScreen(path: $0.path) }
-        .failureAlert($model.error, title: "Could not finish")
+        .failureAlert($model.error)
         .websiteBusy(model.busy)
     }
 }

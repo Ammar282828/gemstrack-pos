@@ -15,8 +15,8 @@ struct StudioRivals: View {
             Button("Find competitors") { action("Searching…") { found = try await MarketingRequest.send("/api/ads/studio/competitors", ["action": "find", "brief": brief])["found"].array } }
             TextField("@username or Instagram link", text: $username).textInputAutocapitalization(.never)
             Button("Add account") { add(MarketingValue(["username": username, "source": "owner"])) }.disabled(username.isEmpty)
-            if let busy { SkeletonLoading(busy) }; if let error { Text(error).foregroundStyle(Tone.problem.color) }
-        }.houseRows().task { if !House.isDemo { await load() } }.disabled(busy != nil)
+            if let busy { SkeletonLoading(busy) }
+        }.houseRows().task { if !House.isDemo { await load() } }.disabled(busy != nil).failureAlert($error)
         .confirmationDialog("Remove @\(removing?.s("username") ?? "") and its readings?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
             Button("Remove account", role: .destructive) { if let item = removing { action("Removing…") { _ = try await MarketingRequest.send("/api/ads/studio/competitors", ["action": "remove", "username": item.s("username")]); await load() } } }
         }
@@ -160,9 +160,8 @@ struct StudioSaved: View {
                     Button("Delete design", role: .destructive) { deleting = item }
                 }.houseRows()
                 LedgerSection("Words and settings", collapsible: true) { MarketingDetails(fields: item.object.filter { $0.key != "thumb" }.mapValues(\.any)) }
-                if let error = model.error { Section { Text(error).foregroundStyle(Tone.problem.color) }.houseRows() }
             }.modifier(HouseGround()).navigationTitle(item.s("name")).navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { selected = nil } } }.websiteBusy(model.busy)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { selected = nil } } }.websiteBusy(model.busy).failureAlert($model.error)
             .confirmationDialog("Delete “\(item.s("name"))”?", isPresented: Binding(get: { deleting != nil && selected != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
                 Button("Delete design", role: .destructive) { mutate("/api/ads/studio/saved?id=" + AdsQuery.escape(item.s("id")), method: "DELETE"); deleting = nil; selected = nil }
             }

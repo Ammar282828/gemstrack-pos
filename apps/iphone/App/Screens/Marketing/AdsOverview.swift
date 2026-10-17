@@ -18,6 +18,8 @@ struct AdsOverviewScreen: View {
     @State private var asking: AdAttention?
     @State private var failure: String?
     @State private var go: Route?
+    @State private var note: Note?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var mayRead: Bool { session.role == "owner" || session.role == "marketing" }
 
@@ -49,6 +51,8 @@ struct AdsOverviewScreen: View {
             Text("\(a.targetName) will spend its budget again.")
         }
         .failureAlert($failure, title: "Meta didn't take that")
+        .sensoryFeedback(.error, trigger: failure) { _, now in now != nil }
+        .noteToast($note)
     }
 
     private var askingShown: Binding<Bool> {
@@ -72,6 +76,7 @@ struct AdsOverviewScreen: View {
         defer { acting = nil }
         do {
             try await AdsAPI.setRunning(level: a.level, id: a.targetId, running: running)
+            Note.show(Note(title: running ? "Running again" : "Paused", detail: a.targetName), in: $note, reduce: reduceMotion)
             await load(fresh: true)
         } catch {
             failure = error.localizedDescription
@@ -79,14 +84,12 @@ struct AdsOverviewScreen: View {
     }
 
     private func failed(_ message: String) -> some View {
-        ContentUnavailableView {
-            Label("Ads aren't ready", systemImage: "megaphone")
-        } description: {
-            Text(message)
-        } actions: {
+        VStack(spacing: 0) {
             // The demo has no ERP to ask again: no button that can only fail.
-            if !House.isDemo { Button("Try again") { Task { await load(fresh: true) } }.buttonStyle(.glass) }
-            Button("Open Setup") { go = Route(path: "/ads/setup") }.buttonStyle(.glass)
+            ErrorState(message, retry: House.isDemo ? nil : { Task { await load(fresh: true) } })
+            Button("Open Setup") { go = Route(path: "/ads/setup") }
+                .buttonStyle(.bordered)
+                .padding(.bottom, 32)
         }
     }
 
@@ -104,6 +107,7 @@ struct AdsOverviewScreen: View {
         }
         .listStyle(.insetGrouped)
         .refreshable { await load(fresh: true) }
+        .motion(d.totals.spend)
     }
 
     @ViewBuilder
@@ -177,7 +181,7 @@ struct AdsOverviewScreen: View {
                     FigureTile(label: "Spent", value: AdsFormat.money(t.spend, cur), detail: spentNote)
                     FigureTile(label: "People reached", value: AdsFormat.compact(t.reach), detail: reachNote)
                 }
-                HStack(spacing: 10) {
+                FigureRow(spacing: 10) {
                     mainTile(t, b, main, cur)
                     FigureTile(label: "Click-through", value: AdsFormat.pct(t.ctr),
                                detail: "\(AdsFormat.money(t.cpm, cur)) per 1,000 views")
@@ -267,11 +271,11 @@ struct AdsOverviewScreen: View {
                 Text(a.why).font(.subheadline).foregroundStyle(.secondary)
                 if a.doing == "pause" {
                     Button("Pause") { Task { await run(a, running: false) } }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.bordered)
                         .disabled(acting != nil)
                 } else if a.doing == "resume" {
                     Button("Run again") { asking = a }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.bordered)
                         .disabled(acting != nil)
                 }
             }
@@ -289,10 +293,10 @@ struct AdsOverviewScreen: View {
     private func monthSection(_ d: AdOverview, _ cur: String) -> some View {
         if let m = d.month, m.spent > 0 || m.lastMonth > 0 {
             Section {
-                LabeledContent("Spent so far") { Text(AdsFormat.money(m.spent, cur)).monospacedDigit() }
-                LabeledContent("Heading for") { Text(AdsFormat.money(m.projected, cur)).monospacedDigit() }
+                LabeledContent("Spent so far") { Text(AdsFormat.money(m.spent, cur)).monospacedDigit().contentTransition(.numericText(value: m.spent)) }
+                LabeledContent("Heading for") { Text(AdsFormat.money(m.projected, cur)).monospacedDigit().contentTransition(.numericText(value: m.projected)) }
                 if m.lastMonth > 0 {
-                    LabeledContent("Last month") { Text(AdsFormat.money(m.lastMonth, cur)).monospacedDigit() }
+                    LabeledContent("Last month") { Text(AdsFormat.money(m.lastMonth, cur)).monospacedDigit().contentTransition(.numericText(value: m.lastMonth)) }
                 }
                 ProgressView(value: Double(min(m.dayOfMonth, m.daysInMonth)), total: Double(m.daysInMonth)) {
                     Text("Day \(m.dayOfMonth) of \(m.daysInMonth)").font(.footnote).foregroundStyle(.secondary)
@@ -357,6 +361,7 @@ struct AdsOverviewScreen: View {
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 2) {
                 Text(AdsFormat.money(a.metrics.spend, cur)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                    .contentTransition(.numericText(value: a.metrics.spend))
                 Text(resultLine(a, cur)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
         }
@@ -385,6 +390,7 @@ struct AdsOverviewScreen: View {
                             Spacer(minLength: 8)
                             Text(bySpend ? AdsFormat.money(v, cur) : "\(AdsFormat.compact(v)) views")
                                 .font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                                .contentTransition(.numericText(value: v))
                         }
                         ProgressView(value: v, total: max(biggest, 1)).tint(Theme.accent)
                     }

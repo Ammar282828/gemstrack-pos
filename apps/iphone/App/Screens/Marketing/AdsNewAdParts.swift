@@ -103,10 +103,10 @@ struct AdsMediaGrid: View {
                 if let w = m.kindWord {
                     Text(w)
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
-                        .background(Color.black.opacity(0.6), in: .rect(cornerRadius: 4))
+                        .background(Theme.card, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                         .padding(4)
                 }
             }
@@ -119,7 +119,7 @@ struct AdsMediaGrid: View {
                 }
             }
             .overlay {
-                if on { RoundedRectangle(cornerRadius: 8).stroke(Theme.accent, lineWidth: 3) }
+                if on { RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous).stroke(Theme.accent, lineWidth: 3) }
             }
             .opacity(m.boostable == false ? 0.4 : 1)
     }
@@ -247,8 +247,7 @@ struct AdsLibrarySheet: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     if let problem {
-                        Text(problem).foregroundStyle(Tone.problem.color)
-                        Button("Try again") { Task { await load(nil) } }.buttonStyle(.glass)
+                        ErrorState(problem) { Task { await load(nil) } }
                     }
                     grid
                 }
@@ -275,7 +274,7 @@ struct AdsLibrarySheet: View {
             }
             if let after {
                 Button(busy ? "Reading…" : "More") { Task { await load(after) } }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
                     .disabled(busy)
                     .frame(maxWidth: .infinity)
             }

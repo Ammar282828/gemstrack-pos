@@ -28,6 +28,9 @@ struct AdsCampaignsScreen: View {
     /// The range's campaigns as a CSV (the web's Download (CSV)), ready for the share sheet.
     @State private var csvFile: URL?
     @State private var exporting = false
+    @State private var note: Note?
+    @State private var savedTick = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     enum Filter: String, CaseIterable, Identifiable {
         case all = "All", running = "Running", paused = "Paused", problems = "Problems"
@@ -62,10 +65,13 @@ struct AdsCampaignsScreen: View {
             if mayRead {
                 ToolbarItem(placement: .primaryAction) { AdsRangeMenu(key: $rangeKey) }
                 ToolbarItem(placement: .primaryAction) {
+                    Button { go = Route(path: "/ads/new") } label: { Label("New ad", systemImage: "plus") }
+                        .accessibilityLabel("New ad")
+                }
+                ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Toggle("Show archived", isOn: $archived)
                         Toggle("Expand all campaigns", isOn: $allExpanded)
-                        Button { go = Route(path: "/ads/new") } label: { Label("New ad", systemImage: "plus") }
                         Button { Task { await exportCsv() } } label: { Label("Download (CSV)", systemImage: "tablecells") }
                             .disabled(exporting)
                     } label: {
@@ -88,6 +94,8 @@ struct AdsCampaignsScreen: View {
             AdsBudgetSheet(target: t) { await load() }
         }
         .failureAlert($failure, title: "Meta didn't take that")
+        .noteToast($note)
+        .savedFeedback(trigger: savedTick)
     }
 
     private var askingShown: Binding<Bool> {
@@ -124,6 +132,8 @@ struct AdsCampaignsScreen: View {
         defer { busy = nil }
         do {
             try await AdsAPI.setRunning(level: t.level, id: t.id, running: running)
+            savedTick += 1
+            Note.show(Note(title: running ? "Running" : "Paused", detail: t.name), in: $note, reduce: reduceMotion)
             await load()
         } catch {
             failure = error.localizedDescription
@@ -131,14 +141,12 @@ struct AdsCampaignsScreen: View {
     }
 
     private func failed(_ message: String) -> some View {
-        ContentUnavailableView {
-            Label("Campaigns aren't ready", systemImage: "megaphone")
-        } description: {
-            Text(message)
-        } actions: {
+        VStack(spacing: 0) {
             // The demo has no ERP to ask again: no button that can only fail.
-            if !House.isDemo { Button("Try again") { Task { await load() } }.buttonStyle(.glass) }
-            Button("Open Setup") { go = Route(path: "/ads/setup") }.buttonStyle(.glass)
+            ErrorState(message, retry: House.isDemo ? nil : { Task { await load() } })
+            Button("Open Setup") { go = Route(path: "/ads/setup") }
+                .buttonStyle(.bordered)
+                .padding(.bottom, 32)
         }
     }
 
@@ -217,19 +225,24 @@ struct AdsCampaignsScreen: View {
                         }
                     }
                 }
-                if list.isEmpty {
-                    Section {
-                        ContentUnavailableView(d.campaigns.isEmpty ? "No campaigns yet" : "Nothing matches",
-                                               systemImage: "megaphone",
-                                               description: Text(d.campaigns.isEmpty ? "Make the first ad from New ad." : "Try another filter or search."))
-                    }
-                }
                 if gallery { gallerySection(list, cur) }
                 else { ForEach(list) { (c: AdCampaign) in campaignSection(c, cur) } }
             }
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .scrollDismissesKeyboard(.interactively)
+        .overlay {
+            if list.isEmpty {
+                if d.campaigns.isEmpty {
+                    EmptyState("No campaigns yet", symbol: "megaphone", message: "Make the first ad from New ad.")
+                } else if !search.isEmpty {
+                    ContentUnavailableView.search(text: search)
+                } else {
+                    EmptyState("Nothing matches", symbol: "megaphone", message: "Try another filter.")
+                }
+            }
+        }
         .refreshable { await load() }
     }
 
@@ -364,7 +377,7 @@ struct AdsCampaignsScreen: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Button { go = Route(path: objectPath("ad", ad.id)) } label: {
                         VStack(alignment: .leading, spacing: 10) {
-                            StockImage(imageUrl: ad.image, name: ad.name, key: ad.id).aspectRatio(1, contentMode: .fit).clipShape(.rect(cornerRadius: 16))
+                            StockImage(imageUrl: ad.image, name: ad.name, key: ad.id).aspectRatio(1, contentMode: .fit).clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
                             Text(ad.name).font(.headline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
                         }
                     }.buttonStyle(.plain)
@@ -391,17 +404,13 @@ struct AdsCampaignsScreen: View {
                 if wantOn { asking = t } else { Task { await setRunning(t, running: false) } }
             }
         )
-        return Group {
-            if busy == t.id {
-                SkeletonLoading()
-            } else {
-                Toggle("Running", isOn: on)
-                    .labelsHidden()
-                    .tint(Theme.accent)
-                    // One change at a time: a second switch mid-send would have its busy mark cleared by the first.
-                    .disabled(busy != nil || status == "ARCHIVED" || status == "DELETED")
-            }
-        }
+        // The switch stays where it is while Meta answers (a spinner in its place made the row jump).
+        return Toggle("Running", isOn: on)
+            .labelsHidden()
+            .tint(Theme.accent)
+            // One change at a time: a second switch mid-send would have its busy mark cleared by the first.
+            .disabled(busy != nil || status == "ARCHIVED" || status == "DELETED")
+            .opacity(busy == t.id ? 0.4 : 1)
     }
 
     /// The budget in words, as a button: it opens the budget and end date to change.
@@ -437,6 +446,7 @@ struct AdsCampaignsScreen: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             .monospacedDigit()
+            .contentTransition(.numericText(value: m.spend))
     }
 
     @ViewBuilder

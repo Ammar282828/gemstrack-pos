@@ -29,13 +29,7 @@ struct WebsiteInvestmentsScreen: View {
             case .off:
                 NotAvailableState("Investments by Taheri isn't part of this shop", why: "Its daily post belongs to Taheri's own website.", symbol: "chart.line.uptrend.xyaxis")
             case .failed(let message):
-                ContentUnavailableView {
-                    Label("Couldn't load the posts", systemImage: "wifi.exclamationmark")
-                } description: {
-                    Text(message)
-                } actions: {
-                    Button("Try again") { Task { await gold.load() } }.buttonStyle(.glass)
-                }
+                ErrorState(message) { Task { await gold.load() } }
             case .idle, .loading:
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .loaded:
@@ -119,7 +113,6 @@ struct WebsiteInvestmentsScreen: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(WebsiteGoldTime.longDate(p.date)).font(.body.weight(.semibold))
-                    if p.date == gold.today { Pill("Today", tone: .house) }
                     if p.hold { Pill("Held", tone: .quiet) }
                 }
                 Text(p.headline).font(.subheadline).foregroundStyle(.secondary).lineLimit(3)
@@ -252,10 +245,9 @@ struct WebsiteGoldDaySheet: View {
             .navigationTitle(day.map { (d: WebsiteGoldPost) in WebsiteGoldTime.longDate(d.date) } ?? "Investments")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
         }
-        .presentationDetents([.large])
         // Edited words aren't thrown away by a swipe: Done (or saving) closes it.
         .interactiveDismissDisabled(busy != nil || (filled && (post != (day?.post ?? "") || teaser != (day?.teaser ?? ""))))
         .onAppear { fill() }
@@ -326,6 +318,19 @@ struct WebsiteGoldDaySheet: View {
         .listStyle(.insetGrouped)
         .scrollDismissesKeyboard(.interactively)
         .refreshable { await gold.load() }
+        .safeAreaBar(edge: .bottom, spacing: 0) {
+            let unsent = unsentParts(d)
+            if unsent.count > 1 {
+                ActionBar(primary: .init("Send all \(WebsiteGoldWords.count(unsent.count))", systemImage: "paperplane.fill",
+                                         isBusy: busy != nil) { ask = .send(unsent, force: false) },
+                          summary: "Each part goes once. None of it can be unsent from here.")
+            }
+        }
+        .sensoryFeedback(.success, trigger: said) { _, now in now != nil }
+    }
+
+    private func unsentParts(_ d: WebsiteGoldPost) -> [String] {
+        gold.targets.filter { (t: WebsiteGoldStatus.Target) in d.sent[t.id] == nil && !missing(t.id, d) }.map { (t: WebsiteGoldStatus.Target) in t.id }
     }
 
     /// "Arrived Today 11:20 am from the Claude routine · edited Today 11:40 am".
@@ -390,16 +395,7 @@ struct WebsiteGoldDaySheet: View {
 
     private func sendSection(_ d: WebsiteGoldPost) -> some View {
         let targets = gold.targets
-        let unsent = targets.filter { (t: WebsiteGoldStatus.Target) in d.sent[t.id] == nil && !missing(t.id, d) }.map { (t: WebsiteGoldStatus.Target) in t.id }
         return Section {
-            if unsent.count > 1 {
-                Button { ask = .send(unsent, force: false) } label: {
-                    Label("Send all \(WebsiteGoldWords.count(unsent.count))", systemImage: "paperplane.fill").frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.houseProminent)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
-            }
             ForEach(targets) { (t: WebsiteGoldStatus.Target) in partRow(t, d) }
         } header: {
             LedgerHeading(title: "Where it goes")

@@ -36,6 +36,8 @@ struct WebsitePhotosScreen: View {
     @State private var reading = false
     @State private var said: String?
     @State private var failure: String?
+    @State private var note: Note?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static var folderKey: String { BizKey("erp.website.photoFolder") }
     /// The photos route's own limit (25 MB).
@@ -46,13 +48,7 @@ struct WebsitePhotosScreen: View {
             if denied {
                 NotAvailableState("This account can't add photographs", why: "Only owner, staff and marketing accounts can write to the website.", symbol: "lock")
             } else if let problem, collections == nil {
-                ContentUnavailableView {
-                    Label("Couldn't read the collections", systemImage: "wifi.exclamationmark")
-                } description: {
-                    Text(problem)
-                } actions: {
-                    Button("Try again") { Task { await load() } }.buttonStyle(.glass)
-                }
+                ErrorState(problem) { Task { await load() } }
             } else if collections == nil {
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -92,6 +88,11 @@ struct WebsitePhotosScreen: View {
             Text(sendWords)
         }
         .failureAlert($failure)
+        .noteToast($note)
+        .onChange(of: said) { _, now in
+            if let now { Note.show(Note(title: now), in: $note, reduce: reduceMotion) }
+        }
+        .sensoryFeedback(.success, trigger: said) { _, now in now != nil }
     }
 
 
@@ -123,14 +124,18 @@ struct WebsitePhotosScreen: View {
                 collectionSection
                 addSection
                 if !items.isEmpty { photosSection }
-                if !items.isEmpty { sendSection }
+                if !done.isEmpty && !sending { clearSection }
                 if !done.isEmpty { WebsiteSetOfTheDay(withNote: false) }
                 if !done.isEmpty { afterSection }
             }
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .scrollDismissesKeyboard(.interactively)
         .refreshable { await load() }
+        .safeAreaBar(edge: .bottom, spacing: 0) {
+            if !items.isEmpty { sendBar }
+        }
     }
 
     private var collectionSection: some View {
@@ -246,8 +251,8 @@ struct WebsitePhotosScreen: View {
                 Image(systemName: "photo").foregroundStyle(.secondary)
             }
             if item.status == .uploading || item.retouching {
-                Rectangle().fill(Color.black.opacity(0.45))
-                SkeletonLoading().tint(.white)
+                Rectangle().fill(Theme.card.opacity(0.7))
+                SkeletonLoading()
             }
         }
         .frame(width: 72, height: 72)
@@ -278,25 +283,16 @@ struct WebsitePhotosScreen: View {
         return item.stem + "." + item.kind.ext
     }
 
-    private var sendSection: some View {
+    /// The page's one action, pinned: where the photographs go is said in the confirmation it opens.
+    private var sendBar: some View {
+        ActionBar(primary: .init(sending ? "Sending…" : "Send \(pending.count) to the website", systemImage: "arrow.up.circle.fill",
+                                 isBusy: sending, isDisabled: !canSend) { confirmingSend = true },
+                  summary: unnamed > 0 ? "\(unnamed) still need\(unnamed == 1 ? "s" : "") a house and a name." : nil)
+    }
+
+    private var clearSection: some View {
         Section {
-            Button { confirmingSend = true } label: {
-                Label(sending ? "Sending…" : "Send \(pending.count) to the website", systemImage: "arrow.up.circle.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.houseProminent)
-            .disabled(!canSend)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
-            if !done.isEmpty && !sending {
-                Button("Clear \(done.count) sent") { items.removeAll { (i: WebsitePhotoItem) in i.status == .done } }
-            }
-        } footer: {
-            if unnamed > 0 {
-                Text("\(unnamed) still need\(unnamed == 1 ? "s" : "") a house and a name.").foregroundStyle(Tone.owed.color)
-            } else if let said {
-                Text(said)
-            }
+            Button("Clear \(done.count) sent") { items.removeAll { (i: WebsitePhotoItem) in i.status == .done } }
         }
     }
 
@@ -611,8 +607,8 @@ struct WebsiteCollectionSheet: View {
                     } header: { LedgerHeading(title: s.id) }
                     .houseRows()
                 }
-                if shelves.isEmpty { ContentUnavailableView.search(text: search) }
             }
+            .overlay { if shelves.isEmpty { ContentUnavailableView.search(text: search) } }
             .listStyle(.insetGrouped)
             .searchable(text: $search, prompt: "Find a collection")
             .navigationTitle("Collection")
@@ -623,6 +619,5 @@ struct WebsiteCollectionSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
     }
 }

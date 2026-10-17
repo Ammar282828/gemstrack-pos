@@ -25,6 +25,8 @@ struct AdsAudiencesScreen: View {
     @State private var sendingCustomers = false
     @State private var deleting: AdsAudienceRow?
     @State private var notice: String?
+    @State private var note: Note?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var failure: String?
 
     private static let countries = [
@@ -67,10 +69,12 @@ struct AdsAudiencesScreen: View {
             } message: { (_: AdsAudienceRow) in
                 Text("Ads that reach or leave out this audience lose it and keep the rest of their targeting. This can't be undone.")
             }
-            .alert("Done", isPresented: noticeShown) {
-                Button("OK") { notice = nil }
-            } message: {
-                Text(notice ?? "")
+            .noteToast($note)
+            .sensoryFeedback(.success, trigger: note) { _, now in now != nil }
+            .onChange(of: notice) { _, now in
+                guard let now else { return }
+                notice = nil
+                Note.show(Note(title: now), in: $note, reduce: reduceMotion)
             }
             .failureAlert($failure, title: "Meta didn't take that")
     }
@@ -79,9 +83,6 @@ struct AdsAudiencesScreen: View {
         Binding(get: { deleting != nil }, set: { (on: Bool) in if !on { deleting = nil } })
     }
 
-    private var noticeShown: Binding<Bool> {
-        Binding(get: { notice != nil }, set: { (on: Bool) in if !on { notice = nil } })
-    }
 
 
     private var segmentLabel: String { data?.segments.first { (s: AdsHinted) in s.key == segment }?.label ?? "customers" }

@@ -308,6 +308,8 @@ struct AdsAdSetsScreen: View {
         }
         .listStyle(.insetGrouped)
         .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
+        .safeAreaBar(edge: .bottom, spacing: 0) { reviewBar }
     }
 
     private var campaignSection: some View {
@@ -408,18 +410,12 @@ struct AdsAdSetsScreen: View {
             Text(launch == "paused" ? "Nothing is spent until they are switched on in Campaigns." : "They start once Meta approves them and spend their budgets from then.")
         }
         AdsProblemsSection(problems: check?.problems ?? [])
-        Section {
-            Button { Task { await review() } } label: {
-                HStack(spacing: 8) {
-                    if checking || sending { SkeletonLoading() }
-                    Text("Review: \(sets.count) ad set\(sets.count == 1 ? "" : "s") · \(adCount) ad\(adCount == 1 ? "" : "s")")
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.houseProminent)
-            .disabled(checking || sending)
-            .listRowBackground(Color.clear)
-        }
+    }
+
+    /// The page's one action, pinned.
+    private var reviewBar: some View {
+        ActionBar(primary: .init("Review: \(sets.count) ad set\(sets.count == 1 ? "" : "s") · \(adCount) ad\(adCount == 1 ? "" : "s")",
+                                 isBusy: checking || sending) { Task { await review() } })
     }
 
     // MARK: Made

@@ -23,6 +23,7 @@ struct WebsiteWeightsScreen: View {
     /// The counter said not to ask again until the screen is left.
     @State private var trusted = false
     @State private var failure: String?
+    @State private var savedTick = 0
     @FocusState private var typing: Bool
 
     /// A weight about to go to the site, waiting for the counter's yes.
@@ -42,13 +43,7 @@ struct WebsiteWeightsScreen: View {
             } else if let pieces {
                 page(pieces)
             } else if let problem {
-                ContentUnavailableView {
-                    Label("Couldn't load the catalogue", systemImage: "wifi.exclamationmark")
-                } description: {
-                    Text(problem)
-                } actions: {
-                    Button("Try again") { Task { await load() } }.buttonStyle(.glass)
-                }
+                ErrorState(problem) { Task { await load() } }
             } else {
                 SkeletonLoading("Loading the catalogue…").controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -155,8 +150,9 @@ struct WebsiteWeightsScreen: View {
                     if !upcoming.isEmpty { upcomingSection }
                 } else {
                     Section {
-                        ContentUnavailableView(onlyMissing ? "Every photo here has a weight" : "Nothing matches", systemImage: "checkmark.circle",
-                                               description: Text(onlyMissing ? "Switch off “Only photos without a weight” to review or correct any of them." : "Clear the search or choose another collection."))
+                        Label(onlyMissing ? "Every photo here has a weight. Switch off “Only photos without a weight” to review or correct any of them." : "Nothing matches. Clear the search or choose another collection.",
+                              systemImage: "checkmark.circle")
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -165,6 +161,19 @@ struct WebsiteWeightsScreen: View {
         .listStyle(.insetGrouped)
         .scrollDismissesKeyboard(.interactively)
         .refreshable { await load() }
+        .savedFeedback(trigger: savedTick)
+        .toolbar {
+            // The pinned bar hides over the keyboard, so the keyboard carries the same action.
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Save & next") { ask(advance: true) }.disabled(saving)
+            }
+        }
+        .safeAreaBar(edge: .bottom, spacing: 0) {
+            if current != nil {
+                ActionBar(primary: .init("Save & next", systemImage: "checkmark", isBusy: saving) { ask(advance: true) })
+            }
+        }
     }
 
     private func photoSection(_ p: WebsiteWeightPiece, of total: Int) -> some View {
@@ -192,9 +201,9 @@ struct WebsiteWeightsScreen: View {
                     if p.source == "label", let g = p.labelWeightGrams {
                         Text("Weight on the photo: \(WebsiteNumber.grams(g))g")
                             .font(.caption)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                             .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(Color.black.opacity(0.55), in: .capsule)
+                            .background(Theme.card, in: .capsule)
                             .padding(8)
                     }
                 }
@@ -227,14 +236,6 @@ struct WebsiteWeightsScreen: View {
                     .monospacedDigit()
                 Text("g").font(.title).foregroundStyle(.secondary)
             }
-            Button { ask(advance: true) } label: {
-                Label(saving ? "Saving…" : "Save & next", systemImage: "checkmark")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.houseProminent)
-            .disabled(saving)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
             Button("Skip") { index = min(index + 1, max(0, queue.count - 1)) }
                 .disabled(index >= queue.count - 1)
             WebsiteFeatureButton(key: p.key, name: p.file)
@@ -263,9 +264,9 @@ struct WebsiteWeightsScreen: View {
                                     if let g = u.piece.weightGrams {
                                         Text("\(WebsiteNumber.grams(g))g")
                                             .font(.caption2)
-                                            .foregroundStyle(.white)
+                                            .foregroundStyle(.primary)
                                             .frame(maxWidth: .infinity)
-                                            .background(Color.black.opacity(0.55))
+                                            .background(Theme.card.opacity(0.85))
                                     }
                                 }
                                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
@@ -353,6 +354,7 @@ struct WebsiteWeightsScreen: View {
             if p.advance && !onlyMissing { index = min(index + 1, max(0, was.count - 1)) }
             prefill()
             typing = true
+            savedTick += 1
         } catch {
             failure = error.localizedDescription
         }

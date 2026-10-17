@@ -241,21 +241,15 @@ struct AdsNotReady: View {
 
     var body: some View {
         if let problem {
-            ContentUnavailableView {
-                Label("Ads aren't ready", systemImage: "megaphone")
-            } description: {
-                Text(problem)
-            } actions: {
-                // The demo has no ERP to ask again: no button that can only fail.
-                if !House.isDemo { Button("Try again") { Task { await retry() } }.buttonStyle(.glass) }
-            }
+            // The demo has no ERP to ask again: no button that can only fail.
+            ErrorState(problem, retry: House.isDemo ? nil : { Task { await retry() } })
         } else if let status {
             ContentUnavailableView {
                 Label(title(status), systemImage: "powerplug")
             } description: {
                 Text(detail(status))
             } actions: {
-                NavigationLink(value: Route(path: "/ads/setup")) { Text("Open Setup") }.buttonStyle(.glass)
+                NavigationLink(value: Route(path: "/ads/setup")) { Text("Open Setup") }.buttonStyle(.bordered)
             }
         } else {
             SkeletonLoading("Checking the Meta connection…").frame(maxWidth: .infinity, maxHeight: .infinity)

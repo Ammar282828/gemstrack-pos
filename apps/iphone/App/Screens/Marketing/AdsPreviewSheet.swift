@@ -27,7 +27,7 @@ struct AdsPreviewSheet: View {
                 if let p = previews.first(where: { (x: AdsPreview) in x.format == chosen }), let url = URL(string: p.src) {
                     AdsFrame(url: url)
                         .id(p.format)
-                        .clipShape(.rect(cornerRadius: 16))
+                        .clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
                         .padding(.horizontal, 16)
                 } else {
                     ContentUnavailableView("Meta gave no preview", systemImage: "eye.slash")

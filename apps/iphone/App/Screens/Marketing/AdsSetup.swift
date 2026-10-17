@@ -50,14 +50,6 @@ struct AdsSetupScreen: View {
         }
         .navigationTitle("Setup")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            if mayUse && status != nil {
-                ToolbarItem(placement: .primaryAction) {
-                    Button { Task { await load() } } label: { Label("Check again", systemImage: "arrow.clockwise") }
-                        .disabled(loading)
-                }
-            }
-        }
         .task { if mayUse && status == nil { await load() } }
     }
 
@@ -190,6 +182,8 @@ struct AdsSetupScreen: View {
             .disabled(busy != nil)
         }
         .listStyle(.insetGrouped)
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
         .refreshable { await load() }
     }
 
@@ -374,7 +368,7 @@ struct AdsSetupScreen: View {
                         let id = configId.filter { (c: Character) in c.isNumber }
                         Task { await save(["loginConfigId": id], "config") }
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
                     .disabled(configId.isEmpty || configId == (app.loginConfigId ?? ""))
                 }
                 Text(app.loginConfigId.map { (id: String) in "Saved: Connect uses configuration \(id)." }
@@ -599,7 +593,7 @@ struct AdsSetupScreen: View {
                 Button(listed.contains(id) ? "Use this pixel" : "Use it anyway (after sharing it)") {
                     Task { await pixelAct(["action": "choose", "id": id], "pixel") }
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
             }
         }
         if let id = st.id {

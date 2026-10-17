@@ -451,7 +451,7 @@ struct WebsiteBusy: ViewModifier {
     func body(content: Content) -> some View {
         content
             .disabled(doing != nil)
-            .overlay { if let doing { SkeletonLoading(doing).padding(20).glassEffect(.regular, in: .rect(cornerRadius: 18)) } }
+            .overlay { if let doing { SkeletonLoading(doing).padding(20).glassEffect(.regular, in: .rect(cornerRadius: Radius.chip, style: .continuous)) } }
     }
 }
 

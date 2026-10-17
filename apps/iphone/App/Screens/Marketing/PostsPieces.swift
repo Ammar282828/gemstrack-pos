@@ -26,13 +26,7 @@ struct PostPiecesScreen: View {
             case .off:
                 NotAvailableState("This shop doesn't post its website's pieces", why: "Its website has no pieces for the ERP to post from, so there is nothing to choose here.", symbol: "globe")
             case .failed(let message):
-                ContentUnavailableView {
-                    Label("Couldn't read the website", systemImage: "wifi.exclamationmark")
-                } description: {
-                    Text(message)
-                } actions: {
-                    Button("Try again") { Task { await store.load() } }.buttonStyle(.glass)
-                }
+                ErrorState(message) { Task { await store.load() } }
             case .idle, .loading:
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .loaded:
@@ -42,6 +36,7 @@ struct PostPiecesScreen: View {
         .navigationTitle(tray.map { (t: PostTrayModel) in t.cards.isEmpty ? "Pick pieces" : "\(t.cards.count) picked" } ?? "Pieces")
         .navigationBarTitleDisplayMode(.inline)
         .failureAlert($refused, title: "Not now")
+        .refusedFeedback(trigger: refused)
         .searchable(text: $search, prompt: "Search: ruby, kara, jhumka…")
         .task { await store.load() }
         .onChange(of: search) { _, _ in shown = PostPiecesScreen.pageSize }
@@ -114,7 +109,7 @@ struct PostPiecesScreen: View {
                     }
                     if items.count > shown {
                         Button("Show more (\(items.count - shown) left)") { shown += PostPiecesScreen.pageSize }
-                            .buttonStyle(.glass)
+                            .buttonStyle(.bordered)
                             .frame(maxWidth: .infinity)
                     }
                 }

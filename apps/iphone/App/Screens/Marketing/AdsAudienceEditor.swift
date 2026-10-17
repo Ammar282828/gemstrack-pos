@@ -116,9 +116,9 @@ struct AdsAudienceSheet: View {
                 HStack(spacing: 8) {
                     ForEach(Self.cityShortcuts, id: \.self) { (c: String) in
                         Button("+ \(c.components(separatedBy: ",")[0])") { Task { await shortcut(c) } }
-                            .buttonStyle(.glass)
+                            .buttonStyle(.bordered)
                     }
-                    Button("+ All Pakistan") { add(AdsPlace.pakistan) }.buttonStyle(.glass)
+                    Button("+ All Pakistan") { add(AdsPlace.pakistan) }.buttonStyle(.bordered)
                 }
             }
         } header: {
@@ -266,11 +266,11 @@ struct AdsAudienceSheet: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(Self.interestShortcuts, id: \.self) { (s: String) in
-                        Button(s) { interestQ = s }.buttonStyle(.glass)
+                        Button(s) { interestQ = s }.buttonStyle(.bordered)
                     }
                     if !draft.interests.isEmpty {
                         Button { Task { await suggest() } } label: { Label("More like these", systemImage: "sparkles") }
-                            .buttonStyle(.glass)
+                            .buttonStyle(.bordered)
                     }
                 }
             }

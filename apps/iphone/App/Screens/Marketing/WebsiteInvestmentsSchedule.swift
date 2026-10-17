@@ -155,9 +155,14 @@ struct WebsiteGoldScheduleSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                if draft != nil {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(wasOn ? "Save changes" : "Save and switch on") { ask(wasOn ? .keepOn : .switchOn) }
+                            .disabled(busy != nil || (wasOn && !changedChoices))
+                    }
+                }
             }
         }
-        .presentationDetents([.large])
         // Changed choices aren't lost to a swipe; Cancel still closes it.
         .interactiveDismissDisabled(busy != nil || !(draft.map { (x: WebsiteGoldSchedule) in gold.schedule.map { (y: WebsiteGoldSchedule) in x.sameChoices(y) } ?? true } ?? true))
         .onAppear { if draft == nil { draft = gold.schedule } }
@@ -175,13 +180,17 @@ struct WebsiteGoldScheduleSheet: View {
     }
 
 
+    private var wasOn: Bool { gold.schedule?.enabled ?? false }
+    private var changedChoices: Bool {
+        !(draft.map { (x: WebsiteGoldSchedule) in gold.schedule.map { (y: WebsiteGoldSchedule) in x.sameChoices(y) } ?? false } ?? true)
+    }
+
     private var usable: [WebsiteGoldStatus.Target] { gold.targets }
     private var going: Int { usable.filter { (t: WebsiteGoldStatus.Target) in draft?.plan(t.id).on ?? false }.count }
 
     private var form: some View {
         let d = draft
-        let wasOn = gold.schedule?.enabled ?? false
-        let changed = !(d.map { (x: WebsiteGoldSchedule) in gold.schedule.map { (y: WebsiteGoldSchedule) in x.sameChoices(y) } ?? false } ?? true)
+        let changed = changedChoices
         return List {
             Group {
                 Section {
@@ -229,18 +238,8 @@ struct WebsiteGoldScheduleSheet: View {
                 }
                 Section {
                     if wasOn {
-                        Button { ask(.keepOn) } label: { Label("Save changes", systemImage: "checkmark").frame(maxWidth: .infinity) }
-                            .buttonStyle(.houseProminent)
-                            .disabled(!changed || busy != nil)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets())
                         Button("Switch automatic sending off", role: .destructive) { Task { await save(on: false) } }
                     } else {
-                        Button { ask(.switchOn) } label: { Label("Save and switch on", systemImage: "checkmark").frame(maxWidth: .infinity) }
-                            .buttonStyle(.houseProminent)
-                            .disabled(busy != nil)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets())
                         Button("Save, keep it off") { Task { await save(on: false) } }
                             .disabled(!changed || busy != nil)
                     }
@@ -251,6 +250,7 @@ struct WebsiteGoldScheduleSheet: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private func partRow(_ t: WebsiteGoldStatus.Target) -> some View {
@@ -424,7 +424,6 @@ struct WebsiteGoldAddSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
         .interactiveDismissDisabled(busy != nil || !post.isEmpty || square != nil || story != nil)
         .websiteBusy(busy)
         .onChange(of: squareItem) { _, item in

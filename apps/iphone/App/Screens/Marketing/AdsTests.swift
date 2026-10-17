@@ -155,7 +155,7 @@ struct AdsTestsScreen: View {
                     Text("Start the test").frame(maxWidth: .infinity)
                 }
             }
-            .buttonStyle(.houseProminent)
+            .buttonStyle(.bordered)
             .disabled(making || picked.count < 2 || name.trimmingCharacters(in: .whitespaces).isEmpty)
             .listRowBackground(Color.clear)
         } header: {
