@@ -10,20 +10,25 @@ struct NewChooser: View {
 
     /// This phone's unfinished sale, if it has pieces.
     @State private var inProgress: SaleDraft?
+    /// An order half typed on this phone.
+    @State private var orderInProgress = false
 
     var body: some View {
         List { Group {
             if let draft = inProgress, !draft.lines.isEmpty {
                 Section { progressRow(draft) }
             }
+            if orderInProgress {
+                Section { orderProgressRow }
+            }
 
             // One line each, as the system's own "New" menus put it.
             Section {
                 choice(path: "/invoices/new", icon: "doc.text.fill", title: "Sale", tint: Theme.accent,
                        blurb: "Buying now: pieces, payment, the invoice")
-                choice(path: "/orders/add", icon: "list.clipboard.fill", title: "Order", tint: .indigo,
+                choice(path: "/orders/add", icon: "list.clipboard.fill", title: "Order", tint: Tone.working.color,
                        blurb: "To be made: sizes, an advance, the workshop")
-                choice(path: "/repairs?new=1", icon: "wrench.and.screwdriver.fill", title: "Repair", tint: .teal,
+                choice(path: "/repairs?new=1", icon: "wrench.and.screwdriver.fill", title: "Repair", tint: Tone.credit.color,
                        blurb: "Brought in to be fixed: pieces, price, ready-by")
             } header: {
                 LedgerHeading(title: "What is it?")
@@ -38,7 +43,7 @@ struct NewChooser: View {
                     Label("Read a written bill", systemImage: "camera.viewfinder")
                 }
                 NavigationLink(value: Route(path: "/orders/add?scan=parchi")) {
-                    Label("Scan a parchi", systemImage: "doc.text.viewfinder")
+                    Label("Read a slip", systemImage: "doc.text.viewfinder")
                 }
             }
 
@@ -52,7 +57,10 @@ struct NewChooser: View {
         .listStyle(.insetGrouped)
         .navigationTitle("New")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { inProgress = SaleDraftStore.load() }
+        .onAppear {
+            inProgress = SaleDraftStore.load()
+            orderInProgress = NewOrderDraftStore.orderInProgress
+        }
         .task { book.settings.need() }
     }
 
@@ -69,7 +77,7 @@ struct NewChooser: View {
         }
         return NavigationLink(value: SaleLinks.newSale) {
             HStack(spacing: 12) {
-                Image(systemName: "cart").font(.title3).foregroundStyle(.orange)
+                Image(systemName: "cart").font(.title3).foregroundStyle(Tone.owed.color)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("A sale in progress").font(.headline)
                     Text("\(n) piece\(n == 1 ? "" : "s")" + (subtotal > 0 ? " · \(Money.pkr(subtotal))" : ""))
@@ -77,7 +85,16 @@ struct NewChooser: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
-                Text("Continue").font(.subheadline.weight(.semibold))
+            }
+        }
+    }
+
+    /// An order left half-typed, one tap away like the sale.
+    private var orderProgressRow: some View {
+        NavigationLink(value: Route(path: "/orders/add")) {
+            HStack(spacing: 12) {
+                Image(systemName: "list.clipboard").font(.title3).foregroundStyle(Tone.owed.color)
+                Text("An order in progress").font(.headline)
             }
         }
     }
@@ -88,16 +105,15 @@ struct NewChooser: View {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(tint == Theme.accent ? Theme.onAccent : .white)
+                    // A glyph on a filled tile: the house's own words on its accent, white on the other tones.
+                    .foregroundStyle(tint == Theme.accent ? Theme.onAccent : Color.white)
                     .frame(width: 36, height: 36)
-                    .background(tint.gradient, in: .rect(cornerRadius: 9))
+                    .background(tint.gradient, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.headline)
                     Text(blurb)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
                 }
             }
             .padding(.vertical, 4)

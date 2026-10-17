@@ -71,19 +71,15 @@ struct SaleLineEditor: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(create ? "Add to bill" : "Apply") {
-                        apply(f.applied(to: line))
-                        dismiss()
-                    }
-                    // A new item needs a name before it can go on the bill (the web's dialog, mode "create").
-                    .disabled(create && f.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") { SaleKeyboard.dismiss() }
-                }
             }
+            .keyboardDone()
+            // The one action stays at the foot with the line total beside it, where a long form never scrolls it away.
+            // A new item needs a name before it can go on the bill (the web's dialog, mode "create").
+            .actionBar(primary: ActionBar.Action(create ? "Add to bill" : "Apply",
+                                                 isDisabled: create && f.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
+                apply(f.applied(to: line))
+                dismiss()
+            }, summary: "Line total · \(Money.pkr(preview))")
             .onChange(of: f.metalType) { _, new in
                 // The karat follows the metal: none for silver, a listed one for gold and palladium.
                 let allowed = karatsFor(new).map { $0.rawValue }
@@ -94,7 +90,6 @@ struct SaleLineEditor: View {
                 }
             }
         }
-        .presentationDetents([.large])
         .presentationSizing(.page)
     }
 
@@ -182,6 +177,7 @@ struct SaleLineEditor: View {
                 Text("Fixed price").tag(true)
             }
             .pickerStyle(.segmented)
+            .accessibilityLabel("How it is priced")
             if f.fixed {
                 SaleNumberField(label: "Price (PKR)", text: $f.customPrice, prompt: "The agreed total", rupees: true)
                 // A fixed price still has a weight, and the bill says it (owner, 2026-10-07): it moves nothing,
@@ -236,14 +232,10 @@ struct SaleLineEditor: View {
         }
     }
 
+    /// The line total is in the bar at the foot; what is left to say is what Apply does to the piece.
     private var totalSection: some View {
         Section {
-            LabeledContent("Line total") {
-                Text(Money.pkr(preview))
-                    .font(.title3.weight(.semibold))
-                    .monospacedDigit()
-                    .contentTransition(.numericText(value: preview))
-            }
+            EmptyView()
         } footer: {
             Text(create ? "This piece is on this sale only." : "These changes apply to this sale only, not to the piece in stock.")
         }

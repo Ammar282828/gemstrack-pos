@@ -67,99 +67,31 @@ enum SaleDates {
     static func date(_ s: String) -> Date? { s.isEmpty ? nil : day.date(from: s) }
 }
 
-/// Pick the sale's customer from the book, or make it a walk-in. Typing a name and number on the
-/// sale itself is the other way; the ERP adds a person it has not seen when the sale is saved.
-struct SaleCustomerPicker: View {
-    /// nil is the walk-in.
-    let pick: (Customer?) -> Void
-
-    @Environment(Book.self) private var book
-    @Environment(\.dismiss) private var dismiss
-    @State private var search = ""
-
-    private func digits(_ s: String?) -> String { (s ?? "").filter { $0 >= "0" && $0 <= "9" } }
-
-    private var people: [Customer] {
-        let q = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        let wanted = digits(q)
-        return book.customers.items.filter { c in
-            // Removed customers stay out of every list; the old "Walk-in Customer" records are not people (lib/walk-in.ts).
-            if !(c.deletedAt ?? "").isEmpty || isWalkInName(c.name) { return false }
-            if q.isEmpty { return true }
-            if c.name.localizedCaseInsensitiveContains(q) { return true }
-            return wanted.count >= 3 && digits(c.phone).contains(wanted)
-        }
-    }
-
-    var body: some View {
-        NavigationStack {
-            List { Group {
-                Section {
-                    // The walk-in is a row like the people below it: its monogram is the figure of nobody in particular.
-                    Button { pick(nil); dismiss() } label: {
-                        HStack(spacing: 12) {
-                            Monogram(name: "", size: Monogram.Size.row)
-                            Text("Walk-in").fontWeight(.medium)
-                            Spacer(minLength: 0)
-                        }
-                        .contentShape(.rect)
-                    }
-                    .buttonStyle(.plain)
-                } footer: {
-                    Text("Walk-in. No customer is made; overpayment can't be kept as credit.")
-                }
-                Section {
-                    ForEach(people) { c in
-                        Button { pick(c); dismiss() } label: {
-                            HStack(spacing: 12) {
-                                Monogram(name: c.name, size: Monogram.Size.row)
-                                TwoLine(title: c.name, subtitle: c.phone)
-                            }
-                            .contentShape(.rect)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                }
-                .houseRows()
-            }
-            .listStyle(.insetGrouped)
-            .navigationTitle("Customer")
-            .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $search, prompt: "Name or phone")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-            }
-            .task { book.customers.need() }
-        }
-        .presentationDetents([.large])
-    }
-}
-
 /// New sale's Scan: the camera stays open so several tags can be read one after another, and says
 /// what became of the last one.
 struct SaleScanSheet: View {
-    /// Takes the code, does what it does to the sale, and answers in a sentence.
-    let handle: (String) -> String
+    /// Takes the code, does what it does to the sale, and answers in a sentence and whether a piece went on.
+    let handle: (String) -> (said: String, added: Bool)
 
     @Environment(\.dismiss) private var dismiss
     @State private var said = ""
-    @State private var tick = 0
+    /// A piece put on the sale is a success; a tag with nothing to add is a warning.
+    @State private var added = 0
+    @State private var missed = 0
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
                     TagScanner { code in
-                        said = handle(code)
-                        tick += 1
+                        let result = handle(code)
+                        said = result.said
+                        if result.added { added += 1 } else { missed += 1 }
                     }
                     if !said.isEmpty {
                         Text(said)
                             .font(.subheadline.weight(.medium))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(14)
-                            .background(.background.secondary, in: .rect(cornerRadius: 14))
+                            .ledgerCard(padding: 14)
                     }
                 }
                 .padding(16)
@@ -167,10 +99,10 @@ struct SaleScanSheet: View {
             .navigationTitle("Scan a tag")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(role: .close) { dismiss() } }
             }
-            .sensoryFeedback(.success, trigger: tick)
+            .sensoryFeedback(.success, trigger: added)
+            .sensoryFeedback(.warning, trigger: missed)
         }
-        .presentationDetents([.large])
     }
 }

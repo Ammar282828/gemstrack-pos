@@ -55,13 +55,17 @@ struct StockList: View {
 
     @ToolbarContentBuilder
     private var toolbarButtons: some ToolbarContent {
-        ToolbarItemGroup(placement: .primaryAction) {
+        ToolbarItem(placement: .primaryAction) {
             Button {
-                layoutRaw = layout == .grid ? StockLayout.list.rawValue : StockLayout.grid.rawValue
+                Motion.run(reduce: reduceMotion) {
+                    layoutRaw = layout == .grid ? StockLayout.list.rawValue : StockLayout.grid.rawValue
+                }
             } label: {
                 Label(layout == .grid ? "List" : "Grid", systemImage: layout == .grid ? "list.bullet" : "square.grid.2x2")
             }
-            if session.isOwner {
+        }
+        if session.isOwner {
+            ToolbarItem(placement: .primaryAction) {
                 NavigationLink(value: Route(path: StockKit.addPath)) {
                     Label("Add piece", systemImage: "plus")
                 }
@@ -109,9 +113,7 @@ struct StockList: View {
             Section { header(all, shown) }
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 .listRowBackground(Color.clear)
-            if shown.isEmpty {
-                Section { emptyState }
-            } else {
+            if !shown.isEmpty {
                 Section {
                     ForEach(shown) { row in
                         StockRow(row: row, go: $go, mayEdit: session.isOwner, onDelete: askToDelete)
@@ -121,15 +123,14 @@ struct StockList: View {
         }.houseRows()
         }
         .listStyle(.insetGrouped)
+        .overlay { if shown.isEmpty { emptyState } }
     }
 
     private func gridView(_ all: [Product], _ shown: [StockRowModel]) -> some View {
         ScrollView {
             VStack(spacing: 14) {
                 header(all, shown)
-                if shown.isEmpty {
-                    emptyState
-                } else {
+                if !shown.isEmpty {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 12)], spacing: 12) {
                         ForEach(shown) { row in
                             StockCard(row: row)
@@ -141,14 +142,21 @@ struct StockList: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
         }
+        .overlay { if shown.isEmpty { emptyState } }
     }
 
+    /// Nothing to show, over the list: a search with no hits, a category with none, or an empty shelf.
+    @ViewBuilder
     private var emptyState: some View {
-        ContentUnavailableView(
-            "No pieces found",
-            systemImage: "tag",
-            description: Text(isFiltering ? "Try adjusting your search or filter." : "Add a piece to begin.")
-        )
+        let typed = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !typed.isEmpty {
+            ContentUnavailableView.search(text: typed)
+        } else if category != nil {
+            EmptyState("No pieces here", symbol: "tag", message: "Nothing is in this category.",
+                       action: (title: "Show all", run: { category = nil }))
+        } else {
+            EmptyState("No pieces yet", symbol: "tag", message: "Add a piece to begin.")
+        }
     }
 
     // MARK: Count and worth
@@ -159,11 +167,10 @@ struct StockList: View {
         FigureRow(spacing: 12) {
             FigureTile(
                 label: "In stock",
-                value: "\(shown.count) piece\(shown.count == 1 ? "" : "s")",
-                detail: isFiltering ? "of \(all.count) in the shop" : nil
+                value: "\(shown.count) piece\(shown.count == 1 ? "" : "s")"
             )
             if session.isOwner {
-                FigureTile(label: "Worth today", value: worth(shown), detail: "at today's rates")
+                FigureTile(label: "Worth today", value: worth(shown))
             }
         }
     }
@@ -211,7 +218,7 @@ struct StockList: View {
     /// The code first, then the ERP deletes it; the owners' shelf is live, so the row goes by itself. The web's toast.
     private func askToDelete(_ p: Product) {
         deletion = StockKit.deletion(p) {
-            Note.show(Note(title: "Product Deleted", detail: "Product with SKU \(p.sku) has been deleted."), in: $note, reduce: reduceMotion)
+            Note.show(Note(title: "Piece deleted", detail: "\(p.sku) is deleted."), in: $note, reduce: reduceMotion)
         }
     }
 }
@@ -252,8 +259,6 @@ private struct StockPrice: View {
             Text(Money.pkr(price))
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
         } else {
             Text(price == nil ? "—" : "Price N/A")
                 .font(.caption)
@@ -299,6 +304,8 @@ private struct StockRow: View {
             if mayEdit {
                 Button { go = Route(path: StockKit.editPath(p.sku)) } label: { Label("Edit", systemImage: "pencil") }
                     .tint(Theme.accent)
+                // The delete code is asked next (OwnerDeleteCodeSheet): that is the confirmation.
+                Button(role: .destructive) { onDelete(p) } label: { Label("Delete", systemImage: "trash") }
             }
         }
         .stockContextMenu(p, go: $go, mayEdit: mayEdit, onDelete: onDelete)

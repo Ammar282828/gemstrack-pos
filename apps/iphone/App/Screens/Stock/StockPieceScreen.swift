@@ -54,27 +54,21 @@ struct StockPieceScreen: View {
             heroSection(p)
             priceSection(p, costs, settings)
             if !p.isCustomPrice { specsSection(p) }
-            if session.isOwner { actionsSection(p) }
             }
             .houseRows()
         }
         .listStyle(.insetGrouped)
         // Selling is the owners' (createInvoice is owner-only): staff read the piece without a Sell they cannot finish.
         .safeAreaBar(edge: .bottom, spacing: 0) { if session.isOwner { sellBar(p) } }
+        .toolbar { if session.isOwner { ToolbarItem(placement: .primaryAction) { actionsMenu(p) } } }
     }
 
     /// Sell puts the piece on the sale in progress (the New sale screen's own draft, as Scan does) and opens it.
     private func sellBar(_ p: Product) -> some View {
-        Button {
+        ActionBar(primary: ActionBar.Action("Sell", systemImage: "cart") {
             SaleDraftStore.add(p)
             go = Route(path: StockKit.newSalePath)
-        } label: {
-            Label("Sell", systemImage: "cart").frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.houseProminent)
-        .controlSize(.large)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        })
     }
 
     // MARK: Photo and name
@@ -113,8 +107,6 @@ struct StockPieceScreen: View {
                 } else {
                     Text(totalLine(costs))
                         .font(.system(.largeTitle, design: .serif).weight(.semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -204,23 +196,15 @@ struct StockPieceScreen: View {
     // MARK: Edit, the tag and Delete
 
     /// Edit is the native product form; Print tag the tag's QR and the CSV its label printer takes; Delete asks
-    /// for the delete code, which the ERP checks as it deletes. Owners only (Stock is theirs).
-    @ViewBuilder
-    private func actionsSection(_ p: Product) -> some View {
-        Section {
-            NavigationLink(value: Route(path: StockKit.editPath(p.sku))) {
-                Label("Edit", systemImage: "pencil")
-            }
-        }
-        Section {
-            Button { tagging = p } label: {
-                Label("Print tag", systemImage: "printer")
-            }
-            Button(role: .destructive) { deletion = StockKit.deletion(p) } label: {
-                Label("Delete", systemImage: "trash").foregroundStyle(Tone.problem.color)
-            }
-        } footer: {
-            Text("Delete asks for the delete code. The piece is gone for good.")
+    /// for the delete code, which the ERP checks as it deletes ("The piece is gone for good"). Owners only (Stock is theirs).
+    private func actionsMenu(_ p: Product) -> some View {
+        Menu {
+            Button { go = Route(path: StockKit.editPath(p.sku)) } label: { Label("Edit", systemImage: "pencil") }
+            Button { tagging = p } label: { Label("Print tag", systemImage: "printer") }
+            Divider()
+            Button(role: .destructive) { deletion = StockKit.deletion(p) } label: { Label("Delete", systemImage: "trash") }
+        } label: {
+            Label("More", systemImage: "ellipsis.circle")
         }
     }
 }
@@ -275,8 +259,8 @@ private struct StockSoldView: View {
                     Image(systemName: "checkmark.seal").font(.largeTitle).foregroundStyle(Tone.settled.color)
                         .symbolEffect(.bounce, value: reduceMotion ? 0 : sealed)
                         .onAppear { sealed += 1 }
+                    // The SKU is the page's title: not said again.
                     Text("Sold").font(.title2.weight(.bold))
-                    Text("\(sku) is no longer in stock.").font(.subheadline).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)

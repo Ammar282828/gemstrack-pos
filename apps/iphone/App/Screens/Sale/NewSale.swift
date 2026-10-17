@@ -48,6 +48,7 @@ struct SaleForm: View {
     @Environment(Session.self) var session
     @Environment(\.dismiss) var dismiss
     @Environment(\.accessibilityReduceMotion) var reduceMotion
+    @Environment(\.scenePhase) var scenePhase
 
     /// Edit invoice (SaleEdit): the invoice on file in this form. Nothing is kept on the phone or in Drafts,
     /// there is no starting over, and Save writes the invoice under its own number.
@@ -83,7 +84,7 @@ struct SaleForm: View {
     /// Taken by starts on this account's counter name once, for a new sale (decisions.md "Signed-in defaults").
     @State var takenByStarted = false
     /// The rates typed on the sale, sent back to the shop's after the sale saved, did not go: said quietly.
-    @State var ratesNote: String?
+    @State var ratesNote: Note?
     /// The order form, opened from this sale's pieces.
     @State var openOrder: Route?
     @State var confirmingOrder = false
@@ -93,40 +94,25 @@ struct SaleForm: View {
             if let id = made {
                 InvoiceScreen(id: id)
                     .environment(\.zoomNamespace, nil)  // swapped in place after a save: no row to zoom from
-                    .overlay(alignment: .top) { ratesNoteBanner }
-                    .transition(.opacity)
             } else if !book.settings.loaded {
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                page.transition(.opacity)
+                page
             }
         }
+        .navigationTitle(edit.map { "Edit \($0.invoiceId)" } ?? "New sale")
+        .navigationBarTitleDisplayMode(.inline)
+        .noteToast($ratesNote)
         // The sale made: the form gives way to its invoice at once, with a tick felt as it lands. Not on a curve:
         // the form's Save button is Liquid Glass, which can't fade, so an animated swap shrank it into a "bubble"
         // over the new invoice (owner, 2026-10-17: "that bubble bug on form completion").
-        .sensoryFeedback(.success, trigger: made) { _, now in now != nil }
+        // The error tap comes with the failure alert, so only the success half is wired here.
+        .moneyFeedback(success: made, failure: false)
         .task {
             book.settings.need()
             book.products.need()
             book.customers.need()
             book.invoices.need()
-        }
-    }
-
-    /// A line over the invoice when a rate typed on the sale could not be kept as the shop's (the web's toast).
-    @ViewBuilder
-    private var ratesNoteBanner: some View {
-        if let note = ratesNote {
-            Text(note)
-                .font(.footnote.weight(.medium))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(.regularMaterial, in: .rect(cornerRadius: 16, style: .continuous))
-                .padding(.horizontal, 16).padding(.top, 6)
-                .task {
-                    try? await Task.sleep(for: .seconds(8))
-                    ratesNote = nil
-                }
         }
     }
 
@@ -199,9 +185,16 @@ struct SaleForm: View {
             else { EntryContinue(selection: $step) }
         }
         .scrollDismissesKeyboard(.interactively)
-        .navigationTitle(edit.map { "Edit \($0.invoiceId)" } ?? "New sale")
-        .navigationBarTitleDisplayMode(.inline)
+        .keyboardDone()
+        .failureAlert($failure, title: "About this sale")
         .toolbar {
+            // The AI bill reader (SaleScanScreen), up where New order puts its slip reader.
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { readingBill = true } label: {
+                    Label("Read a written bill", systemImage: "camera.viewfinder")
+                        .labelStyle(.titleAndIcon)
+                }
+            }
             if edit == nil {
                 // Throwing the sale away is a menu's item, not a red button beside the title.
                 ToolbarItem(placement: .primaryAction) {
@@ -214,10 +207,6 @@ struct SaleForm: View {
                         Label("More", systemImage: "ellipsis.circle")
                     }
                 }
-            }
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") { SaleKeyboard.dismiss() }
             }
         }
         .sheet(item: $editing) { line in
@@ -237,34 +226,42 @@ struct SaleForm: View {
                     .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { addingStock = false } } }
             }
         }
-        .confirmationDialog("Start over?", isPresented: $confirmingReset, titleVisibility: .visible) {
-            Button("Start over", role: .destructive) { startOver() }
-        } message: {
-            Text("This empties the sale on this phone and takes it out of Drafts: the pieces, the customer and everything typed.")
-        }
-        .confirmationDialog("Replace the order in progress?", isPresented: $confirmingOrder, titleVisibility: .visible) {
-            Button("Replace it", role: .destructive) { createOrder() }
-        } message: {
-            Text("An order is half typed on this phone. Making one from these pieces replaces it.")
-        }
+        .confirmDestructive(isPresented: $confirmingReset, title: "Start over?",
+                            message: "This empties the sale on this phone and takes it out of Drafts: the pieces, the customer and everything typed.",
+                            action: "Start over") { startOver() }
+        .confirmDestructive(isPresented: $confirmingOrder, title: "Replace the order in progress?",
+                            message: "An order is half typed on this phone. Making one from these pieces replaces it.",
+                            action: "Replace it") { createOrder() }
         // This phone's own unfinished sale, written as it is typed. The scan screen can add a piece
         // to it while this one waits underneath, so it is read again whenever the screen appears.
         .onAppear { appeared() }
-        .onChange(of: draft) { _, d in
+        // Written a moment after the last key (as New order does), and at once as the app leaves or the screen goes.
+        .task(id: draft) {
             // An edit is never kept on the phone or in Drafts: the invoice on file is the copy.
-            guard edit == nil else { return }
-            SaleDraftStore.save(d)
-            sync(d)
+            guard edit == nil, takenByStarted else { return }
+            do { try await Task.sleep(for: .milliseconds(700)) } catch { return }
+            SaleDraftStore.save(draft)
+            sync(draft)
         }
-        .onDisappear { if made == nil && edit == nil { sync(draft, now: true) } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { keepNow() }
+        }
+        .onDisappear { keepNow() }
         .onChange(of: query) { _, _ in notice = nil }
         // "Create order": the order form opens on this sale's pieces (NewOrderDraftStore.startFromSale).
         .navigationDestination(item: $openOrder) { r in
             ScreenRegistry.view(for: r.path)
         }
         .navigationDestination(isPresented: $readingBill) {
-            SaleScanScreen(draft: $draft, keep: true)
+            SaleScanScreen(draft: $draft, keep: edit == nil)
         }
+    }
+
+    /// The unfinished sale, written now rather than after the pause (the app leaving, the screen going).
+    func keepNow() {
+        guard made == nil, edit == nil, takenByStarted else { return }
+        SaleDraftStore.save(draft)
+        sync(draft, now: true)
     }
 
     /// The counter name Taken by starts on: this account's, when it has one on the house's list.
@@ -384,12 +381,12 @@ struct SaleForm: View {
     }
 
     /// A tag read by the camera or typed: what became of it, in a sentence.
-    func scanned(_ code: String) -> String {
+    func scanned(_ code: String) -> (said: String, added: Bool) {
         let sku = TagCode.sku(from: code)
-        guard let p = SaleLookup.find(sku, in: book.products.items) else { return notInStock(sku) }
-        if draft.lines.contains(where: { $0.sku == p.sku }) { return "\(p.name) is already on this sale." }
+        guard let p = SaleLookup.find(sku, in: book.products.items) else { return (notInStock(sku), false) }
+        if draft.lines.contains(where: { $0.sku == p.sku }) { return ("\(p.name) is already on this sale.", false) }
         draft.lines.append(SaleLine(p))
-        return "Added \(p.name) (\(p.sku))."
+        return ("Added \(p.name) (\(p.sku)).", true)
     }
 
     func startOver() {

@@ -37,7 +37,7 @@ struct StockPieceForm: View {
     @ViewBuilder
     private var content: some View {
         if !session.isOwner {
-            ContentUnavailableView("Only an owner can change the stock", systemImage: "lock", description: Text("Ask an owner to add or edit the piece."))
+            NotAvailableState("Only an owner can change the stock", why: "Ask an owner to add or edit the piece.")
                 .navigationTitle(sku == nil ? "Add piece" : "Edit piece")
                 .navigationBarTitleDisplayMode(.inline)
         } else if let sku {
@@ -63,6 +63,7 @@ struct StockPieceForm: View {
             Text("\(sku) is not in stock, so it cannot be edited. A sold piece stays as it was sold.")
         } actions: {
             NavigationLink(value: Route(path: StockKit.piecePath(sku))) { Text("Open \(sku)") }
+                .buttonStyle(.bordered)
         }
     }
 }
@@ -78,6 +79,7 @@ private struct StockPieceEditor: View {
 
     @Environment(Book.self) private var book
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var f: StockPieceFields
     @State private var saving = false
     /// Names this new piece for the ERP's once-only check: a retry of the same piece reuses it, the next piece
@@ -113,20 +115,15 @@ private struct StockPieceEditor: View {
     var body: some View {
         Group {
             if let saved {
-                savedPage(saved)
+                savedPage(saved).transition(.opacity)
             } else {
-                form
+                form.transition(.opacity)
             }
         }
+        .motion(saved)
         .navigationTitle(saved != nil ? "Saved" : (editing ? "Edit piece" : "Add piece"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if saved == nil {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { Task { await save() } }
-                        .disabled(saving)
-                }
-            }
             if saved != nil {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
@@ -134,7 +131,7 @@ private struct StockPieceEditor: View {
             }
         }
         .failureAlert($failure, title: editing ? "The piece wasn't saved" : "The piece wasn't added")
-        .sensoryFeedback(.success, trigger: tick)
+        .savedFeedback(trigger: tick)
         .interactiveDismissDisabled(saving)
         .navigationBarBackButtonHidden(saving)
         .onAppear { if voiced { StockVoiceSeed.clear() } }
@@ -162,8 +159,11 @@ private struct StockPieceEditor: View {
             ])
         } footer: { EmptyView() }
         .scrollDismissesKeyboard(.interactively)
-        .newOrderKeyboardDone()
+        .keyboardDone()
         .disabled(saving)
+        // The one action stays at the foot of a long form, with what the piece sells for today beside it.
+        .actionBar(primary: ActionBar.Action(editing ? "Save changes" : "Save piece", isBusy: saving) { Task { await save() } },
+                   summary: todaysPrice.map { $0 > 0 ? "At today's rates · \(Money.pkr($0))" : "At today's rates · Price N/A" })
         // What the web form's effect watches: the coin, the diamonds, the stones, the metals, the men's ring.
         .onChange(of: f.ruleKey) { _, _ in f.settle() }
     }
@@ -340,13 +340,6 @@ private struct StockPieceEditor: View {
                     NewOrderNumberRow(title: "Misc (PKR)", text: $f.miscCharges, prompt: "e.g. 250", rupees: true)
                 }
             }
-            if let price = todaysPrice {
-                LabeledContent("At today's rates") {
-                    Text(price > 0 ? Money.pkr(price) : "Price N/A")
-                        .fontWeight(.semibold)
-                        .monospacedDigit()
-                }
-            }
         } header: {
             LedgerHeading(title: "Price")
         } footer: {
@@ -410,8 +403,6 @@ private struct StockPieceEditor: View {
                     .foregroundStyle(.secondary)
             } header: {
                 LedgerHeading(title: "Photo")
-            } footer: {
-                Text("The piece needs its SKU first: the photo is added from here after saving.")
             }
         }
     }
@@ -433,6 +424,7 @@ private struct StockPieceEditor: View {
                 .padding(.vertical, 8)
                 .listRowBackground(Color.clear)
             }
+            .houseRows()
             Section {
                 StockPiecePhotoField(sku: s.sku, name: s.name, imageUrl: book.products.item(s.sku)?.imageUrl)
             } header: {
@@ -442,6 +434,9 @@ private struct StockPieceEditor: View {
             }
             .houseRows()
             Section {
+                NavigationLink(value: Route(path: StockKit.piecePath(s.sku))) {
+                    Label("Open \(s.sku)", systemImage: "arrow.up.right.square")
+                }
                 Button { startAnother() } label: {
                     Label("Add another piece", systemImage: "plus.square.on.square")
                 }
@@ -451,15 +446,6 @@ private struct StockPieceEditor: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
-        .safeAreaBar(edge: .bottom) {
-            NavigationLink(value: Route(path: StockKit.piecePath(s.sku))) {
-                Text("Open \(s.sku)").frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.houseProminent)
-            .controlSize(.large)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
-        }
     }
 
     /// The web's "Save & Add Another": a fresh form in the same category.
@@ -503,7 +489,7 @@ private struct StockPieceEditor: View {
                 onCreated(made)
             }
             tick += 1
-            saved = Saved(sku: newSku, name: made?.name ?? newSku)
+            Motion.run(reduce: reduceMotion) { saved = Saved(sku: newSku, name: made?.name ?? newSku) }
         } catch {
             failure = error.localizedDescription
         }

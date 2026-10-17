@@ -21,7 +21,7 @@ struct StockBulkAdd: View {
         if session.isOwner {
             StockBulkEditor()
         } else {
-            ContentUnavailableView("Only an owner can change the stock", systemImage: "lock", description: Text("Ask an owner to add the pieces."))
+            NotAvailableState("Only an owner can change the stock", why: "Ask an owner to add the pieces.")
                 .navigationTitle("Add in bulk")
                 .navigationBarTitleDisplayMode(.inline)
         }
@@ -94,6 +94,7 @@ enum StockBulk {
 
 private struct StockBulkEditor: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shared: StockPieceFields = StockBulk.freshSetup()
     @State private var prefix = ""
     @State private var rows: [StockBulkRow] = [StockBulkRow()]
@@ -111,11 +112,12 @@ private struct StockBulkEditor: View {
     var body: some View {
         Group {
             if let done {
-                donePage(done)
+                donePage(done).transition(.opacity)
             } else {
-                form
+                form.transition(.opacity)
             }
         }
+        .motion(done)
         .navigationTitle(done != nil ? "Added" : "Add in bulk")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -126,7 +128,7 @@ private struct StockBulkEditor: View {
             }
         }
         .failureAlert($failure, title: failureTitle)
-        .sensoryFeedback(.success, trigger: tick)
+        .savedFeedback(trigger: tick)
         .interactiveDismissDisabled(saving)
         .navigationBarBackButtonHidden(saving)
     }
@@ -145,12 +147,14 @@ private struct StockBulkEditor: View {
             .houseRows()
         }
         .scrollDismissesKeyboard(.interactively)
-        .newOrderKeyboardDone()
+        .keyboardDone()
         .disabled(saving)
         // The product form's rules, line for line (a coin carries nothing, silver no wastage), but the wastage
         // stays what was typed: the page this follows never put it back to 10%.
         .onChange(of: shared.ruleKey) { _, _ in shared.settle(keepWastage: true) }
-        .safeAreaBar(edge: .bottom) { saveBar }
+        .actionBar(primary: ActionBar.Action("Add \(rows.count) piece\(rows.count == 1 ? "" : "s")", isBusy: saving, isDisabled: rows.isEmpty) {
+            Task { await save() }
+        })
     }
 
     // MARK: Shared by every piece
@@ -265,8 +269,6 @@ private struct StockBulkEditor: View {
             }
         } header: {
             LedgerHeading(title: "Weights to add · \(rows.count)")
-        } footer: {
-            Text("Swipe a row to take it out.")
         }
     }
 
@@ -276,10 +278,18 @@ private struct StockBulkEditor: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 22)
-            TextField("Weight", text: field(row.id, \.weight), prompt: Text("Weight (g)"))
-                .keyboardType(.decimalPad)
-                .monospacedDigit()
-            TextField("Name suffix", text: field(row.id, \.suffix), prompt: Text("Name suffix"))
+            AdaptiveStack(spacing: 10, alignment: .firstTextBaseline) {
+                TextField("Weight", text: field(row.id, \.weight), prompt: Text("Weight (g)"))
+                    .keyboardType(.decimalPad)
+                    .monospacedDigit()
+                TextField("Name suffix", text: field(row.id, \.suffix), prompt: Text("Name suffix"))
+            }
+            // The swipe works too; this one is there to be seen.
+            Button(role: .destructive) { remove(row.id) } label: {
+                Label("Remove piece \(index + 1)", systemImage: "minus.circle.fill").labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .frame(minWidth: 44, minHeight: 44)
         }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) { remove(row.id) } label: { Label("Remove", systemImage: "trash") }
@@ -297,7 +307,7 @@ private struct StockBulkEditor: View {
     }
 
     private func remove(_ id: UUID) {
-        rows.removeAll { $0.id == id }
+        Motion.run(reduce: reduceMotion) { rows.removeAll { $0.id == id } }
     }
 
     private func addPasted() {
@@ -313,12 +323,9 @@ private struct StockBulkEditor: View {
         Section {
             Button("Reset form", role: .destructive) { confirmReset = true }
                 .disabled(saving)
-                .confirmationDialog("Reset the form?", isPresented: $confirmReset, titleVisibility: .visible) {
-                    Button("Reset", role: .destructive) { reset() }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("Every row and the setup above are cleared.")
-                }
+                .confirmDestructive(isPresented: $confirmReset, title: "Reset the form?",
+                                    message: "Every row and the setup above are cleared.",
+                                    action: "Reset") { reset() }
         }
     }
 
@@ -348,26 +355,6 @@ private struct StockBulkEditor: View {
             if let problem = piece(for: row).problem { return "Piece \(index + 1): \(problem)" }
         }
         return nil
-    }
-
-    private var saveBar: some View {
-        Button {
-            Task { await save() }
-        } label: {
-            Group {
-                if saving {
-                    SkeletonLoading()
-                } else {
-                    Text("Add \(rows.count) piece\(rows.count == 1 ? "" : "s")")
-                }
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.houseProminent)
-        .controlSize(.large)
-        .disabled(saving || rows.isEmpty)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
     }
 
     private func save() async {
@@ -417,7 +404,7 @@ private struct StockBulkEditor: View {
         }
         tick += 1
         batch = UUID().uuidString
-        done = added
+        Motion.run(reduce: reduceMotion) { done = added }
     }
 
     // MARK: Done
@@ -450,6 +437,9 @@ private struct StockBulkEditor: View {
             }
             .houseRows()
             Section {
+                NavigationLink(value: Route(path: "/products")) {
+                    Label("Open Stock", systemImage: "shippingbox")
+                }
                 Button { startAgain() } label: {
                     Label("Add more pieces", systemImage: "plus.square.on.square")
                 }
@@ -459,15 +449,6 @@ private struct StockBulkEditor: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
-        .safeAreaBar(edge: .bottom) {
-            NavigationLink(value: Route(path: "/products")) {
-                Text("Open Stock").frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.houseProminent)
-            .controlSize(.large)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
-        }
     }
 
     private func startAgain() {

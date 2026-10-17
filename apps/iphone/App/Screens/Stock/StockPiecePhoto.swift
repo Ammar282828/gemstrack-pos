@@ -44,23 +44,24 @@ struct StockPiecePhotoField: View {
                     Text(words(busy)).font(.footnote).foregroundStyle(.secondary)
                 }
             }
-            HStack(spacing: 10) {
+            AdaptiveStack(spacing: 10, alignment: .center) {
                 Button { library = true } label: {
                     Label(shown == nil ? "Add from Photos" : "Photos", systemImage: "photo.on.rectangle")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
                     Button { camera = true } label: {
                         Label("Camera", systemImage: "camera")
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
                 }
                 if shown != nil {
                     Button(role: .destructive) { confirmRemove = true } label: {
                         Label("Remove photo", systemImage: "trash")
                     }
                     .labelStyle(.iconOnly)
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Remove photo")
                 }
             }
             .disabled(busy != nil)
@@ -81,11 +82,9 @@ struct StockPiecePhotoField: View {
             }
             .ignoresSafeArea()
         }
-        .confirmationDialog("Remove the photo of \(name)?", isPresented: $confirmRemove, titleVisibility: .visible) {
-            Button("Remove photo", role: .destructive) { Task { await remove() } }
-        } message: {
-            Text("The piece keeps everything else. A new photo can be added at any time.")
-        }
+        .confirmDestructive(isPresented: $confirmRemove, title: "Remove the photo of \(name)?",
+                            message: "The piece keeps everything else. A new photo can be added at any time.",
+                            action: "Remove photo") { Task { await remove() } }
         .failureAlert($failure, title: "The photo wasn't saved")
         .sensoryFeedback(.success, trigger: tick)
     }

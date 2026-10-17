@@ -36,8 +36,8 @@ struct StockPieceTagSheet: View {
             .navigationTitle("Print tag")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(role: .close) { dismiss() }
                 }
             }
             .noteToast($note)
@@ -63,6 +63,7 @@ struct StockPieceTagSheet: View {
                 } else {
                     StockInitial(name: product.name)
                 }
+                if !product.name.isEmpty { Text(product.name).font(.headline) }
                 Text(product.sku).font(.subheadline.monospaced()).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
@@ -73,7 +74,7 @@ struct StockPieceTagSheet: View {
                 }
             }
         } header: {
-            LedgerHeading(title: product.name.isEmpty ? product.sku : product.name)
+            LedgerHeading(title: "QR code")
         } footer: {
             Text("The QR holds the SKU, as the tag's does: Scan finds the piece by it.")
         }
@@ -96,13 +97,13 @@ struct StockPieceTagSheet: View {
             Button { Task { await makeCsv() } } label: {
                 HStack(spacing: 8) {
                     if making { ProgressView().controlSize(.small) }
-                    Label("Export CSV for this Item", systemImage: "arrow.down.doc")
+                    Label("Export CSV for this piece", systemImage: "arrow.down.doc")
                 }
             }
             .disabled(making)
             if let csv {
                 ShareLink(item: csv) {
-                    Label("Save or send \(csv.lastPathComponent)", systemImage: "square.and.arrow.up")
+                    Label("Save or send the CSV", systemImage: "square.and.arrow.up")
                 }
             }
         } footer: {
@@ -119,9 +120,9 @@ struct StockPieceTagSheet: View {
             // The page's file name: gemstrack_double_tag_export_<UTC time>.csv (lib/label-csv.ts labelCsvFileName).
             let stamp = String(ERPDate.iso(Date()).prefix(19)).replacingOccurrences(of: ":", with: "-").replacingOccurrences(of: "T", with: "-")
             csv = try SettingsFiles.save(data, named: "gemstrack_double_tag_export_\(stamp).csv")
-            Note.show(Note(title: "CSV Exported", detail: "CSV file for \(product.name.isEmpty ? product.sku : product.name) is ready."), in: $note, reduce: reduceMotion)
+            Note.show(Note(title: "CSV ready", detail: "CSV file for \(product.name.isEmpty ? product.sku : product.name) is ready."), in: $note, reduce: reduceMotion)
         } catch {
-            Note.show(Note(title: "CSV not made", detail: error.localizedDescription, failed: true), in: $note, reduce: reduceMotion)
+            Note.show(Note(title: "The CSV wasn't made", detail: error.localizedDescription, failed: true), in: $note, reduce: reduceMotion)
         }
         making = false
     }

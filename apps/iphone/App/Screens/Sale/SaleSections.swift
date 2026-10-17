@@ -72,6 +72,9 @@ extension SaleForm {
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) { remove(line.sku) } label: { Label("Remove", systemImage: "trash") }
             }
+            .contextMenu {
+                Button(role: .destructive) { remove(line.sku) } label: { Label("Remove", systemImage: "trash") }
+            }
     }
 
     func resultRow(_ p: Product, _ f: SaleFigures) -> some View {
@@ -105,12 +108,6 @@ extension SaleForm {
                 Button("For this bill only", systemImage: "plus.circle") { startNewItem() }
                 Button("Create in stock and add", systemImage: "shippingbox") { addingStock = true }
             } label: { Label("New item", systemImage: "plus.circle") }
-            // The AI bill reader (SaleScanScreen): the ERP's own reader, its lines put on this sale.
-            NavigationLink {
-                SaleScanScreen(draft: $draft, keep: edit == nil)
-            } label: {
-                Label("Read a written bill", systemImage: "camera.viewfinder")
-            }
         } header: {
             LedgerHeading(title: "Pieces")
         }
@@ -257,6 +254,9 @@ extension SaleForm {
                     .font(.caption)
                     .buttonStyle(.borderless)
             }
+            Button(role: .destructive) { draft.removeExchange(row.id) } label: { Label("Remove", systemImage: "trash") }
+                .font(.caption)
+                .buttonStyle(.borderless)
         }
     }
 
@@ -274,7 +274,7 @@ extension SaleForm {
                 Label("Add another exchange", systemImage: "plus")
             }
             if draft.exchanges.count > 1 && total > 0 {
-                LabeledContent("Exchange total") { Text(Money.pkr(total)).monospacedDigit() }
+                MoneyRow("Exchange total", total)
             }
         } header: {
             LedgerHeading(title: "Exchange / trade-in")
@@ -300,7 +300,7 @@ extension SaleForm {
                     .keyboardType(.numberPad)
                     .monospacedDigit()
                 Button(single ? "Paid in full" : "The rest") { draft.payRest(row.wrappedValue.id, total: f.total) }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
                     .controlSize(.small)
                     .disabled(!f.hasEstimate)
             }
@@ -313,6 +313,9 @@ extension SaleForm {
                     .multilineTextAlignment(.trailing)
                     .disabled(row.wrappedValue.method == "Cash")
             }
+            Button(role: .destructive) { draft.removePayment(row.wrappedValue.id) } label: { Label("Remove", systemImage: "trash") }
+                .font(.caption)
+                .buttonStyle(.borderless)
         }
     }
 
@@ -342,21 +345,15 @@ extension SaleForm {
     func balanceRow(_ f: SaleFigures) -> some View {
         let line = balanceLine(f.balance)
         if f.overpaid {
-            LabeledContent("More than the total by") {
-                Text(Money.pkr(abs(f.balance))).foregroundStyle(Tone.problem.color).monospacedDigit()
-            }
+            MoneyRow("More than the total by", abs(f.balance), tone: .problem)
         } else if line.state == .credit {
-            LabeledContent(line.label) {
-                Text(Money.pkr(line.amount)).foregroundStyle(Tone.credit.color).monospacedDigit()
-            }
+            MoneyRow(line.label, line.amount, tone: .credit)
         } else if line.state == .paid {
             LabeledContent(line.label) {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(Tone.settled.color)
             }
         } else {
-            LabeledContent(line.label) {
-                Text(Money.pkr(line.amount)).foregroundStyle(Tone.owed.color).monospacedDigit()
-            }
+            MoneyRow(line.label, line.amount, tone: .owed)
         }
     }
 
@@ -435,6 +432,7 @@ extension SaleForm {
                     .foregroundStyle(tone)
                     .multilineTextAlignment(.trailing)
                     .blur(radius: marginShown ? 0 : 6)
+                    .privacySensitive()
             }
             .contentShape(.rect)
         }
@@ -577,17 +575,12 @@ extension SaleForm {
 
     // MARK: 8. Totals
 
-    private func totalRow(_ label: String, _ value: Double, _ f: SaleFigures, signed: String = "", strong: Bool = false) -> some View {
-        let font: Font = strong ? Font.title3.weight(.semibold) : Font.body
-        return LabeledContent(label) {
-            if f.hasEstimate {
-                Text(signed + Money.pkr(value))
-                    .font(font)
-                    .monospacedDigit()
-                    .contentTransition(.numericText(value: value))
-            } else {
-                Text("…").foregroundStyle(.secondary)
-            }
+    @ViewBuilder
+    private func totalRow(_ label: String, _ value: Double, _ f: SaleFigures, signed: Bool = false, strong: Bool = false) -> some View {
+        if f.hasEstimate {
+            MoneyRow(label, signed ? -value : value, emphasis: strong, signed: signed)
+        } else {
+            LabeledContent(label) { Text("Pending rates").foregroundStyle(.secondary) }
         }
     }
 
@@ -595,8 +588,8 @@ extension SaleForm {
     func totalsSection(_ f: SaleFigures) -> some View {
         Section {
             totalRow("Subtotal", f.subtotal, f)
-            if f.discount != 0 { totalRow("Discount", f.discount, f, signed: "− ") }
-            if f.exchange != 0 { totalRow("Exchange", f.exchange, f, signed: "− ") }
+            if f.discount != 0 { totalRow("Discount", f.discount, f, signed: true) }
+            if f.exchange != 0 { totalRow("Exchange", f.exchange, f, signed: true) }
             totalRow("Total", f.total, f, strong: true)
             if f.hasEstimate {
                 if f.paidNow > 0 { totalRow("Paid now", f.paidNow, f) }
@@ -639,7 +632,8 @@ extension SaleForm {
         do {
             try await ERPAPI.shared.write("setRates", ["rates": rates])
         } catch {
-            ratesNote = "The sale is saved. The rate you typed was not kept for next time (\(error.localizedDescription)): set it from the rate chip."
+            Note.show(Note(title: "The sale is saved", detail: "The rate you typed was not kept for next time: set it from the rate chip.", failed: true),
+                      in: $ratesNote, reduce: reduceMotion)
         }
     }
 
@@ -649,41 +643,33 @@ extension SaleForm {
     /// Save is off (sale-page.tsx `invoiceBlockedReason`: a disabled button with no explanation reads as broken).
     func saveBar(_ f: SaleFigures) -> some View {
         VStack(spacing: 8) {
-            if let failure {
-                VStack(spacing: 8) {
-                    Text(failure).font(.footnote).foregroundStyle(Tone.problem.color).multilineTextAlignment(.center)
-                    if alreadySold {
-                        // A new item is refused only once it is on an invoice: this sale was saved before
-                        // (a save sent again after the answer was lost), so there is nothing to take off.
-                        Text("This sale was already saved. Look for it in Invoices before saving it again.")
-                            .font(.footnote.weight(.semibold))
-                            .multilineTextAlignment(.center)
-                        NavigationLink(value: Route(path: "/invoices")) {
-                            Text("Open Invoices")
-                        }
-                        .buttonStyle(.glass)
-                    }
-                    if !goneSkus.isEmpty {
-                        Button("Take them off the sale") {
-                            draft.lines.removeAll { goneSkus.contains($0.sku) }
-                            goneSkus = []
-                            alreadySold = false
-                            self.failure = nil
-                        }
-                        .buttonStyle(.glass)
-                    }
+            // What the refusal asks to be done about it. The refusal's own words come as an alert (failureAlert),
+            // on whatever step the person is on.
+            if alreadySold {
+                // A new item is refused only once it is on an invoice: this sale was saved before
+                // (a save sent again after the answer was lost), so there is nothing to take off.
+                Text("This sale was already saved. Look for it in Invoices before saving it again.")
+                    .font(.footnote.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                NavigationLink(value: Route(path: "/invoices")) {
+                    Text("Open Invoices")
                 }
-                .padding(10)
-                .frame(maxWidth: .infinity)
-                .background(.regularMaterial, in: .rect(cornerRadius: 14))
-            } else if let reason = f.blockedReason {
+                .buttonStyle(.bordered)
+            }
+            if !goneSkus.isEmpty {
+                Button("Take them off the sale") {
+                    draft.lines.removeAll { goneSkus.contains($0.sku) }
+                    goneSkus = []
+                    alreadySold = false
+                }
+                .buttonStyle(.bordered)
+            }
+            if !alreadySold && goneSkus.isEmpty, let reason = f.blockedReason {
                 Text(reason)
                     .font(.footnote)
                     .foregroundStyle(f.hasPieces ? Tone.problem.color : Tone.quiet.color)
                     .multilineTextAlignment(.center)
-                    .padding(10)
                     .frame(maxWidth: .infinity)
-                    .background(.regularMaterial, in: .rect(cornerRadius: 14))
             }
             Button { Task { await save(f) } } label: {
                 HStack(spacing: 8) {
@@ -699,6 +685,7 @@ extension SaleForm {
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
+        .motion(alreadySold || !goneSkus.isEmpty)
     }
 
     /// The new invoice reaches the phone's shelf a moment after the server writes it; wait for it

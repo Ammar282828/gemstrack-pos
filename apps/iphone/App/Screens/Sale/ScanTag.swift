@@ -21,20 +21,30 @@ struct ScanTag: View {
     /// The SKU just put on the sale, so its card says so instead of offering it again.
     @State private var addedSku: String?
     @State private var onSale = 0
-    @State private var tick = 0
+    /// Bumped on a tag found or a piece put on the sale (success) and on one that is not in stock (warning).
+    @State private var hits = 0
+    @State private var misses = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The new sale, opened from the bar's Open the sale.
+    @State private var openSale: Route?
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 TagScanner(active: found == nil) { code in handle(code) }
-                if let found { result(found) }
+                if let found { result(found).transition(.opacity) }
                 if found == nil && onSale > 0 && session.isOwner { saleCard }
             }
             .padding(16)
         }
+        .safeAreaBar(edge: .bottom, spacing: 0) {
+            if let primary = barAction { ActionBar(primary: primary) }
+        }
         .navigationTitle("Scan a tag")
         .navigationBarTitleDisplayMode(.inline)
-        .sensoryFeedback(.success, trigger: tick)
+        .navigationDestination(item: $openSale) { r in ScreenRegistry.view(for: r.path) }
+        .sensoryFeedback(.success, trigger: hits)
+        .sensoryFeedback(.warning, trigger: misses)
         .onAppear { onSale = SaleDraftStore.load()?.lines.count ?? 0 }
         .task {
             book.products.need()
@@ -49,35 +59,48 @@ struct ScanTag: View {
         let sku = TagCode.sku(from: code)
         guard !sku.isEmpty else { return }
         addedSku = nil
+        let next: Found
         if let p = SaleLookup.find(sku, in: book.products.items) {
-            found = .piece(p.sku)
+            next = .piece(p.sku)
+            hits += 1
         } else if let inv = SaleLookup.soldOn(sku, invoices: book.invoices.items) {
-            found = .sold(code: sku, invoice: inv.id)
+            next = .sold(code: sku, invoice: inv.id)
+            misses += 1
         } else {
-            found = .unknown(sku)
+            next = .unknown(sku)
+            misses += 1
         }
-        tick += 1
+        Motion.run(reduce: reduceMotion) { found = next }
+    }
+
+    /// The one primary action of the screen, pinned at the foot: put the piece found on a new sale, or open that sale.
+    private var barAction: ActionBar.Action? {
+        guard session.isOwner, case .piece(let sku)? = found, let p = book.products.item(sku) else { return nil }
+        if addedSku == p.sku {
+            return ActionBar.Action("Open the sale") { openSale = SaleLinks.newSale }
+        }
+        return ActionBar.Action("Add to a new sale", systemImage: "cart.badge.plus") { addToSale(p) }
     }
 
     private func scanAnother() {
-        found = nil
-        addedSku = nil
+        Motion.run(reduce: reduceMotion) {
+            found = nil
+            addedSku = nil
+        }
     }
 
     private func addToSale(_ p: Product) {
         SaleDraftStore.add(p)
         addedSku = p.sku
         onSale = SaleDraftStore.load()?.lines.count ?? 0
-        tick += 1
+        hits += 1
     }
 
     // MARK: What it found
 
     private func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12, content: content)
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.background.secondary, in: .rect(cornerRadius: 18))
+            .ledgerCard()
     }
 
     @ViewBuilder
@@ -104,14 +127,10 @@ struct ScanTag: View {
         let added = addedSku == p.sku
         return card {
             HStack(alignment: .top, spacing: 12) {
-                if let url = p.imageUrl.flatMap({ URL(string: $0) }) {
-                    AsyncImage(url: url) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Rectangle().fill(.quaternary)
-                    }
-                    .frame(width: 72, height: 72)
-                    .clipShape(.rect(cornerRadius: 12))
+                if !(p.imageUrl ?? "").isEmpty {
+                    StockImage(imageUrl: p.imageUrl, name: p.name, key: p.sku)
+                        .frame(width: 72, height: 72)
+                        .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
                 }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(p.name).font(.headline)
@@ -129,28 +148,15 @@ struct ScanTag: View {
 
     @ViewBuilder
     private func pieceActions(_ p: Product, added: Bool) -> some View {
-        if session.isOwner {
-            if added {
-                Label("On the new sale · \(onSale) piece\(onSale == 1 ? "" : "s")", systemImage: "checkmark.circle.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.green)
-                NavigationLink(value: SaleLinks.newSale) {
-                    Text("Open the sale").frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.houseProminent)
-                .controlSize(.large)
-            } else {
-                Button { addToSale(p) } label: {
-                    Label("Add to a new sale", systemImage: "cart.badge.plus").frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.houseProminent)
-                .controlSize(.large)
-            }
+        if session.isOwner && added {
+            Label("On the new sale · \(onSale) piece\(onSale == 1 ? "" : "s")", systemImage: "checkmark.circle.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Tone.settled.color)
         }
         NavigationLink(value: SaleLinks.piece(p.sku)) {
             Label("Open the piece", systemImage: "arrow.up.right.square").frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.bordered)
         .controlSize(.large)
         Button("Scan another") { scanAnother() }
             .buttonStyle(.borderless)
@@ -171,7 +177,7 @@ struct ScanTag: View {
             NavigationLink(value: SaleLinks.invoice(invoiceId)) {
                 Text("Open \(invoiceId)").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.bordered)
             .controlSize(.large)
             Button("Scan another") { scanAnother() }
                 .buttonStyle(.borderless)
@@ -185,7 +191,7 @@ struct ScanTag: View {
             Text("It may be a one-off piece that was billed without being stocked, or it is not entered yet.")
                 .foregroundStyle(.secondary)
             Button("Scan another") { scanAnother() }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
                 .controlSize(.large)
                 .frame(maxWidth: .infinity)
         }
@@ -198,7 +204,7 @@ struct ScanTag: View {
             NavigationLink(value: SaleLinks.newSale) {
                 Text("Open the sale").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.bordered)
             .controlSize(.large)
         }
     }

@@ -18,6 +18,7 @@ struct SaleScanScreen: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var photo: PaperPhoto?
     @State private var reading: SaleBillReading?
@@ -29,12 +30,13 @@ struct SaleScanScreen: View {
             if session.isOwner {
                 form
             } else {
-                ContentUnavailableView("Reading a bill is for the owners", systemImage: "lock",
-                                       description: Text("The ERP reads paper with the shop's AI account, which only an owner's sign-in may use."))
+                NotAvailableState("Reading a bill is for the owners",
+                                  why: "The ERP reads paper with the shop's AI account, which only an owner's sign-in may use.")
             }
         }
         .navigationTitle("Read a written bill")
         .navigationBarTitleDisplayMode(.inline)
+        .selectionFeedback(trigger: reading?.skipped.count ?? 0)
         .task {
             book.customers.need()
             book.settings.need()
@@ -56,7 +58,11 @@ struct SaleScanScreen: View {
             }
             if let problem {
                 Section {
-                    Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                    Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                    if photo != nil {
+                        Button("Try again") { Task { await read() } }
+                            .buttonStyle(.borderless)
+                    }
                 } header: {
                     LedgerHeading(title: "Could not read that")
                 }
@@ -65,7 +71,7 @@ struct SaleScanScreen: View {
             }
             .houseRows()
         }
-        .safeAreaBar(edge: .bottom) { fillBar }
+        .actionBar(primary: fillAction)
     }
 
     private var photoSection: some View {
@@ -95,7 +101,7 @@ struct SaleScanScreen: View {
         let a = r.answer
         if let unread = a.unreadable, !unread.isEmpty {
             Section {
-                Label(unread, systemImage: "questionmark.circle").foregroundStyle(.orange)
+                Label(unread, systemImage: "questionmark.circle").foregroundStyle(Tone.owed.color)
             } header: {
                 LedgerHeading(title: "Could not make this out")
             }
@@ -153,6 +159,7 @@ struct SaleScanScreen: View {
         return HStack(alignment: .firstTextBaseline, spacing: 10) {
             Image(systemName: on ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(on ? Theme.accent : Color.secondary)
+                .contentTransition(.symbolEffect(.replace))
             VStack(alignment: .leading, spacing: 4) {
                 TwoLine(title: (l.description ?? "").isEmpty ? "Unnamed line" : l.description!,
                         subtitle: bits.joined(separator: " · "),
@@ -183,7 +190,7 @@ struct SaleScanScreen: View {
             }
             if let check = filledCheck(r, written: written) {
                 Label(check.text, systemImage: check.matches ? "checkmark.circle" : "exclamationmark.triangle.fill")
-                    .foregroundStyle(check.matches ? Color.secondary : Color.orange)
+                    .foregroundStyle(check.matches ? Color.secondary : Tone.owed.color)
             }
         } header: {
             LedgerHeading(title: "Foot of the bill")
@@ -217,24 +224,20 @@ struct SaleScanScreen: View {
     }
 
     /// THE action: the kept lines onto the sale, then back to it.
-    private var fillBar: some View {
+    private var fillAction: ActionBar.Action {
         let n = reading?.kept.count ?? 0
-        return Button { fill() } label: {
-            Label(n > 0 ? "Add \(n == 1 ? "1 line" : "\(n) lines") to the sale" : "Add to the sale", systemImage: "checkmark")
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.houseProminent)
-        .controlSize(.large)
-        .disabled(reading == nil || busy || n == 0)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        return ActionBar.Action(n > 0 ? "Add \(n == 1 ? "1 line" : "\(n) lines") to the sale" : "Add to the sale",
+                                systemImage: "checkmark",
+                                isDisabled: reading == nil || busy || n == 0) { fill() }
     }
 
     // MARK: Reading
 
     private func toggle(_ i: Int) {
         guard reading != nil else { return }
-        if reading!.skipped.contains(i) { reading!.skipped.remove(i) } else { reading!.skipped.insert(i) }
+        Motion.run(reduce: reduceMotion) {
+            if reading!.skipped.contains(i) { reading!.skipped.remove(i) } else { reading!.skipped.insert(i) }
+        }
     }
 
     private func take(_ p: PaperPhoto) {

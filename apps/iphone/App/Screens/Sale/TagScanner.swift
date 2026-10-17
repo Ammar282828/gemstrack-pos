@@ -26,7 +26,7 @@ struct TagScanner: View {
             if cameraAvailable {
                 TagScannerCamera(active: active, onCode: onCode)
                     .frame(height: height)
-                    .clipShape(.rect(cornerRadius: 22))
+                    .clipShape(.rect(cornerRadius: Radius.card, style: .continuous))
                     .overlay(alignment: .bottom) {
                         Text("Hold the tag's code in view, or tap a SKU printed on it")
                             .font(.footnote.weight(.medium))
@@ -52,13 +52,13 @@ struct TagScanner: View {
                 Button("Open Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
             }
         }
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
-        .background(.background.secondary, in: .rect(cornerRadius: 22))
+        .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
     }
 
     private var typeRow: some View {
@@ -69,9 +69,9 @@ struct TagScanner: View {
                 .submitLabel(.search)
                 .onSubmit { find() }
                 .padding(.horizontal, 14).padding(.vertical, 11)
-                .background(.background.secondary, in: .rect(cornerRadius: 14))
+                .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
             Button("Find") { find() }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
                 .controlSize(.large)
                 .disabled(typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
