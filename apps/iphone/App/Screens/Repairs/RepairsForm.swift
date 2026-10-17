@@ -319,15 +319,24 @@ struct RepairsForm: View {
 
     // MARK: Advance
 
+    @ViewBuilder
+    private var methodPicker: some View {
+        let picker = Picker("How it was paid", selection: $method) {
+            ForEach(PaymentMethods.all, id: \.self) { Text($0) }
+        }
+        if typeSize.isAccessibilitySize {
+            picker.pickerStyle(.menu)
+        } else {
+            picker.pickerStyle(.segmented)
+        }
+    }
+
     private var advanceSection: some View {
         Section {
             TextField("Amount in rupees", text: $advance.wholeRupees)
                 .keyboardType(.numberPad)
             if advanceAmount > 0 {
-                Picker("How it was paid", selection: $method) {
-                    ForEach(PaymentMethods.all, id: \.self) { Text($0) }
-                }
-                .pickerStyle(typeSize.isAccessibilitySize ? .menu : .segmented)
+                methodPicker
             }
         } header: {
             LedgerHeading(title: "Advance")

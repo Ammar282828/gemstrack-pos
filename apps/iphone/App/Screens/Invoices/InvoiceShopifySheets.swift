@@ -169,7 +169,6 @@ struct InvoiceCSVImportSheet: View {
                     ) { Task { await runImport() } })
                 }
             }
-            .savedFeedback(trigger: done)
             .fileImporter(isPresented: $picking, allowedContentTypes: [.commaSeparatedText, .plainText]) { result in
                 if case let .success(url) = result { Task { await read(url) } }
                 if case let .failure(error) = result { failure = error.localizedDescription }

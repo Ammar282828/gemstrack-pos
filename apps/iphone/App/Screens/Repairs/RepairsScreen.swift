@@ -112,9 +112,14 @@ struct RepairsScreen: View {
         if searching {
             ContentUnavailableView.search(text: query)
         } else {
-            EmptyState("No repairs yet", symbol: "wrench.and.screwdriver",
-                       message: session.isOwner ? "When a customer leaves pieces to be mended, they are written up here." : "Repairs the shop takes in will show here.",
-                       action: session.isOwner ? (title: "New repair", run: { creating = true }) : nil)
+            if session.isOwner {
+                EmptyState("No repairs yet", symbol: "wrench.and.screwdriver",
+                           message: "When a customer leaves pieces to be mended, they are written up here.",
+                           action: (title: "New repair", run: { creating = true }))
+            } else {
+                EmptyState("No repairs yet", symbol: "wrench.and.screwdriver",
+                           message: "Repairs the shop takes in will show here.")
+            }
         }
     }
 

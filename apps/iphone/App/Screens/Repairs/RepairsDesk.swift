@@ -143,7 +143,7 @@ private struct RepairsDeskModifier: ViewModifier {
             .sheet(item: takingBinding) { r in paymentSheet(r) }
             .failureAlert(failureBinding, title: "Not changed")
             .noteToast(noteBinding)
-            .moneyFeedback(success: desk.paymentsTaken, failure: desk.refusals)
+            .moneyFeedback(success: desk.paymentsTaken, failure: false)
     }
 
     // MARK: The questions

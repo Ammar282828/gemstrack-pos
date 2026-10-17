@@ -465,6 +465,7 @@ private struct InvoiceWhatsAppSend: ViewModifier {
     }
 
     /// invoice-viewer.tsx `handleSendWhatsApp`: sent, said as its toast says it; refused, the ERP's words.
+    @MainActor
     private func sendPDF(_ inv: Invoice) async {
         guard !sendingPDF else { return }
         Motion.run(reduce: reduceMotion) { sendingPDF = true }
