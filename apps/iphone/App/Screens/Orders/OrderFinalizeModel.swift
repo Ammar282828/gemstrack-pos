@@ -27,12 +27,12 @@ struct OrderFinalizeRow: Identifiable, Equatable {
         self.item = item
         manual = item.isManualPrice
         let onOrder = (item.manualPrice ?? 0) > 0 ? (item.manualPrice ?? 0) : (item.totalEstimate ?? 0)
-        price = NewOrderFormat.boxText(onOrder)
+        price = NewOrderFormat.rupeeBox(onOrder)
         weight = NewOrderFormat.boxText(item.estimatedWeightG, digits: 3)
         wastage = NewOrderFormat.boxText(item.wastagePercentage, digits: 4)
-        making = NewOrderFormat.boxText(item.makingCharges)
-        stones = NewOrderFormat.boxText(item.stoneCharges)
-        diamonds = NewOrderFormat.boxText(item.diamondCharges)
+        making = NewOrderFormat.rupeeBox(item.makingCharges)
+        stones = NewOrderFormat.rupeeBox(item.stoneCharges)
+        diamonds = NewOrderFormat.rupeeBox(item.diamondCharges)
     }
 
     private func n(_ s: String) -> Double { NewOrderFormat.num(s) }
@@ -58,7 +58,7 @@ struct OrderFinalizeRow: Identifiable, Equatable {
             "description": item.description, "metalType": item.metalType.rawValue,
             "finalWeightG": n(weight), "finalWastagePercentage": n(wastage), "finalMakingCharges": n(making),
             "finalDiamondCharges": n(diamonds), "finalStoneCharges": n(stones),
-            "isManualPrice": manual, "finalManualPrice": n(price),
+            "isManualPrice": manual, "finalManualPrice": rupees(n(price)),
         ]
         if let k = item.karat?.rawValue, !k.isEmpty { o["karat"] = k }
         return o
@@ -83,9 +83,10 @@ enum OrderFinalizeMath {
         var f = Figures()
         f.prices = rows.map { r in finalizedItemCosts(r.item, r.finalized, rates).price }
         f.subtotal = f.prices.reduce(0, +)
-        f.discount = NewOrderFormat.num(discount)
+        // Whole rupees, as lib/writes/finalize-order.ts rounds the discount and each advance carried over.
+        f.discount = rupees(NewOrderFormat.num(discount))
         f.exchange = exchangeTotal(orderExchanges(order))
-        f.advances = orderAdvancePayments(order).reduce(0.0) { $0 + $1.amount }
+        f.advances = orderAdvancePayments(order).reduce(0.0) { $0 + rupees($1.amount) }
         f.balance = f.subtotal - f.discount - f.exchange - f.advances
         return f
     }
@@ -105,7 +106,7 @@ enum OrderFinalizeMath {
         var out: [String: Any] = [
             "orderId": orderId,
             "items": rows.map { $0.payload },
-            "additionalDiscount": NewOrderFormat.num(discount),
+            "additionalDiscount": rupees(NewOrderFormat.num(discount)),
         ]
         let tola = NewOrderFormat.num(costTola)
         if tola > 0 { out["costRate24k"] = tola / NewOrderWords.gramsPerTola }

@@ -169,6 +169,12 @@ extension SaleForm {
     func discountSection(_ f: SaleFigures) -> some View {
         Section {
             SaleNumberField(label: "Amount (PKR)", text: $draft.discount, rupees: true)
+            // sale-page.tsx: offered once the bill can be worked out; the bill before any discount is the pieces less the exchange.
+            if f.hasEstimate {
+                RoundOffChips(payable: f.subtotal - f.exchange, discount: f.discount) { n in
+                    draft.discount = n > 0 ? String(Int(n)) : ""
+                }
+            }
         } header: {
             LedgerHeading(title: "Discount")
         } footer: {

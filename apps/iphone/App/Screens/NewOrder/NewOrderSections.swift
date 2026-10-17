@@ -264,10 +264,16 @@ struct NewOrderPrintedSection: View {
 
 struct NewOrderPaymentSection: View {
     @Binding var draft: NewOrderDraft
+    /// The form's figures (`liveEstimate`), for the round-off offers.
+    var totals: NewOrderMath.Totals
 
     var body: some View {
         Section {
             NewOrderNumberRow(title: "Discount (PKR)", text: $draft.discount, rupees: true)
+            // order-form.tsx: the bill before any discount is the pieces less the exchange (the advance is a payment).
+            RoundOffChips(payable: totals.subtotal - totals.exchange, discount: totals.discount) { n in
+                draft.discount = NewOrderFormat.rupeeBox(n)
+            }
             NewOrderNumberRow(title: "Advance paid (PKR)", text: $draft.advance, rupees: true)
             if NewOrderFormat.num(draft.advance) > 0 {
                 Picker("Paid by", selection: $draft.advanceMethod) {

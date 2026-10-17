@@ -49,7 +49,7 @@
             "manualPrice" : 0,
             "metalType" : "gold",
             "sampleGiven" : false,
-            "stoneCharges" : 1250.75,
+            "stoneCharges" : 1251,
             "stoneWeightG" : 0.35,
             "wastagePercentage" : 12.5
           }
@@ -70,7 +70,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 326807.29062499997,
+          "grandTotal" : 326808,
           "items" : [
             {
               "description" : "Test solitaire ring",
@@ -84,13 +84,13 @@
               "karat" : "21k",
               "makingCharges" : 4800,
               "manualPrice" : 0,
-              "metalCost" : 285116.925,
+              "metalCost" : 285117,
               "metalType" : "gold",
               "sampleGiven" : false,
-              "stoneCharges" : 1250.75,
+              "stoneCharges" : 1251,
               "stoneWeightG" : 0.35,
-              "totalEstimate" : 326807.29062499997,
-              "wastageCost" : 35639.615625,
+              "totalEstimate" : 326808,
+              "wastageCost" : 35640,
               "wastagePercentage" : 12.5
             }
           ],
@@ -106,7 +106,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 326807.29062499997
+          "subtotal" : 326808
         }
       },
       "settings" : {
@@ -128,8 +128,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 326807.29062499997,
-        "subtotal" : 326807.29062499997
+        "grandTotal" : 326808,
+        "subtotal" : 326808
       },
       "stock" : {
 
@@ -204,7 +204,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 488606.1874848751,
+          "grandTotal" : 488606,
           "items" : [
             {
               "description" : "Test heavy bangle",
@@ -218,13 +218,13 @@
               "karat" : "22k",
               "makingCharges" : 6500,
               "manualPrice" : 0,
-              "metalCost" : 438622.1,
+              "metalCost" : 438622,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0.8,
-              "totalEstimate" : 488606.1874848751,
-              "wastageCost" : 43484.0874848751,
+              "totalEstimate" : 488606,
+              "wastageCost" : 43484,
               "wastagePercentage" : 9.9137931
             }
           ],
@@ -240,7 +240,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 488606.1874848751
+          "subtotal" : 488606
         }
       },
       "settings" : {
@@ -262,8 +262,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 488606.1874848751,
-        "subtotal" : 488606.1874848751
+        "grandTotal" : 488606,
+        "subtotal" : 488606
       },
       "stock" : {
 
@@ -372,7 +372,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 1530323.09171,
+          "grandTotal" : 1530324,
           "items" : [
             {
               "description" : "Test 22k bangle",
@@ -385,13 +385,13 @@
               "karat" : "22k",
               "makingCharges" : 9000,
               "manualPrice" : 0,
-              "metalCost" : 816744.6000000001,
+              "metalCost" : 816745,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 891084.1680000001,
-              "wastageCost" : 65339.56800000001,
+              "totalEstimate" : 891085,
+              "wastageCost" : 65340,
               "wastagePercentage" : 8
             },
             {
@@ -405,13 +405,13 @@
               "karat" : "18k",
               "makingCharges" : 3500,
               "manualPrice" : 0,
-              "metalCost" : 121877.14499999999,
+              "metalCost" : 121877,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 143658.71675,
-              "wastageCost" : 18281.57175,
+              "totalEstimate" : 143659,
+              "wastageCost" : 18282,
               "wastagePercentage" : 15
             },
             {
@@ -425,13 +425,13 @@
               "karat" : "24k",
               "makingCharges" : 0,
               "manualPrice" : 0,
-              "metalCost" : 481145.832,
+              "metalCost" : 481146,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 495580.20696,
-              "wastageCost" : 14434.37496,
+              "totalEstimate" : 495580,
+              "wastageCost" : 14434,
               "wastagePercentage" : 3
             }
           ],
@@ -447,7 +447,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 1530323.09171
+          "subtotal" : 1530324
         }
       },
       "settings" : {
@@ -469,8 +469,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 1530323.09171,
-        "subtotal" : 1530323.09171
+        "grandTotal" : 1530324,
+        "subtotal" : 1530324
       },
       "stock" : {
 
@@ -520,11 +520,11 @@
             "isCompleted" : false,
             "isManualPrice" : false,
             "karat" : "21k",
-            "makingCharges" : 2375.5,
+            "makingCharges" : 2376,
             "manualPrice" : 0,
             "metalType" : "gold",
             "sampleGiven" : false,
-            "stoneCharges" : 333.33,
+            "stoneCharges" : 333,
             "stoneWeightG" : 0.125,
             "wastagePercentage" : 7.5
           },
@@ -537,7 +537,7 @@
             "isCompleted" : false,
             "isManualPrice" : false,
             "karat" : "22k",
-            "makingCharges" : 0.5,
+            "makingCharges" : 1,
             "manualPrice" : 0,
             "metalType" : "gold",
             "sampleGiven" : false,
@@ -561,7 +561,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 167806.9114375,
+          "grandTotal" : 167808,
           "items" : [
             {
               "description" : "Test fine ring",
@@ -572,15 +572,15 @@
               "isCompleted" : false,
               "isManualPrice" : false,
               "karat" : "21k",
-              "makingCharges" : 2375.5,
+              "makingCharges" : 2376,
               "manualPrice" : 0,
-              "metalCost" : 153385.6875,
+              "metalCost" : 153386,
               "metalType" : "gold",
               "sampleGiven" : false,
-              "stoneCharges" : 333.33,
+              "stoneCharges" : 333,
               "stoneWeightG" : 0.125,
-              "totalEstimate" : 167598.4440625,
-              "wastageCost" : 11503.926562499999,
+              "totalEstimate" : 167599,
+              "wastageCost" : 11504,
               "wastagePercentage" : 7.5
             },
             {
@@ -592,15 +592,15 @@
               "isCompleted" : false,
               "isManualPrice" : false,
               "karat" : "22k",
-              "makingCharges" : 0.5,
+              "makingCharges" : 1,
               "manualPrice" : 0,
-              "metalCost" : 189.06125,
+              "metalCost" : 189,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 208.467375,
-              "wastageCost" : 18.906125,
+              "totalEstimate" : 209,
+              "wastageCost" : 19,
               "wastagePercentage" : 10
             }
           ],
@@ -616,7 +616,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 167806.9114375
+          "subtotal" : 167808
         }
       },
       "settings" : {
@@ -638,8 +638,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 167806.9114375,
-        "subtotal" : 167806.9114375
+        "grandTotal" : 167808,
+        "subtotal" : 167808
       },
       "stock" : {
 
@@ -690,7 +690,7 @@
             "isManualPrice" : true,
             "karat" : "21k",
             "makingCharges" : 0,
-            "manualPrice" : 185000.5,
+            "manualPrice" : 185001,
             "metalType" : "gold",
             "sampleGiven" : false,
             "stoneCharges" : 0,
@@ -730,7 +730,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 406349.5375,
+          "grandTotal" : 406350,
           "items" : [
             {
               "description" : "Test agreed necklace",
@@ -742,13 +742,13 @@
               "isManualPrice" : true,
               "karat" : "21k",
               "makingCharges" : 0,
-              "manualPrice" : 185000.5,
+              "manualPrice" : 185001,
               "metalCost" : 0,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 185000.5,
+              "totalEstimate" : 185001,
               "wastageCost" : 0,
               "wastagePercentage" : 10
             },
@@ -763,13 +763,13 @@
               "karat" : "21k",
               "makingCharges" : 3000,
               "manualPrice" : 0,
-              "metalCost" : 198499.125,
+              "metalCost" : 198499,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 221349.0375,
-              "wastageCost" : 19849.912500000002,
+              "totalEstimate" : 221349,
+              "wastageCost" : 19850,
               "wastagePercentage" : 10
             }
           ],
@@ -785,7 +785,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 406349.5375
+          "subtotal" : 406350
         }
       },
       "settings" : {
@@ -807,8 +807,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 406349.5375,
-        "subtotal" : 406349.5375
+        "grandTotal" : 406350,
+        "subtotal" : 406350
       },
       "stock" : {
 
@@ -899,7 +899,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 129039.44,
+          "grandTotal" : 129039,
           "items" : [
             {
               "description" : "Test not yet weighed",
@@ -932,13 +932,13 @@
               "karat" : "21k",
               "makingCharges" : 2000,
               "manualPrice" : 0,
-              "metalCost" : 115490.40000000001,
+              "metalCost" : 115490,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 129039.44,
-              "wastageCost" : 11549.04,
+              "totalEstimate" : 129039,
+              "wastageCost" : 11549,
               "wastagePercentage" : 10
             }
           ],
@@ -954,7 +954,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 129039.44
+          "subtotal" : 129039
         }
       },
       "settings" : {
@@ -976,8 +976,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 129039.44,
-        "subtotal" : 129039.44
+        "grandTotal" : 129039,
+        "subtotal" : 129039
       },
       "stock" : {
 
@@ -1054,7 +1054,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 478841.275,
+          "grandTotal" : 478841,
           "items" : [
             {
               "description" : "Test ruby and diamond ring",
@@ -1069,14 +1069,14 @@
               "karat" : "22k",
               "makingCharges" : 7500,
               "manualPrice" : 0,
-              "metalCost" : 340310.25,
+              "metalCost" : 340310,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 12000,
               "stoneDetails" : "1 x test ruby",
               "stoneWeightG" : 1.2,
-              "totalEstimate" : 478841.275,
-              "wastageCost" : 34031.025,
+              "totalEstimate" : 478841,
+              "wastageCost" : 34031,
               "wastagePercentage" : 10
             }
           ],
@@ -1092,7 +1092,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 478841.275
+          "subtotal" : 478841
         }
       },
       "settings" : {
@@ -1114,8 +1114,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 478841.275,
-        "subtotal" : 478841.275
+        "grandTotal" : 478841,
+        "subtotal" : 478841
       },
       "stock" : {
 
@@ -1206,7 +1206,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 311957.4025,
+          "grandTotal" : 311958,
           "items" : [
             {
               "description" : "Test plain ring",
@@ -1219,13 +1219,13 @@
               "karat" : "21k",
               "makingCharges" : 3300,
               "manualPrice" : 0,
-              "metalCost" : 277898.775,
+              "metalCost" : 277899,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 308988.6525,
-              "wastageCost" : 27789.877500000002,
+              "totalEstimate" : 308989,
+              "wastageCost" : 27790,
               "wastagePercentage" : 10
             },
             {
@@ -1238,13 +1238,13 @@
               "isManualPrice" : false,
               "makingCharges" : 0,
               "manualPrice" : 0,
-              "metalCost" : 2968.75,
+              "metalCost" : 2969,
               "metalType" : "silver",
               "nickelFree" : false,
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 2968.75,
+              "totalEstimate" : 2969,
               "wastageCost" : 0,
               "wastagePercentage" : 10
             }
@@ -1261,7 +1261,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 311957.4025
+          "subtotal" : 311958
         }
       },
       "settings" : {
@@ -1283,8 +1283,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 311957.4025,
-        "subtotal" : 311957.4025
+        "grandTotal" : 311958,
+        "subtotal" : 311958
       },
       "stock" : {
 
@@ -1354,7 +1354,7 @@
           "advanceInExchangeDescription" : "",
           "advanceInExchangeValue" : 0,
           "advancePayment" : 0,
-          "discountAmount" : 84869.63249999999,
+          "discountAmount" : 84870,
           "exchanges" : [
 
           ],
@@ -1371,13 +1371,13 @@
               "karat" : "21k",
               "makingCharges" : 1500,
               "manualPrice" : 0,
-              "metalCost" : 75790.575,
+              "metalCost" : 75791,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 84869.63249999999,
-              "wastageCost" : 7579.0575,
+              "totalEstimate" : 84870,
+              "wastageCost" : 7579,
               "wastagePercentage" : 10
             }
           ],
@@ -1393,7 +1393,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 84869.63249999999
+          "subtotal" : 84870
         }
       },
       "settings" : {
@@ -1414,9 +1414,9 @@
         "silverRatePerGram" : 312.5
       },
       "shown" : {
-        "discount" : 84869.63249999999,
+        "discount" : 84870,
         "grandTotal" : 0,
-        "subtotal" : 84869.63249999999
+        "subtotal" : 84870
       },
       "stock" : {
 
@@ -1428,7 +1428,7 @@
       ],
       "draft" : {
         "advanceInExchangeDescription" : "Old chain · 22k · 11.2 g at 36,000\/g; Broken bangle",
-        "advanceInExchangeValue" : 448700.5,
+        "advanceInExchangeValue" : 448701,
         "advanceMethod" : "Bank Transfer",
         "advancePayment" : 150000,
         "costRate24k" : 0,
@@ -1493,7 +1493,7 @@
       "send" : {
         "order" : {
           "advanceInExchangeDescription" : "Old chain · 22k · 11.2 g at 36,000\/g; Broken bangle",
-          "advanceInExchangeValue" : 448700.5,
+          "advanceInExchangeValue" : 448701,
           "advanceMethod" : "Bank Transfer",
           "advancePayment" : 150000,
           "customerContact" : "+923335550123",
@@ -1509,10 +1509,10 @@
             },
             {
               "description" : "Broken bangle",
-              "value" : 45500.5
+              "value" : 45501
             }
           ],
-          "grandTotal" : 36240.85375000001,
+          "grandTotal" : 36241,
           "items" : [
             {
               "description" : "Test bridal set",
@@ -1525,13 +1525,13 @@
               "karat" : "21k",
               "makingCharges" : 14000,
               "manualPrice" : 0,
-              "metalCost" : 559406.625,
+              "metalCost" : 559407,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 634941.35375,
-              "wastageCost" : 61534.72875,
+              "totalEstimate" : 634942,
+              "wastageCost" : 61535,
               "wastagePercentage" : 11
             }
           ],
@@ -1547,7 +1547,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 634941.35375
+          "subtotal" : 634942
         }
       },
       "settings" : {
@@ -1569,8 +1569,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 36240.85375000001,
-        "subtotal" : 634941.35375
+        "grandTotal" : 36241,
+        "subtotal" : 634942
       },
       "stock" : {
 
@@ -1648,7 +1648,7 @@
               "value" : 20000
             }
           ],
-          "grandTotal" : -457843.75,
+          "grandTotal" : -457843,
           "items" : [
             {
               "description" : "Test small pendant",
@@ -1661,13 +1661,13 @@
               "karat" : "18k",
               "makingCharges" : 900,
               "manualPrice" : 0,
-              "metalCost" : 55687.5,
+              "metalCost" : 55688,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 62156.25,
-              "wastageCost" : 5568.75,
+              "totalEstimate" : 62157,
+              "wastageCost" : 5569,
               "wastagePercentage" : 10
             }
           ],
@@ -1683,7 +1683,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 62156.25
+          "subtotal" : 62157
         }
       },
       "settings" : {
@@ -1705,8 +1705,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : -457843.75,
-        "subtotal" : 62156.25
+        "grandTotal" : -457843,
+        "subtotal" : 62157
       },
       "stock" : {
 
@@ -1780,7 +1780,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 176679.23,
+          "grandTotal" : 176679,
           "items" : [
             {
               "description" : "Test counter ring",
@@ -1793,13 +1793,13 @@
               "karat" : "21k",
               "makingCharges" : 2000,
               "manualPrice" : 0,
-              "metalCost" : 158799.30000000002,
+              "metalCost" : 158799,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 176679.23,
-              "wastageCost" : 15879.930000000002,
+              "totalEstimate" : 176679,
+              "wastageCost" : 15880,
               "wastagePercentage" : 10
             }
           ],
@@ -1815,7 +1815,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 176679.23
+          "subtotal" : 176679
         }
       },
       "settings" : {
@@ -1837,8 +1837,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 176679.23,
-        "subtotal" : 176679.23
+        "grandTotal" : 176679,
+        "subtotal" : 176679
       },
       "stock" : {
 
@@ -1919,7 +1919,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 242683.94125,
+          "grandTotal" : 242684,
           "items" : [
             {
               "description" : "Test new-customer ring",
@@ -1932,13 +1932,13 @@
               "karat" : "21k",
               "makingCharges" : 2500,
               "manualPrice" : 0,
-              "metalCost" : 218349.0375,
+              "metalCost" : 218349,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 242683.94125,
-              "wastageCost" : 21834.90375,
+              "totalEstimate" : 242684,
+              "wastageCost" : 21835,
               "wastagePercentage" : 10
             }
           ],
@@ -1955,7 +1955,7 @@
             "silverRatePerGram" : 312.5
           },
           "source" : "social_media",
-          "subtotal" : 242683.94125
+          "subtotal" : 242684
         }
       },
       "settings" : {
@@ -1977,8 +1977,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 242683.94125,
-        "subtotal" : 242683.94125
+        "grandTotal" : 242684,
+        "subtotal" : 242684
       },
       "stock" : {
 
@@ -2089,7 +2089,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 819529.46875,
+          "grandTotal" : 819530,
           "items" : [
             {
               "description" : "Test repeat ring",
@@ -2103,14 +2103,14 @@
               "karat" : "21k",
               "makingCharges" : 2800,
               "manualPrice" : 0,
-              "metalCost" : 189476.4375,
+              "metalCost" : 189476,
               "metalType" : "gold",
               "sampleGiven" : false,
               "size" : "11",
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 211224.08125,
-              "wastageCost" : 18947.64375,
+              "totalEstimate" : 211224,
+              "wastageCost" : 18948,
               "wastagePercentage" : 10
             },
             {
@@ -2125,14 +2125,14 @@
               "karat" : "22k",
               "makingCharges" : 5200,
               "manualPrice" : 0,
-              "metalCost" : 548277.625,
+              "metalCost" : 548278,
               "metalType" : "gold",
               "sampleGiven" : false,
               "size" : "2.4",
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 608305.3875,
-              "wastageCost" : 54827.762500000004,
+              "totalEstimate" : 608306,
+              "wastageCost" : 54828,
               "wastagePercentage" : 10
             }
           ],
@@ -2149,7 +2149,7 @@
             "silverRatePerGram" : 312.5
           },
           "source" : "referral",
-          "subtotal" : 819529.46875
+          "subtotal" : 819530
         }
       },
       "settings" : {
@@ -2171,8 +2171,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 819529.46875,
-        "subtotal" : 819529.46875
+        "grandTotal" : 819530,
+        "subtotal" : 819530
       },
       "stock" : {
 
@@ -2261,7 +2261,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 211224.08125,
+          "grandTotal" : 211224,
           "items" : [
             {
               "description" : "Test typed-number ring",
@@ -2274,13 +2274,13 @@
               "karat" : "21k",
               "makingCharges" : 2800,
               "manualPrice" : 0,
-              "metalCost" : 189476.4375,
+              "metalCost" : 189476,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 211224.08125,
-              "wastageCost" : 18947.64375,
+              "totalEstimate" : 211224,
+              "wastageCost" : 18948,
               "wastagePercentage" : 10
             }
           ],
@@ -2296,7 +2296,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 211224.08125
+          "subtotal" : 211224
         }
       },
       "settings" : {
@@ -2318,8 +2318,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 211224.08125,
-        "subtotal" : 211224.08125
+        "grandTotal" : 211224,
+        "subtotal" : 211224
       },
       "stock" : {
 
@@ -2542,11 +2542,11 @@
           "advanceInExchangeDescription" : "",
           "advanceInExchangeValue" : 0,
           "advancePayment" : 0,
-          "discountAmount" : 12345.67,
+          "discountAmount" : 12346,
           "exchanges" : [
 
           ],
-          "grandTotal" : 3460982.90609375,
+          "grandTotal" : 3460984,
           "items" : [
             {
               "description" : "Test piece 1",
@@ -2559,13 +2559,13 @@
               "karat" : "18k",
               "makingCharges" : 1000,
               "manualPrice" : 0,
-              "metalCost" : 77343.75,
+              "metalCost" : 77344,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 84531.25,
-              "wastageCost" : 6187.5,
+              "totalEstimate" : 84532,
+              "wastageCost" : 6188,
               "wastagePercentage" : 8
             },
             {
@@ -2579,13 +2579,13 @@
               "karat" : "21k",
               "makingCharges" : 1350,
               "manualPrice" : 0,
-              "metalCost" : 139851.65625,
+              "metalCost" : 139852,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 155186.821875,
-              "wastageCost" : 13985.165625000001,
+              "totalEstimate" : 155187,
+              "wastageCost" : 13985,
               "wastagePercentage" : 10
             },
             {
@@ -2599,13 +2599,13 @@
               "karat" : "22k",
               "makingCharges" : 1700,
               "manualPrice" : 0,
-              "metalCost" : 198514.3125,
+              "metalCost" : 198514,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 225028.6015625,
-              "wastageCost" : 24814.2890625,
+              "totalEstimate" : 225028,
+              "wastageCost" : 24814,
               "wastagePercentage" : 12.5
             },
             {
@@ -2619,13 +2619,13 @@
               "karat" : "24k",
               "makingCharges" : 2050,
               "manualPrice" : 0,
-              "metalCost" : 273284.5625,
+              "metalCost" : 273285,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 297197.3275,
-              "wastageCost" : 21862.765,
+              "totalEstimate" : 297198,
+              "wastageCost" : 21863,
               "wastagePercentage" : 8
             },
             {
@@ -2659,13 +2659,13 @@
               "karat" : "21k",
               "makingCharges" : 2750,
               "manualPrice" : 0,
-              "metalCost" : 338350.78125,
+              "metalCost" : 338351,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 383394.62890625,
-              "wastageCost" : 42293.84765625,
+              "totalEstimate" : 383395,
+              "wastageCost" : 42294,
               "wastagePercentage" : 12.5
             },
             {
@@ -2679,13 +2679,13 @@
               "karat" : "22k",
               "makingCharges" : 3100,
               "manualPrice" : 0,
-              "metalCost" : 406481.6875,
+              "metalCost" : 406482,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 442100.2225,
-              "wastageCost" : 32518.535,
+              "totalEstimate" : 442101,
+              "wastageCost" : 32519,
               "wastagePercentage" : 8
             },
             {
@@ -2699,13 +2699,13 @@
               "karat" : "24k",
               "makingCharges" : 3450,
               "manualPrice" : 0,
-              "metalCost" : 500162.3125,
+              "metalCost" : 500162,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 553628.54375,
-              "wastageCost" : 50016.231250000004,
+              "totalEstimate" : 553628,
+              "wastageCost" : 50016,
               "wastagePercentage" : 10
             },
             {
@@ -2719,13 +2719,13 @@
               "karat" : "18k",
               "makingCharges" : 3800,
               "manualPrice" : 0,
-              "metalCost" : 417656.25,
+              "metalCost" : 417656,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 473663.28125,
-              "wastageCost" : 52207.03125,
+              "totalEstimate" : 473663,
+              "wastageCost" : 52207,
               "wastagePercentage" : 12.5
             },
             {
@@ -2739,13 +2739,13 @@
               "karat" : "21k",
               "makingCharges" : 4150,
               "manualPrice" : 0,
-              "metalCost" : 536849.90625,
+              "metalCost" : 536850,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 583947.89875,
-              "wastageCost" : 42947.9925,
+              "totalEstimate" : 583948,
+              "wastageCost" : 42948,
               "wastagePercentage" : 8
             }
           ],
@@ -2761,7 +2761,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 3473328.57609375
+          "subtotal" : 3473330
         }
       },
       "settings" : {
@@ -2782,9 +2782,9 @@
         "silverRatePerGram" : 312.5
       },
       "shown" : {
-        "discount" : 12345.67,
-        "grandTotal" : 3460982.90609375,
-        "subtotal" : 3473328.57609375
+        "discount" : 12346,
+        "grandTotal" : 3460984,
+        "subtotal" : 3473330
       },
       "stock" : {
 
@@ -2859,7 +2859,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 8175289.370312501,
+          "grandTotal" : 8175289,
           "items" : [
             {
               "description" : "Test 24k bullion bar",
@@ -2872,13 +2872,13 @@
               "karat" : "24k",
               "makingCharges" : 15000,
               "manualPrice" : 0,
-              "metalCost" : 10400282.3125,
+              "metalCost" : 10400282,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 10675289.3703125,
-              "wastageCost" : 260007.05781250002,
+              "totalEstimate" : 10675289,
+              "wastageCost" : 260007,
               "wastagePercentage" : 2.5
             }
           ],
@@ -2894,7 +2894,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 10675289.3703125
+          "subtotal" : 10675289
         }
       },
       "settings" : {
@@ -2916,8 +2916,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 8175289.370312501,
-        "subtotal" : 10675289.3703125
+        "grandTotal" : 8175289,
+        "subtotal" : 10675289
       },
       "stock" : {
 
@@ -3008,7 +3008,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 96140.05725,
+          "grandTotal" : 96140,
           "items" : [
             {
               "description" : "Test palladium band",
@@ -3021,13 +3021,13 @@
               "karat" : "18k",
               "makingCharges" : 2500,
               "manualPrice" : 0,
-              "metalCost" : 57722.93,
+              "metalCost" : 57723,
               "metalType" : "palladium",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 65995.223,
-              "wastageCost" : 5772.293000000001,
+              "totalEstimate" : 65995,
+              "wastageCost" : 5772,
               "wastagePercentage" : 10
             },
             {
@@ -3041,13 +3041,13 @@
               "karat" : "12k",
               "makingCharges" : 2500,
               "manualPrice" : 0,
-              "metalCost" : 25131.6675,
+              "metalCost" : 25132,
               "metalType" : "palladium",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 30144.83425,
-              "wastageCost" : 2513.1667500000003,
+              "totalEstimate" : 30145,
+              "wastageCost" : 2513,
               "wastagePercentage" : 10
             }
           ],
@@ -3063,7 +3063,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 96140.05725
+          "subtotal" : 96140
         }
       },
       "settings" : {
@@ -3085,8 +3085,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 96140.05725,
-        "subtotal" : 96140.05725
+        "grandTotal" : 96140,
+        "subtotal" : 96140
       },
       "stock" : {
 
@@ -3160,7 +3160,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 67046.962,
+          "grandTotal" : 67047,
           "items" : [
             {
               "description" : "Test flat palladium ring",
@@ -3173,13 +3173,13 @@
               "karat" : "18k",
               "makingCharges" : 1800,
               "manualPrice" : 0,
-              "metalCost" : 59315.42,
+              "metalCost" : 59315,
               "metalType" : "palladium",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 67046.962,
-              "wastageCost" : 5931.542,
+              "totalEstimate" : 67047,
+              "wastageCost" : 5932,
               "wastagePercentage" : 10
             }
           ],
@@ -3195,7 +3195,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 67046.962
+          "subtotal" : 67047
         }
       },
       "settings" : {
@@ -3215,8 +3215,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 67046.962,
-        "subtotal" : 67046.962
+        "grandTotal" : 67047,
+        "subtotal" : 67047
       },
       "stock" : {
 
@@ -3306,7 +3306,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 101248.45,
+          "grandTotal" : 101248,
           "items" : [
             {
               "description" : "Test platinum band",
@@ -3323,8 +3323,8 @@
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 87967.2,
-              "wastageCost" : 3903.2000000000003,
+              "totalEstimate" : 87967,
+              "wastageCost" : 3903,
               "wastagePercentage" : 5
             },
             {
@@ -3337,13 +3337,13 @@
               "isManualPrice" : false,
               "makingCharges" : 0,
               "manualPrice" : 0,
-              "metalCost" : 13281.25,
+              "metalCost" : 13281,
               "metalType" : "silver",
               "nickelFree" : false,
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 13281.25,
+              "totalEstimate" : 13281,
               "wastageCost" : 0,
               "wastagePercentage" : 10
             }
@@ -3360,7 +3360,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 101248.45
+          "subtotal" : 101248
         }
       },
       "settings" : {
@@ -3382,8 +3382,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 101248.45,
-        "subtotal" : 101248.45
+        "grandTotal" : 101248,
+        "subtotal" : 101248
       },
       "stock" : {
 
@@ -3461,7 +3461,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 321598.6,
+          "grandTotal" : 321599,
           "items" : [
             {
               "adminNote" : "Set the stone low",
@@ -3481,8 +3481,8 @@
               "sampleImageDataUri" : "data:image\/jpeg;base64,\/9j\/4AECAw==",
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 321598.6,
-              "wastageCost" : 28872.600000000002,
+              "totalEstimate" : 321599,
+              "wastageCost" : 28873,
               "wastagePercentage" : 10
             }
           ],
@@ -3498,7 +3498,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 321598.6
+          "subtotal" : 321599
         }
       },
       "settings" : {
@@ -3520,8 +3520,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 321598.6,
-        "subtotal" : 321598.6
+        "grandTotal" : 321599,
+        "subtotal" : 321599
       },
       "stock" : {
 
@@ -3620,7 +3620,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 1174513.32625,
+          "grandTotal" : 1174514,
           "items" : [
             {
               "adminNote" : "Set the stone low",
@@ -3639,8 +3639,8 @@
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 321598.6,
-              "wastageCost" : 28872.600000000002,
+              "totalEstimate" : 321599,
+              "wastageCost" : 28873,
               "wastagePercentage" : 10
             },
             {
@@ -3655,13 +3655,13 @@
               "karat" : "22k",
               "makingCharges" : 8000,
               "manualPrice" : 0,
-              "metalCost" : 775151.125,
+              "metalCost" : 775151,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 852914.72625,
-              "wastageCost" : 69763.60124999999,
+              "totalEstimate" : 852915,
+              "wastageCost" : 69764,
               "wastagePercentage" : 9
             }
           ],
@@ -3677,7 +3677,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 1174513.32625
+          "subtotal" : 1174514
         }
       },
       "settings" : {
@@ -3699,8 +3699,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 1174513.32625,
-        "subtotal" : 1174513.32625
+        "grandTotal" : 1174514,
+        "subtotal" : 1174514
       },
       "stock" : {
 
@@ -3807,7 +3807,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 231548.8625,
+          "grandTotal" : 231549,
           "hideRates" : true,
           "items" : [
             {
@@ -3823,15 +3823,15 @@
               "karigarId" : "karigar-test-1",
               "makingCharges" : 3500,
               "manualPrice" : 0,
-              "metalCost" : 234589.875,
+              "metalCost" : 234590,
               "metalType" : "gold",
               "referenceSku" : "RIN-000000",
               "sampleGiven" : true,
               "size" : "10.5",
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 261548.8625,
-              "wastageCost" : 23458.987500000003,
+              "totalEstimate" : 261549,
+              "wastageCost" : 23459,
               "wastagePercentage" : 10
             }
           ],
@@ -3849,7 +3849,7 @@
             "silverRatePerGram" : 312.5
           },
           "source" : "referral",
-          "subtotal" : 261548.8625,
+          "subtotal" : 261549,
           "takenBy" : "Test Clerk"
         }
       },
@@ -3872,8 +3872,8 @@
       },
       "shown" : {
         "discount" : 5000,
-        "grandTotal" : 231548.8625,
-        "subtotal" : 261548.8625
+        "grandTotal" : 231549,
+        "subtotal" : 261549
       },
       "stock" : {
 
@@ -4014,7 +4014,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 389345.786275,
+          "grandTotal" : 389345,
           "items" : [
             {
               "description" : "Test stock ring",
@@ -4028,15 +4028,15 @@
               "karat" : "22k",
               "makingCharges" : 4200,
               "manualPrice" : 0,
-              "metalCost" : 224982.88749999998,
+              "metalCost" : 224983,
               "metalType" : "gold",
               "referenceSku" : "RIN-000321",
               "sampleGiven" : false,
               "size" : "11",
               "stoneCharges" : 1800,
               "stoneWeightG" : 0.4,
-              "totalEstimate" : 251231.34737499998,
-              "wastageCost" : 20248.459874999997,
+              "totalEstimate" : 251231,
+              "wastageCost" : 20248,
               "wastagePercentage" : 9
             },
             {
@@ -4070,14 +4070,14 @@
               "karat" : "18k",
               "makingCharges" : 2000,
               "manualPrice" : 0,
-              "metalCost" : 66102.06499999999,
+              "metalCost" : 66102,
               "metalType" : "palladium",
               "referenceSku" : "PAL-000044",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 72068.1889,
-              "wastageCost" : 3966.123899999999,
+              "totalEstimate" : 72068,
+              "wastageCost" : 3966,
               "wastagePercentage" : 6
             },
             {
@@ -4090,14 +4090,14 @@
               "isManualPrice" : false,
               "makingCharges" : 0,
               "manualPrice" : 0,
-              "metalCost" : 8906.25,
+              "metalCost" : 8906,
               "metalType" : "silver",
               "nickelFree" : false,
               "referenceSku" : "BRA-000012",
               "sampleGiven" : false,
               "stoneCharges" : 640,
               "stoneWeightG" : 0,
-              "totalEstimate" : 9546.25,
+              "totalEstimate" : 9546,
               "wastageCost" : 0,
               "wastagePercentage" : 0
             }
@@ -4114,7 +4114,7 @@
             "platinumRatePerGram" : 11480,
             "silverRatePerGram" : 312.5
           },
-          "subtotal" : 429345.786275
+          "subtotal" : 429345
         }
       },
       "settings" : {
@@ -4136,8 +4136,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 389345.786275,
-        "subtotal" : 429345.786275
+        "grandTotal" : 389345,
+        "subtotal" : 429345
       },
       "stock" : {
 
@@ -4228,7 +4228,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 18305.59375,
+          "grandTotal" : 18306,
           "items" : [
             {
               "description" : "Test silver bangle",
@@ -4240,13 +4240,13 @@
               "isManualPrice" : false,
               "makingCharges" : 0,
               "manualPrice" : 0,
-              "metalCost" : 11165.625,
+              "metalCost" : 11166,
               "metalType" : "silver",
               "nickelFree" : false,
               "sampleGiven" : false,
               "stoneCharges" : 850,
               "stoneWeightG" : 0,
-              "totalEstimate" : 12015.625,
+              "totalEstimate" : 12016,
               "wastageCost" : 0,
               "wastagePercentage" : 10
             },
@@ -4260,13 +4260,13 @@
               "isManualPrice" : false,
               "makingCharges" : 0,
               "manualPrice" : 0,
-              "metalCost" : 6289.96875,
+              "metalCost" : 6290,
               "metalType" : "silver",
               "nickelFree" : false,
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 6289.96875,
+              "totalEstimate" : 6290,
               "wastageCost" : 0,
               "wastagePercentage" : 18
             }
@@ -4283,7 +4283,7 @@
             "platinumRatePerGram" : 11200,
             "silverRatePerGram" : 297.75
           },
-          "subtotal" : 18305.59375
+          "subtotal" : 18306
         }
       },
       "settings" : {
@@ -4303,8 +4303,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 18305.59375,
-        "subtotal" : 18305.59375
+        "grandTotal" : 18306,
+        "subtotal" : 18306
       },
       "stock" : {
 
@@ -4395,7 +4395,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 265747.875,
+          "grandTotal" : 265749,
           "items" : [
             {
               "description" : "Test gold ring",
@@ -4408,13 +4408,13 @@
               "karat" : "21k",
               "makingCharges" : 4200,
               "manualPrice" : 0,
-              "metalCost" : 222815.625,
+              "metalCost" : 222816,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0.5,
-              "totalEstimate" : 249297.1875,
-              "wastageCost" : 22281.5625,
+              "totalEstimate" : 249298,
+              "wastageCost" : 22282,
               "wastagePercentage" : 10
             },
             {
@@ -4427,13 +4427,13 @@
               "isManualPrice" : false,
               "makingCharges" : 0,
               "manualPrice" : 0,
-              "metalCost" : 16450.6875,
+              "metalCost" : 16451,
               "metalType" : "silver",
               "nickelFree" : false,
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 16450.6875,
+              "totalEstimate" : 16451,
               "wastageCost" : 0,
               "wastagePercentage" : 10
             }
@@ -4450,7 +4450,7 @@
             "platinumRatePerGram" : 11200,
             "silverRatePerGram" : 297.75
           },
-          "subtotal" : 265747.875
+          "subtotal" : 265749
         }
       },
       "settings" : {
@@ -4470,8 +4470,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 265747.875,
-        "subtotal" : 265747.875
+        "grandTotal" : 265749,
+        "subtotal" : 265749
       },
       "stock" : {
 
@@ -4582,7 +4582,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 239567.075,
+          "grandTotal" : 239567,
           "items" : [
             {
               "description" : "Test rose ring",
@@ -4594,7 +4594,7 @@
               "isManualPrice" : false,
               "makingCharges" : 0,
               "manualPrice" : 0,
-              "metalCost" : 2947.725,
+              "metalCost" : 2948,
               "metalType" : "silver",
               "nickelFree" : true,
               "platingNote" : "Rose gold",
@@ -4602,7 +4602,7 @@
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 2947.725,
+              "totalEstimate" : 2948,
               "wastageCost" : 0,
               "wastagePercentage" : 10
             },
@@ -4616,14 +4616,14 @@
               "isManualPrice" : false,
               "makingCharges" : 0,
               "manualPrice" : 0,
-              "metalCost" : 9349.35,
+              "metalCost" : 9349,
               "metalType" : "silver",
               "nickelFree" : false,
               "platingType" : "White Rhodium",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 9349.35,
+              "totalEstimate" : 9349,
               "wastageCost" : 0,
               "wastagePercentage" : 10
             },
@@ -4660,7 +4660,7 @@
             "platinumRatePerGram" : 11200,
             "silverRatePerGram" : 297.75
           },
-          "subtotal" : 239567.075
+          "subtotal" : 239567
         }
       },
       "settings" : {
@@ -4680,8 +4680,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 239567.075,
-        "subtotal" : 239567.075
+        "grandTotal" : 239567,
+        "subtotal" : 239567
       },
       "stock" : {
 
@@ -4742,7 +4742,7 @@
             "metalType" : "silver",
             "nickelFree" : false,
             "sampleGiven" : false,
-            "stoneCharges" : 1200.25,
+            "stoneCharges" : 1200,
             "stoneWeightG" : 0,
             "wastagePercentage" : 10
           }
@@ -4763,11 +4763,11 @@
           "customerContact" : "+923005550142",
           "customerId" : "cust-test-0001",
           "customerName" : "Hina Mockwell",
-          "discountAmount" : 2500.5,
+          "discountAmount" : 2501,
           "exchanges" : [
 
           ],
-          "grandTotal" : 4578.625,
+          "grandTotal" : 4578,
           "items" : [
             {
               "description" : "Test silver set",
@@ -4779,13 +4779,13 @@
               "isManualPrice" : false,
               "makingCharges" : 0,
               "manualPrice" : 0,
-              "metalCost" : 35878.875,
+              "metalCost" : 35879,
               "metalType" : "silver",
               "nickelFree" : false,
               "sampleGiven" : false,
-              "stoneCharges" : 1200.25,
+              "stoneCharges" : 1200,
               "stoneWeightG" : 0,
-              "totalEstimate" : 37079.125,
+              "totalEstimate" : 37079,
               "wastageCost" : 0,
               "wastagePercentage" : 10
             }
@@ -4803,7 +4803,7 @@
             "silverRatePerGram" : 297.75
           },
           "source" : "referral",
-          "subtotal" : 37079.125
+          "subtotal" : 37079
         }
       },
       "settings" : {
@@ -4822,9 +4822,9 @@
         "silverRatePerGram" : 297.75
       },
       "shown" : {
-        "discount" : 2500.5,
-        "grandTotal" : 4578.625,
-        "subtotal" : 37079.125
+        "discount" : 2501,
+        "grandTotal" : 4578,
+        "subtotal" : 37079
       },
       "stock" : {
 
@@ -4916,7 +4916,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 22287.6,
+          "grandTotal" : 22288,
           "items" : [
             {
               "description" : "Test diamond silver ring",
@@ -4929,13 +4929,13 @@
               "isManualPrice" : false,
               "makingCharges" : 0,
               "manualPrice" : 0,
-              "metalCost" : 2143.8,
+              "metalCost" : 2144,
               "metalType" : "silver",
               "nickelFree" : false,
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 20143.8,
+              "totalEstimate" : 20144,
               "wastageCost" : 0,
               "wastagePercentage" : 10
             },
@@ -4949,13 +4949,13 @@
               "isManualPrice" : false,
               "makingCharges" : 0,
               "manualPrice" : 0,
-              "metalCost" : 2143.8,
+              "metalCost" : 2144,
               "metalType" : "silver",
               "nickelFree" : false,
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 2143.8,
+              "totalEstimate" : 2144,
               "wastageCost" : 0,
               "wastagePercentage" : 10
             }
@@ -4972,7 +4972,7 @@
             "platinumRatePerGram" : 11200,
             "silverRatePerGram" : 297.75
           },
-          "subtotal" : 22287.6
+          "subtotal" : 22288
         }
       },
       "settings" : {
@@ -4992,8 +4992,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 22287.6,
-        "subtotal" : 22287.6
+        "grandTotal" : 22288,
+        "subtotal" : 22288
       },
       "stock" : {
 
@@ -5090,7 +5090,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 99286.62,
+          "grandTotal" : 99287,
           "items" : [
             {
               "description" : "Test silver bangle",
@@ -5103,7 +5103,7 @@
               "itemCategory" : "cat007",
               "makingCharges" : 0,
               "manualPrice" : 0,
-              "metalCost" : 13473.1875,
+              "metalCost" : 13473,
               "metalType" : "silver",
               "nickelFree" : true,
               "platingType" : "White Rhodium",
@@ -5112,7 +5112,7 @@
               "size" : "2.4",
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 13473.1875,
+              "totalEstimate" : 13473,
               "wastageCost" : 0,
               "wastagePercentage" : 0
             },
@@ -5127,13 +5127,13 @@
               "karat" : "21k",
               "makingCharges" : 1500,
               "manualPrice" : 0,
-              "metalCost" : 76648.575,
+              "metalCost" : 76649,
               "metalType" : "gold",
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 85813.4325,
-              "wastageCost" : 7664.8575,
+              "totalEstimate" : 85814,
+              "wastageCost" : 7665,
               "wastagePercentage" : 10
             }
           ],
@@ -5149,7 +5149,7 @@
             "platinumRatePerGram" : 11200,
             "silverRatePerGram" : 297.75
           },
-          "subtotal" : 99286.62
+          "subtotal" : 99287
         }
       },
       "settings" : {
@@ -5169,8 +5169,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 99286.62,
-        "subtotal" : 99286.62
+        "grandTotal" : 99287,
+        "subtotal" : 99287
       },
       "stock" : {
 
@@ -5261,7 +5261,7 @@
           "exchanges" : [
 
           ],
-          "grandTotal" : 64111.65625,
+          "grandTotal" : 64112,
           "items" : [
             {
               "description" : "Test agreed silver tray",
@@ -5293,13 +5293,13 @@
               "isManualPrice" : false,
               "makingCharges" : 0,
               "manualPrice" : 0,
-              "metalCost" : 111.65625,
+              "metalCost" : 112,
               "metalType" : "silver",
               "nickelFree" : false,
               "sampleGiven" : false,
               "stoneCharges" : 0,
               "stoneWeightG" : 0,
-              "totalEstimate" : 111.65625,
+              "totalEstimate" : 112,
               "wastageCost" : 0,
               "wastagePercentage" : 10
             }
@@ -5316,7 +5316,7 @@
             "platinumRatePerGram" : 11200,
             "silverRatePerGram" : 297.75
           },
-          "subtotal" : 64111.65625
+          "subtotal" : 64112
         }
       },
       "settings" : {
@@ -5336,8 +5336,8 @@
       },
       "shown" : {
         "discount" : 0,
-        "grandTotal" : 64111.65625,
-        "subtotal" : 64111.65625
+        "grandTotal" : 64112,
+        "subtotal" : 64112
       },
       "stock" : {
 
@@ -5569,7 +5569,7 @@
             "reference" : ""
           }
         ],
-        "subtotal" : 896795.8,
+        "subtotal" : 896796,
         "typedRates" : [
 
         ],
@@ -5656,11 +5656,11 @@
         "silverRatePerGram" : 480
       },
       "shown" : {
-        "balanceDue" : 796795.8,
+        "balanceDue" : 796796,
         "discount" : 0,
-        "grandTotal" : 896795.8,
+        "grandTotal" : 896796,
         "paid" : 100000,
-        "subtotal" : 896795.8
+        "subtotal" : 896796
       },
       "stock" : {
         "BNG-3001" : {
@@ -5764,7 +5764,7 @@
           }
         ],
         "selectedCustomerId" : "CUST-D01",
-        "subtotal" : 700738.8,
+        "subtotal" : 700739,
         "typedRates" : [
 
         ],
@@ -5835,11 +5835,11 @@
         "silverRatePerGram" : 480
       },
       "shown" : {
-        "balanceDue" : 650738.8,
+        "balanceDue" : 650739,
         "discount" : 0,
-        "grandTotal" : 700738.8,
+        "grandTotal" : 700739,
         "paid" : 50000,
-        "subtotal" : 700738.8
+        "subtotal" : 700739
       },
       "stock" : {
         "BNG-3001" : {
@@ -6579,7 +6579,7 @@
           }
         ],
         "selectedCustomerId" : "CUST-D01",
-        "subtotal" : 896795.8,
+        "subtotal" : 896796,
         "typedRates" : [
 
         ],
@@ -6678,11 +6678,11 @@
         "silverRatePerGram" : 480
       },
       "shown" : {
-        "balanceDue" : 600795.8,
+        "balanceDue" : 600796,
         "discount" : 0,
-        "grandTotal" : 700795.8,
+        "grandTotal" : 700796,
         "paid" : 100000,
-        "subtotal" : 896795.8
+        "subtotal" : 896796
       },
       "stock" : {
         "BNG-3001" : {
@@ -6780,7 +6780,7 @@
           }
         ],
         "selectedCustomerId" : "CUST-D02",
-        "subtotal" : 104062.5,
+        "subtotal" : 104063,
         "typedRates" : [
 
         ],
@@ -6850,11 +6850,11 @@
         "silverRatePerGram" : 480
       },
       "shown" : {
-        "balanceDue" : -195937.5,
+        "balanceDue" : -195937,
         "discount" : 0,
-        "grandTotal" : -195937.5,
+        "grandTotal" : -195937,
         "paid" : 0,
-        "subtotal" : 104062.5
+        "subtotal" : 104063
       },
       "stock" : {
         "PND-6001" : {
@@ -6968,7 +6968,7 @@
           }
         ],
         "selectedCustomerId" : "CUST-D01",
-        "subtotal" : 896795.8,
+        "subtotal" : 896796,
         "typedRates" : [
 
         ],
@@ -7067,11 +7067,11 @@
         "silverRatePerGram" : 480
       },
       "shown" : {
-        "balanceDue" : 671795.8,
+        "balanceDue" : 671796,
         "discount" : 0,
-        "grandTotal" : 896795.8,
+        "grandTotal" : 896796,
         "paid" : 225000,
-        "subtotal" : 896795.8
+        "subtotal" : 896796
       },
       "stock" : {
         "BNG-3001" : {
@@ -7509,7 +7509,7 @@
             "reference" : ""
           }
         ],
-        "subtotal" : 830787.05,
+        "subtotal" : 830788,
         "typedRates" : [
 
         ],
@@ -7597,11 +7597,11 @@
         "silverRatePerGram" : 480
       },
       "shown" : {
-        "balanceDue" : 730787.05,
+        "balanceDue" : 730788,
         "discount" : 0,
-        "grandTotal" : 830787.05,
+        "grandTotal" : 830788,
         "paid" : 100000,
-        "subtotal" : 830787.05
+        "subtotal" : 830788
       },
       "stock" : {
         "BNG-3001" : {
@@ -7751,7 +7751,7 @@
             "reference" : ""
           }
         ],
-        "subtotal" : 891295.1,
+        "subtotal" : 891295,
         "typedRates" : [
 
         ],
@@ -7876,11 +7876,11 @@
         "silverRatePerGram" : 480
       },
       "shown" : {
-        "balanceDue" : 641295.1,
+        "balanceDue" : 641295,
         "discount" : 0,
-        "grandTotal" : 891295.1,
+        "grandTotal" : 891295,
         "paid" : 250000,
-        "subtotal" : 891295.1
+        "subtotal" : 891295
       },
       "stock" : {
         "K18-1" : {
@@ -8043,7 +8043,7 @@
             "reference" : ""
           }
         ],
-        "subtotal" : 611552.18125,
+        "subtotal" : 611554,
         "typedRates" : [
 
         ],
@@ -8149,11 +8149,11 @@
         "silverRatePerGram" : 480
       },
       "shown" : {
-        "balanceDue" : 561552.18125,
+        "balanceDue" : 561554,
         "discount" : 0,
-        "grandTotal" : 611552.18125,
+        "grandTotal" : 611554,
         "paid" : 50000,
-        "subtotal" : 611552.18125
+        "subtotal" : 611554
       },
       "stock" : {
         "DG-1" : {
@@ -8268,7 +8268,7 @@
           }
         ],
         "selectedCustomerId" : "CUST-D01",
-        "subtotal" : 165013.91674999997,
+        "subtotal" : 165014,
         "typedRates" : [
 
         ],
@@ -8338,11 +8338,11 @@
         "silverRatePerGram" : 480
       },
       "shown" : {
-        "balanceDue" : 65013.916749999975,
+        "balanceDue" : 65014,
         "discount" : 0,
-        "grandTotal" : 165013.91674999997,
+        "grandTotal" : 165014,
         "paid" : 100000,
-        "subtotal" : 165013.91674999997
+        "subtotal" : 165014
       },
       "stock" : {
         "PS-1" : {
@@ -8420,7 +8420,7 @@
             "reference" : ""
           }
         ],
-        "subtotal" : 12345.4,
+        "subtotal" : 12345,
         "typedRates" : [
 
         ],
@@ -8489,11 +8489,11 @@
         "silverRatePerGram" : 480
       },
       "shown" : {
-        "balanceDue" : 0.3999999999996362,
+        "balanceDue" : 0,
         "discount" : 0,
-        "grandTotal" : 12345.4,
+        "grandTotal" : 12345,
         "paid" : 12345,
-        "subtotal" : 12345.4
+        "subtotal" : 12345
       },
       "stock" : {
         "PD-9" : {
@@ -8573,7 +8573,7 @@
             "reference" : ""
           }
         ],
-        "subtotal" : 12345.6,
+        "subtotal" : 12346,
         "typedRates" : [
 
         ],
@@ -8642,11 +8642,11 @@
         "silverRatePerGram" : 480
       },
       "shown" : {
-        "balanceDue" : -0.3999999999996362,
+        "balanceDue" : 0,
         "discount" : 0,
-        "grandTotal" : 12345.6,
+        "grandTotal" : 12346,
         "paid" : 12346,
-        "subtotal" : 12345.6
+        "subtotal" : 12346
       },
       "stock" : {
         "PU-9" : {
@@ -8726,7 +8726,7 @@
             "reference" : ""
           }
         ],
-        "subtotal" : 131951.25163178303,
+        "subtotal" : 131951,
         "typedRates" : [
 
         ],
@@ -8795,11 +8795,11 @@
         "silverRatePerGram" : 480
       },
       "shown" : {
-        "balanceDue" : 31951.25163178303,
+        "balanceDue" : 31951,
         "discount" : 0,
-        "grandTotal" : 131951.25163178303,
+        "grandTotal" : 131951,
         "paid" : 100000,
-        "subtotal" : 131951.25163178303
+        "subtotal" : 131951
       },
       "stock" : {
         "LD-1" : {
@@ -10038,7 +10038,7 @@
             "reference" : ""
           }
         ],
-        "subtotal" : 401732.5,
+        "subtotal" : 401733,
         "typedRates" : [
 
         ],
@@ -10109,11 +10109,11 @@
         "silverRatePerGram" : 480
       },
       "shown" : {
-        "balanceDue" : 251732.5,
+        "balanceDue" : 251733,
         "discount" : 0,
-        "grandTotal" : 401732.5,
+        "grandTotal" : 401733,
         "paid" : 150000,
-        "subtotal" : 401732.5
+        "subtotal" : 401733
       },
       "stock" : {
         "STN-1101" : {
@@ -11559,7 +11559,7 @@
             "reference" : ""
           }
         ],
-        "subtotal" : 11892.5,
+        "subtotal" : 11893,
         "typedRates" : [
 
         ],
@@ -11641,11 +11641,11 @@
         "silverRatePerGram" : 480
       },
       "shown" : {
-        "balanceDue" : 7892.5,
+        "balanceDue" : 7893,
         "discount" : 0,
-        "grandTotal" : 11892.5,
+        "grandTotal" : 11893,
         "paid" : 4000,
-        "subtotal" : 11892.5
+        "subtotal" : 11893
       },
       "stock" : {
         "MS-1001" : {

@@ -207,7 +207,7 @@ struct NewOrder: View {
                 NewOrderRatesSection(draft: $draft, settings: settings)
                 NewOrderPrintedSection(draft: $draft)
             case .payment:
-                NewOrderPaymentSection(draft: $draft)
+                NewOrderPaymentSection(draft: $draft, totals: totals)
                 NewOrderExchangeSection(draft: $draft)
             case .review:
                 Section {
@@ -648,7 +648,7 @@ private struct NewOrderPinnedSummary: View {
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 0) {
-                Text(totals.balance < -0.5 ? "Credit to customer" : "Due").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
+                Text(isCredit(totals.balance) ? "Credit to customer" : "Due").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
                 Text(Money.pkr(abs(totals.balance)))
                     .font(.headline)
                     .monospacedDigit()

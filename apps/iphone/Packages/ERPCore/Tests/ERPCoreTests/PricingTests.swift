@@ -4,6 +4,8 @@ import XCTest
 /// src/lib/pricing.ts. It has no test of its own, so every figure below was printed by the
 /// TypeScript (`_calculateProductCostsInternal`, run with tsx) for the made-up piece beside it,
 /// and is compared exactly, to the last bit: the Swift must add the same doubles in the same order.
+/// Since 2026-10-17 every line is whole rupees (MoneyRound.swift): the figures were printed again by the
+/// TypeScript after that change, for the same pieces.
 /// All names, weights, rates and amounts are invented.
 final class PricingTests: XCTestCase {
     // Rate cards (PKR a gram). `flatPalladium` is what `orderInvoiceRates` builds from the settings:
@@ -65,7 +67,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .gold, karat: .k18, metalWeightG: 5.2, stoneWeightG: 0.3, wastagePercentage: 12, makingCharges: 8500, stoneCharges: 2500),
             shop,
-            metal: 152586, wastage: 18310.32, making: 8500, diamonds: 0, stones: 2500, misc: 0, total: 181896.32
+            metal: 152586, wastage: 18310, making: 8500, diamonds: 0, stones: 2500, misc: 0, total: 181896
         )
     }
 
@@ -74,7 +76,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .gold, karat: .k21, metalWeightG: 24.75, wastagePercentage: 8, makingCharges: 12000),
             shop,
-            metal: 899167.5, wastage: 71933.40000000001, making: 12000, diamonds: 0, stones: 0, misc: 0, total: 983100.9
+            metal: 899168, wastage: 71933, making: 12000, diamonds: 0, stones: 0, misc: 0, total: 983101
         )
     }
 
@@ -83,7 +85,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .gold, karat: .k22, metalWeightG: 18.4, wastagePercentage: 6.5, makingCharges: 9000, miscCharges: 500),
             shop,
-            metal: 700304, wastage: 45519.76, making: 9000, diamonds: 0, stones: 0, misc: 500, total: 755323.76
+            metal: 700304, wastage: 45520, making: 9000, diamonds: 0, stones: 0, misc: 500, total: 755324
         )
     }
 
@@ -92,7 +94,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .gold, karat: .k24, metalWeightG: 11.664),
             shop,
-            metal: 484289.27999999997, wastage: 0, making: 0, diamonds: 0, stones: 0, misc: 0, total: 484289.27999999997
+            metal: 484289, wastage: 0, making: 0, diamonds: 0, stones: 0, misc: 0, total: 484289
         )
     }
 
@@ -101,7 +103,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .gold, metalWeightG: 9.9, wastagePercentage: 10, makingCharges: 4000),
             shop,
-            metal: 359667, wastage: 35966.700000000004, making: 4000, diamonds: 0, stones: 0, misc: 0, total: 399633.7
+            metal: 359667, wastage: 35967, making: 4000, diamonds: 0, stones: 0, misc: 0, total: 399634
         )
     }
 
@@ -110,7 +112,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .gold, karat: .unknown(""), metalWeightG: 9.9, wastagePercentage: 10, makingCharges: 4000),
             shop,
-            metal: 359667, wastage: 35966.700000000004, making: 4000, diamonds: 0, stones: 0, misc: 0, total: 399633.7
+            metal: 359667, wastage: 35967, making: 4000, diamonds: 0, stones: 0, misc: 0, total: 399634
         )
     }
 
@@ -137,7 +139,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(categoryId: "cat017", metalType: .gold, karat: .k24, metalWeightG: 11.664, wastagePercentage: 5, makingCharges: 2000, hasDiamonds: true, diamondCharges: 9000, stoneCharges: 700, miscCharges: 300),
             shop,
-            metal: 484289.27999999997, wastage: 0, making: 0, diamonds: 0, stones: 0, misc: 0, total: 484289.27999999997
+            metal: 484289, wastage: 0, making: 0, diamonds: 0, stones: 0, misc: 0, total: 484289
         )
     }
 
@@ -155,7 +157,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .gold, karat: .k22, metalWeightG: 7.35, stoneWeightG: 0.42, wastagePercentage: 9, makingCharges: 15000, hasDiamonds: true, diamondCharges: 85000, stoneCharges: 4200),
             shop,
-            metal: 263755.8, wastage: 23738.021999999997, making: 15000, diamonds: 85000, stones: 4200, misc: 0, total: 391693.822
+            metal: 263756, wastage: 23738, making: 15000, diamonds: 85000, stones: 4200, misc: 0, total: 391694
         )
     }
 
@@ -173,7 +175,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .gold, karat: .k18, metalWeightG: 6.1, secondaryMetalType: .platinum, secondaryMetalWeightG: 1.8, wastagePercentage: 10, makingCharges: 7000),
             shop,
-            metal: 227754, wastage: 22775.4, making: 7000, diamonds: 0, stones: 0, misc: 0, total: 257529.4
+            metal: 227754, wastage: 22775, making: 7000, diamonds: 0, stones: 0, misc: 0, total: 257529
         )
     }
 
@@ -182,7 +184,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .gold, karat: .k21, metalWeightG: 10, secondaryMetalType: .gold, secondaryMetalKarat: .k18, secondaryMetalWeightG: 2.2, wastagePercentage: 5),
             shop,
-            metal: 431808, wastage: 21590.4, making: 0, diamonds: 0, stones: 0, misc: 0, total: 453398.4
+            metal: 431808, wastage: 21590, making: 0, diamonds: 0, stones: 0, misc: 0, total: 453398
         )
     }
 
@@ -191,7 +193,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .gold, karat: .k21, metalWeightG: 10, secondaryMetalType: .silver, secondaryMetalWeightG: 3, wastagePercentage: 5, silverRatePerGram: 999),
             shop,
-            metal: 364291.5, wastage: 18214.575, making: 0, diamonds: 0, stones: 0, misc: 0, total: 382506.075
+            metal: 364292, wastage: 18215, making: 0, diamonds: 0, stones: 0, misc: 0, total: 382507
         )
     }
 
@@ -227,7 +229,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .silver, metalWeightG: 12.5, stoneWeightG: 1.5, wastagePercentage: 15, makingCharges: 5000, diamondCharges: 2000, stoneCharges: 1200, miscCharges: 300),
             shop,
-            metal: 4131.25, wastage: 0, making: 0, diamonds: 2000, stones: 1200, misc: 300, total: 7631.25
+            metal: 4131, wastage: 0, making: 0, diamonds: 2000, stones: 1200, misc: 300, total: 7631
         )
     }
 
@@ -245,7 +247,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .silver, metalWeightG: 12.5, silverRatePerGram: 0),
             shop,
-            metal: 4131.25, wastage: 0, making: 0, diamonds: 0, stones: 0, misc: 0, total: 4131.25
+            metal: 4131, wastage: 0, making: 0, diamonds: 0, stones: 0, misc: 0, total: 4131
         )
     }
 
@@ -263,7 +265,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .silver, metalWeightG: 7.3, miscCharges: 150),
             silverHouse,
-            metal: 3013.075, wastage: 0, making: 0, diamonds: 0, stones: 0, misc: 150, total: 3163.075
+            metal: 3013, wastage: 0, making: 0, diamonds: 0, stones: 0, misc: 150, total: 3163
         )
     }
 
@@ -299,7 +301,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .palladium, metalWeightG: 8.8, wastagePercentage: 10),
             shop,
-            metal: 127600.00000000001, wastage: 12760.000000000002, making: 0, diamonds: 0, stones: 0, misc: 0, total: 140360.00000000003
+            metal: 127600, wastage: 12760, making: 0, diamonds: 0, stones: 0, misc: 0, total: 140360
         )
     }
 
@@ -308,7 +310,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .palladium, karat: .k18, metalWeightG: 8.8, wastagePercentage: 10),
             flatPalladium,
-            metal: 127600.00000000001, wastage: 12760.000000000002, making: 0, diamonds: 0, stones: 0, misc: 0, total: 140360.00000000003
+            metal: 127600, wastage: 12760, making: 0, diamonds: 0, stones: 0, misc: 0, total: 140360
         )
     }
 
@@ -317,7 +319,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .palladium, karat: .k21, metalWeightG: 8.8),
             shop,
-            metal: 127600.00000000001, wastage: 0, making: 0, diamonds: 0, stones: 0, misc: 0, total: 127600.00000000001
+            metal: 127600, wastage: 0, making: 0, diamonds: 0, stones: 0, misc: 0, total: 127600
         )
     }
 
@@ -398,7 +400,7 @@ final class PricingTests: XCTestCase {
         expect(
             PricedPiece(metalType: .gold, karat: .k21, metalWeightG: 7.777, stoneWeightG: 0.333, wastagePercentage: 9.35, makingCharges: 1234.56, hasDiamonds: true, diamondCharges: 0.1, stoneCharges: 0.2, miscCharges: 0.3),
             shop,
-            metal: 270440.52, wastage: 25286.18862, making: 1234.56, diamonds: 0.1, stones: 0.2, misc: 0.3, total: 296961.86862
+            metal: 270441, wastage: 25286, making: 1235, diamonds: 0, stones: 0, misc: 0, total: 296962
         )
     }
 
@@ -411,21 +413,23 @@ final class PricingTests: XCTestCase {
         )
     }
 
-    func testSilverTimesInfinityOverNoRateIsNaNSoNothing() {
-        // The NaN guard (silver): an infinite weight at a rate of 0 is NaN, and a NaN price comes back as all zeros.
+    func testSilverTimesInfinityOverNoRateIsAnUnreadableLineSoNothing() {
+        // Silver: an infinite weight at a rate of 0 is NaN, and a line that is not a number is 0 rupees
+        // (rupees(NaN) is 0), so only the stones are left.
         expect(
             PricedPiece(metalType: .silver, metalWeightG: .infinity, stoneCharges: 100),
             zero,
-            metal: 0, wastage: 0, making: 0, diamonds: 0, stones: 0, misc: 0, total: 0
+            metal: 0, wastage: 0, making: 0, diamonds: 0, stones: 100, misc: 0, total: 100
         )
     }
 
-    func testInfiniteChargesThatCancelAreNaNSoNothing() {
-        // The NaN guard (gold): +Infinity making and -Infinity diamonds sum to NaN; the answer is all zeros.
+    func testInfiniteChargesAreNotAmountsSoNothing() {
+        // Gold: +Infinity making and -Infinity diamonds are not amounts; each line is rounded first, and an
+        // infinite one is 0 rupees, so only the metal is left.
         expect(
             PricedPiece(metalType: .gold, karat: .k21, metalWeightG: 5, makingCharges: .infinity, hasDiamonds: true, diamondCharges: -.infinity),
             shop,
-            metal: 0, wastage: 0, making: 0, diamonds: 0, stones: 0, misc: 0, total: 0
+            metal: 181650, wastage: 0, making: 0, diamonds: 0, stones: 0, misc: 0, total: 181650
         )
     }
 
@@ -436,7 +440,7 @@ final class PricingTests: XCTestCase {
         let item = invoiceItem(["metalType": "gold", "karat": "22k", "metalWeightG": 9.6, "stoneWeightG": 0.4, "wastagePercentage": 9,
                                 "makingCharges": 7000, "stoneChargesIfAny": 1800, "miscChargesIfAny": 200, "unitPrice": 1])
         expect(PricedPiece(item), shop,
-               metal: 350152, wastage: 31513.68, making: 7000, diamonds: 0, stones: 1800, misc: 200, total: 390665.68)
+               metal: 350152, wastage: 31514, making: 7000, diamonds: 0, stones: 1800, misc: 200, total: 390666)
     }
 
     func testAFixedPriceInvoiceLineKeepsItsPrice() {
@@ -455,28 +459,28 @@ final class PricingTests: XCTestCase {
                                 "makingCharges": 5000, "diamondChargesIfAny": 40000])
         XCTAssertTrue(PricedPiece(item).hasDiamonds)
         expect(PricedPiece(item), shop,
-               metal: 225246, wastage: 22524.600000000002, making: 5000, diamonds: 40000, stones: 0, misc: 0, total: 292770.6)
+               metal: 225246, wastage: 22525, making: 5000, diamonds: 40000, stones: 0, misc: 0, total: 292771)
     }
 
     func testDiamondDetailsAloneFlagTheLineButChargeNothing() {
         let item = invoiceItem(["metalType": "gold", "karat": "21k", "metalWeightG": 6.2, "wastagePercentage": 10, "diamondDetails": "  0.3 ct VS  "])
         XCTAssertTrue(PricedPiece(item).hasDiamonds)
         expect(PricedPiece(item), shop,
-               metal: 225246, wastage: 22524.600000000002, making: 0, diamonds: 0, stones: 0, misc: 0, total: 247770.6)
+               metal: 225246, wastage: 22525, making: 0, diamonds: 0, stones: 0, misc: 0, total: 247771)
         // Blank details flag nothing.
         let blank = invoiceItem(["metalType": "gold", "karat": "21k", "metalWeightG": 6.2, "wastagePercentage": 10, "diamondDetails": "   "])
         XCTAssertFalse(PricedPiece(blank).hasDiamonds)
-        XCTAssertEqual(price(PricedPiece(blank), shop), 247770.6)
+        XCTAssertEqual(price(PricedPiece(blank), shop), 247771)
     }
 
     func testASilverLineKeepsItsOwnRate() {
         let item = invoiceItem(["metalType": "silver", "metalWeightG": 14.2, "silverRatePerGram": 410, "stoneChargesIfAny": 900])
         XCTAssertEqual(PricedPiece(item).silverRatePerGram, 410)
         expect(PricedPiece(item), shop, metal: 5822, wastage: 0, making: 0, diamonds: 0, stones: 900, misc: 0, total: 6722)
-        // A line with no rate of its own takes the shop's: 14.2 x 330.5 + 900.
+        // A line with no rate of its own takes the shop's: 14.2 x 330.5 (4,693.1, so 4,693) + 900.
         let plain = invoiceItem(["metalType": "silver", "metalWeightG": 14.2, "stoneChargesIfAny": 900])
         XCTAssertNil(PricedPiece(plain).silverRatePerGram)
-        XCTAssertEqual(price(PricedPiece(plain), shop), 14.2 * 330.5 + 900)
+        XCTAssertEqual(price(PricedPiece(plain), shop), 5593)
     }
 
     func testAnOrderPieceIsPricedAsTheOrderFormPricesIt() {
@@ -484,7 +488,7 @@ final class PricingTests: XCTestCase {
         let item = orderItem(["metalType": "gold", "karat": "18k", "estimatedWeightG": 4.8, "stoneWeightG": 0.2, "wastagePercentage": 10,
                               "makingCharges": 6000, "hasDiamonds": true, "diamondCharges": 20000, "stoneCharges": 1500])
         expect(PricedPiece(item), shop,
-               metal: 143244, wastage: 14324.400000000001, making: 6000, diamonds: 20000, stones: 1500, misc: 0, total: 185068.4)
+               metal: 143244, wastage: 14324, making: 6000, diamonds: 20000, stones: 1500, misc: 0, total: 185068)
     }
 
     func testAnOrderPiecesManualPriceIsItsPrice() {
@@ -507,7 +511,7 @@ final class PricingTests: XCTestCase {
                          "secondaryMetalType": "palladium", "secondaryMetalKarat": "18k", "secondaryMetalWeightG": 2.5,
                          "wastagePercentage": 7, "makingCharges": 3000])
         expect(PricedPiece(p), shop,
-               metal: 473960, wastage: 33177.200000000004, making: 3000, diamonds: 0, stones: 0, misc: 0, total: 510137.2)
+               metal: 473960, wastage: 33177, making: 3000, diamonds: 0, stones: 0, misc: 0, total: 510137)
     }
 
     func testAStockedGoldCoinIsMetalAlone() {

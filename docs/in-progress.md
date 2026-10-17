@@ -56,7 +56,7 @@ Owner: "There should be no decimals" and "offer discount options to round the bi
 - Settled: `|balance| < 1` is paid (`isSettled`, `owesMoney` ≥ 1, `isCredit` ≤ −1) — old bills hold paise.
 - `roundOffOffers(total, existingDiscount)`: T = total − existingDiscount; for step in 10000, 5000, 1000, 500, 100 (coarsest first): target = floor(T/step)×step, extra = T − target; keep target > 0 and 0 < extra < 5000; dedupe targets (the coarsest step's entry stays); no sort — keep that order; first 3 (272,340 → 270,000 / 272,000 / 272,300). Chips "Round to 270,000 · −2,340" beside the discount field (New sale, invoice discount edit, Finalize, order form); tap sets discount = typed + extra; tap the lit one to undo.
 - `settleRemainderOffer(remaining)`: 0 < R < 5000 → "Settle — give the remaining PKR R off" after a payment (invoice, order's last advance): record the payment, then raise the bill's discount by R (`updateInvoiceDiscount` / order `discountAmount`), never a made-up payment.
-- `src/app/api/app/write/contract.test.ts` holds the phone's cases to within a few rupees (`MONEY_DIGITS = -1`) until `apps/iphone/contract/cases.json` is regenerated with rounded figures; then set it back to 2.
+- Android only now (the iPhone app rounds, its `cases.json` is regenerated and held to the paisa): `contract.test.ts` holds `apps/android/contract/cases.json` to within a few rupees (`MONEY_DIGITS_FOR.android = -1`) until the Android app rounds; then set it to 2. Its `core` ContractTests compares the Kotlin cases with the iPhone's file, so it differs until then.
 
 ## For the app chat (from the web redesign, 2026-10-12)
 

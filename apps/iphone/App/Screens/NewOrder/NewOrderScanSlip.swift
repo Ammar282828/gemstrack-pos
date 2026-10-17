@@ -399,7 +399,7 @@ extension NewOrderDraft {
             row.karat = S.num(x.karat) > 0 ? "\(S.jsNumber(S.jsRound(S.num(x.karat))))k" : ""
             row.weightG = S.num(x.weightG) > 0 ? S.jsNumber(S.num(x.weightG)) : ""
             row.ratePerGram = S.num(x.ratePerGram) > 0 ? S.jsNumber(S.jsRound(S.num(x.ratePerGram))) : ""
-            row.value = ex.value > 0 ? S.jsNumber(ex.value) : ""
+            row.value = rupees(ex.value) > 0 ? S.jsNumber(rupees(ex.value)) : ""
             row.valueTyped = ex.from == .written
             exchanges = [NewOrderExchangeDraft(row)]
         }

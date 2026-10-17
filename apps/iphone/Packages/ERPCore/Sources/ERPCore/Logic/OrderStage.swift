@@ -87,7 +87,7 @@ public let STAGES: [OrderStage: StageInfo] = [
 public func stageOf(_ order: Order, owedOnInvoice: Double = 0) -> OrderStage {
     if order.status == .cancelled || order.status == .refunded { return .closed }
     if !JS.has(order.invoiceId) && awaitingTransfer(order) { return .transfer }
-    if JS.has(order.invoiceId) { return owedOnInvoice > 0.5 ? .payment : .done }
+    if JS.has(order.invoiceId) { return owesMoney(owedOnInvoice) ? .payment : .done }
     if order.status == .completed { return .ready }
     if order.status == .inProgress { return .karigar }
     return .new

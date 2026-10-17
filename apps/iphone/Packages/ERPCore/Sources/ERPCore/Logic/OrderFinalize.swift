@@ -112,7 +112,7 @@ public struct FinalizedCosts: Hashable {
 public func finalizedItemCosts(_ original: OrderItem, _ f: FinalizedItem, _ rates: InvoiceRates) -> FinalizedCosts {
     if f.isManualPrice {
         return FinalizedCosts(
-            price: JS.orZero(f.finalManualPrice),
+            price: rupees(f.finalManualPrice),
             metalCost: 0, wastageCost: 0, wastagePercentage: JS.orZero(original.wastagePercentage),
             makingCharges: 0, diamondCharges: 0, stoneCharges: 0
         )

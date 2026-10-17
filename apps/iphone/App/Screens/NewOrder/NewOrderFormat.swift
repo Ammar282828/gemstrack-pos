@@ -37,6 +37,10 @@ enum NewOrderFormat {
         x == 0 ? "" : trimmed(x, digits: digits)
     }
 
+    /// A sum of money for a box: whole rupees (ERPCore `rupees`, half up), blank for none. An old order's
+    /// paise are not carried into a field that types only digits (owner, 2026-10-17: "there should be no decimals").
+    static func rupeeBox(_ x: Double?) -> String { boxText(rupees(x), digits: 0) }
+
     /// 1 piece, 3 pieces.
     static func pieces(_ n: Int) -> String { n == 1 ? "1 piece" : "\(n) pieces" }
 }

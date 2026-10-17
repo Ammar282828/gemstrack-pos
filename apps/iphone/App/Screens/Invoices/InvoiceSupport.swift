@@ -78,16 +78,38 @@ enum InvoiceFacts {
     /// (lib/writes/invoice-payment.ts) but does not check who may hold credit, so the ERP page's
     /// rule is kept here: money over the balance is a named customer's credit; from nobody in
     /// particular it is change to hand back, so it is refused (invoice-credit.ts).
-    @MainActor
-    static func record(_ inv: Invoice, amount: Double, method: String, reference: String) async throws {
+    @MainActor @discardableResult
+    static func record(_ inv: Invoice, amount: Double, method: String, reference: String) async throws -> [String: Any] {
         let due = max(0, inv.balanceDue)
-        if amount > due + 0.5 && !canHoldCredit(inv.customerId) {
+        // Over by a whole rupee, as record-payment-dialog.tsx counts it (Math.round(amount - balance) > 0).
+        if ERPCore.rupees(amount - due) > 0 && !canHoldCredit(inv.customerId) {
             throw ERPAPI.Failure(status: 400, message: "More than the balance of \(Money.pkr(due)). Credit needs a customer: name who this invoice is for first.")
         }
         var fields: [String: Any] = ["invoiceId": inv.id, "amount": amount, "method": method]
         let ref = reference.trimmingCharacters(in: .whitespacesAndNewlines)
         if method != "Cash" && !ref.isEmpty { fields["reference"] = ref }
-        try await ERPAPI.shared.write("recordPayment", fields)
+        return try await ERPAPI.shared.write("recordPayment", fields)
+    }
+
+    /// Settle (record-payment-dialog.tsx): the payment first, exactly as Save takes it, then the bill's discount
+    /// raised by what is left (`updateInvoiceDiscount`, the shared write the discount sheet uses), so the balance is
+    /// 0 without a payment never made. The discount is the one on the invoice the payment came back with, plus the
+    /// remainder; what was seen is that invoice's total and paid. Owners only, as the discount is (/api/app/write).
+    @MainActor
+    static func settle(_ inv: Invoice, amount: Double, method: String, reference: String, remainder: Double) async throws {
+        let out = try await record(inv, amount: amount, method: method, reference: reference)
+        let after = out["invoice"] as? [String: Any] ?? [:]
+        func figure(_ key: String, _ fallback: Double) -> Double { (after[key] as? NSNumber)?.doubleValue ?? fallback }
+        let discount = ERPCore.rupees(figure("discountAmount", inv.discountAmount)) + remainder
+        let seen: [String: Any] = [
+            "grandTotal": figure("grandTotal", inv.grandTotal),
+            "amountPaid": figure("amountPaid", ERPCore.rupees(inv.amountPaid + amount)),
+        ]
+        do {
+            try await ERPAPI.shared.write("updateInvoiceDiscount", ["invoiceId": inv.id, "discountAmount": discount, "seen": seen])
+        } catch {
+            throw SettleNotGiven(paid: amount, remainder: remainder, why: error.localizedDescription)
+        }
     }
 
     // MARK: The customer's link
@@ -284,13 +306,43 @@ extension View {
     /// ERP has taken (the invoice as it stood, and the amount), so the page can say what is left.
     func invoicePaymentSheet(for invoice: Binding<Invoice?>, recorded: ((Invoice, Double) -> Void)? = nil) -> some View {
         sheet(item: invoice) { inv in
-            // Money over the balance is a named customer's credit; a walk-in's is refused (invoice-credit.ts).
-            PaymentSheet(title: "Take payment · \(inv.id)", owed: inv.balanceDue >= 1 ? inv.balanceDue : nil,
-                         customer: PaymentCustomer(name: inv.customerName, canHoldCredit: canHoldCredit(inv.customerId))) { amount, method, reference in
-                try await InvoiceFacts.record(inv, amount: amount, method: method, reference: reference)
+            InvoiceTakePayment(inv: inv, recorded: recorded)
+        }
+    }
+}
+
+/// The payment sheet for one invoice, knowing who is signed in: the Settle offer changes the discount, which is an
+/// owner's to change (/api/app/write updateInvoiceDiscount), so staff are offered Save alone.
+private struct InvoiceTakePayment: View {
+    let inv: Invoice
+    let recorded: ((Invoice, Double) -> Void)?
+    @Environment(Session.self) private var session
+
+    var body: some View {
+        // Money over the balance is a named customer's credit; a walk-in's is refused (invoice-credit.ts).
+        PaymentSheet(title: "Take payment · \(inv.id)", owed: owesMoney(inv.balanceDue) ? inv.balanceDue : nil,
+                     customer: PaymentCustomer(name: inv.customerName, canHoldCredit: canHoldCredit(inv.customerId)),
+                     settle: session.isOwner ? settleAction : nil) { amount, method, reference in
+            try await InvoiceFacts.record(inv, amount: amount, method: method, reference: reference)
+            recorded?(inv, amount)
+        }
+        .houseForm()
+    }
+
+    /// Settle: the payment, then the remainder off the discount. The page hears of the payment either way.
+    private var settleAction: SettleAction {
+        let inv = inv
+        let recorded = recorded
+        return { amount, method, reference, _, remainder in
+            do {
+                try await InvoiceFacts.settle(inv, amount: amount, method: method, reference: reference, remainder: remainder)
+            } catch let e as SettleNotGiven {
                 recorded?(inv, amount)
+                throw e
             }
-            .houseForm()
+            // The page's note works out what is left from what came off the balance: the payment and the
+            // remainder given off together, so it says "Paid in full".
+            recorded?(inv, amount + remainder)
         }
     }
 }

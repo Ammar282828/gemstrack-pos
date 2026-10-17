@@ -22,8 +22,9 @@ private func num(_ v: Double?) -> Double {
     return v
 }
 
+/// Whole rupees (2026-10-17): each row's value rounded, then summed.
 public func exchangeTotal(_ list: [ExchangeEntry]?) -> Double {
-    (list ?? []).reduce(0) { $0 + num($1.value) }
+    (list ?? []).reduce(0) { $0 + rupees($1.value) }
 }
 
 /// "Old ring · 22k · 5.2 g at 22,000/g"; an unnamed row is "Gold" when weighed, else plain "Exchange".
@@ -53,7 +54,7 @@ private func clean(_ list: [ExchangeEntry]) -> [ExchangeEntry] {
                 karat: JS.has(e.karat) ? e.karat : nil,
                 weightG: num(e.weightG) > 0 ? num(e.weightG) : nil,
                 ratePerGram: num(e.ratePerGram) > 0 ? num(e.ratePerGram) : nil,
-                value: num(e.value)
+                value: rupees(e.value)
             )
         }
 }
@@ -195,14 +196,14 @@ public func exchangesFromRows(_ rows: [ExchangeRow]) -> [ExchangeEntry] {
                 karat: r.karat.isEmpty ? nil : r.karat,
                 weightG: n(r.weightG) > 0 ? n(r.weightG) : nil,
                 ratePerGram: n(r.ratePerGram) > 0 ? n(r.ratePerGram) : nil,
-                value: n(r.value)
+                value: rupees(n(r.value))
             )
         }
         .filter { $0.value > 0 || !$0.description.isEmpty }
 }
 
 public func exchangeRowsTotal(_ rows: [ExchangeRow]) -> Double {
-    rows.reduce(0) { $0 + n($1.value) }
+    rows.reduce(0) { $0 + rupees(n($1.value)) }
 }
 
 /// Apply a change to one row; grams × rate refills the value unless it was typed.

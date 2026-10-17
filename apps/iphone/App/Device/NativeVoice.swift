@@ -285,7 +285,7 @@ enum NativeVoiceHandoff {
             for (i, piece) in scan.items.enumerated() {
                 if let price = piece.lineTotal, price > 0, firstPiece + i < draft.pieces.count {
                     draft.pieces[firstPiece + i].manual = true
-                    draft.pieces[firstPiece + i].manualPrice = NewOrderSlip.jsNumber(price)
+                    draft.pieces[firstPiece + i].manualPrice = NewOrderSlip.jsNumber(rupees(price))
                 }
             }
             if let method = payload["advanceMethod"] as? String { draft.advanceMethod = method }

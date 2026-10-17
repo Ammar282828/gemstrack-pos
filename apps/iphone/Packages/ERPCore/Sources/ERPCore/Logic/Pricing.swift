@@ -306,7 +306,7 @@ private func calculateSingleMetalCost(_ metalType: MetalType, _ karat: KaratValu
 public func calculateProductCosts(_ product: PricedPiece, _ rates: PricingRates) -> ProductCosts {
     // If manual price override is active, just return that price.
     if product.isCustomPrice {
-        return ProductCosts(totalPrice: JS.orZero(product.customPrice))
+        return ProductCosts(totalPrice: rupees(product.customPrice))
     }
 
     // Special simplified calculation for silver.
@@ -316,11 +316,12 @@ public func calculateProductCosts(_ product: PricedPiece, _ rates: PricingRates)
             : JS.truthy(rates.silverRatePerGram) ? rates.silverRatePerGram : 0
 
         // For silver, the provided rate is all-inclusive for metal, making, and wastage.
-        let allInSilverCost = JS.orZero(product.metalWeightG) * silverRatePerGram
+        // Whole rupees, each line rounded where it is worked out, so the lines add up to the total.
+        let allInSilverCost = rupees(JS.orZero(product.metalWeightG) * silverRatePerGram)
 
-        let stoneChargesValue = JS.orZero(product.stoneCharges)
-        let miscChargesValue = JS.orZero(product.miscCharges)
-        let diamondChargesValue = JS.orZero(product.diamondCharges)
+        let stoneChargesValue = rupees(product.stoneCharges)
+        let miscChargesValue = rupees(product.miscCharges)
+        let diamondChargesValue = rupees(product.diamondCharges)
 
         let totalPrice = allInSilverCost + stoneChargesValue + diamondChargesValue + miscChargesValue
 
@@ -347,20 +348,22 @@ public func calculateProductCosts(_ product: PricedPiece, _ rates: PricingRates)
         secondaryMetalCost = calculateSingleMetalCost(secondaryType, product.secondaryMetalKarat, product.secondaryMetalWeightG!, rates)
     }
 
-    let totalMetalCost = primaryMetalCost + secondaryMetalCost
+    // Whole rupees (owner, 2026-10-17): the metal, the wastage and every charge are each rounded, and the
+    // piece's price is the sum of the rounded lines, so a printed bill adds up to the rupee.
+    let totalMetalCost = rupees(primaryMetalCost + secondaryMetalCost)
 
     let isActualGoldCoin = product.categoryId == GOLD_COIN_CATEGORY_ID_INTERNAL && product.metalType == .gold
     // Exclude silver from wastage calculation.
     let applyWastage = product.metalType == .gold || product.metalType == .platinum || product.metalType == .palladium
     let wastagePercentage = isActualGoldCoin || !applyWastage ? 0 : JS.orZero(product.wastagePercentage)
-    let makingCharges = isActualGoldCoin ? 0 : JS.orZero(product.makingCharges)
+    let makingCharges = isActualGoldCoin ? 0 : rupees(product.makingCharges)
     let hasDiamondsValue = isActualGoldCoin ? false : product.hasDiamonds
-    let diamondChargesValue = hasDiamondsValue ? JS.orZero(product.diamondCharges) : 0
-    let stoneChargesValue = isActualGoldCoin ? 0 : JS.orZero(product.stoneCharges)
-    let miscChargesValue = isActualGoldCoin ? 0 : JS.orZero(product.miscCharges)
+    let diamondChargesValue = hasDiamondsValue ? rupees(product.diamondCharges) : 0
+    let stoneChargesValue = isActualGoldCoin ? 0 : rupees(product.stoneCharges)
+    let miscChargesValue = isActualGoldCoin ? 0 : rupees(product.miscCharges)
 
     let wastageCost = totalMetalCost * (wastagePercentage / 100)
-    let validWastageCost = JS.orZero(wastageCost)
+    let validWastageCost = rupees(wastageCost)
     let totalPrice = totalMetalCost + validWastageCost + makingCharges + diamondChargesValue + stoneChargesValue + miscChargesValue
 
     if totalPrice.isNaN { return .zero }

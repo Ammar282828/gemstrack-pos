@@ -50,7 +50,7 @@ struct SaleEdit: Equatable {
             if v > 0 { boxes[k.rawValue] = SaleNumber.text(v) }
         }
         d.rates = boxes
-        d.discount = SaleNumber.text(inv.discountAmount)
+        d.discount = SaleNumber.text(rupees(inv.discountAmount))  // whole rupees: an old bill's paise stay off the box
         let rows = rowsFromExchanges(invoiceExchanges(inv)).map { SaleExchangeRow($0) }
         d.exchanges = rows.isEmpty ? [SaleExchangeRow.blank()] : rows
         d.payments = [SalePaymentRow()]
@@ -67,7 +67,7 @@ struct SaleEdit: Equatable {
             del.expectedDate = x.expectedDate ?? ""
             del.contactName = x.contactName ?? ""
             del.contactPhone = x.contactPhone ?? ""
-            del.charge = SaleNumber.text(x.charge)
+            del.charge = SaleNumber.text(x.charge.map { rupees($0) })
             del.notes = x.notes ?? ""
         }
         d.delivery = del

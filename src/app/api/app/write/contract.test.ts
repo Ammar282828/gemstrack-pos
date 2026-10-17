@@ -19,12 +19,12 @@ import { NextRequest } from 'next/server';
 import type { DbPort, TxCtx } from '@/lib/db-port';
 
 /**
- * Money is whole rupees in the ERP since 2026-10-17 (lib/money.ts); the phone's cases (cases.json,
- * written by the apps) still hold unrounded figures, so each is held to within a few rupees (< 5: a
- * rounded rupee a line) until the apps round the same way (docs/in-progress.md "Whole rupees").
- * Set to 2 once cases.json is regenerated.
+ * Money is whole rupees in the ERP since 2026-10-17 (lib/money.ts). The iPhone's cases are written by
+ * code that rounds the same way (ERPCore MoneyRound), so they are held to the paisa again. The Android
+ * app's still hold unrounded figures: each is held to within a few rupees (< 5: a rounded rupee a line)
+ * until the Android app rounds too (docs/in-progress.md "Whole rupees"); then it is 2 as well.
  */
-const MONEY_DIGITS = -1;
+const MONEY_DIGITS_FOR: Record<string, number> = { iphone: 2, android: -1 };
 
 // The same in-memory database as route.test.ts, behind both the Admin SDK and the port.
 const data: Record<string, Record<string, Record<string, unknown>>> = {};
@@ -130,6 +130,7 @@ const seed = (c: Case) => {
 
 for (const [phone, file] of files) {
   const cases = JSON.parse(fs.readFileSync(file, 'utf8')) as { orders: Case[]; sales: Case[] };
+  const MONEY_DIGITS = MONEY_DIGITS_FOR[phone] ?? 2;
 
   describe(`${phone}: the contract holds cases for both houses`, () => {
     it('has orders and sales from Taheri and from House of Mina', () => {

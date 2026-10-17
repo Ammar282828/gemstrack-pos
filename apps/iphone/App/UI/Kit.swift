@@ -481,9 +481,27 @@ enum PaymentText {
     }
 }
 
+/// A Settle whose payment was taken but whose remainder was not given off (the discount write was refused):
+/// the money is on the bill, so the sheet must not offer to take it again.
+struct SettleNotGiven: LocalizedError {
+    let paid: Double
+    let remainder: Double
+    let why: String
+
+    var errorDescription: String? {
+        "\(PaymentText.pkr(paid)) is recorded. The remaining \(PaymentText.pkr(remainder)) was not taken off: \(why) Change the discount to give it."
+    }
+}
+
+/// What a Settle does once tapped: take the payment exactly as Save would, then raise the bill's discount by
+/// `remainder` (never a payment that was not made). A refusal after the payment is taken is thrown as `SettleNotGiven`.
+typealias SettleAction = (_ amount: Double, _ method: String, _ reference: String, _ note: String, _ remainder: Double) async throws -> Void
+
 /// Taking money: an invoice's payment or an order's advance. The amount is typed in whole rupees
 /// (no paise) and shown back in lac as it is typed; the write is the ERP's (`save`), and the sheet stays
-/// open with the ERP's own words if it refuses.
+/// open with the ERP's own words if it refuses. With `settle`, a remainder under 5,000 (what is owed less the
+/// amount typed) can be given off (record-payment-dialog.tsx and RecordAdvanceDialog's SettleOffer, ERPCore
+/// `settleRemainderOffer`).
 struct PaymentSheet: View {
     let title: String
     /// What is still owed, offered as the amount with one tap.
@@ -495,6 +513,8 @@ struct PaymentSheet: View {
     var noteDefault: String?
 
     private let commit: (_ amount: Double, _ method: String, _ reference: String, _ note: String) async throws -> Void
+    /// Set where the remainder may be given off: an invoice (owners: the discount is theirs to change) and an advance.
+    private let settle: SettleAction?
 
     @Environment(\.dismiss) private var dismiss
     @State private var amountText = ""
@@ -509,6 +529,8 @@ struct PaymentSheet: View {
     /// Counted, so the confirming tap (or the refusal) is felt once per attempt.
     @State private var recorded = 0
     @State private var refused = 0
+    /// A Settle's payment was taken and its discount refused: nothing more is sent from this sheet.
+    @State private var taken = false
 
     private struct Pinned {
         let text: String
@@ -517,6 +539,7 @@ struct PaymentSheet: View {
 
     /// An invoice's payment, a repair's, or anything else with a reference and no note.
     init(title: String, owed: Double? = nil, askReference: Bool = true, customer: PaymentCustomer? = nil,
+         settle: SettleAction? = nil,
          save: @escaping (_ amount: Double, _ method: String, _ reference: String) async throws -> Void) {
         self.title = title
         self.owed = owed
@@ -524,11 +547,12 @@ struct PaymentSheet: View {
         self.customer = customer
         self.noteDefault = nil
         self.commit = { amount, method, reference, _ in try await save(amount, method, reference) }
+        self.settle = settle
         _note = State(initialValue: "")
     }
 
     /// An advance on an order: no reference, a note instead (order-dialogs.tsx RecordAdvanceDialog).
-    init(title: String, owed: Double? = nil, note: String,
+    init(title: String, owed: Double? = nil, note: String, settle: SettleAction? = nil,
          save: @escaping (_ amount: Double, _ method: String, _ note: String) async throws -> Void) {
         self.title = title
         self.owed = owed
@@ -536,6 +560,7 @@ struct PaymentSheet: View {
         self.customer = nil
         self.noteDefault = note
         self.commit = { amount, method, _, note in try await save(amount, method, note) }
+        self.settle = settle
         _note = State(initialValue: note)
     }
 
@@ -562,6 +587,13 @@ struct PaymentSheet: View {
             return "Please add a brief note for the payment."
         }
         return nil
+    }
+
+    /// What would be left owing after this amount, when it is small enough to give off (0 < it < 5,000):
+    /// the web's `rupees(balance) - rupees(amount)`. Nil without a Settle, an amount, or a balance.
+    private var settleOffer: Double? {
+        guard settle != nil, !taken, let owed, amount > 0, problem == nil else { return nil }
+        return settleRemainderOffer(rupees(owed) - rupees(amount))
     }
 
     private var creditNote: String? {
@@ -604,6 +636,17 @@ struct PaymentSheet: View {
                         TextField("Note", text: $note, prompt: Text("e.g. Second advance payment"))
                     }
                 }
+                if let x = settleOffer {
+                    Section {
+                        Button(SettleWords.offer(x)) { send(settling: x) }
+                            .buttonStyle(.bordered)
+                            .tint(Theme.accent)
+                            .frame(maxWidth: .infinity)
+                            .disabled(saving)
+                    } footer: {
+                        Text("Takes this payment, then adds \(PaymentText.pkr(x)) to the discount, so nothing is left owing.")
+                    }
+                }
                 if let error {
                     Section { Text(error).foregroundStyle(.red) }
                 }
@@ -615,24 +658,8 @@ struct PaymentSheet: View {
                     Button(role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(role: .confirm) {
-                        Task {
-                            saving = true
-                            error = nil
-                            do {
-                                // A cash payment has no reference to carry, whatever was typed before it was switched.
-                                try await commit(amount, method, method == "Cash" ? "" : reference,
-                                                 note.trimmingCharacters(in: .whitespacesAndNewlines))
-                                recorded += 1
-                                dismiss()
-                            } catch {
-                                self.error = error.localizedDescription
-                                refused += 1
-                            }
-                            saving = false
-                        }
-                    }
-                    .disabled(amount <= 0 || problem != nil || saving)
+                    Button(role: .confirm) { send(settling: nil) }
+                        .disabled(amount <= 0 || problem != nil || saving || taken)
                 }
             }
             // The ERP's words for a refusal slide in under the form rather than appearing in a jump.
@@ -641,6 +668,37 @@ struct PaymentSheet: View {
         .sensoryFeedback(.success, trigger: recorded)
         .sensoryFeedback(.error, trigger: refused)
         .presentationDetents([.medium, .large])
+    }
+
+    /// Save, or Settle (`settling` is the remainder to give off): the ERP's write, the sheet kept open with its words
+    /// on a refusal. A Settle whose payment went through but whose discount did not stays open saying so, with
+    /// nothing left to send.
+    private func send(settling remainder: Double?) {
+        if saving || taken { return }
+        Task {
+            saving = true
+            error = nil
+            // A cash payment has no reference to carry, whatever was typed before it was switched.
+            let ref = method == "Cash" ? "" : reference
+            let said = note.trimmingCharacters(in: .whitespacesAndNewlines)
+            do {
+                if let remainder, let settle {
+                    try await settle(amount, method, ref, said, remainder)
+                } else {
+                    try await commit(amount, method, ref, said)
+                }
+                recorded += 1
+                dismiss()
+            } catch let e as SettleNotGiven {
+                taken = true
+                recorded += 1
+                self.error = e.localizedDescription
+            } catch {
+                self.error = error.localizedDescription
+                refused += 1
+            }
+            saving = false
+        }
     }
 }
 

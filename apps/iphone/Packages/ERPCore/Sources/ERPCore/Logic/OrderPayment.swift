@@ -88,7 +88,7 @@ public func withoutOrderAdvance(_ order: Order, lineIndex: Int) -> OrderAdvanceR
     if laterSum > cash + 0.5 { return OrderAdvanceRemoval(advancePayment: 0, advances: [], dropMethod: true, removed: removed) }
     let hasFirst = cash - laterSum > 0.5
     if hasFirst && lineIndex == 0 {
-        return OrderAdvanceRemoval(advancePayment: JS.round(laterSum * 100) / 100, advances: all, dropMethod: true, removed: removed)
+        return OrderAdvanceRemoval(advancePayment: rupees(laterSum), advances: all, dropMethod: true, removed: removed)
     }
     // The k-th positive entry of the list.
     var k = lineIndex - (hasFirst ? 1 : 0)
@@ -99,7 +99,7 @@ public func withoutOrderAdvance(_ order: Order, lineIndex: Int) -> OrderAdvanceR
     }
     if at < 0 { return nil }
     return OrderAdvanceRemoval(
-        advancePayment: JS.round((cash - all[at].amount) * 100) / 100,
+        advancePayment: rupees(cash - all[at].amount),
         advances: all.enumerated().filter { $0.offset != at }.map(\.element),
         dropMethod: false,
         removed: removed

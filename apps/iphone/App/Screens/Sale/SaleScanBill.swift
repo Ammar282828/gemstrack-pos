@@ -256,10 +256,10 @@ extension SaleDraft {
 
         let bill = reading.answer
         if let d = bill.discount, d > 0, !((SaleNumber.parse(discount) ?? 0) > 0) {
-            discount = NewOrderSlip.jsNumber(d)
+            discount = NewOrderSlip.jsNumber(rupees(d))
         }
         if let paid = bill.amountPaid, paid > 0, !payments.contains(where: { (SaleNumber.parse($0.amount) ?? 0) > 0 }) {
-            payments = [SalePaymentRow(amount: NewOrderSlip.jsNumber(paid))]
+            payments = [SalePaymentRow(amount: NewOrderSlip.jsNumber(rupees(paid)))]
         }
         return held
     }

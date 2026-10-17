@@ -206,7 +206,7 @@ struct OrderScreen: View {
                         .foregroundStyle(.secondary)
                         .tracking(0.6)
                     HeroAmount(amount: due, tone: Tone.owed.color)
-                } else if due < -0.5 {
+                } else if isCredit(due) {
                     Pill("In credit", tone: .credit)
                     HeroAmount(amount: -due, tone: Tone.credit.color)
                 } else {
@@ -712,13 +712,12 @@ struct OrderScreen: View {
     private func advanceSheet(_ order: Order) -> some View {
         let balance = OrdersLogic.balance(order)
         // The note is the web's own default; it can be changed, and needs three characters (order-dialogs.tsx).
-        return PaymentSheet(title: "Record an advance", owed: balance >= 1 ? balance : nil, note: "Advance payment received") { amount, method, note in
-            _ = try await ERPAPI.shared.write("recordOrderAdvance", [
-                "orderId": order.id,
-                "amount": amount,
-                "method": method,
-                "notes": note,
-            ])
+        // Settle gives a remainder under 5,000 off the order's discount (OrderAdvance.settle).
+        return PaymentSheet(title: "Record an advance", owed: owesMoney(balance) ? balance : nil, note: "Advance payment received",
+                            settle: { amount, method, _, note, remainder in
+                                try await OrderAdvance.settle(order, amount: amount, method: method, note: note, remainder: remainder)
+                            }) { amount, method, note in
+            try await OrderAdvance.record(order, amount: amount, method: method, note: note)
             // PaymentSheet plays the success tap itself.
         }
     }

@@ -3,9 +3,10 @@ import ERPCore
 
 // What the order form works out, and what it sends. Every figure is ERPCore's (Pricing, Exchange,
 // WalkIn, Margin) arranged the way order-form.tsx arranges them: `priceOfItem`, `liveEstimate`
-// (subtotal, discount, advance, exchange, grand total) and `onSubmit`'s `orderToSave`. The server
-// stores the totals as sent (create-order.ts only rounds them to numbers), so what the phone shows
-// is what the book will hold.
+// (subtotal, discount, advance, exchange, grand total) and `onSubmit`'s `orderToSave`. Money is whole
+// rupees (ERPCore MoneyRound, lib/money-round.ts): each line rounded where it is worked out, the totals
+// sums of rounded lines; create-order.ts rounds what it is sent the same way, so what the phone shows is
+// what the book will hold.
 
 enum NewOrderMath {
     struct Totals {
@@ -90,9 +91,10 @@ enum NewOrderMath {
         )
     }
 
-    /// `priceOfItem`: a fixed price is that price; a weighed piece with no weight yet is nothing.
+    /// `priceOfItem` (lib/order-estimate.ts orderItemPrice): a fixed price is that price, in whole rupees;
+    /// a weighed piece with no weight yet is nothing.
     static func price(_ p: NewOrderPieceDraft, _ rates: PricingRates) -> Double {
-        if p.manual { return num(p.manualPrice) }
+        if p.manual { return rupees(num(p.manualPrice)) }
         if num(p.weight) <= 0 { return 0 }
         return calculateProductCosts(priced(p), rates).totalPrice
     }
@@ -108,8 +110,8 @@ enum NewOrderMath {
             t.prices.append(x)
             t.subtotal += x
         }
-        t.discount = max(0, min(t.subtotal, num(d.discount)))
-        t.advance = num(d.advance)
+        t.discount = max(0, min(t.subtotal, rupees(num(d.discount))))
+        t.advance = rupees(num(d.advance))
         t.exchange = exchangeTotal(exchangesFromRows(d.exchanges.map { $0.row }))
         t.balance = t.subtotal - t.discount - (t.advance + t.exchange)
         return t
@@ -158,22 +160,23 @@ enum NewOrderMath {
     static func item(_ p: NewOrderPieceDraft, rates: PricingRates, photo: Bool) -> [String: Any] {
         let metal = MetalType(rawValue: p.metal)
         let silver = metal == .silver
-        let costs: ProductCosts = p.manual ? ProductCosts(totalPrice: num(p.manualPrice)) : calculateProductCosts(priced(p), rates)
+        let costs: ProductCosts = p.manual ? ProductCosts(totalPrice: rupees(num(p.manualPrice))) : calculateProductCosts(priced(p), rates)
         var o: [String: Any] = [:]
         o["description"] = trim(p.description)
         o["metalType"] = p.metal
         o["estimatedWeightG"] = num(p.weight)
         o["wastagePercentage"] = num(p.wastage)
-        o["makingCharges"] = silver ? 0.0 : num(p.making)
-        o["diamondCharges"] = p.hasDiamonds ? num(p.diamond) : 0.0
-        o["stoneCharges"] = num(p.stones)
+        // The piece's money fields in whole rupees, as create-order.ts keeps them (PIECE_MONEY).
+        o["makingCharges"] = silver ? 0.0 : rupees(num(p.making))
+        o["diamondCharges"] = p.hasDiamonds ? rupees(num(p.diamond)) : 0.0
+        o["stoneCharges"] = rupees(num(p.stones))
         o["hasDiamonds"] = p.hasDiamonds
         o["hasStones"] = p.hasStones
         o["stoneWeightG"] = p.stoneWeightValue
         o["sampleGiven"] = p.sampleGiven
         o["isCompleted"] = p.isCompleted
         o["isManualPrice"] = p.manual
-        o["manualPrice"] = p.manual ? num(p.manualPrice) : 0.0
+        o["manualPrice"] = p.manual ? rupees(num(p.manualPrice)) : 0.0
         o["metalCost"] = NewOrderFormat.finite(costs.metalCost)
         o["wastageCost"] = NewOrderFormat.finite(costs.wastageCost)
         o["totalEstimate"] = NewOrderFormat.finite(costs.totalPrice)
@@ -302,7 +305,7 @@ enum NewOrderMath {
             put(&del, "contactPhone", d.deliveryPhone)
             put(&del, "notes", d.deliveryNotes)
             put(&del, "expectedDate", d.deliveryExpected)
-            let charge = num(d.deliveryCharge)
+            let charge = rupees(num(d.deliveryCharge))
             if charge > 0 { del["charge"] = charge }
             o["delivery"] = del
         }
