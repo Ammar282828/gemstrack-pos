@@ -4,7 +4,7 @@ import ERPCore
 /// Hisaab → Add entry (src/app/hisaab/page.tsx `AddNewHisaabDialog`, "Add or choose an account"): the customers and
 /// karigars on file to search, and a ledger opens for the one picked, where "You gave" and "You got" write the row.
 /// A name typed that is on nobody's file can become a new karigar from here (`addKarigar`, as the web does), and
-/// opens his ledger; a new customer, or a karigar with his number and specialty, goes to the form for one.
+/// opens their ledger; a new customer, or a karigar with his number and specialty, goes to the form for one.
 struct HisaabAccountPicker: View {
     /// Where to go next: a person's ledger, or the form for a new one. Told as the sheet closes.
     let go: (Route) -> Void
@@ -50,7 +50,6 @@ struct HisaabAccountPicker: View {
                 }
             }
         }
-        .presentationDetents([.large])
         .interactiveDismissDisabled(creating)
         .failureAlert($failure, title: "Could not add the karigar")
         .task {
@@ -73,13 +72,13 @@ struct HisaabAccountPicker: View {
                 ForEach(shown) { (c: Contact) in
                     Button { pick(c) } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: c.isCustomer ? "person.fill" : "briefcase.fill")
-                                .foregroundStyle(Theme.accent)
-                                .frame(width: 32, height: 32)
-                                .background(Theme.accent.opacity(0.14), in: .circle)
+                            Monogram(name: c.name.isEmpty ? c.id : c.name, size: Monogram.Size.row)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(c.name.isEmpty ? c.id : c.name).font(.body.weight(.medium)).lineLimit(1)
-                                Text(c.isCustomer ? "Customer" : "Karigar").font(.caption).foregroundStyle(.secondary)
+                                Text(c.name.isEmpty ? c.id : c.name).font(.body.weight(.medium))
+                                // Told apart only while searching: the list otherwise says the obvious on every row.
+                                if !typed.isEmpty {
+                                    Text(c.isCustomer ? "Customer" : "Karigar").font(.caption).foregroundStyle(.secondary)
+                                }
                             }
                             Spacer(minLength: 0)
                         }
@@ -89,10 +88,10 @@ struct HisaabAccountPicker: View {
                 if canCreate || creating {
                     Button { Task { await createKarigar() } } label: {
                         HStack(spacing: 12) {
-                            if creating { SkeletonLoading() } else { Image(systemName: "plus.circle") }
+                            if creating { ProgressView() } else { Image(systemName: "plus.circle") }
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(creating ? "Adding" : "Add karigar") \u{201C}\(typed)\u{201D}").font(.body.weight(.medium))
-                                Text("Opens a new hisaab for him").font(.caption).foregroundStyle(.secondary)
+                                Text("Opens a new hisaab").font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 0)
                         }
@@ -123,7 +122,7 @@ struct HisaabAccountPicker: View {
         dismiss()
     }
 
-    /// A typed name that is on nobody's file becomes a karigar with that name alone and opens his ledger.
+    /// A typed name that is on nobody's file becomes a karigar with that name alone and opens their ledger.
     @MainActor
     private func createKarigar() async {
         let name = typed

@@ -59,6 +59,22 @@ struct CustomersList: View {
                     Label("Add customer", systemImage: "plus")
                 }
             }
+            // Clearing up the book is an owner's: the web's merge and removals are browser writes the shop floor cannot make.
+            if session.isOwner {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button { merging = true } label: {
+                            Label("Merge duplicates", systemImage: "person.2")
+                        }
+                        // The spam finder: gibberish names or emails with no number, address or history (lib/customer-spam.ts).
+                        Button { cleaning = true } label: {
+                            Label("Clean up spam", systemImage: "person.crop.circle.badge.xmark")
+                        }
+                    } label: {
+                        Label("Tidy up", systemImage: "ellipsis.circle")
+                    }
+                }
+            }
         }
         .sheet(isPresented: $merging) {
             CustomerMergeSheet()
@@ -134,27 +150,13 @@ struct CustomersList: View {
                 Section { empty(matched: f.matchedCount) }
                     .listRowBackground(Color.clear)
             } else {
-                group("Owing money", "most owed first", shown.owing, f.stats)
-                group("Recent", "bought in the last \(CustomerKit.dormantAfterMonths) months", shown.active, f.stats)
+                group("Owing money", nil, shown.owing, f.stats)
+                group("Recent", nil, shown.active, f.stats)
                 group("Quiet", "no sale in a year", shown.quiet, f.stats)
-            }
-            // Clearing up the book is an owner's: the web's merge and removals are browser writes the shop floor cannot make.
-            if session.isOwner {
-                Section {
-                    Button { merging = true } label: {
-                        Label("Merge duplicates", systemImage: "person.2")
-                    }
-                    // The spam finder: gibberish names or emails with no number, address or history (lib/customer-spam.ts).
-                    Button { cleaning = true } label: {
-                        Label("Clean up spam", systemImage: "trash")
-                    }
-                } footer: {
-                    Text("Merging moves one customer's invoices, orders and hisaab to another. Cleaning up spam hides the bot sign-ups you tick. Both ask for the delete code.")
-                }
-                .houseRows()
             }
         }
         .listStyle(.insetGrouped)
+        .motion(showing, Motion.travel)
     }
 
     private var chips: some View {
@@ -165,17 +167,14 @@ struct CustomersList: View {
         }
     }
 
-    @ViewBuilder private func group(_ title: String, _ hint: String, _ people: [Customer], _ stats: [String: CustomerKit.Stats]) -> some View {
+    @ViewBuilder private func group(_ title: String, _ hint: String?, _ people: [Customer], _ stats: [String: CustomerKit.Stats]) -> some View {
         if !people.isEmpty {
             Section {
                 ForEach(people) { c in
                     row(c, stats[c.id])
                 }
             } header: {
-                VStack(alignment: .leading, spacing: 6) {
-                    LedgerHeading(title: title, count: people.count)
-                    Text(hint).font(.footnote).foregroundStyle(.secondary)
-                }
+                LedgerHeading(title: title, count: people.count, trailing: hint)
             }
             .houseRows()
         }
@@ -272,7 +271,7 @@ private struct CustSummary: View {
             }
             .font(.subheadline)
         }
-        .ledgerCard()
+        .heroSheen()
     }
 }
 

@@ -41,6 +41,7 @@ struct ExpensesScreen: View {
             content
         }
         .navigationTitle("Expenses")
+        .hubTitleDisplay()
         .searchable(text: $search, prompt: "Description, category or karigar")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { filterMenu }
@@ -71,6 +72,7 @@ struct ExpensesScreen: View {
         }
         // Said for a few seconds, like the web's toast, then gone.
         .noteToast($note)
+        .destructiveFeedback(trigger: deletion != nil)
         .task {
             book.expenses.need()
             book.karigars.need()
@@ -89,6 +91,12 @@ struct ExpensesScreen: View {
         let groups = MoneyBuckets.group(shown, by: grouping, now: now, amount: { (e: Expense) -> Double in e.amount })
         let summary = ExpenseFigures.summary(shown, groups: groups)
         List { Group {
+            if !usedCategories.isEmpty {
+                Section {
+                    categoryChips
+                        .chipRowInList()
+                }
+            }
             if period == .custom {
                 Section {
                     MoneyRangeFields(filter: $custom)
@@ -103,7 +111,7 @@ struct ExpensesScreen: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
             } header: {
-                Text(periodLine(range)).textCase(nil)
+                LedgerHeading(title: periodLine(range))
             }
             if groups.isEmpty {
                 Section { emptyState }
@@ -116,16 +124,12 @@ struct ExpensesScreen: View {
                     }
                 }
             }
-            Section {
-                Button { report = reportTarget() } label: {
-                    Label("Expense report (PDF)", systemImage: "doc.richtext")
-                }
-                .disabled(shown.isEmpty)
-            }
         }.houseRows()
         }
         .listStyle(.insetGrouped)
-        .safeAreaBar(edge: .top, spacing: 0) { categoryChips }
+        .motion(category, Motion.travel)
+        .motion(grouping, Motion.travel)
+        .motion(period, Motion.travel)
     }
 
     /// The page's Report for what is on screen; named as the browser saves it.
@@ -167,7 +171,13 @@ struct ExpensesScreen: View {
     private var emptyState: some View {
         let filtering = !search.isEmpty || !category.isEmpty
         let text = filtering ? "Select a wider period, or clear the filters." : "No expenses recorded for \(period.title.lowercased())."
-        return ContentUnavailableView("No expenses in this period", systemImage: "tray", description: Text(text))
+        return ContentUnavailableView {
+            Label("No expenses in this period", systemImage: "tray")
+        } description: {
+            Text(text)
+        } actions: {
+            Button("Add expense") { adding = true }.buttonStyle(.bordered)
+        }
     }
 
     // MARK: Figures
@@ -196,12 +206,12 @@ struct ExpensesScreen: View {
     }
 
     private func groupHeader(_ group: MoneyGroup<Expense>) -> some View {
-        let n = group.rows.count
-        let count = "\(n) item\(n == 1 ? "" : "s")"
-        let detail = group.sub.isEmpty ? count : "\(group.sub) · \(count)"
+        // The row count is not said: the rows are right under it.
         return VStack(alignment: .leading, spacing: 6) {
             LedgerHeading(title: group.label, trailing: Money.pkr(group.total))
-            Text(detail).font(.footnote).foregroundStyle(.secondary)
+            if !group.sub.isEmpty {
+                Text(group.sub).font(.footnote).foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -260,8 +270,8 @@ struct ExpensesScreen: View {
     private func payerName(_ who: PaidBy) -> String? {
         switch who {
         case .business: return nil
-        case .ammar: return "Ammar"
-        case .mina: return "Mina"
+        case .ammar: return MoneyPartners.name("ammar")
+        case .mina: return MoneyPartners.name("mina")
         case .unknown(let raw): return raw.isEmpty ? nil : raw.capitalized
         }
     }
@@ -284,17 +294,13 @@ struct ExpensesScreen: View {
     private var categoryChips: some View {
         let names = usedCategories
         if !names.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    chip("All", selected: category.isEmpty) { category = "" }
-                    ForEach(names, id: \.self) { (name: String) in
-                        chip(name, selected: category == name) {
-                            category = name
-                        }
+            ChipRow {
+                chip("All", selected: category.isEmpty) { category = "" }
+                ForEach(names, id: \.self) { (name: String) in
+                    chip(name, selected: category == name) {
+                        category = name
                     }
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 6)
             }
         }
     }
@@ -315,6 +321,11 @@ struct ExpensesScreen: View {
             Picker("Group by", selection: $grouping) {
                 ForEach(ExpenseGrouping.allCases) { (g: ExpenseGrouping) in Text(g.title).tag(g) }
             }
+            Divider()
+            Button { report = reportTarget() } label: {
+                Label("Expense report (PDF)", systemImage: "doc.richtext")
+            }
+            .disabled(book.expenses.items.isEmpty)
         } label: {
             Label("Period and grouping", systemImage: filtering ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
         }

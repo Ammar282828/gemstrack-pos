@@ -146,18 +146,20 @@ private struct EditCustomerForm: View {
             datesSection
             aboutSection
             sourceSection
-            if let error {
-                Section { Text(error).foregroundStyle(Tone.problem.color) }
-            }
             }
             .houseRows()
         }
         .disabled(saving)
         .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
+        .interactiveDismissDisabled(saving)
+        .failureAlert($error, title: "Could not save")
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") { Task { await save() } }
-                    .disabled(!canSave)
+                Button { Task { await save() } } label: {
+                    if saving { ProgressView() } else { Text("Save") }
+                }
+                .disabled(!canSave)
             }
         }
     }
@@ -181,8 +183,6 @@ private struct EditCustomerForm: View {
                 .keyboardType(.phonePad)
         } header: {
             LedgerHeading(title: "Phone")
-        } footer: {
-            Text("The spare slot. A contact import fills this rather than overwriting the number above.")
         }
     }
 
@@ -220,8 +220,6 @@ private struct EditCustomerForm: View {
             sizeRow("Chain", $draft.chainLength, example: "e.g. 18 in")
         } header: {
             LedgerHeading(title: "Sizes")
-        } footer: {
-            Text("What the shop needs before it can make anything. Written the way it is quoted at the counter, not forced into a number.")
         }
     }
 
@@ -238,8 +236,6 @@ private struct EditCustomerForm: View {
             EditDayRow(title: "Anniversary", day: $draft.anniversary)
         } header: {
             LedgerHeading(title: "Dates")
-        } footer: {
-            Text("What the dashboard watches for, so a regular gets a message before the day rather than after it.")
         }
     }
 

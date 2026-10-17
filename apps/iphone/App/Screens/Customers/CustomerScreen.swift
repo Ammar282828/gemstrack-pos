@@ -16,7 +16,7 @@ struct CustomerScreen: View {
     /// A customer just made on this phone, shown until the shelf brings them (staff poll every 25 seconds).
     private let seed: Customer?
     @State private var deletion: OwnerDeletion?
-    @State private var note: OwnerNote?
+    @State private var note: Note?
     /// The customer's figures, worked out once per change of the books rather than on every drawing (every
     /// invoice, order, repair and hisaab row was walked each time the page moved).
     @State private var reckoned = Memo<Facts>()
@@ -74,6 +74,7 @@ struct CustomerScreen: View {
             OwnerDeleteCodeSheet(deletion: d) {}
         }
         .noteToast($note)
+        .destructiveFeedback(trigger: deletion != nil)
         .task {
             book.customers.need()
             book.invoices.need()
@@ -193,7 +194,7 @@ struct CustomerScreen: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.bordered)
         .controlSize(.large)
         .disabled(url == nil)
     }
@@ -276,39 +277,36 @@ struct CustomerScreen: View {
                 }
             }
         } header: {
-            LedgerHeading(title: "Invoices · \(list.count)")
+            LedgerHeading(title: "Invoices", count: list.count)
         }
     }
 
-    private func ordersSection(_ list: [Order]) -> some View {
-        Section {
-            if list.isEmpty {
-                Text("No custom orders found for this customer.").foregroundStyle(.secondary)
-            } else {
+    // No orders or no repairs: no section, the absence is the message.
+    @ViewBuilder private func ordersSection(_ list: [Order]) -> some View {
+        if !list.isEmpty {
+            Section {
                 ForEach(list) { order in
                     NavigationLink(value: CustomerKit.place("/orders/", order.id)) {
                         CustOrderRow(order: order)
                     }
                 }
+            } header: {
+                LedgerHeading(title: "Orders", count: list.count)
             }
-        } header: {
-            LedgerHeading(title: "Orders · \(list.count)")
         }
     }
 
-    private func repairsSection(_ list: [Repair]) -> some View {
-        Section {
-            if list.isEmpty {
-                Text("No repairs for this customer.").foregroundStyle(.secondary)
-            } else {
+    @ViewBuilder private func repairsSection(_ list: [Repair]) -> some View {
+        if !list.isEmpty {
+            Section {
                 ForEach(list) { repair in
                     NavigationLink(value: CustomerKit.place("/repairs?id=", repair.id)) {
                         CustRepairRow(repair: repair)
                     }
                 }
+            } header: {
+                LedgerHeading(title: "Repairs", count: list.count)
             }
-        } header: {
-            LedgerHeading(title: "Repairs · \(list.count)")
         }
     }
 
@@ -318,9 +316,6 @@ struct CustomerScreen: View {
 
     private func hisaabSection(_ rows: [HisaabEntry], id: String) -> some View {
         Section {
-            if rows.isEmpty {
-                Text("Nothing is written in their hisaab.").foregroundStyle(.secondary)
-            }
             ForEach(rows.prefix(Self.hisaabShown)) { row in
                 CustHisaabRow(entry: row)
             }
@@ -424,7 +419,7 @@ private struct CustHisaabRow: View {
     /// What they owe goes up (+), what they pay comes off (-): debit less credit, as the ERP keeps it.
     private var amount: String? {
         if abs(net) < 1 { return nil }
-        return (net > 0 ? "+" : "-") + Money.pkr(abs(net))
+        return Money.signed(net)
     }
 
     var body: some View {

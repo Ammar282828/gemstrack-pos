@@ -24,6 +24,7 @@ struct CustomerSpamSheet: View {
     @State private var deletion: OwnerDeletion?
     @State private var run: Run?
     @State private var note: Note?
+    @State private var confirmingDelete = false
 
     /// One clean-up: who is to go, in the list's order, how far it has got, and what came of each.
     private struct Run {
@@ -70,7 +71,6 @@ struct CustomerSpamSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
         .interactiveDismissDisabled(working)
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {
@@ -118,18 +118,16 @@ struct CustomerSpamSheet: View {
                 } else if let found {
                     if found.isEmpty {
                         Section {
-                            Text("No spam accounts found.").foregroundStyle(.secondary)
-                        } footer: {
-                            Text("A customer is flagged only with no phone, no address and no order, invoice or hisaab, and a gibberish name or a random email.")
+                            Label("No spam accounts found", systemImage: "checkmark.circle")
+                                .foregroundStyle(.secondary)
                         }
                     } else {
                         candidatesSection(found)
-                        actionSection(found)
                     }
                 } else {
                     Section {
                         HStack(spacing: 10) {
-                            SkeletonLoading()
+                            ProgressView()
                             Text("Looking for spam…").foregroundStyle(.secondary)
                         }
                     }
@@ -138,6 +136,33 @@ struct CustomerSpamSheet: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .modifier(DeleteBar(show: run == nil && !(found ?? []).isEmpty,
+                            count: (found ?? []).filter { selected.contains($0.id) }.count) {
+            confirmingDelete = true
+        })
+        .confirmDestructive(isPresented: $confirmingDelete,
+                            title: "Delete the selected accounts?",
+                            message: "Removing hides them; Settings, then Recently removed, puts them back. It asks for the delete code once.",
+                            action: "Continue") {
+            ask((found ?? []).filter { selected.contains($0.id) })
+        }
+        .selectionFeedback(trigger: selected)
+    }
+
+    /// The sheet's one action, pinned under the long list, with the count in its words.
+    private struct DeleteBar: ViewModifier {
+        let show: Bool
+        let count: Int
+        let delete: () -> Void
+        func body(content: Content) -> some View {
+            if show {
+                content.actionBar(primary: ActionBar.Action(count == 1 ? "Delete 1 selected" : "Delete \(count) selected",
+                                                            systemImage: "trash", role: .destructive,
+                                                            isDisabled: count == 0, action: delete))
+            } else {
+                content
+            }
+        }
     }
 
     private func candidatesSection(_ found: [CustomerSpam.Candidate]) -> some View {
@@ -154,7 +179,14 @@ struct CustomerSpamSheet: View {
         } header: {
             LedgerHeading(title: "Suspected bot accounts", count: found.count)
         } footer: {
-            Text("Every one has no phone, no address and no orders. Untick any you want to keep.")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Removing hides them; Settings, then Recently removed, puts them back. It asks for the delete code once.")
+                // The web's own warning: a storefront's bots sign up again until the store stops them.
+                if found.contains(where: { CustomerKit.filled($0.customer.shopifyCustomerId) != nil }) {
+                    Text("Rows tagged Shopify came from the Shopify store. Removing them here hides them in the ERP; if the storefront spam goes on they may sync back. A sign-up CAPTCHA in Shopify stops the source.")
+                        .foregroundStyle(Tone.owed.color)
+                }
+            }
         }
     }
 
@@ -167,6 +199,7 @@ struct CustomerSpamSheet: View {
                 Image(systemName: on ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundStyle(on ? Theme.accent : Color.secondary)
+                    .contentTransition(.symbolEffect(.replace))
                 VStack(alignment: .leading, spacing: 4) {
                     Text(CustomerKit.trim(c.customer.name).isEmpty ? "(no name)" : c.customer.name)
                         .font(.body.weight(.medium))
@@ -174,14 +207,12 @@ struct CustomerSpamSheet: View {
                     Text(CustomerKit.filled(c.customer.email) ?? "no email")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    // The reasons wrap onto lines rather than being cut (ArtworkFlow, the word chips' layout).
-                    ArtworkFlow(spacing: 6) {
-                        ForEach(c.reasons, id: \.self) { (r: String) in
-                            Pill(r, tone: .owed)
-                        }
-                        if CustomerKit.filled(c.customer.shopifyCustomerId) != nil {
-                            Pill("Shopify", tone: .working)
-                        }
+                    // The reasons are one quiet line (they wrap, never cut); only Shopify is a mark.
+                    Text(c.reasons.joined(separator: " · "))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if CustomerKit.filled(c.customer.shopifyCustomerId) != nil {
+                        Pill("Shopify", tone: .working)
                     }
                 }
                 Spacer(minLength: 0)
@@ -197,27 +228,8 @@ struct CustomerSpamSheet: View {
             Image(systemName: on ? "checkmark.circle.fill" : "circle")
                 .font(.title3)
                 .foregroundStyle(on ? Theme.accent : Color.secondary)
+                .contentTransition(.symbolEffect(.replace))
             Text(title).foregroundStyle(.primary)
-        }
-    }
-
-    @ViewBuilder
-    private func actionSection(_ found: [CustomerSpam.Candidate]) -> some View {
-        let picked = found.filter { selected.contains($0.id) }
-        Section {
-            Button(role: .destructive) { ask(picked) } label: {
-                Label(picked.count == 1 ? "Delete 1 selected" : "Delete \(picked.count) selected", systemImage: "trash")
-            }
-            .disabled(picked.isEmpty)
-        } footer: {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Removing hides them; Settings, then Recently removed, puts them back. It asks for the delete code once.")
-                // The web's own warning: a storefront's bots sign up again until the store stops them.
-                if found.contains(where: { CustomerKit.filled($0.customer.shopifyCustomerId) != nil }) {
-                    Text("Rows tagged Shopify came from the Shopify store. Removing them here hides them in the ERP; if the storefront spam goes on they may sync back. A sign-up CAPTCHA in Shopify stops the source.")
-                        .foregroundStyle(Tone.owed.color)
-                }
-            }
         }
     }
 
@@ -350,8 +362,6 @@ struct CustomerSpamSheet: View {
                 }
             } header: {
                 LedgerHeading(title: "Removed", count: r.removed.count)
-            } footer: {
-                Text("Settings, then Recently removed, puts them back.")
             }
         }
         Section {

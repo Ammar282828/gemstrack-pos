@@ -10,7 +10,7 @@ struct RevenueEditSheet: View {
     /// Nil adds a new entry.
     let editing: AdditionalRevenue?
     /// Told once it is saved: the web's toast.
-    let onSaved: (OwnerNote) -> Void
+    let onSaved: (Note) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var date: Date
@@ -19,7 +19,7 @@ struct RevenueEditSheet: View {
     @State private var saving = false
     @State private var error: String?
 
-    init(editing: AdditionalRevenue?, onSaved: @escaping (OwnerNote) -> Void) {
+    init(editing: AdditionalRevenue?, onSaved: @escaping (Note) -> Void) {
         self.editing = editing
         self.onSaved = onSaved
         _date = State(initialValue: editing.flatMap { ERPDate.parse($0.date) } ?? Date())
@@ -46,27 +46,31 @@ struct RevenueEditSheet: View {
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }
                 }
-                if let error {
-                    Section { Text(error).foregroundStyle(Tone.problem.color) }
-                }
                 }
                 .houseRows()
             }
             .navigationTitle(editing == nil ? "Add extra revenue" : "Edit extra revenue")
             .navigationBarTitleDisplayMode(.inline)
             .disabled(saving)
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(role: .confirm) { Task { await save() } }
-                        .disabled(!canSave)
+                    if saving {
+                        ProgressView()
+                    } else {
+                        Button(role: .confirm) { Task { await save() } }
+                            .disabled(!canSave)
+                    }
                 }
             }
         }
         .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(saving)
+        .failureAlert($error, title: "Could not save")
     }
 
     @MainActor
@@ -81,14 +85,14 @@ struct RevenueEditSheet: View {
                     "description": cleanedWhat,
                     "amount": amount,
                 ])
-                onSaved(OwnerNote(title: "Updated", detail: "Revenue entry updated."))
+                onSaved(Note(title: "Updated", detail: "Revenue entry updated."))
             } else {
                 try await ERPAPI.shared.write("addExtraRevenue", [
                     "date": ERPDate.iso(date),
                     "description": cleanedWhat,
                     "amount": amount,
                 ])
-                onSaved(OwnerNote(title: "Added", detail: "Revenue entry added."))
+                onSaved(Note(title: "Added", detail: "Revenue entry added."))
             }
             dismiss()
         } catch {

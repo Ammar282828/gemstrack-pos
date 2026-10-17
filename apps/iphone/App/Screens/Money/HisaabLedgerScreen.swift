@@ -19,11 +19,12 @@ struct HisaabLedgerScreen: View {
     @Environment(Session.self) private var session
     @State private var adding: HisaabEntryMode?
     @State private var deletion: OwnerDeletion?
-    @State private var note: OwnerNote?
+    @State private var note: Note?
     @State private var statement: InvoicePDFTarget?
     @State private var reminder: HisaabReminder?
     @State private var reminderPhone = ""
     @State private var reminderBusy = false
+    @State private var failure: String?
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -131,30 +132,37 @@ struct HisaabLedgerScreen: View {
                     TextField("WhatsApp number", text: $reminderPhone)
                         .keyboardType(.phonePad)
                 } header: {
-                    Text("To")
+                    LedgerHeading(title: "To")
                 } footer: {
                     if reminderPhone.isEmpty { Text("Their record has no number: type the one to send to.") }
                 }
                 Section {
                     Text(r.message).font(.callout).textSelection(.enabled)
                 } header: {
-                    Text("The message")
+                    LedgerHeading(title: "The message")
                 }
             }
             .houseForm()
             .navigationTitle("Remind \(r.name)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { reminder = nil } }
+                ToolbarItem(placement: .cancellationAction) { Button(role: .cancel) { reminder = nil } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Open WhatsApp") {
                         Task {
                             // The number as typed goes back to the ERP, which makes the wa.me link as the web does.
                             reminderBusy = true
-                            let r = try? await fetchReminder(id, phone: reminderPhone)
+                            let fetched: HisaabReminder?
+                            do {
+                                fetched = try await fetchReminder(id, phone: reminderPhone)
+                            } catch {
+                                reminderBusy = false
+                                failure = error.localizedDescription
+                                return
+                            }
                             reminderBusy = false
                             reminder = nil
-                            if let r, !r.url.isEmpty, let url = URL(string: r.url) {
+                            if let r = fetched, !r.url.isEmpty, let url = URL(string: r.url) {
                                 openURL(url)
                             } else {
                                 Note.show(Note(title: "No usable number", detail: "Type a Pakistani mobile number or one with its country code.", failed: true), in: $note, reduce: reduceMotion)
@@ -179,7 +187,7 @@ struct HisaabLedgerScreen: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
             } header: {
-                Text(isCustomer ? "Customer ledger" : "Karigar ledger").textCase(nil)
+                LedgerHeading(title: isCustomer ? "Customer ledger" : "Karigar ledger")
             }
             Section {
                 if result.lines.isEmpty {
@@ -194,66 +202,51 @@ struct HisaabLedgerScreen: View {
                                     }
                                 }
                             }
+                            .contextMenu {
+                                if onFile {
+                                    Button(role: .destructive) { askToDelete(line.entry) } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                            }
                     }
                 }
             } header: {
-                LedgerHeading(title: "Transactions · \(result.lines.count)")
-            } footer: {
-                if onFile && !result.lines.isEmpty {
-                    Text("Swipe a transaction to delete it. It asks for the delete code.")
-                }
-            }
-            if onFile {
-                Section {
-                    Button { adding = .gave } label: {
-                        Label("You gave", systemImage: "arrow.up")
-                    }
-                    Button { adding = .got } label: {
-                        Label("You got", systemImage: "arrow.down")
-                    }
-                } footer: {
-                    Text("Writes a row in their hisaab, dated today.")
-                }
-            }
-            Section {
-                Button {
-                    statement = InvoicePDFTarget(path: MoneyPaths.ledgerPDF(id, isCustomer: isCustomer),
-                                                 fileName: "Ledger-\(name)-\(MoneyCalendar.pickedDay(Date())).pdf",
-                                                 title: "Ledger statement")
-                } label: {
-                    Label("Print the ledger", systemImage: "printer")
-                }
-                if isCustomer && id != WALK_IN_ENTITY {
-                    Button { Task { await askReminder(id, phone: nil) } } label: {
-                        HStack(spacing: 8) {
-                            if reminderBusy { SkeletonLoading() }
-                            Label("Send a reminder", systemImage: "message")
-                        }
-                    }
-                    .disabled(reminderBusy)
-                }
-            } footer: {
-                if isCustomer { Text("A WhatsApp message of what they owe the shop, opened ready to send.") }
+                LedgerHeading(title: "Transactions", count: result.lines.count)
             }
         }.houseRows()
         }
         .listStyle(.insetGrouped)
         .navigationTitle(name.isEmpty ? "Hisaab" : name)
         .sheet(item: $reminder) { (r: HisaabReminder) in reminderSheet(r, id: id) }
+        // The page's job is the two entries: pinned where they never scroll away, once (not also in a menu).
+        .modifier(EntryBar(show: onFile, gave: { adding = .gave }, got: { adding = .got }))
         .toolbar {
-            if onFile {
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Button { adding = .gave } label: { Label("You gave", systemImage: "arrow.up") }
-                        Button { adding = .got } label: { Label("You got", systemImage: "arrow.down") }
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button {
+                        statement = InvoicePDFTarget(path: MoneyPaths.ledgerPDF(id, isCustomer: isCustomer),
+                                                     fileName: "Ledger-\(name)-\(MoneyCalendar.pickedDay(Date())).pdf",
+                                                     title: "Ledger statement")
                     } label: {
-                        Label("Add entry", systemImage: "plus")
+                        Label("Print the ledger", systemImage: "printer")
                     }
+                    if isCustomer && id != WALK_IN_ENTITY {
+                        // A WhatsApp message of what they owe the shop, opened ready to send.
+                        Button { Task { await askReminder(id, phone: nil) } } label: {
+                            Label("Send a reminder", systemImage: "message")
+                        }
+                        .disabled(reminderBusy)
+                    }
+                } label: {
+                    if reminderBusy { ProgressView() } else { Label("More", systemImage: "ellipsis.circle") }
                 }
             }
         }
+        .failureAlert($failure, title: "Not done")
+        .destructiveFeedback(trigger: deletion != nil)
         .sheet(item: $adding) { (mode: HisaabEntryMode) in
-            HisaabEntrySheet(mode: mode, personId: id, personName: name, isCustomer: isCustomer) { (saved: OwnerNote) in
+            HisaabEntrySheet(mode: mode, personId: id, personName: name, isCustomer: isCustomer) { (saved: Note) in
                 Note.show(saved, in: $note, reduce: reduceMotion)
             }
         }
@@ -266,6 +259,20 @@ struct HisaabLedgerScreen: View {
             PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
         }
         .noteToast($note)
+    }
+
+    private struct EntryBar: ViewModifier {
+        let show: Bool
+        let gave: () -> Void
+        let got: () -> Void
+        func body(content: Content) -> some View {
+            if show {
+                content.actionBar(primary: ActionBar.Action("You gave", systemImage: "arrow.up", action: gave),
+                                  secondary: [ActionBar.Action("You got", systemImage: "arrow.down", action: got)])
+            } else {
+                content
+            }
+        }
     }
 
     /// The web's confirmation, then the delete code with the delete. A row that follows an invoice's balance is
@@ -340,29 +347,29 @@ private struct HisaabLedgerRow: View {
         if e.cashCredit > 0 {
             Text("You got \(Money.pkr(e.cashCredit))").font(.subheadline.weight(.semibold)).foregroundStyle(Tone.settled.color)
         }
+        // One coloured figure per row: the metal's movement is quiet when the cash already moved.
+        let cashMoved = e.cashDebit > 0 || e.cashCredit > 0
         if e.goldDebitGrams > 0 {
-            Text("You gave \(MoneyFormat.grams(e.goldDebitGrams))").font(.caption).foregroundStyle(Tone.owed.color)
+            Text("You gave \(MoneyFormat.grams(e.goldDebitGrams))").font(.caption)
+                .foregroundStyle(cashMoved ? Color.secondary : Tone.owed.color)
         }
         if e.goldCreditGrams > 0 {
-            Text("You got \(MoneyFormat.grams(e.goldCreditGrams))").font(.caption).foregroundStyle(Tone.settled.color)
+            Text("You got \(MoneyFormat.grams(e.goldCreditGrams))").font(.caption)
+                .foregroundStyle(cashMoved ? Color.secondary : Tone.settled.color)
         }
     }
 
     @ViewBuilder
     private var balances: some View {
+        // The running balance is a quiet note, not a second coloured figure.
         Text("Balance \(Money.pkr(line.cash))")
             .font(.caption)
-            .foregroundStyle(tone(line.cash))
+            .foregroundStyle(.secondary)
         if showGold {
             Text("\(MoneyFormat.grams(line.gold)) \(MoneyWords.metal)")
                 .font(.caption)
-                .foregroundStyle(tone(line.gold))
+                .foregroundStyle(.secondary)
         }
-    }
-
-    private func tone(_ balance: Double) -> Color {
-        if abs(balance) < 1 { return Color.secondary }
-        return balance > 0 ? Tone.owed.color : Tone.credit.color
     }
 }
 

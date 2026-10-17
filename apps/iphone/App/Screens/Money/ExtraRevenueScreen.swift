@@ -16,7 +16,7 @@ struct ExtraRevenueScreen: View {
     @State private var adding = false
     @State private var editing: AdditionalRevenue?
     @State private var deletion: OwnerDeletion?
-    @State private var note: OwnerNote?
+    @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -32,6 +32,7 @@ struct ExtraRevenueScreen: View {
             content
         }
         .navigationTitle("Extra revenue")
+        .hubTitleDisplay()
         .searchable(text: $search, prompt: "Search by description")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -39,10 +40,10 @@ struct ExtraRevenueScreen: View {
             }
         }
         .sheet(isPresented: $adding) {
-            RevenueEditSheet(editing: nil) { (saved: OwnerNote) in Note.show(saved, in: $note, reduce: reduceMotion) }
+            RevenueEditSheet(editing: nil) { (saved: Note) in Note.show(saved, in: $note, reduce: reduceMotion) }
         }
         .sheet(item: $editing) { (r: AdditionalRevenue) in
-            RevenueEditSheet(editing: r) { (saved: OwnerNote) in Note.show(saved, in: $note, reduce: reduceMotion) }
+            RevenueEditSheet(editing: r) { (saved: Note) in Note.show(saved, in: $note, reduce: reduceMotion) }
         }
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {
@@ -50,6 +51,7 @@ struct ExtraRevenueScreen: View {
             }
         }
         .noteToast($note)
+        .destructiveFeedback(trigger: deletion != nil)
         .task { book.revenue.need() }
     }
 
@@ -61,16 +63,16 @@ struct ExtraRevenueScreen: View {
         let months = MoneyMonths.group(shown, amount: { (r: AdditionalRevenue) -> Double in r.amount })
         List { Group {
             Section {
+                figures(shown)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+            }
+            Section {
                 MoneyRangeFields(filter: $dates)
             } header: {
                 LedgerHeading(title: "Dates")
             } footer: {
                 Text(dates.useFrom ? "Without an end date it runs to the end of today." : "Until a start date is chosen, every entry is shown.")
-            }
-            Section {
-                figures(shown)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
             }
             if months.isEmpty {
                 Section { emptyState }
@@ -115,21 +117,18 @@ struct ExtraRevenueScreen: View {
     private func figures(_ shown: [MoneyLine<AdditionalRevenue>]) -> some View {
         var total = 0.0
         for line in shown { total += line.item.amount }
-        let count = shown.count
         return FigureRow(alignment: .top, spacing: 10) {
             FigureTile(label: "Total revenue", value: Money.pkr(total), tint: Theme.accent)
-            FigureTile(label: "Entries", value: "\(count)")
         }
         .padding(.vertical, 4)
     }
 
     private func monthHeader(_ month: MoneyMonth<AdditionalRevenue>) -> some View {
-        let n = month.rows.count
-        let count = "\(n) entr\(n == 1 ? "y" : "ies")"
-        let detail = month.hint.isEmpty ? count : "\(month.hint) · \(count)"
         return VStack(alignment: .leading, spacing: 6) {
             LedgerHeading(title: month.title, trailing: Money.pkr(month.total))
-            Text(detail).font(.footnote).foregroundStyle(.secondary)
+            if !month.hint.isEmpty {
+                Text(month.hint).font(.footnote).foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -144,7 +143,7 @@ struct ExtraRevenueScreen: View {
             NavigationLink(value: Route(path: MoneyPaths.repair(repairId))) {
                 TwoLine(
                     title: r.description,
-                    subtitle: when.isEmpty ? "Change this on the repair" : "\(when) · Change this on the repair",
+                    subtitle: when.isEmpty ? nil : when,
                     trailing: Money.pkr(r.amount)
                 )
             }

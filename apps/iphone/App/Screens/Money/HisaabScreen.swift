@@ -99,6 +99,7 @@ struct HisaabScreen: View {
             content
         }
         .navigationTitle("Hisaab")
+        .hubTitleDisplay()
         .searchable(text: $search, prompt: "Search by name")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { filterMenu }
@@ -154,8 +155,10 @@ struct HisaabScreen: View {
                 tiles(summary, onInvoices: onInvoices)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
-            } footer: {
-                Text("On invoices counts walk-in sales too. The dashboard's “Owed to you” adds the hand-written balances here.")
+            }
+            Section {
+                chipRow(scoped)
+                    .chipRowInList()
             }
             if shown.isEmpty {
                 Section { emptyState }
@@ -164,21 +167,12 @@ struct HisaabScreen: View {
                     ForEach(shown) { account in rows(account) }
                 }
             }
-            Section {
-                Button {
-                    summaryPDF = InvoicePDFTarget(path: MoneyPaths.hisaabSummary(search: search),
-                                                  fileName: "Hisaab-Summary-\(MoneyCalendar.pickedDay(Date())).pdf",
-                                                  title: "Hisaab summary")
-                } label: {
-                    Label("Summary PDF", systemImage: "doc.richtext")
-                }
-            } footer: {
-                Text("Everyone outstanding whose name matches the search, as the ERP prints it; the chips here are not applied. To add an entry, tap + and choose the account.")
-            }
         }.houseRows()
         }
         .listStyle(.insetGrouped)
-        .safeAreaBar(edge: .top, spacing: 0) { chipRow(scoped) }
+        .motion(chip, Motion.travel)
+        .motion(kind, Motion.travel)
+        .motion(order, Motion.travel)
     }
 
     /// Search and the kind of person: everything but the side, so each chip can count what it would show.
@@ -251,20 +245,17 @@ struct HisaabScreen: View {
             NavigationLink(value: Route(path: MoneyPaths.ledger(a.id, isCustomer: a.isCustomer))) {
                 HisaabAccountRow(account: a, listInvoices: true)
             }
+            .zoomSource(id: MoneyPaths.ledger(a.id, isCustomer: a.isCustomer))
         }
     }
 
     // MARK: Chips and the menu
 
     private func chipRow(_ scoped: [HisaabAccount]) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(HisaabChip.allCases) { (c: HisaabChip) in
-                    chipButton(c, count: scoped.filter { c.matches($0) }.count)
-                }
+        ChipRow {
+            ForEach(HisaabChip.allCases) { (c: HisaabChip) in
+                chipButton(c, count: scoped.filter { c.matches($0) }.count)
             }
-            .padding(.horizontal)
-            .padding(.vertical, 6)
         }
     }
 
@@ -280,6 +271,15 @@ struct HisaabScreen: View {
             }
             Picker("Show", selection: $kind) {
                 ForEach(HisaabKind.allCases) { (k: HisaabKind) in Text(k.title).tag(k) }
+            }
+            Divider()
+            // Everyone outstanding whose name matches the search, as the ERP prints it; the chips are not applied.
+            Button {
+                summaryPDF = InvoicePDFTarget(path: MoneyPaths.hisaabSummary(search: search),
+                                              fileName: "Hisaab-Summary-\(MoneyCalendar.pickedDay(Date())).pdf",
+                                              title: "Hisaab summary")
+            } label: {
+                Label("Summary PDF", systemImage: "doc.richtext")
             }
         } label: {
             Label("Filter", systemImage: filtering ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
@@ -298,10 +298,7 @@ private struct HisaabAccountRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: account.isCustomer ? "person.fill" : "briefcase.fill")
-                .foregroundStyle(Theme.accent)
-                .frame(width: 36, height: 36)
-                .background(Theme.accent.opacity(0.14), in: .circle)
+            Monogram(name: account.name, size: Monogram.Size.row)
             VStack(alignment: .leading, spacing: 3) {
                 top
                 middle
@@ -315,7 +312,7 @@ private struct HisaabAccountRow: View {
 
     private var top: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(account.name).font(.body.weight(.medium)).lineLimit(1)
+            Text(account.name).font(.body.weight(.medium))
             Spacer(minLength: 8)
             if account.hasCash {
                 RowAmount(amount: abs(account.cash), tone: tint)
@@ -323,17 +320,12 @@ private struct HisaabAccountRow: View {
         }
     }
 
-    private var middle: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(account.isWalkIn ? "Sales with no customer named" : (account.isCustomer ? "Customer" : "Karigar"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 8)
-            if account.hasCash {
-                Text(account.cash > 0 ? "to receive" : "to pay")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+    @ViewBuilder private var middle: some View {
+        // The obvious is unsaid: only a walk-in and a karigar (the exceptions) are named.
+        if account.isWalkIn {
+            Text("Sales with no customer named").font(.caption).foregroundStyle(.secondary)
+        } else if !account.isCustomer {
+            Text("Karigar").font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -345,12 +337,12 @@ private struct HisaabAccountRow: View {
             .foregroundStyle(.secondary)
     }
 
-    /// Every invoice still owing, as the web's card lists them.
+    /// How many invoices still owe; the ledger lists them.
     private var invoices: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Divider().padding(.vertical, 2)
-            ForEach(account.unpaid) { inv in HisaabUnpaidLine(invoice: inv) }
-        }
+        let n = account.unpaid.count
+        return Text("\(n) invoice\(n == 1 ? "" : "s") owing")
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 }
 
@@ -366,8 +358,7 @@ private struct HisaabUnpaidLine: View {
                 .font(.caption)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .multilineTextAlignment(.trailing)
         }
     }
 

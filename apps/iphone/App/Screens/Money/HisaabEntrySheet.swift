@@ -25,7 +25,7 @@ struct HisaabEntrySheet: View {
     let personName: String
     let isCustomer: Bool
     /// Told once the row is written.
-    let onSaved: (OwnerNote) -> Void
+    let onSaved: (Note) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var what = ""
@@ -50,7 +50,7 @@ struct HisaabEntrySheet: View {
                     TextField("Description", text: $what, prompt: Text("e.g. Cash payment received, Sample given"), axis: .vertical)
                         .lineLimit(2...4)
                 } header: {
-                    Text(isCustomer ? "For the customer \(personName)" : "For the karigar \(personName)").textCase(nil)
+                    LedgerHeading(title: isCustomer ? "For the customer \(personName)" : "For the karigar \(personName)")
                 }
                 Section {
                     if isCustomer {
@@ -62,18 +62,15 @@ struct HisaabEntrySheet: View {
                     }
                     if cash > 0 { Text(Money.pkrLac(cash)).foregroundStyle(.secondary) }
                 } header: {
-                    Text(mode == .gave ? "What you gave" : "What you got").foregroundStyle(mode.tint)
+                    LedgerHeading(title: mode == .gave ? "What you gave" : "What you got")
                 } footer: {
-                    Text("Enter a cash amount or \(metal.lowercased()) grams. It is written with today's date.")
-                }
-                if let error {
-                    Section { Text(error).foregroundStyle(Tone.problem.color) }
+                    Text("Dated today.")
                 }
                 }
                 .houseRows()
             }
             .scrollDismissesKeyboard(.interactively)
-            .newOrderKeyboardDone()
+            .keyboardDone()
             .disabled(saving)
             .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
@@ -82,13 +79,18 @@ struct HisaabEntrySheet: View {
                     Button(role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(role: .confirm) { Task { await save() } }
-                        .disabled(!canSave)
+                    if saving {
+                        ProgressView()
+                    } else {
+                        Button(role: .confirm) { Task { await save() } }
+                            .disabled(!canSave)
+                    }
                 }
             }
         }
         .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(saving)
+        .failureAlert($error, title: "Could not save")
     }
 
     private var cashRow: some View {
@@ -114,7 +116,7 @@ struct HisaabEntrySheet: View {
         ]
         do {
             try await ERPAPI.shared.write("addHisaabEntry", fields)
-            onSaved(OwnerNote(title: "New hisaab entry added", detail: "\(mode.title): \(cleanedWhat)."))
+            onSaved(Note(title: "New hisaab entry added", detail: "\(mode.title): \(cleanedWhat)."))
             dismiss()
         } catch {
             self.error = error.localizedDescription

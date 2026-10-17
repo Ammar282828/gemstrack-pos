@@ -23,7 +23,7 @@ struct CustomerMergeSheet: View {
     @State private var keepSearch = ""
     @State private var duplicateSearch = ""
     @State private var deletion: OwnerDeletion?
-    @State private var note: OwnerNote?
+    @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var counted = Memo<CustomerMergeBook>()
 
@@ -51,11 +51,11 @@ struct CustomerMergeSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {}
         }
         .noteToast($note)
+        .destructiveFeedback(trigger: deletion != nil)
         .task {
             book.customers.need()
             book.invoices.need()
@@ -94,15 +94,14 @@ struct CustomerMergeSheet: View {
             if found == nil {
                 Section {
                     HStack(spacing: 10) {
-                        SkeletonLoading()
+                        ProgressView()
                         Text("Looking for duplicates…").foregroundStyle(.secondary)
                     }
                 }
             } else if visible.isEmpty {
                 Section {
-                    Text("No duplicates auto-detected.").foregroundStyle(.secondary)
-                } footer: {
-                    Text("Customers who share a number, or whose names are almost the same, show up here.")
+                    Label("No duplicates found", systemImage: "person.2.badge.checkmark")
+                        .foregroundStyle(.secondary)
                 }
             } else {
                 ForEach(visible) { (pair: CustomerDuplicates.Found) in
@@ -126,17 +125,19 @@ struct CustomerMergeSheet: View {
             Section {
                 person("Keep", keep, tint: Theme.accent)
                 person("Delete", duplicate, tint: Tone.problem.color, moves: moves(for: duplicate.id))
-                Button { toggle(pair.id) } label: {
+                Button { Motion.run(Motion.enter, reduce: reduceMotion) { toggle(pair.id) } } label: {
                     Label("Swap keep and delete", systemImage: "arrow.up.arrow.down")
+                }
+                Button {
+                    Motion.run(Motion.exit, reduce: reduceMotion) { _ = dismissed.insert(pair.id) }
+                } label: {
+                    Label("Not a duplicate", systemImage: "xmark")
                 }
                 Button(role: .destructive) { ask(keep: keep, duplicate: duplicate) } label: {
                     Label("Merge and delete the duplicate", systemImage: "arrow.triangle.merge")
                 }
-                Button { dismissed.insert(pair.id) } label: {
-                    Label("Not a duplicate", systemImage: "xmark")
-                }
             } header: {
-                Text(pair.reason).textCase(nil)
+                LedgerHeading(title: pair.reason)
             }
         }
     }
@@ -182,7 +183,7 @@ struct CustomerMergeSheet: View {
         } header: {
             LedgerHeading(title: "Manual merge")
         } footer: {
-            Text("Search the customer to keep, then the duplicate. The duplicate's record is deleted for good.")
+            Text("The duplicate's record is deleted for good.")
         }
     }
 

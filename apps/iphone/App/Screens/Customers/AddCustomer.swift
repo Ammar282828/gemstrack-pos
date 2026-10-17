@@ -82,8 +82,10 @@ struct AddCustomer: View {
             // way out stood beside each of them.
             if saved == nil {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { Task { await save() } }
-                        .disabled(!canSave)
+                    Button { Task { await save() } } label: {
+                        if saving { ProgressView() } else { Text("Save") }
+                    }
+                    .disabled(!canSave)
                 }
             }
             if saved != nil {
@@ -102,6 +104,7 @@ struct AddCustomer: View {
         }
         .sensoryFeedback(.success, trigger: saved)
         .interactiveDismissDisabled(saving)
+        .failureAlert($error, title: "Could not save")
         .task { book.customers.need() }
     }
 
@@ -113,8 +116,6 @@ struct AddCustomer: View {
                 TextField("Full name", text: $name, prompt: Text("Optional"))
                     .textContentType(.name)
                     .textInputAutocapitalization(.words)
-            } header: {
-                LedgerHeading(title: "Name")
             } footer: {
                 if walkIn {
                     Text("A walk-in is not a customer: a sale to nobody in particular is left without one.")
@@ -133,8 +134,6 @@ struct AddCustomer: View {
                         Label("Already on file: \(CustomerKit.shown(match))", systemImage: "person.fill.checkmark")
                     }
                 }
-            } header: {
-                LedgerHeading(title: "Phone")
             }
 
             Section {
@@ -143,8 +142,6 @@ struct AddCustomer: View {
                     .textContentType(.emailAddress)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-            } header: {
-                LedgerHeading(title: "Email")
             } footer: {
                 if !emailOK { Text("That doesn't look like an email address.").foregroundStyle(Tone.problem.color) }
             }
@@ -153,8 +150,6 @@ struct AddCustomer: View {
                 TextField("Address", text: $address, prompt: Text("Optional"), axis: .vertical)
                     .lineLimit(2...5)
                     .textContentType(.fullStreetAddress)
-            } header: {
-                LedgerHeading(title: "Address")
             }
 
             Section {
@@ -166,12 +161,11 @@ struct AddCustomer: View {
                 }
             }
 
-            if let error {
-                Section { Text(error).foregroundStyle(Tone.problem.color) }
-            }
             }
             .houseRows()
         }
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
         .disabled(saving)
     }
 
@@ -209,15 +203,19 @@ struct AddCustomer: View {
             }
         }
         .listStyle(.insetGrouped)
-        .safeAreaBar(edge: .bottom) {
-            if !s.id.isEmpty {
-                Button { opened = s.id } label: {
-                    Text("Open \(s.name)").frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.houseProminent)
-                .controlSize(.large)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
+        .modifier(OpenBar(show: !s.id.isEmpty, title: "Open \(s.name)") { opened = s.id })
+    }
+
+    /// The saved page's one action, pinned; absent when the server gave no id to open.
+    private struct OpenBar: ViewModifier {
+        let show: Bool
+        let title: String
+        let open: () -> Void
+        func body(content: Content) -> some View {
+            if show {
+                content.actionBar(primary: ActionBar.Action(title, action: open))
+            } else {
+                content
             }
         }
     }

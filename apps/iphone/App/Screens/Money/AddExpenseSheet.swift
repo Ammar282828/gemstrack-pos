@@ -103,25 +103,31 @@ struct AddExpenseSheet: View {
                     paidBySection
                 }
                 karigarSection
-                if let error {
-                    Section { Text(error).foregroundStyle(Tone.problem.color) }
-                }
                 }
                 .houseRows()
             }
             .navigationTitle("Add expense")
             .navigationBarTitleDisplayMode(.inline)
+            .disabled(saving)
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(role: .confirm) { Task { await save() } }
-                        .disabled(!canSave)
+                    if saving {
+                        ProgressView()
+                    } else {
+                        Button(role: .confirm) { Task { await save() } }
+                            .disabled(!canSave)
+                    }
                 }
             }
         }
         .presentationDetents([.medium, .large])
+        .interactiveDismissDisabled(saving)
+        .failureAlert($error, title: "Could not save")
         .task {
             book.karigars.need()
             book.karigarBatches.need()
@@ -148,7 +154,7 @@ struct AddExpenseSheet: View {
             LedgerHeading(title: "Paid by")
         } footer: {
             if paidBy != "business" {
-                Text("Logged to \(paidBy == "ammar" ? "his" : "her") ledger as a loan to the business.")
+                Text("Logged to \(MoneyPartners.name(paidBy) ?? "the partner")'s ledger as a loan to the business.")
             }
         }
     }
