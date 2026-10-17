@@ -568,8 +568,9 @@ struct WorkshopGivenSheet: View {
                     onSaved()
                 } else {
                     _ = try await ERPAPI.shared.write("addGivenItem", sent)
+                    // The edit says "Updated" in a toast (which taps); only an add needs its own tap.
+                    savedTick += 1
                 }
-                savedTick += 1
                 dismiss()
             } catch {
                 self.error = error.localizedDescription

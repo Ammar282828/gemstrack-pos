@@ -140,7 +140,6 @@ struct ShareholderEntrySheet: View {
             }
             .houseForm()
             .failureAlert($error, title: "Not saved")
-            .moneyFeedback(success: savedCount, failure: error)
             .scrollDismissesKeyboard(.interactively)
             .keyboardDone()
             .navigationTitle(move.title)

@@ -118,7 +118,6 @@ struct WorkshopPieceDetailsSheet: View {
             .scrollDismissesKeyboard(.interactively)
             .keyboardDone()
             .failureAlert($error, title: "Not saved")
-            .savedFeedback(trigger: savedTick)
             .navigationTitle("Making details")
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)

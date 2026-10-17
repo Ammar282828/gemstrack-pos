@@ -125,7 +125,6 @@ struct WorkshopPaySheet: View {
             .keyboardDone()
             .failureAlert($error, title: "Not paid")
             .navigationTitle("Record payment")
-            .moneyFeedback(success: savedTick, failure: failedTick)
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -248,7 +247,6 @@ struct WorkshopSilverSheet: View {
             .keyboardDone()
             .failureAlert($error, title: "Not saved")
             .navigationTitle("Silver transaction")
-            .moneyFeedback(success: savedTick, failure: failedTick)
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -324,7 +322,6 @@ struct WorkshopBatchStartSheet: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .failureAlert($error, title: "Not started")
-            .savedFeedback(trigger: savedTick)
             .navigationTitle("Start a new pay batch")
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
@@ -404,7 +401,6 @@ struct WorkshopSettleSheet: View {
             .scrollDismissesKeyboard(.interactively)
             .failureAlert($error, title: "Not settled")
             .navigationTitle("Settle pay batch")
-            .moneyFeedback(success: savedTick, failure: failedTick)
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

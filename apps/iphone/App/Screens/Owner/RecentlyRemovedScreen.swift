@@ -51,7 +51,6 @@ private struct RecentlyRemovedList: View {
             OwnerDeleteCodeSheet(deletion: d) {}
         }
         .noteToast($note)
-        .savedFeedback(trigger: restoredCount)
         .confirmDestructive(isPresented: $confirmingEmpty, title: "Empty Recently removed?",
                             message: "Everyone listed here is deleted for good. The delete code is asked next.",
                             action: "Continue") {

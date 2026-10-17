@@ -109,7 +109,6 @@ private struct ShareholdersBoard: View {
         }
         .noteToast($note)
         .failureAlert($floorError, title: "Floor not saved")
-        .moneyFeedback(success: floorSaved, failure: floorError)
         .task {
             book.expenses.need()
             book.invoices.need()

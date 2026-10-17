@@ -90,7 +90,6 @@ private struct OverheadsBoard: View {
         }
         .noteToast($note)
         .failureAlert($saveError, title: "Not saved")
-        .moneyFeedback(success: savedCount, failure: saveError)
         .scrollDismissesKeyboard(.interactively)
         .keyboardDone()
         .task {

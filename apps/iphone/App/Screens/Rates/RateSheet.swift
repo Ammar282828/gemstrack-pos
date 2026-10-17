@@ -302,7 +302,7 @@ struct RateSheet: View {
             }
             .houseForm()
             .failureAlert($error, title: "Rate not saved")
-            .moneyFeedback(success: savedCount, failure: error)
+            .savedFeedback(trigger: savedCount)
             .interactiveDismissDisabled(saving || !changed.isEmpty)
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Today’s rate")

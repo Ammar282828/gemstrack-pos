@@ -87,7 +87,6 @@ struct OwnerDeleteCodeSheet: View {
             }
             .houseForm()
             .failureAlert($error, title: "Not deleted")
-            .refusedFeedback(trigger: error)
             .destructiveFeedback(trigger: deletedCount)
             .scrollDismissesKeyboard(.interactively)
             .keyboardDone()
