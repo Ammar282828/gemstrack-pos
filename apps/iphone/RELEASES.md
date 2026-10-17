@@ -31,3 +31,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-17: no button opens the web any more (orders, invoices, stock, workshop, activity log, drafts, posts tray, Taheri book import; links on an ERP page open native screens), and every screen quieter: two-line rows, no Paid badges, each figure once.
 - 2026-10-17: the large widget can show a second business under the first (Edit Widget → Second business), each in its own colours.
 - 2026-10-17: the old cards and layouts back everywhere (invoices, orders, home, money, workshop, ads…), only less noisy: no Paid or Done badges, no number twice, no obvious footers.
+- 2026-10-17: Insights, as the web has it since today: Instagram and Facebook, organic beside paid (Overview, Posts, Audience), what the numbers say worked out on the server.
