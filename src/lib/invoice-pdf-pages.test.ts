@@ -125,7 +125,6 @@ async function calibrate() {
  * the last page.
  */
 function minPages(n: number, o: Opts, c: Cal): number {
-  const footerTop = c.pageHeight - FOOTER_HEIGHT;
   const bottom = c.pageHeight - MARGIN;
   const pay = o.payments ?? 0;
   const totalsH = (1 + (o.discount ? 1 : 0) + (o.exchange ? 1 : 0)) * 5 + 13.5 + (pay ? 5 + 11 : 0);
@@ -149,10 +148,10 @@ function minPages(n: number, o: Opts, c: Cal): number {
     const blockH = Math.max(totalsH, beside);
     if (start + blockH > bottom) { page++; start = 30; }
     end = start + Math.max(totalsH - 2, beside - 2);
-    return end > footerTop ? page + 1 : page;
+    return page;
   }
-  // Only the footer needs room under the last block; if it has none it takes a page alone.
-  if (!pay) return end > footerTop ? page + 1 : page;
+  // The footer never adds a page: it shrinks into the room the last page has left.
+  if (!pay) return page;
   let hy: number;
   if (end + 6 + 4 + c.histHeadH + c.histRowH > bottom) { page++; hy = 24 + 6 + 4; } else hy = end + 6 + 4;
   hy += c.histHeadH;
@@ -162,11 +161,16 @@ function minPages(n: number, o: Opts, c: Cal): number {
     hy += take * c.histRowH; rest -= take;
     if (rest > 0) { page++; hy = TOP + c.histHeadH; }
   }
-  return hy > footerTop ? page + 1 : page;
+  return page;
 }
 
 describe('invoice PDF layout', () => {
   let cal: Cal;
+  it('4 items + 3 payments is one page, the footer shrunk into what is left', async () => {
+    const r = await render(make(4, { discount: true, exchange: true, payments: 3 }), '4-discount-exchange-3pay');
+    expect(r.pages).toBe(1);
+    expect(r.texts.some(t => /ORDERS & ENQUIRIES/i.test(t.text))).toBe(true);
+  });
   for (const [name, n, o] of cases) {
     it(`${name}: fewest pages, totals whole, footer clear`, async () => {
       cal ??= await calibrate();
@@ -174,14 +178,22 @@ describe('invoice PDF layout', () => {
       if (OUT) console.log(`PAGES ${name} ${r.pages}`);
       if (process.env.DBG === name) console.log(JSON.stringify(r.texts.map(t => [t.page, Math.round(t.y), t.text.slice(0, 18)])), JSON.stringify(r.tables), JSON.stringify(cal));
       const footerTop = r.pageHeight - FOOTER_HEIGHT;
+      // The footer is the tail of the last page's text (its rule at or below the full footer's top, or
+      // the compact one's). It is drawn once, on the last page, and never above what is drawn there.
+      expect(r.texts.filter(t => t.page < r.pages && /ORDERS & ENQUIRIES/i.test(t.text))).toEqual([]);
       const onLast = r.texts.filter(t => t.page === r.pages);
-      // The footer is the tail of the last page's text, at or below its rule.
-      let cut = onLast.length;
-      while (cut > 0 && onLast[cut - 1].y >= footerTop - 0.01) cut--;
-      const content = onLast.slice(0, cut).filter(t => !/^Page \d+$/.test(t.text)), footer = onLast.slice(cut);
-      expect(footer.length).toBeGreaterThan(0);
-      expect(r.texts.filter(t => t.page < r.pages && /ORDERS & ENQUIRIES/i.test(t.text))).toEqual([]); // the footer is on the last page only
-      expect(Math.max(...content.map(t => t.y))).toBeLessThan(footerTop);
+      const fi = onLast.findIndex(t => /ORDERS & ENQUIRIES/i.test(t.text));
+      const content = (fi < 0 ? onLast : onLast.slice(0, fi)).filter(t => !/^Page \d+$/.test(t.text));
+      const contentBottom = Math.max(...content.map(t => t.y));
+      if (fi >= 0) {
+        expect(Math.min(...onLast.slice(fi).filter(t => !/^Page \d+$/.test(t.text)).map(t => t.y))).toBeGreaterThan(contentBottom);
+        if (contentBottom < footerTop) expect(onLast[fi].y).toBeGreaterThanOrEqual(footerTop);
+      }
+      // No page is only a header and a footer: every page holds content, and the footer shares the last page with it.
+      for (let p = 1; p <= r.pages; p++) {
+        const body = r.texts.filter(t => t.page === p && !/^Page \d+$/.test(t.text) && !/ORDERS & ENQUIRIES/i.test(t.text) && t.y > 26);
+        expect(body.length, `page ${p} has content`).toBeGreaterThan(0);
+      }
       // The totals are one block on one page.
       const names = ['Subtotal', 'Discount', 'Exchange', 'Grand Total', 'Amount Paid', 'Balance Due'];
       const tot = r.texts.filter(t => names.some(k => t.text.startsWith(k)));

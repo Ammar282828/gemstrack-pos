@@ -64,9 +64,11 @@ export function drawFooter(
   doc: jsPDF,
   box: { pageWidth: number; pageHeight: number; margin: number },
   images: PdfImages,
+  contentEnd?: number,
 ): void {
   drawDocFooter(doc, {
     ...box,
+    contentEnd,
     linksQr: asCanvas(images.linksQr),
     whatsappQr: asCanvas(images.whatsappQr),
     instagramQr: asCanvas(images.instagramQr),

@@ -33,7 +33,7 @@ import { stockSku } from '@/lib/sku';
 import { format } from 'date-fns';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { drawItemCell, itemCellHeight, type ItemBlock, wastageLine } from '@/lib/invoice-item-cell';
-import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, totalsHeight, totalsLeftEdge, FOOTER_HEIGHT, type TotalRow } from '@/lib/pdf-chrome';
+import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, totalsHeight, totalsLeftEdge, type TotalRow } from '@/lib/pdf-chrome';
 import { describeExchangeEntry } from '@/lib/exchange';
 import { invoiceFileName, invoiceTitle } from '@/lib/invoice-share';
 import { balanceLine } from '@/lib/invoice-credit';
@@ -290,8 +290,8 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
     total: { label: 'Grand Total', value: pkr(inv.grandTotal) },
     after: inv.amountPaid > 0 ? [{ label: 'Amount Paid', value: `- ${pkr(inv.amountPaid)}` }] : [],
     closing: inv.amountPaid > 0 ? { label: balanceLine(inv.balanceDue).state === 'credit' ? 'Credit to Customer' : 'Balance Due', value: pkr(Math.abs(inv.balanceDue)) } : undefined,
-    // Nothing here reserves the footer: it is drawn once, after the last block, and if the
-    // content stands lower than its rule the footer alone goes to the next page.
+    // Nothing here reserves the footer: it is drawn once, after the last block, shrinking into
+    // whatever room the last page has left (it never adds a page).
     bottomReserve: margin,
   };
   const totalsH = totalsHeight(doc, { ...totalsOpts, startY: 0 });
@@ -450,16 +450,12 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
     }
   }
 
-  // The footer once, on the last page, below everything. If the content stands lower than the
-  // footer's rule, the content stays and only the footer goes to a page of its own: nothing is
-  // ever drawn over it. The codes are the caller's (pdf-inputs.ts): in the browser, canvases
-  // the printing page renders off-screen.
+  // The footer once, on the last page, below everything, and never on a page of its own: when the
+  // content stands lower than the full footer's rule, a compact one goes in the room left (one
+  // row, then one line, then none; pdf-chrome.ts). The codes are the caller's (pdf-inputs.ts):
+  // in the browser, canvases the printing page renders off-screen.
   doc.setPage(doc.getNumberOfPages());
-  if (contentEnd > pageHeight - FOOTER_HEIGHT) {
-    doc.addPage();
-    drawHeader(doc.getNumberOfPages());
-  }
-  drawFooter(doc, { pageWidth, pageHeight, margin }, chrome.images);
+  drawFooter(doc, { pageWidth, pageHeight, margin }, chrome.images, contentEnd);
 }
 
 /**
