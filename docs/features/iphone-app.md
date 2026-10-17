@@ -241,6 +241,22 @@ strip) is the ERP's page in the app; the phone's designer renders every v2 field
 adjust) through the bundled engine and keeps what it cannot edit. Saved designs of the new store (`designs`) are on the Design
 page's Saved shelf; the phone's Saved ads are the legacy `ad_saved` rows, which the web shows too until it re-saves them.
 
+### Ads parity, 2026-10-17
+
+The web's Ads Manager additions of 2026-10-16 (docs/features/ads.md) on the phone, owner: "Ship the new erp ad manager
+changes to the ios app". As before, the phone gathers choices and the server keeps the rules and talks to Meta.
+- **Overview:** Sales from ads and ROAS tiles (with cost per order) when anything sold; purchases lead the main result;
+  ROAS on the top ads. `AdMetrics.values` carries Meta's action_values; `AdsResults.sales` is shape.ts `salesOf`.
+- **Campaigns:** sales and ROAS on every row, "Best ROAS" in the gallery sort, and More → Download (CSV): the server's
+  CSV (`/api/ads/campaigns?format=csv`, export.ts, the same file as the web's button) to the share sheet.
+- **Audiences:** Website visitors from the pixel (`websiteEvents`, `pixel` on `/api/ads/audiences`).
+- **New ad** (`AdsNewAdSources.swift`): What to promote is a menu now (six choices): a new video (Photos → Meta's resumable
+  upload through `/api/ads/videos`, piece by piece, the ID token asked per piece; then Meta's cover frame), a creator's post
+  (the partnership ad code, checked on `/api/ads/partner`), the catalogue (`/api/ads/catalog`, biggest set first; lookers or
+  new buyers). Advanced: bidding (cost cap, bid cap, minimum ROAS for online orders) and set days and hours (which move the
+  budget to a total one, Meta's rule). `bidding` and `hours` go in the plan; `/api/ads/plan` says what stops it.
+- **A/B tests** (`AdsTests.swift`, `/ads/tests`, linked from Setup): make a split test of 2–5 ad sets and read each side.
+
 ### One app, many businesses (2026-10-16)
 
 Owner: one app for all his businesses, to switch between them and to add more. Until now each house was its own app

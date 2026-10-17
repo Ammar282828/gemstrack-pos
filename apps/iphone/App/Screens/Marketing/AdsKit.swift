@@ -207,15 +207,43 @@ enum AdsResults {
         return Array(out.prefix(limit))
     }
 
-    /// The result the account mostly buys: chats if there are any, then clicks, then engagement (ads/page.tsx mainAction).
+    /// The result the account mostly buys: purchases if there are any, then chats, then clicks, then engagement
+    /// (ads/page.tsx mainAction; purchases lead since 2026-10-16, when a sales account read as link clicks).
     static func headlineResult(_ m: AdMetrics) -> (key: String, label: String, value: Double) {
-        for k in ["onsite_conversion.messaging_conversation_started_7d", "link_click", "instagram_profile_visit", "post_engagement"] {
+        for k in ["omni_purchase", "offsite_conversion.fb_pixel_purchase", "onsite_conversion.messaging_conversation_started_7d", "link_click", "instagram_profile_visit", "post_engagement"] {
             if let v = m.actions[k], v > 0 { return (k, label(k), v) }
         }
         return ("reach", "People reached", m.reach)
     }
 
     static func value(_ m: AdMetrics, key: String) -> Double { key == "reach" ? m.reach : (m.actions[key] ?? 0) }
+
+    /// Meta's names for one purchase (shape.ts PURCHASE_ACTIONS): the biggest is taken, never their sum.
+    static let purchaseActions = ["omni_purchase", "offsite_conversion.fb_pixel_purchase", "purchase", "onsite_web_purchase"]
+
+    struct Sales: Hashable {
+        let purchases: Double
+        let value: Double
+        /// Sales per rupee spent (Ads Manager's "Purchase ROAS"); nil when nothing was spent.
+        let roas: Double?
+        let costPerPurchase: Double?
+    }
+
+    /// Purchases the ads brought and what they were worth (shape.ts salesOf), as Ads Manager's Purchases,
+    /// Purchases conversion value and Purchase ROAS columns read them.
+    static func sales(_ m: AdMetrics) -> Sales {
+        let purchases = purchaseActions.reduce(0.0) { (b: Double, a: String) in max(b, m.actions[a] ?? 0) }
+        let value = purchaseActions.reduce(0.0) { (b: Double, a: String) in max(b, m.values[a] ?? 0) }
+        return Sales(purchases: purchases, value: value,
+                     roas: m.spend > 0 ? value / m.spend : nil,
+                     costPerPurchase: purchases > 0 ? m.spend / purchases : nil)
+    }
+
+    /// "5.8×" (shape.ts roasText).
+    static func roasText(_ r: Double?) -> String {
+        guard let r, r.isFinite else { return "—" }
+        return r >= 10 ? String(format: "%.0f×", r) : String(format: "%.1f×", r)
+    }
 }
 
 /// Meta's objectives, as the owner would say them (shape.ts objectiveLabel).

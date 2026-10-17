@@ -183,9 +183,25 @@ struct AdsOverviewScreen: View {
                     FigureTile(label: "Click-through", value: AdsFormat.pct(t.ctr),
                                detail: "\(AdsFormat.money(t.cpm, cur)) per 1,000 views")
                 }
+                salesTiles(t, b, cur)
             }
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             .listRowBackground(Color.clear)
+        }
+    }
+
+    /// What the ads sold, when they sold anything (ads/page.tsx: Sales from ads · ROAS · Cost per purchase).
+    @ViewBuilder
+    private func salesTiles(_ t: AdMetrics, _ b: AdMetrics?, _ cur: String) -> some View {
+        let s = AdsResults.sales(t)
+        if s.purchases > 0 || s.value > 0 {
+            let before = b.map { (m: AdMetrics) in AdsResults.sales(m) }
+            FigureRow(spacing: 10) {
+                FigureTile(label: "Sales from ads", value: AdsFormat.money(s.value, cur),
+                           detail: AdsFormat.change(s.value, before?.value) ?? "\(AdsFormat.count(s.purchases)) order\(s.purchases == 1 ? "" : "s")")
+                FigureTile(label: "ROAS", value: AdsResults.roasText(s.roas),
+                           detail: s.costPerPurchase.map { (c: Double) in "\(AdsFormat.money(c, cur)) per order" } ?? "Sales for every rupee spent")
+            }
         }
     }
 
@@ -348,9 +364,11 @@ struct AdsOverviewScreen: View {
     }
 
     private func resultLine(_ a: AdTop, _ cur: String) -> String {
-        guard let r = AdsResults.of(a.metrics, goal: a.goal) else { return "\(AdsFormat.compact(a.metrics.reach)) reached" }
+        let s = AdsResults.sales(a.metrics)
+        let roas = s.value > 0 ? " · \(AdsResults.roasText(s.roas)) ROAS" : ""
+        guard let r = AdsResults.of(a.metrics, goal: a.goal) else { return "\(AdsFormat.compact(a.metrics.reach)) reached\(roas)" }
         let each = r.value > 0 ? " · \(AdsFormat.money(a.metrics.spend / r.value, cur)) each" : ""
-        return "\(AdsFormat.count(r.value)) \(r.label.lowercased())\(each)"
+        return "\(AdsFormat.count(r.value)) \(r.label.lowercased())\(each)\(roas)"
     }
 
     @ViewBuilder

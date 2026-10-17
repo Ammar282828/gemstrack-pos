@@ -421,8 +421,11 @@ struct AdsAudiencesAnswer: Decodable {
     let segments: [AdsHinted]
     let events: [AdsChoice]
     let instagram: String?
+    /// Website visitors the pixel can make an audience of (audience-rows.ts WEBSITE_EVENTS), and whether a pixel is chosen.
+    let websiteEvents: [AdsHinted]
+    let pixel: Bool
 
-    private enum K: String, CodingKey { case audiences, segments, events, instagram }
+    private enum K: String, CodingKey { case audiences, segments, events, instagram, websiteEvents, pixel }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: K.self)
@@ -430,6 +433,8 @@ struct AdsAudiencesAnswer: Decodable {
         segments = c.list(.segments, of: AdsHinted.self).filter { (s: AdsHinted) in !s.key.isEmpty }
         events = c.list(.events, of: AdsChoice.self).filter { (e: AdsChoice) in !e.key.isEmpty }
         instagram = c.string(.instagram).flatMap { (s: String) -> String? in s.isEmpty ? nil : s }
+        websiteEvents = c.list(.websiteEvents, of: AdsHinted.self).filter { (e: AdsHinted) in !e.key.isEmpty }
+        pixel = c.bool(.pixel) ?? false
     }
 }
 

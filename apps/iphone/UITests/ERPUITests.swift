@@ -36,7 +36,7 @@ final class ERPUITests: XCTestCase {
         "/settings", "/app/settings/shop", "/settings/alerts", "/settings/payment-methods", "/settings/data",
         "/posts", "/marketing/pieces", "/marketing/website", "/ads", "/ads/campaigns", "/design", "/design?v=saved", "/ads/studio",
         "/orders/online", "/orders/ORD-D0002/slip", "/products/bulk-add", "/invoices/new?scan=bill", "/orders/add?scan=parchi",
-        "/ads/new", "/ads/adset", "/ads/audiences", "/ads/rules", "/ads/setup",
+        "/ads/new", "/ads/adset", "/ads/audiences", "/ads/rules", "/ads/tests", "/ads/setup",
         "/website/photos", "/website/edit", "/website/weights", "/website/investments", "/website/from-site",
         "/settings/voice", "/settings/printer", "/settings/weprint-api", "/settings/backups", "/settings/contact-import",
         "/settings/hisaab-import",

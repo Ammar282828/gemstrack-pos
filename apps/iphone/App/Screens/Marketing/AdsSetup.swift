@@ -176,6 +176,7 @@ struct AdsSetupScreen: View {
                 Section {
                     MarketingLink(title: "Audiences", subtitle: "The ERP's customers, Instagram engagers, lookalikes", symbol: "person.3", path: "/ads/audiences")
                     MarketingLink(title: "Rules", subtitle: "Meta's automated rules, and every change logged", symbol: "checklist", path: "/ads/rules")
+                    MarketingLink(title: "A/B tests", subtitle: "Two to five ad sets against each other, audiences kept apart", symbol: "flask", path: "/ads/tests")
                 }
                 appSections(s)
                 connectSection(s)

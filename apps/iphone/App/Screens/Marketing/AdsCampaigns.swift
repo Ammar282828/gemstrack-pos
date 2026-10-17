@@ -25,6 +25,9 @@ struct AdsCampaignsScreen: View {
     @State private var failure: String?
     @State private var go: Route?
     @State private var budgeting: AdsBudgetTarget?
+    /// The range's campaigns as a CSV (the web's Download (CSV)), ready for the share sheet.
+    @State private var csvFile: URL?
+    @State private var exporting = false
 
     enum Filter: String, CaseIterable, Identifiable {
         case all = "All", running = "Running", paused = "Paused", problems = "Problems"
@@ -63,6 +66,8 @@ struct AdsCampaignsScreen: View {
                         Toggle("Show archived", isOn: $archived)
                         Toggle("Expand all campaigns", isOn: $allExpanded)
                         Button { go = Route(path: "/ads/new") } label: { Label("New ad", systemImage: "plus") }
+                        Button { Task { await exportCsv() } } label: { Label("Download (CSV)", systemImage: "tablecells") }
+                            .disabled(exporting)
                     } label: {
                         Label("More", systemImage: "ellipsis.circle")
                     }
@@ -72,7 +77,7 @@ struct AdsCampaignsScreen: View {
         .navigationDestination(item: $go) { (r: Route) in PlaceScreen(path: r.path) }
         // Back from a campaign, ad set or ad: what was paused, renamed or deleted there shows here.
         .onChange(of: go) { old, new in if old != nil && new == nil { Task { await load() } } }
-        .task(id: "\(rangeKey)|\(archived)") { if mayRead { await load() } }
+        .task(id: "\(rangeKey)|\(archived)") { csvFile = nil; if mayRead { await load() } }
         .task { if let id = AdsQuery.value("ad", in: path) { go = Route(path: objectPath("ad", id)) } }
         .confirmationDialog("Run it?", isPresented: askingShown, titleVisibility: .visible, presenting: asking) { (t: Target) in
             Button("Run") { Task { await setRunning(t, running: true) } }
@@ -98,6 +103,19 @@ struct AdsCampaignsScreen: View {
             problem = nil
         } catch {
             problem = error.localizedDescription
+        }
+    }
+
+    /// Every campaign, ad set and ad in the range as the web's CSV (export.ts, made by the server), for Numbers,
+    /// Excel or Google Sheets.
+    private func exportCsv() async {
+        exporting = true
+        defer { exporting = false }
+        do {
+            let d = try await ERPAPI.shared.data("/api/ads/campaigns?range=\(rangeKey)&format=csv\(archived ? "&archived=1" : "")")
+            csvFile = try SettingsFiles.save(d, named: "ads-\(rangeKey)-\(ERPDate.karachiDay(Date())).csv")
+        } catch {
+            failure = error.localizedDescription
         }
     }
 
@@ -183,12 +201,23 @@ struct AdsCampaignsScreen: View {
                     if gallery {
                         Picker("Sort", selection: $sort) {
                             Text("Most spent").tag("spend"); Text("Most results").tag("results")
-                            Text("Cheapest result").tag("cost"); Text("Best click-through").tag("ctr"); Text("Name").tag("name")
+                            Text("Cheapest result").tag("cost"); Text("Best ROAS").tag("roas")
+                            Text("Best click-through").tag("ctr"); Text("Name").tag("name")
                         }
                     }
                 }
                 if let problem {
                     Section { Label(problem, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary) } header: { LedgerHeading(title: "Couldn't refresh") }
+                }
+                if exporting || csvFile != nil {
+                    Section {
+                        if exporting { Label("Making the CSV…", systemImage: "tablecells") }
+                        if let csvFile {
+                            ShareLink(item: csvFile) { Label("Save or send \(csvFile.lastPathComponent)", systemImage: "square.and.arrow.up") }
+                        }
+                    } footer: {
+                        Text("Every campaign, ad set and ad in the range, with spend, results, purchases, sales and ROAS.")
+                    }
                 }
                 if list.isEmpty {
                     Section {
@@ -328,6 +357,7 @@ struct AdsCampaignsScreen: View {
             case "results": return ar > br
             case "cost": return (ar > 0 ? a.metrics.spend / ar : Double.infinity) < (br > 0 ? b.metrics.spend / br : Double.infinity)
             case "ctr": return a.metrics.ctr > b.metrics.ctr
+            case "roas": return (AdsResults.sales(a.metrics).roas ?? -1) > (AdsResults.sales(b.metrics).roas ?? -1)
             default: return a.metrics.spend > b.metrics.spend
             }
         }
@@ -402,6 +432,8 @@ struct AdsCampaignsScreen: View {
             parts.append("\(AdsFormat.count(r.value)) \(r.label.lowercased())")
             if r.value > 0 { parts.append("\(AdsFormat.money(m.spend / r.value, cur)) each") }
         }
+        let s = AdsResults.sales(m)
+        if s.value > 0 { parts.append("\(AdsFormat.money(s.value, cur)) sales · \(AdsResults.roasText(s.roas)) ROAS") }
         parts.append("\(AdsFormat.compact(m.reach)) reached")
         return Text(parts.joined(separator: " · "))
             .font(.caption)

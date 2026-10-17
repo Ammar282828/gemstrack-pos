@@ -2,6 +2,7 @@
  * GET ?range=last_7d[&archived=1] → every campaign, its ad sets and their ads,
  * each with its status, budget, schedule, Meta's warnings and the range's
  * numbers — the Campaigns tab.
+ * &format=csv → the same as Campaigns' "Download (CSV)" (export.ts), for the iPhone's share sheet.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,6 +10,7 @@ import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
 import { accountSummary, requireAccount } from '@/lib/ads/settings';
 import { campaignTotals, previousPeriod, totals, tree } from '@/lib/ads/insights';
 import { currencyOffset, isRange, type RangeKey } from '@/lib/ads/shape';
+import { campaignsCsv } from '@/lib/ads/export';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -25,6 +27,11 @@ export async function GET(req: NextRequest) {
       tree(act, r, { archived: q.get('archived') === '1', offset: currencyOffset(account.currency) }),
       r === 'maximum' ? Promise.resolve(null) : totals(act, r).catch(() => null),
     ]);
+    if (q.get('format') === 'csv') {
+      return new NextResponse(campaignsCsv(campaigns), {
+        headers: { ...noStore, 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="ads-${r}-${new Date().toISOString().slice(0, 10)}.csv"` },
+      });
+    }
     // Against the same length of time before — "▲ 18%" on each campaign row.
     const prev = span?.since && span.until ? previousPeriod(span.since, span.until) : null;
     const before = prev ? await campaignTotals(act, prev).catch(() => new Map()) : new Map();

@@ -4,7 +4,7 @@ import ERPCore
 /// Ads → Audiences (src/app/ads/audiences/page.tsx): the ad account's audiences, and the three kinds worth making
 /// from here: the shop's own customers (from the ERP's customer book, scrambled on the server before Meta sees
 /// them; owners only, as the route insists), people who engaged with the house's Instagram, and lookalikes of
-/// either. Any of them can then be reached or left out on New ad → Who sees it. Making an audience spends
+/// either, and website visitors from the shop's pixel (2026-10-16). Any of them can then be reached or left out on New ad → Who sees it. Making an audience spends
 /// nothing; sending the customer book and deleting ask first.
 struct AdsAudiencesScreen: View {
     @Environment(Session.self) private var session
@@ -17,6 +17,8 @@ struct AdsAudiencesScreen: View {
     @State private var segment = "buyers"
     @State private var days = 365
     @State private var event = "ig_business_profile_all"
+    @State private var webEvent = "Purchase"
+    @State private var webDays = 180
     @State private var origin = ""
     @State private var percent = 1
     @State private var country = "PK"
@@ -160,6 +162,7 @@ struct AdsAudiencesScreen: View {
                 }
                 customersSection
                 engagersSection
+                websiteSection
                 lookalikeSection
                 listSection
             }
@@ -224,6 +227,40 @@ struct AdsAudiencesScreen: View {
             LedgerHeading(title: data?.instagram.map { (ig: String) in "Instagram engagers · @\(ig)" } ?? "Instagram engagers")
         } footer: {
             Text("People who already know the shop on Instagram: usually the cheapest to turn into chats.")
+        }
+    }
+
+    /// People the pixel saw on the website (audiences/page.tsx "Website visitors"): to show ads again to the ones who
+    /// looked or carted and didn't buy, or to make a lookalike of the buyers. Meta keeps them up to 180 days.
+    private var websiteSection: some View {
+        Section {
+            if let data, !data.pixel {
+                Text("Choose the shop's pixel on Setup first.").foregroundStyle(.secondary)
+            } else {
+                ForEach(data?.websiteEvents ?? []) { (e: AdsHinted) in
+                    Button { webEvent = e.key } label: {
+                        HStack(alignment: .top, spacing: 10) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(e.label).foregroundStyle(.primary)
+                                Text(e.hint).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 8)
+                            if e.key == webEvent { Image(systemName: "checkmark").foregroundStyle(Theme.accent) }
+                        }
+                    }
+                }
+                Picker("In the last", selection: $webDays) {
+                    ForEach([7, 14, 30, 60, 90, 180], id: \.self) { (d: Int) in Text("\(d) days").tag(d) }
+                }
+                Button { Task { await make(["kind": "website", "days": webDays, "event": webEvent], "website") } } label: {
+                    busyLabel("Make the website audience", "website", "globe")
+                }
+                .disabled(data == nil)
+            }
+        } header: {
+            LedgerHeading(title: "Website visitors")
+        } footer: {
+            Text("People the shop's pixel saw on the website. Show ads again to those who looked or added to cart and didn't buy, or make a lookalike of the buyers.")
         }
     }
 

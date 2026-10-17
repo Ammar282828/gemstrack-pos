@@ -39,6 +39,7 @@ enum MarketingRoutes {
             adSets,
             .exact("/ads/audiences") { AdsAudiencesScreen() },
             .exact("/ads/rules") { AdsRulesScreen() },
+            .exact("/ads/tests") { AdsTestsScreen() },
             .exact("/ads/setup") { AdsSetupScreen() },
             .exact(MarketingKit.websitePath) { WebsiteMenu() },
             // The Website pages, native (Website*.swift), on the web's own routes; /website/post is Post a piece (above).

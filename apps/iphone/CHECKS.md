@@ -6,3 +6,4 @@ as `[ui]` in a commit did on GitHub's Mac minutes until 2026-10-09. Results show
 ("Xcode Cloud" check) and in App Store Connect → Xcode Cloud. One line per check, newest last.
 - 2026-10-09: the first check in Xcode Cloud.
 - 2026-10-12: the review fixes of 10-12 (iPad gating, sheets, sign-out, widget, designer controls, ERPCore rules), none compiled before.
+- 2026-10-17: Ads parity with the web (sales and ROAS, CSV, website audiences, video, partnership and catalogue ads, bidding and hours, A/B tests), none compiled before.
