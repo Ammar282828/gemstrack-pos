@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countryOfPhone, customerRows, metaEmail, metaName, metaPhone, splitName } from './audience-rows';
+import { countryOfPhone, customerRows, metaEmail, metaName, metaPhone, splitName, websiteRule } from './audience-rows';
 
 describe('metaPhone — digits, country code, no leading zeros', () => {
   it.each([
@@ -68,5 +68,24 @@ describe('customerRows', () => {
   it('recent = invoiced in the last year; lapsed = only before that', () => {
     expect(customerRows(customers, invoices, 'recent', NOW).map(r => r[2])).toEqual(['fatema', 'zainab', 'zainab']);
     expect(customerRows(customers, invoices, 'lapsed', NOW).map(r => r[2])).toEqual(['old']);
+  });
+});
+
+describe('website audiences', () => {
+  it('buyers in the last 180 days, from the pixel', () => {
+    expect(websiteRule('123', 180, 'Purchase')).toEqual({
+      inclusions: { operator: 'or', rules: [{ event_sources: [{ id: '123', type: 'pixel' }], retention_seconds: 180 * 86_400, filter: { operator: 'and', filters: [{ field: 'event', operator: 'eq', value: 'Purchase' }] } }] },
+    });
+  });
+  it('added to cart but did not buy leaves the buyers out', () => {
+    const r = websiteRule('123', 30, 'cart_not_bought') as { inclusions: { rules: { filter: { filters: { value: string }[] } }[] }; exclusions: { rules: { filter: { filters: { value: string }[] } }[] } };
+    expect(r.inclusions.rules[0].filter.filters[0].value).toBe('AddToCart');
+    expect(r.exclusions.rules[0].filter.filters[0].value).toBe('Purchase');
+  });
+  it('every visitor matches any page; days are held to Meta’s 180; an unknown kind is refused', () => {
+    const all = websiteRule('123', 400, 'all') as { inclusions: { rules: { retention_seconds: number; filter: { filters: { field: string }[] } }[] } };
+    expect(all.inclusions.rules[0].retention_seconds).toBe(180 * 86_400);
+    expect(all.inclusions.rules[0].filter.filters[0].field).toBe('url');
+    expect(websiteRule('123', 30, 'Nope')).toBeNull();
   });
 });

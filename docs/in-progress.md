@@ -4,6 +4,13 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 
 ### In progress
 
+- **Design (2026-10-12): cut over; open items** ([docs/features/design.md](features/design.md)). (1) **A native Design tab in the iPhone
+  app** (a separate iOS task: its Post composer and Studio screens still call the old addresses, kept in the map as `moved` pages, and
+  the web view shows `/design`). (2) **Video / animation, phase 2** (a Ken-Burns or shimmer story by MediaRecorder; a licensed track).
+  (3) ~~Retire the classic screens~~ done 2026-10-12: Design has every tool (docs/features/design.md#with-ai); the two addresses
+  redirect. **Owner to try** on a phone: AI lettering and paint on a story, a draft of the old screen, the website's catalogue photo. (4) Shared designer templates (`design_templates`) — templates are still per device. (5) **Owner walkthrough** on
+  both houses, with a staff and a marketing account, before anything else moves.
+
 - **Editing existing website pieces from the POS** (owner, 2026-09-26: "fix/crop/add logo weight overlay to existing,
   change desc etc in taheri.shop or catalogue.houseofmina.store"). Mapped across the POS, taheri-site and mina-catalogue,
   designed, **not built**, four questions open for the owner: **`docs/edit-website-pieces.md`**.
@@ -41,6 +48,15 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 - `website-checkout` is retired but not deleted; delete it once nobody has it checked out elsewhere.
 - Mina's `firestore.rules` and Taheri's differ (Taheri's are open); App Hosting does not deploy rules, so each
   project keeps whatever was last deployed with the Firebase CLI.
+
+## For the app chat: whole rupees and round-off (web, 2026-10-17)
+
+Owner: "There should be no decimals" and "offer discount options to round the bill for any amount under 5000". Done on the web and the server (`/api/app/write` rounds too, so an old app build is corrected on save). **To mirror in `apps/iphone` and `apps/android`**, port `src/lib/money-round.ts` line for line (its header holds the rule; tests in `money-round.test.ts` are input→output tables):
+- `rupees(x)` = Math.round half up, never -0. Round **each line** (metal = weight×rate, wastage = rounded metal × %, making, diamonds, stones, misc, a fixed price), piece total = sum of rounded lines, subtotal = sum of piece totals; discount, exchange values, payments, advances, refunds are integers. grand = subtotal − discount − exchange; balance = grand − paid. Weights, per-gram rates, percentages keep decimals. Money fields: whole-rupee numeric keypad, no ".00" anywhere (`pkr(n)` = "PKR 297,000").
+- Settled: `|balance| < 1` is paid (`isSettled`, `owesMoney` ≥ 1, `isCredit` ≤ −1) — old bills hold paise.
+- `roundOffOffers(total, existingDiscount)`: T = total − existingDiscount; for step in 10000, 5000, 1000, 500, 100 (coarsest first): target = floor(T/step)×step, extra = T − target; keep target > 0 and 0 < extra < 5000; dedupe targets (the coarsest step's entry stays); no sort — keep that order; first 3 (272,340 → 270,000 / 272,000 / 272,300). Chips "Round to 270,000 · −2,340" beside the discount field (New sale, invoice discount edit, Finalize, order form); tap sets discount = typed + extra; tap the lit one to undo.
+- `settleRemainderOffer(remaining)`: 0 < R < 5000 → "Settle — give the remaining PKR R off" after a payment (invoice, order's last advance): record the payment, then raise the bill's discount by R (`updateInvoiceDiscount` / order `discountAmount`), never a made-up payment.
+- Android only now (the iPhone app rounds, its `cases.json` is regenerated and held to the paisa): `contract.test.ts` holds `apps/android/contract/cases.json` to within a few rupees (`MONEY_DIGITS_FOR.android = -1`) until the Android app rounds; then set it to 2. Its `core` ContractTests compares the Kotlin cases with the iPhone's file, so it differs until then.
 
 ## For the app chat (from the web redesign, 2026-10-12)
 

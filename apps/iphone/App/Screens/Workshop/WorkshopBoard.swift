@@ -5,8 +5,8 @@ import ERPCore
 /// overdue, what has nobody on it, what has not left the shop. Pieces come from orders, from stock jobs and from
 /// invoices (a Shopify sale is an invoice, and any invoice line handed to a karigar). What an owner does to a piece
 /// is a write through the ERP: pick the karigar, tick it Given, tick it Done (an order's piece or a sold one); and
-/// stock work is assigned (+), its status set, its making details changed and deleted (the delete code), as on the
-/// web's page. An order's or a sold piece's making details stay the ERP's page.
+/// stock work is assigned (+), its status set and deleted (the delete code); and any piece's making details are changed
+/// (Details), as on the web's page.
 struct WorkshopBoard: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -28,6 +28,7 @@ struct WorkshopBoard: View {
     @State private var opened: WorkshopPlace?
     @State private var assigning: WorkshopStockJobAsk?
     @State private var editing: KarigarJob?
+    @State private var editingPiece: WorkshopPieceAsk?
     @State private var deletion: OwnerDeletion?
     @State private var note: OwnerNote?
 
@@ -70,6 +71,11 @@ struct WorkshopBoard: View {
                 Note.show(saved, in: $note, reduce: reduceMotion)
             }
         }
+        .sheet(item: $editingPiece) { (ask: WorkshopPieceAsk) in
+            WorkshopPieceDetailsSheet(ask: ask) { (saved: OwnerNote) in
+                Note.show(saved, in: $note, reduce: reduceMotion)
+            }
+        }
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {
                 Note.show(OwnerNote(title: "Job deleted"), in: $note, reduce: reduceMotion)
@@ -91,7 +97,7 @@ struct WorkshopBoard: View {
         if seeded { return }
         seeded = true
         if asksForWholeBench { return }
-        filter.takenBy = session.shop.person ?? ""
+        filter.takenBy = session.shop.workshopStart == "anyone" ? "" : (session.shop.person ?? "")
     }
 
     private var loaded: Bool {
@@ -136,8 +142,6 @@ struct WorkshopBoard: View {
             if let orderId {
                 Section {
                     Text(orderId).font(.headline)
-                } footer: {
-                    Text("Choose a karigar, then mark the piece Given when it leaves the shop.")
                 }
             }
             layout(snap, focused: focused, live: live, choices: choices)
@@ -180,19 +184,15 @@ struct WorkshopBoard: View {
         }
     }
 
-    /// The whole bench in six figures: the numbers keep showing everyone while one karigar is focused.
+    /// The whole bench in figures, folded away: the pieces and the benches are the tiles above (rule 15: not said twice).
     private func glanceSection(_ loads: [WorkshopLoad]) -> some View {
-        let active = loads.reduce(0) { $0 + $1.active }
         let late = loads.reduce(0) { $0 + $1.late }
         let critical = loads.reduce(0) { $0 + $1.critical }
         let grams = loads.reduce(0.0) { $0 + $1.totalWeightG }
         let value = loads.reduce(0.0) { $0 + $1.totalValue }
-        let working = loads.filter { !$0.isUnassigned && $0.active > 0 }.count
         return Section {
             DisclosureGroup("Bench totals", isExpanded: $showTotals) {
             FigureGrid {
-                FigureTile(label: "Pieces out", value: "\(active)")
-                FigureTile(label: "Benches working", value: "\(working)")
                 FigureTile(label: "Late \(WorkshopLogic.warnDays)d+", value: "\(late)", tint: late > 0 ? Tone.owed.color : Color.primary)
                 FigureTile(label: "Critical \(WorkshopLogic.criticalDays)d+", value: "\(critical)", tint: critical > 0 ? Tone.late.color : Color.primary)
                 FigureTile(label: "Metal out", value: grams > 0 ? WorkshopLogic.number(grams, digits: 1) + "g" : "—")
@@ -308,7 +308,10 @@ struct WorkshopBoard: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(load.isUnassigned ? "Unassigned work" : load.karigarName).font(.title3.weight(.semibold))
-                        Text(focusedSentence(load, orders: orders)).font(.subheadline).foregroundStyle(.secondary)
+                        let sentence = focusedSentence(load, orders: orders)
+                        if !sentence.isEmpty {
+                            Text(sentence).font(.subheadline).foregroundStyle(.secondary)
+                        }
                     }
                     Spacer()
                     if !load.isUnassigned { Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary) }
@@ -320,11 +323,12 @@ struct WorkshopBoard: View {
         }
     }
 
+    /// How many orders and how old the oldest: the active count is the first figure below (rule 15: not said twice).
     private func focusedSentence(_ load: WorkshopLoad, orders: Int) -> String {
-        var s = "\(load.active) active job\(load.active == 1 ? "" : "s")"
-        if orders > 0 { s += " across \(orders) order\(orders == 1 ? "" : "s")" }
-        if load.oldestActiveDays > 0 { s += " · oldest \(load.oldestActiveDays) days" }
-        return s
+        var parts: [String] = []
+        if orders > 0 { parts.append("across \(orders) order\(orders == 1 ? "" : "s")") }
+        if load.oldestActiveDays > 0 { parts.append("oldest \(load.oldestActiveDays) days") }
+        return parts.joined(separator: " · ")
     }
 
     @ViewBuilder
@@ -433,7 +437,8 @@ struct WorkshopBoard: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(WorkshopFocus.allCases) { f in
-                        FilterChip(title: focusTitle(f), count: snap.count(f), chosen: focus == f) { focus = f }
+                        // A count only where it asks for a hand (rule 15): All work's is the tile above.
+                        FilterChip(title: focusTitle(f), count: f == .all ? nil : snap.count(f), chosen: focus == f) { focus = f }
                     }
                 }
             }
@@ -647,13 +652,28 @@ struct WorkshopBoard: View {
         write(job, "setStockJobStatus", ["jobId": id, "status": status.rawValue])
     }
 
-    /// The job as it is on file: the sheet edits its own fields (the board's line merges the instructions).
+    /// A stock job as it is on file: its sheet edits its own fields (the board's line merges the instructions). An order's
+    /// piece or a sold piece opens the Details sheet (the web's Details dialog), the order piece with its sample picture.
     private func openDetails(_ job: WorkshopJob) {
-        guard case .stock(let id) = WorkshopLogic.writeTarget(job) else { return }
-        if let held = book.karigarJobs.item(id) {
-            editing = held
-        } else {
-            failure = "This job is no longer on file."
+        switch WorkshopLogic.writeTarget(job) {
+        case .stock(let id):
+            if let held = book.karigarJobs.item(id) {
+                editing = held
+            } else {
+                failure = "This job is no longer on file."
+            }
+        case .order(let id, let index):
+            guard let order = book.orders.item(id), order.items.indices.contains(index) else {
+                failure = "This piece is no longer on the order."
+                return
+            }
+            let item = order.items[index]
+            editingPiece = WorkshopPieceAsk(job: job, target: .order(id: id, index: index),
+                                            samplePhotoId: item.samplePhotoId, sampleImageDataUri: item.sampleImageDataUri)
+        case .invoice(let id, let index):
+            editingPiece = WorkshopPieceAsk(job: job, target: .invoice(id: id, index: index))
+        case nil:
+            return
         }
     }
 
@@ -693,12 +713,7 @@ private struct FocusedCells: View {
         if load.inProgress != load.active {
             out.append(Cell(label: "In progress", value: "\(load.inProgress)", tint: Tone.working.color))
         }
-        if load.late > 0 {
-            out.append(Cell(label: "Late \(WorkshopLogic.warnDays)d+", value: "\(load.late)", tint: Tone.owed.color))
-        }
-        if load.critical > 0 {
-            out.append(Cell(label: "Critical \(WorkshopLogic.criticalDays)d+", value: "\(load.critical)", tint: Tone.late.color))
-        }
+        // Late and critical are the sections' own headings below.
         if load.totalWeightG > 0 {
             out.append(Cell(label: "Metal out", value: WorkshopLogic.number(load.totalWeightG, digits: 1) + "g", tint: Color.primary))
         }

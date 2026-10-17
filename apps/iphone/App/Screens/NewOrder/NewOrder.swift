@@ -207,7 +207,7 @@ struct NewOrder: View {
                 NewOrderRatesSection(draft: $draft, settings: settings)
                 NewOrderPrintedSection(draft: $draft)
             case .payment:
-                NewOrderPaymentSection(draft: $draft)
+                NewOrderPaymentSection(draft: $draft, totals: totals)
                 NewOrderExchangeSection(draft: $draft)
             case .review:
                 Section {
@@ -435,8 +435,6 @@ struct NewOrder: View {
         if edit == nil && !draft.isBlank {
             Section {
                 Button("Start over", role: .destructive) { confirmReset = true }
-            } footer: {
-                Text("Your order is kept on this phone, and in Drafts for the counter, until you save it or start over.")
             }
         }
     }
@@ -550,9 +548,14 @@ struct NewOrder: View {
                 WorkDraftSync.sale.drop()
             }
             offerSizes(made)
-            // Blank, so a keep that was already on its way writes nothing back.
-            draft = NewOrderDraft.fresh()
-            created = id
+            // Blank, so a keep that was already on its way writes nothing back. The form gives way to the order with no
+            // animation: its glass Save button can't fade and would shrink into a "bubble" over the order.
+            var still = Transaction()
+            still.disablesAnimations = true
+            withTransaction(still) {
+                draft = NewOrderDraft.fresh()
+                created = id
+            }
         } catch let e as ERPAPI.Failure {
             // The ERP has seen this very order already (a second tap, a retry): it is made, not lost.
             let seen = e.status == 409 && e.message.hasPrefix("This was already sent")
@@ -606,6 +609,7 @@ struct NewOrderLanding: View {
     var body: some View {
         if waited || book.orders.items.contains(where: { $0.id == id }) {
             OrderScreen(id: id)
+                .environment(\.zoomNamespace, nil)  // swapped in place after a save: no row to zoom from
         } else {
             VStack(spacing: 12) {
                 SkeletonLoading().controlSize(.large)
@@ -629,8 +633,8 @@ private struct NewOrderPinnedSummary: View {
     let totals: NewOrderMath.Totals
 
     private var dueTone: Tone {
-        if totals.balance < -0.5 { return .credit }
-        return totals.balance > 0.5 ? .owed : .settled
+        if totals.balance <= -1 { return .credit }
+        return totals.balance >= 1 ? .owed : .settled
     }
 
     var body: some View {
@@ -644,7 +648,7 @@ private struct NewOrderPinnedSummary: View {
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 0) {
-                Text(totals.balance < -0.5 ? "Credit to customer" : "Due").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
+                Text(isCredit(totals.balance) ? "Credit to customer" : "Due").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
                 Text(Money.pkr(abs(totals.balance)))
                     .font(.headline)
                     .monospacedDigit()

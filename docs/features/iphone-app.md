@@ -66,7 +66,12 @@ go, and a karigar marking a piece done (`/api/karigar/complete`, which never ale
 on (`push_devices`), unless that phone switched the kind off; WhatsApp's switches do not decide it. Once per event
 (`push_sent`); a development server only logs. The Apple key (one APNs key serves both houses) is uploaded in Settings →
 Alerts and kept in `app_private/apns`, sealed under a key drawn from CRON_SECRET: Taheri's Firestore rules are still
-open and Secret Manager is not writable from the ERP. `push_devices` entries carry `platform` (absent = `ios`); Android phones are sent through FCM (`lib/push/fcm.ts`, firebase-admin under the backend's own service account, no key needed; see [Android](android-app.md)), so the Apple key is required only when an iPhone is registered. The App Hosting runtime service account may need `roles/firebasecloudmessaging.admin` (an owner step, unverified).
+open and Secret Manager is not writable from the ERP. The one owner step: create an APNs key (developer.apple.com →
+Keys, APNs ticked) and upload the .p8 with its key ID and team TND272ULB5 in **both** ERPs, Settings → Alerts, since each
+house has its own Firestore. `asc.mjs builds <house> --fix` (the TestFlight status workflow) turns on the App ID's Push
+Notifications capability, so the next Xcode Cloud build's profile carries `aps-environment`. Failures now show: a phone
+that cannot register reports it to `push_devices_failed` (`/api/push/register-failed`, last error, no token) and in
+Settings → This phone; the server logs `[push] no-key: <kind>` (once per 10 minutes) and `[push] no devices: <kind>`. `push_devices` entries carry `platform` (absent = `ios`); Android phones are sent through FCM (`lib/push/fcm.ts`, firebase-admin under the backend's own service account, no key needed; see [Android](android-app.md)), so the Apple key is required only when an iPhone is registered. The App Hosting runtime service account may need `roles/firebasecloudmessaging.admin` (an owner step, unverified).
 
 **The widget's figures** (`/api/widget/summary`, `lib/widget`): the house's rate, the drawer (Today's cash), Owed to
 you (with hisaab) and orders and repairs due, from the ERP's own functions, worked out at most every 15 minutes. Read
@@ -125,7 +130,7 @@ as version 2.0; `apps/iphone/CONVENTIONS.md` is its rulebook.
   demo) and **Shopify** (Settings → Integrations: the connection, its permissions, a selective one-way import of
   orders; owners only) have no web page behind them. Re-making a site photo on Edit a piece still opens the ERP's page.
 - **The designer engine is the web's own.** `App/Resources/Design/design-<house>.js` is `src/lib/social` bundled with
-  the house's fonts and wordmark and run in a web view on the phone, with no network. **Whenever `src/lib/social`
+  the house's fonts and wordmark and run in a web view on the phone, with no network. **Whenever `src/lib/social` (or `lib/ads/studio` templates, `lib/website/maisons`)
   changes, run `node apps/iphone/scripts/design-bundle.mjs` and commit both files**; a phone otherwise draws the
   old design. A design is held as raw JSON (`MarketingValue`), never decoded into Swift fields, so a field the web adds
   survives a save from the phone and the reverse. Board designs are editable in full on the web and the phone
@@ -200,3 +205,186 @@ jobs run only by hand.
      project file, so a Mina workflow made on `ERP.xcodeproj` joins Taheri's product and builds Taheri's app.
   - The Mac's clone needs a remote called `origin` on taheri-pos (Xcode Cloud reads it; `hom` sorts first
      otherwise and is gemstrack-pos, where no `claude/` branch lives).
+
+### Parity with the web, 2026-10-15
+
+Owner: "all the recent ERP fixes, make sure they got added [to the iOS app] also". Every web change since 2026-10-09 was
+read; what the app lacked was brought over, the rest is listed so it is not asked twice.
+
+**Ported (ERPCore first, with the TypeScript tests as XCTest cases):**
+- **Analytics default is this month**, the 1st to today (`lib/analytics/range-param.ts` → `AnalyticsRange.swift`, tested). The
+  app's period picker is now ERPCore's `AnalyticsPeriod`; "This month" leads the quick choices. A phone that stored
+  "Last 30 days" keeps it; a fresh one, or an unreadable key, opens on this month.
+- **Home's money card is "This month"** (the web's was "Last 30 days"): revenue, expenses (partner drawings out) and net since
+  the 1st, with one chart point a day. The week of bars under "Taken today" still reads the trailing 30 days, so it never
+  shrinks at a month's start.
+- **Due grouping** (`lib/orders-due.ts`, the web extracted it from the app's `OrdersLogic`) now lives in ERPCore
+  (`OrdersDue.swift`, `OrdersDueTests` mirror `orders-due.test.ts`); `OrdersLogic` calls it.
+- **Calendar money in lac and crore** (`dayLac` over `axisLac`: 85k · 2.9L · 56L · 1.2Cr; the month's figures as "PKR 29.6 lac"):
+  `Money.axisLac`, `ShopCalendar.dayMoney`, tested.
+- **Studio board:** a replaced picture starts centred and unzoomed (`board-pictures.ts` `freshCrops`); a new design can start
+  from Photos, Files or Drive, or a link (an image address or an Instagram post's, `/api/ads/studio/fetch-image`); Tidy up in
+  the board's tools menu; a put that updates a design's other sizes says how many (`linked`, `board-links.ts`).
+- **Designer:** the engine bundles were rebuilt (button pills, linked sizes' words, the bg shade, server-draw parity, and the six
+  jewellery faces already bundled); the font and blend pickers list the v2 names.
+- **Where the web moved:** Posts › Design and Ads › Plan are ERP pages in the app, offered as rows on the Posts hub and Ads
+  overview (and by the map, Search and the sidebar). The native Post a piece composer and Studio stay at `/website/post` and
+  `/ads/studio`: the web keeps those addresses in its map as `moved` pages for exactly this, and no API route moved. Settings →
+  Shop details is `/settings/shop` on the web now; the native Shop screen answers it too.
+
+**Already the same:** customer detail's one owed figure (the list's `lib/owed.ts`), Given by (`8707e3f` shipped its app half),
+Posts' website weight (server, and the web card the hub opens), Studio uploads' transparency, order photos, push, Shopify
+notices, the "Web matches the app" series (the web copied the app's look), tones, Settings index, Calendar layout.
+
+**Not native, on purpose:** Design's own workspace (the v2 designer's panels, AI resize, smart input, publish sheet, the page
+strip) is the ERP's page in the app; the phone's designer renders every v2 field (blend, effects, rich text, gradients, QR,
+adjust) through the bundled engine and keeps what it cannot edit. Saved designs of the new store (`designs`) are on the Design
+page's Saved shelf; the phone's Saved ads are the legacy `ad_saved` rows, which the web shows too until it re-saves them.
+
+### Ads parity, 2026-10-17
+
+The web's Ads Manager additions of 2026-10-16 (docs/features/ads.md) on the phone, owner: "Ship the new erp ad manager
+changes to the ios app". As before, the phone gathers choices and the server keeps the rules and talks to Meta.
+- **Overview:** Sales from ads and ROAS tiles (with cost per order) when anything sold; purchases lead the main result;
+  ROAS on the top ads. `AdMetrics.values` carries Meta's action_values; `AdsResults.sales` is shape.ts `salesOf`.
+- **Campaigns:** sales and ROAS on every row, "Best ROAS" in the gallery sort, and More → Download (CSV): the server's
+  CSV (`/api/ads/campaigns?format=csv`, export.ts, the same file as the web's button) to the share sheet.
+- **Audiences:** Website visitors from the pixel (`websiteEvents`, `pixel` on `/api/ads/audiences`).
+- **New ad** (`AdsNewAdSources.swift`): What to promote is a menu now (six choices): a new video (Photos → Meta's resumable
+  upload through `/api/ads/videos`, piece by piece, the ID token asked per piece; then Meta's cover frame), a creator's post
+  (the partnership ad code, checked on `/api/ads/partner`), the catalogue (`/api/ads/catalog`, biggest set first; lookers or
+  new buyers). Advanced: bidding (cost cap, bid cap, minimum ROAS for online orders) and set days and hours (which move the
+  budget to a total one, Meta's rule). `bidding` and `hours` go in the plan; `/api/ads/plan` says what stops it.
+- **A/B tests** (`AdsTests.swift`, `/ads/tests`, linked from Setup): make a split test of 2–5 ad sets and read each side.
+- The "UI check" workflow (CHECKS.md) has never reported on a commit (no Xcode Cloud check on 9cebeeb or 4075675): it
+  was likely never made in Xcode Cloud (setup step 5). A release is the compile check meanwhile: one that fails stops at
+  the archive and sends nothing to TestFlight.
+
+### Posts parity, 2026-10-17
+
+Owner: "Why isnt the posts region ported yet". What the web's Posts → Design board gained after the app's 10-15 port:
+- **The designer saves as you go** (board.tsx 2ef9bd7): each change a moment after the last touch, one save at a time, outside
+  the edit that asked for it; no Save button or discard question; a cloud mark says Saved / Saving / Not saved (tap to retry).
+  ‹ › open the previous or next design in reading order in place, Sizes the design's other sizes; Done waits for the
+  last save and the board makes the design last edited glow.
+- **Tidy** is board-tidy.ts's layout (each ad's sizes side by side, blocks a row by the screen's shape) and is sent 60
+  moves a request, the server's limit: before, Tidy failed on any board over 60 designs (Mina's shoot boards have ~180).
+- **The design engines** (`design-<house>.js`) rebuilt: they predated brand.ts's 10-15/16 changes (Mina's tarnish-resistant
+  plating line, Bodoni italic and Tenor capitals, the owner's type edits), so the phone drew the old style.
+- Not ported: the board's trackpad and ⌘-zoom fix (582822c) is the browser's; the phone's board pinches natively.
+
+### No web pages left, 2026-10-17
+
+Owner: "Check for others also and natively port them to ios", then "port all of them / Also make the app smoother
+faster / And look for that bubble bug on form completion". Of the map's 61 places only Ads → Plan opened the web (now
+AdsPlanScreen on the Studio's own Plan) and the one-off Taheri book import (kept). The hand-offs inside native screens:
+- **Stock photo:** `POST /api/app/product-photo` (multipart; HEIC → JPEG, ≤ 2000 px; owners) uploads to the web's
+  `product_images/` with a download token (`adminBucket()`) and saves it with the shared write `setProductPhoto`;
+  `StockPiecePhotoField` (Photos or camera, remove).
+- **Repairs receipt, Expense report, Hisaab summary and ledger PDFs:** drawn on the server by the web's own drawers
+  (`/api/app/pdf/repair/[id]`, `/expenses`, `/hisaab`, `/hisaab/[id]`; lib/expense-report*, hisaab-report, hisaab-pdf,
+  wall-clock for Karachi's days on a UTC server); the web's buttons use the same drawers. The ledger's WhatsApp
+  reminder is `/api/app/hisaab/[id]/reminder` (reminderMessage, the web's words) and opens WhatsApp from the phone.
+- **Customers → Clean up spam:** lib/customer-spam.ts, ported to ERPCore (CustomerSpam, same cases); a review sheet,
+  one delete code, `removeCustomer` per pick.
+- **Settings:** website selling (`saveWebsiteConfig`, the web form now saves through it too), alerts' connection, test
+  and Send now (the notifications routes), Restore from backup (`/api/app/backup/restore`: delete code, 400 a request,
+  dates revived from `{seconds, nanoseconds}` — the web's restore now revives them too), Restore shop defaults
+  (`restoreShopDefaults`, previewed first), Change numbering (`setCounters`, delete code; `cleanSettingsPatch` still
+  refuses counters).
+- **Website → Re-make the photo:** the site layouts in the bundled engine; shape, layouts, the designer, AI, saved to
+  `/api/website/edits` as the web saves it.
+- Kept on the web on purpose: Meta's one-time dashboard steps (instructions), and a draft begun in the web's form.
+- **The bubble on finishing a form** (owner, 10-15 and 10-17): New sale, New order and Make invoice swapped their form
+  for the result on an animation, and the glass Save button (glassProminent) shrank into a blob over the result. The
+  swap is now immediate; the Note toast is a material card, not glass.
+- **Smoother:** piece photos load through `RemoteImageStore` (downsampled to the frame off the main thread, a memory
+  cache, a 200 MB disk cache, one download per address) instead of AsyncImage; a customer's and a piece's figures are
+  memoised on the shelves' revisions; pages find their record by id rather than walking the shelf.
+
+
+### No buttons to the web, and quiet screens, 2026-10-17
+
+Owner: "A lot of the buttons still lead to old non native screens", then "Also invoices tab is very noisy / Fix that
+noisy issue everywhere / Scan ALL screens". Every `?web=1`, "Open in the ERP" and `WebScreen(` inside a native screen
+is gone (CONVENTIONS rule 5); and a link on an ERP page to a place with a native screen opens that screen (WebBridge
+`open`: a link's click asks first; a `router.push` after a save opens the screen and the page steps back).
+- **Orders:** karigar per piece, remove a piece and delete an advance (delete code; ops-orders2, lib/writes/order-pieces,
+  the browser's too: removing a piece now keeps the discount and advances in the balance), the piece's sample photo,
+  Leopards always native. **Invoices:** the PDF to another number, a first link's key (`giveInvoiceShareKey`), payment
+  links, Shopify CSV import (ops-invoices2, lib/writes/shopify-csv-import: numbers reserved first, never overwriting).
+- **Stock:** the tag sheet (QR, CSV for WEPrint), delete with the delete code (`deleteProduct`, ops-stock3, the
+  browser's too), voice add into the native form (`StockVoiceSeed`).
+- **Workshop and work:** a job's details (`updateOrderPieceDetails`, `updateInvoicePieceDetails`), Revert in the activity
+  log, sign-ins and the emergency lock (`lockDatabase`; ops-work2), a draft from another device in the native form
+  (`WorkDraftContinue`, `WorkDraftSync.adopt`), Design's "Make the ad with AI".
+- **Posts:** the tray (pick, weight, caption, AI caption, story, crop and design, send or queue), Send all and Spread
+  over the day (QueuePlan, SiteWeight in ERPCore); Meta's one-time steps on Setup.
+- **Settings:** the Taheri book import (`importTaheriBook`, ops-settings4), `/settings?tab=`.
+- **Quiet screens** (CONVENTIONS rule 15). A first pass restructured the screens (two-line rows, no monograms or
+  tiles); the owner: "I liked the old card ui for invoices and orders, just wanted it to be less noisy, revert that
+  anywhere else". So every screen keeps its 10-16 layout, cards, monograms, tiles and stage tracks, and only the noise
+  inside goes: no badge for the expected state (Paid, done, running, connected), no number twice, no obvious footers.
+### One app, many businesses (2026-10-16)
+
+Owner: one app for all his businesses, to switch between them and to add more. Until now each house was its own app
+(Taheri `shop.taheri.erp`, House of Mina `store.houseofmina.erp`, one build per house by `house.mjs`). Now the default build is
+**one app, `shop.taheri.erp`, "ERP" on the home screen**, and the house is a thing the app holds at run time.
+
+**What a business is.** A `Business` (`App/Config/Business.swift`) is exactly the ERP's `GET /api/app/business`
+(`src/app/api/app/business/route.ts`, public, cached five minutes): id, the shop's name, ERP address, metal, margin rule, light and dark
+palette, logo, icon, the iOS sign-in identifiers (Google client and the Firebase iOS app) and the shop's switches (`flags`). Taheri and
+House of Mina ship in the app (`Resources/businesses.json`, written by `scripts/businesses.mjs` from `houses.json`), so a first launch needs
+no network and they keep their bundled art. `House` is a facade over the open business; nothing keeps a business's value in a static
+(CONVENTIONS rule 13). `House.id == "mina"` branches are gone: Mina's foil order follows `metal`, the shop's defaults follow `flags`, and the two
+that have no server flag (the Taheri Software import, the Mina catalogue's photo note) check `House.bundledArt`, the bundled art, so an added
+business never borrows them.
+
+**Adding one.** Settings → Businesses (owners), Search → Businesses (everyone), or the chip → Businesses…: type the ERP's address
+(`erp.houseofmina.store`). `Businesses.describe(address:)` reads `/api/app/business` over https from that host only (the descriptor may not
+name another host, or it could point the sign-in token at a stranger), judges it (`Business.problem`: an id, a name, readable colours, an iOS
+sign-in), and the sheet shows the name, logo and colours as a card **before** "Add". Adding keeps it and opens it, at its sign-in. The five-minute
+refresh (`Businesses.refresh`) keeps names, colours and switches current without an app update; it never moves a business's address or its
+Firebase identity.
+
+**The chip and the sheet.** Each tab root's leading toolbar (and the iPad sidebar's header) holds the open business's mark and name; tap opens the
+Businesses sheet, touch and hold lists the businesses for a one-touch switch. With one business the chip stays, quiet, as the way to add. The sheet
+lists each business with its address and who is signed in; tap to switch (a selection tick, the root rebuilt on the new business); swipe or Edit to
+remove. A built-in is **hidden**, not deleted (it comes back by typing its address); the last business cannot go. Removing signs that business out
+(its alerts unregistered, its Firebase user, Google token, books on disk, drafts, widget link and logo). The sign-in page says which business you are
+signing in to, with a "Switch business" button.
+
+**Per business.** Sign-in (one Firebase app each; Taheri keeps the default app, so existing installs stay signed in), data (Firestore cache per app,
+`BizKey` defaults), session and role, push, widget.
+- **Push.** The phone has one token; every business signed in on it is told of it (`Push.link`), and a payload names its business, so a tap opens that
+  business first. Settings → This phone lists each business and whether it is linked (the kinds are chosen for the open business).
+- **Widget.** One widget, many businesses. The keychain item the app and widget share is a list of `{id, name, url, key, palette, brand}` (`Shared/
+  ERPWidgetLink.swift`); sign-in adds the open business's entry, sign-out or removal takes only its own, and a one-house build's single link is moved
+  into the list. The widget (kind `ERPToday`, so widgets already placed keep their place) is configurable (`SelectBusinessIntent`, an App Intents
+  `WidgetConfigurationIntent` whose "Business" is any linked one; the first until chosen). Colours and the wordmark come from the entry: Taheri's and
+  Mina's from the asset catalogue, any other from its hex palette with its name for a wordmark. Nothing reads the build's Info.plist. With nothing linked
+  it says "Open the app and sign in".
+- **Icon.** The primary icon is the app's own, `AppIcon-erp` (a champagne-gold diamond outline on ink; `apps/iphone/scripts/erp-icon.mjs` draws it, `houses.json` `appIcon`); Taheri's and Mina's are alternates (`ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = AppIcon-taheri AppIcon-mina`, from `houses.json`
+  `alternateIcons`). Settings → This phone → App icon: ERP (default) / follow the business / Taheri / House of Mina. It changes only on that tap (iOS shows an alert on
+  every change, so a business switch never does it); "follow" sets the open business's icon when chosen and offers an update button after a switch.
+
+**The build.** `house.mjs taheri` is the merged app's bundle and asset base ("ERP"); `ERP_HOUSE` no longer drives behaviour at run time, only the launch
+screen, the primary icon and the global accent colour. The `ERPHouse` Info.plist keys are gone.
+
+**The Mina Firebase step (once, by the owner).** For House of Mina to sign in inside the one app, its Firebase project needs the merged app's bundle id:
+1. Firebase console → project `hom-pos-52710474-ceeea` → Add app → iOS, bundle id **`shop.taheri.erp`**; download nothing, note the **App ID**
+   (`1:288366939838:ios:…`) and the iOS OAuth client Google makes for it (its client id ends `.apps.googleusercontent.com`; its reversed id is the URL scheme
+   the app registers).
+2. Set the new values in `apphosting.mina.yaml`: `APP_IOS_FIREBASE_APP_ID` (the new App ID) and `APP_IOS_GOOGLE_CLIENT_ID` (the new iOS client id), keeping
+   `APP_IOS_FIREBASE_API_KEY` if the project's key is unchanged; those are what `storeAppIos()` reads and `/api/app/business` sends. Put the same two in
+   `houses.json` for `mina` (`firebase.iosAppId`, `googleClientId`) and rerun `node scripts/businesses.mjs`, so the bundled copy matches. Until then
+   Mina's descriptor carries the old Mina app's ids (a temporary note in the YAML says so), which belong to another bundle id: Mina lists fine in the one app but
+   Google sign-in to it fails there, and the old Mina app keeps working.
+3. Deploy (both houses, as always). The app refreshes Mina's descriptor on its next launch.
+
+**The old Mina app is deprecated.** `store.houseofmina.erp` (`project-mina.yml`, Mina's Xcode Cloud product, `houses.json` `mina`) keeps building and shipping
+until its testers have moved to the one app; then delete the project file, Mina's workflows and the `mina` entry. Its sign-in and data are its own, so
+moving means signing in again in the one app.
+
+**Checks.** `swiftc -parse` only for `App/` here; the Mac build is the compiler. UI test `testTheBusinessesSheetOpensFromTheChip` (demo) opens the sheet from the
+chip; launch arguments (`-ERPDemo`, `-ERPDemoTab`, `-ERPDemoOpen`) work as before, and `/app/businesses` is in the every-place list.

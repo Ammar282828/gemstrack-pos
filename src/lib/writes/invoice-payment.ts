@@ -10,6 +10,7 @@
 import type { DbPort, SideEffects } from '@/lib/db-port';
 import type { Payment } from '@/lib/store';
 import { canHoldCredit, creditDescription, inCredit, isCreditRow } from '@/lib/invoice-credit';
+import { owesMoney, rupees } from '@/lib/money';
 import { planShopifyMirror, type MirroredInvoice, type ShopifyOrderState, type ShopifyTransaction } from '@/lib/shopify-mirror';
 
 const INVOICES = 'invoices';
@@ -41,7 +42,9 @@ export async function recordInvoicePayment(
   input: PaymentInput,
   fx: SideEffects = {},
 ): Promise<PaidInvoice> {
-  const { invoiceId, amount, date, method, reference } = input;
+  const { invoiceId, date, method, reference } = input;
+  // Whole rupees: a fraction sent by any caller is rounded here, once, for the web and the apps alike.
+  const amount = rupees(input.amount);
 
   // One round trip to the database, not five (2026-10-01, "why is every update so slow"): the
   // ledger rows linked to this invoice are looked up while the transaction reads the invoice, and
@@ -66,8 +69,8 @@ export async function recordInvoicePayment(
     const paymentHistory = [...(invoice.paymentHistory || []), payment];
     // Recomputed from the history rather than incremented, so a repeated
     // delivery of the same event cannot quietly inflate what was taken.
-    const amountPaid = paymentHistory.reduce((acc, p) => acc + p.amount, 0);
-    const balanceDue = (invoice.grandTotal || 0) - amountPaid;
+    const amountPaid = rupees(paymentHistory.reduce((acc, p) => acc + p.amount, 0));
+    const balanceDue = rupees((invoice.grandTotal || 0) - amountPaid);
 
     tx.update(INVOICES, invoiceId, { paymentHistory, amountPaid, balanceDue });
 
@@ -108,7 +111,8 @@ function followBalance(db: DbPort, tx: Tx, invoiceId: string, invoice: Omit<Paid
   // The customer's ledger has to follow the invoice. Single-field query and a
   // filter in memory, to avoid needing a composite index for one lookup.
   const debits = linked.filter(d => (d.cashDebit ?? 0) > 0);
-  if (balanceDue <= 0) {
+  // Under a rupee owed is settled (an invoice from before money was whole rupees).
+  if (!owesMoney(balanceDue)) {
     debits.forEach(d => tx.delete(HISAAB, d.id));
   } else if (debits.length > 0) {
     // Keep one entry at the remaining balance; older duplicates go.
@@ -200,8 +204,8 @@ export async function removeInvoicePayment(
       throw new Error('The payments on this invoice changed. Open it again and try once more.');
     }
     const paymentHistory = history.filter((_, i) => i !== index);
-    const amountPaid = paymentHistory.reduce((acc, p) => acc + p.amount, 0);
-    const balanceDue = (invoice.grandTotal || 0) - amountPaid;
+    const amountPaid = rupees(paymentHistory.reduce((acc, p) => acc + p.amount, 0));
+    const balanceDue = rupees((invoice.grandTotal || 0) - amountPaid);
     tx.update(INVOICES, invoiceId, { paymentHistory, amountPaid, balanceDue });
     followBalance(db, tx, invoiceId, invoice, linked, balanceDue, true);
     return { ...invoice, paymentHistory, amountPaid, balanceDue, id: invoiceId, removed };

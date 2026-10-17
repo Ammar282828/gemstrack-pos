@@ -9,7 +9,7 @@ import ERPCore
 /// received with its surcharge, starting and settling a pay batch, the settled batches and the payments outside any,
 /// deleting a settled batch or a silver entry (the delete code). Every figure is ERPCore KarigarPay's
 /// (lib/karigar-pay.ts), the one the ERP writes when a batch is settled. Assigning him stock work is the Workshop's
-/// sheet. Removing him stays the ERP's page (see `erpSection`).
+/// sheet. Editing him, his own view and removing him (the delete code) are the last section (`erpSection`).
 struct WorkshopKarigarScreen: View {
     let id: String
 
@@ -278,7 +278,8 @@ struct WorkshopKarigarScreen: View {
         } else {
             s += "."
         }
-        if let silver, !silver.rows.isEmpty {
+        // An owner reads silver in its own section (rule 15: not said twice).
+        if !session.isOwner, let silver, !silver.rows.isEmpty {
             s += " Silver received: \(WorkshopLogic.grams3(silver.grams)) \u{00B7} \(Money.pkr(silver.surcharge)) surcharge."
         }
         return s
@@ -379,7 +380,7 @@ struct WorkshopKarigarScreen: View {
             title: j.description,
             subtitle: sub.joined(separator: " · "),
             trailing: statusWords(j.status),
-            trailingTint: j.status == .completed ? Tone.settled.color : Color.primary
+            trailingTint: Color.primary
         )
     }
 
@@ -412,19 +413,17 @@ struct WorkshopKarigarScreen: View {
             } header: {
                 LedgerHeading(title: "Hisaab")
             } footer: {
-                Text("\(rows.count) entries · net = gold still with the karigar")
+                Text("\(rows.count) entries · the gold khata above is the gold still with the karigar")
             }
         }
     }
 
     private func khataTiles(_ p: WorkshopPosition) -> some View {
-        let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
-        let net = p.khataNet
-        let netTint: Color = net > 0.0005 ? Tone.owed.color : (net < -0.0005 ? Tone.settled.color : Color.primary)
+        // The net is Now's Gold khata above: said once (rule 15).
+        let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
         return LazyVGrid(columns: columns, spacing: 10) {
             FigureTile(label: "Given", value: WorkshopLogic.grams3(p.khataGiven))
             FigureTile(label: "Received", value: WorkshopLogic.grams3(p.khataBack))
-            FigureTile(label: "Net (out)", value: WorkshopLogic.grams3(net), tint: netTint)
         }
         .padding(.vertical, 4)
         .listRowInsets(EdgeInsets())
@@ -486,7 +485,6 @@ struct WorkshopKarigarScreen: View {
                 HStack(spacing: 6) {
                     Image(systemName: "lock.open")
                     Text(open.batch.label.isEmpty ? "Pay batch" : open.batch.label)
-                    StatusBadge("Active", tone: .settled)
                 }
                 .textCase(nil)
             } footer: {
@@ -494,10 +492,7 @@ struct WorkshopKarigarScreen: View {
             }
         } else {
             Section {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("No active pay batch").font(.headline)
-                    Text("Start a new hisaab to track payments in batches.").font(.subheadline).foregroundStyle(.secondary)
-                }
+                Text("No active pay batch").font(.headline)
                 Button { ask = .start } label: {
                     Label("Start a pay batch", systemImage: "plus.circle")
                 }

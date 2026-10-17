@@ -3,7 +3,7 @@ import SwiftUI
 /// The Stock group: the list of pieces (/products), one piece (/products/<sku>), and the product form,
 /// adding a piece (/products/add) and editing one (/products/<sku>/edit), and adding many at once
 /// (/products/bulk-add); the label designer is Settings, Labels (/settings/printer, LabelSettings). "?web=1" on
-/// any of these opens the ERP's page (a piece's Delete and Print tag, the form's photo).
+/// any of these still opens the ERP's page.
 enum StockRoutes {
     static var all: [ScreenRoute] {
         // `item` alone would take "add" and "bulk-add" for SKUs, so the match leaves them out.
@@ -12,10 +12,10 @@ enum StockRoutes {
             matches: { path in piece.matches(path) && !StockKit.ownPages.contains(ScreenRoute.bare(path)) },
             make: piece.make
         )
-        // The voice assistant's new piece (?voice=1) is filled in from the ERP page's own memory, so it stays there.
+        // The voice assistant's new piece (?voice=1) opens the same form, filled in with what was said (StockVoiceSeed).
         let add = ScreenRoute(
-            matches: { path in ScreenRoute.bare(path) == StockKit.addPath && !StockKit.fromVoice(path) },
-            make: { _ in AnyView(StockPieceForm(sku: nil)) }
+            matches: { path in ScreenRoute.bare(path) == StockKit.addPath },
+            make: { path in AnyView(StockPieceForm(sku: nil, fromVoice: StockKit.fromVoice(path))) }
         )
         // A SKU and the form's word after it: `item` leaves any path with a second slash out, so this is the only match.
         let edit = ScreenRoute(

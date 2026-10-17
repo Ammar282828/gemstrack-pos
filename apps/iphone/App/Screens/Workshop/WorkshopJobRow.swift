@@ -5,8 +5,8 @@ import ERPCore
 /// whether it has left the shop, and what an owner does to it, each a write through the ERP. An order's piece and a
 /// sold piece (an invoice's line): pick a karigar, tick it Given, tick it Done. A stock job (written up by hand, for
 /// the shop's own stock, a repair or a sample) keeps the karigar it was written for: tick it Given, set its status,
-/// change its making details, delete it (the delete code). Assigning, handing over and finishing are three different
-/// moments, and a name picked is not gold gone. An order's or a sold piece's making details are the ERP's page.
+/// delete it (the delete code). Any piece's making details are changed in its Details sheet. Assigning, handing over and
+/// finishing are three different moments, and a name picked is not gold gone.
 struct WorkshopJobRow: View {
     let job: WorkshopJob
     /// Name the karigar on the row (the stage and list layouts; the karigar layout already says it).
@@ -100,7 +100,8 @@ struct WorkshopJobRow: View {
     }
 
     private var stageTone: Color {
-        if job.isDone { return Tone.settled.color }
+        // Done is the expected end: no colour (rule 15).
+        if job.isDone { return .secondary }
         if job.isUnassigned { return Tone.owed.color }
         return job.hasGiven ? Theme.accent : Tone.owed.color
     }
@@ -216,9 +217,9 @@ struct WorkshopJobRow: View {
         }
     }
 
-    /// An order's or a sold piece's making details (name, size, weight, instructions, sample picture) are edited on
-    /// the ERP's Workshop page; a stock job's are the Details sheet.
-    private var showsDetails: Bool { isOwner && !isStock }
+    /// An order's or a sold piece's making details (name, size, weight, instructions, sample picture), from the menu; a
+    /// stock job's Details sit on the card too.
+    private var showsDetails: Bool { canWrite && !isStock }
 
     private var statusMenu: some View {
         Menu {
@@ -327,9 +328,9 @@ struct WorkshopJobRow: View {
                 Label("Open " + job.karigarName, systemImage: "hammer")
             }
         }
-        if showsDetails {
-            Button { actions.open(WorkshopPlace.workshopPage) } label: {
-                Label("Details in the ERP", systemImage: "arrow.up.right.square")
+        if showsDetails && !busy {
+            Button { actions.details(job) } label: {
+                Label("Details", systemImage: "pencil")
             }
         }
         if canWrite && !busy {

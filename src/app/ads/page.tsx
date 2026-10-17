@@ -19,7 +19,7 @@ import type { AttentionItem } from '@/lib/ads/attention';
 import { cn } from '@/lib/utils';
 import { STORE_META_ADS } from '@/lib/store-config';
 import {
-  money, count, compact, pct, headlineActions, resultOf, actionLabel, rangeLabel,
+  money, count, compact, pct, headlineActions, resultOf, actionLabel, rangeLabel, salesOf, roasText,
   type Metrics, type RangeKey, type AdsAccount,
 } from '@/lib/ads/shape';
 import { api, useAdsStatus, useRange, RangePicker, NotReady, AccountAlerts, AccountPill, ErrorLine, StatusPill } from './ads-kit';
@@ -44,9 +44,9 @@ export default function AdsOverviewRoute() {
   return <AdsOverview />;
 }
 
-/** The result the account mostly buys: chats if there are any, then clicks, then engagement. */
+/** The result the account mostly buys: purchases if it sold anything, then chats, then clicks, then engagement. */
 function mainAction(m: Metrics): { key: string; label: string } {
-  for (const k of ['onsite_conversion.messaging_conversation_started_7d', 'link_click', 'instagram_profile_visit', 'post_engagement']) {
+  for (const k of ['omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'onsite_conversion.messaging_conversation_started_7d', 'link_click', 'instagram_profile_visit', 'post_engagement']) {
     if ((m.actions[k] ?? 0) > 0) return { key: k, label: actionLabel(k) };
   }
   return { key: 'reach', label: 'People reached' };
@@ -184,6 +184,18 @@ function AdsOverview() {
                   : <Tile label="Clicks" value={count(t.clicks)} delta={<Delta now={t.clicks} before={p?.clicks} />} sub={t.clicks ? `${money(t.cpc, cur, { cents: true })} each` : undefined} />}
                 <Tile label="Click-through" value={pct(t.ctr)} delta={<Delta now={t.ctr} before={p?.ctr} />} sub={`${money(t.cpm, cur, { cents: true })} per 1,000 views`} />
               </div>
+              {(() => {
+                // What the ads sold, as Ads Manager's Purchases / conversion value / Purchase ROAS read it (the pixel's purchases).
+                const s = salesOf(t), sp = p ? salesOf(p) : null;
+                if (!s.purchases && !s.value) return null;
+                return (
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <Tile label="Sales from ads" value={money(s.value, cur)} delta={<Delta now={s.value} before={sp?.value} />} sub={`${count(s.purchases)} purchase${s.purchases === 1 ? '' : 's'}`} />
+                    <Tile label="ROAS" value={roasText(s.roas)} delta={<Delta now={s.roas ?? 0} before={sp?.roas} />} sub="sales for every rupee spent" />
+                    <Tile label="Cost per purchase" value={s.costPerPurchase === null ? '—' : money(s.costPerPurchase, cur)} delta={s.costPerPurchase !== null && sp?.costPerPurchase ? <Delta now={sp.costPerPurchase} before={s.costPerPurchase} /> : undefined} sub={s.purchases ? `average order ${money(s.value / s.purchases, cur)}` : undefined} />
+                  </div>
+                );
+              })()}
 
               {headlineActions(t).length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
@@ -247,7 +259,7 @@ function AdsOverview() {
                           </Link>
                           <span className="text-right shrink-0">
                             <span className="block text-sm font-semibold tabular-nums">{money(a.metrics.spend, cur)}</span>
-                            <span className="block text-[11px] text-muted-foreground tabular-nums">{r ? `${count(r.value)} ${r.label.toLowerCase()}${r.value ? ` · ${money(a.metrics.spend / r.value, cur, { cents: true })}` : ''}` : `${compact(a.metrics.reach)} reached`}</span>
+                            <span className="block text-[11px] text-muted-foreground tabular-nums">{r ? `${count(r.value)} ${r.label.toLowerCase()}${r.value ? ` · ${money(a.metrics.spend / r.value, cur, { cents: true })}` : ''}` : `${compact(a.metrics.reach)} reached`}{salesOf(a.metrics).value > 0 ? ` · ${roasText(salesOf(a.metrics).roas)} ROAS` : ''}</span>
                           </span>
                           {a.permalink && <a href={a.permalink} target="_blank" rel="noopener" className="text-muted-foreground hover:text-foreground shrink-0" aria-label="Open on Instagram"><ExternalLink className="h-4 w-4" /></a>}
                         </li>

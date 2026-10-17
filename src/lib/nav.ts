@@ -25,11 +25,11 @@ import {
   Wallet, TrendingUp, Settings as SettingsIcon, Calendar, Briefcase, Package, Gem, Layers, ImagePlus, Scale,
   PenLine, Coins, Target, BookUser, PieChart, Landmark, Tag, ArchiveRestore, RotateCcw, Mic, History, Palette,
   Rocket, BarChart3, UsersRound, ListChecks, SlidersHorizontal, Contact, Import, Database, ScanLine, Camera,
-  LayoutGrid, Bell, Plug, Banknote,
+  LayoutGrid, Bell, Plug, Banknote, Map as MapIcon, Rows3,
 } from 'lucide-react';
 import {
   STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE,
-  STORE_SITE_POSTS, STORE_META_ADS, STORE_AD_STUDIO, STORE_BRAND,
+  STORE_SITE_POSTS, STORE_META_ADS, STORE_AD_STUDIO, STORE_BRAND, STORE_DESIGN,
 } from '@/lib/store-config';
 
 export type NavGroup = 'home' | 'sales' | 'workshop' | 'marketing' | 'money' | 'footer';
@@ -57,6 +57,11 @@ interface Place {
   icon?: LucideIcon;
   /** Other paths that belong here (prefixes: '/settings/backups' covers what is beneath it). */
   match?: string[];
+  /**
+   * The address moved and only redirects now (Post a piece and the Studio, to Design): still in the map so the
+   * iPhone app's native screens for it stay linked, but the palette doesn't offer it twice.
+   */
+  moved?: boolean;
 }
 
 export type NavTab = Place;
@@ -144,8 +149,15 @@ export const NAV: NavEntry[] = [
     when: () => website() && (STORE_POST_PIECE || STORE_SITE_POSTS || STORE_INVESTMENTS),
     tabs: [
       { staff: true, href: '/posts', label: 'Hub', heading: 'Posts', icon: LayoutGrid, match: ['/website/from-site'], keywords: ['from the website', 'website post', 'share a piece', 'new arrivals', 'queue', 'posted today', 'posting hub'] },
-      { staff: true, href: '/website/post', label: 'Post a piece', icon: Camera, when: () => STORE_POST_PIECE, keywords: ['post', 'story', 'instagram', 'whatsapp', 'community', 'channel', 'new photos'] },
+      // One place to make anything and send it anywhere (docs/features/design.md; the owner, 2026-10-12): Post a piece,
+      // the Ad studio's Make / Photos / Board / Saved and the Hub's designer. Ads-only sections gate themselves inside.
+      { staff: true, href: '/design', label: 'Design', icon: Palette, when: () => STORE_DESIGN,
+        keywords: ['post a piece', 'post', 'story', 'instagram', 'whatsapp', 'community', 'channel', 'new photos', 'studio', 'ad studio', 'canva', 'creative', 'poster', 'resize', 'board', 'make an ad', 'designer', 'saved ads'] },
       { staff: true, href: '/website/investments', label: 'Investments', icon: TrendingUp, when: () => STORE_INVESTMENTS, keywords: ['investment', 'gold post'] },
+    ],
+    // Post a piece moved into Design: the address redirects, and stays in the map for the iPhone app's native composer.
+    pages: [
+      { staff: true, href: '/website/post', label: 'Post a piece', icon: Camera, when: () => STORE_POST_PIECE, moved: true },
     ],
   },
   {
@@ -165,15 +177,30 @@ export const NAV: NavEntry[] = [
     tabs: [
       { href: '/ads', label: 'Overview', heading: 'Ads', icon: BarChart3 },
       { href: '/ads/campaigns', label: 'Campaigns', icon: ListChecks, keywords: ['campaigns', 'ad sets running'], match: ['/ads/adset'] },
-      // The creative is made before the ad, so the Studio comes first (NEXT_PUBLIC_STORE_AD_STUDIO).
-      { href: '/ads/studio', label: 'Studio', icon: Palette, when: () => STORE_AD_STUDIO, keywords: ['creative', 'design', 'canva', 'competitors', 'ad photos', 'drive', 'guide', 'ad studio'] },
+      // What to run and why (the Studio's Plan half; its design half is Posts › Design). NEXT_PUBLIC_STORE_AD_STUDIO.
+      { href: '/ads/plan', label: 'Plan', icon: MapIcon, when: () => STORE_AD_STUDIO, keywords: ['plays', 'what to run', 'competitors', 'rivals', 'ad days', 'guide', 'rules', 'strategy'] },
       { href: '/ads/new', label: 'New ad', icon: Rocket, keywords: ['boost', 'promote', 'advertise', 'meta ad'] },
-      { href: '/ads/setup', label: 'Setup', icon: SlidersHorizontal, keywords: ['connect', 'pixel', 'permissions', 'ad account'], match: ['/ads/audiences', '/ads/rules'] },
+      { href: '/ads/setup', label: 'Setup', icon: SlidersHorizontal, keywords: ['connect', 'pixel', 'permissions', 'ad account'], match: ['/ads/audiences', '/ads/rules', '/ads/tests'] },
     ],
     pages: [
       { href: '/ads/adset', label: 'Ad sets', icon: LayoutGrid, keywords: ['ad set', 'audience test'] },
+      // The Studio's old address: redirects to Plan or Design (kept for the iPhone app's native Studio).
+      { href: '/ads/studio', label: 'Studio', icon: Palette, when: () => STORE_AD_STUDIO, moved: true },
       { href: '/ads/audiences', label: 'Audiences', icon: UsersRound, keywords: ['lookalike', 'custom audience'] },
       { href: '/ads/rules', label: 'Rules', icon: ListChecks, keywords: ['automated rules'] },
+      { href: '/ads/tests', label: 'A/B tests', icon: ListChecks, keywords: ['split test', 'experiment', 'ab test'] },
+    ],
+  },
+  {
+    // Instagram and the Facebook Page, organic beside paid (lib/social-insights; owner, 2026-10-17:
+    // "all analytics possible to track on the instagram and facebook … through ads and organically").
+    // Through the Ads connection, so it lives where Ads does; owners and the marketing account.
+    id: 'insights', group: 'marketing', href: '/insights', label: 'Insights', icon: BarChart3, when: () => STORE_META_ADS,
+    keywords: ['instagram insights', 'facebook insights', 'followers', 'reach', 'engagement', 'analytics', 'organic', 'reels', 'stories'],
+    tabs: [
+      { href: '/insights', label: 'Overview', heading: 'Insights', icon: BarChart3 },
+      { href: '/insights/posts', label: 'Posts', icon: Rows3, keywords: ['post performance', 'reels', 'stories', 'best post'] },
+      { href: '/insights/audience', label: 'Audience', icon: UsersRound, keywords: ['demographics', 'age', 'gender', 'cities', 'when followers online'] },
     ],
   },
   {
@@ -355,6 +382,7 @@ export function paletteFor(who: boolean | NavRole): Destination[] {
       raw.push({ key: `t:${t.href}`, label: t.label, href: t.href, icon: t.icon ?? e.icon, group: 'Go to', keywords: [e.label, ...(t.keywords ?? [])], entry: e, tabLabel: t.label });
     }
     for (const p of e.pages ?? []) {
+      if (p.moved) continue;
       raw.push({ key: `p:${p.href}`, label: p.label, href: p.href, icon: p.icon ?? e.icon, group: 'Go to', keywords: [e.label, ...(p.keywords ?? [])] });
     }
   }

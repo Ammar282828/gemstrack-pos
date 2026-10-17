@@ -2,8 +2,9 @@ import SwiftUI
 import ERPCore
 
 /// Settings → Shop (src/app/settings/page.tsx): the details printed on every invoice and order slip, the
-/// shop's mode and style, and the next numbers. The counters are read here and never written from the
-/// phone: moving them is for a change of system, in the ERP.
+/// shop's mode and style, and the next numbers. The counters move only through their own write
+/// (/api/app/write `setCounters`, lib/writes/counters.ts), with the delete code: a number moved back gives the
+/// next bill a number already printed on another, so it is never one of the plain settings.
 struct ShopSettings: View {
     var body: some View {
         SettingsGate(title: "Shop") { ShopForm(settings: $0) }
@@ -17,6 +18,18 @@ private struct ShopForm: View {
     /// What the book last held for each text, so only what was typed is sent.
     @State private var base: Draft
     @FocusState private var focus: Field?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The numbering being changed: nil while it is only shown.
+    @State private var numbers: Numbers?
+    @State private var deleteCode = ""
+    @State private var savingNumbers = false
+    @State private var note: Note?
+
+    private struct Numbers: Equatable {
+        var invoice: Int?
+        var order: Int?
+        var repair: Int?
+    }
 
     private enum Field: Hashable { case name, address, contact }
 
@@ -88,16 +101,7 @@ private struct ShopForm: View {
                 Text("For every device that has not chosen its own, on the ERP’s web pages.")
             }
 
-            Section {
-                LabeledContent("Next invoice", value: Self.next("INV", settings.lastInvoiceNumber))
-                LabeledContent("Next order", value: Self.next("ORD", settings.lastOrderNumber))
-                LabeledContent("Next repair", value: Self.next("REP", settings.lastRepairNumber ?? 0))
-                NavigationLink(value: Route(path: "/settings?web=1")) { Text("Change numbering") }
-            } header: {
-                LedgerHeading(title: "Document numbering")
-            } footer: {
-                Text("Changed only when moving from another system, in the ERP.")
-            }
+            numbering
 
             SettingsErrorSection(writer: writer)
             }
@@ -111,6 +115,104 @@ private struct ShopForm: View {
             writer.settled()
         }
         .onDisappear { commit() }
+        .noteToast($note)
+    }
+
+    // MARK: Numbering
+
+    @ViewBuilder
+    private var numbering: some View {
+        if numbers != nil {
+            Section {
+                counterField("Last invoice number", \Numbers.invoice, prefix: "INV", stored: settings.lastInvoiceNumber)
+                counterField("Last order number", \Numbers.order, prefix: "ORD", stored: settings.lastOrderNumber)
+                counterField("Last repair number", \Numbers.repair, prefix: "REP", stored: settings.lastRepairNumber ?? 0)
+                SecureField("Delete code", text: $deleteCode)
+                    .keyboardType(.numberPad)
+                    .textContentType(.oneTimeCode)
+                Button { Task { await saveNumbers() } } label: {
+                    Text(savingNumbers ? "Saving…" : "Save numbering").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.houseProminent)
+                .disabled(savingNumbers || deleteCode.count < 4 || !numbersValid)
+                Button("Cancel", role: .cancel) { numbers = nil; deleteCode = "" }
+                    .disabled(savingNumbers)
+            } header: {
+                LedgerHeading(title: "Document numbering")
+            } footer: {
+                Text("The next invoice, order or repair continues from these. Change them only when moving from another system: a number moved back gives the next bill a number already printed on another. Asks for the delete code.")
+            }
+        } else {
+            Section {
+                LabeledContent("Next invoice", value: Self.next("INV", settings.lastInvoiceNumber))
+                LabeledContent("Next order", value: Self.next("ORD", settings.lastOrderNumber))
+                LabeledContent("Next repair", value: Self.next("REP", settings.lastRepairNumber ?? 0))
+                Button("Change numbering") {
+                    numbers = Numbers(invoice: settings.lastInvoiceNumber, order: settings.lastOrderNumber, repair: settings.lastRepairNumber ?? 0)
+                    deleteCode = ""
+                }
+            } header: {
+                LedgerHeading(title: "Document numbering")
+            } footer: {
+                Text("Changed only when moving from another system.")
+            }
+        }
+    }
+
+    private func counterField(_ title: String, _ key: WritableKeyPath<Numbers, Int?>, prefix: String, stored: Int) -> some View {
+        let value = Binding<Int?>(
+            get: { numbers?[keyPath: key] },
+            set: { numbers?[keyPath: key] = $0 }
+        )
+        let typed = value.wrappedValue
+        return VStack(alignment: .leading, spacing: 4) {
+            LabeledContent(title) {
+                TextField("\(stored)", value: value, format: .number.grouping(.never))
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
+            }
+            Group {
+                if let typed, typed >= 0 {
+                    Text("Now \(stored). Next: \(Self.next(prefix, typed))")
+                } else {
+                    Text("A whole number, 0 or more.").foregroundStyle(Tone.problem.color)
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    private var numbersValid: Bool {
+        guard let n = numbers else { return false }
+        return [n.invoice, n.order, n.repair].allSatisfy { ($0 ?? -1) >= 0 }
+    }
+
+    private func saveNumbers() async {
+        guard let n = numbers, numbersValid, !savingNumbers else { return }
+        var counters: [String: Any] = [:]
+        if let v = n.invoice, v != settings.lastInvoiceNumber { counters["lastInvoiceNumber"] = v }
+        if let v = n.order, v != settings.lastOrderNumber { counters["lastOrderNumber"] = v }
+        if let v = n.repair, v != (settings.lastRepairNumber ?? 0) { counters["lastRepairNumber"] = v }
+        guard !counters.isEmpty else {
+            numbers = nil
+            deleteCode = ""
+            return
+        }
+        savingNumbers = true
+        defer { savingNumbers = false }
+        do {
+            let out = try await ERPAPI.shared.write("setCounters", ["counters": counters, "deleteCode": deleteCode])
+            let moved = (out["moved"] as? [String])?.count ?? counters.count
+            numbers = nil
+            deleteCode = ""
+            Note.show(Note(title: "Numbering changed", detail: "\(moved) counter\(moved == 1 ? "" : "s") moved. The next number continues from the new one."),
+                      in: $note, reduce: reduceMotion)
+        } catch {
+            writer.error = error.localizedDescription
+            if (error as? ERPAPI.Failure)?.status == 403 { deleteCode = "" }
+        }
     }
 
     private static func next(_ prefix: String, _ last: Int) -> String {

@@ -17,13 +17,10 @@ enum StockKit {
         return part.addingPercentEncoding(withAllowedCharacters: allowed) ?? part
     }
 
-    /// "/products/RNG-0001": the piece page. `web` asks for the ERP's own page (its QR and CSV for
-    /// the label printer, and Delete, which asks for the delete code there).
-    static func piecePath(_ sku: String, web: Bool = false) -> String {
-        "/products/" + encode(sku) + (web ? "?web=1" : "")
-    }
+    /// "/products/RNG-0001": the piece page.
+    static func piecePath(_ sku: String) -> String { "/products/" + encode(sku) }
 
-    /// The product form for a piece (StockPieceForm). "?web=1" after it is the ERP's own form, which takes the photo.
+    /// The product form for a piece (StockPieceForm), photo and all. "?web=1" after it is the ERP's own form.
     static func editPath(_ sku: String) -> String { "/products/" + encode(sku) + "/edit" }
 
     /// "/products/<sku>/edit" → the SKU, decoded (src/app/products/[sku]/edit). Nil for any other path.
@@ -37,7 +34,7 @@ enum StockKit {
         return sku.removingPercentEncoding ?? sku
     }
 
-    /// "/products/add?voice=1": a new piece the ERP's voice assistant filled in, kept in that page's own memory.
+    /// "/products/add?voice=1": a new piece the voice assistant filled in (StockVoiceSeed), as the ERP's page takes it.
     static func fromVoice(_ path: String) -> Bool {
         URLComponents(string: path)?.queryItems?.contains { $0.name == "voice" && $0.value == "1" } ?? false
     }
@@ -57,6 +54,22 @@ enum StockKit {
         if bare.hasSuffix("/edit") { return "Edit piece" }
         let last = bare.split(separator: "/").last.map(String.init) ?? ""
         return last.removingPercentEncoding ?? last
+    }
+
+    // MARK: Deleting a piece
+
+    /// The store's words for it, as its delete-code dialog says them (lib/writes/product-delete.ts `deleteProductWhat`).
+    static func deleteWhat(_ p: Product) -> String { "Delete product \(p.name.isEmpty ? p.sku : p.name)" }
+
+    /// A piece's Delete, the piece page's and the list's: the code asked in the owners' sheet, then the ERP's
+    /// `deleteProduct` (ops-stock3.ts), which checks it. Gone for good, as the web says: stock has no Recently removed.
+    @MainActor
+    static func deletion(_ p: Product, then done: @escaping () -> Void = {}) -> OwnerDeletion {
+        let name = p.name.isEmpty ? p.sku : "\(p.name) (\(p.sku))"
+        return OwnerDeletion(what: deleteWhat(p), detail: "This will permanently delete \(name) from stock.") { code in
+            _ = try await ERPAPI.shared.write("deleteProduct", ["sku": p.sku, "deleteCode": code])
+            done()
+        }
     }
 
     // MARK: Categories
@@ -216,19 +229,103 @@ struct StockImage: View {
                 StockInitial(name: name)
             }
         } else if source.hasPrefix("http"), let url = URL(string: source) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                case .failure:
-                    StockInitial(name: name)
-                default:
-                    SkeletonLoading()
-                }
+            // Drawn at the size it is shown, from the phone's memory once seen (AsyncImage kept nothing and decoded
+            // every photo whole on the main thread: lists of pieces stuttered as they scrolled).
+            GeometryReader { geo in
+                StockRemoteImage(url: url, name: name, maxPixel: StockRemoteImage.pixels(for: geo.size))
             }
         } else {
             StockInitial(name: name)
         }
+    }
+}
+
+/// A photo at a web address, shrunk to `maxPixel` on its long side as it is decoded (ImageIO, off the main thread)
+/// and kept in memory for the next time its row scrolls by; one download per address however many rows show it.
+struct StockRemoteImage: View {
+    let url: URL
+    let name: String
+    let maxPixel: Int
+    @State private var image: UIImage?
+    @State private var failed = false
+
+    /// The frame's long side in pixels, rounded up to a step so nearby sizes share one decoded copy.
+    static func pixels(for size: CGSize) -> Int {
+        let points = max(size.width, size.height, 1) * 3
+        return min(2400, max(160, Int((points / 160).rounded(.up)) * 160))
+    }
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else if failed {
+                StockInitial(name: name)
+            } else {
+                SkeletonLoading()
+            }
+        }
+        .task(id: "\(url.absoluteString)#\(maxPixel)") {
+            if let hit = RemoteImageStore.shared.cached(url, maxPixel: maxPixel) { image = hit; return }
+            if let got = await RemoteImageStore.shared.image(url, maxPixel: maxPixel) { image = got } else { failed = true }
+        }
+    }
+}
+
+/// The photos the lists show: decoded copies in memory (NSCache, let go under memory pressure), the downloads in a
+/// 200 MB disk cache, and one download at a time per address.
+@MainActor
+final class RemoteImageStore {
+    static let shared = RemoteImageStore()
+    private let memory: NSCache<NSString, UIImage> = {
+        let c = NSCache<NSString, UIImage>()
+        c.totalCostLimit = 120 * 1024 * 1024
+        return c
+    }()
+    private var loading: [URL: Task<Data?, Never>] = [:]
+    private let session: URLSession = {
+        let c = URLSessionConfiguration.default
+        c.urlCache = URLCache(memoryCapacity: 16 * 1024 * 1024, diskCapacity: 200 * 1024 * 1024)
+        c.requestCachePolicy = .returnCacheDataElseLoad
+        c.httpCookieAcceptPolicy = .never
+        return URLSession(configuration: c)
+    }()
+
+    private func key(_ url: URL, _ px: Int) -> NSString { "\(url.absoluteString)#\(px)" as NSString }
+
+    func cached(_ url: URL, maxPixel: Int) -> UIImage? { memory.object(forKey: key(url, maxPixel)) }
+
+    func image(_ url: URL, maxPixel: Int) async -> UIImage? {
+        if let hit = cached(url, maxPixel: maxPixel) { return hit }
+        let task: Task<Data?, Never>
+        if let running = loading[url] { task = running } else {
+            let s = session
+            task = Task.detached(priority: .userInitiated) { () -> Data? in
+                guard let (data, response) = try? await s.data(from: url),
+                      ((response as? HTTPURLResponse)?.statusCode ?? 200) < 400 else { return nil }
+                return data
+            }
+            loading[url] = task
+        }
+        let data = await task.value
+        loading[url] = nil
+        guard let data else { return nil }
+        let px = maxPixel
+        let decoded: UIImage? = await Task.detached(priority: .userInitiated) { () -> UIImage? in
+            guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary) else { return nil }
+            let options: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: px,
+            ]
+            guard let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+            return UIImage(cgImage: cg)
+        }.value
+        if let decoded {
+            memory.setObject(decoded, forKey: key(url, maxPixel), cost: Int(decoded.size.width * decoded.size.height * 4))
+        }
+        return decoded
     }
 }
 
@@ -294,11 +391,31 @@ enum StockImageDecoder {
     }
 }
 
+// MARK: The voice assistant's new piece
+
+/// What was said for a new piece (lib/voice/commands.ts `new_piece`, a `Partial<Product>`), handed over by the
+/// voice sheet (NativeVoiceHandoff) for the one form that opens on "/products/add?voice=1". The web keeps it in
+/// sessionStorage for five minutes and its page takes it once (lib/voice/handoff.ts); here the form reads it as
+/// it opens and lets it go once shown. Kept for the business it was said in, so a switch never fills the next one.
+@MainActor
+enum StockVoiceSeed {
+    private static var held: (business: String, at: Date, piece: [String: Any])?
+
+    static func put(_ piece: [String: Any], now: Date = Date()) { held = (business: House.id, at: now, piece: piece) }
+
+    /// The piece said, if it was said in this business in the last five minutes.
+    static func peek(now: Date = Date()) -> [String: Any]? {
+        guard let held, held.business == House.id, now.timeIntervalSince(held.at) < 5 * 60 else { return nil }
+        return held.piece
+    }
+
+    static func clear() { held = nil }
+}
+
 // MARK: Opening the ERP's own pages
 
 extension View {
-    /// Pushes a place when `go` is set: the sale, the product form, or an ERP page (a piece's own page
-    /// with Delete).
+    /// Pushes a place when `go` is set: the sale, the product form, or an ERP page.
     func stockDestination(_ go: Binding<Route?>) -> some View {
         navigationDestination(item: go) { (r: Route) in
             StockDestination(path: r.path)

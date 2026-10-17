@@ -41,8 +41,8 @@ struct NewOrderEdit: Equatable {
         }
         d.rates = NewOrderEdit.rates(o.ratesApplied)
         d.ratesSeeded = true
-        d.discount = NewOrderFormat.boxText(o.discountAmount ?? 0)
-        d.advance = NewOrderFormat.boxText(o.advancePayment)
+        d.discount = NewOrderFormat.rupeeBox(o.discountAmount)
+        d.advance = NewOrderFormat.rupeeBox(o.advancePayment)
         d.advanceMethod = o.advanceMethod?.rawValue ?? "Cash"
         let rows = rowsFromExchanges(orderExchanges(o)).map { NewOrderExchangeDraft($0) }
         d.exchanges = rows.isEmpty ? [.blank()] : rows
@@ -53,7 +53,7 @@ struct NewOrderEdit: Equatable {
             d.deliveryName = del.contactName ?? ""
             d.deliveryPhone = del.contactPhone ?? ""
             d.deliveryNotes = del.notes ?? ""
-            d.deliveryCharge = NewOrderFormat.boxText(del.charge ?? 0)
+            d.deliveryCharge = NewOrderFormat.rupeeBox(del.charge)
             d.deliveryExpected = del.expectedDate ?? ""
         }
         let perGram = o.costRate24k ?? 0
@@ -102,11 +102,11 @@ extension NewOrderPieceDraft {
         stoneWeight = NewOrderFormat.boxText(item.stoneWeightG, digits: 3)
         stoneDetails = item.stoneDetails ?? ""
         hasDiamonds = item.hasDiamonds
-        diamond = NewOrderFormat.boxText(item.diamondCharges)
+        diamond = NewOrderFormat.rupeeBox(item.diamondCharges)
         diamondDetails = item.diamondDetails ?? ""
         wastage = NewOrderFormat.boxText(item.wastagePercentage, digits: 4)
-        making = NewOrderFormat.boxText(item.makingCharges)
-        stones = NewOrderFormat.boxText(item.stoneCharges)
+        making = NewOrderFormat.rupeeBox(item.makingCharges)
+        stones = NewOrderFormat.rupeeBox(item.stoneCharges)
         size = item.size ?? ""
         platingType = item.platingType ?? ""
         platingNote = item.platingNote ?? ""
@@ -118,7 +118,7 @@ extension NewOrderPieceDraft {
         samplePhotoId = item.samplePhotoId
         sampleImageDataUri = item.sampleImageDataUri
         manual = item.isManualPrice
-        manualPrice = item.isManualPrice ? NewOrderFormat.boxText(item.manualPrice ?? 0) : ""
+        manualPrice = item.isManualPrice ? NewOrderFormat.rupeeBox(item.manualPrice) : ""
         adminNote = item.adminNote ?? ""
     }
 }

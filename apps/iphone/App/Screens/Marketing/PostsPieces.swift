@@ -3,9 +3,11 @@ import ERPCore
 
 /// The website's pieces as a photo grid (the hub's "From the website" grid): search, a collection chip
 /// row that opens on the new arrivals, and the web's default of hiding what went out in the last 30 days.
-/// Tapping one opens the piece; sending it is the ERP's tray, which this screen does not imitate.
+/// Tapping one opens the piece; given the tray (PostTrayScreen's Add pieces), a tap picks it or takes it out.
 struct PostPiecesScreen: View {
+    var tray: PostTrayModel?
     private var store: PostsStore { PostsStore.shared }
+    @State private var refused: String?
 
     /// The "new arrivals" chip; "" is everything.
     private static let newKey = "__new"
@@ -37,8 +39,9 @@ struct PostPiecesScreen: View {
                 grid
             }
         }
-        .navigationTitle("Pieces")
+        .navigationTitle(tray.map { (t: PostTrayModel) in t.cards.isEmpty ? "Pick pieces" : "\(t.cards.count) picked" } ?? "Pieces")
         .navigationBarTitleDisplayMode(.inline)
+        .failureAlert($refused, title: "Not now")
         .searchable(text: $search, prompt: "Search: ruby, kara, jhumka…")
         .task { await store.load() }
         .onChange(of: search) { _, _ in shown = PostPiecesScreen.pageSize }
@@ -92,11 +95,21 @@ struct PostPiecesScreen: View {
                 } else {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 12)], spacing: 14) {
                         ForEach(Array(items.prefix(shown))) { (p: PostPiece) in
-                            NavigationLink(value: Route(path: MarketingKit.piecePath(p.id))) {
-                                PostPieceTile(piece: p, posted: store.posted[p.id])
-                                    .ledgerCard(padding: 10)
+                            if let tray {
+                                Button { refused = tray.pick(p) } label: {
+                                    PostPieceTile(piece: p, posted: store.posted[p.id])
+                                        .ledgerCard(padding: 10)
+                                        .overlay(alignment: .topTrailing) { pickMark(tray, p) }
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityAddTraits(tray.has(p.id) ? .isSelected : [])
+                            } else {
+                                NavigationLink(value: Route(path: MarketingKit.piecePath(p.id))) {
+                                    PostPieceTile(piece: p, posted: store.posted[p.id])
+                                        .ledgerCard(padding: 10)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                     if items.count > shown {
@@ -110,6 +123,23 @@ struct PostPiecesScreen: View {
             .padding(.bottom, 16)
         }
         .refreshable { await store.load() }
+    }
+
+    /// Its place in the tray, the order they go in.
+    @ViewBuilder
+    private func pickMark(_ tray: PostTrayModel, _ p: PostPiece) -> some View {
+        if let i = tray.cards.firstIndex(where: { (c: PostTrayCard) in c.id == p.id }) {
+            Text("\(i + 1)")
+                .font(.caption.weight(.semibold)).monospacedDigit()
+                .foregroundStyle(Theme.onAccent)
+                .frame(minWidth: 24, minHeight: 24)
+                .background(Theme.accent, in: .circle)
+                .padding(14)
+        } else {
+            Circle().strokeBorder(.white.opacity(0.85), lineWidth: 2).background(Circle().fill(.black.opacity(0.2)))
+                .frame(width: 24, height: 24)
+                .padding(14)
+        }
     }
 
     private var chips: some View {
@@ -129,7 +159,7 @@ struct PostPiecesScreen: View {
 }
 
 /// One website piece (the hub's piece card without its tray): the photograph, the words the site has
-/// for it, when it went out, and the ERP pages that act on it.
+/// for it, when it went out, and what acts on it (the tray, Edit a piece, the site).
 struct PostPieceScreen: View {
     let id: String
     @Environment(Session.self) private var session
@@ -191,9 +221,9 @@ struct PostPieceScreen: View {
     @ViewBuilder
     private func actions(_ p: PostPiece) -> some View {
         Section {
-            MarketingLink(title: "Send or queue it", subtitle: "Pick it in the ERP's tray, write the caption", symbol: "paperplane", path: MarketingKit.postsWeb)
+            MarketingLink(title: "Send or queue it", symbol: "paperplane", path: MarketingKit.trayPath(p.id))
             if MarketingKit.has("/website/edit", role: session.role) {
-                MarketingLink(title: "Edit this piece", subtitle: "Its name, words, photo or weight on the site", symbol: "pencil.line", path: editPath(p))
+                MarketingLink(title: "Edit this piece", symbol: "pencil.line", path: editPath(p))
             }
             if let url = URL(string: p.url), !p.url.isEmpty {
                 Link(destination: url) {

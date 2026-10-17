@@ -104,8 +104,6 @@ struct HisaabAccountPicker: View {
             Section {
                 Button { open("/customers/add") } label: { Label("New customer", systemImage: "person.badge.plus") }
                 Button { open("/karigars/add") } label: { Label("New karigar", systemImage: "briefcase") }
-            } footer: {
-                Text("A new customer or karigar is added with the full form.")
             }
             }
             .houseRows()

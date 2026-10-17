@@ -12,6 +12,7 @@ import type {
 } from '@/lib/store';
 import { rankNames, matchShape, type LearnedAlias, type RankedName, type RosterEntry } from './phonetics';
 import { isWalkInName } from '@/lib/walk-in';
+import { owesMoney } from '@/lib/money';
 
 export type ArgType =
   | 'customer' | 'karigar' | 'person'
@@ -144,7 +145,7 @@ const orderChoice = (o: Order): Choice => ({
 });
 const invoiceChoice = (i: Invoice): Choice => ({
   key: i.id, label: i.id, value: i,
-  detail: [i.customerName || 'Walk-in', i.status === 'Refunded' ? 'refunded' : Number(i.balanceDue) > 0 ? `${rs(i.balanceDue)} due` : 'paid'].join(' · '),
+  detail: [i.customerName || 'Walk-in', i.status === 'Refunded' ? 'refunded' : owesMoney(i.balanceDue) ? `${rs(i.balanceDue)} due` : 'paid'].join(' · '),
 });
 const repairChoice = (r: Repair): Choice => ({
   key: r.id, label: r.id, value: r,
@@ -241,7 +242,7 @@ export function resolveArg(spec: ArgSpec, raw: string | undefined | null, book: 
     case 'order':
       return paper(v, book.orders, 'ORD', 'order', orderOpen, orderChoice, book, !!spec.open);
     case 'invoice':
-      return paper(v, book.invoices, 'INV', 'invoice', i => Number(i.balanceDue) > 0 && i.status !== 'Refunded', invoiceChoice, book, !!spec.open);
+      return paper(v, book.invoices, 'INV', 'invoice', i => owesMoney(i.balanceDue) && i.status !== 'Refunded', invoiceChoice, book, !!spec.open);
     case 'repair':
       return paper(v, book.repairs, 'REP', 'repair', r => r.status === 'received' || r.status === 'ready', repairChoice, book, !!spec.open);
     case 'product':

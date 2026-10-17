@@ -20,16 +20,15 @@ public func isCreditRow(_ row: HisaabEntry, _ invoiceId: String) -> Bool {
     row.cashCredit > 0 && (row.description == creditDescription(invoiceId) || row.description == legacyCreditDescription(invoiceId))
 }
 
-/// Under half a rupee either way is settled: paise from rounding are not a debt or a credit.
-private let SETTLED = 0.5
-
 /// `Number(x) || 0`: a missing or unreadable balance is nothing.
 private func balance(_ balanceDue: Double?) -> Double {
     guard let b = balanceDue, !b.isNaN else { return 0 }
     return b
 }
 
-public func inCredit(_ balanceDue: Double?) -> Bool { balance(balanceDue) < -SETTLED }
+/// Under one rupee either way is settled: money is whole rupees (2026-10-17), and a fraction left on a
+/// bill from before is not a debt or a credit (MoneyRound.swift SETTLED_UNDER).
+public func inCredit(_ balanceDue: Double?) -> Bool { isCredit(balanceDue) }
 
 public func canHoldCredit(_ customerId: String?) -> Bool {
     guard let id = customerId, !id.isEmpty else { return false }
@@ -55,7 +54,7 @@ public struct BalanceLine: Equatable {
 
 public func balanceLine(_ balanceDue: Double?) -> BalanceLine {
     let b = balance(balanceDue)
-    if b > SETTLED { return BalanceLine(label: "Balance due", amount: b, state: .due) }
-    if b < -SETTLED { return BalanceLine(label: "Credit to customer", amount: -b, state: .credit) }
+    if owesMoney(b) { return BalanceLine(label: "Balance due", amount: b, state: .due) }
+    if isCredit(b) { return BalanceLine(label: "Credit to customer", amount: -b, state: .credit) }
     return BalanceLine(label: "Paid in full", amount: 0, state: .paid)
 }

@@ -200,7 +200,9 @@ final class StudioModel {
 }
 
 @MainActor final class StudioHandoffs {
-    static let shared = StudioHandoffs()
+    /// Replaced, not cleared, when the person switches business (Businesses.switch): none of it is the next one's.
+    static var shared = StudioHandoffs()
+    static func reset() { shared = StudioHandoffs() }
     var ads: [String: MarketingValue] = [:]
     var posts: [String: NativePostDraft] = [:]
 }

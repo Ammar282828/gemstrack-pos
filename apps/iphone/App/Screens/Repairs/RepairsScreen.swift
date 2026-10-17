@@ -146,10 +146,13 @@ struct RepairsScreen: View {
             Text(g.title)
                 .font(.subheadline.weight(.semibold))
             Spacer(minLength: 8)
-            Text("\(g.rows.count)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if owing > 0 {
+            // A folded group says its count in its own row, so its header does not repeat it.
+            if !g.folded {
+                Text("\(g.rows.count)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if owing >= 1 {
                 HStack(spacing: 4) {
                     MoneyText(amount: owing)
                     Text("due")
@@ -300,7 +303,7 @@ struct RepairsRow: View {
     @ViewBuilder
     private var money: some View {
         let owing = RepairsKit.repairBalance(repair)
-        if owing > 0 {
+        if owing >= 1 {
             VStack(alignment: .trailing, spacing: 0) {
                 MoneyText(amount: owing, exact: true)
                     .font(.subheadline.weight(.semibold))
@@ -308,10 +311,6 @@ struct RepairsRow: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
-        } else if RepairsKit.repairTotal(repair) > 0 {
-            Text("paid")
-                .font(.caption)
-                .foregroundStyle(Tone.settled.color)
         }
     }
 }

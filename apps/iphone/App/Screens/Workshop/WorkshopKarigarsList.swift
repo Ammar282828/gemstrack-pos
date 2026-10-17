@@ -127,23 +127,19 @@ struct WorkshopKarigarsList: View {
         var pieces = 0
         var critical = 0
         var grams = 0.0
-        var working = 0
         for k in live {
             guard let l = loads[k.id] else { continue }
             pieces += l.active
             critical += l.critical
             grams += l.totalWeightG
-            if l.active > 0 { working += 1 }
         }
+        // Who is working and who is free are the sections' counts below (rule 15: not said twice).
         return Section {
             FigureGrid {
-                FigureTile(label: "Working now", value: "\(working)", detail: "of \(live.count) on file")
                 FigureTile(label: "Pieces out", value: "\(pieces)", detail: grams > 0 ? WorkshopLogic.number(grams, digits: 0) + "g of metal" : nil)
                 FigureTile(label: "Over \(WorkshopLogic.criticalDays) days", value: "\(critical)", tint: critical > 0 ? Tone.late.color : Color.primary)
                 if session.isOwner {
                     FigureTile(label: "Open hisaabs", value: "\(batches.count)")
-                } else {
-                    FigureTile(label: "Free", value: "\(live.count - working)", detail: "nothing on the bench")
                 }
             }
             .padding(.vertical, 4)
@@ -202,7 +198,8 @@ struct WorkshopKarigarsList: View {
         .buttonStyle(.plain)
     }
 
-    /// What this karigar is holding, in one line: "3 pieces · 1 over 14d · 2 late · 8.5g out", or Free.
+    /// What this karigar is holding, in one line: "3 pieces · 1 over 14d · 2 late · 8.5g out". Free says nothing: he
+    /// sits under Free.
     @ViewBuilder
     private func bench(_ load: WorkshopLoad?) -> some View {
         if let load, load.active > 0 {
@@ -219,8 +216,6 @@ struct WorkshopKarigarsList: View {
                         .monospacedDigit()
                 }
             }
-        } else {
-            Text("Free").font(.subheadline).foregroundStyle(.secondary)
         }
     }
 

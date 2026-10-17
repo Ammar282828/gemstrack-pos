@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DbPort, TxCtx } from '@/lib/db-port';
 import type { Product } from '@/lib/store';
-import { addProduct, cleanProductForm, nextProductSku, updateProduct, type ProductData } from './products';
+import { addProduct, cleanProductForm, nextProductSku, setProductPhoto, updateProduct, type ProductData } from './products';
 
 // All data made up.
 function fakeDb(seed: Record<string, Record<string, Record<string, unknown>>>) {
@@ -140,6 +140,34 @@ describe('updateProduct', () => {
   it('refuses a piece that is not in stock', async () => {
     const { db } = fakeDb({ sold_products: { 'RIN-000005': { ...held } } });
     await expect(updateProduct(db, 'RIN-000005', { name: 'x' })).rejects.toThrow(/not found/);
+  });
+});
+
+describe('setProductPhoto', () => {
+  const held = { ...ring, sku: 'RIN-000005', name: 'Demo ring', imageUrl: 'https://example.com/old.jpg', qrCodeDataUrl: 'data:image/png;base64,AAAA' } as Product;
+
+  it('records the new address and moves nothing else', async () => {
+    const { db, data } = fakeDb({ products: { 'RIN-000005': { ...held } } });
+    const { lines, fx } = logger();
+    await setProductPhoto(db, 'RIN-000005', ' https://example.com/new.jpg ', fx);
+    expect(data.products['RIN-000005']).toEqual({ ...held, imageUrl: 'https://example.com/new.jpg' });
+    expect(lines).toEqual([['product.update', 'Changed the photo of Demo ring', 'SKU: RIN-000005', 'RIN-000005']]);
+  });
+
+  it('takes the photo off as the form saves none: an empty address', async () => {
+    const { db, data } = fakeDb({ products: { 'RIN-000005': { ...held } } });
+    const { lines, fx } = logger();
+    await setProductPhoto(db, 'RIN-000005', null, fx);
+    expect(data.products['RIN-000005']).toEqual({ ...held, imageUrl: '' });
+    expect(lines[0][1]).toBe('Removed the photo of Demo ring');
+  });
+
+  it('refuses an address that is not https, and a piece that is not in stock', async () => {
+    const { db } = fakeDb({ products: { 'RIN-000005': { ...held } }, sold_products: { 'RIN-000009': { ...held } } });
+    await expect(setProductPhoto(db, 'RIN-000005', 'http://example.com/x.jpg')).rejects.toThrow(/https/);
+    await expect(setProductPhoto(db, 'RIN-000005', '')).rejects.toThrow(/https/);
+    await expect(setProductPhoto(db, 'RIN-000005', 'data:image/jpeg;base64,AAAA')).rejects.toThrow(/https/);
+    await expect(setProductPhoto(db, 'RIN-000009', 'https://example.com/x.jpg')).rejects.toThrow(/not found/);
   });
 });
 

@@ -216,7 +216,7 @@ struct PaidBar: View {
 
     var body: some View {
         let whole = max(total, 1)
-        let done = paid >= total - 0.5
+        let done = total - paid < 1
         ProgressView(value: min(max(paid, 0), whole), total: whole)
             .tint(done ? Color.green : Theme.accent)
             .accessibilityLabel(done ? "Paid in full" : "Paid \(Money.pkr(paid)) of \(Money.pkr(total))")
@@ -237,9 +237,9 @@ struct MoneySplit: View {
             HStack(alignment: .top, spacing: 0) {
                 cell(totalLabel, total, Money.pkr(total), .primary, .leading)
                 cell(paidLabel, paid, Money.pkr(paid), .secondary, .center)
-                if due < -0.5 {
+                if due <= -1 {
                     cell("In credit", -due, Money.pkr(-due), Tone.credit.color, .trailing)
-                } else if due > 0.5 {
+                } else if due >= 1 {
                     cell("Due", due, Money.pkr(due), Tone.owed.color, .trailing)
                 } else {
                     cell("Due", 0, "Nil", Tone.settled.color, .trailing)
@@ -552,16 +552,13 @@ struct QuickAction: View {
 
 // MARK: The signed-in person's own
 
-/// "You", beside a row taken by whoever is signed in (decision "Signed-in defaults": lit in place, never
-/// sorted or filtered). It replaces the tinted row and its bar.
+/// A row taken by whoever is signed in (decision "Signed-in defaults": lit in place, never sorted or filtered):
+/// a small figure in the quiet colour, not a capsule (CONVENTIONS rule 15, "No tags for the obvious").
 struct MineTag: View {
     var body: some View {
-        Text("You")
-            .font(.caption2.weight(.bold))
-            .foregroundStyle(Theme.accent)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .overlay(Capsule().strokeBorder(Theme.accent.opacity(0.5), lineWidth: 1))
+        Image(systemName: "person.fill")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
             .accessibilityLabel("Taken by you")
     }
 }

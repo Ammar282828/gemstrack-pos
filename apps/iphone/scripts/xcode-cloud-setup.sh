@@ -1,4 +1,5 @@
 #!/bin/sh
+# (House of Mina's own app is DEPRECATED since 2026-10-16: the one app holds it. Its Xcode Cloud setup stays until its testers move.)
 # Once, on the Mac, for each house (docs/features/iphone-app.md "Xcode Cloud"): make the project as that
 # house and open it in Xcode, to create the house's Xcode Cloud workflows there.
 #

@@ -9,7 +9,9 @@ import ERPCore
 @MainActor
 @Observable
 final class PostsStore {
-    static let shared = PostsStore()
+    /// Replaced, not cleared, when the person switches business (Businesses.switch): none of it is the next one's.
+    static var shared = PostsStore()
+    static func reset() { shared = PostsStore() }
 
     enum Phase: Equatable {
         case idle
@@ -180,6 +182,48 @@ final class PostsStore {
     }
 
     func refreshQueue() async { await loadQueue() }
+
+    /// The tray asks again on opening: a group added or renamed since shows at once.
+    func refreshAudience() async {
+        audienceAt = nil
+        await loadAudience()
+    }
+
+    /// After the tray sends: the day's list, and the pieces' "posted" and the weights the site now keeps.
+    func afterSending() async {
+        async let a: Void = loadSent()
+        async let b: Void = loadPieces()
+        _ = await (a, b)
+    }
+
+    /// What Send all and Spread over the day act on (queue-panel.tsx `pending`): held, scheduled or failed, in the queue's order.
+    var waiting: [PostQueueEntry] {
+        queue.filter { (e: PostQueueEntry) in ["held", "scheduled", "failed"].contains(e.status) }
+    }
+
+    /// Spread over the day: each waiting piece its own time (PATCH /queue/:id), the times laid out by `spreadTimes`.
+    /// The tick on the server sends them, with every screen closed. Stops at the first the server refuses.
+    func spread(_ ids: [String], at times: [Date]) async throws {
+        do {
+            for (id, at) in zip(ids, times) {
+                _ = try await ERPAPI.shared.send("/api/website/post/queue/\(id)", method: "PATCH", ["action": "schedule", "dueAt": at.ISO8601Format()])
+            }
+        } catch {
+            await loadQueue()
+            throw error
+        }
+        await loadQueue()
+    }
+
+    /// Send all now: each waiting piece in turn, as Send now sends one. How many went whole, of how many.
+    func sendAll() async -> (sent: Int, of: Int) {
+        let ids = waiting.map(\.id)
+        var sent = 0
+        for id in ids {
+            if (try? await sendNow(id)) == true { sent += 1 }
+        }
+        return (sent, ids.count)
+    }
 
     /// "Send now" (POST /queue/:id/send). Only what has not gone is sent, so a second press after a failure
     /// never posts a group twice. The server may take minutes over many groups. True when everything went.

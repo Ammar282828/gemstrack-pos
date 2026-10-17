@@ -11,6 +11,7 @@ import type { OrderItem, Settings } from '@/lib/store';
 import { calculateProductCosts } from '@/lib/pricing';
 import { orderMargin } from '@/lib/margin';
 import { metalHasKarat } from '@/lib/materials';
+import { rupees } from '@/lib/money';
 
 /** A piece as the order form holds it: an OrderItem before its prices are worked out. */
 export type OrderFormItem = Omit<OrderItem, 'metalCost' | 'wastageCost' | 'totalEstimate'> &
@@ -37,7 +38,7 @@ const pieceFor = (item: OrderFormItem) => ({
 
 /** One piece's price: its fixed price, or its weight at the rates (nothing without a weight). */
 export function orderItemPrice(item: OrderFormItem, rates: Partial<Settings>): number {
-  if (item.isManualPrice) return Number(item.manualPrice) || 0;
+  if (item.isManualPrice) return rupees(item.manualPrice);
   if (!item.estimatedWeightG || item.estimatedWeightG <= 0) return 0;
   return calculateProductCosts(pieceFor(item) as never, rates).totalPrice;
 }
@@ -47,8 +48,8 @@ export function orderEstimate(input: OrderEstimateInput, rates: Partial<Settings
   const prices = (input.items || []).map((item) => orderItemPrice(item, rates));
   const subtotal = prices.reduce((s, p) => s + p, 0);
   // Never more than the subtotal: a discount cannot turn a sale into a debt.
-  const discount = Math.max(0, Math.min(subtotal, Number(input.discountAmount) || 0));
-  const totalAdvance = (Number(input.advancePayment) || 0) + (Number(input.advanceInExchangeValue) || 0);
+  const discount = Math.max(0, Math.min(subtotal, rupees(input.discountAmount)));
+  const totalAdvance = rupees(input.advancePayment) + rupees(input.advanceInExchangeValue);
   const grandTotal = subtotal - discount - totalAdvance;
   const margin = (input.items || []).length
     ? orderMargin({ items: input.items as OrderItem[], discountAmount: discount, costRate24k: Number(input.costRate24k) || 0 }, prices)
@@ -81,7 +82,7 @@ export function stripMeaninglessKarat<T extends { metalType?: string; karat?: un
 export function pricedOrderItems(items: OrderFormItem[], rates: Partial<Settings>): OrderItem[] {
   return items.map((item) => {
     if (item.isManualPrice) {
-      return stripMeaninglessKarat({ ...item, metalCost: 0, wastageCost: 0, totalEstimate: item.manualPrice || 0 }) as OrderItem;
+      return stripMeaninglessKarat({ ...item, metalCost: 0, wastageCost: 0, totalEstimate: rupees(item.manualPrice) }) as OrderItem;
     }
     const costs = calculateProductCosts(pieceFor(item) as never, rates);
     return stripMeaninglessKarat({ ...item, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice }) as OrderItem;

@@ -3,20 +3,24 @@ import ERPCore
 
 /// Posts → Hub (src/app/posts/page.tsx): what went out today, where Taheri's gold post is, what waits in
 /// the queue, and the website's pieces. A queued piece opens natively to be sent, held, timed or removed
-/// (PostQueueSheet: where it goes is said in full before it goes). What makes a post (Post a piece's
-/// designer and story editor, the tray with its captions, Investments) and spreading the queue over a day
-/// are the ERP's own pages, opened in the app.
+/// (PostQueueSheet: where it goes is said in full before it goes); the whole queue is sent at once or spread
+/// over the day (PostQueueSpreadSheet). Pick, caption and send is the tray (PostTrayScreen).
 struct PostsHub: View {
     @Environment(Session.self) private var session
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var store: PostsStore { PostsStore.shared }
     @State private var showAllToday = false
     @State private var go: Route?
     /// A queued piece opened to send, hold, time or remove (PostQueueSheet).
     @State private var opened: Opened?
+    @State private var spreading = false
+    @State private var confirmingAll = false
+    @State private var sendingAll = false
+    @State private var note: Note?
 
     struct Opened: Identifiable { let id: String }
 
-    private var hasPostPiece: Bool { MarketingKit.has("/website/post", role: session.role) }
+    // Design and the old Post a piece composer are Posts' tab (Hub · Design · Investments), reached from the title menu, not rows here.
     private var hasInvestments: Bool { MarketingKit.has("/website/investments", role: session.role) }
     private var hasWebsite: Bool { MarketingKit.has("/website/photos", role: session.role) }
 
@@ -38,6 +42,16 @@ struct PostsHub: View {
         .navigationDestination(item: $go) { (r: Route) in PlaceScreen(path: r.path) }
         .refreshable { await store.load(gold: hasInvestments) }
         .sheet(item: $opened) { (o: Opened) in PostQueueSheet(id: o.id) }
+        .sheet(isPresented: $spreading) {
+            PostQueueSpreadSheet { (n: Note) in Note.show(n, in: $note, reduce: reduceMotion) }
+        }
+        .confirmationDialog(sendAllTitle, isPresented: $confirmingAll, titleVisibility: .visible) {
+            Button(store.failingChecks.isEmpty ? "Send" : "Send anyway") { Task { await sendAll() } }
+            Button("Not yet", role: .cancel) {}
+        } message: {
+            Text(sendAllWords)
+        }
+        .noteToast($note)
         .task { await store.load(gold: hasInvestments) }
     }
 
@@ -46,15 +60,12 @@ struct PostsHub: View {
     @ViewBuilder
     private var makeSection: some View {
         Section {
-            if hasPostPiece {
-                MarketingLink(title: "New piece", subtitle: "Post a piece: new photographs, a story, a caption", symbol: "camera", path: "/website/post?new=1")
-            }
             if hasInvestments {
-                MarketingLink(title: "Investments", subtitle: "The day's gold post", symbol: "chart.line.uptrend.xyaxis", path: "/website/investments")
+                MarketingLink(title: "Investments", symbol: "chart.line.uptrend.xyaxis", path: "/website/investments")
             }
-            MarketingLink(title: "Pick, caption and send", subtitle: "Website pieces to the groups and the channel, or into the queue", symbol: "paperplane", path: MarketingKit.postsWeb)
+            MarketingLink(title: "Pick, caption and send", symbol: "paperplane", path: MarketingKit.trayPath())
             if hasWebsite {
-                MarketingLink(title: "The website", subtitle: "Add photos, edit a piece, photo weights", symbol: "globe", path: MarketingKit.websitePath)
+                MarketingLink(title: "The website", symbol: "globe", path: MarketingKit.websitePath)
             }
         }
     }
@@ -184,11 +195,44 @@ struct PostsHub: View {
         if !items.isEmpty {
             Section {
                 ForEach(items) { (e: PostQueueEntry) in queueRow(e) }
-                MarketingLink(title: "Spread the queue over the day", subtitle: "In the ERP", symbol: "clock", path: MarketingKit.postsWeb)
+                let waiting = store.waiting.count
+                if waiting > 0 {
+                    Button { confirmingAll = true } label: {
+                        Label(sendingAll ? "Sending…" : waiting > 1 ? "Send all \(waiting) now" : "Send it now", systemImage: "paperplane")
+                    }
+                    .disabled(sendingAll)
+                    Button { spreading = true } label: { Label("Spread over the day", systemImage: "clock") }
+                        .disabled(sendingAll)
+                }
             } header: {
                 LedgerHeading(title: "In the queue")
             }
         }
+    }
+
+    private var sendAllTitle: String {
+        let n = store.waiting.count
+        return n > 1 ? "Send all \(n) pieces now?" : "Send it now?"
+    }
+
+    /// Each piece and where it goes, in the order they go, and what is failing now (queue-panel.tsx's confirm).
+    private var sendAllWords: String {
+        var out = store.waiting.map { (e: PostQueueEntry) in "• \(e.headline.isEmpty ? "Untitled" : e.headline) → \(store.queueWhere(e))" }.joined(separator: "\n")
+        out += "\n\nOne after another, in this order. A post can't be unsent from here."
+        let failing = store.failingChecks
+        if !failing.isEmpty {
+            out += "\n\nThis will probably fail:\n" + failing.map { (c: PostCheck) in "\(c.label): \(c.fix ?? c.detail)" }.joined(separator: "\n")
+        }
+        return out
+    }
+
+    private func sendAll() async {
+        sendingAll = true
+        defer { sendingAll = false }
+        let r = await store.sendAll()
+        let whole = r.sent == r.of
+        Note.show(Note(title: whole ? "All \(r.of) sent" : "\(r.sent) of \(r.of) sent",
+                       detail: whole ? "" : "The ones that failed say why; sending again sends only what didn't go.", failed: !whole), in: $note, reduce: reduceMotion)
     }
 
     /// Opens the piece: where it goes, word for word, and Send now, Hold, a time or Remove.
@@ -217,17 +261,18 @@ struct PostsHub: View {
         }
     }
 
+    /// Sent is the expected end: no tag, the line already says when (CONVENTIONS rule 15).
     private func queueBadge(_ e: PostQueueEntry) -> some View {
-        let words: (String, Tone)
+        let words: (String, Tone)?
         switch e.status {
         case "scheduled": words = ("Scheduled", .working)
         case "sending": words = ("Sending", .owed)
-        case "sent": words = ("Sent", .settled)
         case "failed": words = ("Failed", .problem)
         case "draft": words = ("Making", .quiet)
+        case "sent": words = nil
         default: words = ("Held", .quiet)
         }
-        return Pill(words.0, tone: words.1)
+        return Group { if let words { Pill(words.0, tone: words.1) } }
     }
 
     // MARK: The website's pieces
@@ -271,7 +316,7 @@ struct PostsHub: View {
                 }
                 .listRowInsets(EdgeInsets())
             }
-            MarketingLink(title: "All \(store.pieces.count) pieces", subtitle: "Search by name or collection", symbol: "square.grid.2x2", path: MarketingKit.piecesPath)
+            MarketingLink(title: "All \(store.pieces.count) pieces", symbol: "square.grid.2x2", path: MarketingKit.piecesPath)
         } header: {
             LedgerHeading(title: fresh.isEmpty ? "From \(store.siteName)" : "New on \(store.siteName)")
         }

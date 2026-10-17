@@ -130,7 +130,10 @@ struct StudioSaved: View {
             ForEach(account, id: \.text) { ad in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(ad.s("name")).font(.headline)
-                    Text(ad.s("effective_status")).font(.caption).foregroundStyle(.secondary)
+                    // Running, the expected state, says nothing (CONVENTIONS rule 15).
+                    if AdsStatusWords.of(ad.s("effective_status")).tone != .good {
+                        Text(ad.s("effective_status")).font(.caption).foregroundStyle(.secondary)
+                    }
                     NavigationLink("Ad details", value: Route(path: "/ads/object?id=" + ad.s("id") + "&kind=ad"))
                     Menu("Keep in a folder") {
                         Button("Unfiled") { mutate("/api/ads/studio/saved", ["fromAd": ad.s("id")]) }

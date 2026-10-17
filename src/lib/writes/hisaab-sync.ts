@@ -15,6 +15,7 @@
 
 import { creditDescription, isCreditRow } from '@/lib/invoice-credit';
 import { isWalkInName } from '@/lib/walk-in';
+import { owesMoney, rupees } from '@/lib/money';
 
 type Inv = { id: string; customerId?: string; customerName?: string; balanceDue?: number; status?: string; createdAt?: string };
 type Row = { id: string; linkedInvoiceId?: string; description?: string; cashDebit?: number; cashCredit?: number };
@@ -63,7 +64,9 @@ export function planHisaabSync(invoices: Inv[], rows: Row[], customers: Cust[]):
     const outstanding = linked.filter((h) => (h.cashDebit ?? 0) > 0 && h.description === outstandingDescription(inv.id));
     const credits = linked.filter((h) => isCreditRow(h, inv.id));
     const customerId = inv.customerId || customerByName[inv.customerName?.toLowerCase().trim() ?? '']?.id || '';
-    const balanceDue = inv.status === 'Refunded' ? 0 : Number(inv.balanceDue ?? 0);
+    // Whole rupees; under a rupee either way is settled (lib/money.ts).
+    const rawBalance = inv.status === 'Refunded' ? 0 : Number(inv.balanceDue ?? 0);
+    const balanceDue = Math.abs(rawBalance) < 1 ? 0 : rupees(rawBalance);
 
     if (balanceDue > 0) {
       credits.forEach((h) => plan.deletes.push(h.id));
@@ -95,7 +98,7 @@ export function planHisaabSync(invoices: Inv[], rows: Row[], customers: Cust[]):
   // Owed with no row at all (a Shopify import never run through the sale).
   for (const inv of invoices) {
     if (linkedByInvoice[inv.id]) continue;
-    if ((inv.balanceDue ?? 0) <= 0 || inv.status === 'Refunded') continue;
+    if (!owesMoney(inv.balanceDue) || inv.status === 'Refunded') continue;
     const customerId = inv.customerId || customerByName[inv.customerName?.toLowerCase().trim() ?? '']?.id || '';
     if (!customerId || customerId === 'walk-in') continue;
     plan.creates.push(row(inv, customerId, outstandingDescription(inv.id), Number(inv.balanceDue), 0));

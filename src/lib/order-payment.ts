@@ -1,4 +1,5 @@
 import type { Order, Payment } from '@/lib/store';
+import { rupees } from '@/lib/money';
 
 export type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid';
 
@@ -74,13 +75,13 @@ export function withoutOrderAdvance(
   // The total was edited below its list: it is shown as one advance, and goes as one.
   if (laterSum > cash + 0.5) return { advancePayment: 0, advances: [], dropMethod: true, removed };
   const hasFirst = cash - laterSum > 0.5;
-  if (hasFirst && lineIndex === 0) return { advancePayment: Math.round(laterSum * 100) / 100, advances: all, dropMethod: true, removed };
+  if (hasFirst && lineIndex === 0) return { advancePayment: rupees(laterSum), advances: all, dropMethod: true, removed };
   // The k-th positive entry of the list.
   let k = lineIndex - (hasFirst ? 1 : 0);
   const at = all.findIndex((p) => Number(p.amount) > 0 && k-- === 0);
   if (at < 0) return null;
   return {
-    advancePayment: Math.round((cash - Number(all[at].amount)) * 100) / 100,
+    advancePayment: rupees(cash - Number(all[at].amount)),
     advances: all.filter((_, i) => i !== at),
     dropMethod: false,
     removed,

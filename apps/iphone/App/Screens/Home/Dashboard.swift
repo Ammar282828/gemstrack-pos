@@ -4,7 +4,7 @@ import ERPCore
 
 /// Home: the morning glance (src/app/page.tsx, redrawn 2026-09-27; docs/decisions.md "Dashboard"; on the
 /// ledger since 2026-10-09). Today first, large: what was taken, how many invoices, the week as bars. Under it
-/// three small cards say how the shop stands: this month against last, owed to you, on the bench. Then three
+/// two small cards say how the shop stands: owed to you, on the bench (this month is its own card). Then three
 /// lists, each a thing the counter needs to know: what needs a decision (worst first, each led by what it is
 /// about), what is due to customers (by the date they were promised, as a calendar leaf), and the latest
 /// sales (who, and whether paid). The 30-day line sits quietly at the bottom. Nothing to press but the cards
@@ -17,13 +17,13 @@ struct Dashboard: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
     @Environment(\.scenePhase) private var scenePhase
-    /// At the largest text sizes the three cards stand one under another rather than squeezed side by side.
+    /// At the largest text sizes the cards stand one under another rather than squeezed side by side.
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The instant the page is worked out against; it turns over at Karachi's midnight on a screen left open.
     @State private var now = Date()
-    /// "Set today's gold rate" opens the rate form here, for owners, rather than the ERP's page.
+    /// "Set today's gold rate" opens the rate sheet here: the form for owners, the rates to read for anyone else.
     @State private var rateSheet = false
     @State private var noteSheet = false
     @State private var allNeeds = false
@@ -50,7 +50,9 @@ struct Dashboard: View {
         .task { await keepTime() }
         // The count itself is polled once for the whole app (RootView); coming here asks again at once.
         .task { await askOnline() }
-        .sheet(isPresented: $rateSheet) { RateSheet() }
+        .sheet(isPresented: $rateSheet) {
+            if session.isOwner { RateSheet() } else { RateReadout() }
+        }
         .sheet(isPresented: $noteSheet) { TeamNoteEditor() }
         .toolbar {
             if session.isOwner {
@@ -149,7 +151,7 @@ struct Dashboard: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
 
-    /// An iPad's Home: today and the three cards across the top (the cards shown, there is room for them),
+    /// An iPad's Home: today and the two cards across the top (the cards shown, there is room for them),
     /// then the lists in two columns: what needs doing on the left, what has happened on the right.
     private func wideColumns(_ f: DashFigures, needs: [DashNeed]) -> some View {
         VStack(alignment: .leading, spacing: 26) {
@@ -184,7 +186,7 @@ struct Dashboard: View {
             .accessibilityLabel(DashDate.longDay(now))
     }
 
-    // MARK: Today and the three cards
+    // MARK: Today and the two cards
 
     @ViewBuilder
     private func linked<C: View>(_ path: String?, @ViewBuilder _ label: () -> C) -> some View {
@@ -215,23 +217,14 @@ struct Dashboard: View {
 
     @ViewBuilder
     private func statCards(_ f: DashFigures) -> some View {
-        // Analytics and the hisaab are the owners' books.
-        let monthPath: String? = session.isOwner ? "/analytics" : nil
-        linked(monthPath) { thisMonth(f, linked: monthPath != nil) }
+        // The hisaab is the owners' book. This month's takings are the This month card's, said once (rule 15).
         linked(session.isOwner && f.owedInHisaab > 0 ? "/hisaab" : "/invoices") { owedCard(f) }
         linked("/workshop") { onTheBench(f) }
     }
 
-    private func thisMonth(_ f: DashFigures, linked: Bool) -> some View {
-        DashStat(label: "This month", linked: linked) {
-            DashStatAmount(amount: f.monthRevenue)
-            DashMonthChange(ratio: f.monthAgainstLast, now: now)
-        }
-    }
-
     /// Owed is amber, never red: money still to come is not an alarm.
     private func owedCard(_ f: DashFigures) -> some View {
-        let owing = f.totalOutstanding > 0
+        let owing = f.totalOutstanding >= 1
         let n = f.unpaid.count
         return DashStat(label: "Owed to you", linked: true) {
             if owing {
@@ -251,10 +244,9 @@ struct Dashboard: View {
         let critical = f.criticalJobs.count
         return DashStat(label: "On the bench", linked: true) {
             DashStatValue(text: "\(n) piece\(n == 1 ? "" : "s")")
+            // Nothing overdue is the normal state: no line for it.
             if critical > 0 {
                 DashStatNote(text: "\(critical) sitting \(DashBench.criticalDays)+ days", tint: Tone.late.color)
-            } else {
-                DashStatNote(text: "Nothing overdue")
             }
         }
     }
@@ -268,7 +260,7 @@ struct Dashboard: View {
                 if needs.isEmpty {
                     DashAllClear()
                 } else {
-                    DashNeedList(needs: allNeeds ? needs : Array(needs.prefix(3)), onRates: session.isOwner ? { rateSheet = true } : nil)
+                    DashNeedList(needs: allNeeds ? needs : Array(needs.prefix(3)), onRates: { rateSheet = true })
                 }
             }
             .dashRowsCard()
@@ -315,7 +307,7 @@ struct Dashboard: View {
 
     private func monthSection(_ f: DashFigures) -> some View {
         let path: String? = session.isOwner ? "/analytics" : nil
-        return DisclosureGroup("Last 30 days") {
+        return DisclosureGroup("This month") {
             linked(path) {
                 DashMonthCard(figures: f, showCosts: session.isOwner, linked: path != nil)
             }.padding(.top, 12)
@@ -347,7 +339,9 @@ struct Dashboard: View {
 @MainActor
 @Observable
 final class OnlineInbox {
-    static let shared = OnlineInbox()
+    /// Replaced, not cleared, when the person switches business (Businesses.switch): none of it is the next one's.
+    static var shared = OnlineInbox()
+    static func reset() { shared = OnlineInbox() }
 
     private(set) var waiting = 0
     private(set) var ratePause: DashRatePause?

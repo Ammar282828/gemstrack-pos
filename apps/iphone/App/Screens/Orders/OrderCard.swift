@@ -19,7 +19,8 @@ struct OrderCardActions {
     var advance: (Order) -> Void
     var markReady: (Order) -> Void
     var setStatus: (Order, String) -> Void
-    var openWeb: (OrdersWebTarget) -> Void
+    /// Opens one of the order's native places: the order itself, the bench, Finalize.
+    var open: (OrdersWebTarget) -> Void
     /// Call or WhatsApp the customer on the order's number.
     var contact: (Order, OrderContactKind) -> Void
 }
@@ -148,7 +149,6 @@ struct OrderCardRows: View {
             Button { actions.contact(order, .call) } label: { Label("Call", systemImage: "phone") }
             Button { actions.contact(order, .whatsApp) } label: { Label("WhatsApp", systemImage: "message") }
         }
-        Button { actions.openWeb(.orderPage(order.id)) } label: { Label("Open in the ERP", systemImage: "globe") }
     }
 }
 
@@ -191,10 +191,11 @@ struct OrderCardHead: View {
                     .layoutPriority(1)
             }
             let what = OrdersLogic.cardWhat(order)
+            // One line: the order's page has the pieces in full.
             Text(what.text + (what.extra.map { " \u{00B7} " + $0 } ?? ""))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .lineLimit(2)
+                .lineLimit(1)
             stateRow(counts)
         }
         .padding(.vertical, 2)
@@ -256,11 +257,11 @@ struct OrderCardHead: View {
     @ViewBuilder private var money: some View {
         if stage != .closed {
             let due = OrdersLogic.stillOwed(order, invoiceOwed: owed)
-            if abs(due) > 0.5 {
+            if abs(due) >= 1 {
                 VStack(alignment: wideAlignment, spacing: 2) {
                     RowAmount(amount: abs(due), tone: due < 0 ? Tone.credit.color : Tone.owed.color)
                     Text(due < 0 ? "In credit" : "Owed")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
                 .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: true)
             } else {
@@ -322,8 +323,13 @@ struct OrderNextStepRow: View {
             ProgressView().controlSize(.small)
                 .frame(minWidth: 44, minHeight: 44)
         } else {
+            // A small tinted capsule, so the card's one action reads as a button and not as more words. Not glass
+            // (a glass button under an animated swap shrinks into a blob, iphone-app.md "The bubble").
             Button(action: run) { Label(step.title, systemImage: step.symbol) }
-                .buttonStyle(.borderless)
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
+                .tint(Theme.accent)
                 .font(.subheadline.weight(.semibold))
                 .frame(minHeight: 44)
         }
@@ -333,13 +339,13 @@ struct OrderNextStepRow: View {
         switch step {
         case .checkTransfer:
             // The order's own page has the transfer's moves (OrderOnlineSection, and its bar's Check transfer).
-            actions.openWeb(OrdersWebTarget(path: "/orders/\(order.id)", title: order.id, native: true))
+            actions.open(.order(order.id))
         case .giveOut:
-            actions.openWeb(.giveOut(order.id))
+            actions.open(.giveOut(order.id))
         case .markReady:
             actions.markReady(order)
         case .finalize:
-            actions.openWeb(.finalize(order.id))
+            actions.open(.finalize(order.id))
         case .invoice:
             break
         }

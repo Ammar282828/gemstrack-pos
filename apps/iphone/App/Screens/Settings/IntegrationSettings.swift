@@ -1,9 +1,9 @@
 import SwiftUI
 import ERPCore
 
-/// Settings → Integrations (src/app/settings/integrations): the website, Shopify and Meta. Connecting
-/// any of them is a sign-in on the other service's own page, so this shows where each stands and opens
-/// the ERP's page for the rest.
+/// Settings → Integrations (src/app/settings/integrations): the website, Shopify and Meta. The website's
+/// selling settings (WebsiteSellingSettings) and Shopify (ShopifySettings) are native; Meta's connection is
+/// Ads › Setup.
 struct IntegrationSettings: View {
     var body: some View {
         SettingsGate(title: "Integrations") { IntegrationsForm(settings: $0) }
@@ -29,11 +29,9 @@ private struct IntegrationsForm: View {
         Form { Group {
             if session.shop.websiteSelling {
                 Section {
-                    NavigationLink(value: Route(path: "/settings/integrations?web=1")) {
+                    NavigationLink(value: Route(path: "/app/settings/website")) {
                         Label("Selling on the website", systemImage: "globe")
                     }
-                } footer: {
-                    Text("Whether the site takes orders, and at what rate.")
                 }
             }
 
@@ -51,13 +49,9 @@ private struct IntegrationsForm: View {
                     } else {
                         SkeletonLoading()
                     }
-                    if shopify?.configured != false {
-                        NavigationLink(value: Route(path: "/app/settings/shopify")) {
-                            Label("Connection and import", systemImage: "arrow.triangle.2.circlepath")
-                        }
-                    }
-                    NavigationLink(value: Route(path: "/settings/integrations?web=1")) {
-                        Label("On the ERP's page", systemImage: "globe")
+                    // The native Shopify screen says "not configured" itself, and is where the store is connected.
+                    NavigationLink(value: Route(path: "/app/settings/shopify")) {
+                        Label("Connection and import", systemImage: "arrow.triangle.2.circlepath")
                     }
                 } header: {
                     LedgerHeading(title: "Shopify")

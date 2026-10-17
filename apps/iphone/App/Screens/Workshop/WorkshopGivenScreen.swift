@@ -117,7 +117,7 @@ struct WorkshopGivenScreen: View {
         return Section {
             FigureRow {
                 FigureTile(label: "Still out", value: "\(out)", tint: out > 0 ? Tone.owed.color : Color.primary)
-                FigureTile(label: "Returned", value: "\(back)", tint: back > 0 ? Tone.settled.color : Color.primary)
+                FigureTile(label: "Returned", value: "\(back)")
             }
             .padding(.vertical, 4)
             .listRowInsets(EdgeInsets())
@@ -229,11 +229,9 @@ struct WorkshopGivenScreen: View {
         if item.status == .out {
             StatusBadge("Out", tone: .owed)
         } else {
-            VStack(alignment: .trailing, spacing: 2) {
-                StatusBadge("Returned", tone: .settled)
-                if let back = item.returnedDate, !back.isEmpty {
-                    Text(ShopDate.say(back)).font(.caption2).foregroundStyle(.secondary)
-                }
+            // Back is the expected end: no badge (rule 15), only when.
+            if let back = item.returnedDate, !back.isEmpty {
+                Text("Back " + ShopDate.say(back)).font(.caption2).foregroundStyle(.secondary)
             }
         }
     }

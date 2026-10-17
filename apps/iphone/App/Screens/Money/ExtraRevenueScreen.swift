@@ -71,8 +71,6 @@ struct ExtraRevenueScreen: View {
                 figures(shown)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
-            } header: {
-                Text("Income not tied to an order or invoice.").textCase(nil)
             }
             if months.isEmpty {
                 Section { emptyState }

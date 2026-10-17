@@ -54,3 +54,19 @@ export function backupReplacer(_key: string, value: unknown): unknown {
   }
   return value;
 }
+
+/**
+ * The reverse of backupReplacer for a restore: every `{ seconds, nanoseconds }` (and nothing else) in a document
+ * is made a date again by `make` (the Admin SDK's Timestamp on the server). Without it a restored record's dates
+ * came back as plain maps, which nothing in the books sorts or reads as a date. Pure; tested.
+ */
+export function reviveTimestamps<T>(value: unknown, make: (seconds: number, nanoseconds: number) => T): unknown {
+  if (Array.isArray(value)) return value.map(v => reviveTimestamps(v, make));
+  if (value && typeof value === 'object') {
+    const o = value as Record<string, unknown>;
+    const keys = Object.keys(o);
+    if (keys.length === 2 && typeof o.seconds === 'number' && typeof o.nanoseconds === 'number') return make(o.seconds, o.nanoseconds);
+    return Object.fromEntries(keys.map(k => [k, reviveTimestamps(o[k], make)]));
+  }
+  return value;
+}

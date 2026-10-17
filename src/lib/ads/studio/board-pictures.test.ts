@@ -53,24 +53,27 @@ describe('rewriteUploads', () => {
 
 describe('replacePicture', () => {
   const base = { doc: doc([img('i', 'photo'), img('u', '', { src: 'data:x' })]), assetId: 'site:1', marked: true };
-  it('changes the design’s own photo without touching the document (its crop stays)', () => {
+  it('changes the design’s own photo, its crops starting again centred and unzoomed', () => {
     const out = replacePicture(base, 'photo', { assetId: 'up:new' });
     expect(out).toMatchObject({ assetId: 'up:new', marked: false });
-    expect(out.doc).toBe(base.doc);
+    expect(out.doc.placements!.photo).toEqual({ mode: 'fill', zoom: 1, focusX: 0.5, focusY: 0.5 });
+    expect(out.doc.layers[0]).toMatchObject({ photoId: 'photo', x: 100, w: 300, mask: 'arch', fx: 0.5, fy: 0.5 });
+    expect(out.doc.layers[1]).toBe(base.doc.layers[1]);
   });
   it('replaces an inset of the photo, or an upload, with a library picture in the same place', () => {
     const a = replacePicture(base, 'i', { assetId: 'drive:5' });
-    expect(a.doc.layers[0]).toMatchObject({ photoId: 'lib:drive:5', x: 100, w: 300, mask: 'arch' });
+    expect(a.doc.layers[0]).toMatchObject({ photoId: 'lib:drive:5', x: 100, w: 300, mask: 'arch', fx: 0.5, fy: 0.5 });
     expect(a.assetId).toBe('site:1');
     const b = replacePicture(base, 'u', { assetId: 'up:z' });
     expect(b.doc.layers[1]).toMatchObject({ photoId: 'lib:up:z' });
     expect('src' in b.doc.layers[1]).toBe(false);
   });
-  it('moves a lib background’s crop to the new picture', () => {
-    const d = { ...doc([], { photoId: 'lib:site:1' }), placements: { 'lib:site:1': { mode: 'fit' as const, zoom: 2, focusX: 0, focusY: 1 } } };
+  it('gives a new lib background a fresh crop (its mode kept), and drops the old picture’s', () => {
+    const d = { ...doc([], { photoId: 'lib:site:1', placement: { mode: 'fit' as const, zoom: 2, focusX: 0, focusY: 1 } }), placements: { 'lib:site:1': { mode: 'fit' as const, zoom: 2, focusX: 0, focusY: 1 } } };
     const out = replacePicture({ doc: d, assetId: null, marked: false }, 'bg', { assetId: 'up:q' });
     expect(out.doc.bg.photoId).toBe('lib:up:q');
-    expect(out.doc.placements).toEqual({ 'lib:up:q': { mode: 'fit', zoom: 2, focusX: 0, focusY: 1 } });
+    expect(out.doc.placements!['lib:site:1']).toBeUndefined();
+    expect(out.doc.bg.placement).toEqual({ mode: 'fit', zoom: 1, focusX: 0.5, focusY: 0.5 });
   });
   it('says so when the layer is gone', () => {
     expect(() => replacePicture(base, 'nope', { assetId: 'x' })).toThrow();

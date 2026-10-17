@@ -155,6 +155,7 @@ struct PostQueueSheet: View {
         let e = entry
         let gone = p.units.filter { e?.doneKeys.contains($0) ?? false }.count
         let problem = p.units.compactMap { e?.unitErrors[$0] }.first
+        // Gone is the expected end: a quiet word; only a failure is coloured (CONVENTIONS rule 15).
         return HStack(spacing: 12) {
             Image(systemName: p.symbol)
                 .font(.body.weight(.semibold))
@@ -170,7 +171,7 @@ struct PostQueueSheet: View {
             }
             Spacer(minLength: 6)
             if gone == p.units.count {
-                Label("Gone", systemImage: "checkmark.circle.fill").labelStyle(.iconOnly).foregroundStyle(Tone.settled.color)
+                Text("Gone").font(.caption).foregroundStyle(.secondary)
             } else if problem != nil {
                 Label("Failed", systemImage: "exclamationmark.circle.fill").labelStyle(.iconOnly).foregroundStyle(Tone.problem.color)
             } else if gone > 0 {

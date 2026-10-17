@@ -19,7 +19,7 @@ import { useAppStore, type Invoice } from '@/lib/store';
 import { orderAdvancePayments } from '@/lib/order-payment';
 import { orderExchanges, invoiceExchanges, describeExchangeEntry, exchangeTotal } from '@/lib/exchange';
 
-const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString()}`;
+const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 const day = (iso?: string) => { try { return iso ? format(parseISO(iso), 'd MMM yyyy') : ''; } catch { return ''; } };
 
 export function OrderCarryOver({ invoice }: { invoice: Invoice }) {

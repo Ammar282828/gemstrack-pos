@@ -37,7 +37,7 @@ struct WebsitePhotosScreen: View {
     @State private var said: String?
     @State private var failure: String?
 
-    private static let folderKey = "erp.website.photoFolder"
+    private static var folderKey: String { BizKey("erp.website.photoFolder") }
     /// The photos route's own limit (25 MB).
     private static let maxBytes = 25 * 1024 * 1024
 
@@ -259,7 +259,8 @@ struct WebsitePhotosScreen: View {
     private func statusLine(_ item: WebsitePhotoItem) -> some View {
         switch item.status {
         case .done:
-            Label("On the website", systemImage: "checkmark.circle.fill").font(.caption).foregroundStyle(Tone.settled.color)
+            // Done is the expected end: a quiet word, the dimmed photo says the rest (CONVENTIONS rule 15).
+            Text("On the website").font(.caption).foregroundStyle(.secondary)
         case .failed:
             Label(item.error ?? "Failed", systemImage: "xmark.circle.fill").font(.caption).foregroundStyle(Tone.problem.color)
         case .uploading:
@@ -303,7 +304,7 @@ struct WebsitePhotosScreen: View {
     private var afterSection: some View {
         Section {
             if MarketingKit.has("/website/weights", role: session.role) {
-                MarketingLink(title: "Record their weights", subtitle: "Photo weights: the weight the site draws on each", symbol: "scalemass", path: "/website/weights")
+                MarketingLink(title: "Record their weights", symbol: "scalemass", path: "/website/weights")
             }
             if let url = collectionURL {
                 Link(destination: url) {

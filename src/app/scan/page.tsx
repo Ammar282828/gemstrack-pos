@@ -32,10 +32,10 @@ const ScannedItemDisplay: React.FC<{ item: NonNullable<ReturnType<typeof selectC
     <div className="flex justify-between items-center py-2">
       <div>
         <p className="font-medium text-sm leading-tight">{item.name}</p>
-        <p className="text-xs text-muted-foreground">Qty: {item.quantity} &bull; Unit: PKR {item.totalPrice.toLocaleString()}</p>
+        <p className="text-xs text-muted-foreground">Qty: {item.quantity} &bull; Unit: PKR {item.totalPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
       </div>
       <div className="flex items-center space-x-2">
-        <p className="font-semibold text-sm text-primary">PKR {item.lineItemTotal.toLocaleString()}</p>
+        <p className="font-semibold text-sm text-primary">PKR {item.lineItemTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
         <Button
           variant="ghost"
           size="icon"
@@ -126,7 +126,7 @@ export default function ScanPOSPage() {
                   <Separator className="my-3" />
                   <div className="flex justify-between items-center font-semibold text-lg">
                     <span>Subtotal:</span>
-                    <span className="text-primary">PKR {cartSubtotal.toLocaleString()}</span>
+                    <span className="text-primary">PKR {cartSubtotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                   </div>
                 </>
               )}

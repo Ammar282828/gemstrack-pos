@@ -440,12 +440,15 @@ struct DashFigures {
     private(set) var occasions: [DashOccasion] = []
     private var karigarIds: Set<String> = []
 
-    // The 30-day line.
-    private(set) var revenue30 = 0.0
-    private(set) var expenses30 = 0.0
+    // This month's line, the 1st to today (the web's "This month", 2026-10-12: it was a rolling 30 days).
+    private(set) var revenueMonth = 0.0
+    private(set) var expensesMonth = 0.0
+    /// One point a day, the 1st to today: the chart under "This month".
+    private(set) var monthDays: [DashDay] = []
+    /// The trailing 30 days, kept for the week of bars under "Taken today" (which must not shrink at a month's start).
     private(set) var days: [DashDay] = []
 
-    var net30: Double { revenue30 - expenses30 }
+    var netMonth: Double { revenueMonth - expensesMonth }
     var lateDue: [DashDue] { due.filter { $0.isLate } }
 
     private struct Event {
@@ -481,9 +484,9 @@ struct DashFigures {
     private mutating func gatherRevenue(orders: [Order], invoices: [Invoice], revenues: [AdditionalRevenue], expenses: [Expense]) {
         let todayStart = DashDate.startOfDay(now)
         let monthStart = DashDate.startOfMonth(now)
-        let lastMonthStart = DashDate.startOfMonth(DashDate.adding(months: -1, to: now))
-        // "Last 30 days" is today plus the 29 before, as Analytics has it.
+        // Today plus the 29 before: the bars under "Taken today" read the last seven of these.
         let last30Start = DashDate.startOfDay(DashDate.adding(days: -29, to: now))
+        let lastMonthStart = DashDate.startOfMonth(DashDate.adding(months: -1, to: now))
 
         var ordersById: [String: Order] = [:]
         for o in orders { ordersById[o.id] = o }
@@ -510,24 +513,26 @@ struct DashFigures {
         todayRevenue = Self.total(events, from: todayStart)
         monthRevenue = Self.total(events, from: monthStart)
         lastMonthRevenue = Self.total(events, from: lastMonthStart, before: monthStart)
-        revenue30 = Self.total(events, from: last30Start)
+        revenueMonth = monthRevenue
 
-        var perDay = [Double](repeating: 0, count: 30)
-        for e in events where e.at >= last30Start {
-            let index = Int(e.at.timeIntervalSince(last30Start) / 86_400)
-            if index >= 0 && index < 30 { perDay[index] += e.amount }
+        func series(from start: Date, count: Int) -> [DashDay] {
+            var perDay = [Double](repeating: 0, count: count)
+            for e in events where e.at >= start {
+                let index = DashDate.karachi.dateComponents([.day], from: start, to: DashDate.startOfDay(e.at)).day ?? -1
+                if index >= 0 && index < count { perDay[index] += e.amount }
+            }
+            return (0..<count).map { (i: Int) -> DashDay in DashDay(day: DashDate.adding(days: i, to: start), amount: perDay[i]) }
         }
-        days = (0..<30).map { (i: Int) -> DashDay in
-            DashDay(day: DashDate.adding(days: i, to: last30Start), amount: perDay[i])
-        }
+        days = series(from: last30Start, count: 30)
+        monthDays = series(from: monthStart, count: max(1, (DashDate.karachi.dateComponents([.day], from: monthStart, to: todayStart).day ?? 0) + 1))
 
-        // The 30-day profit line leaves partner drawings out.
+        // The month's profit line leaves partner drawings out.
         var spent = 0.0
         for e in expenses where DashRules.isBusinessCost(e) {
-            guard let at = DashDate.parseISO(e.date), at >= last30Start else { continue }
+            guard let at = DashDate.parseISO(e.date), at >= monthStart else { continue }
             spent += e.amount.isNaN ? 0 : e.amount
         }
-        expenses30 = spent
+        expensesMonth = spent
     }
 
     private mutating func gatherOwed(invoices: [Invoice], hisaab: [HisaabEntry]) {
@@ -602,7 +607,8 @@ struct DashFigures {
         // taheri.shop sells only at a rate set in the last 36 hours.
         if let ratePause {
             let last = DashDate.dayMonth(iso: ratePause.ratesUpdatedAt)
-            // An owner's row opens the rate form; anyone else's keeps the web's link.
+            // The row opens the rate sheet (Dashboard: the form for an owner, the rates for anyone else); the path is
+            // the web's, which the native /settings honours too.
             out.append(DashNeed(id: "\(out.count)|/settings?tab=rates", path: "/settings?tab=rates", tone: .danger,
                                 title: "Set today's gold rate — online selling is paused",
                                 detail: last.isEmpty ? "The rate chip at the top" : "Last set \(last) · the rate chip at the top",
@@ -681,7 +687,7 @@ struct DashFigures {
 // what DashFigures already holds; none is a new rule for money.
 
 extension DashFigures {
-    /// The last seven days of the 30-day line, today last: the bars under "Taken today".
+    /// The last seven days of the trailing 30, today last: the bars under "Taken today".
     var week: [DashDay] { Array(days.suffix(7)) }
 
     /// This month so far against the whole of last month (1.12 is 12% more); nil with nothing last month to

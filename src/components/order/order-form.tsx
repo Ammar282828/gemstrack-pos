@@ -41,6 +41,8 @@ import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { CategoryPicker } from '@/components/shared/category-picker';
 import { AmountInput } from '@/components/ui/amount-input';
 import { ExchangeRows, type ExchangeRow, blankExchangeRow, rowsFromExchanges, exchangesFromRows } from '@/components/shared/exchange-rows';
+import { rupees } from '@/lib/money';
+import { RoundOffChips } from '@/components/shared/round-off-chips';
 import { orderExchanges, orderExchangeFields, exchangeTotal, describeExchanges } from '@/lib/exchange';
 import { Switch } from '@/components/ui/switch';
 import { addDays, differenceInCalendarDays, format as formatDate, parseISO, startOfDay } from 'date-fns';
@@ -325,7 +327,7 @@ function cartItemToOrderItem(p: Product) {
 
 /** Every figure in the order panel is written the same way. */
 const money = (n: number) =>
-  'PKR ' + (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  'PKR ' + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 /**
  * One labelled group inside the order panel.
@@ -1379,7 +1381,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
 
                             {form.watch(`items.${index}.isManualPrice`) ? (
                                 <FormField control={form.control} name={`items.${index}.manualPrice`} render={({ field }) => (
-                                    <FormItem><FormLabel>Price (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="The agreed total for this piece" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Price (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} zeroAsEmpty placeholder="The agreed total for this piece" {...field} /></FormControl><FormMessage /></FormItem>
                                 )}/>
                             ) : (
                                 <>
@@ -1401,10 +1403,10 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                                 </div>
                                 <div className="grid grid-cols-2 gap-3 md:gap-4">
                                     <FormField control={form.control} name={`items.${index}.makingCharges`} render={({ field }) => (
-                                        <FormItem><FormLabel>Making (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Making (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} zeroAsEmpty {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                     <FormField control={form.control} name={`items.${index}.stoneCharges`} render={({ field }) => (
-                                        <FormItem><FormLabel>Stones (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Stones (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} zeroAsEmpty {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                 </div>
 
@@ -1420,7 +1422,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                                 {form.watch(`items.${index}.hasDiamonds`) && (
                                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 pl-6 border-l-2 border-muted">
                                     <FormField control={form.control} name={`items.${index}.diamondCharges`} render={({ field }) => (
-                                        <FormItem><FormLabel>Diamonds (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Diamonds (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} zeroAsEmpty {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                     <div className="md:col-span-2">
                                       <FormField control={form.control} name={`items.${index}.diamondDetails`} render={({ field }) => (
@@ -1597,7 +1599,11 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                     <FormField control={form.control} name="discountAmount" render={({ field }) => (
                        <FormItem>
                             <FormLabel className="text-xs">Discount (PKR)</FormLabel>
-                            <FormControl><AmountInput {...field} placeholder="0" /></FormControl>
+                            <FormControl><AmountInput maxDecimals={0} {...field} placeholder="0" /></FormControl>
+                            <RoundOffChips className="pt-1"
+                              payable={liveEstimate.subtotal - rupees(formValues.advanceInExchangeValue)}
+                              discount={liveEstimate.discount}
+                              onDiscountChange={(n) => form.setValue('discountAmount', n, { shouldDirty: true })} />
                             <FormDescription className="text-xs">
                               Carried onto the invoice when this order is finalised.
                             </FormDescription>
@@ -1609,7 +1615,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                     <FormField control={form.control} name="advancePayment" render={({ field }) => (
                        <FormItem>
                             <FormLabel className="text-xs">Advance paid</FormLabel>
-                            <FormControl><AmountInput {...field} /></FormControl><FormMessage />
+                            <FormControl><AmountInput maxDecimals={0} {...field} /></FormControl><FormMessage />
                         </FormItem>
                     )}/>
                     <FormField control={form.control} name="advanceMethod" render={({ field }) => (

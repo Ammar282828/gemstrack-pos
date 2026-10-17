@@ -4,7 +4,8 @@
  * Ads → New ad: from a phone, in the order a shop thinks of it —
  *
  *   1  What to promote   an Instagram post as it is, new photos (one, or a
- *                        carousel of up to ten), or a piece from the website
+ *                        carousel of up to ten), a piece from the website, a new
+ *                        video, a creator's post (partnership ad), or the catalogue
  *   2  What for          WhatsApp chats, Instagram messages, website visits,
  *                        profile visits, engagement, reach
  *   3  The words         (new photos) what it says, headline, link, button
@@ -29,7 +30,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { AmountInput } from '@/components/ui/amount-input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Rocket, Instagram, ImagePlus, Images, Globe, Loader2, Check, X, ArrowUp, ArrowDown, Eye, MessageCircle, MousePointerClick, UserRound, Heart, Radio, Search, CheckCircle2, AlertTriangle, Film, MessagesSquare, Rss, CalendarX, ShoppingBag } from 'lucide-react';
+import { Rocket, Instagram, ImagePlus, Images, Globe, Loader2, Check, X, ArrowUp, ArrowDown, Eye, MessageCircle, MousePointerClick, UserRound, Heart, Radio, Search, CheckCircle2, AlertTriangle, Film, Video, Handshake, LayoutGrid, MessagesSquare, Rss, CalendarX, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_META_ADS, STORE_LINKS, STORE_SITE_POSTS, STORE_AD_STUDIO } from '@/lib/store-config';
 import type { PixelState } from '@/lib/ads/pixel';
@@ -38,7 +39,7 @@ import { quietDaysBetween, hijriLabel, karachiDay } from '@/lib/ads/studio/calen
 import { BRAND } from '@/lib/ads/studio/brand';
 import { money } from '@/lib/ads/shape';
 import { defaultDraft, type AudienceDraft } from '@/lib/ads/targeting';
-import { GOALS, goalOf, goesToSite, isChannelLink, planProblems, planSummary, defaultName, type AdPlan, type GoalKey, type PlanPhoto } from '@/lib/ads/plan';
+import { GOALS, goalOf, goesToSite, isChannelLink, planProblems, planSummary, defaultName, BIDDING, type AdPlan, type Bidding, type GoalKey, type PlanPhoto } from '@/lib/ads/plan';
 import { api, useAdsStatus, NotReady, AccountAlerts, ErrorLine } from '../ads-kit';
 import { AudienceEditor } from '../audience-editor';
 
@@ -97,7 +98,7 @@ function NewAd() {
   const { status, error: statusError, loading: statusLoading, reload, ready } = useAdsStatus();
   const currency = status?.account?.currency ?? 'PKR';
 
-  const [kind, setKind] = useState<'post' | 'photos' | 'site'>('post');
+  const [kind, setKind] = useState<'post' | 'photos' | 'site' | 'video' | 'partner' | 'catalog'>('post');
   const [goal, setGoal] = useState<GoalKey>('whatsapp');
   const [post, setPost] = useState<Media | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -114,6 +115,15 @@ function NewAd() {
   const [start, setStart] = useState(localInput(Date.now() + 3_600_000));
   const [days, setDays] = useState<number | null>(7);
   const [launch, setLaunch] = useState<'paused' | 'live'>('paused');
+  // Advanced (Ads Manager's bid strategy and "run ads on a schedule"), folded away by default.
+  const [advanced, setAdvanced] = useState(false);
+  const [bidKind, setBidKind] = useState<Bidding['kind']>('lowest');
+  const [bidAmount, setBidAmount] = useState<number | undefined>(undefined);
+  const [roas, setRoas] = useState<number | null>(3);
+  const [hoursOn, setHoursOn] = useState(false);
+  const [hourDays, setHourDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [hourFrom, setHourFrom] = useState(10);
+  const [hourTo, setHourTo] = useState(23);
   const [name, setName] = useState('');
   const [nameTouched, setNameTouched] = useState(false);
   const [previews, setPreviews] = useState<{ format: string; src: string }[] | null>(null);
@@ -151,6 +161,75 @@ function NewAd() {
     finally { setMediaBusy(false); }
   }, []);
   useEffect(() => { if (ready && kind === 'post' && !media && !mediaBusy && !mediaError) loadMedia(); }, [ready, kind, media, mediaBusy, mediaError, loadMedia]);
+
+  // ── Source: a new video, sent to Meta in the pieces it asks for (any size passes the server) ──
+  const videoRef = useRef<HTMLInputElement>(null);
+  const [vid, setVid] = useState<{ name: string; local: string; phase: 'uploading' | 'processing' | 'ready' | 'error'; pct: number; videoId?: string; thumbHash?: string; thumb?: string | null; error?: string } | null>(null);
+  const uploadVideo = async (f: File | undefined) => {
+    if (!f) return;
+    if (!/^video\//.test(f.type) && !/\.(mp4|mov|m4v)$/i.test(f.name)) { toast({ title: 'That isn’t a video', variant: 'destructive' }); return; }
+    const local = URL.createObjectURL(f);
+    const fail = (e: unknown) => setVid(v => (v && v.local === local ? { ...v, phase: 'error', error: e instanceof Error ? e.message : String(e) } : v));
+    setVid({ name: f.name.replace(/\.[^.]+$/, ''), local, phase: 'uploading', pct: 0 });
+    try {
+      const s0 = await api<{ session: string; videoId: string; start: number; end: number }>('/api/ads/videos', { body: { phase: 'start', size: f.size } });
+      let { start, end } = s0;
+      while (start < end) {
+        const form = new FormData();
+        form.append('session', s0.session); form.append('start', String(start)); form.append('chunk', f.slice(start, end), 'chunk');
+        let next: { start: number; end: number } | null = null;
+        for (let attempt = 0; attempt < 3 && !next; attempt++) {
+          try { next = await api<{ start: number; end: number }>('/api/ads/videos', { form }); }
+          catch (e) { if (attempt === 2) throw e; await new Promise(r => setTimeout(r, 2000 * (attempt + 1))); }
+        }
+        ({ start, end } = next!);
+        setVid(v => (v && v.local === local ? { ...v, pct: Math.round((Math.min(start, f.size) / f.size) * 100) } : v));
+      }
+      await api('/api/ads/videos', { body: { phase: 'finish', session: s0.session, name: f.name.replace(/\.[^.]+$/, '') } });
+      setVid(v => (v && v.local === local ? { ...v, phase: 'processing', pct: 100, videoId: s0.videoId } : v));
+      for (let i = 0; i < 150; i++) {
+        await new Promise(r => setTimeout(r, 4000));
+        const st = await api<{ status: string; thumbHash: string | null; thumb: string | null; detail?: string }>(`/api/ads/videos?id=${s0.videoId}`);
+        if (st.status === 'ready' && st.thumbHash) { setVid(v => (v && v.local === local ? { ...v, phase: 'ready', thumbHash: st.thumbHash!, thumb: st.thumb } : v)); return; }
+        if (st.status === 'error') throw new Error(`Meta couldn’t process the video (${st.detail ?? 'error'}). Try exporting it as an MP4.`);
+      }
+      throw new Error('Meta is still processing the video. Leave this page open a little longer, or try again.');
+    } catch (e) { fail(e); }
+  };
+
+  // ── Source: a creator's post, by its partnership ad code ──
+  const [adCode, setAdCode] = useState('');
+  const [codeCheck, setCodeCheck] = useState<{ code: string; ok: boolean; mediaId: string | null; creator: string | null; permalink: string | null; thumb: string | null; why: string | null } | null>(null);
+  const [codeBusy, setCodeBusy] = useState(false);
+  const checkCode = async () => {
+    const code = adCode.trim();
+    if (!code) return;
+    setCodeBusy(true);
+    try { setCodeCheck({ code, ...(await api<Omit<NonNullable<typeof codeCheck>, 'code'>>(`/api/ads/partner?code=${encodeURIComponent(code)}`)) }); }
+    catch (e) { setCodeCheck({ code, ok: false, mediaId: null, creator: null, permalink: null, thumb: null, why: e instanceof Error ? e.message : String(e) }); }
+    finally { setCodeBusy(false); }
+  };
+
+  // ── Source: the catalogue (Advantage+ catalogue ads) ──
+  const [catalogs, setCatalogs] = useState<{ id: string; name: string; products: number | null }[] | null>(null);
+  const [catalogId, setCatalogId] = useState('');
+  const [sets, setSets] = useState<{ id: string; name: string; products: number | null }[] | null>(null);
+  const [setId, setSetId] = useState('');
+  const [catWho, setCatWho] = useState<'everyone' | 'viewers'>('viewers');
+  const [catError, setCatError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!ready || kind !== 'catalog' || catalogs || catError) return;
+    api<{ catalogs: { id: string; name: string; products: number | null }[] }>('/api/ads/catalog')
+      .then(d => { setCatalogs(d.catalogs); if (d.catalogs.length === 1) setCatalogId(d.catalogs[0].id); })
+      .catch(e => setCatError(e instanceof Error ? e.message : String(e)));
+  }, [ready, kind, catalogs, catError]);
+  useEffect(() => {
+    if (!catalogId) return;
+    setSets(null); setSetId('');
+    api<{ sets: { id: string; name: string; products: number | null }[] }>(`/api/ads/catalog?catalog=${catalogId}`)
+      .then(d => { setSets(d.sets); if (d.sets[0]) setSetId(d.sets[0].id); })
+      .catch(e => setCatError(e instanceof Error ? e.message : String(e)));
+  }, [catalogId]);
 
   // ── Source: new photos ──
   const fileRef = useRef<HTMLInputElement>(null);
@@ -223,7 +302,7 @@ function NewAd() {
         if (t.source.kind === 'post') {
           setKind('post');
           setPost({ id: t.source.mediaId, caption: t.source.caption ?? '', type: 'IMAGE', thumb: t.source.thumb ?? null, permalink: t.source.permalink ?? null, at: null, boostable: true, why: null });
-        } else {
+        } else if (t.source.kind === 'photos') {
           setKind('photos');
           setPhotos(t.source.photos.map((ph, i) => ({ key: `from${i}${ph.hash}`, hash: ph.hash, url: ph.url ?? null, local: ph.url ?? undefined, headline: ph.headline, link: ph.link })));
           if (t.source.vertical?.hash) setVertical(t.source.vertical);
@@ -270,9 +349,15 @@ function NewAd() {
   }, [pieces, pieceQ]);
 
   // ── The plan ──
-  const usingPost = kind === 'post';
-  const goals = GOALS.filter(g => (usingPost ? !g.photosOnly : !g.postOnly) && (g.key !== 'channel' || !!STORE_LINKS.waChannel) && (g.key !== 'sales' || !!(STORE_LINKS.shop || STORE_LINKS.website)));
-  useEffect(() => { if ((!usingPost && goalOf(goal).postOnly) || (usingPost && goalOf(goal).photosOnly)) setGoal('whatsapp'); }, [usingPost, goal]);
+  /** The post or the creator's post runs as it is: no words of the shop's own. */
+  const usingPost = kind === 'post' || kind === 'partner';
+  const goals = GOALS.filter(g => (usingPost ? !g.photosOnly : !g.postOnly)
+    && (kind !== 'video' || !g.photosOnly)
+    && (kind !== 'catalog' || g.key === 'sales')
+    && (kind !== 'partner' || (g.key !== 'profile' && g.key !== 'engagement'))
+    && (g.key !== 'channel' || !!STORE_LINKS.waChannel) && (g.key !== 'sales' || !!(STORE_LINKS.shop || STORE_LINKS.website)));
+  const goalKeys = goals.map(g => g.key).join();
+  useEffect(() => { if (goals.length && !goals.some(g => g.key === goal)) setGoal(goals[0].key); }, [goalKeys, goal]); // eslint-disable-line react-hooks/exhaustive-deps
   // The channel goal opens the shop's own channel.
   useEffect(() => { if (goal === 'channel' && !isChannelLink(link) && STORE_LINKS.waChannel) setLink(STORE_LINKS.waChannel); }, [goal]); // eslint-disable-line react-hooks/exhaustive-deps
   // Orders are taken where the checkout is: the online shop when the house has one (House of Mina's Shopify store).
@@ -290,16 +375,21 @@ function NewAd() {
   const endIso = days ? new Date((startLater ? Date.parse(start) : Date.now()) + days * 86_400_000).toISOString() : null;
   const readyPhotos = photos.filter(p => p.hash && !p.error);
   const plan: AdPlan = useMemo(() => {
-    const source: AdPlan['source'] = usingPost
+    const source: AdPlan['source'] = kind === 'post'
       ? { kind: 'post', mediaId: post?.id ?? '', permalink: post?.permalink ?? undefined, thumb: post?.thumb, caption: post?.caption }
+      : kind === 'video' ? { kind: 'video', videoId: vid?.videoId ?? '', thumbHash: vid?.phase === 'ready' ? vid.thumbHash ?? '' : '', thumb: vid?.thumb ?? null, name: vid?.name }
+      : kind === 'partner' ? { kind: 'partner', adCode: adCode.trim(), mediaId: codeCheck?.code === adCode.trim() ? codeCheck.mediaId ?? undefined : undefined, creator: codeCheck?.code === adCode.trim() ? codeCheck.creator ?? undefined : undefined }
+      : kind === 'catalog' ? { kind: 'catalog', catalogId, setId, setName: sets?.find(x => x.id === setId)?.name, who: catWho }
       : { kind: 'photos', photos: readyPhotos.map(({ hash, url, headline: h, link: l }) => ({ hash, url, headline: h, link: l })), vertical };
     const p: AdPlan = {
       goal, source, text, headline, link, button, audience,
       budget: { kind: budgetKind, amount: amount ?? 0, start: startIso, end: endIso },
       launch, name: '',
+      bidding: bidKind === 'min_roas' ? { kind: 'min_roas', roas: roas ?? 0 } : bidKind === 'lowest' ? { kind: 'lowest' } : { kind: bidKind, amount: bidAmount ?? 0 },
+      hours: hoursOn ? { days: hourDays, from: hourFrom * 60, to: hourTo * 60 } : null,
     };
     return { ...p, name: nameTouched && name.trim() ? name.trim() : defaultName(p) };
-  }, [usingPost, post, readyPhotos, vertical, goal, text, headline, link, button, audience, budgetKind, amount, startIso, endIso, launch, name, nameTouched]);
+  }, [kind, post, vid, adCode, codeCheck, catalogId, setId, sets, catWho, readyPhotos, vertical, goal, text, headline, link, button, audience, budgetKind, amount, startIso, endIso, launch, name, nameTouched, bidKind, bidAmount, roas, hoursOn, hourDays, hourFrom, hourTo]);
   // The days it would run through that the house keeps free of product ads (Taheri's Bohra calendar).
   const quiet = useMemo(() => {
     if (!STORE_AD_STUDIO || !BRAND.calendar) return [];
@@ -314,7 +404,7 @@ function NewAd() {
     currency, minDaily: status?.account?.minDailyBudget ?? null,
   };
   const problems = planProblems(plan, ctx);
-  const stillUploading = photos.some(p => p.uploading);
+  const stillUploading = photos.some(p => p.uploading) || (kind === 'video' && (vid?.phase === 'uploading' || vid?.phase === 'processing'));
 
   // The preview goes stale when the ad changes.
   const previewKey = JSON.stringify([plan.goal, plan.source, plan.text, plan.headline, plan.link, plan.button]);
@@ -339,7 +429,7 @@ function NewAd() {
     } finally { setSending(false); }
   };
   const again = () => {
-    setMade(null); setPost(null); setPhotos([]); setText(''); setHeadline(''); setPreviews(null); setName(''); setNameTouched(false); setSendError(null);
+    setMade(null); setPost(null); setPhotos([]); setVid(null); setAdCode(''); setCodeCheck(null); setText(''); setHeadline(''); setPreviews(null); setName(''); setNameTouched(false); setSendError(null);
     window.scrollTo({ top: 0 });
   };
 
@@ -365,7 +455,8 @@ function NewAd() {
 
           <Card n={1} title="What to promote">
             <div className="grid grid-cols-3 gap-1.5">
-              {([['post', 'A post', <Instagram key="i" className="h-4 w-4" />], ['photos', 'New photos', <ImagePlus key="p" className="h-4 w-4" />], ...(hasSite ? [['site', 'Website piece', <Globe key="g" className="h-4 w-4" />]] : [])] as [typeof kind, string, React.ReactNode][]).map(([k, label, icon]) => (
+              {([['post', 'A post', <Instagram key="i" className="h-4 w-4" />], ['photos', 'New photos', <ImagePlus key="p" className="h-4 w-4" />], ...(hasSite ? [['site', 'Website piece', <Globe key="g" className="h-4 w-4" />]] : []),
+                ['video', 'New video', <Video key="v" className="h-4 w-4" />], ['partner', 'A creator’s post', <Handshake key="h" className="h-4 w-4" />], ...(STORE_LINKS.shop || STORE_LINKS.website ? [['catalog', 'Catalogue', <LayoutGrid key="c" className="h-4 w-4" />]] : [])] as [typeof kind, string, React.ReactNode][]).map(([k, label, icon]) => (
                 <button key={k} type="button" onClick={() => setKind(k)} className={cn('flex flex-col items-center gap-1 rounded-lg border p-2.5 text-xs', kind === k ? 'border-primary bg-primary/10 text-foreground' : 'text-muted-foreground')}>{icon}{label}</button>
               ))}
             </div>
@@ -417,7 +508,84 @@ function NewAd() {
               </div>
             )}
 
-            {kind !== 'post' && (
+            {kind === 'video' && (
+              <div className="space-y-2">
+                <input ref={videoRef} type="file" accept="video/*,.mp4,.mov,.m4v" className="hidden" onChange={e => { uploadVideo(e.target.files?.[0]); e.target.value = ''; }} />
+                {vid && (
+                  <div className="flex items-center gap-2 rounded-lg border p-1.5">
+                    <video src={vid.local} muted playsInline className="h-20 w-14 rounded-md object-cover bg-muted shrink-0" />
+                    <div className="min-w-0 flex-1 text-xs">
+                      <p className="truncate font-medium">{vid.name}</p>
+                      {vid.phase === 'uploading' && <p className="text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Sending to Meta… {vid.pct}%</p>}
+                      {vid.phase === 'processing' && <p className="text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Meta is processing it (a minute or two)…</p>}
+                      {vid.phase === 'ready' && <p className="text-success flex items-center gap-1"><Check className="h-3 w-3" /> Ready, with Meta’s cover frame</p>}
+                      {vid.phase === 'error' && <p className="text-destructive">{vid.error}</p>}
+                    </div>
+                    {vid.thumb && <img src={vid.thumb} alt="Cover" className="h-14 w-14 rounded-md object-cover shrink-0" />}
+                    <button type="button" className="p-1.5 min-h-0 text-muted-foreground" onClick={() => setVid(null)} aria-label="Remove"><X className="h-4 w-4" /></button>
+                  </div>
+                )}
+                <Button variant="outline" className="w-full h-11" disabled={vid?.phase === 'uploading' || vid?.phase === 'processing'} onClick={() => videoRef.current?.click()}><Video className="h-4 w-4 mr-1.5" /> {vid ? 'A different video' : 'Choose a video'}</Button>
+                <p className="text-[11px] text-muted-foreground">An MP4 or MOV; vertical 9:16 suits stories and reels, 4:5 the feed. Keep this page open while it sends. Meta is told not to crop, filter or re-word it.</p>
+              </div>
+            )}
+
+            {kind === 'partner' && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">A creator’s post run as an ad under both names (Instagram’s partnership ads). The creator makes the code: on the post, ⋯ → Partnership label and ads → Get ad code, and sends it to you.</p>
+                <div className="flex gap-2">
+                  <Input value={adCode} onChange={e => setAdCode(e.target.value)} placeholder="Paste the ad code" className="h-11 text-base sm:text-sm font-mono" />
+                  <Button variant="outline" className="h-11 shrink-0" disabled={!adCode.trim() || codeBusy} onClick={checkCode}>{codeBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Check'}</Button>
+                </div>
+                {codeCheck && codeCheck.code === adCode.trim() && (
+                  <div className={cn('flex items-center gap-2 rounded-lg border p-2 text-xs', codeCheck.ok ? 'border-success/40' : 'border-warning/40')}>
+                    {codeCheck.thumb && <img src={codeCheck.thumb} alt="" className="h-14 w-14 rounded-md object-cover shrink-0" />}
+                    <span className="min-w-0">
+                      {codeCheck.ok ? <span className="text-success">Ready{codeCheck.creator ? ` — @${codeCheck.creator}’s post` : ''}.</span> : <span className="text-warning">{codeCheck.why}</span>}
+                      {codeCheck.permalink && <a className="block text-primary truncate" href={codeCheck.permalink} target="_blank" rel="noopener">See the post</a>}
+                    </span>
+                  </div>
+                )}
+                {goesToSite(goal) && (
+                  <>
+                    <Input value={link} onChange={e => setLink(e.target.value)} placeholder="https://… — the page the button opens" inputMode="url" className="h-10 text-base sm:text-sm" />
+                    <div className="flex flex-wrap gap-1.5">
+                      {BUTTONS.map(b => <button key={b.key} type="button" onClick={() => setButton(b.key)} className={cn('rounded-full border px-3 py-1.5 text-xs min-h-0', button === b.key ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground')}>{b.label}</button>)}
+                    </div>
+                  </>
+                )}
+                <p className="text-[11px] text-muted-foreground">The post runs as it is. The creator’s and the shop’s ad signals both count, which is why these usually cost less per sale.</p>
+              </div>
+            )}
+
+            {kind === 'catalog' && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Meta picks, for each person, the pieces from the website they’re most likely to buy and builds the ad from their photos, names and prices. The catalogue is the one Shopify keeps in sync.</p>
+                {catError && <ErrorLine error={catError} onRetry={() => { setCatError(null); setCatalogs(null); }} />}
+                {!catalogs && !catError && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reading the catalogues…</p>}
+                {catalogs && !catalogs.length && <p className="text-sm text-muted-foreground">The Meta business has no catalogue yet — connect one in Shopify’s Facebook &amp; Instagram app.</p>}
+                {catalogs && catalogs.length > 1 && (
+                  <select value={catalogId} onChange={e => setCatalogId(e.target.value)} className="h-11 w-full rounded-md border bg-background px-3 text-base sm:text-sm">
+                    <option value="">Choose the catalogue</option>
+                    {catalogs.map(c => <option key={c.id} value={c.id}>{c.name}{c.products !== null ? ` · ${c.products} pieces` : ''}</option>)}
+                  </select>
+                )}
+                {catalogId && (sets ? (
+                  <select value={setId} onChange={e => setSetId(e.target.value)} className="h-11 w-full rounded-md border bg-background px-3 text-base sm:text-sm" aria-label="Product set">
+                    {sets.map(x => <option key={x.id} value={x.id}>{x.name}{x.products !== null ? ` · ${x.products} pieces` : ''}</option>)}
+                  </select>
+                ) : <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reading its product sets…</p>)}
+                <div className="grid gap-1.5 sm:grid-cols-2">
+                  {([['viewers', 'Bring back lookers', 'People who viewed or carted a piece in the last 14 days and didn’t buy see those pieces.'], ['everyone', 'Find new buyers', 'Meta finds new people for the pieces; anyone who bought recently is left out.']] as const).map(([k, label, hint]) => (
+                    <button key={k} type="button" onClick={() => setCatWho(k)} className={cn('rounded-lg border p-2.5 text-left', catWho === k ? 'border-primary ring-1 ring-primary' : '')}>
+                      <span className="block text-sm font-medium">{label}</span><span className="block text-[11px] text-muted-foreground">{hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(kind === 'photos' || kind === 'site') && (
               <div className="space-y-2">
                 {photos.length > 0 && (
                   <ul className="space-y-1.5">
@@ -496,7 +664,7 @@ function NewAd() {
           {!usingPost && (
             <Card n={3} title="The words">
               <Textarea value={text} onChange={e => setText(e.target.value)} rows={5} placeholder="What the ad says — the piece, its weight, why it’s special." className="text-base sm:text-sm" />
-              <Input value={headline} onChange={e => setHeadline(e.target.value)} placeholder="Headline (short)" className="h-10 text-base sm:text-sm" />
+              <Input value={headline} onChange={e => setHeadline(e.target.value)} placeholder={kind === 'catalog' ? 'Headline (leave empty: each piece’s own name)' : 'Headline (short)'} className="h-10 text-base sm:text-sm" />
               {goal === 'channel' && (
                 <Input value={link} onChange={e => setLink(e.target.value)} placeholder="https://whatsapp.com/channel/…" inputMode="url" className="h-10 text-base sm:text-sm" />
               )}
@@ -545,6 +713,50 @@ function NewAd() {
                 <p className="text-muted-foreground">End it before, or start after. Ads → Studio → Guide has the calendar.</p>
               </div>
             )}
+            <div className="rounded-lg border">
+              <button type="button" onClick={() => setAdvanced(v => !v)} className="w-full text-left px-3 py-2 text-sm font-medium min-h-0">{advanced ? '▾' : '▸'} Advanced: bidding and hours{bidKind !== 'lowest' || hoursOn ? <span className="text-xs text-primary"> · set</span> : null}</button>
+              {advanced && (
+                <div className="px-3 pb-3 space-y-3">
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bid strategy</p>
+                    <div className="grid gap-1.5 sm:grid-cols-2">
+                      {BIDDING.filter(b => b.key !== 'min_roas' || goal === 'sales').map(b => (
+                        <button key={b.key} type="button" onClick={() => setBidKind(b.key)} className={cn('rounded-lg border p-2 text-left', bidKind === b.key ? 'border-primary ring-1 ring-primary' : '')}>
+                          <span className="block text-sm font-medium">{b.label}</span><span className="block text-[11px] text-muted-foreground">{b.hint}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {(bidKind === 'cost_cap' || bidKind === 'bid_cap') && (
+                      <div className="flex items-center gap-2">
+                        <AmountInput value={bidAmount} onValueChange={setBidAmount} className="h-10 tabular-nums max-w-[10rem]" aria-label={bidKind === 'cost_cap' ? 'Cost per result' : 'Highest bid'} />
+                        <span className="text-sm text-muted-foreground">{currency} {bidKind === 'cost_cap' ? 'per result' : 'per auction'}</span>
+                      </div>
+                    )}
+                    {bidKind === 'min_roas' && (
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={0.1} step={0.1} value={roas ?? ''} onChange={e => setRoas(e.target.value === '' ? null : Number(e.target.value))} className="h-10 max-w-[7rem] tabular-nums" aria-label="Minimum ROAS" />
+                        <span className="text-sm text-muted-foreground">× the spend in sales</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={hoursOn} onChange={e => { setHoursOn(e.target.checked); if (e.target.checked && budgetKind !== 'total') { setBudgetKind('total'); if (!days) setDays(7); } }} className="h-4 w-4" /> Run only on certain days and hours</label>
+                    {hoursOn && (
+                      <>
+                        <div className="flex flex-wrap gap-1">
+                          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => <button key={d} type="button" onClick={() => setHourDays(v => v.includes(i) ? v.filter(x => x !== i) : [...v, i])} className={cn('rounded-full border px-2.5 py-1 text-xs min-h-0', hourDays.includes(i) ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground')}>{d}</button>)}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          from <select value={hourFrom} onChange={e => setHourFrom(Number(e.target.value))} className="h-9 rounded-md border bg-background px-2">{Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{`${String(h).padStart(2, '0')}:00`}</option>)}</select>
+                          to <select value={hourTo} onChange={e => setHourTo(Number(e.target.value))} className="h-9 rounded-md border bg-background px-2">{Array.from({ length: 24 }, (_, h) => h + 1).map(h => <option key={h} value={h}>{h === 24 ? 'midnight' : `${String(h).padStart(2, '0')}:00`}</option>)}</select>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">In the ad account’s time zone. Meta allows set hours only with a total budget, so the budget switched to “In total”.</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             {amount ? <p className="text-xs text-muted-foreground">{budgetKind === 'daily'
               ? days ? <>At most about <b className="text-foreground">{money(amount * days, currency)}</b> over {days} days (Meta may spend a little more on a good day and less on others).</> : <>About <b className="text-foreground">{money(amount * 30, currency)}</b> a month until it’s paused.</>
               : <>About <b className="text-foreground">{money(amount / (days || 1), currency)}</b> a day over {days} days.</>}</p> : null}
@@ -552,7 +764,7 @@ function NewAd() {
 
           <Card n={usingPost ? 5 : 6} title="Preview">
             {!previews ? (
-              <Button variant="outline" className="w-full h-11" disabled={previewBusy || (usingPost ? !post : !readyPhotos.length)} onClick={preview}>{previewBusy ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Eye className="h-4 w-4 mr-1.5" />} See it as Instagram will show it</Button>
+              <Button variant="outline" className="w-full h-11" disabled={previewBusy || (kind === 'post' ? !post : kind === 'partner' ? !adCode.trim() : kind === 'video' ? vid?.phase !== 'ready' : kind === 'catalog' ? !setId : !readyPhotos.length)} onClick={preview}>{previewBusy ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Eye className="h-4 w-4 mr-1.5" />} See it as Instagram will show it</Button>
             ) : previews.length ? (
               <>
                 <div className="inline-flex rounded-full border p-0.5 text-xs">

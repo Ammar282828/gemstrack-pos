@@ -26,27 +26,39 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { fingersOn, useNoPageZoom, wheelPx } from '@/hooks/use-no-page-zoom';
 import {
   Undo2, Redo2, Plus, LayoutTemplate, Type, ArrowUpRight, Minus, Circle, Square, Link2, Image as ImageIcon, Trash2, Save, BookmarkCheck,
   Maximize2, Minimize2, Lock, Copy, MoreHorizontal, ArrowLeft, Download, ZoomIn, ZoomOut, Shapes, PaintBucket, Layers, Palette as PaletteIcon, Upload, Clipboard, Scissors,
   ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Group, Ungroup, Unlock, Paintbrush, Pencil, ArrowRightLeft, Crop, Check, ChevronDown, ChevronUp,
+  Ruler, History as HistoryIcon, Eye, Keyboard as KeyboardIcon, LayoutGrid,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Palette } from '@/lib/social/palettes';
 import type { Frame } from '@/lib/social/story';
 import {
-  carryLayers, fontCss, frameOf, hitTest, layerBox, layoutText, loadUpload, moveLayer, newCornerMark, newImageLayer, newLayerId, newLinkPill, newMonogram, newShape, newText,
-  newUploadLayer, newWordmark, imageOf, panInFrame, placementOf, reflow, renderDoc, renderDocTo, scaleLayer, uploadedImage, withPlacement,
-  type Assets, type Bind, type Box, type Fields, type ImageLayer, type Layer, type ShapeLayer, type StoryDoc, type TextLayer,
+  asButton, carryLayers, fontCss, frameOf, hitTest, layerBox, layoutText, loadUpload, moveLayer, newCornerMark, newImageLayer, newLayerId, newLinkPill, newMonogram, newShape, newText,
+  newUploadLayer, newWordmark, imageOf, panInFrame, placementOf, reflow, renderDoc, renderDocTo, scaleLayer, shiftRuns, uploadedImage, withPlacement,
+  type Assets, type Bind, type Box, type Fields, type FontKey, type ImageLayer, type Layer, type ShapeLayer, type StoryDoc, type TextLayer,
 } from '@/lib/social/editor';
-import { alignDeltas, distributeDeltas, intersects, snapBox, snapLines, unionBox, type AlignHow } from '@/lib/social/design';
+import { dragShadeEnd, freshPlacement, panPhoto, shadeEnds, zoomPhotoAt } from '@/lib/social/bg-gesture';
+import { alignDeltas, distributeDeltas, intersects, snapLines, snapMove, unionBox, type AlignHow, type SpacingGuide } from '@/lib/social/design';
+import { cycleLayer, guidesOf, nextZoom, withGrid, withGuides, type Guides } from '@/lib/social/guides';
 import {
   BackgroundInspector, BrandPanel, ColourPanel, ContextToolbar, EffectsPanel, ElementsPanel, FontPanel, FramePanel, LayerInspector, LayersPanel, MobileToolbar,
-  PhotoEditPanel, PhotosPanel, PositionPanel, SelectionSummary, TemplatesPanel, TextPanel, TransparencyPanel,
+  PhotoEditPanel, PhotosPanel, SelectionSummary, TemplatesPanel, TextPanel, TransparencyPanel,
 } from './editor-panels';
+import { PositionPanel } from './panels/position';
+import { FxPanel } from './panels/blend-fx';
+import { RichTextPanel } from './panels/text-runs';
+import { GuidesPanel, StageGuides, DEFAULT_VIEW, readView, writeView, type ViewOpts } from './panels/guides';
+import { HistoryPanel } from './panels/history';
+import { ExportDialog, type ExportPage } from './panels/export';
+import { ShortcutsDialog } from './panels/shortcuts';
+import { withoutAdjust } from './panels/adjust';
 
 // ── The document and its history ───────────────────────────────────────────
 
@@ -80,7 +92,16 @@ export function useStoryDoc(initial: StoryDoc) {
   const undo = useCallback(() => setDocState(cur => { const p = past.current.pop(); if (!p) return cur; future.current.push(cur); bump(n => n + 1); return p; }), []);
   const redo = useCallback(() => setDocState(cur => { const f = future.current.pop(); if (!f) return cur; past.current.push(cur); bump(n => n + 1); return f; }), []);
   const reset = useCallback((d: StoryDoc) => { past.current = []; future.current = []; setDocState(d); bump(n => n + 1); }, []);
-  return { doc, change, checkpoint, undo, redo, reset, canUndo: past.current.length > 0, canRedo: future.current.length > 0 };
+  /** Step through the history: negative goes back that many steps, positive forward (the History panel). */
+  const goto = useCallback((steps: number) => setDocState(cur => {
+    let c = cur;
+    for (let i = 0; i < -steps && past.current.length; i++) { future.current.push(c); c = past.current.pop()!; }
+    for (let i = 0; i < steps && future.current.length; i++) { past.current.push(c); c = future.current.pop()!; }
+    last.current = null;
+    bump(n => n + 1);
+    return c;
+  }), []);
+  return { doc, change, checkpoint, undo, redo, reset, goto, past: past.current, future: future.current, canUndo: past.current.length > 0, canRedo: future.current.length > 0 };
 }
 export type StoryDocApi = ReturnType<typeof useStoryDoc>;
 
@@ -97,10 +118,11 @@ const writeTemplates = (square: boolean, t: Template[]) => { try { localStorage.
 
 let clipboard: Layer[] = [];
 let styleClipboard: { kind: Layer['kind']; style: Partial<Layer> } | null = null;
-const TEXT_STYLE_KEYS = ['font', 'size', 'color', 'spacing', 'lineHeight', 'upper', 'shadow', 'box', 'effect', 'underline', 'autoColor', 'curve', 'opacity'] as const;
-const SHAPE_STYLE_KEYS = ['color', 'stroke', 'fill', 'fill2', 'dash', 'radius', 'opacity'] as const;
-const IMAGE_STYLE_KEYS = ['radius', 'border', 'shadow', 'adjust', 'mask', 'opacity', 'shade'] as const;
-const styleKeys = (k: Layer['kind']): readonly string[] => k === 'text' ? TEXT_STYLE_KEYS : k === 'image' ? IMAGE_STYLE_KEYS : k === 'wordmark' ? ['color', 'autoColor', 'opacity'] : SHAPE_STYLE_KEYS;
+const TEXT_STYLE_KEYS = ['font', 'size', 'color', 'spacing', 'lineHeight', 'upper', 'shadow', 'box', 'effect', 'underline', 'autoColor', 'curve', 'opacity', 'blend', 'fillGradient', 'list'] as const;
+const SHAPE_STYLE_KEYS = ['color', 'stroke', 'fill', 'fill2', 'fillGradient', 'dash', 'radius', 'opacity', 'blend', 'layerFx'] as const;
+const IMAGE_STYLE_KEYS = ['radius', 'border', 'shadow', 'adjust', 'mask', 'opacity', 'shade', 'blend', 'layerFx'] as const;
+const QR_STYLE_KEYS = ['fg', 'bg', 'quiet', 'opacity', 'blend', 'layerFx'] as const;
+const styleKeys = (k: Layer['kind']): readonly string[] => k === 'text' ? TEXT_STYLE_KEYS : k === 'image' ? IMAGE_STYLE_KEYS : k === 'qr' ? QR_STYLE_KEYS : k === 'wordmark' ? ['color', 'autoColor', 'opacity', 'blend', 'layerFx'] : SHAPE_STYLE_KEYS;
 
 /** Images uploaded this visit, to add again from the Photos panel. */
 export const sessionUploads: string[] = [];
@@ -170,12 +192,18 @@ export interface DesignerExtras {
   actions?: React.ReactNode;
   closeLabel?: string;
   hint?: string;
-  startPanel?: SidePanel;
+  /** The panel open at the start; null opens none (a host that moves between designs keeps the one last open). */
+  startPanel?: SidePanel | null;
+  /** Told when the open panel changes. */
+  onPanel?: (p: SidePanel | null) => void;
+  /** A row under the page (the board's designs, to move between them without leaving the designer). */
+  strip?: React.ReactNode;
 }
 
 // ── The editor's state and actions ─────────────────────────────────────────
 
-export type SidePanel = 'templates' | 'elements' | 'text' | 'photos' | 'brand' | 'layers' | 'background' | 'edit' | 'effects' | 'position' | 'photo' | 'font' | 'colour' | 'transparency' | 'frame' | `x:${string}`;
+export type SidePanel = 'templates' | 'elements' | 'text' | 'photos' | 'brand' | 'layers' | 'background' | 'edit' | 'effects' | 'position' | 'photo' | 'font' | 'colour' | 'transparency' | 'frame'
+  | 'guides' | 'history' | 'rich' | `x:${string}`;
 
 export function useEditor(p: StoryEditorProps) {
   const { toast } = useToast();
@@ -189,10 +217,19 @@ export function useEditor(p: StoryEditorProps) {
   /** The picture whose photo is being moved inside its frame (double-click it, or the frame button). */
   const [cropping, setCropping] = useState<string | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [panel, setPanel] = useState<SidePanel | null>(p.extras?.startPanel ?? 'templates');
+  const [panel, setPanel] = useState<SidePanel | null>(p.extras?.startPanel !== undefined ? p.extras.startPanel : 'templates');
   // Bumped when a font or an uploaded image finishes loading, so the canvas redraws.
   const [ver, setVer] = useState(0);
   const tick = useCallback(() => setVer(n => n + 1), []);
+  // Which of the helper views are on (rulers, margins, safe zones), kept on this device; the grid and guides are the document's.
+  const [viewOpts, setViewOptsState] = useState<ViewOpts>(DEFAULT_VIEW);
+  useEffect(() => { setViewOptsState(readView()); }, []);
+  const setViewOpts = useCallback((f: (o: ViewOpts) => ViewOpts) => setViewOptsState(o => { const n = f(o); writeView(n); return n; }), []);
+  // Holding "compare" shows the photo as it was before its adjustments.
+  const [compare, setCompare] = useState(false);
+  // The words picked inside a text layer (on the canvas while typing, or in the rich-text panel), kept after the box loses focus.
+  const [textSel, setTextSel] = useState<{ id: string; from: number; to: number } | null>(null);
+  const [help, setHelp] = useState(false);
 
   useEffect(() => { setTemplates(readTemplates(!!square)); }, [square]);
 
@@ -208,8 +245,11 @@ export function useEditor(p: StoryEditorProps) {
     for (const l of doc.layers) {
       if (l.kind === 'image' && l.src && !uploadedImage(l.src)) loadUpload(l.src).then(() => alive && tick()).catch(() => undefined);
       if (l.kind === 'text') {
-        const css = fontCss(l.font, 40, assets.fonts);
-        if (!document.fonts.check(css)) document.fonts.load(css).then(() => alive && tick()).catch(() => undefined);
+        // The layer's face, and the faces of any styled words in it (rich text).
+        for (const f of new Set([l.font, ...(l.runs ?? []).map(r => r.font).filter((x): x is FontKey => !!x)])) {
+          const css = fontCss(f, 40, assets.fonts);
+          if (!document.fonts.check(css)) document.fonts.load(css).then(() => alive && tick()).catch(() => undefined);
+        }
       }
     }
     return () => { alive = false; };
@@ -260,6 +300,8 @@ export function useEditor(p: StoryEditorProps) {
     return src.map(l => {
       let c = { ...moveLayer(l, offset, offset), id: newLayerId(l.kind), locked: false } as Layer;
       if (c.group) { if (!groups.has(c.group)) groups.set(c.group, newLayerId('grp')); c = { ...c, group: groups.get(c.group) }; }
+      // A copy is a new text: not linked to the other sizes (lib/ads/studio/board-links.ts) as its original is.
+      if (c.kind === 'text' && (c.link || c.unlinked)) { const { link: _l, unlinked: _u, ...rest } = c; c = rest; }
       if (c.kind === 'text' && c.bind) {
         const b = c.bind;
         if (doc.layers.some(x => x.kind === 'text' && x.bind === b)) c = { ...c, bind: undefined, text: fields[b] };
@@ -334,6 +376,33 @@ export function useEditor(p: StoryEditorProps) {
     moveBy(new Map(ls.map((l, i) => [l.id, d[i]])));
   };
   const nudge = (dx: number, dy: number) => moveBy(new Map(sel.map(id => [id, { dx, dy }])), 'nudge');
+  /**
+   * New words for a text layer (typed on the canvas or in its box). Styled words (rich text) are indexed by position,
+   * so they are moved along by what was inserted or removed — for every layer showing the same field too.
+   */
+  const setWords = (l: TextLayer, value: string) => {
+    const old = l.bind ? fields[l.bind] : l.text;
+    if (old === value) return;
+    let a = 0;
+    const m = Math.min(old.length, value.length);
+    while (a < m && old[a] === value[a]) a++;
+    let b = 0;
+    while (b < m - a && old[old.length - 1 - b] === value[value.length - 1 - b]) b++;
+    const removed = old.length - a - b, added = value.length - a - b;
+    if (l.bind) {
+      const bind = l.bind;
+      onField(bind, value);
+      if (doc.layers.some(x => x.kind === 'text' && x.bind === bind && x.runs?.length)) {
+        change(d => ({ ...d, layers: d.layers.map(x => x.kind === 'text' && x.bind === bind && x.runs?.length ? { ...x, runs: shiftRuns(x.runs, a, removed, added) } : x) }), { key: `words:${bind}` });
+      }
+    } else {
+      update(l.id, x => (x.kind === 'text' ? { ...x, text: value, ...(x.runs?.length ? { runs: shiftRuns(x.runs, a, removed, added) } : {}) } : x), 'text');
+    }
+  };
+  const guides = useMemo(() => guidesOf(doc.meta, F), [doc.meta, F.w, F.h]); // eslint-disable-line react-hooks/exhaustive-deps
+  const setGuides = (g: Guides) => change(d => ({ ...d, meta: withGuides(d.meta, g) }));
+  const setGrid = (n: number) => change(d => ({ ...d, meta: withGrid(d.meta, n) }));
+  const margin = square ? 45 : 96;
   const group = () => { if (sel.length < 2) return; const g = newLayerId('grp'); updateSel(l => ({ ...l, group: g })); };
   const ungroup = () => updateSel(l => ({ ...l, group: undefined }));
   const toggleLock = () => { const lock = !selLayers.every(l => l.locked); updateSel(l => ({ ...l, locked: lock })); };
@@ -393,10 +462,24 @@ export function useEditor(p: StoryEditorProps) {
     const control = el.tagName === 'BUTTON' || (el.hasAttribute?.('role') && el.tagName !== 'CANVAS');
     return control && (key === 'Enter' || key === ' ' || key === 'Escape');
   };
-  const onKey = (e: React.KeyboardEvent | KeyboardEvent) => {
+  const onKey = (e: React.KeyboardEvent | KeyboardEvent, designer = false) => {
     if (e.defaultPrevented || ownKeys(e.target, e.key)) return;
     const mod = e.metaKey || e.ctrlKey, k = e.key.toLowerCase();
     const stop = () => e.preventDefault();
+    // ⌘⌥C / ⌘⌥V copy and paste a style. By key code: on a Mac ⌥C types "ç".
+    if (mod && e.altKey && !e.shiftKey && e.code === 'KeyC') { stop(); copyStyle(); return; }
+    if (mod && e.altKey && !e.shiftKey && e.code === 'KeyV') { stop(); pasteStyle(); return; }
+    if (e.key === '?' && !mod) { stop(); setHelp(h => !h); return; }
+    // Tab walks the layers (when the page, not a button or field, has the keyboard).
+    if (e.key === 'Tab' && !mod && !e.altKey) {
+      const t = e.target as HTMLElement | null;
+      // The small editor lets Tab leave once nothing is selected, so the keyboard is never trapped in it.
+      if ((!t || t === document.body || t.tagName === 'CANVAS') && (designer || sel.length)) {
+        const next = cycleLayer(view.layers, sel, e.shiftKey);
+        if (next) { stop(); select([next]); }
+        return;
+      }
+    }
     if (mod && k === 'z') { stop(); if (e.shiftKey) api.redo(); else api.undo(); return; }
     if (mod && k === 'y') { stop(); api.redo(); return; }
     if (mod && k === 'a') { stop(); select(view.layers.filter(l => !l.hidden).map(l => l.id)); return; }
@@ -427,13 +510,14 @@ export function useEditor(p: StoryEditorProps) {
     if (files.length) { e.preventDefault(); uploadFiles(files); } else paste();
   };
 
-  const layerName = (l: Layer) => l.name || (l.kind === 'text' ? (l.bind ? l.bind[0].toUpperCase() + l.bind.slice(1) : `“${(l.text || 'Text').slice(0, 18)}”`) : l.kind === 'wordmark' ? (l.mark === 't' ? 't mark' : 'Wordmark') : l.kind === 'image' ? (l.src ? 'Upload' : l.mask ? 'Photo frame' : 'Photo inset') : l.kind === 'shape' ? (l.shape ? l.shape[0].toUpperCase() + l.shape.slice(1) : 'Shape') : l.kind[0].toUpperCase() + l.kind.slice(1));
+  const layerName = (l: Layer) => l.name || (l.kind === 'text' ? (l.bind ? l.bind[0].toUpperCase() + l.bind.slice(1) : `“${(l.text || 'Text').slice(0, 18)}”`) : l.kind === 'wordmark' ? (l.mark === 't' ? 't mark' : 'Wordmark') : l.kind === 'qr' ? 'QR code' : l.kind === 'image' ? (l.src ? 'Upload' : l.mask ? 'Photo frame' : 'Photo inset') : l.kind === 'shape' ? (l.shape ? l.shape[0].toUpperCase() + l.shape.slice(1) : 'Shape') : l.kind[0].toUpperCase() + l.kind.slice(1));
 
   return {
     p, api, doc, view, F, fields, assets, square: !!square, onField, ver,
     sel, bgSel, one, selLayers, editing, setEditing, cropping, setCropping, panel, setPanel, grouped,
     select, selectBg, clear, withGroups, boxOf, update, updateSel, add, remove, duplicate, copy, cut, paste, copyStyle, pasteStyle, hasStyle: () => !!styleClipboard, hasClip: () => clipboard.length > 0, sendToOther,
     reorder, align, distribute, nudge, group, ungroup, toggleLock, change,
+    tick, viewOpts, setViewOpts, compare, setCompare, textSel, setTextSel, help, setHelp, setWords, guides, setGuides, setGrid, margin,
     templates, saveTemplate, useTemplate, templateDoc, dropTemplate, preset,
     uploadFiles, download, onKey, onPasteEvent, layerName,
   };
@@ -443,14 +527,15 @@ export type Editor = ReturnType<typeof useEditor>;
 // ── The canvas and everything drawn over it ────────────────────────────────
 
 type Drag = { changed?: boolean } & (
-  | { mode: 'move'; ids: string[]; sx: number; sy: number; orig: Layer[]; box0: Box; before: StoryDoc; lines: ReturnType<typeof snapLines> }
+  | { mode: 'move'; ids: string[]; sx: number; sy: number; orig: Layer[]; box0: Box; before: StoryDoc; lines: ReturnType<typeof snapLines>; others: Box[] }
   | { mode: 'photo'; sx: number; sy: number; fx: number; fy: number; before: StoryDoc }
   | { mode: 'inner'; id: string; sx: number; sy: number; fx: number; fy: number; before: StoryDoc }
   | { mode: 'resize'; id: string; cx: number; cy: number; d0: number; orig: Layer; before: StoryDoc }
   | { mode: 'side'; id: string; side: 'l' | 'r' | 't' | 'b'; sx: number; sy: number; orig: Layer; box0: Box; before: StoryDoc }
   | { mode: 'end'; id: string; end: 0 | 1; orig: ShapeLayer; before: StoryDoc }
   | { mode: 'rotate'; id: string; cx: number; cy: number; orig: Layer; before: StoryDoc }
-  | { mode: 'pinch'; id: string | 'bg'; d0: number; a0: number; orig: Layer | null; zoom0: number; before: StoryDoc }
+  | { mode: 'pinch'; id: string | 'bg'; d0: number; a0: number; orig: Layer | null; zoom0: number; before: StoryDoc; pl0?: ReturnType<typeof placementOf>; mx?: number; my?: number }
+  | { mode: 'shade'; end: 'start' | 'end'; before: StoryDoc }
   | { mode: 'marquee'; sx: number; sy: number; add: boolean; base: string[] }
 );
 
@@ -472,6 +557,8 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.25);
   const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
+  /** The equal gaps a moving layer is matching, drawn with their distance. */
+  const [spacing, setSpacing] = useState<SpacingGuide[]>([]);
   const [marquee, setMarquee] = useState<Box | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -491,9 +578,14 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
-    const shown = ed.editing ? { ...view, layers: view.layers.map(l => l.id === ed.editing ? { ...l, hidden: true } : l) } : view;
+    const base = ed.compare ? withoutAdjust(view, ed.sel) : view;
+    // A text with a background (a button) keeps it while its words are typed: only the words go.
+    const typing = (l: Layer): Layer => l.kind === 'text' && l.box
+      ? { ...l, color: 'rgba(0,0,0,0)', fillGradient: null, effect: null, shadow: false, layerFx: undefined, runs: l.runs?.map(r => ({ ...r, color: 'rgba(0,0,0,0)', gradient: undefined })) }
+      : { ...l, hidden: true };
+    const shown = ed.editing ? { ...base, layers: base.layers.map(l => l.id === ed.editing ? typing(l) : l) } : base;
     renderDoc(c.getContext('2d')!, shown, fields, assets, lettered ? { background: lettered, hideBound: true } : {});
-  }, [view, fields, assets, lettered, ed.editing, ed.ver]);
+  }, [view, fields, assets, lettered, ed.editing, ed.ver, ed.compare, ed.sel]);
 
   // Story pixels → CSS pixels, kept current as the page resizes.
   useEffect(() => {
@@ -506,13 +598,15 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
 
   useEffect(() => () => { if (frame.current) cancelAnimationFrame(frame.current); if (press.current) clearTimeout(press.current); }, []);
 
+  /** The background photo's size, when the design has one. */
+  const bgPhoto = () => { const img = doc.bg.photoId ? assets.photos[doc.bg.photoId] : null; return img && img.naturalWidth ? { w: img.naturalWidth, h: img.naturalHeight } : null; };
   const toStory = (e: { clientX: number; clientY: number }) => {
     const r = canvasRef.current!.getBoundingClientRect();
     return { x: (e.clientX - r.left) / r.width * F.w, y: (e.clientY - r.top) / r.height * F.h };
   };
   const one = ed.one;
   const box = one ? ed.boxOf(one) : null;
-  const margin = ed.square ? 45 : 96;
+  const margin = ed.margin;
   const live = (fn: (d: StoryDoc) => StoryDoc) => { if (drag.current) drag.current.changed = true; change(fn, { live: true }); };
   const openMenuAt = (clientX: number, clientY: number) => {
     const r = wrapRef.current!.getBoundingClientRect();
@@ -538,7 +632,8 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
         down.current = null;
         return;
       }
-      drag.current = { mode: 'pinch', id: target, d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, a0: Math.atan2(b.y - a.y, b.x - a.x), orig: target === 'bg' ? null : one, zoom0: placement.zoom, before: doc };
+      const mid = toStory({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 });
+      drag.current = { mode: 'pinch', id: target, d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, a0: Math.atan2(b.y - a.y, b.x - a.x), orig: target === 'bg' ? null : one, zoom0: placement.zoom, before: doc, pl0: placement, mx: mid.x, my: mid.y };
       down.current = null;
       return;
     }
@@ -582,8 +677,12 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
       const movers = view.layers.filter(l => next.includes(l.id) && !l.locked);
       if (!movers.length) return;
       const others = view.layers.filter(l => !next.includes(l.id) && !l.hidden).map(ed.boxOf);
-      drag.current = { mode: 'move', ids: movers.map(l => l.id), sx: pt.x, sy: pt.y, orig: movers, box0: unionBox(movers.map(ed.boxOf)), before: doc, lines: snapLines(F, margin, others) };
-    } else if (!touch && !ed.bgSel) {
+      drag.current = {
+        mode: 'move', ids: movers.map(l => l.id), sx: pt.x, sy: pt.y, orig: movers, box0: unionBox(movers.map(ed.boxOf)), before: doc,
+        lines: snapLines(F, margin, others, { grid: doc.meta?.grid, guides: doc.meta?.guides }), others,
+      };
+    } else if (!touch && (e.shiftKey || !bgPhoto())) {
+      // Shift+drag (or a design with no photo behind) draws a selection box; a plain drag moves the photo.
       drag.current = { mode: 'marquee', sx: pt.x, sy: pt.y, add: e.shiftKey, base: ed.sel };
     } else {
       ed.selectBg();
@@ -604,7 +703,13 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
         const o = d.orig, iz = Math.round(Math.min(4, Math.max(1, d.zoom0 * k)) * 100) / 100;
         setHud(`${Math.round(iz * 100)}%`);
         live(doc0 => ({ ...doc0, layers: doc0.layers.map(l => l.id === o.id ? { ...o, iz, ...panInFrame({ ...o, iz }, imageOf(o, assets), o.fx ?? 0.5, o.fy ?? 0.5, 0, 0) } as Layer : l) }));
-      } else if (d.id === 'bg' || !d.orig) live(doc0 => withPlacement(doc0, { ...placementOf(doc0), zoom: Math.min(3, Math.max(1, d.zoom0 * k)) }));
+      } else if (d.id === 'bg' || !d.orig) {
+        const img = bgPhoto();
+        if (!img || !d.pl0) return;
+        const next = zoomPhotoAt(img, F, d.pl0, d.zoom0 * k, d.mx ?? F.w / 2, d.my ?? F.h / 2);
+        setHud(`${Math.round(next.zoom * 100)}%`);
+        live(doc0 => withPlacement(doc0, next));
+      }
       else {
         const o = d.orig;
         const turn = ((Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x) - d.a0) * 180) / Math.PI;
@@ -617,11 +722,12 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
     const pt = toStory(e);
     if (d.mode === 'move') {
       const dx = pt.x - d.sx, dy = pt.y - d.sy;
-      const s = snapBox({ ...d.box0, x: d.box0.x + dx, y: d.box0.y + dy }, d.lines, 7 / scale);
+      const s = snapMove({ ...d.box0, x: d.box0.x + dx, y: d.box0.y + dy }, d.lines, d.others, 7 / scale);
       setGuides(g => {
         if ((s.v !== null && g.v === null) || (s.h !== null && g.h === null)) navigator.vibrate?.(5);
         return g.v === s.v && g.h === s.h ? g : { v: s.v, h: s.h };
       });
+      setSpacing(sp => (JSON.stringify(sp) === JSON.stringify(s.spacing) ? sp : s.spacing));
       const moved = new Map(d.orig.map(o => [o.id, moveLayer(o, dx + s.dx, dy + s.dy)]));
       live(doc0 => ({ ...doc0, layers: doc0.layers.map(l => moved.get(l.id) ?? l) }));
     } else if (d.mode === 'resize') {
@@ -637,7 +743,18 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
       const along = mx * cos + my * sin, across = -mx * sin + my * cos;
       const o = d.orig;
       let next: Layer = o;
-      if (o.kind === 'text') {
+      if (o.kind === 'text' && o.box?.w) {
+        // A button: its sides size the pill (the words stay one line in its middle).
+        const grow = d.side === 'r' ? along : d.side === 'l' ? -along : 0;
+        const growH = d.side === 'b' ? across : d.side === 't' ? -across : 0;
+        const bw = Math.max(40, Math.round(d.box0.w + grow)), bh = Math.max(24, Math.round(d.box0.h + growH));
+        // The pill's anchor (x) stays on the side not dragged: its left edge, middle or right edge by align.
+        const horiz = d.side === 'l' || d.side === 'r';
+        const sx = !horiz ? 0 : o.align === 'center' ? along / 2 : (o.align === 'left') === (d.side === 'l') ? along : 0;
+        const sy = d.side === 'b' ? across / 2 : d.side === 't' ? across / 2 : 0;
+        next = { ...o, box: { ...o.box, w: bw, h: bh, radius: Math.min(o.box.radius, Math.round(Math.min(bw, bh) / 2)) }, x: Math.round(o.x + sx * cos - sy * sin), y: Math.round(o.y + sx * sin + sy * cos), flow: undefined };
+        setHud(`${bw} × ${bh}`);
+      } else if (o.kind === 'text') {
         const pad = o.box?.pad ?? 0;
         const grow = d.side === 'r' ? along : -along;
         const width = Math.max(60, Math.round(d.box0.w - pad * 2 + grow));
@@ -671,16 +788,12 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
       const next = panInFrame(o, imageOf(o, assets), d.fx, d.fy, pt.x - d.sx, pt.y - d.sy);
       live(doc0 => ({ ...doc0, layers: doc0.layers.map(l => l.id === d.id ? { ...l, ...next } as Layer : l) }));
     } else if (d.mode === 'photo') {
-      const photo = doc.bg.photoId ? assets.photos[doc.bg.photoId] : null;
-      if (!photo) return;
-      const pl = placementOf(doc);
-      const iw = photo.naturalWidth, ih = photo.naturalHeight;
-      const sc = (pl.mode === 'fill' ? Math.max(F.w / iw, F.h / ih) : Math.min(F.w / iw, F.h / ih)) * pl.zoom;
-      const spareX = Math.abs(iw * sc - F.w) || 1, spareY = Math.abs(ih * sc - F.h) || 1;
+      const img = bgPhoto();
+      if (!img) return;
       const k = F.w / canvasRef.current!.getBoundingClientRect().width;
-      const dirX = iw * sc > F.w ? -1 : 1, dirY = ih * sc > F.h ? -1 : 1;
-      const cl = (v: number) => Math.min(1, Math.max(0, v));
-      live(doc0 => withPlacement(doc0, { ...pl, focusX: cl(d.fx + dirX * (e.clientX - d.sx) * k / spareX), focusY: cl(d.fy + dirY * (e.clientY - d.sy) * k / spareY) }));
+      live(doc0 => withPlacement(doc0, panPhoto(img, F, placementOf(doc0), { focusX: d.fx, focusY: d.fy }, (e.clientX - d.sx) * k, (e.clientY - d.sy) * k)));
+    } else if (d.mode === 'shade') {
+      live(doc0 => doc0.bg.shade ? { ...doc0, bg: { ...doc0.bg, shade: dragShadeEnd(doc0.bg.shade, F, d.end, pt.x, pt.y) } } : doc0);
     } else if (d.mode === 'marquee') {
       setMarquee({ x: Math.min(d.sx, pt.x), y: Math.min(d.sy, pt.y), w: Math.abs(pt.x - d.sx), h: Math.abs(pt.y - d.sy) });
     }
@@ -732,6 +845,24 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
     window.addEventListener('keydown', onKey, true);
     return () => { el.removeEventListener('wheel', onWheel); window.removeEventListener('keydown', onKey, true); };
   }, [ed.cropping]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Scrolling over the background photo zooms it about the pointer — when it is selected, or nothing is and the pointer
+  // is over no layer. Ctrl/⌘ + scroll still zooms the page.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el || ed.cropping || lettered) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return;
+      const img = bgPhoto();
+      if (!img) return;
+      const pt = toStory(e);
+      if (!ed.bgSel && (ed.sel.length || hitTest(view, pt.x, pt.y, fields, assets))) return;
+      e.preventDefault();
+      if (!ed.bgSel) ed.selectBg();
+      change(d0 => { const pl = placementOf(d0); return withPlacement(d0, zoomPhotoAt(img, F, pl, pl.zoom * Math.exp(-e.deltaY * 0.0025), pt.x, pt.y)); }, { key: 'bg-zoom' });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
   // Cropping ends when the picture is no longer the one selected.
   useEffect(() => { if (ed.cropping && ed.one?.id !== ed.cropping) ed.setCropping(null); }, [ed.one?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -754,6 +885,7 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
     if (dn && !dn.moved && dn.wasOnly && dn.hit?.kind === 'text' && !dn.hit.locked && Date.now() - dn.t < 500 && d?.mode !== 'pinch') ed.setEditing(dn.hit.id);
     if (!pointers.current.size) { drag.current = null; down.current = null; }
     setGuides({ v: null, h: null });
+    setSpacing([]);
     setDragging(false);
     setHud(null);
   };
@@ -791,7 +923,7 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
 
   // What the side handles do for this kind of layer.
   const sides: ('l' | 'r' | 't' | 'b')[] = !one || one.locked ? []
-    : one.kind === 'text' ? (one.curve ? [] : ['l', 'r'])
+    : one.kind === 'text' ? (one.curve ? [] : one.box?.w ? ['l', 'r', 't', 'b'] : ['l', 'r'])
       : one.kind === 'rect' || one.kind === 'circle' || one.kind === 'shape' || (one.kind === 'image' && one.h) ? ['l', 'r', 't', 'b'] : [];
   const isLine = one && (one.kind === 'arrow' || one.kind === 'line') && !one.rotate;
   const union = ed.selLayers.length ? unionBox(ed.selLayers.map(ed.boxOf)) : null;
@@ -819,10 +951,14 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
           if (hit?.kind === 'text' && !hit.locked) { ed.select([hit.id]); ed.setEditing(hit.id); }
           // Into a picture: move the photo inside its frame (or its clipping mask).
           if (hit?.kind === 'image' && !hit.locked) startCrop(hit);
+          // On the background photo itself: back to centred and unzoomed.
+          if (!hit && bgPhoto()) { ed.selectBg(); change(d0 => withPlacement(d0, freshPlacement(placementOf(d0)))); }
         }}
         className={cn('block w-full touch-none bg-muted outline-none cursor-default', designer ? 'rounded-sm shadow-xl' : 'rounded-xl shadow-md focus-visible:ring-2 focus-visible:ring-primary')}
         aria-label={ed.square ? 'Square photo — tap something to select it, drag to move it' : 'Story — tap something to select it, drag to move it'}
       />
+      {/* Rulers, the user's guides, grid, margins, safe zones and spacing chips. */}
+      <StageGuides ed={ed} scale={scale} designer={designer} spacing={spacing} getRect={() => canvasRef.current?.getBoundingClientRect() ?? null} />
       {/* Guides: the line a moving layer snapped to. */}
       {guides.v !== null && <div className="pointer-events-none absolute top-0 bottom-0 w-px bg-fuchsia-500" style={{ left: guides.v * scale }} />}
       {guides.h !== null && <div className="pointer-events-none absolute left-0 right-0 h-px bg-fuchsia-500" style={{ top: guides.h * scale }} />}
@@ -851,6 +987,25 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
           </div>
         );
       })}
+      {/* The shade over the photo: drag its two dots to move where the fade starts and ends. */}
+      {ed.bgSel && !lettered && doc.bg.shade && (() => {
+        const g = doc.bg.shade;
+        const ends = shadeEnds(g, F);
+        const startShade = (end: 'start' | 'end') => (e: React.PointerEvent) => {
+          e.stopPropagation(); (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+          (wrapRef.current as HTMLElement | null)?.setPointerCapture?.(e.pointerId);
+          down.current = null;
+          drag.current = { mode: 'shade', end, before: doc };
+        };
+        return (<>
+          <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"><line x1={ends.start.x * scale} y1={ends.start.y * scale} x2={ends.end.x * scale} y2={ends.end.y * scale} stroke="white" strokeWidth={2} strokeDasharray="4 4" /></svg>
+          {(['start', 'end'] as const).map(k => (
+            <span key={k} onPointerDown={startShade(k)} className={cn(HANDLE, 'cursor-move', k === 'end' ? '!bg-neutral-800' : '')}
+              style={{ left: Math.min(F.w, Math.max(0, ends[k].x)) * scale - 8, top: Math.min(F.h, Math.max(0, ends[k].y)) * scale - 8 }}
+              title={k === 'start' ? 'Drag: where the shade begins' : 'Drag: where it is darkest'} />
+          ))}
+        </>);
+      })()}
       {/* An arrow's or line's two ends. */}
       {isLine && one && !one.locked && !ed.editing && (() => {
         const s = one as ShapeLayer;
@@ -885,6 +1040,7 @@ function Stage({ ed, width, designer, className }: { ed: Editor; width?: number;
 
       {editingLayer && <InlineText ed={ed} l={editingLayer} scale={scale} />}
       {menu && <ContextMenu ed={ed} at={menu} width={F.w * scale} onClose={() => setMenu(null)} />}
+      {ed.help && <ShortcutsDialog onClose={() => ed.setHelp(false)} />}
       {p.overlay}
     </div>
   );
@@ -900,14 +1056,19 @@ const MiniButton = ({ title, onClick, children }: { title: string; onClick: (e: 
  * colour. Never below 16 px as far as the browser knows — an iPhone zooms the
  * whole page into any smaller field — and scaled down to the true size instead.
  */
-function InlineText({ ed, l, scale }: { ed: Editor; l: TextLayer; scale: number }) {
+function InlineText({ ed, l: layer, scale }: { ed: Editor; l: TextLayer; scale: number }) {
+  let l = layer;
   const ref = useRef<HTMLTextAreaElement>(null);
   const ctx = useMemo(() => document.createElement('canvas').getContext('2d')!, []);
   const t = layoutText(ctx, l, ed.fields, ed.assets.fonts);
   const b = ed.boxOf(l);
   const value = l.bind ? ed.fields[l.bind] : l.text;
-  const w = Math.max(b.w, l.fit ? b.w : Math.min(l.width, ed.F.w)) + 24;
+  // A button's field sits over its words in the pill (the pill stays drawn), not at the pill's edge.
+  const button = !!l.box?.w;
+  if (button) l = asButton(l, t.w);   // over the words where the pill puts them
+  const w = button ? Math.max(t.w + 24, b.w) : Math.max(b.w, l.fit ? b.w : Math.min(l.width, ed.F.w)) + 24;
   const left = l.align === 'left' ? l.x : l.align === 'center' ? l.x - w / 2 : l.x - w;
+  const top = button || l.box ? l.y : b.y, height = button || l.box ? t.h : b.h;
   const px = t.size * scale;
   const k = px < 16 ? px / 16 : 1;
   // Focused in the same tap that asked for it, or an iPhone won't raise the keyboard.
@@ -917,7 +1078,8 @@ function InlineText({ ed, l, scale }: { ed: Editor; l: TextLayer; scale: number 
     <textarea
       ref={ref}
       value={value}
-      onChange={e => l.bind ? ed.onField(l.bind, e.target.value) : ed.update(l.id, { text: e.target.value }, 'text')}
+      onChange={e => ed.setWords(l, e.target.value)}
+      onSelect={e => { const t = e.currentTarget; ed.setTextSel({ id: l.id, from: t.selectionStart, to: t.selectionEnd }); }}
       onBlur={() => ed.setEditing(null)}
       onKeyDown={e => { if (e.key === 'Escape' || (e.key === 'Enter' && (e.metaKey || e.ctrlKey))) { e.preventDefault(); ed.setEditing(null); } e.stopPropagation(); }}
       onPointerDown={e => e.stopPropagation()}
@@ -927,7 +1089,8 @@ function InlineText({ ed, l, scale }: { ed: Editor; l: TextLayer; scale: number 
       enterKeyHint="done"
       className="absolute z-20 resize-none overflow-hidden bg-black/10 outline-2 outline-dashed outline-sky-500 p-0"
       style={{
-        left: left * scale, top: b.y * scale, width: (w * scale) / k, minHeight: (b.h * scale) / k,
+        left: left * scale, top: top * scale, width: (w * scale) / k, minHeight: (height * scale) / k,
+        ...(l.box ? { background: 'transparent' } : {}),
         font: fontCss(l.font, px / k, ed.assets.fonts), letterSpacing: `${(l.spacing * t.size * scale) / k}px`, lineHeight: l.lineHeight,
         color: l.autoColor ? '#ffffff' : l.color, textAlign: l.align, textTransform: l.upper ? 'uppercase' : 'none',
         transformOrigin: 'top left', transform: `${l.rotate ? `rotate(${l.rotate}deg) ` : ''}${k < 1 ? `scale(${k})` : ''}` || undefined,
@@ -1064,6 +1227,7 @@ export function PairEditor({ story, square, show, active, onActive }: {
         <Designer ed={ed} onClose={() => setDesigner(false)} F={ed.F}
           frameLabel={ed.square ? 'Post · square 1:1 · WhatsApp + website' : 'Story 9:16 · Instagram'}
           pages={both ? sides.map(s => ({ key: s.key, label: s.side.label, square: s.ed.square, off: !!s.side.placeholder })) : undefined}
+          exportPages={both ? sides.map(s => ({ key: s.key, label: s.side.label, ed: s.ed, off: !!s.side.placeholder })) : undefined}
           current={k} onPage={onActive} />
       )}
     </div>
@@ -1233,12 +1397,14 @@ const RAIL: { id: SidePanel; label: string; icon: React.ReactNode }[] = [
   { id: 'brand', label: 'Brand', icon: <PaletteIcon className="h-5 w-5" /> },
   { id: 'layers', label: 'Layers', icon: <Layers className="h-5 w-5" /> },
   { id: 'background', label: 'Background', icon: <PaintBucket className="h-5 w-5" /> },
+  { id: 'guides', label: 'Guides', icon: <Ruler className="h-5 w-5" /> },
 ];
 /** Panels that belong to a selection; they close when it goes. */
-const CONTEXT_PANELS: SidePanel[] = ['edit', 'effects', 'position', 'photo', 'font', 'colour', 'transparency', 'frame'];
+const CONTEXT_PANELS: SidePanel[] = ['edit', 'effects', 'position', 'photo', 'font', 'colour', 'transparency', 'frame', 'rich'];
 const PANEL_TITLE: Record<SidePanel, string> = {
   templates: 'Templates', elements: 'Elements', text: 'Text', photos: 'Photos & uploads', brand: 'Brand kit', layers: 'Layers', background: 'Background',
   edit: 'Edit', effects: 'Effects', position: 'Position', photo: 'Edit photo', font: 'Font', colour: 'Colour', transparency: 'Transparency', frame: 'Frame',
+  guides: 'Guides, grid & views', history: 'History', rich: 'Rich text',
 };
 
 /**
@@ -1260,10 +1426,16 @@ function useVisibleViewport() {
   return vp;
 }
 
-function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
+/** Full screen the designer entered (not the board's own), and how many designers are open: one handing over to the next keeps it. */
+let fullByDesigner = false;
+let liveDesigners = 0;
+
+function Designer({ ed, onClose, frameLabel, F, pages, current, onPage, exportPages }: {
   ed: Editor; onClose: () => void; frameLabel: string; F: { w: number; h: number };
   /** With the story and the post both being made: a switch between them in the header. */
   pages?: { key: PairKey; label: string; square: boolean; off: boolean }[]; current?: PairKey; onPage?: (k: PairKey) => void;
+  /** Every page the Export dialog can save (the story and the post together); just this one when missing. */
+  exportPages?: ExportPage[];
 }) {
   const { api } = ed;
   const extras = ed.p.extras;
@@ -1281,9 +1453,8 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
   const rootRef = useRef<HTMLDivElement>(null);
   const canFull = typeof document !== 'undefined' && !!document.fullscreenEnabled;
   const [isFull, setIsFull] = useState(false);
-  const entered = useRef(false);   // full screen this designer asked for (the board's own is left alone on close)
   const goFull = useCallback((on: boolean) => {
-    entered.current = on;
+    fullByDesigner = on;
     try { localStorage.setItem('designer_fullscreen', on ? '1' : '0'); } catch { /* private mode */ }
     // The whole page, not the designer alone: its menus and colour pickers open in portals on <body>,
     // which a full-screen designer element would hide.
@@ -1294,25 +1465,38 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
     const onChange = () => setIsFull(document.fullscreenElement === document.documentElement);
     document.addEventListener('fullscreenchange', onChange);
     let want = false;
+    // Only when chosen on this device: the browser's full screen hid the page around the designer (2026-10-16,
+    // owner: "editing one ad shouldn't remove me from everything else"); the button is one tap away.
     try { want = localStorage.getItem('designer_fullscreen') === '1'; } catch { /* private mode */ }
-    if (want && document.fullscreenEnabled && !document.fullscreenElement) { entered.current = true; void document.documentElement.requestFullscreen?.().then(() => setIsFull(true)).catch(() => undefined); }
+    if (want && document.fullscreenEnabled && !document.fullscreenElement) { fullByDesigner = true; void document.documentElement.requestFullscreen?.().then(() => setIsFull(true)).catch(() => undefined); }
     else onChange();
+    liveDesigners++;
     return () => {
       document.removeEventListener('fullscreenchange', onChange);
-      if (entered.current && document.fullscreenElement === document.documentElement) void document.exitFullscreen().catch(() => undefined);
+      liveDesigners--;
+      // Left only once no designer follows: moving to the board's next design keeps the full screen it had.
+      setTimeout(() => {
+        if (liveDesigners || !fullByDesigner) return;
+        fullByDesigner = false;
+        if (document.fullscreenElement === document.documentElement) void document.exitFullscreen().catch(() => undefined);
+      }, 0);
     };
   }, []);
   const [area, setArea] = useState({ w: 800, h: 600 });
   const [zoom, setZoom] = useState<number | 'fit'>('fit');
+  const stepZoomRef = useRef<(dir: 1 | -1) => void>(() => undefined);
+  const [exporting, setExporting] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [sheetTall, setSheetTall] = useState(false);
   const mobile = !!useIsMobile();
   const vp = useVisibleViewport();
-  useEffect(() => { setMounted(true); }, []);
+  // Before the first paint: a designer that replaces another (the board's next design) shows no blank frame between them.
+  useLayoutEffect(() => { setMounted(true); }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = areaRef.current;
     if (!el) return;
+    setArea({ w: el.clientWidth, h: el.clientHeight });   // at once: the first frame is already the full size, not the 800×600 guess
     const ro = new ResizeObserver(() => setArea({ w: el.clientWidth, h: el.clientHeight }));
     ro.observe(el);
     return () => ro.disconnect();
@@ -1321,6 +1505,8 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
   // A phone opens on the design itself; a computer on the templates.
   const { setPanel, panel } = ed;
   useEffect(() => { if (mobile) setPanel(null); }, [mobile, setPanel]);
+  const onPanel = extras?.onPanel;
+  useEffect(() => { onPanel?.(panel); }, [panel]); // eslint-disable-line react-hooks/exhaustive-deps
   // A selection's own panels close when nothing is selected; typing on a phone closes whatever is open.
   const nothing = ed.selLayers.length === 0 && !ed.bgSel;
   useEffect(() => { if (nothing && panel && CONTEXT_PANELS.includes(panel) && panel !== 'photo') setPanel(null); }, [nothing, panel, setPanel]);
@@ -1333,7 +1519,17 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
   // Keys and pastes go to the designer while it is open; the page underneath doesn't scroll.
   useEffect(() => {
     if (!mounted) return;
-    const onKey = (e: KeyboardEvent) => ed.onKey(e);
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      const field = (e.target as HTMLElement | null)?.closest?.('input,textarea,[contenteditable=true]');
+      // ⌘+ / ⌘− / ⌘0 zoom the page, not the browser.
+      if (mod && !e.altKey && !field && (e.key === '=' || e.key === '+' || e.key === '-' || e.key === '_' || e.key === '0')) {
+        e.preventDefault();
+        if (e.key === '0') setZoom('fit'); else stepZoomRef.current(e.key === '-' || e.key === '_' ? -1 : 1);
+        return;
+      }
+      ed.onKey(e, true);
+    };
     const onPaste = (e: ClipboardEvent) => ed.onPasteEvent(e);
     window.addEventListener('keydown', onKey);
     document.addEventListener('paste', onPaste);
@@ -1347,12 +1543,8 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
   const cssW = zoom === 'fit' ? fit : F.w * zoom;
   const pct = Math.round((cssW / F.w) * 100);
   const setZoomTo = (z: number) => setZoom(Math.min(3, Math.max(0.08, z)));
-  const stepZoom = (dir: 1 | -1) => {
-    const levels = [0.1, 0.15, 0.2, 0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2];
-    const now = cssW / F.w;
-    const next = dir > 0 ? levels.find(z => z > now + 0.001) : [...levels].reverse().find(z => z < now - 0.001);
-    if (next) setZoom(next);
-  };
+  const stepZoom = (dir: 1 | -1) => setZoom(nextZoom(cssW / F.w, dir));
+  stepZoomRef.current = stepZoom;
   // ⌘/Ctrl + scroll, or a trackpad pinch, zooms the page (not the browser).
   useEffect(() => {
     const el = areaRef.current;
@@ -1360,11 +1552,27 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      setZoom(z => { const now = z === 'fit' ? fit / F.w : z; return Math.min(3, Math.max(0.08, now * Math.exp(-e.deltaY * 0.01))); });
+      const k = Math.exp(-wheelPx(e, el.clientHeight) * 0.01);
+      setZoom(z => { const now = z === 'fit' ? fit / F.w : z; return Math.min(3, Math.max(0.08, now * k)); });
+    };
+    // Safari's pinch: gesture events, its scale from where it started.
+    let last = 1;
+    const touch = fingersOn(el);
+    const onStart = (e: Event) => { e.preventDefault(); last = 1; };
+    const onChange = (e: Event) => {
+      e.preventDefault();
+      if (touch.down()) return;   // a touch pinch is the page's own (the photo, a layer)
+      const s = (e as Event & { scale: number }).scale, k = s / last;
+      last = s;
+      setZoom(z => { const now = z === 'fit' ? fit / F.w : z; return Math.min(3, Math.max(0.08, now * k)); });
     };
     el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
+    el.addEventListener('gesturestart', onStart, { passive: false } as AddEventListenerOptions);
+    el.addEventListener('gesturechange', onChange, { passive: false } as AddEventListenerOptions);
+    return () => { el.removeEventListener('wheel', onWheel); el.removeEventListener('gesturestart', onStart); el.removeEventListener('gesturechange', onChange); touch.stop(); };
   }, [mounted, fit, F.w]);
+  // Never the browser's page, wherever the pinch lands (the rail, a panel, the strip): the designer covers it.
+  useNoPageZoom(mounted);
 
   const panelBody = (() => {
     switch (panel) {
@@ -1376,7 +1584,10 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
       case 'layers': return <LayersPanel ed={ed} />;
       case 'background': return <BackgroundInspector ed={ed} bare />;
       case 'edit': return ed.one ? <LayerInspector ed={ed} layer={ed.one} bare /> : ed.selLayers.length > 1 ? <SelectionSummary ed={ed} /> : <p className="text-sm text-muted-foreground">Select something on the page to edit it.</p>;
-      case 'effects': return ed.one?.kind === 'text' ? <EffectsPanel ed={ed} layer={ed.one} /> : <p className="text-sm text-muted-foreground">Select some text for its effects.</p>;
+      case 'effects': return ed.one?.kind === 'text' ? <EffectsPanel ed={ed} layer={ed.one} /> : <FxPanel ed={ed} />;
+      case 'rich': return ed.one?.kind === 'text' ? <RichTextPanel ed={ed} layer={ed.one} /> : <p className="text-sm text-muted-foreground">Select some text to style its words.</p>;
+      case 'guides': return <GuidesPanel ed={ed} />;
+      case 'history': return <HistoryPanel ed={ed} />;
       case 'position': return <PositionPanel ed={ed} />;
       case 'photo': return <PhotoEditPanel ed={ed} />;
       case 'font': return ed.one?.kind === 'text' ? <FontPanel ed={ed} layer={ed.one} /> : <p className="text-sm text-muted-foreground">Select some text.</p>;
@@ -1423,12 +1634,29 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
         )}
         {extras?.status}
         <div className="ml-auto flex items-center gap-0.5 md:gap-1">
-          <Button size="icon" variant="ghost" className="h-9 w-9" onClick={api.undo} disabled={!api.canUndo} title="Undo (⌘Z)" aria-label="Undo"><Undo2 className="h-4 w-4" /></Button>
-          <Button size="icon" variant="ghost" className="h-9 w-9" onClick={api.redo} disabled={!api.canRedo} title="Redo (⇧⌘Z)" aria-label="Redo"><Redo2 className="h-4 w-4" /></Button>
-          {canFull && <Button size="icon" variant={isFull ? 'secondary' : 'ghost'} className="h-9 w-9" onClick={() => goFull(!isFull)} title={isFull ? 'Leave full screen (Esc)' : 'Full screen'} aria-label={isFull ? 'Leave full screen' : 'Full screen'}>{isFull ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</Button>}
+          <Button size="icon" variant="ghost" className="h-9 w-8 md:w-9" onClick={api.undo} disabled={!api.canUndo} title="Undo (⌘Z)" aria-label="Undo"><Undo2 className="h-4 w-4" /></Button>
+          <Button size="icon" variant="ghost" className="h-9 w-8 md:w-9" onClick={api.redo} disabled={!api.canRedo} title="Redo (⇧⌘Z)" aria-label="Redo"><Redo2 className="h-4 w-4" /></Button>
+          {canFull && <Button size="icon" variant={isFull ? 'secondary' : 'ghost'} className="hidden h-9 w-9 md:inline-flex" onClick={() => goFull(!isFull)} title={isFull ? 'Leave full screen (Esc)' : 'Full screen'} aria-label={isFull ? 'Leave full screen' : 'Full screen'}>{isFull ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</Button>}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-9 w-8 md:w-9" aria-label="View and history" title="View, history and shortcuts"><Eye className="h-4 w-4" /></Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="z-[70] w-56">
+              <DropdownMenuLabel>View</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem checked={ed.viewOpts.rulers} onCheckedChange={v => ed.setViewOpts(o => ({ ...o, rulers: !!v }))}>Rulers</DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={(ed.doc.meta?.grid ?? 0) > 0} onCheckedChange={v => ed.setGrid(v ? 60 : 0)}>Grid</DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={ed.viewOpts.margins} onCheckedChange={v => ed.setViewOpts(o => ({ ...o, margins: !!v }))}>Margins</DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={ed.viewOpts.safe} onCheckedChange={v => ed.setViewOpts(o => ({ ...o, safe: !!v }))}>Safe zones</DropdownMenuCheckboxItem>
+              <DropdownMenuItem onClick={() => setPanel('guides')}><LayoutGrid className="h-4 w-4 mr-1.5" /> Guides and grid…</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setPanel('history')}><HistoryIcon className="h-4 w-4 mr-1.5" /> History…</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => ed.setHelp(true)}><KeyboardIcon className="h-4 w-4 mr-1.5" /> Keyboard shortcuts <span className="ml-auto text-[10px] text-muted-foreground">?</span></DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setZoom('fit')}>Fit the page <span className="ml-auto text-[10px] text-muted-foreground">⌘0</span></DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button size="sm" variant="secondary" className="px-2.5 md:px-3" aria-label="Download"><Download className="h-4 w-4 md:mr-1.5" /><span className="hidden md:inline">Download</span></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="z-[70]">
+              <DropdownMenuItem onClick={() => setExporting(true)}>Export… <span className="ml-3 text-[10px] text-muted-foreground">PNG · JPG · WebP · PDF</span></DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => ed.download('png')}>PNG — sharpest</DropdownMenuItem>
               <DropdownMenuItem onClick={() => ed.download('jpg')}>JPG — smaller file</DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -1463,10 +1691,11 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
           {!mobile && <ContextToolbar ed={ed} />}
           <div ref={areaRef} className={cn('relative min-h-0 flex-1 overflow-auto bg-muted/60', zoom === 'fit' && 'touch-none')}>
-            <div className="flex min-h-full min-w-full items-center justify-center p-3 md:p-8" style={{ width: zoom === 'fit' ? undefined : cssW + pad }}>
+            <div className={cn('flex min-h-full min-w-full items-center justify-center', ed.viewOpts.rulers ? 'p-8 md:p-10' : 'p-3 md:p-8')} style={{ width: zoom === 'fit' ? undefined : cssW + pad + (ed.viewOpts.rulers ? 24 : 0) }}>
               <Stage key={ed.square ? 'square' : 'story'} ed={ed} designer width={cssW} />
             </div>
           </div>
+          {!mobile && extras?.strip}
           {!mobile && (
             <footer className="flex h-10 shrink-0 items-center gap-1 border-t px-2 text-xs text-muted-foreground">
               <span className="truncate">{extras?.hint ?? 'Drag a box round several · double-click words to type · ⌘C / ⌘V between story and post · right-click for more'}</span>
@@ -1495,6 +1724,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">{panelBody}</div>
         </div>
       )}
+      {mobile && !ed.editing && !panel && extras?.strip}
       {mobile && !ed.editing && (
         <div className="shrink-0 border-t bg-background pb-[env(safe-area-inset-bottom)]">
           {ed.selLayers.length ? <MobileToolbar ed={ed} /> : (
@@ -1509,6 +1739,7 @@ function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
           )}
         </div>
       )}
+      {exporting && <ExportDialog pages={exportPages ?? [{ key: 'page', label: ed.square ? 'Post' : 'Story', ed }]} currentKey={exportPages ? (current ?? exportPages[0].key) : 'page'} baseName={ed.p.fileName || 'taheri'} onClose={() => setExporting(false)} />}
     </div>,
     document.body,
   );

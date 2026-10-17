@@ -143,7 +143,7 @@ export default function CustomerDetailPage() {
         <p className="truncate text-ios-sub font-semibold">{invoice.id}</p>
         <p className="text-ios-cap text-muted-foreground">{new Date(invoice.createdAt).toLocaleDateString()}</p>
       </div>
-      <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {invoice.grandTotal.toLocaleString()}</span>
+      <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {invoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
     </Link>
   ));
   const orderRows = customerOrders.map(order => (
@@ -153,7 +153,7 @@ export default function CustomerDetailPage() {
         <p className="text-ios-cap text-muted-foreground">{format(parseISO(order.createdAt), 'PP')}</p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
-        <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {order.grandTotal.toLocaleString()}</span>
+        <span className="font-serif text-ios-title3 font-semibold tabular-nums">PKR {order.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
         <Pill tone={STATUS_TONE[order.status] ?? 'quiet'}>{order.status}</Pill>
       </div>
     </Link>

@@ -20,7 +20,9 @@ final class NativeArtwork: NSObject, WKNavigationDelegate {
         super.init()
         web.navigationDelegate = self
         web.isInspectable = false
-        guard let url = Bundle.main.url(forResource: "design-\(House.id)", withExtension: "js"),
+        // The built-ins have their own engine bundle (design-taheri.js, design-mina.js); an added business runs
+        // on Taheri's, told whose brand it draws (`input.brand` below).
+        guard let url = Bundle.main.url(forResource: "design-\(House.art)", withExtension: "js"),
               let script = try? String(contentsOf: url, encoding: .utf8) else {
             loadError = ERPAPI.Failure(status: 0, message: "The artwork tools are missing from this build.")
             return
@@ -56,7 +58,11 @@ final class NativeArtwork: NSObject, WKNavigationDelegate {
         input["doc"] = doc == .null ? NSNull() : doc.any
         input["photos"] = photos.mapValues { data in "data:\(WebsitePhoto.kind(of: data)?.mime ?? "image/jpeg");base64,\(data.base64EncodedString())" }
         input["fields"] = fields
-        input["house"] = House.id
+        input["house"] = House.art
+        // The business's own look, for an engine that has no bundle of its own to draw it with.
+        let b = House.business
+        input["brand"] = ["id": b.id, "name": b.name, "palette": ["light": ["accent": b.palette.light.accent, "ground": b.palette.light.ground, "card": b.palette.light.card, "onAccent": b.palette.light.onAccent],
+                                                                   "dark": ["accent": b.palette.dark.accent, "ground": b.palette.dark.ground, "card": b.palette.dark.card, "onAccent": b.palette.dark.onAccent]]] as [String: Any]
         let result = try await web.callAsyncJavaScript("try { return await window.nativeDesign(input); } catch (error) { return {nativeError: String(error)}; }", arguments: ["input": input], in: nil, contentWorld: .page)
         let answer = MarketingValue(result ?? NSNull())
         if !answer.s("nativeError").isEmpty { throw ERPAPI.Failure(status: 0, message: "The design could not be drawn: " + answer.s("nativeError")) }
@@ -115,7 +121,10 @@ struct ArtworkProperties: View {
         return words.prefix(1).uppercased() + words.dropFirst()
     }
     static let choices: [String: [String]] = [
-        "font": ["condensed", "light", "regular", "bold", "serif", "serif-italic", "futura", "cormorant", "cormorant-italic", "playfair", "script", "montserrat", "montserrat-bold", "cinzel"],
+        "font": ["condensed", "light", "regular", "bold", "serif", "serif-italic", "futura", "cormorant", "cormorant-italic", "playfair", "script", "montserrat", "montserrat-bold", "cinzel",
+                 // Designer v2's jewellery set (src/lib/social/editor.ts FontKey, 2026-10-12); the bundled engine carries the faces.
+                 "cormorant-infant", "italiana", "jost", "tenor", "dm-serif", "marcellus"],
+        "blend": ["normal", "multiply", "screen", "overlay", "soft-light", "hard-light", "color-dodge", "darken", "lighten"],
         "align": ["left", "center", "right"], "gradient": ["none", "top", "bottom", "both"], "mode": ["fill", "fit"], "dash": ["solid", "dash", "dot"],
         "mask": ["rounded", "ellipse", "arch", "heart", "star", "hexagon", "diamond", "sparkle", "gem", "pill"],
     ]
@@ -131,7 +140,9 @@ struct ArtworkProperties: View {
 /// Shared between designs so a copied layer can be carried from a story to a post.
 @MainActor @Observable
 final class ArtworkClipboard {
-    static let shared = ArtworkClipboard()
+    /// Replaced, not cleared, when the person switches business (Businesses.switch): none of it is the next one's.
+    static var shared = ArtworkClipboard()
+    static func reset() { shared = ArtworkClipboard() }
     var layers: [MarketingValue] = []
     var frame = MarketingValue(["w": 1080, "h": 1920])
     var photos: [String: Data] = [:]

@@ -278,7 +278,7 @@ struct AdsAudienceSheet: View {
         } header: {
             LedgerHeading(title: "Interests")
         } footer: {
-            Text(draft.interests.isEmpty ? "None: Meta finds the people itself (often the cheapest)." : "Shown to people with any of these interests.")
+            if draft.interests.isEmpty { Text("None: Meta finds the people itself (often the cheapest).") }
         }
     }
 

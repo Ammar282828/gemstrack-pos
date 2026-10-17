@@ -164,6 +164,28 @@ export async function updateProduct(
   log(fx, 'product.update', `Updated product: ${fields.name || current.name}`, `SKU: ${sku}`, sku);
 }
 
+/**
+ * A piece's photo set, or taken off (`imageUrl` null). The photo itself is already in Storage (the web
+ * uploads it from the browser, the phone through /api/app/product-photo); this records its address, as the
+ * product form's save does: an https address, or '' for none, which is what the form saves when no photo
+ * was ever added. Nothing else on the piece moves. A piece not in stock (sold, or never there) is refused.
+ */
+export async function setProductPhoto(
+  db: DbPort,
+  sku: string,
+  imageUrl: string | null,
+  fx: SideEffects = {},
+): Promise<void> {
+  const url = imageUrl === null ? '' : imageUrl.trim();
+  if (imageUrl !== null && !/^https:\/\/\S+$/.test(url)) throw new Error('A photo is an https address.');
+  const current = await db.get<Product>(PRODUCTS, sku);
+  if (!current) throw new Error(`Product ${sku} not found.`);
+  const b = db.batch();
+  b.set(PRODUCTS, sku, { imageUrl: url }, true);
+  await b.commit();
+  log(fx, 'product.update', `${url ? 'Changed the photo of' : 'Removed the photo of'} ${current.name || sku}`, `SKU: ${sku}`, sku);
+}
+
 // ── The phone's door ────────────────────────────────────────────────────────────────────────────────
 
 /** The most a person could mean in one box; a paste gone wrong is not stored. */

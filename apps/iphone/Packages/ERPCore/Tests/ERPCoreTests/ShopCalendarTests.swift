@@ -123,16 +123,29 @@ final class ShopCalendarTests: XCTestCase {
     }
 
     func testAnEmptyCellsMoney() {
+        // calendar/page.tsx dayLac, over lib/money.ts axisLac: 85k · 2.9L · 56L · 1.2Cr.
         XCTAssertEqual(ShopCalendar.dayMoney(0), "0")
         XCTAssertEqual(ShopCalendar.dayMoney(850), "850")
         XCTAssertEqual(ShopCalendar.dayMoney(999), "999")
         XCTAssertEqual(ShopCalendar.dayMoney(1000), "1k")
         XCTAssertEqual(ShopCalendar.dayMoney(12_499), "12k")
         XCTAssertEqual(ShopCalendar.dayMoney(12_500), "13k")
-        XCTAssertEqual(ShopCalendar.dayMoney(999_499), "999k")
-        XCTAssertEqual(ShopCalendar.dayMoney(999_500), "1M")
-        XCTAssertEqual(ShopCalendar.dayMoney(1_500_000), "1.5M")
-        XCTAssertEqual(ShopCalendar.dayMoney(12_345_678), "12.3M")
+        XCTAssertEqual(ShopCalendar.dayMoney(85_000), "85k")
+        XCTAssertEqual(ShopCalendar.dayMoney(99_499), "99k")
+        // 99,500 rounds to 100k: a lac, so the L form takes over (axisLac).
+        XCTAssertEqual(ShopCalendar.dayMoney(99_500), "1L")
+        XCTAssertEqual(ShopCalendar.dayMoney(290_000), "2.9L")
+        XCTAssertEqual(ShopCalendar.dayMoney(5_600_000), "56L")
+        XCTAssertEqual(ShopCalendar.dayMoney(9_900_000), "99L")
+        XCTAssertEqual(ShopCalendar.dayMoney(12_000_000), "1.2Cr")
+    }
+
+    func testAxisLac() {
+        XCTAssertEqual(Money.axisLac(50_000), "50k")
+        XCTAssertEqual(Money.axisLac(250_000), "2.5L")
+        XCTAssertEqual(Money.axisLac(12_000_000), "1.2Cr")
+        XCTAssertEqual(Money.axisLac(-250_000), "-2.5L")
+        XCTAssertEqual(Money.axisLac(9_999_999), "1Cr")
     }
 
     func testTheTimeOfDayIsKarachis() {

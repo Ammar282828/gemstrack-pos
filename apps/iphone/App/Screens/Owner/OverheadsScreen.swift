@@ -41,7 +41,7 @@ struct OverheadDraftLine: Identifiable, Equatable {
         amountText = item.amount == 0 ? "" : PaymentText.field(item.amount)
     }
 
-    var item: OverheadItem { OverheadItem(id: id, label: label, amount: MoneyParse.amount(amountText) ?? 0) }
+    var item: OverheadItem { OverheadItem(id: id, label: label, amount: MoneyParse.rupees(amountText) ?? 0) }
 
     static func lines(_ items: [OverheadItem]) -> [OverheadDraftLine] { items.map { OverheadDraftLine($0) } }
 }
@@ -158,7 +158,7 @@ private struct OverheadsBoard: View {
                     if met {
                         Label("Covered \u{2014} \(OwnerText.pkr(earned - target)) above the benchmark", systemImage: "chart.line.uptrend.xyaxis")
                             .font(.subheadline.weight(.medium))
-                            .foregroundStyle(Tone.settled.color)
+                            .foregroundStyle(.secondary)
                     } else {
                         HStack(spacing: 4) {
                             RowAmount(amount: p.shortfall, tone: Theme.accent)
@@ -207,7 +207,8 @@ private struct OverheadsBoard: View {
     }
 
     private func monthRow(_ r: OverheadMonthRow) -> some View {
-        let tone: Color = r.inProgress ? Color.secondary : (r.met ? Tone.settled.color : Tone.owed.color)
+        // A month that met its target is the expected end: no colour (rule 15); one that fell short is amber.
+        let tone: Color = r.inProgress || r.met ? Color.secondary : Tone.owed.color
         let symbol = r.inProgress ? "minus.circle.fill" : (r.met ? "checkmark.circle.fill" : "arrow.down.right.circle.fill")
         return HStack(spacing: 12) {
             Image(systemName: symbol).foregroundStyle(tone)
@@ -222,7 +223,7 @@ private struct OverheadsBoard: View {
             Text(OwnerText.signed(r.surplus))
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
-                .foregroundStyle(r.inProgress ? Color.secondary : (r.surplus >= 0 ? Tone.settled.color : Tone.owed.color))
+                .foregroundStyle(r.inProgress ? Color.secondary : (r.surplus >= 0 ? Color.primary : Tone.owed.color))
         }
     }
 
@@ -234,8 +235,8 @@ private struct OverheadsBoard: View {
                 HStack(spacing: 10) {
                     TextField("What is it for", text: $line.label)
                         .textInputAutocapitalization(.sentences)
-                    TextField("Amount", text: $line.amountText)
-                        .keyboardType(.decimalPad)
+                    TextField("Amount", text: $line.amountText.wholeRupees)
+                        .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
                         .monospacedDigit()
                         .frame(maxWidth: 130)

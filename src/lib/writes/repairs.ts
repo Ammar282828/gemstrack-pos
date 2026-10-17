@@ -79,5 +79,5 @@ export async function recordRepairPayment(db: DbPort, id: string, payment: Repai
     });
     tx.update(REPAIRS, id, { payments: [...(repair.payments || []), cleanObject({ ...payment, revenueId })] });
   });
-  log(fx, 'repair.payment', `Repair ${id}: PKR ${payment.amount.toLocaleString()} received`, payment.method || '', id);
+  log(fx, 'repair.payment', `Repair ${id}: PKR ${payment.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} received`, payment.method || '', id);
 }

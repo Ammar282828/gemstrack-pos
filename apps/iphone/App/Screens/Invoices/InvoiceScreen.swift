@@ -7,7 +7,8 @@ import ERPCore
 /// server and shown here (PDFDocumentScreen), to print or share; Taheri's WhatsApp send has the server draw
 /// and send it from the shop's line, and House of Mina's link goes from here. Edit is New sale's own form;
 /// the discount, deleting a payment, a refund and deleting the invoice are native sheets (InvoiceAction*,
-/// owners, the last three behind the delete code).
+/// owners, the last three behind the delete code); the Shopify payment link is made here too
+/// (InvoicePaymentLink). Nothing opens the ERP's page.
 ///
 /// Laid out as the order's page is (a List on the house's ground, 2026-10-12): one receipt at the head (who,
 /// when, what is still due beside a ring of what is paid), the quick row (ring, write, print), then the pieces
@@ -35,6 +36,10 @@ struct InvoiceScreen: View {
     /// A payment swiped away: the delete code is asked for it straight away (InvoiceActionPaymentSheet.deletion).
     @State private var paymentDeletion: OwnerDeletion?
     @State private var paymentOutcome: InvoiceActionOutcome?
+    /// The shop floor's answer to an owner's move: the server refuses staff, so it is said here instead.
+    @State private var ownersOnly: String?
+    /// The payment link to make (InvoicePaymentLink): set to start it.
+    @State private var linking: Invoice?
 
     private var canPay: Bool { InvoiceFacts.mayTakePayments(role: session.role) }
 
@@ -47,7 +52,7 @@ struct InvoiceScreen: View {
     private let firstPieces = 5
 
     var body: some View {
-        let invoice = book.invoices.items.first { $0.id == id }
+        let invoice = book.invoices.item(id)
         Group {
             if let invoice {
                 detail(invoice)
@@ -131,7 +136,9 @@ struct InvoiceScreen: View {
         .invoiceActionCode($paymentDeletion) {
             if let outcome = paymentOutcome { acted(outcome) }
         }
-        .invoiceWhatsAppSend($sending, web: $web) { sent in say(sent) }
+        .invoiceWhatsAppSend($sending) { sent in say(sent) }
+        .invoicePaymentLink($linking) { made in say(made) }
+        .failureAlert($ownersOnly, title: "An owner's")
         .noteToast($note)
     }
 
@@ -253,9 +260,10 @@ struct InvoiceScreen: View {
                 Text("In credit").font(.subheadline).foregroundStyle(.secondary)
                 HeroAmount(amount: line.amount, tone: Tone.credit.color)
             case .paid:
+                // Paid is what an invoice is meant to be: said in the ink, not as a green badge (CONVENTIONS rule 15).
                 Text("Paid in full")
                     .font(.system(.largeTitle, design: .serif).weight(.semibold))
-                    .foregroundStyle(Tone.settled.color)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
             }
@@ -399,16 +407,17 @@ struct InvoiceScreen: View {
                     Label(owing(inv) ? "Take payment" : "Take payment as credit", systemImage: "banknote")
                 }
             }
-            // Paid past the total: the customer's credit, on their hisaab (decision "Invoice credit").
+            // Paid past the total: the customer's credit, on their hisaab (decision "Invoice credit"). The sum is the
+            // receipt's figure, so it is not said again here (CONVENTIONS rule 15).
             if line.state == .credit && inv.status != .refunded && !inv.paymentHistory.isEmpty {
-                Label("\(line.label) · \(Money.pkr(line.amount)), on \(InvoiceFacts.customerName(inv, walkIn: "the customer"))'s hisaab",
+                Label("\(line.label), on \(InvoiceFacts.customerName(inv, walkIn: "the customer"))'s hisaab",
                       systemImage: "arrow.uturn.left.circle.fill")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(Tone.credit.color)
             }
         } header: {
-            LedgerHeading(title: "Payments", count: inv.paymentHistory.count > 1 ? inv.paymentHistory.count : nil,
-                          trailing: Money.pkr(inv.amountPaid))
+            // What was paid is the receipt's own line; the heading keeps the count.
+            LedgerHeading(title: "Payments", count: inv.paymentHistory.count > 1 ? inv.paymentHistory.count : nil)
         }
     }
 
@@ -551,11 +560,6 @@ struct InvoiceScreen: View {
         return name.isEmpty || isWalkInName(name)
     }
 
-    /// The ERP's own page for this invoice; `doing` is what it does as it opens (InvoiceFacts.path).
-    private func openWeb(_ inv: Invoice, doing: String? = nil) {
-        web = Route(path: InvoiceFacts.path(inv.id, web: true, doing: doing))
-    }
-
     /// The number the ERP page's box starts with: the invoice's, else its customer's.
     private func whatsAppPhone(_ inv: Invoice) -> String {
         InvoiceFacts.whatsAppPhone(inv, customer: inv.customerId.flatMap { book.customers.item($0) })
@@ -587,6 +591,10 @@ struct InvoiceScreen: View {
                     Label("Customer link", systemImage: "link")
                 }
             }
+            // Shopify's checkout for what is owed, made fresh each time and copied (invoices/page.tsx).
+            if InvoiceFacts.offersPaymentLink(inv) {
+                Button { linking = inv } label: { Label(InvoiceFacts.paymentLinkTitle(inv), systemImage: "link.badge.plus") }
+            }
         }
         Section("Change") {
             Button { web = Route(path: InvoiceFacts.editPath(inv.id)) } label: { Label("Edit", systemImage: "pencil") }
@@ -600,9 +608,6 @@ struct InvoiceScreen: View {
                 Button { act(.discount, inv) } label: { Label("Change discount", systemImage: "percent") }
             }
         }
-        Section("More") {
-            Button { openWeb(inv) } label: { Label("Open in the ERP", systemImage: "globe") }
-        }
         Section {
             if inv.status != .refunded {
                 Button(role: .destructive) { act(.refund, inv) } label: { Label("Refund…", systemImage: "arrow.uturn.backward") }
@@ -611,10 +616,10 @@ struct InvoiceScreen: View {
         }
     }
 
-    /// An owner's sheet; the shop floor keeps the ERP's page, which says it is an owner's (the server refuses
-    /// staff either way).
+    /// An owner's sheet; the shop floor is told so here, as the server would refuse it (each is the store's own
+    /// Firestore write on the web, which staff cannot make).
     private func act(_ a: InvoiceAct, _ inv: Invoice) {
-        if session.isOwner { acting = a } else { openWeb(inv) }
+        if session.isOwner { acting = a } else { ownersOnly = a.ownersOnly }
     }
 
     /// After a sheet: its note on the page, or back to the list when the invoice is gone.
@@ -884,4 +889,14 @@ private struct InvoiceMarginRow: View {
 enum InvoiceAct: String, Identifiable {
     case discount, payment, refund, delete
     var id: String { rawValue }
+
+    /// What the shop floor is told: each is an owner's (ops-invoice-actions.ts), and the server refuses staff.
+    var ownersOnly: String {
+        switch self {
+        case .discount: return "Changing the discount is an owner's. Ask an owner to change it."
+        case .payment: return "Deleting a payment is an owner's. Ask an owner to delete it."
+        case .refund: return "A refund is an owner's. Ask an owner to refund this invoice."
+        case .delete: return "Deleting an invoice is an owner's. Ask an owner to delete it."
+        }
+    }
 }

@@ -133,17 +133,16 @@ struct AdsOverviewScreen: View {
     }
 
     private func accountSection(_ d: AdOverview) -> some View {
-        let words = AdsStatusWords.ofAccount(d.account.status)
-        return Section {
+        Section {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(d.account.name).font(.headline)
                     if let funding = d.account.funding, !funding.isEmpty {
-                        Text(funding).font(.subheadline).foregroundStyle(.secondary)
+                        Text(funding).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
                 Spacer()
-                StatusBadge(words.label, color: AdsStatusWords.color(words.tone))
+                AdsAccountBadge(status: d.account.status)
             }
         } footer: {
             Text(periodLine(d))
@@ -183,9 +182,25 @@ struct AdsOverviewScreen: View {
                     FigureTile(label: "Click-through", value: AdsFormat.pct(t.ctr),
                                detail: "\(AdsFormat.money(t.cpm, cur)) per 1,000 views")
                 }
+                salesTiles(t, b, cur)
             }
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             .listRowBackground(Color.clear)
+        }
+    }
+
+    /// What the ads sold, when they sold anything (ads/page.tsx: Sales from ads · ROAS · Cost per purchase).
+    @ViewBuilder
+    private func salesTiles(_ t: AdMetrics, _ b: AdMetrics?, _ cur: String) -> some View {
+        let s = AdsResults.sales(t)
+        if s.purchases > 0 || s.value > 0 {
+            let before = b.map { (m: AdMetrics) in AdsResults.sales(m) }
+            FigureRow(spacing: 10) {
+                FigureTile(label: "Sales from ads", value: AdsFormat.money(s.value, cur),
+                           detail: AdsFormat.change(s.value, before?.value) ?? "\(AdsFormat.count(s.purchases)) order\(s.purchases == 1 ? "" : "s")")
+                FigureTile(label: "ROAS", value: AdsResults.roasText(s.roas),
+                           detail: s.costPerPurchase.map { (c: Double) in "\(AdsFormat.money(c, cur)) per order" } ?? "Sales for every rupee spent")
+            }
         }
     }
 
@@ -205,7 +220,9 @@ struct AdsOverviewScreen: View {
 
     @ViewBuilder
     private func broughtSection(_ d: AdOverview) -> some View {
-        let actions = AdsResults.headlineActions(d.totals, limit: 10)
+        // The headline result is the tile above: not again here.
+        let shown = AdsResults.headlineResult(d.totals).label
+        let actions = AdsResults.headlineActions(d.totals, limit: 10).filter { (a: AdsResults.Line) in a.label != shown }
         if !actions.isEmpty {
             Section {
                 ForEach(actions) { (a: AdsResults.Line) in
@@ -309,8 +326,6 @@ struct AdsOverviewScreen: View {
                 .accessibilityLabel("Spend each day over the range")
             } header: {
                 LedgerHeading(title: "Day by day")
-            } footer: {
-                Text("Spend each day, in \(cur.uppercased()).")
             }
         }
     }
@@ -348,9 +363,11 @@ struct AdsOverviewScreen: View {
     }
 
     private func resultLine(_ a: AdTop, _ cur: String) -> String {
-        guard let r = AdsResults.of(a.metrics, goal: a.goal) else { return "\(AdsFormat.compact(a.metrics.reach)) reached" }
+        let s = AdsResults.sales(a.metrics)
+        let roas = s.value > 0 ? " · \(AdsResults.roasText(s.roas)) ROAS" : ""
+        guard let r = AdsResults.of(a.metrics, goal: a.goal) else { return "\(AdsFormat.compact(a.metrics.reach)) reached\(roas)" }
         let each = r.value > 0 ? " · \(AdsFormat.money(a.metrics.spend / r.value, cur)) each" : ""
-        return "\(AdsFormat.count(r.value)) \(r.label.lowercased())\(each)"
+        return "\(AdsFormat.count(r.value)) \(r.label.lowercased())\(each)\(roas)"
     }
 
     @ViewBuilder
@@ -383,12 +400,9 @@ struct AdsOverviewScreen: View {
     @ViewBuilder
     private var linksSection: some View {
         Section {
-            MarketingLink(title: "Campaigns", subtitle: "Every campaign, ad set and ad; run or pause them", symbol: "checklist", path: "/ads/campaigns")
-            if MarketingKit.has("/ads/studio", role: session.role) {
-                MarketingLink(title: "Studio", subtitle: "Make the creative before the ad", symbol: "paintpalette", path: "/ads/studio")
-            }
-            MarketingLink(title: "New ad", subtitle: "Boost a piece or an Instagram post", symbol: "paperplane", path: "/ads/new")
-            MarketingLink(title: "Setup", subtitle: "The Meta connection, ad account, audiences and rules", symbol: "slider.horizontal.3", path: "/ads/setup")
+            MarketingLink(title: "Campaigns", symbol: "checklist", path: "/ads/campaigns")
+            MarketingLink(title: "New ad", symbol: "paperplane", path: "/ads/new")
+            MarketingLink(title: "Setup", symbol: "slider.horizontal.3", path: "/ads/setup")
         } footer: {
             if let d = data, !d.at.isEmpty {
                 Text("From Meta, \(MarketingTime.clock(d.at)). Today's numbers keep changing for a few hours; reach across days can't be added up, so \"people reached\" is Meta's own count for the whole range.")

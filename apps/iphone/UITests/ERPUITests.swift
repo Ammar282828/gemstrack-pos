@@ -28,15 +28,15 @@ final class ERPUITests: XCTestCase {
         "/workshop", "/karigars", "/karigars/KAR-D1", "/given",
         "/expenses", "/additional-revenue", "/hisaab", "/hisaab/KAR-D1?type=karigar",
         "/analytics", "/analytics/sales", "/analytics/products", "/analytics/customers", "/analytics/categories",
-        "/invoices/INV-D0002", "/orders/ORD-D0002", "/customers/CUST-D06", "/app/phone",
+        "/invoices/INV-D0002", "/orders/ORD-D0002", "/customers/CUST-D06", "/app/phone", "/app/businesses",
         "/orders/ORD-D0002/edit", "/invoices/INV-D0002/edit", "/orders/ORD-D0002/finalize",
         "/customers/CUST-D06/edit", "/karigars/add", "/karigars/KAR-D1/edit",
         "/drafts", "/calendar", "/activity-log", "/my-work?preview=KAR-D1",
         "/products/add", "/products/RNG-D110/edit", "/overheads", "/shareholders", "/settings/recently-removed",
         "/settings", "/app/settings/shop", "/settings/alerts", "/settings/payment-methods", "/settings/data",
-        "/posts", "/marketing/pieces", "/marketing/website", "/ads", "/ads/campaigns",
+        "/posts", "/marketing/pieces", "/marketing/website", "/ads", "/ads/campaigns", "/design", "/design?v=saved", "/ads/studio",
         "/orders/online", "/orders/ORD-D0002/slip", "/products/bulk-add", "/invoices/new?scan=bill", "/orders/add?scan=parchi",
-        "/ads/new", "/ads/adset", "/ads/audiences", "/ads/rules", "/ads/setup",
+        "/ads/new", "/ads/adset", "/ads/audiences", "/ads/rules", "/ads/tests", "/ads/setup",
         "/website/photos", "/website/edit", "/website/weights", "/website/investments", "/website/from-site",
         "/settings/voice", "/settings/printer", "/settings/weprint-api", "/settings/backups", "/settings/contact-import",
         "/settings/hisaab-import",
@@ -143,6 +143,25 @@ final class ERPUITests: XCTestCase {
             search.typeText("Demo")
             XCTAssertEqual(app.state, .runningForeground)
         }
+    }
+
+    /// The business chip heads every tab; in the demo (one business) it is quiet but still opens the Businesses sheet,
+    /// which lists the demo, says the demo can't add one, and closes again.
+    func testTheBusinessesSheetOpensFromTheChip() {
+        let app = demo()
+        app.launch()
+        let chip = app.buttons["business.chip"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 8), "the business chip in the Home bar")
+        chip.tap()
+        XCTAssertTrue(app.navigationBars["Businesses"].waitForExistence(timeout: 5), "the Businesses sheet")
+        XCTAssertTrue(app.buttons["business.row.demo"].waitForExistence(timeout: 3), "the demo business is listed")
+        let address = app.textFields["business.address"]
+        if address.waitForExistence(timeout: 2) { XCTAssertFalse(address.isEnabled, "the demo can't add a business") }
+        let close = app.buttons["Close"]
+        XCTAssertTrue(close.exists)
+        close.tap()
+        XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 5), "back on the tabs")
+        XCTAssertEqual(app.state, .runningForeground)
     }
 
     func testTakingAPaymentOpensItsSheet() {

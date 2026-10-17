@@ -1,10 +1,12 @@
 import SwiftUI
+import FirebaseFirestore
 import ERPCore
 
 /// One piece of an order, as the bench and the counter both need it (src/app/orders/[id]/page.tsx):
 /// what it is, every specification the order captured (one line of facts, not a table), who has it and
 /// whether it has left the shop, the instructions for the karigar, and its price. The tick is the web's
-/// "Mark as Complete".
+/// "Mark as Complete"; the karigar is picked on the piece, as the page's inline picker (KarigarAssign), and the
+/// piece's sample photo leads the row when it has one.
 struct OrderPieceRow: View {
     let index: Int
     let item: OrderItem
@@ -16,11 +18,18 @@ struct OrderPieceRow: View {
     /// The price broken into metal, wastage, making, diamonds and stones: owners only.
     let showBreakdown: Bool
     let onTick: (Bool) -> Void
+    /// Who makes it, picked here (owners, until the order is invoiced); nil shows the karigar only.
+    var assign: OrderPieceAssign? = nil
 
     @State private var priceOpen = false
+    /// The sample photo kept in its own document, once read (OrderPiecePhoto.stored).
+    @State private var storedPhoto: String?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
+            if let uri = OrderPiecePhoto.inline(item) ?? storedPhoto {
+                OrderPiecePhoto(uri: uri, item: item)
+            }
             VStack(alignment: .leading, spacing: 8) {
                 heading
                 factLine
@@ -34,6 +43,7 @@ struct OrderPieceRow: View {
             tick
         }
         .padding(.vertical, 6)
+        .task(id: item.samplePhotoId) { storedPhoto = await OrderPiecePhoto.stored(item) }
     }
 
     // MARK: What it is
@@ -96,24 +106,44 @@ struct OrderPieceRow: View {
     }
 
     /// Amber while nobody has it: work to hand out, not a promise missed. A finished piece with no karigar
-    /// (made in the shop) says nothing.
+    /// (made in the shop) says nothing, unless it can be given one here.
     @ViewBuilder
     private var karigarLine: some View {
-        if karigar != nil || !item.isCompleted {
-            HStack(spacing: 6) {
-                Image(systemName: "hammer")
-                    .foregroundStyle(karigar == nil ? Tone.owed.color : Color.secondary)
-                if let karigar {
-                    Text(karigar).fontWeight(.medium)
-                    Text("· " + givenWords)
-                        .foregroundStyle(item.givenAt == nil ? Tone.owed.color : Color.secondary)
-                } else {
-                    Text("Not given out").foregroundStyle(Tone.owed.color)
+        if let assign {
+            Menu {
+                Picker("Karigar", selection: Binding(get: { item.karigarId ?? "none" }, set: { assign.pick($0) })) {
+                    Text("Unassigned").tag("none")
+                    ForEach(assign.karigars) { k in Text(k.name).tag(k.id) }
                 }
+            } label: {
+                karigarWords
             }
-            .font(.subheadline)
-            .accessibilityElement(children: .combine)
+            .disabled(assign.busy)
+            .accessibilityHint("Picks the karigar for this piece")
+        } else if karigar != nil || !item.isCompleted {
+            karigarWords
         }
+    }
+
+    private var karigarWords: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "hammer")
+                .foregroundStyle(karigar == nil && !item.isCompleted ? Tone.owed.color : Color.secondary)
+            if let karigar {
+                Text(karigar).fontWeight(.medium)
+                Text("· " + givenWords)
+                    .foregroundStyle(item.givenAt == nil && !item.isCompleted ? Tone.owed.color : Color.secondary)
+            } else {
+                Text("Not given out").foregroundStyle(item.isCompleted ? Color.secondary : Tone.owed.color)
+            }
+            if assign != nil {
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .font(.subheadline)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: Stones, diamonds and the instructions
@@ -233,5 +263,44 @@ struct OrderPieceRow: View {
                 .frame(width: 44, height: 44)
                 .accessibilityLabel("Done")
         }
+    }
+}
+
+/// The karigar picker on a piece: the shop's karigars (removed ones left out) and the bench's own write
+/// (setPieceKarigar, as the Workshop board's picker).
+struct OrderPieceAssign {
+    let karigars: [Karigar]
+    /// A pick on its way: the menu waits for it.
+    let busy: Bool
+    let pick: (String) -> Void
+}
+
+/// A piece's sample photo, wherever it is kept (components/order/order-photo.tsx): inline on the piece (a stock
+/// piece's address, or an older order's data URI) or in its own document (`order_photos/<id>`, lib/order-photos.ts),
+/// read once the piece is shown. Nothing when the piece has none, or the photo cannot be read (the shop floor's
+/// accounts read no Firestore of their own).
+struct OrderPiecePhoto: View {
+    let uri: String
+    let item: OrderItem
+
+    var body: some View {
+        StockImage(imageUrl: uri, name: item.description, key: item.samplePhotoId ?? uri, decodeDataURI: true)
+            .frame(width: 64, height: 64)
+            .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+            .accessibilityLabel("Sample photo")
+    }
+
+    static func inline(_ item: OrderItem) -> String? {
+        let s = (item.sampleImageDataUri ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return s.isEmpty ? nil : s
+    }
+
+    /// The photo's own document, when the piece keeps it there; nil when it has none or it cannot be read.
+    @MainActor
+    static func stored(_ item: OrderItem) async -> String? {
+        guard inline(item) == nil, let id = item.samplePhotoId, !id.isEmpty, !House.isDemo,
+              let db = Businesses.shared.firestore,
+              let snapshot = try? await db.collection("order_photos").document(id).getDocument() else { return nil }
+        return snapshot.data()?["dataUri"] as? String
     }
 }

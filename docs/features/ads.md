@@ -2,6 +2,10 @@
 
 _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE.md keeps a one-line index; this is the record._
 
+> **2026-10-12:** Ads is **Overview · Campaigns · Plan · New ad · Setup**. The Studio tab is gone — its research half is **Ads › Plan**,
+> its design half is **Posts › Design** ([design.md](design.md)). New ad still reads `?piece=` and `?studio=<key>`; Design's Publish
+> sheet hands a design to it (both sizes) for owner and marketing.
+
 ### Ads
 
 - **Ads** (`/ads`, 2026-09-26; owner: "connect my Ad account api and have all ad related functionality for both
@@ -64,3 +68,58 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   turns that refusal into `APP_NOT_LIVE`; Setup step 1 reads what the switch asks for with the app token (`appLiveReadiness`:
   privacy policy URL, category, a real icon — Meta exposes no mode field) and gives the values (`APP_PAGES`: taheri.shop's
   `/privacy` and `/data-deletion`, `META_APP_PRIVACY_URL` / `_DATA_DELETION_URL` to change them).
+
+### Ads Manager gaps closed (2026-10-16)
+
+Owner: "check if there is absolutely anything that i can do on the ad manager that i cant do in my erp and add it".
+Checked against six months of Mina's activity log (the agency, xMedia House, works in Power Editor; the owner in the ERP)
+and every campaign: all are Sales, Advantage+ audience, automatic bidding, optimising for Purchase.
+
+- **Sales and ROAS** (`salesOf`, `roasText` in `shape.ts`, tested): insights now ask for `action_values`, so purchases carry
+  their order value. Overview: Sales from ads · ROAS · Cost per purchase tiles when anything sold, and purchases lead
+  `mainAction` (it used to fall back to link clicks on a sales account). Campaigns: sales and ROAS on every campaign, ad set and
+  ad row, "Best ROAS" in the gallery sort; Overview's top ads show ROAS. Purchases are the biggest of `omni_purchase`,
+  `offsite_conversion.fb_pixel_purchase`, `purchase`, `onsite_web_purchase` (one purchase, several names), never their sum.
+- **Website audiences** (`websiteRule` in `audience-rows.ts`, tested; `createWebsiteAudience`; Audiences → Website visitors):
+  from the chosen pixel, 7–180 days: every visitor, viewed a piece, added to cart, started checkout, bought, and added to cart
+  but did not buy (Purchase excluded). Lookalikes take any of them as the source, as the agency's "Lookalike – pixel –
+  Website using Purchase" audiences did.
+- **UTM tags** (`URL_TAGS` in `plan.ts`, tested): every website/sales creative the ERP makes carries
+  `utm_source=meta&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_term={{adset.name}}&utm_content={{ad.name}}`,
+  so Shopify reports which ad a visit and an order came from. Chat ads carry none.
+- Already covered, no change: Advantage+ audience's hard minimum age (`age_min` ≤ 25) and custom audiences as suggestions
+  (Meta treats them so when `advantage_audience` is 1).
+- **The rest, second pass (2026-10-16, owner: "Add all the other features")**. Meta's request shapes were checked against
+  the v25 docs and the official Python SDK; Meta can still refuse one the docs leave unclear, and it answers in its own words.
+  - **New video** (New ad → New video; `/api/ads/videos`, `graphUpload` in `meta.ts`): Meta's resumable upload
+    (start / transfer the byte range Meta asks for / finish) on graph-video.facebook.com, one piece per request so any size
+    passes the server's limit (≤ 1 GB, a piece ≤ 28 MB); then a status poll, and Meta's preferred cover frame is put in the
+    image library (a video creative needs a cover; Meta's CDN links aren't meant for creatives). Creative: `video_data` with
+    `image_hash`, with `video_auto_crop`, `video_uncrop`, `video_filtering` opted out too. Not for "WhatsApp or Instagram chats".
+  - **A creator's post / partnership ads** (New ad → A creator's post; `/api/ads/partner`): the creator's ad code is checked
+    on `/{business}/partnership-ads-advertisable-content` (the old `branded_content_advertisable_medias` edge goes on
+    2026-12-01), and the creative is `branded_content.instagram_boost_post_access_token` + `ad_format: 1` (both names in the
+    header) with the brand as sponsor on Instagram and Facebook. Runs as it is, like a boosted post.
+  - **Catalogue ads** (New ad → Catalogue, "Online orders" only; `/api/ads/catalog`): the business's catalogues
+    (owned + client) and their product sets; the campaign promotes the catalogue, the ad set the set (with the pixel's
+    Purchase); "Bring back lookers" = ViewContent or AddToCart in 14 days and no Purchase (`product_audience_specs`), "Find new
+    buyers" = everyone but 14-day buyers (`excluded_product_audience_specs`). Creative: `template_data` with
+    `{{product.name}}` / `{{product.price}}`, no enhancements (Meta: none for catalogue ads). OUTCOME_SALES with a campaign
+    catalogue is the documented replacement in practice, not in words (PRODUCT_CATALOG_SALES is deprecated).
+  - **A/B tests** (Ads → Setup → A/B tests, `/ads/tests`; `study.ts`, tested): 2–5 existing ad sets, an even split
+    (`evenSplit`), 1–30 days, optionally judged on the pixel's purchases (retried without if Meta refuses the objective). Made on
+    `/{business}/ad_studies` (Meta has no create edge on the ad account). Each side's spend, results, cost per result and
+    ROAS from Insights over the test's dates; "ahead" is the lowest cost per result so far, Meta's verdict with its confidence
+    stays in Ads Manager → Experiments (linked).
+  - **Bid strategy and hours** (New ad → Budget → Advanced; `biddingParams`, `scheduleParams`, tested): most results, cost per
+    result cap (`COST_CAP`), bid cap (`LOWEST_COST_WITH_BID_CAP`), minimum ROAS for "Online orders"
+    (`LOWEST_COST_WITH_MIN_ROAS`, `roas_average_floor` ×10,000, optimising for VALUE); set days and whole hours in the viewer's
+    time zone (`adset_schedule`), which Meta allows only with a total budget.
+  - **CSV export** (Campaigns → Download (CSV); `export.ts`, tested): every campaign, ad set and ad in the range, with spend,
+    results, purchases, sales and ROAS; opens in Excel and Google Sheets.
+  - **Conversions API: nothing to add.** Mina's pixel (1429906491670575) gets server events from Shopify's Facebook &
+    Instagram app in real time; Purchase match quality 9.3/10 (email, phone, name, city all sent). The gap is elsewhere: only
+    ~25% of purchases carry Meta's click id (`fbc`), and orders closed on WhatsApp or by cash-on-delivery in the ERP never reach
+    Meta at all, so chat ads look worse than they are. Sending ERP orders to Meta (offline Purchase events) is the next lever,
+    an owner's decision because it hands customer records to Meta.
+  - Not added: editing the bid strategy or hours of an ad set made elsewhere (Ads Manager), Meta's lift studies.

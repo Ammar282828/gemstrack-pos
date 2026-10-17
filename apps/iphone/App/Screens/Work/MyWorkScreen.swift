@@ -63,10 +63,8 @@ struct MyWorkScreen: View {
                         Task { await load() }
                     }
                     .buttonStyle(.glass)
-                    // A karigar has nothing else in the app: the ERP's own portal is the way through meanwhile.
-                    if isKarigar {
-                        NavigationLink("Open the web portal") { WebScreen(path: "/") }
-                    }
+                    // The web portal reads the same /api/karigar/me, so it would fail the same way: trying again is the way
+                    // through. A karigar keeps Sign out in the toolbar.
                 }
             case .ready:
                 if let portal { content(portal) }
@@ -221,8 +219,9 @@ struct MyWorkScreen: View {
             }
             .houseRows()
         } else {
-            group("Urgent", jobs: s.critical, symbol: "flame", tone: Tone.late.color, hint: "14+ days", readOnly: readOnly)
-            group("Late", jobs: s.late, symbol: "clock", tone: Tone.owed.color, hint: "7–14 days", readOnly: readOnly)
+            // Urgent's and Late's counts are the tiles above (rule 15: not said twice).
+            group("Urgent", jobs: s.critical, symbol: "flame", tone: Tone.late.color, hint: "14+ days", showsCount: false, readOnly: readOnly)
+            group("Late", jobs: s.late, symbol: "clock", tone: Tone.owed.color, hint: "7–14 days", showsCount: false, readOnly: readOnly)
             group("In hand", jobs: s.onTrack, symbol: nil, tone: .secondary, hint: "on track", readOnly: readOnly)
         }
         group("Completed", jobs: s.done, symbol: "checkmark.circle", tone: .secondary, hint: nil, readOnly: readOnly)
@@ -230,7 +229,7 @@ struct MyWorkScreen: View {
 
     /// One heading of the page and its orders, each order a card of its pieces.
     @ViewBuilder
-    private func group(_ title: String, jobs: [KarigarPortalJob], symbol: String?, tone: Color, hint: String?, readOnly: Bool) -> some View {
+    private func group(_ title: String, jobs: [KarigarPortalJob], symbol: String?, tone: Color, hint: String?, showsCount: Bool = true, readOnly: Bool) -> some View {
         if !jobs.isEmpty {
             Section {
                 ForEach(KarigarPortalRules.groups(jobs)) { (g: KarigarPortalGroup) in
@@ -241,7 +240,7 @@ struct MyWorkScreen: View {
                 HStack(spacing: 6) {
                     if let symbol { Image(systemName: symbol) }
                     Text(title.uppercased()).fontWeight(.bold)
-                    Text("\(jobs.count)").foregroundStyle(.secondary)
+                    if showsCount { Text("\(jobs.count)").foregroundStyle(.secondary) }
                     Spacer()
                     if let hint { Text(hint).font(.caption2).foregroundStyle(.secondary) }
                 }

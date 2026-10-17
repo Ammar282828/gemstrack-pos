@@ -15,6 +15,7 @@
 import type { DbPort, SideEffects } from '@/lib/db-port';
 import { ORDER_PHOTOS, droppedPhotoIds, isInlinePhoto, photoHash, splitItemPhotos } from '@/lib/order-photos';
 import { statusFromPieces } from '@/lib/order-stage';
+import { rupees, rupeesIn } from '@/lib/money';
 
 const ORDERS = 'orders';
 
@@ -46,18 +47,19 @@ export interface OrderEdit {
  */
 export function orderEditPatch(existing: OrderOnFile | null | undefined, edit: OrderEdit, now: string, clean: <T extends object>(o: T) => T):
   { patch: OrderEdit; addedAdvance: Advance | null; movedTo: 'In Progress' | 'Completed' | null } {
-  let patch: OrderEdit = { ...edit };
+  // Whole rupees, whoever sends the edit (the form, the apps).
+  let patch: OrderEdit = { ...edit, ...rupeesIn(edit, ['advancePayment', 'advanceInExchangeValue', 'subtotal', 'discountAmount', 'grandTotal']) };
   const movedTo = existing && Array.isArray(edit.items)
     ? statusFromPieces(String(edit.status ?? existing.status ?? ''), edit.items as never, !!(edit.invoiceId ?? existing.invoiceId))
     : null;
   let addedAdvance: Advance | null = null;
   if (existing && typeof edit.advancePayment === 'number' && !('advances' in edit)) {
-    const before = Number(existing.advancePayment) || 0;
-    const after = Number(edit.advancePayment) || 0;
+    const before = rupees(existing.advancePayment);
+    const after = rupees(edit.advancePayment);
     const listed = (existing.advances || []).reduce((n, p) => n + (Number(p.amount) || 0), 0);
     if (after > before + 0.5 && listed <= before + 0.5) {
       addedAdvance = clean({
-        amount: Math.round((after - before) * 100) / 100, date: now, notes: 'Added in the order form',
+        amount: after - before, date: now, notes: 'Added in the order form',
         // The form's "Paid by" names this money only when there was no advance before it.
         ...(before <= 0.5 && edit.advanceMethod ? { method: edit.advanceMethod } : {}),
       }) as Advance;

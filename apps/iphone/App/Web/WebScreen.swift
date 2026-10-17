@@ -9,10 +9,12 @@ struct WebScreen: View {
     let path: String
     @State private var loading = true
     @State private var failed: String?
+    /// A link on the page to a place with a native screen: that screen, pushed over the page.
+    @State private var native: Route?
 
     var body: some View {
         ZStack {
-            WebView(path: path, loading: $loading, failed: $failed)
+            WebView(path: path, loading: $loading, failed: $failed, native: $native)
                 .ignoresSafeArea(edges: .bottom)
             if loading { SkeletonLoading().controlSize(.large) }
             if let failed {
@@ -24,6 +26,14 @@ struct WebScreen: View {
                 .background(.background)
             }
         }
+        .navigationDestination(item: $native) { PlaceScreen(path: $0.path) }
+    }
+
+    /// Whether a link the page follows has a native screen. The page's own path never does here: it was opened as
+    /// the ERP's page on purpose (`?web=1`, or no screen yet), and its tabs and filters change only its query.
+    static func nativePath(_ to: String, from page: String) -> Bool {
+        guard to.hasPrefix("/"), ScreenRoute.bare(to) != ScreenRoute.bare(page) else { return false }
+        return ScreenRegistry.hasNative(to)
     }
 }
 
@@ -31,6 +41,7 @@ private struct WebView: UIViewRepresentable {
     let path: String
     @Binding var loading: Bool
     @Binding var failed: String?
+    @Binding var native: Route?
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -44,6 +55,12 @@ private struct WebView: UIViewRepresentable {
         config.userContentController.addScriptMessageHandler(bridge, contentWorld: .page, name: "erp")
         let web = WKWebView(frame: .zero, configuration: config)
         bridge.webView = web
+        let page = path, go = $native
+        bridge.openNative = { to in
+            guard WebScreen.nativePath(to, from: page) else { return false }
+            go.wrappedValue = Route(path: to)
+            return true
+        }
         context.coordinator.bridge = bridge
         web.navigationDelegate = context.coordinator
         web.uiDelegate = context.coordinator

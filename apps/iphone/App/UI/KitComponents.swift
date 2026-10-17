@@ -157,7 +157,7 @@ struct PaidRing: View {
         self.size = size
     }
 
-    private var settled: Bool { total > 0 && paid >= total - 0.5 }
+    private var settled: Bool { total > 0 && total - paid < 1 }
     private var fraction: Double { total > 0 ? min(max(paid / total, 0), 1) : 0 }
 
     var body: some View {
@@ -270,23 +270,51 @@ struct ZoomSource: ViewModifier {
     @Environment(\.zoomNamespace) private var namespace
 
     func body(content: Content) -> some View {
-        if let namespace { content.matchedTransitionSource(id: id, in: namespace) } else { content }
+        if let namespace {
+            // No gesture of its own: a tap recogniser beside a List row's link took taps from it, so a card
+            // lit up and did not open (owner, 2026-10-17: "tapping order card and invoice card feels buggy").
+            content.matchedTransitionSource(id: id, in: namespace)
+                .onAppear { ZoomTap.shown(id) }
+                .onDisappear { ZoomTap.hidden(id) }
+        } else { content }
     }
 }
 
-/// A page that grows from the row with the same id.
+/// The rows on screen. A page zooms only out of its own row while that row is showing: opened any other way
+/// (after a save, from a link, a notification) iOS has no row to grow from and zooms from a stray bubble instead
+/// (owner, 2026-10-15: "a weird animation bubble" when finishing an order or invoice). A page is made before the
+/// row under it disappears, so the row that opened it is still counted.
+enum ZoomTap {
+    // Only ever touched on the main thread (a row appearing, a view being made).
+    nonisolated(unsafe) private static var showing: [String: Int] = [:]
+    static func shown(_ id: String) { showing[id, default: 0] += 1 }
+    static func hidden(_ id: String) {
+        let n = (showing[id] ?? 0) - 1
+        showing[id] = n > 0 ? n : nil
+    }
+    /// True when a row for this page is on screen.
+    static func take(_ id: String) -> Bool { (showing[id] ?? 0) > 0 }
+}
+
+/// A page that grows from the row with the same id, when that row opened it.
 struct ZoomDestination: ViewModifier {
     let id: String
     @Environment(\.zoomNamespace) private var namespace
+    @State private var fromRow: Bool
+
+    init(id: String) {
+        self.id = id
+        _fromRow = State(initialValue: ZoomTap.take(id))
+    }
 
     func body(content: Content) -> some View {
-        if let namespace { content.navigationTransition(.zoom(sourceID: id, in: namespace)) } else { content }
+        if fromRow, let namespace { content.navigationTransition(.zoom(sourceID: id, in: namespace)) } else { content }
     }
 }
 
 extension View {
-    /// Set once per NavigationStack, on the stack itself (RootView does it for the tabs, PlaceStack and the
-    /// create sheet); screens never call it.
+    /// Set once per NavigationStack, on the stack itself (RootView does it for the tabs and PlaceStack; never a
+    /// sheet); screens never call it.
     func zoomScope() -> some View { modifier(ZoomScope()) }
 
     /// On a row (or card) that opens a page: the page zooms out of it. Use the destination's route path as

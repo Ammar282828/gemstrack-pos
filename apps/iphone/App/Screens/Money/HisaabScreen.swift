@@ -63,7 +63,8 @@ enum HisaabOrder: String, CaseIterable, Identifiable {
 /// Money → Hisaab (src/app/hisaab/page.tsx): customers' and karigars' outstanding accounts, what the
 /// shop will get and what it will give. Every figure is debit less credit over a person's rows, as the
 /// web works it. Opening a person shows their ledger, where entries are written and deleted (HisaabLedgerScreen);
-/// Add entry here chooses the account first (HisaabAccountPicker). The summary PDF is the ERP's page.
+/// Add entry here chooses the account first (HisaabAccountPicker). The Summary PDF is the page's own, drawn by the
+/// ERP's server (src/lib/hisaab-pdf.ts, /api/app/pdf/hisaab) for the search on screen, as the page's prints its search.
 struct HisaabScreen: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -79,6 +80,7 @@ struct HisaabScreen: View {
     /// Where the account picker sends us once it has closed, and the place pushed for it.
     @State private var pending: Route?
     @State private var go: Route?
+    @State private var summaryPDF: InvoicePDFTarget?
 
     var body: some View {
         if session.isOwner {
@@ -117,6 +119,9 @@ struct HisaabScreen: View {
         .navigationDestination(item: $go) { (r: Route) in
             HisaabDestination(path: r.path)
         }
+        .navigationDestination(item: $summaryPDF) { t in
+            PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
+        }
         .task {
             book.hisaab.need()
             book.invoices.need()
@@ -149,8 +154,6 @@ struct HisaabScreen: View {
                 tiles(summary, onInvoices: onInvoices)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
-            } header: {
-                Text("Outstanding accounts for customers and karigars.").textCase(nil)
             } footer: {
                 Text("On invoices counts walk-in sales too. The dashboard's “Owed to you” adds the hand-written balances here.")
             }
@@ -162,11 +165,15 @@ struct HisaabScreen: View {
                 }
             }
             Section {
-                NavigationLink(value: Route(path: MoneyPaths.hisaabWeb)) {
-                    Label("Export the summary report", systemImage: "square.and.arrow.up")
+                Button {
+                    summaryPDF = InvoicePDFTarget(path: MoneyPaths.hisaabSummary(search: search),
+                                                  fileName: "Hisaab-Summary-\(MoneyCalendar.pickedDay(Date())).pdf",
+                                                  title: "Hisaab summary")
+                } label: {
+                    Label("Summary PDF", systemImage: "doc.richtext")
                 }
             } footer: {
-                Text("The summary PDF is made on the ERP's own page. To add an entry, tap + and choose the account.")
+                Text("Everyone outstanding whose name matches the search, as the ERP prints it; the chips here are not applied. To add an entry, tap + and choose the account.")
             }
         }.houseRows()
         }

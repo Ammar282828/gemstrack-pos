@@ -23,12 +23,13 @@ struct OrderFinalizeScreen: View {
     @State private var failure: String?
     @State private var made: String?
 
-    private var order: Order? { book.orders.items.first { $0.id == id } }
+    private var order: Order? { book.orders.item(id) }
 
     var body: some View {
         Group {
             if let made {
                 InvoiceScreen(id: made)
+                    .environment(\.zoomNamespace, nil)  // swapped in place after a save: no row to zoom from
             } else if !session.isOwner {
                 ContentUnavailableView("Only an owner can invoice an order", systemImage: "lock", description: Text("Ask an owner to finalize it."))
             } else if let order, let settings = book.settings.value {
@@ -60,7 +61,7 @@ struct OrderFinalizeScreen: View {
     private func start() {
         guard !started, let order else { return }
         rows = order.items.enumerated().map { OrderFinalizeRow($1, index: $0) }
-        discount = NewOrderFormat.boxText(order.discountAmount ?? 0)
+        discount = NewOrderFormat.rupeeBox(order.discountAmount)
         let perGram = order.costRate24k ?? 0
         costTola = perGram > 0 ? String(Int((perGram * NewOrderWords.gramsPerTola).rounded())) : ""
         started = true
@@ -80,10 +81,14 @@ struct OrderFinalizeScreen: View {
             }
             Section {
                 LabeledContent("Discount") {
-                    TextField("0", text: $discount)
-                        .keyboardType(.decimalPad)
+                    TextField("0", text: $discount.wholeRupees)
+                        .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
                         .monospacedDigit()
+                }
+                // FinalizeOrderDialog: the bill before any discount is the pieces less the exchange.
+                RoundOffChips(payable: f.subtotal - f.exchange, discount: f.discount) { n in
+                    discount = NewOrderFormat.rupeeBox(n)
                 }
                 // The shop's own figure for its margin: owners only, never the customer (decisions.md "Margin").
                 LabeledContent("24k a tola now") {
@@ -101,7 +106,7 @@ struct OrderFinalizeScreen: View {
                 if f.exchange > 0 { LabeledContent("Exchange", value: "− " + Money.pkr(f.exchange)) }
                 LabeledContent("Invoice total", value: Money.pkr(f.total))
                 if f.advances > 0 { LabeledContent("Advance paid", value: "− " + Money.pkr(f.advances)) }
-                LabeledContent(f.balance < 0 ? "Credit to customer" : "Balance due") {
+                LabeledContent(isCredit(f.balance) ? "Credit to customer" : "Balance due") {
                     Text(Money.pkr(abs(f.balance))).font(.headline).monospacedDigit()
                 }
             } header: {
@@ -120,7 +125,7 @@ struct OrderFinalizeScreen: View {
             }, figures: [
                 .init(label: "Invoice total", value: Money.pkr(f.total)),
                 .init(label: "Advance paid", value: Money.pkr(f.advances)),
-                .init(label: f.balance < 0 ? "Credit to customer" : "Balance due", value: Money.pkr(abs(f.balance)))
+                .init(label: isCredit(f.balance) ? "Credit to customer" : "Balance due", value: Money.pkr(abs(f.balance)))
             ])
         } footer: {
             VStack(spacing: 10) {
@@ -168,7 +173,7 @@ struct OrderFinalizeScreen: View {
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 2) {
-                if abs(due) > 0.5 {
+                if abs(due) >= 1 {
                     RowAmount(amount: abs(due), tone: due < 0 ? Tone.credit.color : Tone.owed.color)
                     Text(due < 0 ? "In credit" : "Due").font(.caption).foregroundStyle(.secondary)
                 } else {
@@ -181,7 +186,7 @@ struct OrderFinalizeScreen: View {
 
     /// What is agreed to: the invoice's total and what is left owing (or in credit).
     private func confirmWords(_ order: Order, _ f: OrderFinalizeMath.Figures) -> String {
-        let rest = f.balance < 0 ? "with " + Money.pkr(abs(f.balance)) + " in credit" : Money.pkr(f.balance) + " still due"
+        let rest = isCredit(f.balance) ? "with " + Money.pkr(abs(f.balance)) + " in credit" : Money.pkr(f.balance) + " still due"
         return order.id + " becomes an invoice of " + Money.pkr(f.total) + ", " + rest + ". The order is then completed. Undoing it needs the delete code."
     }
 
@@ -221,9 +226,10 @@ struct OrderFinalizeScreen: View {
         }
     }
 
+    /// A number-pad box is a sum of money, kept to whole rupees (owner, 2026-10-17: "there should be no decimals").
     private func field(_ title: String, _ text: Binding<String>, keyboard: UIKeyboardType, placeholder: String = "0") -> some View {
         LabeledContent(title) {
-            TextField(placeholder, text: text)
+            TextField(placeholder, text: keyboard == .numberPad ? text.wholeRupees : text)
                 .keyboardType(keyboard)
                 .multilineTextAlignment(.trailing)
                 .monospacedDigit()
@@ -246,7 +252,10 @@ struct OrderFinalizeScreen: View {
                 if book.invoices.item(invoiceId) != nil { break }
                 try? await Task.sleep(for: .milliseconds(250))
             }
-            made = invoiceId
+            // The invoice replaces the form with no animation: the glass Make invoice button can't fade (the "bubble").
+            var still = Transaction()
+            still.disablesAnimations = true
+            withTransaction(still) { made = invoiceId }
         } catch let e as ERPAPI.Failure {
             failure = e.message
         } catch {

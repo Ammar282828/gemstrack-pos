@@ -108,14 +108,8 @@ enum AnaDate {
     static func monthShort(_ d: Date) -> String { monthShortFormat.string(from: d) }
 }
 
-/// A period as the pages filter by it: the first instant of its first day to the last of its last.
-struct AnaRange: Equatable {
-    let from: Date
-    let to: Date
-
-    /// date-fns `isWithinInterval` (both ends included).
-    func contains(_ d: Date) -> Bool { d >= from && d <= to }
-}
+/// A period as the pages filter by it: the first instant of its first day to the last of its last (ERPCore).
+typealias AnaRange = AnalyticsRange
 
 /// What the picker says and what the pages read: the key, and its range (nil is all time).
 struct AnaPeriodState {
@@ -123,12 +117,12 @@ struct AnaPeriodState {
     let range: AnaRange?
 }
 
-// TODO(logic): port lib/analytics/range-param.ts (rangeFor, readRange) into ERPCore with range-param.test.ts.
-/// The period picker's rules. The web keeps the key in the address (`?range=last-90`, or
-/// `?range=custom&from=…&to=…`); the app keeps it in `@AppStorage("erp.analytics.range")` (and the
-/// custom days in `erp.analytics.from` / `.to`), so every tab reads the same one.
+/// The period picker's rules, which are ERPCore's `AnalyticsPeriod` (src/lib/analytics/range-param.ts, with its
+/// tests): this month is the default, the 1st to today (owner, 2026-10-12). The web keeps the key in the address
+/// (`?range=last-90`, or `?range=custom&from=…&to=…`); the app keeps it in `@AppStorage("erp.analytics.range")`
+/// (and the custom days in `erp.analytics.from` / `.to`), so every tab reads the same one.
 ///
-/// A rolling period (last 30 / 90 days, this year) is worked out from `now` every time it is read,
+/// A rolling period (this month, last 30 / 90 days, this year) is worked out from `now` every time it is read,
 /// so a screen left open past midnight moves with the day.
 enum AnaPeriod {
     struct Quick: Identifiable {
@@ -137,58 +131,22 @@ enum AnaPeriod {
         var id: String { key }
     }
 
-    static let quick: [Quick] = [
-        Quick(key: "last-30", label: "Last 30 days"),
-        Quick(key: "last-90", label: "Last 90 days"),
-        Quick(key: "this-year", label: "This year"),
-        Quick(key: "last-year", label: "Last year"),
-        Quick(key: "all-time", label: "All time"),
-    ]
+    static let quick: [Quick] = AnalyticsPeriod.quick.map { Quick(key: $0.key, label: $0.label) }
 
-    static let defaultKey = "last-30"
+    static let defaultKey = AnalyticsPeriod.defaultKey
     static let storageKey = "erp.analytics.range"
 
     /// The year of a `year-2025` key (the Yearly table's rows set these).
-    static func year(_ key: String) -> Int? {
-        guard key.count == 9, key.hasPrefix("year-") else { return nil }
-        let digits = key.dropFirst(5)
-        guard digits.allSatisfy({ $0.isASCII && $0.isNumber }) else { return nil }
-        return Int(digits)
-    }
+    static func year(_ key: String) -> Int? { AnalyticsPeriod.year(key) }
 
-    private static func span(_ a: Date, _ b: Date) -> AnaRange {
-        AnaRange(from: AnaDate.startOfDay(a), to: AnaDate.endOfDay(b))
-    }
-
-    private static func wholeYear(_ y: Int) -> AnaRange {
-        AnaRange(from: AnaDate.startOfYear(y), to: AnaDate.endOfYear(y))
-    }
-
-    /// The range a key names, as of `now`; nil for all time. An unknown key is the last 30 days.
+    /// The range a key names, as of `now`; nil for all time. An unknown key is this month.
     static func rangeFor(_ key: String, now: Date, from: String?, to: String?) -> AnaRange? {
-        switch key {
-        case "last-30": return span(AnaDate.adding(days: -29, to: now), now)
-        case "last-90": return span(AnaDate.adding(days: -89, to: now), now)
-        case "this-year": return span(AnaDate.startOfYear(AnaDate.year(of: now)), now)
-        case "last-year": return wholeYear(AnaDate.year(of: now) - 1)
-        case "all-time": return nil
-        default: break
-        }
-        if let y = year(key) { return wholeYear(y) }
-        if key == "custom", let start = AnaDate.parseISO(from) {
-            let end = AnaDate.parseISO(to) ?? start
-            return span(start, end)
-        }
-        return rangeFor(defaultKey, now: now, from: nil, to: nil)
+        AnalyticsPeriod.rangeFor(key, now: now, from: from, to: to)
     }
 
-    /// The stored key, made safe: an unknown or broken one falls back to the last 30 days.
+    /// The stored key, made safe: an unknown or broken one falls back to this month.
     static func read(key raw: String, from: String?, to: String?, now: Date) -> AnaPeriodState {
-        let asked = raw.isEmpty ? defaultKey : raw
-        let known = quick.contains { $0.key == asked }
-            || year(asked) != nil
-            || (asked == "custom" && AnaDate.parseISO(from) != nil)
-        let key = known ? asked : defaultKey
+        let key = AnalyticsPeriod.knownKey(raw, from: from)
         return AnaPeriodState(key: key, range: rangeFor(key, now: now, from: from, to: to))
     }
 

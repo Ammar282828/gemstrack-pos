@@ -10,6 +10,7 @@ import { orderAdvancePayments } from '@/lib/order-payment';
 import { describeExchanges, exchangeTotal, invoiceExchanges, orderExchanges } from '@/lib/exchange';
 import type { OrderSummaryForMessage } from '@/lib/website/notify';
 import { clock, longDay, plural, pkr, rs, shortDay, stamp, type AlertDoc, type Section, type Table } from './doc';
+import { owesMoney } from '@/lib/money';
 
 export type OrderAlert = 'new' | 'Completed' | 'Cancelled' | 'Refunded';
 
@@ -46,7 +47,7 @@ function invoiceBill(inv: Invoice): Section {
   if (exTotal > 0) pairs.push({ label: `Exchange: ${describeExchanges(ex)}`, value: `- ${rs(exTotal)}` });
   pairs.push({ label: 'Total', value: pkr(inv.grandTotal), strong: true });
   pairs.push({ label: 'Paid', value: rs(inv.amountPaid) });
-  pairs.push({ label: 'Balance', value: Number(inv.balanceDue) > 0 ? pkr(inv.balanceDue) : 'Paid in full', strong: true, tone: Number(inv.balanceDue) > 0 ? 'flag' : undefined });
+  pairs.push({ label: 'Balance', value: owesMoney(inv.balanceDue) ? pkr(inv.balanceDue) : 'Paid in full', strong: true, tone: owesMoney(inv.balanceDue) ? 'flag' : undefined });
   return { title: 'The bill', pairs };
 }
 
@@ -54,7 +55,7 @@ function invoiceBill(inv: Invoice): Section {
 export function saleDoc(inv: Invoice, now = new Date()): AlertDoc {
   const items = list(inv.items as InvoiceItem[] | Record<string, InvoiceItem>);
   const payments = list(inv.paymentHistory);
-  const owed = Number(inv.balanceDue) > 0;
+  const owed = owesMoney(inv.balanceDue);
   return {
     kind: 'sale',
     title: 'New sale',
@@ -81,7 +82,7 @@ export function saleDoc(inv: Invoice, now = new Date()): AlertDoc {
 export function paymentDoc(inv: Invoice, index: number, now = new Date()): AlertDoc {
   const payments = list(inv.paymentHistory);
   const p = payments[index] ?? payments[payments.length - 1] ?? { amount: 0, date: now.toISOString() };
-  const owed = Number(inv.balanceDue) > 0;
+  const owed = owesMoney(inv.balanceDue);
   const items = list(inv.items as InvoiceItem[] | Record<string, InvoiceItem>);
   return {
     kind: 'payment',

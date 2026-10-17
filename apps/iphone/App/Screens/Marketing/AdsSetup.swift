@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import ERPCore
 
 /// Ads → Setup (src/app/ads/setup/page.tsx): what still stands between the shop and running every kind of ad,
@@ -8,7 +9,8 @@ import ERPCore
 ///
 /// Connecting is the one step done in Safari: Facebook's login comes back to the ERP in the browser that started
 /// it (a cookie keeps a connection nobody started from being finished), so the phone opens Setup there. The long
-/// one-time steps in Meta's app dashboard are read on the ERP's own page. Nothing here spends money.
+/// one-time steps in Meta's app dashboard fold under step 1, with every address and permission ready to copy.
+/// Nothing here spends money.
 struct AdsSetupScreen: View {
     @Environment(Session.self) private var session
     @Environment(\.openURL) private var openURL
@@ -174,8 +176,9 @@ struct AdsSetupScreen: View {
                 AdsAlertsSection(status: s)
                 readinessSection(s)
                 Section {
-                    MarketingLink(title: "Audiences", subtitle: "The ERP's customers, Instagram engagers, lookalikes", symbol: "person.3", path: "/ads/audiences")
-                    MarketingLink(title: "Rules", subtitle: "Meta's automated rules, and every change logged", symbol: "checklist", path: "/ads/rules")
+                    MarketingLink(title: "Audiences", symbol: "person.3", path: "/ads/audiences")
+                    MarketingLink(title: "Rules", symbol: "checklist", path: "/ads/rules")
+                    MarketingLink(title: "A/B tests", symbol: "flask", path: "/ads/tests")
                 }
                 appSections(s)
                 connectSection(s)
@@ -258,8 +261,11 @@ struct AdsSetupScreen: View {
                 liveRow("Category", ok: app.live?.category != nil, known: app.live != nil, now: app.live?.category, give: "Business and pages")
                 liveRow("App icon (1024 × 1024)", ok: app.live?.icon == true, known: app.live != nil, now: nil, give: "\(House.serverURL.absoluteString)/brand/meta-app-icon-1024.png")
                 configRow(app)
-                MarketingLink(title: "The one-time steps in Meta's dashboard", subtitle: "Products, domains, redirect addresses, the login configuration",
-                              symbol: "list.number", path: "/ads/setup?web=1")
+                DisclosureGroup {
+                    dashboardSteps(app)
+                } label: {
+                    Label("The one-time steps in Meta's dashboard", systemImage: "list.number")
+                }
             } header: {
                 stepHeader(1, "The Meta app", done: app.id != nil)
             } footer: {
@@ -271,6 +277,62 @@ struct AdsSetupScreen: View {
                 Text(tokenLine(app)).font(.footnote).foregroundStyle(app.tokenStoreWrite ? Color.secondary : Tone.problem.color)
             } header: {
                 stepHeader(2, "The app secret, kept by this ERP", done: app.secret && app.tokenStoreWrite)
+            }
+        }
+    }
+
+    // MARK: Step 1's one-time steps (page.tsx, under "The Meta app")
+
+    /// Both houses' addresses, as the web page lists them (page.tsx ORIGINS): one Meta app serves both, so its dashboard
+    /// needs each one a login can come back to. erp.* since 2026-09-27, pos.* still answering.
+    private static let origins = ["https://erp.taheri.shop", "https://erp.houseofmina.store", "https://pos.taheri.shop", "https://pos.houseofmina.store"]
+    /// What the login configuration asks for (page.tsx; a Business-type app refuses a plain permission list).
+    private static let permissions = "ads_management, ads_read, business_management, pages_show_list, pages_read_engagement, pages_manage_ads, instagram_basic, instagram_manage_insights"
+
+    private static var domains: [String] {
+        var out: [String] = []
+        for o in origins {
+            guard var host = URL(string: o)?.host else { continue }
+            if host.hasPrefix("erp.") || host.hasPrefix("pos.") { host = String(host.dropFirst(4)) }
+            if !out.contains(host) { out.append(host) }
+        }
+        return out
+    }
+
+    @ViewBuilder
+    private func dashboardSteps(_ app: AdsStatusAnswer.App) -> some View {
+        let origin = app.redirectUri.flatMap { (u: String) in URL(string: u) }.flatMap { (u: URL) -> String? in
+            guard let scheme = u.scheme, let host = u.host else { return nil }
+            return "\(scheme)://\(host)"
+        } ?? Self.origins[0]
+        let redirects = ([app.redirectUri].compactMap { $0 } + Self.origins.map { (o: String) in o + "/api/ads/callback" })
+            .reduce(into: [String]()) { (out: inout [String], u: String) in if !out.contains(u) { out.append(u) } }
+        if let id = app.id, let url = URL(string: "https://developers.facebook.com/apps/\(id)") {
+            Link(destination: url) { Label("Open the app's dashboard", systemImage: "safari") }
+        }
+        dashboardStep(1, "Add products (newer dashboard: Add use case) → Marketing API (\"Create & manage ads\") and Facebook Login for Business.")
+        dashboardStep(2, "App settings → Basic → App domains: add both houses' domains, then Save. If it asks for a platform: Add platform → Website, Site URL \(origin)/.",
+                      copy: Self.domains)
+        dashboardStep(3, "Facebook Login for Business → Settings: Client OAuth login and Web OAuth login on, and under Valid OAuth redirect URIs both houses' addresses, then Save. Without them Facebook stops at \"Can't load URL\".",
+                      copy: redirects)
+        dashboardStep(4, "Facebook Login for Business → Configurations → Create configuration: any name (\"ERP ads\"), login variation General, access token User access token, and these permissions (the ads ones appear once Marketing API is added). Then save its Configuration ID below.",
+                      copy: [Self.permissions])
+        dashboardStep(5, "App roles: whoever connects must be an admin or developer of the app. No App Review is needed for the shop's own ad accounts.")
+        dashboardStep(6, "Switch the app to Live: fill the lines above in App settings → Basic, Save, then App Mode → Live at the top of the dashboard. Instagram stories keep posting (the house's account is a tester of the app).")
+    }
+
+    private func dashboardStep(_ n: Int, _ words: String, copy: [String] = []) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("\(n).").monospacedDigit().foregroundStyle(.secondary)
+                Text(words).font(.subheadline)
+            }
+            ForEach(copy, id: \.self) { (line: String) in
+                Text(line)
+                    .font(.caption.monospaced())
+                    .textSelection(.enabled)
+                    .padding(.leading, 22)
+                    .contextMenu { Button { UIPasteboard.general.string = line } label: { Label("Copy", systemImage: "doc.on.doc") } }
             }
         }
     }
@@ -520,8 +582,6 @@ struct AdsSetupScreen: View {
             }
         } header: {
             stepHeader(8, "The website pixel", done: nil)
-        } footer: {
-            Text("With a pixel on the website, Meta can retarget people who looked at a piece, build audiences of them, buy page views instead of clicks, and, once it records orders, look for people who buy (\"Online orders\" on New ad).")
         }
     }
 
@@ -544,9 +604,13 @@ struct AdsSetupScreen: View {
         }
         if let id = st.id {
             VStack(alignment: .leading, spacing: 4) {
-                Label("Pixel \(id) \(st.live ? "is receiving from the website" : "has not received anything this week")",
-                      systemImage: st.live ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .foregroundStyle(st.live ? Tone.settled.color : Tone.owed.color)
+                // Receiving is the expected state: plain words; only silence is marked and coloured (CONVENTIONS rule 15).
+                if st.live {
+                    Text("Pixel \(id) is receiving from the website")
+                } else {
+                    Label("Pixel \(id) has not received anything this week", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Tone.owed.color)
+                }
                 if let last = st.lastFired { Text("Last received \(ShopDate.say(last, withTime: true)).").font(.caption) }
                 if st.onSite == false {
                     Text("\(st.sites.map { (x: AdsPixelSite) in x.host }.joined(separator: " and ")) doesn't load it yet: \(st.carried.isEmpty ? "the website needs its loader (it reads the id from this ERP's /api/public/pixel)" : "the site carries a different pixel (above)").")
@@ -565,7 +629,7 @@ struct AdsSetupScreen: View {
                 }
                 Spacer(minLength: 8)
                 if st.id == x.id {
-                    Text("In use").font(.caption.weight(.semibold)).foregroundStyle(Tone.settled.color)
+                    Text("In use").font(.caption).foregroundStyle(.secondary)
                 } else {
                     Button("Use this") { Task { await pixelAct(["action": "choose", "id": x.id], "pixel") } }
                         .buttonStyle(.borderless)

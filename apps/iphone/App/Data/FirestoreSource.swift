@@ -1,5 +1,4 @@
 import Foundation
-import FirebaseCore
 import FirebaseFirestore
 import ERPCore
 
@@ -10,27 +9,19 @@ enum FirestoreSource {
     /// and decoding them must not stall a scroll.
     static let queue = DispatchQueue(label: "erp.firestore", qos: .userInitiated)
 
-    /// Once, after FirebaseApp.configure and before anything reads.
-    static func configure() {
-        let s = FirestoreSettings()
-        s.cacheSettings = PersistentCacheSettings(sizeBytes: NSNumber(value: 512 * 1024 * 1024))
-        s.dispatchQueue = queue
-        Firestore.firestore().settings = s
-    }
-
-    /// Signing out forgets the books on this phone: the client is shut, its copy on disk erased, and a
-    /// fresh one set up as at launch, so the next person to sign in starts from nothing.
+    /// Signing out of a business forgets its books on this phone: that business's client is shut and its copy on
+    /// disk erased. The next `Businesses.firestore(for:)` sets up a fresh one (persistent cache and this queue
+    /// are applied there, per instance), so the next person to sign in starts from nothing. Other businesses'
+    /// books are untouched.
     @MainActor
-    static func forget() async {
-        guard !House.isDemo, FirebaseApp.app() != nil else { return }
-        let db = Firestore.firestore()
+    static func forget(_ business: Business = House.business) async {
+        guard !House.isDemo, let db = Businesses.shared.firestore(for: business) else { return }
         do {
             try await db.terminate()
             try await db.clearPersistence()
         } catch {
             print("[firestore] could not clear the phone's copy:", error.localizedDescription)
         }
-        configure()
     }
 
     /// SDK values JSON cannot hold, as text the models read (dates as ISO, as the ERP writes its own).
@@ -45,8 +36,16 @@ enum FirestoreSource {
 
     /// A collection unordered (sorted on the phone, so a document missing the sort field is still
     /// shown), or one document. Every change after the first answer arrives as just that change.
+    ///
+    /// Listens on the open business's Firestore, resolved here on the main actor: a listener keeps its own
+    /// business's database for as long as it runs, whatever is opened later.
+    @MainActor
     static func listen<T: Decodable>(_ name: String, docId: String?, deliver: @escaping @MainActor (Delivery<T>) -> Void) -> () -> Void {
-        let l = Listening<T>(name: name, docId: docId, deliver: deliver)
+        guard let db = Businesses.shared.firestore else {
+            Task { @MainActor in deliver(.failed("Not signed in to a business.")) }
+            return {}
+        }
+        let l = Listening<T>(db: db, name: name, docId: docId, deliver: deliver)
         queue.async { l.start() }
         return { queue.async { l.stop() } }
     }
@@ -55,6 +54,7 @@ enum FirestoreSource {
 /// One listener and its retries. Everything in it runs on FirestoreSource.queue (Firestore answers
 /// there too), so its state needs no lock.
 private final class Listening<T: Decodable>: @unchecked Sendable {
+    let db: Firestore
     let name: String
     let docId: String?
     let deliver: @MainActor (Delivery<T>) -> Void
@@ -65,7 +65,8 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
     /// The cache flag last handed on, so a metadata-only snapshot is sent only when it flips.
     private var lastOffline = false
 
-    init(name: String, docId: String?, deliver: @escaping @MainActor (Delivery<T>) -> Void) {
+    init(db: Firestore, name: String, docId: String?, deliver: @escaping @MainActor (Delivery<T>) -> Void) {
+        self.db = db
         self.name = name
         self.docId = docId
         self.deliver = deliver
@@ -87,7 +88,6 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
         registration?.remove()
         first = true
         lastOffline = false
-        let db = Firestore.firestore()
         if let docId {
             registration = db.collection(name).document(docId).addSnapshotListener { [weak self] snap, error in
                 guard let self else { return }

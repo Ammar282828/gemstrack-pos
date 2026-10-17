@@ -54,28 +54,45 @@ export interface PictureState { doc: StoryDoc; assetId: string | null; marked: b
 export type PictureTarget = typeof MAIN | string;
 
 /**
- * Put another picture in place of one. The design's own photo: the frame's asset changes and the document
- * doesn't, so its crop (placement) and everything over it stay. An image layer (an inset of the design's
- * photo, a library picture or an upload): it shows `lib:<asset id>`, keeping its place, size, frame and crop.
- * A `lib:` background is replaced the same way, its crop moved to the new id.
+ * Put another picture in place of one. It keeps the place, size, frame and mask of the one it replaces, and
+ * everything over it (the words, the shade) stays — but its crop starts again, centred and unzoomed: the old
+ * picture's crop means nothing to a new one (2026-10-15, owner: "adding a new background its all buggy" — a
+ * new photo came in zoomed and pushed into the old photo's corner).
+ * The design's own photo: the frame's asset changes, and every crop of `photo` in the document is reset.
+ * An image layer (an inset, a library picture or an upload): it shows `lib:<asset id>`.
+ * A `lib:` background: replaced the same way, with a fresh crop under the new id.
  */
 export function replacePicture(s: PictureState, target: PictureTarget, pick: { assetId: string; marked?: boolean }): PictureState {
-  if (target === MAIN) return { ...s, assetId: pick.assetId, marked: !!pick.marked };
+  if (target === MAIN || (target === 'bg' && (!s.doc.bg.photoId || s.doc.bg.photoId === MAIN))) {
+    return { ...s, assetId: pick.assetId, marked: !!pick.marked, doc: s.doc && freshCrops(s.doc, MAIN) };
+  }
   const ref = libRef(pick.assetId);
   if (target === 'bg') {
-    const old = s.doc.bg.photoId;
-    if (!old || old === MAIN) return { ...s, assetId: pick.assetId, marked: !!pick.marked };
-    const placements = s.doc.placements ? { ...s.doc.placements } : undefined;
-    if (placements && placements[old]) { placements[ref] = placements[old]; delete placements[old]; }
-    return { ...s, doc: { ...s.doc, bg: { ...s.doc.bg, photoId: ref }, ...(placements ? { placements } : {}) } };
+    const old = s.doc.bg.photoId!;
+    const moved = { ...s.doc, bg: { ...s.doc.bg, photoId: ref }, ...(s.doc.placements ? { placements: Object.fromEntries(Object.entries(s.doc.placements).filter(([k]) => k !== old)) } : {}) };
+    return { ...s, doc: freshCrops(moved, ref) };
   }
   const i = s.doc.layers.findIndex(l => l.id === target);
   const l = s.doc.layers[i];
   if (!l || !isImage(l)) throw new Error('That picture isn’t on the design any more.');
-  const { src: _src, ...rest } = l;
+  const { src: _src, iz: _iz, ...rest } = l;
   const layers = s.doc.layers.slice();
-  layers[i] = { ...rest, photoId: ref } as ImageLayer;
+  layers[i] = { ...rest, photoId: ref, fx: 0.5, fy: 0.5 } as ImageLayer;
   return { ...s, doc: { ...s.doc, layers } };
+}
+
+/** Every crop of picture `ref` back to centred and unzoomed: the background's placement, and each image layer showing it. */
+export function freshCrops(doc: StoryDoc, ref: string): StoryDoc {
+  const fresh = <T extends { focusX: number; focusY: number; zoom: number }>(p: T): T => ({ ...p, focusX: 0.5, focusY: 0.5, zoom: 1 });
+  let out = doc;
+  if (doc.bg.photoId === ref) {
+    out = doc.placements ? { ...out, placements: { ...doc.placements, ...(doc.placements[ref] ? { [ref]: fresh(doc.placements[ref]) } : {}) } } : out;
+    out = { ...out, bg: { ...out.bg, placement: fresh(out.bg.placement) } };
+  }
+  if (doc.layers.some(l => isImage(l) && l.photoId === ref && !l.src)) {
+    out = { ...out, layers: out.layers.map(l => (isImage(l) && l.photoId === ref && !l.src ? (({ iz: _iz, ...x }) => ({ ...x, fx: 0.5, fy: 0.5 }))(l) as ImageLayer : l)) };
+  }
+  return out;
 }
 
 export interface PictureSlot { target: PictureTarget; label: string; /** What it draws: `photo`, `lib:<id>`, or a data URL. */ shows: string }

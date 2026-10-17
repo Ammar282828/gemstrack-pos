@@ -111,6 +111,40 @@ enum OrderActions {
 
     static func deletedNote(_ o: Order) -> String { "Order \(o.id) deleted" }
 
+    // MARK: The page's trash buttons: a piece taken off, an advance deleted (lib/writes/order-pieces.ts)
+
+    /// Remove a piece: an owner's, on an order not yet invoiced (the page hides the trash then), and never the
+    /// last piece (the store refuses it: delete the order instead).
+    static func canRemovePiece(_ o: Order, isOwner: Bool) -> Bool { isOwner && !hasInvoice(o) && o.items.count > 1 }
+
+    /// Delete an advance: an owner's, until the advances become the invoice's payments.
+    static func canDeleteAdvance(_ o: Order, isOwner: Bool) -> Bool { isOwner && !hasInvoice(o) }
+
+    /// The store's words for the delete code (order-pieces.ts removePieceWhat, deleteAdvanceWhat).
+    static func removePieceWhat(_ o: Order, index: Int) -> String { "Remove item \(index + 1) from \(o.id)" }
+    static func deleteAdvanceWhat(_ o: Order, amount: Double) -> String { "Delete the advance of \(Money.pkr(amount)) on \(o.id)" }
+
+    /// The page's "Remove this piece?". "This can't be undone" is the code sheet's own last line.
+    static func removePieceDetail(_ o: Order, index: Int) -> String {
+        let name = o.items.indices.contains(index) ? o.items[index].description : ""
+        return "Remove \u{201C}\(name.isEmpty ? "Piece \(index + 1)" : name)\u{201D} from this order? Its price comes off the order's total."
+    }
+
+    /// What goes, and what that does to what is owed.
+    static func deleteAdvanceDetail(_ o: Order, day: String, method: String, amount: Double) -> String {
+        let when = [day, method].filter { !$0.isEmpty }.joined(separator: " \u{00B7} ")
+        return "\(Money.pkr(amount))\(when.isEmpty ? "" : " (\(when))") comes off \(o.id), and what is owed goes up by as much."
+    }
+
+    static func removedPieceNote(index: Int) -> (title: String, detail: String) {
+        ("Item Removed", "Item #\(index + 1) removed from order.")
+    }
+
+    /// The page's toast, with the balance as the order will stand: what is owed plus the advance taken off.
+    static func deletedAdvanceNote(_ o: Order, amount: Double, balance: Double) -> (title: String, detail: String) {
+        ("Advance deleted", "\(Money.pkr(amount)) taken off \(o.id). Balance now \(Money.pkr(balance + amount)).")
+    }
+
     // MARK: Send to customer (lib/order-message.ts, line for line)
 
     enum MessageKind { case inProgress, completed, summary }
@@ -148,14 +182,10 @@ enum OrderActions {
         return String(x)
     }
 
-    /// "45,500.00": `toLocaleString('en-US', { minimumFractionDigits: 2 })` (three decimals at most, as there).
+    /// "45,500": whole rupees, never ".00" (owner, 2026-10-17: "there should be no decimals"; the web's
+    /// order-message.ts says it the same way now).
     static func amount(_ n: Double) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.locale = Locale(identifier: "en_US")
-        f.minimumFractionDigits = 2
-        f.maximumFractionDigits = 3
-        return f.string(from: NSNumber(value: n.isFinite ? n : 0)) ?? String(n)
+        Money.grouped(n.isFinite ? n : 0)
     }
 
     // MARK: Book courier (the page's ShopifyCourierOption)

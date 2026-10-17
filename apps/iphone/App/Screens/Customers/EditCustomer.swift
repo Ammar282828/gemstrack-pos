@@ -26,7 +26,7 @@ struct EditCustomer: View {
     }
 
     // `items`, not `item(_:)`: the shelf's lookup is not observed (as CustomerScreen).
-    private var customer: Customer? { book.customers.items.first { $0.id == id } ?? seed }
+    private var customer: Customer? { book.customers.item(id) ?? seed }
 
     var body: some View {
         ShelfState(loaded: seed != nil || book.customers.loaded, error: book.customers.error, offline: book.customers.offline) {
@@ -266,8 +266,6 @@ private struct EditCustomerForm: View {
                     Text(raw).tag(raw)
                 }
             }
-        } footer: {
-            Text("Where they came from: used for walk-in and referral analytics.")
         }
     }
 

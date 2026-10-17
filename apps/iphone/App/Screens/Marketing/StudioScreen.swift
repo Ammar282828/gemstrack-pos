@@ -70,7 +70,7 @@ struct StudioPlan: View {
                             LabeledContent("Format", value: play.s("format") + (play["pair"].bool ? " + story" : ""))
                             LabeledContent("Layout", value: play.s("template")); LabeledContent("Call to action", value: play.s("cta"))
                         }.font(.subheadline)
-                        Button("Make this") { Task { await model.startPlay(play) } }.buttonStyle(.glass)
+                        Button("Make this") { model.route = Route(path: "/design?v=make&kind=ad&play=" + (play.s("id").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? play.s("id"))) }.buttonStyle(.glass)
                     }.padding(.vertical, 6)
                 }
             }
@@ -243,5 +243,31 @@ struct StudioMaker: View {
             for size in sizes { let bytes = try await model.rendered(size); let url = FileManager.default.temporaryDirectory.appendingPathComponent("ad-\(size)-\(UUID().uuidString).jpg"); try bytes.write(to: url); files.append(url) }
             share = MarketingFileShare(items: files)
         } }
+    }
+}
+
+/// Ads → Plan (src/app/ads/plan/page.tsx): what to run, ad days and rules, competitors. It was Studio's Plan tab; the
+/// web moved it to its own page on 2026-10-12 and the app kept opening that page in a web view until 2026-10-17 (owner:
+/// "Check for others also and natively port them to ios"). `?s=plays|guide|rivals` picks the section, as on the web;
+/// "Make this" opens Design on the play.
+struct AdsPlanScreen: View {
+    let path: String
+    @State private var model = StudioModel()
+    @Environment(Session.self) private var session
+    var body: some View {
+        Group {
+            if session.role == "owner" || session.role == "marketing" {
+                StudioPlan(model: model)
+            } else { AdsOwnersOnly() }
+        }
+        .modifier(HouseGround()).navigationTitle("Plan").navigationBarTitleDisplayMode(.inline)
+        .task {
+            await model.load(path: "/ads/studio?v=plan")
+            let s = AdsQuery.value("s", in: path) ?? "plays"
+            model.part = ["plays", "guide", "rivals"].contains(s) ? s : "plays"
+        }
+        .navigationDestination(item: $model.route) { PlaceScreen(path: $0.path) }
+        .failureAlert($model.error, title: "Could not finish")
+        .websiteBusy(model.busy)
     }
 }

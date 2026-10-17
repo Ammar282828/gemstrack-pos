@@ -31,6 +31,9 @@ export async function POST(req: NextRequest) {
     const { act, ctx } = await planContext();
     if (!ctx.pageId || !ctx.instagramUserId) throw new MetaAdsError('Choose the Page and Instagram account on the Setup tab to see previews.', 409);
     if (plan.source.kind === 'photos' && !plan.source.photos.length) return NextResponse.json({ previews: [] });
+    if (plan.source.kind === 'video' && !plan.source.thumbHash) return NextResponse.json({ previews: [] });
+    if (plan.source.kind === 'catalog' && !plan.source.setId) return NextResponse.json({ previews: [] });
+    if (plan.source.kind === 'partner' && !plan.source.adCode.trim()) return NextResponse.json({ previews: [] });
     const { name: _n, ...creative } = creativeSpec({ ...plan, name: plan.name || 'Preview' }, ctx);
     const results = await Promise.all(FORMATS.map(f =>
       graph<{ data?: { body?: string }[] }>(`${act}/generatepreviews`, { params: { creative, ad_format: f } })

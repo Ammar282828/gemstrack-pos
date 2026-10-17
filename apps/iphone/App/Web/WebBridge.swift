@@ -7,6 +7,8 @@ import WebKit
 /// script turns back into an Error with `.code` ("cancelled" is a person closing a sheet).
 final class WebBridge: NSObject, WKScriptMessageHandlerWithReply {
     weak var webView: WKWebView?
+    /// A place the page is about to go to: true when the app opened its native screen instead (WebScreen).
+    var openNative: ((String) -> Bool)?
     private lazy var speech = SpeechEngine { [weak self] event, data in self?.emit("ERPNative", event, data) }
 
     static let script = """
@@ -25,6 +27,32 @@ final class WebBridge: NSObject, WKScriptMessageHandlerWithReply {
         },
       };
       window.__erpEmit = (plugin, event, data) => (listeners[plugin + ':' + event] || []).slice().forEach((f) => { try { f(data); } catch (e) {} });
+      // A link to a place the app has its own screen for opens that screen, not the ERP's page: the app asks
+      // before the page moves, and lets the link go on (the page's own router) only when there is none.
+      const ask = (path) => window.webkit.messageHandlers.erp.postMessage({ plugin: 'ERPNative', method: 'open', options: { path } }).then((r) => !!(r && r.native), () => false);
+      const here = () => location.pathname;
+      document.addEventListener('click', (e) => {
+        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        const a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+        if (!a || a.dataset.erpPass || a.hasAttribute('download') || (a.target && a.target !== '_self')) return;
+        const u = new URL(a.href, location.href);
+        if (u.origin !== location.origin || u.pathname.startsWith('/api/') || u.pathname === here()) return;
+        e.preventDefault(); e.stopImmediatePropagation();
+        ask(u.pathname + u.search).then((native) => {
+          if (native) return;
+          a.dataset.erpPass = '1'; a.click(); delete a.dataset.erpPass;
+        });
+      }, true);
+      // The page sending itself somewhere after a save (router.push): the app's screen there, and the page steps back.
+      const push = history.pushState.bind(history);
+      history.pushState = (state, title, url) => {
+        const from = here();
+        push(state, title, url);
+        if (url == null || here() === from) return;
+        const to = new URL(String(url), location.href);
+        if (to.origin !== location.origin) return;
+        ask(to.pathname + to.search).then((native) => { if (native) history.back(); });
+      };
     })();
     """
 
@@ -95,6 +123,8 @@ final class WebBridge: NSObject, WKScriptMessageHandlerWithReply {
                 } catch let e as DocumentScanner.Failure { no(e.code, e.message) }
                 catch { no("failed", error.localizedDescription) }
             }
+        case ("ERPNative", "open"):
+            ok(["native": openNative?(o["path"] as? String ?? "") ?? false])
         case ("ERPNative", "chrome"):
             ok(nil) // the app draws its own bars
         case ("ERPNative", "speechStart"):

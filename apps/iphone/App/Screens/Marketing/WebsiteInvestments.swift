@@ -371,7 +371,7 @@ struct WebsiteGoldDaySheet: View {
         Section {
             if gold.schedule?.mode == "approve" {
                 if let at = d.approvedAt {
-                    Label("Approved \(ShopDate.say(at, withTime: true))", systemImage: "checkmark.shield").foregroundStyle(Tone.settled.color)
+                    Text("Approved \(ShopDate.say(at, withTime: true))").foregroundStyle(.secondary)
                 } else if !d.hold {
                     Button { ask = .approve } label: { Label("Approve today", systemImage: "checkmark.shield") }
                 }
@@ -419,14 +419,16 @@ struct WebsiteGoldDaySheet: View {
                 }
                 Spacer(minLength: 8)
                 if let went {
-                    Label(ShopDate.say(went.at, withTime: true) + (went.by == "schedule" ? " · auto" : ""), systemImage: "checkmark")
-                        .font(.caption).foregroundStyle(Tone.settled.color)
+                    // Gone is the expected state: the time, quietly.
+                    Text(ShopDate.say(went.at, withTime: true) + (went.by == "schedule" ? " · auto" : ""))
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
             if scheduled, let line = part?.line {
+                // A plan on time is the expected state: only a warning is coloured.
                 Label(line, systemImage: "calendar.badge.clock")
                     .font(.caption)
-                    .foregroundStyle(part?.tone == "ok" ? Tone.settled.color : part?.tone == "warn" ? Tone.owed.color : Color.secondary)
+                    .foregroundStyle(part?.tone == "warn" ? Tone.owed.color : Color.secondary)
             }
             HStack(spacing: 16) {
                 Button(went == nil ? "Send now" : "Send again…") { ask = .send([t.id], force: went != nil) }
@@ -559,7 +561,9 @@ struct WebsiteGoldDaySheet: View {
 @MainActor
 @Observable
 final class WebsiteGold {
-    static let shared = WebsiteGold()
+    /// Replaced, not cleared, when the person switches business (Businesses.switch): none of it is the next one's.
+    static var shared = WebsiteGold()
+    static func reset() { shared = WebsiteGold() }
 
     enum Phase: Equatable {
         case idle

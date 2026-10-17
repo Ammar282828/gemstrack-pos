@@ -24,7 +24,7 @@ interface Props {
   setBy?: string;
 }
 
-const fmt = (n: number) => 'PKR ' + Math.round(n).toLocaleString();
+const fmt = (n: number) => 'PKR ' + Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
 const fmtDate = (iso?: string) => iso ? new Date(iso).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
 export const WorkingCapitalFloor: React.FC<Props> = ({ onFloorChange, setBy }) => {

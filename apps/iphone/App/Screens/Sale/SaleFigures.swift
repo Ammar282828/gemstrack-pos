@@ -5,7 +5,9 @@ import ERPCore
 // (src/lib/pricing.ts) for every line, Exchange.swift for the exchange rows, WalkIn.swift for who the
 // sale is to, InvoiceCredit.swift for what paying over the total means. The server prices the sale
 // again with the same rules when it is saved (lib/writes/create-invoice.ts); these figures are only
-// what the screen shows until then, so they must match it line for line.
+// what the screen shows until then, so they must match it line for line. Money is whole rupees
+// (ERPCore MoneyRound, lib/money-round.ts): the lines come rounded from pricing, and the discount and
+// each payment are rounded here as sale-page.tsx rounds them.
 
 /// The rate boxes of one sale: today's rates (the shop's settings) unless a box was typed here
 /// (the web's `rateInputs` / `heldRates`). A typed rate prices this sale and is never written back.
@@ -161,10 +163,10 @@ struct SaleFigures {
         }
         costs = byLine
         subtotal = sum
-        discount = SaleNumber.value(draft.discount)
+        discount = rupees(SaleNumber.value(draft.discount))
         exchange = exchangeRowsTotal(draft.exchanges.map { $0.core })
         total = sum - discount - exchange
-        paidNow = draft.payments.reduce(0) { $0 + SaleNumber.value($1.amount) }
+        paidNow = draft.payments.reduce(0) { $0 + rupees(SaleNumber.value($1.amount)) }
         balance = total - paidNow
 
         who = resolveSaleCustomer(selectedId: draft.customerId, typedName: draft.customerName,
@@ -258,7 +260,7 @@ extension SaleDraft {
         out["exchanges"] = exchangesFromRows(exchanges.map { $0.core }).map { exchangeJSON($0) }
         var paid: [[String: Any]] = []
         for r in payments {
-            let amount = SaleNumber.value(r.amount)
+            let amount = rupees(SaleNumber.value(r.amount))
             if amount <= 0 { continue }
             var p: [String: Any] = ["amount": amount, "method": r.method]
             let ref = r.method == "Cash" ? "" : trimmed(r.reference)

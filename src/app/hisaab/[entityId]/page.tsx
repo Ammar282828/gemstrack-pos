@@ -21,8 +21,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { hisaabLedger, reminderMessage } from '@/lib/hisaab-report';
+import { drawHisaabLedgerPdf, hisaabLedgerFileName } from '@/lib/hisaab-pdf';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,16 +43,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { SwipeToDelete } from '@/components/ui/swipe-to-delete';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PhoneField } from '@/components/ui/phone-field';
-import { fitText } from '@/lib/pdf-text';
 import { deleteErrorText } from '@/lib/delete-code';
 
 
-// Re-declare module for jsPDF in this file as well
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
 
 const hisaabEntrySchema = z.object({
   description: z.string().min(1, "Description is required"),
@@ -165,21 +158,11 @@ export default function EntityHisaabPage() {
   }, [entityId, entityType, customers, karigars]);
 
   const { entityHisaab, balances } = useMemo(() => {
-    let cashBalance = 0;
-    let goldBalance = 0;
-    const entries = hisaabEntries
-      .filter(entry => entry.entityId === entityId)
-      .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()) // sort ascending for running balance
-      .map(entry => {
-          cashBalance += (entry.cashDebit - entry.cashCredit);
-          goldBalance += (entry.goldDebitGrams - entry.goldCreditGrams);
-          return { ...entry, runningCashBalance: cashBalance, runningGoldBalance: goldBalance };
-      })
-      .reverse(); // reverse back for display
-    
+    // The running balance is the server's too (lib/hisaab-report.ts: the iPhone app's Ledger PDF).
+    const { lines, finalCashBalance, finalGoldBalance } = hisaabLedger(hisaabEntries, entityId);
     return {
-        entityHisaab: entries,
-        balances: { finalCashBalance: cashBalance, finalGoldBalance: goldBalance }
+        entityHisaab: [...lines].reverse(), // newest first for display
+        balances: { finalCashBalance, finalGoldBalance }
     };
   }, [hisaabEntries, entityId]);
 
@@ -246,11 +229,7 @@ export default function EntityHisaabPage() {
         return;
     }
 
-    let message = `Dear ${entity.name},\n\n`;
-    message += `This is a friendly reminder from ${settings.shopName} regarding your outstanding balance.\n\n`;
-    message += `*Amount Due:* PKR ${balances.finalCashBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
-    message += `We would appreciate it if you could settle the balance at your earliest convenience.\n\n`;
-    message += `Thank you.`;
+    const message = reminderMessage(entity.name, settings.shopName, balances.finalCashBalance) ?? '';
 
     // Country code and leading-zero handling live in one place; the raw
     // digit strip that used to be here produced wa.me/0300… , a dead link.
@@ -268,71 +247,17 @@ export default function EntityHisaabPage() {
     }
 
     const iOSWin = openPDFWindowForIOS();
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 15;
-
-    // Header
-    doc.setFont("helvetica", "bold").setFontSize(18);
-    doc.text(`Ledger Statement`, margin, 22);
-    doc.setFontSize(12);
-    fitText(doc, entity.name, margin, 29, pageWidth - margin * 2);
-    doc.setFontSize(10);
-    doc.text(`(${entityType})`, margin, 35);
-    
-    doc.setFont("helvetica", "normal").setFontSize(10);
-    doc.text(`Date: ${format(new Date(), 'PP')}`, pageWidth - margin, 22, { align: 'right' });
-    
-    // Balance Summary
-    let summaryY = 50;
-    doc.setFont("helvetica", "bold").setFontSize(12);
-    doc.text("Final Balance", margin, summaryY);
-    summaryY += 7;
-
-    doc.setFont("helvetica", "normal").setFontSize(10);
-    const cashBalanceText = balances.finalCashBalance > 0 
-        ? `Receivable: PKR ${balances.finalCashBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}`
-        : `Payable: PKR ${Math.abs(balances.finalCashBalance).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-    doc.text(`Cash: ${cashBalanceText}`, margin, summaryY);
-    summaryY += 7;
-    
-    const goldBalanceText = balances.finalGoldBalance > 0
-        ? `Receivable: ${balances.finalGoldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})}g`
-        : `Payable: ${Math.abs(balances.finalGoldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})}g`;
-    doc.text(`${STORE_METAL_WORD}: ${goldBalanceText}`, margin, summaryY);
-    
-    // Table — sorted oldest-first for the printed statement
-    const tableStartY = summaryY + 15;
-    const tableColumns = ["Date", "Description", "Debit (Dr)", "Credit (Cr)", `${STORE_METAL_WORD} Out (g)`, `${STORE_METAL_WORD} In (g)`];
-    const pdfEntries = [...entityHisaab].reverse(); // ascending date order for statement
-    const tableRows = pdfEntries.map(entry => [
-        format(parseISO(entry.date), 'dd-MMM-yy'),
-        entry.description,
-        entry.cashDebit > 0 ? entry.cashDebit.toLocaleString() : '-',
-        entry.cashCredit > 0 ? entry.cashCredit.toLocaleString() : '-',
-        entry.goldDebitGrams > 0 ? entry.goldDebitGrams.toLocaleString(undefined, { minimumFractionDigits: 3 }) : '-',
-        entry.goldCreditGrams > 0 ? entry.goldCreditGrams.toLocaleString(undefined, { minimumFractionDigits: 3 }) : '-',
-    ]);
-
-    doc.autoTable({
-        head: [tableColumns],
-        body: tableRows,
-        startY: tableStartY,
-        margin: { left: margin, right: margin },
-        theme: 'grid',
-        headStyles: { fillColor: [240, 240, 240], textColor: 50, fontStyle: 'bold', fontSize: 9, },
-        styles: { fontSize: 8, cellPadding: 2, valign: 'middle' },
-        columnStyles: {
-            0: { cellWidth: 20 },
-            1: { cellWidth: 'auto' },
-            2: { halign: 'right' },
-            3: { halign: 'right' },
-            4: { halign: 'right' },
-            5: { halign: 'right' },
-        }
+    // The one drawer, which the server also prints the iPhone app's ledger with (lib/hisaab-pdf.ts).
+    const asOf = new Date();
+    const doc = drawHisaabLedgerPdf({
+      name: entity.name,
+      entityType,
+      lines: [...entityHisaab].reverse(), // ascending date order for statement
+      finalCashBalance: balances.finalCashBalance,
+      finalGoldBalance: balances.finalGoldBalance,
+      asOf,
     });
-
-    await savePDF(doc, `Ledger-${entity.name}-${format(new Date(), 'yyyy-MM-dd')}.pdf`, iOSWin);
+    await savePDF(doc, hisaabLedgerFileName(entity.name, asOf), iOSWin);
   };
 
   const isLoading = !appReady || !loaded || isHisaabLoading || isCustomersLoading || isKarigarsLoading;
@@ -409,12 +334,12 @@ export default function EntityHisaabPage() {
       <div className="grid grid-cols-2 gap-3">
         <div className="p-3 rounded-lg bg-success/10 border border-success/20">
           <p className="text-xs font-medium text-success mb-1">You will Get</p>
-          <p className="text-xl font-bold text-success">PKR {Math.max(0, balances.finalCashBalance).toLocaleString()}</p>
+          <p className="text-xl font-bold text-success">PKR {Math.max(0, balances.finalCashBalance).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
           {balances.finalGoldBalance > 0 && <p className="text-xs text-success/80 mt-0.5">{balances.finalGoldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
         </div>
         <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
           <p className="text-xs font-medium text-destructive mb-1">You will Give</p>
-          <p className="text-xl font-bold text-destructive">PKR {Math.abs(Math.min(0, balances.finalCashBalance)).toLocaleString()}</p>
+          <p className="text-xl font-bold text-destructive">PKR {Math.abs(Math.min(0, balances.finalCashBalance)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
           {balances.finalGoldBalance < 0 && <p className="text-xs text-destructive/80 mt-0.5">{Math.abs(balances.finalGoldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
         </div>
       </div>
@@ -458,12 +383,12 @@ export default function EntityHisaabPage() {
                                       <p className="text-xs text-muted-foreground mt-1">{format(parseISO(entry.date), 'MMM dd, yyyy')}</p>
                                     </div>
                                     <div className="text-right flex-shrink-0">
-                                      {entry.cashDebit > 0 && <p className="font-bold text-destructive text-sm">-PKR {entry.cashDebit.toLocaleString()}</p>}
-                                      {entry.cashCredit > 0 && <p className="font-bold text-success text-sm">+PKR {entry.cashCredit.toLocaleString()}</p>}
+                                      {entry.cashDebit > 0 && <p className="font-bold text-destructive text-sm">-PKR {entry.cashDebit.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>}
+                                      {entry.cashCredit > 0 && <p className="font-bold text-success text-sm">+PKR {entry.cashCredit.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>}
                                       {entry.goldDebitGrams > 0 && <p className="text-xs text-destructive">-{entry.goldDebitGrams.toFixed(3)}g</p>}
                                       {entry.goldCreditGrams > 0 && <p className="text-xs text-success">+{entry.goldCreditGrams.toFixed(3)}g</p>}
                                       <p className={cn('text-xs mt-0.5', entry.runningCashBalance === 0 ? 'text-muted-foreground' : entry.runningCashBalance > 0 ? 'text-success' : 'text-destructive/70')}>
-                                        Bal: PKR {entry.runningCashBalance.toLocaleString()}
+                                        Bal: PKR {entry.runningCashBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                       </p>
                                     </div>
                                   </div>
@@ -504,12 +429,12 @@ export default function EntityHisaabPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right font-medium text-destructive">
-                                            {entry.cashDebit > 0 && <div>PKR {entry.cashDebit.toLocaleString()}</div>}
+                                            {entry.cashDebit > 0 && <div>PKR {entry.cashDebit.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>}
                                             {entry.goldDebitGrams > 0 && <div className="text-xs">{entry.goldDebitGrams.toFixed(3)} g</div>}
                                             {(entry.goldDebitGrams === 0 && entry.cashDebit === 0) && <span className="text-muted-foreground">—</span>}
                                         </TableCell>
                                         <TableCell className="text-right font-medium text-success">
-                                            {entry.cashCredit > 0 && <div>PKR {entry.cashCredit.toLocaleString()}</div>}
+                                            {entry.cashCredit > 0 && <div>PKR {entry.cashCredit.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>}
                                             {entry.goldCreditGrams > 0 && <div className="text-xs">{entry.goldCreditGrams.toFixed(3)} g</div>}
                                             {(entry.goldCreditGrams === 0 && entry.cashCredit === 0) && <span className="text-muted-foreground">—</span>}
                                         </TableCell>
@@ -519,7 +444,7 @@ export default function EntityHisaabPage() {
                                           </TableCell>
                                         )}
                                         <TableCell className={cn("text-right font-semibold", entry.runningCashBalance === 0 ? 'text-muted-foreground' : entry.runningCashBalance > 0 ? 'text-destructive' : 'text-success')}>
-                                            PKR {entry.runningCashBalance.toLocaleString()}
+                                            PKR {entry.runningCashBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                         </TableCell>
                                         <TableCell>
                                             <AlertDialog>

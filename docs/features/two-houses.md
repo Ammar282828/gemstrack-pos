@@ -24,12 +24,26 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   The margin (`NEXT_PUBLIC_STORE_COST_RATTI_LESS`, default 6: gold costs the 24k rate less 6 ratti; decisions.md#margin) is
   Taheri's; Mina sets "none" — no 24k ask, no margin shown, Analytics keeps its `NEXT_PUBLIC_STORE_EST_MARGIN`.
   The order form's *save this size to the profile?* (`NEXT_PUBLIC_STORE_SIZE_TO_PROFILE`) is Taheri's; Mina sets "0".
+  The Workshop list's starting filter (`NEXT_PUBLIC_STORE_WORKSHOP_START`, "you" | "anyone", default "you") is the signed-in person
+  at Taheri; Mina sets "anyone" (owner, 2026-10-15). `/api/app/me` carries it as `shop.workshopStart` for the iPhone app.
   **Expense categories** are `NEXT_PUBLIC_STORE_EXPENSE_CATEGORIES` (`lib/expense-categories.ts`; Taheri's list by default,
   Mina's own 15 since 2026-09-25, worked out from all its expenses); Partner Drawings, Partner Salary and Other are always
   added — `lib/partnership.ts` reads the first two by name. The expenses filter also offers any other name an expense carries.
   **WhatsApp alerts name their POS** (`lib/notify-label.ts`, owner 2026-09-26: "I get both"): every alert to the owner —
   live ones through `/api/notifications/send`, the scheduled reports, a website order to the shop — starts `*Taheri POS* · …`,
   or Mina's `NEXT_PUBLIC_STORE_NOTIFY_LABEL` ("House of Mina POS"). Messages to customers and the gold updates are not labelled.
+- **One native app, many businesses** (`GET /api/app/business`, public, `Cache-Control: public, max-age=300`): the merged iPhone
+  app (bundle `shop.taheri.erp`) asks any ERP address who it is before sign-in. It answers `{version:1, id, name, shortName,
+  serverURL (the request's own https origin), metal, margin ({kind:"rattiLess",ratti} when `NEXT_PUBLIC_STORE_COST_RATTI_LESS`
+  is a number, else {kind:"percent"} from `_EST_MARGIN`), palette {light,dark}{accent,ground,card,onAccent}, logo {light,dark,aspect},
+  icon, ios {googleClientId, firebase}, flags}`. `flags` is `shopFlags()` (`lib/app-shop.ts`), the same function `/api/app/me`'s
+  `shop` block spreads, so the two agree. New variables: `NEXT_PUBLIC_STORE_PALETTE` (compact JSON, `{"light":{…},"dark":{…}}`, #RRGGBB;
+  Taheri's colours are the code's defaults, a missing or malformed colour falls back to them) and, run time only,
+  `APP_IOS_GOOGLE_CLIENT_ID`, `APP_IOS_FIREBASE_API_KEY`, `APP_IOS_FIREBASE_APP_ID` (the iOS sign-in identifiers; defaults are Taheri's;
+  project, sender and bucket come from `NEXT_PUBLIC_FIREBASE_*`). All public identifiers. Mina's `APP_IOS_*` are the old
+  `store.houseofmina.erp` app's until the owner registers `shop.taheri.erp` in Mina's Firebase project. Push needs nothing:
+  `/api/push/devices` accepts any bundle id shaped like one (no allow-list), and the APNs key is team-scoped, so topic
+  `shop.taheri.erp` works on Mina's server too.
 - **Each ERP has its own icons** (2026-09-30, owner: "update favicons for each pos"; both showed the project template's
   orange flame, `src/app/favicon.ico`). `scripts/make-icons.mjs` writes `public/icons/<brand>/` — favicon.ico (16/32/48),
   icon-192/512, apple-touch-icon, maskable-512: Taheri's t (`public/brand/taheri-t.svg`) in white on #0A1111, Mina's

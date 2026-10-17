@@ -33,6 +33,17 @@ public enum Money {
         return "\(sign)\(grouped(a))"
     }
 
+    /// Chart axis ticks and calendar cells, where there is no room for words: 50k · 2.5L · 1.2Cr (axisLac).
+    public static func axisLac(_ n: Double) -> String {
+        let v = n.isFinite ? n : 0
+        let sign = v < 0 ? "-" : ""
+        let a = abs(v)
+        if a >= crore || (Double(String(format: "%.1f", a / lac)) ?? 0) >= 100 { return "\(sign)\(trimmed(a / crore, 1))Cr" }
+        if a >= lac || (a / 1000).rounded() >= 100 { return "\(sign)\(trimmed(a / lac, 1))L" }
+        if a >= 1000 { return "\(sign)\(Int((a / 1000).rounded()))k" }
+        return "\(sign)\(Int(a.rounded()))"
+    }
+
     /// "PKR 4.5 lac".
     public static func pkrLac(_ n: Double, digits: Int = 2) -> String { "PKR \(lacCrore(n, digits: digits))" }
 

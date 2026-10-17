@@ -36,8 +36,6 @@
 	<string>$(ERP_GOOGLE_CLIENT_ID)</string>
 	<key>ERPGround</key>
 	<string>$(ERP_GROUND)</string>
-	<key>ERPHouse</key>
-	<string>$(ERP_HOUSE)</string>
 	<key>ERPMetal</key>
 	<string>$(ERP_METAL)</string>
 	<key>ERPServerURL</key>
@@ -46,6 +44,10 @@
 	<string>$(AppIdentifierPrefix)$(ERP_BUNDLE_ID)</string>
 	<key>ERPStoreName</key>
 	<string>$(ERP_STORE_NAME)</string>
+	<!-- Firebase must not swizzle the app delegate: in a SwiftUI app it swallowed the push token callback (2.2 sat on
+	     "Registering this phone"). Sign-in is Google's, which needs none of it. -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>

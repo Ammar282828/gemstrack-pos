@@ -18,9 +18,6 @@ struct WorkshopPlace: Identifiable, Hashable {
     static func karigar(_ id: String) -> WorkshopPlace {
         WorkshopPlace(path: WorkshopLogic.karigarPath(id))
     }
-    /// The ERP's own Workshop page, where an order's or a sold piece's making details (its name, size, sample
-    /// picture and instructions) are changed: the one thing on the board the phone does not do yet.
-    static let workshopPage = WorkshopPlace(path: "/workshop?web=1", title: "Workshop")
 }
 
 private struct WorkshopPlaceView: View {
@@ -51,14 +48,13 @@ extension View {
     }
 }
 
-/// How old a piece is, in the colour every workshop surface uses: grey, orange from a week, red from two.
+/// How old a piece is, in the colour every workshop surface uses: grey, orange from a week, red from two. A done piece
+/// shows nothing: done is the expected end (rule 15).
 struct WorkshopAgeBadge: View {
     let job: WorkshopJob
 
     var body: some View {
-        if job.isDone {
-            StatusBadge("Done", tone: .settled)
-        } else {
+        if !job.isDone {
             StatusBadge("\(job.ageDays)d", color: tone)
                 .monospacedDigit()
         }
@@ -105,7 +101,7 @@ struct WorkshopActions {
     let assign: (WorkshopJob, String) -> Void
     /// A stock job's status: Pending, In Progress, Completed.
     let status: (WorkshopJob, KarigarJobStatus) -> Void
-    /// A stock job's making details, in a sheet.
+    /// A piece's making details, in a sheet: a stock job's own, or an order's piece or a sold piece's.
     let details: (WorkshopJob) -> Void
     /// A stock job deleted, once the delete code is typed.
     let delete: (WorkshopJob) -> Void

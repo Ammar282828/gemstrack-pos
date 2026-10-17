@@ -3,23 +3,36 @@ import * as E from '../../../src/lib/social/editor';
 import * as D from '../../../src/lib/social/design';
 import * as A from '../../../src/lib/ads/studio/templates';
 import { PALETTES } from '../../../src/lib/social/palettes';
-import { loadImage } from '../../../src/lib/social/story';
+import { loadImage, stampPhoto } from '../../../src/lib/social/story';
+import { siteStoryJpeg, HOUSE_STORY_COLOURS } from '../../../src/lib/social/site-story';
 import { SCENES } from '../../../src/lib/social/prompts';
 import { isMaisonFolder, maisonFileName, MAISON_HOUSES } from '../../../src/lib/website/maisons';
 import { PLAYS, STAGES } from '../../../src/lib/ads/studio/plays';
 import { PLAYBOOK } from '../../../src/lib/ads/studio/playbook';
 import { BRAND } from '../../../src/lib/ads/studio/brand';
-import { weightLabel, detailsLine, whatsappCaption, websiteFileName } from '../../../src/lib/social/caption';
+import { resizeOne, swapPhoto } from '../../../src/lib/design/resize';
+import { mergePlan, planOf, summariseLayers } from '../../../src/lib/design/resize-ai';
+import { wordProblems } from '../../../src/lib/design/publish';
+import { makeMeasure } from '../../../src/lib/design/score';
+import { weightLabel, detailsLine, whatsappCaption, websiteFileName, sitePieceCaption } from '../../../src/lib/social/caption';
+import { siteDetailsLine, siteLayouts, siteStartLayout } from '../../../src/lib/social/site-design';
 
 declare const NATIVE_MARK: string;
 declare const NATIVE_FONTS: string;
-const fonts: E.FontFamilies = { headline: 'Headline', body: 'Body', serif: 'Didone', extra: { cormorant: 'Cormorant', playfair: 'Playfair', script: 'Script', montserrat: 'Montserrat', cinzel: 'Cinzel' } };
+const fonts: E.FontFamilies = { headline: 'Headline', body: 'Body', serif: 'Didone', extra: { cormorant: 'Cormorant', playfair: 'Playfair', script: 'Script', montserrat: 'Montserrat', cinzel: 'Cinzel', cormorantInfant: 'CormorantInfant', italiana: 'Italiana', jost: 'Jost', tenor: 'TenorSans', dmSerif: 'DMSerif', marcellus: 'Marcellus' } };
 const ready = (async () => {
   const style = document.createElement('style'); style.textContent = NATIVE_FONTS; document.head.appendChild(style);
-  await Promise.all(['800 100px Headline', '300 40px Body', '400 40px Body', '700 40px Body', '500 40px Didone', 'italic 400 40px Didone', '300 40px "Taheri Stamp"', '500 40px Cormorant', 'italic 500 40px Cormorant', '700 40px Playfair', '400 40px Script', '400 40px Montserrat', '700 40px Montserrat', '500 40px Cinzel'].map(f => document.fonts.load(f)));
+  await Promise.all(['800 100px Headline', '300 40px Body', '400 40px Body', '700 40px Body', '500 40px Didone', 'italic 400 40px Didone', '300 40px "Taheri Stamp"', '500 40px Cormorant', 'italic 500 40px Cormorant', '700 40px Playfair', '400 40px Script', '400 40px Montserrat', '700 40px Montserrat', '500 40px Cinzel', '500 40px CormorantInfant', '400 40px Italiana', '400 40px Jost', '400 40px TenorSans', '400 40px DMSerif', '400 40px Marcellus'].map(f => document.fonts.load(f)));
   return loadImage(NATIVE_MARK);
 })();
 const images = new Map<string, { src: string; img: HTMLImageElement }>();
+/** A drawn JPEG as the base64 the bridge carries. */
+const base64Of = (b: Blob) => new Promise<string>((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(String(r.result).split(',')[1] ?? '');
+  r.onerror = () => reject(r.error);
+  r.readAsDataURL(b);
+});
 const defaults = (photoId: string | null, height = 1920): E.StoryDoc => ({ ...E.emptyDoc(photoId), frame: { w: 1080, h: height } });
 
 async function run(input: any) {
@@ -31,7 +44,9 @@ async function run(input: any) {
     images.set(id, { src, img }); photos[id] = img;
   }
   for (const key of [...images.keys()]) if (!(key in (input.photos ?? {}))) images.delete(key);
-  const assets: E.Assets = { photos, marks: { wordmark: mark }, fonts, ink: input.house === 'mina' ? '#540000' : '#111111' };
+  // A website photograph (Edit a piece) takes the site's own mark ink (store-config STORE_SITE_MARK_INK): the catalogue's maroon.
+  const ink = input.site ? (input.house === 'mina' ? '#3A0000' : '#111111') : input.house === 'mina' ? '#540000' : '#111111';
+  const assets: E.Assets = { photos, marks: { wordmark: mark }, fonts, ink };
   let doc: E.StoryDoc = structuredClone(input.doc ?? defaults(Object.keys(photos)[0] ?? null));
   const fields: E.Fields = { kicker: '', headline: '', weight: '', details: '', ...input.fields };
   const selected = new Set<string>(input.selected ?? []);
@@ -43,6 +58,49 @@ async function run(input: any) {
   }
   const frame = E.frameOf(doc);
   const action = input.action ?? 'render';
+  // Resize (design.md "AI resize"): the same pure engine the web's resize sheet runs, so the phone and the web lay a design out alike.
+  // 'resize' answers every target frame at once with the three deterministic layouts' winner plus what the AI step is shown (layer
+  // summaries, the plan, a small JPEG); 'resizeMerge' lays the route's plans on those results and keeps one only if it scores as well.
+  // The Publish sheet's house rules on the words about to go out (publish.ts wordProblems): sale words, hashtags, figures the specs don't give.
+  if (action === 'words') return { problems: wordProblems(input.texts ?? {}, input.facts ?? '') };
+  // Edit a piece's photograph and the Posts tray's Crop & design (site-design.ts): the layouts this house's website photo offers
+  // and the one a design starts on (with the weight, `weightOn`, where the tray's card was stamping it).
+  // The phone draws no monogram (every t becomes the full logo below), so the t's layout is never offered.
+  if (action === 'siteLayouts') {
+    const house = input.house === 'mina' ? 'mina' : 'taheri';
+    return { layouts: siteLayouts(house, false), start: siteStartLayout(house, { photoSource: input.sitePiece?.photoSource ?? null, sourceMarked: !!input.sitePiece?.sourceMarked }, !!input.weightOn) };
+  }
+  // The Posts tray (src/app/posts/piece-card.tsx): a website piece's house caption (sitePieceCaption), its photo with the
+  // weight in the catalogue's own lettering (stampPhoto), and its 9:16 story (site-story.ts), so the phone sends what the web's tray does.
+  if (action === 'siteCaption') return { caption: sitePieceCaption(input.sitePiece ?? { name: '', url: '' }, input.context ?? { whatsappNumbers: [] }) };
+  if (action === 'stamp' || action === 'siteStory') {
+    const photo = photos[input.photoId] ?? Object.values(photos)[0];
+    if (!photo) throw new Error('No photo to draw on.');
+    if (action === 'stamp') return { image: await base64Of(await stampPhoto(photo, { text: input.text ?? '', colour: input.colour ?? 'auto', maxEdge: 2048 })) };
+    // The Maisons are the great houses' pieces, not the house's own metal (siteDetailsLine).
+    const details = siteDetailsLine(input.collection ?? '', input.metal ?? '', input.weight ?? '');
+    const colours = HOUSE_STORY_COLOURS[input.house === 'mina' ? 'mina' : 'taheri'];
+    return { image: await base64Of(await siteStoryJpeg(photo, { headline: input.headline ?? '', details }, { marks: mark ? { wordmark: mark } : {}, fonts }, colours)) };
+  }
+  if (action === 'resize' || action === 'resizeMerge') {
+    const m = makeMeasure(fields, assets);
+    const rates = input.rates?.rows ? input.rates : input.rates ? A.rateBoard(input.rates, new Date().toLocaleDateString('en-GB', {weekday:'long',day:'numeric',month:'long',timeZone:'Asia/Karachi'})) : null;
+    const subject = input.subject ?? undefined;
+    if (action === 'resizeMerge') {
+      const merged = (input.items ?? []).map((it: any) => mergePlan(it.det, it.plan ?? null, fields, assets, { subject, measure: m }));
+      return JSON.parse(JSON.stringify({ results: merged }));
+    }
+    const jpeg = (d: E.StoryDoc) => {
+      try { return E.renderDocTo(E.reflow(d, fields, assets), fields, assets, 256, {}).toDataURL('image/jpeg', 0.6).split(',')[1]; } catch { return undefined; }
+    };
+    const from = input.swap?.from && input.swap?.to ? swapPhoto(doc, input.swap.from, input.swap.to) : doc;
+    const opts = { subject, rates, photoMarked: !!input.photoMarked, measure: m };
+    const results = (input.targets ?? []).map((tf: { w: number; h: number }) => {
+      const r = resizeOne(from, fields, assets, tf, opts);
+      return { ...r, ai: { layers: summariseLayers(r.doc, fields, m), plan: planOf(r, fields, m), thumb: jpeg(r.doc) } };
+    });
+    return JSON.parse(JSON.stringify({ source: { frame, layers: summariseLayers(doc, fields, m), thumb: jpeg(doc) }, results }));
+  }
   const additions: E.Layer[] = [];
   if (action === 'preset') doc = E.applyPreset(doc, input.value, palette, fields, assets, { weightOwnLine: input.weightOwnLine !== false, wordmark: true });
   if (action === 'square') doc = E.applySquarePreset(doc, input.value === 'catalogue-t' ? 'catalogue' : input.value, fields, assets);
@@ -81,7 +139,7 @@ async function run(input: any) {
     caption: whatsappCaption(piece, input.context ?? { whatsappNumbers: [] }), weight: weightLabel(piece), details: detailsLine(piece, false),
     names: Array.from({ length: input.count ?? 1 }, (_, i) => isMaisonFolder(input.folder) ? maisonFileName(input.maisonHouse ?? '', input.name ?? piece.headline ?? '', i) : websiteFileName(input.name ?? piece.headline ?? '', i)),
     catalogue: {
-      plays: PLAYS, stages: STAGES, playbook: PLAYBOOK, maisonHouses: MAISON_HOUSES, presets: E.PRESETS, squares: E.SQUARE_PRESETS.filter(x => x.id !== 'catalogue-t'), palettes: PALETTES,
+      plays: PLAYS, stages: STAGES, playbook: PLAYBOOK, maisonHouses: MAISON_HOUSES, presets: E.PRESETS, squares: E.SQUARE_PRESETS.filter(x => x.id !== 'catalogue-t'), siteSquares: siteLayouts(input.house === 'mina' ? 'mina' : 'taheri', false), palettes: PALETTES,
       fonts: Object.entries(E.FONT_LABEL).map(([id, label]) => ({ id, label })), effects: E.EFFECTS.map(x => ({ id: x.kind, label: x.label })),
       shapes: Object.entries(D.SHAPES).map(([id, v]) => ({ id, label: v.label })), masks: D.MASK_PICKS,
       filters: D.FILTERS, textStyles: E.TEXT_STYLES.map(({ id, label }) => ({ id, label })), badges: E.BADGES.map(({ id, label }) => ({ id, label })),

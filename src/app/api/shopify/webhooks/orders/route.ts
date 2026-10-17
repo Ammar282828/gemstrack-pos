@@ -42,8 +42,10 @@ export async function POST(request: NextRequest) {
   try { creds = await getShopifyCredentials(adminDb); } catch { return NextResponse.json({ ok: true, skipped: 'not-connected' }); }
 
   try {
-    const outcome = await mirrorShopifyOrderById(creds.shop, creds.token, orderId);
-    await pushFor(String(request.headers.get('x-shopify-topic') || ''), orderId, outcome);
+    const topic = String(request.headers.get('x-shopify-topic') || '');
+    // A new web order arrives on its own (2026-10-15): create/updated import it when the ERP has none.
+    const outcome = await mirrorShopifyOrderById(creds.shop, creds.token, orderId, { importIfAbsent: topic === 'orders/create' || topic === 'orders/updated' });
+    await pushFor(topic, orderId, outcome);
     return NextResponse.json({ ok: true, ...outcome });
   } catch (e) {
     // A failure answers 500, so Shopify sends it again later.

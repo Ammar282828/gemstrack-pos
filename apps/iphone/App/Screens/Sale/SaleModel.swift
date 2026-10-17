@@ -426,7 +426,8 @@ struct SaleDraft: Codable, Equatable {
 /// The phone's own unfinished sale ("erp.saleDraft"). The New sale screen writes it as it is typed
 /// and takes it back on appear; the scan screen adds a piece to it and opens the sale.
 enum SaleDraftStore {
-    static let key = "erp.saleDraft"
+    /// Per business (BizKey).
+    static var key: String { BizKey("erp.saleDraft") }
 
     static func load() -> SaleDraft? {
         guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
@@ -600,7 +601,7 @@ extension SaleDraft {
     /// "Paid in full" / "The rest": the row takes whatever the other rows leave outstanding of `total`,
     /// in whole rupees (sale-page.tsx `payRestWith`).
     mutating func payRest(_ id: String, total: Double) {
-        let others = payments.filter { $0.id != id }.reduce(0.0) { $0 + SaleNumber.value($1.amount) }
+        let others = payments.filter { $0.id != id }.reduce(0.0) { $0 + rupees(SaleNumber.value($1.amount)) }
         let rest = max(0, (total - others).rounded())
         if let i = payments.firstIndex(where: { $0.id == id }) {
             payments[i].amount = rest > 0 ? String(Int(rest)) : ""

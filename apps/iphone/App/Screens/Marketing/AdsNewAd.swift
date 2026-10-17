@@ -4,7 +4,8 @@ import UIKit
 import ERPCore
 
 /// Ads → New ad (src/app/ads/new/page.tsx), in the order a shop thinks of it: what to promote (an Instagram
-/// post as it is, new photos from this phone or the ad account's library, or a piece from the website), what
+/// post as it is, new photos from this phone or the ad account's library, a piece from the website, a new video, a
+/// creator's post as a partnership ad, or the catalogue: AdsNewAdSources.swift), what
 /// it's for, the words, who sees it, budget and dates, Meta's own preview, then make it, paused or live.
 ///
 /// Every call is the web's own route; nothing goes to Meta from the phone. Photos from this phone go to
@@ -17,7 +18,7 @@ struct AdsNewAdScreen: View {
 
     @Environment(Session.self) private var session
 
-    enum Kind: String, Hashable { case post, photos, site }
+    enum Kind: String, Hashable { case post, photos, site, video, partner, catalog }
 
     // The account and what the house offers
     @State private var status: AdsStatusAnswer?
@@ -42,6 +43,13 @@ struct AdsNewAdScreen: View {
     @State private var pieces: [PostPiece]?
     @State private var piecesError: String?
     @State private var pieceQ = ""
+    @State private var video: AdsVideoDraft?
+    @State private var pickingVideo = false
+    @State private var videoItem: PhotosPickerItem?
+    @State private var partnerCode = ""
+    @State private var partnerCheck: AdsPartnerCheck?
+    @State private var catalog = AdsCatalogChoice()
+    @State private var advanced = AdsAdvanced()
 
     // 2–5 · The goal, the words, who, the budget
     @State private var goalKey = "whatsapp"
@@ -95,6 +103,7 @@ struct AdsNewAdScreen: View {
         .task(id: "\(kind.rawValue)|\(lists != nil)") { await sourceNeeds() }
         .task(id: goalKey) { await goalNeeds() }
         .onChange(of: kind) { _, _ in fitGoal() }
+        .task(id: catalog.catalogId) { await loadSets() }
     }
 
     private func dialogs<V: View>(_ v: V) -> some View {
@@ -124,6 +133,10 @@ struct AdsNewAdScreen: View {
             .onChange(of: picked) { _, items in
                 if !items.isEmpty { Task { await take(items) } }
             }
+            .photosPicker(isPresented: $pickingVideo, selection: $videoItem, matching: .videos)
+            .onChange(of: videoItem) { _, item in
+                if let item { Task { await takeVideo(item) } }
+            }
     }
 
 
@@ -131,16 +144,27 @@ struct AdsNewAdScreen: View {
 
     private var goal: AdsGoal? { lists?.goal(goalKey) }
     private var readyPhotos: [AdsPhoto] { photos.filter { (p: AdsPhoto) in p.ready } }
-    private var stillUploading: Bool { photos.contains { (p: AdsPhoto) in p.uploading } }
+    private var stillUploading: Bool { photos.contains { (p: AdsPhoto) in p.uploading } || video?.busy == true }
+    /// The post or the creator's post runs as it is: no words of the shop's own.
+    private var asIs: Bool { kind == .post || kind == .partner }
     private var currency: String { status?.currency ?? "PKR" }
 
     /// The goals New ad offers here, for what is being promoted (a boosted post can't carry some, new photos others).
     private func offered(_ l: AdsNewAdLists) -> [AdsGoal] {
-        l.goals.filter { (g: AdsGoal) in g.newAd && (kind == .post ? !g.photosOnly : !g.postOnly) }
+        l.goals.filter { (g: AdsGoal) in
+            guard g.newAd else { return false }
+            switch kind {
+            case .post: return !g.photosOnly
+            case .partner: return !g.photosOnly && g.key != "profile" && g.key != "engagement"
+            case .video: return !g.postOnly && !g.photosOnly
+            case .catalog: return g.key == "sales"
+            case .photos, .site: return !g.postOnly
+            }
+        }
     }
 
     /// Steps after the words move up one when a post is promoted (it keeps its own words).
-    private func step(_ n: Int) -> Int { kind == .post ? n - 1 : n }
+    private func step(_ n: Int) -> Int { asIs ? n - 1 : n }
 
     private var budget: AdsBudget {
         var b = AdsBudget()
@@ -155,7 +179,18 @@ struct AdsNewAdScreen: View {
     /// The ad as the routes take it (plan.ts AdPlan).
     private var plan: [String: Any] {
         var source: [String: Any] = [:]
-        if kind == .post {
+        if kind == .video {
+            source = video?.json ?? ["kind": "video", "videoId": "", "thumbHash": ""]
+        } else if kind == .partner {
+            let code = partnerCode.trimmingCharacters(in: .whitespacesAndNewlines)
+            source = ["kind": "partner", "adCode": code]
+            if let c = partnerCheck, c.code == code {
+                if let m = c.mediaId { source["mediaId"] = m }
+                if let who = c.creator { source["creator"] = who }
+            }
+        } else if kind == .catalog {
+            source = catalog.json
+        } else if kind == .post {
             source["kind"] = "post"
             source["mediaId"] = post?.id ?? ""
             if let permalink = post?.permalink { source["permalink"] = permalink }
@@ -177,6 +212,8 @@ struct AdsNewAdScreen: View {
         p["audience"] = audience.json
         p["budget"] = budget.json
         p["launch"] = launch
+        p["bidding"] = advanced.bidding
+        p["hours"] = advanced.hours
         p["name"] = name.trimmingCharacters(in: .whitespaces)
         return p
     }
@@ -283,6 +320,46 @@ struct AdsNewAdScreen: View {
         guard status?.ready == true, lists != nil else { return }
         if kind == .post && media == nil && !mediaBusy { await loadMedia(after: nil) }
         if kind == .site && pieces == nil { await loadPieces() }
+        if kind == .catalog && catalog.catalogs == nil {
+            do {
+                let list = try await AdsCatalogChoice.catalogs()
+                catalog.catalogs = list
+                catalog.problem = nil
+                if catalog.catalogId.isEmpty, list.count == 1 { catalog.catalogId = list[0].id }
+            } catch {
+                catalog.problem = error.localizedDescription
+            }
+        }
+    }
+
+    /// A catalogue's sets once it is chosen; the biggest is the default (the server sorts them).
+    private func loadSets() async {
+        let id = catalog.catalogId
+        guard !id.isEmpty else { return }
+        catalog.sets = nil
+        catalog.setId = ""
+        do {
+            let list = try await AdsCatalogChoice.sets(of: id)
+            guard catalog.catalogId == id else { return }
+            catalog.sets = list
+            catalog.setId = list.first?.id ?? ""
+        } catch {
+            catalog.problem = error.localizedDescription
+        }
+    }
+
+    /// A video from Photos, sent to Meta in the pieces it asks for, then waited on until Meta has a cover for it.
+    private func takeVideo(_ item: PhotosPickerItem) async {
+        videoItem = nil
+        guard let movie = try? await item.loadTransferable(type: AdsMovie.self) else {
+            failure = "Couldn't read that video. Try another, or save it to Photos first."
+            return
+        }
+        let name = "Video \(ShopDate.stamp(Date(), withTime: true))"
+        video = AdsVideoDraft(name: name)
+        await AdsVideoUpload.send(movie.url, name: name, token: { await session.idToken() }) { (d: AdsVideoDraft) in
+            video = d
+        }
     }
 
     /// "Online orders" says what the pixel recorded this week; the channel goal opens the shop's channel; orders
@@ -298,10 +375,14 @@ struct AdsNewAdScreen: View {
         }
     }
 
-    /// A goal a boosted post can't carry (or new photos can't) goes back to WhatsApp chats.
+    /// A goal what is promoted can't carry goes back to WhatsApp chats, or the first one it can (the catalogue
+    /// runs for online orders only).
     private func fitGoal() {
         guard let l = lists else { return }
-        if !offered(l).contains(where: { (g: AdsGoal) in g.key == goalKey }) { goalKey = "whatsapp" }
+        let can = offered(l)
+        if !can.contains(where: { (g: AdsGoal) in g.key == goalKey }) {
+            goalKey = can.contains(where: { (g: AdsGoal) in g.key == "whatsapp" }) ? "whatsapp" : (can.first?.key ?? "whatsapp")
+        }
     }
 
     private func loadMedia(after: String?) async {
@@ -471,6 +552,9 @@ struct AdsNewAdScreen: View {
         made = nil
         post = nil
         photos = []
+        video = nil
+        partnerCode = ""
+        partnerCheck = nil
         vertical = nil
         text = ""
         headline = ""
@@ -496,9 +580,11 @@ struct AdsNewAdScreen: View {
                 }
                 promoteSections(s, l)
                 goalSection(l)
-                if kind != .post { wordsSection(l) }
+                if !asIs { wordsSection(l) }
                 audienceSection
                 budgetSection(s)
+                AdsAdvancedSection(advanced: $advanced, needsTotal: { budgetKindChoice.wrappedValue = "total" },
+                                   sales: goalKey == "sales", currency: s.currency)
                 quietSection
                 previewSection
                 makeSections
@@ -516,8 +602,11 @@ struct AdsNewAdScreen: View {
                 Text("A post").tag(Kind.post)
                 Text("New photos").tag(Kind.photos)
                 if l.sitePieces { Text("Website piece").tag(Kind.site) }
+                Text("New video").tag(Kind.video)
+                Text("A creator's post").tag(Kind.partner)
+                if !(l.shop.isEmpty && l.website.isEmpty) { Text("Catalogue").tag(Kind.catalog) }
             }
-            .pickerStyle(.segmented)
+            .pickerStyle(.menu)
         } header: {
             LedgerHeading(title: "1 · What to promote")
         } footer: {
@@ -531,6 +620,13 @@ struct AdsNewAdScreen: View {
         case .site:
             siteSection
             if !photos.isEmpty { photosSection }
+        case .video:
+            AdsVideoSection(video: $video) { pickingVideo = true }
+        case .partner:
+            AdsPartnerSection(code: $partnerCode, checked: $partnerCheck, link: $link, button: $button,
+                              toSite: goal?.toSite ?? false, buttons: l.buttons)
+        case .catalog:
+            AdsCatalogSection(choice: $catalog)
         }
     }
 
@@ -565,8 +661,6 @@ struct AdsNewAdScreen: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
             }
-        } footer: {
-            Text("The post runs as it is: its photo, caption, likes and comments. Tap one.")
         }
     }
 
@@ -848,6 +942,17 @@ struct AdsNewAdScreen: View {
 
     // MARK: Preview and make it
 
+    /// Enough of the ad for Meta to draw it.
+    private var previewable: Bool {
+        switch kind {
+        case .post: return post != nil
+        case .video: return video?.phase == .ready
+        case .partner: return !partnerCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .catalog: return !catalog.setId.isEmpty
+        case .photos, .site: return !readyPhotos.isEmpty
+        }
+    }
+
     private var previewSection: some View {
         Section {
             Button { Task { await showPreview() } } label: {
@@ -856,7 +961,7 @@ struct AdsNewAdScreen: View {
                     Label(previewBusy ? "Asking Meta…" : "See it as Instagram will show it", systemImage: "eye")
                 }
             }
-            .disabled(previewBusy || (kind == .post ? post == nil : readyPhotos.isEmpty))
+            .disabled(previewBusy || !previewable)
             if let previewError {
                 Text(previewError).font(.footnote).foregroundStyle(Tone.problem.color)
             }
@@ -893,7 +998,7 @@ struct AdsNewAdScreen: View {
             .disabled(checking || sending || stillUploading)
             .listRowBackground(Color.clear)
         } footer: {
-            if stillUploading { Text("Wait for the photos to reach Meta.") }
+            if stillUploading { Text(kind == .video ? "Wait for the video to reach Meta." : "Wait for the photos to reach Meta.") }
         }
     }
 
@@ -927,7 +1032,7 @@ struct AdsNewAdScreen: View {
                 }
                 Section {
                     MarketingLink(title: "See it in Campaigns", symbol: "checklist", path: "/ads/campaigns")
-                    MarketingLink(title: "Test it on another audience", subtitle: "The same ad in more ad sets, side by side",
+                    MarketingLink(title: "Test it on another audience",
                                   symbol: "square.stack.3d.up", path: adSetPath(m))
                     Button { again() } label: { Label("Make another", systemImage: "plus") }
                 }

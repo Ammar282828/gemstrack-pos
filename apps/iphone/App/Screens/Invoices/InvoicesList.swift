@@ -210,7 +210,8 @@ enum InvoiceCalendar {
 
 /// Every invoice, and what is still owed on it (src/app/invoices/page.tsx), as the ledger (Ledger.swift): the
 /// chips and the three figures scroll with the list, so the large title stays clear; a day's heading says what it
-/// billed and what is still owed on it; a row leads with who, says what was sold, and carries one pill.
+/// billed and what is still owed on it; a row leads with who, says what was sold, and carries one pill (none when
+/// paid, CONVENTIONS rule 15).
 struct InvoicesList: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -234,8 +235,10 @@ struct InvoicesList: View {
     @State private var sending: Invoice?
     @State private var pdf: InvoicePDFTarget?
     @State private var note: Note?
-    /// The ERP's own page for what has no native screen yet.
-    @State private var web: Route?
+    /// The payment link to make (InvoicePaymentLink): set to start it.
+    @State private var linking: Invoice?
+    /// Import Shopify CSV (InvoiceCSVImportSheet), an owner's.
+    @State private var importingCSV = false
 
     private var canPay: Bool { InvoiceFacts.mayTakePayments(role: session.role) }
 
@@ -250,8 +253,16 @@ struct InvoicesList: View {
             ToolbarItem(placement: .primaryAction) { filterMenu(all) }
         }
         .invoicePaymentSheet(for: $paying) { paid, amount in recorded(paid, amount) }
-        .invoiceWhatsAppSend($sending, web: $web) { sent in
+        .invoiceWhatsAppSend($sending) { sent in
             Note.show(Note(title: sent.title, detail: sent.detail), in: $note, reduce: reduceMotion)
+        }
+        .invoicePaymentLink($linking) { made in
+            Note.show(Note(title: made.title, detail: made.detail), in: $note, reduce: reduceMotion)
+        }
+        .sheet(isPresented: $importingCSV) {
+            InvoiceCSVImportSheet { (done: InvoiceNote) in
+                Note.show(Note(title: done.title, detail: done.detail), in: $note, reduce: reduceMotion)
+            }
         }
         .noteToast($note)
         .sheet(isPresented: $pickingRange) {
@@ -259,11 +270,6 @@ struct InvoicesList: View {
                 rangeFrom = from
                 rangeTo = from == nil ? nil : to
             }
-        }
-        .navigationDestination(item: $web) { r in
-            ScreenRegistry.view(for: r.path)
-                .navigationTitle("Invoices")
-                .navigationBarTitleDisplayMode(.inline)
         }
         .navigationDestination(item: $pdf) { t in
             PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
@@ -312,6 +318,7 @@ struct InvoicesList: View {
                                 .overlay {
                                     RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                                         .strokeBorder(Theme.accent.opacity(isMine(inv) ? 0.22 : 0.08), lineWidth: 1)
+                                        .allowsHitTesting(false)
                                 }
                             }
                         }
@@ -347,17 +354,27 @@ struct InvoicesList: View {
 
     private func chipRow(_ scoped: [Invoice]) -> some View {
         ChipRow {
-            ForEach([InvoiceChip.all, .unpaid, .paid]) { c in
-                FilterChip(title: c.title, count: scoped.filter { c.matches($0) }.count, chosen: c == chip) {
+            // Shopify's web orders arrive as invoices (never in Orders): their chip sits in the row, as on the web's
+            // Show row, whenever there are any. Parked in the toolbar menu alone (a8d9e4e) it hid them from the owner.
+            ForEach(rowChips(scoped)) { c in
+                // Unpaid's count is the Owed to you card's own "n invoices": said once (CONVENTIONS rule 15).
+                FilterChip(title: c.title, count: c == .unpaid ? nil : scoped.filter { c.matches($0) }.count, chosen: c == chip) {
                     chip = c
                 }
             }
         }
     }
 
+    /// The chips in the row: All, Unpaid, Paid, and Shopify while there are Shopify invoices (or it is chosen).
+    private func rowChips(_ scoped: [Invoice]) -> [InvoiceChip] {
+        var chips: [InvoiceChip] = [.all, .unpaid, .paid]
+        if chip == .shopify || scoped.contains(where: { InvoiceChip.shopify.matches($0) }) { chips.append(.shopify) }
+        return chips
+    }
+
     /// Something the chips do not show is narrowing the list.
     private var filterActive: Bool {
-        !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || (chip != .all && chip != .unpaid && chip != .paid)
+        !takenBy.isEmpty || !month.isEmpty || rangeFrom != nil || chip == .credit
     }
 
     /// What the list is narrowed to, and a way back.
@@ -396,37 +413,45 @@ struct InvoicesList: View {
     private func summaryStrip(_ all: [Invoice]) -> some View {
         let base = takenBy.isEmpty ? all : all.filter { $0.takenBy == takenBy }
         let s = InvoiceSummary.of(base, now: Date())
-        return VStack(alignment: .leading, spacing: 12) {
-            Button { pick(.owed) } label: {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Owed to you").font(.subheadline).foregroundStyle(.secondary)
-                    Text(Money.pkr(s.owed))
-                        .font(.system(.largeTitle, design: .serif).weight(.semibold))
-                        .foregroundStyle(s.owed > 0 ? Tone.owed.color : Color.primary)
-                        .monospacedDigit()
-                        .contentTransition(.numericText(value: s.owed))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-                    Text("\(s.owedCount) invoice\(s.owedCount == 1 ? "" : "s")").font(.footnote).foregroundStyle(.secondary)
-                }
-                .ledgerCard()
-                .overlay { chosenEdge(.owed) }
-            }
-            .buttonStyle(.plain)
-            .accessibilityAddTraits(chosen(.owed) ? .isSelected : [])
-            FigureRow {
-                figureButton("Today", s.today, s.todayCount, .today)
-                figureButton("This month", s.month, s.monthCount, .month)
-            }
+        // One slim card, the three figures side by side (owner, 2026-10-17, of the hero card and two tiles that filled
+        // the first screen: "this takes too much space"). Each still taps to show what it counts.
+        return HStack(spacing: 0) {
+            figureButton("Owed to you", s.owed, s.owedCount, .owed, tone: s.owed >= 1 ? Tone.owed.color : nil)
+            Divider().frame(height: 34)
+            figureButton("Today", s.today, s.todayCount, .today)
+            Divider().frame(height: 34)
+            figureButton("This month", s.month, s.monthCount, .month)
         }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 6)
+        .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
     }
 
-    private func figureButton(_ title: String, _ amount: Double, _ count: Int, _ figure: InvoiceSummary.Figure) -> some View {
+    private func figureButton(_ title: String, _ amount: Double, _ count: Int, _ figure: InvoiceSummary.Figure,
+                              tone: Color? = nil) -> some View {
         Button { pick(figure) } label: {
-            FigureTile(label: title, value: Money.pkrLac(amount), detail: "\(count) invoice\(count == 1 ? "" : "s")")
-                .overlay { chosenEdge(figure) }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.caption).foregroundStyle(chosen(figure) ? Theme.accent : Color.secondary).lineLimit(1)
+                Text(Money.pkrLac(amount, digits: 1))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(tone ?? Color.primary)
+                    .monospacedDigit()
+                    .contentTransition(.numericText(value: amount))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background {
+                if chosen(figure) {
+                    RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).fill(Theme.accent.opacity(0.12))
+                }
+            }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(Money.pkr(amount)), \(count) invoice\(count == 1 ? "" : "s")")
         .accessibilityAddTraits(chosen(figure) ? .isSelected : [])
     }
 
@@ -526,6 +551,10 @@ struct InvoicesList: View {
                 Button { pdf = InvoiceFacts.pdfTarget(inv, byCustomer: session.shop.invoiceByCustomer) } label: {
                     Label("Print / PDF", systemImage: "printer")
                 }
+                // The page's Payment link on an unpaid invoice: Shopify's checkout, copied.
+                if InvoiceFacts.offersPaymentLink(inv) {
+                    Button { linking = inv } label: { Label(InvoiceFacts.paymentLinkTitle(inv), systemImage: "link.badge.plus") }
+                }
     }
 
     private func isMine(_ inv: Invoice) -> Bool {
@@ -577,9 +606,11 @@ struct InvoicesList: View {
                     chip = .all; takenBy = ""; month = ""; rangeFrom = nil; rangeTo = nil
                 }
             }
-            Divider()
-            // Import Shopify CSV and the payment links are the ERP's own page.
-            Button { web = Route(path: "/invoices?web=1") } label: { Label("Open in the ERP", systemImage: "globe") }
+            // The page's Import Shopify CSV: an owner's, as its own Firestore write is.
+            if session.isOwner {
+                Divider()
+                Button { importingCSV = true } label: { Label("Import Shopify CSV", systemImage: "square.and.arrow.down") }
+            }
         } label: {
             Label("Filter", systemImage: filtering ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
         }
@@ -685,11 +716,12 @@ private struct InvoiceSectionHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             LedgerHeading(title: section.title, count: section.rows.count, trailing: Money.pkr(section.billed))
-            if section.owed > 0.5 {
+            if section.owed >= 1 {
                 Text(section.hint.isEmpty ? "\(Money.pkr(section.owed)) still owed" : "\(section.hint) · \(Money.pkr(section.owed)) still owed")
                     .font(.caption.weight(.semibold))
                     .monospacedDigit()
-                    .foregroundStyle(Tone.owed.color)
+                    // Quiet: the rows' own pills carry the amber (CONVENTIONS rule 15, one coloured thing).
+                    .foregroundStyle(.secondary)
             } else if !section.hint.isEmpty {
                 Text(section.hint).font(.caption).foregroundStyle(.secondary)
             }

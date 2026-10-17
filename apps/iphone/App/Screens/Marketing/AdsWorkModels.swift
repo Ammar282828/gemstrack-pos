@@ -54,6 +54,8 @@ struct AdsStatusAnswer: Decodable {
         let live: Live?
         let privacyPage: String
         let deletionPage: String
+        /// Where Facebook's login comes back to on this house's ERP (meta.ts redirectUri).
+        let redirectUri: String?
 
         struct Live: Decodable {
             let privacyPolicyUrl: String?
@@ -72,7 +74,7 @@ struct AdsStatusAnswer: Decodable {
             var ready: Bool { privacyPolicyUrl != nil && category != nil && icon }
         }
 
-        private enum K: String, CodingKey { case id, secret, secretName, tokenSecret, tokenStore, project, loginConfigId, loginConfigFromEnv, live, pages }
+        private enum K: String, CodingKey { case id, secret, secretName, tokenSecret, tokenStore, project, loginConfigId, loginConfigFromEnv, live, pages, redirectUri }
         private enum T: String, CodingKey { case exists, write }
         private enum P: String, CodingKey { case privacy, deletion }
 
@@ -92,6 +94,7 @@ struct AdsStatusAnswer: Decodable {
             project = c.string(.project, default: "")
             loginConfigId = c.string(.loginConfigId).flatMap { (s: String) -> String? in s.isEmpty ? nil : s }
             loginConfigFromEnv = c.bool(.loginConfigFromEnv, default: false)
+            redirectUri = c.string(.redirectUri).flatMap { (s: String) -> String? in s.isEmpty ? nil : s }
             live = c.object(.live, of: Live.self)
             if let p = try? c.nestedContainer(keyedBy: P.self, forKey: .pages) {
                 privacyPage = p.string(.privacy, default: "")
@@ -421,8 +424,11 @@ struct AdsAudiencesAnswer: Decodable {
     let segments: [AdsHinted]
     let events: [AdsChoice]
     let instagram: String?
+    /// Website visitors the pixel can make an audience of (audience-rows.ts WEBSITE_EVENTS), and whether a pixel is chosen.
+    let websiteEvents: [AdsHinted]
+    let pixel: Bool
 
-    private enum K: String, CodingKey { case audiences, segments, events, instagram }
+    private enum K: String, CodingKey { case audiences, segments, events, instagram, websiteEvents, pixel }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: K.self)
@@ -430,6 +436,8 @@ struct AdsAudiencesAnswer: Decodable {
         segments = c.list(.segments, of: AdsHinted.self).filter { (s: AdsHinted) in !s.key.isEmpty }
         events = c.list(.events, of: AdsChoice.self).filter { (e: AdsChoice) in !e.key.isEmpty }
         instagram = c.string(.instagram).flatMap { (s: String) -> String? in s.isEmpty ? nil : s }
+        websiteEvents = c.list(.websiteEvents, of: AdsHinted.self).filter { (e: AdsHinted) in !e.key.isEmpty }
+        pixel = c.bool(.pixel) ?? false
     }
 }
 

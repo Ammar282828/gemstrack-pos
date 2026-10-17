@@ -207,8 +207,11 @@ private struct HisaabImportPage: View {
         Section {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                 HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: row.isValidDate ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(row.isValidDate ? Tone.settled.color : Tone.problem.color)
+                    // A good row carries no tick (rule 15); only a date that did not read is marked.
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(Tone.problem.color)
+                        .opacity(row.isValidDate ? 0 : 1)
+                        .accessibilityHidden(row.isValidDate)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(row.description.isEmpty ? "—" : row.description).lineLimit(2)
                         Text(row.isValidDate ? OwnerText.shortDate(row.date) : "Invalid Date")

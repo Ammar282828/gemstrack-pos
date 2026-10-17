@@ -2,6 +2,14 @@
 
 _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE.md keeps a one-line index; this is the record._
 
+> **Split and moved to Design (2026-10-12, WP7; [docs/features/design.md](design.md)).** The Studio is no longer an Ads tab.
+> **Plan** (what to run, ad days & rules, competitors) is **Ads › Plan** (`/ads/plan`, `?s=plays|guide|rivals`, `src/app/ads/plan/`).
+> **Photos, Make, Board and Saved** are **Posts › Design** sections (`?v=photos|make|board|saved`); `board.tsx`, `library.tsx` and
+> `studio-kit.tsx` moved to `src/app/design/` unchanged, and Make and Saved are Design's workspace and shelf. `/ads/studio?v=…`
+> redirects (table in design.md). "Make it with AI" (an art-directed layout, a painted ad) and the lettering check are Design's AI panel
+> now, and `/design/classic/ad` redirects there; the old `maker.tsx`, `post-it.tsx`, `saved.tsx` are deleted. **Every `/api/ads/studio/*` and
+> `/api/studio/mcp` route is unchanged** (the iPhone app and the board's agent call them). Below, "the Studio" means those parts.
+
 ### Ad studio
 
 - **Ad studio** (`/ads/studio`, an Ads tab; both houses — `NEXT_PUBLIC_STORE_AD_STUDIO` (Mina "1" since the evening of 2026-09-29); 2026-09-29, owner: "a curated
@@ -199,7 +207,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
 <a id="board"></a>### Board
 
 **How it handles (2026-10-12, owner: "super intuitive on the web, simple yet feature packed").** Everything on
-the board lives on it: a dock at the bottom (Photo, Note, Undo/Redo, zoom, Fit, Tidy up, Full screen) and, over
+the board lives on it: a dock at the bottom (Photo, Note, Undo/Redo, zoom, Fit, Tidy up, Full screen, panel, close) and, over
 the selected design, its own bar (Edit, Variants, another shape, Duplicate, Download, Use it ▾, Delete). Pictures
 can be dropped or pasted straight onto the board; double-clicking the ground makes a note there. Every hand-made
 change (add, move, nudge, delete, duplicate, a note's words, Tidy up) is a step with its inverse ops, so ⌘Z and
@@ -215,16 +223,16 @@ longer forms (Let it cook with an aim, the name, every shape).
   agent working at once never overwrite each other; the page asks `?since=<rev>` every 4 s. A design's `rev` goes up on every change
   (not on a move). A website photo is used through its **unmarked Drive original** when there is one (as the maker does), else as
   itself with `marked` (layouts add no wordmark).
-  **Per design:** Edit (the maker's `SoloEditor` in a dialog; Save to the board), **Let it cook** (2–6 variants: Make it with AI's
+  **Per design:** Edit (the maker's `SoloEditor`, saved as you go — [below](#board-designer-flow)), **Let it cook** (2–6 variants: Make it with AI's
   `op=direct` once per variant, each asked from another angle — `ANGLES` — plus the owner's aim or a note, three at a time for the
   Vertex quota; each lands beside the last, `by: 'ai'`, with the model's `why`), **In another shape** (a copy laid out afresh in any
   shape), Duplicate, Download (full size JPEG), Remove. Measured: two variants in 24 s.
   **An agent over MCP** (`/api/studio/mcp`, `board-agent.ts`, tested): **Connect an agent** makes a key (`tstudio_…`, kept as a
   SHA-256 hash in `app_settings/studio_agent`, shown once, revocable there, 600 calls an hour) and the `claude mcp add --transport
-  http …` line. Plain JSON-RPC (Streamable HTTP, JSON answers only; notifications get 202). Thirteen tools: `get_style` (the house
+  http …` line. Plain JSON-RPC (Streamable HTTP, JSON answers only; notifications get 202). Fifteen tools: `get_style` (the house
   brief from `brand.ts`, the shapes, the layouts, the StoryDoc format, how to work), `list_boards`, `create_board`, `get_board` (notes
   first — the owner's instructions), `find_photos` (the library with the ERP's specs line and the assessment), `view_photo`,
-  `add_design`, `update_design`, `move_design`, `remove_design`, `add_note`, `remove_note`, `view_design`. **The agent never lays
+  `add_design`, `update_design`, `move_design`, `remove_design`, `add_note`, `remove_note`, `view_design`, and (2026-10-14) **`upload_photo`** and **`replace_design_photo`**. **The agent never lays
   out:** it gives a layout and words, and the page — the only place with the photo, the fonts and a canvas — lays the design out the
   next time the board is open, draws it, and posts a 720-px JPEG to `studio_board_views/{board}__{frame}` with the rev it shows;
   `view_design` returns that picture (or says it is stale / not drawn yet). Words an agent writes pass `wordProblems`: no sale words
@@ -233,6 +241,14 @@ longer forms (Let it cook with an aim, the name, every shape).
   layers, ≤ 60 KB, no uploaded pictures). Tried end to end on 2026-10-04 (local, real Firestore and Vertex): the agent added two
   designs and a note, its "22K and only 3g — 20% off" was refused, the page drew them, `view_design` returned the drawing; the test
   board and key were deleted after.
+  **Photos from the agent** (2026-10-14). `upload_photo { data (base64 or a data: URL), name?, filename?, mime? }` puts a picture in the
+  library through the ERP's own `addUpload` (`uploads.ts`: refuses a non-picture, upright, ≤ 2400 px, < 900 KB, PNG if transparent;
+  ≤ 20 MB decoded, over that or bad base64 or a non-image `mime` is refused) and answers `{ id: "up:<id>", name, w, h }`, the id
+  `find_photos`, `view_photo`, `add_design` and `replace_design_photo` take. `replace_design_photo { board, id, photo, layer? }` swaps
+  only the picture (`replacePicture`, `board-pictures.ts`): the frame's `assetId` (a site photo's unmarked original, as `add_design`
+  does) and `marked`; the document (words, layers, crop/placement, `photo` id), template, fields and label stay, and the rev moves so
+  the page redraws it for `view_design`. With `layer` (an image layer's id, or `bg` for a `lib:` background) it swaps that picture
+  instead, keeping its place, size and crop. Same agent key, same house project as every tool; no other way in.
   **Out of the board, and this week's board** (2026-10-04, owner "yes" to both). Each design's panel has **Use it**: *Queue a
   post* (the design to the chosen WhatsApp places — the channel ticked first — and/or an Instagram story, the same layout at 9:16;
   it joins Post a Piece's queue **held**, so nothing goes out from the board: Posts → Hub sends it or sets a time), *Use in a new
@@ -265,21 +281,214 @@ longer forms (Let it cook with an aim, the name, every shape).
   selection. **Pictures:** the design's photo or any inset is replaced from the library or the device; **With AI** runs the
   existing tools on the selected picture — Enhance, Logo and labels off, Retouch, Extend to the design's shape (`PHOTO_AI`, through
   `runImageOp` in `studio-kit.tsx` to `/api/website/post/ai`, its gate unchanged) — and the words come from `/api/ads/studio/copy`.
-  Each accepted result is kept as an upload, and the original is one tap away until Save. Cancel asks first when there are unsaved
-  changes. **Save is one put** of the design on the board, so reopening, the board's picture, Download, Saved ads, a new ad and the
+  Each accepted result is kept as an upload, and the original is one tap away while the design is open. **Every change is saved as
+  it is made** (below): one put of the design on the board, so reopening, the board's picture, Download, Saved ads, a new ad and the
   post queue all draw the same pictures. The native app's editor (`StudioBoardEditor.swift`) does the same over the same routes.
+  - <a id="board-designer-flow"></a>**The board stays one step away** (2026-10-16, owner: "the board needs work, its not intuitive
+    to use, editing one ad shouldnt remove me from everything else, make it seemless and very smooth to use"):
+    - **Saved as you go.** A change goes to the board 0.7 s after it is made (`persist`: one at a time; pictures uploaded first;
+      a failure toasts once and retries every 4 s). No Save button and no "discard?" question: the header says Saving / Saved
+      (· the other sizes that took a linked change), **Done** and **← Board** wait for the last save, and closing the tab warns
+      only while one is pending.
+    - **Moving without closing.** Beside the name: **‹ ›** (or **[ ]**, as in a slideshow) for the previous and next design in
+      reading order (rows, then left to right), and the design's **sizes as tabs** (4:5 · 9:16 · 3:4). Under the page, **the
+      strip**: every design on the board as the board draws it (redrawn as saves land), this one lit, its sizes ringed; tap one to
+      go there. Each move saves first, then opens the next design in place: its photo is already fetched (the neighbours and sizes
+      are fetched while you work), the panel that was open stays open, and full screen stays on.
+    - **No forced full screen.** The designer no longer asks the browser for full screen on its own (it had hidden the page); the
+      button remembers the choice per device.
+    - **Back on the board**, the design last edited is picked, glows a moment and is panned into view if it was off screen.
+    - <a id="board-zoom"></a>**Pinch and wheel** (2026-10-16, owner: "zoom in zoom out for the board is buggy, my trackpad zooming
+      shouldn't zoom the page in"): the board's wheel listener had been added while the board was still loading, before its box
+      existed, so it never was and every pinch zoomed the browser's page. Now a trackpad pinch (ctrl + wheel in Chrome, Edge and
+      Firefox; gesture events in Safari, skipped while fingers are on the glass so an iPad's touch pinch isn't counted twice) zooms
+      the board about the fingers, two fingers pan, a burst is applied once a frame, a mouse notch is capped, and ⌘+ / ⌘− / ⌘0
+      (⇧⌘0 fits) zoom the board. While the board is open big or a design is being edited, `useNoPageZoom` (`hooks/use-no-page-zoom.ts`)
+      stops the browser zooming anywhere on the page — the drawer, the bars, the designer's rail, panels and strip included.
+    - **Tidy up** (`board-tidy.ts`, tested) keeps each ad's sizes side by side and puts as many ads a row as suit the board's shape
+      (the shoot boards had been one ad a row, a column that fitted at 8%; tidied 2026-10-16). Big changes go to the server 60 ops a
+      request (its limit), so Tidy works on a board of any size.
   - **`POST /api/ads/studio/uploads`** (multipart `file`, optional `name`; the Ad studio's gate; ≤ 25 MB, answered 413 from the
     `Content-Length` before the body is read) puts a picture in the library (`uploads.ts addUpload`) and answers
     `{ asset: { id: "up:<id>", name, w, h } }`.
   - **The `lib:up:<id>` convention.** A picture the design holds beyond its own photo is a layer whose `photoId` is
     `lib:<asset id>`, so an upload is `lib:up:<id>` (`board-pictures.ts`, tested); the page fetches each like any library photo.
-  - **Pictures are uploaded one by one before the single board put.** Anything added or made by the AI in the designer is sent to
-    `/uploads` at once; the board changes only on Save. A save that fails (or a designer closed without saving) can therefore leave
-    `studio_uploads` rows nothing uses. Known and acceptable: they are small and the library lists them as uploads.
+  - **Pictures are uploaded one by one before the board put.** Anything added or made by the AI in the designer is sent to
+    `/uploads` at once. A picture undone or replaced before it is used can therefore leave `studio_uploads` rows nothing uses.
+    Known and acceptable: they are small and the library lists them as uploads.
   - **`DesignerExtras`** (`story-editor.tsx`, the `extras` prop of `SoloEditor`) is how a page adds to the designer without forking
     it: `panels` (rail panels with ids `x:<name>`, here Pictures and Words), `hide` (its own panels to leave out), `tools(ed, 'toolbar'
-    | 'phone')` (tools for the selection), and the header — `title`, `status`, `actions` (after Download; here Save), `closeLabel`,
-    `hint` and `startPanel`. The board is its only host so far.
+    | 'phone')` (tools for the selection), and the header — `title`, `status`, `actions` (after Download; here Done), `closeLabel`,
+    `hint`, `startPanel` (null: none open), `onPanel` (told when the panel changes) and `strip` (a row under the page; on a phone
+    above the bar, while no sheet is open). The board is its only host so far.
+
+<a id="server-draw"></a>### The server draws the board
+
+**The server draws the board** (2026-10-15, owner: "i want the server to draw so i can edit without openiong the board").
+Before this, only the page could lay a design out and draw it. An agent's new design sat "not laid out", and `view_design`
+showed an old picture or none, until someone opened the board. Now `lib/ads/studio/server-draw.ts` runs the page's own code on
+`@napi-rs/canvas` (Skia, as in Chrome): `applyAdTemplate` to lay out, then `reflow` and `renderDocTo` to draw.
+- **Fonts.** The house's faces are in `server-fonts/` as fixed weights cut from `src/fonts`. This canvas ignores a variable
+  font's weight axis, so Figtree 300/400/700, Bodoni 400/500 and the rest are separate files. Regenerate them (fontTools
+  `instancer`) if `src/fonts` changes.
+- **The marks** are read from `public/` (`STORE_SITE_MARK_SVG`, the monogram).
+- **Browser globals.** The renderer reaches for `document.createElement('canvas')`, `Path2D`, `ImageData` and `DOMMatrix`.
+  `withCanvasDocument` puts stand-ins on `globalThis` only for the synchronous layout-and-draw, and removes them before any await.
+- **Memory.** One design at a time per instance (`serial`). Pictures are fetched at 1600 px, as the page does; a design takes
+  about 0.8–1.3 s and under 300 MB.
+- **When it runs.**
+  - The MCP tools `add_design`, `update_design` and `replace_design_photo` lay out and draw at once.
+  - `view_design` draws first when the drawing is missing or stale.
+  - The weekly routine draws each pair it adds.
+  - `POST /api/ads/studio/boards/<id>/draw` (`{ ids? }`) settles a whole board, for changes written straight to Firestore.
+- **The page.** It still draws what it shows, and skips sending a view the server already drew for that rev.
+- **Checked against the page.** The server's pictures matched the page's own `studio_board_views` for the rings boards: bg
+  adjust, `bg.shade`, marks, the framed and heritage layouts.
+- **Build.** `next.config.ts` keeps `@napi-rs/canvas` external, and `outputFileTracingIncludes` ships `server-fonts/` and
+  `public/` marks with `/api/**`.
+
+<a id="free-background"></a>**The background, by hand** (2026-10-15, owner: "moving the background around, or adding a new background its all
+buggy. make everything very free, i shouldnt have to deal with sliders for basic things"; "the gradient on photo is buggy if you
+change the background"). The fixes are in `lib/social/bg-gesture.ts` (tested), `story-editor.tsx` and `editor-panels.tsx`.
+- **Drag moves the photo.** A plain mouse drag on the background moves the photo at once; Shift+drag draws the selection box.
+  Before, the first drag drew a box unless the background was already selected.
+- **No jump when panning.** On an axis where the photo has no room, the focus is left alone. It used to jump to an edge (a
+  divide by a dummy 1), and the next zoom threw the photo into a corner.
+- **Zoom about the pointer.** Scroll or pinch zooms around the pointer, up to 6× (pinch was capped at 3× and zoomed about
+  the centre; there was no scroll zoom).
+- **Double-click resets** the photo to centred and unzoomed.
+- **A new picture starts centred.** It keeps the place, size, frame and mask of the one it replaces, but its crop starts
+  centred and unzoomed (`replacePicture` / `freshCrops`). The Background panel and Photos panel do the same. Before, it
+  inherited the old photo's crop.
+- **One gradient.** The Shade pills (None, Bottom, Top, Left, Darken) write the single `bg.shade` and clear the old preset
+  `bg.gradient`, so the two never stack. Two dots on the page drag where the fade starts and where it is darkest. The fine
+  controls (colours, opacity, angle, zoom, darken) sit under "Fine-tune" and show whenever a shade exists. They used to hide
+  when the background wasn't a photo while the shade was still drawn.
+
+<a id="sizes"></a>### Sizes, linked
+
+(2026-10-15, owner: "for all designs that have a different size variant, let me link and unlink the texts so i can mass edit the
+ratios".) `board-links.ts`, called by `applyOps` on every `put`, so the page, the agent and the weekly board all follow it.
+- **A design's sizes share `group`** (`BoardFrame.group`; the agent sees it as `sizes`). "In another shape" puts the new size in the
+  original's group; the weekly board's 4:5 and 9:16 are one group; a copy or a cooked variant is not (it is another ad).
+- **"In another shape" resizes the owner's own design** (`lib/design/resize.ts`: their words, buttons and edits) instead of laying the
+  template out afresh, which had shown the fields' old words (the fire 3:4 and the proud 9:16 on the rings board did). Every text of
+  the original is linked first (quietly: its sizes already on the board are not touched).
+- **A text is linked by `link`** (a key shared with its twins), or a bound text by its field. Saving a design carries **only what
+  changed** on a linked text to its twins: the words and their styles, font, colour, case, spacing, effects, its button. Size goes as
+  a ratio; place, width and alignment stay each size's own. Field changes go to the sizes too.
+- **Unlink** (the chain button on a selected text in the designer) sets `unlinked` and keeps the key: that text is free both ways, and
+  linking it again finds the same twins (and makes them match it). Linking a text that has no twin finds the same words (case, line
+  breaks and full stops aside) or the same field in each size, else copies it there in proportion. **Link all** (nothing selected)
+  links every loose text. The header's Saved says which sizes took the change; the agent's `update_design` has `only_this_size`.
+- A copied or pasted text is a new one (its link dropped).
+
+<a id="buttons"></a>### Buttons
+
+(2026-10-15, owner: "also add text ability inside buttons".) `social/button.ts`. A button was a rounded rectangle with a line of
+text over it: two layers to move together, which a resize laid out apart. A button is now **one text layer** whose background
+(`box`) is the pill at a set size (`box.w`, `box.h`; the words in its middle; `layerBox` grows to it, so it is hit, dragged and
+sized as one). **A button is placed by its pill** (`editor.ts` `asButton`): `x` is the pill's left edge, middle or right edge by `align` (a
+pill on the left of the frame is anchored left, on the right anchored right), the words always in its middle, one line, `box.pad`
+kept round them, so longer words grow the pill away from where it was put. Typing on the canvas keeps the pill drawn and the field
+over the words; the side handles size the pill; a linked twin takes a changed pill at its own scale. (2026-10-15, owner: "the button
+fix fucked the whitespace and design and text in buttons": the first cut had no pad, wrapped at the pill's width, hid the pill while
+typing and put the field at its top edge.) **Add → Elements → Button**; a selected rectangle has **Words in it**, which makes it a button with the words already
+on it inside (looking the same) or new words; the text's Background section has the button's width and height. The resizer also
+keeps a shape behind a line of words with its words (`keepBackings`). The rings boards' 30 pills were turned into buttons on
+2026-10-15 (each drawn before and after: under 0.25% of pixels moved). The iPhone and Android engines draw a button's box around
+its words only (no `w`/`h`) until they learn it.
+
+**The resizer's 9:16 is a Story** (`safe.ts`): the top 14% and the bottom fifth kept clear, not a Reel's 35% (which put the words
+over the ring); the `reel` kind keeps 35%. The templates' own `safeZone` is unchanged.
+
+<a id="house-of-mina-ad-style"></a>### House of Mina's ad style
+
+**Premium and minimal** (2026-10-15, owner: "they need to feel premium … yet feel like house of mina, yet be minimal but
+impactful", then "the text is all too bulky"): the Bodoni italic is the one statement (names ~110 px, headlines 80–96 px); every
+small line is Tenor Sans capitals, 22 px (18 px for the plating line), tracked ~0.3 em; no eyebrow above a button ad's headline;
+a slim pill (~214 × 58) and a small mark (~136 px); 88 px margins. The three JPEG-retouched boards were rebuilt this way; the
+rules are in `brand.ts` (MINA visual).
+
+**Rhodium pieces** (2026-10-15, owner: "next to 925 silver, for rhodium products add tarnish resistant plating"): the material
+line of a white-metal, rhodium-plated piece reads "925 silver · tarnish-resistant plating" — on two lines when the name and stone
+come first (the mark then sits beside the button). Applied to the three JPEG-retouched shoot boards (Rings · silver, Rings · gold &
+pearl, Bracelets & opal: 65 designs × 4:5, 9:16, 3:4, built from the catalogue match of each photo).
+
+**House of Mina's ad style, from the owner's edits** (2026-10-14, owner: "i made changes to many of your designs, look at the
+changes pics text etc and learn from them for future posts"). The owner reworked the rings boards (`rings-oct-2026` and
+`rings-quiet-oct-2026` in hom-pos; revs 21 and 20). Diffing each design against what was written, and looking at the page's own
+drawings in `studio_board_views`, gives a consistent look. It now lives in Mina's brand book (`brand.ts` MINA: voice, marks,
+visual), so the AI copy, the weekly board, Let it cook and any MCP agent all read it.
+
+- **There are two kinds of ad, and they are treated differently.**
+  - **A named design** (Solene, Odile): the owner made the name italic and the material line bold pink, and added no mark and
+    no button.
+  - **A benefit or the category** (the vermeil cut-away, the loupe, "harder than sapphire", "proud of it"): the owner added a
+    button, the wordmark (on three of the four) and short title-case lines.
+- **The wordmark goes on benefit ads:** white, 180–210 px wide on a 1080 frame, bottom centre (bottom right when the words sit
+  left).
+- **There is a deep shade behind the words.** Each edited design got a `bg.shade`: black, or the brand's deep red into black,
+  from clear at 0.49–0.69 of the height to 0.64–0.92 at the bottom. The default bottom gradient (0.55 at 42% of the height) was
+  too light.
+- **A button goes on benefit pictures.** "Shop Now" or "SHOP NOW" in white on a deep red (#8B1E2D) pill (radius 48, about 320 × 96).
+  The research said the premium brands put no CTA on the image; the owner wants one.
+- **The hero word is large Bodoni italic.**
+  - Edits: Solene 120 → 132 px italic; Odile went italic; "Look closer." 104 → 188 px; "Moissanite" 134 px.
+  - On a light ground the hero word goes deep red, stacked one word a line ("Silver / Made / for / Every / Day").
+- **Small text is bold, not light.**
+  - The material line went bold and rose pink (#F4A4C0).
+  - The vermeil callouts went bold at 28–30 px, with their lines 2 → 5 px.
+  - Light 20 px footnotes were deleted.
+- **Benefits and the category, in title case, over technical proof.**
+  - The vermeil cut-away went from "2.5 microns of 24k gold." with "more than 14 times the US minimum for gold electroplate" and
+    an FTC footnote, to "Lesser Repolishes. Built to Last", "For the First time in Pakistan" and "2.5 microns of 24K Gold Vermeil
+    on SILVER".
+  - "Harder than sapphire" and its Mohs line became "Silver Made for Every Day".
+  - "Moissanite, and proud of it." became "The Best in / Moissanite".
+  - Silver is said proudly.
+- **Explaining callouts are graphic, not hairline.** On the loupe the hairline was replaced by ivory pills ("925 Silver",
+  "Gold Vermeil") in deep red type, a 7 px white arrow from the ring to the loupe, and the loupe zoomed 2.25× onto the cut face
+  (an ellipse mask with a shadow).
+- **The photos are brighter and warmer.**
+  - Adjustments: brightness +12, contrast +8, saturation +6 on the cut-away and the sapphire ad; warmth +42 on the hand shot.
+  - The cut-away was re-made in the Studio's AI with richer gold on a redder maroon.
+  - "Harder than sapphire" swapped the tight Kiana crop for the editorial Vera shot (sunglasses, a hand to the face), cleaned onto
+    a light ground with the AI ("… · AI custom" in Uploads), and renamed its line to the ring shown.
+- **More shapes.** The fire ad was copied to 3:4 (Instagram's grid) and the proud ad to a framed 9:16.
+- **Brought into line, 2026-10-14** (owner: "yes bring the rest into line"). Every design still at rev 1 was rebuilt in its
+  kind's treatment, 22 in all: every 9:16, and the Elise, Fluted Dome, Blossom, fire, nikkah, choice, blaze and loan 4:5s.
+  - The ops were puts through `changeBoard`, and only on designs whose rev was still the one read.
+  - The 9:16s of the owner's own 4:5s copy their layers: the loupe's exact settings (iz 2.25, fx 0.6, fy 0.08), the re-made
+    cut-away and the Vera shot.
+  - The proof lines became title-case benefits ("More Fire Than Diamond", "Cut to Blaze", "Say Yes to the Ring, Not the Loan").
+  - The Vera story says 925 silver: Vera is rhodium only.
+
+**9:16s are composed for Stories** (2026-10-14, owner: "fix the 9 by 16s they all look off"). Keeping everything inside the
+Reels safe band (y 269–1248) left a dead, dark third under every story, and the designs looked top-heavy. The stories were re-cut:
+- the ring larger (a crop of about 0.55 of the photo's width), centred about a third of the way down;
+- the words from about y 1000 to 1500, with hero lines 124–196 px and a deep shade from about 0.46 of the height;
+- only the bottom fifth (Stories' own bar) left clear.
+
+In Reels the lowest line or the mark may sit under the caption. That trade is accepted.
+
+**To learn from a later round:** read the board and its `studio_board_views`. Diff every frame's `doc` against what was written
+(bg adjust and placement; layers added, removed and changed: font, size, colour, weight, words, x/y). Look at the drawings side
+by side, and put the pattern in MINA's rules here and in `brand.ts`. Revs above 1 with `by: 'page'` are the owner's.
+
+**The owner's type, 2026-10-16** ("i made some changes in the boards, check and see, font changes spacing etc. fix the rest up"):
+on the silver shoot board the owner restyled six ads in all their sizes. The small capitals moved off Tenor Sans to the house
+sans and grew to about 24 px: the piece's line regular, the material bold, the button's words bold. Named designs keep the
+italic name and line plus one pink bold capitals material line, with no separate stone line. Top-anchored named designs on a
+light shirt get a larger name (about 1.3×) and a regular-sans line. Carried to the other 177 designs of the three shoot boards
+(`.claude-tmp/restyle.mts`, not idempotent: its moves would repeat). The owner's own designs were left alone, except the Zara
+4:5: its leftover stone line was removed and its line moved off the enlarged name, to match its 9:16 and 3:4. The rules are now
+in `brand.ts`.
+
+**Checks the owner's copy still needs** (raised 2026-10-14, not changed):
+- "For the First time in Pakistan" is a claim: is 24K vermeil at 2.5 µm really first here?
+- "Lesser Repolishes" reads better as "Fewer re-polishes".
+- The Vera line says "24K gold vermeil", but Vera is rhodium-plated and white in the shot.
 
 <a id="five-tabs"></a>### Five tabs
 
@@ -294,3 +503,10 @@ longer forms (Let it cook with an aim, the name, every shape).
   again, and nothing was running (the one campaign ended 2026-10-01). The fourth — the pixel not on taheri.shop — was fixed in
   taheri-site (`src/lib/analytics.js`).
 
+
+**The board's size** (2026-10-14, owner: "the board designer should take up 95% of the screen from the get go"). `BoardView` opens as a
+*stage*: a fixed sheet 95vw × 95svh over a dimmed page (`stage`), the canvas filling it, the side panel (board name, the picked design) a
+drawer over the board (right on a computer, a bottom sheet on a phone; the dock's panel button, and it opens on picking a design and
+hides under the designer). The dock's X closes the stage to the board inside the page (72svh, with its picker); the same button
+reopens it; Full screen is still the edge-to-edge page. The per-design designer is already a full-viewport portal; it now measures its
+canvas area before the first frame and, on a computer that never chose, asks the browser for full screen when it opens.

@@ -71,7 +71,7 @@ export function checkChoices(plan: ImportPlan, choices: unknown): { ok: true; ch
 }
 
 /** Two 32-bit FNV-1a hashes of the text, as 16 hex digits: enough to tell one plan from another. */
-function fnv(text: string): string {
+export function fnv(text: string): string {
   let a = 0x811c9dc5;
   let b = 0x01000193 ^ 0x5bd1e995;
   for (let i = 0; i < text.length; i++) {

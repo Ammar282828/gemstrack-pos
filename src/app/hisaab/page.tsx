@@ -16,14 +16,14 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
-import { WALK_IN_ENTITY, WALK_IN_NAME } from '@/lib/walk-in';
+import { WALK_IN_ENTITY } from '@/lib/walk-in';
+import { hisaabAccounts, searchAccounts } from '@/lib/hisaab-report';
+import { drawHisaabSummaryPdf, hisaabSummaryFileName } from '@/lib/hisaab-pdf';
+import { owesMoney } from '@/lib/money';
 
 
 type InvoiceBalance = {
@@ -232,44 +232,18 @@ export default function HisaabPage() {
       return { accountSummaries: [], totalReceivable: 0, totalPayable: 0, totalReceivableGold: 0, totalPayableGold: 0 };
     }
 
-    const summaryMap: { [entityId: string]: AccountSummary } = {};
-
-    // Walk-in sales left owing have no customer to hold them (lib/walk-in.ts), so their
-    // entries sit under the entity 'walk-in' — one row, or "You will Get" would miss them.
-    const walkInInvoiceIds = new Set<string>();
-    hisaabEntries.forEach(entry => {
-      if (!entry.entityId) return;
-      const walkIn = entry.entityId === WALK_IN_ENTITY;
-      if (walkIn && entry.linkedInvoiceId) walkInInvoiceIds.add(entry.linkedInvoiceId);
-      if (!summaryMap[entry.entityId]) {
-        summaryMap[entry.entityId] = {
-          entityId: entry.entityId,
-          entityName: walkIn ? WALK_IN_NAME : entry.entityName,
-          entityType: entry.entityType,
-          cashBalance: 0,
-          goldBalance: 0,
-          unpaidInvoices: [],
-        };
-      }
-      summaryMap[entry.entityId].cashBalance += (entry.cashDebit - entry.cashCredit);
-      summaryMap[entry.entityId].goldBalance += (entry.goldDebitGrams - entry.goldCreditGrams);
-    });
+    // The sums are the server's too (lib/hisaab-report.ts: the iPhone app's Summary PDF).
+    const { accounts, walkInInvoiceIds } = hisaabAccounts(hisaabEntries);
 
     // Attach unpaid invoices to each customer summary
-    for (const [entityId, invoices] of Object.entries(unpaidInvoicesByCustomer)) {
-      if (summaryMap[entityId]) {
-        summaryMap[entityId].unpaidInvoices = invoices;
-      }
-    }
-    if (summaryMap[WALK_IN_ENTITY] && Array.isArray(generatedInvoices)) {
-      summaryMap[WALK_IN_ENTITY].unpaidInvoices = generatedInvoices
-        .filter(inv => walkInInvoiceIds.has(inv.id) && inv.balanceDue > 0 && inv.status !== 'Refunded')
-        .map(inv => ({ id: inv.id, grandTotal: inv.grandTotal, amountPaid: inv.amountPaid, balanceDue: inv.balanceDue }));
-    }
-
-    const summaries = Object.values(summaryMap)
-        .filter(summary => Math.abs(summary.cashBalance) > 0.001 || Math.abs(summary.goldBalance) > 0.001)
-        .sort((a,b) => a.entityName.localeCompare(b.entityName));
+    const summaries: AccountSummary[] = accounts.map(a => ({
+      ...a,
+      unpaidInvoices: a.entityId === WALK_IN_ENTITY
+        ? (Array.isArray(generatedInvoices) ? generatedInvoices : [])
+            .filter(inv => walkInInvoiceIds.has(inv.id) && owesMoney(inv.balanceDue) && inv.status !== 'Refunded')
+            .map(inv => ({ id: inv.id, grandTotal: inv.grandTotal, amountPaid: inv.amountPaid, balanceDue: inv.balanceDue }))
+        : unpaidInvoicesByCustomer[a.entityId] ?? [],
+    }));
 
     const totalReceivable = summaries.reduce((acc, s) => acc + Math.max(0, s.cashBalance), 0);
     const totalPayable = summaries.reduce((acc, s) => acc + Math.abs(Math.min(0, s.cashBalance)), 0);
@@ -282,12 +256,7 @@ export default function HisaabPage() {
   }, [hisaabEntries, unpaidInvoicesByCustomer, generatedInvoices]);
   
   const filteredSummaries = useMemo(() => {
-    if (!searchTerm) {
-      return accountSummaries;
-    }
-    return accountSummaries.filter(summary =>
-      summary.entityName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return searchAccounts(accountSummaries, searchTerm);
   }, [accountSummaries, searchTerm]);
 
   const handlePrintReport = async () => {
@@ -297,41 +266,9 @@ export default function HisaabPage() {
     }
 
     const iOSWin = openPDFWindowForIOS();
-    const doc = new jsPDF();
-    doc.setFont("helvetica", "bold").setFontSize(18);
-    doc.text(`Hisaab Summary Report`, 14, 22);
-    doc.setFontSize(10);
-    doc.text(`As of: ${format(new Date(), 'PPpp')}`, 14, 29);
-
-    const tableColumns = ["#", "Name", "Type", "Cash Balance (PKR)", `${STORE_METAL_WORD} Balance (g)`];
-    const tableRows = filteredSummaries.map((summary, index) => {
-        const cashBalanceText = summary.cashBalance > 0 
-            ? `${summary.cashBalance.toLocaleString()} (Receivable)` 
-            : `${Math.abs(summary.cashBalance).toLocaleString()} (Payable)`;
-        
-        const goldBalanceText = summary.goldBalance > 0 
-            ? `${summary.goldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})} (Receivable)`
-            : `${Math.abs(summary.goldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})} (Payable)`;
-
-        return [
-            index + 1,
-            summary.entityName,
-            summary.entityType.charAt(0).toUpperCase() + summary.entityType.slice(1),
-            cashBalanceText,
-            goldBalanceText
-        ];
-    });
-
-    doc.autoTable({
-        head: [tableColumns],
-        body: tableRows,
-        startY: 40,
-        margin: { left: 14, right: 14 },
-        theme: 'grid',
-        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-    });
-
-    await savePDF(doc, `Hisaab-Summary-${format(new Date(), 'yyyy-MM-dd')}.pdf`, iOSWin);
+    // The one drawer, which the server also prints the iPhone app's summary with (lib/hisaab-pdf.ts).
+    const asOf = new Date();
+    await savePDF(drawHisaabSummaryPdf(filteredSummaries, asOf), hisaabSummaryFileName(asOf), iOSWin);
     toast({ title: "Report Downloaded", description: "Hisaab summary PDF has been generated." });
   };
 
@@ -365,10 +302,10 @@ export default function HisaabPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-success">PKR {totalReceivable.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-success">PKR {totalReceivable.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
             {totalReceivableGold > 0 && <p className="text-sm font-semibold text-success/90">{totalReceivableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g {STORE_METAL_WORD}</p>}
             <p className="text-xs text-muted-foreground mt-1">
-              On invoices: PKR {Math.round(owedOnInvoices.total).toLocaleString()}, walk-ins included (the dashboard&apos;s &ldquo;Owed to you&rdquo; adds the hand-written balances here)
+              On invoices: PKR {Math.round(owedOnInvoices.total).toLocaleString(undefined, { maximumFractionDigits: 0 })}, walk-ins included (the dashboard&apos;s &ldquo;Owed to you&rdquo; adds the hand-written balances here)
             </p>
           </CardContent>
         </Card>
@@ -380,7 +317,7 @@ export default function HisaabPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-destructive">PKR {totalPayable.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-destructive">PKR {totalPayable.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
             {totalPayableGold > 0 && <p className="text-sm font-semibold text-destructive/80">{totalPayableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g {STORE_METAL_WORD}</p>}
           </CardContent>
         </Card>
@@ -418,8 +355,8 @@ export default function HisaabPage() {
                                         <div className="flex items-center justify-between gap-2">
                                             <p className="font-semibold truncate">{summary.entityName}</p>
                                             <div className="text-right flex-shrink-0">
-                                                {summary.cashBalance > 0 && <p className="font-bold text-success text-sm">PKR {summary.cashBalance.toLocaleString()}</p>}
-                                                {summary.cashBalance < 0 && <p className="font-bold text-destructive text-sm">PKR {Math.abs(summary.cashBalance).toLocaleString()}</p>}
+                                                {summary.cashBalance > 0 && <p className="font-bold text-success text-sm">PKR {summary.cashBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>}
+                                                {summary.cashBalance < 0 && <p className="font-bold text-destructive text-sm">PKR {Math.abs(summary.cashBalance).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>}
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between mt-0.5">
@@ -436,11 +373,11 @@ export default function HisaabPage() {
                                                   ? <Link href={`/invoices/${inv.id}`} title={`Open ${inv.id} to record payment`} className="text-primary font-mono hover:underline">{inv.id}</Link>
                                                   : <span className="text-muted-foreground font-mono">{inv.id}</span>}
                                                 <span className="text-muted-foreground">
-                                                  <span className="text-success font-medium">PKR {inv.amountPaid.toLocaleString()}</span>
+                                                  <span className="text-success font-medium">PKR {inv.amountPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                                                   {' / '}
                                                   {inv.grandTotal.toLocaleString()}
                                                   {' — '}
-                                                  <span className="font-semibold text-foreground">PKR {inv.balanceDue.toLocaleString()} due</span>
+                                                  <span className="font-semibold text-foreground">PKR {inv.balanceDue.toLocaleString(undefined, { maximumFractionDigits: 0 })} due</span>
                                                 </span>
                                               </div>
                                             ))}

@@ -130,7 +130,7 @@ function RevenueForm({
             <FormItem>
               <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4" />Amount (PKR)</FormLabel>
               <FormControl>
-                <AmountInput placeholder="0" {...field} />
+                <AmountInput maxDecimals={0} placeholder="0" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -250,7 +250,7 @@ export default function AdditionalRevenuePage() {
             <div className="rounded-lg border bg-primary/5 p-4">
               <p className="text-sm font-medium text-muted-foreground">Total Revenue for Period</p>
               <p className="text-3xl font-bold text-primary">
-                PKR {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                PKR {total.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
             </div>
             <div className="rounded-lg border bg-muted/50 p-4">
@@ -286,7 +286,7 @@ export default function AdditionalRevenuePage() {
                       <p className="font-medium truncate">{r.description}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{format(parseISO(r.date), 'MMM dd, yyyy')}</p>
                     </div>
-                    <p className="font-bold text-primary flex-shrink-0">PKR {r.amount.toLocaleString()}</p>
+                    <p className="font-bold text-primary flex-shrink-0">PKR {r.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
                   </div>
                   <div className="flex justify-end gap-1 mt-3 border-t pt-2">
                     {r.repairId ? <RepairLink repairId={r.repairId} /> : <>

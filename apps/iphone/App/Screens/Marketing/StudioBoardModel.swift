@@ -199,6 +199,9 @@ final class StudioBoardModel {
             guard asked == generation else { return [] }
             value = r["board"]
             draw()
+            // A design's other sizes take its linked words on the server (board-links.ts); say how many did.
+            let linked = r["linked"].array.count
+            if linked > 0 { said = linked == 1 ? "1 other size took the change." : "\(linked) other sizes took the change." }
             return r["added"].array.map(\.string)
         } catch {
             guard asked == generation else { return [] }
@@ -301,6 +304,66 @@ final class StudioBoardModel {
         ]
         let added = await change([["op": "add", "frame": frame]])
         return added.first
+    }
+
+    /// The designs in reading order (board.tsx `reading`): rows 160 points tall, left to right. The designer's ‹ › follow it.
+    var reading: [MarketingValue] {
+        frames.sorted { (a: MarketingValue, b: MarketingValue) in
+            let ra = (a.n("y") / 160).rounded(), rb = (b.n("y") / 160).rounded()
+            return ra != rb ? ra < rb : a.n("x") < b.n("x")
+        }
+    }
+
+    /// Tidy up (board-tidy.ts tidyLayout, 2026-10-16): ads in reading order, each ad's sizes (`group`) side by side in one
+    /// block, as many blocks a row as make the whole about the screen's shape (`aspect`, width over height). The server
+    /// takes 60 changes a request (board.ts), so a big board is sent in sixties: before, Tidy failed on any board over 60.
+    func tidy(aspect: Double = 1.5) async {
+        let order = reading
+        guard order.count > 1 else { return }
+        var units: [[MarketingValue]] = []
+        var at: [String: Int] = [:]
+        for f in order {
+            let g = f.s("group")
+            if !g.isEmpty, let k = at[g] { units[k].append(f) } else {
+                if !g.isEmpty { at[g] = units.count }
+                units.append([f])
+            }
+        }
+        let inner = 24.0, gap = 96.0
+        func size(_ u: [MarketingValue]) -> (w: Double, h: Double) {
+            let w = u.reduce(0.0) { (sum: Double, f: MarketingValue) in sum + Double(pixels(f).width) * Self.scale } + inner * Double(u.count - 1)
+            let h = (u.map { (f: MarketingValue) in Double(pixels(f).height) * Self.scale }.max() ?? 0) + Self.label
+            return (w, h)
+        }
+        let sizes = units.map(size)
+        let uw = sizes.reduce(0.0) { (sum: Double, s: (w: Double, h: Double)) in sum + s.w } / Double(units.count)
+        let uh = sizes.map { (s: (w: Double, h: Double)) in s.h }.max() ?? 0
+        let perRow = max(1, min(units.count, Int((Double(units.count) * aspect * (uh + gap) / (uw + gap)).squareRoot().rounded())))
+        let x0 = order.map { (f: MarketingValue) in f.n("x") }.min() ?? 0
+        var y = order.map { (f: MarketingValue) in f.n("y") }.min() ?? 0
+        var moves: [[String: Any]] = []
+        var start = 0
+        while start < units.count {
+            let row = Array(units[start..<min(start + perRow, units.count)])
+            var x = x0
+            for u in row {
+                var fx = x
+                for f in u {
+                    moves.append(["op": "move", "id": f.s("id"), "x": fx.rounded(), "y": y.rounded()])
+                    fx += Double(pixels(f).width) * Self.scale + inner
+                }
+                x += size(u).w + gap
+            }
+            y += (row.map { (u: [MarketingValue]) in size(u).h }.max() ?? 0) + gap
+            start += perRow
+        }
+        error = nil
+        var i = 0
+        while i < moves.count {
+            await change(Array(moves[i..<min(i + 60, moves.count)]))
+            if error != nil { break }
+            i += 60
+        }
     }
 
     /// A note in the server's own spot for it: down the left of the board, beside the designs.

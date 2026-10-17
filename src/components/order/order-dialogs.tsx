@@ -30,6 +30,8 @@ import { exchangeTotal, orderExchanges } from '@/lib/exchange';
 import { orderAdvancePayments } from '@/lib/order-payment';
 import { CostRateField, MarginFigure, SHOP_MARGIN_ON } from '@/components/shared/shop-margin';
 import { marginOf } from '@/lib/margin';
+import { rupees } from '@/lib/money';
+import { RoundOffChips, SettleOffer } from '@/components/shared/round-off-chips';
 
 // --- Finalize Order Dialog Components ---
 const finalizeOrderItemSchema = z.object({
@@ -191,7 +193,7 @@ export const FinalizeOrderDialog: React.FC<{
                                         {manual && (
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <FormField control={form.control} name={`items.${index}.finalManualPrice`} render={({ field }) => (
-                                                    <FormItem><FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Final Price (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
+                                                    <FormItem><FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Final Price (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} {...field} /></FormControl><FormMessage /></FormItem>
                                                 )}/>
                                                 <FormField control={form.control} name={`items.${index}.finalWeightG`} render={({ field }) => (
                                                     <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4"/>Weight (g)</FormLabel><FormControl><AmountInput maxDecimals={3} zeroAsEmpty placeholder="Optional" {...field} /></FormControl><FormDescription>Printed on the invoice; the price stays as typed.</FormDescription><FormMessage /></FormItem>
@@ -242,14 +244,14 @@ export const FinalizeOrderDialog: React.FC<{
                                                 )}
                                                 {takesWastageAndMaking(metal) && (
                                                   <FormField control={form.control} name={`items.${index}.finalMakingCharges`} render={({ field }) => (
-                                                      <FormItem><FormLabel className="flex items-center"><Gem className="mr-2 h-4"/>Making (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
+                                                      <FormItem><FormLabel className="flex items-center"><Gem className="mr-2 h-4"/>Making (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} zeroAsEmpty placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
                                                   )}/>
                                                 )}
                                                 <FormField control={form.control} name={`items.${index}.finalStoneCharges`} render={({ field }) => (
-                                                    <FormItem><FormLabel>Stones (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
+                                                    <FormItem><FormLabel>Stones (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} zeroAsEmpty placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
                                                 )}/>
                                                 <FormField control={form.control} name={`items.${index}.finalDiamondCharges`} render={({ field }) => (
-                                                    <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4"/>Diamonds (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
+                                                    <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4"/>Diamonds (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} zeroAsEmpty placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
                                                 )}/>
                                             </div>
                                         )}
@@ -263,13 +265,15 @@ export const FinalizeOrderDialog: React.FC<{
                             <FormField control={form.control} name="additionalDiscount" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel className="flex items-center text-base"><Percent className="mr-2 h-4"/>Discount</FormLabel>
-                                  <FormControl><AmountInput placeholder="0" {...field} /></FormControl>
+                                  <FormControl><AmountInput maxDecimals={0} placeholder="0" {...field} /></FormControl>
                                   <FormDescription>
                                     {Number(order?.discountAmount) > 0
                                       ? `Carried over from the order. Adjust it here if the agreed figure has changed.`
                                       : 'Applied on top of the advance payment.'}
                                   </FormDescription>
                                   <FormMessage />
+                                  <RoundOffChips payable={subtotal - exchange} discount={rupees(discount)} className="pt-1"
+                                    onDiscountChange={(n) => form.setValue('additionalDiscount', n, { shouldDirty: true })} />
                                 </FormItem>
                             )}/>
                             {/* What the invoice will say, before it exists. */}
@@ -316,19 +320,32 @@ export const RecordAdvanceDialog: React.FC<{
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }> = ({ order, open, onOpenChange }) => {
-    const { recordOrderAdvance } = useAppStore();
+    const { recordOrderAdvance, updateOrder } = useAppStore();
     const { toast } = useToast();
     const form = useForm<RecordAdvanceFormData>({
       resolver: zodResolver(recordAdvanceSchema),
       defaultValues: { amount: undefined, notes: 'Advance payment received', method: 'Cash' }
     });
 
-    const handleRecordAdvance = async (data: RecordAdvanceFormData) => {
+    // What would be left to pay after the amount typed: a small remainder can be given off (lib/round-off.ts).
+    const typed = rupees(Number(form.watch('amount')));
+    const leftAfter = rupees(order.grandTotal) - typed;
+
+    const handleRecordAdvance = async (data: RecordAdvanceFormData, settle = 0) => {
         try {
-            await recordOrderAdvance(order.id, data.amount, data.notes, data.method);
+            const amount = rupees(data.amount);
+            await recordOrderAdvance(order.id, amount, data.notes, data.method);
+            // Settle: the leftover is added to the order's discount (not a payment that was never made), and the
+            // balance goes with it; the invoice made from the order carries the discount (Order to invoice).
+            if (settle > 0) {
+                await updateOrder(order.id, {
+                    discountAmount: rupees(order.discountAmount) + settle,
+                    grandTotal: rupees(order.grandTotal) - amount - settle,
+                });
+            }
             toast({
                 title: "Advance Recorded",
-                description: `PKR ${data.amount.toLocaleString()} by ${data.method} has been added to the advance for order ${order.id}.`,
+                description: `PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} by ${data.method} has been added to the advance for order ${order.id}${settle > 0 ? `, and PKR ${settle.toLocaleString()} taken off the bill` : ''}.`,
             });
             onOpenChange(false);
             form.reset();
@@ -351,9 +368,9 @@ export const RecordAdvanceDialog: React.FC<{
                     </DialogDescription>
                 </DialogHeader>
                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handleRecordAdvance)} className="space-y-4 pt-4">
+                    <form onSubmit={form.handleSubmit((d) => handleRecordAdvance(d))} className="space-y-4 pt-4">
                         <FormField control={form.control} name="amount" render={({ field }) => (
-                           <FormItem><FormLabel>Advance Amount (PKR)</FormLabel><FormControl><AmountInput placeholder="Enter amount received" {...field} /></FormControl><FormMessage /></FormItem>
+                           <FormItem><FormLabel>Advance Amount (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} placeholder="Enter amount received" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                         <FormField control={form.control} name="method" render={({ field }) => (
                            <FormItem><FormLabel>Paid by</FormLabel>
@@ -366,6 +383,10 @@ export const RecordAdvanceDialog: React.FC<{
                         <FormField control={form.control} name="notes" render={({ field }) => (
                            <FormItem><FormLabel>Notes</FormLabel><FormControl><Input placeholder="e.g., Second advance payment" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
+                        {typed > 0 && (
+                            <SettleOffer remaining={leftAfter} busy={form.formState.isSubmitting} className="w-full"
+                                onSettle={(x) => void form.handleSubmit((d) => handleRecordAdvance(d, x))()} />
+                        )}
                         <DialogFooter>
                             <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                             <Button type="submit" disabled={form.formState.isSubmitting}>

@@ -46,8 +46,6 @@ struct AnaSalesPage: View {
             }
         } header: {
             LedgerHeading(title: "Sales over time")
-        } footer: {
-            Text("Revenue and order count trend for the selected period.")
         }
         .houseRows()
     }
@@ -158,6 +156,7 @@ struct AnaSalesPage: View {
         let items = AnaFormat.count(d.itemsSold) + (d.itemsSold == 1 ? " item" : " items")
         let subtitle = orders + " · " + items
         return TwoLine(title: title, subtitle: subtitle, trailing: Money.lacCrore(d.sales))
+            .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
     }

@@ -240,6 +240,27 @@ export async function graph<T = Record<string, unknown>>(path: string, opts: Gra
   }
 }
 
+/**
+ * A multipart POST as this house's connection — for a video chunk, which can't travel URL-encoded.
+ * Videos go to graph-video.facebook.com, Meta's host for uploads.
+ */
+export async function graphUpload<T = Record<string, unknown>>(path: string, fields: Record<string, string | Blob>, opts: { timeoutMs?: number; video?: boolean } = {}): Promise<T> {
+  const token = (await requireConnection()).token;
+  const secret = await appSecret();
+  const form = new FormData();
+  for (const [k, v] of Object.entries(fields)) form.append(k, v);
+  form.append('access_token', token);
+  if (secret) form.append('appsecret_proof', createHmac('sha256', secret).update(token).digest('hex'));
+  const host = opts.video ? 'https://graph-video.facebook.com' : GRAPH;
+  let res: Response;
+  try {
+    res = await fetch(`${host}/${GRAPH_VERSION()}/${path.replace(/^\/+/, '')}`, { method: 'POST', body: form, signal: AbortSignal.timeout(opts.timeoutMs ?? 120_000) });
+  } catch (e) {
+    throw new MetaAdsError(`Couldn't reach Meta (${e instanceof Error ? e.message : 'network error'}).`, 504);
+  }
+  return parse<T>(res);
+}
+
 /** Every row of a list, following Meta's `paging.next` up to `max` rows. */
 export async function graphAll<T>(path: string, params: Params = {}, max = 1000): Promise<T[]> {
   const first = await graph<{ data?: T[]; paging?: { next?: string } }>(path, { params: { limit: 200, ...params } });

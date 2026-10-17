@@ -7,6 +7,9 @@ struct ArtworkEditor: View {
     let photos: [String: Data]
     let fields: [String: String]
     var ad = false
+    /// The catalogue's list the Layout menu offers as square layouts, in place of the frame's own (Edit a piece: "siteSquares",
+    /// its website photo's layouts, in its own shape as well as square).
+    var layoutGroup: String? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var engine = NativeArtwork()
     @State private var response = MarketingValue.null
@@ -26,6 +29,17 @@ struct ArtworkEditor: View {
     @State private var coalesceAt = Date.distantPast
     /// The design as it came in, so Cancel can put it back (the editor writes to the live design as it goes).
     @State private var original: MarketingValue?
+    /// Designer v2: a slider's steps folded into one undo (see `fold`), snapping while a layer is dragged, the order layers
+    /// were picked in (for "match the first one picked"), and the QR code being typed.
+    @State private var pendingKey: String?
+    @AppStorage("artwork.snap") private var snapping = true
+    @State private var snapX: Double?
+    @State private var snapY: Double?
+    @State private var dragMoving: ArtworkBox?
+    @State private var dragLines: ArtworkSnap.Lines?
+    @State private var picks: [String] = []
+    @State private var qrOpen = false
+    @State private var qrText = ""
     private var pageWidth: Double { doc["frame"].n("w", 1080) }
     private var allPhotos: [String: Data] { clipboard.photos.merging(photos) { _, current in current } }
     private var placement: Binding<MarketingValue> {
@@ -54,14 +68,18 @@ struct ArtworkEditor: View {
                 Section {
                     Menu("Add") { addMenu }
                     Menu("Layout") {
-                        let group = ad ? "templates" : (height < 1400 ? "squares" : "presets")
-                        ForEach(catalogue[group].array, id: \.text) { i in Button(i.s("label")) { act(ad ? "ad" : (height < 1400 ? "square" : "preset"), i.s("id")) } }
+                        let group = layoutGroup ?? (ad ? "templates" : (height < 1400 ? "squares" : "presets"))
+                        let action = layoutGroup != nil ? "square" : ad ? "ad" : (height < 1400 ? "square" : "preset")
+                        ForEach(catalogue[group].array, id: \.text) { i in Button(i.s("label")) { act(action, i.s("id")) } }
                     }
                     Menu("Colours") { ForEach(catalogue["palettes"].array, id: \.text) { p in Button(p.s("label")) { act("palette", "", ["palette": p.s("id")]) } } }
                     if !selected.isEmpty { selectionTools }
                     if !clipboard.layers.isEmpty { Button("Paste copied layers") { act("carry", "", ["layers": clipboard.layers.map(\.any), "fromFrame": clipboard.frame.any]) } }
                 }.houseRows()
                 if let layer { controls(layer) }
+                else if let style = selectionStyle {
+                    Section { ArtworkEffectsRows(layer: style, fold: fold) } header: { LedgerHeading(title: "Blend and effects · \(selected.count) selected") }.houseRows()
+                }
                 Section {
                     DisclosureGroup("Background and crop") {
                         Picker("Photo", selection: Binding(get: { doc["bg"].s("photoId") }, set: { var d = doc; d["bg"]["photoId"] = $0.isEmpty ? .null : .string($0); change(d) })) {
@@ -74,7 +92,19 @@ struct ArtworkEditor: View {
                         }
                         filters(nested("bg"))
                         Button("Add background gradient") { var d = doc; d["bg"]["color2"] = .string("#111111"); change(d) }
+                        Toggle("Multi-colour gradient base", isOn: Binding(get: { doc["bg"]["fill"] != .null }, set: { on in
+                            var d = doc
+                            if on { d["bg"]["fill"] = ArtworkGradients.make(angle: 180, [ArtworkStop(at: 0, color: doc["bg"].s("color", "#EDE6DA"), alpha: nil), ArtworkStop(at: 1, color: doc["bg"].s("color2", "#111111"), alpha: nil)]) }
+                            else { var bg = d["bg"]; bg.artworkDrop("fill"); d["bg"] = bg }
+                            change(d)
+                        }))
+                        if doc["bg"]["fill"] != .null {
+                            ArtworkGradientRows(gradient: Binding(get: { doc["bg"]["fill"] }, set: { g in var d = doc; d["bg"]["fill"] = g; change(d) }), fold: fold)
+                        }
                     }
+                }.houseRows()
+                Section {
+                    DisclosureGroup("Guides and grid") { ArtworkGuideRows(doc: Binding(get: { doc }, set: { change($0) })) }
                 }.houseRows()
                 Section {
                     DisclosureGroup("Layers · \(layers.count)") {
@@ -102,8 +132,17 @@ struct ArtworkEditor: View {
                 .onChange(of: importing) { _, item in if let item { Task { await take(item) } } }
                 .fileImporter(isPresented: $logoOpen, allowedContentTypes: [.svg, .png]) { takeLogo($0) }
                 .onAppear { if original == nil { original = doc } }
+                .onChange(of: selected) { _, new in picks = picks.filter { new.contains($0) } + new.subtracting(picks).sorted() }
                 .interactiveDismissDisabled(original != nil && original != doc)
                 .sheet(item: $share) { MarketingShareSheet(items: $0.items) }.websiteBusy(busy ? "Preparing…" : nil)
+                .alert("QR code", isPresented: $qrOpen) {
+                    TextField("Link or words", text: $qrText)
+                    Button("Add") {
+                        let text = qrText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if let why = ArtworkQR.problem(text) { problem = why } else { addLayer(ArtworkQR.layer(text, frame: CGSize(width: pageWidth, height: height))) }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: { Text("What the code opens: a link, a number or any words. Dark on light reads on every phone.") }
         }
     }
     private var preview: some View {
@@ -111,6 +150,7 @@ struct ArtworkEditor: View {
             let scale = g.size.width / pageWidth
             ZStack(alignment: .topLeading) {
                 if let image = NativeArtwork.image(response) { Image(uiImage: image).resizable().scaledToFit().onTapGesture { selected = [] } } else { SkeletonLoading().frame(maxWidth: .infinity, maxHeight: .infinity) }
+                ArtworkGuideOverlay(width: pageWidth, scale: scale, guideX: ArtworkSnap.guides(doc, "x"), guideY: ArtworkSnap.guides(doc, "y"), grid: ArtworkSnap.grid(doc), snapX: snapX, snapY: snapY)
                 ForEach(response["boxes"].array, id: \.text) { b in
                     let id = b.s("id"), l = layers.first { $0.s("id") == id } ?? .null
                     if !l["hidden"].bool {
@@ -120,13 +160,20 @@ struct ArtworkEditor: View {
                             .onTapGesture { select(id, multiple: false) }.onLongPressGesture { select(id, multiple: true) }
                             .gesture(DragGesture(minimumDistance: 3).onChanged { v in
                                 guard !l["locked"].bool else { return }
-                                if dragStart == nil { select(id, multiple: false); dragStart = response["doc"] == .null ? doc : response["doc"] }
+                                if dragStart == nil { select(id, multiple: false); dragStart = response["doc"] == .null ? doc : response["doc"]; prepareSnap() }
                                 guard let start = dragStart else { return }
+                                var dx = v.translation.width / scale, dy = v.translation.height / scale
+                                // Designer v2 snapping: the page's middle and margins, other layers, the grid and the guides (8 points).
+                                if snapping, let moving = dragMoving, let lines = dragLines {
+                                    let nudge = ArtworkSnap.snap(ArtworkBox(x: moving.x + dx, y: moving.y + dy, w: moving.w, h: moving.h), lines, threshold: 8 / scale)
+                                    dx += nudge.dx; dy += nudge.dy; snapX = nudge.v; snapY = nudge.h
+                                }
+                                let moveX = dx, moveY = dy
                                 doc["layers"] = .array(start["layers"].array.map { source in
                                     guard selected.contains(source.s("id")), !source["locked"].bool else { return source }
-                                    var n = source; n["x"] = .number(source.n("x") + v.translation.width / scale); n["y"] = .number(source.n("y") + v.translation.height / scale); n["flow"] = .null; return n
+                                    var n = source; n["x"] = .number(source.n("x") + moveX); n["y"] = .number(source.n("y") + moveY); n["flow"] = .null; return n
                                 })
-                            }.onEnded { _ in if let start = dragStart, start != doc { undo.append(start); redo = [] }; dragStart = nil }).accessibilityLabel(name(l))
+                            }.onEnded { _ in if let start = dragStart, start != doc { undo.append(start); redo = [] }; dragStart = nil; snapX = nil; snapY = nil; dragMoving = nil; dragLines = nil }).accessibilityLabel(name(l))
                     }
                 }
             }
@@ -153,6 +200,7 @@ struct ArtworkEditor: View {
         PhotosPicker(selection: $importing, matching: .images) { Label("Upload image", systemImage: "photo.on.rectangle") }
         Button { logoOpen = true } label: { Label("Logo file (SVG or PNG)", systemImage: "square.and.arrow.down") }
         Button("Link pill") { act("link", "Ask us on WhatsApp") }
+        Button { qrText = ""; qrOpen = true } label: { Label("QR code", systemImage: "qrcode") }
     }
     private var selectionTools: some View {
         Menu("Arrange · \(selected.count) selected") {
@@ -162,6 +210,7 @@ struct ArtworkEditor: View {
             Button("Group") { set(["group": .string(UUID().uuidString)]) }; Button("Ungroup") { set(["group": .null]) }
             Button("Mirror across") { flip("flipX") }; Button("Mirror down") { flip("flipY") }
             Menu("Align to page") { alignMenu(page: true) }; if selected.count > 1 { Menu("Align selection") { alignMenu(page: false) } }
+            if selected.count > 1 { Menu("Match the first one picked") { ForEach(ArtworkMatch.hows, id: \.0) { h in Button(h.label) { match(h.id) } } } }
             if selected.count >= 3 { Button("Space evenly across") { act("distribute", "h") }; Button("Space evenly down") { act("distribute", "v") } }
             Button("Larger") { act("scale", "", ["factor": 1.1]) }; Button("Smaller") { act("scale", "", ["factor": 0.9]) }
             Button("Copy") { clipboard.layers = layers.filter { selected.contains($0.s("id")) }; clipboard.frame = doc["frame"]; clipboard.photos = photos }; Button("Duplicate") { duplicate(layers.filter { selected.contains($0.s("id")) }) }
@@ -170,6 +219,14 @@ struct ArtworkEditor: View {
         }
     }
     private func alignMenu(page: Bool) -> some View { ForEach(["left", "center", "right", "top", "middle", "bottom"], id: \.self) { key in Button(ArtworkProperties.label(key)) { act("align", key, ["toPage": page]) } } }
+    /// The fields the generic "All settings" rows still show: everything that has no proper control of its own.
+    private func genericKeys(_ l: MarketingValue) -> [String] {
+        // Designer v2's fields each have a control below: blend, opacity, layerFx, runs, list, fillGradient, font, cutout; a QR's own four.
+        var skip: Set<String> = ["id", "kind", "bind", "photoId", "src", "mark", "flow", "group", "effect", "adjust", "box", "shade", "iz",
+                                 "blend", "opacity", "layerFx", "runs", "list", "fillGradient", "font", "cutout"]
+        if l.s("kind") == "qr" { skip.formUnion(["value", "fg", "bg", "quiet"]) }
+        return l.object.keys.filter { !skip.contains($0) }.sorted()
+    }
     @ViewBuilder private func controls(_ l: Binding<MarketingValue>) -> some View {
         Section {
             if l.wrappedValue["locked"].bool { Button("Unlock") { l.wrappedValue["locked"] = .bool(false) } }
@@ -178,10 +235,17 @@ struct ArtworkEditor: View {
                     Text("Uses the piece’s \(l.wrappedValue.s("bind")); edit it on the piece.").font(.footnote).foregroundStyle(.secondary)
                     Button("Make independent text") { let key = l.wrappedValue.s("bind"); l.wrappedValue["text"] = .string(fields[key] ?? ""); l.wrappedValue["bind"] = .null }
                 }
-                ArtworkProperties(value: l, keys: l.wrappedValue.object.keys.filter { !["id", "kind", "bind", "photoId", "src", "mark", "flow", "group", "effect", "adjust", "box", "shade", "iz"].contains($0) }.sorted())
                 if l.wrappedValue.s("kind") == "text" {
-                    Picker("Text effect", selection: Binding(get: { l.wrappedValue["effect"].s("kind", "none") }, set: { kind in l.wrappedValue["effect"] = kind == "none" ? .null : MarketingValue(["kind": kind, "color": "#000000", "offset": 30, "angle": 45, "blur": 20, "thickness": 40, "transparency": 50]) })) { ForEach(catalogue["effects"].array, id: \.text) { Text($0.s("label")).tag($0.s("id")) } }
-                    ArtworkProperties(value: Binding(get: { l.wrappedValue["effect"] }, set: { l.wrappedValue["effect"] = $0 }), keys: ["color", "offset", "angle", "blur", "thickness", "transparency"])
+                    // The six Designer v2 faces come with the other fourteen, named as the web names them.
+                    let font = l.wrappedValue.s("font", "regular")
+                    Picker("Font", selection: Binding(get: { font }, set: { l.wrappedValue["font"] = .string($0) })) {
+                        ForEach(ArtworkFont.faces, id: \.0) { Text($0.label).tag($0.id) }
+                        if !ArtworkFont.faces.contains(where: { $0.id == font }) { Text(ArtworkFont.label(font)).tag(font) }
+                    }
+                }
+                ArtworkProperties(value: l, keys: genericKeys(l.wrappedValue))
+                if l.wrappedValue.s("kind") == "text" {
+                    ArtworkTextEffectRows(layer: l, fold: fold)
                     Toggle("Text box", isOn: Binding(get: { l.wrappedValue["box"] != .null }, set: { l.wrappedValue["box"] = $0 ? MarketingValue(["color": "#FFFFFF", "radius": 24, "pad": 20]) : .null }))
                     ArtworkProperties(value: l, keys: ["box"])
                     Button("Underline") { l.wrappedValue["underline"] = .bool(!l.wrappedValue["underline"].bool) }
@@ -189,6 +253,7 @@ struct ArtworkEditor: View {
                 }
                 if l.wrappedValue.s("kind") == "image" {
                     filters(l)
+                    Toggle("Cut out (transparent background)", isOn: Binding(get: { l.wrappedValue["cutout"].bool }, set: { on in if on { l.wrappedValue["cutout"] = .bool(true) } else { l.wrappedValue.artworkDrop("cutout") } }))
                     // Frames (a layer with a height) show the photo covering the frame; zoom goes past that.
                     if l.wrappedValue["h"] != .null {
                         ArtworkSlider(title: "Zoom in frame", value: Binding(get: { l.wrappedValue.n("iz", 1) }, set: { l.wrappedValue["iz"] = .number($0) }), range: 1...4, step: 0.05, format: "%.2f×")
@@ -203,16 +268,72 @@ struct ArtworkEditor: View {
                     Toggle("Filled shape", isOn: Binding(get: { l.wrappedValue["fill"] != .null }, set: { l.wrappedValue["fill"] = $0 ? .string("#FFFFFF") : .null }))
                     if l.wrappedValue["fill"] != .null { ArtworkProperties(value: l, keys: ["fill"]) }
                     Toggle("Gradient fill", isOn: Binding(get: { l.wrappedValue["fill2"] != .null }, set: { l.wrappedValue["fill2"] = $0 ? .string("#111111") : .null }))
+                    // Designer v2: any angle, radial, many stops; it replaces the two-colour fill.
+                    Toggle("Multi-stop gradient fill", isOn: Binding(get: { l.wrappedValue["fillGradient"] != .null }, set: { on in
+                        if on { l.wrappedValue["fillGradient"] = ArtworkGradients.foils[0].gradient } else { l.wrappedValue.artworkDrop("fillGradient") }
+                    }))
+                    if l.wrappedValue["fillGradient"] != .null {
+                        ArtworkGradientRows(gradient: Binding(get: { l.wrappedValue["fillGradient"] }, set: { l.wrappedValue["fillGradient"] = $0 }), fold: fold)
+                    }
                 }
             }
         } header: { LedgerHeading(title: name(l.wrappedValue)) }.houseRows()
-    }
-    private func filters(_ v: Binding<MarketingValue>) -> some View {
-        DisclosureGroup("Photo filters") {
-            Menu("Choose filter") { ForEach(catalogue["filters"].array, id: \.text) { f in Button(f.s("label")) { v.wrappedValue["adjust"] = f["adjust"] } } }
-            if v.wrappedValue["adjust"] == .null { Button("Adjust by hand") { v.wrappedValue["adjust"] = MarketingValue(["brightness": 0, "contrast": 0, "saturation": 0, "warmth": 0, "fade": 0, "vignette": 0]) } }
-            ArtworkProperties(value: Binding(get: { v.wrappedValue["adjust"] }, set: { v.wrappedValue["adjust"] = $0 }), keys: ["brightness", "contrast", "saturation", "warmth", "fade", "vignette"])
+        if !l.wrappedValue["locked"].bool {
+            Section { ArtworkEffectsRows(layer: l, fold: fold) } header: { LedgerHeading(title: "Blend and effects") }.houseRows()
+            if l.wrappedValue.s("kind") == "text" {
+                Section { ArtworkRunsRows(layer: l, words: l.wrappedValue.s("bind").isEmpty ? l.wrappedValue.s("text") : (fields[l.wrappedValue.s("bind")] ?? ""), fold: fold).id(l.wrappedValue.s("id")) } header: { LedgerHeading(title: "Rich text") }.houseRows()
+            }
+            if l.wrappedValue.s("kind") == "qr" {
+                Section { ArtworkQRRows(layer: l, fold: fold) } header: { LedgerHeading(title: "QR code") }.houseRows()
+            }
         }
+    }
+    /// Photo adjustments (filters, quick fixes and every slider), for the background and for a picture.
+    private func filters(_ v: Binding<MarketingValue>) -> some View {
+        DisclosureGroup("Photo filters and adjustments") {
+            ArtworkAdjustRows(adjust: Binding(get: { v.wrappedValue["adjust"] }, set: { v.wrappedValue["adjust"] = $0 }), filters: catalogue["filters"].array, fold: fold)
+        }
+    }
+    /// Runs a change and folds the steps of one slider into a single undo (the key also names the layer).
+    private func fold(_ key: String, _ body: () -> Void) {
+        pendingKey = key + "-" + selected.sorted().joined(separator: ",")
+        body()
+        pendingKey = nil
+    }
+    /// The first selected layer, standing for several: what is set on it (blend, opacity, shadow, glow, outline) is copied to the rest.
+    private var selectionStyle: Binding<MarketingValue>? {
+        guard selected.count > 1, let first = layers.first(where: { selected.contains($0.s("id")) }) else { return nil }
+        return Binding(get: { layers.first { selected.contains($0.s("id")) } ?? first }, set: { v in
+            var d = doc
+            d["layers"] = .array(layers.map { l -> MarketingValue in
+                guard selected.contains(l.s("id")), !l["locked"].bool else { return l }
+                var n = l
+                for key in ["blend", "opacity"] { if v[key] == .null { n.artworkDrop(key) } else { n[key] = v[key] } }
+                if l.s("kind") != "text" { if v["layerFx"] == .null { n.artworkDrop("layerFx") } else { n["layerFx"] = v["layerFx"] } }
+                return n
+            })
+            change(d)
+        })
+    }
+    /// What `match` and a drag's snapping need: the engine's boxes by layer id.
+    private func boxes() -> [String: ArtworkBox] {
+        var out: [String: ArtworkBox] = [:]
+        for b in response["boxes"].array { out[b.s("id")] = ArtworkBox(b) }
+        return out
+    }
+    private func prepareSnap() {
+        let all = boxes()
+        dragMoving = ArtworkBox.union(selected.compactMap { all[$0] })
+        let others = layers.filter { !selected.contains($0.s("id")) && !$0["hidden"].bool }.compactMap { all[$0.s("id")] }
+        dragLines = ArtworkSnap.lines(width: pageWidth, height: height, margin: ArtworkSnap.margin(height: height), others: others,
+                                      grid: ArtworkSnap.grid(doc), guideX: ArtworkSnap.guides(doc, "x"), guideY: ArtworkSnap.guides(doc, "y"))
+    }
+    /// "Match the first one picked": the others take its width, height, size, left or top edge, or place.
+    private func match(_ how: String) {
+        guard let reference = picks.first(where: { selected.contains($0) }) else { return }
+        var d = doc
+        d["layers"] = .array(ArtworkMatch.apply(how, reference: reference, layers: layers, selected: selected, boxes: boxes()))
+        change(d)
     }
     private func nested(_ key: String) -> Binding<MarketingValue> { Binding(get: { doc[key] }, set: { var d = doc; d[key] = $0; change(d) }) }
     private func name(_ l: MarketingValue) -> String { if !l.s("name").isEmpty { return l.s("name") }; if !l.s("bind").isEmpty { return ArtworkProperties.label(l.s("bind")) }; return l.s("text").isEmpty ? ArtworkProperties.label(l.s("kind")) : l.s("text") }
@@ -220,10 +341,11 @@ struct ArtworkEditor: View {
     private func select(_ id: String, multiple: Bool) { if multiple { if selected.contains(id) { selected.remove(id) } else { selected.insert(id) }; return }; if selected.contains(id), selected.count > 1 { return }; let group = layers.first { $0.s("id") == id }?.s("group") ?? ""; selected = group.isEmpty ? [id] : Set(layers.filter { $0.s("group") == group }.map { $0.s("id") }) }
     private func change(_ d: MarketingValue, key: String? = nil) {
         guard d != doc else { return }
+        let folded = key ?? pendingKey
         let now = Date()
         defer { coalesceAt = now }
-        if let key, key == coalesceKey, now.timeIntervalSince(coalesceAt) < 1.2 { redo = []; doc = d; return }
-        coalesceKey = key ?? ""
+        if let folded, folded == coalesceKey, now.timeIntervalSince(coalesceAt) < 1.2 { redo = []; doc = d; return }
+        coalesceKey = folded ?? ""
         undo.append(doc); if undo.count > 80 { undo.removeFirst() }; redo = []; doc = d
     }
     private func addLayer(_ n: MarketingValue) { var d = doc; d["layers"] = .array(layers + [n]); change(d); selected = [n.s("id")]; problem = nil }

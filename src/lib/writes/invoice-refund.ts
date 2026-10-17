@@ -15,6 +15,7 @@
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
 import { withRefund, type InvoiceFigures } from '@/lib/invoice-actions';
+import { owesMoney } from '@/lib/money';
 
 const INVOICES = 'invoices';
 const HISAAB = 'hisaab';
@@ -58,7 +59,7 @@ export async function refundInvoicePartial(
 
     // The customer owes again: their ledger row says how much.
     const debits = linked.filter(d => Number(d.cashDebit ?? 0) > 0);
-    if (balanceDue > 0) {
+    if (owesMoney(balanceDue)) {
       if (debits.length > 0) {
         tx.update(HISAAB, debits[0].id, { cashDebit: balanceDue });
         debits.slice(1).forEach(d => tx.delete(HISAAB, d.id));

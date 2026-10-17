@@ -11,6 +11,7 @@
  */
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
+import { rupees } from '@/lib/money';
 
 const ORDERS = 'orders';
 
@@ -33,16 +34,18 @@ type OrderDoc = {
 } & Record<string, unknown>;
 
 export async function recordOrderAdvance(db: DbPort, input: AdvanceInput, fx: SideEffects = {}) {
-  const { orderId, amount, method } = input;
+  const { orderId, method } = input;
+  // Whole rupees: a typed fraction is rounded here, whoever sent it (the web, the apps).
+  const amount = rupees(input.amount);
   const notes = input.notes?.trim();
   const updated = await db.runTransaction(async tx => {
     const order = await tx.get<OrderDoc>(ORDERS, orderId);
     if (!order) throw new Error('Order not found!');
     if (order.invoiceId) throw new Error(`${orderId} is invoiced as ${order.invoiceId} — take the payment on the invoice.`);
 
-    const advancePayment = (Number(order.advancePayment) || 0) + amount;
+    const advancePayment = rupees(order.advancePayment) + amount;
     // The balance as the order form works it out, the discount included.
-    const grandTotal = (Number(order.subtotal) || 0) - (Number(order.discountAmount) || 0) - advancePayment - (Number(order.advanceInExchangeValue) || 0);
+    const grandTotal = rupees(order.subtotal) - rupees(order.discountAmount) - advancePayment - rupees(order.advanceInExchangeValue);
     // Each advance keeps its day and how it was paid, and becomes a payment of its own on the invoice.
     const advance = { amount, date: input.date || new Date().toISOString(), ...(notes && { notes }), ...(method && { method }) };
     const advances = [...(order.advances || []), advance];

@@ -11,7 +11,9 @@ import ERPCore
 @MainActor
 @Observable
 final class OnlineOrdersStore {
-    static let shared = OnlineOrdersStore()
+    /// Replaced, not cleared, when the person switches business (Businesses.switch): none of it is the next one's.
+    static var shared = OnlineOrdersStore()
+    static func reset() { shared = OnlineOrdersStore() }
 
     enum Phase: Equatable {
         case idle

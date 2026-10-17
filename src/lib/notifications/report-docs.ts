@@ -14,6 +14,7 @@ import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { isBusinessCost } from '@/lib/partnership';
 import { lateOrders, orderTiming, timingLabel, type OrderTiming } from '@/lib/order-timing';
 import { grams, longDay, plural, pkr, rs, shortDay, clock, type AlertDoc, type Section, type Table } from './doc';
+import { owesMoney } from '@/lib/money';
 
 /** A Firestore document as read. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -60,8 +61,8 @@ function completedSince(orders: Row[], invoices: Row[], from: number, to = Infin
 
 const salesTable = (list: Row[]): Table => ({
   columns: [{ label: 'Invoice', width: 21 }, { label: 'Customer' }, { label: 'Sale', width: 17, align: 'right' }, { label: 'Owed', width: 15, align: 'right' }],
-  rows: list.map(i => [i.id, who(i), rs(saleValue(i)), Number(i.balanceDue) > 0 ? rs(i.balanceDue) : '-']),
-  tones: list.map(i => (Number(i.balanceDue) > 0 ? 'flag' : undefined)),
+  rows: list.map(i => [i.id, who(i), rs(saleValue(i)), owesMoney(i.balanceDue) ? rs(i.balanceDue) : '-']),
+  tones: list.map(i => (owesMoney(i.balanceDue) ? 'flag' : undefined)),
   details: list.map(i => (i.sourceOrderId ? `from ${i.sourceOrderId}` : undefined)),
   foot: list.length > 1 ? ['', plural(list.length, 'sale'), rs(list.reduce((s, i) => s + saleValue(i), 0)), rs(list.reduce((s, i) => s + Math.max(0, Number(i.balanceDue) || 0), 0))] : undefined,
 });
@@ -161,7 +162,7 @@ function theDay(r: ShopRows, now: Date) {
   const completed = completedSince(r.orders, r.invoices, from, to);
   const active = r.orders.filter(isActive);
   const lateRows = late(active, now);
-  const outstanding = r.invoices.filter(i => i.status !== 'Refunded' && Number(i.balanceDue) > 0);
+  const outstanding = r.invoices.filter(i => i.status !== 'Refunded' && owesMoney(i.balanceDue));
   return { cash, sold, taken, completed, active, lateRows, outstanding };
 }
 

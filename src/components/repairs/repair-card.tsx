@@ -19,7 +19,7 @@ export const REPAIR_STATUS_TONE: Record<RepairStatus, Tone> = {
   cancelled: 'quiet',
 };
 
-const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString()}`;
+const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 const day = (iso?: string) => { if (!iso) return ''; try { return format(parseISO(iso), 'd MMM'); } catch { return iso; } };
 
 /** One repair ticket: who, what, the money and the next step. The page owns every action. */

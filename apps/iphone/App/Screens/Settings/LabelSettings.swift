@@ -316,8 +316,6 @@ private struct LabelDesigner: View {
             }
         } header: {
             LedgerHeading(title: "Test and export")
-        } footer: {
-            Text("Select a product to preview and export its data.")
         }
     }
 

@@ -21,15 +21,18 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { balanceLine, canHoldCredit } from '@/lib/invoice-credit';
+import { rupees } from '@/lib/money';
+import { SettleOffer } from '@/components/shared/round-off-chips';
 
 export function RecordPaymentDialog({ invoice: invoiceNow, open, onOpenChange }: {
-  invoice: Pick<Invoice, 'id' | 'balanceDue' | 'customerName' | 'customerId'> | null;
+  invoice: Pick<Invoice, 'id' | 'balanceDue' | 'customerName' | 'customerId'> & Partial<Pick<Invoice, 'discountAmount'>> | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   // Shown as it was while the dialog closes (hooks/use-lingering.ts): the balance fell to 0 as it faded.
   const invoice = useLingering(invoiceNow);
   const updateInvoicePayment = useAppStore(s => s.updateInvoicePayment);
+  const updateInvoiceDiscount = useAppStore(s => s.updateInvoiceDiscount);
   const { toast } = useToast();
   const [amount, setAmount] = useState<number | undefined>(undefined);
   const [method, setMethod] = useState<PaymentType | ''>('');
@@ -39,7 +42,7 @@ export function RecordPaymentDialog({ invoice: invoiceNow, open, onOpenChange }:
   const lock = useRef(false);
 
   useEffect(() => {
-    if (open && invoice) { setAmount(invoice.balanceDue); setMethod(''); setReference(''); }
+    if (open && invoice) { setAmount(rupees(invoice.balanceDue)); setMethod(''); setReference(''); }
   }, [open, invoice]);
 
   const balance = invoice?.balanceDue ?? 0;
@@ -47,18 +50,20 @@ export function RecordPaymentDialog({ invoice: invoiceNow, open, onOpenChange }:
   const over = amount ? Math.round(amount - Math.max(0, balance)) : 0;
   const creditOk = canHoldCredit(invoice?.customerId);
   const problem = !amount || amount <= 0 ? 'Enter the amount received.'
-    : over > 0 && !creditOk ? `More than the balance of PKR ${balance.toLocaleString()}. Credit needs a customer: name who this invoice is for first.`
+    : over > 0 && !creditOk ? `More than the balance of PKR ${balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}. Credit needs a customer: name who this invoice is for first.`
     : !method ? 'Choose how it was paid.' : null;
-  const creditNote = over > 0 && creditOk ? `PKR ${over.toLocaleString()} over the balance stays as credit on ${invoice?.customerName || 'the customer'}'s hisaab.` : null;
+  const creditNote = over > 0 && creditOk ? `PKR ${over.toLocaleString(undefined, { maximumFractionDigits: 0 })} over the balance stays as credit on ${invoice?.customerName || 'the customer'}'s hisaab.` : null;
 
-  const save = async () => {
+  const save = async (settle = 0) => {
     if (!invoice || problem || !method || !amount || lock.current) return;
     lock.current = true; setSaving(true);
     try {
-      const updated = await updateInvoicePayment(invoice.id, amount, new Date().toISOString(), method, method === 'Cash' ? '' : reference);
+      const updated = await updateInvoicePayment(invoice.id, rupees(amount), new Date().toISOString(), method, method === 'Cash' ? '' : reference);
       if (!updated) throw new Error();
-      const after = balanceLine(updated.balanceDue);
-      toast({ title: 'Payment recorded', description: `PKR ${amount.toLocaleString()} by ${method} on ${invoice.id}${after.state === 'due' ? `, PKR ${after.amount.toLocaleString()} still due` : after.state === 'credit' ? `, PKR ${after.amount.toLocaleString()} in credit` : ' — paid in full'}.` });
+      // Settle: the leftover goes onto the bill's discount (lib/round-off.ts), so the balance is 0 without a payment never made.
+      const settled = settle > 0 ? await updateInvoiceDiscount(invoice.id, rupees(updated.discountAmount) + settle) : null;
+      const after = balanceLine((settled ?? updated).balanceDue);
+      toast({ title: 'Payment recorded', description: `PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} by ${method} on ${invoice.id}${after.state === 'due' ? `, PKR ${after.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} still due` : after.state === 'credit' ? `, PKR ${after.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit` : ' — paid in full'}.` });
       onOpenChange(false);
     } catch {
       toast({ title: 'Payment not recorded', description: 'Check the connection and try again.', variant: 'destructive' });
@@ -70,12 +75,12 @@ export function RecordPaymentDialog({ invoice: invoiceNow, open, onOpenChange }:
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Record a payment{invoice ? ` · ${invoice.id}` : ''}</DialogTitle>
-          <DialogDescription>{invoice?.customerName ? `${invoice.customerName} · ` : ''}Balance PKR {balance.toLocaleString()}</DialogDescription>
+          <DialogDescription>{invoice?.customerName ? `${invoice.customerName} · ` : ''}Balance PKR {balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="pay-amount">Amount received (PKR)</Label>
-            <AmountInput id="pay-amount" value={amount} emptyValue={undefined} onValueChange={setAmount} autoFocus />
+            <AmountInput maxDecimals={0} id="pay-amount" value={amount} emptyValue={undefined} onValueChange={setAmount} autoFocus />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -91,11 +96,14 @@ export function RecordPaymentDialog({ invoice: invoiceNow, open, onOpenChange }:
             </div>
           </div>
           {problem && amount !== undefined && <p className="text-xs text-muted-foreground">{problem}</p>}
+          {!problem && amount !== undefined && (
+            <SettleOffer remaining={rupees(balance) - rupees(amount)} busy={saving} className="w-full" onSettle={(x) => void save(x)} />
+          )}
           {!problem && creditNote && <p className="text-xs font-medium text-success">{creditNote}</p>}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
-          <Button onClick={save} disabled={!!problem || saving}>
+          <Button onClick={() => save()} disabled={!!problem || saving}>
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Banknote className="mr-2 h-4 w-4" />}
             Record payment
           </Button>

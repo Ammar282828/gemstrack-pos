@@ -99,7 +99,7 @@ struct RepairsForm: View {
         name = r.customerName
         phone = r.customerContact ?? ""
         let drafts = r.pieces.map { (p: RepairPiece) -> RepairsDraftPiece in
-            RepairsDraftPiece(item: p.item, work: p.work, weight: RepairsKit.typed(p.weightG, decimals: 3), price: RepairsKit.typed(p.price, decimals: 2))
+            RepairsDraftPiece(item: p.item, work: p.work, weight: RepairsKit.typed(p.weightG, decimals: 3), price: RepairsKit.typed(p.price, decimals: 0))
         }
         pieces = drafts.isEmpty ? [RepairsDraftPiece()] : drafts
         if let day = RepairsKit.filled(r.promisedDate), let d = ERPDate.parse(day) {
@@ -147,16 +147,21 @@ struct RepairsForm: View {
     }
 
     private var total: Double {
-        pieces.reduce(0.0) { (sum: Double, p: RepairsDraftPiece) -> Double in sum + (Self.number(p.price) ?? 0) }
+        pieces.reduce(0.0) { (sum: Double, p: RepairsDraftPiece) -> Double in sum + (Self.rupees(p.price) ?? 0) }
     }
 
-    private var advanceAmount: Double { Self.number(advance) ?? 0 }
+    private var advanceAmount: Double { Self.rupees(advance) ?? 0 }
 
     /// A number typed in the field: commas ignored, nothing or 0 is nothing (sale-flow fields show 0 as blank).
     private static func number(_ text: String) -> Double? {
         let t = text.replacingOccurrences(of: ",", with: "").trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty, let v = Double(t), v > 0 else { return nil }
         return v
+    }
+
+    /// A price or an advance: whole rupees (owner, 2026-10-17: "there should be no decimals").
+    private static func rupees(_ text: String) -> Double? {
+        number(text).map { $0.rounded() }.flatMap { $0 > 0 ? $0 : nil }
     }
 
     /// Who has taken tickets and orders lately, newest first, for one tap instead of typing.
@@ -253,7 +258,7 @@ struct RepairsForm: View {
             HStack(spacing: 12) {
                 TextField("Weight g", text: piece.weight)
                     .keyboardType(.decimalPad)
-                TextField("Price", text: piece.price)
+                TextField("Price", text: piece.price.wholeRupees)
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
             }
@@ -295,7 +300,7 @@ struct RepairsForm: View {
 
     private var advanceSection: some View {
         Section {
-            TextField("Amount in rupees", text: $advance)
+            TextField("Amount in rupees", text: $advance.wholeRupees)
                 .keyboardType(.numberPad)
             if advanceAmount > 0 {
                 Text(Money.pkrLac(advanceAmount)).foregroundStyle(.secondary)
@@ -425,7 +430,7 @@ struct RepairsForm: View {
             if item.isEmpty && work.isEmpty { continue }
             var doc: [String: Any] = ["item": item.isEmpty ? "Piece" : item, "work": work]
             if let w = Self.number(p.weight) { doc["weightG"] = w }
-            if let price = Self.number(p.price) { doc["price"] = price }
+            if let price = Self.rupees(p.price) { doc["price"] = price }
             kept.append(doc)
         }
         var repair: [String: Any] = ["customerName": RepairsKit.trimmed(name), "pieces": kept]

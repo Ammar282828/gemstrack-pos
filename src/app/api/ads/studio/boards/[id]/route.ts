@@ -36,8 +36,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const body = await req.json().catch(() => null);
     const ops = (body?.ops ?? []) as BoardOp[];
-    const { board, added } = await changeBoard(id, ops, who);
-    return NextResponse.json({ board, added }, { headers: noStore });
+    const { board, added, linked } = await changeBoard(id, ops, who);
+    return NextResponse.json({ board, added, linked }, { headers: noStore });
   } catch (e) { return studioFail(e, 'board change'); }
 }
 

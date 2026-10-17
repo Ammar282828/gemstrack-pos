@@ -8,3 +8,6 @@ enum House {
     static var metal: String { id == "mina" ? "silver" : "gold" }
     static var margin: MarginSettings { id == "mina" ? .mina : .taheri }
 }
+
+/// Stand-in for Config/Business.swift's helper: the per-business settings key the stores use.
+func BizKey(_ base: String, _ id: String? = nil) -> String { base + "." + (id ?? House.id) }

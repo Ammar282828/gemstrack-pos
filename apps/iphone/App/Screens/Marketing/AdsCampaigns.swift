@@ -5,7 +5,7 @@ import ERPCore
 /// each with its status and the range's numbers against the time before, and the web's run / pause
 /// switch (turning one on asks first, since it spends), and the budget and end date (AdsBudgetSheet, which
 /// shows the money before and after and asks). Audience, rename, duplicate, archive and delete, and an
-/// ad's previews, stay the ERP's page: one tap opens it.
+/// ad's previews, are each one's own screen (AdsObjectScreen): one tap opens it.
 struct AdsCampaignsScreen: View {
     var path = "/ads/campaigns"
     @State private var gallery = false
@@ -25,6 +25,9 @@ struct AdsCampaignsScreen: View {
     @State private var failure: String?
     @State private var go: Route?
     @State private var budgeting: AdsBudgetTarget?
+    /// The range's campaigns as a CSV (the web's Download (CSV)), ready for the share sheet.
+    @State private var csvFile: URL?
+    @State private var exporting = false
 
     enum Filter: String, CaseIterable, Identifiable {
         case all = "All", running = "Running", paused = "Paused", problems = "Problems"
@@ -63,6 +66,8 @@ struct AdsCampaignsScreen: View {
                         Toggle("Show archived", isOn: $archived)
                         Toggle("Expand all campaigns", isOn: $allExpanded)
                         Button { go = Route(path: "/ads/new") } label: { Label("New ad", systemImage: "plus") }
+                        Button { Task { await exportCsv() } } label: { Label("Download (CSV)", systemImage: "tablecells") }
+                            .disabled(exporting)
                     } label: {
                         Label("More", systemImage: "ellipsis.circle")
                     }
@@ -72,7 +77,7 @@ struct AdsCampaignsScreen: View {
         .navigationDestination(item: $go) { (r: Route) in PlaceScreen(path: r.path) }
         // Back from a campaign, ad set or ad: what was paused, renamed or deleted there shows here.
         .onChange(of: go) { old, new in if old != nil && new == nil { Task { await load() } } }
-        .task(id: "\(rangeKey)|\(archived)") { if mayRead { await load() } }
+        .task(id: "\(rangeKey)|\(archived)") { csvFile = nil; if mayRead { await load() } }
         .task { if let id = AdsQuery.value("ad", in: path) { go = Route(path: objectPath("ad", id)) } }
         .confirmationDialog("Run it?", isPresented: askingShown, titleVisibility: .visible, presenting: asking) { (t: Target) in
             Button("Run") { Task { await setRunning(t, running: true) } }
@@ -98,6 +103,19 @@ struct AdsCampaignsScreen: View {
             problem = nil
         } catch {
             problem = error.localizedDescription
+        }
+    }
+
+    /// Every campaign, ad set and ad in the range as the web's CSV (export.ts, made by the server), for Numbers,
+    /// Excel or Google Sheets.
+    private func exportCsv() async {
+        exporting = true
+        defer { exporting = false }
+        do {
+            let d = try await ERPAPI.shared.data("/api/ads/campaigns?range=\(rangeKey)&format=csv\(archived ? "&archived=1" : "")")
+            csvFile = try SettingsFiles.save(d, named: "ads-\(rangeKey)-\(ERPDate.karachiDay(Date())).csv")
+        } catch {
+            failure = error.localizedDescription
         }
     }
 
@@ -183,12 +201,21 @@ struct AdsCampaignsScreen: View {
                     if gallery {
                         Picker("Sort", selection: $sort) {
                             Text("Most spent").tag("spend"); Text("Most results").tag("results")
-                            Text("Cheapest result").tag("cost"); Text("Best click-through").tag("ctr"); Text("Name").tag("name")
+                            Text("Cheapest result").tag("cost"); Text("Best ROAS").tag("roas")
+                            Text("Best click-through").tag("ctr"); Text("Name").tag("name")
                         }
                     }
                 }
                 if let problem {
                     Section { Label(problem, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary) } header: { LedgerHeading(title: "Couldn't refresh") }
+                }
+                if exporting || csvFile != nil {
+                    Section {
+                        if exporting { Label("Making the CSV…", systemImage: "tablecells") }
+                        if let csvFile {
+                            ShareLink(item: csvFile) { Label("Save or send \(csvFile.lastPathComponent)", systemImage: "square.and.arrow.up") }
+                        }
+                    }
                 }
                 if list.isEmpty {
                     Section {
@@ -225,17 +252,17 @@ struct AdsCampaignsScreen: View {
         }
     }
 
+    /// The ad sets are counted once, on the disclosure below (CONVENTIONS rule 15).
     private func campaignRow(_ c: AdCampaign, _ goal: String?, _ cur: String) -> some View {
         let bits: [String] = [
             AdsObjective.label(c.objective),
-            "\(c.adsets.count) ad set\(c.adsets.count == 1 ? "" : "s")",
             c.stopTime.map { (t: String) in "ends \(ShopDate.say(t))" } ?? "",
         ].filter { (s: String) in !s.isEmpty }
         return HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(c.name).font(.headline).fixedSize(horizontal: false, vertical: true)
                 AdsStatusBadge(status: c.effectiveStatus)
-                Text(bits.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
+                if !bits.isEmpty { Text(bits.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary) }
                 let b = budget(c.dailyBudget, c.lifetimeBudget, cur)
                 if !b.isEmpty {
                     budgetButton(AdsBudgetTarget(level: "campaign", id: c.id, name: c.name, daily: c.dailyBudget,
@@ -282,7 +309,7 @@ struct AdsCampaignsScreen: View {
         .padding(.vertical, 2)
     }
 
-    /// The ads of an ad set as pictures; each opens the ERP's page for it (previews and Meta's review notes).
+    /// The ads of an ad set as pictures; each opens its own screen (previews and Meta's review notes).
     private func adStrip(_ ads: [AdItem], _ cur: String) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(alignment: .top, spacing: 10) {
@@ -328,6 +355,7 @@ struct AdsCampaignsScreen: View {
             case "results": return ar > br
             case "cost": return (ar > 0 ? a.metrics.spend / ar : Double.infinity) < (br > 0 ? b.metrics.spend / br : Double.infinity)
             case "ctr": return a.metrics.ctr > b.metrics.ctr
+            case "roas": return (AdsResults.sales(a.metrics).roas ?? -1) > (AdsResults.sales(b.metrics).roas ?? -1)
             default: return a.metrics.spend > b.metrics.spend
             }
         }
@@ -402,6 +430,8 @@ struct AdsCampaignsScreen: View {
             parts.append("\(AdsFormat.count(r.value)) \(r.label.lowercased())")
             if r.value > 0 { parts.append("\(AdsFormat.money(m.spend / r.value, cur)) each") }
         }
+        let s = AdsResults.sales(m)
+        if s.value > 0 { parts.append("\(AdsFormat.money(s.value, cur)) sales · \(AdsResults.roasText(s.roas)) ROAS") }
         parts.append("\(AdsFormat.compact(m.reach)) reached")
         return Text(parts.joined(separator: " · "))
             .font(.caption)

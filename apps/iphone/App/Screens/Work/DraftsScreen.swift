@@ -1,4 +1,5 @@
 import SwiftUI
+import FirebaseFirestore
 import ERPCore
 
 /// Drafts (src/app/drafts/page.tsx, docs/decisions.md "Drafts"): orders and sales started and not yet saved, on every
@@ -9,8 +10,9 @@ import ERPCore
 /// list of drafts for them, so they see what is kept on this phone, which is their own order in progress.
 ///
 /// A draft this phone wrote (WorkDraftSync) is continued in the native form, which holds that work already
-/// (NewOrderDraftStore, SaleDraftStore). One begun on the web or on another phone opens in the ERP's own form inside the
-/// app (`/orders/add?draft=<id>&web=1`): the phone has no way to read the web's form values back into its own.
+/// (NewOrderDraftStore, SaleDraftStore). One begun on the web or on another phone is read from Drafts, put into the
+/// native form (WorkDraftContinue) and taken on as this phone's draft, so the next change writes over it and saving
+/// removes it, as the web's form does with `?draft=`. Work this phone holds of that kind is replaced, after asking.
 struct DraftsScreen: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -26,6 +28,12 @@ struct DraftsScreen: View {
     @State private var demoGone: Set<String> = []
     /// Month-old drafts already asked to go, so a list that redraws does not ask twice.
     @State private var purged: Set<String> = []
+    /// A draft from another device waiting for "replace the work on this phone?".
+    @State private var replacing: DraftRow?
+    /// The draft being read from Drafts.
+    @State private var continuing: String?
+    /// The native form, once the draft is in it.
+    @State private var opening: Route?
 
     /// One row: a draft in Drafts, or this phone's own work that Drafts does not hold.
     struct DraftRow: Identifiable {
@@ -54,7 +62,14 @@ struct DraftsScreen: View {
         } message: { row in
             Text("\(row.draft.isOrder ? "Order" : "Sale") for \(row.draft.title).")
         }
-        .failureAlert($failure, title: "Not discarded")
+        .confirmationDialog("Replace the work on this phone?", isPresented: replaceShown, titleVisibility: .visible, presenting: replacing) { row in
+            Button("Continue this draft", role: .destructive) { Task { await continueHere(row) } }
+            Button("Keep mine", role: .cancel) {}
+        } message: { row in
+            Text(replaceWords(row))
+        }
+        .navigationDestination(item: $opening) { (r: Route) in PlaceScreen(path: r.path) }
+        .failureAlert($failure, title: "Not done")
     }
 
     // MARK: Reading
@@ -67,6 +82,7 @@ struct DraftsScreen: View {
 
     private func start() {
         book.settings.need()
+        if session.isOwner { book.customers.need() }
         if readsDrafts { shelf.need() }
         phoneOrder = NewOrderDraftStore.load().map { (d: NewOrderDraft) -> NewOrderDraft in
             var lite = d
@@ -82,6 +98,10 @@ struct DraftsScreen: View {
 
     private var discardShown: Binding<Bool> {
         Binding(get: { discarding != nil }, set: { if !$0 { discarding = nil } })
+    }
+
+    private var replaceShown: Binding<Bool> {
+        Binding(get: { replacing != nil }, set: { if !$0 { replacing = nil } })
     }
 
     // MARK: The rows
@@ -143,10 +163,9 @@ struct DraftsScreen: View {
                          items: d.lines.count, total: max(0, subtotal), device: "", createdAt: "", updatedAt: "")
     }
 
-    /// Where a row opens: the native form where this phone holds the work, else the ERP's form on the draft.
+    /// The native form of a row's kind.
     private func path(_ row: DraftRow) -> String {
-        if row.native { return row.draft.isOrder ? "/orders/add" : "/invoices/new" }
-        return draftHref(kind: row.draft.kind, id: row.draft.id) + "&web=1"
+        row.draft.isOrder ? "/orders/add" : "/invoices/new"
     }
 
     // MARK: The page
@@ -206,28 +225,104 @@ struct DraftsScreen: View {
         .houseRows()
     }
 
+    @ViewBuilder
     private func draftRow(_ row: DraftRow) -> some View {
-        let d = row.draft
-        return NavigationLink(value: Route(path: path(row))) {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(d.title).font(.headline).lineLimit(1)
-                    Spacer(minLength: 8)
-                    if d.total > 0 {
-                        Text(Money.pkr(d.total)).font(.subheadline.weight(.semibold)).monospacedDigit()
+        if row.native {
+            NavigationLink(value: Route(path: path(row))) { draftCard(row) }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) { discardButton(row) }
+                .contextMenu { discardButton(row) }
+        } else {
+            // Begun elsewhere: read from Drafts into the phone's own form first.
+            Button { ask(row) } label: {
+                HStack {
+                    draftCard(row)
+                    if continuing == row.draft.id {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                     }
                 }
-                if !d.detail.isEmpty {
-                    Text(d.detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
-                }
-                Text(lastTyped(row)).font(.caption).foregroundStyle(.tertiary)
             }
+            .buttonStyle(.plain)
+            .disabled(continuing != nil)
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) { discardButton(row) }
+            .contextMenu { discardButton(row) }
         }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) { discarding = row } label: { Label("Discard", systemImage: "trash") }
+    }
+
+    private func discardButton(_ row: DraftRow) -> some View {
+        Button(role: .destructive) { discarding = row } label: { Label("Discard", systemImage: "trash") }
+    }
+
+    private func draftCard(_ row: DraftRow) -> some View {
+        let d = row.draft
+        return VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(d.title).font(.headline).lineLimit(1)
+                Spacer(minLength: 8)
+                if d.total > 0 {
+                    Text(Money.pkr(d.total)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                }
+            }
+            if !d.detail.isEmpty {
+                Text(d.detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+            }
+            Text(lastTyped(row)).font(.caption).foregroundStyle(.tertiary)
         }
-        .contextMenu {
-            Button(role: .destructive) { discarding = row } label: { Label("Discard", systemImage: "trash") }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(.rect)
+    }
+
+    // MARK: Continuing a draft from another device
+
+    /// Work of the same kind on this phone is asked about first: the phone keeps one order and one sale.
+    private func ask(_ row: DraftRow) {
+        let mine = row.draft.isOrder ? phoneOrder != nil : phoneSale != nil
+        if mine {
+            replacing = row
+        } else {
+            Task { await continueHere(row) }
+        }
+    }
+
+    private func replaceWords(_ row: DraftRow) -> String {
+        let kind = row.draft.isOrder ? "order" : "sale"
+        let sync = row.draft.isOrder ? WorkDraftSync.order : WorkDraftSync.sale
+        let kept = sync.id != nil ? " It stays in Drafts, to continue later." : " It is only on this phone, so it is lost."
+        return "This phone has its own \(kind) in progress. Continuing \(row.draft.title)'s replaces it here.\(kept)"
+    }
+
+    /// The draft as Drafts holds it, into the native form, and taken on as this phone's (the form's `?draft=`).
+    private func continueHere(_ row: DraftRow) async {
+        let d = row.draft
+        if House.isDemo {
+            // The demo's drafts are cards only: the form opens as it is.
+            opening = Route(path: path(row))
+            return
+        }
+        guard continuing == nil, let db = await Businesses.shared.firestore else { return }
+        continuing = d.id
+        defer { continuing = nil }
+        do {
+            let snap = try await db.collection("drafts").document(d.id).getDocument()
+            guard snap.exists, let raw = snap.data() else {
+                failure = "That draft is no longer there. It was saved as an \(d.isOrder ? "order" : "invoice") or discarded."
+                return
+            }
+            let doc = DocJSON.plain(raw, custom: FirestoreSource.plainSDK) as? [String: Any] ?? [:]
+            let values = doc["data"] as? [String: Any] ?? [:]
+            if d.isOrder {
+                NewOrderDraftStore.save(WorkDraftContinue.order(values, settings: book.settings.value), now: true)
+                WorkDraftSync.order.adopt(id: d.id, createdAt: d.createdAt)
+                phoneOrder = NewOrderDraftStore.load()
+            } else {
+                SaleDraftStore.save(WorkDraftContinue.sale(values, customer: { (id: String) in book.customers.item(id) }))
+                WorkDraftSync.sale.adopt(id: d.id, createdAt: d.createdAt)
+                phoneSale = SaleDraftStore.load()
+            }
+            opening = Route(path: path(row))
+        } catch {
+            failure = "The draft could not be read: \(error.localizedDescription)"
         }
     }
 

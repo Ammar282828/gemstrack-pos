@@ -71,7 +71,7 @@ const ClosedBatchCard: React.FC<{
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Badge variant="secondary" className="text-sm font-bold">PKR {total.toLocaleString()}</Badge>
+          <Badge variant="secondary" className="text-sm font-bold">PKR {total.toLocaleString(undefined, { maximumFractionDigits: 0 })}</Badge>
           <Badge variant="outline" className="text-xs">{expenses.length} payment{expenses.length !== 1 ? 's' : ''}</Badge>
           {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </div>
@@ -151,7 +151,7 @@ const DirectPaymentsCard: React.FC<{ expenses: Expense[] }> = ({ expenses }) => 
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Badge variant="secondary" className="text-sm font-bold">PKR {total.toLocaleString()}</Badge>
+          <Badge variant="secondary" className="text-sm font-bold">PKR {total.toLocaleString(undefined, { maximumFractionDigits: 0 })}</Badge>
           <Badge variant="outline" className="text-xs">{expenses.length} payment{expenses.length !== 1 ? 's' : ''}</Badge>
           {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </div>
@@ -323,7 +323,7 @@ export default function KarigarDetailPage() {
         await createKarigarBatch({ karigarId, label: carryOverLabel.trim(), startDate: new Date().toISOString() });
         toast({ title: "Settled, and a new pay batch started", description: `"${openBatch.label}" closed. "${carryOverLabel.trim()}" is now active.` });
       } else {
-        toast({ title: "Pay batch settled", description: `"${openBatch.label}" closed — PKR ${openBatchTotal.toLocaleString()}.` });
+        toast({ title: "Pay batch settled", description: `"${openBatch.label}" closed — PKR ${openBatchTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}.` });
       }
       setCarryOverLabel('');
       setIsCloseDialogOpen(false);
@@ -438,7 +438,7 @@ export default function KarigarDetailPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Paid (all time)</p>
-              <p className="text-2xl font-bold text-destructive">PKR {grandTotal.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-destructive">PKR {grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Active pay batch</p>
@@ -534,7 +534,7 @@ export default function KarigarDetailPage() {
               )} />
               {totalSurcharge > 0 && (
                 <div className="text-sm font-medium text-muted-foreground px-1">
-                  Total surcharge: PKR {totalSurcharge.toLocaleString()}
+                  Total surcharge: PKR {totalSurcharge.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </div>
               )}
               <FormField control={silverForm.control} name="description" render={({ field }) => (
@@ -576,7 +576,7 @@ export default function KarigarDetailPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-success" />Settle and close the pay batch</DialogTitle>
             <DialogDescription>
-              Closing <strong>{openBatch?.label}</strong> · total <strong>PKR {openBatchTotal.toLocaleString()}</strong>.
+              Closing <strong>{openBatch?.label}</strong> · total <strong>PKR {openBatchTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-1">
@@ -629,7 +629,7 @@ export default function KarigarDetailPage() {
           <CardContent className="pt-0">
             <div className="flex justify-between items-center p-3 rounded-lg bg-primary/5 mb-3">
               <span className="text-sm font-semibold">Pay batch total</span>
-              <span className="text-lg font-bold text-destructive">PKR {openBatchTotal.toLocaleString()}</span>
+              <span className="text-lg font-bold text-destructive">PKR {openBatchTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
             </div>
             <ScrollArea className="max-h-72">
               {openBatchExpenses.length > 0 ? (
@@ -689,7 +689,7 @@ export default function KarigarDetailPage() {
               <div>
                 <CardTitle className="text-base">Silver Transactions</CardTitle>
                 <CardDescription className="mt-0.5">
-                  {totalSilverGrams.toFixed(3)}g received · PKR {totalSilverSurcharge.toLocaleString()} surcharge
+                  {totalSilverGrams.toFixed(3)}g received · PKR {totalSilverSurcharge.toLocaleString(undefined, { maximumFractionDigits: 0 })} surcharge
                 </CardDescription>
               </div>
               <Button size="sm" variant="outline" className="border-primary/40 text-primary hover:bg-primary/10" onClick={() => setIsSilverDialogOpen(true)}>
@@ -717,7 +717,7 @@ export default function KarigarDetailPage() {
                       <TableCell className="text-sm">{t.description || '—'}</TableCell>
                       <TableCell className="text-right font-medium text-sm">{t.silverGrams.toFixed(3)}</TableCell>
                       <TableCell className="text-right text-sm text-muted-foreground">{t.surchargePerGram}</TableCell>
-                      <TableCell className="text-right font-medium text-sm">PKR {t.totalSurcharge.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-medium text-sm">PKR {t.totalSurcharge.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
                       <TableCell>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -793,12 +793,12 @@ function NowCard({ karigarId, position, openBatch, silver }: {
           <NowTile label="Pieces weigh (est.)" value={metals.length ? metals.map(([, w]) => g(w)).join(' · ') : '—'}
             hint={metals.length ? metals.map(([m]) => m).join(', ') + (metalOnBench.unweighed ? ` · ${metalOnBench.unweighed} unweighed` : '') : metalOnBench.unweighed ? `${metalOnBench.unweighed} unweighed` : 'the weights on the jobs'} />
           <NowTile label="Gold khata" value={g(goldKhata.net)} hint="given less received, in Hisaab" href={`/hisaab/${karigarId}?type=karigar`} tone={goldKhata.net > 0.0005 ? 'bad' : undefined} />
-          <NowTile label={cash > 0 ? 'He holds of ours' : cash < 0 ? 'We owe him' : 'Cash'} value={cash ? `PKR ${Math.abs(cash).toLocaleString()}` : 'Square'}
-            hint={openBatch ? `${openBatch.label}: PKR ${openBatch.total.toLocaleString()} paid` : 'Hisaab cash'} href={`/hisaab/${karigarId}?type=karigar`} tone={cash < 0 ? 'bad' : undefined} />
+          <NowTile label={cash > 0 ? 'He holds of ours' : cash < 0 ? 'We owe him' : 'Cash'} value={cash ? `PKR ${Math.abs(cash).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : 'Square'}
+            hint={openBatch ? `${openBatch.label}: PKR ${openBatch.total.toLocaleString(undefined, { maximumFractionDigits: 0 })} paid` : 'Hisaab cash'} href={`/hisaab/${karigarId}?type=karigar`} tone={cash < 0 ? 'bad' : undefined} />
         </div>
         <p className="text-2xs text-muted-foreground">
           The pieces' weight is what the jobs say they will weigh; the gold khata is what was handed over and brought back. Two measures, never added.
-          {silver && <> Silver received: {g(silver.grams)} · PKR {silver.surcharge.toLocaleString()} surcharge.</>}
+          {silver && <> Silver received: {g(silver.grams)} · PKR {silver.surcharge.toLocaleString(undefined, { maximumFractionDigits: 0 })} surcharge.</>}
         </p>
 
         {bench.length > 0 && (

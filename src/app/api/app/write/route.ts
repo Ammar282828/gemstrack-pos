@@ -43,14 +43,20 @@ import { STOCK_OPS, runStockOp } from './ops-stock';
 import { INVOICE_OPS, runInvoiceOp } from './ops-invoices';
 import { MONEY_OPS, runMoneyOp } from './ops-money';
 import { STOCK2_OPS, runStock2Op } from './ops-stock2';
+import { STOCK3_OPS, runStock3Op } from './ops-stock3';
 import { CUSTOMER_OPS, runCustomerOp } from './ops-customers';
 import { HISAAB_OPS, runHisaabOp } from './ops-hisaab';
 import { REPAIR_OPS, runRepairOp } from './ops-repairs';
 import { LEDGER_OPS, runLedgerOp } from './ops-ledger';
 import { ORDER_OPS, runOrderOp } from './ops-orders';
+import { ORDERS2_OPS, runOrders2Op } from './ops-orders2';
+import { INVOICES2_OPS, runInvoices2Op } from './ops-invoices2';
 import { INVOICE_ACTION_OPS, runInvoiceActionOp } from './ops-invoice-actions';
 import { WORKSHOP_OPS, runWorkshopOp } from './ops-workshop';
+import { WORK2_OPS, runWork2Op } from './ops-work2';
 import { SETTINGS2_OPS, runSettings2Op } from './ops-settings2';
+import { SETTINGS3_OPS, runSettings3Op } from './ops-settings3';
+import { SETTINGS4_OPS, runSettings4Op } from './ops-settings4';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,14 +100,20 @@ const GROUPS: { roles: OpRoles; run: OpHandler }[] = [
   { roles: INVOICE_OPS, run: runInvoiceOp },
   { roles: MONEY_OPS, run: runMoneyOp },
   { roles: STOCK2_OPS, run: runStock2Op },
+  { roles: STOCK3_OPS, run: runStock3Op },
   { roles: CUSTOMER_OPS, run: runCustomerOp },
   { roles: HISAAB_OPS, run: runHisaabOp },
   { roles: REPAIR_OPS, run: runRepairOp },
   { roles: LEDGER_OPS, run: runLedgerOp },
   { roles: ORDER_OPS, run: runOrderOp },
+  { roles: ORDERS2_OPS, run: runOrders2Op },
+  { roles: INVOICES2_OPS, run: runInvoices2Op },
   { roles: INVOICE_ACTION_OPS, run: runInvoiceActionOp },
   { roles: WORKSHOP_OPS, run: runWorkshopOp },
+  { roles: WORK2_OPS, run: runWork2Op },
   { roles: SETTINGS2_OPS, run: runSettings2Op },
+  { roles: SETTINGS3_OPS, run: runSettings3Op },
+  { roles: SETTINGS4_OPS, run: runSettings4Op },
 ];
 
 const OPS: OpRoles = Object.assign({}, OWN_OPS, ...GROUPS.map((g) => g.roles));

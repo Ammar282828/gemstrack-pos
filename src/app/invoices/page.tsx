@@ -20,8 +20,8 @@ import type { DateRange } from "react-day-picker";
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { doc, getDoc, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { clientPort } from '@/lib/db-client-port';
+import { importShopifyCsv, shopifyCsvPreview } from '@/lib/writes/shopify-csv-import';
 import { mergeInstructions } from '@/lib/workshop';
 import { describePlating } from '@/lib/materials';
 import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
@@ -38,6 +38,7 @@ import { useMe, useMineFilter } from '@/hooks/use-me';
 import { RecordPaymentDialog } from '@/components/invoice/record-payment-dialog';
 import { PageShell } from '@/components/shared/page-shell';
 import { Monogram, Pill, MineTag, ChipRow, FilterChip, Segmented, SearchField, EmptyState, LedgerSection, toneClasses, type Tone } from '@/components/ledger';
+import { owesMoney, isCredit } from '@/lib/money';
 
 type DocumentType = (Order | Invoice) & { docType: 'order' | 'invoice' };
 
@@ -69,7 +70,7 @@ const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' =>
   }
   const inv = doc as Invoice;
   if (inv.status === 'Refunded') return 'Refunded';
-  return inv.balanceDue <= 0 ? 'Paid' : 'Unpaid';
+  return owesMoney(inv.balanceDue) ? 'Unpaid' : 'Paid';
 };
 
 const isShopifyDoc = (doc: DocumentType): boolean =>
@@ -108,8 +109,8 @@ const BalancePill: React.FC<{ doc: DocumentType }> = ({ doc }) => {
   if (doc.docType === 'order') return <Pill tone={statusTone(status)}>{status}</Pill>;
   const inv = doc as Invoice;
   if (inv.status === 'Refunded') return <Pill tone="quiet">Refunded</Pill>;
-  if ((inv.balanceDue || 0) > 0) return <Pill tone="owed">PKR {Math.round(inv.balanceDue).toLocaleString()} due</Pill>;
-  if ((inv.balanceDue || 0) < -0.5) return <Pill tone="credit">PKR {Math.round(-inv.balanceDue).toLocaleString()} in credit</Pill>;
+  if (owesMoney(inv.balanceDue)) return <Pill tone="owed">PKR {Math.round(inv.balanceDue).toLocaleString(undefined, { maximumFractionDigits: 0 })} due</Pill>;
+  if (isCredit(inv.balanceDue)) return <Pill tone="credit">PKR {Math.round(-inv.balanceDue).toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit</Pill>;
   return <Pill tone="settled">Paid</Pill>;
 };
 
@@ -147,7 +148,7 @@ const DocumentCard: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMar
                 {doc.docType === 'order' && onStatusChange
                     ? <OrderStatusSelect doc={doc as Order} onStatusChange={onStatusChange} />
                     : <BalancePill doc={doc} />}
-                <span className="whitespace-nowrap font-serif text-ios-title3 font-semibold tabular-nums">PKR {doc.grandTotal.toLocaleString()}</span>
+                <span className="whitespace-nowrap font-serif text-ios-title3 font-semibold tabular-nums">PKR {doc.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
             </div>
             <div className="-mb-1 mt-1 flex flex-wrap items-center gap-x-1 pl-[42px]">
                 <PrintButton pieces={pieceCount(doc)} onPrint={onPrint} onPrintPerPiece={onPrintPerPiece} />
@@ -199,7 +200,7 @@ const DocumentRow: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMark
                     {isShopifyDoc(doc) && <Pill tone="settled" icon={<ShoppingBag />}>Shopify</Pill>}
                 </div>
             </TableCell>
-            <TableCell className="whitespace-nowrap text-right tabular-nums">PKR {doc.grandTotal.toLocaleString()}</TableCell>
+            <TableCell className="whitespace-nowrap text-right tabular-nums">PKR {doc.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
              {/* One shape for the whole column. An order rendered as a
                  bordered select box while an invoice rendered as a coloured
                  pill, so the same column carried two different objects. Both
@@ -230,140 +231,9 @@ const DocumentRow: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMark
     );
 };
 
-// --- CSV Parsing ---
-function parseCSVRow(line: string): string[] {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') { inQuotes = !inQuotes; }
-    else if (ch === ',' && !inQuotes) { result.push(current); current = ''; }
-    else { current += ch; }
-  }
-  result.push(current);
-  return result;
-}
-
-function parseCSV(content: string): Record<string, string>[] {
-  const lines = content.trim().split('\n');
-  const headers = parseCSVRow(lines[0]);
-  return lines.slice(1).map(line => {
-    const values = parseCSVRow(line);
-    const row: Record<string, string> = {};
-    headers.forEach((h, i) => { row[h.trim()] = (values[i] || '').trim(); });
-    return row;
-  });
-}
-
-async function importShopifyCSV(
-  csvContent: string,
-  onProgress: (msg: string) => void,
-): Promise<number> {
-  const rows = parseCSV(csvContent);
-  onProgress(`Parsed ${rows.length} rows…`);
-
-  // Group rows by Shopify order Name (multi-item orders have one row per line item)
-  // Only accept valid Shopify order names like #1001 — skip corrupt/metadata rows
-  const VALID_ORDER_NAME = /^#\d+$/;
-  const orderMap = new Map<string, { header: Record<string, string>; items: Record<string, string>[] }>();
-  for (const row of rows) {
-    const name = row['Name'];
-    if (!name || !VALID_ORDER_NAME.test(name)) continue;
-    if (!orderMap.has(name)) orderMap.set(name, { header: row, items: [] });
-    orderMap.get(name)!.items.push(row);
-  }
-  onProgress(`${rows.length} rows → ${orderMap.size} unique orders…`);
-
-  // Get current lastInvoiceNumber
-  const settingsSnap = await getDoc(doc(db, 'app_settings', 'global'));
-  let lastInvoiceNumber: number = (settingsSnap.data()?.lastInvoiceNumber as number) || 7;
-  onProgress(`Starting from INV-${String(lastInvoiceNumber + 1).padStart(6, '0')}…`);
-
-  // Sort orders chronologically
-  const sortedOrders = [...orderMap.values()].sort((a, b) =>
-    new Date(a.header['Created at']).getTime() - new Date(b.header['Created at']).getTime()
-  );
-
-  let batch = writeBatch(db);
-  let batchCount = 0;
-  let imported = 0;
-
-  for (const order of sortedOrders) {
-    const h = order.header;
-    const createdAt = h['Created at'] ? new Date(h['Created at']).toISOString() : new Date().toISOString();
-    const billingName = h['Billing Name'] || h['Shipping Name'] || 'Walk-in Customer';
-    const total = parseFloat(h['Total']) || 0;
-    const subtotal = parseFloat(h['Subtotal']) || total;
-    const discount = parseFloat(h['Discount Amount']) || 0;
-    const financialStatus = h['Financial Status'] || 'paid';
-    const amountPaid = financialStatus === 'paid' ? total : 0;
-    const balanceDue = total - amountPaid;
-
-    const items = order.items.map(row => {
-      const price = parseFloat(row['Lineitem price']) || 0;
-      const qty = parseInt(row['Lineitem quantity']) || 1;
-      const sku = row['Lineitem sku'] || `SHOP-${h['Name'].replace('#', '')}-${(row['Lineitem name'] || '').slice(0, 8)}`;
-      return {
-        sku,
-        name: row['Lineitem name'] || 'Item',
-        categoryId: '',
-        metalType: 'gold',
-        karat: '21k',
-        metalWeightG: 0,
-        stoneWeightG: 0,
-        quantity: qty,
-        unitPrice: price,
-        itemTotal: price * qty,
-        metalCost: 0,
-        wastageCost: 0,
-        wastagePercentage: 0,
-        makingCharges: price * qty,
-        diamondChargesIfAny: 0,
-        stoneChargesIfAny: 0,
-        miscChargesIfAny: 0,
-      };
-    });
-    const itemSubtotal = items.reduce((sum, item) => sum + (item.itemTotal || 0), 0);
-    const adjustmentsAmount = total - (itemSubtotal - discount);
-
-    lastInvoiceNumber++;
-    const invoiceId = `INV-${String(lastInvoiceNumber).padStart(6, '0')}`;
-
-    const invoice = {
-      id: invoiceId,
-      shopifyOrderName: h['Name'],
-      customerId: '',
-      customerName: billingName,
-      customerContact: h['Billing Phone'] || h['Phone'] || '',
-      items,
-      subtotal: itemSubtotal,
-      discountAmount: discount,
-      ...(adjustmentsAmount !== 0 && { adjustmentsAmount }),
-      grandTotal: total,
-      amountPaid,
-      balanceDue,
-      createdAt,
-      ratesApplied: {},
-      paymentHistory: amountPaid > 0 ? [{ amount: amountPaid, date: createdAt, notes: 'Shopify payment' }] : [],
-      source: 'shopify_import',
-    };
-
-    batch.set(doc(db, 'invoices', invoiceId), invoice);
-    batchCount++;
-    imported++;
-
-    if (batchCount >= 400) {
-      await batch.commit();
-      onProgress(`Committed batch (${imported} so far)…`);
-      batch = writeBatch(db);
-      batchCount = 0;
-    }
-  }
-
-  if (batchCount > 0) await batch.commit();
-  await updateDoc(doc(db, 'app_settings', 'global'), { lastInvoiceNumber });
-  return imported;
+// Import Shopify CSV: lib/writes/shopify-csv-import.ts, the one copy the iPhone app runs on the server too.
+async function importShopifyCSV(csvContent: string, onProgress: (msg: string) => void): Promise<number> {
+  return (await importShopifyCsv(clientPort, csvContent, onProgress)).imported;
 }
 
 function monthKeyOf(iso: string | undefined): string {
@@ -444,7 +314,7 @@ export default function DocumentsPage() {
   const handleMarkPaid = (document: DocumentType) => {
     if (document.docType !== 'invoice') return;
     const inv = document as Invoice;
-    if (inv.balanceDue > 0) setPayingInvoice(inv);
+    if (owesMoney(inv.balanceDue)) setPayingInvoice(inv);
   };
 
   const handleOrderStatusChange = async (orderId: string, newStatus: OrderStatus) => {
@@ -500,9 +370,7 @@ export default function DocumentsPage() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const content = ev.target?.result as string;
-      const rows = parseCSV(content);
-      const firstNames = rows.slice(0, 5).map(r => r['Billing Name'] || r['Shipping Name'] || 'Walk-in');
-      setImportPreview({ rows: rows.length, firstNames });
+      setImportPreview(shopifyCsvPreview(content));
     };
     reader.readAsText(file);
   };
@@ -653,7 +521,7 @@ export default function DocumentsPage() {
         doc: d,
         onPrint: () => handlePrint(d),
         onPrintPerPiece: d.docType === 'invoice' ? () => handlePrint(d, true) : undefined,
-        onMarkPaid: d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined,
+        onMarkPaid: d.docType === 'invoice' && owesMoney((d as Invoice).balanceDue) ? () => handleMarkPaid(d) : undefined,
         onStatusChange: d.docType === 'order' ? (s: OrderStatus) => handleOrderStatusChange(d.id, s) : undefined,
         onSendPaymentLink: d.docType === 'invoice' ? () => handleSendPaymentLink(d as Invoice) : undefined,
         isSendingLink: sendingLinkId === d.id,
@@ -735,7 +603,7 @@ export default function DocumentsPage() {
     );
   }
 
-  const pkr = (n: number) => 'PKR ' + Math.round(n).toLocaleString();
+  const pkr = (n: number) => 'PKR ' + Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
   // The whole book's figure, whatever the filters show (the dashboard's "Owed to you").
   const owedAll = owedToYou(generatedInvoices);
 

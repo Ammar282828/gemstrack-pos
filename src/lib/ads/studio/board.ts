@@ -53,7 +53,7 @@ export async function deleteBoard(id: string): Promise<void> {
 }
 
 /** Apply operations in a transaction; the board's rev goes up by one. Returns the board and the ids added. */
-export async function changeBoard(id: string, ops: BoardOp[], by: string): Promise<{ board: Board; added: string[] }> {
+export async function changeBoard(id: string, ops: BoardOp[], by: string): Promise<{ board: Board; added: string[]; linked: string[] }> {
   if (!Array.isArray(ops) || !ops.length) throw fail('Nothing to change.', 400);
   if (ops.length > 60) throw fail('At most 60 changes at once.', 400);
   const ref = adminDb.collection(BOARDS).doc(id);
@@ -61,11 +61,11 @@ export async function changeBoard(id: string, ops: BoardOp[], by: string): Promi
     const s = await tx.get(ref);
     if (!s.exists) throw fail('That board is gone.', 404);
     const current = { id: s.id, ...(s.data() as Omit<Board, 'id'>) };
-    const { board, added } = applyOps(current, ops);
+    const { board, added, linked } = applyOps(current, ops);
     const next: Board = { ...board, rev: current.rev + 1, updated: now(), by };
     const { id: _id, ...data } = next;
     tx.set(ref, data);
-    return { board: next, added };
+    return { board: next, added, linked };
   });
 }
 

@@ -5,8 +5,8 @@ import ERPCore
 /// Website → Edit a piece (src/app/website/edit/page.tsx): every piece on the house's website (taheri.shop, or
 /// the House of Mina catalogue), hidden ones too, with what the counter changed. Search, "Changed here",
 /// "Hidden" and the collections; a piece opens natively (WebsiteEditPieceScreen) for its words, its weight,
-/// hiding it and putting things back. Re-making its photograph (crop, the weight and the mark stamped on,
-/// the designer, the AI) is the ERP's square editor, opened in the app from the piece.
+/// hiding it and putting things back, and for re-making its photograph (crop, the weight and the mark stamped
+/// on, the designer, the AI: WebsitePhotoEdit, the web's square editor drawn by the bundled engine).
 struct WebsiteEditScreen: View {
     private var store: WebsiteEdits { WebsiteEdits.shared }
 
@@ -201,7 +201,9 @@ struct WebsiteEditTile: View {
 @MainActor
 @Observable
 final class WebsiteEdits {
-    static let shared = WebsiteEdits()
+    /// Replaced, not cleared, when the person switches business (Businesses.switch): none of it is the next one's.
+    static var shared = WebsiteEdits()
+    static func reset() { shared = WebsiteEdits() }
 
     enum Phase: Equatable {
         case idle

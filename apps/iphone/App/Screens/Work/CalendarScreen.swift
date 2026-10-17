@@ -101,12 +101,12 @@ struct CalendarScreen: View {
     private func tiles(_ m: ShopCalendarMonth) -> some View {
         VStack(spacing: 10) {
             FigureRow(alignment: .top, spacing: 10) {
-                FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkr(m.total), tint: Tone.settled.color)
+                FigureTile(label: ShopCalendar.title(year: year, month: month), value: Money.pkrLac(m.total), tint: Tone.settled.color)
                 FigureTile(label: "Sales", value: "\(m.sales)")
             }
             FigureRow(alignment: .top, spacing: 10) {
                 FigureTile(label: "Orders", value: "\(m.orders)")
-                FigureTile(label: "Avg. trading day", value: m.perTradingDay > 0 ? Money.pkr(m.perTradingDay.rounded()) : "—")
+                FigureTile(label: "Avg. trading day", value: m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "—")
             }
         }
         .padding(.vertical, 4)
@@ -233,8 +233,6 @@ struct CalendarScreen: View {
             }
         } header: {
             LedgerHeading(title: "Events for \(ShopCalendar.longDay(selected))")
-        } footer: {
-            Text("\(events.count) event\(events.count == 1 ? "" : "s") found.")
         }
         .houseRows()
     }
@@ -274,7 +272,8 @@ struct CalendarScreen: View {
                                     .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                             }
                             Spacer(minLength: 8)
-                            StatusBadge(order: o.status)
+                            // Completed is the expected end: no badge (rule 15).
+                            if o.status != .completed { StatusBadge(order: o.status) }
                         }
                     }
                 }

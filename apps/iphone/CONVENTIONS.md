@@ -30,7 +30,9 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
    SF Symbols only; `NavIcon.symbol(for:)` maps the ERP's lucide names.
 5. **Every ERP place stays reachable.** Menus come from `App/Resources/nav-<house>.json` (exported from
    `src/lib/nav.ts`, `npm run nav:export`). A screen is registered by its ERP path in `ScreenRegistry`;
-   any path without a native screen opens `WebScreen(path:)`, the ERP page inside the app.
+   any path without a native screen opens `WebScreen(path:)`, the ERP page inside the app. A button never opens
+   the ERP page on purpose (no `?web=1`, no "Open in the ERP"): what it does is built natively. A link inside an
+   ERP page to a place with a native screen opens that screen (WebBridge `open`).
 6. **Words.** The ERP's own words (docs/decisions.md "The name ERP", "Customer copy"): "Owed to you",
    "In the drawer", "Taken by", "hisaab", "karigar". Never "Najmi Market" or "Saddar".
 7. **Comments say why**, in the ERP's voice, briefly, as in `src/lib`.
@@ -58,6 +60,30 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
    Use `FigureRow` / `FigureGrid` so supporting figures stack at accessibility text sizes. Let names,
    descriptions and figure details wrap; keep every field and action reachable by scrolling rather than
    shrinking text or clipping information to fit a fixed card height.
+
+13. **One app, many businesses.** `House` is a facade over `Businesses.shared.current` (Config/Businesses.swift): every
+   property is computed, so never keep a House/Theme value in a `static let` or a stored global. A setting that belongs
+   to one business is read and written through `BizKey("name")`; Firebase through `Businesses.shared.auth` /
+   `.firestore` / `.firebaseApp` (never `Auth.auth()` or `Firestore.firestore()`); a long-lived singleton that holds
+   a business's data gets `static var shared` + `static func reset()` and is added to
+   `Businesses.resetPerBusinessState()`. Built-ins ship in `Resources/businesses.json` (`node scripts/businesses.mjs`).
+14. **The switcher and the widget.** `BusinessChip` heads every tab root (and the iPad sidebar); the list, adding and removing are
+   `BusinessesScreen` (`/app/businesses`, also the chip's sheet, presented by `ERPApp`'s `BusinessHost` via
+   `Businesses.shared.switcherOpen`). The widget links are one per business in `ERPWidgetLink` (Shared); the widget reads
+   nothing of the build's Info.plist for its look. A branch on `House.id == "mina"` is a bug: use a descriptor field
+   (`metal`, `flags`) or, if the server has none, `House.bundledArt` and say so in a comment. The app icon changes only
+   from Settings (`AppIcon`), never on a switch.
+
+15. **Quiet screens** (owner, 2026-10-17: "the invoices tab is very noisy", then "I liked the old card ui for invoices
+   and orders, just wanted it to be less noisy"). Keep each screen's layout as it is: its cards, monograms, tiles,
+   stage tracks and row shapes. Take away only the noise inside them:
+   - **The expected state has no badge** (but an order keeps its status: its stage words in their colour and Paid,
+     owner 2026-10-17 "i liked the status of the orders"). Elsewhere Paid, done, active, connected, running: nothing. Colour is for what needs
+     someone (owed, late, a problem, in credit), one coloured thing per row or card.
+   - **No number twice** on a screen, and no second coloured line under a header that repeats a row's figure.
+   - **No tags for the obvious** ("You" is a small quiet glyph), no subtitle that repeats its title, no footer that
+     explains the obvious; a footer is for a consequence (money moves, something is deleted, a customer is messaged).
+   - A wrapping caption is held to one line where the detail page already says it.
 
 ## Kit components
 

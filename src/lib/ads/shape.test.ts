@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compact, currencyOffset, fromMinor, headlineActions, metricsOf, money, resultOf, sumMetrics, toMinor } from './shape';
+import { compact, currencyOffset, fromMinor, headlineActions, metricsOf, money, resultOf, roasText, salesOf, sumMetrics, toMinor } from './shape';
 import { fieldsRejected, previousPeriod } from './insights';
 import { APP_NOT_LIVE, liveReadiness, metaError } from './meta';
 import { describeRule, ruleSpecs } from './rules';
@@ -134,5 +134,30 @@ describe('adsManagerUrl', () => {
     expect(adsManagerUrl('2078697546326565', 'campaign', '1')).toBe('https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=2078697546326565&selected_campaign_ids=1');
     expect(adsManagerUrl('2078697546326565', 'adset', '2')).toBe('https://adsmanager.facebook.com/adsmanager/manage/adsets?act=2078697546326565&selected_adset_ids=2');
     expect(adsManagerUrl('2078697546326565', 'ad', '3')).toBe('https://adsmanager.facebook.com/adsmanager/manage/ads?act=2078697546326565&selected_ad_ids=3');
+  });
+});
+
+describe('sales and ROAS', () => {
+  // The September End campaign, as Meta reported it: Rs 16,433 spent, 7 purchases worth Rs 95,000.
+  const row = {
+    spend: '16433.27',
+    actions: [{ action_type: 'omni_purchase', value: '7' }, { action_type: 'offsite_conversion.fb_pixel_purchase', value: '7' }, { action_type: 'link_click', value: '310' }],
+    action_values: [{ action_type: 'omni_purchase', value: '95000' }, { action_type: 'offsite_conversion.fb_pixel_purchase', value: '95000' }],
+  };
+  it('one purchase reported under several names is counted once, with its value', () => {
+    const s = salesOf(metricsOf(row));
+    expect(s.purchases).toBe(7);
+    expect(s.value).toBe(95000);
+    expect(s.roas).toBeCloseTo(5.78, 2);
+    expect(s.costPerPurchase).toBeCloseTo(2347.6, 1);
+    expect(roasText(s.roas)).toBe('5.8×');
+  });
+  it('adds up across rows, and reads nothing when nothing sold', () => {
+    const two = sumMetrics([metricsOf(row), metricsOf(row)]);
+    expect(salesOf(two).value).toBe(190000);
+    const none = salesOf(metricsOf({ spend: '100' }));
+    expect(none).toEqual({ purchases: 0, value: 0, roas: 0, costPerPurchase: null });
+    expect(salesOf(metricsOf(null)).roas).toBeNull();
+    expect(roasText(null)).toBe('—');
   });
 });

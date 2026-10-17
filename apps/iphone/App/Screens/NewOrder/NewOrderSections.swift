@@ -144,7 +144,8 @@ struct NewOrderPiecesFooter: View {
     let count: Int
 
     var body: some View {
-        Text(count == 0 ? "Add one or more pieces to see the price." : NewOrderFormat.pieces(count) + " on this order")
+        // Only while there is nothing yet: a count of what is on screen says nothing (CONVENTIONS rule 15).
+        if count == 0 { Text("Add one or more pieces to see the price.") }
     }
 }
 
@@ -237,7 +238,7 @@ struct NewOrderRatesSection: View {
     }
 
     private var footer: String {
-        var s = "Applies to every piece on this order, and is kept on it. A rate typed here is used for this order only: today's rates are changed with the rate chip."
+        var s = "A rate typed here is used for this order only: today's rates are changed with the rate chip."
         if hasPalladium { s += " A palladium rate left at zero falls back to the shop's flat palladium rate." }
         if hasSilver { s += " Silver is priced at the shop's rate, which already holds its making and wastage." }
         return s
@@ -263,11 +264,17 @@ struct NewOrderPrintedSection: View {
 
 struct NewOrderPaymentSection: View {
     @Binding var draft: NewOrderDraft
+    /// The form's figures (`liveEstimate`), for the round-off offers.
+    var totals: NewOrderMath.Totals
 
     var body: some View {
         Section {
-            NewOrderNumberRow(title: "Discount (PKR)", text: $draft.discount)
-            NewOrderNumberRow(title: "Advance paid (PKR)", text: $draft.advance)
+            NewOrderNumberRow(title: "Discount (PKR)", text: $draft.discount, rupees: true)
+            // order-form.tsx: the bill before any discount is the pieces less the exchange (the advance is a payment).
+            RoundOffChips(payable: totals.subtotal - totals.exchange, discount: totals.discount) { n in
+                draft.discount = NewOrderFormat.rupeeBox(n)
+            }
+            NewOrderNumberRow(title: "Advance paid (PKR)", text: $draft.advance, rupees: true)
             if NewOrderFormat.num(draft.advance) > 0 {
                 Picker("Paid by", selection: $draft.advanceMethod) {
                     Text("Not recorded").tag("")
@@ -312,8 +319,6 @@ struct NewOrderExchangeSection: View {
             }
         } header: {
             LedgerHeading(title: "Exchange / trade-in")
-        } footer: {
-            Text("Old gold or a piece the customer hands over, taken off the bill at an agreed value.")
         }
     }
 
@@ -349,8 +354,8 @@ struct NewOrderExchangeSection: View {
             HStack(spacing: 10) {
                 TextField("What it is", text: text(row.id, { $0.description }, { ExchangeRowPatch(description: $0) }),
                           prompt: Text("What it is (e.g. old ring)"))
-                TextField("Amount", text: text(row.id, { $0.value }, { ExchangeRowPatch(value: $0) }), prompt: Text("Amount"))
-                    .keyboardType(.decimalPad)
+                TextField("Amount", text: text(row.id, { $0.value }, { ExchangeRowPatch(value: $0) }).wholeRupees, prompt: Text("Amount"))
+                    .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
                     .frame(width: 110)
@@ -476,7 +481,7 @@ struct NewOrderDeliverySection: View {
             TextField("Receiver's phone", text: $draft.deliveryPhone, prompt: Text("Optional"))
                 .keyboardType(.phonePad)
         }
-        NewOrderNumberRow(title: "Delivery charge (PKR)", text: $draft.deliveryCharge, prompt: "0 if free")
+        NewOrderNumberRow(title: "Delivery charge (PKR)", text: $draft.deliveryCharge, prompt: "0 if free", rupees: true)
         LabeledContent("Instructions") {
             TextField("Instructions", text: $draft.deliveryNotes, prompt: Text("Landmark, timing, gate"))
         }

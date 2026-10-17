@@ -25,8 +25,9 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   SALES       Orders · Invoices · Repairs · Customers · Drafts (count)
   WORKSHOP &  Workshop (Jobs · Karigars · Given items) · Stock (Pieces · Add in bulk · Labels · Scan) — Stock owners only
   STOCK
-  MARKETING   Posts (Hub · Post a piece · Investments) · Website (Add photos · Edit a piece · Photo weights)
-              · Ads (Overview · Campaigns · Studio · New ad · Setup; Ad sets lights Campaigns, Audiences/Rules are cards on Setup)
+  MARKETING   Posts (Hub · Design · Investments) · Website (Add photos · Edit a piece · Photo weights)
+              · Ads (Overview · Campaigns · Plan · New ad · Setup; Ad sets lights Campaigns, Audiences/Rules are cards on Setup)
+              (2026-10-12: Design replaced Post a piece and the Ads Studio tab — see Design below)
   MONEY       Money (Expenses · Extra revenue · Overheads · Hisaab · Shareholders) · Analytics (Overview · Sales · Products ·
               Customers · Categories — the range rides in `?range=`, `lib/analytics/range-param.ts`, and carries across tabs)
   footer      Settings (Shop · Alerts · Bank accounts · Integrations · Data · Activity · Voice)
@@ -34,7 +35,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   Settings' tabs are routes (`/settings`, `/settings/alerts`, `/settings/integrations`, `/settings/data`, `/activity-log`
   with the sign-in log and Emergency lock); an old `/settings?tab=` link redirects, `?tab=rates` opens the rate sheet. Names:
   the sidebar's word is the name everywhere (sentence case) — Invoice, Order, Finalize & invoice, Stock/piece, Hisaab, Pay
-  batch (a karigar's), Extra revenue, Bank accounts, Studio; never the Shopify note strings (`POS Invoice`, `POS-DISCOUNT`,
+  batch (a karigar's), Extra revenue, Bank accounts, Design; never the Shopify note strings (`POS Invoice`, `POS-DISCOUNT`,
   `POS Item`).
 
 ### Web matches the app
@@ -373,7 +374,7 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   - a notice gives only the order's id; the order and its transactions are **read back from Shopify** with the token, so no
     secret is needed and duplicates (each notice goes to two addresses: `pos.houseofmina.store` and the hosted.app one, kept as
     the spare the .shop outage argued for) or out-of-order ones end in Shopify's latest word;
-  - only an invoice the ERP already has changes — the pull stays the way in, for orders, customers and stock (their notices
+  - only an invoice the ERP already has changes (a new web order is imported by its create notice, below) — the pull stays the catch-up, for orders, customers and stock (their notices
     do nothing; the products one would have made a stock row for each of the Birthstone Stack's 1,824 variants);
   - Shopify's successful sale/capture becomes a payment once (`shopifyTransactionIds`, kept through an edit by
     `INVOICE_PROVENANCE`), only up to what is owed, never Cash (the drawer never saw it: COD and bank deposit are Bank Transfer,
@@ -383,6 +384,14 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   - an order the ERP pushed out itself (`pos-import`) is left alone: its note "POS Invoice INV-…" made the old handler mark
     the invoice paid in full on any Shopify edit (INV-000228 owed Rs 29,000).
   Catch-up for missed notices: `npx tsx --env-file=.env.mina.local scripts/shopify-mirror-orders.ts` (dry run; `--apply`).
+  - **A new web order now arrives on its own** (2026-10-15, owner: "cant see shopify orders in ios app"; House of Mina's
+    #1440 never reached the ERP because the notice only updated invoices already there and the pull is manual). An
+    `orders/create` or `orders/updated` notice with no invoice yet **imports that one order through the pull's own code**
+    (`importShopifyOrder` in `_order-mirror.ts`, which the pull calls too: `mapInvoice`, id `SHOPIFY-<n>`, orders above #1381),
+    create-if-absent in a transaction (no `SHOPIFY-<n>`, no invoice with that `shopifyOrderId`/`#<n>`), so duplicate notices
+    and retries import it once; then the mirror adds its payments (`shopifyTransactionIds`) and the "New Shopify order"
+    alert goes out as before. `pos-import` orders and checkout-link orders are still left alone; products and customers notices
+    still do nothing. The pull remains for catch-up: `npx tsx --env-file=.env.mina.local scripts/shopify-missing-orders.ts --since 2026-10-09` (dry run; `--apply`).
 
 ### Advance method
 
@@ -471,6 +480,15 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
 - **Not built yet:** spending the credit. It sits on the hisaab; using it against a later invoice is
   done by hand for now.
 
+### Whole rupees
+
+- **Money has no decimals** (owner, 2026-10-17: "there should be no decimals"). Found in the lines: metal = weight × rate, and wastage = a percentage, made paise that flowed into subtotals, balances and "PKR 297,000.00". Now every amount is rounded where it is worked out (`lib/money-round.ts`: Math.round half up per line, piece = sum of rounded lines, subtotal = sum of pieces; discount, exchange, payments, advances, refunds are integers) so a printed bill adds up. Weights, per-gram rates and percentages keep theirs. The shared writes (`lib/writes/*`, so `/api/app/write` and the apps too) round what they are sent. Inputs take whole rupees (numeric keypad); nothing shows ".00".
+- **Under a rupee is settled** (`isSettled`/`owesMoney`/`isCredit`, replacing the half-rupee tests): an older bill's paise are not a debt in Due to customers, invoice status, hisaab or credit. Scan 2026-10-17 (read-only): Taheri 19 of 159 invoices and 9 of 62 orders hold fractions, Mina 1 line; none show unpaid only for under a rupee. Nothing was rewritten.
+
+### Round-off
+
+- **The bill is offered round** (owner, 2026-10-17: "offer discount options to round the bill for any amount under 5000"). Beside the discount field (New sale, invoice discount, Finalize & invoice, the order form): up to 3 chips "Round to 270,000 · −2,340", the roundest round-downs to 10,000/5,000/1,000/500/100 that cost under 5,000 more, coarsest first (272,340 offers 270,000 · 272,000 · 272,300; a target two steps reach is listed once); tap adds it to the typed discount, tap again undoes. At payment time (invoice, an order's advance) a remainder under 5,000 offers "Settle — give the remaining PKR X off", which raises the discount, never a payment that was not made. Rule and tests: `lib/money-round.ts`; chips `components/shared/round-off-chips.tsx`.
+
 ### Lac and crore
 
 - **Analytics money reads in lac and crore** (`src/lib/money.ts`: `pkrLac`, `lacCrore`, `axisLac`): exact below 1 lac,
@@ -547,6 +565,10 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
 
 ### Signed-in defaults
 
+- **Workshop start is a house setting** (2026-10-15, owner: "for houseofmina Workshop default should be anyone"):
+  `NEXT_PUBLIC_STORE_WORKSHOP_START` "you" (default, Taheri: the signed-in person) or "anyone" (Mina); `STORE_WORKSHOP_START` in
+  `lib/store-config.ts` → the web `/workshop` and `/api/app/me` `shop.workshopStart` → the iPhone Workshop board. Only the starting
+  filter; it stays shown and changeable.
 - **Given by** (2026-10-10, owner: "when adding something to given items … also register who from taheri gave those items"):
   a given item carries `givenBy`, a Taken by name, on the Given page (form, list, a filter), the iPhone app's Given items and
   voice's "give something out". It starts on the signed-in person and is always shown and changeable; `/api/app/write`
@@ -663,3 +685,49 @@ Opening Posts copies each group's description and icon to a twin that lacks them
 community's groups or link them; the owner adds them in WhatsApp, as admin of the second community.
 `/links` shows the community (now the second one's invite) instead of the channel, and so does
 taheri.shop's footer. Posts still go to the channel.
+
+## Design
+
+### Design
+
+2026-10-12. The owner: "make further improvements … more powerful than Canva, especially fine-tuning controls … instant resizing using
+AI so any design can be converted smartly into different aspect ratios … easier and smarter parsing. The ERP is a bit cluttered in
+terms of ad/post/story/whatsapp design — bring everything together smartly allowing one area where it can be posted from … Merge it
+into one Design sub-tab; deal with the existing Studio in Ads smartly." The plan, settled the same day in the owner's stead per
+their standing "do everything yourself": `docs/features/design-studio-plan.md`; what was built: `docs/features/design.md`.
+
+- **One tab, one editor, one publish sheet, one shelf.** **Design** is a tab of Posts (Hub · Design · Investments), not a sidebar row
+  (the map: one tab row per screen). Making is one workspace: a design is a master page plus any number of sizes made from it; every
+  kind (piece, post, story, WhatsApp, website photo, ad, any size) only changes defaults. Sending is one Publish sheet; keeping is one
+  Saved shelf (`designs`, with the legacy `ad_saved` read through, no migration). Board is a Design section.
+- **Supersedes:** *Post a piece* as a screen (its engine, checks, queue, drafts and Maisons stand); the Ads **Studio** tab (its
+  Plan is **Ads › Plan**, Photos / Make / Board / Saved are Design sections); the Posts hub's "Post a piece" button (now Design);
+  the per-surface "send it somewhere" code (`post-it.tsx`, board `queuePost`, hub cards) — `lib/design/publish.ts` is the one place.
+  The Post a piece and Ad studio entries elsewhere describe the engine and the history; read "Post a piece" and "Studio" as Design.
+- **Roles:** staff keep Design for pieces, posts, stories, WhatsApp and website photos; the library with scores, Board, Saved ads, Plan
+  and Meta ad stay owner + marketing (`designGate('post' | 'ads')`, two needs never merged).
+- **One call per AI action; deterministic first.** Resize re-lays by layer role and safe zones with no AI; an optional one-call plan
+  may only move what exists and is discarded on any changed word or invented id. **The jewellery is never redrawn.** Smart input holds
+  every field against the pasted text: no figure appears that wasn't in it.
+- **Instagram feed posts by API** are in (D4 = yes; Taheri, `instagram_business_content_publish`); Mina has no Instagram app, so story
+  and post go to the share sheet. WhatsApp and the website only ever get 1:1. Video and animation are phase 2.
+- **Background removal** is Magnific's `beta/remove-background` (urlencoded `image_url` through the `social_media` relay; answers
+  `high_resolution`, a PNG with alpha; verified live 2026-10-12).
+- **Addresses:** every old URL redirects with its query (`lib/design/redirects.ts`, table-tested); **every `/api` route keeps its
+  address** (the iPhone app calls `/api/ads/studio/*` and `/api/website/post/ai`, the board's agent `/api/studio/mcp`).
+  `/website/post` and `/ads/studio` stay in the map as `moved` pages so the app's native Post composer and Studio stay linked.
+- **The classic screens are gone** (2026-10-12, parity pass): everything they did is in Design ([With AI](features/design.md#with-ai)).
+  `/design/classic/post` and `/design/classic/ad` are redirects (with `?draft=`); a draft of the old Post a piece screen opens as a
+  design ([Old drafts](features/design.md#old-drafts)).
+
+### One app, many businesses
+
+2026-10-16. The owner: one iPhone app for all his businesses, to switch between them and to add more.
+
+- **One app, `shop.taheri.erp`, "ERP".** A business is a run-time thing, not a build: Taheri and House of Mina ship in the app, any other is added by typing
+  its ERP address and is described by `GET /api/app/business`. Every difference between businesses stays a variable (the server's), as on the web.
+- **Each business is its own.** Own Firebase app and sign-in, books, drafts, push registration and widget entry; switching rebuilds the screens and never
+  signs anyone out. Removing a business signs it out and clears it from the phone; a built-in is hidden, not deleted.
+- **The icon never changes by itself.** Taheri's is primary, Mina's an alternate; Settings → This phone sets it, because iOS alerts on every change.
+- **House of Mina's own app is deprecated** (kept building until its testers move). House of Mina inside the one app needs `shop.taheri.erp` registered as an
+  iOS app in its Firebase project (`docs/features/iphone-app.md`).

@@ -36,7 +36,10 @@ struct RootGate: View {
                 Group {
                     if session.role == "karigar" {
                         // A karigar's own work, native (MyWorkScreen reads the portal's /api/karigar/me; the ERP's /my-work).
-                        NavigationStack { MyWorkScreen(path: "/my-work") }
+                        NavigationStack {
+                            MyWorkScreen(path: "/my-work")
+                                .toolbar { ToolbarItem(placement: .topBarLeading) { BusinessChip() } }
+                        }
                     } else {
                         RootView()
                     }
@@ -128,7 +131,12 @@ struct RootView: View {
         .tabViewStyle(.sidebarAdaptable)
         // The house's whole logo heads an iPad's sidebar, as the ERP's own sidebar is headed.
         .tabViewSidebarHeader {
-            HouseLogo().frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
+            VStack(alignment: .leading, spacing: 10) {
+                HouseLogo().frame(maxWidth: .infinity, alignment: .leading)
+                // Which business this is, and the way to the others (an iPhone has it in each tab's bar).
+                BusinessChip(wide: true)
+            }
+            .padding(.vertical, 8)
         }
         .sheet(isPresented: $voice, onDismiss: {
             if let p = pendingRoute { pendingRoute = nil; creating = p }
@@ -148,7 +156,7 @@ struct RootView: View {
                         }
                     }
             }
-            .zoomScope()
+            // No zoomScope here: a page opened inside the sheet has no row to grow from (it would zoom out of a bubble).
             .presentationSizing(.page)
         }
         // The one poll of the online-orders count (the dashboard and the Orders badge both read it).
@@ -158,6 +166,8 @@ struct RootView: View {
         // The simulator check opens one page over the tabs (`-ERPDemoOpen /invoices/INV-D0002`).
         .task {
             if House.isDemo, let p = UserDefaults.standard.string(forKey: "ERPDemoOpen"), p.hasPrefix("/") { creating = Route(path: p) }
+            // A notification of another business switched to it: the page it named was set before this screen existed.
+            if let r = AppRouter.shared.open { creating = r; AppRouter.shared.open = nil }
         }
         // A tapped notification opens its page over whatever is showing.
         .onChange(of: AppRouter.shared.open) { _, r in
@@ -275,6 +285,7 @@ struct PlaceScreen: View {
     /// an owner's opens the form, anyone else's a page to read).
     var isRoot = false
     @Environment(Session.self) private var session
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var chosen: String?
 
     var body: some View {
@@ -295,6 +306,10 @@ struct PlaceScreen: View {
             .modifier(OptionalGround(on: ScreenRegistry.hasNative(current), width: ScreenRegistry.readableWidth(for: current)))
             .modifier(TeamNotePresentation(shown: isRoot))
             .toolbar {
+                // The business at the top of every tab (an iPad keeps it in the sidebar's header).
+                if isRoot && !sizeClass.isPadLayout {
+                    ToolbarItem(placement: .topBarLeading) { BusinessChip() }
+                }
                 if isRoot {
                     ToolbarItem(placement: .topBarLeading) { RateChip() }
                 }

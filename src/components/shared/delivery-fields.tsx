@@ -120,7 +120,7 @@ export const DeliveryFields: React.FC<{
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Delivery charge (PKR)</Label>
-              <AmountInput value={value.charge ?? ''}
+              <AmountInput maxDecimals={0} value={value.charge ?? ''}
                 onValueChange={v => set('charge', v ?? undefined)}
                 emptyValue={undefined}
                 placeholder="0 if free" aria-label="Delivery charge (PKR)" />

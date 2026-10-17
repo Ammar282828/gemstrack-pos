@@ -52,6 +52,15 @@ export function kindOfDoc(doc: Pick<AlertDoc, 'kind'>): PushKind | null {
   }
 }
 
+// One no-key line per instance per 10 minutes, so a busy shop does not flood the log.
+let lastNoKeyWarn = 0;
+export function warnNoKey(kind: string, now = Date.now()): boolean {
+  if (now - lastNoKeyWarn < 10 * 60_000) return false;
+  lastNoKeyWarn = now;
+  console.warn(`[push] no-key: ${kind}`);
+  return true;
+}
+
 const claimKey = (key: string) => key.replace(/[^\w.:-]/g, '_').slice(0, 200);
 
 async function claim(key: string): Promise<boolean> {
@@ -76,8 +85,8 @@ export async function pushToShop(m: PushMessage, only?: { token: string }): Prom
     const ios = devices.filter((d) => d.platform !== 'android');
     // The Apple key is needed for iPhones only: Android goes through the backend's own service account.
     const key = ios.length ? await loadApnsKey() : null;
-    if (ios.length && !android.length && !key) return { status: 'no-key' };
-    if (!devices.length) return { status: 'none', phones: 0 };
+    if (ios.length && !android.length && !key) { warnNoKey(m.kind); return { status: 'no-key' }; }
+    if (!devices.length) { console.warn(`[push] no devices: ${m.kind}`); return { status: 'none', phones: 0 }; }
     if (m.key && !(await claim(`${m.kind}_${m.key}`))) return { status: 'already' };
     const alert = { title: m.title, body: m.body, url: m.url };
     const nothing = { sent: 0, gone: [] as string[], failed: [] as { token: string; status: number; reason: string }[] };

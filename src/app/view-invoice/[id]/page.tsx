@@ -162,10 +162,10 @@ export default function ViewInvoicePage() {
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground text-right">Grand Total</p>
-                            <p className="font-semibold text-xl text-primary text-right">PKR {invoice.grandTotal.toLocaleString()}</p>
+                            <p className="font-semibold text-xl text-primary text-right">PKR {invoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
                             {getInvoiceAdjustmentsAmount(invoice) !== 0 && (
                                 <p className="text-xs text-muted-foreground text-right">
-                                    Includes adjustments of PKR {getInvoiceAdjustmentsAmount(invoice).toLocaleString()}
+                                    Includes adjustments of PKR {getInvoiceAdjustmentsAmount(invoice).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                 </p>
                             )}
                         </div>
@@ -174,11 +174,11 @@ export default function ViewInvoicePage() {
                         <div className="border-t mt-3 pt-3">
                             <div className="flex justify-between items-center">
                                 <p className="text-sm text-muted-foreground">Amount Paid</p>
-                                <p className="font-semibold text-success">- PKR {invoice.amountPaid.toLocaleString()}</p>
+                                <p className="font-semibold text-success">- PKR {invoice.amountPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
                             </div>
                             <div className="flex justify-between items-center mt-1">
                                 <p className="text-sm text-muted-foreground">{balanceLine(invoice.balanceDue).state === 'credit' ? 'Credit to you' : 'Balance Due'}</p>
-                                <p className={`font-semibold ${balanceLine(invoice.balanceDue).state === 'credit' ? 'text-success' : 'text-destructive'}`}>PKR {Math.abs(invoice.balanceDue).toLocaleString()}</p>
+                                <p className={`font-semibold ${balanceLine(invoice.balanceDue).state === 'credit' ? 'text-success' : 'text-destructive'}`}>PKR {Math.abs(invoice.balanceDue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
                             </div>
                         </div>
                     )}

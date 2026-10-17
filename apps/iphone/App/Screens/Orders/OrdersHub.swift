@@ -302,7 +302,7 @@ struct OrdersHub: View {
                             .buttonStyle(.glass)
                     }
                     Button("New order") {
-                        web = OrdersWebTarget(path: "/orders/add", title: "New order", native: true)
+                        web = .newOrder
                     }
                     .buttonStyle(.houseProminent)
                 }
@@ -455,7 +455,7 @@ struct OrdersHub: View {
             advance: { order in advancing = order },
             markReady: { order in setStatus(order, "Completed") },
             setStatus: { order, status in choose(order, status) },
-            openWeb: { target in web = target },
+            open: { target in web = target },
             contact: { order, kind in reach(order, kind) }
         )
     }
@@ -494,13 +494,17 @@ struct OrdersHub: View {
     /// An advance from the card: owners only (the ERP refuses anyone else), and never once invoiced.
     /// It carries a note, the web's "Advance payment received" unless the person writes their own.
     private func advanceSheet(_ order: Order) -> some View {
-        PaymentSheet(title: "Advance on \(order.id)", owed: order.grandTotal, note: "Advance payment received") { amount, method, note in
-            _ = try await ERPAPI.shared.write("recordOrderAdvance", [
-                "orderId": order.id,
-                "amount": amount,
-                "method": method,
-                "notes": note,
-            ])
+        PaymentSheet(title: "Advance on \(order.id)", owed: order.grandTotal, note: "Advance payment received",
+                     settle: { amount, method, _, note, remainder in
+                         do {
+                             try await OrderAdvance.settle(order, amount: amount, method: method, note: note, remainder: remainder)
+                         } catch let e as SettleNotGiven {
+                             await MainActor.run { moneyTick += 1 }
+                             throw e
+                         }
+                         await MainActor.run { moneyTick += 1 }
+                     }) { amount, method, note in
+            try await OrderAdvance.record(order, amount: amount, method: method, note: note)
             await MainActor.run { moneyTick += 1 }
         }
     }

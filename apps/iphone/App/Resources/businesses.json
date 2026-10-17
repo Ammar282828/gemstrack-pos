@@ -1,0 +1,102 @@
+[
+  {
+    "version": 1,
+    "id": "taheri",
+    "name": "TAHERI",
+    "shortName": "Taheri ERP",
+    "storeName": "Taheri ERP",
+    "serverURL": "https://erp.taheri.shop",
+    "metal": "gold",
+    "margin": {
+      "kind": "rattiLess",
+      "ratti": 6
+    },
+    "palette": {
+      "light": {
+        "accent": "#8A6B42",
+        "ground": "#F2F3F6",
+        "card": "#FFFFFF",
+        "onAccent": "#FFFFFF"
+      },
+      "dark": {
+        "accent": "#BE9F76",
+        "ground": "#0A1111",
+        "card": "#141A1A",
+        "onAccent": "#0B1414"
+      }
+    },
+    "logo": {
+      "light": "https://erp.taheri.shop/taheri-logo.png",
+      "dark": "https://erp.taheri.shop/taheri-logo-light.png",
+      "aspect": 3.989556135770235
+    },
+    "icon": "https://erp.taheri.shop/icons/taheri/icon-512.png",
+    "ios": {
+      "googleClientId": "948018742883-9jb931ki5kuhckfo4c6400k1mh5ucpg0.apps.googleusercontent.com",
+      "firebase": {
+        "apiKey": "AIzaSyAl3W_9_Z9j0sR7rGIwwM1uiiXvOxGQ7IA",
+        "appId": "1:948018742883:ios:2288410141abf27f089a56",
+        "projectId": "gemstrack-pos",
+        "senderId": "948018742883",
+        "storageBucket": "gemstrack-pos.firebasestorage.app"
+      }
+    },
+    "flags": {
+      "partnership": false,
+      "websiteSelling": true,
+      "invoiceByCustomer": true,
+      "invoiceWhatsappPdf": true,
+      "sizeToProfile": true
+    }
+  },
+  {
+    "version": 1,
+    "id": "mina",
+    "name": "MINA",
+    "shortName": "Mina ERP",
+    "storeName": "House of Mina ERP",
+    "serverURL": "https://erp.houseofmina.store",
+    "metal": "silver",
+    "margin": {
+      "kind": "percent",
+      "percent": 40
+    },
+    "palette": {
+      "light": {
+        "accent": "#380000",
+        "ground": "#F4EFE8",
+        "card": "#FFFDF9",
+        "onAccent": "#FBF9F9"
+      },
+      "dark": {
+        "accent": "#E8A5AE",
+        "ground": "#1C1114",
+        "card": "#27191D",
+        "onAccent": "#251318"
+      }
+    },
+    "logo": {
+      "light": "https://erp.houseofmina.store/house-of-mina-logo.png",
+      "dark": "https://erp.houseofmina.store/house-of-mina-logo-light.png",
+      "aspect": 4.9458
+    },
+    "icon": "https://erp.houseofmina.store/icons/mina/icon-512.png",
+    "ios": {
+      "googleClientId": "288366939838-mgf4cvjppgl1odsif69837258ce2kg2s.apps.googleusercontent.com",
+      "firebase": {
+        "apiKey": "AIzaSyD8TRSZEwpYYPiAGSz2FkjgxxKSJa4VEHE",
+        "appId": "1:288366939838:ios:b765f9330f8080358798ef",
+        "projectId": "hom-pos-52710474-ceeea",
+        "senderId": "288366939838",
+        "storageBucket": "hom-pos-52710474-ceeea.firebasestorage.app"
+      }
+    },
+    "flags": {
+      "partnership": true,
+      "websiteSelling": false,
+      "invoiceByCustomer": false,
+      "invoiceWhatsappPdf": false,
+      "sizeToProfile": false
+    }
+  }
+]

@@ -2,6 +2,9 @@
 
 _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE.md keeps a one-line index; this is the record._
 
+> **2026-10-12:** each piece has **Open in Design** beside "On the website" (`/design?v=make&site=<id>`), for its story, a post, an ad
+> or other sizes. Edit a piece's own square editor and its words / weight / hide form are unchanged ([design.md](design.md)).
+
 ### Edit a piece
 
 - **Edit a piece** (`/website/edit`, Website menu, both houses; 2026-09-27, owner: "in both pos let me also fix/crop/add logo

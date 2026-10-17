@@ -92,7 +92,7 @@ struct HisaabEntrySheet: View {
     }
 
     private var cashRow: some View {
-        NewOrderNumberRow(title: "Cash amount (PKR)", text: $cashText, prompt: "0")
+        NewOrderNumberRow(title: "Cash amount (PKR)", text: $cashText, prompt: "0", rupees: true)
     }
 
     private var gramsRow: some View {

@@ -441,9 +441,10 @@ struct PaymentCustomer {
 
 /// The sheet's numbers and words, kept apart from the view so they read the same wherever they are used.
 enum PaymentText {
-    /// What was typed, as rupees and paise. Thousands commas are dropped; on a phone set to a region that
-    /// types its decimal point as a comma ("1500,4") a comma followed by one or two digits is the
-    /// decimal point, since a thousands comma always has three.
+    /// What was typed, in whole rupees (owner, 2026-10-17: "there should be no decimals"). Thousands commas
+    /// are dropped; on a phone set to a region that types its decimal point as a comma ("1500,4") a comma
+    /// followed by one or two digits is the decimal point, since a thousands comma always has three. Paise
+    /// typed are rounded away, as the ERP rounds every sum to the rupee.
     static func amount(_ text: String) -> Double? {
         var t = text.trimmingCharacters(in: .whitespaces)
         if !t.contains("."), let comma = t.lastIndex(of: ",") {
@@ -452,26 +453,21 @@ enum PaymentText {
         }
         t = t.replacingOccurrences(of: ",", with: "")
         guard !t.isEmpty, let v = Double(t), v.isFinite, v >= 0 else { return nil }
-        return (v * 100).rounded() / 100
+        return v.rounded()
     }
 
-    /// A balance for the amount field: up to two decimals, no grouping, no trailing zeros ("1500.4").
-    static func field(_ v: Double) -> String {
-        var s = String(format: "%.2f", v)
-        while s.hasSuffix("0") { s.removeLast() }
-        if s.hasSuffix(".") { s.removeLast() }
-        return s
-    }
+    /// A balance for the amount field: whole rupees, no grouping ("1500").
+    static func field(_ v: Double) -> String { String(Int(v.rounded())) }
 
-    /// "PKR 1,500" for whole rupees, "PKR 1,500.4" when paise are owed: Money.pkr would round them away.
-    static func pkr(_ v: Double) -> String {
-        if abs(v - v.rounded()) < 0.005 { return Money.pkr(v) }
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.locale = Locale(identifier: "en_US")
-        f.minimumFractionDigits = 0
-        f.maximumFractionDigits = 2
-        return "PKR " + (f.string(from: NSNumber(value: v)) ?? String(v))
+    /// "PKR 1,500": whole rupees, always; an old bill's paise are not shown.
+    static func pkr(_ v: Double) -> String { Money.pkr(v) }
+
+    /// A money box's text kept to whole rupees: the number pad types only digits, and a pasted or prefilled
+    /// "1,500.40" becomes "1500". Blank stays blank.
+    static func whole(_ text: String) -> String {
+        if text.allSatisfy({ $0.isASCII && $0.isNumber }) { return text }
+        if let v = amount(text), v < 1e15 { return field(v) }
+        return text.filter { $0.isASCII && $0.isNumber }
     }
 
     /// What the reference box is for, by how it was paid (the web's labels).
@@ -485,9 +481,27 @@ enum PaymentText {
     }
 }
 
-/// Taking money: an invoice's payment or an order's advance. The amount is typed in rupees (paise
-/// allowed) and shown back in lac as it is typed; the write is the ERP's (`save`), and the sheet stays
-/// open with the ERP's own words if it refuses.
+/// A Settle whose payment was taken but whose remainder was not given off (the discount write was refused):
+/// the money is on the bill, so the sheet must not offer to take it again.
+struct SettleNotGiven: LocalizedError {
+    let paid: Double
+    let remainder: Double
+    let why: String
+
+    var errorDescription: String? {
+        "\(PaymentText.pkr(paid)) is recorded. The remaining \(PaymentText.pkr(remainder)) was not taken off: \(why) Change the discount to give it."
+    }
+}
+
+/// What a Settle does once tapped: take the payment exactly as Save would, then raise the bill's discount by
+/// `remainder` (never a payment that was not made). A refusal after the payment is taken is thrown as `SettleNotGiven`.
+typealias SettleAction = (_ amount: Double, _ method: String, _ reference: String, _ note: String, _ remainder: Double) async throws -> Void
+
+/// Taking money: an invoice's payment or an order's advance. The amount is typed in whole rupees
+/// (no paise) and shown back in lac as it is typed; the write is the ERP's (`save`), and the sheet stays
+/// open with the ERP's own words if it refuses. With `settle`, a remainder under 5,000 (what is owed less the
+/// amount typed) can be given off (record-payment-dialog.tsx and RecordAdvanceDialog's SettleOffer, ERPCore
+/// `settleRemainderOffer`).
 struct PaymentSheet: View {
     let title: String
     /// What is still owed, offered as the amount with one tap.
@@ -499,6 +513,8 @@ struct PaymentSheet: View {
     var noteDefault: String?
 
     private let commit: (_ amount: Double, _ method: String, _ reference: String, _ note: String) async throws -> Void
+    /// Set where the remainder may be given off: an invoice (owners: the discount is theirs to change) and an advance.
+    private let settle: SettleAction?
 
     @Environment(\.dismiss) private var dismiss
     @State private var amountText = ""
@@ -513,6 +529,8 @@ struct PaymentSheet: View {
     /// Counted, so the confirming tap (or the refusal) is felt once per attempt.
     @State private var recorded = 0
     @State private var refused = 0
+    /// A Settle's payment was taken and its discount refused: nothing more is sent from this sheet.
+    @State private var taken = false
 
     private struct Pinned {
         let text: String
@@ -521,6 +539,7 @@ struct PaymentSheet: View {
 
     /// An invoice's payment, a repair's, or anything else with a reference and no note.
     init(title: String, owed: Double? = nil, askReference: Bool = true, customer: PaymentCustomer? = nil,
+         settle: SettleAction? = nil,
          save: @escaping (_ amount: Double, _ method: String, _ reference: String) async throws -> Void) {
         self.title = title
         self.owed = owed
@@ -528,11 +547,12 @@ struct PaymentSheet: View {
         self.customer = customer
         self.noteDefault = nil
         self.commit = { amount, method, reference, _ in try await save(amount, method, reference) }
+        self.settle = settle
         _note = State(initialValue: "")
     }
 
     /// An advance on an order: no reference, a note instead (order-dialogs.tsx RecordAdvanceDialog).
-    init(title: String, owed: Double? = nil, note: String,
+    init(title: String, owed: Double? = nil, note: String, settle: SettleAction? = nil,
          save: @escaping (_ amount: Double, _ method: String, _ note: String) async throws -> Void) {
         self.title = title
         self.owed = owed
@@ -540,6 +560,7 @@ struct PaymentSheet: View {
         self.customer = nil
         self.noteDefault = note
         self.commit = { amount, method, _, note in try await save(amount, method, note) }
+        self.settle = settle
         _note = State(initialValue: note)
     }
 
@@ -568,6 +589,13 @@ struct PaymentSheet: View {
         return nil
     }
 
+    /// What would be left owing after this amount, when it is small enough to give off (0 < it < 5,000):
+    /// the web's `rupees(balance) - rupees(amount)`. Nil without a Settle, an amount, or a balance.
+    private var settleOffer: Double? {
+        guard settle != nil, !taken, let owed, amount > 0, problem == nil else { return nil }
+        return settleRemainderOffer(rupees(owed) - rupees(amount))
+    }
+
     private var creditNote: String? {
         guard let customer, customer.canHoldCredit, over > 0 else { return nil }
         let who = customer.name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -579,14 +607,14 @@ struct PaymentSheet: View {
             Form {
                 Section {
                     TextField("Amount in rupees", text: $amountText)
-                        .keyboardType(.decimalPad)
+                        .keyboardType(.numberPad)
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }
-                    if let owed, owed > 0 {
+                    if let owed, owed >= 1 {
                         Button("All that's owed: \(PaymentText.pkr(owed))") {
                             amountText = PaymentText.field(owed)
-                            pinned = Pinned(text: amountText, value: owed)
+                            pinned = Pinned(text: amountText, value: owed.rounded())
                         }
                     }
                 } footer: {
@@ -608,6 +636,17 @@ struct PaymentSheet: View {
                         TextField("Note", text: $note, prompt: Text("e.g. Second advance payment"))
                     }
                 }
+                if let x = settleOffer {
+                    Section {
+                        Button(SettleWords.offer(x)) { send(settling: x) }
+                            .buttonStyle(.bordered)
+                            .tint(Theme.accent)
+                            .frame(maxWidth: .infinity)
+                            .disabled(saving)
+                    } footer: {
+                        Text("Takes this payment, then adds \(PaymentText.pkr(x)) to the discount, so nothing is left owing.")
+                    }
+                }
                 if let error {
                     Section { Text(error).foregroundStyle(.red) }
                 }
@@ -619,24 +658,8 @@ struct PaymentSheet: View {
                     Button(role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(role: .confirm) {
-                        Task {
-                            saving = true
-                            error = nil
-                            do {
-                                // A cash payment has no reference to carry, whatever was typed before it was switched.
-                                try await commit(amount, method, method == "Cash" ? "" : reference,
-                                                 note.trimmingCharacters(in: .whitespacesAndNewlines))
-                                recorded += 1
-                                dismiss()
-                            } catch {
-                                self.error = error.localizedDescription
-                                refused += 1
-                            }
-                            saving = false
-                        }
-                    }
-                    .disabled(amount <= 0 || problem != nil || saving)
+                    Button(role: .confirm) { send(settling: nil) }
+                        .disabled(amount <= 0 || problem != nil || saving || taken)
                 }
             }
             // The ERP's words for a refusal slide in under the form rather than appearing in a jump.
@@ -645,6 +668,37 @@ struct PaymentSheet: View {
         .sensoryFeedback(.success, trigger: recorded)
         .sensoryFeedback(.error, trigger: refused)
         .presentationDetents([.medium, .large])
+    }
+
+    /// Save, or Settle (`settling` is the remainder to give off): the ERP's write, the sheet kept open with its words
+    /// on a refusal. A Settle whose payment went through but whose discount did not stays open saying so, with
+    /// nothing left to send.
+    private func send(settling remainder: Double?) {
+        if saving || taken { return }
+        Task {
+            saving = true
+            error = nil
+            // A cash payment has no reference to carry, whatever was typed before it was switched.
+            let ref = method == "Cash" ? "" : reference
+            let said = note.trimmingCharacters(in: .whitespacesAndNewlines)
+            do {
+                if let remainder, let settle {
+                    try await settle(amount, method, ref, said, remainder)
+                } else {
+                    try await commit(amount, method, ref, said)
+                }
+                recorded += 1
+                dismiss()
+            } catch let e as SettleNotGiven {
+                taken = true
+                recorded += 1
+                self.error = e.localizedDescription
+            } catch {
+                self.error = error.localizedDescription
+                refused += 1
+            }
+            saving = false
+        }
     }
 }
 
@@ -658,6 +712,14 @@ struct MineRowBackground: View {
             .overlay(alignment: .leading) {
                 Capsule().fill(Theme.accent).frame(width: 3).padding(.vertical, 10)
             }
+    }
+}
+
+extension Binding where Value == String {
+    /// A money box's text in whole rupees, as shown and as kept (owner, 2026-10-17: "there should be no
+    /// decimals"). Pair it with `.keyboardType(.numberPad)`.
+    var wholeRupees: Binding<String> {
+        Binding(get: { PaymentText.whole(wrappedValue) }, set: { wrappedValue = PaymentText.whole($0) })
     }
 }
 

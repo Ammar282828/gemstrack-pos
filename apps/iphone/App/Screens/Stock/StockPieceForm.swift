@@ -6,17 +6,22 @@ import ERPCore
 /// saved through the ERP (`addProduct` / `updateProduct` on /api/app/write, lib/writes/products.ts): the
 /// same SKU numbering, names and gold coin rules as the browser's store. Owners only, as Stock is.
 ///
-/// The photo is the one thing not here: the web uploads it to Firebase Storage from the browser, and the
-/// ERP has no route a phone could send one through, so Photo opens the ERP's own edit page. An edit never
-/// sends the photo, the tag's QR or the Shopify ids, so what is on file stays.
+/// The photo saves on its own, as the web's upload does (StockPiecePhotoField, /api/app/product-photo): the
+/// form's Save never sends the photo, the tag's QR or the Shopify ids, so what is on file stays. A new piece
+/// takes its photo once it is saved and has its SKU.
 ///
 /// The web form puts the wastage back to 10% (25% with diamonds) whenever the metal, the diamonds, the
 /// stones or the category changes, and also as it opens. Here an edit opens on the piece's own wastage, so
 /// changing only its name never moves its price; every other reset is the web's, on opening and on change.
+///
+/// "/products/add?voice=1" (`fromVoice`) opens on what was said to the voice assistant (StockVoiceSeed), as the
+/// web's add page opens on its handoff; the person checks it and presses Save, as there.
 struct StockPieceForm: View {
     /// nil adds a piece.
     let sku: String?
     var onCreated: ((Product) -> Void)? = nil
+    /// A new piece filled in from the voice assistant.
+    var fromVoice = false
 
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
@@ -46,7 +51,7 @@ struct StockPieceForm: View {
             .navigationTitle("Edit piece")
             .navigationBarTitleDisplayMode(.inline)
         } else {
-            StockPieceEditor(original: nil, onCreated: onCreated)
+            StockPieceEditor(original: nil, onCreated: onCreated, seed: fromVoice ? StockVoiceSeed.peek() : nil)
         }
     }
 
@@ -68,6 +73,8 @@ private struct StockPieceEditor: View {
     /// The piece being edited, as it was when the form opened; nil adds one.
     let original: Product?
     let onCreated: ((Product) -> Void)?
+    /// Opened on the voice assistant's piece: let go of it once shown, so it fills one form, as the web's is taken once.
+    private let voiced: Bool
 
     @Environment(Book.self) private var book
     @Environment(\.dismiss) private var dismiss
@@ -85,15 +92,17 @@ private struct StockPieceEditor: View {
         let name: String
     }
 
-    init(original: Product?, onCreated: ((Product) -> Void)? = nil) {
+    init(original: Product?, onCreated: ((Product) -> Void)? = nil, seed: [String: Any]? = nil) {
         self.original = original
         self.onCreated = onCreated
+        voiced = original == nil && seed != nil
         var start: StockPieceFields
         if let original {
             start = StockPieceFields(original)
             start.settle(keepWastage: true)
         } else {
             start = StockPieceFields()
+            if let seed { start.fill(fromVoice: seed) }
             start.settle()
         }
         _f = State(initialValue: start)
@@ -128,6 +137,7 @@ private struct StockPieceEditor: View {
         .sensoryFeedback(.success, trigger: tick)
         .interactiveDismissDisabled(saving)
         .navigationBarBackButtonHidden(saving)
+        .onAppear { if voiced { StockVoiceSeed.clear() } }
     }
 
     private var form: some View {
@@ -314,7 +324,7 @@ private struct StockPieceEditor: View {
             }
             .pickerStyle(.segmented)
             if f.fixed {
-                NewOrderNumberRow(title: "Price (PKR)", text: $f.customPrice, prompt: "e.g. 15000")
+                NewOrderNumberRow(title: "Price (PKR)", text: $f.customPrice, prompt: "e.g. 15000", rupees: true)
                 NewOrderNumberRow(title: "Reference rate per gram", text: $f.silverRate, prompt: "Optional")
             } else {
                 NewOrderNumberRow(title: "Weight", text: $f.weight, prompt: "e.g. 5.75", unit: "g")
@@ -325,9 +335,9 @@ private struct StockPieceEditor: View {
                 }
                 if !f.isGoldCoin {
                     if !f.silver {
-                        NewOrderNumberRow(title: "Making (PKR)", text: $f.making, prompt: "e.g. 5000")
+                        NewOrderNumberRow(title: "Making (PKR)", text: $f.making, prompt: "e.g. 5000", rupees: true)
                     }
-                    NewOrderNumberRow(title: "Misc (PKR)", text: $f.miscCharges, prompt: "e.g. 250")
+                    NewOrderNumberRow(title: "Misc (PKR)", text: $f.miscCharges, prompt: "e.g. 250", rupees: true)
                 }
             }
             if let price = todaysPrice {
@@ -367,14 +377,14 @@ private struct StockPieceEditor: View {
         LedgerSection("Diamonds and stones") {
             Toggle("Has diamonds", isOn: $f.hasDiamonds)
             if f.hasDiamonds {
-                NewOrderNumberRow(title: "Diamonds (PKR)", text: $f.diamondCharges, prompt: "e.g. 50000")
+                NewOrderNumberRow(title: "Diamonds (PKR)", text: $f.diamondCharges, prompt: "e.g. 50000", rupees: true)
                 TextField("Diamond details", text: $f.diamondDetails, prompt: Text("e.g. Centre 1ct VVS1, sides 12 × 0.05ct VS2"), axis: .vertical)
                     .lineLimit(2...4)
             }
             Toggle("Has other stones", isOn: $f.hasStones)
             if f.hasStones {
                 NewOrderNumberRow(title: "Stone weight", text: $f.stoneWeight, prompt: "e.g. 0.5", unit: "g")
-                NewOrderNumberRow(title: "Stones (PKR)", text: $f.stoneCharges, prompt: "e.g. 15000")
+                NewOrderNumberRow(title: "Stones (PKR)", text: $f.stoneCharges, prompt: "e.g. 15000", rupees: true)
                 TextField("Stone details", text: $f.stoneDetails, prompt: Text("e.g. 1 × ruby 2ct, and 2g gold accent"), axis: .vertical)
                     .lineLimit(2...4)
             }
@@ -383,24 +393,16 @@ private struct StockPieceEditor: View {
 
     // MARK: Photo
 
-    /// Photos are the ERP's page: it uploads them from the browser, and the phone has no way to send one.
+    /// The photo saves as soon as it is picked, on its own (the web uploads it the moment it is chosen too).
     @ViewBuilder
     private var photoSection: some View {
         if let original {
-            let photo: String? = StockKit.filled(original.imageUrl)
             Section {
-                if let photo {
-                    StockImage(imageUrl: photo, name: original.name, key: original.sku, decodeDataURI: true)
-                        .frame(width: 96, height: 96)
-                        .clipShape(.rect(cornerRadius: Radius.tile, style: .continuous))
-                }
-                NavigationLink(value: Route(path: StockKit.editPath(original.sku) + "?web=1")) {
-                    Label(photo == nil ? "Add a photo in the ERP" : "Change the photo in the ERP", systemImage: "photo")
-                }
+                StockPiecePhotoField(sku: original.sku, name: original.name, imageUrl: original.imageUrl)
             } header: {
                 LedgerHeading(title: "Photo")
             } footer: {
-                Text("The photo is uploaded on the ERP's own page. Everything else saves here, and saving here keeps the photo.")
+                Text("A photo saves as soon as it is picked or taken. Saving the form keeps the photo.")
             }
         } else {
             Section {
@@ -409,7 +411,7 @@ private struct StockPieceEditor: View {
             } header: {
                 LedgerHeading(title: "Photo")
             } footer: {
-                Text("The photo is uploaded on the ERP's own page, which opens from here after saving.")
+                Text("The piece needs its SKU first: the photo is added from here after saving.")
             }
         }
     }
@@ -432,14 +434,19 @@ private struct StockPieceEditor: View {
                 .listRowBackground(Color.clear)
             }
             Section {
-                NavigationLink(value: Route(path: StockKit.editPath(s.sku) + "?web=1")) {
-                    Label("Add a photo", systemImage: "photo")
-                }
+                StockPiecePhotoField(sku: s.sku, name: s.name, imageUrl: book.products.item(s.sku)?.imageUrl)
+            } header: {
+                LedgerHeading(title: "Photo")
+            } footer: {
+                Text("A photo saves as soon as it is picked or taken.")
+            }
+            .houseRows()
+            Section {
                 Button { startAnother() } label: {
                     Label("Add another piece", systemImage: "plus.square.on.square")
                 }
             } footer: {
-                Text("The photo is added on the ERP's own page. Another piece starts in the same category.")
+                Text("Another piece starts in the same category.")
             }
             .houseRows()
         }
@@ -577,6 +584,31 @@ struct StockPieceFields: Equatable {
         platingType = p.platingType ?? ""
         platingNote = p.platingNote ?? ""
         nickelFree = p.nickelFree
+    }
+
+    /// What was said for a new piece (voice's `new_piece`, a `Partial<Product>`) over the form's defaults, as the
+    /// web's `{ ...getSafeDefaultValues(), ...seed }`. The form's own rules then run as it opens (`settle`), as the
+    /// web's effect does: there too a silver piece drops a spoken making, and the wastage goes to the standard one.
+    mutating func fill(fromVoice seed: [String: Any]) {
+        func number(_ key: String) -> Double? {
+            if let n = seed[key] as? NSNumber { return n.doubleValue }
+            if let t = seed[key] as? String { return Double(t.trimmingCharacters(in: .whitespaces)) }
+            return nil
+        }
+        func text(_ key: String) -> String? { (seed[key] as? String).flatMap { $0.isEmpty ? nil : $0 } }
+        if let c = text("categoryId") { categoryId = c }
+        if let k = text("karat") { karat = k.lowercased() }
+        if let w = number("metalWeightG") { weight = Self.box(w, 3) }
+        if let m = number("makingCharges") { making = Self.box(m, 2) }
+        if let w = number("wastagePercentage") { wastage = NewOrderFormat.trimmed(w, digits: 2) }
+        if let d = text("stoneDetails") { stoneDetails = d }
+        if let c = number("stoneCharges") { stoneCharges = Self.box(c, 2) }
+        if let z = text("size") { size = z }
+        if let d = text("description") { description = d }
+        if seed["isCustomPrice"] as? Bool == true {
+            fixed = true
+            if let price = number("customPrice") { customPrice = Self.box(price, 2) }
+        }
     }
 
     /// A number in its box: blank for 0 (decisions.md "Number fields").

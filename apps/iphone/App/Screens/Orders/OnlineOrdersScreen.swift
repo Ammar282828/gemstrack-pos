@@ -84,7 +84,7 @@ struct OnlineOrdersScreen: View {
                         ContentUnavailableView(
                             "Nothing to confirm",
                             systemImage: "checkmark.seal",
-                            description: Text("A new one shows here, on Home and beside Orders. Nothing is in the book, and nobody has the bank details, until you confirm.")
+                            description: Text("Nothing is in the book, and nobody has the bank details, until you confirm.")
                         )
                         .listRowBackground(Color.clear)
                     }

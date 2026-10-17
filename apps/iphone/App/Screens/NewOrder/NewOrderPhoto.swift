@@ -35,7 +35,8 @@ struct NewOrderSampleField: View {
             guard let id = piece.samplePhotoId, !id.isEmpty, piece.sampleImageDataUri == nil else { return }
             guard !House.isDemo else { failure = "Sample photo preview unavailable in demo."; return }
             do {
-                let snapshot = try await Firestore.firestore().collection("order_photos").document(id).getDocument()
+                guard let db = await Businesses.shared.firestore else { failure = "Couldn't load the saved photo. It stays on the order unless removed."; return }
+                let snapshot = try await db.collection("order_photos").document(id).getDocument()
                 storedURI = snapshot.data()?["dataUri"] as? String
                 if storedURI == nil { failure = "The saved photo is unavailable. It stays on the order unless removed." }
             } catch { failure = "Couldn't load the saved photo. It stays on the order unless removed." }

@@ -19,10 +19,11 @@ final class WorkDraftSync {
     static let sale = WorkDraftSync(kind: "sale")
 
     let kind: String
-    private let idKey: String
-    private let createdKey: String
+    /// Per business (BizKey): the draft in one business's Drafts is not another's.
+    private var idKey: String { BizKey("erp.\(kind)Draft.remoteId") }
+    private var createdKey: String { BizKey("erp.\(kind)Draft.remoteCreatedAt") }
     /// Set once a send has landed: until then "not in Drafts" says nothing about the phone's copy.
-    private let landedKey: String
+    private var landedKey: String { BizKey("erp.\(kind)Draft.remoteLanded") }
     /// The last draft sent, as text: the same work is not sent twice.
     private var lastSent = ""
     private var waiting: Task<Void, Never>?
@@ -32,9 +33,14 @@ final class WorkDraftSync {
 
     private init(kind: String) {
         self.kind = kind
-        idKey = "erp.\(kind)Draft.remoteId"
-        createdKey = "erp.\(kind)Draft.remoteCreatedAt"
-        landedKey = "erp.\(kind)Draft.remoteLanded"
+    }
+
+    /// The person switched business: what was waiting to be sent is the old business's, and goes nowhere.
+    /// A send already on its way is pinned to its own business (`Business` captured below) and lands there.
+    func reset() {
+        waiting?.cancel()
+        waiting = nil
+        lastSent = ""
     }
 
     /// This phone's draft in Drafts, once it has been sent.
@@ -74,7 +80,8 @@ final class WorkDraftSync {
         lastSent = ""
         guard let gone = id else { return }
         forget()
-        enqueue { _ = try? await ERPAPI.shared.send("/api/app/drafts", ["action": "drop", "id": gone]) }
+        let biz = House.business
+        enqueue { _ = try? await ERPAPI.shared.send("/api/app/drafts", ["action": "drop", "id": gone], business: biz) }
     }
 
     /// Lets go of the Drafts copy without touching it: it was finished or thrown away on another device.
@@ -89,8 +96,20 @@ final class WorkDraftSync {
     /// the phone's copy then stands.
     func stillThere() async -> Bool? {
         guard let draftId = id, UserDefaults.standard.bool(forKey: landedKey) else { return nil }
-        guard let out = try? await ERPAPI.shared.send("/api/app/drafts", ["action": "check", "id": draftId]) else { return nil }
+        guard let out = try? await ERPAPI.shared.send("/api/app/drafts", ["action": "check", "id": draftId], business: House.business) else { return nil }
         return out["exists"] as? Bool
+    }
+
+    /// A draft from Drafts continued on this phone (DraftsScreen): from now on this phone's work is that draft, so the
+    /// next change writes over it and saving the order or sale removes it, as the web's form does with `?draft=`.
+    /// The phone's own draft before it, if it was sent, stays in Drafts as it was.
+    func adopt(id draftId: String, createdAt: String) {
+        waiting?.cancel()
+        lastSent = ""
+        UserDefaults.standard.set(draftId, forKey: idKey)
+        UserDefaults.standard.set(createdAt.isEmpty ? Date().ISO8601Format() : createdAt, forKey: createdKey)
+        // It is in Drafts already: one finished at the counter since lets go of the phone's copy too.
+        UserDefaults.standard.set(true, forKey: landedKey)
     }
 
     private func send(_ snap: Snapshot, gen: Int) {
@@ -109,9 +128,10 @@ final class WorkDraftSync {
             "total": snap.total.isFinite ? snap.total : 0, "customerName": snap.customerName,
             "device": UIDevice.current.model, "createdAt": created,
         ]
+        let biz = House.business
         enqueue { [weak self] in
             do {
-                _ = try await ERPAPI.shared.send("/api/app/drafts", body)
+                _ = try await ERPAPI.shared.send("/api/app/drafts", body, business: biz)
                 if let self, self.id == draftId { UserDefaults.standard.set(true, forKey: self.landedKey) }
             } catch {
                 // Not sent: the next change, or the screen going, sends it again.
@@ -119,7 +139,7 @@ final class WorkDraftSync {
             }
             // Saved or started over while it was on its way: take it back out.
             if let self, self.generation != gen {
-                _ = try? await ERPAPI.shared.send("/api/app/drafts", ["action": "drop", "id": draftId])
+                _ = try? await ERPAPI.shared.send("/api/app/drafts", ["action": "drop", "id": draftId], business: biz)
             }
         }
     }

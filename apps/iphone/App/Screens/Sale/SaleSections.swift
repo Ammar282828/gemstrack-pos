@@ -113,9 +113,6 @@ extension SaleForm {
             }
         } header: {
             LedgerHeading(title: "Pieces")
-        } footer: {
-            let n = draft.lines.count
-            Text("\(n) piece\(n == 1 ? "" : "s"). Tap to edit; swipe to remove.")
         }
     }
 
@@ -171,7 +168,13 @@ extension SaleForm {
     @ViewBuilder
     func discountSection(_ f: SaleFigures) -> some View {
         Section {
-            SaleNumberField(label: "Amount (PKR)", text: $draft.discount)
+            SaleNumberField(label: "Amount (PKR)", text: $draft.discount, rupees: true)
+            // sale-page.tsx: offered once the bill can be worked out; the bill before any discount is the pieces less the exchange.
+            if f.hasEstimate {
+                RoundOffChips(payable: f.subtotal - f.exchange, discount: f.discount) { n in
+                    draft.discount = n > 0 ? String(Int(n)) : ""
+                }
+            }
         } header: {
             LedgerHeading(title: "Discount")
         } footer: {
@@ -220,8 +223,8 @@ extension SaleForm {
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 TextField("What it is (e.g. old ring)", text: exchangeBinding(row.id, .description))
-                TextField("Amount", text: exchangeBinding(row.id, .value))
-                    .keyboardType(.decimalPad)
+                TextField("Amount", text: exchangeBinding(row.id, .value).wholeRupees)
+                    .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
                     .frame(width: 110)
@@ -275,8 +278,6 @@ extension SaleForm {
             }
         } header: {
             LedgerHeading(title: "Exchange / trade-in")
-        } footer: {
-            Text("Gold or anything else the customer hands over, taken off the bill at an agreed value.")
         }
     }
 
@@ -295,8 +296,8 @@ extension SaleForm {
         let single = draft.payments.count < 2
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
-                TextField("Amount (PKR)", text: row.amount)
-                    .keyboardType(.decimalPad)
+                TextField("Amount (PKR)", text: row.amount.wholeRupees)
+                    .keyboardType(.numberPad)
                     .monospacedDigit()
                 Button(single ? "Paid in full" : "The rest") { draft.payRest(row.wrappedValue.id, total: f.total) }
                     .buttonStyle(.glass)
@@ -506,13 +507,11 @@ extension SaleForm {
                 TextField("Receiver name", text: $draft.delivery.contactName, prompt: Text("If not the customer"))
                 TextField("Receiver phone", text: $draft.delivery.contactPhone, prompt: Text("Optional"))
                     .keyboardType(.phonePad)
-                SaleNumberField(label: "Delivery charge (PKR)", text: $draft.delivery.charge, prompt: "0 if free")
+                SaleNumberField(label: "Delivery charge (PKR)", text: $draft.delivery.charge, prompt: "0 if free", rupees: true)
                 TextField("Instructions", text: $draft.delivery.notes, prompt: Text("Landmark, timing, gate code"))
             }
         } header: {
             LedgerHeading(title: "Delivery")
-        } footer: {
-            Text("Off unless ticked: most sales are handed over at the counter.")
         }
     }
 
@@ -547,7 +546,8 @@ extension SaleForm {
             switch line.state {
             case .due: return Text("Due \(Money.pkr(line.amount))").foregroundStyle(Tone.owed.color)
             case .credit: return Text("In credit \(Money.pkr(line.amount))").foregroundStyle(Tone.credit.color)
-            case .paid: return Text("Paid in full").foregroundStyle(Tone.settled.color)
+            // Paid is what a sale is meant to be: said quietly (CONVENTIONS rule 15).
+            case .paid: return Text("Paid in full").foregroundStyle(.secondary)
             }
         }()
         return ViewThatFits(in: .horizontal) {

@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { erpUserOrCron } from '@/lib/erp-gate';
 import { adminDb } from '@/lib/firebase-admin';
 import { shopifyRequest, getShopifyCredentials } from '../../_lib';
+import { owesMoney } from '@/lib/money';
 
 /**
  * Bulk-push POS-originated invoices to Shopify as orders.
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        const isPaid = (inv.balanceDue || 0) <= 0;
+        const isPaid = !owesMoney(inv.balanceDue);
 
         const orderPayload = {
           order: {

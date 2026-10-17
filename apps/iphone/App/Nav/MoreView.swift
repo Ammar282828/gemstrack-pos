@@ -4,6 +4,7 @@ import SwiftUI
 /// that match, by name or by the words people use for them, when something is.
 struct SearchView: View {
     @Environment(Session.self) private var session
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let map: NavMap
     @State private var text = ""
 
@@ -16,6 +17,9 @@ struct SearchView: View {
         }
         .navigationTitle("Everything")
         .searchable(text: $text, prompt: "Places in the ERP")
+        .toolbar {
+            if !sizeClass.isPadLayout { ToolbarItem(placement: .topBarLeading) { BusinessChip() } }
+        }
     }
 
     @ViewBuilder
@@ -39,6 +43,7 @@ struct SearchView: View {
             }
         }
         Section {
+            NavigationLink(value: Route(path: "/app/businesses")) { Label("Businesses", systemImage: "building.2") }
             if session.isOwner {
                 NavigationLink(value: Route(path: "/app/phone")) { Label("This phone", systemImage: "iphone") }
             }
@@ -83,6 +88,14 @@ struct SignInView: View {
                     HouseLogo().padding(.horizontal, 32)
                     VStack(spacing: 6) {
                         Text(House.storeName).font(.title.weight(.semibold)).multilineTextAlignment(.center)
+                        // Which business this is for: the person may have come back to one of several.
+                        Label {
+                            Text("Signing in to \(House.business.host)")
+                        } icon: {
+                            BusinessBadge(business: House.business, size: 20)
+                        }
+                        .font(.footnote).foregroundStyle(.secondary)
+                        .accessibilityElement(children: .combine)
                         Text("Sign in with the Gmail the shop has for you.").font(.subheadline).foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }
@@ -107,6 +120,16 @@ struct SignInView: View {
                     if let e = session.error {
                         Label(e, systemImage: "exclamationmark.triangle.fill")
                             .font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center)
+                    }
+                    if !House.isDemo {
+                        Button {
+                            Businesses.shared.switcherOpen = true
+                        } label: {
+                            Label(Businesses.shared.list.count > 1 ? "Switch business" : "Add a business", systemImage: "arrow.left.arrow.right")
+                        }
+                        .buttonStyle(.glass)
+                        .disabled(session.state == .signingIn)
+                        .accessibilityIdentifier("signin.switch")
                     }
                 }
                 .padding(.horizontal, 32)

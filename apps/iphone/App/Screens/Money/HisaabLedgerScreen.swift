@@ -7,8 +7,10 @@ import ERPCore
 /// "You gave" and "You got" write a row (HisaabEntrySheet; `addHisaabEntry`), and a swipe deletes one: the ERP
 /// asks for the delete code with the delete (`deleteHisaabEntry`, lib/writes/hisaab-entries.ts). Both are for a
 /// customer or karigar who is on file, as the web's page is: a walk-in's balance has no page to write on.
-/// The ledger PDF is built by the ERP's page in the browser (jsPDF, no server copy), so Print opens that page,
-/// and so does the WhatsApp reminder.
+/// Print is the page's Ledger Statement, drawn by the ERP's server with the page's own drawer and running balance
+/// (src/lib/hisaab-pdf.ts, /api/app/pdf/hisaab/[id]). The WhatsApp reminder of what a customer owes is the web's own
+/// words, written by the server (/api/app/hisaab/[id]/reminder, hisaab-report.ts reminderMessage), shown before
+/// WhatsApp opens on it.
 struct HisaabLedgerScreen: View {
     /// "/hisaab/<id>?type=customer|karigar".
     let path: String
@@ -18,6 +20,11 @@ struct HisaabLedgerScreen: View {
     @State private var adding: HisaabEntryMode?
     @State private var deletion: OwnerDeletion?
     @State private var note: OwnerNote?
+    @State private var statement: InvoicePDFTarget?
+    @State private var reminder: HisaabReminder?
+    @State private var reminderPhone = ""
+    @State private var reminderBusy = false
+    @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var entityId: String { MoneyPaths.ledgerID(fromPath: path) ?? "" }
@@ -94,13 +101,78 @@ struct HisaabLedgerScreen: View {
         return named.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    // MARK: The reminder
+
+    private func fetchReminder(_ id: String, phone: String?) async throws -> HisaabReminder {
+        let q = phone.map { (p: String) in "?phone=" + (p.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? p) } ?? ""
+        return try await ERPAPI.shared.get("/api/app/hisaab/\(MoneyPaths.component(id))/reminder" + q, as: HisaabReminder.self)
+    }
+
+    private func askReminder(_ id: String, phone: String?) async {
+        reminderBusy = true
+        defer { reminderBusy = false }
+        do {
+            let r = try await fetchReminder(id, phone: phone)
+            if r.message.isEmpty {
+                Note.show(Note(title: "Nothing to remind", detail: "They don't owe the shop anything.", failed: true), in: $note, reduce: reduceMotion)
+                return
+            }
+            reminderPhone = r.phone
+            reminder = r
+        } catch {
+            Note.show(Note(title: "The reminder wasn't written", detail: error.localizedDescription, failed: true), in: $note, reduce: reduceMotion)
+        }
+    }
+
+    private func reminderSheet(_ r: HisaabReminder, id: String) -> some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("WhatsApp number", text: $reminderPhone)
+                        .keyboardType(.phonePad)
+                } header: {
+                    Text("To")
+                } footer: {
+                    if reminderPhone.isEmpty { Text("Their record has no number: type the one to send to.") }
+                }
+                Section {
+                    Text(r.message).font(.callout).textSelection(.enabled)
+                } header: {
+                    Text("The message")
+                }
+            }
+            .houseForm()
+            .navigationTitle("Remind \(r.name)")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { reminder = nil } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Open WhatsApp") {
+                        Task {
+                            // The number as typed goes back to the ERP, which makes the wa.me link as the web does.
+                            reminderBusy = true
+                            let r = try? await fetchReminder(id, phone: reminderPhone)
+                            reminderBusy = false
+                            reminder = nil
+                            if let r, !r.url.isEmpty, let url = URL(string: r.url) {
+                                openURL(url)
+                            } else {
+                                Note.show(Note(title: "No usable number", detail: "Type a Pakistani mobile number or one with its country code.", failed: true), in: $note, reduce: reduceMotion)
+                            }
+                        }
+                    }
+                    .disabled(reminderPhone.trimmingCharacters(in: .whitespaces).isEmpty || reminderBusy)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
     // MARK: The ledger
 
     @ViewBuilder
     private func ledger(name: String, id: String, isCustomer: Bool, rows: [HisaabEntry], onFile: Bool) -> some View {
         let result = HisaabLedger.page(rows)
-        // The ERP's own page: the ledger PDF and the WhatsApp reminder are built there, in the browser.
-        let printPath = MoneyPaths.ledger(id, isCustomer: isCustomer, web: true)
         List { Group {
             Section {
                 tiles(result)
@@ -144,16 +216,30 @@ struct HisaabLedgerScreen: View {
                 }
             }
             Section {
-                NavigationLink(value: Route(path: printPath)) {
-                    Label("Print the ledger or send a reminder", systemImage: "printer")
+                Button {
+                    statement = InvoicePDFTarget(path: MoneyPaths.ledgerPDF(id, isCustomer: isCustomer),
+                                                 fileName: "Ledger-\(name)-\(MoneyCalendar.pickedDay(Date())).pdf",
+                                                 title: "Ledger statement")
+                } label: {
+                    Label("Print the ledger", systemImage: "printer")
+                }
+                if isCustomer && id != WALK_IN_ENTITY {
+                    Button { Task { await askReminder(id, phone: nil) } } label: {
+                        HStack(spacing: 8) {
+                            if reminderBusy { SkeletonLoading() }
+                            Label("Send a reminder", systemImage: "message")
+                        }
+                    }
+                    .disabled(reminderBusy)
                 }
             } footer: {
-                Text("The ledger PDF and the WhatsApp reminder are made on the ERP's own page.")
+                if isCustomer { Text("A WhatsApp message of what they owe the shop, opened ready to send.") }
             }
         }.houseRows()
         }
         .listStyle(.insetGrouped)
         .navigationTitle(name.isEmpty ? "Hisaab" : name)
+        .sheet(item: $reminder) { (r: HisaabReminder) in reminderSheet(r, id: id) }
         .toolbar {
             if onFile {
                 ToolbarItem(placement: .primaryAction) {
@@ -175,6 +261,9 @@ struct HisaabLedgerScreen: View {
             OwnerDeleteCodeSheet(deletion: d) {
                 Note.show(Note(title: "Transaction deleted"), in: $note, reduce: reduceMotion)
             }
+        }
+        .navigationDestination(item: $statement) { t in
+            PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)
         }
         .noteToast($note)
     }
@@ -272,7 +361,27 @@ private struct HisaabLedgerRow: View {
     }
 
     private func tone(_ balance: Double) -> Color {
-        if abs(balance) < 0.001 { return Color.secondary }
+        if abs(balance) < 1 { return Color.secondary }
         return balance > 0 ? Tone.owed.color : Tone.credit.color
+    }
+}
+
+/// /api/app/hisaab/[id]/reminder: the web's reminder words for what a customer owes, and the wa.me link for the number.
+struct HisaabReminder: Decodable, Identifiable {
+    let due: Double
+    let name: String
+    let phone: String
+    let message: String
+    let url: String
+    var id: String { name + phone + url }
+
+    private enum K: String, CodingKey { case due, name, phone, message, url }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: K.self)
+        due = c.double(.due, default: 0)
+        name = c.string(.name, default: "")
+        phone = c.string(.phone, default: "")
+        message = c.string(.message, default: "")
+        url = c.string(.url, default: "")
     }
 }

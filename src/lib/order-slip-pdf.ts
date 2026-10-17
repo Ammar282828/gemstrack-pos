@@ -109,7 +109,7 @@ export function drawOrderSlipPdf(order: Order, opts: OrderSlipOptions): jsPDF {
   // under it in grey, and what has to be set into it is darker because that is what the
   // karigar is actually reading.
   const itemBlocks = buildOrderItemBlocks(order);
-  const tableRows: any[][] = order.items.map((item, i) => [i + 1, '', `PKR ${(item.totalEstimate || 0).toLocaleString()}`]);
+  const tableRows: any[][] = order.items.map((item, i) => [i + 1, '', `PKR ${(item.totalEstimate || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`]);
   // Must match columnStyles below; see itemCellHeight on why this cannot be
   // read from the cell at parse time.
   const slipDescWidth = pageWidth - margin * 2 - 7 - 28;

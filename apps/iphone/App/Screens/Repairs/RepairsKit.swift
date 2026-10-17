@@ -12,12 +12,6 @@ struct RepairsOpen: Identifiable {
     var seed: Repair?
 }
 
-/// An ERP page to open inside the sheet's own stack (Print receipt: the ERP's page draws the PDF).
-struct RepairsWebTarget: Hashable, Identifiable {
-    let path: String
-    var id: String { path }
-}
-
 /// One status on the list: In the shop, Ready, Collected, Cancelled.
 struct RepairsGroup: Identifiable {
     let id: String
@@ -236,7 +230,7 @@ enum RepairsKit {
         }
         var text = "\(greeting), \(what) ready for collection at \(shopName) (repair \(r.id))."
         let owing = repairBalance(r)
-        if owing > 0 { text += " Balance: \(Money.pkr(owing))." }
+        if owing >= 1 { text += " Balance: \(Money.pkr(owing))." }
         return text + " Please bring your receipt."
     }
 
@@ -250,10 +244,11 @@ enum RepairsKit {
         return URL(string: "https://wa.me/\(number)?text=\(text)")
     }
 
-    /// The ERP's own page for a ticket (it opens the ticket; the card under it has Print).
-    static func webPath(_ id: String) -> String {
-        let safe = id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? id
-        return "/repairs?id=\(safe)&web=1"
+    /// The receipt Print receipt saves (src/lib/repair-pdf.ts), drawn by the ERP's server: "Repair-<id>.pdf".
+    static func receipt(_ id: String) -> InvoicePDFTarget {
+        InvoicePDFTarget(path: "/api/app/pdf/repair/" + InvoiceFacts.encode(id),
+                         fileName: "Repair-\(id).pdf",
+                         title: "Receipt \(id)")
     }
 }
 

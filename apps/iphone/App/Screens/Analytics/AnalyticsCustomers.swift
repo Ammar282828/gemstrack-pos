@@ -55,7 +55,7 @@ struct AnaCustomersPage: View {
         let subtitle = String(c.orderCount) + " " + AnaFormat.plural(c.orderCount, "order", "orders")
         if let id = c.customerId {
             NavigationLink(value: Route(path: AnaPath.customer(id))) {
-                TwoLine(title: c.name, subtitle: subtitle, trailing: Money.lacCrore(c.totalSpent))
+                TwoLine(title: c.name, subtitle: subtitle, trailing: Money.lacCrore(c.totalSpent)).lineLimit(1)
             }
         } else {
             TwoLine(title: c.name, subtitle: subtitle, trailing: Money.lacCrore(c.totalSpent))
@@ -145,7 +145,7 @@ struct AnaCustomersPage: View {
     @ViewBuilder private func row(_ c: AnaBreakdown.CustomerRow) -> some View {
         if let id = c.customerId {
             NavigationLink(value: Route(path: AnaPath.customer(id))) {
-                TwoLine(title: c.name, subtitle: rowLine(c), trailing: Money.lacCrore(c.totalSpent))
+                TwoLine(title: c.name, subtitle: rowLine(c), trailing: Money.lacCrore(c.totalSpent)).lineLimit(1)
             }
         } else {
             TwoLine(title: c.name, subtitle: rowLine(c), trailing: Money.lacCrore(c.totalSpent))

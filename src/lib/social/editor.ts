@@ -18,11 +18,34 @@
 import { STORY_FRAME, drawStoryPhoto, type Frame, type Placement } from './story';
 import type { Palette } from './palettes';
 import { SHAPES, applyAdjust, changesPixels, type Adjust, type MaskKey, type ShapeKey } from './design';
+import { colorWithAlpha, makeGradient } from './gradient';
+import { qrFor } from './qr';
 
 export type FontKey =
   | 'condensed' | 'light' | 'regular' | 'bold' | 'serif' | 'serif-italic' | 'futura'
-  | 'cormorant' | 'cormorant-italic' | 'playfair' | 'script' | 'montserrat' | 'montserrat-bold' | 'cinzel';
+  | 'cormorant' | 'cormorant-italic' | 'playfair' | 'script' | 'montserrat' | 'montserrat-bold' | 'cinzel'
+  // Designer v2's jewellery set (2026-10-12).
+  | 'cormorant-infant' | 'italiana' | 'jost' | 'tenor' | 'dm-serif' | 'marcellus';
 export type Bind = 'kicker' | 'headline' | 'weight' | 'details';
+
+/**
+ * Designer v2 (docs/features/design-studio-plan.md §2.5): every field below is optional and missing means
+ * today's behaviour, so a document saved before it draws exactly as it did (render-golden.test.ts holds the
+ * draw calls); the iPhone app's bundled engine keeps unknown fields as they are.
+ */
+export type Blend = 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-light' | 'hard-light' | 'color-dodge' | 'darken' | 'lighten';
+/** What a layer is for, so a resize can lay it out by its job (plan §3). */
+export type LayerRole = 'photo' | 'headline' | 'kicker' | 'specs' | 'cta' | 'mark' | 'badge' | 'frame' | 'band' | 'decor' | 'text' | 'image';
+export interface LayerFx {
+  shadow?: { color: string; x: number; y: number; blur: number; alpha: number };
+  glow?: { color: string; blur: number; alpha: number };
+  outline?: { color: string; width: number };
+}
+export interface Gradient { type: 'linear' | 'radial'; angle: number; stops: { at: number; color: string; alpha?: number }[] }
+/** A style over characters `from`…`to` of a text layer's words (size is a multiple of the layer's). */
+export interface TextRun { from: number; to: number; font?: FontKey; color?: string; size?: number; upper?: boolean; underline?: boolean; gradient?: Gradient }
+/** A box as fractions (0…1) of the frame. */
+export interface Box01 { x: number; y: number; w: number; h: number }
 
 interface Base {
   id: string; rotate: number; opacity: number; hidden?: boolean;
@@ -34,6 +57,11 @@ interface Base {
   name?: string;
   /** Layers sharing a group id select and move as one. */
   group?: string;
+  /** How the layer mixes with what is under it (canvas composite operation); missing = normal. */
+  blend?: Blend;
+  role?: LayerRole;
+  /** Shadow, glow and outline for shapes, images, marks and QR codes (named `layerFx` because an image's `fx` is its crop's x). Text keeps its own `effect`. */
+  layerFx?: LayerFx;
 }
 
 /** Canva's text effects. Numbers are 0…100; `angle` is degrees clockwise from the right. */
@@ -75,7 +103,11 @@ export interface TextLayer extends Base {
   lineHeight: number;  // × size
   upper: boolean;
   shadow: boolean;
-  box: { color: string; radius: number; pad: number } | null;
+  /**
+   * A colour behind the words: `pad` around them, and for a button (social/button.ts) at least `w` × `h`, the words
+   * in its middle. The words are typed straight into it; it moves, sizes and links as the text does.
+   */
+  box: { color: string; radius: number; pad: number; w?: number; h?: number } | null;
   /**
    * Part of a preset's stack: its top follows the layer above it (plus `gap`)
    * as the words change length, so a headline that grows to two lines pushes
@@ -90,6 +122,17 @@ export interface TextLayer extends Base {
   /** Bend the words along an arc: + arches up, − smiles; −100…100. One line when bent. */
   curve?: number;
   underline?: boolean;
+  /**
+   * Designer v2: mixed styles in one box (runs index the words as written, before `upper`), bullets or numbers
+   * (one per line break), a gradient fill over the whole text. Ignored by bent (`curve`) text.
+   */
+  runs?: TextRun[];
+  list?: 'bullet' | 'number' | null;
+  fillGradient?: Gradient | null;
+  /** The same words in the design's other sizes (lib/ads/studio/board-links.ts); a bound text is linked by its field. */
+  link?: string;
+  /** Linked no more: kept with its key so linking again finds the same texts. */
+  unlinked?: boolean;
 }
 /**
  * The shop's mark, from its SVG: the "taheri" wordmark or the "t" monogram.
@@ -112,7 +155,14 @@ export interface ShapeLayer extends Base {
   /** Which outline a `shape` is (design.ts). */
   shape?: ShapeKey;
   dash?: 'solid' | 'dash' | 'dot';
+  /** Designer v2: replaces the two-colour fill (and fills a shape that has no `fill`). */
+  fillGradient?: Gradient | null;
 }
+/**
+ * Designer v2: a QR code for `value`, `w` wide (and as tall) including `quiet` empty modules all round (0…8,
+ * 4 is the standard's); `bg` fills the square (null leaves the quiet zone clear). Too long or empty a value draws nothing.
+ */
+export interface QrLayer extends Base { kind: 'qr'; x: number; y: number; w: number; value: string; fg: string; bg: string | null; quiet: number }
 export interface ImageLayer extends Base {
   kind: 'image';
   /** One of the piece's photos… */
@@ -132,8 +182,10 @@ export interface ImageLayer extends Base {
   adjust?: Adjust | null;
   /** A gradient over the picture, inside its frame. */
   shade?: Shade | null;
+  /** Designer v2: a PNG with alpha from the background remover — drawn without the frame's fill or border, its shadow following its outline. */
+  cutout?: boolean;
 }
-export type Layer = TextLayer | MarkLayer | ShapeLayer | ImageLayer;
+export type Layer = TextLayer | MarkLayer | ShapeLayer | ImageLayer | QrLayer;
 
 /**
  * A gradient laid over a photo (the background or a picture), every part adjustable: two colours, each
@@ -152,6 +204,8 @@ export interface StoryDoc {
     color2?: string | null;
     /** The background photo's filter. */
     adjust?: Adjust | null;
+    /** Designer v2: a gradient (linear at any angle, or radial, any number of stops) as the base, instead of `color` / `color2`. */
+    fill?: Gradient | null;
   };
   layers: Layer[];
   /** Size in its own units: the story is 1080 × 1920 (the default), the square 1080 × 1080. */
@@ -161,6 +215,25 @@ export interface StoryDoc {
    * crop per photo: each photo's placement lives here, keyed by its id.
    */
   placements?: Record<string, Placement>;
+  /** Designer v2: what the design is, where its subject sits (for resizing), the user's guides and grid (for snapping). */
+  meta?: { template?: string; master?: string; guides?: { x: number[]; y: number[] }; subject?: Box01; grid?: number; lettered?: LetteredMeta };
+}
+
+/**
+ * An AI-lettered or AI-painted page (lib/design/lettered.ts): the AI's picture is the page's background and our
+ * own bound words are hidden; this is what to put back for "Back to our design".
+ */
+export interface LetteredMeta {
+  /** The AI picture's photo id. */
+  photoId: string;
+  kind: 'letter' | 'paint';
+  /** Every word read back from the picture. */
+  verified: boolean;
+  missing: string[];
+  /** The same-piece check of a painting against the real photograph. */
+  check?: { samePiece: boolean; confidence: number; differences: string[] } | null;
+  /** The background before, and the bound words that were showing. */
+  prev: { bg: StoryDoc['bg']; hidden: string[] };
 }
 
 export const SQUARE_FRAME: Frame = { w: 1080, h: 1080 };
@@ -172,7 +245,7 @@ export const placementOf = (d: StoryDoc): Placement =>
 export const withPlacement = (d: StoryDoc, p: Placement): StoryDoc =>
   d.placements && d.bg.photoId ? { ...d, placements: { ...d.placements, [d.bg.photoId]: p } } : { ...d, bg: { ...d.bg, placement: p } };
 
-export type ExtraFamily = 'cormorant' | 'playfair' | 'script' | 'montserrat' | 'cinzel';
+export type ExtraFamily = 'cormorant' | 'playfair' | 'script' | 'montserrat' | 'cinzel' | 'cormorantInfant' | 'italiana' | 'jost' | 'tenor' | 'dmSerif' | 'marcellus';
 /** The CSS families behind the font keys; the designer's extra faces fall back to the house three. */
 export interface FontFamilies { headline: string; body: string; serif: string; extra?: Partial<Record<ExtraFamily, string>> }
 export interface Assets {
@@ -194,7 +267,9 @@ export const FONT_LABEL: Record<FontKey, string> = {
   serif: 'Didone', 'serif-italic': 'Didone italic', futura: 'Futura (stamp)',
   cormorant: 'Cormorant', 'cormorant-italic': 'Cormorant italic', playfair: 'Playfair', script: 'Script',
   montserrat: 'Montserrat', 'montserrat-bold': 'Montserrat bold', cinzel: 'Cinzel (capitals)',
+  'cormorant-infant': 'Cormorant Infant', italiana: 'Italiana', jost: 'Jost', tenor: 'Tenor Sans', 'dm-serif': 'DM Serif', marcellus: 'Marcellus',
 };
+export const FONT_KEYS = Object.keys(FONT_LABEL) as FontKey[];
 
 export function fontCss(font: FontKey, size: number, f: FontFamilies): string {
   const x = f.extra ?? {};
@@ -213,6 +288,12 @@ export function fontCss(font: FontKey, size: number, f: FontFamilies): string {
     case 'montserrat': return `400 ${size}px ${x.montserrat ?? f.body}`;
     case 'montserrat-bold': return `700 ${size}px ${x.montserrat ?? f.body}`;
     case 'cinzel': return `500 ${size}px ${x.cinzel ?? f.serif}`;
+    case 'cormorant-infant': return `500 ${size}px ${x.cormorantInfant ?? f.serif}`;
+    case 'italiana': return `400 ${size}px ${x.italiana ?? f.serif}`;
+    case 'jost': return `400 ${size}px ${x.jost ?? f.body}`;
+    case 'tenor': return `400 ${size}px ${x.tenor ?? f.body}`;
+    case 'dm-serif': return `400 ${size}px ${x.dmSerif ?? f.serif}`;
+    case 'marcellus': return `400 ${size}px ${x.marcellus ?? f.serif}`;
   }
 }
 
@@ -256,10 +337,14 @@ function balancedTwo(text: string): string[] | null {
   return best;
 }
 
-export interface TextLayout { lines: string[]; size: number; widths: number[]; w: number; h: number }
+export interface TextLayout { lines: string[]; size: number; widths: number[]; w: number; h: number; /** Set for rich text (runs or a list). */ rich?: RichLayout }
 
 /** Lines, the size actually used, and the box they make. */
 export function layoutText(ctx: Ctx, l: TextLayer, fields: Fields, fonts: FontFamilies): TextLayout {
+  if (hasRich(l)) {
+    const r = richLayoutFor(ctx, l, fields, fonts);
+    return { lines: r.lines.map(x => (x.marker ? x.marker.text : '') + x.pieces.map(p => p.text).join('')), size: r.size, widths: r.lines.map(x => x.w), w: r.w, h: r.h, rich: r };
+  }
   const text = textOf(l, fields);
   let size = l.size;
   ctx.font = fontCss(l.font, size, fonts);
@@ -285,6 +370,194 @@ export function layoutText(ctx: Ctx, l: TextLayer, fields: Fields, fonts: FontFa
   return { lines, size, widths, w, h };
 }
 
+
+// ── Rich text: runs of different styles in one box, and lists ──
+// A text layer with `runs` or a `list` is laid out here instead of by the single-style path above (which draws
+// every document saved before Designer v2 exactly as it always did). The words are split into characters, each
+// resolved to a style (the layer's, overridden by the runs that cover it), grouped into pieces of one style,
+// then wrapped greedily word by word across the pieces. Bent text ignores runs and lists.
+
+interface CharStyle { font: FontKey; color: string; mult: number; upper: boolean; underline: boolean; gradient: Gradient | null; own: boolean; key: string }
+export interface RichPiece { text: string; st: CharStyle; w: number }
+export interface RichLine { pieces: RichPiece[]; marker: RichPiece | null; markerW: number; w: number; size: number; top: number; baseline: number }
+export interface RichLayout { lines: RichLine[]; size: number; w: number; h: number }
+
+export const hasRich = (l: TextLayer): boolean => !isCurved(l) && !!((l.runs && l.runs.length) || l.list);
+
+/** The words as the layer's runs index them: the field it is bound to, or its own text. */
+const rawOf = (l: TextLayer, fields: Fields): string => (l.bind ? fields[l.bind] : l.text) || '';
+
+function styleAt(l: TextLayer, runs: TextRun[], i: number): CharStyle {
+  let font = l.font, color = l.color, mult = 1, upper = l.upper, underline = !!l.underline;
+  let gradient: Gradient | null = l.fillGradient ?? null, own = false, gi = -1;
+  runs.forEach((r, k) => {
+    if (i < r.from || i >= r.to) return;
+    if (r.font) font = r.font;
+    if (r.color) { color = r.color; gradient = null; own = false; gi = -1; }
+    if (r.size && r.size > 0) mult = r.size;
+    if (r.upper !== undefined) upper = r.upper;
+    if (r.underline !== undefined) underline = r.underline;
+    if (r.gradient) { gradient = r.gradient; own = true; gi = k; }
+  });
+  return { font, color, mult, upper, underline, gradient, own, key: `${font}|${color}|${mult}|${upper}|${underline}|${gi}` };
+}
+
+const upperOf = (c: string) => { const u = c.toUpperCase(); return u.length === c.length ? u : c; };
+
+/** Lay out a rich text layer. `scale` shrinks every size (for `fit`). */
+export function layoutRich(ctx: Ctx, l: TextLayer, fields: Fields, fonts: FontFamilies, scale = 1): RichLayout {
+  const raw = rawOf(l, fields);
+  const runs = normalizeRuns(l.runs, raw.length);
+  const px = (st: CharStyle) => l.size * st.mult * scale;
+  const measure = (text: string, st: CharStyle) => {
+    const sz = px(st);
+    ctx.font = fontCss(st.font, sz, fonts);
+    setSpacing(ctx, l.spacing * sz);
+    return ctx.measureText(text).width;
+  };
+  const piece = (chars: { ch: string; st: CharStyle }[]): RichPiece[] => {
+    const out: RichPiece[] = [];
+    for (const c of chars) {
+      const last = out[out.length - 1];
+      if (last && last.st.key === c.st.key) last.text += c.ch;
+      else out.push({ text: c.ch, st: c.st, w: 0 });
+    }
+    for (const p of out) p.w = measure(p.text, p.st);
+    return out;
+  };
+  // Characters with their styles, split into paragraphs at line breaks.
+  const paras: { ch: string; st: CharStyle }[][] = [[]];
+  for (let i = 0; i < raw.length; i++) {
+    let ch = raw[i];
+    if (ch === '\n') { paras.push([]); continue; }
+    const st = styleAt(l, runs, i);
+    if (ch >= '\ud800' && ch <= '\udbff' && i + 1 < raw.length) ch += raw[++i];
+    paras[paras.length - 1].push({ ch: st.upper ? upperOf(ch) : ch, st });
+  }
+  const base = styleAt(l, [], 0);
+  const lineSize = (ps: RichPiece[]) => Math.max(px(base), ...ps.map(p => px(p.st)));
+  const avail = l.fit ? Infinity : l.width;
+  const lines: RichLine[] = [];
+  let n = 0;
+  for (const chars of paras) {
+    // Words (collapsing runs of spaces to one, in the style of the first).
+    const words: { chars: { ch: string; st: CharStyle }[]; space: { ch: string; st: CharStyle } | null }[] = [];
+    let word: { ch: string; st: CharStyle }[] = [], gap: { ch: string; st: CharStyle } | null = null;
+    for (const c of chars) {
+      if (/\s/.test(c.ch)) { if (word.length) { words.push({ chars: word, space: null }); word = []; } if (!gap) gap = { ch: ' ', st: c.st }; }
+      else { if (gap && words.length) words[words.length - 1].space = gap; gap = null; word.push(c); }
+    }
+    if (word.length) words.push({ chars: word, space: null });
+    // The marker, if the paragraph has anything in it.
+    let marker: RichPiece | null = null;
+    if (l.list && words.length) {
+      n++;
+      marker = { text: l.list === 'number' ? `${n}. ` : '• ', st: base, w: 0 };
+      marker.w = measure(marker.text, base);
+    }
+    const markerW = marker ? marker.w : 0;
+    if (!words.length) { lines.push({ pieces: [], marker: null, markerW: 0, w: 0, size: px(base), top: 0, baseline: 0 }); continue; }
+    let cur: RichPiece[] = [], curW = 0, first = true;
+    const flush = () => {
+      // Neighbours of one style (a word and the space after it) draw as one piece.
+      const joined: RichPiece[] = [];
+      for (const p of cur) {
+        const prev = joined[joined.length - 1];
+        if (prev && prev.st.key === p.st.key) joined[joined.length - 1] = { text: prev.text + p.text, st: prev.st, w: prev.w + p.w };
+        else joined.push(p);
+      }
+      lines.push({ pieces: joined, marker: first ? marker : null, markerW, w: markerW + curW, size: lineSize(joined), top: 0, baseline: 0 });
+      cur = []; curW = 0; first = false;
+    };
+    words.forEach((wd, wi) => {
+      const wp = piece(wd.chars), ww = wp.reduce((s, p) => s + p.w, 0);
+      const prevSpace = wi > 0 ? words[wi - 1].space : null;
+      const sp = prevSpace ? piece([prevSpace]) : [];
+      const sw = sp.reduce((s, p) => s + p.w, 0);
+      if (cur.length && markerW + curW + sw + ww > avail) flush();
+      const add = cur.length ? [...sp, ...wp] : wp;
+      cur.push(...add); curW += add.reduce((s, p) => s + p.w, 0);
+    });
+    flush();
+  }
+  // Heights: each line is as tall as its biggest type; the first baseline sits 0.82 of that below its top, like the plain path.
+  let top = 0;
+  lines.forEach(ln => {
+    ln.top = top;
+    ln.baseline = top + ln.size * 0.82;
+    top += ln.size * l.lineHeight;
+  });
+  const last = lines[lines.length - 1];
+  const h = last ? last.top + last.size : 0;
+  const w = Math.max(0, ...lines.map(x => x.w));
+  return { lines, size: px(base), w, h };
+}
+
+/** A rich layout, shrunk to the layer's width when `fit` asks (one pass, like the plain path). */
+function richLayoutFor(ctx: Ctx, l: TextLayer, fields: Fields, fonts: FontFamilies): RichLayout {
+  let r = layoutRich(ctx, l, fields, fonts);
+  if (l.fit && r.w > l.width && r.w > 0) {
+    const shrunk = Math.max(1, Math.floor(l.size * (l.width / r.w)));
+    r = layoutRich(ctx, l, fields, fonts, shrunk / l.size);
+  }
+  return r;
+}
+
+/** Runs kept inside the words (0…len), in order, without empty ones. */
+export function normalizeRuns(runs: TextRun[] | undefined, len: number): TextRun[] {
+  const out: TextRun[] = [];
+  for (const r of runs ?? []) {
+    if (!r || !Number.isFinite(r.from) || !Number.isFinite(r.to)) continue;
+    const from = Math.max(0, Math.min(len, Math.round(r.from))), to = Math.max(0, Math.min(len, Math.round(r.to)));
+    if (to > from) out.push({ ...r, from, to });
+  }
+  return out;
+}
+
+type RunProps = Omit<TextRun, 'from' | 'to'>;
+const runSig = (p: RunProps) => JSON.stringify(Object.keys(p).sort().map(k => [k, (p as Record<string, unknown>)[k]]));
+
+/**
+ * Style characters `from`…`to` (a toolbar's selection): the runs are cut at the edges, the patch is laid over
+ * what is there, a key set to `undefined` clears it, and neighbours with the same style join. Returns the new
+ * runs (empty styles dropped).
+ */
+export function setRunStyle(runs: TextRun[] | undefined, from: number, to: number, patch: Partial<RunProps>, len: number): TextRun[] {
+  const cur = normalizeRuns(runs, len);
+  const a = Math.max(0, Math.min(len, Math.round(from))), b = Math.max(0, Math.min(len, Math.round(to)));
+  if (b <= a) return cur;
+  const cuts = new Set<number>([0, len, a, b]);
+  for (const r of cur) { cuts.add(r.from); cuts.add(r.to); }
+  const pts = [...cuts].sort((x, y) => x - y);
+  const pieces: { from: number; to: number; style: RunProps }[] = [];
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const f = pts[i], t = pts[i + 1];
+    const style: Record<string, unknown> = {};
+    for (const r of cur) if (r.from <= f && r.to >= t) for (const [k, v] of Object.entries(r)) if (k !== 'from' && k !== 'to' && v !== undefined) style[k] = v;
+    if (f >= a && t <= b) for (const [k, v] of Object.entries(patch)) { if (v === undefined) delete style[k]; else style[k] = v; }
+    if (Object.keys(style).length) {
+      const prev = pieces[pieces.length - 1];
+      if (prev && prev.to === f && runSig(prev.style) === runSig(style as RunProps)) prev.to = t;
+      else pieces.push({ from: f, to: t, style: style as RunProps });
+    }
+  }
+  return pieces.map(p => ({ from: p.from, to: p.to, ...p.style }));
+}
+
+/**
+ * The runs after the words were edited: `removed` characters taken out at `at` and `added` put in. Typing at
+ * the end of a styled stretch carries the style on; typing at its start does not.
+ */
+export function shiftRuns(runs: TextRun[] | undefined, at: number, removed: number, added: number): TextRun[] {
+  const move = (p: number) => (p < at ? p : p >= at + removed ? p + added - removed : at);
+  const out: TextRun[] = [];
+  for (const r of runs ?? []) {
+    const from = move(r.from), to = move(r.to);
+    if (to > from) out.push({ ...r, from, to });
+  }
+  return out;
+}
+
 // ── Bounds and hit-testing ─────────────────────────────────────────────────
 
 export type { Box } from './design';
@@ -298,7 +571,7 @@ const mctx = () => (measureCtx ??= document.createElement('canvas').getContext('
 // origin first, then moved so its box sits where a straight line would: top at
 // `y`, its left, centre or right edge at `x` by `align`.
 
-interface Run { s: string; x: number; y: number; rot: number }
+interface Run { s: string; x: number; y: number; rot: number; /** Rich text: this piece's own font, letter spacing (px) and fill. */ font?: string; spacing?: number; fill?: string | CanvasGradient }
 export const isCurved = (l: TextLayer) => !!l.curve && Math.abs(l.curve) >= 1;
 
 function curveLayout(ctx: Ctx, l: TextLayer, fields: Fields, fonts: FontFamilies): { runs: Run[]; box: Box; size: number } {
@@ -376,18 +649,33 @@ export function panInFrame(l: ImageLayer, img: Pic | undefined, fx0: number, fy0
 
 const ratioOf = (img: Pic | undefined) => (img && img.naturalWidth ? img.naturalHeight / img.naturalWidth : 1);
 
+/**
+ * A button (a text whose background has a set size, social/button.ts) is placed by its pill: `x` is the pill's left
+ * edge, middle or right edge by `align`, and the words sit in the pill's middle. So longer words grow the pill away
+ * from where it was put (a left-hand button never runs off the left). The text as drawn: centred on the pill.
+ */
+export function asButton(l: TextLayer, textW: number): TextLayer {
+  if (!l.box?.w || l.align === 'center') return l;
+  const W = Math.max(textW + l.box.pad * 2, l.box.w);
+  return { ...l, align: 'center', x: l.align === 'left' ? l.x + W / 2 : l.x - W / 2 };
+}
+
 export function layerBox(l: Layer, fields: Fields, a: Assets): Box {
   switch (l.kind) {
     case 'text': {
-      const pad = l.box ? l.box.pad : 0;
+      // The words' own box, grown by the background's pad (and to a button's size) around its middle.
+      const grow = (x: number, y: number, w: number, h: number): Box => {
+        const pad = l.box ? l.box.pad : 0;
+        const W = Math.max(w + pad * 2, l.box?.w ?? 0, 20), H = Math.max(h + pad * 2, l.box?.h ?? 0, 20);
+        return { x: x + w / 2 - W / 2, y: y + h / 2 - H / 2, w: W, h: H };
+      };
       if (isCurved(l)) {
         const b = curveLayout(mctx(), l, fields, a.fonts).box;
-        return { x: b.x - pad, y: b.y - pad, w: Math.max(b.w + pad * 2, 20), h: Math.max(b.h + pad * 2, 20) };
+        return grow(b.x, b.y, b.w, b.h);
       }
       const t = layoutText(mctx(), l, fields, a.fonts);
-      const w = t.w + pad * 2, h = t.h + pad * 2;
-      const x = l.align === 'left' ? l.x - pad : l.align === 'center' ? l.x - w / 2 : l.x - w + pad;
-      return { x, y: l.y - pad, w: Math.max(w, 20), h: Math.max(h, 20) };
+      const p = asButton(l, t.w);
+      return grow(p.align === 'left' ? p.x : p.align === 'center' ? p.x - t.w / 2 : p.x - t.w, p.y, t.w, t.h);
     }
     case 'wordmark': {
       const m = a.marks[l.mark] ?? a.marks.wordmark;
@@ -397,6 +685,7 @@ export function layerBox(l: Layer, fields: Fields, a: Assets): Box {
     case 'image': {
       return { x: l.x, y: l.y, w: l.w, h: l.h ?? l.w * ratioOf(imageOf(l, a)) };
     }
+    case 'qr': return { x: l.x, y: l.y, w: l.w, h: l.w };
     default: {
       const x = Math.min(l.x, l.x + l.w), y = Math.min(l.y, l.y + l.h);
       const pad = l.kind === 'arrow' || l.kind === 'line' ? Math.max(24, l.stroke * 2 + Math.abs(l.curve)) : 0;
@@ -448,13 +737,20 @@ export function reflow(doc: StoryDoc, fields: Fields, a: Assets): StoryDoc {
   return changed ? { ...doc, layers } : doc;
 }
 
+/** A text's background at k times the size (a button's own size with it). */
+export function scaleBox(b: TextLayer['box'], k: number): TextLayer['box'] {
+  if (!b) return null;
+  return { ...b, pad: Math.round(b.pad * k), radius: Math.round(b.radius * k), ...(b.w ? { w: Math.round(b.w * k) } : {}), ...(b.h ? { h: Math.round(b.h * k) } : {}) };
+}
+
 /** Grow or shrink a layer by a factor around its own anchor. */
 export function scaleLayer(l: Layer, k: number): Layer {
   const c = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
   switch (l.kind) {
-    case 'text': return { ...l, size: c(Math.round(l.size * k), 12, 600), width: c(Math.round(l.width * k), 80, 2400), box: l.box ? { ...l.box, pad: Math.round(l.box.pad * k), radius: Math.round(l.box.radius * k) } : null };
+    case 'text': return { ...l, size: c(Math.round(l.size * k), 12, 600), width: c(Math.round(l.width * k), 80, 2400), box: scaleBox(l.box, k) };
     case 'wordmark': return { ...l, width: c(Math.round(l.width * k), 60, 1080) };
     case 'image': return { ...l, w: c(Math.round(l.w * k), 40, 2400), ...(l.h ? { h: c(Math.round(l.h * k), 40, 3000) } : {}) };
+    case 'qr': return { ...l, w: c(Math.round(l.w * k), 60, 2400) };
     default: return { ...l, w: Math.round(l.w * k), h: Math.round(l.h * k), stroke: c(Math.round(l.stroke * Math.sqrt(k)), 1, 60) };
   }
 }
@@ -498,12 +794,14 @@ function rgba(hex: string, alpha: number): string {
 export const effectOf = (l: TextLayer): TextEffect | null =>
   l.effect ?? (l.shadow ? { kind: 'shadow', color: '#000000', offset: 16, angle: 90, blur: 36, thickness: 0, transparency: 65 } : null);
 
-function drawText(ctx: Ctx, l: TextLayer, fields: Fields, a: Assets) {
+function drawText(ctx: Ctx, l0: TextLayer, fields: Fields, a: Assets) {
+  const l = l0.box?.w && !isCurved(l0) ? asButton(l0, layoutText(ctx, l0, fields, a.fonts).w) : l0;
   const curved = isCurved(l);
   const t = curved ? null : layoutText(ctx, l, fields, a.fonts);
   const bent = curved ? curveLayout(ctx, l, fields, a.fonts) : null;
   if (t ? !t.lines.some(Boolean) : !bent!.runs.length) return;
   const size = t ? t.size : bent!.size;
+  const rich = t?.rich ?? null;
   ctx.textBaseline = 'alphabetic';
   if (l.box) {
     const b = layerBox(l, fields, a);
@@ -516,14 +814,23 @@ function drawText(ctx: Ctx, l: TextLayer, fields: Fields, a: Assets) {
   ctx.font = fontCss(l.font, size, a.fonts);
   setSpacing(ctx, l.spacing * size);
   ctx.lineJoin = 'round';
+  // The box the words fill, for a gradient laid over all of them.
+  const tw = t ? t.w : bent!.box.w, th = t ? t.h : bent!.box.h;
+  const tbox = bent ? bent.box : { x: l.align === 'left' ? l.x : l.align === 'center' ? l.x - tw / 2 : l.x - tw, y: l.y, w: tw, h: th };
+  const baseFill: string | CanvasGradient = l.fillGradient ? makeGradient(ctx, l.fillGradient, tbox) : l.color;
   // What gets painted: whole lines (first baseline about 0.82 of the size below
-  // the top for these faces), or one letter at a time round the arc.
-  const runs: Run[] = t
-    ? t.lines.map((s, i) => ({ s, x: l.x, y: l.y + t.size * 0.82 + i * t.size * l.lineHeight, rot: 0 }))
-    : bent!.runs;
-  ctx.textAlign = t ? l.align : 'center';
-  const paint = (how: 'fill' | 'stroke', dx = 0, dy = 0) => {
+  // the top for these faces), or one letter at a time round the arc, or the pieces of a rich text.
+  const underlines: { x: number; y: number; w: number; h: number; fill: string | CanvasGradient }[] = [];
+  const runs: Run[] = rich
+    ? richRuns(ctx, l, rich, a.fonts, tbox, underlines)
+    : t
+      ? t.lines.map((s, i) => ({ s, x: l.x, y: l.y + t.size * 0.82 + i * t.size * l.lineHeight, rot: 0 }))
+      : bent!.runs;
+  ctx.textAlign = rich ? 'left' : t ? l.align : 'center';
+  const paint = (how: 'fill' | 'stroke', dx = 0, dy = 0, own = false) => {
     for (const r of runs) {
+      if (r.font) { ctx.font = r.font; setSpacing(ctx, r.spacing ?? 0); }
+      if (own && how === 'fill' && r.fill) ctx.fillStyle = r.fill;
       if (r.rot) {
         ctx.save(); ctx.translate(r.x + dx, r.y + dy); ctx.rotate(r.rot);
         if (how === 'fill') ctx.fillText(r.s, 0, 0); else ctx.strokeText(r.s, 0, 0);
@@ -538,19 +845,19 @@ function drawText(ctx: Ctx, l: TextLayer, fields: Fields, a: Assets) {
   const ox = Math.cos(ang) * dist, oy = Math.sin(ang) * dist;
   const line = (k: number) => Math.max(1, ((fx?.thickness ?? 40) / 100) * size * k);
   const noShadow = () => { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0; };
-  ctx.fillStyle = l.color;
+  ctx.fillStyle = baseFill;
   ctx.strokeStyle = l.color;
   switch (fx?.kind) {
     case 'shadow':
       ctx.shadowColor = rgba(fx.color, 1 - fx.transparency / 100);
       ctx.shadowBlur = (fx.blur / 100) * size * 0.5;
       ctx.shadowOffsetX = ox; ctx.shadowOffsetY = oy;
-      paint('fill'); noShadow();
+      paint('fill', 0, 0, true); noShadow();
       break;
     case 'lift':
       ctx.shadowColor = rgba('#000000', 0.15 + 0.55 * (1 - fx.transparency / 100));
       ctx.shadowBlur = size * 0.3; ctx.shadowOffsetY = size * 0.07;
-      paint('fill'); noShadow();
+      paint('fill', 0, 0, true); noShadow();
       break;
     case 'hollow':
       ctx.lineWidth = line(0.08);
@@ -558,7 +865,7 @@ function drawText(ctx: Ctx, l: TextLayer, fields: Fields, a: Assets) {
       break;
     case 'outline':
       ctx.strokeStyle = fx.color; ctx.lineWidth = line(0.14) * 2;
-      paint('stroke'); paint('fill');
+      paint('stroke'); paint('fill', 0, 0, true);
       break;
     case 'splice':
       ctx.fillStyle = fx.color; paint('fill', ox, oy);
@@ -570,35 +877,57 @@ function drawText(ctx: Ctx, l: TextLayer, fields: Fields, a: Assets) {
       ctx.fillStyle = fx.color;
       for (const k of [3, 2, 1]) { ctx.globalAlpha = was * 0.18 * (4 - k); paint('fill', ox * k, oy * k); }
       ctx.globalAlpha = was;
-      ctx.fillStyle = l.color; paint('fill');
+      ctx.fillStyle = baseFill; paint('fill', 0, 0, true);
       break;
     }
     case 'neon':
       ctx.shadowColor = rgba(fx.color, 1);
       ctx.shadowBlur = size * (0.1 + (fx.blur / 100) * 0.45);
-      paint('fill'); paint('fill'); noShadow();
+      paint('fill', 0, 0, true); paint('fill', 0, 0, true); noShadow();
       ctx.fillStyle = rgba('#FFFFFF', 0.55); paint('fill');
       break;
     case 'glitch': {
       const o = Math.max(2, (fx.offset / 100) * size * 0.1);
       ctx.fillStyle = '#00E5FF'; paint('fill', -o, 0);
       ctx.fillStyle = '#FF2E88'; paint('fill', o, 0);
-      ctx.fillStyle = l.color; paint('fill');
+      ctx.fillStyle = baseFill; paint('fill', 0, 0, true);
       break;
     }
     default:
-      paint('fill');
+      paint('fill', 0, 0, true);
   }
-  if (l.underline && t) {
-    ctx.fillStyle = l.color;
-    const th = Math.max(2, size * 0.055);
+  if (rich) {
+    for (const u of underlines) { ctx.fillStyle = u.fill; ctx.fillRect(u.x, u.y, u.w, u.h); }
+  } else if (l.underline && t) {
+    ctx.fillStyle = baseFill;
+    const th2 = Math.max(2, size * 0.055);
     t.lines.forEach((s, i) => {
       const w = t.widths[i];
       if (!s || !w) return;
       const x0 = l.align === 'left' ? l.x : l.align === 'center' ? l.x - w / 2 : l.x - w;
-      ctx.fillRect(x0, runs[i].y + size * 0.12, w, th);
+      ctx.fillRect(x0, runs[i].y + size * 0.12, w, th2);
     });
   }
+}
+
+/** The pieces of a rich layout as paint runs (each with its own font and fill), and the underlines to draw after. */
+function richRuns(ctx: Ctx, l: TextLayer, r: RichLayout, fonts: FontFamilies, tbox: Box, underlines: { x: number; y: number; w: number; h: number; fill: string | CanvasGradient }[]): Run[] {
+  const out: Run[] = [];
+  for (const ln of r.lines) {
+    let x = l.align === 'left' ? l.x : l.align === 'center' ? l.x - ln.w / 2 : l.x - ln.w;
+    const y = l.y + ln.baseline;
+    const push = (p: RichPiece) => {
+      const sz = r.size * p.st.mult;
+      let fill: string | CanvasGradient = p.st.color;
+      if (p.st.gradient) fill = makeGradient(ctx, p.st.gradient, p.st.own ? { x, y: l.y + ln.top, w: p.w, h: ln.size } : tbox);
+      out.push({ s: p.text, x, y, rot: 0, font: fontCss(p.st.font, sz, fonts), spacing: l.spacing * sz, fill });
+      if (p.st.underline && p.text.trim()) underlines.push({ x, y: y + sz * 0.12, w: p.w, h: Math.max(2, sz * 0.055), fill });
+      x += p.w;
+    };
+    if (ln.marker) push(ln.marker);
+    for (const p of ln.pieces) push(p);
+  }
+  return out;
 }
 
 function roundRect(ctx: Ctx, x: number, y: number, w: number, h: number, r: number) {
@@ -626,12 +955,13 @@ function drawShape(ctx: Ctx, l: ShapeLayer) {
     if (l.kind === 'rect') roundRect(ctx, x, y, w, h, l.radius);
     else if (l.kind === 'circle') ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
     else { ctx.translate(x, y); path = new Path2D(SHAPES[l.shape ?? 'star'].path(w, h)); }
-    if (l.fill) {
-      if (l.fill2) {
+    if (l.fill || l.fillGradient) {
+      if (l.fillGradient) ctx.fillStyle = makeGradient(ctx, l.fillGradient, { x: path ? 0 : x, y: path ? 0 : y, w, h });
+      else if (l.fill2) {
         const g = ctx.createLinearGradient(0, path ? 0 : y, 0, path ? h : y + h);
-        g.addColorStop(0, l.fill); g.addColorStop(1, l.fill2);
+        g.addColorStop(0, l.fill as string); g.addColorStop(1, l.fill2);
         ctx.fillStyle = g;
-      } else ctx.fillStyle = l.fill;
+      } else ctx.fillStyle = l.fill as string;
       if (path) ctx.fill(path); else ctx.fill();
     }
     if (l.stroke > 0) { if (path) ctx.stroke(path); else ctx.stroke(); }
@@ -686,7 +1016,7 @@ function adjustedSource(ctx: Ctx, img: Pic, adj: Adjust | null | undefined, draw
     t.drawImage(img, 0, 0, w, h);
     try {
       const data = t.getImageData(0, 0, w, h);
-      applyAdjust(data.data, adj!);
+      applyAdjust(data.data, adj!, w, h);
       t.putImageData(data, 0, 0);
     } catch { /* a tainted image: drawn unfiltered */ }
     if (per.size > 6) per.clear();
@@ -714,6 +1044,24 @@ function drawImageLayer(ctx: Ctx, l: ImageLayer, a: Assets) {
   ctx.translate(l.x, l.y);
   const outline = l.mask ? new Path2D(SHAPES[l.mask].path(w, h)) : null;
   const trace = () => { if (outline) return; roundRect(ctx, 0, 0, w, h, l.radius); };
+  const put = (src: Pic | HTMLCanvasElement) => {
+    if (l.h) {
+      // A frame: the photo covers it, cropped around (fx, fy).
+      const iw = img.naturalWidth, ih = img.naturalHeight;
+      const s = Math.max(w / iw, h / ih) * Math.max(1, l.iz ?? 1);
+      const dw = iw * s, dh = ih * s;
+      ctx.drawImage(src, (w - dw) * (l.fx ?? 0.5), (h - dh) * (l.fy ?? 0.5), dw, dh);
+    } else ctx.drawImage(src, 0, 0, w, h);
+  };
+  if (l.cutout) {
+    // A picture with its own outline (alpha): no frame fill or border under it, and its shadow follows the piece.
+    if (outline) ctx.clip(outline);
+    if (l.shadow) { ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10; }
+    put(adjustedSource(ctx, img, l.adjust, w, h));
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.restore();
+    return;
+  }
   if (l.shadow) { ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10; }
   if (l.border) {
     if (outline) { ctx.strokeStyle = l.border; ctx.lineWidth = 16; ctx.lineJoin = 'round'; ctx.stroke(outline); }
@@ -724,14 +1072,7 @@ function drawImageLayer(ctx: Ctx, l: ImageLayer, a: Assets) {
   }
   ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
   if (outline) ctx.clip(outline); else { trace(); ctx.clip(); }
-  const src = adjustedSource(ctx, img, l.adjust, w, h);
-  if (l.h) {
-    // A frame: the photo covers it, cropped around (fx, fy).
-    const iw = img.naturalWidth, ih = img.naturalHeight;
-    const s = Math.max(w / iw, h / ih) * Math.max(1, l.iz ?? 1);
-    const dw = iw * s, dh = ih * s;
-    ctx.drawImage(src, (w - dw) * (l.fx ?? 0.5), (h - dh) * (l.fy ?? 0.5), dw, dh);
-  } else ctx.drawImage(src, 0, 0, w, h);
+  put(adjustedSource(ctx, img, l.adjust, w, h));
   if (l.shade) drawShade(ctx, l.shade, 0, 0, w, h);
   vignette(ctx, 0, 0, w, h, l.adjust?.vignette ?? 0);
   ctx.restore();
@@ -762,6 +1103,88 @@ function drawOverlay(ctx: Ctx, bg: StoryDoc['bg'], f: Frame) {
   if (bg.gradient === 'bottom' || bg.gradient === 'both') grad(f.h, f.h * 0.58);
   if (bg.shade) drawShade(ctx, bg.shade, 0, 0, f.w, f.h);
 }
+
+// ── Shadow, glow and outline for shapes, images, marks and QR codes ──
+// The layer is drawn once into a canvas of its own (at the resolution it will appear), then put on the page:
+// the glow and the shadow as passes that draw only the soft light (the picture itself is thrown far off the
+// page and its shadow offset back, so nothing doubles up), the outline as the layer's silhouette stamped round
+// it, and the layer once on top. A semi-transparent layer therefore isn't darkened by its own passes. Layers
+// without `layerFx` never come here.
+
+export const hasFx = (fx: LayerFx | undefined): fx is LayerFx =>
+  !!fx && !!(fx.shadow || fx.glow || (fx.outline && fx.outline.width > 0));
+
+function withFx(ctx: Ctx, fx: LayerFx | undefined, box: () => Box, extra: number, paint: (c: Ctx) => void) {
+  if (!hasFx(fx)) { paint(ctx); return; }
+  const b = box();
+  const m = ctx.getTransform();
+  const k = Math.hypot(m.a, m.b) || 1;
+  const ow = fx.outline && fx.outline.width > 0 ? Math.min(200, fx.outline.width) : 0;
+  const pad = Math.ceil(ow + extra) + 2;
+  const s = Math.min(k, 4096 / Math.max(1, b.w + pad * 2, b.h + pad * 2));
+  const W = Math.max(1, Math.ceil((b.w + pad * 2) * s)), H = Math.max(1, Math.ceil((b.h + pad * 2) * s));
+  const make = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return c; };
+  const off = make();
+  const oc = off.getContext('2d')!;
+  oc.setTransform(s, 0, 0, s, -(b.x - pad) * s, -(b.y - pad) * s);
+  paint(oc);
+  let src: HTMLCanvasElement = off;
+  if (ow > 0) {
+    // The silhouette in the outline's colour, stamped round in two rings, then the layer over it.
+    const sil = make(), sc = sil.getContext('2d')!;
+    sc.drawImage(off, 0, 0);
+    sc.globalCompositeOperation = 'source-in';
+    sc.fillStyle = fx.outline!.color;
+    sc.fillRect(0, 0, W, H);
+    const comp = make(), cc = comp.getContext('2d')!;
+    const r = ow * s, n = Math.max(12, Math.min(48, Math.ceil(r * 2)));
+    for (const rr of [r, r * 0.5]) for (let i = 0; i < n; i++) cc.drawImage(sil, Math.cos((i * 2 * Math.PI) / n) * rr, Math.sin((i * 2 * Math.PI) / n) * rr);
+    cc.drawImage(sil, 0, 0);
+    cc.drawImage(off, 0, 0);
+    src = comp;
+  }
+  const dx = b.x - pad, dy = b.y - pad, dw = W / s, dh = H / s;
+  // Only the soft light of `src`: drawn BIG device pixels off to the left, its shadow offset back by BIG.
+  const BIG = 6000 + ctx.canvas.width;
+  const soft = (color: string, blur: number, ox: number, oy: number) => {
+    ctx.save();
+    const t = ctx.getTransform();
+    ctx.setTransform(t.a, t.b, t.c, t.d, t.e - BIG, t.f);
+    ctx.shadowColor = color; ctx.shadowBlur = Math.max(0, blur) * k;
+    ctx.shadowOffsetX = BIG + ox * k; ctx.shadowOffsetY = oy * k;
+    ctx.drawImage(src, dx, dy, dw, dh);
+    ctx.restore();
+  };
+  if (fx.glow) { const c = colorWithAlpha(fx.glow.color, fx.glow.alpha); soft(c, fx.glow.blur, 0, 0); soft(c, fx.glow.blur * 0.6, 0, 0); }
+  if (fx.shadow) soft(colorWithAlpha(fx.shadow.color, fx.shadow.alpha), fx.shadow.blur, fx.shadow.x, fx.shadow.y);
+  ctx.drawImage(src, dx, dy, dw, dh);
+}
+
+/** A QR code: modules in `fg` as one path (no seams between neighbours), `bg` behind it and its quiet zone. */
+function drawQr(ctx: Ctx, l: QrLayer) {
+  const qr = qrFor(l.value);
+  if (!qr) return;
+  const quiet = Math.max(0, Math.min(8, Math.round(l.quiet)));
+  const cells = qr.size + quiet * 2, cell = l.w / cells;
+  if (l.bg) { ctx.fillStyle = l.bg; ctx.fillRect(l.x, l.y, l.w, l.w); }
+  ctx.fillStyle = l.fg;
+  ctx.beginPath();
+  for (let y = 0; y < qr.size; y++) {
+    for (let x = 0; x < qr.size; x++) {
+      if (!qr.modules[y][x]) continue;
+      let run = 1;
+      while (x + run < qr.size && qr.modules[y][x + run]) run++;
+      ctx.rect(l.x + (x + quiet) * cell, l.y + (y + quiet) * cell, run * cell, cell);
+      x += run - 1;
+    }
+  }
+  ctx.fill();
+}
+
+const BLEND_OP: Record<Blend, GlobalCompositeOperation> = {
+  normal: 'source-over', multiply: 'multiply', screen: 'screen', overlay: 'overlay', 'soft-light': 'soft-light',
+  'hard-light': 'hard-light', 'color-dodge': 'color-dodge', darken: 'darken', lighten: 'lighten',
+};
 
 // ── The catalogue stamp and automatic colour ───────────────────────────────
 
@@ -813,7 +1236,9 @@ export function renderDoc(ctx: Ctx, doc: StoryDoc, fields: Fields, a: Assets, op
   const f = frameOf(doc);
   ctx.save();
   ctx.clearRect(0, 0, f.w, f.h);
-  if (doc.bg.color2) {
+  if (doc.bg.fill) {
+    ctx.fillStyle = makeGradient(ctx, doc.bg.fill, { x: 0, y: 0, w: f.w, h: f.h });
+  } else if (doc.bg.color2) {
     const g = ctx.createLinearGradient(0, 0, 0, f.h);
     g.addColorStop(0, doc.bg.color); g.addColorStop(1, doc.bg.color2);
     ctx.fillStyle = g;
@@ -831,8 +1256,9 @@ export function renderDoc(ctx: Ctx, doc: StoryDoc, fields: Fields, a: Assets, op
     if (l.hidden || (opts.hideBound && l.kind === 'text' && l.bind)) continue;
     ctx.save();
     // Automatic ink is decided from what is under the layer, before it is drawn or turned.
-    const ink = (l.kind === 'text' || l.kind === 'wordmark') && l.autoColor ? autoInk(ctx, layerBox(l, fields, a), a.ink) : null;
+    const ink = (l.kind === 'text' || l.kind === 'wordmark') && l.autoColor && !(l.kind === 'text' && l.fillGradient) ? autoInk(ctx, layerBox(l, fields, a), a.ink) : null;
     ctx.globalAlpha = l.opacity;
+    if (l.blend && l.blend !== 'normal' && BLEND_OP[l.blend]) ctx.globalCompositeOperation = BLEND_OP[l.blend];
     if (l.rotate || l.flipX || l.flipY) {
       const b = layerBox(l, fields, a);
       ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
@@ -843,10 +1269,11 @@ export function renderDoc(ctx: Ctx, doc: StoryDoc, fields: Fields, a: Assets, op
     if (l.kind === 'text') drawText(ctx, ink ? { ...l, color: ink } : l, fields, a);
     else if (l.kind === 'wordmark') {
       const m = a.marks[l.mark] ?? a.marks.wordmark;
-      if (m) drawMark(ctx, m, layerBox(l, fields, a), ink ?? l.color);
+      if (m) withFx(ctx, l.layerFx, () => layerBox(l, fields, a), 0, c => drawMark(c, m, layerBox(l, fields, a), ink ?? l.color));
     }
-    else if (l.kind === 'image') drawImageLayer(ctx, l, a);
-    else drawShape(ctx, l);
+    else if (l.kind === 'image') withFx(ctx, l.layerFx, () => layerBox(l, fields, a), 12, c => drawImageLayer(c, l.layerFx ? { ...l, shadow: false } : l, a));
+    else if (l.kind === 'qr') withFx(ctx, l.layerFx, () => layerBox(l, fields, a), 0, c => drawQr(c, l));
+    else withFx(ctx, l.layerFx, () => layerBox(l, fields, a), l.stroke / 2 + 2, c => drawShape(c, l));
     ctx.restore();
   }
   ctx.restore();
@@ -866,25 +1293,27 @@ export function renderDocTo(doc: StoryDoc, fields: Fields, a: Assets, px: number
 
 // ── Making layers ──────────────────────────────────────────────────────────
 
+/** What a bound line is for, so a resize can lay it out by its job. */
+const BIND_ROLE: Record<Bind, LayerRole> = { kicker: 'kicker', headline: 'headline', weight: 'specs', details: 'cta' };
 const text = (p: Partial<TextLayer> & Pick<TextLayer, 'x' | 'y' | 'size' | 'font' | 'color'>): TextLayer => ({
   id: newLayerId(p.bind ?? 'text'), kind: 'text', text: '', align: 'left', width: 888, fit: false, spacing: 0, lineHeight: 1.15,
-  upper: false, shadow: false, box: null, rotate: 0, opacity: 1, ...p,
+  upper: false, shadow: false, box: null, rotate: 0, opacity: 1, ...(p.bind ? { role: BIND_ROLE[p.bind] } : {}), ...p,
 });
 /** A text layer with the defaults every maker here uses — for layouts built outside this file. */
 export const textLayer = text;
 
 export const newText = (color: string): TextLayer => text({ text: 'Your text', x: 540, y: 900, size: 72, font: 'regular', color, align: 'center', width: 900 });
 export const newShape = (kind: ShapeLayer['kind'], color: string): ShapeLayer => ({
-  id: newLayerId(kind), kind, rotate: 0, opacity: 1, color, stroke: kind === 'rect' || kind === 'circle' ? 6 : 7, fill: null, radius: 24,
+  id: newLayerId(kind), kind, rotate: 0, opacity: 1, role: 'decor', color, stroke: kind === 'rect' || kind === 'circle' ? 6 : 7, fill: null, radius: 24,
   ...(kind === 'arrow' ? { x: 700, y: 1050, w: -170, h: 170, curve: 40 }
     : kind === 'line' ? { x: 340, y: 1000, w: 400, h: 0, curve: 0 }
       : { x: 390, y: 850, w: 300, h: kind === 'circle' ? 300 : 200, curve: 0 }),
 });
-export const newImageLayer = (photoId: string): ImageLayer => ({ id: newLayerId('image'), kind: 'image', photoId, x: 600, y: 1250, w: 380, radius: 24, border: '#ffffff', shadow: true, rotate: 0, opacity: 1 });
-export const newLinkPill = (label: string): TextLayer => text({ text: label, x: 540, y: 760, size: 46, font: 'regular', color: '#111111', align: 'center', width: 900, box: { color: '#ffffff', radius: 28, pad: 22 } });
-export const newWordmark = (color: string): MarkLayer => ({ id: newLayerId('wordmark'), kind: 'wordmark', mark: 'wordmark', x: 708, y: 150, width: 300, color, autoColor: false, rotate: 0, opacity: 1 });
+export const newImageLayer = (photoId: string): ImageLayer => ({ id: newLayerId('image'), kind: 'image', role: 'photo', photoId, x: 600, y: 1250, w: 380, radius: 24, border: '#ffffff', shadow: true, rotate: 0, opacity: 1 });
+export const newLinkPill = (label: string): TextLayer => text({ text: label, role: 'cta', x: 540, y: 760, size: 46, font: 'regular', color: '#111111', align: 'center', width: 900, box: { color: '#ffffff', radius: 28, pad: 22 } });
+export const newWordmark = (color: string): MarkLayer => ({ id: newLayerId('wordmark'), kind: 'wordmark', role: 'mark', mark: 'wordmark', x: 708, y: 150, width: 300, color, autoColor: false, rotate: 0, opacity: 1 });
 /** The "t" monogram, a tall narrow mark; placed top-right like the wordmark. */
-export const newMonogram = (color: string): MarkLayer => ({ id: newLayerId('t'), kind: 'wordmark', mark: 't', x: 930, y: 140, width: 60, color, autoColor: false, rotate: 0, opacity: 1 });
+export const newMonogram = (color: string): MarkLayer => ({ id: newLayerId('t'), kind: 'wordmark', role: 'mark', mark: 't', x: 930, y: 140, width: 60, color, autoColor: false, rotate: 0, opacity: 1 });
 
 // ── The designer's elements ────────────────────────────────────────────────
 // Everything lands in the middle of whichever frame it is added to.
@@ -909,8 +1338,8 @@ export const TEXT_STYLES: { id: string; label: string; preview: { text: string; 
     make: (color, f) => {
       const g = newLayerId('grp'), y = midY(f, 230);
       return [
-        text({ text: 'Just arrived', x: f.w / 2, y, size: 44, font: 'regular', color, align: 'center', upper: true, spacing: 0.3, group: g }),
-        text({ text: 'New in', x: f.w / 2, y: y + 66, size: 190, font: 'condensed', color, align: 'center', width: f.w - 160, fit: true, lineHeight: 0.92, upper: true, group: g }),
+        text({ role: 'kicker', text: 'Just arrived', x: f.w / 2, y, size: 44, font: 'regular', color, align: 'center', upper: true, spacing: 0.3, group: g }),
+        text({ role: 'headline', text: 'New in', x: f.w / 2, y: y + 66, size: 190, font: 'condensed', color, align: 'center', width: f.w - 160, fit: true, lineHeight: 0.92, upper: true, group: g }),
       ];
     },
   },
@@ -919,58 +1348,71 @@ export const TEXT_STYLES: { id: string; label: string; preview: { text: string; 
     make: (color, f) => {
       const g = newLayerId('grp'), y = midY(f, 170);
       return [
-        text({ text: 'The Bridal Edit', x: f.w / 2, y, size: 112, font: 'serif-italic', color, align: 'center', width: f.w - 160, fit: true, group: g }),
-        text({ text: 'Handcrafted · one of a kind', x: f.w / 2, y: y + 140, size: 36, font: 'light', color, align: 'center', upper: true, spacing: 0.25, group: g }),
+        text({ role: 'headline', text: 'The Bridal Edit', x: f.w / 2, y, size: 112, font: 'serif-italic', color, align: 'center', width: f.w - 160, fit: true, group: g }),
+        text({ role: 'kicker', text: 'Handcrafted · one of a kind', x: f.w / 2, y: y + 140, size: 36, font: 'light', color, align: 'center', upper: true, spacing: 0.25, group: g }),
       ];
     },
   },
   {
     id: 'script', label: 'Just in (script)', preview: { text: 'Just in', font: 'script' },
-    make: (color, f) => [text({ text: 'Just in', x: f.w / 2, y: midY(f, 170), size: 170, font: 'script', color, align: 'center', width: f.w - 160 })],
+    make: (color, f) => [text({ role: 'headline', text: 'Just in', x: f.w / 2, y: midY(f, 170), size: 170, font: 'script', color, align: 'center', width: f.w - 160 })],
   },
   {
     id: 'timeless', label: 'Timeless (capitals)', preview: { text: 'TIMELESS', font: 'cinzel' },
     make: (color, f) => {
       const g = newLayerId('grp'), y = midY(f, 190);
       return [
-        text({ text: 'Timeless', x: f.w / 2, y, size: 120, font: 'cinzel', color, align: 'center', upper: true, spacing: 0.18, width: f.w - 120, fit: true, group: g }),
-        text({ text: 'Crafted to be handed down', x: f.w / 2, y: y + 150, size: 46, font: 'cormorant-italic', color, align: 'center', group: g }),
+        text({ role: 'headline', text: 'Timeless', x: f.w / 2, y, size: 120, font: 'cinzel', color, align: 'center', upper: true, spacing: 0.18, width: f.w - 120, fit: true, group: g }),
+        text({ role: 'kicker', text: 'Crafted to be handed down', x: f.w / 2, y: y + 150, size: 46, font: 'cormorant-italic', color, align: 'center', group: g }),
       ];
     },
   },
   {
     id: 'one-of-one', label: 'One of one', preview: { text: 'One of one.', font: 'playfair' },
-    make: (color, f) => [text({ text: 'One of one.', x: f.w / 2, y: midY(f, 110), size: 110, font: 'playfair', color, align: 'center', width: f.w - 160, fit: true })],
+    make: (color, f) => [text({ role: 'headline', text: 'One of one.', x: f.w / 2, y: midY(f, 110), size: 110, font: 'playfair', color, align: 'center', width: f.w - 160, fit: true })],
   },
   {
     id: 'sold', label: 'Sold', preview: { text: 'SOLD', font: 'montserrat-bold', upper: true },
-    make: (_c, f) => [text({ text: 'Sold', x: f.w / 2, y: midY(f, 90), size: 72, font: 'montserrat-bold', color: '#FFFFFF', align: 'center', upper: true, spacing: 0.2, box: { color: '#8B1E2D', radius: 60, pad: 30 } })],
+    make: (_c, f) => [text({ role: 'badge', text: 'Sold', x: f.w / 2, y: midY(f, 90), size: 72, font: 'montserrat-bold', color: '#FFFFFF', align: 'center', upper: true, spacing: 0.2, box: { color: '#8B1E2D', radius: 60, pad: 30 } })],
   },
   {
     id: 'dm', label: 'DM to order', preview: { text: 'DM to order', font: 'montserrat' },
-    make: (_c, f) => [text({ text: 'DM to order →', x: f.w / 2, y: midY(f, 50), size: 48, font: 'montserrat', color: '#111111', align: 'center', box: { color: '#FFFFFF', radius: 40, pad: 24 } })],
+    make: (_c, f) => [text({ role: 'cta', text: 'DM to order →', x: f.w / 2, y: midY(f, 50), size: 48, font: 'montserrat', color: '#111111', align: 'center', box: { color: '#FFFFFF', radius: 40, pad: 24 } })],
   },
 ];
 
 /** A filled shape from the library (design.ts), sized for what it is. */
 export function newShapeOf(key: ShapeKey, color: string, f: Frame = STORY_FRAME): ShapeLayer {
   const [w, h] = key === 'ribbon' ? [560, 130] : key === 'tag' || key === 'pill' ? [440, 150] : key === 'speech' ? [480, 340] : key === 'arch' ? [420, 540] : key === 'gem' ? [360, 300] : [320, 320];
-  return { id: newLayerId(key), kind: 'shape', shape: key, x: Math.round(f.w / 2 - w / 2), y: midY(f, h), w, h, color: '#FFFFFF', stroke: 0, fill: color, curve: 0, radius: 0, rotate: 0, opacity: 1 };
+  return { id: newLayerId(key), kind: 'shape', role: 'decor', shape: key, x: Math.round(f.w / 2 - w / 2), y: midY(f, h), w, h, color: '#FFFFFF', stroke: 0, fill: color, curve: 0, radius: 0, rotate: 0, opacity: 1 };
 }
 /** A plain line in one of the dash styles. */
 export const newLineStyle = (dash: 'solid' | 'dash' | 'dot', color: string, f: Frame = STORY_FRAME): ShapeLayer =>
-  ({ id: newLayerId('line'), kind: 'line', x: f.w / 2 - 250, y: Math.round(f.h * 0.45), w: 500, h: 0, color, stroke: dash === 'dot' ? 10 : 6, fill: null, curve: 0, radius: 0, dash, rotate: 0, opacity: 1 });
+  ({ id: newLayerId('line'), kind: 'line', role: 'decor', x: f.w / 2 - 250, y: Math.round(f.h * 0.45), w: 500, h: 0, color, stroke: dash === 'dot' ? 10 : 6, fill: null, curve: 0, radius: 0, dash, rotate: 0, opacity: 1 });
 
 /** A photo in a frame (Canva's Frames): cut to the shape, the photo filling it. */
 export function newFrame(mask: MaskKey, photoId: string, f: Frame = STORY_FRAME): ImageLayer {
   const [w, h] = mask === 'arch' ? [480, 620] : mask === 'pill' ? [420, 640] : [520, 520];
-  return { id: newLayerId('frame'), kind: 'image', photoId, x: Math.round(f.w / 2 - w / 2), y: midY(f, h), w, h, radius: 0, border: null, shadow: false, mask, rotate: 0, opacity: 1 };
+  return { id: newLayerId('frame'), kind: 'image', role: 'photo', photoId, x: Math.round(f.w / 2 - w / 2), y: midY(f, h), w, h, radius: 0, border: null, shadow: false, mask, rotate: 0, opacity: 1 };
 }
 /** An uploaded image (a logo, a certificate…), at most 600 wide, centred. */
 export function newUploadLayer(src: string, img: HTMLImageElement, f: Frame = STORY_FRAME): ImageLayer {
   const w = Math.min(600, img.naturalWidth || 600), h = w * ratioOf(img);
-  return { id: newLayerId('upload'), kind: 'image', photoId: '', src, x: Math.round(f.w / 2 - w / 2), y: midY(f, h), w, radius: 0, border: null, shadow: false, rotate: 0, opacity: 1 };
+  return { id: newLayerId('upload'), kind: 'image', role: 'image', photoId: '', src, x: Math.round(f.w / 2 - w / 2), y: midY(f, h), w, radius: 0, border: null, shadow: false, rotate: 0, opacity: 1 };
 }
+
+/** A QR code for a link or number, 300 wide, on white, centred. */
+export function newQr(value: string, fg = '#111111', f: Frame = STORY_FRAME): QrLayer {
+  const w = Math.min(300, f.w - 160);
+  return { id: newLayerId('qr'), kind: 'qr', role: 'cta', x: Math.round(f.w / 2 - w / 2), y: midY(f, w), w, value, fg, bg: '#FFFFFF', quiet: 4, rotate: 0, opacity: 1 };
+}
+
+/** Starting values for the Effects panel's three toggles (shadow, glow, outline on shapes, images, marks, QR codes). */
+export const FX_DEFAULTS: Required<LayerFx> = {
+  shadow: { color: '#000000', x: 0, y: 12, blur: 28, alpha: 0.35 },
+  glow: { color: '#FFD98A', blur: 30, alpha: 0.8 },
+  outline: { color: '#FFFFFF', width: 6 },
+};
 
 /** Stickers: a shape and a word on it, grouped (Canva's badges). */
 export const BADGES: { id: string; label: string; make: (accent: string, f: Frame) => Layer[] }[] = [
@@ -978,25 +1420,25 @@ export const BADGES: { id: string; label: string; make: (accent: string, f: Fram
     id: 'new', label: 'NEW burst',
     make: (accent, f) => {
       const g = newLayerId('grp');
-      const s = { ...newShapeOf('burst', accent, f), group: g, w: 260, h: 260 };
+      const s = { ...newShapeOf('burst', accent, f), group: g, role: 'badge' as const, w: 260, h: 260 };
       s.x = Math.round(f.w / 2 - 130); s.y = midY(f, 260);
-      return [s, text({ text: 'New', x: f.w / 2, y: s.y + 96, size: 70, font: 'condensed', color: '#FFFFFF', align: 'center', upper: true, group: g })];
+      return [s, text({ role: 'badge', text: 'New', x: f.w / 2, y: s.y + 96, size: 70, font: 'condensed', color: '#FFFFFF', align: 'center', upper: true, group: g })];
     },
   },
   {
     id: 'just-in', label: 'Just in banner',
     make: (accent, f) => {
       const g = newLayerId('grp');
-      const s = { ...newShapeOf('ribbon', accent, f), group: g };
-      return [s, text({ text: 'Just in', x: f.w / 2, y: s.y + 36, size: 60, font: 'bold', color: '#FFFFFF', align: 'center', upper: true, spacing: 0.15, group: g })];
+      const s = { ...newShapeOf('ribbon', accent, f), group: g, role: 'badge' as const };
+      return [s, text({ role: 'badge', text: 'Just in', x: f.w / 2, y: s.y + 36, size: 60, font: 'bold', color: '#FFFFFF', align: 'center', upper: true, spacing: 0.15, group: g })];
     },
   },
   {
     id: 'weight-tag', label: 'Weight tag',
     make: (accent, f) => {
       const g = newLayerId('grp');
-      const s = { ...newShapeOf('tag', accent, f), group: g };
-      return [s, text({ bind: 'weight', x: s.x + s.w / 2 + 20, y: s.y + 38, size: 70, font: 'light', color: '#FFFFFF', align: 'center', group: g })];
+      const s = { ...newShapeOf('tag', accent, f), group: g, role: 'badge' as const };
+      return [s, text({ bind: 'weight', role: 'badge', x: s.x + s.w / 2 + 20, y: s.y + 38, size: 70, font: 'light', color: '#FFFFFF', align: 'center', group: g })];
     },
   },
   {
@@ -1034,7 +1476,7 @@ export function newCornerMark(mark: MarkKind, a: Assets, f: Frame = SQUARE_FRAME
   const width = mark === 't' ? 58 : LOGO_W;
   const img = a.marks[mark] ?? a.marks.wordmark;
   const h = width * (img && img.naturalWidth ? img.naturalHeight / img.naturalWidth : mark === 't' ? 2 : 0.25);
-  return { id: newLayerId(mark), kind: 'wordmark', mark, x: f.w - LOGO_PAD - width, y: top ? LOGO_PAD : f.h - LOGO_PAD - h, width, color: '#ffffff', autoColor: true, rotate: 0, opacity: 1 };
+  return { id: newLayerId(mark), kind: 'wordmark', role: 'mark', mark, x: f.w - LOGO_PAD - width, y: top ? LOGO_PAD : f.h - LOGO_PAD - h, width, color: '#ffffff', autoColor: true, rotate: 0, opacity: 1 };
 }
 
 export type SquarePresetId = 'catalogue' | 'catalogue-top' | 'catalogue-t' | 'weight' | 'mark' | 'name' | 'clean';

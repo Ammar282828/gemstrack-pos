@@ -7,6 +7,9 @@ name: TestFlight testers
 #
 # - By hand ("Run workflow", or a cloud session through the API): the house and the emails. The emails are
 #   typed in, never committed: gemstrack-pos, which carries this history, is public.
+# - An issue titled "public <house>" (body ignored) makes the house's TestFlight public link (asc.mjs public-link
+#   --submit): the job prints it and posts it as the issue's closing comment. The issue is in the private repo
+#   and the link is meant to be shared anyway.
 # - Daily: each house's sweep, so whoever accepted since is added without their email being typed again.
 
 on:
@@ -23,14 +26,19 @@ on:
         required: true
   schedule:
     - cron: '17 5 * * *'
+  # A cloud session cannot press Run workflow (403) and must not commit an email (gemstrack-pos is public): it opens
+  # an issue here (private) titled "testers <house>" with the emails as its body; the job reads it, then closes it.
+  issues:
+    types: [opened]
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   testers:
     # gemstrack-pos carries this file too; the key is here only.
-    if: github.repository == 'Ammar282828/taheri-pos'
+    if: github.repository == 'Ammar282828/taheri-pos' && (github.event_name != 'issues' || (startsWith(github.event.issue.title, 'testers ') || startsWith(github.event.issue.title, 'public ')))
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -38,15 +46,60 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - env:
+      - name: Testers
+        if: github.event_name != 'issues' || startsWith(github.event.issue.title, 'testers ')
+        env:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
-          HOUSE: ${{ inputs.house }}
-          EMAILS: ${{ inputs.emails }}
+          HOUSE: ${{ inputs.house || (github.event_name == 'issues' && (contains(github.event.issue.title, 'mina') && 'mina' || 'taheri')) || '' }}
+          EMAILS: ${{ inputs.emails || github.event.issue.body }}
         run: |
           if [ -n "$HOUSE" ]; then
             node apps/ios/scripts/asc.mjs testers "$HOUSE" "$EMAILS"
           else
             for h in taheri mina; do node apps/ios/scripts/asc.mjs testers "$h" "" || echo "::warning::$h: testers not swept"; done
           fi
+      - name: Public link
+        id: public
+        if: github.event_name == 'issues' && startsWith(github.event.issue.title, 'public ')
+        env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          ASC_CONTACT_FIRST_NAME: ${{ secrets.ASC_CONTACT_FIRST_NAME }}
+          ASC_CONTACT_LAST_NAME: ${{ secrets.ASC_CONTACT_LAST_NAME }}
+          ASC_CONTACT_EMAIL: ${{ secrets.ASC_CONTACT_EMAIL }}
+          ASC_CONTACT_PHONE: ${{ secrets.ASC_CONTACT_PHONE }}
+          ASC_CONTACT_FEEDBACK_EMAIL: ${{ secrets.ASC_CONTACT_FEEDBACK_EMAIL }}
+          HOUSE: ${{ contains(github.event.issue.title, 'mina') && 'mina' || 'taheri' }}
+          BODY: ${{ github.event.issue.body }}
+        run: |
+          # The reviewer's contact may come in the issue (private) as "first: / last: / email: / phone:" lines when no
+          # secret holds it; masked here, and the issue body is wiped when the request closes.
+          field() { printf '%s\n' "$BODY" | sed -n "s/^[[:space:]]*$1:[[:space:]]*//Ip" | head -1 | tr -d '\r'; }
+          for k in first last email phone; do v=$(field $k); [ -n "$v" ] && echo "::add-mask::$v"; done
+          : "${ASC_CONTACT_FIRST_NAME:=$(field first)}" "${ASC_CONTACT_LAST_NAME:=$(field last)}"
+          : "${ASC_CONTACT_EMAIL:=$(field email)}" "${ASC_CONTACT_PHONE:=$(field phone)}"
+          : "${ASC_CONTACT_FEEDBACK_EMAIL:=$ASC_CONTACT_EMAIL}"
+          export ASC_CONTACT_FIRST_NAME ASC_CONTACT_LAST_NAME ASC_CONTACT_EMAIL ASC_CONTACT_PHONE ASC_CONTACT_FEEDBACK_EMAIL
+          # stdout is the link alone (the rest is on stderr); it is kept even when a later step fails.
+          set +e
+          node apps/ios/scripts/asc.mjs public-link "$HOUSE" --submit > link.txt
+          status=$?
+          link=$(grep -m1 '^https://' link.txt)
+          echo "link=$link" >> "$GITHUB_OUTPUT"
+          [ -n "$link" ] && echo "Public TestFlight link for $HOUSE: $link"
+          exit $status
+      - name: Close the request
+        if: always() && github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LINK: ${{ steps.public.outputs.link }}
+        run: |
+          gh issue edit "${{ github.event.issue.number }}" --repo "$GITHUB_REPOSITORY" --body "(cleared)" || true
+          msg="Done (${{ job.status }})."
+          if [ -n "$LINK" ]; then msg="Public TestFlight link: $LINK
+          
+          ${msg} If this says failure, the link exists but the build is not submitted to beta review yet: see the job log for what App Store Connect still needs."; fi
+          gh issue close "${{ github.event.issue.number }}" --repo "$GITHUB_REPOSITORY" --comment "$msg"

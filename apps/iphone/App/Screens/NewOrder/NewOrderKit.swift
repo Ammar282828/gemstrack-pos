@@ -21,18 +21,21 @@ struct NewOrderChip: View {
     }
 }
 
-/// A labelled number box: blank for 0, the decimal pad, figures lined up on the right.
+/// A labelled number box: blank for 0, the decimal pad, figures lined up on the right. A sum of money
+/// (`rupees`) takes the number pad and whole rupees only (owner, 2026-10-17: "there should be no decimals");
+/// weights, rates and percentages keep their decimals.
 struct NewOrderNumberRow: View {
     let title: String
     @Binding var text: String
     var prompt = ""
     var unit: String?
+    var rupees = false
 
     var body: some View {
         LabeledContent(title) {
             HStack(spacing: 4) {
-                TextField(title, text: $text, prompt: Text(prompt))
-                    .keyboardType(.decimalPad)
+                TextField(title, text: rupees ? $text.wholeRupees : $text, prompt: Text(prompt))
+                    .keyboardType(rupees ? .numberPad : .decimalPad)
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
                 if let unit {

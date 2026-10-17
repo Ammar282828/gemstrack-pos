@@ -6,6 +6,7 @@
 //   node scripts/asc.mjs sign-native <house> <dir>      the same for the native app (apps/iphone) and its widget, with push
 //   node scripts/asc.mjs testers <house> [emails]       the house's "Shop" testers: the account holder, the emails, and anyone accepted since
 //   node scripts/asc.mjs builds <house> [--fix]         the app's newest builds, whether "Shop" has them; --fix adds the newest and answers export compliance
+//   node scripts/asc.mjs public-link <house> [--submit] the house's public TestFlight link (external group "Public"); --submit sends the build to beta review
 //   node scripts/asc.mjs revoke                         the build's certificate and profile, gone again
 //   node scripts/asc.mjs key-file <path>                the key as a proper .p8, for xcodebuild's upload
 //
@@ -70,7 +71,7 @@ async function api(method, url, body) {
   if (res.status === 204) return null;
   const json = await res.json().catch(() => null);
   if (!res.ok) {
-    const why = json?.errors?.map((e) => e.detail || e.title).join('; ') || res.statusText;
+    const why = json?.errors?.map((e) => [e.detail || e.title, e.source?.pointer].filter(Boolean).join(' at ')).join('; ') || res.statusText;
     const err = new Error(`${method} ${url.split('?')[0]}: ${res.status} ${why}`);
     err.status = res.status;
     throw err;
@@ -79,6 +80,12 @@ async function api(method, url, body) {
 }
 
 const q = encodeURIComponent;
+
+/** A name Apple accepts from an address: letters only ("mina_khalid@" → Mina Khalid; Apple refused the underscore, 409). */
+function personName(email, fallbackLast) {
+  const words = email.split('@')[0].split(/[^A-Za-z]+/).filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
+  return { firstName: words[0] || 'Tester', lastName: words.slice(1).join(' ') || fallbackLast };
+}
 
 async function bundleIdFor(h, create) {
   const found = (await api('GET', `/v1/bundleIds?filter[identifier]=${q(h.bundleId)}&filter[platform]=IOS&limit=20`)).data
@@ -271,7 +278,7 @@ async function testers(name, emails) {
         await api('POST', '/v1/userInvitations', {
           data: {
             type: 'userInvitations',
-            attributes: { email, firstName: email.split('@')[0], lastName: h.homeName, roles: ['MARKETING'], allAppsVisible: false, provisioningAllowed: false },
+            attributes: { email, ...personName(email, h.homeName), roles: ['MARKETING'], allAppsVisible: false, provisioningAllowed: false },
             relationships: { visibleApps: { data: [{ type: 'apps', id: app.id }] } },
           },
         });
@@ -325,6 +332,168 @@ async function testers(name, emails) {
   }
 }
 
+/** An address or number with most of it hidden, for logs: "a***@d***.com", "***4567". */
+function mask(v) {
+  const s = String(v || '');
+  if (s.includes('@')) { const [u, d] = s.split('@'); return `${u[0] || ''}***@${d[0] || ''}***${d.slice(d.lastIndexOf('.'))}`; }
+  return s.length > 4 ? `***${s.slice(-4)}` : s ? '***' : '';
+}
+/** Keeps a personal value out of the Actions log whatever is printed later. */
+const hide = (v) => { if (v) say(`::add-mask::${v}`); return v; };
+
+/** Apple answers a missing singleton with 404, or 200 and `data: null`; either is "none". */
+async function maybe(url) {
+  try { return (await api('GET', url))?.data || null; }
+  catch (e) { if (e.status === 404) return null; throw e; }
+}
+
+const NOTES = (h) => `${h.storeName} is the internal point-of-sale and back-office tool of one shop (${h.homeName}); it is used by the shop's own staff, who sign in with the shop's Google accounts, so there is no demo account to give. Reviewers will see the Google sign-in screen; an account that is not on the shop's list is told it has no access. The app shows the shop's own data and nothing else, and it takes no payments.`;
+const DESCRIPTION = (h) => `${h.storeName}: the shop's own ERP for ${h.homeName} on the iPhone. Orders, invoices, customers, the workshop and the day's figures. For the shop's team; sign in with the shop's Google account.`;
+const WHATS_NEW = (h) => `The latest ${h.homeName} build for the shop's team. Sign in with the shop's Google account.`;
+
+/**
+ * The house's public TestFlight link: an external group "Public" with the link on and no tester limit, the
+ * newest build in it, and (with submit) that build sent to beta review, which external testing needs once.
+ * The link is the only thing on stdout; everything else is on stderr. Test Information the owner has not
+ * filled (contact, feedback email) is copied from the Taheri app, else read from ASC_CONTACT_*; failing both,
+ * the run stops before submitting and says which fields to fill in App Store Connect.
+ */
+async function publicLink(name, submit) {
+  const h = houses[name];
+  if (!h) throw new Error(`no house ${name}`);
+  const app = await appFor(h);
+  if (!app) throw new Error(`${h.storeName} has no app in App Store Connect`);
+  say(`${h.storeName}: app ${app.id} (${h.bundleId})`);
+
+  // 1. The external group with the link on.
+  const groups = (await api('GET', `/v1/apps/${app.id}/betaGroups?limit=50`)).data;
+  const want = { publicLinkEnabled: true, publicLinkLimitEnabled: false };
+  let group = groups.find((g) => g.attributes.name === 'Public' && !g.attributes.isInternalGroup);
+  if (!group) {
+    group = (await api('POST', '/v1/betaGroups', {
+      data: { type: 'betaGroups', attributes: { name: 'Public', isInternalGroup: false, ...want }, relationships: { app: { data: { type: 'apps', id: app.id } } } },
+    })).data;
+    say('Made the external group "Public"');
+  } else if (!group.attributes.publicLinkEnabled || group.attributes.publicLinkLimitEnabled) {
+    group = (await api('PATCH', `/v1/betaGroups/${group.id}`, { data: { type: 'betaGroups', id: group.id, attributes: want } })).data;
+    say('Turned the public link on for "Public", with no tester limit');
+  }
+  if (!group.attributes.publicLink) group = (await api('GET', `/v1/betaGroups/${group.id}`)).data;
+  const link = group.attributes.publicLink;
+  if (!link) throw new Error('Apple gave the "Public" group no public link');
+  say(`Public link: ${link}`);
+  console.log(link);
+
+  // 2. The newest usable build in it.
+  const all = (await api('GET', `/v1/builds?filter[app]=${app.id}&sort=-uploadedDate&limit=20&include=preReleaseVersion`)).data;
+  const build = all.find((b) => b.attributes.processingState === 'VALID' && !b.attributes.expired);
+  if (!build) throw new Error(`${h.storeName}: no valid, unexpired build to put in the group (newest: ${all[0]?.attributes.processingState || 'none'})`);
+  const label = `${build.attributes.version}`;
+  if (build.attributes.usesNonExemptEncryption == null) {
+    await api('PATCH', `/v1/builds/${build.id}`, { data: { type: 'builds', id: build.id, attributes: { usesNonExemptEncryption: false } } });
+    say(`Set export compliance (usesNonExemptEncryption false) on build ${label}`);
+  }
+
+  // 3. What beta review needs. Read first; mask anything personal.
+  const missing = [];
+  const taheri = houses.taheri && name !== 'taheri' ? await appFor(houses.taheri) : null;
+  const env = process.env;
+  const first = (...v) => v.find((x) => x != null && String(x).trim() !== '');
+
+  const locs = (await api('GET', `/v1/apps/${app.id}/betaAppLocalizations?limit=50`)).data;
+  const loc = locs.find((l) => l.attributes.locale === 'en-US') || locs[0];
+  const haveDesc = first(...locs.map((l) => l.attributes.description));
+  let feedback = first(...locs.map((l) => l.attributes.feedbackEmail));
+  const detail = await maybe(`/v1/apps/${app.id}/betaAppReviewDetail`);
+  const da = detail?.attributes || {};
+  const tLocs = taheri ? (await api('GET', `/v1/apps/${taheri.id}/betaAppLocalizations?limit=50`)).data : [];
+  const tDetail = taheri ? (await maybe(`/v1/apps/${taheri.id}/betaAppReviewDetail`))?.attributes || {} : {};
+  const contact = {
+    contactFirstName: first(da.contactFirstName, tDetail.contactFirstName, env.ASC_CONTACT_FIRST_NAME),
+    contactLastName: first(da.contactLastName, tDetail.contactLastName, env.ASC_CONTACT_LAST_NAME),
+    contactPhone: first(da.contactPhone, tDetail.contactPhone, env.ASC_CONTACT_PHONE),
+    contactEmail: first(da.contactEmail, tDetail.contactEmail, env.ASC_CONTACT_EMAIL),
+  };
+  feedback = first(feedback, ...tLocs.map((l) => l.attributes.feedbackEmail), env.ASC_CONTACT_FEEDBACK_EMAIL, contact.contactEmail);
+  hide(feedback); Object.values(contact).forEach(hide);
+
+  const bl = (await api('GET', `/v1/builds/${build.id}/betaBuildLocalizations?limit=50`)).data;
+  const license = await maybe(`/v1/apps/${app.id}/betaLicenseAgreement`);
+
+  const row = (what, ok, shown) => say(`  ${ok ? 'ok     ' : 'MISSING'} ${what}${ok && shown ? `: ${shown}` : ''}`);
+  say('Beta review prerequisites:');
+  row('feedbackEmail', !!first(...locs.map((l) => l.attributes.feedbackEmail)), mask(feedback));
+  row('beta app description', !!haveDesc);
+  for (const k of Object.keys(contact)) row(k, !!first(da[k]), k === 'contactFirstName' || k === 'contactLastName' ? da[k] : mask(da[k]));
+  row('demoAccountRequired', da.demoAccountRequired != null, String(da.demoAccountRequired));
+  row('review notes', !!first(da.notes));
+  row(`what to test (build ${label})`, !!first(...bl.map((l) => l.attributes.whatsNew)));
+  row('license agreement', !!first(license?.attributes?.agreementText), 'set');
+  if (!first(license?.attributes?.agreementText)) say('  (a license agreement is optional: Apple\'s standard terms apply)');
+
+  // Fill what is missing, only with what is known.
+  if (!haveDesc || !first(...locs.map((l) => l.attributes.feedbackEmail))) {
+    const attributes = { ...(!haveDesc && { description: DESCRIPTION(h) }), ...(feedback && !first(...locs.map((l) => l.attributes.feedbackEmail)) && { feedbackEmail: feedback }) };
+    if (loc) await api('PATCH', `/v1/betaAppLocalizations/${loc.id}`, { data: { type: 'betaAppLocalizations', id: loc.id, attributes } });
+    else await api('POST', '/v1/betaAppLocalizations', { data: { type: 'betaAppLocalizations', attributes: { locale: 'en-US', description: DESCRIPTION(h), ...(feedback && { feedbackEmail: feedback }) }, relationships: { app: { data: { type: 'apps', id: app.id } } } } });
+    say('Filled the beta app information (description' + (attributes.feedbackEmail || (!loc && feedback) ? ', feedback email' : '') + ')');
+  }
+  if (!first(...bl.map((l) => l.attributes.whatsNew))) {
+    const bloc = bl.find((l) => l.attributes.locale === 'en-US') || bl[0];
+    if (bloc) await api('PATCH', `/v1/betaBuildLocalizations/${bloc.id}`, { data: { type: 'betaBuildLocalizations', id: bloc.id, attributes: { whatsNew: WHATS_NEW(h) } } });
+    else await api('POST', '/v1/betaBuildLocalizations', { data: { type: 'betaBuildLocalizations', attributes: { locale: 'en-US', whatsNew: WHATS_NEW(h) }, relationships: { build: { data: { type: 'builds', id: build.id } } } } });
+    say(`Filled "what to test" for build ${label}`);
+  }
+  const patch = {};
+  for (const [k, v] of Object.entries(contact)) if (!first(da[k]) && v) patch[k] = v;
+  if (da.demoAccountRequired == null) patch.demoAccountRequired = false;
+  if (!first(da.notes)) patch.notes = NOTES(h);
+  if (Object.keys(patch).length) {
+    if (!detail) throw new Error('Apple returned no beta app review detail to fill');
+    await api('PATCH', `/v1/betaAppReviewDetails/${detail.id}`, { data: { type: 'betaAppReviewDetails', id: detail.id, attributes: patch } });
+    say(`Filled the review details: ${Object.keys(patch).join(', ')}`);
+  }
+
+  const owes = [];
+  if (!first(...locs.map((l) => l.attributes.feedbackEmail)) && !feedback) owes.push('Feedback Email');
+  if (!contact.contactFirstName) owes.push('Contact First Name');
+  if (!contact.contactLastName) owes.push('Contact Last Name');
+  if (!contact.contactPhone) owes.push('Contact Phone');
+  if (!contact.contactEmail) owes.push('Contact Email');
+  if (owes.length) {
+    throw new Error(`${h.storeName}: not submitted. The owner must fill in App Store Connect → ${h.storeName} → TestFlight → Test Information: ${owes.join(', ')} (or set the ASC_CONTACT_* secrets: FIRST_NAME, LAST_NAME, PHONE, EMAIL, FEEDBACK_EMAIL). The link above works once beta review passes.`);
+  }
+  say('  note: this app has no demo mode a reviewer can reach (the demo is a launch argument of the simulator build); the review notes say so.');
+
+  // Only now: Apple refuses a build for an external group until Test Information is complete (422 "not in an
+  // externally assignable state").
+  const inGroup = (await api('GET', `/v1/betaGroups/${group.id}/builds?limit=50`)).data.some((b) => b.id === build.id);
+  if (inGroup) say(`Build ${label} is already in "Public"`);
+  else {
+    await api('POST', `/v1/betaGroups/${group.id}/relationships/builds`, { data: [{ type: 'builds', id: build.id }] });
+    say(`Added build ${label} to "Public"`);
+  }
+
+  // 4. Beta review.
+  const detailNow = await maybe(`/v1/builds/${build.id}/buildBetaDetail`);
+  say(`Build ${label}: external build state ${detailNow?.attributes?.externalBuildState || '-'}`);
+  if (!submit) { say('Not submitted (add --submit).'); return; }
+  let sub = await maybe(`/v1/builds/${build.id}/betaAppReviewSubmission`);
+  if (!sub) {
+    try {
+      sub = (await api('POST', '/v1/betaAppReviewSubmissions', { data: { type: 'betaAppReviewSubmissions', relationships: { build: { data: { type: 'builds', id: build.id } } } } })).data;
+      say(`Submitted build ${label} to beta review`);
+    } catch (e) {
+      // Not needed (an earlier version of the same train was approved) or refused for a reason Apple states.
+      say(`::warning::Beta review submission: ${e.message}`);
+    }
+  }
+  sub = sub || await maybe(`/v1/builds/${build.id}/betaAppReviewSubmission`);
+  say(`Beta review: ${sub?.attributes?.betaReviewState || 'no submission'}`);
+  const after = await maybe(`/v1/builds/${build.id}/buildBetaDetail`);
+  say(`Build ${label}: external build state ${after?.attributes?.externalBuildState || '-'}`);
+}
+
 /** Nothing uploaded after this instant means Xcode Cloud archived but never distributed (2026-10-12, commit 42f8124). */
 const ARCHIVED_AT = '2026-10-12T18:30:00Z';
 
@@ -335,6 +504,22 @@ async function builds(name, fix) {
   const app = await appFor(h);
   if (!app) throw new Error(`${h.storeName} has no app in App Store Connect`);
   say(`${h.storeName}: app ${app.id} (${h.bundleId})`);
+  // The App IDs' capabilities (read-only unless --fix) (a build without PUSH_NOTIFICATIONS here can never be handed a device token).
+  for (const id of [h.bundleId, `${h.bundleId}.widget`]) {
+    try {
+      const b = await api('GET', `/v1/bundleIds?filter[identifier]=${q(id)}&filter[platform]=IOS&include=bundleIdCapabilities&limit=20`);
+      const bundle = b.data.find((x) => x.attributes.identifier === id);
+      if (!bundle) { say(`  App ID ${id}: not registered`); continue; }
+      const caps = (b.included || []).filter((i) => i.type === 'bundleIdCapabilities').map((c) => c.attributes?.capabilityType).filter(Boolean);
+      const types = caps.length ? caps : (await api('GET', `/v1/bundleIds/${bundle.id}/bundleIdCapabilities`)).data.map((c) => c.attributes.capabilityType);
+      say(`  App ID ${id}: capabilities ${types.join(', ') || '(none)'}; push notifications: ${types.includes('PUSH_NOTIFICATIONS') ? 'ON' : 'OFF'}`);
+      // Without it the profile lacks aps-environment and iOS never hands out a token; a new Xcode Cloud build regenerates the profile.
+      if (fix && id === h.bundleId && !types.includes('PUSH_NOTIFICATIONS')) {
+        await capability(bundle, 'PUSH_NOTIFICATIONS');
+        say(`enabled push notifications on ${id}`);
+      }
+    } catch (e) { say(`  App ID ${id}: could not read capabilities (${e.message})`); }
+  }
   const res = await api('GET', `/v1/builds?filter[app]=${app.id}&sort=-uploadedDate&limit=8&include=buildBetaDetail,preReleaseVersion`);
   const inc = (type, id) => (res.included || []).find((i) => i.type === type && i.id === id);
   const rows = res.data.map((b) => {
@@ -389,6 +574,7 @@ try {
   else if (cmd === 'revoke') await revoke();
   else if (cmd === 'key-file') { fs.mkdirSync(path.dirname(args[0]), { recursive: true }); fs.writeFileSync(args[0], ASC_PRIVATE_KEY, { mode: 0o600 }); }
   else if (cmd === 'builds') await builds(args[0], args.includes('--fix'));
+  else if (cmd === 'public-link') await publicLink(args[0], args.includes('--submit'));
   else if (cmd === 'testers') await testers(args[0], String(args[1] || '').split(/[\s,;]+/).filter(Boolean));
   else throw new Error(`unknown command ${cmd}`);
 } catch (e) {

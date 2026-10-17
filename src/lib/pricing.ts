@@ -13,6 +13,7 @@
 
 import type { MetalType, KaratValue } from './materials';
 import type { Product, Settings } from './store';
+import { rupees } from './money';
 
 /** Gold with no karat recorded is priced as 21k — the shop's common case. */
 export const DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL: KaratValue = '21k';
@@ -101,7 +102,7 @@ export function _calculateProductCostsInternal(
   if (product.isCustomPrice) {
     return {
       metalCost: 0, wastageCost: 0, makingCharges: 0, diamondCharges: 0, stoneCharges: 0, miscCharges: 0,
-      totalPrice: product.customPrice || 0,
+      totalPrice: rupees(product.customPrice),
     };
   }
 
@@ -111,11 +112,12 @@ export function _calculateProductCostsInternal(
     const silverRatePerGram = product.silverRatePerGram || rates.silverRatePerGram || 0;
     
     // For silver, the provided rate is all-inclusive for metal, making, and wastage.
-    const allInSilverCost = (Number(product.metalWeightG) || 0) * silverRatePerGram;
+    // Whole rupees, each line rounded where it is worked out, so the lines add up to the total.
+    const allInSilverCost = rupees((Number(product.metalWeightG) || 0) * silverRatePerGram);
     
-    const stoneChargesValue = Number(product.stoneCharges) || 0;
-    const miscChargesValue = Number(product.miscCharges) || 0;
-    const diamondChargesValue = Number(product.diamondCharges) || 0;
+    const stoneChargesValue = rupees(product.stoneCharges);
+    const miscChargesValue = rupees(product.miscCharges);
+    const diamondChargesValue = rupees(product.diamondCharges);
 
     const totalPrice = allInSilverCost + stoneChargesValue + diamondChargesValue + miscChargesValue;
 
@@ -148,20 +150,22 @@ export function _calculateProductCostsInternal(
       secondaryMetalCost = _calculateSingleMetalCost(product.secondaryMetalType, product.secondaryMetalKarat, product.secondaryMetalWeightG, rates);
   }
 
-  const totalMetalCost = primaryMetalCost + secondaryMetalCost;
+  // Whole rupees (owner, 2026-10-17): the metal, the wastage and every charge are each rounded, and the
+  // piece's price is the sum of the rounded lines, so a printed bill adds up to the rupee.
+  const totalMetalCost = rupees(primaryMetalCost + secondaryMetalCost);
   
   const isActualGoldCoin = product.categoryId === GOLD_COIN_CATEGORY_ID_INTERNAL && product.metalType === 'gold';
   // Exclude silver from wastage calculation
   const applyWastage = product.metalType === 'gold' || product.metalType === 'platinum' || product.metalType === 'palladium';
   const wastagePercentage = isActualGoldCoin || !applyWastage ? 0 : (Number(product.wastagePercentage) || 0);
-  const makingCharges = isActualGoldCoin ? 0 : (Number(product.makingCharges) || 0);
+  const makingCharges = isActualGoldCoin ? 0 : rupees(product.makingCharges);
   const hasDiamondsValue = isActualGoldCoin ? false : product.hasDiamonds;
-  const diamondChargesValue = hasDiamondsValue ? (Number(product.diamondCharges) || 0) : 0;
-  const stoneChargesValue = isActualGoldCoin ? 0 : (Number(product.stoneCharges) || 0);
-  const miscChargesValue = isActualGoldCoin ? 0 : (Number(product.miscCharges) || 0);
+  const diamondChargesValue = hasDiamondsValue ? rupees(product.diamondCharges) : 0;
+  const stoneChargesValue = isActualGoldCoin ? 0 : rupees(product.stoneCharges);
+  const miscChargesValue = isActualGoldCoin ? 0 : rupees(product.miscCharges);
 
   const wastageCost = totalMetalCost * (wastagePercentage / 100);
-  const validWastageCost = Number(wastageCost) || 0;
+  const validWastageCost = rupees(wastageCost);
   const totalPrice = totalMetalCost + validWastageCost + makingCharges + diamondChargesValue + stoneChargesValue + miscChargesValue;
   
   if (isNaN(totalPrice)) {

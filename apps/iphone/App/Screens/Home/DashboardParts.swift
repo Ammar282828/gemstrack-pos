@@ -3,11 +3,11 @@ import Charts
 import ERPCore
 
 // The dashboard's pieces (src/app/page.tsx: Headline, Panel, TaskRow, DueRow, RecentInvoiceRow, the 30-day link),
-// redrawn on the ledger (App/UI/Ledger.swift, 2026-10-09): one hero for today, three small cards under it, and
+// redrawn on the ledger (App/UI/Ledger.swift, 2026-10-09): one hero for today, two small cards under it, and
 // each list a card of rows that lead with what they are about (a symbol, a promised day, a person).
 // Content sits on the house's ground and cards; nothing here is glass (CONVENTIONS.md rule 4).
 // There are no buttons: every card and row is a link to the place it names (an owner's "Set today's rate"
-// opens the rate form instead), and New sale is the app's bar.
+// opens the rate sheet instead), and New sale is the app's bar.
 
 // MARK: Small words
 
@@ -117,9 +117,9 @@ struct DashWeekBars: View {
     }
 }
 
-// MARK: The three cards
+// MARK: The small cards
 
-/// One of the three small cards under Today: its name, its figure, a line under it. Cards side by side stand
+/// One of the small cards under Today: its name, its figure, a line under it. Cards side by side stand
 /// the same height (the row is sized to the tallest).
 struct DashStat<Content: View>: View {
     let label: String
@@ -310,7 +310,7 @@ struct DashAllClear: View {
 /// The rows of "Needs you", their symbols sized with the reader's text.
 struct DashNeedList: View {
     let needs: [DashNeed]
-    /// Opens the rate form for a row that asks for today's rate. Nil (anyone but an owner) leaves it a link.
+    /// Opens the rate sheet for a row that asks for today's rate. Nil leaves it a link.
     var onRates: (() -> Void)?
 
     @ScaledMetric(relativeTo: .subheadline) private var side: CGFloat = 30
@@ -480,12 +480,12 @@ struct DashSaleRow: View {
     private var name: String { DashText.name(invoice.customerName) }
     private var when: String { ShopDate.say(invoice.createdAt, withTime: true) }
 
-    /// Paid, what is still due, or the customer's credit; a refund says so instead.
-    private var standing: (text: String, tone: Tone) {
+    /// What is still due, the customer's credit, or a refund; nil when paid (the normal state carries no pill).
+    private var standing: (text: String, tone: Tone)? {
         if invoice.status == .refunded { return ("Refunded", .quiet) }
         let b = balanceLine(invoice.balanceDue)
         switch b.state {
-        case .paid: return ("Paid", .settled)
+        case .paid: return nil
         case .due: return ("\(Money.pkrLac(b.amount)) due", .owed)
         case .credit: return ("In credit", .credit)
         }
@@ -507,22 +507,22 @@ struct DashSaleRow: View {
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 3) {
                     RowAmount(amount: invoiceSaleValue(invoice), lac: true)
-                    Pill(standing.text, tone: standing.tone)
+                    if let standing { Pill(standing.text, tone: standing.tone) }
                 }
                 DashChevron()
             }
             .padding(.vertical, 10)
             .contentShape(Rectangle())
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(name), \(when), \(Money.pkrLac(invoiceSaleValue(invoice))), \(standing.text)")
+            .accessibilityLabel("\(name), \(when), \(Money.pkrLac(invoiceSaleValue(invoice))), \(standing?.text ?? "Paid")")
         }
         .buttonStyle(.plain)
     }
 }
 
-// MARK: The last 30 days
+// MARK: This month
 
-/// Revenue, expenses and net over the last 30 days, and the days drawn quietly beneath. Expenses and net are
+/// Revenue, expenses and net since the 1st, and the days drawn quietly beneath. Expenses and net are
 /// the owners' books, so staff see revenue alone.
 struct DashMonthCard: View {
     let figures: DashFigures
@@ -530,22 +530,24 @@ struct DashMonthCard: View {
     var linked = false
 
     private var netTint: Color {
-        if figures.net30 > 0.5 { return Tone.settled.color }
-        if figures.net30 < -0.5 { return Tone.late.color }
+        if figures.netMonth > 0.5 { return Tone.settled.color }
+        if figures.netMonth < -0.5 { return Tone.late.color }
         return .primary
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 8) {
-                stat("Revenue", figures.revenue30, .primary)
+                stat("Revenue", figures.revenueMonth, .primary)
                 if showCosts {
-                    stat("Expenses", figures.expenses30, .primary)
-                    stat("Net", figures.net30, netTint)
+                    stat("Expenses", figures.expensesMonth, .primary)
+                    stat("Net", figures.netMonth, netTint)
                 }
                 if linked { DashChevron() }
             }
-            if figures.revenue30 > 0 { chart }
+            // Against last month, here with the revenue it compares (the This month card said it twice).
+            if figures.monthAgainstLast != nil { DashMonthChange(ratio: figures.monthAgainstLast, now: figures.now) }
+            if figures.revenueMonth > 0 && figures.monthDays.count > 1 { chart }
         }
         .ledgerCard()
     }
@@ -567,7 +569,7 @@ struct DashMonthCard: View {
 
     private var chart: some View {
         VStack(spacing: 4) {
-            Chart(figures.days) { (d: DashDay) in
+            Chart(figures.monthDays) { (d: DashDay) in
                 AreaMark(x: .value("Day", d.day), y: .value("Taken", d.amount))
                     .interpolationMethod(.monotone)
                     .foregroundStyle(Theme.accent.opacity(0.18))
@@ -578,9 +580,9 @@ struct DashMonthCard: View {
             .chartXAxis(.hidden)
             .chartYAxis(.hidden)
             .frame(height: 72)
-            .accessibilityLabel("Taken each day over the last 30 days")
+            .accessibilityLabel("Taken each day this month")
             HStack {
-                Text(DashDate.dayMonth(figures.days.first?.day ?? figures.now))
+                Text(DashDate.dayMonth(figures.monthDays.first?.day ?? figures.now))
                 Spacer()
                 Text("Today")
             }

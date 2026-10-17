@@ -2,7 +2,13 @@
   "taheri": {
     "bundleId": "shop.taheri.erp",
     "storeName": "Taheri ERP",
-    "homeName": "Taheri ERP",
+    "shortName": "Taheri ERP",
+    "homeName": "ERP",
+    "appIcon": "AppIcon-erp",
+    "alternateIcons": [
+      "AppIcon-taheri",
+      "AppIcon-mina"
+    ],
     "url": "https://erp.taheri.shop",
     "metal": "gold",
     "ground": "#0A1111",
@@ -19,7 +25,9 @@
   "mina": {
     "bundleId": "store.houseofmina.erp",
     "storeName": "House of Mina ERP",
+    "shortName": "Mina ERP",
     "homeName": "Mina ERP",
+    "deprecated": "Since 2026-10-16 the one app (shop.taheri.erp, \"ERP\") holds House of Mina too. This separate Mina app keeps shipping only until its testers have moved.",
     "url": "https://erp.houseofmina.store",
     "metal": "silver",
     "ground": "#FAF7F2",
@@ -31,6 +39,13 @@
       "senderId": "288366939838",
       "storageBucket": "hom-pos-52710474-ceeea.firebasestorage.app",
       "iosAppId": "1:288366939838:ios:0645865ce04bf0008798ef"
+    },
+    "oneApp": {
+      "googleClientId": "288366939838-mgf4cvjppgl1odsif69837258ce2kg2s.apps.googleusercontent.com",
+      "firebase": {
+        "apiKey": "AIzaSyD8TRSZEwpYYPiAGSz2FkjgxxKSJa4VEHE",
+        "iosAppId": "1:288366939838:ios:b765f9330f8080358798ef"
+      }
     }
   }
 }

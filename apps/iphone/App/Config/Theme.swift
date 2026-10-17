@@ -1,34 +1,60 @@
 import SwiftUI
 
-/// The house's colours, as the ERP's own palettes have them (src/app/globals.css, docs/features/two-houses.md):
+/// The business's colours, as the ERP's own palettes have them (src/app/globals.css, docs/features/two-houses.md):
 ///
 /// - Taheri: its gold on its green-black ground in dark, as the storefront and the ERP's dark theme;
 ///   in light, a deeper cut of the same gold, so a link or a button's word still reads on white (4.9:1).
 /// - House of Mina: its wordmark's maroon in light (`.brand-mina.theme-default`), the catalogue's dusty
 ///   rose on wine in dark (`.dark .brand-mina`).
 ///
-/// The colours live in the asset catalogue (Accent-<house>, Ground-<house>, Card-<house>) with a light
-/// and a dark value each, so they follow the phone's appearance as the ERP does (decision "Light and
-/// dark"). Cards and list rows take the house's `--card` (Taheri's teal-black, Mina's wine in dark;
-/// white, warm for Mina's cream, in light), never the system's grey; glass takes its tint from the accent.
+/// The built-ins' colours live in the asset catalogue (Accent-<id>, Ground-<id>, Card-<id>, OnAccent-<id>)
+/// with a light and a dark value each; any other business's come from its palette (`/api/app/business`,
+/// STORE_PALETTE) as the same pair, which follows the phone's appearance as the ERP does (decision "Light and
+/// dark"). Cards and list rows take the business's `--card`, never the system's grey; glass takes its tint
+/// from the accent.
+///
+/// Computed on every read, never kept: the business changes at run time (Businesses.switch), and the root view
+/// is rebuilt on it.
 enum Theme {
-    static let accent = Color("Accent-\(House.id)")
-    static let ground = Color("Ground-\(House.id)")
-    static let card = Color("Card-\(House.id)")
+    static var accent: Color { color("Accent") { $0.accent } }
+    static var ground: Color { color("Ground") { $0.ground } }
+    static var card: Color { color("Card") { $0.card } }
     /// Words on the accent (a filled button): white on the deep light-mode accents, and the house's dark
     /// ground on its light dark-mode gold and rose, as the web's --primary-foreground (white there reads
     /// at under 2.5:1).
-    static let onAccent = Color("OnAccent-\(House.id)")
+    static var onAccent: Color { color("OnAccent") { $0.onAccent } }
+
+    private static func color(_ asset: String, _ pick: @escaping @Sendable (Business.Side) -> String) -> Color {
+        let b = House.business
+        if let art = b.art { return Color("\(asset)-\(art)") }
+        return Color(uiColor: b.palette.dynamic(pick))
+    }
 }
 
-/// The same full logo as the ERP, with its original proportions and appearance-specific artwork.
+/// The same full logo as the ERP, with its original proportions and appearance-specific artwork. The built-ins
+/// use the bundled BrandLogo-<id>; another business's is fetched from its ERP once and kept on disk, and its
+/// name stands in until it arrives.
 struct HouseLogo: View {
+    @Environment(\.colorScheme) private var scheme
+    @State private var fetched: UIImage?
+
     var body: some View {
-        Image("BrandLogo-\(House.id)")
-            .resizable()
-            .scaledToFit()
-            .frame(maxWidth: 256, maxHeight: 72)
-            .accessibilityLabel(House.storeName)
+        let b = House.business
+        Group {
+            if let art = b.art {
+                Image("BrandLogo-\(art)").resizable().scaledToFit()
+            } else if let fetched {
+                Image(uiImage: fetched).resizable().scaledToFit()
+            } else {
+                Text(b.name).font(.largeTitle.weight(.semibold)).foregroundStyle(Theme.accent).minimumScaleFactor(0.5).lineLimit(1)
+            }
+        }
+        .frame(maxWidth: 256, maxHeight: 72)
+        .accessibilityLabel(House.storeName)
+        .task(id: "\(b.id)|\(scheme == .dark)") {
+            guard b.art == nil else { return }
+            fetched = await BusinessLogos.load(b, dark: scheme == .dark)
+        }
     }
 }
 

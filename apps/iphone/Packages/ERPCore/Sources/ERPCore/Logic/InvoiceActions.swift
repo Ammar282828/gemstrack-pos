@@ -66,9 +66,13 @@ public enum InvoiceActions {
         return v
     }
 
+    /// What is paid, from the whole history, in whole rupees.
+    private static func paidOf(_ payments: [Double?]) -> Double { rupees(payments.reduce(0) { $0 + num($1) }) }
+
     /// The invoice page's refusals, in its words; nil when the discount can be saved.
     public static func discountProblem(subtotal: Double?, discount: Double) -> String? {
         if !discount.isFinite { return "Enter the discount." }
+        let discount = rupees(discount)
         if discount < 0 { return "Discount cannot be negative." }
         if discount > num(subtotal) { return "Discount cannot exceed subtotal." }
         return nil
@@ -77,22 +81,23 @@ public enum InvoiceActions {
     /// The lines less the discount and the exchange (the two totals every invoice keeps), and what is still
     /// owed on what has been paid. Adjustments are left out, as every sale's total leaves them out.
     public static func withDiscount(_ f: Figures, discount: Double) -> Discounted {
-        let grandTotal = num(f.subtotal) - discount - num(f.exchangeAmount1) - num(f.exchangeAmount2)
-        return Discounted(discountAmount: discount, grandTotal: grandTotal, balanceDue: grandTotal - num(f.amountPaid))
+        let whole = rupees(discount)
+        let grandTotal = rupees(num(f.subtotal) - whole - num(f.exchangeAmount1) - num(f.exchangeAmount2))
+        return Discounted(discountAmount: whole, grandTotal: grandTotal, balanceDue: rupees(grandTotal - num(f.amountPaid)))
     }
 
     /// The refund's line in the payment history: what was handed back, as money out.
     public static func refundEntry(amount: Double, date: String, reason: String? = nil) -> Payment {
         let said = reason ?? ""
-        return Payment(amount: -abs(amount), date: date, notes: said.isEmpty ? "Refund" : "Refund: \(said)")
+        return Payment(amount: -abs(rupees(amount)), date: date, notes: said.isEmpty ? "Refund" : "Refund: \(said)")
     }
 
     /// A partial refund: a negative payment on the history, and what is paid and owed recomputed from the
     /// whole history, never from a running total.
     public static func withRefund(_ f: Figures, amount: Double) -> Paid {
-        let payments = f.payments + [-abs(amount)]
-        let amountPaid = payments.reduce(0) { $0 + num($1) }
-        return Paid(payments: payments, amountPaid: amountPaid, balanceDue: num(f.grandTotal) - amountPaid)
+        let payments = f.payments + [-abs(rupees(amount))]
+        let amountPaid = paidOf(payments)
+        return Paid(payments: payments, amountPaid: amountPaid, balanceDue: rupees(num(f.grandTotal) - amountPaid))
     }
 
     /// One payment off the history (its place as the page shows it), and what is paid and owed without it;
@@ -101,8 +106,8 @@ public enum InvoiceActions {
         guard index >= 0, index < f.payments.count else { return nil }
         var payments = f.payments
         payments.remove(at: index)
-        let amountPaid = payments.reduce(0) { $0 + num($1) }
-        return Paid(payments: payments, amountPaid: amountPaid, balanceDue: num(f.grandTotal) - amountPaid)
+        let amountPaid = paidOf(payments)
+        return Paid(payments: payments, amountPaid: amountPaid, balanceDue: rupees(num(f.grandTotal) - amountPaid))
     }
 
     /// The pieces a deleted invoice puts back in stock, each once. A piece made for an order (ORD-…) was

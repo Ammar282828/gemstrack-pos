@@ -92,6 +92,7 @@ struct SaleForm: View {
         Group {
             if let id = made {
                 InvoiceScreen(id: id)
+                    .environment(\.zoomNamespace, nil)  // swapped in place after a save: no row to zoom from
                     .overlay(alignment: .top) { ratesNoteBanner }
                     .transition(.opacity)
             } else if !book.settings.loaded {
@@ -100,8 +101,9 @@ struct SaleForm: View {
                 page.transition(.opacity)
             }
         }
-        // The sale made: the form gives way to its invoice on the page's curve, with a tick felt as it lands.
-        .motion(made, Motion.travel)
+        // The sale made: the form gives way to its invoice at once, with a tick felt as it lands. Not on a curve:
+        // the form's Save button is Liquid Glass, which can't fade, so an animated swap shrank it into a "bubble"
+        // over the new invoice (owner, 2026-10-17: "that bubble bug on form completion").
         .sensoryFeedback(.success, trigger: made) { _, now in now != nil }
         .task {
             book.settings.need()
@@ -119,7 +121,7 @@ struct SaleForm: View {
                 .font(.footnote.weight(.medium))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 14).padding(.vertical, 8)
-                .glassEffect(.regular, in: .rect(cornerRadius: 16))
+                .background(.regularMaterial, in: .rect(cornerRadius: 16, style: .continuous))
                 .padding(.horizontal, 16).padding(.top, 6)
                 .task {
                     try? await Task.sleep(for: .seconds(8))

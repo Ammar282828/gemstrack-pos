@@ -18,11 +18,13 @@ struct AdMetrics: Decodable, Hashable {
     var cpc = 0.0
     /// Meta's action types ("link_click", "onsite_conversion.messaging_conversation_started_7d") and how many.
     var actions: [String: Double] = [:]
+    /// What the actions were worth (shape.ts `values`, Meta's action_values): purchases' order value, in the account's money.
+    var values: [String: Double] = [:]
 
     init() {}
 
     private enum K: String, CodingKey {
-        case spend, impressions, reach, frequency, clicks, linkClicks, ctr, cpm, cpc, actions
+        case spend, impressions, reach, frequency, clicks, linkClicks, ctr, cpm, cpc, actions, values
     }
 
     init(from decoder: Decoder) throws {
@@ -40,6 +42,10 @@ struct AdMetrics: Decodable, Hashable {
         var out: [String: Double] = [:]
         for (type, value) in raw { if let v = value.value { out[type] = v } }
         actions = out
+        let worth = (try? c.decodeIfPresent([String: Lossy<Double>].self, forKey: .values)) ?? [:]
+        var each: [String: Double] = [:]
+        for (type, value) in worth { if let v = value.value { each[type] = v } }
+        values = each
     }
 }
 

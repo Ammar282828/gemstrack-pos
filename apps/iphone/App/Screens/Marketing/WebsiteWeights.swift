@@ -146,7 +146,7 @@ struct WebsiteWeightsScreen: View {
                     .pickerStyle(.menu)
                     Toggle("Only photos without a weight", isOn: $onlyMissing).tint(Theme.accent)
                 } footer: {
-                    Text("Type the weight of the piece in the photograph. \(site.siteName) shows it in the corner, as on the photos that already carry one, and prices from it.")
+                    Text("\(site.siteName) shows it in the corner and prices from it.")
                 }
                 WebsiteSetOfTheDay(withNote: true)
                 if let p = current {

@@ -13,6 +13,7 @@ struct CustomersList: View {
     @State private var search = ""
     @State private var showing: Showing = .everyone
     @State private var merging = false
+    @State private var cleaning = false
 
     init() {}
 
@@ -61,6 +62,9 @@ struct CustomersList: View {
         }
         .sheet(isPresented: $merging) {
             CustomerMergeSheet()
+        }
+        .sheet(isPresented: $cleaning) {
+            CustomerSpamSheet()
         }
         .task {
             book.customers.need()
@@ -114,7 +118,6 @@ struct CustomersList: View {
                 CustSummary(
                     customerCount: f.customerCount,
                     owed: f.owed,
-                    owingCount: f.groups.owing.count,
                     boughtRecently: f.groups.active.count + f.groups.owing.count,
                     lifetime: f.lifetime,
                     showHisaab: session.isOwner
@@ -141,12 +144,12 @@ struct CustomersList: View {
                     Button { merging = true } label: {
                         Label("Merge duplicates", systemImage: "person.2")
                     }
-                    // The spam finder (gibberish names and addresses with no number, history or address) stays the ERP's.
-                    NavigationLink(value: Route(path: "/customers?web=1")) {
+                    // The spam finder: gibberish names or emails with no number, address or history (lib/customer-spam.ts).
+                    Button { cleaning = true } label: {
                         Label("Clean up spam", systemImage: "trash")
                     }
                 } footer: {
-                    Text("Merging moves one customer's invoices, orders and hisaab to another, and asks for the delete code. Cleaning up spam opens on the ERP's own page.")
+                    Text("Merging moves one customer's invoices, orders and hisaab to another. Cleaning up spam hides the bot sign-ups you tick. Both ask for the delete code.")
                 }
                 .houseRows()
             }
@@ -235,13 +238,13 @@ struct CustomersList: View {
 private struct CustSummary: View {
     let customerCount: Int
     let owed: Owed
-    let owingCount: Int
     let boughtRecently: Int
     let lifetime: Double
     let showHisaab: Bool
 
     private var owedDetail: String {
-        var parts = ["\(owingCount) customer\(owingCount == 1 ? "" : "s")"]
+        // How many owe is the Owing money heading's count, said there once (rule 15).
+        var parts: [String] = []
         if owed.walkIn > 0 { parts.append("walk-ins \(Money.pkr(owed.walkIn))") }
         if owed.nameOnly > 0 { parts.append("typed names \(Money.pkr(owed.nameOnly))") }
         if showHisaab && owed.ledger > 0 { parts.append("hisaab \(Money.pkr(owed.ledger))") }
@@ -253,8 +256,10 @@ private struct CustSummary: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Owed to you").font(.subheadline).foregroundStyle(.secondary)
                 HeroAmount(amount: owed.total)
-                Text(owedDetail).font(.footnote).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                if !owedDetail.isEmpty {
+                    Text(owedDetail).font(.footnote).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Divider()
             DisclosureGroup("Customer overview") {
@@ -290,7 +295,7 @@ private struct CustRowLabel: View {
 
     private var trailing: String? {
         guard let s = stats else { return nil }
-        if s.owed > 0 { return Money.pkr(s.owed) }
+        if s.owed >= 1 { return Money.pkr(s.owed) }
         if s.spent > 0 { return Money.pkrLac(s.spent) }
         return nil
     }

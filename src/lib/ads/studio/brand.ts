@@ -13,7 +13,9 @@
  * House of Mina (2026-09-29, owner: "do the same thing for houseofmina"): from what the ERP
  * already says in Mina's name — its voice in the caption prompts (its own community posts), its
  * link page and post footer, its palette and mark — and the market research of that day. It has
- * no vault; nothing here is invented beyond what those say.
+ * no vault; nothing here is invented beyond what those say. Its ad look and the voice of its ad headlines
+ * were then read off the owner's own edits to the rings boards (2026-10-12/14, owner: "look at the changes,
+ * pics, text etc and learn from them for future posts"): docs/features/ad-studio.md#house-of-mina-ad-style.
  *
  * Kept as text in code rather than read at run time: these rules decide what the model approves.
  */
@@ -140,6 +142,7 @@ const MINA: HouseBrand = {
   hardRules: [
     'Never invent a figure: a price, weight or stone appears only exactly as the ERP or the catalogue gives it.',
     'The metal is 925 sterling silver — never call it white gold or platinum; plating is named only as the catalogue names it.',
+    'A rhodium-plated piece (white in the photo, rhodium in the catalogue) says so after the silver: “925 silver · tarnish-resistant plating” (the owner, 2026-10-15). A gold-vermeil piece keeps “24k gold vermeil · 925 silver”.',
     'Stones are named as the catalogue names them; never “natural” or “real” unless the catalogue says so.',
     'No hashtags in an ad.',
     'No cluttered or cheap-looking visuals: no stickers, no bursts, no stock clip-art.',
@@ -149,14 +152,17 @@ const MINA: HouseBrand = {
     feel: ['modern', 'confident', 'clean', 'witty', 'colour-led'],
     never: ['gushing', 'salesy', 'fussy', 'generic'],
     rules: [
-      'Colour and light first: say what the piece does in the light, not what it is made of.',
+      'Colour and light first: say what the piece does in the light — and say the silver proudly (“925 silver”, “24K gold vermeil on silver”): it is what the house sells.',
       'Short, vivid lines. One idea a line. A little wit where it fits.',
+      'Ad headlines lead with the benefit or the category in plain words, in title case, as the owner writes them: “Built to Last”, “Silver Made for Every Day”, “The Best in Moissanite”.',
+      'On the picture: one hero word or line, at most one short support line, and a button. Technical proof (hardness, dispersion, US standards) and footnotes stay off the picture; the caption and the page carry them.',
+      'The ring is named as the photo shows it: the name on the picture must be the ring in the picture.',
       'Its own posts read like “Cut to catch every light in the room.” and “Red, blue, green. Pick your side.”',
       'Specs are welcome when given — the silver, the stones, a weight or a price — stated plainly, exactly as given.',
       'British spelling.',
     ],
     closers: ['Bespoke, designed in-house.', 'Pick your side.', 'Made to be worn, every day.'],
-    ctas: ['DM to order.', 'Order on WhatsApp.', 'Shop now.', 'See the whole catalogue.', 'Shipped worldwide.'],
+    ctas: ['Shop Now', 'DM to order.', 'Order on WhatsApp.', 'See the whole catalogue.', 'Shipped worldwide.'],
     avoid: ['gushing superlatives', 'white gold (for silver)', 'real / natural (unless the catalogue says so)'],
   },
   audience: {
@@ -169,16 +175,23 @@ const MINA: HouseBrand = {
     ],
   },
   markRules: [
-    'The MINA wordmark once per surface, clear of the piece.',
+    'The MINA wordmark once, clear of the piece, on every ad that sells a benefit or the category (the ones with a button): white, about 180–210 px wide on a 1080-px frame, bottom centre (bottom right when the words sit left). A named-design ad — the ring’s name as the hero — carries neither mark nor button.',
     'Never stretch, rotate, outline or shadow the mark; never recolour it outside the palette.',
   ],
   visual: {
     gold: '#E8A5AE', lightGold: '#F2C4CB', ground: '#140B0B', ground2: '#2A1416', bone: '#F8F1EE',
     rules: [
-      'A deep maroon-black ground (#140B0B) with the house’s dusty rose (#E8A5AE) as the one accent.',
-      'Warm ivory (#F8F1EE), not pure white, for type on dark.',
+      'A deep maroon-black ground (#140B0B), or a light, airy one; dusty rose (#E8A5AE) and rose pink (#F4A4C0) for small words; deep red (#8B1E2D) for buttons and for headlines on light grounds.',
+      'Warm ivory (#F8F1EE) for type on dark; the wordmark and button words in white.',
       'Colour and light first: let the stones and the silver shine; keep type short and clean.',
-      'Every visual comes as a pair: the story (1080 × 1920) and the square or 4:5.',
+      'Premium, minimal, impactful (the owner, 2026-10-15: “they need to feel premium … minimal but impactful”, then “the text is all too bulky”): the Bodoni italic is the one statement — a name at about 110 px, a headline at 80–96 px on a 1080-px frame — and everything else is small and widely tracked capitals in the house sans (the owner’s edits, 2026-10-16: off Tenor Sans): about 24 px, letter-spacing about 0.3 em — the piece’s name in regular, the material in bold. Never a stack of words; a margin of about 88 px and air between the parts.',
+      'Two kinds of ad. A named design: the name in Bodoni italic, one short italic line on its form (about 32 px), then one line of material in bold capitals (rose pink on dark, deep red on light) — nothing else, no separate stone line. When the words sit at the top over a light photo, the name is larger (about 145 px) and its line is in the regular sans (about 34 px). A benefit or the category: the headline in Bodoni italic, title case, no lead-in above it; a slim deep red (#8B1E2D) pill (about 214 × 58 px, fully round) with “SHOP NOW” in bold capitals; the material line; the wordmark small (about 136 px), beside the button or centred under the words on a story.',
+      'Behind the words a deep shade, not a light gradient: black — or deep red into black — from clear at 50–70% of the way down to 64–92% at the bottom.',
+      'On a benefit ad the piece’s line in regular capitals, rose pink on dark (deep red on light): “Vera · Moissanite”; a rhodium piece’s “925 silver · tarnish-resistant plating” under it in bold capitals, the same size, a little quieter.',
+      'Callouts that explain (a cut-away, a loupe on a detail): ivory pills with deep red words, joined by solid 5–7 px lines or arrows — never hairlines.',
+      'Photos a touch brighter and warmer than shot (brightness +12, contrast +8, saturation +6; warmth up on gold). Editorial face shots — sunglasses, a hand to the face — and AI-cleaned light grounds are welcome.',
+      'Every visual comes in three shapes: the story (1080 × 1920), the 4:5 and the 3:4 (Instagram’s grid).',
+      'A 9:16 is composed for Stories, not squeezed into the Reels safe zone: the piece large, its centre about a third of the way down; the words from about 1000 px to 1500 px; only the bottom fifth left clear (the owner, 2026-10-14: “the 9 by 16s all look off” when everything sat in the top two-thirds).',
     ],
   },
   market: [

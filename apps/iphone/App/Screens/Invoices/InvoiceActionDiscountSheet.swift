@@ -19,7 +19,8 @@ struct InvoiceActionDiscountSheet: View {
     init(invoice: Invoice, onDone: @escaping (InvoiceActionOutcome) -> Void) {
         self.invoice = invoice
         self.onDone = onDone
-        _amountText = State(initialValue: invoice.discountAmount > 0 ? PaymentText.field(invoice.discountAmount) : "")
+        // Whole rupees: an old invoice's paise are not carried into a box that types only digits.
+        _amountText = State(initialValue: rupees(invoice.discountAmount) > 0 ? PaymentText.field(rupees(invoice.discountAmount)) : "")
     }
 
     /// Blank is no discount (the page's `parseFloat(…) || 0`); anything else must read as rupees.
@@ -41,7 +42,7 @@ struct InvoiceActionDiscountSheet: View {
 
     private var changed: Bool {
         guard let d = discount else { return false }
-        return abs(d - invoice.discountAmount) >= 0.005
+        return rupees(d) != rupees(invoice.discountAmount)
     }
 
     var body: some View {
@@ -62,10 +63,14 @@ struct InvoiceActionDiscountSheet: View {
                     Text("Now")
                 }
                 Section {
-                    TextField("Discount in rupees", text: $amountText)
-                        .keyboardType(.decimalPad)
+                    TextField("Discount in rupees", text: $amountText.wholeRupees)
+                        .keyboardType(.numberPad)
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
+                    // invoice-viewer.tsx: the bill before any discount is the lines less the exchange.
+                    RoundOffChips(payable: invoice.subtotal - getInvoiceExchangeTotal(invoice), discount: discount ?? 0) { n in
+                        amountText = n > 0 ? PaymentText.field(n) : ""
+                    }
                 } header: {
                     Text("Discount")
                 } footer: {

@@ -35,9 +35,12 @@ final class InvoiceActionsTests: XCTestCase {
                        InvoiceActions.Discounted(discountAmount: 1_000, grandTotal: 9_000, balanceDue: 9_000))
     }
 
-    func testTheDiscountSumsInTheOrderTheStoreDoes() {
+    func testTheDiscountWorksInWholeRupeesTheDiscountTheTotalAndTheBalanceAreEachRounded() {
         XCTAssertEqual(InvoiceActions.withDiscount(F(subtotal: 1000.1, exchangeAmount1: 0.2, exchangeAmount2: 0.3, amountPaid: 0.7), discount: 0.05),
-                       InvoiceActions.Discounted(discountAmount: 0.05, grandTotal: 999.5500000000001, balanceDue: 998.85))
+                       InvoiceActions.Discounted(discountAmount: 0, grandTotal: 1000, balanceDue: 999))
+        // An older bill with paise: what it comes to and what is left read as whole rupees.
+        XCTAssertEqual(InvoiceActions.withDiscount(F(subtotal: 297_000.4, amountPaid: 100_000.3), discount: 2_340.6),
+                       InvoiceActions.Discounted(discountAmount: 2_341, grandTotal: 294_659, balanceDue: 194_659))
     }
 
     func testReadsTheFiguresOffTheInvoice() {
@@ -81,10 +84,10 @@ final class InvoiceActionsTests: XCTestCase {
         XCTAssertEqual(out.balanceDue, 800)
     }
 
-    func testTheRefundSumsInTheOrderTheStoreDoes() {
-        let out = InvoiceActions.withRefund(F(grandTotal: 0.3, payments: [0.1, 0.2]), amount: 0.05)
-        XCTAssertEqual(out.amountPaid, 0.25000000000000006)
-        XCTAssertEqual(out.balanceDue, 0.04999999999999993)
+    func testTheRefundWorksInWholeRupees() {
+        let out = InvoiceActions.withRefund(F(grandTotal: 1_000, payments: [600.4, 200.2]), amount: 50.4)
+        XCTAssertEqual(out.amountPaid, 751)
+        XCTAssertEqual(out.balanceDue, 249)
     }
 
     // MARK: Deleting one payment
@@ -108,10 +111,10 @@ final class InvoiceActionsTests: XCTestCase {
         XCTAssertNil(InvoiceActions.withoutPayment(F(grandTotal: 1_000), index: 0))
     }
 
-    func testDeletingSumsInTheOrderTheStoreDoes() {
-        let out = InvoiceActions.withoutPayment(F(grandTotal: 1, payments: [0.1, 0.2, 0.4]), index: 0)
-        XCTAssertEqual(out?.amountPaid, 0.6000000000000001)
-        XCTAssertEqual(out?.balanceDue, 0.3999999999999999)
+    func testDeletingWorksInWholeRupees() {
+        let out = InvoiceActions.withoutPayment(F(grandTotal: 1_000, payments: [100.1, 200.2, 400.4]), index: 0)
+        XCTAssertEqual(out?.amountPaid, 601)
+        XCTAssertEqual(out?.balanceDue, 399)
     }
 
     // MARK: The pieces a deleted invoice puts back in stock

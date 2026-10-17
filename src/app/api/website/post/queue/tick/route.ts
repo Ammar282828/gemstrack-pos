@@ -17,6 +17,8 @@
  * a house that takes online orders looks after them (lib/website/online.ts sweepOnline: the shop
  * nudged about orders waiting to be confirmed, customers reminded before their hold ends, the shop
  * told when a hold has ended).
+ * Once an hour it also keeps what Meta forgets for Insights — live stories' numbers and the day's
+ * follower counts (lib/social-insights/snapshot.ts).
  * `?dry=1` answers what is due without sending anything.
  */
 
@@ -31,6 +33,7 @@ import { loadWeekly, runWeeklySlice, startWeekly, weeklyDue } from '@/lib/ads/st
 import { runDueReports } from '@/lib/notifications/dispatch';
 import { refreshReviews } from '@/lib/reviews-server';
 import { onlineOrdersPossible, sweepOnline } from '@/lib/website/online';
+import { snapshotIfDue } from '@/lib/social-insights/snapshot';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -66,8 +69,10 @@ export async function POST(req: NextRequest) {
   // The link page's reviews, read again every six hours (reviews-server.ts); never in the way.
   if (!dry) await refreshReviews().then(r => { if (r.status === 'failed') console.warn('[queue/tick] reviews:', r.error); }).catch(() => undefined);
   const onlineOrders = await online(dry);
+  // Insights' hourly snapshot (stories die after a day); in every house with Meta, never in the way.
+  const insights = dry ? null : await snapshotIfDue().catch(() => null);
   // The reports ride this tick in every house, so they come before the Post a Piece gate.
-  if (!STORE_POST_PIECE) return NextResponse.json({ ok: true, onlineOrders, notifications: await reports(dry) });
+  if (!STORE_POST_PIECE) return NextResponse.json({ ok: true, onlineOrders, insights, notifications: await reports(dry) });
   const started = Date.now();
   const due = await dueItems(new Date(started));
   if (dry) return NextResponse.json({ ok: true, dry: true, onlineOrders, due: due.map(d => ({ id: d.id, headline: d.headline, dueAt: d.dueAt, status: d.status })), notifications: await reports(true) });
@@ -109,5 +114,5 @@ export async function POST(req: NextRequest) {
       console.warn('[queue/tick] assessing:', e instanceof Error ? e.message : e);
     }
   }
-  return NextResponse.json({ ok: true, due: due.length, results, swept, onlineOrders, notifications, weekly, assessed });
+  return NextResponse.json({ ok: true, due: due.length, results, swept, onlineOrders, insights, notifications, weekly, assessed });
 }

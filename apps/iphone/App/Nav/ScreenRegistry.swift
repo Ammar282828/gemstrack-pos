@@ -53,7 +53,7 @@ enum ScreenRegistry {
     static func readableWidth(for path: String) -> CGFloat? {
         let bare = ScreenRoute.bare(path)
         let fills: Set<String> = ["/", "/orders", "/invoices", "/workshop", "/karigars", "/products", "/calendar",
-                                  "/my-work", "/given", "/orders/add", "/invoices/new", "/products/add",
+                                  "/my-work", "/given", "/orders/add", "/invoices/new", "/products/add", "/design",
                                   "/products/bulk-add", "/settings/printer", "/app/widgets"]
         if fills.contains(bare) { return nil }
         for prefix in ["/ads", "/website", "/posts", "/marketing"] where bare == prefix || bare.hasPrefix(prefix + "/") { return nil }

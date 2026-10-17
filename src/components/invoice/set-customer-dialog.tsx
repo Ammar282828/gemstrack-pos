@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { PhoneField } from '@/components/ui/phone-field';
+import { owesMoney } from '@/lib/money';
 
 export function SetCustomerDialog({ invoice, open, onOpenChange, onDone }: {
   invoice: Invoice;
@@ -31,7 +32,7 @@ export function SetCustomerDialog({ invoice, open, onOpenChange, onDone }: {
   const named = !!invoice.customerName && !isWalkInName(invoice.customerName);
   const [who, setWho] = useState<{ name: string; customerId?: string; phone?: string }>({ name: '' });
   const [busy, setBusy] = useState(false);
-  const owes = (Number(invoice.balanceDue) || 0) > 0.5;
+  const owes = owesMoney(invoice.balanceDue);
 
   const save = async () => {
     setBusy(true);
@@ -39,7 +40,7 @@ export function SetCustomerDialog({ invoice, open, onOpenChange, onDone }: {
       const updated = await setInvoiceCustomer(invoice.id, who);
       if (updated) {
         onDone(updated);
-        toast({ title: `${invoice.id} is ${updated.customerName}'s`, description: owes ? `The PKR ${Number(invoice.balanceDue).toLocaleString()} still owed is on their hisaab now.` : 'Nothing was re-priced.' });
+        toast({ title: `${invoice.id} is ${updated.customerName}'s`, description: owes ? `The PKR ${Number(invoice.balanceDue).toLocaleString(undefined, { maximumFractionDigits: 0 })} still owed is on their hisaab now.` : 'Nothing was re-priced.' });
         onOpenChange(false);
       }
     } catch (e) {
