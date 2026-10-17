@@ -18,6 +18,9 @@ struct BusinessesScreen: View {
     @State private var preview: Business?
     @State private var removing: Business?
     @State private var note: Note?
+    /// Bumped on the event (a business chosen, one added) so the tap is felt once.
+    @State private var chosenTick = 0
+    @State private var addedTick = 0
 
     private enum Phase: Equatable {
         case idle, looking, adding
@@ -55,6 +58,13 @@ struct BusinessesScreen: View {
             if store.list.count > 1 { ToolbarItem(placement: .primaryAction) { EditButton() } }
         }
         .noteToast($note)
+        .selectionFeedback(trigger: chosenTick)
+        .savedFeedback(trigger: addedTick)
+        .scrollDismissesKeyboard(.interactively)
+        .failureAlert(Binding(
+            get: { if case .failed(let why) = phase { return why } else { return nil } },
+            set: { if $0 == nil { phase = .idle } }
+        ), title: "Couldn't add that business")
         .task { refreshWho() }
         .onChange(of: store.list) { _, _ in refreshWho() }
         .confirmationDialog(removing.map { ($0.art != nil ? "Hide " : "Remove ") + $0.displayName + " on this phone?" } ?? "",
@@ -125,7 +135,7 @@ struct BusinessesScreen: View {
             if inSheet { store.switcherOpen = false }
             return
         }
-        UISelectionFeedbackGenerator().selectionChanged()
+        chosenTick += 1
         // The root is rebuilt on the new business (ERPApp); the sheet, which sits above it, goes with the change.
         Motion.run(Motion.travel, reduce: reduceMotion) {
             store.switch(to: b.id)
@@ -137,7 +147,6 @@ struct BusinessesScreen: View {
         removing = nil
         Task {
             await Businesses.shared.remove(b.id)
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
             Note.show(Note(title: b.art != nil ? "Hidden on this phone" : "Removed from this phone", detail: b.displayName),
                       in: $note, reduce: reduceMotion)
             refreshWho()
@@ -163,9 +172,6 @@ struct BusinessesScreen: View {
                     guard phase != .looking, phase != .adding else { return }
                     Motion.run(reduce: reduceMotion) { phase = .idle; preview = nil }
                 }
-            if case .failed(let why) = phase {
-                Label(why, systemImage: "exclamationmark.triangle.fill").font(.footnote).foregroundStyle(Tone.problem.color)
-            }
             Button(phase == .looking ? "Looking…" : "Look up") { lookUp() }
                 .disabled(House.isDemo || address.trimmingCharacters(in: .whitespaces).isEmpty || phase == .looking || phase == .adding)
         } header: {
@@ -186,7 +192,6 @@ struct BusinessesScreen: View {
                 let found = try await Businesses.shared.describe(address: typed)
                 Motion.run(reduce: reduceMotion) { phase = .idle; preview = found }
             } catch {
-                UINotificationFeedbackGenerator().notificationOccurred(.error)
                 Motion.run(reduce: reduceMotion) { phase = .failed(error.localizedDescription) }
             }
         }
@@ -242,7 +247,7 @@ struct BusinessesScreen: View {
         Task {
             do {
                 let added = try await Businesses.shared.add(address: typed)
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                addedTick += 1
                 address = ""
                 phase = .idle
                 preview = nil
@@ -252,7 +257,6 @@ struct BusinessesScreen: View {
                     Businesses.shared.switcherOpen = false
                 }
             } catch {
-                UINotificationFeedbackGenerator().notificationOccurred(.error)
                 Motion.run(reduce: reduceMotion) { phase = .failed(error.localizedDescription) }
             }
         }

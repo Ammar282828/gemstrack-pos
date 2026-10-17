@@ -71,7 +71,9 @@ private struct HisaabImportPage: View {
     @State private var error: String?
     @State private var person: SettingsHisaabPerson?
     @State private var importing = false
-    @State private var note: OwnerNote?
+    @State private var note: Note?
+    @State private var confirming = false
+    @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var failure: String?
 
     private var people: [SettingsHisaabPerson] {
@@ -87,24 +89,28 @@ private struct HisaabImportPage: View {
             instructionsSection
             fileSection
             personSection
-            if let error {
-                Section {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Error Reading File").font(.subheadline.weight(.semibold))
-                        Text(error).font(.subheadline)
-                    }
-                    .foregroundStyle(Tone.problem.color)
-                }
-            }
             if !rows.isEmpty { previewSection }
-            importSection
+            if let refusal = read?.refusal { refusalSection(refusal) }
             }
             .houseRows()
         }
         .navigationTitle("Import hisaab")
         .navigationBarTitleDisplayMode(.inline)
-        .ownerNote($note)
+        .scrollDismissesKeyboard(.interactively)
+        .actionBar(
+            primary: .init(importing ? "Importing \(rows.count) transactions" : "Import for \(person?.name ?? "…")",
+                           systemImage: "square.and.arrow.down", isBusy: importing,
+                           isDisabled: rows.isEmpty || person == nil || error != nil || read?.refusal != nil) { confirming = true }
+        )
+        .noteToast($note)
         .failureAlert($failure, title: "Import stopped")
+        .failureAlert($error, title: "Could not read that file")
+        .confirmationDialog("Import \(rows.count) transactions?", isPresented: $confirming, titleVisibility: .visible) {
+            Button("Import for \(person?.name ?? "this person")") { Task { await runImport() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("They are added to this person’s hisaab. Importing the same file again for the same person writes over its own rows, not twice.")
+        }
         .fileImporter(isPresented: $picking, allowedContentTypes: [.commaSeparatedText, .plainText]) { result in
             switch result {
             case .success(let url): Task { await readFile(url) }
@@ -148,7 +154,7 @@ private struct HisaabImportPage: View {
             Button { picking = true } label: {
                 HStack(spacing: 8) {
                     if reading { SkeletonLoading() }
-                    Label(fileName.isEmpty ? "Choose File" : "Change File", systemImage: "doc.badge.plus")
+                    Label(fileName.isEmpty ? "Choose file" : "Change file", systemImage: "doc.badge.plus")
                 }
             }
             .disabled(reading || importing)
@@ -191,7 +197,7 @@ private struct HisaabImportPage: View {
                         Label(person.name, systemImage: person.type == "karigar" ? "hammer" : "person")
                             .foregroundStyle(.primary)
                     } else {
-                        Text("Select a customer or karigar...")
+                        Text("Select a customer or karigar…")
                     }
                     Spacer()
                     Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
@@ -214,7 +220,7 @@ private struct HisaabImportPage: View {
                         .accessibilityHidden(row.isValidDate)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(row.description.isEmpty ? "—" : row.description).lineLimit(2)
-                        Text(row.isValidDate ? OwnerText.shortDate(row.date) : "Invalid Date")
+                        Text(row.isValidDate ? OwnerText.shortDate(row.date) : "Invalid date")
                             .font(.caption)
                             .foregroundStyle(row.isValidDate ? Color.secondary : Tone.problem.color)
                     }
@@ -233,20 +239,13 @@ private struct HisaabImportPage: View {
 
     // MARK: Import
 
-    private var importSection: some View {
+    /// A file the ERP will not take as it is: said where the person is looking, above the bar that waits.
+    private func refusalSection(_ text: String) -> some View {
         Section {
-            Button { Task { await runImport() } } label: {
-                HStack(spacing: 8) {
-                    if importing { SkeletonLoading() }
-                    Label(importing ? "Importing \(rows.count) Transactions..." : "Import for \(person?.name ?? "...")", systemImage: "square.and.arrow.down")
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.houseProminent)
-            .disabled(rows.isEmpty || person == nil || importing || error != nil || read?.refusal != nil)
-        } footer: {
-            if let refusal = read?.refusal {
-                Text(refusal).foregroundStyle(Tone.problem.color)
+            Label {
+                Text(text)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
             }
         }
     }
@@ -260,7 +259,7 @@ private struct HisaabImportPage: View {
         do {
             let out = try await ERPAPI.shared.write("importHisaab", ["csv": csv, "entityId": person.id, "entityType": person.type])
             let n = out["imported"] as? Int ?? rows.count
-            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Import Complete", detail: "\(n) transactions imported successfully. 0 failed.") }
+            Motion.run(reduce: reduce) { note = Note(title: "Import complete", detail: "\(n) transactions imported successfully. 0 failed.") }
             read = nil
             csv = ""
             fileName = ""
@@ -308,6 +307,6 @@ private struct HisaabPersonPicker: View {
                 }
             }
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
     }
 }

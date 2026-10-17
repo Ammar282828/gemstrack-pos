@@ -18,6 +18,7 @@ struct WidgetPreviewScreen: View {
                     .padding(20)
             }
         }
+        .background(Theme.ground.ignoresSafeArea())
         .navigationTitle("Widgets")
         .navigationBarTitleDisplayMode(.inline)
     }

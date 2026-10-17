@@ -58,12 +58,11 @@ private struct DataForm: View {
             } footer: {
                 Text("Resets the shop name, address and number to this house’s own, and a gold house’s gold rates to gold.pk’s. No orders or invoices are touched.")
             }
-
-            SettingsErrorSection(writer: writer)
             }
             .houseRows()
         }
         .onChange(of: settings) { _, _ in writer.settled() }
+        .settingsFailure(writer)
         .noteToast($note)
         .confirmationDialog("Restore shop defaults?", isPresented: Binding(get: { defaults != nil }, set: { if !$0 { defaults = nil } }),
                             titleVisibility: .visible, presenting: defaults) { _ in

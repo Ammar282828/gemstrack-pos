@@ -129,6 +129,7 @@ private struct WebsiteSellingForm: View {
     @State private var adding = ""
     @State private var note: Note?
     @State private var failure: String?
+    @State private var confirmingDiscard = false
 
     /// The site's collection folders, the keys a collection's pricing is written under (website-settings.tsx SITE_COLLECTIONS).
     static let siteCollections = [
@@ -161,10 +162,14 @@ private struct WebsiteSellingForm: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") { Task { await save() } }
+                Button(saving ? "Saving…" : "Save") { Task { await save() } }
                     .disabled(!dirty || saving)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
+        .confirmDestructive(isPresented: $confirmingDiscard, title: "Discard your changes?",
+                            message: "The form goes back to what was last saved.", action: "Discard changes") { draft = base }
         .noteToast($note)
         .failureAlert($failure, title: "Not saved")
         .onAppear { doc.need() }
@@ -281,7 +286,7 @@ private struct WebsiteSellingForm: View {
             }
 
             Section {
-                Text("The bank account shown to customers is set in the ERP’s hosting environment, not here, so nothing that can write to the books can change where the money goes.")
+                Text("The bank account shown to customers is kept by whoever manages the ERP, not here, so nothing that can write to the books can change where the money goes.")
                     .font(.footnote).foregroundStyle(.secondary)
                 if let at = base.updatedAt, !at.isEmpty {
                     LabeledContent("Last saved", value: ShopDate.say(at, withTime: true))
@@ -290,12 +295,7 @@ private struct WebsiteSellingForm: View {
 
             if dirty {
                 Section {
-                    Button { Task { await save() } } label: {
-                        Text(saving ? "Saving…" : "Save website settings").frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.houseProminent)
-                    .disabled(saving)
-                    Button("Discard changes", role: .destructive) { draft = base }
+                    Button("Discard changes", role: .destructive) { confirmingDiscard = true }
                         .disabled(saving)
                 }
             }

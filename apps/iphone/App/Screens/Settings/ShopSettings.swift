@@ -102,8 +102,6 @@ private struct ShopForm: View {
             }
 
             numbering
-
-            SettingsErrorSection(writer: writer)
             }
             .houseRows()
         }
@@ -115,6 +113,9 @@ private struct ShopForm: View {
             writer.settled()
         }
         .onDisappear { commit() }
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
+        .settingsFailure(writer)
         .noteToast($note)
     }
 

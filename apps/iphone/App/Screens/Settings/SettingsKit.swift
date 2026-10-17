@@ -81,6 +81,8 @@ struct SettingsGate<Content: View>: View {
                 NotAvailableState("Owners only", why: "Settings are the owners’.", symbol: "lock")
             }
         }
+        // The house's ground for every settings form, in this one place (the rows are Theme.card).
+        .modifier(HouseGround())
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { book.settings.need() }
@@ -172,24 +174,22 @@ struct SettingsOwnersOnly<Content: View>: View {
     }
 
     var body: some View {
-        if session.isOwner {
-            content()
-        } else {
-            NotAvailableState("Owners only", why: "Settings are the owners’.", symbol: "lock")
-                .navigationTitle(title)
+        Group {
+            if session.isOwner {
+                content()
+            } else {
+                NotAvailableState("Owners only", why: "Settings are the owners’.", symbol: "lock")
+                    .navigationTitle(title)
+            }
         }
+        .modifier(HouseGround())
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
-/// What went wrong with the last save, where the person is looking.
-struct SettingsErrorSection: View {
-    let writer: SettingsWriter
-
-    var body: some View {
-        if let message = writer.error {
-            Section {
-                Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
-            }
-        }
+extension View {
+    /// What went wrong with the last save, said in an alert where the person is looking (rule 16), not in red at the foot.
+    func settingsFailure(_ writer: SettingsWriter) -> some View {
+        failureAlert(Binding(get: { writer.error }, set: { writer.error = $0 }), title: "Not saved")
     }
 }

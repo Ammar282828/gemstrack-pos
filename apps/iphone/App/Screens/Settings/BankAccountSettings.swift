@@ -62,9 +62,6 @@ private struct BankAccountsForm: View {
     var body: some View {
         Form { Group {
             Section {
-                if accounts.isEmpty {
-                    Text("No bank accounts yet").foregroundStyle(.secondary)
-                }
                 ForEach(accounts) { a in
                     Button { editing = a } label: {
                         TwoLine(title: a.bankName, subtitle: [a.accountName, a.accountNumber].filter { !$0.isEmpty }.joined(separator: " · "))
@@ -75,11 +72,17 @@ private struct BankAccountsForm: View {
             } footer: {
                 Text("Shared with customers who pay by transfer.")
             }
-
-            SettingsErrorSection(writer: writer)
             }
             .houseRows()
         }
+        .overlay {
+            if accounts.isEmpty {
+                EmptyState("No bank accounts yet", symbol: "building.columns",
+                           message: "Add one to share it with customers who pay by transfer.",
+                           action: (title: "Add account", run: { editing = BankAccountDraft.new() }))
+            }
+        }
+        .settingsFailure(writer)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { editing = BankAccountDraft.new() } label: { Label("Add account", systemImage: "plus") }
@@ -181,13 +184,13 @@ private struct BankAccountSheet: View {
                     Text("The bank, the account name and the number are needed.")
                 }
 
-                if let error {
-                    Section { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color) }
-                }
                 }
                 .houseRows()
             }
             .modifier(HouseGround())
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
+            .failureAlert($error, title: "Not saved")
             .navigationTitle(isNew ? "New bank account" : "Bank account")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -205,6 +208,7 @@ private struct BankAccountSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
+        .interactiveDismissDisabled(saving)
     }
 }

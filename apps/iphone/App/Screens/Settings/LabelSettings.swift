@@ -77,7 +77,7 @@ struct SettingsLabelField: Decodable, Identifiable, Hashable {
         x = 10
         y = 10
         rotation = 0
-        data = "New Text"
+        data = "New text"
         fontSize = 20
     }
 
@@ -145,8 +145,13 @@ private struct LabelDesigner: View {
     /// Changed here and not yet saved: the copy from the books does not replace it.
     @State private var edited = false
     @State private var saving = false
-    @State private var note: OwnerNote?
+    @State private var note: Note?
     @State private var failure: String?
+    /// A save or an export that did not go through, said in an alert.
+    @State private var problem: String?
+    @State private var removingField: String?
+    @State private var confirmingRemove = false
+    @Environment(\.accessibilityReduceMotion) private var reduce
 
     @State private var search = ""
     @State private var picked: Product?
@@ -160,20 +165,21 @@ private struct LabelDesigner: View {
             if let layout {
                 form(layout)
             } else if let failure, standard == nil, doc.loaded, saved == nil {
-                ContentUnavailableView {
-                    Label("Couldn't load the tag", systemImage: "tag")
-                } description: {
-                    Text(failure)
-                } actions: {
-                    Button("Try again") { self.failure = nil; doc.need(); Task { await loadStandard() } }
-                }
+                ErrorState(failure) { self.failure = nil; doc.need(); Task { await loadStandard() } }
             } else {
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle("Labels")
         .navigationBarTitleDisplayMode(.inline)
-        .ownerNote($note)
+        .noteToast($note)
+        .failureAlert($problem, title: "Not done")
+        .confirmDestructive(isPresented: $confirmingRemove, title: "Remove this field?",
+                            message: "It is taken off the tag. The tag is saved a moment later.",
+                            action: "Remove field") {
+            if let id = removingField { change { l in l.fields.removeAll { $0.id == id } } }
+            removingField = nil
+        }
         .onAppear {
             doc.need()
             book.products.need()
@@ -218,7 +224,7 @@ private struct LabelDesigner: View {
             try await ERPAPI.shared.write("saveLabelLayout", ["layout": next.stored, "seq": UUID().uuidString])
             if layout == next { edited = false }
         } catch {
-            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Layout not saved", detail: "Check the connection; it will try again on the next change. \(error.localizedDescription)", failed: true) }
+            problem = "The layout was not saved. Check the connection; it will try again on the next change. \(error.localizedDescription)"
         }
         saving = false
     }
@@ -255,7 +261,7 @@ private struct LabelDesigner: View {
 
             Section {
                 Button { change { $0.fields.append(SettingsLabelField()) } } label: {
-                    Label("Add Text Field", systemImage: "plus.circle")
+                    Label("Add text field", systemImage: "plus.circle")
                 }
             } footer: {
                 Text("\(l.name) · \(l.widthDots) × \(l.heightDots) dots")
@@ -263,9 +269,11 @@ private struct LabelDesigner: View {
             }
             .houseRows()
         }
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
     }
 
-    // MARK: Test & Export
+    // MARK: Test and export
 
     private var hits: [Product] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
@@ -282,14 +290,14 @@ private struct LabelDesigner: View {
                     csv = nil
                 }
             } else {
-                TextField("Search by name or SKU...", text: $search)
+                TextField("Search by name or SKU", text: $search)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 if !search.trimmingCharacters(in: .whitespaces).isEmpty {
                     if !book.products.loaded {
                         SkeletonLoading()
                     } else if hits.isEmpty {
-                        Text("No products found.").foregroundStyle(.secondary)
+                        Text("No pieces found.").foregroundStyle(.secondary)
                     }
                     ForEach(hits) { (p: Product) in
                         Button {
@@ -305,7 +313,7 @@ private struct LabelDesigner: View {
             Button { Task { await makeCsv() } } label: {
                 HStack(spacing: 8) {
                     if making { SkeletonLoading() }
-                    Label("Download CSV for Selected Product", systemImage: "arrow.down.doc")
+                    Label("Download CSV for this piece", systemImage: "arrow.down.doc")
                 }
             }
             .disabled(picked == nil || making)
@@ -327,9 +335,9 @@ private struct LabelDesigner: View {
             // The page's file name: gemstrack_double_tag_export_<UTC time>.csv
             let stamp = String(ERPDate.iso(Date()).prefix(19)).replacingOccurrences(of: ":", with: "-").replacingOccurrences(of: "T", with: "-")
             csv = try SettingsFiles.save(data, named: "gemstrack_double_tag_export_\(stamp).csv")
-            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "CSV Exported", detail: "Product details for \(p.sku) exported.") }
+            Motion.run(reduce: reduce) { note = Note(title: "CSV exported", detail: "Product details for \(p.sku) exported.") }
         } catch {
-            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "CSV not made", detail: error.localizedDescription, failed: true) }
+            problem = "The CSV was not made. \(error.localizedDescription)"
         }
         making = false
     }
@@ -356,7 +364,7 @@ private struct LabelDesigner: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
-            LabeledContent("Font Size") {
+            LabeledContent("Font size") {
                 // The page's `parseInt(value) || 20`.
                 TextField("20", text: Binding(
                     get: { String(current(id)?.fontSize ?? 20) },
@@ -369,10 +377,11 @@ private struct LabelDesigner: View {
                 ForEach([0, 90, 180, 270], id: \.self) { (r: Int) in Text("\(r)°").tag(r) }
             }
             Button("Remove field", role: .destructive) {
-                change { l in l.fields.removeAll { $0.id == id } }
+                removingField = id
+                confirmingRemove = true
             }
         } header: {
-            Text(id).textCase(nil)
+            Text(f.type == "qr" ? "QR code" : (f.data.isEmpty ? "Text field" : f.data)).textCase(nil)
         }
     }
 

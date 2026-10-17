@@ -91,6 +91,7 @@ private struct TaheriBookImportPage: View {
     @State private var done: (customers: Int, karigars: Int)?
     @State private var note: Note?
     @State private var stopped: String?
+    @State private var confirming = false
 
     private var willAdd: Int { preview?.adds(takingHalfMatches: takeHalfMatches) ?? 0 }
 
@@ -109,12 +110,7 @@ private struct TaheriBookImportPage: View {
                         Text("Re-running now adds nobody — they all count as already here.")
                     }
                 }
-            } else if let error {
-                Section {
-                    Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
-                    Button("Try again") { Task { await look() } }
-                }
-            } else {
+            } else if error == nil {
                 Section { SkeletonLoading("Reading the book") }
             }
             }
@@ -122,8 +118,17 @@ private struct TaheriBookImportPage: View {
         }
         .navigationTitle("Import Taheri Software book")
         .navigationBarTitleDisplayMode(.inline)
-        .safeAreaInset(edge: .bottom) {
+        .overlay {
+            if preview == nil, let error { ErrorState(error) { Task { await look() } } }
+        }
+        .safeAreaBar(edge: .bottom, spacing: 0) {
             if preview != nil && done == nil { importBar }
+        }
+        .confirmationDialog("Import \(willAdd) record\(willAdd == 1 ? "" : "s")?", isPresented: $confirming, titleVisibility: .visible) {
+            Button("Import") { Task { await runImport() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("They go into the live book. Anyone already here is skipped, and running it again adds nobody.")
         }
         .noteToast($note)
         .failureAlert($stopped, title: "Import stopped")
@@ -182,23 +187,11 @@ private struct TaheriBookImportPage: View {
     // MARK: Import
 
     private var importBar: some View {
-        HStack(spacing: 12) {
-            Text("\(willAdd) record\(willAdd == 1 ? "" : "s") would be added.").font(.subheadline).foregroundStyle(.secondary)
-            Spacer(minLength: 8)
-            Button { Task { await runImport() } } label: {
-                HStack(spacing: 6) {
-                    if importing { SkeletonLoading() }
-                    Label("Import \(willAdd)", systemImage: "square.and.arrow.down")
-                }
-            }
-            .buttonStyle(.houseProminent)
-            .disabled(importing || loading || willAdd == 0)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .glassEffect(.regular, in: .rect(cornerRadius: Radius.card))
-        .padding(.horizontal)
-        .padding(.bottom, 8)
+        ActionBar(
+            primary: .init("Import \(willAdd)", systemImage: "square.and.arrow.down", isBusy: importing,
+                           isDisabled: loading || willAdd == 0) { confirming = true },
+            summary: "\(willAdd) record\(willAdd == 1 ? "" : "s") would be added"
+        )
     }
 
     /// The ERP's preview: read-only, so each look is its own (`seq`: ERPAPI names a change by its content).

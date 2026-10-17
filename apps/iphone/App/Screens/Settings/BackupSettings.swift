@@ -73,7 +73,9 @@ private struct BackupPage: View {
     @State private var deleteCountText = "1"
     @State private var deletion: OwnerDeletion?
 
-    @State private var note: OwnerNote?
+    @State private var note: Note?
+    @State private var confirmingDelete = false
+    @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var failure: String?
 
     @State private var pickingBackup = false
@@ -94,7 +96,13 @@ private struct BackupPage: View {
         }
         .navigationTitle("Backups")
         .navigationBarTitleDisplayMode(.inline)
-        .ownerNote($note)
+        .noteToast($note)
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
+        .confirmDestructive(isPresented: $confirmingDelete,
+                            title: "Delete the latest \(max(deleteCount, 1)) piece\(max(deleteCount, 1) == 1 ? "" : "s")?",
+                            message: "The most recently added pieces are removed for good. You will be asked for the delete code next.",
+                            action: "Continue") { askToDelete() }
         .failureAlert($failure, title: "Could not do that")
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {}
@@ -175,7 +183,7 @@ private struct BackupPage: View {
                                 Text(c.description).font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 8)
-                            Text(c.count < 0 ? "err" : BackupPage.grouped(c.count))
+                            Text(c.count < 0 ? "Not counted" : BackupPage.grouped(c.count))
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
@@ -186,7 +194,7 @@ private struct BackupPage: View {
                 Button { Task { await export() } } label: {
                     HStack(spacing: 8) {
                         if exporting { SkeletonLoading() }
-                        Label(exporting ? "Exporting… \(Int(progress * 100))%" : "Download Backup", systemImage: "doc.badge.arrow.up")
+                        Label(exporting ? "Exporting… \(Int(progress * 100))%" : "Download backup", systemImage: "doc.badge.arrow.up")
                     }
                 }
                 .disabled(exporting || selected.isEmpty)
@@ -200,7 +208,7 @@ private struct BackupPage: View {
             LedgerHeading(title: "Export backup")
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Download all your data as a JSON file you can store locally or import later.")
+                Text("Download all your data as a backup file you can keep or restore later.")
                 if list != nil { Text("\(BackupPage.grouped(totalDocs)) records selected") }
                 if !lastExport.isEmpty { Text("Last export: \(ShopDate.say(lastExport, withTime: true))") }
             }
@@ -210,7 +218,7 @@ private struct BackupPage: View {
     /// The page's file, a collection at a time: `{ "exportedAt": …, "collections": […], "data": { <id>: { … } } }`.
     private func export() async {
         guard let list, !selected.isEmpty else {
-            failure = "Select at least one collection."
+            failure = "Choose at least one list to back up."
             return
         }
         let cols = list.collections.map(\.id).filter { selected.contains($0) }
@@ -234,9 +242,9 @@ private struct BackupPage: View {
             file = try SettingsFiles.save(out, named: list.fileName)
             lastExport = now
             let total = list.collections.filter { selected.contains($0.id) }.reduce(0) { $0 + max(0, $1.count) }
-            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Backup Downloaded", detail: "\(BackupPage.grouped(total)) records across \(cols.count) collections.") }
+            Motion.run(reduce: reduce) { note = Note(title: "Backup downloaded", detail: "\(BackupPage.grouped(total)) records across \(cols.count) list\(cols.count == 1 ? "" : "s").") }
         } catch {
-            failure = "Export Failed: \(error.localizedDescription)"
+            failure = "Export failed: \(error.localizedDescription)"
         }
         exporting = false
         progress = 0
@@ -288,7 +296,7 @@ private struct BackupPage: View {
         } header: {
             LedgerHeading(title: "Restore from backup")
         } footer: {
-            Text("A JSON backup exported here or on the ERP. Records are merged: each one in the file is written over the live one, nothing is deleted. Asks for the delete code.")
+            Text("A backup file made here or on the ERP. Records are merged: each one in the file is written over the live one, nothing is deleted. Asks for the delete code.")
         }
     }
 
@@ -329,8 +337,8 @@ private struct BackupPage: View {
             restoreProgress = nil
             backupFile = nil
             restoreCode = ""
-            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) {
-                note = OwnerNote(title: "Restore complete", detail: "\(BackupPage.grouped(written)) records restored.")
+            Motion.run(reduce: reduce) {
+                note = Note(title: "Restore complete", detail: "\(BackupPage.grouped(written)) records restored.")
             }
         } catch {
             restoreProgress = nil
@@ -352,7 +360,7 @@ private struct BackupPage: View {
 
     private var recoverySection: some View {
         Section {
-            TextField("Search SKU or name of a sold item…", text: $search)
+            TextField("Search a sold piece by SKU or name", text: $search)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
             if !search.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -369,9 +377,10 @@ private struct BackupPage: View {
                             Button {
                                 Task { await reAdd(p) }
                             } label: {
-                                if recovering == p.sku { SkeletonLoading() } else { Label("Re-Add", systemImage: "plus.circle") }
+                                if recovering == p.sku { SkeletonLoading() } else { Label("Re-add", systemImage: "plus.circle") }
                             }
-                            .buttonStyle(.glass)
+                            .buttonStyle(.bordered)
+                            .frame(minHeight: 44)
                             .disabled(recovering != nil)
                         }
                     }
@@ -389,11 +398,11 @@ private struct BackupPage: View {
         do {
             let out = try await ERPAPI.shared.write("reAddSoldProduct", ["sku": p.sku])
             let sku = (out["product"] as? [String: Any])?["sku"] as? String
-            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) {
-                note = OwnerNote(title: "Product Restored", detail: "\(p.name) has been re-added to inventory with a new SKU\(sku.map { " (\($0))" } ?? "").")
+            Motion.run(reduce: reduce) {
+                note = Note(title: "Piece restored", detail: "\(p.name) has been re-added to inventory with a new SKU\(sku.map { " (\($0))" } ?? "").")
             }
         } catch {
-            failure = "Failed to restore product: \(error.localizedDescription)"
+            failure = "Couldn’t restore that piece: \(error.localizedDescription)"
         }
         recovering = nil
     }
@@ -402,16 +411,16 @@ private struct BackupPage: View {
 
     private var pitrSection: some View {
         Section {
-            Text("PITR must be enabled in your Firebase project. Restoration overwrites your current data — consult a developer before using it.")
+            Text("Google can take the whole database back to an earlier minute. It has to be switched on for the shop, and taking it back overwrites today’s data, so ask a developer before using it.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             if let url = consoleURL {
-                Link(destination: url) { Label("Open Firestore Console", systemImage: "arrow.up.right.square") }
+                Link(destination: url) { Label("Open Google Cloud", systemImage: "arrow.up.right.square") }
             }
         } header: {
-            LedgerHeading(title: "Cloud database backups (PITR)")
+            LedgerHeading(title: "Cloud database backups")
         } footer: {
-            Text("Firestore’s Point-in-Time Recovery lets you restore to any minute in the last 7 days via the Google Cloud Console. Managed by Google Cloud.")
+            Text("Google keeps a rolling copy that can be taken back to any minute in the last 7 days. It is managed in Google Cloud.")
         }
     }
 
@@ -428,36 +437,36 @@ private struct BackupPage: View {
 
     private var dangerSection: some View {
         Section {
-            LabeledContent("Delete the latest N pieces (by highest SKU)") {
+            LabeledContent("Pieces to delete, newest SKUs first") {
                 TextField("1", text: $deleteCountText)
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .frame(maxWidth: 80)
             }
-            Button(role: .destructive) { askToDelete() } label: {
-                Label("Delete \(max(deleteCount, 1)) Product\(max(deleteCount, 1) == 1 ? "" : "s")", systemImage: "trash")
+            Button(role: .destructive) { confirmingDelete = true } label: {
+                Label("Delete the latest \(max(deleteCount, 1)) piece\(max(deleteCount, 1) == 1 ? "" : "s")", systemImage: "trash")
             }
             .disabled(deleteCount <= 0)
         } header: {
-            LedgerHeading(title: "Danger zone")
+            LedgerHeading(title: "Delete pieces")
         } footer: {
-            Text("Destructive actions that cannot be undone.")
+            Text("This cannot be undone.")
         }
     }
 
     private func askToDelete() {
         let count = deleteCount
         guard count > 0 else {
-            failure = "Please enter a positive number."
+            failure = "Enter a number above zero."
             return
         }
         deletion = OwnerDeletion(
-            what: "Delete the latest \(count) products",
-            detail: "This will permanently delete the \(count) most recently added products."
+            what: "Delete the latest \(count) pieces",
+            detail: "This will permanently delete the \(count) most recently added pieces."
         ) { code in
             let out = try await ERPAPI.shared.write("deleteLatestProducts", ["count": count, "deleteCode": code])
             let gone = out["deleted"] as? Int ?? 0
-            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Success", detail: "\(gone) latest products deleted.") }
+            Motion.run(reduce: reduce) { note = Note(title: "Pieces deleted", detail: "\(gone) latest pieces deleted.") }
         }
     }
 }

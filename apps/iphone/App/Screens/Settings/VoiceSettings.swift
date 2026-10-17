@@ -59,7 +59,10 @@ private struct VoiceSettingsPage: View {
     @State private var ready: Bool?
     @State private var reason: String?
     @State private var busy: String?
-    @State private var note: OwnerNote?
+    @State private var note: Note?
+    @State private var forgetting: SettingsVoiceAlias?
+    @State private var confirmingForget = false
+    @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var failure: String?
 
     var body: some View {
@@ -71,7 +74,13 @@ private struct VoiceSettingsPage: View {
         }
         .navigationTitle("Voice")
         .navigationBarTitleDisplayMode(.inline)
-        .ownerNote($note)
+        .noteToast($note)
+        .confirmDestructive(isPresented: $confirmingForget,
+                            title: "Forget “\(forgetting?.heard ?? "this name")”?",
+                            message: "It will no longer mean \(forgetting?.refName ?? "that person"). It can be taught again by correcting it.",
+                            action: "Forget") {
+            if let a = forgetting { Task { await forget(a) } }
+        }
         .failureAlert($failure, title: "Could not forget that")
         .task { await check() }
         .onAppear { aliases.need() }
@@ -101,32 +110,32 @@ private struct VoiceSettingsPage: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         } footer: {
-            Text("Billed to this shop’s own Google Cloud account. There is no API key to keep.")
+            Text("Voice is paid for by this shop’s own Google account. There is no key to keep.")
         }
     }
 
     private var problemTitle: String {
         switch reason {
-        case "no_credit": return "The Google Cloud account is out of credit"
-        case "no_permission": return "This deployment cannot reach Gemini"
-        case "not_configured": return "Voice is not set up on this deployment"
-        case "refused": return "This app would not let the request through"
-        default: return "Could not reach Gemini"
+        case "no_credit": return "The shop’s Google account is out of credit"
+        case "no_permission": return "Voice cannot reach Google"
+        case "not_configured": return "Voice is not set up for this shop"
+        case "refused": return "The app did not allow that"
+        default: return "Could not reach Google"
         }
     }
 
     private var problemDetail: String {
         switch reason {
         case "no_credit":
-            return "Voice and the scanner bill to this shop’s Google Cloud account, and it has nothing left. Top it up and both start working again with no change here — there is no key to replace."
+            return "Voice and the scanner are paid for from this shop’s Google account, and it has nothing left. Top it up and both start working again; nothing needs changing here."
         case "no_permission":
-            return "The app’s own service account is not allowed to call Vertex AI on this project. It needs the Vertex AI User role."
+            return "The shop’s Google account has not allowed voice to run. Ask whoever set up the ERP to allow it."
         case "not_configured":
-            return "No Google Cloud project is configured for this build."
+            return "No Google account has been linked to voice for this shop yet."
         case "refused":
-            return "The voice routes asked for a signed-in owner and got nobody. Google was never contacted, so this is not an outage — it is the gate in front of it."
+            return "Voice needs a signed-in owner and did not find one. Google was never contacted, so this is not an outage. Sign in again."
         default:
-            return "Google did not answer. This is usually the connection rather than the setup; it will be rechecked shortly."
+            return "Google did not answer. This is usually the connection rather than the set-up; it will be checked again shortly."
         }
     }
 
@@ -181,17 +190,21 @@ private struct VoiceSettingsPage: View {
                 Text(sub).font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            Button(role: .destructive) { Task { await forget(a) } } label: {
-                if busy == a.id { SkeletonLoading() } else { Image(systemName: "trash") }
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(Tone.problem.color)
-            .disabled(busy != nil)
-            .accessibilityLabel("Forget")
+            if busy == a.id { SkeletonLoading() }
         }
         .swipeActions {
-            Button(role: .destructive) { Task { await forget(a) } } label: { Label("Forget", systemImage: "trash") }
+            Button(role: .destructive) { askToForget(a) } label: { Label("Forget", systemImage: "trash") }
+                .disabled(busy != nil)
         }
+        .contextMenu {
+            Button(role: .destructive) { askToForget(a) } label: { Label("Forget", systemImage: "trash") }
+        }
+        .accessibilityAction(named: "Forget") { askToForget(a) }
+    }
+
+    private func askToForget(_ a: SettingsVoiceAlias) {
+        forgetting = a
+        confirmingForget = true
     }
 
     private func forget(_ a: SettingsVoiceAlias) async {
@@ -199,10 +212,10 @@ private struct VoiceSettingsPage: View {
         busy = a.id
         do {
             try await ERPAPI.shared.write("forgetVoiceAlias", ["aliasId": a.id])
-            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Forgotten", detail: "“\(a.heard)” no longer means \(a.refName).") }
+            Motion.run(reduce: reduce) { note = Note(title: "Forgotten", detail: "“\(a.heard)” no longer means \(a.refName).") }
         } catch let f as ERPAPI.Failure where f.status == 409 {
             // Forgotten on another device a moment ago: the list catches up by itself.
-            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Forgotten", detail: "“\(a.heard)” no longer means \(a.refName).") }
+            Motion.run(reduce: reduce) { note = Note(title: "Forgotten", detail: "“\(a.heard)” no longer means \(a.refName).") }
         } catch {
             failure = error.localizedDescription
         }

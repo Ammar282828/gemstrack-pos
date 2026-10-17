@@ -81,11 +81,12 @@ private struct AlertsForm: View {
             }
 
             AlertConnectionSections(settings: settings, enabled: enabled, phones: phones, note: $note, failure: $failure)
-
-            SettingsErrorSection(writer: writer)
             }
             .houseRows()
         }
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
+        .settingsFailure(writer)
         .onChange(of: settings) { _, new in
             phones = new.notifPhones
             if timeSave == nil { times = Times(new) }
@@ -109,6 +110,7 @@ private struct AlertsForm: View {
             LabeledContent("WhatsApp number") {
                 TextField("0300 1234567", text: $newNumber)
                     .keyboardType(.phonePad)
+                    .submitLabel(.done)
                     .multilineTextAlignment(.trailing)
                     .onSubmit { addNumber() }
             }
@@ -139,6 +141,8 @@ private struct AlertsForm: View {
         } footer: {
             Text("Karachi time. The checks, the weekly and the monthly reports go with the checklist.")
         }
+        // The footer says Karachi time, so the wheels show it whatever zone the phone is in.
+        .environment(\.timeZone, Self.karachi)
     }
 
     // MARK: Numbers
@@ -183,16 +187,25 @@ private struct AlertsForm: View {
 
     // MARK: Times
 
-    /// "09:00" as a time on a fixed day: only the clock is used, in whatever zone the phone is in.
+    /// The shop's clock: the times are Karachi's wherever the phone is.
+    static let karachi = TimeZone(identifier: "Asia/Karachi") ?? .current
+
+    private static var calendar: Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = karachi
+        return c
+    }
+
+    /// "09:00" as a time on a fixed day: only the clock is used, read in Karachi.
     static func date(_ hhmm: String) -> Date {
         let p = hhmm.split(separator: ":").compactMap { Int($0) }
         let h = p.count > 0 ? p[0] : 9
         let m = p.count > 1 ? p[1] : 0
-        return Calendar.current.date(from: DateComponents(year: 2001, month: 1, day: 1, hour: h, minute: m)) ?? Date()
+        return calendar.date(from: DateComponents(year: 2001, month: 1, day: 1, hour: h, minute: m)) ?? Date()
     }
 
     static func hhmm(_ date: Date) -> String {
-        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let c = calendar.dateComponents([.hour, .minute], from: date)
         return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
     }
 

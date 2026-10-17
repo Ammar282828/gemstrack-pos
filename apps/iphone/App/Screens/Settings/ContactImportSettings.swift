@@ -166,7 +166,9 @@ private struct ContactImportPage: View {
     @State private var dropped: Set<String> = []
     @State private var choices: [String: String] = [:]
     @State private var importing = false
-    @State private var note: OwnerNote?
+    @State private var note: Note?
+    @State private var confirming = false
+    @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var stopped: String?
 
     private var plan: SettingsContactPlan? { answer?.plan }
@@ -187,11 +189,19 @@ private struct ContactImportPage: View {
         }
         .navigationTitle("Import contacts")
         .navigationBarTitleDisplayMode(.inline)
-        .safeAreaInset(edge: .bottom) {
+        .scrollDismissesKeyboard(.interactively)
+        .safeAreaBar(edge: .bottom, spacing: 0) {
             if plan != nil { importBar }
         }
-        .ownerNote($note)
+        .noteToast($note)
         .failureAlert($stopped, title: "Import stopped")
+        .failureAlert($error, title: "Could not read that")
+        .confirmationDialog("Import these contacts?", isPresented: $confirming, titleVisibility: .visible) {
+            Button("Import") { Task { await runImport() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("\(willAdd) to add, \(willResolve) to resolve. Anything you left alone stays as it is in the book.")
+        }
         .fileImporter(isPresented: $picking, allowedContentTypes: [.vCard]) { result in
             switch result {
             case .success(let url): Task { await read(url) }
@@ -211,13 +221,6 @@ private struct ContactImportPage: View {
                 }
             }
             .disabled(reading || importing)
-            if let error {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Could not read that").font(.subheadline.weight(.semibold))
-                    Text(error).font(.subheadline)
-                }
-                .foregroundStyle(Tone.problem.color)
-            }
         } header: {
             LedgerHeading(title: "Choose the file")
         } footer: {
@@ -363,6 +366,8 @@ private struct ContactImportPage: View {
                         Image(systemName: off ? "checkmark" : "xmark")
                     }
                     .buttonStyle(.plain)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
                     .foregroundStyle(off ? Tone.settled.color : Color.secondary)
                     .accessibilityLabel(off ? "Put back" : "Drop")
                     .disabled(importing)
@@ -392,24 +397,13 @@ private struct ContactImportPage: View {
 
     // MARK: Import
 
+    /// The one action, pinned at the foot; it asks first, as nothing can be taken back once it is written.
     private var importBar: some View {
-        HStack(spacing: 12) {
-            Text("\(willAdd) to add, \(willResolve) to resolve.").font(.subheadline).foregroundStyle(.secondary)
-            Spacer(minLength: 8)
-            Button { Task { await runImport() } } label: {
-                HStack(spacing: 6) {
-                    if importing { SkeletonLoading() }
-                    Label("Import", systemImage: "square.and.arrow.down")
-                }
-            }
-            .buttonStyle(.houseProminent)
-            .disabled(importing || (willAdd == 0 && willResolve == 0))
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .glassEffect(.regular, in: .rect(cornerRadius: 22))
-        .padding(.horizontal)
-        .padding(.bottom, 8)
+        ActionBar(
+            primary: .init("Import", systemImage: "square.and.arrow.down", isBusy: importing,
+                           isDisabled: willAdd == 0 && willResolve == 0) { confirming = true },
+            summary: "\(willAdd) to add, \(willResolve) to resolve"
+        )
     }
 
     private func runImport() async {
@@ -425,7 +419,7 @@ private struct ContactImportPage: View {
             let added = out["added"] as? Int ?? 0
             let updated = out["updated"] as? Int ?? 0
             let settled = out["settled"] as? Int ?? answer.plan.settled.count
-            Motion.run(reduce: UIAccessibility.isReduceMotionEnabled) { note = OwnerNote(title: "Import finished", detail: "\(added) added, \(updated) updated. \(settled) were already saved.") }
+            Motion.run(reduce: reduce) { note = Note(title: "Import finished", detail: "\(added) added, \(updated) updated. \(settled) were already saved.") }
             self.answer = nil
             vcf = ""
             fileName = ""

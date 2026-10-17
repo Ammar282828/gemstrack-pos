@@ -66,6 +66,7 @@ struct SettingsRoot: View {
             }
             .houseRows()
         }
+        .modifier(HouseGround())
         .navigationTitle("Settings")
         .hubTitleDisplay()
         .confirmationDialog("Sign out of \(session.shop.name)?", isPresented: $signingOut, titleVisibility: .visible) {

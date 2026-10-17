@@ -66,7 +66,7 @@ struct PhoneSettings: View {
                                 testing = true; testResult = nil; error = nil
                                 do {
                                     try await Push.shared.sendTest()
-                                    testResult = "Apple accepted the test. Check this phone's notifications."
+                                    testResult = "The test was sent. Check this phone's notifications."
                                 } catch { self.error = error.localizedDescription }
                                 testing = false
                             }
@@ -81,7 +81,6 @@ struct PhoneSettings: View {
             } footer: {
                 Text("The shop's WhatsApp alerts are set in the ERP's Settings → Alerts.")
             }
-            if let error { Section { Text(error).foregroundStyle(Tone.problem.color) } }
 
             // Every business signed in on this phone is told of it, so an alert from any of them arrives (Push.link).
             if Businesses.shared.list.count > 1 && !House.isDemo {
@@ -138,7 +137,7 @@ struct PhoneSettings: View {
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             } footer: {
-                Text("Add it from the home screen: touch and hold, then Edit → Add Widget → ERP. Touch and hold the widget, then Edit Widget, to choose the business it shows. \(House.storeName) is linked when you sign in to it.")
+                Text("Add it from the home screen: touch and hold, then Edit, Add Widget, ERP. Touch and hold the widget, then Edit Widget, to choose the business it shows. \(House.storeName) is linked when you sign in to it.")
             }
 
             if AppIcon.supported {
@@ -154,7 +153,6 @@ struct PhoneSettings: View {
                         Button("Change the icon to \(House.business.name)") { chooseIcon(AppIcon.Mode.follow.rawValue, force: true) }
                             .disabled(iconBusy)
                     }
-                    if let iconError { Text(iconError).font(.footnote).foregroundStyle(Tone.problem.color) }
                 } header: {
                     LedgerHeading(title: "App icon")
                 } footer: {
@@ -164,7 +162,11 @@ struct PhoneSettings: View {
             }
             .houseRows()
         }
+        .modifier(HouseGround())
         .navigationTitle("This phone")
+        .navigationBarTitleDisplayMode(.inline)
+        .failureAlert($error, title: "Couldn't do that")
+        .failureAlert($iconError, title: "The icon didn't change")
         .task { await refresh() }
         .onChange(of: Push.shared.registeredOnServer) { _, linked in
             if linked { Task { await refresh() } }
@@ -207,7 +209,7 @@ struct PhoneSettings: View {
             do {
                 try await AppIcon.apply(mode)
                 iconMode = mode.rawValue
-            } catch { iconError = "The icon didn't change: \(error.localizedDescription)" }
+            } catch { iconError = error.localizedDescription }
             iconBusy = false
         }
     }
@@ -237,10 +239,10 @@ struct PhoneSettings: View {
         do {
             let data = try await ERPAPI.shared.data("/api/push/key")
             let status = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-            providerStatus = status["readable"] as? Bool == true ? "Shop's Apple push key is configured."
-                : status["set"] as? Bool == true ? "Shop's Apple push key needs attention in Settings → Notifications."
-                : "Shop's Apple push key hasn't been configured in Settings → Notifications."
-        } catch { providerStatus = "Couldn't check the shop's Apple push configuration." }
+            providerStatus = status["readable"] as? Bool == true ? "Notifications are set up for the shop."
+                : status["set"] as? Bool == true ? "Notifications need attention in the ERP's Settings."
+                : "Notifications aren't set up for the shop yet."
+        } catch { providerStatus = "Couldn't check the shop's notification set-up." }
     }
 
     private func save(_ next: Set<String>) async {

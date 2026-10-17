@@ -110,9 +110,14 @@ private struct ShopifyInnerForm: View {
             }
             .houseRows()
         }
-        .modifier(HouseGround())
         .navigationTitle("Shopify")
         .navigationBarTitleDisplayMode(.inline)
+        .scrollDismissesKeyboard(.interactively)
+        .safeAreaBar(edge: .bottom, spacing: 0) {
+            if !picked.isEmpty { importBar }
+        }
+        .failureAlert($importFailure, title: "Import failed")
+        .failureAlert($webhookFailure, title: "Couldn't set up order notices")
         .task { await loadStatus(); if status?.configured == true { await loadOrders() } }
         .refreshable { await loadStatus(); if status?.configured == true { await loadOrders() } }
         // Back from Safari's reauthorize: the store's permissions may have changed.
@@ -123,11 +128,11 @@ private struct ShopifyInnerForm: View {
         } message: {
             Text("They become ERP invoices with their Shopify payments. Nothing is written back to Shopify.")
         }
-        .confirmationDialog("Register webhooks on Shopify?", isPresented: $confirmWebhooks, titleVisibility: .visible) {
-            Button("Register webhooks") { Task { await registerWebhooks() } }
+        .confirmationDialog("Set up order notices on Shopify?", isPresented: $confirmWebhooks, titleVisibility: .visible) {
+            Button("Set up order notices") { Task { await registerWebhooks() } }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This changes the store's webhook settings so Shopify notifies the ERP of new and updated orders. It does not change orders, customers or products.")
+            Text("This changes the store's notice settings so Shopify notifies the ERP of new and updated orders. It does not change orders, customers or products.")
         }
     }
 
@@ -157,7 +162,7 @@ private struct ShopifyInnerForm: View {
                 }
                 if status.configured, let url = reauthorizeURL(status) {
                     Button { openURL(url) } label: {
-                        Label(status.connected == true ? "Reauthorize in Safari" : "Connect in Safari", systemImage: "safari")
+                        Label(status.connected == true ? "Reconnect in Safari" : "Connect in Safari", systemImage: "safari")
                             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     }
                     .disabled(isDemo || writing)
@@ -246,7 +251,7 @@ private struct ShopifyInnerForm: View {
                 }
                 .frame(minHeight: 44)
                 if !missing.isEmpty {
-                    Text("Reauthorize in Safari to grant: \(missing.joined(separator: ", ")).")
+                    Text("Reconnect in Safari to allow: \(missing.joined(separator: ", ")).")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
@@ -272,15 +277,14 @@ private struct ShopifyInnerForm: View {
                 LabeledContent("Pointing at this ERP", value: s.webhooksHere.map(String.init) ?? "Unknown")
                 LabeledContent("On the store in all", value: s.webhooksTotal.map(String.init) ?? "Unknown")
                 if s.webhooksHere == 0 {
-                    Text("No webhooks point at this ERP, so new Shopify orders won't arrive by themselves.")
+                    Text("No order notices point at this ERP, so new Shopify orders won't arrive by themselves.")
                         .font(.footnote).foregroundStyle(Tone.owed.color)
                 }
             }
             if let webhookMessage { Label(webhookMessage, systemImage: "checkmark.circle").font(.footnote).foregroundStyle(Tone.settled.color) }
-            if let webhookFailure { Label(webhookFailure, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Tone.problem.color) }
             Button { confirmWebhooks = true } label: {
                 HStack {
-                    Label("Register webhooks", systemImage: "antenna.radiowaves.left.and.right")
+                    Label("Set up order notices", systemImage: "antenna.radiowaves.left.and.right")
                     Spacer()
                     if busy.contains(.webhooks) { ProgressView().controlSize(.small) }
                 }
@@ -290,7 +294,7 @@ private struct ShopifyInnerForm: View {
         } header: {
             LedgerHeading(title: "Order notices")
         } footer: {
-            Text(isDemo ? "Not available in the demo." : "Webhooks let Shopify tell the ERP about orders as they happen.")
+            Text(isDemo ? "Not available in the demo." : "Order notices let Shopify tell the ERP about orders as they happen.")
         }
     }
 
@@ -314,9 +318,6 @@ private struct ShopifyInnerForm: View {
     @ViewBuilder private var importSection: some View {
         Section {
             if let outcome { outcomeView(outcome) }
-            if let importFailure {
-                Label("Import failed: \(importFailure)", systemImage: "xmark.octagon").font(.footnote).foregroundStyle(Tone.problem.color)
-            }
             if let orders {
                 if let listFailure {
                     Text("Couldn't refresh the list: \(listFailure)").font(.footnote).foregroundStyle(.secondary)
@@ -379,17 +380,8 @@ private struct ShopifyInnerForm: View {
                     }
                     .frame(minHeight: 44)
                 }
-                Button { confirmImport = true } label: {
-                    HStack {
-                        Label(picked.isEmpty ? "Select orders to import" : "Import \(picked.count) order\(picked.count == 1 ? "" : "s")", systemImage: "square.and.arrow.down")
-                        Spacer()
-                        if busy.contains(.importing) { ProgressView().controlSize(.small) }
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .disabled(isDemo || picked.isEmpty || writing || busy.contains(.list))
                 if !picked.isEmpty {
-                    Button("Clear selection", role: .destructive) { picked = [] }
+                    Button("Clear selection") { picked = [] }
                         .disabled(writing)
                         .frame(minHeight: 44)
                 }
@@ -397,6 +389,16 @@ private struct ShopifyInnerForm: View {
                 if isDemo { Text("Importing is not available in the demo.") }
             }
         }
+    }
+
+    /// The one action, pinned at the foot while orders are chosen; it asks first.
+    private var importBar: some View {
+        ActionBar(
+            primary: .init("Import \(picked.count) order\(picked.count == 1 ? "" : "s")", systemImage: "square.and.arrow.down",
+                           isBusy: busy.contains(.importing),
+                           isDisabled: isDemo || writing || busy.contains(.list)) { confirmImport = true },
+            summary: money(pickedTotal)
+        )
     }
 
     private func row(_ o: PullOrder) -> some View {
@@ -534,7 +536,7 @@ private struct ShopifyInnerForm: View {
                 webhookMessage = "Shopify answered; nothing to register."
             } else {
                 var parts: [String] = []
-                if !registered.isEmpty { parts.append("Registered \(registered.joined(separator: ", "))") }
+                if !registered.isEmpty { parts.append("Set up \(registered.joined(separator: ", "))") }
                 if !skipped.isEmpty { parts.append("already there: \(skipped.joined(separator: ", "))") }
                 webhookMessage = parts.joined(separator: "; ") + "."
             }
