@@ -26,3 +26,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-16: House of Mina signs in inside the one app (her Firebase project's iOS app for shop.taheri.erp).
 - 2026-10-16: the one app's own icon (ERP); Taheri and House of Mina as alternates.
 - 2026-10-17: Ads as the web has them since 10-16: sales and ROAS, CSV to the share sheet, website audiences, a new video, a creator's post, the catalogue, bidding and set hours, A/B tests.
+- 2026-10-17: Posts as the web has it since 10-16: the board's designer saves as you go and moves between designs in place, Tidy in sixties (boards over 60 designs), and the design engines rebuilt to Mina's new type rules.

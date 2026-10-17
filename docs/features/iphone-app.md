@@ -260,6 +260,19 @@ changes to the ios app". As before, the phone gathers choices and the server kee
   was likely never made in Xcode Cloud (setup step 5). A release is the compile check meanwhile: one that fails stops at
   the archive and sends nothing to TestFlight.
 
+### Posts parity, 2026-10-17
+
+Owner: "Why isnt the posts region ported yet". What the web's Posts → Design board gained after the app's 10-15 port:
+- **The designer saves as you go** (board.tsx 2ef9bd7): each change a moment after the last touch, one save at a time, outside
+  the edit that asked for it; no Save button or discard question; a cloud mark says Saved / Saving / Not saved (tap to retry).
+  ‹ › open the previous or next design in reading order in place, Sizes the design's other sizes; Done waits for the
+  last save and the board makes the design last edited glow.
+- **Tidy** is board-tidy.ts's layout (each ad's sizes side by side, blocks a row by the screen's shape) and is sent 60
+  moves a request, the server's limit: before, Tidy failed on any board over 60 designs (Mina's shoot boards have ~180).
+- **The design engines** (`design-<house>.js`) rebuilt: they predated brand.ts's 10-15/16 changes (Mina's tarnish-resistant
+  plating line, Bodoni italic and Tenor capitals, the owner's type edits), so the phone drew the old style.
+- Not ported: the board's trackpad and ⌘-zoom fix (582822c) is the browser's; the phone's board pinches natively.
+
 ### One app, many businesses (2026-10-16)
 
 Owner: one app for all his businesses, to switch between them and to add more. Until now each house was its own app

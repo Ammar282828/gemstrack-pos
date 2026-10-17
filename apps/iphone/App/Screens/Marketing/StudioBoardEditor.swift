@@ -5,8 +5,11 @@ import UniformTypeIdentifiers
 /// The designer on one board design (board.tsx FrameEditor), made for a finger: the design itself is the canvas
 /// (tap any layer to change it, drag it, pull its corner, turn its knob) and every tool sits beside it on an iPad or
 /// rises from the bar under it on an iPhone. Words, pictures (the main photo and every inset, from the library, the
-/// phone or the AI) and layers are all editable; nothing leaves the phone until Save, which uploads what is new
-/// (/api/ads/studio/uploads → "up:<id>") and writes the board once (`put`, by "page"), as the page does.
+/// phone or the AI) and layers are all editable. Each change is saved a moment after it is made (board.tsx since
+/// 2026-10-16, the owner: "editing one ad shouldn't remove me from everything else"): what is new is uploaded
+/// (/api/ads/studio/uploads → "up:<id>") and the board written (`put`, by "page"), one save at a time; there is no Save
+/// button and no discard question. ‹ › move to the previous and next design in reading order, and Sizes to the
+/// design's other sizes, in place; Done waits for the last save and the board then picks the design last edited.
 struct StudioBoardEditor: View {
     let frameID: String
     let board: StudioBoardModel
@@ -80,9 +83,23 @@ struct StudioBoardEditor: View {
     @State private var addedTick = 0
     @State private var removedTick = 0
     @State private var savedTick = 0
+    /// The design open now: `frameID` at first, then wherever ‹ › or Sizes moved.
+    @State private var currentID = ""
+    @State private var saving = false
+    @State private var saveFailed = false
     @FocusState private var typing: Bool
 
-    private var frame: MarketingValue { board.frame(frameID) ?? .null }
+    private var openID: String { currentID.isEmpty ? frameID : currentID }
+    private var frame: MarketingValue { board.frame(openID) ?? .null }
+    /// The board's designs in reading order, and where this one is among them.
+    private var order: [String] { board.reading.map { (f: MarketingValue) in f.s("id") } }
+    private var place: Int? { order.firstIndex(of: openID) }
+    /// This design's other sizes (the same `group`), for the Sizes menu.
+    private var sizes: [MarketingValue] {
+        let g = frame.s("group")
+        guard !g.isEmpty else { return [] }
+        return board.reading.filter { (f: MarketingValue) in f.s("group") == g }
+    }
     private var regular: Bool { sizeClass == .regular }
     private var dirty: Bool { ready && design != initial }
     private var layers: [MarketingValue] { design.doc["layers"].array }
@@ -106,19 +123,30 @@ struct StudioBoardEditor: View {
                 .navigationTitle(design.label.isEmpty ? "Design" : design.label)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { if dirty { asking = true } else { dismiss() } } }
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { Task { await finish() } }.disabled(busy != nil)
+                    }
                     ToolbarItemGroup(placement: .primaryAction) {
+                        saveMark
+                        Button { Task { await go(by: -1) } } label: { Label("Previous design", systemImage: "chevron.left") }
+                            .disabled(!ready || (place ?? 0) == 0)
+                        Button { Task { await go(by: 1) } } label: { Label("Next design", systemImage: "chevron.right") }
+                            .disabled(!ready || (place ?? order.count) >= order.count - 1)
+                        if sizes.count > 1 {
+                            Menu {
+                                ForEach(sizes.map { (f: MarketingValue) in f.s("id") }, id: \.self) { (sid: String) in
+                                    let f = board.frame(sid) ?? .null
+                                    Button { Task { await open(sid) } } label: {
+                                        Label(board.formatInfo(f.s("format", "portrait")).s("label", f.s("format")),
+                                              systemImage: f.s("id") == openID ? "checkmark" : "rectangle")
+                                    }
+                                }
+                            } label: { Label("Sizes", systemImage: "rectangle.on.rectangle") }
+                        }
                         Button { history(true) } label: { Label("Undo", systemImage: "arrow.uturn.backward") }.disabled(undo.isEmpty).keyboardShortcut("z", modifiers: .command)
                         Button { history(false) } label: { Label("Redo", systemImage: "arrow.uturn.forward") }.disabled(redo.isEmpty).keyboardShortcut("z", modifiers: [.command, .shift])
                         Button { shareDesign() } label: { Label("Share", systemImage: "square.and.arrow.up") }.disabled(!ready || NativeArtwork.image(response) == nil)
                     }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") { Task { await save() } }.disabled(!ready || busy != nil || House.isDemo).keyboardShortcut("s", modifiers: .command)
-                    }
-                }
-                .confirmationDialog("Discard the changes to this design?", isPresented: $asking, titleVisibility: .visible) {
-                    Button("Discard changes", role: .destructive) { dismiss() }
-                    Button("Keep editing", role: .cancel) {}
                 }
                 .sheet(isPresented: Binding(get: { panelShown && !regular }, set: { panelShown = $0 })) {
                     NavigationStack {
@@ -132,10 +160,11 @@ struct StudioBoardEditor: View {
                 }
         }
         .presentationSizing(.page)
-        .interactiveDismissDisabled(dirty || busy != nil)
+        .interactiveDismissDisabled(dirty || saving || busy != nil)
         .websiteBusy(busy)
         .task { await load() }
         .task(id: renderKey) { await draw() }
+        .task(id: design) { await autosave() }
         .sensoryFeedback(.impact(weight: .light), trigger: addedTick)
         .sensoryFeedback(.impact(weight: .medium), trigger: removedTick)
         .sensoryFeedback(.success, trigger: savedTick)
@@ -1038,12 +1067,81 @@ struct StudioBoardEditor: View {
         } catch { if !Task.isCancelled { problem = error.localizedDescription } }
     }
 
+    /// Saved, saving, or not saved (tap to try again), beside the undo buttons.
+    @ViewBuilder
+    private var saveMark: some View {
+        if House.isDemo {
+            EmptyView()
+        } else if saving {
+            Label("Saving", systemImage: "arrow.triangle.2.circlepath.icloud")
+        } else if saveFailed {
+            Button { Task { _ = await persistNow() } } label: { Label("Not saved, try again", systemImage: "exclamationmark.icloud") }
+                .tint(Tone.owed.color)
+        } else {
+            Label(dirty ? "Not saved yet" : "Saved", systemImage: dirty ? "icloud" : "checkmark.icloud")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// A change is saved a moment after the last touch; a newer change cancels the wait, never a save under way.
+    private func autosave() async {
+        guard dirty, !House.isDemo, gestureStart == nil else { return }
+        do { try await Task.sleep(for: .milliseconds(1200)) } catch { return }
+        _ = await persistNow()
+    }
+
+    /// One save at a time, run outside the change that asked for it, so editing on doesn't cancel it half-way.
+    private func persistNow() async -> Bool {
+        while saving { try? await Task.sleep(for: .milliseconds(150)) }
+        guard dirty, !House.isDemo else { return true }
+        let job = Task { await persist() }
+        return await job.value
+    }
+
+    /// Done: the last save first, then back to the board, which picks this design.
+    private func finish() async {
+        busy = dirty || saving ? "Saving…" : nil
+        let ok = await persistNow()
+        busy = nil
+        guard ok else { return }
+        let id = openID
+        savedTick += 1
+        board.fresh = [id]
+        Task { try? await Task.sleep(for: .seconds(2.5)); if board.fresh == [id] { board.fresh = [] } }
+        dismiss()
+    }
+
+    /// The previous or next design in reading order, opened in place once this one is saved.
+    private func go(by step: Int) async {
+        guard let i = place else { return }
+        let j = i + step
+        guard order.indices.contains(j) else { return }
+        await open(order[j])
+    }
+
+    private func open(_ id: String) async {
+        guard id != openID else { return }
+        busy = dirty || saving ? "Saving…" : nil
+        let ok = await persistNow()
+        busy = nil
+        guard ok else { return }
+        ready = false
+        undo = []; redo = []
+        selected = nil; cropping = nil; candidate = nil
+        pictures = [:]; insetOriginals = [:]; response = .null
+        problem = nil; saveFailed = false
+        currentID = id
+        await load()
+    }
+
     /// Upload what is new (the phone's and the AI's pictures, and any picture the full designer embedded), rewrite
-    /// them to library ids, then write the board once.
-    private func save() async {
-        guard !House.isDemo else { return }
-        busy = "Saving…"; problem = nil
-        defer { busy = nil }
+    /// them to library ids, then write the board once. Says whether the board took it.
+    private func persist() async -> Bool {
+        guard !House.isDemo else { return true }
+        saving = true
+        defer { saving = false }
+        let started = design
+        let id = openID
         do {
             var d = design
             var ids: [String: String] = [:]
@@ -1077,20 +1175,26 @@ struct StudioBoardEditor: View {
                 }
             }
             d.doc["layers"] = .array(list)
-            // Uploaded once: a failed write below doesn't upload them again.
-            if d != design { design = d }
+            // Uploaded once: a failed write below doesn't upload them again (unless the design changed meanwhile:
+            // the next save takes that change, and uploads its pictures then).
+            if d != design && design == started { design = d }
             let clean = d.label.trimmingCharacters(in: .whitespacesAndNewlines)
             let patch: [String: Any] = [
                 "doc": d.doc.any, "fields": d.fields, "template": d.template, "label": clean.isEmpty ? frame.s("label") : clean,
                 "assetId": d.asset.isEmpty ? NSNull() as Any : d.asset, "marked": d.marked, "by": "page",
             ]
             board.error = nil
-            await board.change([["op": "put", "id": frameID, "patch": patch]])
-            if let e = board.error { problem = e; return }
-            initial = design
-            savedTick += 1
-            dismiss()
-        } catch { problem = error.localizedDescription }
+            await board.change([["op": "put", "id": id, "patch": patch]])
+            if let e = board.error { problem = e; saveFailed = true; return false }
+            // Saved what was saved: a change made during the save stays "not saved yet" for the next one.
+            if id == openID { initial = d }
+            saveFailed = false
+            return true
+        } catch {
+            problem = error.localizedDescription
+            saveFailed = true
+            return false
+        }
     }
 
     // MARK: Small helpers
