@@ -18,19 +18,7 @@ struct OrderTrackingSheet: View {
         NavigationStack {
             List { Group {
                 if asking && track == nil && failure == nil {
-                    Section {
-                        HStack(spacing: 10) {
-                            ProgressView().controlSize(.small)
-                            Text("Asking TCS\u{2026}").foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                if let failure {
-                    Section {
-                        Label(failure, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
-                    } header: {
-                        LedgerHeading(title: "Tracking failed")
-                    }
+                    Section { LoadingRow("Asking TCS\u{2026}") }
                 }
                 if let track {
                     Section {
@@ -62,6 +50,7 @@ struct OrderTrackingSheet: View {
             }
             .listStyle(.insetGrouped)
             .houseForm()
+            .failureAlert($failure, title: "Tracking failed")
             .navigationTitle("Track \(cn)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

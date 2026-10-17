@@ -138,7 +138,7 @@ struct OrderCardRows: View {
         }
         Menu {
             ForEach(OrdersLogic.settableStatuses, id: \.self) { s in
-                Button { actions.setStatus(order, s) } label: {
+                Button(role: s == "Cancelled" ? .destructive : nil) { actions.setStatus(order, s) } label: {
                     if s == order.status.rawValue { Label(s, systemImage: "checkmark") } else { Text(s) }
                 }
             }
@@ -218,6 +218,7 @@ struct OrderCardHead: View {
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(stageTone.color)
                     .lineLimit(2)
+                    .contentTransition(.numericText())
             }
             if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
             promise

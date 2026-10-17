@@ -48,51 +48,15 @@ struct OnlineMessageSection: View {
     }
 }
 
-/// The ERP's refusal, in the problem tone.
-private struct OnlineFailureSection: View {
-    let message: String?
+/// What the server will not do from here (confirmed already, declined): said in words, not as an error.
+private struct OnlineRefusedSection: View {
+    let message: String
 
     var body: some View {
-        if let message {
-            Section {
-                Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
-            }
+        Section {
+            Label(message, systemImage: "info.circle")
+                .foregroundStyle(.secondary)
         }
-    }
-}
-
-/// The sheet's one big button, floating over the form.
-private struct OnlineBottomButton: View {
-    let title: String
-    let symbol: String
-    var destructive = false
-    let busy: Bool
-    let disabled: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Group {
-            if destructive {
-                Button(role: .destructive, action: action) { label }
-                    .buttonStyle(.glassProminent)
-                    .tint(Tone.problem.color)
-            } else {
-                Button(action: action) { label }
-                    .buttonStyle(.houseProminent)
-            }
-        }
-        .controlSize(.large)
-        .disabled(disabled || busy)
-        .padding(.horizontal)
-        .padding(.bottom, 8)
-    }
-
-    private var label: some View {
-        HStack(spacing: 8) {
-            if busy { ProgressView().controlSize(.small) } else { Image(systemName: symbol) }
-            Text(title)
-        }
-        .frame(maxWidth: .infinity)
     }
 }
 
@@ -144,23 +108,26 @@ struct OnlineConfirmSheet: View {
                     }
                 }
             }
-            .safeAreaBar(edge: .bottom, spacing: 0) {
-                Group {
-                    if confirmed == nil {
-                        OnlineBottomButton(title: "Confirm", symbol: "checkmark", busy: busy, disabled: refused != nil || (preview == nil && problem == nil)) {
-                            Task { await confirm() }
-                        }
-                    } else if let url = bankURL {
-                        OnlineBottomButton(title: "Send bank details on WhatsApp", symbol: "paperplane", busy: false, disabled: false) {
-                            openURL(url)
-                        }
-                    }
-                }
-            }
+            .ordersBar(bar)
+            .failureAlert($failure, title: "Not confirmed")
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(busy)
         .task { await readPreview() }
+    }
+
+    /// Confirm; then, with the order made, the bank details from this phone.
+    private var bar: ActionBar.Action? {
+        if confirmed == nil {
+            return ActionBar.Action("Confirm", systemImage: "checkmark", isBusy: busy,
+                                    isDisabled: refused != nil || (preview == nil && problem == nil)) {
+                Task { await confirm() }
+            }
+        }
+        if let url = bankURL {
+            return ActionBar.Action("Send bank details on WhatsApp", systemImage: "paperplane") { openURL(url) }
+        }
+        return nil
     }
 
     @ViewBuilder
@@ -176,7 +143,7 @@ struct OnlineConfirmSheet: View {
             }
         }
         if let refused {
-            OnlineFailureSection(message: refused)
+            OnlineRefusedSection(message: refused)
         } else {
             OnlineMessageSection(
                 preview: preview,
@@ -184,7 +151,6 @@ struct OnlineConfirmSheet: View {
                 fallback: "\(row.customer.name) is told on WhatsApp that it is confirmed and that your bank details are coming, with the price held \(OnlineOrdersLogic.holdHours) hours."
             )
         }
-        OnlineFailureSection(message: failure)
     }
 
     @ViewBuilder
@@ -287,11 +253,11 @@ struct OnlineDeclineSheet: View {
                         fallback: "\(row.customer.name) is told why on WhatsApp, with the link to their order."
                     )
                 }
-                OnlineFailureSection(message: failure)
                 }
                 .houseRows()
             }
             .houseForm()
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Decline \(row.id)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -300,14 +266,13 @@ struct OnlineDeclineSheet: View {
                         .disabled(busy)
                 }
             }
-            .safeAreaBar(edge: .bottom, spacing: 0) {
-                OnlineBottomButton(title: "Decline & tell them", symbol: "xmark", destructive: true, busy: busy,
-                                   disabled: !ready || (preview == nil && problem == nil)) {
-                    Task { await decline() }
-                }
-            }
+            .ordersBar(ActionBar.Action("Decline and tell them", systemImage: "xmark", role: .destructive, isBusy: busy,
+                                        isDisabled: !ready || (preview == nil && problem == nil)) {
+                Task { await decline() }
+            })
+            .failureAlert($failure, title: "Not declined")
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(busy)
         .onChange(of: reason) { _, now in
             if now.count > OnlineOrdersLogic.reasonLimit { reason = String(now.prefix(OnlineOrdersLogic.reasonLimit)) }
@@ -386,11 +351,10 @@ struct OnlineMoveSheet: View {
                     }
                 }
                 if let refused {
-                    OnlineFailureSection(message: refused)
+                    OnlineRefusedSection(message: refused)
                 } else {
                     OnlineMessageSection(preview: preview, problem: problem, fallback: fallback)
                 }
-                OnlineFailureSection(message: failure)
                 }
                 .houseRows()
             }
@@ -403,16 +367,15 @@ struct OnlineMoveSheet: View {
                         .disabled(busy)
                 }
             }
-            .safeAreaBar(edge: .bottom, spacing: 0) {
-                OnlineBottomButton(title: kind == .paid ? "Yes, it is in" : "Let it lapse",
-                                   symbol: kind == .paid ? "banknote" : "nosign",
-                                   destructive: kind == .lapse, busy: busy,
-                                   disabled: refused != nil || (preview == nil && problem == nil)) {
-                    Task { await go() }
-                }
-            }
+            .ordersBar(ActionBar.Action(kind == .paid ? "Yes, it is in" : "Let it lapse",
+                                        systemImage: kind == .paid ? "banknote" : "nosign",
+                                        role: kind == .lapse ? .destructive : nil, isBusy: busy,
+                                        isDisabled: refused != nil || (preview == nil && problem == nil)) {
+                Task { await go() }
+            })
+            .failureAlert($failure, title: kind == .paid ? "Transfer not booked" : "Not lapsed")
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(busy)
         .task { await readPreview() }
     }
@@ -505,7 +468,10 @@ struct OnlineSlipSheet: View {
                             .buttonStyle(.houseProminent)
                     }
                 } else if let failure {
-                    ContentUnavailableView("The slip did not open", systemImage: "exclamationmark.triangle", description: Text(failure))
+                    ErrorState(failure) {
+                        self.failure = nil
+                        Task { await load() }
+                    }
                 } else {
                     SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -513,12 +479,11 @@ struct OnlineSlipSheet: View {
             .navigationTitle("Slip " + ShopDate.say(slip.at, withTime: true))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(role: .close) { dismiss() }
                 }
             }
         }
-        .presentationDetents([.large])
         .task { await load() }
     }
 

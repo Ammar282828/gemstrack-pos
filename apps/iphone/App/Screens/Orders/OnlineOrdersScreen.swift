@@ -13,7 +13,9 @@ struct OnlineOrdersScreen: View {
     @Environment(\.openURL) private var openURL
     @State private var confirming: OnlineOrderRow?
     @State private var declining: OnlineOrderRow?
-    @State private var told: OnlineTold?
+    /// What a decline said of the customer's WhatsApp, as the toast.
+    @State private var note: Note?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var go: Route?
 
     private var store: OnlineOrdersStore { OnlineOrdersStore.shared }
@@ -30,8 +32,11 @@ struct OnlineOrdersScreen: View {
                 OnlineConfirmSheet(row: r) { orderId in go = Route(path: "/orders/\(orderId)") }
             }
             .sheet(item: $declining) { (r: OnlineOrderRow) in
-                OnlineDeclineSheet(row: r) { t in told = t }
+                OnlineDeclineSheet(row: r) { t in
+                    Note.show(Note(title: t.words, failed: !t.ok), in: $note, reduce: reduceMotion)
+                }
             }
+            .noteToast($note)
             .refreshable { if asks { await store.load() } }
             .task { if asks { await store.load() } }
             // A new one placed while the screen is open: the app's two-minute count sees it first (OnlineInbox).
@@ -53,13 +58,7 @@ struct OnlineOrdersScreen: View {
             case .idle, .loading:
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             case .failed(let message):
-                ContentUnavailableView {
-                    Label("Couldn't read the online orders", systemImage: "exclamationmark.icloud")
-                } description: {
-                    Text(message)
-                } actions: {
-                    Button("Try again") { Task { await store.load() } }
-                }
+                ErrorState(message) { Task { await store.load() } }
             case .loaded:
                 list
             }
@@ -73,24 +72,12 @@ struct OnlineOrdersScreen: View {
         let lately = store.lately
         return List {
             Group {
-                if let told {
+                if waiting.isEmpty && !lately.isEmpty {
                     Section {
-                        Label(told.words, systemImage: told.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                            .foregroundStyle(told.ok ? Tone.settled.color : Tone.owed.color)
+                        Label("Nothing to confirm", systemImage: "checkmark.seal").foregroundStyle(.secondary)
                     }
                 }
-                if waiting.isEmpty {
-                    Section {
-                        ContentUnavailableView(
-                            "Nothing to confirm",
-                            systemImage: "checkmark.seal",
-                            description: Text("Nothing is in the book, and nobody has the bank details, until you confirm.")
-                        )
-                        .listRowBackground(Color.clear)
-                    }
-                } else {
-                    ForEach(waiting) { (r: OnlineOrderRow) in waitingSection(r) }
-                }
+                ForEach(waiting) { (r: OnlineOrderRow) in waitingSection(r) }
                 if !lately.isEmpty {
                     Section {
                         ForEach(lately) { (r: OnlineOrderRow) in latelyRow(r) }
@@ -102,6 +89,13 @@ struct OnlineOrdersScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .overlay {
+            if waiting.isEmpty && lately.isEmpty {
+                EmptyState("Nothing to confirm", symbol: "checkmark.seal",
+                           message: "Nothing is in the book, and nobody has the bank details, until you confirm.")
+            }
+        }
+        .motion(waiting.map(\.id))
     }
 
     // MARK: One waiting
@@ -214,17 +208,20 @@ struct OnlineOrdersScreen: View {
 
     @ViewBuilder
     private func decisionButtons(_ r: OnlineOrderRow) -> some View {
+        // Inside a row: tinted and bordered, never glass (rule 16).
         Button { confirming = r } label: {
             Label("Confirm", systemImage: "checkmark")
+                .foregroundStyle(Theme.onAccent)
                 .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.houseProminent)
+        .buttonStyle(.borderedProminent)
+        .tint(Theme.accent)
         .controlSize(.large)
         Button(role: .destructive) { declining = r } label: {
             Label("Decline", systemImage: "xmark")
                 .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.bordered)
         .controlSize(.large)
     }
 

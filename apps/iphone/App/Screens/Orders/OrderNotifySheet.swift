@@ -56,6 +56,8 @@ struct OrderNotifySheet: View {
                 .houseRows()
             }
             .houseForm()
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
             .navigationTitle("Message the customer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -63,22 +65,12 @@ struct OrderNotifySheet: View {
                     Button(role: .cancel) { dismiss() }
                 }
             }
-            .safeAreaBar(edge: .bottom, spacing: 0) {
-                Button {
-                    if let url {
-                        openURL(url)
-                        dismiss()
-                    }
-                } label: {
-                    Label("Send message", systemImage: "message")
-                        .frame(maxWidth: .infinity)
+            .actionBar(primary: ActionBar.Action("Send message", systemImage: "message", isDisabled: url == nil) {
+                if let url {
+                    openURL(url)
+                    dismiss()
                 }
-                .buttonStyle(.houseProminent)
-                .controlSize(.large)
-                .disabled(url == nil)
-                .padding(.horizontal)
-                .padding(.bottom, 8)
-            }
+            })
         }
         .presentationDetents([.medium, .large])
     }

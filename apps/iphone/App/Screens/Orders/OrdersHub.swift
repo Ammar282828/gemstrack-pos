@@ -32,10 +32,12 @@ struct OrdersHub: View {
     @State private var cancelling: Order?
     @State private var web: OrdersWebTarget?
     @State private var failure: String?
-    /// Counted so each event is felt once: an advance taken, an order marked ready, an order cancelled.
+    /// Counted so each event is felt once: an advance taken, a status moved.
     @State private var moneyTick = 0
-    @State private var readyTick = 0
-    @State private var cancelTick = 0
+    @State private var savedTick = 0
+    /// What an advance or a status move said, as a toast.
+    @State private var note: Note?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.createMenuShown) private var createMenuShown
 
@@ -48,28 +50,37 @@ struct OrdersHub: View {
             offline: book.orders.offline
         ) {
             // A new grouping or filter settles in on the enter curve rather than jumping.
-            hub.motion([groupingRaw, statusFilter, month, takenBy, payment])
+            hub.motion([groupingRaw, statusFilter, month, takenBy, payment, stageSignature])
         }
         .navigationTitle("Orders")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
         .searchable(text: $query, prompt: "Order, customer, phone or piece")
         .toolbar { hubToolbar }
         .ordersWebDestination($web)
         .sheet(item: $advancing) { order in advanceSheet(order) }
-        .confirmationDialog(cancelling.map { "Cancel order \($0.id)?" } ?? "Cancel order?", isPresented: cancelShown, titleVisibility: .visible, presenting: cancelling) { order in
-            Button("Cancel order", role: .destructive) { setStatus(order, "Cancelled") }
-            Button("Keep it", role: .cancel) {}
-        } message: { _ in
-            Text(OrdersLogic.cancelWords)
-        }
+        .confirmDestructive(isPresented: cancelShown, title: cancelling.map { "Cancel order \($0.id)?" } ?? "Cancel order?",
+                            message: OrdersLogic.cancelWords, action: "Cancel order",
+                            perform: cancelAction(cancelling))
         .ordersFailureAlert($failure)
+        .noteToast($note)
         .moneyFeedback(success: moneyTick, failure: 0)
-        .sensoryFeedback(.success, trigger: readyTick)
-        .destructiveFeedback(trigger: cancelTick)
+        .savedFeedback(trigger: savedTick)
+        .selectionFeedback(trigger: groupingRaw)
         .onAppear {
             book.orders.need()
             book.invoices.need()
         }
+    }
+
+    /// Cancelling the order the dialog was raised for, fixed when the dialog is built (its binding clears
+    /// `cancelling` as it closes).
+    private func cancelAction(_ order: Order?) -> () -> Void {
+        { if let order { setStatus(order, "Cancelled") } }
+    }
+
+    /// Every order's status and invoice, so a stage move (Ready, Cancelled, invoiced) settles in on the enter curve.
+    private var stageSignature: String {
+        book.orders.items.map { $0.id + ($0.status.rawValue) + ($0.invoiceId ?? "") }.joined(separator: "|")
     }
 
     private var grouping: OrdersGrouping { OrdersGrouping(rawValue: groupingRaw) ?? .day }
@@ -121,14 +132,11 @@ struct OrdersHub: View {
             ForEach(groups) { g in
                 section(g, owedOn: owedOn, now: now, forceOpen: forceOpen)
             }
-            if groups.isEmpty {
-                Section {
-                    emptyState(nothingOpen: grouping == .due && !shown.isEmpty)
-                }
-                .listRowBackground(Color.clear)
-            }
             }
             .listStyle(.insetGrouped)
+            .overlay {
+                if groups.isEmpty { emptyState(nothingOpen: grouping == .due && !shown.isEmpty) }
+            }
           }
         }
     }
@@ -285,7 +293,9 @@ struct OrdersHub: View {
 
     private func emptyState(nothingOpen: Bool) -> some View {
         Group {
-            if nothingOpen {
+            if !nothingOpen && !query.trimmingCharacters(in: .whitespaces).isEmpty && !narrowed {
+                ContentUnavailableView.search(text: query)
+            } else if nothingOpen {
                 ContentUnavailableView(
                     "Nothing to chase",
                     systemImage: "calendar",
@@ -326,12 +336,19 @@ struct OrdersHub: View {
     /// Day / Stage / Due: always visible; status and the other filters share the toolbar menu.
     private var groupingPicker: some View {
         let cut = grouping.calendarCut
-        return Picker("Show by", selection: groupingChoice) {
+        let picker = Picker("Show by", selection: groupingChoice) {
             Text(cut.title).tag(cut)
             Text(OrdersGrouping.stage.title).tag(OrdersGrouping.stage)
             Text(OrdersGrouping.due.title).tag(OrdersGrouping.due)
         }
-        .pickerStyle(.segmented)
+        return Group {
+            // Three words do not fit a segmented control at accessibility sizes: a menu then.
+            if typeSize.isAccessibilitySize {
+                picker.pickerStyle(.menu)
+            } else {
+                picker.pickerStyle(.segmented)
+            }
+        }
         // Three words need no more than a phone's width, wherever they are.
         .frame(maxWidth: 480, alignment: .leading)
     }
@@ -350,6 +367,7 @@ struct OrdersHub: View {
             Spacer(minLength: 0)
             Button("Clear") { statusFilter = "All"; month = ""; takenBy = ""; payment = "All" }
                 .font(.footnote.weight(.medium)).buttonStyle(.borderless)
+                .frame(minWidth: 44, minHeight: 44)
         }
     }
 
@@ -431,17 +449,10 @@ struct OrdersHub: View {
         if session.shop.websiteSelling && inbox.waiting > 0 {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(value: Route(path: "/orders/online")) {
-                    Image(systemName: "globe")
-                        .overlay(alignment: .topTrailing) {
-                            Text(inbox.waiting > 99 ? "99+" : "\(inbox.waiting)")
-                                .font(.caption2.weight(.bold))
-                                .monospacedDigit()
-                                .foregroundStyle(Theme.onAccent)
-                                .padding(.horizontal, 5)
-                                .frame(minWidth: 16, minHeight: 16)
-                                .background(Theme.accent, in: .capsule)
-                                .offset(x: 10, y: -8)
-                        }
+                    // The count is words in the item, never a badge laid over its glass.
+                    Text("Online \(inbox.waiting > 99 ? "99+" : "\(inbox.waiting)")")
+                        .monospacedDigit()
+                        .contentTransition(.numericText(value: Double(inbox.waiting)))
                 }
                 .accessibilityLabel("Online orders, \(inbox.waiting) to confirm")
             }
@@ -482,13 +493,24 @@ struct OrdersHub: View {
         Task { @MainActor in
             do {
                 _ = try await ERPAPI.shared.write("setOrderStatus", ["orderId": order.id, "status": status])
-                if status == "Completed" { readyTick += 1 }
-                if status == "Cancelled" { cancelTick += 1 }
+                savedTick += 1
+                if status == "Completed" {
+                    Note.show(Note(title: "Marked ready", detail: order.id), in: $note, reduce: reduceMotion)
+                } else if status == "Cancelled" {
+                    Note.show(Note(title: "Order cancelled", detail: order.id), in: $note, reduce: reduceMotion)
+                } else {
+                    Note.show(Note(title: "Now " + status.lowercased(), detail: order.id), in: $note, reduce: reduceMotion)
+                }
             } catch {
                 failure = error.localizedDescription
             }
             busy.remove(order.id)
         }
+    }
+
+    private func advanced(_ amount: Double) {
+        moneyTick += 1
+        Note.show(Note(title: "Advance recorded", detail: Money.pkr(amount)), in: $note, reduce: reduceMotion)
     }
 
     /// An advance from the card: owners only (the ERP refuses anyone else), and never once invoiced.
@@ -502,10 +524,10 @@ struct OrdersHub: View {
                              await MainActor.run { moneyTick += 1 }
                              throw e
                          }
-                         await MainActor.run { moneyTick += 1 }
+                         await MainActor.run { advanced(amount) }
                      }) { amount, method, note in
             try await OrderAdvance.record(order, amount: amount, method: method, note: note)
-            await MainActor.run { moneyTick += 1 }
+            await MainActor.run { advanced(amount) }
         }
     }
 }
@@ -544,5 +566,7 @@ struct OrdersSectionHeader: View {
         }
         .textCase(nil)
         .padding(.top, 4)
+        .contentTransition(.numericText(value: value))
+        .motion(value)
     }
 }

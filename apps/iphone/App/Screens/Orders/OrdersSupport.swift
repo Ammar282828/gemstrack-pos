@@ -38,6 +38,15 @@ extension View {
         }
     }
 
+    /// The sheet's one action in the kit's bar (rule 16), or no bar while there is none (a sheet whose second step
+    /// has nothing to offer). The bar is the same `ActionBar` `.actionBar` pins; only its presence changes, so the
+    /// form beneath keeps its place.
+    func ordersBar(_ primary: ActionBar.Action?) -> some View {
+        safeAreaBar(edge: .bottom, spacing: 0) {
+            if let primary { ActionBar(primary: primary) }
+        }
+    }
+
     /// The ERP's own words when a write is refused (the kit's `failureAlert`, which also taps an error).
     func ordersFailureAlert(_ message: Binding<String?>, title: String = "Not changed") -> some View {
         failureAlert(message, title: title)

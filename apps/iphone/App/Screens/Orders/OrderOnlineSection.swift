@@ -6,22 +6,20 @@ import ERPCore
 /// lapse are native (OnlineMoveSheet): both message the customer and the first books money, so each says
 /// first, word for word, what goes and to whom, and what it books. Bank details on WhatsApp opens this phone's
 /// WhatsApp with the amount written in, as the web's button does; the person sends it. The Leopards moves (book,
-/// a CN typed in, tracking, Delivered) are the order page's courier work (OrderLeopardsSheet): the page's own
-/// sheet when `leopards` is passed, else this section's.
+/// a CN typed in, tracking, Delivered) are the order page's courier work (OrderLeopardsSheet), which the page
+/// alone presents: `leopards` asks it to. What a move said and its taps are the page's too (`moved`): a Note
+/// toast and the money or warning tap, once per move.
 struct OrderOnlineSection: View {
     let order: Order
-    /// The page's Leopards sheet, when it holds one; nil opens this section's own.
-    var leopards: (() -> Void)? = nil
+    /// Opens the page's Leopards sheet (the one presenter).
+    let leopards: () -> Void
+    /// A transfer was booked or an order let lapse, with what was said of the customer's WhatsApp.
+    let moved: (OnlineMoveSheet.Kind, OnlineTold) -> Void
 
     @Environment(Session.self) private var session
     @Environment(\.openURL) private var openURL
     @State private var move: OnlineMoveSheet.Kind?
     @State private var slip: WebsiteSlip?
-    @State private var told: OnlineTold?
-    @State private var leopardsOpen = false
-    /// Counted so a transfer booked, or an order let lapse, is felt once.
-    @State private var paidTick = 0
-    @State private var lapseTick = 0
 
     /// The accounts the server lets move an online order (lib/website/staff-gate.ts).
     private var mayAct: Bool { session.role == "owner" || session.role == "staff" }
@@ -30,24 +28,8 @@ struct OrderOnlineSection: View {
         if let w = order.website {
             Section {
                 row("Payment", OrdersLogic.paymentWords(w.paymentStatus), tint: tone(w.paymentStatus))
-                    .sheet(item: $move) { (k: OnlineMoveSheet.Kind) in
-                        OnlineMoveSheet(order: order, kind: k) { t in
-                            told = t
-                            // The move happened even when the WhatsApp did not go.
-                            if k == .paid { paidTick += 1 } else { lapseTick += 1 }
-                        }
-                    }
-                    .moneyFeedback(success: paidTick, failure: 0)
-                    .destructiveFeedback(trigger: lapseTick)
-                    .sheet(isPresented: $leopardsOpen) { OrderLeopardsSheet(order: order) }
-                if let told {
-                    Label(told.words, systemImage: told.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                        .font(.subheadline)
-                        .foregroundStyle(told.ok ? Tone.settled.color : Tone.owed.color)
-                }
                 if let l = order.leopards, !l.cn.isEmpty { courier(l) }
                 row("Placed", ShopDate.say(w.placedAt, withTime: true))
-                    .sheet(item: $slip) { (s: WebsiteSlip) in OnlineSlipSheet(orderId: order.id, slip: s) }
                 if let confirmed = w.confirmedAt, !confirmed.isEmpty { row("Confirmed", confirmedLine(w, confirmed)) }
                 row("Customer pays", Money.pkr(OrdersLogic.onlineTotal(order)) + deliveryNote(w))
                 if let city = order.delivery?.city, !city.isEmpty { row("City", city) }
@@ -62,6 +44,14 @@ struct OrderOnlineSection: View {
             } header: {
                 LedgerHeading(title: "Online order" + (w.onlineId.map { " " + $0 } ?? ""))
             }
+            // The sheets belong to the section, not to a row of it.
+            .sheet(item: $move) { (k: OnlineMoveSheet.Kind) in
+                OnlineMoveSheet(order: order, kind: k) { t in
+                    // The move happened even when the WhatsApp did not go.
+                    moved(k, t)
+                }
+            }
+            .sheet(item: $slip) { (s: WebsiteSlip) in OnlineSlipSheet(orderId: order.id, slip: s) }
         }
     }
 
@@ -90,7 +80,7 @@ struct OrderOnlineSection: View {
         } else if w.paymentStatus == .transferReceived && (order.leopards?.deliveredAt ?? "").isEmpty {
             let shipped = !(order.leopards?.cn ?? "").isEmpty
             Button {
-                if let leopards { leopards() } else { leopardsOpen = true }
+                leopards()
             } label: {
                 Label(shipped ? "Tracking and Delivered" : "Book with Leopards, or enter a CN",
                       systemImage: shipped ? "shippingbox" : "truck.box")

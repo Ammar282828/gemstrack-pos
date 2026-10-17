@@ -18,6 +18,9 @@ struct OrderCourierSheet: View {
     @State private var made: OrderActions.MadeShopifyOrder?
     @State private var sent: String?
     @State private var error: String?
+    /// What the ERP said of each step, as the toast.
+    @State private var note: Note?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private enum Busy { case creating, fulfilling }
 
@@ -54,30 +57,12 @@ struct OrderCourierSheet: View {
                          ? "Shopify emails the customer that the order is on its way as soon as it is fulfilled."
                          : "No email goes to the customer from here.")
                 }
-                if let made {
-                    let said = OrderActions.madeNote(made)
-                    Section {
-                        Label(said.title, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color)
-                        Text(said.detail).font(.footnote).foregroundStyle(.secondary)
-                    }
-                }
-                if let sent {
-                    Section {
-                        Label("Sent for booking", systemImage: "shippingbox.fill").foregroundStyle(Tone.settled.color)
-                        Text(sent).font(.footnote).foregroundStyle(.secondary)
-                    }
-                }
-                if let error {
-                    Section {
-                        Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
-                    } header: {
-                        LedgerHeading(title: "Could not book")
-                    }
-                }
                 }
                 .houseRows()
             }
             .houseForm()
+            .noteToast($note)
+            .failureAlert($error, title: "Could not book")
             .navigationTitle("Book courier")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -86,22 +71,10 @@ struct OrderCourierSheet: View {
                         .disabled(busy != nil)
                 }
             }
-            .safeAreaBar(edge: .bottom, spacing: 0) {
-                Button {
-                    if sent != nil { dismiss() } else { book() }
-                } label: {
-                    HStack(spacing: 8) {
-                        if busy != nil { ProgressView().controlSize(.small) }
-                        Label(buttonWords, systemImage: sent != nil ? "checkmark" : "truck.box")
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.houseProminent)
-                .controlSize(.large)
-                .disabled(busy != nil)
-                .padding(.horizontal)
-                .padding(.bottom, 8)
-            }
+            .actionBar(primary: ActionBar.Action(buttonWords, systemImage: sent != nil ? "checkmark" : "truck.box",
+                                                 isBusy: busy != nil) {
+                if sent != nil { dismiss() } else { book() }
+            })
         }
         .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(busy != nil)
@@ -144,12 +117,16 @@ struct OrderCourierSheet: View {
                         throw OrderActionFailure(message: "Could not create the Shopify order")
                     }
                     made = m
+                    let said = OrderActions.madeNote(m)
+                    Note.show(Note(title: said.title, detail: said.detail), in: $note, reduce: reduceMotion)
                     shopifyOrderId = m.id
                     ServerShelf.wake()
                 }
                 busy = .fulfilling
                 let out = try await ERPAPI.shared.send("/api/shopify/fulfill", ["shopifyOrderId": shopifyOrderId ?? "", "notifyCustomer": notify])
-                sent = OrderActions.fulfilledWords(out)
+                let words = OrderActions.fulfilledWords(out)
+                sent = words
+                Note.show(Note(title: "Sent for booking", detail: words), in: $note, reduce: reduceMotion)
             } catch {
                 self.error = error.localizedDescription
             }

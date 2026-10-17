@@ -21,6 +21,7 @@ struct OrderScreen: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var web: OrdersWebTarget?
     @State private var advancing = false
@@ -37,12 +38,11 @@ struct OrderScreen: View {
     @State private var notifying = false
     /// The bar's Check transfer: the transfer's own sheet, as the online section's Transfer received opens it.
     @State private var checkingTransfer = false
-    /// What that sheet said once the transfer was booked.
-    @State private var told: OnlineTold?
-    /// Counted so each event is felt once: money taken, an order marked ready, an order cancelled.
+    /// What was said once a transfer was booked or an order let lapse, and what an advance, Ready or a cancel did.
+    @State private var note: Note?
+    /// Counted so each event is felt once: money taken, an order marked ready or a piece ticked.
     @State private var moneyTick = 0
-    @State private var readyTick = 0
-    @State private var cancelTick = 0
+    @State private var savedTick = 0
 
     var body: some View {
         // "/orders/" + "add" can reach this screen as an order id: it is New order's form (NewOrderRoutes).
@@ -69,8 +69,8 @@ struct OrderScreen: View {
         .orderUndo($undo, open: $web)
         .ordersFailureAlert($failure)
         .moneyFeedback(success: moneyTick, failure: 0)
-        .sensoryFeedback(.success, trigger: readyTick)
-        .destructiveFeedback(trigger: cancelTick)
+        .savedFeedback(trigger: savedTick)
+        .noteToast($note)
         .onAppear {
             book.orders.need()
             book.invoices.need()
@@ -88,9 +88,10 @@ struct OrderScreen: View {
             heroSection(order, stage: stage, now: now, owed: owed, invoice: invoice)
             noteSection(order)
             Group {
-                if let told { toldSection(told) }
                 if OrdersLogic.isOnline(order) {
-                    OrderOnlineSection(order: order, leopards: { leopardsOpen = true })
+                    OrderOnlineSection(order: order, leopards: { leopardsOpen = true }) { kind, t in
+                        onlineMoved(kind, t)
+                    }
                 }
                 piecesSection(order)
                 if OrdersLogic.hasInvoice(order) {
@@ -113,16 +114,20 @@ struct OrderScreen: View {
         .sheet(isPresented: $notifying) { OrderNotifySheet(order: order) }
         .sheet(isPresented: $checkingTransfer) {
             OnlineMoveSheet(order: order, kind: .paid) { t in
-                told = t
-                moneyTick += 1
+                onlineMoved(.paid, t)
             }
         }
-        .confirmationDialog("Cancel order \(order.id)?", isPresented: $confirmCancel, titleVisibility: .visible) {
-            Button("Cancel order", role: .destructive) { setStatus(order, "Cancelled") }
-            Button("Keep it", role: .cancel) {}
-        } message: {
-            Text(OrdersLogic.cancelWords)
+        .confirmDestructive(isPresented: $confirmCancel, title: "Cancel order \(order.id)?",
+                            message: OrdersLogic.cancelWords, action: "Cancel order") {
+            setStatus(order, "Cancelled")
         }
+    }
+
+    /// A transfer booked or an order let lapse: said once as a toast, with the tap of what it was. The move
+    /// happened even when the customer's WhatsApp did not go.
+    private func onlineMoved(_ kind: OnlineMoveSheet.Kind, _ t: OnlineTold) {
+        Note.show(Note(title: t.words, failed: !t.ok), in: $note, reduce: reduceMotion)
+        if kind == .paid { moneyTick += 1 } else { savedTick += 1 }
     }
 
     private func invoiceOf(_ order: Order) -> Invoice? {
@@ -396,15 +401,6 @@ struct OrderScreen: View {
         }
     }
 
-    /// What the bar's Check transfer said once the transfer was booked, as the online section says it.
-    private func toldSection(_ t: OnlineTold) -> some View {
-        Section {
-            Label(t.words, systemImage: t.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .font(.subheadline)
-                .foregroundStyle(t.ok ? Tone.settled.color : Tone.owed.color)
-        }
-    }
-
     // MARK: Pieces
 
     private func piecesSection(_ order: Order) -> some View {
@@ -445,7 +441,7 @@ struct OrderScreen: View {
                         }
                     }
                 }
-            }
+            }.motion(ordered)
             if order.items.isEmpty {
                 Text("No pieces on this order.")
                     .font(.subheadline)
@@ -467,6 +463,8 @@ struct OrderScreen: View {
                         .accessibilityLabel("\(counts.done) of \(counts.total) pieces done")
                 }
             }
+            .contentTransition(.numericText(value: Double(counts.done)))
+            .motion(counts.done)
         }
     }
 
@@ -649,7 +647,7 @@ struct OrderScreen: View {
         return Menu {
             Section("Status") {
                 ForEach(OrdersLogic.settableStatuses, id: \.self) { s in
-                    Button { choose(order, s) } label: {
+                    Button(role: s == "Cancelled" ? .destructive : nil) { choose(order, s) } label: {
                         if s == order.status.rawValue { Label(s, systemImage: "checkmark") } else { Text(s) }
                     }
                     .disabled(updatingStatus)
@@ -709,6 +707,10 @@ struct OrderScreen: View {
         }
     }
 
+    private func advanced(_ amount: Double) {
+        Note.show(Note(title: "Advance recorded", detail: Money.pkr(amount)), in: $note, reduce: reduceMotion)
+    }
+
     private func advanceSheet(_ order: Order) -> some View {
         let balance = OrdersLogic.balance(order)
         // The note is the web's own default; it can be changed, and needs three characters (order-dialogs.tsx).
@@ -716,9 +718,11 @@ struct OrderScreen: View {
         return PaymentSheet(title: "Record an advance", owed: owesMoney(balance) ? balance : nil, note: "Advance payment received",
                             settle: { amount, method, _, note, remainder in
                                 try await OrderAdvance.settle(order, amount: amount, method: method, note: note, remainder: remainder)
+                                await MainActor.run { advanced(amount) }
                             }) { amount, method, note in
             try await OrderAdvance.record(order, amount: amount, method: method, note: note)
             // PaymentSheet plays the success tap itself.
+            await MainActor.run { advanced(amount) }
         }
     }
 
@@ -735,8 +739,14 @@ struct OrderScreen: View {
         Task { @MainActor in
             do {
                 _ = try await ERPAPI.shared.write("setOrderStatus", ["orderId": order.id, "status": status])
-                if status == "Completed" { readyTick += 1 }
-                if status == "Cancelled" { cancelTick += 1 }
+                savedTick += 1
+                if status == "Completed" {
+                    Note.show(Note(title: "Marked ready", detail: order.id), in: $note, reduce: reduceMotion)
+                } else if status == "Cancelled" {
+                    Note.show(Note(title: "Order cancelled", detail: order.id), in: $note, reduce: reduceMotion)
+                } else {
+                    Note.show(Note(title: "Now " + status.lowercased(), detail: order.id), in: $note, reduce: reduceMotion)
+                }
             } catch {
                 failure = error.localizedDescription
             }
@@ -767,6 +777,7 @@ struct OrderScreen: View {
         Task { @MainActor in
             do {
                 _ = try await ERPAPI.shared.write("setPieceDone", ["orderId": order.id, "index": index, "done": done])
+                savedTick += 1
             } catch {
                 failure = error.localizedDescription
             }

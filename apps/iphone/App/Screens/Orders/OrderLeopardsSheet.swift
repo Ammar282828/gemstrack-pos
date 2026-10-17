@@ -16,7 +16,9 @@ struct OrderLeopardsSheet: View {
     @State private var cn = ""
     @State private var busy = false
     @State private var asking: Ask?
-    @State private var said: (title: String, detail: String)?
+    /// What the ERP said of a move, as the toast.
+    @State private var note: Note?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var track: OrderActions.LeopardsTrack?
     @State private var shipped: String?
     @State private var delivered = false
@@ -55,23 +57,13 @@ struct OrderLeopardsSheet: View {
                 if let cnOnFile {
                     followSection(cnOnFile)
                 }
-                if let said {
-                    Section {
-                        Label(said.title, systemImage: "checkmark.circle.fill").foregroundStyle(Tone.settled.color)
-                        if !said.detail.isEmpty {
-                            Text(said.detail).font(.footnote).foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                if let error {
-                    Section {
-                        Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
-                    }
-                }
                 }
                 .houseRows()
             }
             .houseForm()
+            .scrollDismissesKeyboard(.interactively)
+            .noteToast($note)
+            .failureAlert($error, title: "Not done")
             .navigationTitle("Leopards")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -211,7 +203,7 @@ struct OrderLeopardsSheet: View {
         Task { @MainActor in
             do {
                 let detail = try await move()
-                said = (title, detail)
+                Note.show(Note(title: title, detail: detail), in: $note, reduce: reduceMotion)
                 ServerShelf.wake()
             } catch {
                 self.error = "\(title) failed: \(error.localizedDescription)"

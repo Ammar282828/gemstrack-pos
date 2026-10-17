@@ -110,7 +110,8 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
      its own last section (or the bottom of a Menu after a `Divider`), and gives `destructiveFeedback`.
    - **Feel.** Every money write has `.moneyFeedback`; every other save, tick, toggle or send gives
      `.savedFeedback(trigger:)` (success) and a refusal `.refusedFeedback(trigger:)`; a filter or segment change gives
-     selection feedback (`FilterChip` has it). Haptics fire on the event, never on each keystroke, and a scan that
+     selection feedback (`FilterChip` has it). A `Note` toast and `failureAlert` already tap, so an event
+     that shows one adds no second feedback. Haptics fire on the event, never on each keystroke, and a scan that
      found nothing is a warning, not a success.
    - **Motion.** Every state change that moves layout runs through `Motion.run` / `.motion(value)`: rows inserting or
      leaving, a section appearing (`.transition(.opacity.combined(with: .move(edge: .top)))`), show more / fewer,

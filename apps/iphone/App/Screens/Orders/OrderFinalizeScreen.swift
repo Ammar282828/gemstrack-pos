@@ -47,7 +47,7 @@ struct OrderFinalizeScreen: View {
         .navigationTitle(made == nil ? "Make invoice" : (made ?? ""))
         .navigationBarTitleDisplayMode(.inline)
         .moneyFeedback(success: made, failure: 0)
-        .sensoryFeedback(.error, trigger: failure) { _, now in now != nil }
+        .failureAlert($failure, title: "Not made")
         .onAppear {
             book.orders.need()
             book.settings.need()
@@ -118,6 +118,7 @@ struct OrderFinalizeScreen: View {
             .houseRows()
         }
         .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
         .disabled(saving)
         } review: {
             TransactionReview(customer: order.customerName ?? "", pieces: rows.enumerated().map { index, row in
@@ -129,12 +130,6 @@ struct OrderFinalizeScreen: View {
             ])
         } footer: {
             VStack(spacing: 10) {
-            if let failure {
-                Label(failure, systemImage: "exclamationmark.triangle.fill")
-                    .font(.footnote)
-                    .foregroundStyle(Tone.problem.color)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
             Button {
                 if let problem = OrderFinalizeMath.problem(rows, discount: discount) {
                     failure = problem

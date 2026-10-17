@@ -251,6 +251,8 @@ struct OrderPieceRow: View {
                 Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
                     .foregroundStyle(item.isCompleted ? Tone.settled.color : Color.secondary)
+                    .contentTransition(.symbolEffect(.replace))
+                    .motion(item.isCompleted)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
