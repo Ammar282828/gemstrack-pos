@@ -47,7 +47,7 @@ export function plansAfterSave(plans: OverheadPlan[], thisMonth: string, clean: 
   return { from, next };
 }
 
-const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString()}`;
+const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
 /** Saves the sheet from this month on, read and written in one transaction, and answers with what is on file. */
 export async function saveOverheadPlan(

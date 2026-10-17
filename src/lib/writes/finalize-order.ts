@@ -15,6 +15,7 @@ import type { DbPort, SideEffects } from '@/lib/db-port';
 import type { Invoice, InvoiceItem, Order, Payment, Settings } from '@/lib/store';
 import { exchangeTotal, invoiceExchangeFields, orderExchanges } from '@/lib/exchange';
 import { creditDescription } from '@/lib/invoice-credit';
+import { rupees } from '@/lib/money';
 import { finalizedItemCosts, orderInvoiceRates, type FinalizedItem } from '@/lib/order-finalize';
 import { orderAdvancePayments } from '@/lib/order-payment';
 import { newShareToken } from '@/lib/share-token';
@@ -89,10 +90,11 @@ export function invoiceFromOrder(
     finalInvoiceItems.push(clean(itemToAdd));
   });
 
-  const totalDiscount = additionalDiscount;
+  // Whole rupees: the discount, and the advances carried over, are rounded as the sale form rounds them.
+  const totalDiscount = rupees(additionalDiscount);
   const exchanges = orderExchanges(order);
   const grandTotal = finalSubtotal - totalDiscount - exchangeTotal(exchanges);
-  const paymentHistory: Payment[] = orderAdvancePayments(order).map((p) => clean(p));
+  const paymentHistory: Payment[] = orderAdvancePayments(order).map((p) => clean({ ...p, amount: rupees(p.amount) }));
   const amountPaid = paymentHistory.reduce((sum, p) => sum + p.amount, 0);
   const balanceDue = grandTotal - amountPaid;
 
@@ -132,7 +134,7 @@ export function invoiceFromOrder(
 
 /** The hisaab row an invoice made from an order leaves: what is still owed, or the advance that came to more. */
 export function finalizeHisaabRow(invoice: Invoice): Record<string, unknown> | null {
-  if (invoice.balanceDue === 0) return null;
+  if (!(Math.abs(invoice.balanceDue) >= 1)) return null;
   const owes = invoice.balanceDue > 0;
   return {
     entityId: invoice.customerId || 'walk-in',

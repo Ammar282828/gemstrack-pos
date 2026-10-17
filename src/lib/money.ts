@@ -38,3 +38,7 @@ export function axisLac(n: number): string {
   if (a >= 1000) return `${sign}${Math.round(a / 1000)}k`;
   return `${sign}${Math.round(a)}`;
 }
+
+
+// Whole-rupee rules (rounding, settled, round-off offers) live in ./money-round.ts, re-exported here.
+export * from './money-round';

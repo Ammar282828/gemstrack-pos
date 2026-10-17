@@ -75,7 +75,7 @@ describe('hisaabLedger', () => {
     const doc = drawHisaabLedgerPdf({ name: 'Zara Test', entityType: 'customer', ...r, asOf, wall: karachiWall });
     const t = new TextDecoder('latin1').decode(doc.output('arraybuffer'));
     expect(t).toContain('Ledger Statement');
-    expect(t).toContain('Receivable: PKR 6,500.00');
+    expect(t).toContain('Receivable: PKR 6,500');
     expect(t).toContain('01-Oct-26');
     expect(hisaabLedgerFileName('Zara Test', asOf)).toBe('Ledger-Zara Test-2026-10-17.pdf');
   });
@@ -87,7 +87,7 @@ describe('reminderMessage', () => {
     const m = reminderMessage('Test Customer', 'Example Jewellers', 12500)!;
     expect(m).toContain('Dear Test Customer');
     expect(m).toContain('from Example Jewellers');
-    expect(m).toContain('*Amount Due:* PKR 12,500.00');
+    expect(m).toContain('*Amount Due:* PKR 12,500');
     expect(reminderMessage('A', 'B', 0)).toBeNull();
     expect(reminderMessage('A', 'B', -5)).toBeNull();
   });

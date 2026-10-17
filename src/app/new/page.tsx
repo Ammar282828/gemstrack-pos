@@ -97,7 +97,7 @@ export default function NewSalePage() {
             <div className="min-w-0 flex-1">
               <p className="font-medium text-sm">An invoice in progress</p>
               <p className="text-xs text-muted-foreground">
-                {cartItems.length} piece{cartItems.length === 1 ? '' : 's'} · PKR {cartSubtotal.toLocaleString()}
+                {cartItems.length} piece{cartItems.length === 1 ? '' : 's'} · PKR {cartSubtotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
             </div>
             <Button asChild size="sm" className="flex-shrink-0">

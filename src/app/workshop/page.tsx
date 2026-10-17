@@ -609,7 +609,7 @@ const KarigarCard: React.FC<{
         {load.active > 0 && (
           <div className="flex items-center justify-between text-2xs text-muted-foreground mb-2">
             <span>{load.totalWeightG > 0 ? `${load.totalWeightG.toFixed(3)}g out` : ''}</span>
-            <span>{load.totalValue > 0 ? `PKR ${load.totalValue.toLocaleString()}` : ''}</span>
+            <span>{load.totalValue > 0 ? `PKR ${load.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''}</span>
           </div>
         )}
         {visible.length === 0 ? (

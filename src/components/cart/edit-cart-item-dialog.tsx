@@ -132,7 +132,7 @@ const Num: React.FC<{
 }> = ({ label, value, onChange, step, placeholder, hint }) => (
   <div>
     <Label className="text-xs">{label}</Label>
-    <AmountInput step={step} value={value} placeholder={placeholder} zeroAsEmpty aria-label={label}
+    <AmountInput step={step} maxDecimals={/\(PKR\)/.test(label) && !/per gram/i.test(label) ? 0 : undefined} value={value} placeholder={placeholder} zeroAsEmpty aria-label={label}
       onValueChange={v => onChange(v === undefined ? '' : String(v))} />
     {hint && <p className="text-2xs text-muted-foreground mt-0.5">{hint}</p>}
   </div>
@@ -346,7 +346,7 @@ export const EditCartItemDialog: React.FC<{
           <div className="text-sm">
             <span className="text-muted-foreground">Line total </span>
             <span className="font-semibold tabular-nums">
-              PKR {preview.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              PKR {preview.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </span>
           </div>
           <div className="flex gap-2">

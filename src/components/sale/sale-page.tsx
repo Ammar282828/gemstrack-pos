@@ -33,6 +33,7 @@ import { ProductForm } from '@/components/product/product-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { AmountInput } from '@/components/ui/amount-input';
+import { RoundOffChips } from '@/components/shared/round-off-chips';
 import { ExchangeRows, type ExchangeRow, blankExchangeRow, rowsFromExchanges, exchangesFromRows, exchangeRowsTotal } from '@/components/shared/exchange-rows';
 import { invoiceExchanges } from '@/lib/exchange';
 import { FormSkeleton } from '@/components/shared/skeletons';
@@ -51,6 +52,7 @@ import type { TakenBy } from '@/lib/store';
 import { useMe } from '@/hooks/use-me';
 import { CostRateField, MarginFigure, SHOP_MARGIN_ON } from '@/components/shared/shop-margin';
 import { invoiceMargin } from '@/lib/margin';
+import { owesMoney, isCredit, rupees } from '@/lib/money';
 
 
 type RateInputs = {
@@ -259,7 +261,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
       description: [
         rates.length ? `At the bill’s rate: ${rates.map(([k, v]) => `${k.replace(/^gold/, '')} ${Math.round(v).toLocaleString()}/g`).join(', ')}.` : '',
         bill.discount ? `Discount ${bill.discount.toLocaleString()} from the bill.` : '',
-        paidOnBill ? `Paid PKR ${paidOnBill.toLocaleString()} is filled in as cash — change it if it was paid another way.` : '',
+        paidOnBill ? `Paid PKR ${paidOnBill.toLocaleString(undefined, { maximumFractionDigits: 0 })} is filled in as cash — change it if it was paid another way.` : '',
         'Check them against the bill before invoicing.',
       ].filter(Boolean).join(' '),
     });
@@ -461,7 +463,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
         });
     });
 
-    const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
+    const parsedDiscountAmount = rupees(parseFloat(discountAmountInput));
     const parsedExchange = exchangeRowsTotal(exchangeRows);
     const grandTotal = currentSubtotal - parsedDiscountAmount - parsedExchange;
 
@@ -478,7 +480,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
           const c = cartItemsFromStore.find(x => x.sku === it.sku);
           return { ...it, isCustomPrice: c?.isCustomPrice, hasDiamonds: c?.hasDiamonds, hasStones: c?.hasStones, stoneDetails: c?.stoneDetails, diamondDetails: c?.diamondDetails };
         }),
-        subtotal: estimatedInvoice.subtotal, discountAmount: parseFloat(discountAmountInput) || 0, costRate24k })
+        subtotal: estimatedInvoice.subtotal, discountAmount: rupees(parseFloat(discountAmountInput)), costRate24k })
     : null), [estimatedInvoice, cartItemsFromStore, discountAmountInput, costRate24k]);
 
   // ── A new sale, kept in Drafts as it is typed (components/drafts/use-work-drafts.ts) ──
@@ -564,9 +566,9 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
   // What the payment rows come to. Editing an invoice, what it had already been paid
   // stays paid; these rows are added on top.
   const paidBefore = isEditingEstimate ? (editingInvoiceOriginalRef.current?.amountPaid || 0) : 0;
-  const paidNow = salePayments.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+  const paidNow = salePayments.reduce((sum, r) => sum + rupees(parseFloat(r.amount)), 0);
   const balanceAfterPayments = estimatedInvoice ? estimatedInvoice.grandTotal - paidBefore - paidNow : null;
-  const paidOver = balanceAfterPayments !== null && balanceAfterPayments < -0.5;
+  const paidOver = balanceAfterPayments !== null && balanceAfterPayments <= -1;
   // Paid past the total is the customer's credit (lib/invoice-credit.ts), if there is a customer:
   // one picked, or a name or number typed (generateInvoice makes them one). A walk-in's extra is change.
   const namedCustomer = (!!selectedCustomerId && selectedCustomerId !== WALK_IN_CUSTOMER_VALUE)
@@ -578,7 +580,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
   // "Paid in full": the row takes whatever the others leave outstanding.
   const payRestWith = (id: string) => {
     if (!estimatedInvoice) return;
-    const others = salePayments.filter(r => r.id !== id).reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+    const others = salePayments.filter(r => r.id !== id).reduce((sum, r) => sum + rupees(parseFloat(r.amount)), 0);
     const rest = Math.max(0, Math.round(estimatedInvoice.grandTotal - paidBefore - others));
     setSalePayment(id, { amount: rest ? String(rest) : '' });
   };
@@ -637,7 +639,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
         return;
     }
     
-    const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
+    const parsedDiscountAmount = rupees(parseFloat(discountAmountInput));
 
     let hasInvalidRate = false;
     cartMetalInfo.karats.forEach(k => {
@@ -660,11 +662,11 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
     }
 
     if (overpaid) {
-      toast({ title: "More than the total", description: `The payments come to PKR ${(paidBefore + paidNow).toLocaleString()}, the invoice to PKR ${estimatedInvoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}.`, variant: "destructive" });
+      toast({ title: "More than the total", description: `The payments come to PKR ${(paidBefore + paidNow).toLocaleString(undefined, { maximumFractionDigits: 0 })}, the invoice to PKR ${estimatedInvoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}.`, variant: "destructive" });
       return;
     }
     const paymentsNow: SalePayment[] = salePayments
-      .map(r => ({ amount: parseFloat(r.amount) || 0, method: r.method, reference: r.method === 'Cash' ? '' : r.reference }))
+      .map(r => ({ amount: rupees(parseFloat(r.amount)), method: r.method, reference: r.method === 'Cash' ? '' : r.reference }))
       .filter(p => p.amount > 0);
     
     const ratesForInvoice: Partial<Settings> = {
@@ -751,7 +753,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
       toast({
         title: wasEdit ? "Invoice updated" : "Invoice created",
         description: paymentsNow.length
-          ? `${invoice.id}: PKR ${invoice.amountPaid.toLocaleString()} paid${invoice.balanceDue > 0.5 ? `, PKR ${invoice.balanceDue.toLocaleString()} still due` : invoice.balanceDue < -0.5 ? `, PKR ${Math.abs(invoice.balanceDue).toLocaleString()} in credit` : ' — paid in full'}.`
+          ? `${invoice.id}: PKR ${invoice.amountPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })} paid${owesMoney(invoice.balanceDue) ? `, PKR ${invoice.balanceDue.toLocaleString(undefined, { maximumFractionDigits: 0 })} still due` : isCredit(invoice.balanceDue) ? `, PKR ${Math.abs(invoice.balanceDue).toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit` : ' — paid in full'}.`
           : `${invoice.id} is ready to print or send.`,
       });
     } else {
@@ -941,7 +943,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
                                         <p className="text-xs text-muted-foreground">{spec}</p>
                                         {stockSku(item.sku) && <p className="text-2xs font-mono text-muted-foreground">{item.sku}</p>}
                                         {item.isCustomPrice && (
-                                            <p className="text-xs text-warning font-medium">Fixed price: PKR {item.customPrice?.toLocaleString()}</p>
+                                            <p className="text-xs text-warning font-medium">Fixed price: PKR {item.customPrice?.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
                                         )}
                                         {item.metalType === 'silver' && !item.isCustomPrice && item.silverRatePerGram && (
                                             <p className="text-xs text-tone-working-ink">Rate: {item.silverRatePerGram}/g</p>
@@ -949,7 +951,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
                                     </div>
                                     {/* At the rates in the boxes, as the totals and the saved invoice are — not today's
                                         (an edit's own rate, a scanned bill's, one typed by hand). */}
-                                    <span className="font-semibold tabular-nums whitespace-nowrap">PKR {(estimatedInvoice?.items.find(i => i.sku === item.sku)?.itemTotal ?? calculateProductCosts(item, settings).totalPrice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                    <span className="font-semibold tabular-nums whitespace-nowrap">PKR {(estimatedInvoice?.items.find(i => i.sku === item.sku)?.itemTotal ?? calculateProductCosts(item, settings).totalPrice).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                                     <div className="flex items-center -mr-2">
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setEditItem(item)} aria-label={`Edit ${item.name}`}>
                                             <Edit className="h-4 w-4"/>
@@ -1133,19 +1135,25 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
                             <Separator />
                           </>
                         )}
-                        <div className="flex justify-between gap-3"><span>Subtotal</span><span className="text-right tabular-nums">PKR {estimatedInvoice?.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
+                        <div className="flex justify-between gap-3"><span>Subtotal</span><span className="text-right tabular-nums">PKR {estimatedInvoice?.subtotal.toLocaleString(undefined, { maximumFractionDigits: 0 }) || '...'}</span></div>
                         <div className="flex items-center justify-between">
                             <Label htmlFor="discount" className="flex items-center"><Percent className="mr-2 h-4 w-4"/>Discount</Label>
                             <AmountInput id="discount" value={discountAmountInput}
                               onValueChange={v => setDiscountAmountInput(v === undefined ? '' : String(v))}
-                              className="w-32 text-right" placeholder="0" aria-label="Discount" />
+                              maxDecimals={0} className="w-32 text-right" placeholder="0" aria-label="Discount" />
                         </div>
+                        {estimatedInvoice && (
+                          <RoundOffChips
+                            payable={estimatedInvoice.subtotal - exchangeRowsTotal(exchangeRows)}
+                            discount={rupees(parseFloat(discountAmountInput))}
+                            onDiscountChange={n => setDiscountAmountInput(String(n))} />
+                        )}
                         <div className="space-y-2 p-3 border rounded-md bg-muted/40">
                             <Label className="text-sm font-medium">Exchange / trade-in</Label>
                             <ExchangeRows rows={exchangeRows} onChange={setExchangeRows} />
                         </div>
                         <Separator />
-                        <div className="flex justify-between font-bold text-xl"><span className="text-primary">Total</span><span>PKR {estimatedInvoice?.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
+                        <div className="flex justify-between font-bold text-xl"><span className="text-primary">Total</span><span>PKR {estimatedInvoice?.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 }) || '...'}</span></div>
                         {/* The scanned bill's own total against this one. A gap is
                             usually a line missed on a crowded slip -- obvious to
                             whoever is holding the paper, invisible to everything else. */}
@@ -1160,7 +1168,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
                               <TriangleAlert className="h-4 w-4" />
                               <AlertTitle>This does not match the bill</AlertTitle>
                               <AlertDescription>
-                                The bill says PKR {scannedBillTotal.toLocaleString()}, this comes to{' '}
+                                The bill says PKR {scannedBillTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}, this comes to{' '}
                                 PKR {estimatedInvoice.grandTotal.toLocaleString(undefined, {maximumFractionDigits: 0})}
                                 {' '}({gap > 0 ? '+' : ''}{Math.round(gap).toLocaleString()}). Check for a line that was missed.
                               </AlertDescription>
@@ -1174,14 +1182,14 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
                         <div className="space-y-2">
                             <div className="flex items-center justify-between gap-3">
                                 <Label className="flex items-center"><Banknote className="mr-2 h-4 w-4"/>Payment received</Label>
-                                {paidBefore > 0 && <span className="text-xs text-muted-foreground tabular-nums">Paid before: PKR {paidBefore.toLocaleString()}</span>}
+                                {paidBefore > 0 && <span className="text-xs text-muted-foreground tabular-nums">Paid before: PKR {paidBefore.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>}
                             </div>
                             {salePayments.map((row, i) => (
                               <div key={row.id} className="space-y-2 rounded-md border p-2.5">
                                 <div className="flex items-center gap-2">
                                   <AmountInput value={row.amount}
                                     onValueChange={v => setSalePayment(row.id, { amount: v === undefined ? '' : String(v) })}
-                                    placeholder="Amount (PKR)" className="flex-1 text-right" aria-label={`Payment ${i + 1}, amount`} />
+                                    maxDecimals={0} placeholder="Amount (PKR)" className="flex-1 text-right" aria-label={`Payment ${i + 1}, amount`} />
                                   <Button type="button" variant="outline" size="sm" className="shrink-0" disabled={!estimatedInvoice}
                                     onClick={() => payRestWith(row.id)}>
                                     {salePayments.length > 1 ? 'The rest' : 'Paid in full'}
@@ -1213,11 +1221,11 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
                             </Button>
                             {balanceAfterPayments !== null && (paidNow > 0 || paidBefore > 0) ? (
                               <div className={`flex justify-between font-semibold ${overpaid ? 'text-destructive' : inCreditNow ? 'text-success' : ''}`}>
-                                <span>{overpaid ? 'More than the total by' : inCreditNow ? 'Credit to customer' : balanceAfterPayments <= 0.5 ? 'Paid in full' : 'Balance due'}</span>
+                                <span>{overpaid ? 'More than the total by' : inCreditNow ? 'Credit to customer' : balanceAfterPayments < 1 ? 'Paid in full' : 'Balance due'}</span>
                                 <span className="tabular-nums">
                                   {overpaid || inCreditNow ? `PKR ${Math.abs(balanceAfterPayments).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-                                    : balanceAfterPayments <= 0.5 ? <CheckCircle className="inline h-4 w-4" aria-label="Paid in full"/>
-                                    : `PKR ${balanceAfterPayments.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                                    : balanceAfterPayments < 1 ? <CheckCircle className="inline h-4 w-4" aria-label="Paid in full"/>
+                                    : `PKR ${balanceAfterPayments.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                                 </span>
                               </div>
                             ) : (
@@ -1267,7 +1275,7 @@ export function SalePage({ editInvoiceId }: { editInvoiceId?: string }) {
                     </p>
                     {balanceAfterPayments !== null && paidNow > 0 && (
                       <p className={`text-2xs tabular-nums truncate ${overpaid ? 'text-destructive' : 'text-muted-foreground'}`}>
-                        {overpaid ? 'Paid more than the total' : inCreditNow ? `Credit PKR ${Math.abs(balanceAfterPayments).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : balanceAfterPayments <= 0.5 ? 'Paid in full' : `Due PKR ${balanceAfterPayments.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                        {overpaid ? 'Paid more than the total' : inCreditNow ? `Credit PKR ${Math.abs(balanceAfterPayments).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : balanceAfterPayments < 1 ? 'Paid in full' : `Due PKR ${balanceAfterPayments.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                       </p>
                     )}
                 </div>

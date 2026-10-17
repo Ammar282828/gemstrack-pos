@@ -18,8 +18,8 @@ export interface OrderMessageInput {
   items: { description: string; isManualPrice?: boolean; estimatedWeightG?: number; karat?: string }[];
 }
 
-/** "12,345.00": the page's `toLocaleString(undefined, { minimumFractionDigits: 2 })`, in the ERP's en-US grouping. */
-const amount = (n: number) => (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+/** "12,345": the page's `toLocaleString(undefined, { maximumFractionDigits: 0 })`, in the ERP's en-US grouping. */
+const amount = (n: number) => (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
 
 export function orderCustomerMessage(order: OrderMessageInput, kind: OrderMessageKind, shopName: string): string {
   let message = `Dear ${order.customerName || 'Customer'},\n\n`;

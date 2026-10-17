@@ -30,9 +30,12 @@ describe('changing the discount', () => {
     expect(withDiscount({ subtotal: 10_000, exchangeAmount1: null, amountPaid: Number.NaN }, 1_000)).toEqual({ discountAmount: 1_000, grandTotal: 9_000, balanceDue: 9_000 });
   });
 
-  it('sums in the order the store does', () => {
+  it('works in whole rupees: the discount, the total and the balance are each rounded', () => {
     expect(withDiscount({ subtotal: 1000.1, exchangeAmount1: 0.2, exchangeAmount2: 0.3, amountPaid: 0.7 }, 0.05))
-      .toEqual({ discountAmount: 0.05, grandTotal: 999.5500000000001, balanceDue: 998.85 });
+      .toEqual({ discountAmount: 0, grandTotal: 1000, balanceDue: 999 });
+    // An older bill with paise: what it comes to and what is left read as whole rupees.
+    expect(withDiscount({ subtotal: 297_000.4, amountPaid: 100_000.3 }, 2_340.6))
+      .toEqual({ discountAmount: 2_341, grandTotal: 294_659, balanceDue: 194_659 });
   });
 });
 
@@ -62,9 +65,9 @@ describe('a partial refund', () => {
     expect(withRefund({ grandTotal: 1_000, paymentHistory: [{ amount: null }, { amount: 300 }] }, 100, 'd')).toMatchObject({ amountPaid: 200, balanceDue: 800 });
   });
 
-  it('sums in the order the store does', () => {
-    expect(withRefund({ grandTotal: 0.3, paymentHistory: [{ amount: 0.1 }, { amount: 0.2 }] }, 0.05, 'd'))
-      .toMatchObject({ amountPaid: 0.25000000000000006, balanceDue: 0.04999999999999993 });
+  it('works in whole rupees', () => {
+    expect(withRefund({ grandTotal: 1_000, paymentHistory: [{ amount: 600.4 }, { amount: 200.2 }] }, 50.4, 'd'))
+      .toMatchObject({ amountPaid: 751, balanceDue: 249 });
   });
 });
 
@@ -86,9 +89,9 @@ describe('deleting one payment', () => {
     expect(withoutPayment({ grandTotal: 1_000 }, 0)).toBeNull();
   });
 
-  it('sums in the order the store does', () => {
-    expect(withoutPayment({ grandTotal: 1, paymentHistory: [{ amount: 0.1 }, { amount: 0.2 }, { amount: 0.4 }] }, 0))
-      .toMatchObject({ amountPaid: 0.6000000000000001, balanceDue: 0.3999999999999999 });
+  it('works in whole rupees', () => {
+    expect(withoutPayment({ grandTotal: 1_000, paymentHistory: [{ amount: 100.1 }, { amount: 200.2 }, { amount: 400.4 }] }, 0))
+      .toMatchObject({ amountPaid: 601, balanceDue: 399 });
   });
 });
 

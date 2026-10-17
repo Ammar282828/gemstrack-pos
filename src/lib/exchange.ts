@@ -13,6 +13,8 @@
  * balances, analytics, Shopify, the per-piece split — stays right without knowing about rows.
  */
 
+import { rupees } from './money';
+
 export interface ExchangeEntry {
   /** "Old 22k ring", "Broken chain". */
   description: string;
@@ -27,7 +29,7 @@ export interface ExchangeEntry {
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0);
 
 export const exchangeTotal = (list: ExchangeEntry[] | undefined | null) =>
-  (list || []).reduce((sum, e) => sum + num(e.value), 0);
+  (list || []).reduce((sum, e) => sum + rupees(e.value), 0);
 
 /** "Old ring · 22k · 5.2 g at 22,000/g"; an unnamed row is "Gold" when weighed, else plain "Exchange". */
 export function describeExchangeEntry(e: ExchangeEntry): string {
@@ -46,7 +48,7 @@ const clean = (list: ExchangeEntry[]) => list
     ...(e.karat ? { karat: e.karat } : {}),
     ...(num(e.weightG) > 0 ? { weightG: num(e.weightG) } : {}),
     ...(num(e.ratePerGram) > 0 ? { ratePerGram: num(e.ratePerGram) } : {}),
-    value: num(e.value),
+    value: rupees(e.value),
   }));
 
 interface OrderExchangeLike { exchanges?: ExchangeEntry[]; advanceInExchangeDescription?: string; advanceInExchangeValue?: number }
@@ -127,11 +129,11 @@ export const exchangesFromRows = (rows: ExchangeRow[]): ExchangeEntry[] => rows
     ...(r.karat ? { karat: r.karat } : {}),
     ...(n(r.weightG) > 0 ? { weightG: n(r.weightG) } : {}),
     ...(n(r.ratePerGram) > 0 ? { ratePerGram: n(r.ratePerGram) } : {}),
-    value: n(r.value),
+    value: rupees(n(r.value)),
   }))
   .filter((e) => e.value > 0 || e.description);
 
-export const exchangeRowsTotal = (rows: ExchangeRow[]) => rows.reduce((sum, r) => sum + n(r.value), 0);
+export const exchangeRowsTotal = (rows: ExchangeRow[]) => rows.reduce((sum, r) => sum + rupees(n(r.value)), 0);
 
 /** Apply a change to one row; grams × rate refills the value unless it was typed. */
 export function applyExchangeRowChange(row: ExchangeRow, patch: Partial<ExchangeRow>): ExchangeRow {

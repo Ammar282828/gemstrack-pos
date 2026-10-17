@@ -18,6 +18,14 @@ import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues } from '@/l
 import { NextRequest } from 'next/server';
 import type { DbPort, TxCtx } from '@/lib/db-port';
 
+/**
+ * Money is whole rupees in the ERP since 2026-10-17 (lib/money.ts); the phone's cases (cases.json,
+ * written by the apps) still hold unrounded figures, so each is held to within a few rupees (< 5: a
+ * rounded rupee a line) until the apps round the same way (docs/in-progress.md "Whole rupees").
+ * Set to 2 once cases.json is regenerated.
+ */
+const MONEY_DIGITS = -1;
+
 // The same in-memory database as route.test.ts, behind both the Admin SDK and the port.
 const data: Record<string, Record<string, Record<string, unknown>>> = {};
 let ids = 0;
@@ -142,15 +150,15 @@ for (const [phone, file] of files) {
         advanceInExchangeValue: money(sent.advanceInExchangeValue), costRate24k: money(sent.costRate24k),
       }, sent.ratesApplied);
       // What the phone showed is the web's figure.
-      expect(c.shown.subtotal).toBeCloseTo(web.subtotal, 2);
-      expect(c.shown.discount).toBeCloseTo(web.discount, 2);
-      expect(c.shown.grandTotal).toBeCloseTo(web.grandTotal, 2);
+      expect(c.shown.subtotal).toBeCloseTo(web.subtotal, MONEY_DIGITS);
+      expect(c.shown.discount).toBeCloseTo(web.discount, MONEY_DIGITS);
+      expect(c.shown.grandTotal).toBeCloseTo(web.grandTotal, MONEY_DIGITS);
       // Each piece as the web saves it.
       const pieces = pricedOrderItems(sent.items, sent.ratesApplied);
       sent.items.forEach((it, i) => {
-        expect(money(it.totalEstimate)).toBeCloseTo(money(pieces[i].totalEstimate), 2);
-        expect(money(it.metalCost)).toBeCloseTo(money(pieces[i].metalCost), 2);
-        expect(money(it.wastageCost)).toBeCloseTo(money(pieces[i].wastageCost), 2);
+        expect(money(it.totalEstimate)).toBeCloseTo(money(pieces[i].totalEstimate), MONEY_DIGITS);
+        expect(money(it.metalCost)).toBeCloseTo(money(pieces[i].metalCost), MONEY_DIGITS);
+        expect(money(it.wastageCost)).toBeCloseTo(money(pieces[i].wastageCost), MONEY_DIGITS);
         expect('karat' in it && it.karat !== undefined).toBe('karat' in pieces[i] && pieces[i].karat !== undefined);
       });
 
@@ -158,9 +166,9 @@ for (const [phone, file] of files) {
       expect(r.status, String(r.body.error)).toBe(200);
       const id = (r.body.order as { id: string }).id;
       const saved = data.orders[id];
-      expect(money(saved.subtotal)).toBeCloseTo(web.subtotal, 2);
-      expect(money(saved.discountAmount)).toBeCloseTo(web.discount, 2);
-      expect(money(saved.grandTotal)).toBeCloseTo(web.grandTotal, 2);
+      expect(money(saved.subtotal)).toBeCloseTo(web.subtotal, MONEY_DIGITS);
+      expect(money(saved.discountAmount)).toBeCloseTo(web.discount, MONEY_DIGITS);
+      expect(money(saved.grandTotal)).toBeCloseTo(web.grandTotal, MONEY_DIGITS);
       expect((saved.items as unknown[]).length).toBe(sent.items.length);
     });
   });
@@ -183,9 +191,9 @@ for (const [phone, file] of files) {
         items: d.items, discountAmount: money(d.discountAmount), advancePayment: money(d.advancePayment),
         advanceInExchangeValue: money(d.advanceInExchangeValue), costRate24k: money(d.costRate24k),
       }, rates);
-      expect(web.subtotal).toBeCloseTo(c.shown.subtotal, 2);
-      expect(web.discount).toBeCloseTo(c.shown.discount, 2);
-      expect(web.grandTotal).toBeCloseTo(c.shown.grandTotal, 2);
+      expect(web.subtotal).toBeCloseTo(c.shown.subtotal, MONEY_DIGITS);
+      expect(web.discount).toBeCloseTo(c.shown.discount, MONEY_DIGITS);
+      expect(web.grandTotal).toBeCloseTo(c.shown.grandTotal, MONEY_DIGITS);
       // The form's own fields, of the form's own kinds.
       for (const it of d.items) {
         expect(metalTypeValues).toContain(it.metalType);
@@ -218,10 +226,10 @@ for (const [phone, file] of files) {
         const box = (Object.keys(INPUT_TO_RATE) as RateInputKey[]).find((k) => INPUT_TO_RATE[k] === rateKey);
         if (!box) continue;
         const counter = parseFloat(d.rates[box] ?? '') || money(c.settings[rateKey]);
-        expect(counter, rateKey).toBeCloseTo(money(value), 2);
+        expect(counter, rateKey).toBeCloseTo(money(value), MONEY_DIGITS);
       }
       expect([...d.typedRates].sort()).toEqual(Object.keys(d.rates).sort());
-      expect(money(d.subtotal)).toBeCloseTo(c.shown.subtotal, 2);
+      expect(money(d.subtotal)).toBeCloseTo(c.shown.subtotal, MONEY_DIGITS);
       expect(summarizeSale(d).items).toBe(d.cart.length);
       for (const p of d.salePayments as Record<string, unknown>[]) {
         for (const k of ['id', 'amount', 'method', 'reference']) expect(typeof p[k], k).toBe('string');
@@ -236,18 +244,18 @@ for (const [phone, file] of files) {
       const r = await call({ op: 'createInvoice', ...c.send });
       expect(r.status, String(r.body.error)).toBe(200);
       const inv = r.body.invoice as Record<string, unknown>;
-      expect(money(inv.subtotal)).toBeCloseTo(c.shown.subtotal, 2);
-      expect(money(inv.discountAmount)).toBeCloseTo(c.shown.discount, 2);
-      expect(money(inv.grandTotal)).toBeCloseTo(c.shown.grandTotal, 2);
-      expect(money(inv.amountPaid)).toBeCloseTo(c.shown.paid, 2);
-      expect(money(inv.balanceDue)).toBeCloseTo(c.shown.balanceDue, 2);
+      expect(money(inv.subtotal)).toBeCloseTo(c.shown.subtotal, MONEY_DIGITS);
+      expect(money(inv.discountAmount)).toBeCloseTo(c.shown.discount, MONEY_DIGITS);
+      expect(money(inv.grandTotal)).toBeCloseTo(c.shown.grandTotal, MONEY_DIGITS);
+      expect(money(inv.amountPaid)).toBeCloseTo(c.shown.paid, MONEY_DIGITS);
+      expect(money(inv.balanceDue)).toBeCloseTo(c.shown.balanceDue, MONEY_DIGITS);
       // The books carry exactly what is still owed on it (or held as credit), nothing more.
       const rows = Object.values(data.hisaab || {}).filter((h) => h.linkedInvoiceId === inv.id);
       const booked = rows.reduce((s, h) => s + money(h.cashDebit) - money(h.cashCredit), 0);
       // Paise over (a "paid in full" rounded up) are not held as credit: under half a rupee is settled
       // (lib/invoice-credit inCredit), so nothing is booked for it.
       const settledPaise = c.shown.balanceDue < 0 && c.shown.balanceDue >= -0.5;
-      expect(booked).toBeCloseTo(settledPaise ? 0 : c.shown.balanceDue, 2);
+      expect(booked).toBeCloseTo(settledPaise ? 0 : c.shown.balanceDue, MONEY_DIGITS);
       // Every piece from stock is sold, once.
       for (const sku of Object.keys(c.stock || {})) {
         expect(data.products?.[sku]).toBeUndefined();

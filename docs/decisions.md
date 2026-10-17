@@ -480,6 +480,15 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
 - **Not built yet:** spending the credit. It sits on the hisaab; using it against a later invoice is
   done by hand for now.
 
+### Whole rupees
+
+- **Money has no decimals** (owner, 2026-10-17: "there should be no decimals"). Found in the lines: metal = weight × rate, and wastage = a percentage, made paise that flowed into subtotals, balances and "PKR 297,000.00". Now every amount is rounded where it is worked out (`lib/money-round.ts`: Math.round half up per line, piece = sum of rounded lines, subtotal = sum of pieces; discount, exchange, payments, advances, refunds are integers) so a printed bill adds up. Weights, per-gram rates and percentages keep theirs. The shared writes (`lib/writes/*`, so `/api/app/write` and the apps too) round what they are sent. Inputs take whole rupees (numeric keypad); nothing shows ".00".
+- **Under a rupee is settled** (`isSettled`/`owesMoney`/`isCredit`, replacing the half-rupee tests): an older bill's paise are not a debt in Due to customers, invoice status, hisaab or credit. Scan 2026-10-17 (read-only): Taheri 19 of 159 invoices and 9 of 62 orders hold fractions, Mina 1 line; none show unpaid only for under a rupee. Nothing was rewritten.
+
+### Round-off
+
+- **The bill is offered round** (owner, 2026-10-17: "offer discount options to round the bill for any amount under 5000"). Beside the discount field (New sale, invoice discount, Finalize & invoice, the order form): up to 3 chips "Round to 270,000 · −2,340", the cheapest round-downs to 100/500/1,000/5,000/10,000 that cost under 5,000 more; tap adds it to the typed discount, tap again undoes. At payment time (invoice, an order's advance) a remainder under 5,000 offers "Settle — give the remaining PKR X off", which raises the discount, never a payment that was not made. Rule and tests: `lib/money-round.ts`; chips `components/shared/round-off-chips.tsx`.
+
 ### Lac and crore
 
 - **Analytics money reads in lac and crore** (`src/lib/money.ts`: `pkrLac`, `lacCrore`, `axisLac`): exact below 1 lac,

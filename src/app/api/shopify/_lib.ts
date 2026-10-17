@@ -16,6 +16,8 @@ export const SHOPIFY_API_VERSION = '2026-01';
  * behaviour exactly as it was. Trailing slashes are stripped because every
  * caller appends a path beginning with one.
  */
+
+import { owesMoney } from '@/lib/money';
 export const APP_URL = (
   process.env.NEXT_PUBLIC_APP_URL || 'https://studio--hom-pos-52710474-ceeea.us-central1.hosted.app'
 ).replace(/\/+$/, '');
@@ -366,7 +368,7 @@ export function buildShopifyOrderPayload(
   const tags = ['pos-import', `pos-inv-${invoice.id}`];
   if (invoice.sourceOrderId) tags.push(`pos-order-${invoice.sourceOrderId}`);
   if (opts.tags) tags.push(...opts.tags);
-  const isPaid = (invoice.balanceDue || 0) <= 0 && (invoice.amountPaid || 0) > 0;
+  const isPaid = !owesMoney(invoice.balanceDue) && (invoice.amountPaid || 0) > 0;
   const isPartiallyPaid = !isPaid && (invoice.amountPaid || 0) > 0;
   const financialStatus = isPaid ? 'paid' : (isPartiallyPaid ? 'partially_paid' : 'pending');
   return {

@@ -516,7 +516,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         <FormField control={form.control} name="customPrice" render={({ field }) => (
                             <FormItem>
                               <FormLabel>Price (PKR)</FormLabel>
-                              <FormControl><AmountInput zeroAsEmpty placeholder="e.g. 15000" {...field} /></FormControl>
+                              <FormControl><AmountInput maxDecimals={0} zeroAsEmpty placeholder="e.g. 15000" {...field} /></FormControl>
                               <FormMessage />
                             </FormItem>
                         )}/>
@@ -565,7 +565,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           )}/>
                           )}
                           <FormField control={form.control} name="miscCharges" render={({ field }) => (
-                              <FormItem><FormLabel>Misc (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="e.g. 250" {...field} /></FormControl><FormMessage /></FormItem>
+                              <FormItem><FormLabel>Misc (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} zeroAsEmpty placeholder="e.g. 250" {...field} /></FormControl><FormMessage /></FormItem>
                           )}/>
                       </div>
 
@@ -579,7 +579,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       {hasDiamondsValue && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 pl-6 border-l-2 border-muted">
                           <FormField control={form.control} name="diamondCharges" render={({ field }) => (
-                              <FormItem><FormLabel>Diamonds (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="e.g. 50000" {...field} /></FormControl><FormMessage /></FormItem>
+                              <FormItem><FormLabel>Diamonds (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} zeroAsEmpty placeholder="e.g. 50000" {...field} /></FormControl><FormMessage /></FormItem>
                           )}/>
                           <div className="md:col-span-2">
                             <FormField control={form.control} name="diamondDetails" render={({ field }) => (
@@ -601,7 +601,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                               <FormItem><FormLabel>Stone weight (g)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="e.g. 0.5" {...field} /></FormControl><FormMessage /></FormItem>
                           )}/>
                           <FormField control={form.control} name="stoneCharges" render={({ field }) => (
-                              <FormItem><FormLabel>Stones (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="e.g. 15000" {...field} /></FormControl><FormMessage /></FormItem>
+                              <FormItem><FormLabel>Stones (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} zeroAsEmpty placeholder="e.g. 15000" {...field} /></FormControl><FormMessage /></FormItem>
                           )}/>
                           <div className="col-span-2 md:col-span-3">
                             <FormField control={form.control} name="stoneDetails" render={({ field }) => (

@@ -77,7 +77,7 @@ export const runOrders2Op: OpHandler = async (op, body, ctx) => {
       if (lineIndex === null || amount === null) return bad('Which advance?');
       if (order.invoiceId) return bad(`${orderId} is invoiced: delete the payment on ${order.invoiceId} instead.`, 409);
       const line = orderAdvancePayments({ ...order, id: orderId }, '')[lineIndex];
-      if (!line || Math.abs(line.amount - amount) > 0.005) return bad(CHANGED_ADVANCES, 409);
+      if (!line || Math.abs(line.amount - amount) >= 1) return bad(CHANGED_ADVANCES, 409);
       const code = await passDeleteCode(ctx.email, body.deleteCode, deleteAdvanceWhat(orderId, amount));
       if (!code.ok) return bad(code.error, code.status);
       return attempt(async () => ({

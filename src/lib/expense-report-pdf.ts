@@ -32,7 +32,7 @@ export interface ExpenseReportPdfInput {
 
 export const expenseReportFileName = (asOf: Date) => `Expense-Report-${format(asOf, 'yyyy-MM-dd')}.pdf`;
 
-const amount = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2 });
+const amount = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 export function drawExpenseReportPdf({ groups, total, filterLine, asOf, wall = deviceWall }: ExpenseReportPdfInput): jsPDF {
   const doc = new jsPDF();

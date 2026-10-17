@@ -334,12 +334,12 @@ export default function EntityHisaabPage() {
       <div className="grid grid-cols-2 gap-3">
         <div className="p-3 rounded-lg bg-success/10 border border-success/20">
           <p className="text-xs font-medium text-success mb-1">You will Get</p>
-          <p className="text-xl font-bold text-success">PKR {Math.max(0, balances.finalCashBalance).toLocaleString()}</p>
+          <p className="text-xl font-bold text-success">PKR {Math.max(0, balances.finalCashBalance).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
           {balances.finalGoldBalance > 0 && <p className="text-xs text-success/80 mt-0.5">{balances.finalGoldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
         </div>
         <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
           <p className="text-xs font-medium text-destructive mb-1">You will Give</p>
-          <p className="text-xl font-bold text-destructive">PKR {Math.abs(Math.min(0, balances.finalCashBalance)).toLocaleString()}</p>
+          <p className="text-xl font-bold text-destructive">PKR {Math.abs(Math.min(0, balances.finalCashBalance)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
           {balances.finalGoldBalance < 0 && <p className="text-xs text-destructive/80 mt-0.5">{Math.abs(balances.finalGoldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
         </div>
       </div>
@@ -383,12 +383,12 @@ export default function EntityHisaabPage() {
                                       <p className="text-xs text-muted-foreground mt-1">{format(parseISO(entry.date), 'MMM dd, yyyy')}</p>
                                     </div>
                                     <div className="text-right flex-shrink-0">
-                                      {entry.cashDebit > 0 && <p className="font-bold text-destructive text-sm">-PKR {entry.cashDebit.toLocaleString()}</p>}
-                                      {entry.cashCredit > 0 && <p className="font-bold text-success text-sm">+PKR {entry.cashCredit.toLocaleString()}</p>}
+                                      {entry.cashDebit > 0 && <p className="font-bold text-destructive text-sm">-PKR {entry.cashDebit.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>}
+                                      {entry.cashCredit > 0 && <p className="font-bold text-success text-sm">+PKR {entry.cashCredit.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>}
                                       {entry.goldDebitGrams > 0 && <p className="text-xs text-destructive">-{entry.goldDebitGrams.toFixed(3)}g</p>}
                                       {entry.goldCreditGrams > 0 && <p className="text-xs text-success">+{entry.goldCreditGrams.toFixed(3)}g</p>}
                                       <p className={cn('text-xs mt-0.5', entry.runningCashBalance === 0 ? 'text-muted-foreground' : entry.runningCashBalance > 0 ? 'text-success' : 'text-destructive/70')}>
-                                        Bal: PKR {entry.runningCashBalance.toLocaleString()}
+                                        Bal: PKR {entry.runningCashBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                       </p>
                                     </div>
                                   </div>
@@ -429,12 +429,12 @@ export default function EntityHisaabPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right font-medium text-destructive">
-                                            {entry.cashDebit > 0 && <div>PKR {entry.cashDebit.toLocaleString()}</div>}
+                                            {entry.cashDebit > 0 && <div>PKR {entry.cashDebit.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>}
                                             {entry.goldDebitGrams > 0 && <div className="text-xs">{entry.goldDebitGrams.toFixed(3)} g</div>}
                                             {(entry.goldDebitGrams === 0 && entry.cashDebit === 0) && <span className="text-muted-foreground">—</span>}
                                         </TableCell>
                                         <TableCell className="text-right font-medium text-success">
-                                            {entry.cashCredit > 0 && <div>PKR {entry.cashCredit.toLocaleString()}</div>}
+                                            {entry.cashCredit > 0 && <div>PKR {entry.cashCredit.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>}
                                             {entry.goldCreditGrams > 0 && <div className="text-xs">{entry.goldCreditGrams.toFixed(3)} g</div>}
                                             {(entry.goldCreditGrams === 0 && entry.cashCredit === 0) && <span className="text-muted-foreground">—</span>}
                                         </TableCell>
@@ -444,7 +444,7 @@ export default function EntityHisaabPage() {
                                           </TableCell>
                                         )}
                                         <TableCell className={cn("text-right font-semibold", entry.runningCashBalance === 0 ? 'text-muted-foreground' : entry.runningCashBalance > 0 ? 'text-destructive' : 'text-success')}>
-                                            PKR {entry.runningCashBalance.toLocaleString()}
+                                            PKR {entry.runningCashBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                         </TableCell>
                                         <TableCell>
                                             <AlertDialog>

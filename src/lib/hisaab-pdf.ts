@@ -101,8 +101,8 @@ export function drawHisaabLedgerPdf({ name, entityType, lines, finalCashBalance,
 
   doc.setFont('helvetica', 'normal').setFontSize(10);
   const cashBalanceText = finalCashBalance > 0
-    ? `Receivable: PKR ${finalCashBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-    : `Payable: PKR ${Math.abs(finalCashBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+    ? `Receivable: PKR ${finalCashBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+    : `Payable: PKR ${Math.abs(finalCashBalance).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
   doc.text(`Cash: ${cashBalanceText}`, margin, summaryY);
   summaryY += 7;
 

@@ -23,7 +23,7 @@ describe('the order message', () => {
       + '*Item 2:* Plain band\n'
       + '  - Est. Weight: 3g \n'
       + '*Item 3:* Pendant at a fixed price\n'
-      + '\n*Total Balance Due:* PKR 45,500.00\n\n'
+      + '\n*Total Balance Due:* PKR 45,500\n\n'
       + 'We are working on your order and will notify you of any updates.\n\n'
       + 'Thank you for your business.',
     );
@@ -40,7 +40,7 @@ describe('the order message', () => {
       'Dear Test Customer,\n\n'
       + 'This is an update regarding your order *#ORD-000123* from TEST SHOP.\n\n'
       + 'Your custom order is now *Completed* and ready for collection.\n\n'
-      + '*Amount Due:* PKR 1,234.50\n\n'
+      + '*Amount Due:* PKR 1,235\n\n'
       + 'Thank you for your business.',
     );
   });

@@ -19,6 +19,7 @@ import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { newShareToken } from '@/lib/share-token';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { shouldCreateCustomer } from '@/lib/walk-in';
+import { owesMoney, rupees } from '@/lib/money';
 
 const SETTINGS = 'app_settings';
 const GLOBAL = 'global';
@@ -199,7 +200,9 @@ export async function createInvoice(db: DbPort, input: SaleInput, fx: SaleSideEf
       tx.delete(PRODUCTS, cartItem.sku);
     }
 
-    const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
+    // Whole rupees throughout (owner, 2026-10-17): the lines are rounded by the pricing, the discount,
+    // exchange and payments here, so every total is a sum of integers.
+    const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, rupees(discountAmount)));
     const grandTotal = subtotal - calculatedDiscountAmount - exchangeTotal(exchanges);
     const existingAdjustmentsAmount = getInvoiceAdjustmentsAmount(existingInvoiceData);
 
@@ -216,7 +219,8 @@ export async function createInvoice(db: DbPort, input: SaleInput, fx: SaleSideEf
     // afterwards (writes/invoice-payment.ts). Paid is recomputed from the whole history.
     const paidAt = now();
     const takenNow: Payment[] = (payments || [])
-      .filter((p) => Number.isFinite(p.amount) && p.amount > 0)
+      .map((p) => ({ ...p, amount: rupees(p.amount) }))
+      .filter((p) => p.amount > 0)
       .map((p) => ({
         amount: p.amount, date: paidAt,
         notes: p.method ? `Payment received (${p.method})` : 'Payment received',
@@ -224,16 +228,16 @@ export async function createInvoice(db: DbPort, input: SaleInput, fx: SaleSideEf
         ...(p.reference?.trim() && { reference: p.reference.trim() }),
       }));
     const paymentHistory = [...existingPaymentHistory, ...takenNow];
-    const amountPaid = paymentHistory.reduce((acc, p) => acc + (p.amount || 0), 0);
+    const amountPaid = rupees(paymentHistory.reduce((acc, p) => acc + (p.amount || 0), 0));
     // Over the total is credit for a named customer; nobody holds a walk-in's (lib/invoice-credit.ts).
-    if (takenNow.length && amountPaid > grandTotal + 0.5 && !canHoldCredit(finalCustomerId)) {
-      throw new Error(`The payments (PKR ${amountPaid.toLocaleString()}) come to more than the invoice (PKR ${grandTotal.toLocaleString()}). Name the customer to keep the rest as credit.`);
+    if (takenNow.length && amountPaid >= grandTotal + 1 && !canHoldCredit(finalCustomerId)) {
+      throw new Error(`The payments (PKR ${amountPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}) come to more than the invoice (PKR ${grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}). Name the customer to keep the rest as credit.`);
     }
 
     const newInvoiceData: Omit<Invoice, 'id'> = {
       items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
       amountPaid,
-      balanceDue: grandTotal - amountPaid,
+      balanceDue: rupees(grandTotal - amountPaid),
       createdAt: existingCreatedAt || now(),
       ratesApplied: ratesForInvoice,
       ...(takenBy ? { takenBy } : {}),
@@ -257,7 +261,7 @@ export async function createInvoice(db: DbPort, input: SaleInput, fx: SaleSideEf
 
     // The ledger in the same commit: an edit's old rows go, and what is still owed is one row.
     (oldRows || []).forEach((r) => tx.delete(HISAAB, r.id));
-    if (clean.balanceDue > 0) {
+    if (owesMoney(clean.balanceDue)) {
       tx.set(HISAAB, db.newId(HISAAB), {
         entityId: clean.customerId || 'walk-in',
         entityType: 'customer',

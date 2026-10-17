@@ -12,6 +12,7 @@
  */
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
+import { owesMoney } from '@/lib/money';
 import { discountProblem, withDiscount, type InvoiceFigures } from '@/lib/invoice-actions';
 
 const INVOICES = 'invoices';
@@ -52,7 +53,7 @@ export async function updateInvoiceDiscount(
     tx.update(INVOICES, invoiceId, fields);
 
     const debits = linked.filter(d => (d.cashDebit ?? 0) > 0);
-    if (fields.balanceDue <= 0) {
+    if (!owesMoney(fields.balanceDue)) {
       debits.forEach(d => tx.delete(HISAAB, d.id));
     } else if (debits.length > 0) {
       tx.update(HISAAB, debits[0].id, { cashDebit: fields.balanceDue });

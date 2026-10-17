@@ -49,7 +49,7 @@ export function ExchangeRows({ rows, onChange, disabled = false }: {
             <div className="flex items-center gap-2">
               <Input value={r.description} disabled={disabled} onChange={(e) => set(r.id, { description: e.target.value })}
                 placeholder="What it is (e.g. old ring)" aria-label={`Exchange ${i + 1}, what it is`} className="min-w-0 flex-1" />
-              <AmountInput value={r.value} disabled={disabled} placeholder="Amount" zeroAsEmpty className="w-28 shrink-0 text-right sm:w-36"
+              <AmountInput value={r.value} maxDecimals={0} disabled={disabled} placeholder="Amount" zeroAsEmpty className="w-28 shrink-0 text-right sm:w-36"
                 onValueChange={(v) => set(r.id, { value: v === undefined ? '' : String(v) })} aria-label={`Exchange ${i + 1}, amount (PKR)`} />
               {(rows.length > 1 || r.description || r.value || hasDetails(r)) && (
                 <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" disabled={disabled}
@@ -93,7 +93,7 @@ export function ExchangeRows({ rows, onChange, disabled = false }: {
         <Plus className="mr-2 h-4 w-4" /> Add another exchange
       </Button>
       {rows.length > 1 && total > 0 && (
-        <p className="flex justify-between text-sm font-medium"><span>Exchange total</span><span className="tabular-nums">PKR {total.toLocaleString()}</span></p>
+        <p className="flex justify-between text-sm font-medium"><span>Exchange total</span><span className="tabular-nums">PKR {total.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></p>
       )}
     </div>
   );

@@ -22,7 +22,7 @@ import { orderExchanges, describeExchangeEntry } from '@/lib/exchange';
 import { orderAdvancePayments } from '@/lib/order-payment';
 import { format, parseISO } from 'date-fns';
 
-const money = (n: number) => `PKR ${(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+const money = (n: number) => `PKR ${(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
 /**
  * One ItemBlock per line of the order, in the same shape the invoice uses.

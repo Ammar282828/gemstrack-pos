@@ -10,6 +10,7 @@
  */
 
 import { _calculateProductCostsInternal } from './pricing';
+import { rupees } from './money';
 import type { KaratValue, MetalType, Order, OrderItem, Settings } from './store';
 
 /** What the dialog sends for one piece. */
@@ -72,7 +73,7 @@ export interface FinalizedCosts {
 export function finalizedItemCosts(original: OrderItem, f: FinalizedItem, rates: InvoiceRates): FinalizedCosts {
   if (f.isManualPrice) {
     return {
-      price: Number(f.finalManualPrice) || 0,
+      price: rupees(f.finalManualPrice),
       metalCost: 0, wastageCost: 0, makingCharges: 0, diamondCharges: 0, stoneCharges: 0,
       wastagePercentage: Number(original.wastagePercentage) || 0,
     };

@@ -56,10 +56,12 @@ import { FormSkeleton } from '@/components/shared/skeletons';
 import { PhoneField } from '@/components/ui/phone-field';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import 'react-phone-number-input/style.css';
+import { owesMoney, rupees } from '@/lib/money';
+import { RoundOffChips, SettleOffer } from '@/components/shared/round-off-chips';
 
 /** The counter's message as it was before Taheri's PDF sends (House of Mina's): the estimate's ID and what is owed. */
 function estimateMessage(inv: InvoiceType, shopName: string): string {
-  const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2 });
+  const money = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
   let message = `Dear ${inv.customerName || 'Customer'},\n\n`;
   message += `Here is your estimate from ${shopName}.\n\n`;
   message += `*Estimate ID:* ${inv.id}\n`;
@@ -152,16 +154,16 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doParam, invoice, phone, phoneFor]);
 
-  const handleRecordPayment = async (overrideAmount?: number) => {
+  const handleRecordPayment = async (overrideAmount?: number, settle = 0) => {
     if (!invoice) return;
-    const amount = overrideAmount ?? parseFloat(paymentAmount);
+    const amount = rupees(overrideAmount ?? parseFloat(paymentAmount));
     if (isNaN(amount) || amount <= 0) {
       toast({ title: "Invalid amount", description: "Enter a positive payment amount.", variant: "destructive" });
       return;
     }
     // Over the balance is the customer's credit (lib/invoice-credit.ts) — only someone named can hold it.
     if (amount > Math.max(0, invoice.balanceDue) + 0.5 && !canHoldCredit(invoice.customerId)) {
-      toast({ title: "More than the balance", description: `PKR ${Math.max(0, invoice.balanceDue).toLocaleString()} is due. To keep the rest as credit, name who this invoice is for first.`, variant: "destructive" });
+      toast({ title: "More than the balance", description: `PKR ${Math.max(0, invoice.balanceDue).toLocaleString(undefined, { maximumFractionDigits: 0 })} is due. To keep the rest as credit, name who this invoice is for first.`, variant: "destructive" });
       return;
     }
     // A ref, not the isSubmitting state: React batches state updates, so a fast double-click can fire
@@ -173,10 +175,15 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
       const updated = await updateInvoicePayment(invoice.id, amount, new Date().toISOString(), paymentMethod, paymentRef);
       if (!updated) throw new Error('No invoice came back from the store.');
       setLatest(updated);
+      // Settle: the leftover goes onto the bill's discount (lib/round-off.ts), not in as a payment never made.
+      if (settle > 0) {
+        const discounted = await updateInvoiceDiscount(invoice.id, rupees(updated.discountAmount) + settle);
+        if (discounted) setLatest(discounted);
+      }
       setPaymentAmount('');
       setPaymentRef('');
       const after = balanceLine(updated.balanceDue);
-      toast({ title: "Payment recorded", description: `PKR ${amount.toLocaleString()} by ${paymentMethod}${after.state === 'credit' ? `; PKR ${after.amount.toLocaleString()} in credit` : ''}.` });
+      toast({ title: "Payment recorded", description: `PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} by ${paymentMethod}${after.state === 'credit' ? `; PKR ${after.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit` : ''}.` });
     } catch {
       toast({ title: "Error", description: "Failed to record payment.", variant: "destructive" });
     } finally {
@@ -190,7 +197,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
 
   const handleSaveDiscount = async () => {
     if (!invoice) return;
-    const amount = parseFloat(editDiscountInput) || 0;
+    const amount = rupees(parseFloat(editDiscountInput));
     if (amount < 0) { toast({ title: "Invalid", description: "Discount cannot be negative.", variant: "destructive" }); return; }
     if (amount > invoice.subtotal) { toast({ title: "Invalid", description: "Discount cannot exceed subtotal.", variant: "destructive" }); return; }
     setIsSavingDiscount(true);
@@ -199,7 +206,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
       if (!updated) throw new Error('Failed to update discount.');
       setLatest(updated);
       setIsEditingDiscount(false);
-      toast({ title: "Discount updated", description: `Discount set to PKR ${amount.toLocaleString()}.` });
+      toast({ title: "Discount updated", description: `Discount set to PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}.` });
     } catch {
       toast({ title: "Error", description: "Failed to update discount.", variant: "destructive" });
     } finally {
@@ -305,7 +312,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
     try {
       const updated = await deleteInvoicePayment(invoice.id, index, { amount: p.amount, date: p.date });
       setLatest(updated);
-      toast({ title: 'Payment deleted', description: `PKR ${p.amount.toLocaleString()} taken off ${invoice.id}. ${balanceLine(updated.balanceDue).label}${balanceLine(updated.balanceDue).amount ? `: PKR ${balanceLine(updated.balanceDue).amount.toLocaleString()}` : ''}.` });
+      toast({ title: 'Payment deleted', description: `PKR ${p.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} taken off ${invoice.id}. ${balanceLine(updated.balanceDue).label}${balanceLine(updated.balanceDue).amount ? `: PKR ${balanceLine(updated.balanceDue).amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''}.` });
     } catch (e) {
       toast({ title: 'Not deleted', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
     }
@@ -333,7 +340,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
         return;
       }
       setLatest(updated);
-      toast({ title: 'Partial refund recorded', description: `PKR ${amt.toLocaleString()} refunded on Invoice ${invoice.id}.` });
+      toast({ title: 'Partial refund recorded', description: `PKR ${amt.toLocaleString(undefined, { maximumFractionDigits: 0 })} refunded on Invoice ${invoice.id}.` });
       setPartialRefundAmount('');
       setPartialRefundReason('');
       setIsRefundDialogOpen(false);
@@ -398,10 +405,10 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
             <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
               <HeroAmount amount={invoice.grandTotal} />
               <div className="flex shrink-0 flex-col items-end gap-1 pb-1">
-                {(invoice.balanceDue || 0) > 0 ? (
-                  <Pill tone="owed">PKR {(invoice.balanceDue || 0).toLocaleString()} due</Pill>
+                {owesMoney(invoice.balanceDue) ? (
+                  <Pill tone="owed">PKR {(invoice.balanceDue || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} due</Pill>
                 ) : balanceLine(invoice.balanceDue).state === 'credit' ? (
-                  <Pill tone="credit">PKR {balanceLine(invoice.balanceDue).amount.toLocaleString()} in credit</Pill>
+                  <Pill tone="credit">PKR {balanceLine(invoice.balanceDue).amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit</Pill>
                 ) : (
                   <Pill tone="settled">Paid in full</Pill>
                 )}
@@ -496,7 +503,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                                 <p className="font-semibold truncate">{item.name}</p>
                               </div>
                               <span className="font-semibold tabular-nums flex-shrink-0">
-                                PKR {item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                PKR {item.itemTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                               </span>
                             </div>
 
@@ -519,7 +526,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                               <div className="mt-2 pt-2 border-t flex flex-wrap gap-x-4 gap-y-1 text-2xs text-muted-foreground">
                                 {costs.map(([label, amount]) => (
                                   <span key={label} className="tabular-nums">
-                                    {label} {amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    {label} {amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                   </span>
                                 ))}
                               </div>
@@ -530,12 +537,12 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                     </div>
                      <Separator className="mt-4"/>
                      <div className="pt-4 space-y-2 text-right">
-                        <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Subtotal:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {invoice.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                        <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Subtotal:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {invoice.subtotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                         <div className="flex justify-end items-center gap-2">
                           <span className="text-muted-foreground">Discount:</span>
                           {isEditingDiscount ? (
                             <div className="flex items-center gap-1">
-                              <AmountInput
+                              <AmountInput maxDecimals={0}
                                 value={editDiscountInput}
                                 onValueChange={v => setEditDiscountInput(v === undefined ? '' : String(v))}
                                 className="w-32 text-right h-8"
@@ -555,10 +562,15 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                               className="min-w-32 whitespace-nowrap text-right font-medium text-right hover:underline cursor-pointer"
                               onClick={() => { setEditDiscountInput(String(invoice.discountAmount)); setIsEditingDiscount(true); }}
                             >
-                              {invoice.discountAmount > 0 ? `- PKR ${invoice.discountAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}` : 'Add discount'}
+                              {invoice.discountAmount > 0 ? `- PKR ${invoice.discountAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : 'Add discount'}
                             </button>
                           )}
                         </div>
+                        {isEditingDiscount && (
+                          <RoundOffChips payable={invoice.subtotal - getInvoiceExchangeTotal(invoice)}
+                            discount={rupees(parseFloat(editDiscountInput))}
+                            onDiscountChange={(n) => setEditDiscountInput(String(n))} />
+                        )}
                         {/* The trade-in the customer brought in. It was already taken
                             off the total and printed on the bill, but never shown here,
                             so the figures on screen did not add up. */}
@@ -572,15 +584,15 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                                 </span>
                               ))}
                             </span>
-                            <span className="min-w-32 whitespace-nowrap text-right font-medium flex-shrink-0">- PKR {getInvoiceExchangeTotal(invoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                            <span className="min-w-32 whitespace-nowrap text-right font-medium flex-shrink-0">- PKR {getInvoiceExchangeTotal(invoice).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                           </div>
                         )}
-                        {getInvoiceAdjustmentsAmount(invoice) !== 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Adjustments:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {getInvoiceAdjustmentsAmount(invoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>}
-                        <div className="flex justify-end items-center gap-4 font-serif text-ios-title3 font-semibold"><span className="font-sans text-base font-normal text-muted-foreground">Grand Total:</span> <span className="min-w-32 whitespace-nowrap text-right">PKR {invoice.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                        {getInvoiceAdjustmentsAmount(invoice) !== 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Adjustments:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {getInvoiceAdjustmentsAmount(invoice).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>}
+                        <div className="flex justify-end items-center gap-4 font-serif text-ios-title3 font-semibold"><span className="font-sans text-base font-normal text-muted-foreground">Grand Total:</span> <span className="min-w-32 whitespace-nowrap text-right">PKR {invoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                         {invoice.amountPaid > 0 && (
-                          <div className="flex justify-end items-center gap-4 text-tone-settled-ink"><span>Paid:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {invoice.amountPaid.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                          <div className="flex justify-end items-center gap-4 text-tone-settled-ink"><span>Paid:</span> <span className="min-w-32 whitespace-nowrap text-right font-medium">PKR {invoice.amountPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                         )}
-                        <div className={cn('flex justify-end items-center gap-4 font-semibold', invoice.balanceDue > 0 ? 'text-tone-owed-ink' : balanceLine(invoice.balanceDue).state === 'credit' ? 'text-tone-credit-ink' : 'text-muted-foreground')}><span>{balanceLine(invoice.balanceDue).state === 'credit' ? 'Credit to customer' : 'Balance due'}:</span> <span className="w-32">PKR {Math.abs(invoice.balanceDue).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                        <div className={cn('flex justify-end items-center gap-4 font-semibold', owesMoney(invoice.balanceDue) ? 'text-tone-owed-ink' : balanceLine(invoice.balanceDue).state === 'credit' ? 'text-tone-credit-ink' : 'text-muted-foreground')}><span>{balanceLine(invoice.balanceDue).state === 'credit' ? 'Credit to customer' : 'Balance due'}:</span> <span className="w-32">PKR {Math.abs(invoice.balanceDue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                      </div>
                 </div>
 
@@ -613,22 +625,22 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                     <div className="space-y-4">
                         <h3 className="font-serif text-ios-title3 font-semibold">Record a payment</h3>
                         {/* A paid invoice still takes money from a named customer: it goes on as their credit. */}
-                        {invoice.balanceDue <= 0 && !canHoldCredit(invoice.customerId) ? (
+                        {!owesMoney(invoice.balanceDue) && !canHoldCredit(invoice.customerId) ? (
                           <p className="text-sm text-muted-foreground">Nothing outstanding on this invoice.</p>
                         ) : (
                         <>
                         <div className="space-y-2">
                             <Label htmlFor="payment-amount">Amount received (PKR)</Label>
-                            <AmountInput 
+                            <AmountInput maxDecimals={0} 
                                 id="payment-amount" 
-                                placeholder={invoice.balanceDue > 0 ? `Balance due: ${invoice.balanceDue.toLocaleString()}` : 'Taken as credit'}
+                                placeholder={owesMoney(invoice.balanceDue) ? `Balance due: ${invoice.balanceDue.toLocaleString()}` : 'Taken as credit'}
                                 value={paymentAmount}
                                 onValueChange={v => setPaymentAmount(v === undefined ? '' : String(v))}
                             />
                         </div>
                         {canHoldCredit(invoice.customerId) && Number(paymentAmount) > Math.max(0, invoice.balanceDue) + 0.5 && (
                           <p className="text-xs font-medium text-success">
-                            PKR {Math.round(Number(paymentAmount) - Math.max(0, invoice.balanceDue)).toLocaleString()} over the balance stays as credit on {invoice.customerName || 'the customer'}&apos;s hisaab.
+                            PKR {Math.round(Number(paymentAmount) - Math.max(0, invoice.balanceDue)).toLocaleString(undefined, { maximumFractionDigits: 0 })} over the balance stays as credit on {invoice.customerName || 'the customer'}&apos;s hisaab.
                           </p>
                         )}
                         <div className="grid grid-cols-2 gap-2">
@@ -653,6 +665,11 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                           </div>
                         </div>
 
+                        {rupees(parseFloat(paymentAmount)) > 0 && (
+                          <SettleOffer className="w-full" busy={isSubmittingPayment}
+                            remaining={rupees(invoice.balanceDue) - rupees(parseFloat(paymentAmount))}
+                            onSettle={(x) => handleRecordPayment(undefined, x)} />
+                        )}
                         <Button 
                             className="w-full"
                             disabled={!paymentAmount || isSubmittingPayment}
@@ -662,7 +679,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                             Record payment
                         </Button>
 
-                        {invoice.balanceDue > 0 && (
+                        {owesMoney(invoice.balanceDue) && (
                           <Button
                             variant="secondary"
                             className="w-full"
@@ -672,7 +689,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                             {isSubmittingPayment
                               ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
                               : <CheckCircle className="mr-2 h-4 w-4"/>}
-                            Mark paid — PKR {invoice.balanceDue.toLocaleString()}
+                            Mark paid — PKR {invoice.balanceDue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                           </Button>
                         )}
                         </>
@@ -705,10 +722,10 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                                                   {p.reference && <span className="block text-2xs text-muted-foreground mt-0.5">{p.reference}</span>}
                                                 </TableCell>
                                                 <TableCell className="hidden sm:table-cell">{p.notes || 'Payment received'}</TableCell>
-                                                <TableCell className="text-right font-medium">{p.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                                <TableCell className="text-right font-medium">{p.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
                                                 <TableCell className="p-1 text-right">
                                                   <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                    aria-label={`Delete the payment of PKR ${p.amount.toLocaleString()}`} title="Delete this payment (asks for the delete code)"
+                                                    aria-label={`Delete the payment of PKR ${p.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} title="Delete this payment (asks for the delete code)"
                                                     onClick={() => handleDeletePayment(index, p)}>
                                                     <Trash2 className="h-4 w-4" />
                                                   </Button>
@@ -755,7 +772,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
             {refundMode === 'partial' && (
               <div className="space-y-2 pt-2">
                 <Label htmlFor="refund-amount">Refund amount (PKR)</Label>
-                <AmountInput
+                <AmountInput maxDecimals={0}
                   id="refund-amount"
                   inputMode="decimal"
                   placeholder="e.g. 1500"

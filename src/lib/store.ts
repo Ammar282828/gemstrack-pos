@@ -221,6 +221,8 @@ import { deleteProduct as writeDeleteProduct, deleteProductWhat } from '@/lib/wr
 import { alertsOnStatus, orderStatusPatch, pieceDonePatch, pieceGivenPatch, pieceKarigarPatch } from '@/lib/writes/order-status';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { canHoldCredit, creditDescription, inCredit, isCreditRow } from '@/lib/invoice-credit';
+import { owesMoney, rupees } from '@/lib/money';
+import { withDiscount } from '@/lib/invoice-actions';
 export type { OverheadItem, OverheadPlan };
 
 export { METAL_TYPES, KARAT_VALUES, metalLabel, karatLabel, describeMetal } from './materials';
@@ -2618,7 +2620,7 @@ export const useAppStore = create<AppState>()(
       },
       deleteInvoicePayment: async (invoiceId, index, payment) => {
         if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
-        await requireDeleteCode(`Delete the payment of PKR ${payment.amount.toLocaleString()} on ${invoiceId}`);
+        await requireDeleteCode(`Delete the payment of PKR ${payment.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} on ${invoiceId}`);
         // The same transaction that records a payment, run backwards (writes/invoice-payment.ts).
         const updated = await removeInvoicePayment(clientPort, { invoiceId, index, amount: payment.amount, date: payment.date }, {
           log: (action, title, detail, ref) => { addActivityLog(action as LogEventType, title, detail, ref ?? ''); },
@@ -2639,7 +2641,7 @@ export const useAppStore = create<AppState>()(
       refundInvoicePartial: async (invoiceId, refundAmount, reason) => {
         if (get().settings.databaseLocked) return null;
         if (!(refundAmount > 0)) return null;
-        await requireDeleteCode(`Refund PKR ${refundAmount.toLocaleString()} on ${invoiceId}`);
+        await requireDeleteCode(`Refund PKR ${refundAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} on ${invoiceId}`);
 
         const invoiceRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
         // The ledger rows are looked up while the transaction reads, and follow in its commit.
@@ -2652,13 +2654,13 @@ export const useAppStore = create<AppState>()(
             const invoiceData = invoiceDoc.data() as Invoice;
 
             const refundEntry: Payment = {
-              amount: -Math.abs(refundAmount),
+              amount: -Math.abs(rupees(refundAmount)),
               date: new Date().toISOString(),
               notes: reason ? `Refund: ${reason}` : 'Refund',
             };
             const newPaymentHistory = [...(invoiceData.paymentHistory || []), refundEntry];
-            const newAmountPaid = newPaymentHistory.reduce((s, p) => s + Number(p.amount || 0), 0);
-            const newBalanceDue = (invoiceData.grandTotal || 0) - newAmountPaid;
+            const newAmountPaid = rupees(newPaymentHistory.reduce((s, p) => s + Number(p.amount || 0), 0));
+            const newBalanceDue = rupees((invoiceData.grandTotal || 0) - newAmountPaid);
 
             transaction.update(invoiceRef, {
               paymentHistory: newPaymentHistory,
@@ -2668,7 +2670,7 @@ export const useAppStore = create<AppState>()(
 
             // Reconcile linked hisaab debit entries (the customer owes again).
             const debitDocs = hisaabSnap.docs.filter(d => Number(d.data().cashDebit ?? 0) > 0);
-            if (newBalanceDue > 0) {
+            if (owesMoney(newBalanceDue)) {
               if (debitDocs.length > 0) {
                 transaction.update(debitDocs[0].ref, { cashDebit: newBalanceDue });
                 debitDocs.slice(1).forEach(d => transaction.delete(d.ref));
@@ -2738,20 +2740,15 @@ export const useAppStore = create<AppState>()(
 
             const invoiceData = invoiceDoc.data() as Invoice;
 
-            const newGrandTotal = invoiceData.subtotal - newDiscountAmount - (invoiceData.exchangeAmount1 || 0) - (invoiceData.exchangeAmount2 || 0);
-            const newBalanceDue = newGrandTotal - invoiceData.amountPaid;
-
-            const updatedFields = {
-              discountAmount: newDiscountAmount,
-              grandTotal: newGrandTotal,
-              balanceDue: newBalanceDue,
-            };
+            // Whole rupees, worked as the server's copy works it (lib/invoice-actions.ts).
+            const updatedFields = withDiscount(invoiceData, newDiscountAmount);
+            const newBalanceDue = updatedFields.balanceDue;
 
             transaction.update(invoiceRef, updatedFields);
 
             // Update linked hisaab entries
             const debitDocs = hisaabSnap.docs.filter(d => (d.data().cashDebit ?? 0) > 0);
-            if (newBalanceDue <= 0) {
+            if (!owesMoney(newBalanceDue)) {
               debitDocs.forEach(d => transaction.delete(d.ref));
             } else if (debitDocs.length > 0) {
               transaction.update(debitDocs[0].ref, { cashDebit: newBalanceDue });
@@ -3477,7 +3474,7 @@ export const useAppStore = create<AppState>()(
         if (!local || !line) throw new Error('That advance is not on this order any more.');
         // Once invoiced, the advances are the invoice's payments, and cash counts them there.
         if (local.invoiceId) throw new Error(`${orderId} is invoiced: delete the payment on ${local.invoiceId} instead.`);
-        await requireDeleteCode(`Delete the advance of PKR ${line.amount.toLocaleString()} on ${orderId}`);
+        await requireDeleteCode(`Delete the advance of PKR ${line.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} on ${orderId}`);
         // The one copy (lib/writes/order-pieces.ts), the iPhone app's too: the line shown is the line taken.
         const updated = await writeDeleteOrderAdvance(clientPort, { orderId, lineIndex, amount: line.amount }, { deleteField }, {
           log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? ''),

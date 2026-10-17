@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { erpUserOrCron } from '@/lib/erp-gate';
 import { adminDb } from '@/lib/firebase-admin';
 import { shopifyRequest, getShopifyCredentials } from '../../_lib';
+import { owesMoney } from '@/lib/money';
 
 /**
  * Push a single POS invoice to Shopify as an order.
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const isPaid = (inv.balanceDue || 0) <= 0;
+    const isPaid = !owesMoney(inv.balanceDue);
 
     const result = await shopifyRequest(shop, token, 'POST', '/orders.json', {
       order: {

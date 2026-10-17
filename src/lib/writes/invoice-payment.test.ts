@@ -226,3 +226,32 @@ describe('paying past the total', () => {
   });
 });
 
+
+describe('whole rupees (2026-10-17)', () => {
+  it('rounds a typed fraction, and an older bill with paise settles under a rupee', async () => {
+    const { db, data } = fakeDb({
+      invoices: { 'INV-5': { grandTotal: 100_000.4, amountPaid: 0, balanceDue: 100_000.4, customerId: 'c1', customerName: 'A', paymentHistory: [] } },
+      hisaab: { h1: { linkedInvoiceId: 'INV-5', cashDebit: 100_000.4 } },
+    });
+    const out = await recordInvoicePayment(db, { invoiceId: 'INV-5', amount: 100_000.2, date: '2026-10-17' });
+    expect(data.invoices['INV-5'].paymentHistory).toMatchObject([{ amount: 100_000 }]);
+    expect(out.amountPaid).toBe(100_000);
+    // 0.4 left is not owed: the ledger row goes.
+    expect(out.balanceDue).toBe(0);
+    expect(data.hisaab.h1).toBeUndefined();
+  });
+
+  it('a Settle is a bigger discount, not a payment: balance 0, ledger row gone, order balance 0', async () => {
+    const { db, data } = fakeDb({
+      invoices: { 'INV-6': { subtotal: 272_340, discountAmount: 0, grandTotal: 272_340, amountPaid: 270_000, balanceDue: 2_340, customerId: 'c1', customerName: 'A', sourceOrderId: 'ORD-6', paymentHistory: [{ amount: 270_000, date: 'x' }] } },
+      hisaab: { h1: { linkedInvoiceId: 'INV-6', cashDebit: 2_340 } },
+      orders: { 'ORD-6': { grandTotal: 2_340 } },
+    });
+    const { updateInvoiceDiscount } = await import('./invoice-discount');
+    const out = await updateInvoiceDiscount(db, { invoiceId: 'INV-6', discountAmount: 2_340 });
+    expect(out).toMatchObject({ discountAmount: 2_340, grandTotal: 270_000, balanceDue: 0 });
+    expect(data.invoices['INV-6'].paymentHistory).toHaveLength(1); // no fake payment
+    expect(data.hisaab.h1).toBeUndefined();
+    expect(data.orders['ORD-6']).toMatchObject({ grandTotal: 0 });
+  });
+});

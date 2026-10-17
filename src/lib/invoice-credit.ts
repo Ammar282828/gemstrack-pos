@@ -7,6 +7,8 @@
  * money over the total from nobody in particular is change to hand back, not credit.
  */
 
+import { isCredit, owesMoney } from './money';
+
 /** The ledger row that carries an invoice's credit. */
 export const creditDescription = (invoiceId: string) => `Credit held for Invoice ${invoiceId}`;
 
@@ -16,17 +18,18 @@ const LEGACY_CREDIT = (invoiceId: string) => `Excess advance returned for Invoic
 export const isCreditRow = (row: { description?: string; cashCredit?: number; cashDebit?: number }, invoiceId: string) =>
   (row.cashCredit ?? 0) > 0 && (row.description === creditDescription(invoiceId) || row.description === LEGACY_CREDIT(invoiceId));
 
-/** Under half a rupee either way is settled: paise from rounding are not a debt or a credit. */
-const SETTLED = 0.5;
-
-export const inCredit = (balanceDue: number | undefined) => (Number(balanceDue) || 0) < -SETTLED;
+/**
+ * Under one rupee either way is settled: money is whole rupees (2026-10-17), and a fraction left on a
+ * bill from before is not a debt or a credit (lib/money.ts SETTLED_UNDER).
+ */
+export const inCredit = (balanceDue: number | undefined) => isCredit(balanceDue);
 
 export const canHoldCredit = (customerId: string | undefined | null) => !!customerId && customerId !== 'walk-in';
 
 /** How an invoice's balance reads, everywhere it is shown, printed or sent. */
 export function balanceLine(balanceDue: number | undefined): { label: string; amount: number; state: 'due' | 'paid' | 'credit' } {
   const b = Number(balanceDue) || 0;
-  if (b > SETTLED) return { label: 'Balance due', amount: b, state: 'due' };
-  if (b < -SETTLED) return { label: 'Credit to customer', amount: -b, state: 'credit' };
+  if (owesMoney(b)) return { label: 'Balance due', amount: b, state: 'due' };
+  if (isCredit(b)) return { label: 'Credit to customer', amount: -b, state: 'credit' };
   return { label: 'Paid in full', amount: 0, state: 'paid' };
 }

@@ -70,7 +70,7 @@ function seenProblem(seen: unknown, inv: OnFile): NextResponse | null {
   const total = figure(s.grandTotal);
   const paid = figure(s.amountPaid);
   if (total === null || paid === null) return bad('What was seen is a total and what was paid.');
-  const moved = Math.abs(total - (Number(inv.grandTotal) || 0)) > 0.005 || Math.abs(paid - (Number(inv.amountPaid) || 0)) > 0.005;
+  const moved = Math.abs(total - (Number(inv.grandTotal) || 0)) >= 1 || Math.abs(paid - (Number(inv.amountPaid) || 0)) >= 1;
   return moved ? bad(MOVED, 409) : null;
 }
 
@@ -114,7 +114,7 @@ export const runInvoiceActionOp: OpHandler = async (op, body, ctx) => {
         return bad('Which payment?');
       }
       const shown = (onFile.paymentHistory || [])[index];
-      if (!shown || Math.abs((Number(shown.amount) || 0) - amount) > 0.005 || shown.date !== date) return bad(PAYMENTS_CHANGED, 409);
+      if (!shown || Math.abs((Number(shown.amount) || 0) - amount) >= 1 || shown.date !== date) return bad(PAYMENTS_CHANGED, 409);
       const code = await passDeleteCode(ctx.email, body.deleteCode, `Delete the payment of PKR ${amountWords(amount)} on ${invoiceId}`);
       if (!code.ok) return bad(code.error, code.status);
       try {

@@ -34,7 +34,7 @@ import {
   type OverheadItem, type OverheadPlan,
 } from '@/lib/overheads';
 
-const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString()}`;
+const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 const signed = (n: number) => `${n < 0 ? '−' : '+'} ${PKR(Math.abs(n))}`;
 
 export default function OverheadsPage() {

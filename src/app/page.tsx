@@ -32,6 +32,7 @@ import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { revenueForPeriod } from '@/lib/analytics/revenue-period';
 import { useOnlineWaiting, useSellingPausedForRates } from '@/lib/website/online-client';
 import { awaitingTransfer, bookedAsSale } from '@/lib/order-stage';
+import { owesMoney } from '@/lib/money';
 
 /** PKR at a glance, in lac and crore (lib/money.ts); the exact value stays on hover. */
 function compactPKR(n: number): string {
@@ -96,7 +97,7 @@ const DueRow: React.FC<{ d: Due }> = ({ d }) => {
 };
 
 const RecentInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice }) => {
-  const owing = (invoice.balanceDue || 0) > 0;
+  const owing = owesMoney(invoice.balanceDue);
   return (
     <Link href={`/invoices/${invoice.id}`} className={ROW}>
       <Monogram name={invoice.customerName || 'Walk-in'} size={40} />
@@ -415,7 +416,7 @@ export default function HomePage() {
 
       {/* The glance: what was taken today, then three figures. Wide, they sit across in one row. */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
-        <TileLink href="/invoices" title={`PKR ${stats.todayRevenue.toLocaleString()}`}>
+        <TileLink href="/invoices" title={`PKR ${stats.todayRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}>
           <div className="h-full rounded-card bg-card p-4">
             <p className="text-ios-sub text-muted-foreground">Taken today</p>
             <HeroAmount amount={stats.todayRevenue} lac tone={stats.todayRevenue > 0 ? 'settled' : undefined} className="mt-1" />
@@ -426,14 +427,14 @@ export default function HomePage() {
           </div>
         </TileLink>
         <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-3 lg:col-span-3">
-          <TileLink href="/analytics" title={`PKR ${stats.monthRevenue.toLocaleString()}`}>
+          <TileLink href="/analytics" title={`PKR ${stats.monthRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}>
             <FigureTile className="h-full" label="This month" value={stats.monthRevenue} detail={monthSub} />
           </TileLink>
           <TileLink
             href={stats.owedInHisaab > 0 ? '/hisaab' : '/invoices'}
             title={stats.owedInHisaab > 0
-              ? `PKR ${stats.totalOutstanding.toLocaleString()} — invoices ${(stats.totalOutstanding - stats.owedInHisaab).toLocaleString()}, hisaab ${stats.owedInHisaab.toLocaleString()}`
-              : `PKR ${stats.totalOutstanding.toLocaleString()}`}
+              ? `PKR ${stats.totalOutstanding.toLocaleString(undefined, { maximumFractionDigits: 0 })} — invoices ${(stats.totalOutstanding - stats.owedInHisaab).toLocaleString(undefined, { maximumFractionDigits: 0 })}, hisaab ${stats.owedInHisaab.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+              : `PKR ${stats.totalOutstanding.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
           >
             <FigureTile
               className="h-full" label="Owed to you" tint={stats.totalOutstanding > 0 ? 'owed' : undefined}

@@ -127,7 +127,7 @@ describe('expenseReport on Karachi’s calendar (the server’s)', () => {
     expect(t).toContain('Expense Report');
     expect(t).toContain('01-Oct-2026');
     expect(t).toContain('30-Sep-2026');
-    expect(t).toContain('Total Expenses: PKR 1,000.00');
+    expect(t).toContain('Total Expenses: PKR 1,000');
     expect(expenseReportFileName(r.now)).toBe('Expense-Report-2026-10-17.pdf');
   });
 });

@@ -166,7 +166,7 @@ export const ShopifyPullPanel: React.FC = () => {
             </Button>
             {picked.size > 0 && (
               <span className="text-xs text-muted-foreground tabular-nums">
-                {picked.size} selected · PKR {selectedTotal.toLocaleString()}
+                {picked.size} selected · PKR {selectedTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </span>
             )}
           </div>
@@ -191,7 +191,7 @@ export const ShopifyPullPanel: React.FC = () => {
                           <span className="font-medium text-sm font-mono">{item.title}</span>
                           {item.amount != null && item.amount > 0 && (
                             <span className="text-sm tabular-nums flex-shrink-0">
-                              PKR {item.amount.toLocaleString()}
+                              PKR {item.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </span>
                           )}
                         </span>

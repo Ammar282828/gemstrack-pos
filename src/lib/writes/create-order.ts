@@ -8,8 +8,12 @@
  */
 
 import type { DbPort, SideEffects } from '@/lib/db-port';
+import { rupees, rupeesIn } from '@/lib/money';
 import { ORDER_PHOTOS, splitItemPhotos } from '@/lib/order-photos';
 import { statusFromPieces } from '@/lib/order-stage';
+
+/** A piece's money fields, kept in whole rupees on the order. */
+const PIECE_MONEY = ['makingCharges', 'diamondCharges', 'stoneCharges', 'manualPrice', 'metalCost', 'wastageCost', 'totalEstimate'] as const;
 
 const ORDERS = 'orders';
 const CUSTOMERS = 'customers';
@@ -102,8 +106,9 @@ export async function createOrder(
     if (!source && c?.source) source = c.source;
   }
 
-  const subtotal = Number(input.subtotal) || 0;
-  const grandTotal = Number(input.grandTotal) || 0;
+  // Whole rupees, whoever sent it (the order form already rounds; an older app build may not).
+  const subtotal = rupees(input.subtotal);
+  const grandTotal = rupees(input.grandTotal);
   const descriptions = input.items.map(i => i.description).filter(Boolean) as string[];
   const summary = (input.items.length === 1 ? descriptions[0] : descriptions.join(', ')) || 'Custom order';
   const createdAt = new Date().toISOString();
@@ -146,7 +151,7 @@ export async function createOrder(
 
     const doc = {
       ...input,
-      items: itemsOut,
+      items: itemsOut.map(it => ({ ...it, ...rupeesIn(it as Record<string, unknown>, PIECE_MONEY) })),
       id,
       customerId,
       customerName,
@@ -154,6 +159,7 @@ export async function createOrder(
       source,
       subtotal,
       grandTotal,
+      ...rupeesIn(input, ['discountAmount', 'advancePayment', 'advanceInExchangeValue']),
       createdAt,
       // Made with every piece already given out (or finished), it starts there (lib/order-stage.ts).
       status: statusFromPieces('Pending', input.items as { karigarId?: string; isCompleted?: boolean }[]) ?? 'Pending',

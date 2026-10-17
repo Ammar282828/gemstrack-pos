@@ -117,14 +117,14 @@ export function speak(text: string): Promise<void> {
 
 /* ── Saying numbers the way a person reads them ──────────────────────────── */
 
-const grouped = new Intl.NumberFormat('en-PK', { maximumFractionDigits: 2 })
+const grouped = new Intl.NumberFormat('en-PK', { maximumFractionDigits: 0 })
 
 /**
  * Comma grouping is what tells a speech engine to say "twenty thousand" rather than
  * reading the digits out one at a time.
  */
 export const sayMoney = (n: number, currency = 'Rs') =>
-  `${grouped.format(Math.round((n + Number.EPSILON) * 100) / 100)} ${currency === 'Rs' ? 'rupees' : currency}`
+  `${grouped.format(Math.round(n))} ${currency === 'Rs' ? 'rupees' : currency}`
 
 export const sayWeight = (n: number) =>
   `${new Intl.NumberFormat('en-PK', { maximumFractionDigits: 3 }).format(n)} grams`

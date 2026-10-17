@@ -33,7 +33,7 @@ export function orderBalance(o: { subtotal?: number; discountAmount?: number; ad
 
 /** The store's own words for the delete code's log. */
 export const removePieceWhat = (orderId: string, index: number) => `Remove item ${index + 1} from ${orderId}`;
-export const deleteAdvanceWhat = (orderId: string, amount: number) => `Delete the advance of PKR ${amount.toLocaleString()} on ${orderId}`;
+export const deleteAdvanceWhat = (orderId: string, amount: number) => `Delete the advance of PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} on ${orderId}`;
 
 /**
  * The order without piece `index`: its pieces, the new subtotal and balance, and the summary the lists show.
@@ -94,7 +94,7 @@ export async function deleteOrderAdvance(
     if (o.invoiceId) throw new OrderPieceRefusal(`${orderId} is invoiced: delete the payment on ${o.invoiceId} instead.`);
     const order = { ...o, id: orderId, createdAt: String(o.createdAt || '') } as Order;
     const cut = withoutOrderAdvance(order, lineIndex);
-    if (!cut || Math.abs(cut.removed.amount - amount) > 0.005) throw new OrderPieceRefusal(CHANGED_ADVANCES);
+    if (!cut || Math.abs(cut.removed.amount - amount) >= 1) throw new OrderPieceRefusal(CHANGED_ADVANCES);
     const grandTotal = orderBalance({ ...o, advancePayment: cut.advancePayment });
     tx.update(ORDERS, orderId, {
       advancePayment: cut.advancePayment, advances: cut.advances, grandTotal,

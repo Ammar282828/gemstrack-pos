@@ -69,7 +69,7 @@ const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selected
                             <ArrowRight className="h-4 w-4 text-muted-foreground" />
                         </div>
                         <div className="mt-2 pl-1">
-                          <p className="font-semibold text-sm">PKR {('grandTotal' in event) ? event.grandTotal.toLocaleString() : 'N/A'}</p>
+                          <p className="font-semibold text-sm">PKR {('grandTotal' in event) ? event.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'N/A'}</p>
                           <p className="text-xs text-muted-foreground">{('customerName' in event && event.customerName) ? event.customerName : 'Walk-in'}</p>
                           <p className="text-xs text-muted-foreground">{format(parseISO(event.createdAt), 'hh:mm a')}</p>
                         </div>

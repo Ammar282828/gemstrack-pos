@@ -10,6 +10,8 @@
  * with these tests). A missing figure on an old document counts as nothing, as the Swift models read it.
  */
 
+import { rupees } from './money';
+
 type PaymentLike = { amount?: number | null };
 type ItemLike = { sku?: string | null };
 
@@ -24,9 +26,13 @@ export interface InvoiceFigures {
 
 const num = (v: unknown) => Number(v) || 0;
 
+/** What is paid, from the whole history, in whole rupees. */
+const paidOf = (history: PaymentLike[]) => rupees(history.reduce((s, p) => s + num(p.amount), 0));
+
 /** The invoice page's refusals, in its words; null when the discount can be saved. */
 export function discountProblem(subtotal: number | null | undefined, discount: number): string | null {
   if (!Number.isFinite(discount)) return 'Enter the discount.';
+  discount = rupees(discount);
   if (discount < 0) return 'Discount cannot be negative.';
   if (discount > num(subtotal)) return 'Discount cannot exceed subtotal.';
   return null;
@@ -38,13 +44,14 @@ export function discountProblem(subtotal: number | null | undefined, discount: n
  * Adjustments are left out, as every sale's total leaves them out (writes/create-invoice.ts).
  */
 export function withDiscount(inv: InvoiceFigures, discount: number) {
-  const grandTotal = num(inv.subtotal) - discount - num(inv.exchangeAmount1) - num(inv.exchangeAmount2);
-  return { discountAmount: discount, grandTotal, balanceDue: grandTotal - num(inv.amountPaid) };
+  const whole = rupees(discount);
+  const grandTotal = rupees(num(inv.subtotal) - whole - num(inv.exchangeAmount1) - num(inv.exchangeAmount2));
+  return { discountAmount: whole, grandTotal, balanceDue: rupees(grandTotal - num(inv.amountPaid)) };
 }
 
 /** The refund's line in the payment history: what was handed back, as money out. */
 export function refundEntry(amount: number, date: string, reason?: string) {
-  return { amount: -Math.abs(amount), date, notes: reason ? `Refund: ${reason}` : 'Refund' };
+  return { amount: -Math.abs(rupees(amount)), date, notes: reason ? `Refund: ${reason}` : 'Refund' };
 }
 
 /**
@@ -53,8 +60,8 @@ export function refundEntry(amount: number, date: string, reason?: string) {
  */
 export function withRefund(inv: InvoiceFigures, amount: number, date: string, reason?: string) {
   const paymentHistory = [...(inv.paymentHistory || []), refundEntry(amount, date, reason)];
-  const amountPaid = paymentHistory.reduce((s, p) => s + num(p.amount), 0);
-  return { paymentHistory, amountPaid, balanceDue: num(inv.grandTotal) - amountPaid };
+  const amountPaid = paidOf(paymentHistory);
+  return { paymentHistory, amountPaid, balanceDue: rupees(num(inv.grandTotal) - amountPaid) };
 }
 
 /** One payment off the history (its place as the page shows it), and what is paid and owed without it; null when there is none there. */
@@ -62,8 +69,8 @@ export function withoutPayment(inv: InvoiceFigures, index: number) {
   const history = inv.paymentHistory || [];
   if (!Number.isInteger(index) || index < 0 || index >= history.length) return null;
   const paymentHistory = history.filter((_, i) => i !== index);
-  const amountPaid = paymentHistory.reduce((s, p) => s + num(p.amount), 0);
-  return { paymentHistory, amountPaid, balanceDue: num(inv.grandTotal) - amountPaid };
+  const amountPaid = paidOf(paymentHistory);
+  return { paymentHistory, amountPaid, balanceDue: rupees(num(inv.grandTotal) - amountPaid) };
 }
 
 /** An invoice's lines, whether stored as a list or as the map keyed "0", "1" some older ones are. */

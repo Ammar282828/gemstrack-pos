@@ -98,7 +98,7 @@ describe('/api/app/pdf/expenses', () => {
     // 01:30 on 1 Oct in the shop is October's; 23:00 on 30 Sep is not.
     expect(t).toContain('Test shop rent');
     expect(t).not.toContain('Test chai');
-    expect(t).toContain('Total Expenses: PKR 1,900.00');
+    expect(t).toContain('Total Expenses: PKR 1,900');
   });
 
   it("POST: the same, the filters as JSON; the karigar's name is searched", async () => {
@@ -109,7 +109,7 @@ describe('/api/app/pdf/expenses', () => {
     const t = await text(res);
     expect(t).toContain('Weekly');
     expect(t).not.toContain('Test shop rent');
-    expect(t).toContain('Total Expenses: PKR 1,200.00');
+    expect(t).toContain('Total Expenses: PKR 1,200');
   });
 
   it('owners only', async () => {
@@ -141,7 +141,7 @@ describe('/api/app/pdf/hisaab/[id]', () => {
     expect(res.headers.get('content-disposition')).toMatch(/filename="Ledger-Zara Test-\d{4}-\d{2}-\d{2}\.pdf"/);
     const t = await text(res);
     expect(t).toContain('Ledger Statement');
-    expect(t).toContain('Receivable: PKR 6,000.00');
+    expect(t).toContain('Receivable: PKR 6,000');
     expect(t).toContain('\\(customer\\)');
   });
 

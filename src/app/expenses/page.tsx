@@ -42,7 +42,7 @@ import { SHAREHOLDERS } from '@/lib/shareholders';
 import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
 
-const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString()}`;
+const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
 export default function ExpensesPage() {
   const [searchTerm, setSearchTerm] = useState('');

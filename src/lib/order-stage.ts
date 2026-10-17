@@ -15,6 +15,8 @@
  * And the stage the Orders hub sorts by, with the one thing to do next.
  */
 
+import { owesMoney } from '@/lib/money';
+
 type Piece = { karigarId?: string | null; isCompleted?: boolean };
 type Stageable = { status: string; items?: readonly Piece[] | null; invoiceId?: string | null; website?: { paymentStatus?: string } | null };
 
@@ -76,7 +78,7 @@ export const STAGES: Record<OrderStage, { title: string; hint: string }> = {
 export function stageOf(order: Stageable, owedOnInvoice = 0): OrderStage {
   if (order.status === 'Cancelled' || order.status === 'Refunded') return 'closed';
   if (!order.invoiceId && awaitingTransfer(order)) return 'transfer';
-  if (order.invoiceId) return owedOnInvoice > 0.5 ? 'payment' : 'done';
+  if (order.invoiceId) return owesMoney(owedOnInvoice) ? 'payment' : 'done';
   if (order.status === 'Completed') return 'ready';
   if (order.status === 'In Progress') return 'karigar';
   return 'new';

@@ -47,6 +47,7 @@ import {
   ChipRow, FilterChip, EmptyState, LedgerHeading, MineTag, Monogram, Pill, RowAmount, SearchField, Segmented, SwipeRow,
   contactHrefs, toneClasses, type SwipeAction, type Tone,
 } from '@/components/ledger';
+import { owesMoney } from '@/lib/money';
 
 type PaymentStatus = OrderPaymentStatus;
 const getPaymentStatus = getOrderPaymentStatus;
@@ -219,7 +220,7 @@ const OrderCard: React.FC<{ order: Order; owed: number; mine?: boolean }> = ({ o
             </div>
             {stage !== 'closed' && (
               <div className="shrink-0 text-right">
-                {Math.abs(due) > 0.5 ? (
+                {Math.abs(due) >= 1 ? (
                   <>
                     <RowAmount amount={Math.abs(due)} tone={due < 0 ? 'credit' : undefined} />
                     <p className="text-ios-cap text-muted-foreground">{due < 0 ? 'In credit' : 'Owed'}</p>
@@ -467,7 +468,7 @@ export default function OrdersPage() {
   /** What each invoiced order's invoice still has owing: the hub's "Awaiting payment". */
   const owedOn = useMemo(() => {
     const m = new Map<string, number>();
-    for (const inv of invoices) if (inv.status !== 'Refunded' && (Number(inv.balanceDue) || 0) > 0.5) m.set(inv.id, Number(inv.balanceDue));
+    for (const inv of invoices) if (inv.status !== 'Refunded' && owesMoney(inv.balanceDue)) m.set(inv.id, Number(inv.balanceDue));
     return m;
   }, [invoices]);
   const owedFor = (o: Order) => (o.invoiceId ? owedOn.get(o.invoiceId) ?? 0 : 0);

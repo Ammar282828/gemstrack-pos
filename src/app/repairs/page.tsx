@@ -45,7 +45,7 @@ import { useMe } from '@/hooks/use-me';
 import { PageShell } from '@/components/shared/page-shell';
 import { RepairCard } from '@/components/repairs/repair-card';
 
-const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString()}`;
+const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 const day = (iso?: string) => { if (!iso) return ''; try { return format(parseISO(iso), 'd MMM'); } catch { return iso; } };
 const emptyPiece = (): RepairPiece => ({ item: '', work: '' });
 const READY_IN = [{ days: 3, label: '3 days' }, { days: 7, label: '1 week' }, { days: 14, label: '2 weeks' }];
@@ -169,7 +169,7 @@ function RepairForm({ repair, onDone }: { repair?: Repair; onDone: (saved?: Repa
                   <div className="grid grid-cols-2 gap-2 sm:contents">
                     <AmountInput value={p.weightG} maxDecimals={3} zeroAsEmpty placeholder="Weight g" aria-label={`Weight of piece ${i + 1}`}
                       onValueChange={(v) => setPiece(i, { weightG: v === undefined ? undefined : Number(v) })} />
-                    <AmountInput value={p.price} zeroAsEmpty placeholder="Price" aria-label={`Price for piece ${i + 1}`}
+                    <AmountInput maxDecimals={0} value={p.price} zeroAsEmpty placeholder="Price" aria-label={`Price for piece ${i + 1}`}
                       onValueChange={(v) => setPiece(i, { price: v === undefined ? undefined : Number(v) })} />
                   </div>
                 </div>
@@ -210,7 +210,7 @@ function RepairForm({ repair, onDone }: { repair?: Repair; onDone: (saved?: Repa
         <div>
           <Label className="text-xs">Advance taken now (optional)</Label>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <div className="w-36"><AmountInput value={advance} zeroAsEmpty placeholder="PKR" aria-label="Advance" onValueChange={(v) => setAdvance(v === undefined ? undefined : Number(v))} /></div>
+            <div className="w-36"><AmountInput maxDecimals={0} value={advance} zeroAsEmpty placeholder="PKR" aria-label="Advance" onValueChange={(v) => setAdvance(v === undefined ? undefined : Number(v))} /></div>
             {!!advance && <MethodChips value={method} onChange={setMethod} />}
           </div>
         </div>
@@ -285,7 +285,7 @@ function HandBackDialog({ repair, open, onClose }: { repair: Repair; open: boole
         {balance > 0 ? (
           <div className="space-y-3">
             <p className="text-sm">Balance due <span className="font-semibold tabular-nums">{pkr(balance)}</span></p>
-            <div className="w-40"><AmountInput value={amount} zeroAsEmpty placeholder="Received" aria-label="Amount received" onValueChange={(v) => setAmount(v === undefined ? undefined : Number(v))} /></div>
+            <div className="w-40"><AmountInput maxDecimals={0} value={amount} zeroAsEmpty placeholder="Received" aria-label="Amount received" onValueChange={(v) => setAmount(v === undefined ? undefined : Number(v))} /></div>
             <MethodChips value={method} onChange={setMethod} />
           </div>
         ) : (

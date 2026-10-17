@@ -23,6 +23,7 @@ import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import { WALK_IN_ENTITY } from '@/lib/walk-in';
 import { hisaabAccounts, searchAccounts } from '@/lib/hisaab-report';
 import { drawHisaabSummaryPdf, hisaabSummaryFileName } from '@/lib/hisaab-pdf';
+import { owesMoney } from '@/lib/money';
 
 
 type InvoiceBalance = {
@@ -239,7 +240,7 @@ export default function HisaabPage() {
       ...a,
       unpaidInvoices: a.entityId === WALK_IN_ENTITY
         ? (Array.isArray(generatedInvoices) ? generatedInvoices : [])
-            .filter(inv => walkInInvoiceIds.has(inv.id) && inv.balanceDue > 0 && inv.status !== 'Refunded')
+            .filter(inv => walkInInvoiceIds.has(inv.id) && owesMoney(inv.balanceDue) && inv.status !== 'Refunded')
             .map(inv => ({ id: inv.id, grandTotal: inv.grandTotal, amountPaid: inv.amountPaid, balanceDue: inv.balanceDue }))
         : unpaidInvoicesByCustomer[a.entityId] ?? [],
     }));
@@ -301,10 +302,10 @@ export default function HisaabPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-success">PKR {totalReceivable.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-success">PKR {totalReceivable.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
             {totalReceivableGold > 0 && <p className="text-sm font-semibold text-success/90">{totalReceivableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g {STORE_METAL_WORD}</p>}
             <p className="text-xs text-muted-foreground mt-1">
-              On invoices: PKR {Math.round(owedOnInvoices.total).toLocaleString()}, walk-ins included (the dashboard&apos;s &ldquo;Owed to you&rdquo; adds the hand-written balances here)
+              On invoices: PKR {Math.round(owedOnInvoices.total).toLocaleString(undefined, { maximumFractionDigits: 0 })}, walk-ins included (the dashboard&apos;s &ldquo;Owed to you&rdquo; adds the hand-written balances here)
             </p>
           </CardContent>
         </Card>
@@ -316,7 +317,7 @@ export default function HisaabPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-destructive">PKR {totalPayable.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-destructive">PKR {totalPayable.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
             {totalPayableGold > 0 && <p className="text-sm font-semibold text-destructive/80">{totalPayableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g {STORE_METAL_WORD}</p>}
           </CardContent>
         </Card>
@@ -354,8 +355,8 @@ export default function HisaabPage() {
                                         <div className="flex items-center justify-between gap-2">
                                             <p className="font-semibold truncate">{summary.entityName}</p>
                                             <div className="text-right flex-shrink-0">
-                                                {summary.cashBalance > 0 && <p className="font-bold text-success text-sm">PKR {summary.cashBalance.toLocaleString()}</p>}
-                                                {summary.cashBalance < 0 && <p className="font-bold text-destructive text-sm">PKR {Math.abs(summary.cashBalance).toLocaleString()}</p>}
+                                                {summary.cashBalance > 0 && <p className="font-bold text-success text-sm">PKR {summary.cashBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>}
+                                                {summary.cashBalance < 0 && <p className="font-bold text-destructive text-sm">PKR {Math.abs(summary.cashBalance).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>}
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between mt-0.5">
@@ -372,11 +373,11 @@ export default function HisaabPage() {
                                                   ? <Link href={`/invoices/${inv.id}`} title={`Open ${inv.id} to record payment`} className="text-primary font-mono hover:underline">{inv.id}</Link>
                                                   : <span className="text-muted-foreground font-mono">{inv.id}</span>}
                                                 <span className="text-muted-foreground">
-                                                  <span className="text-success font-medium">PKR {inv.amountPaid.toLocaleString()}</span>
+                                                  <span className="text-success font-medium">PKR {inv.amountPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                                                   {' / '}
                                                   {inv.grandTotal.toLocaleString()}
                                                   {' — '}
-                                                  <span className="font-semibold text-foreground">PKR {inv.balanceDue.toLocaleString()} due</span>
+                                                  <span className="font-semibold text-foreground">PKR {inv.balanceDue.toLocaleString(undefined, { maximumFractionDigits: 0 })} due</span>
                                                 </span>
                                               </div>
                                             ))}

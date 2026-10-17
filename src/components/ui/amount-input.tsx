@@ -11,7 +11,8 @@
  *   · leading zeros collapse, so 0500 becomes 500 and 007 becomes 7
  *   · a cleared field is empty, not 0 — those mean different things when the
  *     value is a price
- *   · pasting "PKR 1,25,000" or "1 250.50" gives 125000 / 1250.5
+ *   · pasting "PKR 1,25,000" or "1 250.50" gives 125000 / 1250.5 (maxDecimals={0}, which every money
+ *     field uses since 2026-10-17, drops the fraction and brings up the numeric keypad)
  *   · the caret stays where it was, counted in digits rather than characters,
  *     so inserting a separator does not jump it to the end
  *   · focusing selects what is there, so typing replaces a pre-filled figure
@@ -46,7 +47,8 @@ function format(clean: string, maxDecimals: number): string {
   // Strip leading zeros but keep a single one before a decimal point.
   const int = intRaw.replace(/^0+(?=\d)/, '') || '0';
   const grouped = Number(int).toLocaleString('en-US');
-  const dec = decRaw === undefined ? undefined : decRaw.slice(0, maxDecimals);
+  // Whole-rupee fields (maxDecimals 0) have no decimal point at all.
+  const dec = decRaw === undefined || maxDecimals === 0 ? undefined : decRaw.slice(0, maxDecimals);
   const out = dec === undefined ? grouped : `${grouped}.${dec}`;
   return (negative ? '-' : '') + out;
 }
@@ -100,7 +102,8 @@ export const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
     const fromProp = value === null || value === undefined || value === ''
       || (zeroAsEmpty && Number(value) === 0)
       ? ''
-      : format(digitsOnly(String(value)), maxDecimals);
+      // A whole-rupee field shows a stored fraction (an older bill) rounded, as it is read everywhere.
+      : format(digitsOnly(maxDecimals === 0 && Number.isFinite(Number(value)) ? String(Math.round(Number(value))) : String(value)), maxDecimals);
     const shown = draft ?? fromProp;
 
     // Select-all on focus. The selection is made when focus arrives, but a
@@ -121,6 +124,8 @@ export const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
       const digitsBefore = countDigits(el.value, caret);
 
       let clean = digitsOnly(el.value);
+      // Whole rupees: "12,500.75" pasted or typed keeps 12,500 — a dot is not a digit here.
+      if (maxDecimals === 0) clean = clean.split('.')[0];
       if (!allowNegative) clean = clean.replace(/-/g, '');
       const text = format(clean, maxDecimals);
       setDraft(text);

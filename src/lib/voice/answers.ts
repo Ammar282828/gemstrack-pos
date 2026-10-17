@@ -40,8 +40,8 @@ export interface Answer {
 }
 
 /* Grouped, because that is what tells a speech engine to say "twenty thousand". */
-const grouped = new Intl.NumberFormat('en-PK', { maximumFractionDigits: 2 });
-const money = (n: number) => `${grouped.format(Math.round(n * 100) / 100)} rupees`;
+const grouped = new Intl.NumberFormat('en-PK', { maximumFractionDigits: 0 });
+const money = (n: number) => `${grouped.format(Math.round(n))} rupees`;
 const grams = (n: number) =>
   `${new Intl.NumberFormat('en-PK', { maximumFractionDigits: 3 }).format(Math.round(n * 1000) / 1000)} grams`;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;

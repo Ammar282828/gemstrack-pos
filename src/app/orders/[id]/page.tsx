@@ -73,6 +73,7 @@ import { PhoneField } from '@/components/ui/phone-field';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { deleteErrorText } from '@/lib/delete-code';
+import { owesMoney } from '@/lib/money';
 
 
 const STATUS_TONE: Record<string, Tone> = { Pending: 'owed', 'In Progress': 'working', Completed: 'settled', Cancelled: 'quiet', Refunded: 'quiet' };
@@ -361,7 +362,7 @@ export default function OrderDetailPage() {
     if (!order) return;
     try {
       const updated = await deleteOrderAdvance(order.id, index);
-      toast({ title: 'Advance deleted', description: `PKR ${amount.toLocaleString()} taken off ${order.id}. Balance now PKR ${updated.grandTotal.toLocaleString()}.` });
+      toast({ title: 'Advance deleted', description: `PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} taken off ${order.id}. Balance now PKR ${updated.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}.` });
     } catch (e) {
       toast({ title: 'Not deleted', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
     }
@@ -443,7 +444,7 @@ export default function OrderDetailPage() {
                 message += `  - Est. Weight: ${item.estimatedWeightG}g ${item.karat ? `(${item.karat})` : ''}\n`;
             }
         });
-        message += `\n*Total Balance Due:* PKR ${order.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
+        message += `\n*Total Balance Due:* PKR ${order.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}\n\n`;
         message += `We are working on your order and will notify you of any updates.\n\n`;
     } else {
         message += `This is an update regarding your order *#${order.id}* from ${settings.shopName}.\n\n`;
@@ -451,7 +452,7 @@ export default function OrderDetailPage() {
             message += `We are happy to inform you that your order is now *In Progress*. We will notify you again once it is ready for collection.\n\n`;
         } else if (notificationType === 'completed') {
             message += `Your custom order is now *Completed* and ready for collection.\n\n`;
-            message += `*Amount Due:* PKR ${order.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
+            message += `*Amount Due:* PKR ${order.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}\n\n`;
         }
     }
     
@@ -533,7 +534,7 @@ export default function OrderDetailPage() {
   // The page's hero: the person, the track, and the money split (the app's order page). An invoiced order shows
   // its invoice's money, since that is where it is taken.
   const heroName = !order.customerName?.trim() || isWalkInName(order.customerName) ? 'Walk-in' : order.customerName.trim();
-  const trackStep = TRACK_STEP[stageOf(order, linkedInvoice && (linkedInvoice.balanceDue || 0) > 0.5 ? linkedInvoice.balanceDue : 0)];
+  const trackStep = TRACK_STEP[stageOf(order, linkedInvoice && owesMoney(linkedInvoice.balanceDue) ? linkedInvoice.balanceDue : 0)];
   const moneyTotal = linkedInvoice ? linkedInvoice.grandTotal : subtotal - discountAmount;
   const moneyPaid = linkedInvoice ? linkedInvoice.amountPaid : advancePayment + advanceInExchangeValue;
   const moneyDue = linkedInvoice ? linkedInvoice.balanceDue : grandTotal;
@@ -545,7 +546,7 @@ export default function OrderDetailPage() {
     if (goldKarats.length === 0) return 'N/A';
     return goldKarats.map(k => {
       const rate = ratesApplied[`goldRatePerGram${k}` as keyof typeof ratesApplied];
-      return `Gold (${k?.toUpperCase()}): PKR ${Number(rate || 0).toLocaleString()}/g`;
+      return `Gold (${k?.toUpperCase()}): PKR ${Number(rate || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}/g`;
     }).join(' | ');
   }
 
@@ -879,13 +880,13 @@ export default function OrderDetailPage() {
                                   </div>
                                 )}
                                 <div className="text-sm mt-3 p-2 bg-background rounded-md">
-                                  <div className="flex justify-between"><span className="text-muted-foreground">Metal</span> <span className="font-medium tabular-nums">PKR {(item.metalCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                                  {(item.wastageCost ?? 0) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Wastage</span> <span className="font-medium tabular-nums">PKR {(item.wastageCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                  {item.makingCharges > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Making</span> <span className="font-medium tabular-nums">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                  {item.diamondChargesIfAny > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Diamonds</span> <span className="font-medium tabular-nums">PKR {item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                  {item.stoneChargesIfAny > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Stones</span> <span className="font-medium tabular-nums">PKR {item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                  <div className="flex justify-between"><span className="text-muted-foreground">Metal</span> <span className="font-medium tabular-nums">PKR {(item.metalCost ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+                                  {(item.wastageCost ?? 0) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Wastage</span> <span className="font-medium tabular-nums">PKR {(item.wastageCost ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>}
+                                  {item.makingCharges > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Making</span> <span className="font-medium tabular-nums">PKR {item.makingCharges.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>}
+                                  {item.diamondChargesIfAny > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Diamonds</span> <span className="font-medium tabular-nums">PKR {item.diamondChargesIfAny.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>}
+                                  {item.stoneChargesIfAny > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Stones</span> <span className="font-medium tabular-nums">PKR {item.stoneChargesIfAny.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>}
                                   <Separator className="my-1"/>
-                                  <div className="flex justify-between font-bold"><span>Item total</span> <span className="tabular-nums">PKR {item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                  <div className="flex justify-between font-bold"><span>Item total</span> <span className="tabular-nums">PKR {item.itemTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                                 </div>
                               </div>
                             </div>
@@ -896,16 +897,16 @@ export default function OrderDetailPage() {
 
                         <div className="flex flex-col md:flex-row justify-end items-start gap-4">
                           <div className="w-full max-w-sm space-y-2 p-4 text-ios-sub bg-muted/50 rounded-tile">
-                            <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {linkedInvoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                            <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {linkedInvoice.subtotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                             {linkedInvoice.discountAmount > 0 && (
-                              <div className="flex justify-between text-destructive"><span>Discount:</span> <span className="font-semibold">- PKR {linkedInvoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                              <div className="flex justify-between text-destructive"><span>Discount:</span> <span className="font-semibold">- PKR {linkedInvoice.discountAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                             )}
-                            <div className="flex justify-between font-bold"><span>Grand Total:</span> <span>PKR {linkedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                            <div className="flex justify-between font-bold"><span>Grand Total:</span> <span>PKR {linkedInvoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                             {linkedInvoice.amountPaid > 0 && (
-                              <div className="flex justify-between text-tone-settled-ink"><span>Paid:</span> <span className="font-semibold">PKR {linkedInvoice.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                              <div className="flex justify-between text-tone-settled-ink"><span>Paid:</span> <span className="font-semibold">PKR {linkedInvoice.amountPaid.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                             )}
                             <Separator className="my-2 bg-muted-foreground/20"/>
-                            <div className="flex justify-between items-baseline font-semibold"><span className="text-ios-headline">Balance Due:</span> <span className={cn('font-serif text-ios-title2 tabular-nums', linkedInvoice.balanceDue > 0.5 ? 'text-tone-owed-ink' : 'text-tone-settled-ink')}>PKR {linkedInvoice.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                            <div className="flex justify-between items-baseline font-semibold"><span className="text-ios-headline">Balance Due:</span> <span className={cn('font-serif text-ios-title2 tabular-nums', linkedInvoice.balanceDue >= 1 ? 'text-tone-owed-ink' : 'text-tone-settled-ink')}>PKR {linkedInvoice.balanceDue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                           </div>
                         </div>
                       </div>
@@ -956,7 +957,7 @@ export default function OrderDetailPage() {
                                           if (item.referenceSku) rows.push(['Ref SKU', item.referenceSku]);
                                           if (item.sampleGiven) rows.push(['Sample', 'Provided by customer']);
                                           if (item.isManualPrice) {
-                                            rows.push(['Price', `PKR ${(item.manualPrice || item.totalEstimate || 0).toLocaleString()}`]);
+                                            rows.push(['Price', `PKR ${(item.manualPrice || item.totalEstimate || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`]);
                                           }
                                           return rows.map(([label, value]) => (
                                             <div key={label} className="min-w-0">
@@ -1005,13 +1006,13 @@ export default function OrderDetailPage() {
                                       {/* Costs last: subordinate to what the piece actually is. */}
                                       {!item.isManualPrice && (
                                         <div className="text-sm mt-3 p-2 bg-background rounded-md">
-                                            <div className="flex justify-between"><span className="text-muted-foreground">Metal</span> <span className="font-medium tabular-nums">PKR {(item.metalCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                                            {(item.wastageCost ?? 0) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Wastage</span> <span className="font-medium tabular-nums">PKR {(item.wastageCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                            {item.makingCharges > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Making</span> <span className="font-medium tabular-nums">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                            {item.diamondCharges > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Diamonds</span> <span className="font-medium tabular-nums">PKR {item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                            {item.stoneCharges > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Stones</span> <span className="font-medium tabular-nums">PKR {item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                            <div className="flex justify-between"><span className="text-muted-foreground">Metal</span> <span className="font-medium tabular-nums">PKR {(item.metalCost ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+                                            {(item.wastageCost ?? 0) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Wastage</span> <span className="font-medium tabular-nums">PKR {(item.wastageCost ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>}
+                                            {item.makingCharges > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Making</span> <span className="font-medium tabular-nums">PKR {item.makingCharges.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>}
+                                            {item.diamondCharges > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Diamonds</span> <span className="font-medium tabular-nums">PKR {item.diamondCharges.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>}
+                                            {item.stoneCharges > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Stones</span> <span className="font-medium tabular-nums">PKR {item.stoneCharges.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>}
                                             <Separator className="my-1"/>
-                                            <div className="flex justify-between font-bold"><span>Item total</span> <span className="tabular-nums">PKR {(item.totalEstimate ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                            <div className="flex justify-between font-bold"><span>Item total</span> <span className="tabular-nums">PKR {(item.totalEstimate ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                                         </div>
                                       )}
                                   </div>
@@ -1079,12 +1080,12 @@ export default function OrderDetailPage() {
                        <Button variant="outline" onClick={() => setIsAdvanceDialogOpen(true)}>Record an advance</Button>
                      )}
                       <div className="w-full max-w-sm space-y-2 p-4 text-ios-sub bg-muted/50 rounded-tile">
-                          <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                          <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {subtotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                           {discountAmount > 0 && (
-                            <div className="flex justify-between text-destructive"><span>Discount:</span> <span className="font-semibold">- PKR {discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                            <div className="flex justify-between text-destructive"><span>Discount:</span> <span className="font-semibold">- PKR {discountAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                           )}
                           <div className="flex justify-between items-center text-tone-settled-ink"><span>Advance paid:</span>
-                            <span className="font-semibold inline-flex items-center gap-1">- PKR {advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            <span className="font-semibold inline-flex items-center gap-1">- PKR {advancePayment.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                               {/* One advance: its delete sits here; several: each line has its own below. */}
                               {!order.invoiceId && advanceLines.length === 1 && (
                                 <button type="button" onClick={() => handleDeleteAdvance(0, advanceLines[0].amount)} className="min-h-0 p-1 text-muted-foreground hover:text-destructive"
@@ -1110,7 +1111,7 @@ export default function OrderDetailPage() {
                             </ul>
                           )}
                           {advanceInExchangeValue > 0 && (
-                            <div className="flex justify-between text-tone-settled-ink"><span>Taken in exchange:</span> <span className="font-semibold">- PKR {advanceInExchangeValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                            <div className="flex justify-between text-tone-settled-ink"><span>Taken in exchange:</span> <span className="font-semibold">- PKR {advanceInExchangeValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                           )}
                           {orderExchanges(order).length > 0 && (
                               <ul className="pt-1 text-xs text-muted-foreground space-y-0.5 pl-3">
@@ -1123,7 +1124,7 @@ export default function OrderDetailPage() {
                               </ul>
                           )}
                           <Separator className="my-2 bg-muted-foreground/20"/>
-                          <div className="flex justify-between items-baseline font-semibold"><span className="text-ios-headline">Balance Due:</span> <span className={cn('font-serif text-ios-title2 tabular-nums', grandTotal > 0.5 ? 'text-tone-owed-ink' : 'text-tone-settled-ink')}>PKR {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                          <div className="flex justify-between items-baseline font-semibold"><span className="text-ios-headline">Balance Due:</span> <span className={cn('font-serif text-ios-title2 tabular-nums', grandTotal >= 1 ? 'text-tone-owed-ink' : 'text-tone-settled-ink')}>PKR {grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
                           {/* The shop's margin on the order (lib/margin.ts) — blurred until tapped, never on the slip. */}
                           <MarginFigure className="mt-3" margin={orderMargin(order)} />
                       </div>

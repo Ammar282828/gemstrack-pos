@@ -38,6 +38,7 @@ import { useMe, useMineFilter } from '@/hooks/use-me';
 import { RecordPaymentDialog } from '@/components/invoice/record-payment-dialog';
 import { PageShell } from '@/components/shared/page-shell';
 import { Monogram, Pill, MineTag, ChipRow, FilterChip, Segmented, SearchField, EmptyState, LedgerSection, toneClasses, type Tone } from '@/components/ledger';
+import { owesMoney, isCredit } from '@/lib/money';
 
 type DocumentType = (Order | Invoice) & { docType: 'order' | 'invoice' };
 
@@ -69,7 +70,7 @@ const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' =>
   }
   const inv = doc as Invoice;
   if (inv.status === 'Refunded') return 'Refunded';
-  return inv.balanceDue <= 0 ? 'Paid' : 'Unpaid';
+  return owesMoney(inv.balanceDue) ? 'Unpaid' : 'Paid';
 };
 
 const isShopifyDoc = (doc: DocumentType): boolean =>
@@ -108,8 +109,8 @@ const BalancePill: React.FC<{ doc: DocumentType }> = ({ doc }) => {
   if (doc.docType === 'order') return <Pill tone={statusTone(status)}>{status}</Pill>;
   const inv = doc as Invoice;
   if (inv.status === 'Refunded') return <Pill tone="quiet">Refunded</Pill>;
-  if ((inv.balanceDue || 0) > 0) return <Pill tone="owed">PKR {Math.round(inv.balanceDue).toLocaleString()} due</Pill>;
-  if ((inv.balanceDue || 0) < -0.5) return <Pill tone="credit">PKR {Math.round(-inv.balanceDue).toLocaleString()} in credit</Pill>;
+  if (owesMoney(inv.balanceDue)) return <Pill tone="owed">PKR {Math.round(inv.balanceDue).toLocaleString(undefined, { maximumFractionDigits: 0 })} due</Pill>;
+  if (isCredit(inv.balanceDue)) return <Pill tone="credit">PKR {Math.round(-inv.balanceDue).toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit</Pill>;
   return <Pill tone="settled">Paid</Pill>;
 };
 
@@ -147,7 +148,7 @@ const DocumentCard: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMar
                 {doc.docType === 'order' && onStatusChange
                     ? <OrderStatusSelect doc={doc as Order} onStatusChange={onStatusChange} />
                     : <BalancePill doc={doc} />}
-                <span className="whitespace-nowrap font-serif text-ios-title3 font-semibold tabular-nums">PKR {doc.grandTotal.toLocaleString()}</span>
+                <span className="whitespace-nowrap font-serif text-ios-title3 font-semibold tabular-nums">PKR {doc.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
             </div>
             <div className="-mb-1 mt-1 flex flex-wrap items-center gap-x-1 pl-[42px]">
                 <PrintButton pieces={pieceCount(doc)} onPrint={onPrint} onPrintPerPiece={onPrintPerPiece} />
@@ -199,7 +200,7 @@ const DocumentRow: React.FC<RowProps> = ({ doc, onPrint, onPrintPerPiece, onMark
                     {isShopifyDoc(doc) && <Pill tone="settled" icon={<ShoppingBag />}>Shopify</Pill>}
                 </div>
             </TableCell>
-            <TableCell className="whitespace-nowrap text-right tabular-nums">PKR {doc.grandTotal.toLocaleString()}</TableCell>
+            <TableCell className="whitespace-nowrap text-right tabular-nums">PKR {doc.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
              {/* One shape for the whole column. An order rendered as a
                  bordered select box while an invoice rendered as a coloured
                  pill, so the same column carried two different objects. Both
@@ -313,7 +314,7 @@ export default function DocumentsPage() {
   const handleMarkPaid = (document: DocumentType) => {
     if (document.docType !== 'invoice') return;
     const inv = document as Invoice;
-    if (inv.balanceDue > 0) setPayingInvoice(inv);
+    if (owesMoney(inv.balanceDue)) setPayingInvoice(inv);
   };
 
   const handleOrderStatusChange = async (orderId: string, newStatus: OrderStatus) => {
@@ -520,7 +521,7 @@ export default function DocumentsPage() {
         doc: d,
         onPrint: () => handlePrint(d),
         onPrintPerPiece: d.docType === 'invoice' ? () => handlePrint(d, true) : undefined,
-        onMarkPaid: d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined,
+        onMarkPaid: d.docType === 'invoice' && owesMoney((d as Invoice).balanceDue) ? () => handleMarkPaid(d) : undefined,
         onStatusChange: d.docType === 'order' ? (s: OrderStatus) => handleOrderStatusChange(d.id, s) : undefined,
         onSendPaymentLink: d.docType === 'invoice' ? () => handleSendPaymentLink(d as Invoice) : undefined,
         isSendingLink: sendingLinkId === d.id,
@@ -602,7 +603,7 @@ export default function DocumentsPage() {
     );
   }
 
-  const pkr = (n: number) => 'PKR ' + Math.round(n).toLocaleString();
+  const pkr = (n: number) => 'PKR ' + Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
   // The whole book's figure, whatever the filters show (the dashboard's "Owed to you").
   const owedAll = owedToYou(generatedInvoices);
 

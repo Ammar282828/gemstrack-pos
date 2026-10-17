@@ -100,7 +100,7 @@ describe('/api/app/pdf/invoice/[id]', () => {
     expect(t).toContain('Oct 9, 2026');
     // An owner's copy: the rates and the line's metal, as the owner's browser prints them.
     expect(t).toContain('21k: 30,000/g');
-    expect(t).toContain('Metal: PKR 150,000.00');
+    expect(t).toContain('Metal: PKR 150,000');
   });
 
   it("staff's is what their browser prints: no rates, no line's cost", async () => {

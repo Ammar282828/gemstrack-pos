@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { erpUserOrCron } from '@/lib/erp-gate';
 import { fetchAllPages, mapCustomer, mapInvoice, mapProduct, shopifyRequest, mapCustomerToShopify } from '../_lib';
 import { adminDb } from '@/lib/firebase-admin';
+import { owesMoney } from '@/lib/money';
 
 export async function POST(request: NextRequest) {
   // Signed-in owner or staff, or the scheduler: this route changes the shop's Shopify store.
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          const isPaid = (inv.balanceDue || 0) <= 0;
+          const isPaid = !owesMoney(inv.balanceDue);
           const result = await shopifyRequest(shop, token, 'POST', '/orders.json', {
             order: {
               line_items: lineItems,

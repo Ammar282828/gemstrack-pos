@@ -224,7 +224,7 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
   // columns leave, at the margin autoTable is given. Computed here so the
   // height and the drawing wrap at the same measure.
   const descColWidth = (pageWidth - margin * 2) - (7 + 9 + 22 + 22);
-  const pkr = (n: number) => `PKR ${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+  const pkr = (n: number) => `PKR ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
   items.forEach((item, index) => {
     const breakdownLines: string[] = [];
@@ -258,8 +258,8 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
     });
     tableRows.push([
       index + 1, '', item.quantity,
-      item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }),
-      item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      item.unitPrice.toLocaleString(undefined, { maximumFractionDigits: 0 }),
+      item.itemTotal.toLocaleString(undefined, { maximumFractionDigits: 0 }),
     ]);
   });
 

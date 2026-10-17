@@ -168,6 +168,8 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Saves are one trip](docs/decisions.md#saves-are-one-trip) — one commit per save; photos in `order_photos`
 
 **Money and analytics**
+- [Whole rupees](docs/decisions.md#whole-rupees) — no decimals; each line rounded, `lib/money-round.ts`; under 1 rupee is settled
+- [Round-off](docs/decisions.md#round-off) — up to 3 round-down chips by the discount; "Settle" a remainder under 5,000 as discount
 - [Lac and crore](docs/decisions.md#lac-and-crore) — `lib/money.ts`
 - [Invoice credit](docs/decisions.md#invoice-credit) — overpaid is a named customer's credit, on their hisaab
 - [Margin](docs/decisions.md#margin) — typed 24k less 6 ratti, else 10%; never the customer's

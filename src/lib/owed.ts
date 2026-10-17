@@ -20,13 +20,14 @@
  */
 
 import { saleCustomerKey, WALK_IN_ENTITY } from '@/lib/walk-in';
+import { owesMoney } from '@/lib/money';
 
 type OwedInvoice = { id: string; status?: string; balanceDue?: number; customerId?: string | null; customerName?: string | null; createdAt?: string };
 export type LedgerRow = { entityId?: string; entityType?: string; cashDebit?: number; cashCredit?: number; linkedInvoiceId?: string | null };
 
 /** An invoice that is still owed money on. */
 export const isOwing = (inv: OwedInvoice | null | undefined): boolean =>
-  !!inv && inv.status !== 'Refunded' && (Number(inv.balanceDue) || 0) > 0.5;
+  !!inv && inv.status !== 'Refunded' && owesMoney(inv.balanceDue);
 
 /** Each customer's hand-written hisaab balance (debit less credit), from rows no invoice keeps. */
 export function ledgerBalances(rows: readonly LedgerRow[]): Map<string, number> {
@@ -73,7 +74,7 @@ export function owedToYou<I extends OwedInvoice>(
   }
   if (ledgerRows) {
     for (const [key, balance] of ledgerBalances(ledgerRows)) {
-      if (balance <= 0.5) continue;
+      if (!owesMoney(balance)) continue;
       total += balance; ledger += balance;
       if (key === WALK_IN_ENTITY) walkIn += balance;
       const cur = byKey.get(key) ?? { amount: 0, count: 0 };

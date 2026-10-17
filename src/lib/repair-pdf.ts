@@ -38,7 +38,7 @@ const COLUMNS = {
   3: { cellWidth: 24, halign: 'right' },
 } as const;
 
-const pkr = (n: number) => `PKR ${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+const pkr = (n: number) => `PKR ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 /** The device's day, as the browser always wrote it. */
 const deviceDay = (iso: string) => {
   try { return format(parseISO(iso), 'd MMM yyyy'); } catch { return iso; }

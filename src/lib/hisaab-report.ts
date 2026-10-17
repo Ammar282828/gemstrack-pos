@@ -83,7 +83,7 @@ export function reminderMessage(name: string, shopName: string, due: number): st
   if (!(due > 0)) return null;
   let message = `Dear ${name},\n\n`;
   message += `This is a friendly reminder from ${shopName} regarding your outstanding balance.\n\n`;
-  message += `*Amount Due:* PKR ${due.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\n`;
+  message += `*Amount Due:* PKR ${due.toLocaleString('en-US', { maximumFractionDigits: 0 })}\n\n`;
   message += `We would appreciate it if you could settle the balance at your earliest convenience.\n\n`;
   message += `Thank you.`;
   return message;
