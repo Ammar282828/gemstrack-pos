@@ -193,14 +193,14 @@ struct OrderScreen: View {
         return parts.joined(separator: " \u{00B7} ")
     }
 
-    /// What is still owed, as the page's one big figure (amber), or In credit in a pill; paid says nothing
-    /// (CONVENTIONS rule 15). A cancelled or refunded order has no money left to say.
+    /// What is still owed, as the page's one big figure (amber), or Paid / In credit in a pill once nothing is.
+    /// A cancelled or refunded order has no money left to say.
     @ViewBuilder
     private func heroFigure(_ order: Order, stage: OrderStage, owed: Double, invoice: Invoice?) -> some View {
         if stage != .closed {
             let due = OrdersLogic.hasInvoice(order) ? (invoice?.balanceDue ?? owed) : OrdersLogic.balance(order)
             VStack(alignment: .leading, spacing: 4) {
-                if due > 0.5 {
+                if due >= 1 {
                     Text("OWED")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
@@ -209,6 +209,8 @@ struct OrderScreen: View {
                 } else if due < -0.5 {
                     Pill("In credit", tone: .credit)
                     HeroAmount(amount: -due, tone: Tone.credit.color)
+                } else {
+                    Pill("Paid", tone: .settled, symbol: "checkmark")
                 }
             }
         }
@@ -561,7 +563,7 @@ struct OrderScreen: View {
     private func barStep(_ order: Order, stage: OrderStage, owed: Double) -> OrderNextStep? {
         guard let step = OrdersLogic.nextStep(order, stage: stage, owed: owed) else { return nil }
         switch step {
-        case .invoice(_, let due): return due > 0.5 ? step : nil
+        case .invoice(_, let due): return due >= 1 ? step : nil
         case .checkTransfer: return session.role == "owner" || session.role == "staff" ? step : nil
         default: return step
         }
@@ -710,7 +712,7 @@ struct OrderScreen: View {
     private func advanceSheet(_ order: Order) -> some View {
         let balance = OrdersLogic.balance(order)
         // The note is the web's own default; it can be changed, and needs three characters (order-dialogs.tsx).
-        return PaymentSheet(title: "Record an advance", owed: balance > 0 ? balance : nil, note: "Advance payment received") { amount, method, note in
+        return PaymentSheet(title: "Record an advance", owed: balance >= 1 ? balance : nil, note: "Advance payment received") { amount, method, note in
             _ = try await ERPAPI.shared.write("recordOrderAdvance", [
                 "orderId": order.id,
                 "amount": amount,

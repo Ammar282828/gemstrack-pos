@@ -295,7 +295,7 @@ private struct CustRowLabel: View {
 
     private var trailing: String? {
         guard let s = stats else { return nil }
-        if s.owed > 0 { return Money.pkr(s.owed) }
+        if s.owed >= 1 { return Money.pkr(s.owed) }
         if s.spent > 0 { return Money.pkrLac(s.spent) }
         return nil
     }

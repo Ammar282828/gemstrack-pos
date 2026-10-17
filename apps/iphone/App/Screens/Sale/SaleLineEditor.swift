@@ -183,7 +183,7 @@ struct SaleLineEditor: View {
             }
             .pickerStyle(.segmented)
             if f.fixed {
-                SaleNumberField(label: "Price (PKR)", text: $f.customPrice, prompt: "The agreed total")
+                SaleNumberField(label: "Price (PKR)", text: $f.customPrice, prompt: "The agreed total", rupees: true)
                 // A fixed price still has a weight, and the bill says it (owner, 2026-10-07): it moves nothing,
                 // but it prints, and the margin is costed from it instead of the 10% guess.
                 SaleNumberField(label: "Weight (g)", text: $f.weight, prompt: "Optional")
@@ -197,9 +197,9 @@ struct SaleLineEditor: View {
                 } else {
                     SaleNumberField(label: "Wastage (%)", text: $f.wastage)
                 }
-                SaleNumberField(label: "Making (PKR)", text: $f.making)
-                SaleNumberField(label: "Stones (PKR)", text: $f.stoneCharges)
-                SaleNumberField(label: "Misc (PKR)", text: $f.miscCharges)
+                SaleNumberField(label: "Making (PKR)", text: $f.making, rupees: true)
+                SaleNumberField(label: "Stones (PKR)", text: $f.stoneCharges, rupees: true)
+                SaleNumberField(label: "Misc (PKR)", text: $f.miscCharges, rupees: true)
                 if silver { SaleNumberField(label: "Wastage (%)", text: $f.wastage) }
             }
         } header: {
@@ -216,7 +216,7 @@ struct SaleLineEditor: View {
             Toggle("Has diamonds", isOn: $f.hasDiamonds)
             if f.hasDiamonds {
                 // The charge only exists when the price is built from the rate; the details print either way.
-                if !f.fixed { SaleNumberField(label: "Diamonds (PKR)", text: $f.diamondCharges) }
+                if !f.fixed { SaleNumberField(label: "Diamonds (PKR)", text: $f.diamondCharges, rupees: true) }
                 TextField("Diamond details", text: $f.diamondDetails, prompt: Text("e.g. 0.5ct round"))
             }
             Toggle("Has other stones", isOn: $f.hasStones)

@@ -361,7 +361,7 @@ private struct HisaabLedgerRow: View {
     }
 
     private func tone(_ balance: Double) -> Color {
-        if abs(balance) < 0.001 { return Color.secondary }
+        if abs(balance) < 1 { return Color.secondary }
         return balance > 0 ? Tone.owed.color : Tone.credit.color
     }
 }

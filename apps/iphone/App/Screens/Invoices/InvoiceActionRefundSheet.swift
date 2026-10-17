@@ -97,8 +97,8 @@ struct InvoiceActionRefundSheet: View {
     @ViewBuilder
     private var partialSections: some View {
         Section {
-            TextField("Refund amount (PKR)", text: $amountText, prompt: Text("e.g. 1500"))
-                .keyboardType(.decimalPad)
+            TextField("Refund amount (PKR)", text: $amountText.wholeRupees, prompt: Text("e.g. 1500"))
+                .keyboardType(.numberPad)
                 .font(.title2.weight(.semibold))
                 .monospacedDigit()
             TextField("Reason", text: $reason, prompt: Text("e.g. damaged item (optional)"))
@@ -128,7 +128,7 @@ struct InvoiceActionRefundSheet: View {
     /// What follows a partial refund: the hisaab while they owe again, Shopify, and the order left as it is.
     private func partialFollowers(_ after: InvoiceActions.Paid) -> String {
         var lines: [String] = []
-        lines.append(after.balanceDue > 0
+        lines.append(after.balanceDue >= 1
             ? InvoiceActionWords.ledger(invoice, balanceDue: after.balanceDue)
             : "Nothing is owed on it still; the hisaab is left as it is.")
         if !invoice.id.hasPrefix("SHOPIFY-") { lines.append("A refund for the same amount goes to its Shopify order, if it has one.") }

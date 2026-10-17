@@ -31,4 +31,8 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-17: no button opens the web any more (orders, invoices, stock, workshop, activity log, drafts, posts tray, Taheri book import; links on an ERP page open native screens), and every screen quieter: two-line rows, no Paid badges, each figure once.
 - 2026-10-17: the large widget can show a second business under the first (Edit Widget → Second business), each in its own colours.
 - 2026-10-17: the old cards and layouts back everywhere (invoices, orders, home, money, workshop, ads…), only less noisy: no Paid or Done badges, no number twice, no obvious footers.
+- 2026-10-17: orders keep their status (stage words in colour, Paid) and every button; the card is cleaner: one line for what it is, its next step a small capsule.
+- 2026-10-17: order and invoice cards open on the first tap again (the zoom's tap recogniser, added 10-15, took taps from the list's rows).
+- 2026-10-17: Invoices: the three figures in one slim row (Owed to you · Today · This month), not a hero card and two tiles; payments in whole rupees.
+- 2026-10-17: no decimals in money anywhere in the app: every amount box on the number pad in whole rupees, messages and slips in whole rupees, under a rupee counts as settled.
 - 2026-10-17: Insights, as the web has it since today: Instagram and Facebook, organic beside paid (Overview, Posts, Audience), what the numbers say worked out on the server.

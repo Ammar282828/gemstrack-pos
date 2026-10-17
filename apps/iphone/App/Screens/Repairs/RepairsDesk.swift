@@ -180,7 +180,7 @@ private struct RepairsDeskModifier: ViewModifier {
 
     private func paymentSheet(_ r: Repair) -> some View {
         let balance = RepairsKit.repairBalance(r)
-        return PaymentSheet(title: "Payment on \(r.id)", owed: balance > 0 ? balance : nil, askReference: false) { amount, method, _ in
+        return PaymentSheet(title: "Payment on \(r.id)", owed: balance >= 1 ? balance : nil, askReference: false) { amount, method, _ in
             try await desk.takePayment(r, amount: amount, method: method)
         }
     }

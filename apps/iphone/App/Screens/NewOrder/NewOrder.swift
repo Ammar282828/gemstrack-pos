@@ -633,8 +633,8 @@ private struct NewOrderPinnedSummary: View {
     let totals: NewOrderMath.Totals
 
     private var dueTone: Tone {
-        if totals.balance < -0.5 { return .credit }
-        return totals.balance > 0.5 ? .owed : .settled
+        if totals.balance <= -1 { return .credit }
+        return totals.balance >= 1 ? .owed : .settled
     }
 
     var body: some View {

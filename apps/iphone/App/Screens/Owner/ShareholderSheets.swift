@@ -91,7 +91,7 @@ struct ShareholderEntrySheet: View {
         _who = State(initialValue: ask.who)
     }
 
-    private var amount: Double { MoneyParse.amount(amountText) ?? 0 }
+    private var amount: Double { MoneyParse.rupees(amountText) ?? 0 }
     private var person: ShareholderPerson? { ShareholderPerson.named(who) }
     private var cleaned: String { what.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -107,8 +107,8 @@ struct ShareholderEntrySheet: View {
                     Text(move.explanation)
                 }
                 LedgerSection("Amount and date") {
-                    TextField("Amount (PKR)", text: $amountText)
-                        .keyboardType(.decimalPad)
+                    TextField("Amount (PKR)", text: $amountText.wholeRupees)
+                        .keyboardType(.numberPad)
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }

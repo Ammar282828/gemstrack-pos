@@ -5,17 +5,19 @@ import ERPCore
 // The small pieces New sale, the edit sheet and Scan a tag share.
 
 /// A label with a number typed at its right edge. Zero is blank, as the sale's fields show it
-/// (decisions.md "Number fields").
+/// (decisions.md "Number fields"). A sum of money (`rupees`) takes the number pad and whole rupees only
+/// (owner, 2026-10-17: "there should be no decimals"); weights, rates and percentages keep their decimals.
 struct SaleNumberField: View {
     let label: String
     @Binding var text: String
     var prompt = "0"
     var decimal = true
+    var rupees = false
 
     var body: some View {
         LabeledContent(label) {
-            TextField(prompt, text: $text)
-                .keyboardType(decimal ? .decimalPad : .numberPad)
+            TextField(prompt, text: rupees ? $text.wholeRupees : $text)
+                .keyboardType(decimal && !rupees ? .decimalPad : .numberPad)
                 .multilineTextAlignment(.trailing)
                 .monospacedDigit()
         }

@@ -216,7 +216,7 @@ struct PaidBar: View {
 
     var body: some View {
         let whole = max(total, 1)
-        let done = paid >= total - 0.5
+        let done = total - paid < 1
         ProgressView(value: min(max(paid, 0), whole), total: whole)
             .tint(done ? Color.green : Theme.accent)
             .accessibilityLabel(done ? "Paid in full" : "Paid \(Money.pkr(paid)) of \(Money.pkr(total))")
@@ -237,9 +237,9 @@ struct MoneySplit: View {
             HStack(alignment: .top, spacing: 0) {
                 cell(totalLabel, total, Money.pkr(total), .primary, .leading)
                 cell(paidLabel, paid, Money.pkr(paid), .secondary, .center)
-                if due < -0.5 {
+                if due <= -1 {
                     cell("In credit", -due, Money.pkr(-due), Tone.credit.color, .trailing)
-                } else if due > 0.5 {
+                } else if due >= 1 {
                     cell("Due", due, Money.pkr(due), Tone.owed.color, .trailing)
                 } else {
                     cell("Due", 0, "Nil", Tone.settled.color, .trailing)
