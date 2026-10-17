@@ -261,28 +261,40 @@ struct DesignSmartSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     input
-                    if let error = m.error { Text(error).font(.subheadline).foregroundStyle(Tone.problem.color) }
                     if !m.notes.isEmpty {
                         VStack(alignment: .leading, spacing: 4) { ForEach(m.notes, id: \.self) { Text($0).font(.footnote).foregroundStyle(.secondary) } }
                     }
                     if let review = m.review { layerReview(review) }
                     ForEach(m.items) { item in card(item) }
-                    if m.items.count > 1 {
-                        Button { m.use(m.items) ; dismiss() } label: { Label("Use all \(m.items.count) pieces", systemImage: "checkmark").frame(maxWidth: .infinity) }
-                            .buttonStyle(.houseProminent).controlSize(.large).disabled(m.busy != nil)
-                    }
                 }
                 .padding(.horizontal, 16).padding(.vertical, 12)
             }
             .scrollDismissesKeyboard(.interactively)
             .modifier(HouseGround())
             .navigationTitle("Start with anything").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .actionBar(primary: primary, secondary: m.review == nil ? [] : [.init("Back") { m.review = nil }])
+            .failureAlert(bind(\.error), title: "Could not read that")
+            .refusedFeedback(trigger: m.error)
+            .keyboardDone()
             .modifier(DesignSpeech(get: { m.start.speak }, set: { m.start.speak = $0 }, note: $note))
             .onChange(of: picked) { _, items in if !items.isEmpty { Task { await takePhotos(items) } } }
             .sensoryFeedback(.success, trigger: m.used)
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
+    }
+
+    /// The one primary action, whichever step the sheet is at: read it, then use what was read.
+    private var primary: ActionBar.Action {
+        if m.review != nil {
+            return .init("Start a design from this", systemImage: "square.3.layers.3d", isDisabled: m.busy != nil) { m.startFromReview(); dismiss() }
+        }
+        if m.items.isEmpty {
+            return .init(m.busy ?? "Read it", systemImage: "sparkles", isBusy: m.busy != nil,
+                         isDisabled: m.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) { Task { await m.read() } }
+        }
+        let title = m.items.count > 1 ? "Use all \(m.items.count) pieces" : "Use this piece"
+        return .init(title, systemImage: "checkmark", isDisabled: m.busy != nil) { m.use(m.items); dismiss() }
     }
 
     private var input: some View {
@@ -293,15 +305,18 @@ struct DesignSmartSheet: View {
                 .background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous))
                 .disabled(m.busy != nil)
             HStack(spacing: 10) {
-                Button { Task { await m.read() } } label: {
-                    HStack { if m.busy != nil { ProgressView() } else { Image(systemName: "sparkles") }; Text(m.busy ?? "Read it") }.frame(maxWidth: .infinity)
+                // Reading again, once there are pieces: before that, "Read it" is the bar's.
+                if !m.items.isEmpty {
+                    Button { Task { await m.read() } } label: {
+                        Label("Read it again", systemImage: "sparkles").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered).controlSize(.large)
+                    .disabled(m.busy != nil || m.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                .buttonStyle(.houseProminent).controlSize(.large)
-                .disabled(m.busy != nil || m.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 PhotosPicker(selection: $picked, maxSelectionCount: 8, matching: .images) {
                     Label("Photos", systemImage: "photo.on.rectangle").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.glass).controlSize(.large).disabled(m.busy != nil)
+                .buttonStyle(.bordered).controlSize(.large).disabled(m.busy != nil)
             }
             Text("Nothing is used until you tick it. No figure appears that is not in what you gave.").font(.footnote).foregroundStyle(.secondary)
         }
@@ -321,10 +336,11 @@ struct DesignSmartSheet: View {
         let sure = item.parsed.n("confidence") >= 0.6
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Pill((sure ? "Sure" : "Check this") + " · \(Int((item.parsed.n("confidence") * 100).rounded()))%", tone: sure ? .settled : .owed)
+                // Sure is the expected state: only a doubtful reading is marked (rule 15), without the percentage.
+                if !sure { Pill("Check this", tone: .owed) }
                 if !item.parsed.s("suggestedKind").isEmpty { Text("suggests: " + item.parsed.s("suggestedKind")).font(.caption).foregroundStyle(.secondary) }
                 Spacer(minLength: 0)
-                Button { m.items.removeAll { $0.id == item.id } } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
+                Button { m.items.removeAll { $0.id == item.id } } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(minWidth: 44, minHeight: 44) }
                     .buttonStyle(.plain).accessibilityLabel("Remove")
             }
             if !item.photos.isEmpty {
@@ -339,7 +355,7 @@ struct DesignSmartSheet: View {
                                 }.buttonStyle(.plain).accessibilityLabel(n == item.main ? "Main photo" : "Use as the main photo")
                                 if m.allowLayers && n == item.main {
                                     Button { Task { await m.split(p) } } label: { Label("Layers", systemImage: "square.3.layers.3d").font(.caption2) }
-                                        .buttonStyle(.glass).disabled(m.busy != nil)
+                                        .buttonStyle(.bordered).disabled(m.busy != nil)
                                 }
                             }
                         }
@@ -350,6 +366,7 @@ struct DesignSmartSheet: View {
                 if item.fields[k] != nil || item.accept[k] == true {
                     HStack(spacing: 8) {
                         Toggle("", isOn: Binding(get: { item.accept[k] == true }, set: { on in set(item.id) { $0.accept[k] = on } })).labelsHidden().tint(Theme.accent)
+                            .accessibilityLabel(DesignSmartModel.fieldLabel[k] ?? k)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(DesignSmartModel.fieldLabel[k] ?? k).font(.caption).foregroundStyle(.secondary)
                             TextField("", text: Binding(get: { item.fields[k] ?? "" }, set: { v in set(item.id) { $0.fields[k] = v; $0.accept[k] = true } }), axis: .vertical)
@@ -363,6 +380,7 @@ struct DesignSmartSheet: View {
             if item.parsed["price"] != .null {
                 HStack(spacing: 8) {
                     Toggle("", isOn: Binding(get: { item.accept["price"] == true }, set: { on in set(item.id) { $0.accept["price"] = on } })).labelsHidden().tint(Theme.accent)
+                        .accessibilityLabel("Price")
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Price").font(.caption).foregroundStyle(.secondary)
                         Text(item.parsed["price"].s("text", "PKR " + String(Int(item.parsed["price"].n("amount"))))).font(.subheadline)
@@ -376,8 +394,11 @@ struct DesignSmartSheet: View {
             ForEach(item.parsed["warnings"].array.map(\.string), id: \.self) { w in
                 Label(w, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Tone.owed.color)
             }
-            Button { m.use([item]); dismiss() } label: { Label("Use this", systemImage: "checkmark").frame(maxWidth: .infinity) }
-                .buttonStyle(.houseProminent).disabled(m.busy != nil)
+            // One piece: the bar's "Use this piece" is its button; with several, each can be used on its own turn.
+            if m.items.count > 1 {
+                Button { m.use([item]); dismiss() } label: { Label("Use this", systemImage: "checkmark").frame(maxWidth: .infinity) }
+                    .buttonStyle(.bordered).tint(Theme.accent).disabled(m.busy != nil)
+            }
         }
         .ledgerCard()
     }
@@ -389,6 +410,6 @@ struct DesignSmartSheet: View {
 
     private func layerReview(_ rev: DesignSmartModel.LayerReview) -> some View {
         DesignLayerReviewCard(plan: rev.plan, keep: Binding(get: { m.review?.keep ?? [] }, set: { m.review?.keep = $0 }),
-                              onCancel: { m.review = nil }, onStart: { m.startFromReview(); dismiss() })
+                              onCancel: { m.review = nil }, onStart: { m.startFromReview(); dismiss() }, showsActions: false)
     }
 }

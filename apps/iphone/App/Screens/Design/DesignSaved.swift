@@ -75,8 +75,8 @@ struct DesignSavedView: View {
     @State private var folderText = ""
     @State private var deletingFolder: DesignFolder?
     @State private var deletingDraft: DesignDraftRow?
+    @State private var deletingRecord: DesignRecord?
     @State private var problem: String?
-    @State private var tick = 0
 
     private var counts: [String: Int] {
         var c: [String: Int] = [:]
@@ -128,45 +128,59 @@ struct DesignSavedView: View {
             Button(renaming == nil ? "Make folder" : "Rename") { saveFolder() }
             Button("Cancel", role: .cancel) {}
         }
-        .confirmationDialog("Delete the folder “\(deletingFolder?.name ?? "")”? Its designs stay, unfiled.",
-                            isPresented: Binding(get: { deletingFolder != nil }, set: { if !$0 { deletingFolder = nil } }), titleVisibility: .visible) {
-            Button("Delete folder", role: .destructive) { if let f = deletingFolder { dropFolder(f) } }
-        }
-        .confirmationDialog("Delete this draft from this phone?",
-                            isPresented: Binding(get: { deletingDraft != nil }, set: { if !$0 { deletingDraft = nil } }), titleVisibility: .visible) {
-            Button("Delete draft", role: .destructive) { if let d = deletingDraft { tick += 1; Task { await shelf.deleteDraft(d) } } }
-        }
-        .destructiveFeedback(trigger: tick)
+        .confirmDestructive(isPresented: Binding(get: { deletingFolder != nil }, set: { if !$0 { deletingFolder = nil } }),
+                            title: "Delete the folder “\(deletingFolder?.name ?? "")”?", message: "Its designs stay, unfiled.",
+                            action: "Delete folder") { if let f = deletingFolder { dropFolder(f) } }
+        .confirmDestructive(isPresented: Binding(get: { deletingDraft != nil }, set: { if !$0 { deletingDraft = nil } }),
+                            title: "Delete this draft from this phone?", action: "Delete draft") { if let d = deletingDraft { Task { await shelf.deleteDraft(d) } } }
+        .confirmDestructive(isPresented: Binding(get: { deletingRecord != nil }, set: { if !$0 { deletingRecord = nil } }),
+                            title: "Delete “\(deletingRecord?.name ?? "this design")”?", message: "It is removed from the shop’s shelf.",
+                            action: "Delete") { if let d = deletingRecord { dropRecord(d) } }
         .failureAlert($problem, title: "Could not finish")
+        .overlay { emptyOrFailed }
+    }
+
+    /// Nothing to show, or the shelf could not load: the system's own states over the list, never a row inside it.
+    @ViewBuilder private var emptyOrFailed: some View {
+        if view == Self.device {
+            if shelf.draftRows.isEmpty {
+                ContentUnavailableView("No drafts on this phone", systemImage: "iphone",
+                                       description: Text("A design is kept here as you make it, and for 30 days after."))
+            }
+        } else if view == Self.account && adsOk {
+            EmptyView()
+        } else if let error = shelf.error {
+            ErrorState(error) { Task { await shelf.load() } }
+        } else if shelf.loaded && shown.isEmpty {
+            ContentUnavailableView(shelf.items.isEmpty ? "Nothing saved yet" : "Nothing here", systemImage: "folder",
+                                   description: Text(shelf.items.isEmpty ? "Save a design from the workspace and it waits here, in any folder you make." : "No design in this folder matches."))
+        }
     }
 
     @ViewBuilder private var designs: some View {
-        if let error = shelf.error {
-            Section { Text(error).foregroundStyle(Tone.problem.color) }.houseRows()
+        if shelf.error != nil {
+            EmptyView()
         } else if !shelf.loaded {
             Section { SkeletonLoading("Opening the shelf") }.houseRows()
-        } else if shown.isEmpty {
-            Section {
-                ContentUnavailableView(shelf.items.isEmpty ? "Nothing saved yet" : "Nothing here", systemImage: "folder",
-                                       description: Text(shelf.items.isEmpty ? "Save a design from the workspace and it waits here, in any folder you make." : "No design in this folder matches."))
-            }.listRowBackground(Color.clear)
-        } else {
+        } else if !shown.isEmpty {
             Section {
                 ForEach(shown) { r in
                     Button { detail = r } label: { DesignRecordLine(record: r) }
                         .buttonStyle(.plain).zoomSource(id: "design:" + r.id)
+                        .swipeActions { Button("Delete", role: .destructive) { deletingRecord = r } }
+                        .contextMenu {
+                            Button { detail = r } label: { Label("Details", systemImage: "info.circle") }
+                            if r.canOpen { Button { onOpen(r) } label: { Label("Open", systemImage: "folder") } }
+                            Divider()
+                            Button(role: .destructive) { deletingRecord = r } label: { Label("Delete", systemImage: "trash") }
+                        }
                 }
             }.houseRows()
         }
     }
 
     @ViewBuilder private var drafts: some View {
-        if shelf.draftRows.isEmpty {
-            Section {
-                ContentUnavailableView("No drafts on this phone", systemImage: "iphone",
-                                       description: Text("A design is kept here as you make it, and for 30 days after."))
-            }.listRowBackground(Color.clear)
-        } else {
+        if !shelf.draftRows.isEmpty {
             Section {
                 ForEach(shelf.draftRows) { d in
                     Button { onOpenDraft(d) } label: { DesignDraftLine(row: d) }.buttonStyle(.plain)
@@ -188,9 +202,16 @@ struct DesignSavedView: View {
         }
     }
 
+    private func dropRecord(_ r: DesignRecord) {
+        Task {
+            do { try await DesignRecords.delete(r.id); await shelf.load() }
+            catch { problem = error.localizedDescription }
+        }
+    }
+
     private func dropFolder(_ f: DesignFolder) {
         Task {
-            do { try await DesignRecords.deleteFolder(f.id); view = Self.all; tick += 1; await shelf.load() }
+            do { try await DesignRecords.deleteFolder(f.id); view = Self.all; await shelf.load() }
             catch { problem = error.localizedDescription }
         }
     }
@@ -212,7 +233,6 @@ struct DesignDetailSheet: View {
     @State private var confirmDelete = false
     @State private var share: MarketingFileShare?
     @State private var busy: String?
-    @State private var tick = 0
 
     var body: some View {
         NavigationStack {
@@ -242,7 +262,7 @@ struct DesignDetailSheet: View {
             }
             .houseForm()
             .navigationTitle(record.name).navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { rename(); dismiss() } } }
             .task { await loadPicture() }
             .onAppear { name = record.name; folder = record.folder ?? "" }
             .onChange(of: folder) { _, now in
@@ -251,10 +271,7 @@ struct DesignDetailSheet: View {
                 Task { await patch(folder: .some(target), name: nil) }
             }
             .onDisappear { rename() }
-            .confirmationDialog("Delete “\(record.name)”?", isPresented: $confirmDelete, titleVisibility: .visible) {
-                Button("Delete", role: .destructive) { remove() }
-            }
-            .destructiveFeedback(trigger: tick)
+            .confirmDestructive(isPresented: $confirmDelete, title: "Delete “\(record.name)”?", action: "Delete") { remove() }
             .failureAlert($problem, title: "Could not finish")
             .websiteBusy(busy)
             .sheet(item: $share) { MarketingShareSheet(items: $0.items) }
@@ -282,7 +299,7 @@ struct DesignDetailSheet: View {
         busy = "Deleting…"
         Task {
             defer { busy = nil }
-            do { try await DesignRecords.delete(record.id); tick += 1; onChanged(); dismiss() }
+            do { try await DesignRecords.delete(record.id); onChanged(); dismiss() }
             catch { problem = error.localizedDescription }
         }
     }

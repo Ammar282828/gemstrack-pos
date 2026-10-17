@@ -160,8 +160,8 @@ struct ArtworkRunsRows: View {
                 HStack {
                     Text("Pick the words").font(.subheadline.weight(.semibold))
                     Spacer()
-                    Button("All") { picked = Set(wordTokens.indices) }.buttonStyle(.borderless)
-                    Button("None") { picked = [] }.buttonStyle(.borderless)
+                    Button("All") { picked = Set(wordTokens.indices) }.buttonStyle(.borderless).frame(minHeight: 44)
+                    Button("None") { picked = [] }.buttonStyle(.borderless).frame(minHeight: 44)
                 }
                 ArtworkFlow {
                     ForEach(Array(wordTokens.enumerated()), id: \.offset) { pair in
@@ -391,6 +391,7 @@ struct ArtworkGradientRows: View {
                     Button { sel = pair.offset } label: {
                         Circle().fill(color(pair.element)).frame(width: 30, height: 30)
                             .overlay(Circle().stroke(pair.offset == at ? Theme.accent : Color.secondary.opacity(0.5), lineWidth: pair.offset == at ? 3 : 1))
+                            .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
                     }.buttonStyle(.borderless).accessibilityLabel("Stop \(pair.offset + 1)")
                 }
             }.padding(.vertical, 2)

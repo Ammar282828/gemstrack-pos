@@ -277,13 +277,26 @@ struct DesignResizeSheet: View {
             .scrollDismissesKeyboard(.interactively)
             .modifier(HouseGround())
             .navigationTitle("Resize").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .actionBar(primary: primary)
+            .keyboardDone()
+            .interactiveDismissDisabled(r.busy != nil)
             .modifier(DesignSpeech(get: { r.model.speak }, set: { r.model.speak = $0 }, note: $note))
             .failureAlert($problem, title: "Could not finish")
             .onChange(of: r.problem) { _, now in if let now { problem = now; r.problem = nil } }
             .sensoryFeedback(.success, trigger: r.added)
         }
-        .presentationDetents([.large])
+    }
+
+    /// One primary, whichever step: "Resize 3 sizes", then "Add 2 sizes" once the results are in.
+    private var primary: ActionBar.Action {
+        if r.shown.isEmpty {
+            let n = r.picked.count
+            return .init(r.busy ?? (n == 0 ? "Resize" : "Resize \(n) size\(n == 1 ? "" : "s")"), systemImage: "arrow.up.left.and.arrow.down.right",
+                         isBusy: r.busy != nil, isDisabled: r.picked.isEmpty) { Task { await r.resizeAll() } }
+        }
+        let n = r.accepted.count
+        return .init("Add \(n) size\(n == 1 ? "" : "s")", systemImage: "checkmark", isDisabled: r.accepted.isEmpty || r.busy != nil) { r.accept(); dismiss() }
     }
 
     private var sizes: some View {
@@ -311,7 +324,7 @@ struct DesignResizeSheet: View {
                 Text(":")
                 TextField("H", text: bind(\.customH)).keyboardType(.decimalPad).multilineTextAlignment(.center)
                     .frame(width: 64).textFieldStyle(.roundedBorder).accessibilityLabel("Height")
-                Button { r.addCustom() } label: { Label("Add", systemImage: "plus") }.buttonStyle(.glass)
+                Button { r.addCustom() } label: { Label("Add", systemImage: "plus") }.buttonStyle(.bordered)
             }
             if !r.customs.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -330,13 +343,6 @@ struct DesignResizeSheet: View {
                 }
             }
             .tint(Theme.accent)
-            Button { Task { await r.resizeAll() } } label: {
-                HStack {
-                    if r.busy != nil { ProgressView() } else { Image(systemName: "arrow.up.left.and.arrow.down.right") }
-                    Text(r.busy ?? "Resize" + (r.picked.isEmpty ? "" : " (\(r.picked.count))")).frame(maxWidth: .infinity)
-                }
-            }
-            .buttonStyle(.houseProminent).controlSize(.large).disabled(r.picked.isEmpty || r.busy != nil)
             if !r.note.isEmpty { Text(r.note).font(.footnote).foregroundStyle(.secondary) }
         }
         .ledgerCard()
@@ -350,14 +356,8 @@ struct DesignResizeSheet: View {
             LazyVGrid(columns: columns, spacing: 10) {
                 ForEach(r.shown, id: \.self) { id in card(id) }
             }
-            HStack {
-                Text("\(r.accepted.count) of \(r.shown.count) kept").font(.footnote).foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-                Button { r.accept(); dismiss() } label: {
-                    Label("Add \(r.accepted.count) size\(r.accepted.count == 1 ? "" : "s")", systemImage: "checkmark")
-                }
-                .buttonStyle(.houseProminent).disabled(r.accepted.isEmpty || r.busy != nil)
-            }
+            Text("\(r.accepted.count) of \(r.shown.count) kept").font(.footnote).foregroundStyle(.secondary)
+                .monospacedDigit().contentTransition(.numericText(value: Double(r.accepted.count))).motion(r.accepted.count)
         }
     }
 
@@ -382,7 +382,7 @@ struct DesignResizeSheet: View {
                 HStack {
                     Text(e.label).font(.caption.weight(.medium)).lineLimit(1)
                     Spacer(minLength: 0)
-                    Pill("\(Int(score.rounded()))", tone: score >= 85 ? .settled : score >= 70 ? .owed : .late)
+                    Pill("\(Int(score.rounded()))", tone: score >= 85 ? .settled : score >= 70 ? .owed : .problem)
                 }
                 Text(res["notes"].array.first?.string ?? "").font(.caption2).foregroundStyle(.secondary)
                 if res["needsExtend"].bool && r.extras[id] == nil {
@@ -390,13 +390,15 @@ struct DesignResizeSheet: View {
                     Button { Task { await r.extend(id) } } label: {
                         HStack { if r.extending == id { ProgressView() } else { Image(systemName: "sparkles") }; Text("Extend the photo") }.font(.caption)
                     }
-                    .buttonStyle(.glass).disabled(r.extending != nil || r.busy != nil)
+                    .buttonStyle(.bordered).disabled(r.extending != nil || r.busy != nil)
                 }
             }
             .padding(8)
             .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).strokeBorder(on ? Theme.accent : Color.secondary.opacity(0.18), lineWidth: on ? 1.5 : 1))
             .opacity(on ? 1 : 0.7)
+            .motion(on)
+            .sensoryFeedback(.selection, trigger: on)
         }
     }
 }
@@ -407,9 +409,9 @@ private struct ResizeSafeZones: View {
     var body: some View {
         GeometryReader { g in
             VStack(spacing: 0) {
-                Rectangle().fill(Color.black.opacity(0.35)).frame(height: g.size.height * top)
+                Rectangle().fill(Theme.accent.opacity(0.15)).frame(height: g.size.height * top)
                 Spacer(minLength: 0)
-                Rectangle().fill(Color.black.opacity(0.35)).frame(height: g.size.height * bottom)
+                Rectangle().fill(Theme.accent.opacity(0.15)).frame(height: g.size.height * bottom)
             }
         }.allowsHitTesting(false).accessibilityHidden(true)
     }

@@ -16,6 +16,8 @@ struct DesignAccountAds: View {
 
     @State private var ads: [Ad]?
     @State private var error: String?
+    /// A refused Keep: said in an alert, not in place of the list.
+    @State private var problem: String?
     @State private var q = ""
     @State private var to = ""
     @State private var busy: String?
@@ -39,7 +41,7 @@ struct DesignAccountAds: View {
                 }
             }.houseRows()
             if let error {
-                Section { Text(error).foregroundStyle(Tone.problem.color) }.houseRows()
+                Section { ErrorState(error) { self.error = nil; Task { await load() } } }.listRowBackground(Color.clear)
             } else if ads == nil {
                 Section { SkeletonLoading("Reading the ad account") }.houseRows()
             } else if shown.isEmpty {
@@ -63,14 +65,15 @@ struct DesignAccountAds: View {
                             Button { Task { await keep(a) } } label: {
                                 if busy == a.id { ProgressView() } else { Image(systemName: "square.and.arrow.down") }
                             }
-                            .buttonStyle(.glass).disabled(busy != nil).accessibilityLabel("Keep in a folder")
+                            .buttonStyle(.borderless).frame(minWidth: 44, minHeight: 44).disabled(busy != nil).accessibilityLabel("Keep in a folder")
                         }
                     }
                 }.houseRows()
             }
         }
         .task { await load() }
-        .sensoryFeedback(.success, trigger: kept)
+        .savedFeedback(trigger: kept)
+        .failureAlert($problem, title: "Could not keep it")
     }
 
     private func load() async {
@@ -96,6 +99,6 @@ struct DesignAccountAds: View {
             _ = try await MarketingRequest.send("/api/ads/studio/saved", body)
             kept += 1
             onKept()
-        } catch { self.error = "Couldn’t keep it. " + error.localizedDescription }
+        } catch { problem = error.localizedDescription }
     }
 }

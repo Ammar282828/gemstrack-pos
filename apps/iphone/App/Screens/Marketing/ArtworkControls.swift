@@ -21,8 +21,9 @@ struct ArtworkSlider: View {
     var body: some View {
         let clamped = Binding(get: { min(range.upperBound, max(range.lowerBound, value)) }, set: { value = $0 })
         VStack(alignment: .leading, spacing: 2) {
-            HStack { Text(title); Spacer(); Text(String(format: format, value)).monospacedDigit().foregroundStyle(.secondary) }
+            HStack { Text(title); Spacer(); Text(String(format: format, value)).monospacedDigit().foregroundStyle(.secondary).contentTransition(.numericText(value: value)) }
             Slider(value: clamped, in: range, step: step) { Text(title) }
+                .accessibilityValue(String(format: format, value))
         }
     }
 }

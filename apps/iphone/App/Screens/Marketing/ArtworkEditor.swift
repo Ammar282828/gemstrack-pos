@@ -18,6 +18,7 @@ struct ArtworkEditor: View {
     @State private var redo: [MarketingValue] = []
     @State private var dragStart: MarketingValue?
     @State private var problem: String?
+    @State private var confirmingDiscard = false
     @State private var importing: PhotosPickerItem?
     @State private var busy = false
     @State private var share: MarketingFileShare?
@@ -64,7 +65,6 @@ struct ArtworkEditor: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section { preview.listRowInsets(EdgeInsets()); if let problem { Text(problem).foregroundStyle(Tone.problem.color).font(.footnote) } }.houseRows()
                 Section {
                     Menu("Add") { addMenu }
                     Menu("Layout") {
@@ -120,15 +120,30 @@ struct ArtworkEditor: View {
                     }
                 }.houseRows()
             }.modifier(HouseGround()).navigationTitle("Design").navigationBarTitleDisplayMode(.inline)
+                .scrollDismissesKeyboard(.interactively)
+                // The artwork stays on screen while a property is changed: it is pinned above the Form, never a row that scrolls away.
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    preview.frame(maxWidth: .infinity)
+                        .containerRelativeFrame(.vertical) { length, _ in length * 0.36 }
+                        .padding(.vertical, 8)
+                        .background(Theme.ground)
+                }
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { if let original { doc = original }; dismiss() } }
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { if let original, original != doc { confirmingDiscard = true } else { dismiss() } } }
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                     ToolbarItemGroup(placement: .primaryAction) {
                         Button { history(true) } label: { Label("Undo", systemImage: "arrow.uturn.backward") }.disabled(undo.isEmpty)
                         Button { history(false) } label: { Label("Redo", systemImage: "arrow.uturn.forward") }.disabled(redo.isEmpty)
-                        Button { Task { await export() } } label: { Label("Share", systemImage: "square.and.arrow.up") }.disabled(busy)
+                        Menu {
+                            Button { Task { await export() } } label: { Label("Share", systemImage: "square.and.arrow.up") }.disabled(busy)
+                        } label: { Label("More", systemImage: "ellipsis") }
                     }
-                }.task(id: doc.text + fields.sorted(by: { $0.key < $1.key }).description) { await render() }
+                }
+                .sensoryFeedback(.alignment, trigger: snapX) { _, now in now != nil }
+                .sensoryFeedback(.alignment, trigger: snapY) { _, now in now != nil }
+                .confirmDestructive(isPresented: $confirmingDiscard, title: "Discard your changes?", message: "The design goes back to how it was when you opened it.",
+                                    action: "Discard changes") { if let original { doc = original }; dismiss() }
+                .failureAlert($problem, title: "Could not finish").task(id: doc.text + fields.sorted(by: { $0.key < $1.key }).description) { await render() }
                 .onChange(of: importing) { _, item in if let item { Task { await take(item) } } }
                 .fileImporter(isPresented: $logoOpen, allowedContentTypes: [.svg, .png]) { takeLogo($0) }
                 .onAppear { if original == nil { original = doc } }

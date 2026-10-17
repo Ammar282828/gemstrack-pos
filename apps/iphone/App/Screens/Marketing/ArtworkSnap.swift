@@ -64,7 +64,9 @@ struct ArtworkGuideOverlay: View {
     let grid: Double
     var snapX: Double?
     var snapY: Double?
-    private let guide = Color(red: 0.02, green: 0.71, blue: 0.83)
+    /// The user's guides and grid are the house accent; the snapped line stays system pink below: a guide laid over any
+    /// photograph must stand out from it, and pink is the one hue the shop's photographs and accent never use.
+    private let guide = Theme.accent
     var body: some View {
         Canvas { ctx, size in
             func line(_ a: CGPoint, _ b: CGPoint, _ color: Color, _ w: CGFloat = 1) {

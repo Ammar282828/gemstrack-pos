@@ -8,6 +8,7 @@ struct DesignPublishSheet: View {
     @State private var note: Note?
     @State private var share: DesignShareRequest?
     @State private var problem: String?
+    @State private var confirmingAgain = false
 
     init(model: DesignWorkspaceModel) { _p = State(initialValue: DesignPublishModel(model: model)) }
 
@@ -19,7 +20,7 @@ struct DesignPublishSheet: View {
         NavigationStack {
             Group {
                 if let err = p.loadError {
-                    NotAvailableState("Couldn’t read where this can go", why: err, symbol: "wifi.exclamationmark")
+                    ErrorState(err) { Task { await p.load() } }
                 } else if !p.loaded {
                     SkeletonLoading("Looking at where this can go").padding(16).frame(maxHeight: .infinity, alignment: .top)
                 } else {
@@ -28,10 +29,13 @@ struct DesignPublishSheet: View {
             }
             .modifier(HouseGround())
             .navigationTitle("Publish").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .modifier(DesignSpeech(get: { p.model.speak }, set: { p.model.speak = $0 }, note: $note))
             .failureAlert($problem, title: "Could not finish")
             .moneyFeedback(success: p.sent, failure: p.failures)
+            .confirmDestructive(isPresented: $confirmingAgain, title: "Send again from the start?",
+                                message: "What already went out is forgotten here, so every place can be sent to again.",
+                                action: "Send again from the start") { p.forgetAll() }
             .sheet(item: $share) { r in MarketingShareSheet(items: r.items, completion: { done in if done, let id = r.step { p.markDone(id) } }) }
             .confirmationDialog(confirmTitle, isPresented: bind(\.confirming), titleVisibility: .visible) {
                 Button("Yes, send") { Task { await p.run() } }
@@ -39,7 +43,6 @@ struct DesignPublishSheet: View {
             } message: { Text(confirmMessage) }
         }
         .interactiveDismissDisabled(p.busy)
-        .presentationDetents([.large])
         .task { await p.load() }
         .onChange(of: p.folder) { _, _ in p.remember() }
         .onChange(of: p.waKeys) { _, _ in p.remember() }
@@ -70,11 +73,10 @@ struct DesignPublishSheet: View {
                         ForEach(problems + p.wordIssues, id: \.self) { Label($0, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(Tone.problem.color) }
                     }
                 }
-                sendButton(plan, problems)
                 if !plan.steps.isEmpty { steps(plan) }
                 if let path = p.metaPath ?? p.ref("meta-ad") {
                     Button { p.model.route = Route(path: path); dismiss() } label: { Label("Open the new ad", systemImage: "sparkles").frame(maxWidth: .infinity) }
-                        .buttonStyle(.glass).controlSize(.large)
+                        .buttonStyle(.bordered).controlSize(.large)
                 }
                 if let n = p.note { Text(n).font(.footnote).foregroundStyle(.secondary) }
                 extras
@@ -82,6 +84,8 @@ struct DesignPublishSheet: View {
             .padding(.horizontal, 16).padding(.vertical, 12)
         }
         .scrollDismissesKeyboard(.interactively)
+        // Sending is the sheet's one job: it stays at the foot with what it will do (rule 16).
+        .actionBar(primary: sendAction(plan, problems), summary: sendSummary(plan))
     }
 
     // MARK: Connections (the health strip)
@@ -151,7 +155,7 @@ struct DesignPublishSheet: View {
         if let page = pick.page {
             Text("Uses: \(page.label)").font(.footnote).foregroundStyle(.secondary)
         } else if let m = p.missing(dest) {
-            Button { Task { await p.make(m) } } label: { Label(m.label, systemImage: "wand.and.stars") }.buttonStyle(.glass).font(.footnote)
+            Button { Task { await p.make(m) } } label: { Label(m.label, systemImage: "wand.and.stars") }.buttonStyle(.bordered).font(.footnote)
         }
     }
 
@@ -193,7 +197,7 @@ struct DesignPublishSheet: View {
                 }
                 pictureLine("website")
                 if !p.pages.contains(where: { $0.label == DesignSizes.website.label }), let m = p.missing("website") {
-                    Button { Task { await p.make(m) } } label: { Label("Make the catalogue photo (weight stamped)", systemImage: "wand.and.stars") }.buttonStyle(.glass).font(.footnote)
+                    Button { Task { await p.make(m) } } label: { Label("Make the catalogue photo (weight stamped)", systemImage: "wand.and.stars") }.buttonStyle(.bordered).font(.footnote)
                 }
             }
         }
@@ -231,7 +235,7 @@ struct DesignPublishSheet: View {
             if on.wrappedValue {
                 pictureLine(id)
                 if r?.connectable == true {
-                    Button { Task { if let url = await p.connectInstagram() { openURL(url) } } } label: { Label("Connect Instagram", systemImage: "link") }.buttonStyle(.glass).font(.footnote)
+                    Button { Task { if let url = await p.connectInstagram() { openURL(url) } } } label: { Label("Connect Instagram", systemImage: "link") }.buttonStyle(.bordered).font(.footnote)
                 }
             }
         }
@@ -243,7 +247,7 @@ struct DesignPublishSheet: View {
         SectionCard("Captions") {
             Button { Task { await p.writeCaptions() } } label: {
                 HStack { if p.aiBusy { ProgressView() } else { Image(systemName: "sparkles") }; Text("Write with AI") }.frame(maxWidth: .infinity)
-            }.buttonStyle(.glass).disabled(p.aiBusy)
+            }.buttonStyle(.bordered).disabled(p.aiBusy)
             if p.waOn { captionField("WhatsApp caption", bind(\.wa)) }
             if p.postOn { captionField("Instagram caption", bind(\.ig)) }
         }
@@ -289,10 +293,20 @@ struct DesignPublishSheet: View {
         return whole + (groups.isEmpty ? "A published post cannot be taken back." : "A check is failing for \(groups.joined(separator: " and ")); it may not go.")
     }
 
-    private func sendButton(_ plan: DesignPublishModel.Plan, _ problems: [String]) -> some View {
+    private func sendLabel() -> String { p.when == "now" ? "Publish" : p.when == "hold" ? "Hold in the queue" : "Schedule" }
+
+    /// "3 places, now": what the button will do, above it.
+    private func sendSummary(_ plan: DesignPublishModel.Plan) -> String? {
+        let n = plan.steps.filter { p.ref($0.id) == nil }.count
+        guard n > 0 else { return nil }
+        let when = p.when == "now" ? "now" : p.when == "hold" ? "held in the queue" : "scheduled"
+        return "\(n) place\(n == 1 ? "" : "s"), \(when)"
+    }
+
+    private func sendAction(_ plan: DesignPublishModel.Plan, _ problems: [String]) -> ActionBar.Action {
         let allDone = !plan.steps.isEmpty && plan.steps.allSatisfy { p.ref($0.id) != nil }
-        let label = p.when == "now" ? "Publish" : p.when == "hold" ? "Hold in the queue" : "Schedule"
-        return Button {
+        return .init(sendLabel(), systemImage: "paperplane", isBusy: p.busy,
+                     isDisabled: !problems.isEmpty || !p.wordIssues.isEmpty || plan.steps.isEmpty || allDone) {
             Task {
                 await p.checkWords()
                 guard problems.isEmpty, p.wordIssues.isEmpty else { return }
@@ -300,11 +314,7 @@ struct DesignPublishSheet: View {
                 if !p.whatsappChoice.isEmpty || p.igMode("instagram-story") == "api" && p.storyOn || p.igMode("instagram-post") == "api" && p.postOn || !groups.isEmpty { p.confirming = true }
                 else { await p.run() }
             }
-        } label: {
-            HStack { if p.busy { ProgressView() } else { Image(systemName: "paperplane") }; Text(label).frame(maxWidth: .infinity) }
         }
-        .buttonStyle(.houseProminent).controlSize(.large)
-        .disabled(p.busy || !problems.isEmpty || !p.wordIssues.isEmpty || plan.steps.isEmpty || allDone)
     }
 
     private func steps(_ plan: DesignPublishModel.Plan) -> some View {
@@ -313,7 +323,7 @@ struct DesignPublishSheet: View {
                 let st = p.state(s)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        icon(st.status)
+                        icon(st.status).motion(st.status)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(s.label).font(.subheadline)
                             if let e = st.error { Text(e).font(.footnote).foregroundStyle(Tone.problem.color) }
@@ -321,29 +331,29 @@ struct DesignPublishSheet: View {
                         Spacer(minLength: 0)
                     }
                     if st.status == .failed {
-                        Button { Task { await p.run(only: s.id) } } label: { Label("Retry", systemImage: "arrow.clockwise") }.buttonStyle(.glass).font(.footnote).disabled(p.busy)
+                        Button { Task { await p.run(only: s.id) } } label: { Label("Retry", systemImage: "arrow.clockwise") }.buttonStyle(.bordered).font(.footnote).disabled(p.busy)
                     }
                     if s.manual && st.status == .manual {
                         HStack(spacing: 8) {
-                            Button { Task { await shareStep(s) } } label: { Label("Share it", systemImage: "square.and.arrow.up") }.buttonStyle(.glass).font(.footnote)
+                            Button { Task { await shareStep(s) } } label: { Label("Share it", systemImage: "square.and.arrow.up") }.buttonStyle(.bordered).font(.footnote)
                             Button("Posted") { p.markDone(s.id, "by hand") }.font(.footnote)
                         }
                     }
                 }
             }
             if plan.steps.contains(where: { p.state($0).status == .failed }) && !p.busy {
-                Button { Task { await p.run() } } label: { Label("Retry what failed", systemImage: "arrow.clockwise").frame(maxWidth: .infinity) }.buttonStyle(.glass)
+                Button { Task { await p.run() } } label: { Label("Retry what failed", systemImage: "arrow.clockwise").frame(maxWidth: .infinity) }.buttonStyle(.bordered)
             }
         }
     }
 
     @ViewBuilder private func icon(_ s: DesignPublishModel.Status) -> some View {
         switch s {
-        case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(Tone.settled.color)
-        case .failed: Image(systemName: "xmark.circle.fill").foregroundStyle(Tone.problem.color)
+        case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(Tone.settled.color).contentTransition(.symbolEffect(.replace))
+        case .failed: Image(systemName: "xmark.circle.fill").foregroundStyle(Tone.problem.color).contentTransition(.symbolEffect(.replace))
         case .running: ProgressView()
-        case .manual: Image(systemName: "hand.tap").foregroundStyle(Tone.owed.color)
-        case .waiting: Image(systemName: "circle").foregroundStyle(.secondary)
+        case .manual: Image(systemName: "hand.tap").foregroundStyle(Tone.owed.color).contentTransition(.symbolEffect(.replace))
+        case .waiting: Image(systemName: "circle").foregroundStyle(.secondary).contentTransition(.symbolEffect(.replace))
         }
     }
 
@@ -370,7 +380,7 @@ struct DesignPublishSheet: View {
                 Link(destination: link) { Label("Open the WhatsApp channel", systemImage: "arrow.up.right.square") }.font(.subheadline)
             }
             if !p.memory.isEmpty {
-                Button("Send again from the start") { p.forgetAll() }.font(.subheadline).disabled(p.busy)
+                Button("Send again from the start") { confirmingAgain = true }.font(.subheadline).disabled(p.busy)
             }
         }
     }

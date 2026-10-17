@@ -24,7 +24,7 @@ struct DesignWorkspaceView: View {
     @State private var devicePicker = false
     @State private var removing: DesignPageState?
     @State private var safe = true
-    @State private var saved = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
@@ -53,51 +53,55 @@ struct DesignWorkspaceView: View {
         }
         .onChange(of: picked) { _, item in if let item { Task { await take(item) } } }
         .onChange(of: morePicked) { _, items in if !items.isEmpty { Task { await takeMore(items) } } }
-        .confirmationDialog("Take “\(removing?.label ?? "this size")” out of this design?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
-            Button("Take it out", role: .destructive) { if let p = removing { saved += 1; model.removePage(p.id) } }
+        .confirmDestructive(isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+                            title: "Take “\(removing?.label ?? "this size")” out of this design?",
+                            message: "Its layout is removed; the other sizes stay.", action: "Take it out") {
+            if let p = removing { model.removePage(p.id) }
         }
-        .destructiveFeedback(trigger: saved)
     }
 
     private func content(_ w: DesignWork) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                header(w)
-                strip(w)
-                DesignCandidateBanner(model: model)
-                stage(w)
-                words(w)
-                photograph
-                if w.kind == "ad" || !(w.copy["adText"] ?? "").isEmpty { adCopy }
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    header(w)
+                    strip(w)
+                    DesignCandidateBanner(model: model).id("candidate")
+                    stage(w)
+                    words(w)
+                    photograph
+                    if w.kind == "ad" || !(w.copy["adText"] ?? "").isEmpty { adCopy }
+                }
+                .padding(.horizontal, 16).padding(.vertical, 12)
             }
-            .padding(.horizontal, 16).padding(.vertical, 12)
+            .scrollDismissesKeyboard(.interactively)
+            // An AI picture that waits for a look appears above the tools that made it: bring it into view.
+            .onChange(of: model.candidate?.id) { _, id in
+                if id != nil { Motion.run(Motion.travel, reduce: reduceMotion) { proxy.scrollTo("candidate", anchor: .top) } }
+            }
         }
-        .scrollDismissesKeyboard(.interactively)
+        // The one primary action stays at the foot where it never scrolls away (rule 16): Publish, with Save beside it.
+        .actionBar(
+            primary: .init("Publish", systemImage: "paperplane", isDisabled: model.saving) { DesignHooks.shared.publish(model) },
+            secondary: [.init("Save", systemImage: "square.and.arrow.down", isBusy: model.saving) { Task { await model.saveToShop() } }],
+            summary: w.dirty ? "Not saved" : "Saved")
+        // A finished AI tool (the busy words clear) gives the success tap.
+        .sensoryFeedback(.success, trigger: model.aiBusy == nil) { old, new in !old && new }
     }
 
-    // MARK: Name, kind, Save, Publish
+    // MARK: Name and kind (Save and Publish are the action bar)
 
     private func header(_ w: DesignWork) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Button(action: onClose) { Label("Designs", systemImage: "chevron.left").font(.subheadline.weight(.medium)) }.buttonStyle(.plain)
+                Button(action: onClose) { Label("Designs", systemImage: "chevron.left").font(.subheadline.weight(.medium)).frame(minHeight: 44) }.buttonStyle(.plain)
                 Pill(DesignKinds.label(w.kind), tone: .house)
                 Spacer(minLength: 0)
-                Text(w.dirty ? "Not saved" : "Saved").font(.caption).foregroundStyle(w.dirty ? Tone.owed.color : Tone.settled.color)
             }
             TextField(w.fields["headline"].flatMap { $0.isEmpty ? nil : $0 } ?? "Name this design", text: Binding(get: { model.work?.name ?? "" }, set: { model.rename($0) }))
                 .font(.title3.weight(.semibold)).submitLabel(.done)
             if let at = model.draftSaved {
                 Text("Draft kept on this phone " + ShopDate.stamp(at, withTime: true)).font(.caption).foregroundStyle(.secondary)
-            }
-            HStack(spacing: 10) {
-                Button { Task { await model.saveToShop() } } label: {
-                    HStack { if model.saving { ProgressView() } else { Image(systemName: "square.and.arrow.down") }; Text("Save") }.frame(maxWidth: .infinity)
-                }.buttonStyle(.glass).controlSize(.large).disabled(model.saving)
-                // PHASE 2: the Publish sheet (DesignHooks.publish).
-                Button { DesignHooks.shared.publish(model) } label: {
-                    Label("Publish", systemImage: "paperplane").frame(maxWidth: .infinity)
-                }.buttonStyle(.houseProminent).controlSize(.large).disabled(model.saving)
             }
         }
         .ledgerCard()
@@ -132,6 +136,7 @@ struct DesignWorkspaceView: View {
             HStack {
                 Text(page.label).font(.subheadline.weight(.semibold))
                 Text("\(Int(page.w))×\(Int(page.h))").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    .contentTransition(.numericText()).motion(page.id)
                 Spacer(minLength: 0)
                 if zone.top > 0 { Toggle("Safe zones", isOn: $safe).font(.caption).fixedSize() }
             }
@@ -147,13 +152,13 @@ struct DesignWorkspaceView: View {
             HStack(spacing: 10) {
                 Button { model.beginEditing(page.id); editing = DesignEditTarget(pageId: page.id) } label: {
                     Label("Edit design", systemImage: "slider.horizontal.3").frame(maxWidth: .infinity)
-                }.buttonStyle(.houseProminent).controlSize(.large)
+                }.buttonStyle(.bordered).tint(Theme.accent).controlSize(.large)
                 Menu {
                     let layouts = model.templates
                     ForEach(layouts) { t in Button(t.label) { Task { await model.applyTemplate(t.id) } } }
                     if layouts.isEmpty { Text("Layouts are loading") }
                 } label: { Label("Layout", systemImage: "rectangle.3.group").frame(maxWidth: .infinity) }
-                    .buttonStyle(.glass).controlSize(.large)
+                    .buttonStyle(.bordered).controlSize(.large)
             }
             if w.stale.contains(page.id) {
                 Text("This size is behind the master. Re-do it from the master, or leave it as it is.").font(.footnote).foregroundStyle(Tone.owed.color)
@@ -200,7 +205,7 @@ struct DesignWorkspaceView: View {
                 Button { devicePicker = true } label: { Label("This device", systemImage: "iphone") }
                 if UIImagePickerController.isSourceTypeAvailable(.camera) { Button { camera = true } label: { Label("Camera", systemImage: "camera") } }
             } label: { Label(model.photos["photo"] == nil ? "Choose a photograph" : "Change the photograph", systemImage: "photo.badge.plus").frame(maxWidth: .infinity) }
-                .buttonStyle(.glass).controlSize(.large)
+                .buttonStyle(.bordered).controlSize(.large)
             moreRow
             DesignAITools(model: model, access: access)
         }
@@ -212,7 +217,7 @@ struct DesignWorkspaceView: View {
             HStack {
                 Text("More photos of this piece").font(.subheadline.weight(.medium))
                 Spacer(minLength: 0)
-                PhotosPicker(selection: $morePicked, maxSelectionCount: 8, matching: .images) { Label("Add", systemImage: "plus") }.buttonStyle(.glass)
+                PhotosPicker(selection: $morePicked, maxSelectionCount: 8, matching: .images) { Label("Add", systemImage: "plus") }.buttonStyle(.bordered)
             }
             if !model.moreIds.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -224,7 +229,7 @@ struct DesignWorkspaceView: View {
                                     else { Rectangle().fill(Theme.ground) }
                                 }
                                 .frame(width: 56, height: 56).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
-                                Button { model.removePhoto(id) } label: { Image(systemName: "xmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(.white, .black.opacity(0.7)) }
+                                Button { model.removePhoto(id) } label: { Image(systemName: "xmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(.white, .black.opacity(0.7)).frame(minWidth: 44, minHeight: 44) }
                                     .buttonStyle(.plain).offset(x: 5, y: -5).accessibilityLabel("Take this photo out")
                             }
                         }
@@ -309,9 +314,9 @@ private struct SafeZones: View {
     var body: some View {
         GeometryReader { g in
             VStack(spacing: 0) {
-                Rectangle().fill(Color.blue.opacity(0.15)).frame(height: g.size.height * top)
+                Rectangle().fill(Theme.accent.opacity(0.15)).frame(height: g.size.height * top)
                 Spacer(minLength: 0)
-                Rectangle().fill(Color.blue.opacity(0.15)).frame(height: g.size.height * bottom)
+                Rectangle().fill(Theme.accent.opacity(0.15)).frame(height: g.size.height * bottom)
             }
         }.allowsHitTesting(false).accessibilityHidden(true)
     }

@@ -18,7 +18,6 @@ struct StudioBoardCanvas: View {
     var cropping: String?
     /// A layer's picture size in pixels, for the maths of moving the photo inside the frame.
     var naturalSize: (MarketingValue) -> CGSize? = { _ in nil }
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var start: [MarketingValue]?
     @State private var startBox: CGRect = .zero
     @State private var live: CGRect?
@@ -49,6 +48,8 @@ struct StudioBoardCanvas: View {
                     }
                 }
                 ForEach(guides, id: \.self) { guide in
+                    // A guide laid over any photograph must stand out from it, so it keeps the one hue the shop's pictures and
+                    // accent never use (the designer's snapped line is the same pink).
                     Rectangle().fill(Color.pink)
                         .frame(width: guide.vertical ? 1 : g.size.width, height: guide.vertical ? g.size.height : 1)
                         .offset(x: guide.vertical ? guide.at * scale : 0, y: guide.vertical ? 0 : guide.at * scale)
@@ -56,7 +57,9 @@ struct StudioBoardCanvas: View {
                 }
             }
             .coordinateSpace(.named("board-canvas"))
-            .animation(reduceMotion ? nil : .snappy(duration: 0.18), value: selected)
+            .motion(selected)
+            // A tick when a drag meets a guide (the state is the guides themselves, set as the snap engages).
+            .sensoryFeedback(.alignment, trigger: guides) { old, new in !new.isEmpty && new != old }
         }
         .aspectRatio(frameSize.width / max(1, frameSize.height), contentMode: .fit)
         .accessibilityElement(children: .contain)
@@ -75,7 +78,7 @@ struct StudioBoardCanvas: View {
         let id = l.s("id"), chosen = id == selected, locked = l["locked"].bool
         let w = max(24, rect.width * scale), h = max(24, rect.height * scale)
         let angle = chosen ? (liveAngle ?? l.n("rotate")) : l.n("rotate")
-        Rectangle().fill(Color.white.opacity(0.001))
+        Rectangle().fill(Color.clear).contentShape(Rectangle())
             .overlay {
                 if chosen && cropping == id { Rectangle().fill(Theme.accent.opacity(0.14)) }
                 if chosen {

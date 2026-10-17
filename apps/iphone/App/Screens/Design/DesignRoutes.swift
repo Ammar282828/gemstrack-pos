@@ -56,11 +56,12 @@ struct DesignScreen: View {
         .toolbar {
             // The web page's sections are all here (Make, Photos, Board, Saved, and the workspace's Resize, Publish and AI
             // tools), so there is no ERP page to fall back on; the menu is the open design's.
-            if workspace.isOpen {
+            if workspace.isOpen && current == .make {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         // PHASE 2: DesignHooks.resize.
                         Button { go(.make); DesignHooks.shared.resize(workspace) } label: { Label("Resize…", systemImage: "arrow.up.left.and.arrow.down.right") }
+                        Divider()
                         Button { Task { await workspace.close(); await shelf.loadDrafts(); go(.make) } } label: { Label("Close this design", systemImage: "xmark") }
                     } label: { Label("More", systemImage: "ellipsis") }
                 }
@@ -104,7 +105,7 @@ struct DesignScreen: View {
         HStack(spacing: 10) {
             Text("“\(workspace.work?.displayName ?? "")” is open.").font(.subheadline).lineLimit(1)
             Spacer(minLength: 0)
-            Button("Back to it") { go(.make) }.buttonStyle(.glass)
+            Button("Back to it") { go(.make) }.buttonStyle(.bordered)
         }
         .ledgerCard().padding(.horizontal, 16).padding(.bottom, 8)
     }

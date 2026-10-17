@@ -280,6 +280,8 @@ struct DesignLayerReviewCard: View {
     @Binding var keep: Set<String>
     let onCancel: () -> Void
     let onStart: () -> Void
+    /// The sheet pins "Start a design from this" in its action bar; inline (Smart) the card carries its own buttons.
+    var showsActions = true
 
     var body: some View {
         SectionCard("Rebuilt as layers") {
@@ -294,10 +296,12 @@ struct DesignLayerReviewCard: View {
                 }.tint(Theme.accent)
             }
             ForEach(plan["notes"].array.map(\.string), id: \.self) { Text($0).font(.footnote).foregroundStyle(.secondary) }
-            HStack {
-                Button("Cancel", action: onCancel).buttonStyle(.glass)
-                Button(action: onStart) { Label("Start a design from this", systemImage: "square.3.layers.3d").frame(maxWidth: .infinity) }
-                    .buttonStyle(.houseProminent)
+            if showsActions {
+                HStack {
+                    Button("Cancel", action: onCancel).buttonStyle(.bordered)
+                    Button(action: onStart) { Label("Start a design from this", systemImage: "square.3.layers.3d").frame(maxWidth: .infinity) }
+                        .buttonStyle(.bordered).tint(Theme.accent)
+                }
             }
         }
     }
@@ -314,15 +318,15 @@ struct DesignLayersSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                DesignLayerReviewCard(plan: plan, keep: $keep, onCancel: { dismiss() }, onStart: start)
+                DesignLayerReviewCard(plan: plan, keep: $keep, onCancel: { dismiss() }, onStart: start, showsActions: false)
                     .padding(.horizontal, 16).padding(.vertical, 12)
             }
             .modifier(HouseGround())
             .navigationTitle("Layers").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .actionBar(primary: .init("Start a design from this", systemImage: "square.3.layers.3d", isDisabled: keep.isEmpty, action: start))
             .onAppear { keep = Set(plan["layers"].array.map { $0.s("id") }) }
         }
-        .presentationDetents([.large])
     }
 
     private func start() {
@@ -350,6 +354,7 @@ struct DesignAITools: View {
                     .font(.footnote).foregroundStyle(ok ? Tone.settled.color : Tone.owed.color)
             }
             let off = model.aiBusy != nil || model.photos["photo"] == nil
+            if model.photos["photo"] == nil { Text("Add a photograph first.").font(.footnote).foregroundStyle(.secondary) }
             VStack(spacing: 8) {
                 tool("Enhance: clean, colour, sparkle", "sparkles", off) { Task { await model.photoTool(.enhance) } }
                 tool("Logo and labels off", "eraser", off) { Task { await model.photoTool(.clean) } }
@@ -364,7 +369,7 @@ struct DesignAITools: View {
                 }
                 if model.canUndoPhoto {
                     Button { model.undoPhoto() } label: { Label("Back to the photo before", systemImage: "arrow.uturn.backward").frame(maxWidth: .infinity, alignment: .leading) }
-                        .buttonStyle(.plain).disabled(model.aiBusy != nil).font(.subheadline)
+                        .buttonStyle(.borderless).disabled(model.aiBusy != nil).font(.subheadline)
                 }
             }
             Toggle("Also remove tags and strings", isOn: Binding(get: { model.tidy }, set: { model.setTidy($0) })).font(.footnote).tint(Theme.accent)
@@ -381,7 +386,7 @@ struct DesignAITools: View {
         Button(action: action) {
             Label(title, systemImage: symbol).font(.subheadline).frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 36)
         }
-        .buttonStyle(.glass).disabled(off)
+        .buttonStyle(.bordered).disabled(off)
     }
 }
 
@@ -408,11 +413,11 @@ struct DesignCandidateBanner: View {
                 }
                 HStack(spacing: 10) {
                     if same == false || same == nil {
-                        Button("Use it anyway") { model.useCandidate() }.buttonStyle(.glass)
+                        Button("Use it anyway") { model.useCandidate() }.buttonStyle(.bordered)
                     } else {
-                        Button("Use it") { model.useCandidate() }.buttonStyle(.houseProminent)
+                        Button("Use it") { model.useCandidate() }.buttonStyle(.bordered).tint(Theme.accent)
                     }
-                    Button("Discard") { model.candidate = nil }.buttonStyle(.glass)
+                    Button("Discard") { model.candidate = nil }.buttonStyle(.bordered)
                 }
             }
             .ledgerCard()
@@ -462,6 +467,7 @@ struct DesignSettingSheet: View {
                                 if sceneId == s.s("id") && custom.isEmpty { Image(systemName: "checkmark").foregroundStyle(Theme.accent) }
                             }
                         }
+                        .accessibilityAddTraits(sceneId == s.s("id") && custom.isEmpty ? .isSelected : [])
                     }
                 }
                 Section("Or say it") {
@@ -470,17 +476,15 @@ struct DesignSettingSheet: View {
                 Section("Shape") {
                     Picker("Shape", selection: $shape) { ForEach(shapes, id: \.self) { Text(Self.shapeName($0)).tag($0) } }.pickerStyle(.segmented)
                 }
-                Section {
-                    Button { go() } label: { Label("Photograph it", systemImage: "photo.artframe").frame(maxWidth: .infinity) }
-                        .buttonStyle(.houseProminent).disabled(sceneId.isEmpty && custom.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
             }
             .houseForm()
-            .navigationTitle("Put it somewhere new").navigationBarTitleDisplayMode(.inline)
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle("New setting").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .actionBar(primary: .init("Photograph it", systemImage: "photo.artframe", isDisabled: sceneId.isEmpty && custom.trimmingCharacters(in: .whitespaces).isEmpty, action: go))
             .onAppear { if shape.isEmpty { shape = own }; if sceneId.isEmpty { sceneId = scenes.first?.s("id") ?? "" } }
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
     }
 
     private func go() {
@@ -515,16 +519,14 @@ struct DesignAskSheet: View {
                         Text("Same shape").tag("same"); Text("Story 9:16").tag("9:16"); Text("Portrait 4:5").tag("4:5"); Text("Square").tag("1:1")
                     }.pickerStyle(.segmented)
                 }
-                Section {
-                    Button { go() } label: { Label("Do it", systemImage: "text.bubble").frame(maxWidth: .infinity) }
-                        .buttonStyle(.houseProminent).disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
             }
             .houseForm()
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Ask AI").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .actionBar(primary: .init("Do it", systemImage: "text.bubble", isDisabled: text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, action: go))
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
     }
 
     private func go() {
@@ -549,14 +551,12 @@ struct DesignMakeAdSheet: View {
                 } footer: {
                     Text("Lays the ad out from the photograph and its details: the layout, the words on the picture and the ad’s own text and headline, on every size. The photo is extended to the shape if it needs it. Then you look at it.")
                 }
-                Section {
-                    Button { go() } label: { Label("Make it", systemImage: "wand.and.rays").frame(maxWidth: .infinity) }
-                        .buttonStyle(.houseProminent)
-                }
             }
             .houseForm()
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Make the ad with AI").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .actionBar(primary: .init("Make it", systemImage: "wand.and.rays", action: go))
         }
         .presentationDetents([.medium, .large])
     }

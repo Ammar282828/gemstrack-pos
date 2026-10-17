@@ -56,9 +56,9 @@ struct DesignSitePieces: View {
                     FilterChip(title: "Everything", chosen: showing.isEmpty) { collection = "" }
                     ForEach(collections, id: \.self) { c in FilterChip(title: c, chosen: showing == c) { collection = c } }
                 }
-                if let error { Text(error).foregroundStyle(Tone.problem.color).padding(.horizontal, 16) }
+                if let error { ErrorState(error) { Task { await load() } } }
                 else if !loaded { SkeletonLoading("Reading the website").padding(.horizontal, 16) }
-                else if filtered.isEmpty { NotAvailableState("No pieces", why: "Nothing on the website matches.", symbol: "globe") }
+                else if filtered.isEmpty { EmptyState("No pieces", symbol: "globe", message: "Nothing on the website matches.") }
                 else {
                     Text("\(filtered.count) of \(pieces.count) pieces. Tap one to design it.").font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 10)], spacing: 10) {
@@ -72,7 +72,7 @@ struct DesignSitePieces: View {
             }
             .padding(.vertical, 8)
         }
-        .searchable(text: $q, prompt: "Search: ruby, kara, jhumka…")
+        .searchable(text: $q, prompt: "Ruby, kara, jhumka")
         .onChange(of: q) { _, _ in shown = 60 }
         .onChange(of: collection) { _, _ in shown = 60 }
         .task { await load() }
@@ -128,9 +128,9 @@ struct DesignLibraryPhotos: View {
                 Picker("Placement", selection: $placement) {
                     Text("Feed 4:5").tag("portrait"); Text("Feed 1:1").tag("square"); Text("Stories 9:16").tag("story")
                 }.pickerStyle(.segmented).padding(.horizontal, 16)
-                if let error { Text(error).foregroundStyle(Tone.problem.color).padding(.horizontal, 16) }
+                if let error { ErrorState(error) { Task { await load(more: false) } } }
                 else if !loaded { SkeletonLoading("Loading the photos").padding(.horizontal, 16) }
-                else if rows.isEmpty { NotAvailableState("No photos", why: "No photos match.", symbol: "photo") }
+                else if rows.isEmpty { EmptyState("No photos", symbol: "photo", message: "No photos match.") }
                 else {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 10)], spacing: 10) {
                         ForEach(rows, id: \.text) { item in

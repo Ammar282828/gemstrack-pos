@@ -61,6 +61,8 @@ struct StudioBoardEditor: View {
     @State private var panelShown = false
     @State private var ready = false
     @State private var problem: String?
+    /// The design could not be opened at all: the canvas says so (and offers to try again) once the alert is gone.
+    @State private var loadFailed = false
     @State private var busy: String?
     @State private var asking = false
     @State private var picking: Target?
@@ -123,29 +125,36 @@ struct StudioBoardEditor: View {
                 .navigationTitle(design.label.isEmpty ? "Design" : design.label)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
+                    // Done saves and closes, so it is the confirmation on the trailing side (it was Cancel's place).
+                    ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { Task { await finish() } }.disabled(busy != nil)
                     }
+                    ToolbarItem(placement: .primaryAction) { saveMark }
                     ToolbarItemGroup(placement: .primaryAction) {
-                        saveMark
-                        Button { Task { await go(by: -1) } } label: { Label("Previous design", systemImage: "chevron.left") }
-                            .disabled(!ready || (place ?? 0) == 0)
-                        Button { Task { await go(by: 1) } } label: { Label("Next design", systemImage: "chevron.right") }
-                            .disabled(!ready || (place ?? order.count) >= order.count - 1)
-                        if sizes.count > 1 {
-                            Menu {
-                                ForEach(sizes.map { (f: MarketingValue) in f.s("id") }, id: \.self) { (sid: String) in
-                                    let f = board.frame(sid) ?? .null
-                                    Button { Task { await open(sid) } } label: {
-                                        Label(board.formatInfo(f.s("format", "portrait")).s("label", f.s("format")),
-                                              systemImage: f.s("id") == openID ? "checkmark" : "rectangle")
-                                    }
-                                }
-                            } label: { Label("Sizes", systemImage: "rectangle.on.rectangle") }
-                        }
                         Button { history(true) } label: { Label("Undo", systemImage: "arrow.uturn.backward") }.disabled(undo.isEmpty).keyboardShortcut("z", modifiers: .command)
                         Button { history(false) } label: { Label("Redo", systemImage: "arrow.uturn.forward") }.disabled(redo.isEmpty).keyboardShortcut("z", modifiers: [.command, .shift])
-                        Button { shareDesign() } label: { Label("Share", systemImage: "square.and.arrow.up") }.disabled(!ready || NativeArtwork.image(response) == nil)
+                    }
+                    // Moving between designs, the other sizes and Share live in one menu, so undo and redo stay in sight.
+                    ToolbarItem(placement: .primaryAction) {
+                        Menu {
+                            Button { Task { await go(by: -1) } } label: { Label("Previous design", systemImage: "chevron.left") }
+                                .disabled(!ready || (place ?? 0) == 0)
+                            Button { Task { await go(by: 1) } } label: { Label("Next design", systemImage: "chevron.right") }
+                                .disabled(!ready || (place ?? order.count) >= order.count - 1)
+                            if sizes.count > 1 {
+                                Menu {
+                                    ForEach(sizes.map { (f: MarketingValue) in f.s("id") }, id: \.self) { (sid: String) in
+                                        let f = board.frame(sid) ?? .null
+                                        Button { Task { await open(sid) } } label: {
+                                            Label(board.formatInfo(f.s("format", "portrait")).s("label", f.s("format")),
+                                                  systemImage: f.s("id") == openID ? "checkmark" : "rectangle")
+                                        }
+                                    }
+                                } label: { Label("Sizes", systemImage: "rectangle.on.rectangle") }
+                            }
+                            Divider()
+                            Button { shareDesign() } label: { Label("Share", systemImage: "square.and.arrow.up") }.disabled(!ready || NativeArtwork.image(response) == nil)
+                        } label: { Label("More", systemImage: "ellipsis") }
                     }
                 }
                 .sheet(isPresented: Binding(get: { panelShown && !regular }, set: { panelShown = $0 })) {
@@ -153,6 +162,8 @@ struct StudioBoardEditor: View {
                         presenting(panel, active: true)
                             .navigationTitle(tab.title).navigationBarTitleDisplayMode(.inline)
                             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { typing = false; panelShown = false } } }
+                            // Over the panel sheet an alert on the screen behind would not show: it speaks from here while the panel is up.
+                            .failureAlert($problem, title: "Could not finish")
                     }
                     .presentationDetents([.fraction(0.45), .large])
                     .presentationBackgroundInteraction(.enabled(upThrough: .fraction(0.45)))
@@ -160,6 +171,8 @@ struct StudioBoardEditor: View {
                 }
         }
         .presentationSizing(.page)
+        .failureAlert(Binding(get: { panelShown && !regular ? nil : problem }, set: { problem = $0 }), title: "Could not finish")
+        .refusedFeedback(trigger: problem)
         .interactiveDismissDisabled(dirty || saving || busy != nil)
         .websiteBusy(busy)
         .task { await load() }
@@ -168,6 +181,7 @@ struct StudioBoardEditor: View {
         .sensoryFeedback(.impact(weight: .light), trigger: addedTick)
         .sensoryFeedback(.impact(weight: .medium), trigger: removedTick)
         .sensoryFeedback(.success, trigger: savedTick)
+        .selectionFeedback(trigger: tab)
         .onChange(of: device) { _, item in if let item { Task { await take(item) } } }
         .onChange(of: selected) { _, id in
             if id != cropping { cropping = nil }
@@ -199,7 +213,6 @@ struct StudioBoardEditor: View {
     private var canvasArea: some View {
         VStack(spacing: 8) {
             if House.isDemo { Label(demoNote, systemImage: "info.circle").font(.footnote).foregroundStyle(.secondary).padding(.horizontal) }
-            if let problem { Label(problem, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Tone.owed.color).padding(.horizontal) }
             if ready {
                 StudioBoardCanvas(image: NativeArtwork.image(response), boxes: response["boxes"].array, layers: layers, frameSize: frameSize, selected: $selected,
                                   changed: { design.doc["layers"] = .array($0) },
@@ -211,10 +224,10 @@ struct StudioBoardEditor: View {
                     .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
                     .padding(regular ? 28 : 14)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if problem == nil {
-                SkeletonLoading("Opening the design").frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if loadFailed {
+                ErrorState("This design couldn’t be opened.") { loadFailed = false; Task { await load() } }
             } else {
-                Spacer()
+                SkeletonLoading("Opening the design").frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .background { shortcuts }
@@ -271,7 +284,7 @@ struct StudioBoardEditor: View {
     }
 
     private func quick(_ title: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) { Image(systemName: symbol).frame(width: 44, height: 36) }
+        Button(action: action) { Image(systemName: symbol).frame(width: 44, height: 44) }
             .buttonStyle(.plain).accessibilityLabel(title)
     }
 
@@ -1031,7 +1044,7 @@ struct StudioBoardEditor: View {
 
     private func load() async {
         let f = frame
-        guard f != .null else { problem = "This design is no longer on the board."; return }
+        guard f != .null else { problem = "This design is no longer on the board."; loadFailed = true; return }
         var d = Design(doc: .null, fields: board.fields(f), template: f.s("template", "headline"), label: f.s("label"), asset: f.s("assetId"), marked: f["marked"].bool)
         do {
             let set = try await board.photoSet(f)
@@ -1039,7 +1052,7 @@ struct StudioBoardEditor: View {
             d.doc = f["doc"] != .null ? f["doc"] : try await board.layOut(f, photos: set)
         } catch {
             problem = error.localizedDescription
-            guard f["doc"] != .null else { return }
+            guard f["doc"] != .null else { loadFailed = true; return }
             d.doc = f["doc"]
         }
         design = d; initial = d; ready = true
