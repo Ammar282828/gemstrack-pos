@@ -50,9 +50,7 @@ struct Dashboard: View {
         .task { await keepTime() }
         // The count itself is polled once for the whole app (RootView); coming here asks again at once.
         .task { await askOnline() }
-        .sheet(isPresented: $rateSheet) {
-            if session.isOwner { RateSheet() } else { RateReadout() }
-        }
+        .sheet(isPresented: $rateSheet) { RateSheetHost() }
         .sheet(isPresented: $noteSheet) { TeamNoteEditor() }
         .toolbar {
             if session.isOwner {
@@ -147,7 +145,6 @@ struct Dashboard: View {
             .frame(maxWidth: wide ? 1240 : .infinity)
             .frame(maxWidth: .infinity)
         }
-        .background(Theme.ground.ignoresSafeArea())
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
 
@@ -208,10 +205,11 @@ struct Dashboard: View {
     }
 
     private func stats(_ f: DashFigures) -> some View {
-        DisclosureGroup("Shop overview") {
+        DisclosureGroup {
             VStack(spacing: 10) { statCards(f) }.padding(.top, 12)
+        } label: {
+            Text("Shop overview").font(.subheadline.weight(.semibold))
         }
-        .font(.subheadline.weight(.semibold))
         .ledgerCard()
     }
 
@@ -266,6 +264,7 @@ struct Dashboard: View {
             .dashRowsCard()
             if needs.count > 3 { reveal($allNeeds, count: needs.count - 3) }
         }
+        .motion(allNeeds)
     }
 
     private func dueSection(_ f: DashFigures) -> some View {
@@ -281,6 +280,7 @@ struct Dashboard: View {
             .dashRowsCard()
             if f.due.count > 3 { reveal($allDue, count: f.due.count - 3) }
         }
+        .motion(allDue)
     }
 
     private func salesSection(_ f: DashFigures) -> some View {
@@ -296,6 +296,7 @@ struct Dashboard: View {
             .dashRowsCard()
             if f.recentInvoices.count > 3 { reveal($allSales, count: f.recentInvoices.count - 3) }
         }
+        .motion(allSales)
     }
 
     private func reveal(_ expanded: Binding<Bool>, count: Int) -> some View {
@@ -307,11 +308,14 @@ struct Dashboard: View {
 
     private func monthSection(_ f: DashFigures) -> some View {
         let path: String? = session.isOwner ? "/analytics" : nil
-        return DisclosureGroup("This month") {
+        return DisclosureGroup {
             linked(path) {
                 DashMonthCard(figures: f, showCosts: session.isOwner, linked: path != nil)
             }.padding(.top, 12)
-        }.font(.subheadline.weight(.semibold)).ledgerCard()
+        } label: {
+            Text("This month").font(.subheadline.weight(.semibold))
+        }
+        .ledgerCard()
     }
 
     // MARK: Time and the server

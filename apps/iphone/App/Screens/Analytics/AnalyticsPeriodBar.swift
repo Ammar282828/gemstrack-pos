@@ -1,7 +1,7 @@
 import SwiftUI
 import ERPCore
 
-/// A filter chip: glass, with the chosen one prominent.
+/// A filter chip: the accent filled when chosen, a quiet capsule otherwise (content, not glass).
 struct AnaChip: View {
     let title: String
     let selected: Bool
@@ -19,14 +19,10 @@ struct AnaSortChips: View {
     let pick: (Int) -> Void
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(0..<titles.count, id: \.self) { (i: Int) in
-                    AnaChip(title: titles[i], selected: i == selected) { pick(i) }
-                }
+        ChipRow {
+            ForEach(0..<titles.count, id: \.self) { (i: Int) in
+                AnaChip(title: titles[i], selected: i == selected) { pick(i) }
             }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
         }
     }
 }
@@ -43,24 +39,21 @@ struct AnaPeriodBar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(AnaPeriod.quick) { (q: AnaPeriod.Quick) in
-                        AnaChip(title: q.label, selected: state.key == q.key) { key = q.key }
-                    }
-                    // A year picked from the Yearly table has no quick chip of its own.
-                    if let year = AnaPeriod.year(state.key) {
-                        AnaChip(title: String(year), selected: true) { }
-                    }
-                    AnaChip(title: customTitle, selected: state.key == "custom") { choosing = true }
+            ChipRow {
+                ForEach(AnaPeriod.quick) { (q: AnaPeriod.Quick) in
+                    AnaChip(title: q.label, selected: state.key == q.key) { key = q.key }
                 }
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
+                // A year picked from the Yearly table has no quick chip of its own; it shows, but there is nothing to press.
+                if let year = AnaPeriod.year(state.key) {
+                    AnaChip(title: String(year), selected: true) { }
+                        .allowsHitTesting(false)
+                }
+                AnaChip(title: customTitle, selected: state.key == "custom") { choosing = true }
             }
             Text(AnaPeriod.describe(state.range))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 16)
         }
         .sheet(isPresented: $choosing) {
             AnaCustomPeriod(start: state.range?.from ?? AnaDate.adding(days: -29, to: Date()),
@@ -100,7 +93,7 @@ struct AnaCustomPeriod: View {
                 DatePicker("To", selection: $end, in: start..., displayedComponents: .date)
             }.houseRows()
             }
-            .modifier(HouseGround())
+            .houseForm()
             .environment(\.calendar, AnaDate.karachi)
             .environment(\.timeZone, ERPDate.karachi)
             .onChange(of: start) { _, newStart in
@@ -113,13 +106,13 @@ struct AnaCustomPeriod: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Show") {
+                    Button("Apply") {
                         apply(start, end)
                         dismiss()
                     }
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 }

@@ -17,6 +17,9 @@ struct CalendarScreen: View {
     /// The day chosen, "yyyy-MM-dd"; today to start with.
     @State private var selected = CalendarScreen.todayKey()
     @State private var reckoned = Memo<Reckoned>()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// A day cell's height grows with the reader's text.
+    @ScaledMetric(relativeTo: .caption) private var cellHeight: CGFloat = 60
 
     private struct Reckoned {
         let days: [String: ShopCalendarDay]
@@ -43,11 +46,16 @@ struct CalendarScreen: View {
             }
         }
         .navigationTitle("Calendar")
+        .hubTitleDisplay()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Today") { goToday() }
+                    .disabled(selected == CalendarScreen.todayKey())
             }
         }
+        // A light tick as the month or the day changes.
+        .selectionFeedback(trigger: selected)
+        .selectionFeedback(trigger: year * 100 + month)
         .onAppear {
             guard session.role == "owner" || session.role == "staff" else { return }
             book.orders.need()
@@ -57,15 +65,19 @@ struct CalendarScreen: View {
 
     private func goToday() {
         let t = ShopCalendar.today()
-        year = t.year
-        month = t.month
-        selected = ShopCalendar.dayKey(year: t.year, month: t.month, day: t.day)
+        Motion.run(reduce: reduceMotion) {
+            year = t.year
+            month = t.month
+            selected = ShopCalendar.dayKey(year: t.year, month: t.month, day: t.day)
+        }
     }
 
     private func step(_ delta: Int) {
         let next = ShopCalendar.step(year: year, month: month, by: delta)
-        year = next.year
-        month = next.month
+        Motion.run(reduce: reduceMotion) {
+            year = next.year
+            month = next.month
+        }
     }
 
     // MARK: The page
@@ -106,7 +118,7 @@ struct CalendarScreen: View {
             }
             FigureRow(alignment: .top, spacing: 10) {
                 FigureTile(label: "Orders", value: "\(m.orders)")
-                FigureTile(label: "Avg. trading day", value: m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "—")
+                FigureTile(label: "Average trading day", value: m.perTradingDay > 0 ? Money.pkrLac(m.perTradingDay) : "—")
             }
         }
         .padding(.vertical, 4)
@@ -130,30 +142,38 @@ struct CalendarScreen: View {
         let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
         return VStack(spacing: 8) {
             HStack {
-                Button { step(-1) } label: { Image(systemName: "chevron.left").frame(width: 36, height: 32) }
+                Button { step(-1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Previous month")
                 Spacer()
                 Text(ShopCalendar.title(year: year, month: month)).font(.headline)
+                    .contentTransition(.numericText())
                 Spacer()
-                Button { step(1) } label: { Image(systemName: "chevron.right").frame(width: 36, height: 32) }
+                Button { step(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Next month")
             }
             LazyVGrid(columns: columns, spacing: 4) {
-                ForEach(Array(["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].enumerated()), id: \.offset) { _, name in
+                ForEach(["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"], id: \.self) { (name: String) in
                     Text(name).font(.caption2).foregroundStyle(.secondary)
                 }
-                ForEach(Array(cells.enumerated()), id: \.offset) { _, day in
-                    if let day {
+                // A day is its own number; a blank before the 1st is told by its place, which never changes for a month.
+                ForEach(cells.enumerated().map { (e: EnumeratedSequence<[Int?]>.Element) in CalendarCell(id: e.element.map { "d\($0)" } ?? "b\(e.offset)", day: e.element) }) { (cell: CalendarCell) in
+                    if let day = cell.day {
                         dayCell(day, books: books, today: today)
                     } else {
-                        Color.clear.frame(height: 60)
+                        Color.clear.frame(height: cellHeight)
                     }
                 }
             }
         }
         .padding(.vertical, 4)
+        .motion(year * 100 + month)
+    }
+
+    private struct CalendarCell: Identifiable {
+        let id: String
+        let day: Int?
     }
 
     private func dayCell(_ day: Int, books: Reckoned, today: String) -> some View {
@@ -162,7 +182,7 @@ struct CalendarScreen: View {
         let due = books.due[key] ?? 0
         let isSelected = key == selected
         let isToday = key == today
-        return Button { selected = key } label: {
+        return Button { Motion.run(reduce: reduceMotion) { selected = key } } label: {
             VStack(spacing: 1) {
                 Text("\(day)")
                     .font(.caption.weight(isToday ? .bold : .medium))
@@ -185,13 +205,13 @@ struct CalendarScreen: View {
                             Image(systemName: "calendar.badge.clock")
                             Text("\(due)")
                         }
-                        .font(.system(size: 9))
+                        .font(.caption2)
                         .foregroundStyle(Tone.owed.color)
                     }
                 }
                 .frame(minHeight: 12)
             }
-            .frame(maxWidth: .infinity, minHeight: 60)
+            .frame(maxWidth: .infinity, minHeight: cellHeight)
             .background(isSelected ? Theme.accent.opacity(0.16) : Color.clear, in: .rect(cornerRadius: Radius.thumb, style: .continuous))
             .overlay {
                 if isToday { RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous).strokeBorder(Theme.accent, lineWidth: 1.5) }
@@ -205,7 +225,7 @@ struct CalendarScreen: View {
     private func count(_ n: Int, color: Color) -> some View {
         HStack(spacing: 2) {
             Circle().fill(color).frame(width: 5, height: 5)
-            Text("\(n)").font(.system(size: 9)).foregroundStyle(color)
+            Text("\(n)").font(.caption2).foregroundStyle(color)
         }
     }
 
@@ -248,12 +268,13 @@ struct CalendarScreen: View {
                     Text(e.docId).font(.subheadline.monospaced().weight(.semibold)).lineLimit(1)
                     Text(e.customerName.isEmpty ? "Walk-in" : e.customerName)
                         .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                    Text(ShopCalendar.clock(iso: e.createdAt)).font(.caption).foregroundStyle(.tertiary)
+                    Text(ShopCalendar.clock(iso: e.createdAt)).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
-                Text(Money.pkr(e.grandTotal)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                RowAmount(amount: e.grandTotal)
             }
         }
+        .zoomSource(id: path)
     }
 
     /// The pieces promised for the day chosen (the promise layer on its own: it never touches the money above).
@@ -276,6 +297,7 @@ struct CalendarScreen: View {
                             if o.status != .completed { StatusBadge(order: o.status) }
                         }
                     }
+                    .zoomSource(id: WorkPaths.order(o.id))
                 }
             } header: {
                 LedgerHeading(title: "Promised for this day")

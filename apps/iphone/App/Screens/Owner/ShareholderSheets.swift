@@ -73,7 +73,7 @@ struct ShareholderEntrySheet: View {
     let move: ShareholderMove
     /// What each partner has had in salary, for the line that says paying one evens the two up.
     let salaryPaid: [String: Double]
-    let onSaved: (OwnerNote) -> Void
+    let onSaved: (Note) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var who: String
@@ -83,8 +83,10 @@ struct ShareholderEntrySheet: View {
     @State private var what = ""
     @State private var saving = false
     @State private var error: String?
+    /// Bumped on each saved write, so the money tap fires on the event, never per keystroke.
+    @State private var savedCount = 0
 
-    init(ask: ShareholderAsk, salaryPaid: [String: Double], onSaved: @escaping (OwnerNote) -> Void) {
+    init(ask: ShareholderAsk, salaryPaid: [String: Double], onSaved: @escaping (Note) -> Void) {
         move = ask.move
         self.salaryPaid = salaryPaid
         self.onSaved = onSaved
@@ -112,7 +114,9 @@ struct ShareholderEntrySheet: View {
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }
+                    // The day is worked out in Karachi, so the picker shows Karachi's too.
                     DatePicker("Date", selection: $date, displayedComponents: .date)
+                        .environment(\.timeZone, ERPDate.karachi)
                 }
                 if move != .salary {
                     Section {
@@ -131,12 +135,14 @@ struct ShareholderEntrySheet: View {
                 } footer: {
                     if let evens = evensUp { Text(evens) }
                 }
-                if let error {
-                    Section { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color) }
-                }
                 }
                 .houseRows()
             }
+            .houseForm()
+            .failureAlert($error, title: "Not saved")
+            .moneyFeedback(success: savedCount, failure: error)
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
             .navigationTitle(move.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -145,12 +151,12 @@ struct ShareholderEntrySheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(move.action) { Task { await save() } }
-                        .disabled(saving)
+                        .disabled(saving || cleaned.isEmpty || amount <= 0)
                 }
             }
         }
-        .presentationDetents([.large])
-        .interactiveDismissDisabled(saving)
+        .presentationDetents([.medium, .large])
+        .interactiveDismissDisabled(saving || amount > 0 || !cleaned.isEmpty)
     }
 
     private var categoryHint: String {
@@ -198,7 +204,7 @@ struct ShareholderEntrySheet: View {
                     "paidBy": "business",
                     "shareholderId": person.id,
                 ])
-                onSaved(OwnerNote(title: "\(person.name) paid \(ShareholderMoney.fmt(amount))", detail: "Recorded as a salary expense."))
+                onSaved(Note(title: "\(person.name) paid \(ShareholderMoney.fmt(amount))", detail: "Recorded as a salary expense."))
             case .contribution, .withdrawal:
                 _ = try await ERPAPI.shared.write("addShareholderEntry", [
                     "shareholderId": person.id,
@@ -209,12 +215,13 @@ struct ShareholderEntrySheet: View {
                     "date": day,
                 ])
                 if move == .contribution {
-                    onSaved(OwnerNote(title: "\(person.name)'s contribution recorded", detail: ShareholderMoney.fmt(amount)))
+                    onSaved(Note(title: "\(person.name)'s contribution recorded", detail: ShareholderMoney.fmt(amount)))
                 } else {
-                    onSaved(OwnerNote(title: "\(person.name) took \(ShareholderMoney.fmt(amount))", detail: "Logged as a Partner Drawings expense too."))
+                    onSaved(Note(title: "\(person.name) took \(ShareholderMoney.fmt(amount))", detail: "Logged as a Partner Drawings expense too."))
                 }
             }
             saving = false
+            savedCount += 1
             dismiss()
         } catch {
             self.error = error.localizedDescription

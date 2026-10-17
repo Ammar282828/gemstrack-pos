@@ -27,7 +27,10 @@ private struct RecentlyRemovedList: View {
 
     @State private var busy: String?
     @State private var failure: String?
-    @State private var note: OwnerNote?
+    @State private var note: Note?
+    @State private var confirmingEmpty = false
+    /// Bumped on each put-back, so the success tap fires on the event.
+    @State private var restoredCount = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var deletion: OwnerDeletion?
     @State private var history = Memo<[String: RecentlyRemoved.History]>()
@@ -42,12 +45,18 @@ private struct RecentlyRemovedList: View {
             content
         }
         .navigationTitle("Recently removed")
-        .navigationBarTitleDisplayMode(.inline)
+        .hubTitleDisplay()
         .failureAlert($failure, title: "Could not do that")
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {}
         }
         .noteToast($note)
+        .savedFeedback(trigger: restoredCount)
+        .confirmDestructive(isPresented: $confirmingEmpty, title: "Empty Recently removed?",
+                            message: "Everyone listed here is deleted for good. The delete code is asked next.",
+                            action: "Continue") {
+            askToEmpty(removedCustomers, removedKarigars, reckon())
+        }
         .task {
             book.customers.need()
             book.karigars.need()
@@ -71,12 +80,7 @@ private struct RecentlyRemovedList: View {
         let h = reckon()
         List {
             Group {
-                if customers.isEmpty && karigars.isEmpty {
-                    Section {
-                        NotAvailableState("Nobody has been removed", why: "Nothing here has been destroyed. Their history is exactly where they left it.",
-                                          symbol: "arrow.uturn.backward")
-                    }
-                } else {
+                if !(customers.isEmpty && karigars.isEmpty) {
                     summarySection(customers, karigars, h)
                     if !customers.isEmpty {
                         LedgerSection("Customers") {
@@ -92,12 +96,23 @@ private struct RecentlyRemovedList: View {
                             }
                         }
                     }
+                    emptySection
                 }
             }
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .motion(customers.count + karigars.count)
+        .overlay {
+            if customers.isEmpty && karigars.isEmpty {
+                NotAvailableState("Nobody has been removed", why: "Their history is exactly where they left it.",
+                                  symbol: "arrow.uturn.backward")
+            }
+        }
     }
+
+    /// "1 customer", "2 customers".
+    private func plural(_ n: Int, _ noun: String) -> String { "\(n) \(noun)\(n == 1 ? "" : "s")" }
 
     private func summarySection(_ customers: [Customer], _ karigars: [Karigar], _ h: [String: RecentlyRemoved.History]) -> some View {
         let total = customers.count + karigars.count
@@ -111,22 +126,30 @@ private struct RecentlyRemovedList: View {
                 }
             }
             .disabled(busy != nil)
-            // The sheet says what goes and what it orphans before it takes the code (the page's "Empty Recently removed?").
-            Button(role: .destructive) { askToEmpty(customers, karigars, h) } label: {
+        } header: {
+            LedgerHeading(title: "\(total) removed")
+        } footer: {
+            Text("\(plural(customers.count, "customer")), \(plural(karigars.count, "karigar")). Nothing here has been destroyed. Their history is exactly where they left it.")
+        }
+    }
+
+    /// Emptying is the one thing that destroys a record: alone in the last section, away from Put everything back.
+    /// It asks first, then the sheet says what goes and what it orphans before it takes the code.
+    private var emptySection: some View {
+        Section {
+            Button(role: .destructive) { confirmingEmpty = true } label: {
                 Label("Empty", systemImage: "trash")
             }
             .disabled(busy != nil)
-        } header: {
-            Text("\(total) removed").font(.headline).foregroundStyle(.primary).textCase(nil)
         } footer: {
-            Text("\(customers.count) customer(s), \(karigars.count) karigar(s). Nothing here has been destroyed. Their history is exactly where they left it.")
+            Text("Deletes everyone listed above for good. This cannot be undone.")
         }
     }
 
     /// The page's warning, counted out loud: what goes, and the history it leaves orphaned.
     private func emptyWarning(_ customers: [Customer], _ karigars: [Karigar], _ h: [String: RecentlyRemoved.History]) -> String {
         let t = RecentlyRemoved.removedTotals(customerIds: customers.map(\.id), karigarIds: karigars.map(\.id), history: h)
-        var said = "This permanently deletes \(customers.count) customer(s) and \(karigars.count) karigar(s)."
+        var said = "This permanently deletes \(plural(customers.count, "customer")) and \(plural(karigars.count, "karigar"))."
         if t.entries > 0 || t.orders > 0 {
             said += " They carry \(t.entries) ledger entr\(t.entries == 1 ? "y" : "ies") and \(t.orders) order\(t.orders == 1 ? "" : "s") between them, which will be orphaned."
         }
@@ -143,7 +166,7 @@ private struct RecentlyRemovedList: View {
             let out = try await ERPAPI.shared.write("purgeRemoved", ["customerIds": customerIds, "karigarIds": karigarIds, "deleteCode": code])
             let c = out["customers"] as? Int ?? 0
             let k = out["karigars"] as? Int ?? 0
-            Note.show(Note(title: "Recently removed emptied", detail: "\(c) customer(s) and \(k) karigar(s) permanently deleted."),
+            Note.show(Note(title: "Recently removed emptied", detail: "\(plural(c, "customer")) and \(plural(k, "karigar")) permanently deleted."),
                       in: $note, reduce: reduceMotion)
         }
     }
@@ -173,7 +196,8 @@ private struct RecentlyRemovedList: View {
             } label: {
                 if busy == id { SkeletonLoading() } else { Text("Put back") }
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.bordered)
+            .frame(minWidth: 72)
             .disabled(busy != nil)
         }
     }
@@ -191,8 +215,9 @@ private struct RecentlyRemovedList: View {
             } else if let name {
                 said = Note(title: "Put back", detail: "\(name.isEmpty ? "They are" : "\(name) is") in the book again.")
             } else {
-                said = Note(title: "Put everything back", detail: "\(back) record(s) restored.")
+                said = Note(title: "Put everything back", detail: "\(back) \(back == 1 ? "record" : "records") restored.")
             }
+            restoredCount += 1
             Note.show(said, in: $note, reduce: reduceMotion)
         } catch {
             failure = error.localizedDescription

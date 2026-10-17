@@ -27,7 +27,7 @@ struct TodaysCashScreen: View {
                 .onAppear { needAll() }
                 .task { await keepTime() }
             } else {
-                NotAvailableState("Owners only")
+                NotAvailableState("Owners only", why: "Today’s cash is worked out from the owners’ books.")
             }
         }
         .navigationTitle("Today’s cash")
@@ -65,24 +65,27 @@ struct TodaysCashScreen: View {
             } header: {
                 Text(DashDate.dayLabel(now)).textCase(nil)
             }
-            LedgerSection("By how it was paid") {
-                ForEach(METHODS, id: \.self) { (m: CashMethod) in
-                    methodRow(m, t.byMethod[m] ?? 0)
+            // A method nothing came in by is not a row of zeros; with nothing in, the section is not there.
+            if METHODS.contains(where: { (t.byMethod[$0] ?? 0) != 0 }) {
+                LedgerSection("By how it was paid") {
+                    ForEach(METHODS.filter { (t.byMethod[$0] ?? 0) != 0 }, id: \.self) { (m: CashMethod) in
+                        methodRow(m, t.byMethod[m] ?? 0)
+                    }
                 }
             }
             LedgerSection("Came in") {
                 if t.lines.isEmpty {
                     Text("Nothing yet today.").foregroundStyle(.secondary)
                 } else {
-                    ForEach(Array(t.lines.enumerated()), id: \.offset) { _, line in
-                        cameInRow(line)
+                    ForEach(Self.keyed(t.lines) { "\($0.ref)|\($0.at)|\($0.method.rawValue)|\($0.amount)" }) { row in
+                        cameInRow(row.item)
                     }
                 }
             }
             if !t.expenseLines.isEmpty {
                 LedgerSection("Paid out") {
-                    ForEach(Array(t.expenseLines.enumerated()), id: \.offset) { _, e in
-                        TwoLine(title: e.description, subtitle: e.category, trailing: Money.pkr(e.amount))
+                    ForEach(Self.keyed(t.expenseLines) { "\($0.description)|\($0.category)|\($0.amount)" }) { row in
+                        TwoLine(title: row.item.description, subtitle: row.item.category, trailing: Money.minus(row.item.amount))
                     }
                 } footer: {
                     Text("Expenses carry no method, so every one the business paid today counts as leaving the drawer; one a partner paid out of pocket does not.")
@@ -91,6 +94,24 @@ struct TodaysCashScreen: View {
         }.houseRows()
         }
         .listStyle(.insetGrouped)
+        .motion(t.lines.count + t.expenseLines.count)
+    }
+
+    /// A line with a stable id (what it is, not where it sits), so a new sale inserts a row rather than re-dealing them all.
+    private struct Keyed<Item>: Identifiable {
+        let id: String
+        let item: Item
+    }
+
+    /// Two alike lines (the same ref, minute and sum) are told apart by their order among their twins.
+    private static func keyed<Item>(_ items: [Item], key: (Item) -> String) -> [Keyed<Item>] {
+        var seen: [String: Int] = [:]
+        return items.map { item in
+            let base = key(item)
+            let n = seen[base, default: 0]
+            seen[base] = n + 1
+            return Keyed(id: "\(base)|\(n)", item: item)
+        }
     }
 
     private func tiles(_ t: TodaysCash) -> some View {
@@ -99,7 +120,7 @@ struct TodaysCashScreen: View {
             HStack(alignment: .top, spacing: 10) {
                 FigureTile(label: "In the drawer", value: Money.pkr(t.netCash), detail: "Cash in, less what was paid out",
                            tint: t.netCash < 0 ? Tone.owed.color : Theme.accent)
-                FigureTile(label: "Money in", value: Money.pkr(t.totalIn), detail: "Every method")
+                FigureTile(label: "Money in", value: Money.pkr(t.totalIn))
             }
             HStack(alignment: .top, spacing: 10) {
                 FigureTile(label: "Paid out", value: Money.pkr(t.expenses), detail: "\(n) expense\(n == 1 ? "" : "s")")
@@ -111,7 +132,7 @@ struct TodaysCashScreen: View {
 
     private func methodRow(_ m: CashMethod, _ amount: Double) -> some View {
         LabeledContent(m.rawValue) {
-            RowAmount(amount: amount, tone: amount == 0 ? Color.secondary : Color.primary)
+            RowAmount(amount: amount)
         }
     }
 
@@ -139,8 +160,10 @@ struct TodaysCashScreen: View {
         // An Extra revenue line's ref is its own words; the others are a document and who it was for.
         let title = (l.source == .extra || l.who.isEmpty) ? l.ref : "\(l.ref) · \(l.who)"
         let subtitle = "\(sourceWord(l.source)) · \(l.method.rawValue) · \(DashDate.clock(iso: l.at))"
-        return NavigationLink(value: Route(path: path(for: l))) {
+        let route = path(for: l)
+        return NavigationLink(value: Route(path: route)) {
             TwoLine(title: title, subtitle: subtitle, trailing: Money.pkr(l.amount))
         }
+        .zoomSource(id: route)
     }
 }

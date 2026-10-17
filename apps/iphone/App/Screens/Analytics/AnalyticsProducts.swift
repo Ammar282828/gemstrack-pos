@@ -18,6 +18,7 @@ struct AnaProductsPage: View {
     @State private var sort = 0
     @State private var showAll = false
     @State private var showTop = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         List {
@@ -45,7 +46,7 @@ struct AnaProductsPage: View {
                 ForEach(Array(figures.topProducts.prefix(showTop ? figures.topProducts.count : 3))) { (p: AnaTopProduct) in
                     TwoLine(title: p.name, subtitle: topLine(p), trailing: Money.lacCrore(p.revenue))
                 }
-                if figures.topProducts.count > 3 { Button(showTop ? "Show fewer" : "Show top 10") { showTop.toggle() } }
+                if figures.topProducts.count > 3 { Button(showTop ? "Show fewer" : "Show top 10") { Motion.run(showTop ? Motion.exit : Motion.enter, reduce: reduceMotion) { showTop.toggle() } } }
             }
         } header: {
             LedgerHeading(title: "Top pieces by revenue")
@@ -101,7 +102,7 @@ struct AnaProductsPage: View {
     @ViewBuilder private var allSection: some View {
         let list = shown
         Section {
-            AnaSortChips(titles: Self.sorts, selected: sort) { (i: Int) in sort = i }
+            AnaSortChips(titles: Self.sorts, selected: sort) { (i: Int) in Motion.run(reduce: reduceMotion) { sort = i } }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -113,7 +114,7 @@ struct AnaProductsPage: View {
                 ForEach(Array(list.prefix(showAll || !search.isEmpty ? list.count : 5))) { (p: AnaBreakdown.ProductRow) in
                     TwoLine(title: p.name, subtitle: rowLine(p), trailing: Money.lacCrore(p.revenue))
                 }
-                if list.count > 5 && search.isEmpty { Button(showAll ? "Show fewer" : "Show all · \(list.count)") { showAll.toggle() } }
+                if list.count > 5 && search.isEmpty { Button(showAll ? "Show fewer" : "Show all · \(list.count)") { Motion.run(showAll ? Motion.exit : Motion.enter, reduce: reduceMotion) { showAll.toggle() } } }
             }
         } header: {
             LedgerHeading(title: "Every piece sold")

@@ -43,22 +43,26 @@ struct AnalyticsScreen: View {
 
     var body: some View {
         if session.isOwner { owners } else {
-            NotAvailableState("Owners only").navigationTitle(section.title)
+            NotAvailableState("Owners only", why: "Analytics are worked out from the owners’ books.").navigationTitle(section.title)
         }
     }
 
     private var owners: some View {
-        ShelfState(loaded: ready, error: firstError, offline: book.invoices.offline) {
+        titled(ShelfState(loaded: ready, error: firstError, offline: book.invoices.offline) {
             pages()
-        }
+        })
         .navigationTitle(section.title)
-        .navigationBarTitleDisplayMode(.inline)
         .onAppear { needAll() }
         .onChange(of: session.role) { _, _ in needAll() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { turnOver() }
         }
         .task { await keepTime() }
+    }
+
+    /// The Overview is the hub (large title); the four tabs drilled into from it are inline.
+    @ViewBuilder private func titled<V: View>(_ view: V) -> some View {
+        if section == .overview { view.hubTitleDisplay() } else { view.navigationBarTitleDisplayMode(.inline) }
     }
 
     // MARK: Shelves

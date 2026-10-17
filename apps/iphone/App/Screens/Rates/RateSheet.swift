@@ -54,18 +54,53 @@ enum RateKeys {
         return ERPDate.karachiDay(d) == ERPDate.karachiDay(now)
     }
 
-    /// "9:40" today, "Tue 9:40" this week, "28 Sep" before (lib/rates.ts whenSet).
-    static func whenSet(_ iso: String?, now: Date = Date()) -> String {
-        guard let t = ERPDate.parse(iso) else { return "not dated" }
+    /// Made once: a formatter is costly, and every rate row redraws with the sheet.
+    private static let clockFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_GB")
         f.timeZone = ERPDate.karachi
         f.dateFormat = "H:mm"
-        let time = f.string(from: t)
-        if ERPDate.karachiDay(t) == ERPDate.karachiDay(now) { return time }
-        if now.timeIntervalSince(t) < 6 * 86_400 { f.dateFormat = "EEE"; return "\(f.string(from: t)) \(time)" }
+        return f
+    }()
+    private static let weekdayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_GB")
+        f.timeZone = ERPDate.karachi
+        f.dateFormat = "EEE"
+        return f
+    }()
+    private static let dayMonthFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_GB")
+        f.timeZone = ERPDate.karachi
         f.dateFormat = "d MMM"
-        return f.string(from: t)
+        return f
+    }()
+    private static let readFormatter: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.locale = Locale(identifier: "en_US")
+        f.minimumFractionDigits = 0
+        f.maximumFractionDigits = 2
+        return f
+    }()
+    private static let typedFormatter: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.usesGroupingSeparator = false
+        f.minimumFractionDigits = 0
+        f.maximumFractionDigits = 2
+        return f
+    }()
+
+    /// "9:40" today, "Tue 9:40" this week, "28 Sep" before (lib/rates.ts whenSet).
+    static func whenSet(_ iso: String?, now: Date = Date()) -> String {
+        guard let t = ERPDate.parse(iso) else { return "not dated" }
+        let time = clockFormatter.string(from: t)
+        if ERPDate.karachiDay(t) == ERPDate.karachiDay(now) { return time }
+        if now.timeIntervalSince(t) < 6 * 86_400 { return "\(weekdayFormatter.string(from: t)) \(time)" }
+        return dayMonthFormatter.string(from: t)
     }
 
     /// "9:40 · Ammar": when the rate was set and by whom, as the sheets' "Set" line says it.
@@ -76,12 +111,7 @@ enum RateKeys {
     /// A rate as read: grouped, with its decimals when it has them ("26,250", "345.5"). Silver is a few
     /// hundred rupees a gram, so whole rupees would hide the paisa; the chip rounds, as the web's does.
     static func say(_ n: Double) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.locale = Locale(identifier: "en_US")
-        f.minimumFractionDigits = 0
-        f.maximumFractionDigits = 2
-        return f.string(from: NSNumber(value: n)) ?? Money.grouped(n)
+        readFormatter.string(from: NSNumber(value: n)) ?? Money.grouped(n)
     }
 
     /// A rate not yet set reads as a dash, not a zero.
@@ -89,13 +119,7 @@ enum RateKeys {
 
     /// A rate as typed into a field: ungrouped, up to two decimals ("26250", "345.5").
     static func plain(_ n: Double) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.usesGroupingSeparator = false
-        f.minimumFractionDigits = 0
-        f.maximumFractionDigits = 2
-        return f.string(from: NSNumber(value: n)) ?? String(n)
+        typedFormatter.string(from: NSNumber(value: n)) ?? String(n)
     }
 
     /// What was typed, to two decimals as the web's amount box allows. The decimal pad follows the
@@ -124,7 +148,10 @@ struct RateChip: View {
         let today = RateKeys.setToday(s)
         Button { open = true } label: {
             HStack(spacing: 4) {
-                if !today { Image(systemName: "exclamationmark.triangle.fill") }
+                if !today {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .symbolEffect(.bounce, value: today)
+                }
                 Text(RateKeys.main.label).fontWeight(.semibold)
                 Text(s.map { Money.grouped($0[keyPath: RateKeys.main.value]) } ?? "—")
                     .monospacedDigit()
@@ -132,17 +159,28 @@ struct RateChip: View {
             }
             .font(.footnote)
             .foregroundStyle(today ? Color.primary : Tone.owed.color)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
         }
-        .accessibilityLabel(accessibility(today: today))
+        .accessibilityLabel(accessibility(today: today, rate: s.map { $0[keyPath: RateKeys.main.value] }))
         .onAppear { book.settings.need() }
-        .sheet(isPresented: $open) {
-            if session.isOwner { RateSheet() } else { RateReadout() }
-        }
+        .sheet(isPresented: $open) { RateSheetHost() }
     }
 
-    private func accessibility(today: Bool) -> String {
-        if session.isOwner { return today ? "Today's rate. Tap to change." : "The rate was not set today. Tap to set it." }
-        return today ? "Today's rate. Tap to see when it was set." : "The rate was not set today. Tap to see it."
+    private func accessibility(today: Bool, rate: Double?) -> String {
+        let said = rate.map { "\(RateKeys.main.label) \(Money.grouped($0)) rupees a gram. " } ?? ""
+        if session.isOwner { return said + (today ? "Today's rate. Tap to change." : "The rate was not set today. Tap to set it.") }
+        return said + (today ? "Today's rate. Tap to see when it was set." : "The rate was not set today. Tap to see it.")
+    }
+}
+
+/// The one rate sheet: the form for an owner, the rates to read for anyone else. The chip and the Home
+/// page both present it, so the choice is made in one place.
+struct RateSheetHost: View {
+    @Environment(Session.self) private var session
+
+    var body: some View {
+        if session.isOwner { RateSheet() } else { RateReadout() }
     }
 }
 
@@ -175,10 +213,11 @@ struct RateReadout: View {
                 }
                 .houseRows()
             }
+            .houseForm()
             .navigationTitle("Today’s rate")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(role: .close) { dismiss() } }
             }
         }
         .presentationDetents([.medium, .large])
@@ -196,6 +235,8 @@ struct RateSheet: View {
     @State private var fromGoldPk = false
     @State private var note: String?
     @State private var error: String?
+    /// Bumped on each saved write, so the money tap fires on the event, never per keystroke.
+    @State private var savedCount = 0
     @FocusState private var focused: String?
 
     /// gold.pk's answer (/api/gold-rates): per-gram gold rates, divided from its per-tola ones by the server.
@@ -256,17 +297,20 @@ struct RateSheet: View {
                         if let note = g.note { Text(note) }
                     }
                 }
-                if let error { Section { Text(error).foregroundStyle(Tone.problem.color) } }
                 }
                 .houseRows()
             }
+            .houseForm()
+            .failureAlert($error, title: "Rate not saved")
+            .moneyFeedback(success: savedCount, failure: error)
+            .interactiveDismissDisabled(saving || !changed.isEmpty)
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Today’s rate")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(changed.isEmpty ? "Same today" : "Save") { Task { await save() } }
+                    Button("Save") { Task { await save() } }
                         .disabled(saving || filling || s == nil)
                 }
                 ToolbarItemGroup(placement: .keyboard) {
@@ -275,7 +319,7 @@ struct RateSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
     }
 
     /// The web's "Fill gold from gold.pk" (rate-chip.tsx): the ERP's server reads gold.pk, and the four
@@ -314,6 +358,7 @@ struct RateSheet: View {
         if fromGoldPk { fields["source"] = "gold.pk" }
         do {
             try await ERPAPI.shared.write("setRates", fields)
+            savedCount += 1
             dismiss()
         } catch {
             self.error = error.localizedDescription

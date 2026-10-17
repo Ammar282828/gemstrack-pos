@@ -31,9 +31,9 @@ struct AnaOverviewPage: View {
         .listStyle(.insetGrouped)
         .sheet(isPresented: $monthlyPDF) { AnaMonthlyReportSheet() }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                // The month's PDF is the ERP's own: any month, drawn by the server, the same document the 1st's WhatsApp report carries.
-                if showCosts {
+            // The month's PDF is the ERP's own: any month, drawn by the server, the same document the 1st's WhatsApp report carries.
+            if showCosts {
+                ToolbarItem(placement: .primaryAction) {
                     Button { monthlyPDF = true } label: {
                         Label("Monthly PDF", systemImage: "arrow.down.doc")
                     }
@@ -50,9 +50,9 @@ struct AnaOverviewPage: View {
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             DisclosureGroup("Revenue and profit details") {
-                LabeledContent("Invoices") { Text(Money.pkrLac(figures.invoiceSales)).monospacedDigit() }
-                LabeledContent("Orders") { Text(Money.pkrLac(figures.orderSales)).monospacedDigit() }
-                LabeledContent("Extra revenue") { RowAmount(amount: figures.extraRevenue, lac: true) }
+                MoneyRow("Invoices", figures.invoiceSales, lac: true)
+                MoneyRow("Orders", figures.orderSales, lac: true)
+                MoneyRow("Extra revenue", figures.extraRevenue, lac: true)
                 if showCosts { Text(estNote).font(.footnote).foregroundStyle(.secondary) }
             }
         }.houseRows()
@@ -68,12 +68,12 @@ struct AnaOverviewPage: View {
             FigureRow(alignment: .top, spacing: 10) {
                 FigureTile(label: "Revenue", value: Money.pkrLac(f.totalSales), detail: "Sales in this period", tint: Tone.settled.color)
                 if showCosts {
-                    FigureTile(label: "Expenses", value: Money.pkrLac(f.totalExpenses), detail: "Paid out in this period", tint: Tone.owed.color)
+                    FigureTile(label: "Expenses", value: Money.pkrLac(f.totalExpenses), detail: "Paid out in this period")
                 }
             }
             if showCosts {
                 FigureRow(alignment: .top, spacing: 10) {
-                    FigureTile(label: "Est. profit", value: Money.pkrLac(f.estProfit), detail: estDetail, tint: Theme.accent)
+                    FigureTile(label: "Estimated profit", value: Money.pkrLac(f.estProfit), detail: estDetail, tint: Theme.accent)
                     FigureTile(label: "Net profit", value: Money.pkrLac(net), detail: netDetail, tint: netTint)
                 }
             }
@@ -113,8 +113,8 @@ struct AnaOverviewPage: View {
 
     private var estNote: String {
         let f = figures
-        guard costedByGold else { return "Est. profit is revenue × \(assumedPercent)%, before expenses." }
-        return "Est. profit: \(f.salesCosted) of \(f.salesCount) sales from their 24k rate, the rest at \(assumedPercent)%, before expenses."
+        guard costedByGold else { return "Estimated profit is revenue × \(assumedPercent)%, before expenses." }
+        return "Estimated profit: \(f.salesCosted) of \(f.salesCount) sales from their 24k rate, the rest at \(assumedPercent)%, before expenses."
     }
 
     // MARK: Counts
@@ -128,10 +128,10 @@ struct AnaOverviewPage: View {
                 }
             }
             LabeledContent("Orders", value: String(f.totalOrders))
-            LabeledContent("Avg. order") { RowAmount(amount: f.averageOrderValue, lac: true) }
+            LabeledContent("Average order") { RowAmount(amount: f.averageOrderValue, lac: true) }
             LabeledContent("Items sold", value: AnaFormat.count(f.totalItemsSold))
             LabeledContent("Discounts") { RowAmount(amount: f.totalDiscounts, lac: true) }
-            LabeledContent("Items / order", value: AnaFormat.fixed(f.averageItemsPerOrder, 2))
+            LabeledContent("Items per order", value: AnaFormat.fixed(f.averageItemsPerOrder, 2))
         }
         .houseRows()
     }
@@ -193,7 +193,7 @@ struct AnaOverviewPage: View {
                     TwoLine(title: "Coins sold",
                             subtitle: c.grams > 0 ? AnaFormat.weight(c.grams) : "No weight recorded",
                             trailing: AnaFormat.count(c.coins))
-                    TwoLine(title: "Realised / gram",
+                    TwoLine(title: "Realised per gram",
                             subtitle: "Revenue over grams, all-in",
                             trailing: c.ratePerGram > 0 ? Money.pkrLac(c.ratePerGram) : "—")
                     if c.outstanding >= 1 {
@@ -229,7 +229,7 @@ struct AnaOverviewPage: View {
             TwoLine(title: "Cash in", trailing: Money.pkrLac(f.cashIn), trailingTint: Tone.settled.color)
             if showCosts {
                 TwoLine(title: "Cash out", subtitle: "Every expense paid in this period",
-                        trailing: Money.pkrLac(f.cashOut), trailingTint: Tone.owed.color)
+                        trailing: Money.pkrLac(f.cashOut))
                 TwoLine(title: "Net cash flow",
                         subtitle: net >= 0 ? "Business gained cash in this period" : "Business spent more cash than it took in",
                         trailing: netSign + Money.pkrLac(abs(net)), trailingTint: netTint)
@@ -243,7 +243,7 @@ struct AnaOverviewPage: View {
             if gap > 0 {
                 Text("\(Money.pkrLac(gap)) of recognised revenue is not yet collected: it sits as customer receivables and uninvoiced open orders. That gap is the difference between revenue (what was earned) and Cash in, leaving out gold taken off a bill (it is off the revenue too).")
                     .font(.footnote)
-                    .foregroundStyle(Tone.owed.color)
+                    .foregroundStyle(.secondary)
             }
                 Text("Cash flow counts money received and paid. Revenue also includes unpaid sales and open orders.").font(.footnote).foregroundStyle(.secondary)
             }
@@ -322,11 +322,15 @@ private struct AnaMonthlyReportSheet: View {
         let c = AnaDate.karachi.dateComponents([.year, .month], from: date)
         return String(format: "%04d-%02d", c.year ?? 2000, c.month ?? 1)
     }
-    private func label(_ date: Date) -> String {
-        let formatter = DateFormatter(); formatter.calendar = AnaDate.karachi
-        formatter.timeZone = ERPDate.karachi; formatter.dateFormat = "MMMM yyyy"
-        return formatter.string(from: date)
-    }
+    /// Made once: the picker names 24 months on every pass.
+    private static let monthFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = AnaDate.karachi
+        f.timeZone = ERPDate.karachi
+        f.dateFormat = "MMMM yyyy"
+        return f
+    }()
+    private func label(_ date: Date) -> String { Self.monthFormatter.string(from: date) }
     var body: some View {
         NavigationStack {
             Form {
@@ -336,11 +340,13 @@ private struct AnaMonthlyReportSheet: View {
                             Text(label(month) + (index == 0 ? " · so far" : "")).tag(index)
                         }
                     }
-                    Button("Open report") { opened = true }.buttonStyle(.houseProminent)
                 }.houseRows()
             }
-            .modifier(HouseGround()).navigationTitle("Monthly PDF").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+            .houseForm()
+            .navigationTitle("Monthly PDF").navigationBarTitleDisplayMode(.inline)
+            // The one action of the sheet is pinned, not a button inside the form.
+            .actionBar(primary: .init("Open report") { opened = true })
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
             .sheet(isPresented: $opened) {
                 PDFDocumentScreen(path: "/api/reports/monthly?month=" + key(months[selected]), fileName: "monthly-report-" + key(months[selected]) + ".pdf", title: label(months[selected]))
             }

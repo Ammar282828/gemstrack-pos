@@ -18,6 +18,8 @@ struct OwnerDeletion: Identifiable {
     /// False for a removal Settings, Recently removed can put back (a customer, a karigar): the sheet then
     /// does not say it can't be undone.
     var final = true
+    /// What the page says once it is gone ("Entry removed").
+    var removedTitle = "Entry removed"
 
     init(what: String, detail: String, final: Bool = true, run: @escaping (_ code: String) async throws -> Void) {
         self.what = what
@@ -44,12 +46,21 @@ struct OwnerDeleteCodeSheet: View {
     @State private var busy = false
     @State private var error: String?
     @State private var keep = true
+    /// Bumped when the delete went through, so the warning tap fires on the event.
+    @State private var deletedCount = 0
     @State private var kept = FaceIDVault.has(OwnerDeleteCodeSheet.faceKey)
     private let canFace = FaceIDVault.biometry().available
 
     var body: some View {
         NavigationStack {
             Form { Group {
+                // The consequence leads: what is deleted, what goes with it, whether it can be undone.
+                Section {
+                    Text(([deletion.detail, deletion.final ? "This can't be undone." : ""]).filter { !$0.isEmpty }.joined(separator: " "))
+                        .font(.callout)
+                } header: {
+                    Text(deletion.what).textCase(nil)
+                }
                 Section {
                     SecureField("Delete code", text: $code)
                         .keyboardType(.numberPad)
@@ -68,17 +79,18 @@ struct OwnerDeleteCodeSheet: View {
                     if canFace && !kept {
                         Toggle("Use Face ID next time on this phone", isOn: $keep)
                     }
-                } header: {
-                    Text(deletion.what).textCase(nil)
                 } footer: {
-                    Text(([deletion.detail, deletion.final ? "This can't be undone." : "", "Enter the code to go ahead."]).filter { !$0.isEmpty }.joined(separator: " "))
-                }
-                if let error {
-                    Section { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color) }
+                    Text("Enter the code to go ahead.")
                 }
                 }
                 .houseRows()
             }
+            .houseForm()
+            .failureAlert($error, title: "Not deleted")
+            .refusedFeedback(trigger: error)
+            .destructiveFeedback(trigger: deletedCount)
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
             .navigationTitle("Delete code")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -105,6 +117,7 @@ struct OwnerDeleteCodeSheet: View {
             try await deletion.run(given)
             if !byFace && canFace && !kept && keep { try? FaceIDVault.save(given, for: Self.faceKey) }
             busy = false
+            deletedCount += 1
             onDone()
             dismiss()
             return
@@ -146,10 +159,15 @@ enum OwnerText {
     /// "1 Oct 2026" (date-fns 'd MMM yyyy', the web's ledger rows).
     static func shortDate(_ iso: String) -> String {
         guard let d = ERPDate.parse(iso) else { return "" }
+        return shortFormatter.string(from: d)
+    }
+
+    /// Made once: ledger lists ask for a date per row.
+    private static let shortFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.timeZone = ERPDate.karachi
         f.dateFormat = "d MMM yyyy"
-        return f.string(from: d)
-    }
+        return f
+    }()
 }

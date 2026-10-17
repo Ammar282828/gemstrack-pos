@@ -16,6 +16,7 @@ struct AnaCustomersPage: View {
     @State private var sort = 0
     @State private var showAll = false
     @State private var showTop = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         List {
@@ -43,7 +44,7 @@ struct AnaCustomersPage: View {
                 ForEach(Array(figures.topCustomers.prefix(showTop ? figures.topCustomers.count : 3))) { (c: AnaTopCustomer) in
                     topRow(c)
                 }
-                if figures.topCustomers.count > 3 { Button(showTop ? "Show fewer" : "Show top 10") { showTop.toggle() } }
+                if figures.topCustomers.count > 3 { Button(showTop ? "Show fewer" : "Show top 10") { Motion.run(showTop ? Motion.exit : Motion.enter, reduce: reduceMotion) { showTop.toggle() } } }
             }
         } header: {
             LedgerHeading(title: "Top customers by sales")
@@ -55,8 +56,9 @@ struct AnaCustomersPage: View {
         let subtitle = String(c.orderCount) + " " + AnaFormat.plural(c.orderCount, "order", "orders")
         if let id = c.customerId {
             NavigationLink(value: Route(path: AnaPath.customer(id))) {
-                TwoLine(title: c.name, subtitle: subtitle, trailing: Money.lacCrore(c.totalSpent)).lineLimit(1)
+                TwoLine(title: c.name, subtitle: subtitle, trailing: Money.lacCrore(c.totalSpent))
             }
+            .zoomSource(id: AnaPath.customer(id))
         } else {
             TwoLine(title: c.name, subtitle: subtitle, trailing: Money.lacCrore(c.totalSpent))
         }
@@ -115,7 +117,7 @@ struct AnaCustomersPage: View {
     @ViewBuilder private var allSection: some View {
         let list = shown
         Section {
-            AnaSortChips(titles: Self.sorts, selected: sort) { (i: Int) in sort = i }
+            AnaSortChips(titles: Self.sorts, selected: sort) { (i: Int) in Motion.run(reduce: reduceMotion) { sort = i } }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -127,7 +129,7 @@ struct AnaCustomersPage: View {
                 ForEach(Array(list.prefix(showAll || !search.isEmpty ? list.count : 5))) { (c: AnaBreakdown.CustomerRow) in
                     row(c)
                 }
-                if list.count > 5 && search.isEmpty { Button(showAll ? "Show fewer" : "Show all · \(list.count)") { showAll.toggle() } }
+                if list.count > 5 && search.isEmpty { Button(showAll ? "Show fewer" : "Show all · \(list.count)") { Motion.run(showAll ? Motion.exit : Motion.enter, reduce: reduceMotion) { showAll.toggle() } } }
             }
         } header: {
             LedgerHeading(title: "Everyone who bought")
@@ -145,8 +147,9 @@ struct AnaCustomersPage: View {
     @ViewBuilder private func row(_ c: AnaBreakdown.CustomerRow) -> some View {
         if let id = c.customerId {
             NavigationLink(value: Route(path: AnaPath.customer(id))) {
-                TwoLine(title: c.name, subtitle: rowLine(c), trailing: Money.lacCrore(c.totalSpent)).lineLimit(1)
+                TwoLine(title: c.name, subtitle: rowLine(c), trailing: Money.lacCrore(c.totalSpent))
             }
+            .zoomSource(id: AnaPath.customer(id))
         } else {
             TwoLine(title: c.name, subtitle: rowLine(c), trailing: Money.lacCrore(c.totalSpent))
         }

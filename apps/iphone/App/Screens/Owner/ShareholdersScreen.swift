@@ -62,12 +62,14 @@ private struct ShareholdersBoard: View {
     @State private var figures = Memo<ShareholderBoardFigures>()
     @State private var asking: ShareholderAsk?
     @State private var deletion: OwnerDeletion?
-    @State private var note: OwnerNote?
+    @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var cashText = ""
     @State private var floorText: String?
     @State private var savingFloor = false
     @State private var floorError: String?
+    /// Bumped when the floor is saved, so the money tap fires on the event.
+    @State private var floorSaved = 0
     @State private var showHistory = false
 
     private var ready: Bool {
@@ -96,16 +98,18 @@ private struct ShareholdersBoard: View {
             }
         }
         .sheet(item: $asking) { (a: ShareholderAsk) in
-            ShareholderEntrySheet(ask: a, salaryPaid: salaryPaid) { (saved: OwnerNote) in
+            ShareholderEntrySheet(ask: a, salaryPaid: salaryPaid) { (saved: Note) in
                 Note.show(saved, in: $note, reduce: reduceMotion)
             }
         }
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {
-                Note.show(Note(title: d.what.hasPrefix("Delete expense") ? "Salary payment removed" : "Entry removed"), in: $note, reduce: reduceMotion)
+                Note.show(Note(title: d.removedTitle), in: $note, reduce: reduceMotion)
             }
         }
         .noteToast($note)
+        .failureAlert($floorError, title: "Floor not saved")
+        .moneyFeedback(success: floorSaved, failure: floorError)
         .task {
             book.expenses.need()
             book.invoices.need()
@@ -155,7 +159,13 @@ private struct ShareholdersBoard: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
+        .motion(Self.shows(cashText))
     }
+
+    /// Whether the calculator has any cash to spread, for the animation that opens its rows.
+    private static func shows(_ text: String) -> Bool { (MoneyParse.rupees(text) ?? 0) > 0 }
 
     private func tilesSection(_ t: ShareholderFigures.Totals) -> some View {
         let share = t.revShare - t.expShare
@@ -184,7 +194,7 @@ private struct ShareholdersBoard: View {
         let tone: Color = owed ? Tone.credit.color : (claim < 0 ? Tone.owed.color : Color.primary)
         return Section {
             Group {
-                HStack(alignment: .firstTextBaseline) {
+                AdaptiveStack(spacing: 8) {
                     Text(words).foregroundStyle(.secondary)
                     Spacer(minLength: 8)
                     HeroAmount(amount: abs(claim.rounded()), tone: tone)
@@ -196,7 +206,7 @@ private struct ShareholdersBoard: View {
                         .monospacedDigit()
                         .foregroundStyle(p.balance.netPnL >= 0 ? Color.primary : Tone.owed.color)
                 }
-                HStack(spacing: 8) {
+                FigureRow(alignment: .top, spacing: 8) {
                     smallFigure("Contributed", p.contributed, symbol: "arrow.down.left")
                     smallFigure("Salary", p.salaryPaid, symbol: "banknote")
                     smallFigure("Capital drawn", p.withdrawn, symbol: "arrow.up.right")
@@ -217,7 +227,7 @@ private struct ShareholdersBoard: View {
                 ForEach(p.rows) { (r: ShareholderLedgerRow) in ledgerRow(r, of: p) }
             }
         } header: {
-            Text(p.name).font(.headline).foregroundStyle(.primary).textCase(nil)
+            LedgerHeading(title: p.name)
         } footer: {
             if !(p.rows.isEmpty && p.salaries.isEmpty) {
                 Text("Withdrawing capital reduces their stake; it is not a salary. Swipe an entry to delete it.")
@@ -227,8 +237,9 @@ private struct ShareholdersBoard: View {
 
     private func smallFigure(_ label: String, _ amount: Double, symbol: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Label(label, systemImage: symbol).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-            Text(ShareholderMoney.fmt(amount)).font(.subheadline.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+            Label(label, systemImage: symbol).font(.caption2).foregroundStyle(.secondary)
+            Text(ShareholderMoney.fmt(amount)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                .contentTransition(.numericText(value: amount)).minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -239,16 +250,18 @@ private struct ShareholdersBoard: View {
             title: shown,
             subtitle: "\(OwnerText.shortDate(e.date)) · Salary · recorded as a business cost",
             trailing: ShareholderMoney.fmt(e.amount),
-            trailingTint: Theme.accent
+            trailingTint: Color.primary
         )
         .swipeActions {
             Button(role: .destructive) {
-                deletion = OwnerDeletion(
+                var d = OwnerDeletion(
                     what: "Delete expense \"\(e.description)\"",
                     detail: "Remove this salary payment? \(e.description) \u{2014} \(ShareholderMoney.fmt(e.amount)). It will be deleted from Expenses too."
                 ) { code in
                     _ = try await ERPAPI.shared.write("deletePartnerSalary", ["expenseId": e.id, "deleteCode": code])
                 }
+                d.removedTitle = "Salary payment removed"
+                deletion = d
             } label: {
                 Label("Delete", systemImage: "trash")
             }
@@ -373,9 +386,6 @@ private struct ShareholdersBoard: View {
                         .foregroundStyle(Tone.owed.color)
                 }
             }
-            if let floorError {
-                Label(floorError, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
-            }
         } header: {
             LedgerHeading(title: "Distribution calculator")
         } footer: {
@@ -417,7 +427,8 @@ private struct ShareholdersBoard: View {
                 } label: {
                     if savingFloor { SkeletonLoading() } else { Text("Save") }
                 }
-                .buttonStyle(.houseProminent)
+                // Inside a row: a plain bordered button, not glass (rule 16).
+                .buttonStyle(.bordered)
                 .disabled(savingFloor)
             }
         }
@@ -429,6 +440,7 @@ private struct ShareholdersBoard: View {
         do {
             _ = try await ERPAPI.shared.write("setWorkingCapitalFloor", ["value": value, "seq": UUID().uuidString])
             floorText = nil
+            floorSaved += 1
             Note.show(Note(title: "Working capital floor saved", detail: "\(Money.pkr(value)) \u{2014} recorded with timestamp."), in: $note, reduce: reduceMotion)
         } catch {
             floorError = error.localizedDescription

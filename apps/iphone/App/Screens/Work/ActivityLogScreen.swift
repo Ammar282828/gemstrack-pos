@@ -34,6 +34,8 @@ struct ActivityLogScreen: View {
     @State private var askLock = false
     @State private var locking = false
     @State private var failure: String?
+    /// The filters are folded away until asked for, so the log is what the page opens on.
+    @State private var filtersOpen = false
 
     private static let pageSize = 200
 
@@ -52,18 +54,16 @@ struct ActivityLogScreen: View {
             }
         }
         .navigationTitle("Activity")
+        .hubTitleDisplay()
         .sheet(item: $reverting) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {
                 reverted += 1
                 Note.show(Note(title: "Reverted", detail: "\u{201C}\(d.what)\u{201D} has been undone."), in: $note, reduce: reduceMotion)
             }
         }
-        .confirmationDialog("Are you absolutely sure?", isPresented: $askLock, titleVisibility: .visible) {
-            Button("Yes, Lock It Down", role: .destructive) { Task { await lock() } }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("You are about to lock this application from accessing its database. This action is NOT REVERSIBLE through the user interface.")
-        }
+        .confirmDestructive(isPresented: $askLock, title: "Lock the database?",
+                            message: "This locks the app out of its database. It cannot be undone from the app.",
+                            action: "Lock database") { Task { await lock() } }
         .destructiveFeedback(trigger: reverted)
         .noteToast($note)
         .failureAlert($failure, title: "Not done")
@@ -104,41 +104,41 @@ struct ActivityLogScreen: View {
     private var page: some View {
         let list = visible()
         List {
-            Section {
-                Picker("Event type", selection: $type) {
-                    Text("All").tag("All")
-                    ForEach(ActivityLogRules.eventTypes, id: \.self) { (t: String) in
-                        Text(ActivityLogRules.title(t)).tag(t)
-                    }
-                }
-                WorkRangeFields(range: $range)
-            } header: {
-                LedgerHeading(title: "Filters")
-            } footer: {
-                if range.useFrom && !range.useTo {
-                    Text("Without an end date the range runs to the end of today.")
-                }
-            }
-            .houseRows()
-
+            // The log first: it is what the page is for. The filters fold away above the sign-ins.
             Section {
                 if list.isEmpty {
-                    ContentUnavailableView(
-                        "No Activity Found",
-                        systemImage: "clock.arrow.circlepath",
-                        description: Text("There are no log entries for the selected filters.")
-                    )
+                    Text("No activity found for these filters.").foregroundStyle(.secondary)
                 } else {
                     ForEach(list.prefix(shown)) { (e: ActivityLogEntry) in row(e) }
                     if list.count > shown {
                         Button("Show \(min(ActivityLogScreen.pageSize, list.count - shown)) more") {
-                            shown += ActivityLogScreen.pageSize
+                            Motion.run(reduce: reduceMotion) { shown += ActivityLogScreen.pageSize }
                         }
                     }
                 }
             } header: {
-                Text("Everything done in the ERP, newest first · \(list.count) \(list.count == 1 ? "entry" : "entries")")
-                    .textCase(nil)
+                LedgerHeading(title: "Log", count: list.count)
+            } footer: {
+                Text("Everything done in the ERP, newest first.")
+            }
+            .houseRows()
+
+            Section {
+                DisclosureGroup(isExpanded: $filtersOpen) {
+                    Picker("Event type", selection: $type) {
+                        Text("All").tag("All")
+                        ForEach(ActivityLogRules.eventTypes, id: \.self) { (t: String) in
+                            Text(ActivityLogRules.title(t)).tag(t)
+                        }
+                    }
+                    WorkRangeFields(range: $range)
+                    if range.useFrom && !range.useTo {
+                        Text("Without an end date the range runs to the end of today.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                } label: {
+                    Text("Filters").font(.headline)
+                }
             }
             .houseRows()
 
@@ -146,6 +146,8 @@ struct ActivityLogScreen: View {
             lockSection
         }
         .listStyle(.insetGrouped)
+        .motion(type)
+        .selectionFeedback(trigger: type)
     }
 
     // MARK: Sign-in activity
@@ -160,6 +162,11 @@ struct ActivityLogScreen: View {
                 }
             } else if signInsFailed {
                 Text("The sign-ins could not be read.").foregroundStyle(.secondary)
+                Button("Try again") {
+                    signInsFailed = false
+                    Task { await loadSignIns() }
+                }
+                .buttonStyle(.borderless)
             } else {
                 SkeletonLoading("Loading…").frame(height: 44)
             }
@@ -210,29 +217,30 @@ struct ActivityLogScreen: View {
     private var lockSection: some View {
         if book.settings.value?.databaseLocked == true {
             Section {
-                Label("Database Secured", systemImage: "checkmark.shield")
+                Label("Database secured", systemImage: "checkmark.shield")
                     .font(.headline)
-                    .foregroundStyle(Tone.settled.color)
                 Text("The connection to the database is currently locked. No data can be read or written. To restore access, you must request a reset from the developer.")
                     .font(.subheadline)
-                    .foregroundStyle(Tone.settled.color)
+                    .foregroundStyle(.secondary)
             }
             .houseRows()
         } else {
+            // Alone, and last: it cannot be undone from the app.
             Section {
-                Label("WARNING: IRREVERSIBLE ACTION", systemImage: "exclamationmark.triangle.fill")
+                Label("Irreversible", systemImage: "exclamationmark.triangle.fill")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Tone.problem.color)
                 Text("Activating this lock will make the app unusable until a developer manually restores access. This is a final security measure for emergencies.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Button(role: .destructive) { askLock = true } label: {
-                    Label(locking ? "Locking…" : "Lock Database Now", systemImage: "exclamationmark.shield")
+                    Label(locking ? "Locking…" : "Lock database now", systemImage: "exclamationmark.shield")
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }
+                .buttonStyle(.bordered)
                 .disabled(locking || House.isDemo)
             } header: {
-                LedgerHeading(title: "Emergency Lock")
+                LedgerHeading(title: "Emergency lock")
             } footer: {
                 Text("This will immediately sever the application's connection to the database.")
             }
@@ -246,7 +254,7 @@ struct ActivityLogScreen: View {
         locking = true
         do {
             try await ERPAPI.shared.write("lockDatabase", ["confirm": true])
-            Note.show(Note(title: "Database Locked", detail: "Access has been severed. Reload the app to apply changes.", failed: true), in: $note, reduce: reduceMotion)
+            Note.show(Note(title: "Database locked", detail: "Access has been severed. Reload the app to apply changes.", failed: true), in: $note, reduce: reduceMotion)
             // Left on: the lock is one way, and the page's button stays off once it has gone.
             return
         } catch {
@@ -289,7 +297,7 @@ struct ActivityLogScreen: View {
                 .foregroundStyle(tint)
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
-                Text(e.description).font(.subheadline.weight(.semibold)).foregroundStyle(tint)
+                Text(e.description).font(.subheadline.weight(.semibold))
                 if !e.details.isEmpty {
                     Text(e.details).font(.footnote).foregroundStyle(.secondary)
                 }
@@ -302,8 +310,7 @@ struct ActivityLogScreen: View {
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if revertable {
-                Button { askRevert(e) } label: { Label("Revert", systemImage: "arrow.uturn.backward") }
-                    .tint(Tone.owed.color)
+                Button(role: .destructive) { askRevert(e) } label: { Label("Revert", systemImage: "arrow.uturn.backward") }
             }
         }
         .contextMenu {

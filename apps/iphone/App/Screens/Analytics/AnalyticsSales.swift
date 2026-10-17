@@ -14,6 +14,7 @@ struct AnaSalesPage: View {
 
     @State private var day: AnaDay?
     @State private var showDays = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         List {
@@ -39,7 +40,7 @@ struct AnaSalesPage: View {
     private var overTimeSection: some View {
         Section {
             if figures.salesOverTime.isEmpty {
-                Text("No sales data available to display chart for the selected period.").foregroundStyle(.secondary)
+                Text("No sales in this period.").foregroundStyle(.secondary)
             } else {
                 AnaSalesChart(days: figures.salesOverTime)
                 DisclosureGroup("Number of sales") { AnaOrdersChart(days: figures.salesOverTime) }
@@ -79,8 +80,15 @@ struct AnaSalesPage: View {
         if !history.yearly.isEmpty {
             Section {
                 ForEach(history.yearly) { (y: AnaYear) in
-                    Button { pick("year-\(y.year)") } label: { yearRow(y) }
-                        .buttonStyle(.plain)
+                    Button { pick("year-\(y.year)") } label: {
+                        HStack(spacing: 8) {
+                            yearRow(y)
+                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Shows Analytics for \(String(y.year))")
                 }
             } header: {
                 LedgerHeading(title: "Yearly performance")
@@ -95,16 +103,16 @@ struct AnaSalesPage: View {
 
     private func yearRow(_ y: AnaYear) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .firstTextBaseline) {
+            AdaptiveStack(spacing: 8) {
                 Text(String(y.year)).font(.headline)
                 Spacer(minLength: 8)
-                Text(Money.lacCrore(y.revenue)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                RowAmount(amount: y.revenue, lac: true)
             }
             Text(yearDetail(y)).font(.caption).foregroundStyle(.secondary)
             if showCosts {
-                HStack(spacing: 6) {
+                AdaptiveStack(spacing: 6) {
                     Text("Net profit \(Money.lacCrore(y.netProfit))")
-                        .foregroundStyle(y.netProfit >= 0 ? Tone.settled.color : Tone.owed.color)
+                        .foregroundStyle(y.netProfit >= 0 ? Color.secondary : Tone.late.color)
                     Text(y.revenue > 0 ? "\(AnaFormat.fixed(y.netProfit / y.revenue * 100, 1))% margin" : "—")
                         .foregroundStyle(.secondary)
                 }
@@ -121,7 +129,7 @@ struct AnaSalesPage: View {
         parts.append(y.unpaid > 0 ? "Unpaid \(Money.lacCrore(y.unpaid))" : "Nothing unpaid")
         if showCosts {
             parts.append("Expenses \(Money.lacCrore(y.expenses))")
-            parts.append("Est. profit \(Money.lacCrore(y.profit))")
+            parts.append("Estimated profit \(Money.lacCrore(y.profit))")
         }
         return parts.joined(separator: " · ")
     }
@@ -131,14 +139,24 @@ struct AnaSalesPage: View {
     private var dailySection: some View {
         Section {
             if figures.salesOverTime.isEmpty {
-                Text("No daily data available for the selected period.").foregroundStyle(.secondary)
+                Text("No days in this period.").foregroundStyle(.secondary)
             } else {
                 // Newest first: the first five are the latest days, not the oldest.
                 ForEach(Array(figures.salesOverTime.reversed().prefix(showDays ? figures.salesOverTime.count : 5))) { (d: AnaDay) in
-                    Button { day = d } label: { dayRow(d) }
-                        .buttonStyle(.plain)
+                    Button { day = d } label: {
+                        HStack(spacing: 8) {
+                            dayRow(d)
+                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .buttonStyle(.plain)
                 }
-                if figures.salesOverTime.count > 5 { Button(showDays ? "Show fewer days" : "Show all days · \(figures.salesOverTime.count)") { showDays.toggle() } }
+                if figures.salesOverTime.count > 5 {
+                    Button(showDays ? "Show fewer days" : "Show all days · \(figures.salesOverTime.count)") {
+                        Motion.run(showDays ? Motion.exit : Motion.enter, reduce: reduceMotion) { showDays.toggle() }
+                    }
+                }
             }
         } header: {
             LedgerHeading(title: "Daily summary")
@@ -156,7 +174,6 @@ struct AnaSalesPage: View {
         let items = AnaFormat.count(d.itemsSold) + (d.itemsSold == 1 ? " item" : " items")
         let subtitle = orders + " · " + items
         return TwoLine(title: title, subtitle: subtitle, trailing: Money.lacCrore(d.sales))
-            .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
     }
@@ -190,11 +207,11 @@ struct AnaDaySheet: View {
         NavigationStack {
             List {
                 Section {
-                    LabeledContent("Total revenue") { Text(Money.pkrLac(day.sales)).monospacedDigit() }
+                    MoneyRow("Total revenue", day.sales, lac: true)
                     LabeledContent("Total orders", value: String(day.orders))
                     LabeledContent("Pieces sold", value: AnaFormat.count(day.itemsSold))
                 } header: {
-                    Text(AnaDate.longDay(AnaDate.parseISO(day.date) ?? Date()))
+                    LedgerHeading(title: AnaDate.longDay(AnaDate.parseISO(day.date) ?? Date()))
                 } footer: {
                     Text("Orders and extra revenue are in the totals; the lists are the invoices written this day.")
                 }.houseRows()
@@ -221,8 +238,8 @@ struct AnaDaySheet: View {
             .navigationTitle("Daily report")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(role: .close) { dismiss() }
                 }
             }
         }

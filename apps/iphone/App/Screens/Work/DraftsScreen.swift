@@ -24,6 +24,8 @@ struct DraftsScreen: View {
     @State private var phoneSale: SaleDraft?
     @State private var discarding: DraftRow?
     @State private var failure: String?
+    /// Bumped when a discard is confirmed, for the warning tap.
+    @State private var discardedCount = 0
     /// Drafts the demo has thrown away (nothing is sent in the demo).
     @State private var demoGone: Set<String> = []
     /// Month-old drafts already asked to go, so a list that redraws does not ask twice.
@@ -54,22 +56,24 @@ struct DraftsScreen: View {
             }
         }
         .navigationTitle("Drafts")
+        .hubTitleDisplay()
         .onAppear { start() }
         .onDisappear { shelf.reset() }
         .confirmationDialog("Discard this draft?", isPresented: discardShown, titleVisibility: .visible, presenting: discarding) { row in
-            Button("Discard", role: .destructive) { discard(row) }
+            Button("Discard", role: .destructive) { discardedCount += 1; discard(row) }
             Button("Keep it", role: .cancel) {}
         } message: { row in
             Text("\(row.draft.isOrder ? "Order" : "Sale") for \(row.draft.title).")
         }
-        .confirmationDialog("Replace the work on this phone?", isPresented: replaceShown, titleVisibility: .visible, presenting: replacing) { row in
-            Button("Continue this draft", role: .destructive) { Task { await continueHere(row) } }
+        .confirmationDialog("Replace your work in progress?", isPresented: replaceShown, titleVisibility: .visible, presenting: replacing) { row in
+            Button("Replace and continue", role: .destructive) { Task { await continueHere(row) } }
             Button("Keep mine", role: .cancel) {}
         } message: { row in
             Text(replaceWords(row))
         }
         .navigationDestination(item: $opening) { (r: Route) in PlaceScreen(path: r.path) }
         .failureAlert($failure, title: "Not done")
+        .destructiveFeedback(trigger: discardedCount)
     }
 
     // MARK: Reading
@@ -191,6 +195,7 @@ struct DraftsScreen: View {
             }
         }
         .listStyle(.insetGrouped)
+        .motion(all.map(\.id))
         .task(id: split.expired.map(\.id)) { await removeExpired(split.expired) }
     }
 
@@ -201,7 +206,7 @@ struct DraftsScreen: View {
                 Text("Drafts begun on other devices are listed for the shop's owners; this shows what is kept on this phone.")
             }
             if readsDrafts, let error = shelf.error, !error.isEmpty {
-                Text("The shop's drafts could not be read: \(error)").foregroundStyle(Tone.problem.color)
+                Text("The shop's drafts could not be read: \(error)")
             }
         }
     }
@@ -217,10 +222,7 @@ struct DraftsScreen: View {
                 Label(newTitle, systemImage: "plus")
             }
         } header: {
-            HStack(spacing: 6) {
-                Text(title)
-                if !rows.isEmpty { Text("\(rows.count)").foregroundStyle(.secondary) }
-            }
+            LedgerHeading(title: title, count: rows.count)
         }
         .houseRows()
     }
@@ -261,13 +263,13 @@ struct DraftsScreen: View {
                 Text(d.title).font(.headline).lineLimit(1)
                 Spacer(minLength: 8)
                 if d.total > 0 {
-                    Text(Money.pkr(d.total)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                    RowAmount(amount: d.total)
                 }
             }
             if !d.detail.isEmpty {
                 Text(d.detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
             }
-            Text(lastTyped(row)).font(.caption).foregroundStyle(.tertiary)
+            Text(lastTyped(row)).font(.caption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(.rect)

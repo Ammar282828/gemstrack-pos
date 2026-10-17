@@ -24,8 +24,8 @@ struct MyWorkScreen: View {
     }
 
     private enum Pane: String, CaseIterable, Identifiable {
-        case work = "My Work"
-        case account = "My Account"
+        case work = "My work"
+        case account = "My account"
         var id: String { rawValue }
     }
 
@@ -36,6 +36,9 @@ struct MyWorkScreen: View {
     /// The piece whose tick is being sent.
     @State private var busy: String?
     @State private var failure: String?
+    @State private var confirmingSignOut = false
+    /// Bumped when a tick has gone through, so the success tap fires on the event.
+    @State private var tickCount = 0
 
     private var previewId: String? {
         guard let id = WorkPaths.query("preview", in: path), !id.isEmpty else { return nil }
@@ -53,18 +56,11 @@ struct MyWorkScreen: View {
             case .noAccount:
                 noAccount
             case .failed(let message):
-                ContentUnavailableView {
-                    Label("Couldn't load the work", systemImage: "wifi.exclamationmark")
-                } description: {
-                    Text(message)
-                } actions: {
-                    Button("Try again") {
-                        phase = .loading
-                        Task { await load() }
-                    }
-                    .buttonStyle(.glass)
-                    // The web portal reads the same /api/karigar/me, so it would fail the same way: trying again is the way
-                    // through. A karigar keeps Sign out in the toolbar.
+                // The web portal reads the same /api/karigar/me, so it would fail the same way: trying again is the way
+                // through. A karigar keeps Sign out in the toolbar.
+                ErrorState(message) {
+                    phase = .loading
+                    Task { await load() }
                 }
             case .ready:
                 if let portal { content(portal) }
@@ -79,7 +75,7 @@ struct MyWorkScreen: View {
             }
             if isKarigar && portal?.preview != true {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { session.signOut() } label: { Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right") }
+                    Button { confirmingSignOut = true } label: { Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right") }
                 }
             }
         }
@@ -96,6 +92,10 @@ struct MyWorkScreen: View {
             if now == .active { Task { await load() } }
         }
         .failureAlert($failure, title: "Could not update")
+        .savedFeedback(trigger: tickCount)
+        .confirmDestructive(isPresented: $confirmingSignOut, title: "Sign out?",
+                            message: "You will need to sign in again to see your work.",
+                            action: "Sign out") { session.signOut() }
     }
 
     // MARK: Reading
@@ -131,6 +131,7 @@ struct MyWorkScreen: View {
         Task {
             do {
                 try await ERPAPI.shared.send("/api/karigar/complete", ["jobId": job.id, "completed": !job.isDone])
+                tickCount += 1
                 await load()
             } catch {
                 failure = error.localizedDescription
@@ -148,7 +149,7 @@ struct MyWorkScreen: View {
             Text("Ask the shop to add your Google address.")
         } actions: {
             if isKarigar {
-                Button("Sign out") { session.signOut() }.buttonStyle(.glass)
+                Button("Sign out") { confirmingSignOut = true }.buttonStyle(.bordered)
             }
         }
     }
@@ -160,7 +161,7 @@ struct MyWorkScreen: View {
         return List {
             if readOnly, let name = p.karigar?.name {
                 Section {
-                    Text("Viewing exactly what \(name) sees. Read-only — tick items off from the Workshop dashboard instead.")
+                    Text("Viewing exactly what \(name) sees. Read-only: tick items off from the Workshop dashboard instead.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -190,6 +191,9 @@ struct MyWorkScreen: View {
             }
         }
         .listStyle(.insetGrouped)
+        .refreshable { await load() }
+        .motion(tab)
+        .selectionFeedback(trigger: tab)
     }
 
     /// To do, Late (a week or more) and Urgent (two weeks or more).
@@ -209,27 +213,22 @@ struct MyWorkScreen: View {
         let s = KarigarPortalRules.sections(p.jobs)
         if s.active.isEmpty {
             Section {
-                VStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle").font(.largeTitle).foregroundStyle(Tone.settled.color)
-                    Text("No pending work").font(.headline)
-                    Text("Nothing is waiting for you at the bench.").font(.subheadline).foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                ContentUnavailableView("No pending work", systemImage: "checkmark.circle",
+                                       description: Text("Nothing is waiting for you at the bench."))
             }
             .houseRows()
         } else {
             // Urgent's and Late's counts are the tiles above (rule 15: not said twice).
-            group("Urgent", jobs: s.critical, symbol: "flame", tone: Tone.late.color, hint: "14+ days", showsCount: false, readOnly: readOnly)
-            group("Late", jobs: s.late, symbol: "clock", tone: Tone.owed.color, hint: "7–14 days", showsCount: false, readOnly: readOnly)
-            group("In hand", jobs: s.onTrack, symbol: nil, tone: .secondary, hint: "on track", readOnly: readOnly)
+            group("Urgent", jobs: s.critical, symbol: "flame", tone: .late, hint: "14+ days", showsCount: false, readOnly: readOnly)
+            group("Late", jobs: s.late, symbol: "clock", tone: .owed, hint: "7–14 days", showsCount: false, readOnly: readOnly)
+            group("In hand", jobs: s.onTrack, symbol: nil, tone: .quiet, hint: "on track", readOnly: readOnly)
         }
-        group("Completed", jobs: s.done, symbol: "checkmark.circle", tone: .secondary, hint: nil, readOnly: readOnly)
+        group("Completed", jobs: s.done, symbol: "checkmark.circle", tone: .quiet, hint: nil, readOnly: readOnly)
     }
 
     /// One heading of the page and its orders, each order a card of its pieces.
     @ViewBuilder
-    private func group(_ title: String, jobs: [KarigarPortalJob], symbol: String?, tone: Color, hint: String?, showsCount: Bool = true, readOnly: Bool) -> some View {
+    private func group(_ title: String, jobs: [KarigarPortalJob], symbol: String?, tone: Tone, hint: String?, showsCount: Bool = true, readOnly: Bool) -> some View {
         if !jobs.isEmpty {
             Section {
                 ForEach(KarigarPortalRules.groups(jobs)) { (g: KarigarPortalGroup) in
@@ -237,15 +236,7 @@ struct MyWorkScreen: View {
                     ForEach(g.jobs) { (j: KarigarPortalJob) in pieceRow(j, readOnly: readOnly) }
                 }
             } header: {
-                HStack(spacing: 6) {
-                    if let symbol { Image(systemName: symbol) }
-                    Text(title.uppercased()).fontWeight(.bold)
-                    if showsCount { Text("\(jobs.count)").foregroundStyle(.secondary) }
-                    Spacer()
-                    if let hint { Text(hint).font(.caption2).foregroundStyle(.secondary) }
-                }
-                .foregroundStyle(tone)
-                .textCase(nil)
+                LedgerHeading(title: title, count: showsCount ? jobs.count : nil, trailing: hint, tone: tone)
             }
             .houseRows()
         }
@@ -277,7 +268,6 @@ struct MyWorkScreen: View {
                 Pill("\(g.ageDays)d", tone: urgency == "critical" ? .late : .owed)
             }
         }
-        .opacity(allDone ? 0.55 : 1)
     }
 
     private func pieceRow(_ j: KarigarPortalJob, readOnly: Bool) -> some View {
@@ -306,25 +296,28 @@ struct MyWorkScreen: View {
             }
         }
         .padding(.vertical, 4)
-        .opacity(j.isDone ? 0.6 : 1)
     }
 
     @ViewBuilder
     private func tick(_ j: KarigarPortalJob, readOnly: Bool) -> some View {
         if busy == j.id {
-            SkeletonLoading().frame(width: 28, height: 28)
+            SkeletonLoading().frame(width: 44, height: 44)
         } else if readOnly {
             Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
                 .font(.title2)
                 .foregroundStyle(j.isDone ? Tone.settled.color : Color.secondary.opacity(0.5))
-                .frame(width: 28, height: 28)
+                .frame(width: 44, height: 44)
                 .accessibilityLabel(j.isDone ? "Done" : "Not done")
         } else {
+            // The karigar's main action, many times a day: a 44 pt target, a bounce as it flips.
             Button { toggle(j) } label: {
                 Image(systemName: j.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
                     .foregroundStyle(j.isDone ? Tone.settled.color : Color.secondary)
-                    .frame(width: 28, height: 28)
+                    .contentTransition(.symbolEffect(.replace))
+                    .symbolEffect(.bounce, value: j.isDone)
+                    .frame(width: 44, height: 44)
+                    .contentShape(.rect)
             }
             .buttonStyle(.borderless)
             .accessibilityLabel(j.isDone ? "Done. Tap to reopen." : "Mark as done")
@@ -367,11 +360,11 @@ struct MyWorkScreen: View {
             .padding(.vertical, 4)
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
-            ForEach(Array(a.ledger.enumerated()), id: \.offset) { _, line in
-                goldRow(line)
+            ForEach(Self.keyed(a.ledger) { "\($0.date)|\($0.description)|\($0.goldOut)|\($0.goldIn)" }) { row in
+                goldRow(row.item)
             }
         } header: {
-            Label("Gold", systemImage: "scalemass").textCase(nil)
+            LedgerHeading(title: "Gold")
         }
         .houseRows()
 
@@ -380,11 +373,11 @@ struct MyWorkScreen: View {
                 HeroAmount(amount: a.totalPaid)
                 Text("total paid to you").font(.caption).foregroundStyle(.secondary)
             }
-            ForEach(Array(a.payments.enumerated()), id: \.offset) { _, payment in
-                paymentRow(payment)
+            ForEach(Self.keyed(a.payments) { "\($0.date)|\($0.description)|\($0.amount)" }) { row in
+                paymentRow(row.item)
             }
         } header: {
-            Label("Payments received", systemImage: "banknote").textCase(nil)
+            LedgerHeading(title: "Payments received")
         }
         .houseRows()
     }
@@ -400,6 +393,7 @@ struct MyWorkScreen: View {
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
                 .foregroundStyle(l.goldOut != 0 ? Tone.owed.color : Tone.settled.color)
+                .accessibilityLabel((l.goldOut != 0 ? "Given " : "Returned ") + KarigarPortalRules.grams(l.goldOut != 0 ? l.goldOut : l.goldIn))
         }
     }
 
@@ -410,7 +404,23 @@ struct MyWorkScreen: View {
                 Text(p.description).font(.subheadline)
             }
             Spacer(minLength: 8)
-            Text(Money.grouped(p.amount)).font(.subheadline.weight(.semibold)).monospacedDigit()
+            RowAmount(amount: p.amount)
+        }
+    }
+
+    /// A line with a stable id (what it is, not where it sits), so a reload does not re-deal the rows.
+    private struct Keyed<Item>: Identifiable {
+        let id: String
+        let item: Item
+    }
+
+    private static func keyed<Item>(_ items: [Item], key: (Item) -> String) -> [Keyed<Item>] {
+        var seen: [String: Int] = [:]
+        return items.map { item in
+            let base = key(item)
+            let n = seen[base, default: 0]
+            seen[base] = n + 1
+            return Keyed(id: "\(base)|\(n)", item: item)
         }
     }
 }

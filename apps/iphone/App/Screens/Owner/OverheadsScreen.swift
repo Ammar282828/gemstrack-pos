@@ -54,7 +54,9 @@ private struct OverheadsBoard: View {
     @State private var lines: [OverheadDraftLine] = []
     @State private var saving = false
     @State private var saveError: String?
-    @State private var note: OwnerNote?
+    @State private var note: Note?
+    /// Bumped on each saved sheet, so the money tap fires on the event.
+    @State private var savedCount = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// One clock for the whole screen, so the month boundary and the days-left figure cannot disagree
     /// part-way down.
@@ -83,10 +85,14 @@ private struct OverheadsBoard: View {
                     .disabled(answer == nil)
             }
         }
-        .safeAreaBar(edge: .bottom) {
+        .safeAreaBar(edge: .bottom, spacing: 0) {
             if dirty { saveBar }
         }
         .noteToast($note)
+        .failureAlert($saveError, title: "Not saved")
+        .moneyFeedback(success: savedCount, failure: saveError)
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
         .task {
             book.invoices.need()
             book.orders.need()
@@ -123,16 +129,16 @@ private struct OverheadsBoard: View {
         let target = Overheads.overheadTotal(items)
         let earned = current?.earned ?? 0
         let p = Overheads.overheadProgress(target: target, earned: earned, now: now)
+        if answer == nil, let loadError {
+            ErrorState(loadError) { Task { await load() } }
+        } else {
+            sheetList(rows: rows, summary: summary, target: target, earned: earned, p: p)
+        }
+    }
+
+    private func sheetList(rows: [OverheadMonthRow], summary: OverheadSummary, target: Double, earned: Double, p: OverheadProgress) -> some View {
         List {
             Group {
-                if answer == nil, let loadError {
-                    Section {
-                        Label(loadError, systemImage: "exclamationmark.icloud").foregroundStyle(.secondary)
-                        Button { Task { await load() } } label: { Label("Try again", systemImage: "arrow.clockwise") }
-                    } header: {
-                        LedgerHeading(title: "Couldn't read the sheet")
-                    }
-                }
                 thisMonthSection(target: target, earned: earned, p: p)
                 recordSection(rows, summary)
                 if answer != nil { sheetSection(target) }
@@ -141,6 +147,7 @@ private struct OverheadsBoard: View {
         }
         .listStyle(.insetGrouped)
         .refreshable { await load() }
+        .motion(lines.count)
     }
 
     // MARK: This month, first
@@ -175,8 +182,9 @@ private struct OverheadsBoard: View {
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             .listRowBackground(Color.clear)
         } header: {
+            LedgerHeading(title: "This month")
+        } footer: {
             Text("What \(monthName) has to cover before anything is profit. Scored from \(Overheads.monthLabel(Overheads.benchmarkStart)).")
-                .textCase(nil)
         }
     }
 
@@ -225,6 +233,7 @@ private struct OverheadsBoard: View {
                 .monospacedDigit()
                 .foregroundStyle(r.inProgress ? Color.secondary : (r.surplus >= 0 ? Color.primary : Tone.owed.color))
         }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: The sheet that produces the target
@@ -232,7 +241,7 @@ private struct OverheadsBoard: View {
     private func sheetSection(_ target: Double) -> some View {
         Section {
             ForEach($lines) { $line in
-                HStack(spacing: 10) {
+                AdaptiveStack(spacing: 10, alignment: .center) {
                     TextField("What is it for", text: $line.label)
                         .textInputAutocapitalization(.sentences)
                     TextField("Amount", text: $line.amountText.wholeRupees)
@@ -269,40 +278,12 @@ private struct OverheadsBoard: View {
     // MARK: Saving
 
     private var saveBar: some View {
-        VStack(spacing: 8) {
-            if let saveError {
-                Text(saveError)
-                    .font(.footnote)
-                    .foregroundStyle(Tone.problem.color)
-                    .multilineTextAlignment(.center)
-                    .padding(10)
-                    .frame(maxWidth: .infinity)
-                    .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
-            }
-            HStack(spacing: 10) {
-                Button {
-                    lines = OverheadDraftLine.lines(liveItems)
-                    saveError = nil
-                } label: {
-                    Label("Discard", systemImage: "arrow.uturn.backward").frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.glass)
-                .controlSize(.large)
-                .disabled(saving)
-                Button { Task { await save() } } label: {
-                    HStack(spacing: 8) {
-                        if saving { SkeletonLoading() }
-                        Text("Save from \(monthName)")
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.houseProminent)
-                .controlSize(.large)
-                .disabled(saving)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
+        ActionBar(
+            primary: .init("Save from \(monthName)", isBusy: saving) { Task { await save() } },
+            secondary: [.init("Discard", systemImage: "arrow.uturn.backward", isDisabled: saving) {
+                lines = OverheadDraftLine.lines(liveItems)
+                saveError = nil
+            }])
     }
 
     /// The ERP saves it from this month on (its own clock, in Karachi) and answers with the plans now on
@@ -332,6 +313,7 @@ private struct OverheadsBoard: View {
             } else {
                 lines = OverheadDraftLine.lines(saved)
             }
+            savedCount += 1
             Note.show(Note(title: "Benchmark saved", detail: "\(OwnerText.pkr(Overheads.overheadTotal(saved))) a month, from \(Overheads.monthLabel(from))."),
                       in: $note, reduce: reduceMotion)
         } catch {

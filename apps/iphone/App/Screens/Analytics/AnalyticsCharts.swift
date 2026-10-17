@@ -26,8 +26,8 @@ struct AnaBarChart: View {
             }
             .frame(height: CGFloat(bars.count) * 28 + 36)
             Text("PKR lac")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 }
@@ -68,8 +68,8 @@ struct AnaSalesChart: View {
             .frame(height: 200)
             .accessibilityLabel("Sales each day over the period")
             Text("Sales, PKR lac")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 }
@@ -87,8 +87,8 @@ struct AnaOrdersChart: View {
             .frame(height: 110)
             .accessibilityLabel("Orders each day over the period")
             Text("Orders")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 }
@@ -113,8 +113,8 @@ struct AnaMonthlyChart: View {
             .frame(height: 220)
             .accessibilityLabel("Revenue for each month on record")
             Text("Revenue, PKR lac. Dashed line: the average of months with sales.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 }
@@ -133,8 +133,8 @@ struct AnaSourceTrendChart: View {
             .frame(height: 240)
             .accessibilityLabel("Revenue by source each day")
             Text("PKR lac")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 }

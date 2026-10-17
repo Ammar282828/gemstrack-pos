@@ -67,10 +67,13 @@ struct DashHero: View {
                 if linked { DashChevron() }
             }
             HeroAmount(amount: amount, lac: true)
+                .motion(amount)
             Text(line)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+                .contentTransition(.numericText())
+                .motion(line)
                 .lineLimit(2)
             if week.contains(where: { $0.amount > 0 }) {
                 DashWeekBars(days: week)
@@ -157,8 +160,9 @@ struct DashStatAmount: View {
                 .foregroundStyle(tint)
                 .contentTransition(.numericText(value: amount))
         }
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
+        .motion(amount)
+        .lineLimit(2)
+        .minimumScaleFactor(0.8)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Money.pkrLac(amount))
     }
@@ -174,8 +178,10 @@ struct DashStatValue: View {
             .font(.headline)
             .monospacedDigit()
             .foregroundStyle(tint)
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
+            .contentTransition(.numericText())
+            .motion(text)
+            .lineLimit(2)
+            .minimumScaleFactor(0.8)
     }
 }
 
@@ -256,8 +262,12 @@ struct DashRows<Item: Identifiable, Row: View>: View {
 
     var body: some View {
         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-            if index > 0 { Divider().padding(.leading, inset) }
-            row(item)
+            VStack(spacing: 0) {
+                if index > 0 { Divider().padding(.leading, inset) }
+                row(item)
+            }
+            // A revealed row arrives from above and leaves the same way (the section's Show more / less).
+            .transition(.opacity.combined(with: .move(edge: .top)))
         }
     }
 }
@@ -290,7 +300,7 @@ struct DashAllClear: View {
         HStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.title3)
-                .foregroundStyle(Tone.settled.color)
+                .foregroundStyle(.secondary)
             Text("All clear")
                 .font(.subheadline.weight(.semibold))
             Text("Nothing late, unpaid or waiting")
@@ -363,6 +373,7 @@ struct DashNeedRow: View {
             Button(action: onRates) { content }.buttonStyle(.plain)
         } else {
             NavigationLink(value: Route(path: need.path)) { content }.buttonStyle(.plain)
+                .zoomSource(id: need.path)
         }
     }
 
@@ -372,7 +383,7 @@ struct DashNeedRow: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(tone.color)
                 .frame(width: side, height: side)
-                .background(tone.color.opacity(0.13), in: .rect(cornerRadius: side * 0.3, style: .continuous))
+                .background(tone.color.opacity(0.13), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(need.title)
                     .font(.subheadline.weight(.semibold))
@@ -438,8 +449,8 @@ struct DashDueRow: View {
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                     Text(refText)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                         .monospacedDigit()
                         .lineLimit(1)
                 }
@@ -453,6 +464,7 @@ struct DashDueRow: View {
             .accessibilityLabel(spoken)
         }
         .buttonStyle(.plain)
+        .zoomSource(id: due.path)
     }
 
     @ViewBuilder
@@ -517,6 +529,7 @@ struct DashSaleRow: View {
             .accessibilityLabel("\(name), \(when), \(Money.pkrLac(invoiceSaleValue(invoice))), \(standing?.text ?? "Paid")")
         }
         .buttonStyle(.plain)
+        .zoomSource(id: DashPath.invoice(invoice.id))
     }
 }
 
@@ -537,7 +550,7 @@ struct DashMonthCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 8) {
+            AdaptiveStack(spacing: 8, alignment: .top) {
                 stat("Revenue", figures.revenueMonth, .primary)
                 if showCosts {
                     stat("Expenses", figures.expensesMonth, .primary)
@@ -559,9 +572,10 @@ struct DashMonthCard: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(tint)
                 .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
                 .contentTransition(.numericText(value: value))
+                .motion(value)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
