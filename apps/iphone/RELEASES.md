@@ -37,3 +37,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-17: no decimals in money anywhere in the app: every amount box on the number pad in whole rupees, messages and slips in whole rupees, under a rupee counts as settled.
 - 2026-10-17: Insights, as the web has it since today: Instagram and Facebook, organic beside paid (Overview, Posts, Audience), what the numbers say worked out on the server.
 - 2026-10-17: bills in whole rupees as the ERP works them (each line rounded), round-off offers under the discount (New sale, New order, Finalize, Change discount), and Settle — give the remaining off — on payments and advances.
+- 2026-10-17: Settle is one write on the ERP (settleInvoicePayment, settleOrderAdvance): the payment and its discount together, the order's status untouched.
