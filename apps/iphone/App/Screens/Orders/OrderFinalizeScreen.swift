@@ -168,11 +168,12 @@ struct OrderFinalizeScreen: View {
                 Text(order.id).font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            // Paid says nothing (CONVENTIONS rule 15): only what is due or in credit is coloured.
-            if abs(due) > 0.5 {
-                VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: 2) {
+                if abs(due) > 0.5 {
                     RowAmount(amount: abs(due), tone: due < 0 ? Tone.credit.color : Tone.owed.color)
                     Text(due < 0 ? "In credit" : "Due").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Pill("Paid", tone: .settled)
                 }
             }
         }

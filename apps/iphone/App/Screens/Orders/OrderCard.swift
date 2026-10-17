@@ -191,10 +191,11 @@ struct OrderCardHead: View {
                     .layoutPriority(1)
             }
             let what = OrdersLogic.cardWhat(order)
+            // One line: the order's page has the pieces in full.
             Text(what.text + (what.extra.map { " \u{00B7} " + $0 } ?? ""))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .lineLimit(2)
+                .lineLimit(1)
             stateRow(counts)
         }
         .padding(.vertical, 2)
@@ -232,8 +233,7 @@ struct OrderCardHead: View {
     private var stageTone: Tone {
         switch stage {
         case .karigar: return .working
-        case .ready: return .settled
-        // Done is what an order is meant to reach: no colour for it (CONVENTIONS rule 15).
+        case .ready, .done: return .settled
         case .transfer, .payment: return .owed
         default: return .quiet
         }
@@ -253,8 +253,7 @@ struct OrderCardHead: View {
         }
     }
 
-    /// What is still owed (amber) or in credit (teal); nothing once paid (CONVENTIONS rule 15: the expected state
-    /// has no badge).
+    /// What is still owed (amber), what is in credit (teal), or Paid in a pill once nothing is.
     @ViewBuilder private var money: some View {
         if stage != .closed {
             let due = OrdersLogic.stillOwed(order, invoiceOwed: owed)
@@ -262,9 +261,11 @@ struct OrderCardHead: View {
                 VStack(alignment: wideAlignment, spacing: 2) {
                     RowAmount(amount: abs(due), tone: due < 0 ? Tone.credit.color : Tone.owed.color)
                     Text(due < 0 ? "In credit" : "Owed")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
                 .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: true)
+            } else {
+                Pill("Paid", tone: .settled)
             }
         }
     }
@@ -322,8 +323,13 @@ struct OrderNextStepRow: View {
             ProgressView().controlSize(.small)
                 .frame(minWidth: 44, minHeight: 44)
         } else {
+            // A small tinted capsule, so the card's one action reads as a button and not as more words. Not glass
+            // (a glass button under an animated swap shrinks into a blob, iphone-app.md "The bubble").
             Button(action: run) { Label(step.title, systemImage: step.symbol) }
-                .buttonStyle(.borderless)
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
+                .tint(Theme.accent)
                 .font(.subheadline.weight(.semibold))
                 .frame(minHeight: 44)
         }

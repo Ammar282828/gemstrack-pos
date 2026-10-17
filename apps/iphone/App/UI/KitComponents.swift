@@ -271,25 +271,29 @@ struct ZoomSource: ViewModifier {
 
     func body(content: Content) -> some View {
         if let namespace {
+            // No gesture of its own: a tap recogniser beside a List row's link took taps from it, so a card
+            // lit up and did not open (owner, 2026-10-17: "tapping order card and invoice card feels buggy").
             content.matchedTransitionSource(id: id, in: namespace)
-                .simultaneousGesture(TapGesture().onEnded { ZoomTap.mark(id) })
+                .onAppear { ZoomTap.shown(id) }
+                .onDisappear { ZoomTap.hidden(id) }
         } else { content }
     }
 }
 
-/// The row just tapped. A page zooms only when it was opened from its own row: opened any other way (after a
-/// save, from search, a link, the dashboard) iOS has no row to grow from and zooms from a stray bubble instead
-/// (owner, 2026-10-15: "a weird animation bubble" when finishing an order or invoice).
+/// The rows on screen. A page zooms only out of its own row while that row is showing: opened any other way
+/// (after a save, from a link, a notification) iOS has no row to grow from and zooms from a stray bubble instead
+/// (owner, 2026-10-15: "a weird animation bubble" when finishing an order or invoice). A page is made before the
+/// row under it disappears, so the row that opened it is still counted.
 enum ZoomTap {
-    // Only ever touched on the main thread (a tap, a view being made).
-    nonisolated(unsafe) private static var last: (id: String, at: Date)?
-    static func mark(_ id: String) { last = (id, Date()) }
-    /// True once, for the page of the row tapped in the last two seconds.
-    static func take(_ id: String) -> Bool {
-        guard let l = last, l.id == id, Date().timeIntervalSince(l.at) < 2 else { return false }
-        last = nil
-        return true
+    // Only ever touched on the main thread (a row appearing, a view being made).
+    nonisolated(unsafe) private static var showing: [String: Int] = [:]
+    static func shown(_ id: String) { showing[id, default: 0] += 1 }
+    static func hidden(_ id: String) {
+        let n = (showing[id] ?? 0) - 1
+        showing[id] = n > 0 ? n : nil
     }
+    /// True when a row for this page is on screen.
+    static func take(_ id: String) -> Bool { (showing[id] ?? 0) > 0 }
 }
 
 /// A page that grows from the row with the same id, when that row opened it.

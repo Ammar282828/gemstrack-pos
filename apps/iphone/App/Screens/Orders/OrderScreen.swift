@@ -193,8 +193,8 @@ struct OrderScreen: View {
         return parts.joined(separator: " \u{00B7} ")
     }
 
-    /// What is still owed, as the page's one big figure (amber), or In credit in a pill; paid says nothing
-    /// (CONVENTIONS rule 15). A cancelled or refunded order has no money left to say.
+    /// What is still owed, as the page's one big figure (amber), or Paid / In credit in a pill once nothing is.
+    /// A cancelled or refunded order has no money left to say.
     @ViewBuilder
     private func heroFigure(_ order: Order, stage: OrderStage, owed: Double, invoice: Invoice?) -> some View {
         if stage != .closed {
@@ -209,6 +209,8 @@ struct OrderScreen: View {
                 } else if due < -0.5 {
                     Pill("In credit", tone: .credit)
                     HeroAmount(amount: -due, tone: Tone.credit.color)
+                } else {
+                    Pill("Paid", tone: .settled, symbol: "checkmark")
                 }
             }
         }

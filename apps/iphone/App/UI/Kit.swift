@@ -441,9 +441,10 @@ struct PaymentCustomer {
 
 /// The sheet's numbers and words, kept apart from the view so they read the same wherever they are used.
 enum PaymentText {
-    /// What was typed, as rupees and paise. Thousands commas are dropped; on a phone set to a region that
-    /// types its decimal point as a comma ("1500,4") a comma followed by one or two digits is the
-    /// decimal point, since a thousands comma always has three.
+    /// What was typed, in whole rupees (owner, 2026-10-17: "there should be no decimals"). Thousands commas
+    /// are dropped; on a phone set to a region that types its decimal point as a comma ("1500,4") a comma
+    /// followed by one or two digits is the decimal point, since a thousands comma always has three. Paise
+    /// typed are rounded away, as the ERP rounds every sum to the rupee.
     static func amount(_ text: String) -> Double? {
         var t = text.trimmingCharacters(in: .whitespaces)
         if !t.contains("."), let comma = t.lastIndex(of: ",") {
@@ -452,26 +453,21 @@ enum PaymentText {
         }
         t = t.replacingOccurrences(of: ",", with: "")
         guard !t.isEmpty, let v = Double(t), v.isFinite, v >= 0 else { return nil }
-        return (v * 100).rounded() / 100
+        return v.rounded()
     }
 
-    /// A balance for the amount field: up to two decimals, no grouping, no trailing zeros ("1500.4").
-    static func field(_ v: Double) -> String {
-        var s = String(format: "%.2f", v)
-        while s.hasSuffix("0") { s.removeLast() }
-        if s.hasSuffix(".") { s.removeLast() }
-        return s
-    }
+    /// A balance for the amount field: whole rupees, no grouping ("1500").
+    static func field(_ v: Double) -> String { String(Int(v.rounded())) }
 
-    /// "PKR 1,500" for whole rupees, "PKR 1,500.4" when paise are owed: Money.pkr would round them away.
-    static func pkr(_ v: Double) -> String {
-        if abs(v - v.rounded()) < 0.005 { return Money.pkr(v) }
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.locale = Locale(identifier: "en_US")
-        f.minimumFractionDigits = 0
-        f.maximumFractionDigits = 2
-        return "PKR " + (f.string(from: NSNumber(value: v)) ?? String(v))
+    /// "PKR 1,500": whole rupees, always; an old bill's paise are not shown.
+    static func pkr(_ v: Double) -> String { Money.pkr(v) }
+
+    /// A money box's text kept to whole rupees: the number pad types only digits, and a pasted or prefilled
+    /// "1,500.40" becomes "1500". Blank stays blank.
+    static func whole(_ text: String) -> String {
+        if text.allSatisfy({ $0.isASCII && $0.isNumber }) { return text }
+        if let v = amount(text), v < 1e15 { return field(v) }
+        return text.filter { $0.isASCII && $0.isNumber }
     }
 
     /// What the reference box is for, by how it was paid (the web's labels).
@@ -485,8 +481,8 @@ enum PaymentText {
     }
 }
 
-/// Taking money: an invoice's payment or an order's advance. The amount is typed in rupees (paise
-/// allowed) and shown back in lac as it is typed; the write is the ERP's (`save`), and the sheet stays
+/// Taking money: an invoice's payment or an order's advance. The amount is typed in whole rupees
+/// (no paise) and shown back in lac as it is typed; the write is the ERP's (`save`), and the sheet stays
 /// open with the ERP's own words if it refuses.
 struct PaymentSheet: View {
     let title: String
@@ -579,7 +575,7 @@ struct PaymentSheet: View {
             Form {
                 Section {
                     TextField("Amount in rupees", text: $amountText)
-                        .keyboardType(.decimalPad)
+                        .keyboardType(.numberPad)
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }
@@ -658,6 +654,14 @@ struct MineRowBackground: View {
             .overlay(alignment: .leading) {
                 Capsule().fill(Theme.accent).frame(width: 3).padding(.vertical, 10)
             }
+    }
+}
+
+extension Binding where Value == String {
+    /// A money box's text in whole rupees, as shown and as kept (owner, 2026-10-17: "there should be no
+    /// decimals"). Pair it with `.keyboardType(.numberPad)`.
+    var wholeRupees: Binding<String> {
+        Binding(get: { PaymentText.whole(wrappedValue) }, set: { wrappedValue = PaymentText.whole($0) })
     }
 }
 
