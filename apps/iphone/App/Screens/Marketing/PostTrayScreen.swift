@@ -20,8 +20,6 @@ struct PostTrayScreen: View {
     @State private var story: Story?
     @State private var started = false
     @State private var clearing = false
-    @State private var sentTick = 0
-    @State private var refusedTick = 0
 
     struct Story: Identifiable {
         let id = UUID()
@@ -71,8 +69,6 @@ struct PostTrayScreen: View {
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if !model.cards.isEmpty { sendBar }
         }
-        .savedFeedback(trigger: sentTick)
-        .refusedFeedback(trigger: refusedTick)
         .confirmDestructive(isPresented: $clearing, title: "Clear all \(model.cards.count)?",
                             message: "They come off the tray. The pieces themselves are untouched.",
                             action: "Clear all") { model.clear() }
@@ -271,7 +267,6 @@ struct PostTrayScreen: View {
     /// The first thing worth saying, with the rest after it.
     private func say(_ notes: [Note]) {
         guard let first = notes.first(where: { $0.failed }) ?? notes.first else { return }
-        if first.failed { refusedTick += 1 } else { sentTick += 1 }
         let rest = notes.filter { $0 != first }.map { (n: Note) in n.title + (n.detail.isEmpty ? "" : ": " + n.detail) }
         let detail = ([first.detail] + rest).filter { !$0.isEmpty }.joined(separator: " ")
         Note.show(Note(title: first.title, detail: detail, failed: first.failed), in: $note, reduce: reduceMotion)

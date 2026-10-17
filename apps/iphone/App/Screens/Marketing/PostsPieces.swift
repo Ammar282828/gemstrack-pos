@@ -36,7 +36,6 @@ struct PostPiecesScreen: View {
         .navigationTitle(tray.map { (t: PostTrayModel) in t.cards.isEmpty ? "Pick pieces" : "\(t.cards.count) picked" } ?? "Pieces")
         .navigationBarTitleDisplayMode(.inline)
         .failureAlert($refused, title: "Not now")
-        .refusedFeedback(trigger: refused)
         .searchable(text: $search, prompt: "Search: ruby, kara, jhumka…")
         .task { await store.load() }
         .onChange(of: search) { _, _ in shown = PostPiecesScreen.pageSize }

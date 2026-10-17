@@ -162,13 +162,6 @@ struct WebsiteWeightsScreen: View {
         .scrollDismissesKeyboard(.interactively)
         .refreshable { await load() }
         .savedFeedback(trigger: savedTick)
-        .toolbar {
-            // The pinned bar hides over the keyboard, so the keyboard carries the same action.
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Save & next") { ask(advance: true) }.disabled(saving)
-            }
-        }
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if current != nil {
                 ActionBar(primary: .init("Save & next", systemImage: "checkmark", isBusy: saving) { ask(advance: true) })

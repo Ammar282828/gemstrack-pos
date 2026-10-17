@@ -92,7 +92,6 @@ struct WebsitePhotosScreen: View {
         .onChange(of: said) { _, now in
             if let now { Note.show(Note(title: now), in: $note, reduce: reduceMotion) }
         }
-        .sensoryFeedback(.success, trigger: said) { _, now in now != nil }
     }
 
 

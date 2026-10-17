@@ -13,7 +13,6 @@ struct PostQueueSpreadSheet: View {
     @State private var last = PostQueueSpreadSheet.soon(10)
     @State private var busy: String?
     @State private var failure: String?
-    @State private var scheduled = 0
 
     private var store: PostsStore { PostsStore.shared }
 
@@ -70,7 +69,6 @@ struct PostQueueSpreadSheet: View {
             }
             .websiteBusy(busy)
             .failureAlert($failure)
-            .savedFeedback(trigger: scheduled)
         }
         .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(busy != nil)
@@ -94,7 +92,6 @@ struct PostQueueSpreadSheet: View {
             let span = times.count > 1 ? "from \(MarketingTime.clock(times[0].ISO8601Format())) to \(MarketingTime.clock(times[times.count - 1].ISO8601Format()))"
                 : "at \(MarketingTime.clock(times.first?.ISO8601Format()))"
             onDone(Note(title: "\(waiting.count) \(PostTrayModel.noun(waiting.count)) spread \(span)", detail: "They go by themselves: the app can be closed."))
-            scheduled += 1
             dismiss()
         } catch {
             failure = error.localizedDescription

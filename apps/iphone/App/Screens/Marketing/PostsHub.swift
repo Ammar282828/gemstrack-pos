@@ -17,7 +17,6 @@ struct PostsHub: View {
     @State private var confirmingAll = false
     @State private var sendingAll = false
     @State private var note: Note?
-    @State private var sentTick = 0
 
     struct Opened: Identifiable { let id: String }
 
@@ -53,7 +52,6 @@ struct PostsHub: View {
             Text(sendAllWords)
         }
         .noteToast($note)
-        .savedFeedback(trigger: sentTick)
         .motion(store.queueShown.map(\.id))
         .task { await store.load(gold: hasInvestments) }
     }
@@ -234,7 +232,6 @@ struct PostsHub: View {
         defer { sendingAll = false }
         let r = await store.sendAll()
         let whole = r.sent == r.of
-        if whole { sentTick += 1 }
         Note.show(Note(title: whole ? "All \(r.of) sent" : "\(r.sent) of \(r.of) sent",
                        detail: whole ? "" : "The ones that failed say why; sending again sends only what didn't go.", failed: !whole), in: $note, reduce: reduceMotion)
     }

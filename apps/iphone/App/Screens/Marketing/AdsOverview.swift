@@ -51,7 +51,6 @@ struct AdsOverviewScreen: View {
             Text("\(a.targetName) will spend its budget again.")
         }
         .failureAlert($failure, title: "Meta didn't take that")
-        .sensoryFeedback(.error, trigger: failure) { _, now in now != nil }
         .noteToast($note)
     }
 

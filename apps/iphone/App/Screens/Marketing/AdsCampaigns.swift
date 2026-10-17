@@ -29,7 +29,6 @@ struct AdsCampaignsScreen: View {
     @State private var csvFile: URL?
     @State private var exporting = false
     @State private var note: Note?
-    @State private var savedTick = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     enum Filter: String, CaseIterable, Identifiable {
@@ -95,7 +94,6 @@ struct AdsCampaignsScreen: View {
         }
         .failureAlert($failure, title: "Meta didn't take that")
         .noteToast($note)
-        .savedFeedback(trigger: savedTick)
     }
 
     private var askingShown: Binding<Bool> {
@@ -132,7 +130,6 @@ struct AdsCampaignsScreen: View {
         defer { busy = nil }
         do {
             try await AdsAPI.setRunning(level: t.level, id: t.id, running: running)
-            savedTick += 1
             Note.show(Note(title: running ? "Running" : "Paused", detail: t.name), in: $note, reduce: reduceMotion)
             await load()
         } catch {

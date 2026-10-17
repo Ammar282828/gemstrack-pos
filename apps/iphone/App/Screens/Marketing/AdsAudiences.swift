@@ -70,7 +70,6 @@ struct AdsAudiencesScreen: View {
                 Text("Ads that reach or leave out this audience lose it and keep the rest of their targeting. This can't be undone.")
             }
             .noteToast($note)
-            .sensoryFeedback(.success, trigger: note) { _, now in now != nil }
             .onChange(of: notice) { _, now in
                 guard let now else { return }
                 notice = nil
