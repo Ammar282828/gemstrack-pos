@@ -42,6 +42,9 @@ struct NewOrder: View {
     @State private var confirmReset = false
     @State private var pickingStock = false
     @State private var step: EntryStep = .customer
+    /// Bumped on a saved order or edit, so the money tap is felt once (never per keystroke).
+    @State private var saves = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(readsSlip: Bool = false) {
         edit = nil
@@ -171,14 +174,12 @@ struct NewOrder: View {
         let totals = NewOrderMath.totals(draft, settings)
         return screen(totals, settings)
             .failureAlert($failure, title: failureTitle)
-            .confirmationDialog("Start this order over?", isPresented: $confirmReset, titleVisibility: .visible) {
-                Button("Start over", role: .destructive) { startOver() }
-                Button("Keep it", role: .cancel) {}
-            } message: {
-                Text("Everything typed so far is cleared from this phone and from Drafts.")
-            }
+            .confirmDestructive(isPresented: $confirmReset, title: "Start this order over?",
+                                message: "Everything typed so far is cleared from this phone and from Drafts.",
+                                action: "Start over") { startOver() }
             .interactiveDismissDisabled(saving)
-            .sensoryFeedback(.success, trigger: created)
+            // A refused save already gets the error tap from failureAlert; this is the success tap for the money.
+            .moneyFeedback(success: saves, failure: 0)
             .modifier(keeping)
     }
 
@@ -188,6 +189,7 @@ struct NewOrder: View {
           VStack(spacing: 0) {
             EntrySteps(selection: $step, states: stepStates)
             if step == .pieces || step == .payment { NewOrderPinnedSummary(totals: totals) }
+            // Only the step's own form is keyed: the strip and the pinned total stay, the step cross-fades.
             Form { Group {
             if restored { restoredBanner }
             if edit?.invoiced == true {
@@ -210,11 +212,12 @@ struct NewOrder: View {
                 NewOrderPaymentSection(draft: $draft, totals: totals)
                 NewOrderExchangeSection(draft: $draft)
             case .review:
+                NewOrderTotalsSection(totals: totals, pieces: draft.pieces.count)
                 Section {
                     LabeledContent("Customer", value: draft.customerName.isEmpty ? "Walk-in" : draft.customerName)
                     if !draft.customerPhone.isEmpty { LabeledContent("Phone", value: draft.customerPhone) }
                     LabeledContent("Promised for", value: draft.promised.isEmpty ? "No date" : ShopDate.say(draft.promised))
-                    Button("Edit \(draft.pieces.count) pieces") { step = .pieces }
+                    Button("Edit \(NewOrderFormat.pieces(draft.pieces.count))") { step = .pieces }
                     Button("Edit payment and exchange") { step = .payment }
                 } header: { LedgerHeading(title: "Review") }
                 if !draft.pieces.isEmpty {
@@ -232,7 +235,9 @@ struct NewOrder: View {
             .houseRows()
             }
             .id(step)
+            .transition(.opacity)
           }
+          .motion(step)
         } review: {
             TransactionReview(customer: draft.customerName, contact: draft.customerPhone,
                 pieces: draft.pieces.enumerated().map { index, p in
@@ -254,18 +259,30 @@ struct NewOrder: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             // The AI slip reader (NewOrderScanScreen): the ERP's own reader, its answer laid into this draft.
-            if edit == nil {
+            // Only an owner's sign-in may use the reader, so only an owner is offered it.
+            if edit == nil && session.isOwner {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        NewOrderScanScreen(draft: $draft)
-                    } label: {
+                    Button { readingSlip = true } label: {
                         Label("Read a slip", systemImage: "doc.text.viewfinder")
                             .labelStyle(.titleAndIcon)
                     }
                 }
             }
+            if edit == nil {
+                // Throwing the order away is a menu's item, not a red button in the form.
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button(role: .destructive) { confirmReset = true } label: {
+                            Label("Start over", systemImage: "arrow.counterclockwise")
+                        }
+                        .disabled(draft.isBlank)
+                    } label: {
+                        Label("More", systemImage: "ellipsis.circle")
+                    }
+                }
+            }
         }
-        .newOrderKeyboardDone()
+        .keyboardDone()
         .navigationDestination(item: $editing) { ref in editor(ref.id) }
     }
 
@@ -323,6 +340,7 @@ struct NewOrder: View {
                     .foregroundStyle(Tone.owed.color)
             }
         }
+        .motion(draft.photosLeftOut)
     }
 
     // MARK: The pieces
@@ -368,6 +386,7 @@ struct NewOrder: View {
         } footer: {
             NewOrderPiecesFooter(count: draft.pieces.count)
         }
+        .motion(draft.pieces.map(\.id))
     }
 
     /// A piece in stock as the start of one to be made (the web's "Add from Inventory"): everything copied, its SKU
@@ -386,11 +405,11 @@ struct NewOrder: View {
     }
 
     private func duplicatePiece(_ id: UUID) {
-        draft.duplicatePiece(id)
+        Motion.run(reduce: reduceMotion) { draft.duplicatePiece(id) }
     }
 
     private func removePiece(_ id: UUID) {
-        draft.pieces.removeAll { $0.id == id }
+        Motion.run(reduce: reduceMotion) { draft.pieces.removeAll { $0.id == id } }
     }
 
     private func pieceBinding(_ id: UUID) -> Binding<NewOrderPieceDraft> {
@@ -431,12 +450,6 @@ struct NewOrder: View {
                 NewOrderMath.margin(draft, settings, totals)
             }
         }
-        NewOrderTotalsSection(totals: totals, pieces: draft.pieces.count)
-        if edit == nil && !draft.isBlank {
-            Section {
-                Button("Start over", role: .destructive) { confirmReset = true }
-            }
-        }
     }
 
     private func startOver() {
@@ -452,38 +465,14 @@ struct NewOrder: View {
 
     // MARK: Saving
 
-    /// THE action of the screen: one glass button, with the balance beside it.
+    /// THE action of the screen: Save, with the balance in the line above it.
     private func saveBar(_ totals: NewOrderMath.Totals) -> some View {
-        // The balance rides in its own glass beside the button, so it reads over whatever scrolls beneath.
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Balance due").font(.caption2.weight(.medium)).foregroundStyle(.secondary)
-                MoneyText(amount: totals.balance, exact: true)
-                    .font(.headline)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .padding(.horizontal, 16).padding(.vertical, 8)
-            .glassEffect(.regular, in: .capsule)
-            Spacer(minLength: 8)
-            Button {
-                Task { await save() }
-            } label: {
-                Group {
-                    if saving {
-                        SkeletonLoading()
-                    } else {
-                        Text(edit == nil ? "Save order" : "Save changes")
-                    }
-                }
-                .frame(minWidth: 120)
-            }
-            .buttonStyle(.houseProminent)
-            .controlSize(.large)
-            .disabled(saving)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        let word = totals.balance < 0 ? "Credit to customer " : "Balance due "
+        return ActionBar(
+            primary: .init(edit == nil ? "Save order" : "Save changes", isBusy: saving) { Task { await save() } },
+            summary: word + Money.pkr(abs(totals.balance))
+        )
+        .padding(.top, 8)
     }
 
     /// Sizes on the order that the customer's profile doesn't hold are offered once, over the order's own page.
@@ -524,6 +513,7 @@ struct NewOrder: View {
             do {
                 _ = try await ERPAPI.shared.write("updateOrder", request)
                 savedEdit = true
+                saves += 1
                 if let order = request["order"] as? [String: Any] { offerSizes(order) }
                 if sizeAsk == nil { dismiss() }
             } catch let e as ERPAPI.Failure {
@@ -547,6 +537,7 @@ struct NewOrder: View {
                 SaleDraftStore.clear()
                 WorkDraftSync.sale.drop()
             }
+            saves += 1
             offerSizes(made)
             // Blank, so a keep that was already on its way writes nothing back. The form gives way to the order with no
             // animation: its glass Save button can't fade and would shrink into a "bubble" over the order.

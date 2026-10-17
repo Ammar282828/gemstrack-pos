@@ -135,6 +135,8 @@ struct NewOrderPromisedSection: View {
         } footer: {
             Text("What the piece is chased against. Within \(URGENT_WINDOW_DAYS) days is marked urgent.")
         }
+        .motion(draft.promised.isEmpty)
+        .motion(days.map { $0 <= URGENT_WINDOW_DAYS })
     }
 }
 
@@ -234,6 +236,8 @@ struct NewOrderRatesSection: View {
             } footer: {
                 Text(footer)
             }
+            .motion(differs)
+            .motion(boxes.count)
         }
     }
 
@@ -288,6 +292,7 @@ struct NewOrderPaymentSection: View {
         } footer: {
             Text("The discount is carried onto the invoice when this order is finalised.")
         }
+        .motion(NewOrderFormat.num(draft.advance) > 0)
     }
 }
 
@@ -299,6 +304,7 @@ struct NewOrderPaymentSection: View {
 struct NewOrderExchangeSection: View {
     @Binding var draft: NewOrderDraft
     @State private var opened: Set<String> = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let karats = ["24k", "22k", "21k", "18k"]
 
@@ -308,7 +314,7 @@ struct NewOrderExchangeSection: View {
                 exchangeRow(row)
             }
             Button {
-                draft.exchanges.append(.blank())
+                Motion.run(reduce: reduceMotion) { draft.exchanges.append(.blank()) }
             } label: {
                 Label("Add another exchange", systemImage: "plus")
             }
@@ -320,6 +326,8 @@ struct NewOrderExchangeSection: View {
         } header: {
             LedgerHeading(title: "Exchange / trade-in")
         }
+        .motion(draft.exchanges.count)
+        .motion(opened)
     }
 
     private var total: Double { exchangeRowsTotal(draft.exchanges.map { $0.row }) }
@@ -340,10 +348,12 @@ struct NewOrderExchangeSection: View {
     }
 
     private func remove(_ id: String) {
-        if draft.exchanges.count > 1 {
-            draft.exchanges.removeAll { $0.id == id }
-        } else {
-            draft.exchanges = [.blank()]
+        Motion.run(reduce: reduceMotion) {
+            if draft.exchanges.count > 1 {
+                draft.exchanges.removeAll { $0.id == id }
+            } else {
+                draft.exchanges = [.blank()]
+            }
         }
     }
 
@@ -351,21 +361,22 @@ struct NewOrderExchangeSection: View {
     private func exchangeRow(_ row: NewOrderExchangeDraft) -> some View {
         let showDetails = opened.contains(row.id) || !row.karat.isEmpty || !row.weightG.isEmpty || !row.ratePerGram.isEmpty
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
+            AdaptiveStack(spacing: 10, alignment: .firstTextBaseline) {
                 TextField("What it is", text: text(row.id, { $0.description }, { ExchangeRowPatch(description: $0) }),
                           prompt: Text("What it is (e.g. old ring)"))
                 TextField("Amount", text: text(row.id, { $0.value }, { ExchangeRowPatch(value: $0) }).wholeRupees, prompt: Text("Amount"))
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
-                    .frame(width: 110)
             }
             if showDetails {
                 details(row)
             } else {
-                Button("+ Weight & rate") { opened.insert(row.id) }
-                    .font(.footnote)
-                    .buttonStyle(.borderless)
+                Button { opened.insert(row.id) } label: {
+                    Label("Weight & rate", systemImage: "plus")
+                }
+                .font(.footnote)
+                .buttonStyle(.borderless)
             }
         }
         .swipeActions {
@@ -451,6 +462,8 @@ struct NewOrderDeliverySection: View {
         } header: {
             LedgerHeading(title: "Delivery")
         }
+        .motion(draft.deliver)
+        .motion(draft.deliveryExpected.isEmpty)
     }
 
     @ViewBuilder
@@ -550,6 +563,7 @@ struct NewOrderMarginSection: View {
         } footer: {
             Text("Never printed, and never on anything the customer sees.")
         }
+        .motion(shown)
     }
 
     private var assumedPercent: Int { Int((House.margin.assumedMargin * 100).rounded()) }
@@ -611,5 +625,8 @@ struct NewOrderTotalsSection: View {
                 Text("More has been taken than the pieces come to.")
             }
         }
+        .motion(totals.discount > 0)
+        .motion(totals.advance > 0)
+        .motion(totals.exchange > 0)
     }
 }

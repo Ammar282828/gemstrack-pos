@@ -20,6 +20,7 @@ struct NewOrderSizeAskSheet: View {
     @State private var chosen: Set<String>
     @State private var saving = false
     @State private var failure: String?
+    @State private var saved = 0
 
     init(ask: NewOrderSizeAsk) {
         self.ask = ask
@@ -52,16 +53,15 @@ struct NewOrderSizeAskSheet: View {
                             }
                         }
                     }
+                } header: {
+                    LedgerHeading(title: "Save to \(ask.name)'s profile?")
                 } footer: {
                     Text("So the size is there next time, on any order or sale for them.")
-                }
-                if let failure {
-                    Section { Text(failure).foregroundStyle(Tone.problem.color) }
                 }
                 }
                 .houseRows()
             }
-            .navigationTitle("Save to \(ask.name)'s profile?")
+            .navigationTitle("Save sizes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -75,6 +75,8 @@ struct NewOrderSizeAskSheet: View {
         }
         .presentationDetents([.medium, .large])
         .interactiveDismissDisabled(saving)
+        .failureAlert($failure, title: "The sizes weren't saved")
+        .savedFeedback(trigger: saved)
     }
 
     private func save() async {
@@ -84,6 +86,7 @@ struct NewOrderSizeAskSheet: View {
         let picked = ask.rows.filter { chosen.contains($0.id) }
         do {
             try await ERPAPI.shared.write("setCustomerSizes", NewOrderSizes.request(customerId: ask.customerId, chosen: picked))
+            saved += 1
             dismiss()
         } catch {
             failure = error.localizedDescription

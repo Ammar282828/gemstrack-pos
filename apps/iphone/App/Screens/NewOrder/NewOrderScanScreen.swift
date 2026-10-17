@@ -21,6 +21,11 @@ struct NewOrderScanScreen: View {
     @State private var reading: NewOrderScanReading?
     @State private var busy = false
     @State private var problem: String?
+    /// The photos changed since the last reading: it is kept (dimmed) but is not trusted to fill the form.
+    @State private var stale = false
+    @State private var readTask: Task<Void, Never>?
+    @State private var filled = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The route's own cap: front, back, a second page and the piece is four.
     private static let maxPhotos = 6
@@ -52,22 +57,26 @@ struct NewOrderScanScreen: View {
                     HStack(spacing: 12) {
                         SkeletonLoading()
                         Text(photos.count > 1 ? "Reading \(photos.count) photos…" : "Reading it…")
+                        Spacer(minLength: 8)
+                        Button("Cancel", role: .cancel) { cancelRead() }
+                            .buttonStyle(.borderless)
                     }
                 }
             }
-            if let problem {
-                Section {
-                    Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
-                } header: {
-                    LedgerHeading(title: "Could not read that")
-                }
+            if let reading {
+                Group { readingSections(reading) }
+                    .opacity(busy || stale ? 0.4 : 1)
+                    .allowsHitTesting(!busy)
             }
-            if let reading, !busy { readingSections(reading) }
             }
             .houseRows()
         }
+        .motion(busy)
+        .motion(stale)
         .scrollDismissesKeyboard(.interactively)
-        .safeAreaBar(edge: .bottom) { fillBar }
+        .failureAlert($problem, title: "Could not read that")
+        .actionBar(primary: primaryAction)
+        .sensoryFeedback(.success, trigger: filled)
     }
 
     private var photosSection: some View {
@@ -236,49 +245,66 @@ struct NewOrderScanScreen: View {
         return parts.joined(separator: " · ")
     }
 
-    /// THE action: the reading into the form, then back to it.
-    private var fillBar: some View {
-        Button { fill() } label: {
-            Label("Fill the form", systemImage: "checkmark")
-                .frame(maxWidth: .infinity)
+    /// THE action: read the photos (an explicit tap, never on each photo), then the reading into the form.
+    private var primaryAction: ActionBar.Action {
+        if reading == nil || stale {
+            return .init(reading == nil ? "Read the slip" : "Read again", systemImage: "doc.text.viewfinder",
+                         isBusy: busy, isDisabled: photos.isEmpty) { startRead() }
         }
-        .buttonStyle(.houseProminent)
-        .controlSize(.large)
         // The rates are seeded from today's before the slip's go in: the shop's settings must have arrived.
-        .disabled(reading == nil || busy || photos.isEmpty || (!draft.ratesSeeded && book.settings.value == nil))
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        return .init("Fill the form", systemImage: "checkmark", isBusy: busy,
+                     isDisabled: photos.isEmpty || (!draft.ratesSeeded && book.settings.value == nil)) { fill() }
     }
 
     // MARK: Reading
 
     private func add(_ added: [PaperPhoto]) {
         problem = nil
-        photos = Array((photos + added).prefix(Self.maxPhotos))
-        Task { await read() }
-    }
-
-    /// A photo taken away is really gone: the rest are read again without it.
-    private func remove(_ id: UUID) {
-        photos.removeAll { $0.id == id }
-        problem = nil
-        if photos.isEmpty {
-            reading = nil
-        } else {
-            Task { await read() }
+        Motion.run(reduce: reduceMotion) {
+            photos = Array((photos + added).prefix(Self.maxPhotos))
+            stale = true
         }
     }
 
+    /// A photo taken away is really gone; the reading, if any, no longer matches the set until it is read again.
+    private func remove(_ id: UUID) {
+        Motion.run(reduce: reduceMotion) {
+            photos.removeAll { $0.id == id }
+            problem = nil
+            if photos.isEmpty {
+                reading = nil
+                stale = false
+            } else {
+                stale = true
+            }
+        }
+    }
+
+    private func startRead() {
+        guard readTask == nil else { return }
+        readTask = Task {
+            await read()
+            readTask = nil
+        }
+    }
+
+    private func cancelRead() {
+        readTask?.cancel()
+        readTask = nil
+        busy = false
+    }
+
     /// The whole set, sent together (`{ images: [{ data, mimeType }] }`), and the names matched against the book.
+    /// The reading before it stays (dimmed) until the new one arrives.
     private func read() async {
         let set = photos
         guard !set.isEmpty, !busy else { return }
         busy = true
-        reading = nil
         problem = nil
         defer { busy = false }
         do {
             let data = try await PaperReader.ask("/api/vision/order", ["images": set.map(\.payload)])
+            if Task.isCancelled { return }
             guard let answer = NewOrderScanAnswer.read(data) else {
                 problem = "The ERP's answer could not be read back. Try again."
                 return
@@ -286,7 +312,9 @@ struct NewOrderScanScreen: View {
             // Photos changed while it read (they cannot, while busy): the answer is for a set no longer here.
             guard set.map(\.id) == photos.map(\.id) else { return }
             reading = NewOrderScanReading.resolve(answer, customers: book.customers.items, karigars: book.karigars.items)
+            stale = false
         } catch {
+            if Task.isCancelled { return }
             problem = PaperReader.words(error)
         }
     }
@@ -305,6 +333,7 @@ struct NewOrderScanScreen: View {
             fallbackMetal: House.metal,
             settings: book.settings.value
         )
+        filled += 1
         dismiss()
     }
 }

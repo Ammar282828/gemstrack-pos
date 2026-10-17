@@ -6,7 +6,7 @@ import ERPCore
 
 // MARK: Controls
 
-/// A quick choice (7d, 10d, 14d): a glass chip, the selected one prominent.
+/// A quick choice (7d, 10d, 14d): a bordered chip (glass stays off list rows), the selected one prominent.
 struct NewOrderChip: View {
     let title: String
     let on: Bool
@@ -14,9 +14,9 @@ struct NewOrderChip: View {
 
     var body: some View {
         if on {
-            Button(title, action: action).buttonStyle(.houseProminent)
+            Button(title, action: action).buttonStyle(.borderedProminent)
         } else {
-            Button(title, action: action).buttonStyle(.glass)
+            Button(title, action: action).buttonStyle(.bordered)
         }
     }
 }
@@ -46,22 +46,9 @@ struct NewOrderNumberRow: View {
     }
 }
 
-/// The decimal pad has no Return key, so every screen with number boxes carries a Done above the keyboard.
-struct NewOrderKeyboardDone: ViewModifier {
-    func body(content: Content) -> some View {
-        content.toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") {
-                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                }
-            }
-        }
-    }
-}
-
 extension View {
-    func newOrderKeyboardDone() -> some View { modifier(NewOrderKeyboardDone()) }
+    /// Kept only until Stock's forms (outside this group) move to `keyboardDone()`; it is the kit's Done.
+    func newOrderKeyboardDone() -> some View { keyboardDone() }
 }
 
 /// One size box: type it (an off-scale size is allowed), or pick from the scale.

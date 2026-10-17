@@ -47,6 +47,7 @@ struct NewOrderPieceRow: View {
                 Text(Money.pkr(price))
                     .font(.subheadline.weight(.semibold))
                     .monospacedDigit()
+                    .contentTransition(.numericText(value: price))
             }
             Image(systemName: "chevron.right")
                 .font(.footnote.weight(.semibold))
@@ -81,11 +82,12 @@ struct NewOrderPieceEditor: View {
             priceBox
             workshopBox
             referencesBox
-            totalBox
             actionsBox
             }
             .houseRows()
         }
+        .motion(piece.hasDiamonds)
+        .motion(piece.hasStones)
         } review: {
             PieceInspector(title: piece.description, rows: [
                 .init(label: "Metal", value: describeMetal(piece.metal, piece.karat)),
@@ -97,18 +99,15 @@ struct NewOrderPieceEditor: View {
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Piece \(number)")
         .navigationBarTitleDisplayMode(.inline)
-        .newOrderKeyboardDone()
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Save product") { dismiss() }
-            }
-        }
-        .confirmationDialog("Remove this piece?", isPresented: $confirmRemove, titleVisibility: .visible) {
-            Button("Remove piece", role: .destructive) {
-                onRemove()
-                dismiss()
-            }
-            Button("Keep it", role: .cancel) {}
+        .keyboardDone()
+        // The piece's price stays in view while typing; Done is the one way out with the piece kept.
+        .actionBar(primary: .init("Done") { dismiss() },
+                   summary: "This piece · " + Money.pkr(NewOrderMath.price(piece, rates)))
+        .confirmDestructive(isPresented: $confirmRemove, title: "Remove this piece?",
+                            message: "This piece and its price are removed from the order.",
+                            action: "Remove piece") {
+            onRemove()
+            dismiss()
         }
     }
 
@@ -303,18 +302,6 @@ struct NewOrderPieceEditor: View {
             Toggle("Customer provided a physical sample", isOn: $piece.sampleGiven)
         } header: {
             LedgerHeading(title: "References")
-        }
-    }
-
-    // MARK: Total
-
-    private var totalBox: some View {
-        Section {
-            LabeledContent("This piece") {
-                Text(Money.pkr(NewOrderMath.price(piece, rates)))
-                    .fontWeight(.semibold)
-                    .monospacedDigit()
-            }
         }
     }
 

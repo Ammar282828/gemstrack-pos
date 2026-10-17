@@ -20,9 +20,6 @@ struct NewOrderStockPicker: View {
     var body: some View {
         NavigationStack {
             List { Group {
-                if book.products.loaded && found.isEmpty {
-                    ContentUnavailableView.search(text: query)
-                }
                 ForEach(found, id: \.sku) { p in
                     Button {
                         pick(p)
@@ -35,7 +32,17 @@ struct NewOrderStockPicker: View {
                 }
                 .houseRows()
             }
-            .overlay { if !book.products.loaded { SkeletonLoading() } }
+            .overlay {
+                if !book.products.loaded {
+                    SkeletonLoading()
+                } else if found.isEmpty {
+                    if query.trimmingCharacters(in: .whitespaces).isEmpty {
+                        EmptyState("No stock yet", symbol: "shippingbox")
+                    } else {
+                        ContentUnavailableView.search(text: query)
+                    }
+                }
+            }
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "SKU or name")
             .navigationTitle("Add from stock")
             .navigationBarTitleDisplayMode(.inline)
@@ -45,6 +52,7 @@ struct NewOrderStockPicker: View {
                 }
             }
         }
+        .presentationDetents([.medium, .large])
         .task { book.products.need() }
     }
 }

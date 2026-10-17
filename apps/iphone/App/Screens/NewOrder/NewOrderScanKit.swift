@@ -58,11 +58,11 @@ struct PaperPicker: View {
             Button { scan() } label: {
                 Label(scanTitle, systemImage: "doc.viewfinder")
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.bordered)
             Button { library = true } label: {
                 Label("From Photos", systemImage: "photo.on.rectangle")
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.bordered)
             if loading { SkeletonLoading() }
         }
         .disabled(disabled || loading || room <= 0)

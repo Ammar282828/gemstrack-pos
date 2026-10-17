@@ -122,12 +122,12 @@ struct NewOrderPhotoField: View {
                 Button { library = true } label: {
                     Label("Photos", systemImage: "photo.on.rectangle")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
                     Button { camera = true } label: {
                         Label("Camera", systemImage: "camera")
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
                 }
                 if busy { SkeletonLoading() }
             }

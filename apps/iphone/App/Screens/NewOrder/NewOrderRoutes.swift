@@ -88,6 +88,8 @@ struct NewOrderEditLoader: View {
                 SkeletonLoading()
             }
         }
+        .navigationTitle("Edit order")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             book.orders.need()
             take()
