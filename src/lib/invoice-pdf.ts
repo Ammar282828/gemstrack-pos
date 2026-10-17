@@ -320,9 +320,11 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
     finalY = doc.lastAutoTable.finalY || finalY;
   }
 
-  if (finalY + 70 > pageHeight - margin) {
-    doc.addPage(); drawHeader(doc.getNumberOfPages()); finalY = 28;
-  }
+  // No fixed reserve here. A blind "70mm or a new page" guard sent the totals to a page of
+  // their own whenever the items ended below ~130mm, though a plain bill's totals need under
+  // 20mm and the footer starts at pageHeight - FOOTER_HEIGHT (owner, 2026-10-17: "a lot of
+  // space ... still uses the second page"). drawTotals measures what it will draw and breaks
+  // the page only when that does not fit above the footer, keeping the block whole.
 
   const adjustmentsAmount = getInvoiceAdjustmentsAmount(inv);
   const totalRows: TotalRow[] = [{ label: 'Subtotal', value: pkr(inv.subtotal) }];
