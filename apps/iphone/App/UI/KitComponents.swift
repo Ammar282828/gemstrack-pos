@@ -157,7 +157,7 @@ struct PaidRing: View {
         self.size = size
     }
 
-    private var settled: Bool { total > 0 && paid >= total - 0.5 }
+    private var settled: Bool { total > 0 && total - paid < 1 }
     private var fraction: Double { total > 0 ? min(max(paid / total, 0), 1) : 0 }
 
     var body: some View {

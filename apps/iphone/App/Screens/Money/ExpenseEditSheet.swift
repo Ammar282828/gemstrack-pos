@@ -55,7 +55,7 @@ struct ExpenseEditSheet: View {
         _batchChoice = State(initialValue: kid.isEmpty ? nil : (expense.batchId ?? ExpenseFiling.direct))
     }
 
-    private var amount: Double { MoneyParse.amount(amountText) ?? 0 }
+    private var amount: Double { MoneyParse.rupees(amountText) ?? 0 }
 
     private var chosenCategory: String {
         let name = category == Self.typed ? typedCategory : category
@@ -106,8 +106,8 @@ struct ExpenseEditSheet: View {
                         .lineLimit(1...3)
                 }
                 LedgerSection("How much") {
-                    TextField("Amount in rupees", text: $amountText)
-                        .keyboardType(.decimalPad)
+                    TextField("Amount in rupees", text: $amountText.wholeRupees)
+                        .keyboardType(.numberPad)
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }

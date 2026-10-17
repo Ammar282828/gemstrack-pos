@@ -324,7 +324,7 @@ private struct StockPieceEditor: View {
             }
             .pickerStyle(.segmented)
             if f.fixed {
-                NewOrderNumberRow(title: "Price (PKR)", text: $f.customPrice, prompt: "e.g. 15000")
+                NewOrderNumberRow(title: "Price (PKR)", text: $f.customPrice, prompt: "e.g. 15000", rupees: true)
                 NewOrderNumberRow(title: "Reference rate per gram", text: $f.silverRate, prompt: "Optional")
             } else {
                 NewOrderNumberRow(title: "Weight", text: $f.weight, prompt: "e.g. 5.75", unit: "g")
@@ -335,9 +335,9 @@ private struct StockPieceEditor: View {
                 }
                 if !f.isGoldCoin {
                     if !f.silver {
-                        NewOrderNumberRow(title: "Making (PKR)", text: $f.making, prompt: "e.g. 5000")
+                        NewOrderNumberRow(title: "Making (PKR)", text: $f.making, prompt: "e.g. 5000", rupees: true)
                     }
-                    NewOrderNumberRow(title: "Misc (PKR)", text: $f.miscCharges, prompt: "e.g. 250")
+                    NewOrderNumberRow(title: "Misc (PKR)", text: $f.miscCharges, prompt: "e.g. 250", rupees: true)
                 }
             }
             if let price = todaysPrice {
@@ -377,14 +377,14 @@ private struct StockPieceEditor: View {
         LedgerSection("Diamonds and stones") {
             Toggle("Has diamonds", isOn: $f.hasDiamonds)
             if f.hasDiamonds {
-                NewOrderNumberRow(title: "Diamonds (PKR)", text: $f.diamondCharges, prompt: "e.g. 50000")
+                NewOrderNumberRow(title: "Diamonds (PKR)", text: $f.diamondCharges, prompt: "e.g. 50000", rupees: true)
                 TextField("Diamond details", text: $f.diamondDetails, prompt: Text("e.g. Centre 1ct VVS1, sides 12 × 0.05ct VS2"), axis: .vertical)
                     .lineLimit(2...4)
             }
             Toggle("Has other stones", isOn: $f.hasStones)
             if f.hasStones {
                 NewOrderNumberRow(title: "Stone weight", text: $f.stoneWeight, prompt: "e.g. 0.5", unit: "g")
-                NewOrderNumberRow(title: "Stones (PKR)", text: $f.stoneCharges, prompt: "e.g. 15000")
+                NewOrderNumberRow(title: "Stones (PKR)", text: $f.stoneCharges, prompt: "e.g. 15000", rupees: true)
                 TextField("Stone details", text: $f.stoneDetails, prompt: Text("e.g. 1 × ruby 2ct, and 2g gold accent"), axis: .vertical)
                     .lineLimit(2...4)
             }

@@ -457,10 +457,10 @@ extension NewOrderDraft {
                 rate > 0 && rateKey == nil && metal != "silver"
                     ? "Slip rate \(S.pkNumber(rate))/g could not be applied — no \(karatWritten ?? "karat") rate box." : nil,
                 S.num(it.karat) > 0 && karat == nil ? "Slip says \(karatWritten ?? ""), which the form does not offer." : nil,
-                written > 0 && !fixed ? "Slip writes \(S.pkNumber(written)) for this piece." : nil,
+                written > 0 && !fixed ? "Slip writes \(S.money(written)) for this piece." : nil,
                 check.itemsOff.contains(i) ? "The slip's own sum for this piece does not match its written amount — check it." : nil,
                 i == 0 && !(scan.unreadable ?? "").isEmpty ? "Unread on the slip: \(scan.unreadable ?? "")" : nil,
-                i == 0 && S.num(scan.balanceDue) > 0 ? "Slip says balance \(S.pkNumber(S.num(scan.balanceDue)))." : nil,
+                i == 0 && S.num(scan.balanceDue) > 0 ? "Slip says balance \(S.money(S.num(scan.balanceDue)))." : nil,
                 i == 0 && !(scan.expectedDate ?? "").isEmpty ? "Slip says wanted by \(scan.expectedDate ?? "")." : nil,
             ]
             p.adminNote = notes.compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " ")

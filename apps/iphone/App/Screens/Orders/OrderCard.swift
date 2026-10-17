@@ -257,7 +257,7 @@ struct OrderCardHead: View {
     @ViewBuilder private var money: some View {
         if stage != .closed {
             let due = OrdersLogic.stillOwed(order, invoiceOwed: owed)
-            if abs(due) > 0.5 {
+            if abs(due) >= 1 {
                 VStack(alignment: wideAlignment, spacing: 2) {
                     RowAmount(amount: abs(due), tone: due < 0 ? Tone.credit.color : Tone.owed.color)
                     Text(due < 0 ? "In credit" : "Owed")

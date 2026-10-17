@@ -240,8 +240,8 @@ enum CustomerKit {
         o.invoiceCount = mine?.count ?? 0
         if let ledger {
             let hand = ledgerBalances(ledger)[id] ?? 0
-            if hand > 0.5 { o.inHisaab = hand }
-            else if hand < -0.5 { o.shopOwesThem = -hand }
+            if hand >= 1 { o.inHisaab = hand }
+            else if hand <= -1 { o.shopOwesThem = -hand }
         }
         o.onInvoices = max(0, o.total - o.inHisaab)
         return o
@@ -266,7 +266,7 @@ enum CustomerKit {
         var g = Groups()
         for c in people {
             let s = stats[c.id]
-            if let s, s.owed > 0 { g.owing.append(c) }
+            if let s, s.owed >= 1 { g.owing.append(c) }
             else if let last = s?.lastAt, last >= cutoff { g.active.append(c) }
             else { g.quiet.append(c) }
         }

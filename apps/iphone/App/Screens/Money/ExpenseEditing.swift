@@ -7,13 +7,12 @@ import ERPCore
 // lib/writes/expense-admin.ts).
 
 enum ExpenseEditing {
-    /// An amount as the form's box shows it: whole rupees bare ("12000"), else up to two decimals.
+    /// An amount as the form's box shows it: whole rupees bare ("12000"), never paise (owner, 2026-10-17:
+    /// "there should be no decimals").
     static func typed(_ amount: Double) -> String {
-        if amount <= 0 { return "" }
-        var s = String(format: "%.2f", amount)
-        while s.hasSuffix("0") { s.removeLast() }
-        if s.hasSuffix(".") { s.removeLast() }
-        return s
+        let whole = amount.rounded()
+        if !(whole > 0) || whole >= 1e15 { return "" }
+        return String(Int(whole))
     }
 
     /// The day to send: the row's own text when the day picked is the day it had, so a partner's loan row

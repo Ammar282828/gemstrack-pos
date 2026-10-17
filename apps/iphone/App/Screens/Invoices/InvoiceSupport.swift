@@ -141,15 +141,8 @@ enum InvoiceFacts {
         return "Invoice - " + karachiDay.string(from: made)
     }
 
-    /// toLocaleString(undefined, { minimumFractionDigits: 2 }): 12,345.00, as the estimate says it.
-    private static func twoPlaces(_ n: Double) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.locale = Locale(identifier: "en_US")
-        f.minimumFractionDigits = 2
-        f.maximumFractionDigits = 3
-        return f.string(from: NSNumber(value: n)) ?? String(n)
-    }
+    /// The estimate's sums: whole rupees, 12,345, never ".00" (owner, 2026-10-17: "there should be no decimals").
+    private static func rupees(_ n: Double) -> String { Money.grouped(n.isFinite ? n : 0) }
 
     /// The words that go with the link: who it is for and what is owed. Where invoices are named after
     /// the customer (`byCustomer`, Taheri) they carry no number (invoice-share.ts `invoiceWhatsAppCaption`,
@@ -161,11 +154,11 @@ enum InvoiceFacts {
         if !byCustomer {
             // `inv.customerName || 'Customer'`: a walk-in's bill reads "Dear Walk-in Customer", as the web's does.
             let named = inv.customerName.isEmpty ? "Customer" : inv.customerName
-            var m = "Dear \(named),\n\nHere is your estimate from \(shopName).\n\n*Estimate ID:* \(inv.id)\n*Total Amount:* PKR \(twoPlaces(inv.grandTotal))\n"
+            var m = "Dear \(named),\n\nHere is your estimate from \(shopName).\n\n*Estimate ID:* \(inv.id)\n*Total Amount:* PKR \(rupees(inv.grandTotal))\n"
             if inv.amountPaid > 0 {
-                m += "*Amount Paid:* PKR \(twoPlaces(inv.amountPaid))\n*Balance Due:* PKR \(twoPlaces(inv.balanceDue))\n\n"
+                m += "*Amount Paid:* PKR \(rupees(inv.amountPaid))\n*Balance Due:* PKR \(rupees(inv.balanceDue))\n\n"
             } else {
-                m += "*Amount Due:* PKR \(twoPlaces(inv.grandTotal))\n\n"
+                m += "*Amount Due:* PKR \(rupees(inv.grandTotal))\n\n"
             }
             return m + "Thank you for your business."
         }
@@ -243,7 +236,7 @@ enum InvoiceFacts {
 
     /// The list's button: an invoice the page calls Unpaid (`getDocStatus`: not refunded, a balance above 0). Its
     /// words say whether a link was made before.
-    static func offersPaymentLink(_ inv: Invoice) -> Bool { inv.status != .refunded && inv.balanceDue > 0 }
+    static func offersPaymentLink(_ inv: Invoice) -> Bool { inv.status != .refunded && inv.balanceDue >= 1 }
 
     static func paymentLinkTitle(_ inv: Invoice) -> String { (inv.shopifyCheckoutUrl ?? "").isEmpty ? "Payment link" : "Copy payment link" }
 
@@ -292,7 +285,7 @@ extension View {
     func invoicePaymentSheet(for invoice: Binding<Invoice?>, recorded: ((Invoice, Double) -> Void)? = nil) -> some View {
         sheet(item: invoice) { inv in
             // Money over the balance is a named customer's credit; a walk-in's is refused (invoice-credit.ts).
-            PaymentSheet(title: "Take payment · \(inv.id)", owed: inv.balanceDue > 0.5 ? inv.balanceDue : nil,
+            PaymentSheet(title: "Take payment · \(inv.id)", owed: inv.balanceDue >= 1 ? inv.balanceDue : nil,
                          customer: PaymentCustomer(name: inv.customerName, canHoldCredit: canHoldCredit(inv.customerId))) { amount, method, reference in
                 try await InvoiceFacts.record(inv, amount: amount, method: method, reference: reference)
                 recorded?(inv, amount)

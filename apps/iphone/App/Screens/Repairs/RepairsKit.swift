@@ -230,7 +230,7 @@ enum RepairsKit {
         }
         var text = "\(greeting), \(what) ready for collection at \(shopName) (repair \(r.id))."
         let owing = repairBalance(r)
-        if owing > 0 { text += " Balance: \(Money.pkr(owing))." }
+        if owing >= 1 { text += " Balance: \(Money.pkr(owing))." }
         return text + " Please bring your receipt."
     }
 

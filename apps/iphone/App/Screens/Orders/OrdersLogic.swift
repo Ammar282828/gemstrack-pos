@@ -59,7 +59,7 @@ enum OrderNextStep: Equatable {
         case .giveOut: return "Give out"
         case .markReady: return "Mark ready"
         case .finalize: return "Make invoice"
-        case .invoice(let id, let owed): return owed > 0.5 ? "Take \(Money.pkr(owed))" : "Open \(id)"
+        case .invoice(let id, let owed): return owed >= 1 ? "Take \(Money.pkr(owed))" : "Open \(id)"
         }
     }
 
@@ -69,7 +69,7 @@ enum OrderNextStep: Equatable {
         case .giveOut: return "person.badge.plus"
         case .markReady: return "checkmark.circle"
         case .finalize: return "doc.text"
-        case .invoice(_, let owed): return owed > 0.5 ? "banknote" : "doc.text"
+        case .invoice(_, let owed): return owed >= 1 ? "banknote" : "doc.text"
         }
     }
 }

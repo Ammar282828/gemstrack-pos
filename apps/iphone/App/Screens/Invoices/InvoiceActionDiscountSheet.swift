@@ -62,8 +62,8 @@ struct InvoiceActionDiscountSheet: View {
                     Text("Now")
                 }
                 Section {
-                    TextField("Discount in rupees", text: $amountText)
-                        .keyboardType(.decimalPad)
+                    TextField("Discount in rupees", text: $amountText.wholeRupees)
+                        .keyboardType(.numberPad)
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
                 } header: {

@@ -76,7 +76,7 @@ struct WorkshopStockJobSheet: View {
                         TextField("1", text: $quantityText).keyboardType(.numberPad).multilineTextAlignment(.trailing)
                     }
                     LabeledContent("Making (PKR)") {
-                        TextField("0", text: $makingText).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                        TextField("0", text: $makingText.wholeRupees).keyboardType(.numberPad).multilineTextAlignment(.trailing)
                     }
                     TextField("Size, e.g. 12, 2.4, 7.5\"", text: $size)
                 } header: { LedgerHeading(title: "Specifications") }
@@ -120,7 +120,7 @@ struct WorkshopStockJobSheet: View {
         // A box left empty is left out, as the web's form leaves it.
         if let w = WorkshopFigure.read(weightText) { job["weightG"] = w }
         if let q = WorkshopFigure.read(quantityText, places: 0) { job["quantity"] = q }
-        if let m = WorkshopFigure.read(makingText, places: 2) { job["agreedCost"] = m }
+        if let m = MoneyParse.rupees(makingText) { job["agreedCost"] = m }
         let s = size.trimmingCharacters(in: .whitespacesAndNewlines)
         if !s.isEmpty { job["size"] = s }
         let n = notes.trimmingCharacters(in: .whitespacesAndNewlines)

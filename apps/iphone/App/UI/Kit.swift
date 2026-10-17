@@ -579,10 +579,10 @@ struct PaymentSheet: View {
                         .font(.title2.weight(.semibold))
                         .monospacedDigit()
                     if amount > 0 { Text(Money.pkrLac(amount)).foregroundStyle(.secondary) }
-                    if let owed, owed > 0 {
+                    if let owed, owed >= 1 {
                         Button("All that's owed: \(PaymentText.pkr(owed))") {
                             amountText = PaymentText.field(owed)
-                            pinned = Pinned(text: amountText, value: owed)
+                            pinned = Pinned(text: amountText, value: owed.rounded())
                         }
                     }
                 } footer: {

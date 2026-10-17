@@ -203,9 +203,9 @@ private struct StockBulkEditor: View {
         Section {
             if !shared.silver {
                 NewOrderNumberRow(title: "Wastage (%)", text: $shared.wastage, prompt: "e.g. 10")
-                NewOrderNumberRow(title: "Making (PKR)", text: $shared.making, prompt: "e.g. 5000")
+                NewOrderNumberRow(title: "Making (PKR)", text: $shared.making, prompt: "e.g. 5000", rupees: true)
             }
-            NewOrderNumberRow(title: "Misc (PKR)", text: $shared.miscCharges, prompt: "e.g. 250")
+            NewOrderNumberRow(title: "Misc (PKR)", text: $shared.miscCharges, prompt: "e.g. 250", rupees: true)
         } header: {
             LedgerHeading(title: "Costs")
         } footer: {
@@ -220,11 +220,11 @@ private struct StockBulkEditor: View {
             Toggle("Has other stones", isOn: $shared.hasStones)
             if shared.hasStones {
                 NewOrderNumberRow(title: "Stone weight", text: $shared.stoneWeight, prompt: "e.g. 0.5", unit: "g")
-                NewOrderNumberRow(title: "Stones (PKR)", text: $shared.stoneCharges, prompt: "e.g. 15000")
+                NewOrderNumberRow(title: "Stones (PKR)", text: $shared.stoneCharges, prompt: "e.g. 15000", rupees: true)
             }
             Toggle("Has diamonds", isOn: $shared.hasDiamonds)
             if shared.hasDiamonds {
-                NewOrderNumberRow(title: "Diamonds (PKR)", text: $shared.diamondCharges, prompt: "e.g. 50000")
+                NewOrderNumberRow(title: "Diamonds (PKR)", text: $shared.diamondCharges, prompt: "e.g. 50000", rupees: true)
             }
         } header: {
             LedgerHeading(title: "Diamonds and stones")

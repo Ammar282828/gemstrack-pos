@@ -216,7 +216,7 @@ struct NewOrderPieceEditor: View {
             }
             .pickerStyle(.segmented)
             if piece.manual {
-                NewOrderNumberRow(title: "Price (PKR)", text: $piece.manualPrice, prompt: "The agreed total")
+                NewOrderNumberRow(title: "Price (PKR)", text: $piece.manualPrice, prompt: "The agreed total", rupees: true)
             } else {
                 weighedRows
             }
@@ -240,9 +240,9 @@ struct NewOrderPieceEditor: View {
                 weight: piece.weightValue,
                 stoneWeight: piece.stoneWeightValue
             )
-            NewOrderNumberRow(title: "Making (PKR)", text: $piece.making)
+            NewOrderNumberRow(title: "Making (PKR)", text: $piece.making, rupees: true)
         }
-        NewOrderNumberRow(title: "Stones (PKR)", text: $piece.stones)
+        NewOrderNumberRow(title: "Stones (PKR)", text: $piece.stones, rupees: true)
         diamondRows
         stoneRows
     }
@@ -251,7 +251,7 @@ struct NewOrderPieceEditor: View {
     private var diamondRows: some View {
         Toggle("Has diamonds", isOn: $piece.hasDiamonds)
         if piece.hasDiamonds {
-            NewOrderNumberRow(title: "Diamonds (PKR)", text: $piece.diamond)
+            NewOrderNumberRow(title: "Diamonds (PKR)", text: $piece.diamond, rupees: true)
             TextField("Diamond details", text: $piece.diamondDetails, prompt: Text("e.g. Centre 1ct VVS1, sides 12 × 0.05ct VS2"), axis: .vertical)
                 .lineLimit(2...4)
         }

@@ -416,7 +416,7 @@ struct InvoicesList: View {
         // One slim card, the three figures side by side (owner, 2026-10-17, of the hero card and two tiles that filled
         // the first screen: "this takes too much space"). Each still taps to show what it counts.
         return HStack(spacing: 0) {
-            figureButton("Owed to you", s.owed, s.owedCount, .owed, tone: s.owed > 0 ? Tone.owed.color : nil)
+            figureButton("Owed to you", s.owed, s.owedCount, .owed, tone: s.owed >= 1 ? Tone.owed.color : nil)
             Divider().frame(height: 34)
             figureButton("Today", s.today, s.todayCount, .today)
             Divider().frame(height: 34)
@@ -716,7 +716,7 @@ private struct InvoiceSectionHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             LedgerHeading(title: section.title, count: section.rows.count, trailing: Money.pkr(section.billed))
-            if section.owed > 0.5 {
+            if section.owed >= 1 {
                 Text(section.hint.isEmpty ? "\(Money.pkr(section.owed)) still owed" : "\(section.hint) · \(Money.pkr(section.owed)) still owed")
                     .font(.caption.weight(.semibold))
                     .monospacedDigit()

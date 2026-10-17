@@ -196,7 +196,7 @@ struct AnaOverviewPage: View {
                     TwoLine(title: "Realised / gram",
                             subtitle: "Revenue over grams, all-in",
                             trailing: c.ratePerGram > 0 ? Money.pkrLac(c.ratePerGram) : "—")
-                    if c.outstanding > 0 {
+                    if c.outstanding >= 1 {
                         TwoLine(title: "Outstanding",
                                 subtitle: "Still owed on coin bills",
                                 trailing: Money.pkrLac(c.outstanding),

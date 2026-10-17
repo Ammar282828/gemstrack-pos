@@ -267,8 +267,8 @@ struct NewOrderPaymentSection: View {
 
     var body: some View {
         Section {
-            NewOrderNumberRow(title: "Discount (PKR)", text: $draft.discount)
-            NewOrderNumberRow(title: "Advance paid (PKR)", text: $draft.advance)
+            NewOrderNumberRow(title: "Discount (PKR)", text: $draft.discount, rupees: true)
+            NewOrderNumberRow(title: "Advance paid (PKR)", text: $draft.advance, rupees: true)
             if NewOrderFormat.num(draft.advance) > 0 {
                 Picker("Paid by", selection: $draft.advanceMethod) {
                     Text("Not recorded").tag("")
@@ -348,8 +348,8 @@ struct NewOrderExchangeSection: View {
             HStack(spacing: 10) {
                 TextField("What it is", text: text(row.id, { $0.description }, { ExchangeRowPatch(description: $0) }),
                           prompt: Text("What it is (e.g. old ring)"))
-                TextField("Amount", text: text(row.id, { $0.value }, { ExchangeRowPatch(value: $0) }), prompt: Text("Amount"))
-                    .keyboardType(.decimalPad)
+                TextField("Amount", text: text(row.id, { $0.value }, { ExchangeRowPatch(value: $0) }).wholeRupees, prompt: Text("Amount"))
+                    .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
                     .frame(width: 110)
@@ -475,7 +475,7 @@ struct NewOrderDeliverySection: View {
             TextField("Receiver's phone", text: $draft.deliveryPhone, prompt: Text("Optional"))
                 .keyboardType(.phonePad)
         }
-        NewOrderNumberRow(title: "Delivery charge (PKR)", text: $draft.deliveryCharge, prompt: "0 if free")
+        NewOrderNumberRow(title: "Delivery charge (PKR)", text: $draft.deliveryCharge, prompt: "0 if free", rupees: true)
         LabeledContent("Instructions") {
             TextField("Instructions", text: $draft.deliveryNotes, prompt: Text("Landmark, timing, gate"))
         }

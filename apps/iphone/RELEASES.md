@@ -34,3 +34,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-17: orders keep their status (stage words in colour, Paid) and every button; the card is cleaner: one line for what it is, its next step a small capsule.
 - 2026-10-17: order and invoice cards open on the first tap again (the zoom's tap recogniser, added 10-15, took taps from the list's rows).
 - 2026-10-17: Invoices: the three figures in one slim row (Owed to you · Today · This month), not a hero card and two tiles; payments in whole rupees.
+- 2026-10-17: no decimals in money anywhere in the app: every amount box on the number pad in whole rupees, messages and slips in whole rupees, under a rupee counts as settled.

@@ -151,7 +151,7 @@ struct CustomerScreen: View {
         var detail = stays == "nothing"
             ? "\(name) will be hidden from the lists."
             : "\(name) will be hidden from the lists. Their \(stays) stay where they are."
-        if f.owing.total > 0.5 { detail += " They still owe \(Money.pkr(f.owing.total))." }
+        if f.owing.total >= 1 { detail += " They still owe \(Money.pkr(f.owing.total))." }
         detail += " Settings, then Recently removed, puts them back."
         deletion = OwnerDeletion(what: "Delete customer \(name)", detail: detail, final: false) { code in
             _ = try await ERPAPI.shared.write("removeCustomer", ["customerId": c.id, "deleteCode": code])
@@ -218,11 +218,11 @@ struct CustomerScreen: View {
 
     private func owedDetail(_ o: CustomerKit.Owing) -> String {
         var parts: [String] = []
-        if o.onInvoices > 0.5 {
+        if o.onInvoices >= 1 {
             parts.append("On \(o.invoiceCount) invoice\(o.invoiceCount == 1 ? "" : "s") \(Money.pkr(o.onInvoices))")
         }
-        if o.inHisaab > 0.5 { parts.append("In the hisaab \(Money.pkr(o.inHisaab))") }
-        if o.shopOwesThem > 0.5 { parts.append("The hisaab owes them \(Money.pkr(o.shopOwesThem))") }
+        if o.inHisaab >= 1 { parts.append("In the hisaab \(Money.pkr(o.inHisaab))") }
+        if o.shopOwesThem >= 1 { parts.append("The hisaab owes them \(Money.pkr(o.shopOwesThem))") }
         return parts.joined(separator: " · ")
     }
 
@@ -400,7 +400,7 @@ private struct CustRepairRow: View {
         let status = CustomerKit.repairStatus(repair.status)
         HStack(spacing: 8) {
             TwoLine(title: CustomerKit.repairSummary(repair), subtitle: subtitle,
-                    trailing: (open && balance > 0) ? Money.pkr(balance) : nil, trailingTint: Tone.owed.color)
+                    trailing: (open && balance >= 1) ? Money.pkr(balance) : nil, trailingTint: Tone.owed.color)
             // Collected is the expected end: no pill for it (rule 15).
             if repair.status != .collected { Pill(status.text, tone: status.tone) }
         }
@@ -423,7 +423,7 @@ private struct CustHisaabRow: View {
 
     /// What they owe goes up (+), what they pay comes off (-): debit less credit, as the ERP keeps it.
     private var amount: String? {
-        if abs(net) < 0.5 { return nil }
+        if abs(net) < 1 { return nil }
         return (net > 0 ? "+" : "-") + Money.pkr(abs(net))
     }
 

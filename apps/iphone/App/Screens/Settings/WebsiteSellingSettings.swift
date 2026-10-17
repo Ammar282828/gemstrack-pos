@@ -332,10 +332,12 @@ private struct WebsiteSellingForm: View {
         .padding(.vertical, 4)
     }
 
+    /// A sum of money: whole rupees (owner, 2026-10-17: "there should be no decimals").
     private func amountRow(_ title: String, _ value: Binding<Double>) -> some View {
-        LabeledContent(title) {
-            TextField("0", value: value, format: .number)
-                .keyboardType(.decimalPad)
+        let whole = Binding<Double>(get: { value.wrappedValue.rounded() }, set: { value.wrappedValue = $0.rounded() })
+        return LabeledContent(title) {
+            TextField("0", value: whole, format: .number)
+                .keyboardType(.numberPad)
                 .multilineTextAlignment(.trailing)
                 .monospacedDigit()
         }

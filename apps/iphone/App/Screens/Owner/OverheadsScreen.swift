@@ -41,7 +41,7 @@ struct OverheadDraftLine: Identifiable, Equatable {
         amountText = item.amount == 0 ? "" : PaymentText.field(item.amount)
     }
 
-    var item: OverheadItem { OverheadItem(id: id, label: label, amount: MoneyParse.amount(amountText) ?? 0) }
+    var item: OverheadItem { OverheadItem(id: id, label: label, amount: MoneyParse.rupees(amountText) ?? 0) }
 
     static func lines(_ items: [OverheadItem]) -> [OverheadDraftLine] { items.map { OverheadDraftLine($0) } }
 }
@@ -235,8 +235,8 @@ private struct OverheadsBoard: View {
                 HStack(spacing: 10) {
                     TextField("What is it for", text: $line.label)
                         .textInputAutocapitalization(.sentences)
-                    TextField("Amount", text: $line.amountText)
-                        .keyboardType(.decimalPad)
+                    TextField("Amount", text: $line.amountText.wholeRupees)
+                        .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
                         .monospacedDigit()
                         .frame(maxWidth: 130)
