@@ -208,6 +208,7 @@ import { orderEditPatch } from '@/lib/writes/update-order';
 import { finalizeHisaabRow, invoiceFromOrder } from '@/lib/writes/finalize-order';
 import { setInvoiceCustomer as writeInvoiceCustomer } from '@/lib/writes/invoice-customer';
 import { recordOrderAdvance as writeOrderAdvance } from '@/lib/writes/order-advance';
+import { settleInvoicePayment as writeSettleInvoice, settleOrderAdvance as writeSettleOrder } from '@/lib/writes/settle';
 import { deleteOrderAdvance as writeDeleteOrderAdvance, removeOrderPiece as writeRemoveOrderPiece } from '@/lib/writes/order-pieces';
 import { rateChangeLog, rateConfirmLog } from '@/lib/writes/rates';
 import { createInvoice as createInvoiceWrite } from '@/lib/writes/create-invoice';
@@ -1430,6 +1431,10 @@ export interface AppState {
   deleteInvoicePayment: (invoiceId: string, index: number, payment: { amount: number; date: string }) => Promise<Invoice>;
   refundInvoicePartial: (invoiceId: string, refundAmount: number, reason?: string) => Promise<Invoice | null>;
   updateInvoiceDiscount: (invoiceId: string, newDiscountAmount: number) => Promise<Invoice | null>;
+  /** "Settle": a payment and the discount raised by `extra`, ONE commit (lib/writes/settle.ts). Owners only; throws on a refusal. */
+  settleInvoicePayment: (invoiceId: string, paymentAmount: number, extra: number, method?: PaymentType, reference?: string) => Promise<Invoice>;
+  /** "Settle" on an open order: the advance and the discount raised by `extra`, ONE commit; the stage is untouched. Owners only. */
+  settleOrderAdvance: (orderId: string, amount: number, extra: number, notes: string, method?: PaymentType) => Promise<Order>;
   /** Name a saved sale (a walk-in, or the wrong person) without re-pricing it; its ledger line moves with it. */
   setInvoiceCustomer: (invoiceId: string, who: { customerId?: string; name: string; phone?: string }) => Promise<Invoice | null>;
   syncHisaabOutstandingBalances: () => Promise<void>;
@@ -2618,6 +2623,19 @@ export const useAppStore = create<AppState>()(
           return null;
         }
       },
+      settleInvoicePayment: async (invoiceId, paymentAmount, extra, method, reference) => {
+        if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
+        // Giving a discount is the owner's: refused before any money moves (the server's op is owner-only too).
+        if (effectiveRole() !== 'owner') throw new Error('Only an owner can give a discount.');
+        const date = new Date().toISOString();
+        const updated = await writeSettleInvoice(clientPort, { invoiceId, amount: paymentAmount, date, method, reference, extra }, {
+          log: (action, title, detail, ref) => { addActivityLog(action as LogEventType, title, detail, ref ?? ''); },
+          syncInvoiceShopify: (id, mode) => { syncInvoiceShopify(id, mode); },
+          notify: () => notifyAlert({ event: 'payment', id: invoiceId, payment: { amount: paymentAmount, date } }),
+        }) as unknown as Invoice;
+        set(state => ({ generatedInvoices: state.generatedInvoices.map(i => i.id === invoiceId ? { ...i, ...updated } : i) }) as Partial<AppState>);
+        return updated;
+      },
       deleteInvoicePayment: async (invoiceId, index, payment) => {
         if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
         await requireDeleteCode(`Delete the payment of PKR ${payment.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} on ${invoiceId}`);
@@ -3467,6 +3485,15 @@ export const useAppStore = create<AppState>()(
             throw error;
         }
     },
+      settleOrderAdvance: async (orderId, amount, extra, notes, method) => {
+        if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
+        if (effectiveRole() !== 'owner') throw new Error('Only an owner can give a discount.');
+        const updated = await writeSettleOrder(clientPort, { orderId, amount, extra, notes, method }, {
+          log: (action, title, detail, ref) => addActivityLog(action as LogEventType, title, detail, ref ?? ''),
+        }) as unknown as Order;
+        syncOrderShopify(orderId, 'upsert');
+        return updated;
+      },
       deleteOrderAdvance: async (orderId, lineIndex) => {
         if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
         const local = get().orders.find(o => o.id === orderId);

@@ -320,7 +320,7 @@ export const RecordAdvanceDialog: React.FC<{
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }> = ({ order, open, onOpenChange }) => {
-    const { recordOrderAdvance, updateOrder } = useAppStore();
+    const { recordOrderAdvance, settleOrderAdvance } = useAppStore();
     const { toast } = useToast();
     const form = useForm<RecordAdvanceFormData>({
       resolver: zodResolver(recordAdvanceSchema),
@@ -334,15 +334,11 @@ export const RecordAdvanceDialog: React.FC<{
     const handleRecordAdvance = async (data: RecordAdvanceFormData, settle = 0) => {
         try {
             const amount = rupees(data.amount);
-            await recordOrderAdvance(order.id, amount, data.notes, data.method);
-            // Settle: the leftover is added to the order's discount (not a payment that was never made), and the
-            // balance goes with it; the invoice made from the order carries the discount (Order to invoice).
-            if (settle > 0) {
-                await updateOrder(order.id, {
-                    discountAmount: rupees(order.discountAmount) + settle,
-                    grandTotal: rupees(order.grandTotal) - amount - settle,
-                });
-            }
+            // Settle: the leftover is added to the order's discount (not a payment that was never made), in the same
+            // write as the advance (lib/writes/settle.ts); the stage is untouched. The invoice made from the order
+            // carries the discount (Order to invoice).
+            if (settle > 0) await settleOrderAdvance(order.id, amount, settle, data.notes, data.method);
+            else await recordOrderAdvance(order.id, amount, data.notes, data.method);
             toast({
                 title: "Advance Recorded",
                 description: `PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} by ${data.method} has been added to the advance for order ${order.id}${settle > 0 ? `, and PKR ${settle.toLocaleString()} taken off the bill` : ''}.`,

@@ -52,6 +52,7 @@ import { ORDER_OPS, runOrderOp } from './ops-orders';
 import { ORDERS2_OPS, runOrders2Op } from './ops-orders2';
 import { INVOICES2_OPS, runInvoices2Op } from './ops-invoices2';
 import { INVOICE_ACTION_OPS, runInvoiceActionOp } from './ops-invoice-actions';
+import { SETTLE_OPS, runSettleOp } from './ops-settle';
 import { WORKSHOP_OPS, runWorkshopOp } from './ops-workshop';
 import { WORK2_OPS, runWork2Op } from './ops-work2';
 import { SETTINGS2_OPS, runSettings2Op } from './ops-settings2';
@@ -109,6 +110,7 @@ const GROUPS: { roles: OpRoles; run: OpHandler }[] = [
   { roles: ORDERS2_OPS, run: runOrders2Op },
   { roles: INVOICES2_OPS, run: runInvoices2Op },
   { roles: INVOICE_ACTION_OPS, run: runInvoiceActionOp },
+  { roles: SETTLE_OPS, run: runSettleOp },
   { roles: WORKSHOP_OPS, run: runWorkshopOp },
   { roles: WORK2_OPS, run: runWork2Op },
   { roles: SETTINGS2_OPS, run: runSettings2Op },

@@ -32,7 +32,7 @@ export function RecordPaymentDialog({ invoice: invoiceNow, open, onOpenChange }:
   // Shown as it was while the dialog closes (hooks/use-lingering.ts): the balance fell to 0 as it faded.
   const invoice = useLingering(invoiceNow);
   const updateInvoicePayment = useAppStore(s => s.updateInvoicePayment);
-  const updateInvoiceDiscount = useAppStore(s => s.updateInvoiceDiscount);
+  const settleInvoicePayment = useAppStore(s => s.settleInvoicePayment);
   const { toast } = useToast();
   const [amount, setAmount] = useState<number | undefined>(undefined);
   const [method, setMethod] = useState<PaymentType | ''>('');
@@ -58,11 +58,13 @@ export function RecordPaymentDialog({ invoice: invoiceNow, open, onOpenChange }:
     if (!invoice || problem || !method || !amount || lock.current) return;
     lock.current = true; setSaving(true);
     try {
-      const updated = await updateInvoicePayment(invoice.id, rupees(amount), new Date().toISOString(), method, method === 'Cash' ? '' : reference);
-      if (!updated) throw new Error();
       // Settle: the leftover goes onto the bill's discount (lib/round-off.ts), so the balance is 0 without a payment never made.
-      const settled = settle > 0 ? await updateInvoiceDiscount(invoice.id, rupees(updated.discountAmount) + settle) : null;
-      const after = balanceLine((settled ?? updated).balanceDue);
+      // One write with the payment (lib/writes/settle.ts): it lands whole or not at all.
+      const updated = settle > 0
+        ? await settleInvoicePayment(invoice.id, rupees(amount), settle, method, method === 'Cash' ? '' : reference)
+        : await updateInvoicePayment(invoice.id, rupees(amount), new Date().toISOString(), method, method === 'Cash' ? '' : reference);
+      if (!updated) throw new Error();
+      const after = balanceLine(updated.balanceDue);
       toast({ title: 'Payment recorded', description: `PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} by ${method} on ${invoice.id}${after.state === 'due' ? `, PKR ${after.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} still due` : after.state === 'credit' ? `, PKR ${after.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} in credit` : ' — paid in full'}.` });
       onOpenChange(false);
     } catch {
