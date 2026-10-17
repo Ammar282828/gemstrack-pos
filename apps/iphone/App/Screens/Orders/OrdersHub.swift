@@ -493,7 +493,6 @@ struct OrdersHub: View {
         Task { @MainActor in
             do {
                 _ = try await ERPAPI.shared.write("setOrderStatus", ["orderId": order.id, "status": status])
-                savedTick += 1
                 if status == "Completed" {
                     Note.show(Note(title: "Marked ready", detail: order.id), in: $note, reduce: reduceMotion)
                 } else if status == "Cancelled" {
@@ -509,7 +508,6 @@ struct OrdersHub: View {
     }
 
     private func advanced(_ amount: Double) {
-        moneyTick += 1
         Note.show(Note(title: "Advance recorded", detail: Money.pkr(amount)), in: $note, reduce: reduceMotion)
     }
 

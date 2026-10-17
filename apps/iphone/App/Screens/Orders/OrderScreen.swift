@@ -127,7 +127,6 @@ struct OrderScreen: View {
     /// happened even when the customer's WhatsApp did not go.
     private func onlineMoved(_ kind: OnlineMoveSheet.Kind, _ t: OnlineTold) {
         Note.show(Note(title: t.words, failed: !t.ok), in: $note, reduce: reduceMotion)
-        if kind == .paid { moneyTick += 1 } else { savedTick += 1 }
     }
 
     private func invoiceOf(_ order: Order) -> Invoice? {
@@ -739,7 +738,6 @@ struct OrderScreen: View {
         Task { @MainActor in
             do {
                 _ = try await ERPAPI.shared.write("setOrderStatus", ["orderId": order.id, "status": status])
-                savedTick += 1
                 if status == "Completed" {
                     Note.show(Note(title: "Marked ready", detail: order.id), in: $note, reduce: reduceMotion)
                 } else if status == "Cancelled" {
