@@ -47,9 +47,13 @@ private struct BusinessRoot: View {
 
     var body: some View {
         ZStack {
+            let locked = lock.locked || lock.covered
             RootGate()
                 .environment(session)
                 .environment(Book.shared)
+                // Behind the cover nothing is reachable: not by touch, not by VoiceOver's swipe.
+                .accessibilityHidden(locked)
+                .allowsHitTesting(!locked)
             if lock.locked || lock.covered { LockCover(lock: lock) }
         }
         .tint(Theme.accent)

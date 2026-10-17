@@ -20,7 +20,7 @@ struct SkeletonLoading: View {
             } else {
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(0..<3, id: \.self) { index in
-                        RoundedRectangle(cornerRadius: 4)
+                        Capsule()
                             .fill(.secondary.opacity(0.12))
                             .frame(width: index == 1 ? 54 : 76, height: 5)
                     }
@@ -76,7 +76,7 @@ struct SkeletonLoading: View {
         content()
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, minHeight: height, alignment: .leading)
-            .background(Theme.card, in: .rect(cornerRadius: 22, style: .continuous))
+            .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
     }
 }
 
@@ -526,9 +526,8 @@ struct PaymentSheet: View {
     @State private var note: String
     @State private var saving = false
     @State private var error: String?
-    /// Counted, so the confirming tap (or the refusal) is felt once per attempt.
+    /// Counted, so the confirming tap is felt once per attempt.
     @State private var recorded = 0
-    @State private var refused = 0
     /// A Settle's payment was taken and its discount refused: nothing more is sent from this sheet.
     @State private var taken = false
 
@@ -619,9 +618,9 @@ struct PaymentSheet: View {
                     }
                 } footer: {
                     if let problem {
-                        Text(problem).foregroundStyle(.red)
+                        Text(problem).foregroundStyle(Tone.problem.color)
                     } else if let creditNote {
-                        Text(creditNote).foregroundStyle(.green)
+                        Text(creditNote).foregroundStyle(Tone.credit.color)
                     }
                 }
                 Section("How it was paid") {
@@ -647,9 +646,6 @@ struct PaymentSheet: View {
                         Text("Takes this payment, then adds \(PaymentText.pkr(x)) to the discount, so nothing is left owing.")
                     }
                 }
-                if let error {
-                    Section { Text(error).foregroundStyle(.red) }
-                }
             }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
@@ -662,11 +658,10 @@ struct PaymentSheet: View {
                         .disabled(amount <= 0 || problem != nil || saving || taken)
                 }
             }
-            // The ERP's words for a refusal slide in under the form rather than appearing in a jump.
-            .motion(error)
+            // The ERP's words for a refusal, in an alert (which gives the error tap itself).
+            .failureAlert($error)
         }
         .sensoryFeedback(.success, trigger: recorded)
-        .sensoryFeedback(.error, trigger: refused)
         .presentationDetents([.medium, .large])
     }
 
@@ -695,7 +690,6 @@ struct PaymentSheet: View {
                 self.error = e.localizedDescription
             } catch {
                 self.error = error.localizedDescription
-                refused += 1
             }
             saving = false
         }

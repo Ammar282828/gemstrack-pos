@@ -36,10 +36,14 @@ struct RootGate: View {
                 Group {
                     if session.role == "karigar" {
                         // A karigar's own work, native (MyWorkScreen reads the portal's /api/karigar/me; the ERP's /my-work).
+                        // PlaceStack would add the rate chip and the team note, which are not a karigar's; so the
+                        // stack is its own, with the same Route destination and zoom scope as every other.
                         NavigationStack {
                             MyWorkScreen(path: "/my-work")
                                 .toolbar { ToolbarItem(placement: .topBarLeading) { BusinessChip() } }
+                                .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                         }
+                        .zoomScope()
                     } else {
                         RootView()
                     }
@@ -129,6 +133,8 @@ struct RootView: View {
             }
         }
         .tabViewStyle(.sidebarAdaptable)
+        // The bar folds down while a page scrolls, giving the page its height back.
+        .tabBarMinimizeBehavior(.onScrollDown)
         // The house's whole logo heads an iPad's sidebar, as the ERP's own sidebar is headed.
         .tabViewSidebarHeader {
             VStack(alignment: .leading, spacing: 10) {
@@ -184,7 +190,6 @@ private struct CreateAccessory: ViewModifier {
     let open: (String) -> Void
     let talk: () -> Void
     @State private var compact = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -227,9 +232,6 @@ private struct CreateAccessory: ViewModifier {
     private func floating(_ content: Content) -> some View {
         content
             .safeAreaPadding(.bottom, shown ? 76 : 0)
-            .onScrollPhaseChange { _, phase in
-                if phase != .idle { compact = true }
-            }
             .onScrollGeometryChange(for: Bool.self) { geometry in
                 geometry.contentOffset.y + geometry.contentInsets.top > 24
             } action: { _, scrolled in
@@ -259,7 +261,7 @@ private struct CreateAccessory: ViewModifier {
                     }
                 }
                 .padding(.horizontal, 20).padding(.vertical, 8)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: compact)
+                .motion(compact, Motion.enter)
             }
         }
     }
@@ -299,9 +301,12 @@ struct PlaceScreen: View {
             ?? (entry?.href == ScreenRoute.bare(current) ? (entry?.heading ?? entry?.label) : nil)
         ScreenRegistry.view(for: current)
             .id(current)
+            // The sub-tab swap fades rather than cuts (the `.id` stays: it is the routing).
+            .transition(.opacity)
+            .motion(current, Motion.enter)
             // A native screen names itself (and a hub keeps its large title); an ERP page is named from the map.
             .modifier(WebTitle(title: ScreenRegistry.hasNative(current) ? nil : (title ?? "")))
-            .modifier(TabsMenu(tabs: tabs, chosen: $chosen))
+            .modifier(TabsMenu(tabs: tabs, current: ScreenRoute.bare(current), chosen: $chosen))
             // Native screens sit on the house's ground; an ERP page brings its own (the same palette).
             .modifier(OptionalGround(on: ScreenRegistry.hasNative(current), width: ScreenRegistry.readableWidth(for: current)))
             .modifier(TeamNotePresentation(shown: isRoot))
@@ -356,13 +361,17 @@ private struct WebTitle: ViewModifier {
 
 private struct TabsMenu: ViewModifier {
     let tabs: [NavPlace]
+    /// The sub-tab showing now, ticked in the menu.
+    let current: String
     @Binding var chosen: String?
 
     func body(content: Content) -> some View {
         if tabs.count > 1 {
             content.toolbarTitleMenu {
                 ForEach(tabs) { t in
-                    Button { chosen = t.href } label: { Label(t.label, systemImage: NavIcon.symbol(for: t.icon)) }
+                    Button { chosen = t.href } label: {
+                        Label(t.label, systemImage: t.href == current ? "checkmark" : NavIcon.symbol(for: t.icon))
+                    }
                 }
             }
         } else {
@@ -410,7 +419,7 @@ struct TeamNotePresentation: ViewModifier {
                         }
                     }
                     .padding(12)
-                    .background(Theme.card, in: .rect(cornerRadius: 16))
+                    .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
                     .overlay(alignment: .leading) { Capsule().fill(Theme.accent).frame(width: 3).padding(.vertical, 12) }
                     .padding(.horizontal, 16).padding(.vertical, 6)
                     .background(Theme.ground)
@@ -438,6 +447,9 @@ struct TeamNoteEditor: View {
     @State private var loaded = false
     @State private var saving = false
     @State private var failure: String?
+    @State private var confirmingClear = false
+    /// Counted, so the save is felt once.
+    @State private var saved = 0
 
     private static let limit = 600
     private var over: Bool { text.count > Self.limit }
@@ -458,18 +470,17 @@ struct TeamNoteEditor: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Visible to everyone until cleared.")
                         Text(over ? "Keep it under \(Self.limit) characters: \(text.count) / \(Self.limit)" : "\(text.count) / \(Self.limit)")
-                            .foregroundStyle(over ? Color.red : Color.secondary)
+                            .foregroundStyle(over ? Tone.problem.color : Color.secondary)
                             .monospacedDigit()
                     }
                 }
                 .houseRows()
                 if !Self.current(book).isEmpty {
                     Section {
-                        Button("Clear note", role: .destructive) { save("") }
+                        Button("Clear note", role: .destructive) { confirmingClear = true }
                             .disabled(saving)
                     }.houseRows()
                 }
-                if let failure { Section { Text(failure).foregroundStyle(.red) }.houseRows() }
             }
             .modifier(HouseGround())
             .navigationTitle("Urgent note").navigationBarTitleDisplayMode(.inline)
@@ -482,7 +493,13 @@ struct TeamNoteEditor: View {
             }
             .onAppear { book.settings.need(); seed() }
             .onChange(of: book.settings.loaded) { _, _ in seed() }
+            .failureAlert($failure)
+            .confirmDestructive(isPresented: $confirmingClear, title: "Clear the note?",
+                                message: "Everyone stops seeing it.", action: "Clear note") { save("") }
+            .interactiveDismissDisabled(saving)
         }
+        .presentationDetents([.medium, .large])
+        .savedFeedback(trigger: saved)
     }
 
     private func seed() {
@@ -501,6 +518,7 @@ struct TeamNoteEditor: View {
                     _ = try await ERPAPI.shared.write("updateSettings", ["patch": ["teamNote": value]])
                 }
                 WidgetCenter.shared.reloadAllTimelines()
+                saved += 1
                 dismiss()
             } catch { failure = error.localizedDescription }
             saving = false

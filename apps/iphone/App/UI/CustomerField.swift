@@ -67,7 +67,11 @@ struct CustomerField: View {
                 } label: {
                     Text("Name")
                 }
-                if focus == .name { suggestions }
+                // Only the suggestions arrive with a motion; the rows above them stay put on every keystroke.
+                Group {
+                    if focus == .name { suggestions.transition(.opacity) }
+                }
+                .motion(focus == .name)
                 LabeledContent {
                     TextField("Phone", text: $phone, prompt: Text("Optional"))
                         .keyboardType(.phonePad)
@@ -90,8 +94,6 @@ struct CustomerField: View {
         .onChange(of: pickedId) { _, now in
             if (now ?? "").isEmpty { settled = nil }
         }
-        .animation(.snappy(duration: 0.22), value: focus)
-        .animation(.snappy(duration: 0.22), value: name)
     }
 
     // MARK: Rows

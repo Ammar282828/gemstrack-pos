@@ -7,6 +7,7 @@ struct SearchView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     let map: NavMap
     @State private var text = ""
+    @State private var confirmingSignOut = false
 
     var body: some View {
         let q = text.trimmingCharacters(in: .whitespaces).lowercased()
@@ -17,6 +18,13 @@ struct SearchView: View {
         }
         .navigationTitle("Everything")
         .searchable(text: $text, prompt: "Places in the ERP")
+        .overlay {
+            if !q.isEmpty, noHits(q) { ContentUnavailableView.search(text: text) }
+        }
+        .confirmDestructive(isPresented: $confirmingSignOut, title: "Sign out?",
+                            message: "You will need to sign in with Google again.", action: "Sign out") {
+            session.signOut()
+        }
         .toolbar {
             if !sizeClass.isPadLayout { ToolbarItem(placement: .topBarLeading) { BusinessChip() } }
         }
@@ -48,22 +56,24 @@ struct SearchView: View {
                 NavigationLink(value: Route(path: "/app/phone")) { Label("This phone", systemImage: "iphone") }
             }
             LabeledContent("Signed in", value: session.me?.email ?? "")
-            Button("Sign out", role: .destructive) { session.signOut() }
+            Button("Sign out", role: .destructive) { confirmingSignOut = true }
         } footer: {
             Text("\(House.storeName) · \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""))")
         }
     }
 
-    @ViewBuilder
-    private func results(_ q: String) -> some View {
-        let hits = map.allPlaces.filter { item in
+    private func hits(_ q: String) -> [NavHit] {
+        map.allPlaces.filter { item in
             item.place.label.lowercased().contains(q) || (item.place.keywords ?? []).contains { $0.lowercased().contains(q) }
                 || (item.entry?.label.lowercased().contains(q) ?? false)
         }
-        if hits.isEmpty {
-            ContentUnavailableView.search(text: text)
-        }
-        ForEach(hits) { item in
+    }
+
+    private func noHits(_ q: String) -> Bool { hits(q).isEmpty }
+
+    @ViewBuilder
+    private func results(_ q: String) -> some View {
+        ForEach(hits(q)) { item in
             NavigationLink(value: Route(path: item.place.href)) {
                 Label {
                     VStack(alignment: .leading, spacing: 1) {
@@ -119,7 +129,7 @@ struct SignInView: View {
                     }
                     if let e = session.error {
                         Label(e, systemImage: "exclamationmark.triangle.fill")
-                            .font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center)
+                            .font(.footnote).foregroundStyle(Tone.problem.color).multilineTextAlignment(.center)
                     }
                     if !House.isDemo {
                         Button {

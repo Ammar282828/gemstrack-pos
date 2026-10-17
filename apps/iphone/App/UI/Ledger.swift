@@ -171,7 +171,7 @@ struct HeroAmount: View {
     var text: String?
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
+        AdaptiveStack(spacing: 6) {
             Text(unit)
                 .font(.system(.title3, design: .serif).weight(.medium))
                 .foregroundStyle(.secondary)
@@ -181,8 +181,9 @@ struct HeroAmount: View {
                 .monospacedDigit()
                 .contentTransition(.numericText(value: amount))
         }
-        .lineLimit(1)
-        .minimumScaleFactor(0.5)
+        // Scales to 0.8 and then wraps (a lac figure at AX sizes), never shrinks into something unreadable.
+        .lineLimit(2)
+        .minimumScaleFactor(0.8)
         .accessibilityElement(children: .combine)
     }
 
@@ -205,7 +206,9 @@ struct RowAmount: View {
             .monospacedDigit()
             .contentTransition(.numericText(value: amount))
             .foregroundStyle(tone)
-            .lineLimit(1)
+            // A sum is never cut off: it scales to 0.8, then wraps.
+            .minimumScaleFactor(0.8)
+            .lineLimit(2)
     }
 }
 
@@ -218,7 +221,7 @@ struct PaidBar: View {
         let whole = max(total, 1)
         let done = total - paid < 1
         ProgressView(value: min(max(paid, 0), whole), total: whole)
-            .tint(done ? Color.green : Theme.accent)
+            .tint(done ? Tone.settled.color : Theme.accent)
             .accessibilityLabel(done ? "Paid in full" : "Paid \(Money.pkr(paid)) of \(Money.pkr(total))")
     }
 }
@@ -232,17 +235,21 @@ struct MoneySplit: View {
     var totalLabel = "Total"
     var paidLabel = "Paid"
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
+        // Side by side, or one under another at accessibility sizes, where the cells align to the leading edge.
+        let ax = typeSize.isAccessibilitySize
         VStack(spacing: 12) {
-            HStack(alignment: .top, spacing: 0) {
+            AdaptiveStack(spacing: ax ? 10 : 0, alignment: .top) {
                 cell(totalLabel, total, Money.pkr(total), .primary, .leading)
-                cell(paidLabel, paid, Money.pkr(paid), .secondary, .center)
+                cell(paidLabel, paid, Money.pkr(paid), .secondary, ax ? .leading : .center)
                 if due <= -1 {
-                    cell("In credit", -due, Money.pkr(-due), Tone.credit.color, .trailing)
+                    cell("In credit", -due, Money.pkr(-due), Tone.credit.color, ax ? .leading : .trailing)
                 } else if due >= 1 {
-                    cell("Due", due, Money.pkr(due), Tone.owed.color, .trailing)
+                    cell("Due", due, Money.pkr(due), Tone.owed.color, ax ? .leading : .trailing)
                 } else {
-                    cell("Due", 0, "Nil", Tone.settled.color, .trailing)
+                    cell("Due", 0, "Nil", Tone.settled.color, ax ? .leading : .trailing)
                 }
             }
             PaidBar(paid: paid, total: total)
@@ -260,8 +267,8 @@ struct MoneySplit: View {
                 .monospacedDigit()
                 .contentTransition(.numericText(value: amount))
                 .foregroundStyle(tint)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: Alignment(horizontal: align, vertical: .top))
     }
@@ -270,10 +277,13 @@ struct MoneySplit: View {
 // MARK: When
 
 /// A promised day as a small calendar leaf: the weekday over the date, in the promise's tone. "—" when none.
+/// The words are relative text styles and the leaf's frame scales with them, so it grows with Dynamic Type
+/// (up to the AX sizes, where a leaf would take the row) rather than clipping a fixed 7-9 pt label.
 struct DateLeaf: View {
     let date: Date?
     var tone: Tone = .quiet
     var size: CGFloat = 44
+    @ScaledMetric(relativeTo: .caption2) private var scale: CGFloat = 1
 
     private static func formatter(_ pattern: String) -> DateFormatter {
         let f = DateFormatter()
@@ -287,28 +297,34 @@ struct DateLeaf: View {
     private static let day = formatter("d")
     private static let month = formatter("MMM")
 
+    /// The leaf's side, grown with the text but never past 1.6 times (a row keeps room for its words).
+    private var side: CGFloat { size * min(scale, 1.6) }
+
     var body: some View {
         VStack(spacing: 0) {
             if let date {
                 Text(Self.weekday.string(from: date).uppercased())
-                    .font(.system(size: size * 0.2, weight: .bold))
+                    .font(.caption2.weight(.bold))
                     .foregroundStyle(tone == .quiet ? Color.secondary : tone.color)
                 Text(Self.day.string(from: date))
-                    .font(.system(size: size * 0.42, weight: .semibold, design: .serif))
+                    .font(.system(.headline, design: .serif))
                     .monospacedDigit()
                     .foregroundStyle(tone == .late ? tone.color : Color.primary)
                 Text(Self.month.string(from: date).uppercased())
-                    .font(.system(size: size * 0.16, weight: .semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
             } else {
                 Image(systemName: "calendar")
-                    .font(.system(size: size * 0.36))
+                    .font(.title3)
                     .foregroundStyle(.tertiary)
             }
         }
-        .frame(width: size, height: size + 6)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+        .frame(width: side, height: side + 6)
         .background((tone == .quiet ? Color.secondary : tone.color).opacity(0.1), in: .rect(cornerRadius: Radius.thumb, style: .continuous))
-        .accessibilityHidden(true)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(date.map { "Date: " + ShopDate.stamp($0) } ?? "No date")
     }
 }
 

@@ -8,7 +8,7 @@ import UIKit
 struct Note: Equatable {
     let title: String
     var detail = ""
-    /// Something that did not happen: an amber warning and a warning tap, never the green tick.
+    /// Something that did not happen: a red problem and a warning tap, never the green tick.
     var failed = false
 
     /// Say it: the toast rises on the enter curve (it only appears under Reduce Motion). Pass the screen's
@@ -29,7 +29,7 @@ struct NoteBanner: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: note.failed ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                .foregroundStyle(note.failed ? Tone.owed.color : Tone.settled.color)
+                .foregroundStyle(note.failed ? Tone.problem.color : Tone.settled.color)
             VStack(alignment: .leading, spacing: 1) {
                 Text(note.title).font(.subheadline.weight(.semibold))
                 if !note.detail.isEmpty {
@@ -42,7 +42,7 @@ struct NoteBanner: View {
         .padding(.vertical, 10)
         // A frosted card, not Liquid Glass: glass can't fade or slide, so a note rising after a save drew a stray
         // "bubble" as it formed and as it went (owner, 2026-10-15 and again 2026-10-17).
-        .background(.regularMaterial, in: .rect(cornerRadius: 20, style: .continuous))
+        .background(.regularMaterial, in: .rect(cornerRadius: Radius.card, style: .continuous))
         .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
         .accessibilityElement(children: .combine)
     }

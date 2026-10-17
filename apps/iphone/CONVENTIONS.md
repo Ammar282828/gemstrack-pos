@@ -90,7 +90,9 @@ Read before adding anything here. The why is in `docs/features/iphone-app.md`.
    - **Glass is the control layer only.** Floating bars, toolbars, the tab bar, sheets, the Create button. A button
      inside a List row, a card or a Form is `.bordered` / `.borderless` (or a plain row), never `.glass` /
      `.glassProminent` / `.houseProminent`; no `.ultraThinMaterial` / `.regularMaterial` on content. Two or more glass
-     controls side by side sit in one `GlassEffectContainer` (`ActionBar` does this).
+     controls side by side sit in one `GlassEffectContainer` (`ActionBar` does this). Never glass on something that
+     fades or slides in and out (the `Note` toast is a frosted card): glass forming mid-transition draws a stray
+     "bubble" (owner, 2026-10-15 and 2026-10-17).
    - **One primary action per screen, and it never scrolls away.** On a page or a sheet whose job is one action
      (Save, Send, Take payment, Mark done, Publish), that action is the `.actionBar(...)` at the bottom (prominent,
      full width, busy state, a one-line summary such as the balance). A short sheet (≤ one screen of fields) may use

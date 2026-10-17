@@ -130,7 +130,7 @@ struct PieceInspector: View {
             }
         }
         .padding(20)
-        .background(Theme.card, in: .rect(cornerRadius: 20))
+        .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
     }
 }
 
@@ -162,7 +162,7 @@ struct TransactionReview: View {
             }
         }
         .padding(20)
-        .background(Theme.card, in: .rect(cornerRadius: 20))
+        .background(Theme.card, in: .rect(cornerRadius: Radius.card, style: .continuous))
     }
 
     private func reviewRow(_ row: TransactionReviewRow) -> some View {
