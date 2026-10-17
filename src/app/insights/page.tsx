@@ -7,7 +7,7 @@
  * platform; the follower history the hourly snapshot keeps; and, first, what it all says.
  */
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { PageShell } from '@/components/shared/page-shell';
@@ -17,16 +17,12 @@ import { cn } from '@/lib/utils';
 import { STORE_META_ADS } from '@/lib/store-config';
 import { chartMotion } from '@/lib/chart-motion';
 import { compact, count, money, actionLabel, headlineActions, type Metrics } from '@/lib/ads/shape';
-import {
-  bestHours, byKind, findings, sharesOf, surfaceLabel, type Finding, type PostRow, type Split,
-} from '@/lib/social-insights/shape';
-import type { Audience, DailySnapshot, FacebookOverview, InstagramOverview, PlatformSpend } from '@/lib/social-insights/fetch';
+import { surfaceLabel, type Finding, type Split } from '@/lib/social-insights/shape';
+import type { DailySnapshot, FacebookOverview, InstagramOverview, PlatformSpend } from '@/lib/social-insights/fetch';
 import { ErrorLine } from '@/app/ads/ads-kit';
 import { Delta, InsightRangePicker, MissingNote, Tile, useInsightRange, useInsights } from './insights-kit';
 
 interface OverviewData { instagram: InstagramOverview | null; facebook: FacebookOverview | null; paid: { now: PlatformSpend[]; before: PlatformSpend[] } | null; history: DailySnapshot[]; currency: string }
-interface PostsData { posts: PostRow[]; stories: PostRow[]; lastPostAt: string | null }
-interface AudienceData { audience: Audience | null }
 
 const tip = { background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 };
 const PLATFORM: Record<string, string> = { instagram: 'Instagram', facebook: 'Facebook', messenger: 'Messenger', audience_network: 'Audience Network', threads: 'Threads', whatsapp: 'WhatsApp' };
@@ -82,27 +78,13 @@ const sum = (rows: PlatformSpend[] | undefined, k: (m: Metrics) => number) => (r
 function InsightsOverview() {
   const [range, setRange] = useInsightRange();
   const o = useInsights<OverviewData>('overview', range);
-  // Posts and audience feed the findings; the server keeps them, so their tabs then open at once.
-  const p = useInsights<PostsData>('posts', range);
-  const a = useInsights<AudienceData>('audience', range);
   const d = o.data;
   const ig = d?.instagram ?? null, fb = d?.facebook ?? null;
   const cur = d?.currency ?? 'PKR';
 
-  const found = useMemo(() => {
-    if (!ig) return [];
-    const igPosts = (p.data?.posts ?? []).filter(x => x.platform === 'instagram');
-    const recent = igPosts.filter(x => !x.older);
-    const top = [...igPosts].sort((x, y) => (y.views ?? 0) - (x.views ?? 0))[0];
-    return findings({
-      reachSplit: ig.reach, nonFollowerReach: ig.nonFollowerReach, follows: ig.follows, followers: ig.account.followers,
-      kinds: byKind(recent.length >= 4 ? recent : igPosts), profileViews: ig.totals.profile_views ?? null, websiteTaps: ig.totals.website_clicks ?? null,
-      followerCountries: sharesOf(a.data?.audience?.followers.country ?? [], 50), best: bestHours(a.data?.audience?.online ?? null),
-      paidSpend: sum(d?.paid?.now, m => m.spend), currency: cur,
-      now: Date.now(), lastPostAt: p.data?.lastPostAt ?? null, postsInRange: recent.length, totalViews: ig.totals.views ?? null,
-      topPost: top?.views ? { kind: top.kind, at: top.at, views: top.views, older: !!top.older } : null,
-    });
-  }, [ig, p.data, a.data, d?.paid, cur]);
+  // What it says, worked out on the server from all three parts (one brain with the iPhone app).
+  const f = useInsights<{ findings: Finding[] }>('findings', range);
+  const found = f.data?.findings ?? [];
 
   const reachDays = (ig?.daily ?? []).map(x => ({ date: x.date.slice(5).replace('-', '/'), reach: x.reach }));
   const followerDays = (d?.history ?? []).filter(x => x.igFollowers !== null).map(x => ({ date: x.date.slice(5).replace('-', '/'), followers: x.igFollowers }));
@@ -114,7 +96,7 @@ function InsightsOverview() {
   return (
     <PageShell title="Insights" icon={<BarChart3 className="h-7 w-7" />}
       subtitle={d ? [d.instagram_username && `@${d.instagram_username}`, d.page_name].filter(Boolean).join(' · ') : 'Instagram and Facebook, organic and paid'}
-      action={<Button variant="outline" onClick={() => { o.reload(true); p.reload(true); a.reload(true); }} disabled={o.loading}><RefreshCw className={cn('h-4 w-4 mr-1.5', o.loading && 'animate-spin')} /> Refresh</Button>}>
+      action={<Button variant="outline" onClick={() => { o.reload(true).then(() => f.reload()); }} disabled={o.loading}><RefreshCw className={cn('h-4 w-4 mr-1.5', o.loading && 'animate-spin')} /> Refresh</Button>}>
       <InsightRangePicker value={range} onChange={setRange} />
       {o.error && <ErrorLine error={o.error} onRetry={() => o.reload(true)} />}
       {!d && o.loading && <div className="flex items-center gap-2 text-sm text-muted-foreground py-6"><Loader2 className="h-4 w-4 animate-spin" /> Asking Meta…</div>}

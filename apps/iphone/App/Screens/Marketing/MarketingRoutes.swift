@@ -43,6 +43,10 @@ enum MarketingRoutes {
             .exact("/ads/rules") { AdsRulesScreen() },
             .exact("/ads/tests") { AdsTestsScreen() },
             .exact("/ads/setup") { AdsSetupScreen() },
+            // Insights (Insights.swift): Instagram and Facebook, organic beside paid, on the web's own paths.
+            .exact("/insights") { InsightsOverviewScreen() },
+            .exact("/insights/posts") { InsightsPostsScreen() },
+            .exact("/insights/audience") { InsightsAudienceScreen() },
             .exact(MarketingKit.websitePath) { WebsiteMenu() },
             // The Website pages, native (Website*.swift), on the web's own routes; /website/post is Post a piece (above).
             .exact("/website/photos") { WebsitePhotosScreen() },

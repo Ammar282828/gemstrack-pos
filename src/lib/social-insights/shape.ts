@@ -281,3 +281,28 @@ export function findings(x: FindingInput): Finding[] {
   if (x.best && x.best.share >= 0.12) out.push({ tone: 'info', title: `Followers are most online ${hourLabel(x.best.start)}–${hourLabel((x.best.start + 2) % 24)}`, why: `${pc(x.best.share)} of the day's online followers are in those two hours (Karachi time). Post just before.` });
   return out;
 }
+
+/**
+ * The findings from the three parts' answers (/api/insights overview, posts, audience): one brain for the web page and
+ * the iPhone app, which reads them from `part=findings`.
+ */
+export function findingsFor(
+  o: { instagram: { reach: Split | null; nonFollowerReach: number | null; follows: { follows: number; unfollows: number; net: number } | null; account: { followers: number }; totals: Record<string, number> } | null; paid: { now: { metrics: { spend: number } }[] } | null; currency: string },
+  p: { posts: PostRow[]; lastPostAt: string | null } | null,
+  a: { audience: { followers: { country: Part[] }; online: number[] | null } | null } | null,
+  now: number,
+): Finding[] {
+  const ig = o.instagram;
+  if (!ig) return [];
+  const igPosts = (p?.posts ?? []).filter(x => x.platform === 'instagram');
+  const recent = igPosts.filter(x => !x.older);
+  const top = [...igPosts].sort((x, y) => (y.views ?? 0) - (x.views ?? 0))[0];
+  return findings({
+    reachSplit: ig.reach, nonFollowerReach: ig.nonFollowerReach, follows: ig.follows, followers: ig.account.followers,
+    kinds: byKind(recent.length >= 4 ? recent : igPosts), profileViews: ig.totals.profile_views ?? null, websiteTaps: ig.totals.website_clicks ?? null,
+    followerCountries: sharesOf(a?.audience?.followers.country ?? [], 50), best: bestHours(a?.audience?.online ?? null),
+    paidSpend: (o.paid?.now ?? []).reduce((t, r) => t + r.metrics.spend, 0), currency: o.currency,
+    now, lastPostAt: p?.lastPostAt ?? null, postsInRange: recent.length, totalViews: ig.totals.views ?? null,
+    topPost: top?.views ? { kind: top.kind, at: top.at, views: top.views, older: !!top.older } : null,
+  });
+}

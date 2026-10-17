@@ -48,5 +48,5 @@ data behind it is big enough.
 **Posts** lists the latest 50 Instagram posts and reels with lifetime numbers (an older one still being watched is marked
 — House of Mina's month of 2026-10 was carried by reels from before it), the range's Facebook posts, and the stories.
 
-**iPhone app**: the native app (`apps/iphone`) has its own Insights screens on the same route (`InsightsScreens.swift`);
+**iPhone app**: the native app (`apps/iphone`) has its own Insights screens on the same route (`apps/iphone/App/Screens/Marketing/Insights.swift`, the same three paths; the findings come from `part=findings`, worked out on the server for both);
 the Capacitor shell shows the web page.

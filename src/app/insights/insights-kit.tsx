@@ -26,7 +26,7 @@ export interface Envelope {
   missing: { what: string; why: string }[]; at: string;
 }
 
-export function useInsights<T>(part: 'overview' | 'posts' | 'audience', range: InsightRange) {
+export function useInsights<T>(part: 'overview' | 'posts' | 'audience' | 'findings', range: InsightRange) {
   const [data, setData] = useState<(T & Envelope) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
