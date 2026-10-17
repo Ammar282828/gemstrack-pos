@@ -82,13 +82,14 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
   const router = useRouter();
   const { toast } = useToast();
   const appReady = useAppReady();
-  const { customers, settings, allInvoices, hasInvoicesLoaded, updateInvoicePayment, refundInvoicePartial, updateInvoiceDiscount, deleteInvoice, deleteInvoicePayment, loadCustomers, loadGeneratedInvoices } = useAppStore(state => ({
+  const { customers, settings, allInvoices, hasInvoicesLoaded, updateInvoicePayment, settleInvoicePayment, refundInvoicePartial, updateInvoiceDiscount, deleteInvoice, deleteInvoicePayment, loadCustomers, loadGeneratedInvoices } = useAppStore(state => ({
     customers: state.customers,
     settings: state.settings,
     allInvoices: state.generatedInvoices,
     // A list that was refused counts as read: the invoice is then read by itself (and a refusal says so).
     hasInvoicesLoaded: state.hasInvoicesLoaded || !!state.invoicesError,
     updateInvoicePayment: state.updateInvoicePayment,
+    settleInvoicePayment: state.settleInvoicePayment,
     refundInvoicePartial: state.refundInvoicePartial,
     updateInvoiceDiscount: state.updateInvoiceDiscount,
     deleteInvoice: state.deleteInvoice, deleteInvoicePayment: state.deleteInvoicePayment,
@@ -172,14 +173,13 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
     paymentLockRef.current = true;
     setIsSubmittingPayment(true);
     try {
-      const updated = await updateInvoicePayment(invoice.id, amount, new Date().toISOString(), paymentMethod, paymentRef);
+      // Settle: the leftover goes onto the bill's discount (lib/round-off.ts), not in as a payment never made —
+      // in the same write as the payment (lib/writes/settle.ts), so it lands whole or not at all.
+      const updated = settle > 0
+        ? await settleInvoicePayment(invoice.id, amount, settle, paymentMethod, paymentRef)
+        : await updateInvoicePayment(invoice.id, amount, new Date().toISOString(), paymentMethod, paymentRef);
       if (!updated) throw new Error('No invoice came back from the store.');
       setLatest(updated);
-      // Settle: the leftover goes onto the bill's discount (lib/round-off.ts), not in as a payment never made.
-      if (settle > 0) {
-        const discounted = await updateInvoiceDiscount(invoice.id, rupees(updated.discountAmount) + settle);
-        if (discounted) setLatest(discounted);
-      }
       setPaymentAmount('');
       setPaymentRef('');
       const after = balanceLine(updated.balanceDue);

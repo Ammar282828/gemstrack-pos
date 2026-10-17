@@ -15,6 +15,7 @@ import { FilterChip } from '@/components/ledger/chip';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { rupees } from '@/lib/money';
+import { useCanGiveDiscount } from '@/lib/use-can-discount';
 import { discountWithOffer, roundOffLabel, roundOffOffers, settleRemainderOffer } from '@/lib/money-round';
 
 export function RoundOffChips({ payable, discount, onDiscountChange, className }: {
@@ -61,8 +62,10 @@ export function SettleOffer({ remaining, onSettle, busy, className }: {
   busy?: boolean;
   className?: string;
 }) {
+  // Giving a discount is the owner's: staff may take the payment, and never see the offer.
+  const canDiscount = useCanGiveDiscount();
   const x = settleRemainderOffer(remaining);
-  if (x === null) return null;
+  if (x === null || !canDiscount) return null;
   return (
     <Button type="button" variant="secondary" size="sm" disabled={busy} className={className} onClick={() => onSettle(x)}>
       Settle — give the remaining PKR {x.toLocaleString('en-US')} off
