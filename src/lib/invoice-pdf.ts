@@ -33,7 +33,7 @@ import { stockSku } from '@/lib/sku';
 import { format } from 'date-fns';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { drawItemCell, itemCellHeight, type ItemBlock, wastageLine } from '@/lib/invoice-item-cell';
-import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
+import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, totalsHeight, FOOTER_HEIGHT, type TotalRow } from '@/lib/pdf-chrome';
 import { describeExchangeEntry } from '@/lib/exchange';
 import { invoiceFileName, invoiceTitle } from '@/lib/invoice-share';
 import { balanceLine } from '@/lib/invoice-credit';
@@ -263,69 +263,8 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
     ]);
   });
 
-  doc.autoTable({
-    ...tableStyles(margin),
-    head: [['#', 'Product & Breakdown', 'Qty', 'Unit', 'Total']],
-    body: tableRows,
-    startY: tableStartY,
-    columnStyles: INVOICE_COLUMNS,
-    didParseCell: (data: any) => {
-      alignHeadCell(data, INVOICE_COLUMNS);
-      // Tell autoTable how tall the hand-drawn cell will be, and stop it
-      // laying out text of its own there.
-      if (data.section === 'body' && data.column.index === 1) {
-        const block = itemBlocks[data.row.index];
-        if (block) {
-          data.cell.text = [];
-          data.cell.styles.minCellHeight = itemCellHeight(doc, block, descColWidth);
-        }
-      }
-    },
-    didDrawCell: (data: any) => {
-      if (data.section === 'body' && data.column.index === 1) {
-        const block = itemBlocks[data.row.index];
-        if (block) drawItemCell(doc, block, data.cell, descColWidth);
-      }
-      drawRowRule(doc, data, 4, { margin, pageWidth });
-    },
-    didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
-      if (data.pageNumber > firstPage) { doc.setPage(data.pageNumber); data.settings.startY = 28; }
-      drawHeader(data.pageNumber);
-    },
-  });
-
-  let finalY = doc.lastAutoTable.finalY || 0;
-
-  if (inv.paymentHistory && inv.paymentHistory.length > 0) {
-    finalY += 8;
-    doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(0);
-    doc.text('Payment History', margin, finalY);
-    finalY += 4;
-    // How each was paid — an order's advances arrive here one by one, each with its method —
-    // and notes that wrap rather than run off the page.
-    doc.autoTable({
-      head: [['Date', 'How', 'Notes', 'Amount']],
-      body: inv.paymentHistory.map(p => [
-        chrome.paidDay(p.date),
-        [p.method, p.reference].filter(Boolean).join(' · ') || '—',
-        p.notes || 'Payment received',
-        pkr(p.amount),
-      ]),
-      startY: finalY, theme: 'striped',
-      margin: { left: margin, right: margin },
-      headStyles: { fillColor: [240, 240, 240], textColor: 50, fontSize: 8 },
-      styles: { fontSize: 7, overflow: 'linebreak', valign: 'top' },
-      columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 30 }, 2: { cellWidth: 'auto' }, 3: { cellWidth: 26, halign: 'right' } },
-    });
-    finalY = doc.lastAutoTable.finalY || finalY;
-  }
-
-  // No fixed reserve here. A blind "70mm or a new page" guard sent the totals to a page of
-  // their own whenever the items ended below ~130mm, though a plain bill's totals need under
-  // 20mm and the footer starts at pageHeight - FOOTER_HEIGHT (owner, 2026-10-17: "a lot of
-  // space ... still uses the second page"). drawTotals measures what it will draw and breaks
-  // the page only when that does not fit above the footer, keeping the block whole.
-
+  // The totals rows are built first: the items table needs the block's height to know whether
+  // the last row has to travel with it.
   const adjustmentsAmount = getInvoiceAdjustmentsAmount(inv);
   const totalRows: TotalRow[] = [{ label: 'Subtotal', value: pkr(inv.subtotal) }];
   if (inv.discountAmount > 0) totalRows.push({ label: 'Discount', value: `- ${pkr(inv.discountAmount)}`, tone: 'ink' });
@@ -344,16 +283,130 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
     if (inv.exchangeAmount1) totalRows.push({ label: '', value: `- ${pkr(inv.exchangeAmount1)}` });
     if (inv.exchangeAmount2) totalRows.push({ label: '', value: `- ${pkr(inv.exchangeAmount2)}` });
   }
-  drawTotals(doc, {
-    pageWidth, pageHeight, margin, startY: finalY + 10, onNewPage: drawHeader,
+  const history = inv.paymentHistory || [];
+  const totalsOpts = {
+    pageWidth, pageHeight, margin, onNewPage: drawHeader,
     rows: totalRows,
     total: { label: 'Grand Total', value: pkr(inv.grandTotal) },
     after: inv.amountPaid > 0 ? [{ label: 'Amount Paid', value: `- ${pkr(inv.amountPaid)}` }] : [],
     closing: inv.amountPaid > 0 ? { label: balanceLine(inv.balanceDue).state === 'credit' ? 'Credit to Customer' : 'Balance Due', value: pkr(Math.abs(inv.balanceDue)) } : undefined,
-  });
+    // Nothing here reserves the footer: it is drawn once, after the last block, and if the
+    // content stands lower than its rule the footer alone goes to the next page.
+    bottomReserve: margin,
+  };
+  const totalsH = totalsHeight(doc, { ...totalsOpts, startY: 0 });
+  const TOTALS_GAP = 10;
 
-  // The codes are the caller's (pdf-inputs.ts): in the browser, canvases the printing page renders
-  // off-screen; a page without them prints the footer without codes.
+  const rowPage: number[] = [];
+  const drawItems = (target: jsPDF, from: number, to: number, startY: number, real: boolean) => {
+    const basePage = target.getNumberOfPages();
+    target.autoTable({
+      ...tableStyles(margin),
+      // A continuation page starts under the header (the head row once drew over it).
+      margin: { left: margin, right: margin, top: 28 },
+      head: [['#', 'Product & Breakdown', 'Qty', 'Unit', 'Total']],
+      body: tableRows.slice(from, to),
+      startY,
+      columnStyles: INVOICE_COLUMNS,
+      didParseCell: (data: any) => {
+        alignHeadCell(data, INVOICE_COLUMNS);
+        // Tell autoTable how tall the hand-drawn cell will be, and stop it
+        // laying out text of its own there.
+        if (data.section === 'body' && data.column.index === 1) {
+          const block = itemBlocks[from + data.row.index];
+          if (block) {
+            data.cell.text = [];
+            data.cell.styles.minCellHeight = itemCellHeight(target, block, descColWidth);
+          }
+        }
+      },
+      didDrawCell: (data: any) => {
+        if (data.section === 'body' && data.column.index === 1) {
+          const block = itemBlocks[from + data.row.index];
+          if (block) drawItemCell(target, block, data.cell, descColWidth);
+        }
+        if (!real && data.section === 'body' && data.column.index === 0) rowPage[from + data.row.index] = target.getCurrentPageInfo().pageNumber;
+        drawRowRule(target, data, 4, { margin, pageWidth });
+      },
+      didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
+        if (data.pageNumber > basePage) target.setPage(data.pageNumber);
+        if (real) drawHeader(data.pageNumber);
+      },
+    });
+  };
+
+  // A dry run on a scratch sheet finds where the items end. If the totals would not fit under
+  // them, the last item row goes to the next page with the block (never the block alone),
+  // unless that row already stands first on its page.
+  let splitLast = false;
+  const n = tableRows.length;
+  if (n > 1) {
+    const scratch = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
+    drawItems(scratch, 0, n, tableStartY, false);
+    const endY = scratch.lastAutoTable.finalY || 0;
+    const limit = pageHeight - margin;
+    splitLast = endY + TOTALS_GAP + totalsH > limit && rowPage[n - 1] === scratch.getNumberOfPages() && rowPage[n - 2] === rowPage[n - 1];
+  }
+
+  if (splitLast) {
+    drawItems(doc, 0, n - 1, tableStartY, true);
+    doc.addPage();
+    drawItems(doc, n - 1, n, 28, true);
+  } else {
+    drawItems(doc, 0, n, tableStartY, true);
+  }
+
+  // Totals straight after the items: kept whole, on the page where the items end unless they
+  // truly do not fit there. No blind reserve (owner, 2026-10-17: "a lot of space ... still uses
+  // the second page"); drawTotals measures what it will draw.
+  let y = drawTotals(doc, { ...totalsOpts, startY: (doc.lastAutoTable.finalY || 0) + TOTALS_GAP });
+
+  // Payment History after the totals ("Amount Paid" above summarises it). It may run over
+  // pages with its head repeated.
+  let contentEnd = y;
+  if (history.length > 0) {
+    // Title, head and the first row travel together.
+    if (y + 6 + 4 + 18 > pageHeight - margin) {
+      doc.addPage();
+      drawHeader(doc.getNumberOfPages());
+      y = 24;
+    }
+    y += 6;
+    doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(0);
+    doc.text('Payment History', margin, y);
+    y += 4;
+    const histPage = doc.getNumberOfPages();
+    // How each was paid — an order's advances arrive here one by one, each with its method —
+    // and notes that wrap rather than run off the page.
+    doc.autoTable({
+      head: [['Date', 'How', 'Notes', 'Amount']],
+      body: history.map(p => [
+        chrome.paidDay(p.date),
+        [p.method, p.reference].filter(Boolean).join(' · ') || '—',
+        p.notes || 'Payment received',
+        pkr(p.amount),
+      ]),
+      startY: y, theme: 'striped',
+      margin: { left: margin, right: margin, top: 28, bottom: margin },
+      headStyles: { fillColor: [240, 240, 240], textColor: 50, fontSize: 8 },
+      styles: { fontSize: 7, overflow: 'linebreak', valign: 'top' },
+      columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 30 }, 2: { cellWidth: 'auto' }, 3: { cellWidth: 26, halign: 'right' } },
+      didDrawPage: (data: { pageNumber: number }) => {
+        if (data.pageNumber > histPage) { doc.setPage(data.pageNumber); drawHeader(data.pageNumber); }
+      },
+    });
+    contentEnd = doc.lastAutoTable.finalY || y;
+  }
+
+  // The footer once, on the last page, below everything. If the content stands lower than the
+  // footer's rule, the content stays and only the footer goes to a page of its own: nothing is
+  // ever drawn over it. The codes are the caller's (pdf-inputs.ts): in the browser, canvases
+  // the printing page renders off-screen.
+  doc.setPage(doc.getNumberOfPages());
+  if (contentEnd > pageHeight - FOOTER_HEIGHT) {
+    doc.addPage();
+    drawHeader(doc.getNumberOfPages());
+  }
   drawFooter(doc, { pageWidth, pageHeight, margin }, chrome.images);
 }
 

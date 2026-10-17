@@ -4,22 +4,24 @@ import fs from 'node:fs';
 vi.hoisted(() => { process.env.NEXT_PUBLIC_STORE_LINKS_URL = 'https://links.example.com'; });
 vi.mock('@/lib/reports/monthly-server', () => ({ serverLogo: async () => null }));
 // Every jsPDF made while a test runs reports each text() and autoTable() to `tap`.
-const tap = vi.hoisted(() => ({ texts: null as any[] | null, tables: null as any[] | null }));
+const tap = vi.hoisted(() => ({ texts: null as any[] | null, tables: null as any[] | null, owner: null as any }));
 vi.mock('jspdf', async () => {
   const mod: any = await vi.importActual('jspdf');
   const Real = mod.jsPDF ?? mod.default;
   class Tapped extends Real {
     constructor(...a: any[]) {
       super(...a);
+      // Only the document being drawn is watched; the scratch sheet the layout measures on is not.
+      if (tap.texts && !tap.owner) tap.owner = this;
       const text = this.text.bind(this);
       this.text = (t: any, x: any, y: any, ...r: any[]) => {
-        tap.texts?.push({ page: this.getNumberOfPages(), y, text: Array.isArray(t) ? t.join(' ') : String(t) });
+        if (tap.owner === this) tap.texts?.push({ page: this.getNumberOfPages(), y, text: Array.isArray(t) ? t.join(' ') : String(t) });
         return text(t, x, y, ...r);
       };
       const at = this.autoTable?.bind(this);
       if (at) this.autoTable = (...a2: any[]) => {
         const r = at(...a2);
-        tap.tables?.push({ pages: this.getNumberOfPages(), finalY: this.lastAutoTable.finalY });
+        if (tap.owner === this) tap.tables?.push({ pages: this.getNumberOfPages(), finalY: this.lastAutoTable.finalY });
         return r;
       };
     }
@@ -67,46 +69,111 @@ async function render(inv: Invoice, name: string) {
   const images = await serverPdfImages();
   const texts: Trace[] = [];
   const tables: { pages: number; finalY: number }[] = [];
-  tap.texts = texts; tap.tables = tables;
+  tap.texts = texts; tap.tables = tables; tap.owner = null;
   let doc: any;
   doc = drawInvoicePdf(inv, { images, dates: KARACHI_DATES });
-  tap.texts = tap.tables = null;
+  tap.texts = tap.tables = tap.owner = null;
   if (OUT) { fs.mkdirSync(OUT, { recursive: true }); fs.writeFileSync(`${OUT}/${name}.pdf`, Buffer.from(doc.output('arraybuffer'))); }
   return { doc, texts, tables, pages: doc.getNumberOfPages() as number, pageHeight: doc.internal.pageSize.getHeight() as number };
 }
 
-const cases: [string, number, { discount?: boolean; exchange?: boolean; payments?: number }][] = [];
+type Opts = { discount?: boolean; exchange?: boolean; payments?: number };
+const cases: [string, number, Opts][] = [];
 for (const n of [1, 3, 4, 5, 6, 8, 12, 20]) {
   cases.push([`${n}-plain`, n, {}]);
   cases.push([`${n}-discount-exchange-3pay`, n, { discount: true, exchange: true, payments: 3 }]);
+  cases.push([`${n}-discount-exchange-8pay`, n, { discount: true, exchange: true, payments: 8 }]);
 }
 
-describe('invoice PDF page count', () => {
-  const summary: string[] = [];
+const MARGIN = 10;
+const TOP = 28;          // a continuation page's content starts here
+const TABLE_START = 51;  // infoY 33 + 18 (the rates line shows for 22k gold)
+const GAP = 10;          // items -> totals
+
+type Cal = Awaited<ReturnType<typeof calibrate>>;
+
+/** Block heights measured off the renderer itself. */
+async function calibrate() {
+  const one = await render(make(1, {}), 'cal-1');
+  const two = await render(make(2, {}), 'cal-2');
+  const rowH = two.tables[0].finalY - one.tables[0].finalY;
+  const rowsStart = one.tables[0].finalY - rowH;
+  // Where the rows start on a page the table runs over onto (autoTable leaves a gap under that head).
+  const five = await render(make(12, {}), 'cal-12');
+  const ring = (page: number) => five.texts.find(t => t.page === page && t.text === 'Ring')!.y;
+  const contRowsStart = ring(2) - (ring(1) - rowsStart);
+  const h3 = await render(make(1, { payments: 3 }), 'cal-h3');
+  const title = h3.texts.find(t => t.text === 'Payment History')!;
+  const adv = (k: number) => h3.texts.find(t => t.text === `Advance ${k}`)!.y;
+  const histRowH = adv(2) - adv(1);
+  const histHeadH = h3.tables[h3.tables.length - 1].finalY - (title.y + 4) - 3 * histRowH;
+  return { rowH, rowsStart, contRowsStart, histRowH, histHeadH, pageHeight: one.pageHeight as number };
+}
+
+/**
+ * The fewest pages the layout rules allow: items (head repeated, split between rows), then the
+ * totals whole (the last item row travels with them when they must break), then Payment History
+ * (title + head + first row together, split between rows), and the footer band reserved only on
+ * the last page.
+ */
+function minPages(n: number, o: Opts, c: Cal): number {
+  const footerTop = c.pageHeight - FOOTER_HEIGHT;
+  const bottom = c.pageHeight - MARGIN;
+  const pay = o.payments ?? 0;
+  const totalsH = (1 + (o.discount ? 1 : 0) + (o.exchange ? 1 : 0)) * 5 + 13.5 + (pay ? 5 + 11 : 0);
+  const contStart = c.contRowsStart;
+  let page = 1, y = c.rowsStart, left = n, onPage = 0;
+  while (left > 0) {
+    const take = Math.max(1, Math.min(left, Math.floor((bottom - y + 1e-6) / c.rowH)));
+    y += take * c.rowH; left -= take; onPage = take;
+    if (left > 0) { page++; y = contStart; }
+  }
+  let start = y + GAP;
+  if (start + totalsH > bottom) {
+    page++;
+    if (n > 1 && onPage > 1) start = TOP + (c.rowsStart - TABLE_START) + c.rowH + GAP;   // the last row comes along, under a fresh head
+    else start = 30;                                              // the block alone
+  }
+  let end = start + totalsH - 2;
+  // Only the footer needs room under the last block; if it has none it takes a page alone.
+  if (!pay) return end > footerTop ? page + 1 : page;
+  let hy: number;
+  if (end + 6 + 4 + c.histHeadH + c.histRowH > bottom) { page++; hy = 24 + 6 + 4; } else hy = end + 6 + 4;
+  hy += c.histHeadH;
+  let rest = pay;
+  while (rest > 0) {
+    const take = Math.max(1, Math.min(rest, Math.floor((bottom - hy + 1e-6) / c.histRowH)));
+    hy += take * c.histRowH; rest -= take;
+    if (rest > 0) { page++; hy = TOP + c.histHeadH; }
+  }
+  return hy > footerTop ? page + 1 : page;
+}
+
+describe('invoice PDF layout', () => {
+  let cal: Cal;
   for (const [name, n, o] of cases) {
-    it(`${name}: totals share the items' page when they fit, footer is never overlapped`, async () => {
+    it(`${name}: fewest pages, totals whole, footer clear`, async () => {
+      cal ??= await calibrate();
       const r = await render(make(n, o), name);
-      summary.push(`${name}: ${r.pages} page(s)`); if (process.env.INVOICE_PDF_OUT) console.log(`PAGES ${name} ${r.pages}`);
+      if (OUT) console.log(`PAGES ${name} ${r.pages}`);
+      if (process.env.DBG === name) console.log(JSON.stringify(r.texts.map(t => [t.page, Math.round(t.y), t.text.slice(0, 18)])), JSON.stringify(r.tables), JSON.stringify(cal));
       const footerTop = r.pageHeight - FOOTER_HEIGHT;
-      const last = r.texts.filter(t => t.page === r.pages);
-      const sub = r.texts.find(t => t.text === 'Subtotal')!;
-      // Totals block: from Subtotal to the last figure it prints.
-      const totalsEnd = Math.max(...r.texts.filter(t => t.page === sub.page && t.y >= sub.y && t.y < footerTop + 1 && /Subtotal|Discount|Exchange|Grand Total|Amount Paid|Balance Due|PKR|^- PKR/.test(t.text)).map(t => t.y));
-      // The totals are on the last page, with the footer, and end above the footer rule.
-      expect(sub.page).toBe(r.pages);
-      expect(totalsEnd).toBeLessThan(footerTop);
-      // Nothing but the footer is drawn into the footer's band on the last page.
-      const inBand = last.filter(t => t.y >= footerTop - 0.01);
-      expect(inBand.some(t => /Orders|links\.example/i.test(t.text) || true)).toBe(true);
-      expect(last.filter(t => t.y > footerTop - 3 && t.y < footerTop && /PKR|Subtotal|Balance|Total/.test(t.text))).toEqual([]);
-      // Minimal: when the totals sit on a page of their own after the items (no table content
-      // there), they must really not have fit under the last table.
-      const tableEnd = r.tables.filter(t => t.pages === Math.min(...r.tables.map(x => x.pages)) || true).pop()!;
-      const lastTablePage = tableEnd.pages;
-      if (r.pages > lastTablePage) {
-        const totalsHeight = totalsEnd - sub.y + 6;
-        expect(tableEnd.finalY + 10 + totalsHeight).toBeGreaterThan(footerTop);
-      }
+      const onLast = r.texts.filter(t => t.page === r.pages);
+      // The footer is the tail of the last page's text, at or below its rule.
+      let cut = onLast.length;
+      while (cut > 0 && onLast[cut - 1].y >= footerTop - 0.01) cut--;
+      const content = onLast.slice(0, cut).filter(t => !/^Page \d+$/.test(t.text)), footer = onLast.slice(cut);
+      expect(footer.length).toBeGreaterThan(0);
+      expect(r.texts.filter(t => t.page < r.pages && /ORDERS & ENQUIRIES/i.test(t.text))).toEqual([]); // the footer is on the last page only
+      expect(Math.max(...content.map(t => t.y))).toBeLessThan(footerTop);
+      // The totals are one block on one page.
+      const names = ['Subtotal', 'Discount', 'Exchange', 'Grand Total', 'Amount Paid', 'Balance Due'];
+      const tot = r.texts.filter(t => names.some(k => t.text.startsWith(k)));
+      expect(new Set(tot.map(t => t.page)).size).toBe(1);
+      // Payment History follows the totals and the table below it never sits in the footer band.
+      if (o.payments) expect(r.texts.find(t => t.text === 'Payment History')!.page).toBeGreaterThanOrEqual(tot[0].page);
+      if (process.env.DBG === name) console.log('CAL', JSON.stringify(cal), minPages(n, o, cal));
+      expect(r.pages).toBe(minPages(n, o, cal));
     });
   }
 });

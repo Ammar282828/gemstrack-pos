@@ -235,6 +235,12 @@ export interface TotalsOpts {
   after?: TotalRow[];
   /** The banded figure the reader is looking for. Omitted when nothing is due. */
   closing?: TotalRow;
+  /**
+   * Space kept clear at the page foot. Defaults to the footer (FOOTER_HEIGHT); a caller whose
+   * footer is drawn on a later page passes just its margin, so the block is not pushed over a
+   * footer that is not on this page.
+   */
+  bottomReserve?: number;
 }
 
 /**
@@ -246,8 +252,9 @@ export interface TotalsOpts {
 /** Where drawDocFooter starts. Kept next to it so the two cannot disagree. */
 export const FOOTER_HEIGHT = 34;
 
-export function drawTotals(doc: jsPDF, o: TotalsOpts): number {
-  const { pageWidth, pageHeight, margin, startY, rows, total, after = [], closing, onNewPage } = o;
+/** How tall the block will be, measured as it will be drawn (labels wrap), so callers can place it. */
+export function totalsHeight(doc: jsPDF, o: TotalsOpts): number {
+  const { pageWidth, margin, rows, after = [], closing } = o;
   const totalsX = pageWidth - margin;
   const labelX = totalsX - 44;
   const labelW = Math.max(0, labelX - margin);
@@ -272,8 +279,23 @@ export function drawTotals(doc: jsPDF, o: TotalsOpts): number {
   const height =
     rows.length * 5 + rows.reduce((h, r) => h + extra(r, 8, false), 0) + 6 + 5.5 +
     after.length * 5 + after.reduce((h, r) => h + extra(r, 8, false), 0) + (closing ? 11 : 0) + 2;
+  return height;
+}
+
+export function drawTotals(doc: jsPDF, o: TotalsOpts): number {
+  const { pageWidth, pageHeight, margin, startY, rows, total, after = [], closing, onNewPage, bottomReserve = FOOTER_HEIGHT } = o;
+  const totalsX = pageWidth - margin;
+  const labelX = totalsX - 44;
+  const labelW = Math.max(0, labelX - margin);
+  const wrapW = Math.min(labelW, LABEL_WRAP);
+  const linesOf = (r: TotalRow, size: number, bold: boolean): string[] => {
+    if (!r.label) return [];
+    doc.setFont('helvetica', bold ? 'bold' : 'normal').setFontSize(size);
+    return doc.splitTextToSize(r.label, wrapW) as string[];
+  };
+  const height = totalsHeight(doc, o);
   let y = startY;
-  if (y + height > pageHeight - FOOTER_HEIGHT) {
+  if (y + height > pageHeight - bottomReserve) {
     doc.addPage();
     onNewPage?.(doc.getNumberOfPages());
     y = 30;
