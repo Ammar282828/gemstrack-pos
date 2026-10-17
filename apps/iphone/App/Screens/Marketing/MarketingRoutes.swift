@@ -35,6 +35,7 @@ enum MarketingRoutes {
             ScreenRoute(matches: { ScreenRoute.bare($0) == "/ads/campaigns" }, make: { AnyView(AdsCampaignsScreen(path: $0)) }),
             ScreenRoute(matches: { ScreenRoute.bare($0) == "/ads/object" }, make: { AnyView(AdsObjectScreen(path: $0)) }),
             ScreenRoute(matches: { ScreenRoute.bare($0) == "/ads/studio" }, make: { AnyView(StudioScreen(path: $0)) }),
+            ScreenRoute(matches: { ScreenRoute.bare($0) == "/ads/plan" }, make: { AnyView(AdsPlanScreen(path: $0)) }),
             newAd,
             adSets,
             .exact("/ads/audiences") { AdsAudiencesScreen() },

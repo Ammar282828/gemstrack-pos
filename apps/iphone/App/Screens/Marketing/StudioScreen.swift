@@ -245,3 +245,29 @@ struct StudioMaker: View {
         } }
     }
 }
+
+/// Ads → Plan (src/app/ads/plan/page.tsx): what to run, ad days and rules, competitors. It was Studio's Plan tab; the
+/// web moved it to its own page on 2026-10-12 and the app kept opening that page in a web view until 2026-10-17 (owner:
+/// "Check for others also and natively port them to ios"). `?s=plays|guide|rivals` picks the section, as on the web;
+/// "Make this" opens Design on the play.
+struct AdsPlanScreen: View {
+    let path: String
+    @State private var model = StudioModel()
+    @Environment(Session.self) private var session
+    var body: some View {
+        Group {
+            if session.role == "owner" || session.role == "marketing" {
+                StudioPlan(model: model)
+            } else { AdsOwnersOnly() }
+        }
+        .modifier(HouseGround()).navigationTitle("Plan").navigationBarTitleDisplayMode(.inline)
+        .task {
+            await model.load(path: "/ads/studio?v=plan")
+            let s = AdsQuery.value("s", in: path) ?? "plays"
+            model.part = ["plays", "guide", "rivals"].contains(s) ? s : "plays"
+        }
+        .navigationDestination(item: $model.route) { PlaceScreen(path: $0.path) }
+        .failureAlert($model.error, title: "Could not finish")
+        .websiteBusy(model.busy)
+    }
+}
