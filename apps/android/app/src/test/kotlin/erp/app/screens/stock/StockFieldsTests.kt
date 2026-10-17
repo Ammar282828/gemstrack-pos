@@ -167,11 +167,12 @@ class StockFieldsTests {
 
     @Test fun theBulkSetupStartsAtNothing() {
         val s = StockBulk.freshSetup()
-        assertEquals("", s.wastage)
+        // Silver (Mina's metal) carries no wastage at all: "0", as the iPhone's settle() has it.
+        assertEquals(if (s.metalType == "silver") "0" else "", s.wastage)
         assertFalse(s.hasStones)
         assertEquals("21k".takeIf { s.metalType == "gold" } ?: "", s.karat)
         // The product form's rules hold, but wastage stays what was typed.
-        assertEquals("", s.copy(hasDiamonds = true).settle(keepWastage = true).wastage)
+        assertEquals(if (s.metalType == "silver") "0" else "", s.copy(hasDiamonds = true).settle(keepWastage = true).wastage)
     }
 
     @Test fun theBulkChecksSayWhichRowIsWrong() {
