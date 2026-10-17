@@ -33,7 +33,7 @@ import { stockSku } from '@/lib/sku';
 import { format } from 'date-fns';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { drawItemCell, itemCellHeight, type ItemBlock, wastageLine } from '@/lib/invoice-item-cell';
-import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, totalsHeight, FOOTER_HEIGHT, type TotalRow } from '@/lib/pdf-chrome';
+import { drawDocHeader, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, totalsHeight, totalsLeftEdge, FOOTER_HEIGHT, type TotalRow } from '@/lib/pdf-chrome';
 import { describeExchangeEntry } from '@/lib/exchange';
 import { invoiceFileName, invoiceTitle } from '@/lib/invoice-share';
 import { balanceLine } from '@/lib/invoice-credit';
@@ -359,43 +359,95 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
   // Totals straight after the items: kept whole, on the page where the items end unless they
   // truly do not fit there. No blind reserve (owner, 2026-10-17: "a lot of space ... still uses
   // the second page"); drawTotals measures what it will draw.
-  let y = drawTotals(doc, { ...totalsOpts, startY: (doc.lastAutoTable.finalY || 0) + TOTALS_GAP });
-
-  // Payment History after the totals ("Amount Paid" above summarises it). It may run over
-  // pages with its head repeated.
+  const limit = pageHeight - margin;
+  let y = (doc.lastAutoTable.finalY || 0) + TOTALS_GAP;
   let contentEnd = y;
-  if (history.length > 0) {
-    // Title, head and the first row travel together.
-    if (y + 6 + 4 + 18 > pageHeight - margin) {
+
+  // Payment History: beside the totals when it fits (the left of the page stands empty next to
+  // them, and a bill of a few advances was spilling a second page for it). The two columns are
+  // one block, kept whole, as tall as the taller. Too many payments, or no room left of the
+  // labels, and it goes full width below the totals as before.
+  const BESIDE_MAX_ROWS = 8, BESIDE_GAP = 5, BESIDE_MIN_W = 46, BESIDE_MIN_NOTES = 16, BESIDE_TITLE = 2.5;
+  const edge = totalsLeftEdge(doc, { ...totalsOpts, startY: 0 });
+  const besideW = edge - BESIDE_GAP - margin;
+  const besideBody = history.map(p => [
+    chrome.paidDay(p.date),
+    // How and what in one cell, cut with an ellipsis rather than wrapped: the column is narrow.
+    [[p.method, p.reference].filter(Boolean).join(' · '), p.notes || (p.method ? '' : 'Payment received')].filter(Boolean).join(' · ') || '—',
+    pkr(p.amount).replace(/^PKR\s*/, ''),
+  ]);
+  // Date and Amount are as wide as their widest entry (measured), Notes takes the rest.
+  doc.setFont('helvetica', 'normal').setFontSize(6.5);
+  const fitCol = (i: number, head: string) => Math.ceil((Math.max(...besideBody.map(r => doc.getTextWidth(String(r[i]))), doc.getTextWidth(head) + 0.8) + 2.4 + 0.6) * 2) / 2;
+  const dateW = fitCol(0, 'Date'), amountW = fitCol(2, 'Amount');
+  const notesW = besideW - dateW - amountW;
+  const besideTable = (target: jsPDF, startY: number) => target.autoTable({
+    head: [['Date', 'Notes', 'Amount']],
+    body: besideBody,
+    startY, theme: 'striped',
+    tableWidth: besideW,
+    margin: { left: margin, right: pageWidth - margin - besideW, top: 28, bottom: margin },
+    headStyles: { fillColor: [240, 240, 240], textColor: 50, fontSize: 7 },
+    styles: { fontSize: 6.5, overflow: 'ellipsize', valign: 'top', cellPadding: 1.2 },
+    columnStyles: { 0: { cellWidth: dateW }, 1: { cellWidth: notesW }, 2: { cellWidth: amountW, halign: 'right' } },
+  });
+  let beside = false, besideH = 0;
+  if (history.length > 0 && history.length <= BESIDE_MAX_ROWS && besideW >= BESIDE_MIN_W && notesW >= BESIDE_MIN_NOTES) {
+    const scratch = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pageWidth, pageHeight] });
+    besideTable(scratch, 0);
+    besideH = BESIDE_TITLE + 2 + (scratch.lastAutoTable.finalY || 0);
+    beside = scratch.getNumberOfPages() === 1;
+  }
+
+  if (beside) {
+    const blockH = Math.max(totalsH, besideH);
+    if (y + blockH > limit) {
       doc.addPage();
       drawHeader(doc.getNumberOfPages());
-      y = 24;
+      y = 30;
     }
-    y += 6;
+    const top = y;
+    const totalsEnd = drawTotals(doc, { ...totalsOpts, startY: top });
     doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(0);
-    doc.text('Payment History', margin, y);
-    y += 4;
-    const histPage = doc.getNumberOfPages();
-    // How each was paid — an order's advances arrive here one by one, each with its method —
-    // and notes that wrap rather than run off the page.
-    doc.autoTable({
-      head: [['Date', 'How', 'Notes', 'Amount']],
-      body: history.map(p => [
-        chrome.paidDay(p.date),
-        [p.method, p.reference].filter(Boolean).join(' · ') || '—',
-        p.notes || 'Payment received',
-        pkr(p.amount),
-      ]),
-      startY: y, theme: 'striped',
-      margin: { left: margin, right: margin, top: 28, bottom: margin },
-      headStyles: { fillColor: [240, 240, 240], textColor: 50, fontSize: 8 },
-      styles: { fontSize: 7, overflow: 'linebreak', valign: 'top' },
-      columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 30 }, 2: { cellWidth: 'auto' }, 3: { cellWidth: 26, halign: 'right' } },
-      didDrawPage: (data: { pageNumber: number }) => {
-        if (data.pageNumber > histPage) { doc.setPage(data.pageNumber); drawHeader(data.pageNumber); }
-      },
-    });
-    contentEnd = doc.lastAutoTable.finalY || y;
+    doc.text('Payment History', margin, top + 0.5);
+    besideTable(doc, top + BESIDE_TITLE);
+    contentEnd = Math.max(totalsEnd, doc.lastAutoTable.finalY || 0);
+  } else {
+    y = drawTotals(doc, { ...totalsOpts, startY: y });
+    contentEnd = y;
+    if (history.length > 0) {
+      // Title, head and the first row travel together.
+      if (y + 6 + 4 + 18 > limit) {
+        doc.addPage();
+        drawHeader(doc.getNumberOfPages());
+        y = 24;
+      }
+      y += 6;
+      doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(0);
+      doc.text('Payment History', margin, y);
+      y += 4;
+      const histPage = doc.getNumberOfPages();
+      // How each was paid — an order's advances arrive here one by one, each with its method —
+      // and notes that wrap rather than run off the page.
+      doc.autoTable({
+        head: [['Date', 'How', 'Notes', 'Amount']],
+        body: history.map(p => [
+          chrome.paidDay(p.date),
+          [p.method, p.reference].filter(Boolean).join(' · ') || '—',
+          p.notes || 'Payment received',
+          pkr(p.amount),
+        ]),
+        startY: y, theme: 'striped',
+        margin: { left: margin, right: margin, top: 28, bottom: margin },
+        headStyles: { fillColor: [240, 240, 240], textColor: 50, fontSize: 8 },
+        styles: { fontSize: 7, overflow: 'linebreak', valign: 'top' },
+        columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 30 }, 2: { cellWidth: 'auto' }, 3: { cellWidth: 26, halign: 'right' } },
+        didDrawPage: (data: { pageNumber: number }) => {
+          if (data.pageNumber > histPage) { doc.setPage(data.pageNumber); drawHeader(data.pageNumber); }
+        },
+      });
+      contentEnd = doc.lastAutoTable.finalY || y;
+    }
   }
 
   // The footer once, on the last page, below everything. If the content stands lower than the

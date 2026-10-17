@@ -51,9 +51,9 @@ function make(n: number, o: { discount?: boolean; exchange?: boolean; payments?:
   const exch = o.exchange ? 20_000 : 0;
   const grandTotal = subtotal - discountAmount - exch;
   const payments = Array.from({ length: o.payments ?? 0 }, (_, k) => ({
-    amount: 10_000, date: '2026-10-09T09:00:00.000Z', method: 'Cash', notes: `Advance ${k + 1}`,
+    amount: 5_000, date: '2026-10-09T09:00:00.000Z', method: 'Cash', notes: `Advance ${k + 1}`,
   }));
-  const paid = payments.length * 10_000;
+  const paid = payments.length * 5_000;
   return {
     id: `INV-${n}`, customerName: 'Test Customer', items: Array.from({ length: n }, (_, i) => item(i + 1)),
     subtotal, discountAmount, grandTotal, amountPaid: paid, balanceDue: grandTotal - paid,
@@ -83,6 +83,7 @@ for (const n of [1, 3, 4, 5, 6, 8, 12, 20]) {
   cases.push([`${n}-plain`, n, {}]);
   cases.push([`${n}-discount-exchange-3pay`, n, { discount: true, exchange: true, payments: 3 }]);
   cases.push([`${n}-discount-exchange-8pay`, n, { discount: true, exchange: true, payments: 8 }]);
+  cases.push([`${n}-discount-exchange-9pay`, n, { discount: true, exchange: true, payments: 9 }]);
 }
 
 const MARGIN = 10;
@@ -102,12 +103,19 @@ async function calibrate() {
   const five = await render(make(12, {}), 'cal-12');
   const ring = (page: number) => five.texts.find(t => t.page === page && t.text === 'Ring')!.y;
   const contRowsStart = ring(2) - (ring(1) - rowsStart);
-  const h3 = await render(make(1, { payments: 3 }), 'cal-h3');
-  const title = h3.texts.find(t => t.text === 'Payment History')!;
-  const adv = (k: number) => h3.texts.find(t => t.text === `Advance ${k}`)!.y;
+  // The full-width table (more than 8 payments).
+  const h9 = await render(make(1, { payments: 9 }), 'cal-h9');
+  const title = h9.texts.find(t => t.text === 'Payment History')!;
+  const adv = (k: number) => h9.texts.find(t => t.text === `Advance ${k}`)!.y;
   const histRowH = adv(2) - adv(1);
-  const histHeadH = h3.tables[h3.tables.length - 1].finalY - (title.y + 4) - 3 * histRowH;
-  return { rowH, rowsStart, contRowsStart, histRowH, histHeadH, pageHeight: one.pageHeight as number };
+  const histHeadH = h9.tables[h9.tables.length - 1].finalY - (title.y + 4) - 9 * histRowH;
+  const h3 = await render(make(1, { payments: 3 }), 'cal-h3');
+  // The narrow table beside the totals (up to 8 payments): its own row and head heights.
+  const besideTitle = (r: typeof h3) => r.texts.find(t => t.text === 'Payment History')!;
+  const b = (r: typeof h3, k: number) => r.texts.find(t => t.text.includes(`Advance ${k}`))!.y;
+  const bRowH = b(h3, 2) - b(h3, 1);
+  const bHeadH = h3.tables[h3.tables.length - 1].finalY - (besideTitle(h3).y + 2) - 3 * bRowH;
+  return { rowH, rowsStart, contRowsStart, histRowH, histHeadH, bRowH, bHeadH, pageHeight: one.pageHeight as number };
 }
 
 /**
@@ -135,6 +143,14 @@ function minPages(n: number, o: Opts, c: Cal): number {
     else start = 30;                                              // the block alone
   }
   let end = start + totalsH - 2;
+  if (pay >= 1 && pay <= 8) {
+    // Payment History sits beside the totals: one block, as tall as the taller, never split.
+    const beside = 2.5 + 2 + c.bHeadH + pay * c.bRowH;
+    const blockH = Math.max(totalsH, beside);
+    if (start + blockH > bottom) { page++; start = 30; }
+    end = start + Math.max(totalsH - 2, beside - 2);
+    return end > footerTop ? page + 1 : page;
+  }
   // Only the footer needs room under the last block; if it has none it takes a page alone.
   if (!pay) return end > footerTop ? page + 1 : page;
   let hy: number;

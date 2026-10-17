@@ -282,6 +282,28 @@ export function totalsHeight(doc: jsPDF, o: TotalsOpts): number {
   return height;
 }
 
+/**
+ * How far left the totals block reaches, measured as it is drawn: the widest label (right-aligned
+ * at labelX), the rule and the closing band. A caller that sets something beside the block keeps
+ * clear of this x.
+ */
+export function totalsLeftEdge(doc: jsPDF, o: TotalsOpts): number {
+  const { pageWidth, margin, rows, total, after = [], closing } = o;
+  const labelX = pageWidth - margin - 44;
+  const wrapW = Math.min(Math.max(0, labelX - margin), LABEL_WRAP);
+  let edge = labelX - 16;
+  const widest = (r: TotalRow, size: number, bold: boolean) => {
+    if (!r.label) return;
+    doc.setFont('helvetica', bold ? 'bold' : 'normal').setFontSize(size);
+    for (const l of doc.splitTextToSize(r.label, wrapW) as string[]) edge = Math.min(edge, labelX - doc.getTextWidth(l));
+  };
+  rows.forEach(r => widest(r, 8, false));
+  widest(total, 9, true);
+  after.forEach(r => widest(r, 8, false));
+  if (closing) edge = Math.min(edge, bandFor(doc, closing.label, labelX, pageWidth - margin, 10).x);
+  return edge;
+}
+
 export function drawTotals(doc: jsPDF, o: TotalsOpts): number {
   const { pageWidth, pageHeight, margin, startY, rows, total, after = [], closing, onNewPage, bottomReserve = FOOTER_HEIGHT } = o;
   const totalsX = pageWidth - margin;
