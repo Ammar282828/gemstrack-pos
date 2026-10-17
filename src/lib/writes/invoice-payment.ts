@@ -106,7 +106,7 @@ type Tx = Parameters<Parameters<DbPort['runTransaction']>[0]>[0];
  */
 type LinkedRow = { id: string; cashDebit?: number; cashCredit?: number; description?: string };
 
-function followBalance(db: DbPort, tx: Tx, invoiceId: string, invoice: Omit<PaidInvoice, 'id'>, linked: LinkedRow[], balanceDue: number, walkInRow: boolean) {
+export function followBalance(db: DbPort, tx: Tx, invoiceId: string, invoice: Omit<PaidInvoice, 'id'>, linked: LinkedRow[], balanceDue: number, walkInRow: boolean) {
   followCredit(db, tx, invoiceId, invoice, linked, balanceDue);
   // The customer's ledger has to follow the invoice. Single-field query and a
   // filter in memory, to avoid needing a composite index for one lookup.

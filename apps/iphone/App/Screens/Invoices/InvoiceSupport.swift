@@ -91,25 +91,15 @@ enum InvoiceFacts {
         return try await ERPAPI.shared.write("recordPayment", fields)
     }
 
-    /// Settle (record-payment-dialog.tsx): the payment first, exactly as Save takes it, then the bill's discount
-    /// raised by what is left (`updateInvoiceDiscount`, the shared write the discount sheet uses), so the balance is
-    /// 0 without a payment never made. The discount is the one on the invoice the payment came back with, plus the
-    /// remainder; what was seen is that invoice's total and paid. Owners only, as the discount is (/api/app/write).
+    /// Settle (record-payment-dialog.tsx): the payment and the remainder off the bill's discount in one write
+    /// (`settleInvoicePayment`, lib/writes/settle.ts), so the balance is 0 without a payment never made and never a
+    /// payment taken without its discount. Owners only, as the discount is (/api/app/write).
     @MainActor
     static func settle(_ inv: Invoice, amount: Double, method: String, reference: String, remainder: Double) async throws {
-        let out = try await record(inv, amount: amount, method: method, reference: reference)
-        let after = out["invoice"] as? [String: Any] ?? [:]
-        func figure(_ key: String, _ fallback: Double) -> Double { (after[key] as? NSNumber)?.doubleValue ?? fallback }
-        let discount = ERPCore.rupees(figure("discountAmount", inv.discountAmount)) + remainder
-        let seen: [String: Any] = [
-            "grandTotal": figure("grandTotal", inv.grandTotal),
-            "amountPaid": figure("amountPaid", ERPCore.rupees(inv.amountPaid + amount)),
-        ]
-        do {
-            try await ERPAPI.shared.write("updateInvoiceDiscount", ["invoiceId": inv.id, "discountAmount": discount, "seen": seen])
-        } catch {
-            throw SettleNotGiven(paid: amount, remainder: remainder, why: error.localizedDescription)
-        }
+        var fields: [String: Any] = ["invoiceId": inv.id, "amount": amount, "extra": remainder, "method": method]
+        let ref = reference.trimmingCharacters(in: .whitespacesAndNewlines)
+        if method != "Cash" && !ref.isEmpty { fields["reference"] = ref }
+        _ = try await ERPAPI.shared.write("settleInvoicePayment", fields)
     }
 
     // MARK: The customer's link

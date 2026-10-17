@@ -115,11 +115,9 @@ struct OrdersMarginRow: View {
 // MARK: An advance that settles the order
 
 /// An order's advance, and the Settle beside it (order-dialogs.tsx RecordAdvanceDialog): the advance as Save takes it
-/// (`recordOrderAdvance`), then the remainder added to the order's discount and its balance brought down with it,
-/// never a payment that was not made; the invoice made from the order carries the discount (Order to invoice).
-/// The web saves that through the store's updateOrder (lib/writes/update-order.ts); the phone sends the same edit
-/// through `updateOrder` (/api/app/write runs that very write), each piece sent by its place alone so the stored
-/// pieces stay exactly as they are. Owners only, as both writes are.
+/// (`recordOrderAdvance`), or the advance and the remainder added to the order's discount in one write
+/// (`settleOrderAdvance`, lib/writes/settle.ts), never a payment that was not made; the invoice made from the order
+/// carries the discount (Order to invoice). Settle is owners only, as the write is.
 enum OrderAdvance {
     static func record(_ order: Order, amount: Double, method: String, note: String) async throws {
         _ = try await ERPAPI.shared.write("recordOrderAdvance", [
@@ -131,17 +129,12 @@ enum OrderAdvance {
     }
 
     static func settle(_ order: Order, amount: Double, method: String, note: String, remainder: Double) async throws {
-        try await record(order, amount: amount, method: method, note: note)
-        let edit: [String: Any] = [
-            "items": order.items.indices.map { ["editIndex": $0] },
-            "discountAmount": rupees(order.discountAmount) + remainder,
-            // The web's figure; the ERP refuses a negative one, and the remainder came from this same balance.
-            "grandTotal": max(0, rupees(order.grandTotal) - rupees(amount) - remainder),
-        ]
-        do {
-            _ = try await ERPAPI.shared.write("updateOrder", ["orderId": order.id, "order": edit])
-        } catch {
-            throw SettleNotGiven(paid: amount, remainder: remainder, why: error.localizedDescription)
-        }
+        _ = try await ERPAPI.shared.write("settleOrderAdvance", [
+            "orderId": order.id,
+            "amount": amount,
+            "extra": remainder,
+            "method": method,
+            "notes": note,
+        ])
     }
 }

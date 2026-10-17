@@ -104,7 +104,7 @@ const OPS = ['recordPayment', 'recordOrderAdvance', 'setOrderStatus', 'setPieceD
   'startPayBatch', 'settlePayBatch', 'deletePayBatch', 'addSilverEntry', 'deleteSilverEntry', 'removeKarigar', 'addStockJob',
   'setStockJobStatus', 'setStockJobGiven', 'updateStockJobDetails', 'deleteStockJob', 'setInvoicePieceKarigar', 'setInvoicePieceDone',
   'setInvoicePieceGiven', 'updateGivenItem', 'deleteGivenItem',
-  'forgetVoiceAlias', 'saveLabelLayout', 'reAddSoldProduct', 'deleteLatestProducts', 'importContacts', 'importHisaab'];
+  'settleInvoicePayment', 'settleOrderAdvance', 'raiseOrderDiscount', 'forgetVoiceAlias', 'saveLabelLayout', 'reAddSoldProduct', 'deleteLatestProducts', 'importContacts', 'importHisaab'];
 const STAFF_MAY = ['recordPayment', 'setOrderStatus', 'addCustomer', 'createOrder'];
 
 describe('who may write', () => {
