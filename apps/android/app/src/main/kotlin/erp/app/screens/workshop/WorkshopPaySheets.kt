@@ -25,6 +25,7 @@ import erp.app.ui.FilterChip
 import erp.app.ui.LocalNoteState
 import erp.app.ui.MoneyFeedback
 import erp.app.ui.Note
+import erp.app.screens.money.MoneyParse
 import erp.app.ui.PaymentText
 import erp.app.ui.Tone
 import erp.core.ERPDate
@@ -145,7 +146,7 @@ fun WorkshopPaySheet(karigar: Karigar, batch: KarigarBatch, categories: List<Str
     var failedTick by remember { mutableStateOf(0) }
 
     val typed = "__typed__"
-    val amount = WorkshopFigure.read(amountText, places = 2) ?: 0.0
+    val amount = MoneyParse.rupees(amountText) ?: 0.0
     val cleanedWhat = what.trim()
     val chosenCategory = (if (category == typed) typedCategory else category).trim()
     val canSave = amount >= 0.01 && cleanedWhat.isNotEmpty() && chosenCategory.isNotEmpty() && !saving
@@ -187,7 +188,7 @@ fun WorkshopPaySheet(karigar: Karigar, batch: KarigarBatch, categories: List<Str
             WideFieldRow("Description", what, { what = it }, prompt = "Description", minLines = 1, maxLines = 3)
         }
         FormSection(title = "Amount (PKR)") {
-            FieldRow("Amount (PKR)", amountText, { amountText = it }, prompt = "0.00", number = true)
+            FieldRow("Amount (PKR)", PaymentText.whole(amountText), { amountText = PaymentText.whole(it) }, prompt = "0", number = true, keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
             if (amount > 0) ValueRow("In words", Money.pkrLac(amount))
         }
         if (partnership) {
@@ -280,7 +281,7 @@ fun WorkshopSilverSheet(karigar: Karigar, onDismiss: () -> Unit) {
     if (confirming) {
         WorkshopConfirm(
             title = "Record ${WorkshopLogic.grams3(grams)} of silver from $name?",
-            message = "Surcharge ${PaymentText.pkr(total)}: ${WorkshopLogic.grams3(grams)} at ${PaymentText.pkr(rate)} a gram, kept under his silver transactions. No expense and no Hisaab entry is written.",
+            message = "Surcharge ${PaymentText.pkr(total)}: ${WorkshopLogic.grams3(grams)} at PKR ${erp.app.screens.rates.RateKeys.say(rate)} a gram, kept under his silver transactions. No expense and no Hisaab entry is written.",
             confirmLabel = "Record silver",
             onConfirm = ::save,
             onDismiss = { confirming = false },

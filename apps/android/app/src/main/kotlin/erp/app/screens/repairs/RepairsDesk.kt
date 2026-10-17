@@ -161,7 +161,7 @@ fun RepairsDeskHost(desk: RepairsDesk) {
             title = "Payment on ${r.id}",
             onDismiss = { desk.taking = null },
             onSave = { entry -> desk.takePayment(r, entry.amount, entry.method) },
-            owed = if (balance > 0) balance else null,
+            owed = if (balance >= 1) balance else null,
             askReference = false,
         )
     }

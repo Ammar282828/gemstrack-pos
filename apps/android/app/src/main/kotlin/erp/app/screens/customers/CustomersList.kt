@@ -305,7 +305,7 @@ internal fun custSubtitle(customer: Customer, stats: CustomerKit.Stats?): String
 
 internal fun custTrailing(stats: CustomerKit.Stats?): String? {
     val s = stats ?: return null
-    if (s.owed > 0) return Money.pkr(s.owed)
+    if (s.owed >= 1) return Money.pkr(s.owed)
     if (s.spent > 0) return Money.pkrLac(s.spent)
     return null
 }

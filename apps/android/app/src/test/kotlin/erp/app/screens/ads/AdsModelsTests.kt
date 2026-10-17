@@ -14,7 +14,7 @@ class AdsModelsTests {
     @Test fun moneyInThePkrWordsAndAnotherCurrencyByItsCode() {
         assertEquals("PKR 1,500", AdsFormat.money(1500.0, "PKR"))
         assertEquals("PKR 4.5 lac", AdsFormat.money(450_000.0, "pkr"))
-        assertEquals("PKR 12.35", AdsFormat.money(12.345, "PKR"))
+        assertEquals("PKR 12", AdsFormat.money(12.345, "PKR"))
         assertEquals("PKR 0", AdsFormat.money(Double.NaN, "PKR"))
         assertEquals("USD 1,235", AdsFormat.money(1234.5, "usd"))
         assertEquals("USD 4.5", AdsFormat.money(4.5, "USD"))

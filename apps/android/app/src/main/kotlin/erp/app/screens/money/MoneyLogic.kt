@@ -436,6 +436,12 @@ object MoneyParse {
         if (out.isEmpty() || out.toString() == ".") return null
         return out.toString().toDoubleOrNull()
     }
+
+    /**
+     * A sum of money typed into a box, in whole rupees (owner, 2026-10-17: "there should be no decimals"): any
+     * paise pasted in are rounded away, as the ERP rounds every sum to the rupee.
+     */
+    fun rupees(raw: String): Double? = amount(raw)?.let { erp.app.ui.PaymentText.rounded(it) }
 }
 
 /** Filing a karigar's payment under one of his hisaabs (expense-form.tsx). */
@@ -584,7 +590,7 @@ object HisaabBook {
         if (sums[WALK_IN_ENTITY] != null) {
             val rows = ArrayList<HisaabUnpaid>()
             for (inv in invoices) {
-                if (inv.id in walkInInvoiceIds && inv.balanceDue > 0 && inv.status != InvoiceStatus.refunded) {
+                if (inv.id in walkInInvoiceIds && inv.balanceDue >= 1 && inv.status != InvoiceStatus.refunded) {
                     rows.add(HisaabUnpaid(inv.id, inv.grandTotal, inv.amountPaid, inv.balanceDue))
                 }
             }

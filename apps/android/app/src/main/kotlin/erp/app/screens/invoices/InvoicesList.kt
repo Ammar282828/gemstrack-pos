@@ -374,7 +374,7 @@ private fun SummaryStrip(s: InvoiceSummary, filter: InvoiceFilter, chip: Invoice
             NumericText(
                 erp.core.logic.Money.pkr(s.owed), s.owed,
                 style = ErpType.heroNumber,
-                color = if (s.owed > 0) Tone.owed.color() else androidx.compose.ui.graphics.Color.Unspecified,
+                color = if (s.owed >= 1) Tone.owed.color() else androidx.compose.ui.graphics.Color.Unspecified,
                 autoSize = true,
             )
             Text("${s.owedCount} invoice${if (s.owedCount == 1) "" else "s"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -424,7 +424,7 @@ private fun EmptyState(filtering: Boolean, onClear: () -> Unit, onNewSale: () ->
 private fun SectionHeader(section: InvoiceSection) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         LedgerHeading(section.title, count = section.rows.size, trailing = erp.core.logic.Money.pkr(section.billed))
-        if (section.owed > 0.5) {
+        if (section.owed >= 1) {
             Text(
                 if (section.hint.isEmpty()) "${erp.core.logic.Money.pkr(section.owed)} still owed" else "${section.hint} · ${erp.core.logic.Money.pkr(section.owed)} still owed",
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TabularDigits),

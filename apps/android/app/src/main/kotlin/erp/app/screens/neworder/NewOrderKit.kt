@@ -72,6 +72,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.selection.toggleable
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.LedgerHeading
+import erp.app.ui.PaymentText
 import erp.app.ui.MinTouchTarget
 import erp.app.ui.Radius
 import erp.app.ui.ShopDate
@@ -223,10 +224,15 @@ internal fun FieldRow(
     }
 }
 
-/** A labelled number box: blank for 0, the decimal pad, figures lined up on the right (NewOrderNumberRow). */
+/**
+ * A labelled number box: blank for 0, the decimal pad, figures lined up on the right (NewOrderNumberRow). A sum of
+ * money (`rupees`) takes the number pad and whole rupees only (owner, 2026-10-17: "there should be no decimals");
+ * weights, rates and percentages keep their decimals.
+ */
 @Composable
-internal fun NumberRow(title: String, value: String, onChange: (String) -> Unit, prompt: String = "", unit: String? = null) {
-    FieldRow(title, value, onChange, prompt = prompt, unit = unit, number = true)
+internal fun NumberRow(title: String, value: String, onChange: (String) -> Unit, prompt: String = "", unit: String? = null, rupees: Boolean = false) {
+    if (rupees) FieldRow(title, PaymentText.whole(value), { onChange(PaymentText.whole(it)) }, prompt = prompt, unit = unit, number = true, keyboardType = KeyboardType.Number)
+    else FieldRow(title, value, onChange, prompt = prompt, unit = unit, number = true)
 }
 
 /** A text box across the row, for what runs long (a description, notes, an address). */

@@ -23,7 +23,8 @@ import erp.core.models.Order
 /** `typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0` for a number already in hand. */
 private fun num(v: Double?): Double = if (v == null || !v.isFinite()) 0.0 else v
 
-fun exchangeTotal(list: List<ExchangeEntry>?): Double = (list ?: emptyList()).fold(0.0) { acc, e -> acc + num(e.value) }
+/** Whole rupees (2026-10-17): each row's value rounded, then summed. */
+fun exchangeTotal(list: List<ExchangeEntry>?): Double = (list ?: emptyList()).fold(0.0) { acc, e -> acc + rupees(e.value) }
 
 /** "Old ring · 22k · 5.2 g at 22,000/g"; an unnamed row is "Gold" when weighed, else plain "Exchange". */
 fun describeExchangeEntry(e: ExchangeEntry): String {
@@ -51,7 +52,7 @@ private fun clean(list: List<ExchangeEntry>): List<ExchangeEntry> =
                 karat = if (JS.has(e.karat)) e.karat else null,
                 weightG = if (num(e.weightG) > 0) num(e.weightG) else null,
                 ratePerGram = if (num(e.ratePerGram) > 0) num(e.ratePerGram) else null,
-                value = num(e.value),
+                value = rupees(e.value),
             )
         }
 

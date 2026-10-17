@@ -73,6 +73,7 @@ import erp.app.ui.Note
 import erp.app.ui.Radius
 import erp.app.ui.RowAmount
 import erp.app.ui.ShelfState
+import erp.app.ui.PaymentText
 import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.app.ui.ledgerCard
@@ -385,10 +386,10 @@ private fun Sheet(
                         modifier = Modifier.weight(1f), label = { Text("What is it for") }, singleLine = true,
                     )
                     OutlinedTextField(
-                        value = line.amountText, onValueChange = { v -> onChange(line.id) { it.copy(amountText = v) } },
+                        value = PaymentText.whole(line.amountText), onValueChange = { v -> onChange(line.id) { it.copy(amountText = PaymentText.whole(v)) } },
                         modifier = Modifier.weight(0.7f), label = { Text("Amount") }, singleLine = true,
                         textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     )
                     IconButton(onClick = { onRemove(line.id) }) { Icon(Icons.Filled.Close, contentDescription = "Remove ${line.label.ifEmpty { "this line" }}") }
                 }

@@ -14,6 +14,7 @@ import erp.app.screens.neworder.FieldRow
 import erp.app.screens.neworder.PickerRow
 import erp.app.screens.neworder.WideFieldRow
 import erp.app.ui.LocalNoteState
+import erp.app.ui.PaymentText
 import erp.app.ui.Note
 import erp.core.models.Karigar
 import erp.core.models.KarigarJob
@@ -86,7 +87,7 @@ fun WorkshopStockJobSheet(karigars: List<Karigar>, presetKarigarId: String, onDi
         FormSection(title = "Specifications") {
             FieldRow("Weight (g)", weightText, { weightText = it }, prompt = "0.000", number = true)
             FieldRow("Qty", quantityText, { quantityText = it }, prompt = "1", keyboardType = KeyboardType.Number)
-            FieldRow("Making (PKR)", makingText, { makingText = it }, prompt = "0", number = true)
+            FieldRow("Making (PKR)", PaymentText.whole(makingText), { makingText = PaymentText.whole(it) }, prompt = "0", number = true, keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
             FieldRow("Size", size, { size = it }, prompt = "Size, e.g. 12, 2.4, 7.5\"")
         }
         FormSection(title = "Notes") {

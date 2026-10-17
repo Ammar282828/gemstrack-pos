@@ -248,10 +248,12 @@ fun MoneyField(
     singleLine: Boolean = true,
     big: Boolean = false,
     enabled: Boolean = true,
+    /** A sum of money: the number pad and whole rupees only (owner, 2026-10-17: "there should be no decimals"). */
+    rupees: Boolean = false,
 ) {
     OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
+        value = if (rupees) erp.app.ui.PaymentText.whole(value) else value,
+        onValueChange = { onChange(if (rupees) erp.app.ui.PaymentText.whole(it) else it) },
         modifier = modifier.fillMaxWidth(),
         label = { Text(label) },
         placeholder = placeholder?.let { { Text(it) } },
@@ -261,7 +263,7 @@ fun MoneyField(
         minLines = 1,
         maxLines = if (singleLine) 1 else 4,
         textStyle = if (big) MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold) else MaterialTheme.typography.bodyLarge,
-        keyboardOptions = KeyboardOptions(keyboardType = if (number) KeyboardType.Decimal else KeyboardType.Text, imeAction = ImeAction.Done),
+        keyboardOptions = KeyboardOptions(keyboardType = if (rupees) KeyboardType.Number else if (number) KeyboardType.Decimal else KeyboardType.Text, imeAction = ImeAction.Done),
     )
 }
 

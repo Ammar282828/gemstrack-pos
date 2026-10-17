@@ -38,9 +38,13 @@ object InvoiceActions {
     /** `Number(v) || 0`: absent or not a number is nothing. */
     private fun num(v: Double?): Double = if (v == null || v.isNaN()) 0.0 else v
 
+    /** What is paid, from the whole history, in whole rupees. */
+    private fun paidOf(payments: List<Double?>): Double = rupees(payments.fold(0.0) { acc, p -> acc + num(p) })
+
     /** The invoice page's refusals, in its words; null when the discount can be saved. */
     fun discountProblem(subtotal: Double?, discount: Double): String? {
         if (!discount.isFinite()) return "Enter the discount."
+        val discount = rupees(discount)
         if (discount < 0) return "Discount cannot be negative."
         if (discount > num(subtotal)) return "Discount cannot exceed subtotal."
         return null
@@ -51,21 +55,22 @@ object InvoiceActions {
      * owed on what has been paid. Adjustments are left out, as every sale's total leaves them out.
      */
     fun withDiscount(f: Figures, discount: Double): Discounted {
-        val grandTotal = num(f.subtotal) - discount - num(f.exchangeAmount1) - num(f.exchangeAmount2)
-        return Discounted(discountAmount = discount, grandTotal = grandTotal, balanceDue = grandTotal - num(f.amountPaid))
+        val whole = rupees(discount)
+        val grandTotal = rupees(num(f.subtotal) - whole - num(f.exchangeAmount1) - num(f.exchangeAmount2))
+        return Discounted(discountAmount = whole, grandTotal = grandTotal, balanceDue = rupees(grandTotal - num(f.amountPaid)))
     }
 
     /** The refund's line in the payment history: what was handed back, as money out. */
     fun refundEntry(amount: Double, date: String, reason: String? = null): Payment {
         val said = reason ?: ""
-        return Payment(amount = -abs(amount), date = date, notes = if (said.isEmpty()) "Refund" else "Refund: $said")
+        return Payment(amount = -abs(rupees(amount)), date = date, notes = if (said.isEmpty()) "Refund" else "Refund: $said")
     }
 
     /** A partial refund: a negative payment on the history, and what is paid and owed recomputed from the whole history, never from a running total. */
     fun withRefund(f: Figures, amount: Double): Paid {
-        val payments = f.payments + listOf(-abs(amount))
-        val amountPaid = payments.fold(0.0) { acc, p -> acc + num(p) }
-        return Paid(payments = payments, amountPaid = amountPaid, balanceDue = num(f.grandTotal) - amountPaid)
+        val payments = f.payments + listOf(-abs(rupees(amount)))
+        val amountPaid = paidOf(payments)
+        return Paid(payments = payments, amountPaid = amountPaid, balanceDue = rupees(num(f.grandTotal) - amountPaid))
     }
 
     /** One payment off the history (its place as the page shows it), and what is paid and owed without it; null when there is none there. */
@@ -73,8 +78,8 @@ object InvoiceActions {
         if (index < 0 || index >= f.payments.size) return null
         val payments = f.payments.toMutableList()
         payments.removeAt(index)
-        val amountPaid = payments.fold(0.0) { acc, p -> acc + num(p) }
-        return Paid(payments = payments, amountPaid = amountPaid, balanceDue = num(f.grandTotal) - amountPaid)
+        val amountPaid = paidOf(payments)
+        return Paid(payments = payments, amountPaid = amountPaid, balanceDue = rupees(num(f.grandTotal) - amountPaid))
     }
 
     /**

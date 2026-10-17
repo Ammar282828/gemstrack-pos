@@ -6,6 +6,7 @@ import erp.core.logic.customerSourceLabel
 import erp.core.logic.customerSources
 import erp.core.logic.gramsPerTola
 import erp.core.logic.platingTypes
+import erp.core.logic.rupees
 import erp.core.logic.staticCategories
 import erp.core.swiftDouble
 import erp.core.swiftRounded
@@ -47,6 +48,12 @@ object NewOrderFormat {
 
     /** A number back into a box; 0 is blank (decisions.md "Number fields": no pre-filled zeros to delete). */
     fun boxText(x: Double, digits: Int = 2): String = if (x == 0.0) "" else trimmed(x, digits)
+
+    /**
+     * A sum of money for a box: whole rupees (ERPCore `rupees`, half up), blank for none. An old order's
+     * paise are not carried into a field that types only digits (owner, 2026-10-17: "there should be no decimals").
+     */
+    fun rupeeBox(x: Double?): String = boxText(rupees(x), digits = 0)
 
     /** 1 piece, 3 pieces. */
     fun pieces(n: Int): String = if (n == 1) "1 piece" else "$n pieces"

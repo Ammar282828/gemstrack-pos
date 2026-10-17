@@ -37,7 +37,7 @@ fun RevenueEditSheet(editing: AdditionalRevenue?, onDismiss: () -> Unit, onSaved
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    val amount = MoneyParse.amount(amountText) ?: 0.0
+    val amount = MoneyParse.rupees(amountText) ?: 0.0
     val cleanedWhat = what.trim()
     val canSave = amount >= 0.01 && cleanedWhat.isNotEmpty() && !saving
 
@@ -82,7 +82,7 @@ fun RevenueEditSheet(editing: AdditionalRevenue?, onDismiss: () -> Unit, onSaved
         DayRow("Date", picked.atZone(phoneZone).toLocalDate(), { picked = pickedInstant(it, picked) }, latest = LocalDate.now())
         MoneyField("Description", what, { what = it }, placeholder = "e.g. Commission from partner", singleLine = false, enabled = !saving)
         SheetHeading("How much")
-        MoneyField("Amount in rupees", amountText, { amountText = it }, number = true, big = true, enabled = !saving)
+        MoneyField("Amount in rupees", amountText, { amountText = it }, number = true, big = true, enabled = !saving, rupees = true)
         if (amount > 0) Text(Money.pkrLac(amount), color = MaterialTheme.colorScheme.onSurfaceVariant)
         error?.let { ErrorLine(it) }
     }

@@ -77,8 +77,12 @@ class InvoiceFactsTests {
     @Test fun moneyOverTheBalanceNeedsANamedCustomer() {
         val walkIn = invoice(grandTotal = 10_000.0, amountPaid = 4_000.0)
         assertNull(InvoiceFacts.paymentRefusal(walkIn, 6_000.0))
-        // half a rupee over is rounding, not credit
-        assertNull(InvoiceFacts.paymentRefusal(walkIn, 6_000.5))
+        // under half a rupee over is rounding, not credit; a half rounds up to a whole rupee over (record-payment-dialog.tsx)
+        assertNull(InvoiceFacts.paymentRefusal(walkIn, 6_000.4))
+        assertEquals(
+            "More than the balance of PKR 6,000. Credit needs a customer: name who this invoice is for first.",
+            InvoiceFacts.paymentRefusal(walkIn, 6_000.5),
+        )
         assertEquals(
             "More than the balance of PKR 6,000. Credit needs a customer: name who this invoice is for first.",
             InvoiceFacts.paymentRefusal(walkIn, 6_001.0),
@@ -143,16 +147,16 @@ class InvoiceFactsTests {
 
     @Test fun minasEstimateMessageIsTheCountersOwn() {
         assertEquals(
-            "Dear Sana Demo,\n\nHere is your estimate from MINA.\n\n*Estimate ID:* INV-000001\n*Total Amount:* PKR 12,345.00\n*Amount Paid:* PKR 2,000.00\n*Balance Due:* PKR 10,345.00\n\nThank you for your business.",
+            "Dear Sana Demo,\n\nHere is your estimate from MINA.\n\n*Estimate ID:* INV-000001\n*Total Amount:* PKR 12,345\n*Amount Paid:* PKR 2,000\n*Balance Due:* PKR 10,345\n\nThank you for your business.",
             InvoiceFacts.shareMessage(invoice(grandTotal = 12_345.0, amountPaid = 2_000.0), "MINA", byCustomer = false),
         )
         assertEquals(
-            "Dear Walk-in Customer,\n\nHere is your estimate from MINA.\n\n*Estimate ID:* INV-000001\n*Total Amount:* PKR 1,234.50\n*Amount Due:* PKR 1,234.50\n\nThank you for your business.",
+            "Dear Walk-in Customer,\n\nHere is your estimate from MINA.\n\n*Estimate ID:* INV-000001\n*Total Amount:* PKR 1,235\n*Amount Due:* PKR 1,235\n\nThank you for your business.",
             InvoiceFacts.shareMessage(invoice(customerName = "Walk-in Customer", grandTotal = 1_234.5), "MINA", byCustomer = false),
         )
-        assertEquals("1,234.50", InvoiceFacts.twoPlaces(1234.5))
-        assertEquals("0.00", InvoiceFacts.twoPlaces(0.0))
-        assertEquals("1.235", InvoiceFacts.twoPlaces(1.2351))
+        assertEquals("1,235", InvoiceFacts.rupees(1234.5))
+        assertEquals("0", InvoiceFacts.rupees(0.0))
+        assertEquals("1", InvoiceFacts.rupees(1.2351))
     }
 
     @Test fun whatGoesOnWhatsAppIsTheWordsThenTheLink() {

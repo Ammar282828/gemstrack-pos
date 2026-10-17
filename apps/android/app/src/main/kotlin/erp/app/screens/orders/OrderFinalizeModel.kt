@@ -8,6 +8,7 @@ import erp.core.logic.finalizedItemCosts
 import erp.core.logic.orderAdvancePayments
 import erp.core.logic.orderExchanges
 import erp.core.logic.orderInvoiceRates
+import erp.core.logic.rupees
 import erp.core.logic.wastageGramsFor
 import erp.core.models.Order
 import erp.core.models.OrderItem
@@ -55,7 +56,7 @@ data class OrderFinalizeRow(
                 "description" to item.description, "metalType" to item.metalType.rawValue,
                 "finalWeightG" to n(weight), "finalWastagePercentage" to n(wastage), "finalMakingCharges" to n(making),
                 "finalDiamondCharges" to n(diamonds), "finalStoneCharges" to n(stones),
-                "isManualPrice" to manual, "finalManualPrice" to n(price),
+                "isManualPrice" to manual, "finalManualPrice" to rupees(n(price)),
             )
             val k = item.karat?.rawValue
             if (!k.isNullOrEmpty()) o["karat"] = k
@@ -68,12 +69,12 @@ data class OrderFinalizeRow(
             val onOrder = if ((item.manualPrice ?: 0.0) > 0) item.manualPrice ?: 0.0 else item.totalEstimate ?: 0.0
             return OrderFinalizeRow(
                 index = index, item = item, manual = item.isManualPrice,
-                price = NewOrderFormat.boxText(onOrder),
+                price = NewOrderFormat.rupeeBox(onOrder),
                 weight = NewOrderFormat.boxText(item.estimatedWeightG, 3),
                 wastage = NewOrderFormat.boxText(item.wastagePercentage, 4),
-                making = NewOrderFormat.boxText(item.makingCharges),
-                stones = NewOrderFormat.boxText(item.stoneCharges),
-                diamonds = NewOrderFormat.boxText(item.diamondCharges),
+                making = NewOrderFormat.rupeeBox(item.makingCharges),
+                stones = NewOrderFormat.rupeeBox(item.stoneCharges),
+                diamonds = NewOrderFormat.rupeeBox(item.diamondCharges),
             )
         }
     }
@@ -97,9 +98,10 @@ object OrderFinalizeMath {
         val rates = orderInvoiceRates(order, settings)
         val prices = rows.map { r -> finalizedItemCosts(r.item, r.finalized, rates).price }
         val subtotal = prices.fold(0.0) { a, b -> a + b }
-        val disc = NewOrderFormat.num(discount)
+        // Whole rupees, as lib/writes/finalize-order.ts rounds the discount and each advance carried over.
+        val disc = rupees(NewOrderFormat.num(discount))
         val exchange = exchangeTotal(orderExchanges(order))
-        val advances = orderAdvancePayments(order).fold(0.0) { a, p -> a + p.amount }
+        val advances = orderAdvancePayments(order).fold(0.0) { a, p -> a + rupees(p.amount) }
         return Figures(prices, subtotal, disc, exchange, advances, subtotal - disc - exchange - advances)
     }
 
@@ -118,7 +120,7 @@ object OrderFinalizeMath {
         val out = linkedMapOf<String, Any?>(
             "orderId" to orderId,
             "items" to rows.map { it.payload },
-            "additionalDiscount" to NewOrderFormat.num(discount),
+            "additionalDiscount" to rupees(NewOrderFormat.num(discount)),
         )
         val tola = NewOrderFormat.num(costTola)
         if (tola > 0) out["costRate24k"] = tola / NewOrderWords.gramsPerTola

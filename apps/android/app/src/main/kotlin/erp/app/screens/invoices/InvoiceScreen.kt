@@ -120,6 +120,7 @@ import erp.core.logic.exchangeTotal
 import erp.core.logic.invoiceExchanges
 import erp.core.logic.invoiceMargin
 import erp.core.logic.isOwing
+import erp.core.logic.owesMoney
 import erp.core.logic.percentLabel
 import erp.core.logic.saleCustomerKey
 import erp.core.logic.describeExchangeEntry
@@ -336,7 +337,15 @@ internal fun InvoicePaymentSheet(inv: Invoice, onDismiss: () -> Unit, recorded: 
             InvoiceFacts.record(inv, entry.amount, entry.method, entry.reference)
             recorded?.invoke(inv, entry.amount)
         },
-        owed = if (inv.balanceDue > 0.5) inv.balanceDue else null,
+        // Settle changes the discount, which is an owner's to change (/api/app/write updateInvoiceDiscount), so
+        // staff are offered Save alone.
+        settle = if (LocalSession.current.isOwner) { entry, remainder ->
+            InvoiceFacts.settle(inv, entry.amount, entry.method, entry.reference, remainder)
+            // The page's note works out what is left from what came off the balance: the payment and the
+            // remainder given off together, so it says "Paid in full".
+            recorded?.invoke(inv, entry.amount + remainder)
+        } else null,
+        owed = if (owesMoney(inv.balanceDue)) inv.balanceDue else null,
         customer = PaymentCustomer(name = inv.customerName, canHoldCredit = canHoldCredit(inv.customerId)),
     )
 }

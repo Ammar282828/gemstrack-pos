@@ -211,7 +211,7 @@ private fun CoinsSection(f: AnaFigures) {
                     subtitle = "Revenue over grams, all-in",
                     trailing = if (c.ratePerGram > 0) Money.pkrLac(c.ratePerGram) else "—",
                 )
-                if (c.outstanding > 0) {
+                if (c.outstanding >= 1) {
                     TwoLine("Outstanding", subtitle = "Still owed on coin bills", trailing = Money.pkrLac(c.outstanding), trailingTint = Tone.owed.color())
                 }
                 Footnote("Coin figures are separate from jewellery revenue and profit.", Modifier.padding(horizontal = 0.dp))

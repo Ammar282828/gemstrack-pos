@@ -59,7 +59,7 @@ class OwnerLogicTests {
         val zero = OverheadDraftLine(OverheadItem("tea", "Tea", 0.0))
         assertEquals("", zero.amountText)
         assertEquals(0.0, zero.item.amount)
-        assertEquals(1250.5, OverheadDraftLine("x", "Y", "PKR 1,250.50").item.amount)
+        assertEquals(1251.0, OverheadDraftLine("x", "Y", "PKR 1,250.50").item.amount)
         assertEquals(0.0, OverheadDraftLine("x", "Y", "nothing").item.amount)
     }
 

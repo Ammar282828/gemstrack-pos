@@ -65,7 +65,7 @@ object WorkshopWrites {
         if (category.isNotEmpty()) job["itemCategory"] = category
         WorkshopFigure.read(weightText)?.let { job["weightG"] = it }
         WorkshopFigure.read(quantityText, places = 0)?.let { job["quantity"] = it }
-        WorkshopFigure.read(makingText, places = 2)?.let { job["agreedCost"] = it }
+        erp.app.screens.money.MoneyParse.rupees(makingText)?.let { job["agreedCost"] = it }
         size.trim().takeIf { it.isNotEmpty() }?.let { job["size"] = it }
         notes.trim().takeIf { it.isNotEmpty() }?.let { job["notes"] = it }
         return WorkshopWrite("addStockJob", mapOf("job" to job))

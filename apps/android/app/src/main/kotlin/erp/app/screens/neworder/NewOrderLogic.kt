@@ -16,6 +16,7 @@ import erp.core.entry.NewOrderMath
 import erp.core.entry.NewOrderPieceDraft
 import erp.core.entry.NewOrderWords
 import erp.core.logic.RateKey
+import erp.core.logic.isCredit
 import erp.core.logic.rates
 import erp.core.logic.describeMetal
 import erp.core.logic.goldCostPerGram
@@ -145,12 +146,12 @@ object NewOrderLogic {
     enum class DueTone { credit, owed, settled }
 
     fun dueTone(balance: Double): DueTone = when {
-        balance < -0.5 -> DueTone.credit
-        balance > 0.5 -> DueTone.owed
+        balance <= -1 -> DueTone.credit
+        balance >= 1 -> DueTone.owed
         else -> DueTone.settled
     }
 
-    fun dueLabel(balance: Double): String = if (balance < -0.5) "Credit to customer" else "Due"
+    fun dueLabel(balance: Double): String = if (isCredit(balance)) "Credit to customer" else "Due"
 
     /** The at-a-glance rows of the review pane (TransactionReview). */
     fun reviewFigures(t: NewOrderMath.Totals): List<Pair<String, String>> = listOf(

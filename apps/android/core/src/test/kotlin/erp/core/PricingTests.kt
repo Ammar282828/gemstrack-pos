@@ -23,6 +23,8 @@ import kotlin.test.assertTrue
  * src/lib/pricing.ts. It has no test of its own, so every figure below was printed by the
  * TypeScript (`_calculateProductCostsInternal`, run with tsx) for the made-up piece beside it,
  * and is compared exactly, to the last bit: the Kotlin must add the same doubles in the same order.
+ * Since 2026-10-17 every line is whole rupees (MoneyRound.kt): the figures were printed again by the
+ * TypeScript after that change, for the same pieces.
  * All names, weights, rates and amounts are invented.
  */
 class PricingTests {
@@ -86,7 +88,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.gold, karat = KaratValue.k18, metalWeightG = 5.2, stoneWeightG = 0.3, wastagePercentage = 12.0, makingCharges = 8500.0, stoneCharges = 2500.0),
             shop,
-            metal = 152586.0, wastage = 18310.32, making = 8500.0, diamonds = 0.0, stones = 2500.0, misc = 0.0, total = 181896.32,
+            metal = 152586.0, wastage = 18310.0, making = 8500.0, diamonds = 0.0, stones = 2500.0, misc = 0.0, total = 181896.0,
         )
     }
 
@@ -96,7 +98,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.gold, karat = KaratValue.k21, metalWeightG = 24.75, wastagePercentage = 8.0, makingCharges = 12000.0),
             shop,
-            metal = 899167.5, wastage = 71933.40000000001, making = 12000.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 983100.9,
+            metal = 899168.0, wastage = 71933.0, making = 12000.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 983101.0,
         )
     }
 
@@ -106,7 +108,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.gold, karat = KaratValue.k22, metalWeightG = 18.4, wastagePercentage = 6.5, makingCharges = 9000.0, miscCharges = 500.0),
             shop,
-            metal = 700304.0, wastage = 45519.76, making = 9000.0, diamonds = 0.0, stones = 0.0, misc = 500.0, total = 755323.76,
+            metal = 700304.0, wastage = 45520.0, making = 9000.0, diamonds = 0.0, stones = 0.0, misc = 500.0, total = 755324.0,
         )
     }
 
@@ -116,7 +118,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.gold, karat = KaratValue.k24, metalWeightG = 11.664),
             shop,
-            metal = 484289.27999999997, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 484289.27999999997,
+            metal = 484289.0, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 484289.0,
         )
     }
 
@@ -126,7 +128,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.gold, metalWeightG = 9.9, wastagePercentage = 10.0, makingCharges = 4000.0),
             shop,
-            metal = 359667.0, wastage = 35966.700000000004, making = 4000.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 399633.7,
+            metal = 359667.0, wastage = 35967.0, making = 4000.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 399634.0,
         )
     }
 
@@ -136,7 +138,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.gold, karat = KaratValue.unknown(""), metalWeightG = 9.9, wastagePercentage = 10.0, makingCharges = 4000.0),
             shop,
-            metal = 359667.0, wastage = 35966.700000000004, making = 4000.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 399633.7,
+            metal = 359667.0, wastage = 35967.0, making = 4000.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 399634.0,
         )
     }
 
@@ -166,7 +168,7 @@ class PricingTests {
         expect(
             PricedPiece(categoryId = "cat017", metalType = MetalType.gold, karat = KaratValue.k24, metalWeightG = 11.664, wastagePercentage = 5.0, makingCharges = 2000.0, hasDiamonds = true, diamondCharges = 9000.0, stoneCharges = 700.0, miscCharges = 300.0),
             shop,
-            metal = 484289.27999999997, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 484289.27999999997,
+            metal = 484289.0, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 484289.0,
         )
     }
 
@@ -186,7 +188,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.gold, karat = KaratValue.k22, metalWeightG = 7.35, stoneWeightG = 0.42, wastagePercentage = 9.0, makingCharges = 15000.0, hasDiamonds = true, diamondCharges = 85000.0, stoneCharges = 4200.0),
             shop,
-            metal = 263755.8, wastage = 23738.021999999997, making = 15000.0, diamonds = 85000.0, stones = 4200.0, misc = 0.0, total = 391693.822,
+            metal = 263756.0, wastage = 23738.0, making = 15000.0, diamonds = 85000.0, stones = 4200.0, misc = 0.0, total = 391694.0,
         )
     }
 
@@ -206,7 +208,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.gold, karat = KaratValue.k18, metalWeightG = 6.1, secondaryMetalType = MetalType.platinum, secondaryMetalWeightG = 1.8, wastagePercentage = 10.0, makingCharges = 7000.0),
             shop,
-            metal = 227754.0, wastage = 22775.4, making = 7000.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 257529.4,
+            metal = 227754.0, wastage = 22775.0, making = 7000.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 257529.0,
         )
     }
 
@@ -216,7 +218,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.gold, karat = KaratValue.k21, metalWeightG = 10.0, secondaryMetalType = MetalType.gold, secondaryMetalKarat = KaratValue.k18, secondaryMetalWeightG = 2.2, wastagePercentage = 5.0),
             shop,
-            metal = 431808.0, wastage = 21590.4, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 453398.4,
+            metal = 431808.0, wastage = 21590.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 453398.0,
         )
     }
 
@@ -226,7 +228,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.gold, karat = KaratValue.k21, metalWeightG = 10.0, secondaryMetalType = MetalType.silver, secondaryMetalWeightG = 3.0, wastagePercentage = 5.0, silverRatePerGram = 999.0),
             shop,
-            metal = 364291.5, wastage = 18214.575, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 382506.075,
+            metal = 364292.0, wastage = 18215.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 382507.0,
         )
     }
 
@@ -266,7 +268,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.silver, metalWeightG = 12.5, stoneWeightG = 1.5, wastagePercentage = 15.0, makingCharges = 5000.0, diamondCharges = 2000.0, stoneCharges = 1200.0, miscCharges = 300.0),
             shop,
-            metal = 4131.25, wastage = 0.0, making = 0.0, diamonds = 2000.0, stones = 1200.0, misc = 300.0, total = 7631.25,
+            metal = 4131.0, wastage = 0.0, making = 0.0, diamonds = 2000.0, stones = 1200.0, misc = 300.0, total = 7631.0,
         )
     }
 
@@ -286,7 +288,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.silver, metalWeightG = 12.5, silverRatePerGram = 0.0),
             shop,
-            metal = 4131.25, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 4131.25,
+            metal = 4131.0, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 4131.0,
         )
     }
 
@@ -306,7 +308,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.silver, metalWeightG = 7.3, miscCharges = 150.0),
             silverHouse,
-            metal = 3013.075, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 150.0, total = 3163.075,
+            metal = 3013.0, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 150.0, total = 3163.0,
         )
     }
 
@@ -346,7 +348,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.palladium, metalWeightG = 8.8, wastagePercentage = 10.0),
             shop,
-            metal = 127600.00000000001, wastage = 12760.000000000002, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 140360.00000000003,
+            metal = 127600.0, wastage = 12760.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 140360.0,
         )
     }
 
@@ -356,7 +358,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.palladium, karat = KaratValue.k18, metalWeightG = 8.8, wastagePercentage = 10.0),
             flatPalladium,
-            metal = 127600.00000000001, wastage = 12760.000000000002, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 140360.00000000003,
+            metal = 127600.0, wastage = 12760.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 140360.0,
         )
     }
 
@@ -366,7 +368,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.palladium, karat = KaratValue.k21, metalWeightG = 8.8),
             shop,
-            metal = 127600.00000000001, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 127600.00000000001,
+            metal = 127600.0, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 127600.0,
         )
     }
 
@@ -456,7 +458,7 @@ class PricingTests {
         expect(
             PricedPiece(metalType = MetalType.gold, karat = KaratValue.k21, metalWeightG = 7.777, stoneWeightG = 0.333, wastagePercentage = 9.35, makingCharges = 1234.56, hasDiamonds = true, diamondCharges = 0.1, stoneCharges = 0.2, miscCharges = 0.3),
             shop,
-            metal = 270440.52, wastage = 25286.18862, making = 1234.56, diamonds = 0.1, stones = 0.2, misc = 0.3, total = 296961.86862,
+            metal = 270441.0, wastage = 25286.0, making = 1235.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 296962.0,
         )
     }
 
@@ -471,22 +473,24 @@ class PricingTests {
     }
 
     @Test
-    fun testSilverTimesInfinityOverNoRateIsNaNSoNothing() {
-        // The NaN guard (silver): an infinite weight at a rate of 0 is NaN, and a NaN price comes back as all zeros.
+    fun testSilverTimesInfinityOverNoRateIsAnUnreadableLineSoNothing() {
+        // Silver: an infinite weight at a rate of 0 is NaN, and a line that is not a number is 0 rupees
+        // (rupees(NaN) is 0), so only the stones are left.
         expect(
             PricedPiece(metalType = MetalType.silver, metalWeightG = Double.POSITIVE_INFINITY, stoneCharges = 100.0),
             zero,
-            metal = 0.0, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 0.0,
+            metal = 0.0, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 100.0, misc = 0.0, total = 100.0,
         )
     }
 
     @Test
-    fun testInfiniteChargesThatCancelAreNaNSoNothing() {
-        // The NaN guard (gold): +Infinity making and -Infinity diamonds sum to NaN; the answer is all zeros.
+    fun testInfiniteChargesAreNotAmountsSoNothing() {
+        // Gold: +Infinity making and -Infinity diamonds are not amounts; each line is rounded first, and an
+        // infinite one is 0 rupees, so only the metal is left.
         expect(
             PricedPiece(metalType = MetalType.gold, karat = KaratValue.k21, metalWeightG = 5.0, makingCharges = Double.POSITIVE_INFINITY, hasDiamonds = true, diamondCharges = Double.NEGATIVE_INFINITY),
             shop,
-            metal = 0.0, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 0.0,
+            metal = 181650.0, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 181650.0,
         )
     }
 
@@ -501,7 +505,7 @@ class PricingTests {
                 "makingCharges" to 7000, "stoneChargesIfAny" to 1800, "miscChargesIfAny" to 200, "unitPrice" to 1,
             ),
         )
-        expect(PricedPiece(item), shop, metal = 350152.0, wastage = 31513.68, making = 7000.0, diamonds = 0.0, stones = 1800.0, misc = 200.0, total = 390665.68)
+        expect(PricedPiece(item), shop, metal = 350152.0, wastage = 31514.0, making = 7000.0, diamonds = 0.0, stones = 1800.0, misc = 200.0, total = 390666.0)
     }
 
     @Test
@@ -530,18 +534,18 @@ class PricingTests {
             ),
         )
         assertTrue(PricedPiece(item).hasDiamonds)
-        expect(PricedPiece(item), shop, metal = 225246.0, wastage = 22524.600000000002, making = 5000.0, diamonds = 40000.0, stones = 0.0, misc = 0.0, total = 292770.6)
+        expect(PricedPiece(item), shop, metal = 225246.0, wastage = 22525.0, making = 5000.0, diamonds = 40000.0, stones = 0.0, misc = 0.0, total = 292771.0)
     }
 
     @Test
     fun testDiamondDetailsAloneFlagTheLineButChargeNothing() {
         val item = invoiceItem(mapOf("metalType" to "gold", "karat" to "21k", "metalWeightG" to 6.2, "wastagePercentage" to 10, "diamondDetails" to "  0.3 ct VS  "))
         assertTrue(PricedPiece(item).hasDiamonds)
-        expect(PricedPiece(item), shop, metal = 225246.0, wastage = 22524.600000000002, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 247770.6)
+        expect(PricedPiece(item), shop, metal = 225246.0, wastage = 22525.0, making = 0.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 247771.0)
         // Blank details flag nothing.
         val blank = invoiceItem(mapOf("metalType" to "gold", "karat" to "21k", "metalWeightG" to 6.2, "wastagePercentage" to 10, "diamondDetails" to "   "))
         assertFalse(PricedPiece(blank).hasDiamonds)
-        assertEquals(247770.6, price(PricedPiece(blank), shop))
+        assertEquals(247771.0, price(PricedPiece(blank), shop))
     }
 
     @Test
@@ -549,10 +553,10 @@ class PricingTests {
         val item = invoiceItem(mapOf("metalType" to "silver", "metalWeightG" to 14.2, "silverRatePerGram" to 410, "stoneChargesIfAny" to 900))
         assertEquals(410.0, PricedPiece(item).silverRatePerGram)
         expect(PricedPiece(item), shop, metal = 5822.0, wastage = 0.0, making = 0.0, diamonds = 0.0, stones = 900.0, misc = 0.0, total = 6722.0)
-        // A line with no rate of its own takes the shop's: 14.2 x 330.5 + 900.
+        // A line with no rate of its own takes the shop's: 14.2 x 330.5 (4,693.1, so 4,693) + 900.
         val plain = invoiceItem(mapOf("metalType" to "silver", "metalWeightG" to 14.2, "stoneChargesIfAny" to 900))
         assertNull(PricedPiece(plain).silverRatePerGram)
-        assertEquals(14.2 * 330.5 + 900, price(PricedPiece(plain), shop))
+        assertEquals(5593.0, price(PricedPiece(plain), shop))
     }
 
     @Test
@@ -564,7 +568,7 @@ class PricingTests {
                 "makingCharges" to 6000, "hasDiamonds" to true, "diamondCharges" to 20000, "stoneCharges" to 1500,
             ),
         )
-        expect(PricedPiece(item), shop, metal = 143244.0, wastage = 14324.400000000001, making = 6000.0, diamonds = 20000.0, stones = 1500.0, misc = 0.0, total = 185068.4)
+        expect(PricedPiece(item), shop, metal = 143244.0, wastage = 14324.0, making = 6000.0, diamonds = 20000.0, stones = 1500.0, misc = 0.0, total = 185068.0)
     }
 
     @Test
@@ -594,7 +598,7 @@ class PricingTests {
                 "wastagePercentage" to 7, "makingCharges" to 3000,
             ),
         )
-        expect(PricedPiece(p), shop, metal = 473960.0, wastage = 33177.200000000004, making = 3000.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 510137.2)
+        expect(PricedPiece(p), shop, metal = 473960.0, wastage = 33177.0, making = 3000.0, diamonds = 0.0, stones = 0.0, misc = 0.0, total = 510137.0)
     }
 
     @Test

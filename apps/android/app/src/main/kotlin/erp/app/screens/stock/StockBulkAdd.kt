@@ -273,9 +273,9 @@ private fun CostSection(shared: StockPieceFields, set: (StockPieceFields) -> Uni
     ) {
         if (!shared.silver) {
             NumberRow("Wastage (%)", shared.wastage, { set(shared.copy(wastage = it)) }, prompt = "e.g. 10")
-            NumberRow("Making (PKR)", shared.making, { set(shared.copy(making = it)) }, prompt = "e.g. 5000")
+            NumberRow("Making (PKR)", shared.making, { set(shared.copy(making = it)) }, prompt = "e.g. 5000", rupees = true)
         }
-        NumberRow("Misc (PKR)", shared.miscCharges, { set(shared.copy(miscCharges = it)) }, prompt = "e.g. 250")
+        NumberRow("Misc (PKR)", shared.miscCharges, { set(shared.copy(miscCharges = it)) }, prompt = "e.g. 250", rupees = true)
     }
 }
 
@@ -288,11 +288,11 @@ private fun StonesSection(shared: StockPieceFields, set: (StockPieceFields) -> U
         ToggleRow("Has other stones", shared.hasStones) { set(shared.copy(hasStones = it)) }
         if (shared.hasStones) {
             NumberRow("Stone weight", shared.stoneWeight, { set(shared.copy(stoneWeight = it)) }, prompt = "e.g. 0.5", unit = "g")
-            NumberRow("Stones (PKR)", shared.stoneCharges, { set(shared.copy(stoneCharges = it)) }, prompt = "e.g. 15000")
+            NumberRow("Stones (PKR)", shared.stoneCharges, { set(shared.copy(stoneCharges = it)) }, prompt = "e.g. 15000", rupees = true)
         }
         ToggleRow("Has diamonds", shared.hasDiamonds) { set(shared.copy(hasDiamonds = it)) }
         if (shared.hasDiamonds) {
-            NumberRow("Diamonds (PKR)", shared.diamondCharges, { set(shared.copy(diamondCharges = it)) }, prompt = "e.g. 50000")
+            NumberRow("Diamonds (PKR)", shared.diamondCharges, { set(shared.copy(diamondCharges = it)) }, prompt = "e.g. 50000", rupees = true)
         }
     }
 }

@@ -91,7 +91,7 @@ val STAGES: Map<OrderStage, StageInfo> = mapOf(
 fun stageOf(order: Order, owedOnInvoice: Double = 0.0): OrderStage {
     if (order.status == OrderStatus.cancelled || order.status == OrderStatus.refunded) return OrderStage.closed
     if (!JS.has(order.invoiceId) && awaitingTransfer(order)) return OrderStage.transfer
-    if (JS.has(order.invoiceId)) return if (owedOnInvoice > 0.5) OrderStage.payment else OrderStage.done
+    if (JS.has(order.invoiceId)) return if (owesMoney(owedOnInvoice)) OrderStage.payment else OrderStage.done
     if (order.status == OrderStatus.completed) return OrderStage.ready
     if (order.status == OrderStatus.inProgress) return OrderStage.karigar
     return OrderStage.new
@@ -190,7 +190,7 @@ fun withoutOrderAdvance(order: Order, lineIndex: Int): OrderAdvanceRemoval? {
     if (laterSum > cash + 0.5) return OrderAdvanceRemoval(advancePayment = 0.0, advances = emptyList(), dropMethod = true, removed = removed)
     val hasFirst = cash - laterSum > 0.5
     if (hasFirst && lineIndex == 0) {
-        return OrderAdvanceRemoval(advancePayment = JS.round(laterSum * 100) / 100, advances = all, dropMethod = true, removed = removed)
+        return OrderAdvanceRemoval(advancePayment = rupees(laterSum), advances = all, dropMethod = true, removed = removed)
     }
     // The k-th positive entry of the list.
     var k = lineIndex - (if (hasFirst) 1 else 0)
@@ -203,7 +203,7 @@ fun withoutOrderAdvance(order: Order, lineIndex: Int): OrderAdvanceRemoval? {
     }
     if (at < 0) return null
     return OrderAdvanceRemoval(
-        advancePayment = JS.round((cash - all[at].amount) * 100) / 100,
+        advancePayment = rupees(cash - all[at].amount),
         advances = all.filterIndexed { i, _ -> i != at },
         dropMethod = false,
         removed = removed,

@@ -18,6 +18,7 @@ import erp.core.logic.pakistanE164
 import erp.core.logic.rates
 import erp.core.logic.ratesToKeep
 import erp.core.logic.resolveSaleCustomer
+import erp.core.logic.rupees
 import erp.core.logic.shouldCreateCustomer
 import erp.core.models.Customer
 import erp.core.models.ExchangeEntry
@@ -196,10 +197,10 @@ class SaleFigures(draft: SaleDraft, settings: Settings?, customers: List<Custome
         }
         costs = byLine
         subtotal = sum
-        discount = SaleNumber.value(draft.discount)
+        discount = rupees(SaleNumber.value(draft.discount))
         exchange = exchangeRowsTotal(draft.exchanges.map { it.core })
         total = sum - discount - exchange
-        paidNow = draft.payments.fold(0.0) { acc, p -> acc + SaleNumber.value(p.amount) }
+        paidNow = draft.payments.fold(0.0) { acc, p -> acc + rupees(SaleNumber.value(p.amount)) }
         balance = total - paidNow
 
         who = resolveSaleCustomer(selectedId = draft.customerId, typedName = draft.customerName, typedPhone = draft.customerPhone, customers = customers)
@@ -298,7 +299,7 @@ fun SaleDraft.payload(f: SaleFigures, qr: (String) -> String?): MutableMap<Strin
     out["exchanges"] = exchangesFromRows(exchanges.map { it.core }).map { exchangeJSON(it) }
     val paid = ArrayList<Map<String, Any?>>()
     for (r in payments) {
-        val amount = SaleNumber.value(r.amount)
+        val amount = rupees(SaleNumber.value(r.amount))
         if (amount <= 0) continue
         val p = LinkedHashMap<String, Any?>()
         p["amount"] = amount

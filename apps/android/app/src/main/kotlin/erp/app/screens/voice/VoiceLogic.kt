@@ -8,6 +8,7 @@ import erp.core.entry.SaleBillReading
 import erp.core.entry.SaleDraft
 import erp.core.entry.fillFromBill
 import erp.core.entry.fillFromSlip
+import erp.core.logic.rupees
 import erp.core.models.Customer
 import erp.core.models.Product
 import erp.core.models.Settings
@@ -122,7 +123,7 @@ object VoiceHandoff {
             val price = piece.lineTotal
             if (price != null && price > 0 && firstPiece + i < draft.pieces.size) {
                 draft.pieces[firstPiece + i].manual = true
-                draft.pieces[firstPiece + i].manualPrice = NewOrderSlip.jsNumber(price)
+                draft.pieces[firstPiece + i].manualPrice = NewOrderSlip.jsNumber(rupees(price))
             }
         }
         (payload["advanceMethod"] as? String)?.let { draft.advanceMethod = it }

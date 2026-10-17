@@ -6,6 +6,7 @@ import erp.core.logic.invoiceExchanges
 import erp.core.logic.isWalkInName
 import erp.core.logic.rates
 import erp.core.logic.rowsFromExchanges
+import erp.core.logic.rupees
 import erp.core.models.Invoice
 import erp.core.models.InvoiceItem
 import erp.core.models.Settings
@@ -59,7 +60,7 @@ class SaleEdit(inv: Invoice, settings: Settings?) {
             if (v > 0) boxes[k.name] = SaleNumber.text(v)
         }
         d.rates = boxes
-        d.discount = SaleNumber.text(inv.discountAmount)
+        d.discount = SaleNumber.text(rupees(inv.discountAmount))  // whole rupees: an old bill's paise stay off the box
         val rows = rowsFromExchanges(invoiceExchanges(inv)).map { SaleExchangeRow(it) }
         d.exchanges = if (rows.isEmpty()) mutableListOf(SaleExchangeRow.blank()) else rows.toMutableList()
         d.payments = mutableListOf(SalePaymentRow())
@@ -77,7 +78,7 @@ class SaleEdit(inv: Invoice, settings: Settings?) {
             del.expectedDate = x.expectedDate ?: ""
             del.contactName = x.contactName ?: ""
             del.contactPhone = x.contactPhone ?: ""
-            del.charge = SaleNumber.text(x.charge)
+            del.charge = SaleNumber.text(x.charge?.let { rupees(it) })
             del.notes = x.notes ?: ""
         }
         d.delivery = del

@@ -17,7 +17,7 @@ data class OverheadDraftLine(val id: String, val label: String = "", val amountT
         amountText = if (item.amount == 0.0) "" else PaymentText.field(item.amount),
     )
 
-    val item: OverheadItem get() = OverheadItem(id = id, label = label, amount = MoneyParse.amount(amountText) ?: 0.0)
+    val item: OverheadItem get() = OverheadItem(id = id, label = label, amount = MoneyParse.rupees(amountText) ?: 0.0)
 
     companion object {
         fun lines(items: List<OverheadItem>): List<OverheadDraftLine> = items.map { OverheadDraftLine(it) }

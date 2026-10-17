@@ -241,7 +241,7 @@ private fun GroupHeader(g: RepairsGroup) {
     ) {
         Box(Modifier.weight(1f)) { LedgerHeading(g.title) }
         Text("${g.rows.size}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (owing > 0) {
+        if (owing >= 1) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 NumericText(
                     Money.pkrLac(owing), owing,
@@ -351,7 +351,7 @@ internal fun facts(r: Repair, now: Instant): String {
 @Composable
 private fun RowMoney(r: Repair) {
     val owing = repairBalance(r)
-    if (owing > 0) {
+    if (owing >= 1) {
         Column(horizontalAlignment = Alignment.End) {
             NumericText(Money.pkr(owing), owing, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
             Text("due", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

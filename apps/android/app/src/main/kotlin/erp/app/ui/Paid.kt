@@ -48,7 +48,7 @@ import erp.core.logic.Money
 @Composable
 fun PaidBar(paid: Double, total: Double, modifier: Modifier = Modifier) {
     val whole = maxOf(total, 1.0)
-    val done = paid >= total - 0.5
+    val done = total - paid < 1
     val reduce = reduceMotion()
     val progress by animateFloatAsState(
         (paid.coerceIn(0.0, whole) / whole).toFloat(), Motion.travel(reduce), label = "paidBar",
@@ -70,7 +70,7 @@ fun PaidBar(paid: Double, total: Double, modifier: Modifier = Modifier) {
  */
 @Composable
 fun PaidRing(paid: Double, total: Double, modifier: Modifier = Modifier, size: Dp = 64.dp) {
-    val settled = total > 0 && paid >= total - 0.5
+    val settled = total > 0 && total - paid < 1
     val fraction = if (total > 0) (paid / total).coerceIn(0.0, 1.0).toFloat() else 0f
     val reduce = reduceMotion()
     val colour = if (settled) Tone.settled.fill() else ErpColors.accent
@@ -121,8 +121,8 @@ fun MoneySplit(
             Cell(totalLabel, total, Money.pkr(total), MaterialTheme.colorScheme.onSurface, Alignment.Start, Modifier.weight(1f))
             Cell(paidLabel, paid, Money.pkr(paid), MaterialTheme.colorScheme.onSurfaceVariant, Alignment.CenterHorizontally, Modifier.weight(1f))
             when {
-                due < -0.5 -> Cell("In credit", -due, Money.pkr(-due), Tone.credit.color(), Alignment.End, Modifier.weight(1f))
-                due > 0.5 -> Cell("Due", due, Money.pkr(due), Tone.owed.color(), Alignment.End, Modifier.weight(1f))
+                due <= -1 -> Cell("In credit", -due, Money.pkr(-due), Tone.credit.color(), Alignment.End, Modifier.weight(1f))
+                due >= 1 -> Cell("Due", due, Money.pkr(due), Tone.owed.color(), Alignment.End, Modifier.weight(1f))
                 else -> Cell("Due", 0.0, "Nil", Tone.settled.color(), Alignment.End, Modifier.weight(1f))
             }
         }

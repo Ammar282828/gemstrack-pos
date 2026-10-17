@@ -20,6 +20,8 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.ViewAgenda
+import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Inventory
@@ -69,9 +71,9 @@ object NavIcon {
         "Hammer" to { Icons.Rounded.Construction }, "History" to { Icons.Rounded.History }, "House" to { Icons.Rounded.Home },
         "ImagePlus" to { Icons.Rounded.AddPhotoAlternate }, "Import" to { Icons.Rounded.Download }, "Landmark" to { Icons.Rounded.AccountBalance },
         "Layers" to { Icons.Rounded.Layers }, "LayoutGrid" to { Icons.Rounded.GridView }, "ListChecks" to { Icons.Rounded.Checklist },
-        "Megaphone" to { Icons.Rounded.Campaign }, "Mic" to { Icons.Rounded.Mic }, "Package" to { Icons.Rounded.Inventory },
+        "Map" to { Icons.Rounded.Explore }, "Megaphone" to { Icons.Rounded.Campaign }, "Mic" to { Icons.Rounded.Mic }, "Package" to { Icons.Rounded.Inventory },
         "Palette" to { Icons.Rounded.Palette }, "PenLine" to { Icons.Rounded.Edit }, "Plug" to { Icons.Rounded.Power },
-        "Receipt" to { Icons.Rounded.Receipt }, "Rocket" to { Icons.Rounded.RocketLaunch }, "RotateCcw" to { Icons.AutoMirrored.Rounded.Undo },
+        "Receipt" to { Icons.Rounded.Receipt }, "Rocket" to { Icons.Rounded.RocketLaunch }, "Rows3" to { Icons.Rounded.ViewAgenda }, "RotateCcw" to { Icons.AutoMirrored.Rounded.Undo },
         "Scale" to { Icons.Rounded.Scale }, "ScanLine" to { Icons.Rounded.QrCodeScanner }, "Send" to { Icons.AutoMirrored.Rounded.Send },
         "Settings" to { Icons.Rounded.Settings }, "SlidersHorizontal" to { Icons.Rounded.Tune }, "Tag" to { Icons.Rounded.Sell },
         "Target" to { Icons.Rounded.Adjust }, "TrendingUp" to { Icons.AutoMirrored.Rounded.TrendingUp }, "Users" to { Icons.Rounded.People },
@@ -89,9 +91,9 @@ object NavIcon {
         "Hammer" to { Icons.Outlined.Construction }, "History" to { Icons.Outlined.History }, "House" to { Icons.Outlined.Home },
         "ImagePlus" to { Icons.Outlined.AddPhotoAlternate }, "Import" to { Icons.Outlined.Download }, "Landmark" to { Icons.Outlined.AccountBalance },
         "Layers" to { Icons.Outlined.Layers }, "LayoutGrid" to { Icons.Outlined.GridView }, "ListChecks" to { Icons.Outlined.Checklist },
-        "Megaphone" to { Icons.Outlined.Campaign }, "Mic" to { Icons.Outlined.Mic }, "Package" to { Icons.Outlined.Inventory },
+        "Map" to { Icons.Outlined.Explore }, "Megaphone" to { Icons.Outlined.Campaign }, "Mic" to { Icons.Outlined.Mic }, "Package" to { Icons.Outlined.Inventory },
         "Palette" to { Icons.Outlined.Palette }, "PenLine" to { Icons.Outlined.Edit }, "Plug" to { Icons.Outlined.Power },
-        "Receipt" to { Icons.Outlined.Receipt }, "Rocket" to { Icons.Outlined.RocketLaunch }, "RotateCcw" to { Icons.AutoMirrored.Outlined.Undo },
+        "Receipt" to { Icons.Outlined.Receipt }, "Rocket" to { Icons.Outlined.RocketLaunch }, "Rows3" to { Icons.Outlined.ViewAgenda }, "RotateCcw" to { Icons.AutoMirrored.Outlined.Undo },
         "Scale" to { Icons.Outlined.Scale }, "ScanLine" to { Icons.Outlined.QrCodeScanner }, "Send" to { Icons.AutoMirrored.Outlined.Send },
         "Settings" to { Icons.Outlined.Settings }, "SlidersHorizontal" to { Icons.Outlined.Tune }, "Tag" to { Icons.Outlined.Sell },
         "Target" to { Icons.Outlined.Adjust }, "TrendingUp" to { Icons.AutoMirrored.Outlined.TrendingUp }, "Users" to { Icons.Outlined.People },

@@ -320,6 +320,6 @@ private fun Moved(text: String, color: Color, big: Boolean = false) {
 
 @Composable
 private fun balanceTone(balance: Double): Color {
-    if (abs(balance) < 0.001) return MaterialTheme.colorScheme.onSurfaceVariant
+    if (abs(balance) < 1) return MaterialTheme.colorScheme.onSurfaceVariant
     return if (balance > 0) Tone.owed.color() else Tone.credit.color()
 }

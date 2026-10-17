@@ -137,7 +137,7 @@ fun ShareholderEntrySheet(ask: ShareholderAsk, salaryPaid: Map<String, Double>, 
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    val amount = MoneyParse.amount(amountText) ?: 0.0
+    val amount = MoneyParse.rupees(amountText) ?: 0.0
     val person = ShareholderPerson.named(who)
     val cleaned = what.trim()
 
@@ -214,7 +214,7 @@ fun ShareholderEntrySheet(ask: ShareholderAsk, salaryPaid: Map<String, Double>, 
             }
         }
         Footnote(move.explanation)
-        MoneyField("Amount (PKR)", amountText, { amountText = it }, number = true, big = true, enabled = !saving)
+        MoneyField("Amount (PKR)", amountText, { amountText = it }, number = true, big = true, enabled = !saving, rupees = true)
         if (amount > 0) Text(Money.pkrLac(amount), color = MaterialTheme.colorScheme.onSurfaceVariant)
         DayRow("Date", picked.atZone(phoneZone).toLocalDate(), { picked = pickedInstant(it, picked) })
         if (move != ShareholderMove.salary) {

@@ -349,7 +349,8 @@ object OrderCases {
             }
             val o = sent(c)
             expect((o["exchanges"] as? List<*>)?.size == 2, c.name, "two exchange rows were not sent")
-            expect(close(o["advanceInExchangeValue"] as? Double, 403_200.0 + 45_500.5), c.name, "the exchange total is wrong")
+            // Whole rupees (MoneyRound): the typed 45,500.5 is 45,501 on the order.
+            expect(close(o["advanceInExchangeValue"] as? Double, 403_200.0 + 45_501.0), c.name, "the exchange total is wrong")
             expect((o["advanceMethod"] as? String) == "Bank Transfer", c.name, "the advance method was not sent")
             cases.add(c)
         }

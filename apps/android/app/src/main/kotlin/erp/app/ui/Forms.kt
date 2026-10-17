@@ -147,9 +147,12 @@ fun RowScope.ValueInput(
  * fields"): the draft holds text, and `SaleNumber.text` has already left a zero out of it.
  */
 @Composable
-fun NumberRow(label: String, text: String, onChange: (String) -> Unit, prompt: String = "0", decimal: Boolean = true) {
+fun NumberRow(label: String, text: String, onChange: (String) -> Unit, prompt: String = "0", decimal: Boolean = true, rupees: Boolean = false) {
     ValueRow(label) {
-        ValueInput(text, onChange, prompt, label, keyboard = if (decimal) KeyboardType.Decimal else KeyboardType.Number)
+        // A sum of money (`rupees`) takes the number pad and whole rupees only (owner, 2026-10-17: "there should
+        // be no decimals"); weights, rates and percentages keep their decimals.
+        if (rupees) ValueInput(PaymentText.whole(text), { onChange(PaymentText.whole(it)) }, prompt, label, keyboard = KeyboardType.Number)
+        else ValueInput(text, onChange, prompt, label, keyboard = if (decimal) KeyboardType.Decimal else KeyboardType.Number)
     }
 }
 

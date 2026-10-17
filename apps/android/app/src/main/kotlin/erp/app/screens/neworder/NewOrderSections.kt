@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import erp.app.ui.CustomerField
 import erp.app.ui.MinTouchTarget
 import erp.app.ui.PaymentMethods
+import erp.app.ui.PaymentText
+import erp.app.ui.RoundOffChips
 import erp.app.ui.Tone
 import erp.app.ui.color
 import erp.core.entry.EntryHouse
@@ -192,11 +194,15 @@ internal fun PrintedSection(holder: DraftHolder) {
 // MARK: Payment
 
 @Composable
-internal fun PaymentSection(holder: DraftHolder) {
+internal fun PaymentSection(holder: DraftHolder, totals: NewOrderMath.Totals) {
     val d = holder.read()
     FormCard(title = "Payment", footer = "The discount is carried onto the invoice when this order is finalised.") {
-        NumberRow("Discount (PKR)", d.discount, { t -> holder.edit { discount = t } })
-        NumberRow("Advance paid (PKR)", d.advance, { t -> holder.edit { advance = t } })
+        NumberRow("Discount (PKR)", d.discount, { t -> holder.edit { discount = t } }, rupees = true)
+        // order-form.tsx: the bill before any discount is the pieces less the exchange (the advance is a payment).
+        RoundOffChips(totals.subtotal - totals.exchange, totals.discount, Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) { n ->
+            holder.edit { discount = NewOrderFormat.rupeeBox(n) }
+        }
+        NumberRow("Advance paid (PKR)", d.advance, { t -> holder.edit { advance = t } }, rupees = true)
         if (NewOrderFormat.num(d.advance) > 0) {
             PickerRow("Paid by", d.advanceMethod, listOf("" to "Not recorded") + PaymentMethods.all.map { it to it }) { m -> holder.edit { advanceMethod = m } }
         }
@@ -232,8 +238,8 @@ internal fun ExchangeSection(holder: DraftHolder) {
                         Modifier.weight(1f), placeholder = "What it is (e.g. old ring)", capitalization = KeyboardCapitalization.Sentences, label = "What it is",
                     )
                     QuietField(
-                        row.value, { t -> holder.edit { patchExchange(row.id, ExchangeRowPatch(value = t)) } },
-                        Modifier.width(110.dp), placeholder = "Amount", keyboardType = KeyboardType.Decimal, autoCorrect = false, end = true, label = "Amount",
+                        PaymentText.whole(row.value), { t -> holder.edit { patchExchange(row.id, ExchangeRowPatch(value = PaymentText.whole(t))) } },
+                        Modifier.width(110.dp), placeholder = "Amount", keyboardType = KeyboardType.Number, autoCorrect = false, end = true, label = "Amount",
                     )
                     IconButton(onClick = { remove(row.id) }, Modifier.size(MinTouchTarget)) {
                         Icon(Icons.Filled.Close, "Remove this exchange", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -323,7 +329,7 @@ internal fun DeliverySection(
         FieldRow("City", d.deliveryCity, { t -> holder.edit { deliveryCity = t } }, prompt = "Karachi", capitalization = KeyboardCapitalization.Words)
         FieldRow("Receiver", d.deliveryName, { t -> holder.edit { deliveryName = t } }, prompt = "If not the customer", capitalization = KeyboardCapitalization.Words)
         FieldRow("Receiver's phone", d.deliveryPhone, { t -> holder.edit { deliveryPhone = t } }, prompt = "Optional", keyboardType = KeyboardType.Phone)
-        NumberRow("Delivery charge (PKR)", d.deliveryCharge, { t -> holder.edit { deliveryCharge = t } }, prompt = "0 if free")
+        NumberRow("Delivery charge (PKR)", d.deliveryCharge, { t -> holder.edit { deliveryCharge = t } }, prompt = "0 if free", rupees = true)
         FieldRow("Instructions", d.deliveryNotes, { t -> holder.edit { deliveryNotes = t } }, prompt = "Landmark, timing, gate", capitalization = KeyboardCapitalization.Sentences)
         ToggleRow("Expected on a day", d.deliveryExpected.isNotEmpty()) { on -> holder.edit { deliveryExpected = if (on) NewOrderDay.today else "" } }
         if (d.deliveryExpected.isNotEmpty()) DateRow("Expected", d.deliveryExpected) { day -> holder.edit { deliveryExpected = day } }

@@ -98,7 +98,7 @@ sealed interface OrderNextStep {
             GiveOut -> "Give out"
             MarkReady -> "Mark ready"
             Finalize -> "Make invoice"
-            is Invoice -> if (owed > 0.5) "Take ${Money.pkr(owed)}" else "Open $id"
+            is Invoice -> if (owed >= 1) "Take ${Money.pkr(owed)}" else "Open $id"
         }
 
     /** The step's icon, by the SF Symbol the iPhone uses (the screens map it to a Material icon). */
@@ -108,7 +108,7 @@ sealed interface OrderNextStep {
             GiveOut -> "person.badge.plus"
             MarkReady -> "checkmark.circle"
             Finalize -> "doc.text"
-            is Invoice -> if (owed > 0.5) "banknote" else "doc.text"
+            is Invoice -> if (owed >= 1) "banknote" else "doc.text"
         }
 }
 

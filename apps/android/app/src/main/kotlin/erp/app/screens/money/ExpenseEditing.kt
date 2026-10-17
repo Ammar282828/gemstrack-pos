@@ -14,13 +14,11 @@ import java.time.ZoneId
 // The writes are the ERP's (updateExpense, deleteExpense and the extra revenue ops, lib/writes/expense-admin.ts).
 
 object ExpenseEditing {
-    /** An amount as the form's box shows it: whole rupees bare ("12000"), else up to two decimals. */
+    /** An amount as the form's box shows it: whole rupees bare ("12000"), never paise (owner, 2026-10-17: "there should be no decimals"). */
     fun typed(amount: Double): String {
-        if (amount <= 0) return ""
-        var s = BigDecimal(amount).setScale(2, RoundingMode.HALF_EVEN).toPlainString()
-        while (s.endsWith("0")) s = s.dropLast(1)
-        if (s.endsWith(".")) s = s.dropLast(1)
-        return s
+        val whole = erp.app.ui.PaymentText.rounded(amount)
+        if (!(whole > 0) || whole >= 1e15) return ""
+        return whole.toLong().toString()
     }
 
     /**

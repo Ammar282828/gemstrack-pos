@@ -51,6 +51,7 @@ import erp.app.data.rememberShelf
 import erp.app.ui.FilterChip
 import erp.app.ui.MoneyText
 import erp.app.ui.NotAvailableState
+import erp.app.ui.PaymentText
 import erp.app.ui.PaymentMethods
 import erp.app.ui.Radius
 import erp.app.ui.Tone
@@ -117,7 +118,7 @@ fun RepairsForm(editing: Repair?, onDismiss: () -> Unit, onSaved: (id: String, s
     val hasPiece = RepairsFormLogic.hasPiece(pieces)
     val canSave = hasPiece && !saving
     val total = RepairsFormLogic.total(pieces)
-    val advanceAmount = RepairsFormLogic.number(advance) ?: 0.0
+    val advanceAmount = RepairsFormLogic.rupees(advance) ?: 0.0
 
     fun values() = RepairsFormValues(
         customerId = customerId, name = name, phone = phone, pieces = pieces, hasDate = hasDate, promised = promised,
@@ -219,7 +220,7 @@ fun RepairsForm(editing: Repair?, onDismiss: () -> Unit, onSaved: (id: String, s
                             RepairsField(piece.weight, { v -> pieces = pieces.replaced(index) { it.copy(weight = v) } }, "Weight g", keyboardType = KeyboardType.Decimal)
                         }
                         Box(Modifier.weight(1f)) {
-                            RepairsField(piece.price, { v -> pieces = pieces.replaced(index) { it.copy(price = v) } }, "Price", keyboardType = KeyboardType.Number, end = true)
+                            RepairsField(PaymentText.whole(piece.price), { v -> pieces = pieces.replaced(index) { it.copy(price = PaymentText.whole(v)) } }, "Price", keyboardType = KeyboardType.Number, end = true)
                         }
                     }
                 }
@@ -272,7 +273,7 @@ fun RepairsForm(editing: Repair?, onDismiss: () -> Unit, onSaved: (id: String, s
             }
         } else {
             RepairsSection(title = "Advance taken now (optional)") {
-                RepairsField(advance, { advance = it }, "Amount in rupees", keyboardType = KeyboardType.Number)
+                RepairsField(PaymentText.whole(advance), { advance = PaymentText.whole(it) }, "Amount in rupees", keyboardType = KeyboardType.Number)
                 if (advanceAmount > 0) {
                     Text(Money.pkrLac(advanceAmount), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("How it was paid", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -328,7 +329,7 @@ private fun seedTakenBy(person: String?, names: List<String>): String {
 
 private fun startingPieces(editing: Repair?): List<RepairsDraftPiece> {
     val drafts = editing?.pieces?.mapIndexed { i, p ->
-        RepairsDraftPiece(i.toLong(), p.item, p.work, RepairsKit.typed(p.weightG, 3), RepairsKit.typed(p.price, 2))
+        RepairsDraftPiece(i.toLong(), p.item, p.work, RepairsKit.typed(p.weightG, 3), RepairsKit.typed(p.price, 0))
     }.orEmpty()
     return drafts.ifEmpty { listOf(RepairsDraftPiece(0)) }
 }

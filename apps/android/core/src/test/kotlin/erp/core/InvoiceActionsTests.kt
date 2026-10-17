@@ -60,10 +60,15 @@ class InvoiceActionsTests {
     }
 
     @Test
-    fun testTheDiscountSumsInTheOrderTheStoreDoes() {
+    fun testTheDiscountWorksInWholeRupeesTheDiscountTheTotalAndTheBalanceAreEachRounded() {
         assertEquals(
-            InvoiceActions.Discounted(discountAmount = 0.05, grandTotal = 999.5500000000001, balanceDue = 998.85),
+            InvoiceActions.Discounted(discountAmount = 0.0, grandTotal = 1000.0, balanceDue = 999.0),
             InvoiceActions.withDiscount(F(subtotal = 1000.1, exchangeAmount1 = 0.2, exchangeAmount2 = 0.3, amountPaid = 0.7), discount = 0.05),
+        )
+        // An older bill with paise: what it comes to and what is left read as whole rupees.
+        assertEquals(
+            InvoiceActions.Discounted(discountAmount = 2_341.0, grandTotal = 294_659.0, balanceDue = 194_659.0),
+            InvoiceActions.withDiscount(F(subtotal = 297_000.4, amountPaid = 100_000.3), discount = 2_340.6),
         )
     }
 
@@ -121,10 +126,10 @@ class InvoiceActionsTests {
     }
 
     @Test
-    fun testTheRefundSumsInTheOrderTheStoreDoes() {
-        val out = InvoiceActions.withRefund(F(grandTotal = 0.3, payments = listOf(0.1, 0.2)), amount = 0.05)
-        assertEquals(0.25000000000000006, out.amountPaid)
-        assertEquals(0.04999999999999993, out.balanceDue)
+    fun testTheRefundWorksInWholeRupees() {
+        val out = InvoiceActions.withRefund(F(grandTotal = 1_000.0, payments = listOf(600.4, 200.2)), amount = 50.4)
+        assertEquals(751.0, out.amountPaid)
+        assertEquals(249.0, out.balanceDue)
     }
 
     // MARK: Deleting one payment
@@ -154,10 +159,10 @@ class InvoiceActionsTests {
     }
 
     @Test
-    fun testDeletingSumsInTheOrderTheStoreDoes() {
-        val out = InvoiceActions.withoutPayment(F(grandTotal = 1.0, payments = listOf(0.1, 0.2, 0.4)), index = 0)
-        assertEquals(0.6000000000000001, out?.amountPaid)
-        assertEquals(0.3999999999999999, out?.balanceDue)
+    fun testDeletingWorksInWholeRupees() {
+        val out = InvoiceActions.withoutPayment(F(grandTotal = 1_000.0, payments = listOf(100.1, 200.2, 400.4)), index = 0)
+        assertEquals(601.0, out?.amountPaid)
+        assertEquals(399.0, out?.balanceDue)
     }
 
     // MARK: The pieces a deleted invoice puts back in stock

@@ -400,8 +400,8 @@ class MoneyLogicTests {
 
     @Test fun anAmountComesBackAsTheBoxShowedIt() {
         assertEquals("12000", ExpenseEditing.typed(12000.0))
-        assertEquals("12.5", ExpenseEditing.typed(12.5))
-        assertEquals("1250.46", ExpenseEditing.typed(1250.456))
+        assertEquals("13", ExpenseEditing.typed(12.5)) // whole rupees, a half going up
+        assertEquals("1250", ExpenseEditing.typed(1250.456))
         assertEquals("", ExpenseEditing.typed(0.0))
         assertEquals("", ExpenseEditing.typed(-3.0))
     }

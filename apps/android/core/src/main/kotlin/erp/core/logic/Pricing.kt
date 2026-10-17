@@ -220,7 +220,7 @@ private fun calculateSingleMetalCost(metalType: MetalType, karat: KaratValue?, w
 fun calculateProductCosts(product: PricedPiece, rates: PricingRates): ProductCosts {
     // If manual price override is active, just return that price.
     if (product.isCustomPrice) {
-        return ProductCosts(totalPrice = JS.orZero(product.customPrice))
+        return ProductCosts(totalPrice = rupees(product.customPrice))
     }
 
     // Special simplified calculation for silver.
@@ -230,11 +230,12 @@ fun calculateProductCosts(product: PricedPiece, rates: PricingRates): ProductCos
         else if (JS.truthy(rates.silverRatePerGram)) rates.silverRatePerGram else 0.0
 
         // For silver, the provided rate is all-inclusive for metal, making, and wastage.
-        val allInSilverCost = JS.orZero(product.metalWeightG) * silverRatePerGram
+        // Whole rupees, each line rounded where it is worked out, so the lines add up to the total.
+        val allInSilverCost = rupees(JS.orZero(product.metalWeightG) * silverRatePerGram)
 
-        val stoneChargesValue = JS.orZero(product.stoneCharges)
-        val miscChargesValue = JS.orZero(product.miscCharges)
-        val diamondChargesValue = JS.orZero(product.diamondCharges)
+        val stoneChargesValue = rupees(product.stoneCharges)
+        val miscChargesValue = rupees(product.miscCharges)
+        val diamondChargesValue = rupees(product.diamondCharges)
 
         val totalPrice = allInSilverCost + stoneChargesValue + diamondChargesValue + miscChargesValue
 
@@ -262,20 +263,22 @@ fun calculateProductCosts(product: PricedPiece, rates: PricingRates): ProductCos
         secondaryMetalCost = calculateSingleMetalCost(secondaryType, product.secondaryMetalKarat, product.secondaryMetalWeightG!!, rates)
     }
 
-    val totalMetalCost = primaryMetalCost + secondaryMetalCost
+    // Whole rupees (owner, 2026-10-17): the metal, the wastage and every charge are each rounded, and the
+    // piece's price is the sum of the rounded lines, so a printed bill adds up to the rupee.
+    val totalMetalCost = rupees(primaryMetalCost + secondaryMetalCost)
 
     val isActualGoldCoin = product.categoryId == GOLD_COIN_CATEGORY_ID_INTERNAL && product.metalType == MetalType.gold
     // Exclude silver from wastage calculation.
     val applyWastage = product.metalType == MetalType.gold || product.metalType == MetalType.platinum || product.metalType == MetalType.palladium
     val wastagePercentage = if (isActualGoldCoin || !applyWastage) 0.0 else JS.orZero(product.wastagePercentage)
-    val makingCharges = if (isActualGoldCoin) 0.0 else JS.orZero(product.makingCharges)
+    val makingCharges = if (isActualGoldCoin) 0.0 else rupees(product.makingCharges)
     val hasDiamondsValue = if (isActualGoldCoin) false else product.hasDiamonds
-    val diamondChargesValue = if (hasDiamondsValue) JS.orZero(product.diamondCharges) else 0.0
-    val stoneChargesValue = if (isActualGoldCoin) 0.0 else JS.orZero(product.stoneCharges)
-    val miscChargesValue = if (isActualGoldCoin) 0.0 else JS.orZero(product.miscCharges)
+    val diamondChargesValue = if (hasDiamondsValue) rupees(product.diamondCharges) else 0.0
+    val stoneChargesValue = if (isActualGoldCoin) 0.0 else rupees(product.stoneCharges)
+    val miscChargesValue = if (isActualGoldCoin) 0.0 else rupees(product.miscCharges)
 
     val wastageCost = totalMetalCost * (wastagePercentage / 100)
-    val validWastageCost = JS.orZero(wastageCost)
+    val validWastageCost = rupees(wastageCost)
     val totalPrice = totalMetalCost + validWastageCost + makingCharges + diamondChargesValue + stoneChargesValue + miscChargesValue
 
     if (totalPrice.isNaN()) return ProductCosts()

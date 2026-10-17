@@ -201,7 +201,7 @@ object RepairsKit {
         val what = if (r.pieces.size == 1) "your ${r.pieces[0].item.lowercase(Locale.ROOT)} is" else "your ${r.pieces.size} pieces are"
         var text = "$greeting, $what ready for collection at $shopName (repair ${r.id})."
         val owing = repairBalance(r)
-        if (owing > 0) text += " Balance: ${erp.core.logic.Money.pkr(owing)}."
+        if (owing >= 1) text += " Balance: ${erp.core.logic.Money.pkr(owing)}."
         return "$text Please bring your receipt."
     }
 

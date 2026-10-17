@@ -393,7 +393,7 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?) {
                             PrintedSection(holder)
                         }
                         EntryStep.payment -> {
-                            PaymentSection(holder)
+                            PaymentSection(holder, totals)
                             ExchangeSection(holder)
                         }
                         EntryStep.review -> {

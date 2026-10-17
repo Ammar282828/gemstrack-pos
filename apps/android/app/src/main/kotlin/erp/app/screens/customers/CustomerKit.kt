@@ -217,7 +217,7 @@ object CustomerKit {
         var shopOwes = 0.0
         if (ledger != null) {
             val hand = ledgerBalances(ledger)[id] ?: 0.0
-            if (hand > 0.5) inHisaab = hand else if (hand < -0.5) shopOwes = -hand
+            if (hand >= 1) inHisaab = hand else if (hand <= -1) shopOwes = -hand
         }
         return Owing(
             total = total, onInvoices = maxOf(0.0, total - inHisaab), inHisaab = inHisaab,
@@ -249,7 +249,7 @@ object CustomerKit {
         for (c in people) {
             val s = stats[c.id]
             val last = s?.lastAt
-            if (s != null && s.owed > 0) owing += c
+            if (s != null && s.owed >= 1) owing += c
             else if (last != null && last >= cutoff) active += c
             else quiet += c
         }

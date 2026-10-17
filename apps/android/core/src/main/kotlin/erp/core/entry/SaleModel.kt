@@ -9,6 +9,7 @@ import erp.core.logic.blankExchangeRow
 import erp.core.logic.gramsPerTola
 import erp.core.logic.metalHasKarat
 import erp.core.logic.newExchangeRowId
+import erp.core.logic.rupees
 import erp.core.models.Customer
 import erp.core.models.KaratValue
 import erp.core.models.MetalType
@@ -578,7 +579,7 @@ class SaleDraft(
      * (sale-page.tsx `payRestWith`).
      */
     fun payRest(id: String, total: Double) {
-        val others = payments.filter { it.id != id }.fold(0.0) { acc, p -> acc + SaleNumber.value(p.amount) }
+        val others = payments.filter { it.id != id }.fold(0.0) { acc, p -> acc + rupees(SaleNumber.value(p.amount)) }
         val rest = smax(0.0, swiftRounded(total - others))
         val i = payments.indexOfFirst { it.id == id }
         if (i >= 0) payments[i].amount = if (rest > 0) rest.toLong().toString() else ""

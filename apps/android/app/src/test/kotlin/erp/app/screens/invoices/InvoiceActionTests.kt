@@ -51,7 +51,7 @@ class InvoiceActionTests {
 
     @Test fun theDeleteCodesWordsAreTheStores() {
         assertEquals("Delete the payment of PKR 1,000 on INV-1", InvoiceActionWords.deletePaymentWhat(1_000.0, "INV-1"))
-        assertEquals("Refund PKR 1,500.5 on INV-1", InvoiceActionWords.refundWhat(1_500.5, "INV-1"))
+        assertEquals("Refund PKR 1,501 on INV-1", InvoiceActionWords.refundWhat(1_500.5, "INV-1"))
         assertEquals("Delete invoice INV-1", InvoiceActionWords.deleteInvoiceWhat("INV-1"))
     }
 

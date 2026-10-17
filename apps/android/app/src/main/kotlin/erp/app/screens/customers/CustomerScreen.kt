@@ -180,7 +180,7 @@ fun CustomerScreen(id: String) {
         val name = CustomerKit.shown(c)
         val stays = CustomerMergeCounts(invoices = f.invoices.size, orders = f.orders.size, hisaab = f.hisaab.size, given = 0).sentence
         var detail = if (stays == "nothing") "$name will be hidden from the lists." else "$name will be hidden from the lists. Their $stays stay where they are."
-        if (f.owing.total > 0.5) detail += " They still owe ${Money.pkr(f.owing.total)}."
+        if (f.owing.total >= 1) detail += " They still owe ${Money.pkr(f.owing.total)}."
         detail += " Settings, then Recently removed, puts them back."
         deletion = OwnerDeletion("Delete customer $name", detail, final = false, run = { code ->
             ErpApi.shared.write("removeCustomer", mapOf("customerId" to c.id, "deleteCode" to code))
@@ -290,9 +290,9 @@ private fun OwedCard(o: CustomerKit.Owing) {
 internal fun owedDetail(o: CustomerKit.Owing): String {
     val parts = ArrayList<String>()
     if (o.total <= 0.5 && o.shopOwesThem <= 0.5) parts += "Nothing outstanding"
-    if (o.onInvoices > 0.5) parts += "On ${o.invoiceCount} invoice${if (o.invoiceCount == 1) "" else "s"} ${Money.pkr(o.onInvoices)}"
-    if (o.inHisaab > 0.5) parts += "In the hisaab ${Money.pkr(o.inHisaab)}"
-    if (o.shopOwesThem > 0.5) parts += "The hisaab owes them ${Money.pkr(o.shopOwesThem)}"
+    if (o.onInvoices >= 1) parts += "On ${o.invoiceCount} invoice${if (o.invoiceCount == 1) "" else "s"} ${Money.pkr(o.onInvoices)}"
+    if (o.inHisaab >= 1) parts += "In the hisaab ${Money.pkr(o.inHisaab)}"
+    if (o.shopOwesThem >= 1) parts += "The hisaab owes them ${Money.pkr(o.shopOwesThem)}"
     return parts.joinToString(" · ")
 }
 
@@ -461,7 +461,7 @@ private fun CustRepairRow(repair: Repair) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         TwoLine(
             CustomerKit.repairSummary(repair), Modifier.weight(1f), subtitle = repairSubtitle(repair),
-            trailing = if (open && balance > 0) Money.pkr(balance) else null, trailingTint = Tone.owed.color(),
+            trailing = if (open && balance >= 1) Money.pkr(balance) else null, trailingTint = Tone.owed.color(),
         )
         Pill(text, tone = tone)
     }
@@ -470,7 +470,7 @@ private fun CustRepairRow(repair: Repair) {
 /** What they owe goes up (+), what they pay comes off (-): debit less credit, as the ERP keeps it. */
 internal fun hisaabAmount(entry: HisaabEntry): String? {
     val net = entry.cashDebit - entry.cashCredit
-    if (Math.abs(net) < 0.5) return null
+    if (Math.abs(net) < 1) return null
     return (if (net > 0) "+" else "-") + Money.pkr(Math.abs(net))
 }
 

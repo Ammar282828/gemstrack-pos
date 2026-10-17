@@ -60,6 +60,7 @@ import erp.app.data.rememberShelf
 import erp.app.data.rememberShelfStatus
 import erp.app.ui.CustomerField
 import erp.app.ui.PaymentText
+import erp.app.ui.RoundOffChips
 import erp.app.ui.RecentCustomers
 import erp.app.ui.ShopDate
 import erp.app.ui.Tone
@@ -71,6 +72,7 @@ import erp.app.ui.theme.TabularDigits
 import erp.core.logic.InvoiceActions
 import erp.core.logic.Money
 import erp.core.logic.balanceLine
+import erp.core.logic.rupees
 import erp.core.logic.getInvoiceExchangeTotal
 import erp.core.logic.isWalkInName
 import erp.core.logic.pakistanE164
@@ -167,7 +169,8 @@ private fun SaveAction(label: String, saving: Boolean, enabled: Boolean, onClick
  */
 @Composable
 fun InvoiceDiscountSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (InvoiceActionOutcome) -> Unit) {
-    var amountText by rememberSaveable { mutableStateOf(if (invoice.discountAmount > 0) PaymentText.field(invoice.discountAmount) else "") }
+    // Whole rupees: an old invoice's paise are not carried into a box that types only digits.
+    var amountText by rememberSaveable { mutableStateOf(if (rupees(invoice.discountAmount) > 0) PaymentText.field(rupees(invoice.discountAmount)) else "") }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -176,7 +179,7 @@ fun InvoiceDiscountSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoi
     val discount = DiscountText.parse(amountText)
     val problem = if (discount == null) "Enter the discount." else InvoiceActions.discountProblem(invoice.subtotal, discount)
     val after = if (discount != null && problem == null) InvoiceActions.withDiscount(InvoiceActions.Figures(invoice), discount) else null
-    val changed = discount != null && abs(discount - invoice.discountAmount) >= 0.005
+    val changed = discount != null && rupees(discount) != rupees(invoice.discountAmount)
     val exchange = getInvoiceExchangeTotal(invoice)
 
     fun save() {
@@ -216,19 +219,23 @@ fun InvoiceDiscountSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoi
         SheetHeading("Discount")
         OutlinedTextField(
             value = amountText,
-            onValueChange = { amountText = it },
+            onValueChange = { amountText = PaymentText.whole(it) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Discount in rupees") },
             textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TabularDigits),
             singleLine = true,
             enabled = !saving,
             isError = problem != null,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             supportingText = {
                 if (problem != null) Text(problem, color = Tone.problem.color())
                 else if (discount != null && discount > 0) Text(Money.pkrLac(discount))
             },
         )
+        // invoice-viewer.tsx: the bill before any discount is the lines less the exchange.
+        RoundOffChips(payable = invoice.subtotal - exchange, discount = discount ?: 0.0) { n ->
+            amountText = if (n > 0) PaymentText.field(n) else ""
+        }
         if (after != null && changed) {
             SheetHeading("After")
             MoneyRow("Grand total", after.grandTotal, emphasis = true)
@@ -344,7 +351,7 @@ fun InvoiceRefundSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoice
     fun partialFollowers(a: InvoiceActions.Paid): String {
         val lines = mutableListOf<String>()
         lines.add(
-            if (a.balanceDue > 0) InvoiceActionWords.ledger(invoice, a.balanceDue)
+            if (a.balanceDue >= 1) InvoiceActionWords.ledger(invoice, a.balanceDue)
             else "Nothing is owed on it still; the hisaab is left as it is.",
         )
         if (!invoice.id.startsWith("SHOPIFY-")) lines.add("A refund for the same amount goes to its Shopify order, if it has one.")
@@ -404,13 +411,13 @@ fun InvoiceRefundSheet(invoice: Invoice, onDismiss: () -> Unit, onDone: (Invoice
             SheetHeading("Refund")
             OutlinedTextField(
                 value = amountText,
-                onValueChange = { amountText = it },
+                onValueChange = { amountText = PaymentText.whole(it) },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Refund amount (PKR)") },
                 placeholder = { Text("e.g. 1500") },
                 textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TabularDigits),
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 supportingText = {
                     if (amount > 0 && amount > invoice.amountPaid + 0.5) {
                         // The web takes it; said so nobody hands back more than came in by a slip of the keys.
@@ -467,7 +474,7 @@ fun InvoiceCustomerSheet(invoice: Invoice, onDismiss: () -> Unit, onSaved: (Invo
 
     // Already someone's (not a walk-in, however it was spelled).
     val named = !InvoiceFacts.unnamed(invoice)
-    val owes = invoice.balanceDue > 0.5
+    val owes = invoice.balanceDue >= 1
     val typed = name.trim()
     // A person's name, never the walk-in placeholder (the store refuses both).
     val canSave = !saving && typed.isNotEmpty() && !isWalkInName(typed)

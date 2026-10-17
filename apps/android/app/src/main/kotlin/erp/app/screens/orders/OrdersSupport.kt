@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import erp.app.data.ErpApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
@@ -268,5 +269,29 @@ fun OrdersStatusLine(icon: ImageVector, text: String, tone: Tone, modifier: Modi
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
         Icon(icon, null, Modifier.size(20.dp), tint = tone.color())
         Text(text, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = tone.color())
+    }
+}
+
+// MARK: An advance that settles the order
+
+/**
+ * An order's advance, and the Settle beside it (order-dialogs.tsx RecordAdvanceDialog; the iPhone's `OrderAdvance`):
+ * the advance as Save takes it (`recordOrderAdvance`), or the advance and the remainder
+ * added to the order's discount in one write (`settleOrderAdvance`, lib/writes/settle.ts), never a payment that was
+ * not made; the invoice made from the order carries the discount (Order to invoice). Settle is owners only.
+ */
+object OrderAdvance {
+    suspend fun record(order: Order, amount: Double, method: String, note: String) {
+        ErpApi.shared.write(
+            "recordOrderAdvance",
+            mapOf("orderId" to order.id, "amount" to amount, "method" to method, "notes" to note),
+        )
+    }
+
+    suspend fun settle(order: Order, amount: Double, method: String, note: String, remainder: Double) {
+        ErpApi.shared.write(
+            "settleOrderAdvance",
+            mapOf("orderId" to order.id, "amount" to amount, "extra" to remainder, "method" to method, "notes" to note),
+        )
     }
 }

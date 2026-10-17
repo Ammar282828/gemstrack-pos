@@ -311,7 +311,7 @@ private fun Promise(order: Order, now: Instant) {
 private fun Money(order: Order, stage: OrderStage, owed: Double, wide: Boolean) {
     if (stage == OrderStage.closed) return
     val due = OrdersLogic.stillOwed(order, owed)
-    if (Math.abs(due) > 0.5) {
+    if (Math.abs(due) >= 1) {
         Column(horizontalAlignment = if (wide) Alignment.End else Alignment.Start, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             RowAmount(Math.abs(due), tone = if (due < 0) Tone.credit.color() else Tone.owed.color())
             Text(if (due < 0) "In credit" else "Owed", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

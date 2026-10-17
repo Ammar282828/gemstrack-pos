@@ -149,12 +149,8 @@ object OrderActions {
     fun jsNumber(x: Double): String =
         if (x.isFinite() && x == Math.rint(x) && Math.abs(x) < 1e15) x.toLong().toString() else x.toString()
 
-    /** "45,500.00": `toLocaleString('en-US', { minimumFractionDigits: 2 })` (three decimals at most, as there). */
-    fun amount(n: Double): String {
-        val v = if (n.isFinite()) n else 0.0
-        val f = DecimalFormat("#,##0.00#", DecimalFormatSymbols(Locale.US)).apply { roundingMode = RoundingMode.HALF_EVEN }
-        return f.format(BigDecimal(v.toString()))
-    }
+    /** "45,500": whole rupees, never ".00" (owner, 2026-10-17: "there should be no decimals"; the web's order-message.ts says it the same way now). */
+    fun amount(n: Double): String = erp.core.logic.Money.grouped(if (n.isFinite()) n else 0.0)
 
     // MARK: Book courier (the page's ShopifyCourierOption)
 

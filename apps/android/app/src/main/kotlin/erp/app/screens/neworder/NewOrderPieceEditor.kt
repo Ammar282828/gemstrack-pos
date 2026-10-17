@@ -238,19 +238,19 @@ private fun PieceEditorBody(
                         }
                     }
                     if (piece.manual) {
-                        NumberRow("Price (PKR)", piece.manualPrice, { t -> edit { manualPrice = t } }, prompt = "The agreed total")
+                        NumberRow("Price (PKR)", piece.manualPrice, { t -> edit { manualPrice = t } }, prompt = "The agreed total", rupees = true)
                     } else {
                         // Weight and wastage together: the two numbers the metal price is made from. Silver's rate already
                         // holds its making and wastage, so silver asks for neither (decisions.md "Order to invoice").
                         NumberRow("Weight", piece.weight, { t -> edit { weight = t } }, unit = "g")
                         if (takesWastageAndMaking(metal)) {
                             WastageRow(piece.wastage, { t -> edit { wastage = t } }, piece.weightValue, piece.stoneWeightValue)
-                            NumberRow("Making (PKR)", piece.making, { t -> edit { making = t } })
+                            NumberRow("Making (PKR)", piece.making, { t -> edit { making = t } }, rupees = true)
                         }
-                        NumberRow("Stones (PKR)", piece.stones, { t -> edit { stones = t } })
+                        NumberRow("Stones (PKR)", piece.stones, { t -> edit { stones = t } }, rupees = true)
                         ToggleRow("Has diamonds", piece.hasDiamonds) { on -> edit { hasDiamonds = on } }
                         if (piece.hasDiamonds) {
-                            NumberRow("Diamonds (PKR)", piece.diamond, { t -> edit { diamond = t } })
+                            NumberRow("Diamonds (PKR)", piece.diamond, { t -> edit { diamond = t } }, rupees = true)
                             WideFieldRow("Diamond details", piece.diamondDetails, { t -> edit { diamondDetails = t } }, prompt = "e.g. Centre 1ct VVS1, sides 12 × 0.05ct VS2", minLines = 2, maxLines = 4)
                         }
                         ToggleRow("Has other stones", piece.hasStones) { on -> edit { hasStones = on } }

@@ -38,6 +38,9 @@ object RepairsFormLogic {
         return if (v > 0) v else null
     }
 
+    /** A price or an advance: whole rupees (owner, 2026-10-17: "there should be no decimals"). */
+    fun rupees(text: String): Double? = number(text)?.let { erp.app.ui.PaymentText.rounded(it) }?.takeIf { it > 0 }
+
     // Swift's `Double(String)`: a plain decimal (a phone's number pad types nothing else), no spaces inside.
     private val plain = Regex("""^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$""")
     private fun swiftDouble(t: String): Double? = if (plain.matches(t)) t.toDoubleOrNull()?.takeIf { it.isFinite() } else null
@@ -45,7 +48,7 @@ object RepairsFormLogic {
     fun hasPiece(pieces: List<RepairsDraftPiece>): Boolean =
         pieces.any { it.item.trim().isNotEmpty() || it.work.trim().isNotEmpty() }
 
-    fun total(pieces: List<RepairsDraftPiece>): Double = pieces.fold(0.0) { sum, p -> sum + (number(p.price) ?: 0.0) }
+    fun total(pieces: List<RepairsDraftPiece>): Double = pieces.fold(0.0) { sum, p -> sum + (rupees(p.price) ?: 0.0) }
 
     /**
      * `addRepair`'s `repair` (and `updateRepair`'s): a blank name stays blank, as the web saves `name.trim()` (the screens say
@@ -62,7 +65,7 @@ object RepairsFormLogic {
             doc["item"] = if (item.isEmpty()) "Piece" else item
             doc["work"] = work
             number(p.weight)?.let { doc["weightG"] = it }
-            number(p.price)?.let { doc["price"] = it }
+            rupees(p.price)?.let { doc["price"] = it }
             kept.add(doc)
         }
         val repair = LinkedHashMap<String, Any?>()
@@ -80,7 +83,7 @@ object RepairsFormLogic {
         if (by.isNotEmpty()) repair["takenBy"] = by
         val remark = v.note.trim()
         if (remark.isNotEmpty()) repair["internalNote"] = remark
-        val advance = number(v.advance) ?: 0.0
+        val advance = rupees(v.advance) ?: 0.0
         if (!v.editing && advance > 0) {
             repair["advance"] = advance
             repair["advanceMethod"] = v.method

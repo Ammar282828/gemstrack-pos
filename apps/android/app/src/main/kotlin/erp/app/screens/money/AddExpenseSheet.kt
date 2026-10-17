@@ -85,7 +85,7 @@ internal fun ExpenseFormSheet(editing: Expense?, categories: List<String>, partn
     val names = remember(categories, editing) {
         if (editing != null && editing.category.isNotEmpty() && editing.category !in categories) listOf(editing.category) + categories else categories
     }
-    val amount = MoneyParse.amount(amountText) ?: 0.0
+    val amount = MoneyParse.rupees(amountText) ?: 0.0
     val chosenCategory = (if (category == TYPED) typedCategory else category).trim()
     val cleanedWhat = what.trim()
     // A partner's wage: the business pays it, and the partner it paid is written on the row (the Shareholders page's
@@ -158,7 +158,7 @@ internal fun ExpenseFormSheet(editing: Expense?, categories: List<String>, partn
             placeholder = if (editing == null) "e.g. Monthly electricity bill" else null, singleLine = false, enabled = !saving,
         )
         SheetHeading("How much")
-        MoneyField("Amount in rupees", amountText, { amountText = it }, number = true, big = true, enabled = !saving)
+        MoneyField("Amount in rupees", amountText, { amountText = it }, number = true, big = true, enabled = !saving, rupees = true)
         if (amount > 0) Text(Money.pkrLac(amount), color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (isSalary) {
             SheetHeading("Partner salary")

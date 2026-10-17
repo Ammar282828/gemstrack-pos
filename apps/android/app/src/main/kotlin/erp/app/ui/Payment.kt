@@ -19,6 +19,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,16 +39,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import erp.app.ui.theme.ErpColors
 import erp.app.ui.theme.TabularDigits
 import erp.core.logic.Money
+import erp.core.logic.rupees
+import erp.core.logic.settleRemainderOffer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import java.math.BigDecimal
-import java.math.RoundingMode
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
-import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.floor
 
 /** How money arrived (the ERP's PAYMENT_TYPES), for the payment sheets. */
@@ -85,16 +83,17 @@ object PaymentText {
     private val plainNumber = Regex("""^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$""")
 
     // Swift's `.rounded()`: a half goes away from zero (Kotlin's `round` goes to even).
-    private fun rounded(x: Double): Double {
+    internal fun rounded(x: Double): Double {
         if (x < 0) return -rounded(-x)
         val whole = floor(x)
         return if (x - whole >= 0.5) whole + 1 else whole
     }
 
     /**
-     * What was typed, as rupees and paise. Thousands commas are dropped; on a phone set to a region that
-     * types its decimal point as a comma ("1500,4") a comma followed by one or two digits is the
-     * decimal point, since a thousands comma always has three.
+     * What was typed, in whole rupees (owner, 2026-10-17: "there should be no decimals"). Thousands commas
+     * are dropped; on a phone set to a region that types its decimal point as a comma ("1500,4") a comma
+     * followed by one or two digits is the decimal point, since a thousands comma always has three. Paise
+     * typed are rounded away, as the ERP rounds every sum to the rupee.
      */
     fun amount(text: String): Double? {
         var t = text.trim(::isBlank)
@@ -109,22 +108,24 @@ object PaymentText {
         if (t.isEmpty() || !plainNumber.matches(t)) return null
         val v = t.toDoubleOrNull() ?: return null
         if (!v.isFinite() || v < 0) return null
-        return rounded(v * 100) / 100
+        return rounded(v)
     }
 
-    /** A balance for the amount field: up to two decimals, no grouping, no trailing zeros ("1500.4"). */
-    fun field(v: Double): String {
-        var s = BigDecimal(v).setScale(2, RoundingMode.HALF_EVEN).toPlainString()
-        while (s.endsWith("0")) s = s.dropLast(1)
-        if (s.endsWith(".")) s = s.dropLast(1)
-        return s
-    }
+    /** A balance for the amount field: whole rupees, no grouping ("1500"). */
+    fun field(v: Double): String = rounded(v).toLong().toString()
 
-    /** "PKR 1,500" for whole rupees, "PKR 1,500.4" when paise are owed: Money.pkr would round them away. */
-    fun pkr(v: Double): String {
-        if (abs(v - rounded(v)) < 0.005) return Money.pkr(v)
-        val format = DecimalFormat("#,##0.##", DecimalFormatSymbols(Locale.US)).apply { roundingMode = RoundingMode.HALF_EVEN }
-        return "PKR " + format.format(BigDecimal(v.toString()))
+    /** "PKR 1,500": whole rupees, always; an old bill's paise are not shown. */
+    fun pkr(v: Double): String = Money.pkr(v)
+
+    /**
+     * A money box's text kept to whole rupees: the number pad types only digits, and a pasted or prefilled
+     * "1,500.40" becomes "1500". Blank stays blank.
+     */
+    fun whole(text: String): String {
+        if (text.all { it in '0'..'9' }) return text
+        val v = amount(text)
+        if (v != null && v < 1e15) return field(v)
+        return text.filter { it in '0'..'9' }
     }
 
     /** What the reference box is for, by how it was paid (the web's labels). */
@@ -141,13 +142,18 @@ object PaymentText {
 }
 
 /**
- * Taking money: an invoice's payment or an order's advance. The amount is typed in rupees (paise allowed) and
+ * Taking money: an invoice's payment or an order's advance. The amount is typed in whole rupees (no paise) and
  * shown back in lac as it is typed. [onSave] makes the ERP's write; if it throws, the sheet stays open with the
  * exception's message (the ERP's own words) and taps the error; if it returns, the sheet closes with a success tap.
  *
  * - [owed]: what is still owed, offered as the amount with one tap.
  * - [customer]: set for an invoice, since money over the balance is a named customer's credit and a walk-in's is refused.
  * - [noteDefault]: set for an advance (no reference, a note which can be changed but not left bare).
+ * - [settle]: set where the remainder may be given off (an invoice, for owners: the discount is theirs to change;
+ *   an advance): a remainder under 5,000 (what is owed less the amount typed) is offered as "Settle" (record-payment-dialog.tsx
+ *   and RecordAdvanceDialog's SettleOffer, core `settleRemainderOffer`). It takes the payment as Save would, then
+ *   raises the bill's discount by the remainder, and throws [SettleNotGiven] if the payment went through but the
+ *   discount did not.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -159,6 +165,7 @@ fun PaymentSheet(
     askReference: Boolean = true,
     customer: PaymentCustomer? = null,
     noteDefault: String? = null,
+    settle: (suspend (entry: PaymentEntry, remainder: Double) -> Unit)? = null,
 ) {
     val asksReference = askReference && noteDefault == null
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -166,14 +173,15 @@ fun PaymentSheet(
     val haptics = rememberHaptics()
 
     var amountText by rememberSaveable { mutableStateOf("") }
-    // The balance as the books keep it, while the field still shows what "All that's owed" put there:
-    // 1500.4 is sent as 1500.4, never as the 1,500 the label would round it to.
+    // The balance as whole rupees, while the field still shows what "All that's owed" put there.
     var pinned by remember { mutableStateOf<Pair<String, Double>?>(null) }
     var method by rememberSaveable { mutableStateOf("Cash") }
     var reference by rememberSaveable { mutableStateOf("") }
     var note by rememberSaveable { mutableStateOf(noteDefault ?: "") }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    // A Settle's payment was taken and its discount refused: nothing more is sent from this sheet.
+    var taken by remember { mutableStateOf(false) }
 
     val amount = pinned?.takeIf { it.first == amountText }?.second ?: (PaymentText.amount(amountText) ?: 0.0)
     val balance = maxOf(0.0, owed ?: 0.0)
@@ -193,17 +201,33 @@ fun PaymentSheet(
         null
     }
 
-    fun save() {
+    // What would be left owing after this amount, when it is small enough to give off (0 < it < 5,000): the web's
+    // `rupees(balance) - rupees(amount)`. Null without a Settle, an amount, or a balance.
+    val settleOffer: Double? =
+        if (settle == null || taken || owed == null || amount <= 0 || problem != null) null
+        else settleRemainderOffer(rupees(owed) - rupees(amount))
+
+    // Save, or Settle (`settling` is the remainder to give off): the ERP's write, the sheet kept open with its words
+    // on a refusal. A Settle whose payment went through but whose discount did not stays open saying so, with
+    // nothing left to send.
+    fun send(settling: Double?) {
+        if (saving || taken) return
         scope.launch {
             saving = true
             error = null
             try {
-                onSave(PaymentEntry(amount, method, if (method == "Cash") "" else reference, note.trim()))
+                // A cash payment has no reference to carry, whatever was typed before it was switched.
+                val entry = PaymentEntry(amount, method, if (method == "Cash") "" else reference, note.trim())
+                if (settling != null && settle != null) settle(entry, settling) else onSave(entry)
                 haptics.success()
                 sheetState.hide()
                 onDismiss()
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: SettleNotGiven) {
+                taken = true
+                haptics.success()
+                error = e.message
             } catch (e: Exception) {
                 error = e.message ?: e.toString()
                 haptics.failure()
@@ -234,7 +258,7 @@ fun PaymentSheet(
                     style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center,
                 )
-                Button(onClick = ::save, enabled = amount > 0 && problem == null && !saving) {
+                Button(onClick = { send(null) }, enabled = amount > 0 && problem == null && !saving && !taken) {
                     if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                     else Text("Save")
                 }
@@ -242,12 +266,12 @@ fun PaymentSheet(
 
             OutlinedTextField(
                 value = amountText,
-                onValueChange = { amountText = it },
+                onValueChange = { amountText = PaymentText.whole(it) },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Amount in rupees") },
                 textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TabularDigits),
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 isError = problem != null,
                 supportingText = {
                     when {
@@ -259,10 +283,10 @@ fun PaymentSheet(
             if (amount > 0) {
                 Text(Money.pkrLac(amount), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (owed != null && owed > 0) {
+            if (owed != null && owed >= 1) {
                 TextButton(onClick = {
                     amountText = PaymentText.field(owed)
-                    pinned = amountText to owed
+                    pinned = amountText to PaymentText.rounded(owed)
                 }) { Text("All that's owed: ${PaymentText.pkr(owed)}") }
             }
 
@@ -293,6 +317,16 @@ fun PaymentSheet(
                     label = { Text("Note") },
                     placeholder = { Text("e.g. Second advance payment") },
                     singleLine = true,
+                )
+            }
+            settleOffer?.let { x ->
+                OutlinedButton(onClick = { send(x) }, enabled = !saving, modifier = Modifier.fillMaxWidth()) {
+                    Text(SettleWords.offer(x), color = ErpColors.accent)
+                }
+                Text(
+                    "Takes this payment, then adds ${PaymentText.pkr(x)} to the discount, so nothing is left owing.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             // The ERP's words for a refusal show under the form rather than appearing in a jump.

@@ -18,6 +18,7 @@ import erp.core.logic.orderMargin
 import erp.core.logic.pakistanE164
 import erp.core.logic.rates
 import erp.core.logic.resolveSaleCustomer
+import erp.core.logic.rupees
 import erp.core.logic.wastagePercentFor
 import erp.core.models.Customer
 import erp.core.models.ExchangeEntry
@@ -121,9 +122,12 @@ object NewOrderMath {
         )
     }
 
-    /** `priceOfItem`: a fixed price is that price; a weighed piece with no weight yet is nothing. */
+    /**
+     * `priceOfItem` (lib/order-estimate.ts orderItemPrice): a fixed price is that price, in whole rupees;
+     * a weighed piece with no weight yet is nothing.
+     */
     fun price(p: NewOrderPieceDraft, rates: PricingRates): Double {
-        if (p.manual) return num(p.manualPrice)
+        if (p.manual) return rupees(num(p.manualPrice))
         if (num(p.weight) <= 0) return 0.0
         return calculateProductCosts(priced(p), rates).totalPrice
     }
@@ -139,8 +143,8 @@ object NewOrderMath {
             t.prices.add(x)
             t.subtotal += x
         }
-        t.discount = smax(0.0, smin(t.subtotal, num(d.discount)))
-        t.advance = num(d.advance)
+        t.discount = smax(0.0, smin(t.subtotal, rupees(num(d.discount))))
+        t.advance = rupees(num(d.advance))
         t.exchange = exchangeTotal(exchangesFromRows(d.exchanges.map { it.row }))
         t.balance = t.subtotal - t.discount - (t.advance + t.exchange)
         return t
@@ -194,22 +198,23 @@ object NewOrderMath {
     fun item(p: NewOrderPieceDraft, rates: PricingRates, photo: Boolean): MutableMap<String, Any?> {
         val metal = MetalType.of(p.metal)
         val silver = metal == MetalType.silver
-        val costs: ProductCosts = if (p.manual) ProductCosts(totalPrice = num(p.manualPrice)) else calculateProductCosts(priced(p), rates)
+        val costs: ProductCosts = if (p.manual) ProductCosts(totalPrice = rupees(num(p.manualPrice))) else calculateProductCosts(priced(p), rates)
         val o = LinkedHashMap<String, Any?>()
         o["description"] = trim(p.description)
         o["metalType"] = p.metal
         o["estimatedWeightG"] = num(p.weight)
         o["wastagePercentage"] = num(p.wastage)
-        o["makingCharges"] = if (silver) 0.0 else num(p.making)
-        o["diamondCharges"] = if (p.hasDiamonds) num(p.diamond) else 0.0
-        o["stoneCharges"] = num(p.stones)
+        // The piece's money fields in whole rupees, as create-order.ts keeps them (PIECE_MONEY).
+        o["makingCharges"] = if (silver) 0.0 else rupees(num(p.making))
+        o["diamondCharges"] = if (p.hasDiamonds) rupees(num(p.diamond)) else 0.0
+        o["stoneCharges"] = rupees(num(p.stones))
         o["hasDiamonds"] = p.hasDiamonds
         o["hasStones"] = p.hasStones
         o["stoneWeightG"] = p.stoneWeightValue
         o["sampleGiven"] = p.sampleGiven
         o["isCompleted"] = p.isCompleted
         o["isManualPrice"] = p.manual
-        o["manualPrice"] = if (p.manual) num(p.manualPrice) else 0.0
+        o["manualPrice"] = if (p.manual) rupees(num(p.manualPrice)) else 0.0
         o["metalCost"] = NewOrderFormat.finite(costs.metalCost)
         o["wastageCost"] = NewOrderFormat.finite(costs.wastageCost)
         o["totalEstimate"] = NewOrderFormat.finite(costs.totalPrice)
@@ -346,7 +351,7 @@ object NewOrderMath {
             put(del, "contactPhone", d.deliveryPhone)
             put(del, "notes", d.deliveryNotes)
             put(del, "expectedDate", d.deliveryExpected)
-            val charge = num(d.deliveryCharge)
+            val charge = rupees(num(d.deliveryCharge))
             if (charge > 0) del["charge"] = charge
             o["delivery"] = del
         }

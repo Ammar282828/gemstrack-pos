@@ -240,6 +240,6 @@ class RepairsLogicTests {
     @Test fun theFormNeedsAPieceAndSumsItsPrices() {
         assertTrue(!RepairsFormLogic.hasPiece(listOf(RepairsDraftPiece(0))))
         assertTrue(RepairsFormLogic.hasPiece(listOf(RepairsDraftPiece(0, work = "polish"))))
-        assertEquals(3_500.5, RepairsFormLogic.total(listOf(RepairsDraftPiece(0, price = "2,500"), RepairsDraftPiece(1, price = "1000.5"), RepairsDraftPiece(2, price = "x"))))
+        assertEquals(3_501.0, RepairsFormLogic.total(listOf(RepairsDraftPiece(0, price = "2,500"), RepairsDraftPiece(1, price = "1000.5"), RepairsDraftPiece(2, price = "x"))))
     }
 }

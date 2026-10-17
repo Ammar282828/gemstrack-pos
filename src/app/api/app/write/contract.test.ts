@@ -19,12 +19,10 @@ import { NextRequest } from 'next/server';
 import type { DbPort, TxCtx } from '@/lib/db-port';
 
 /**
- * Money is whole rupees in the ERP since 2026-10-17 (lib/money.ts). The iPhone's cases are written by
- * code that rounds the same way (ERPCore MoneyRound), so they are held to the paisa again. The Android
- * app's still hold unrounded figures: each is held to within a few rupees (< 5: a rounded rupee a line)
- * until the Android app rounds too (docs/in-progress.md "Whole rupees"); then it is 2 as well.
+ * Money is whole rupees in the ERP since 2026-10-17 (lib/money.ts). Both apps' cases are written by code that
+ * rounds the same way (ERPCore MoneyRound / erp.core.logic.MoneyRound), so they are held to the paisa.
  */
-const MONEY_DIGITS_FOR: Record<string, number> = { iphone: 2, android: -1 };
+const MONEY_DIGITS_FOR: Record<string, number> = { iphone: 2, android: 2 };
 
 // The same in-memory database as route.test.ts, behind both the Admin SDK and the port.
 const data: Record<string, Record<string, Record<string, unknown>>> = {};

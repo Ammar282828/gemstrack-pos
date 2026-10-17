@@ -233,7 +233,7 @@ private fun PriceSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -
             }
         }
         if (f.fixed) {
-            NumberRow("Price (PKR)", f.customPrice, { v -> edit { customPrice = v } }, prompt = "The agreed total")
+            NumberRow("Price (PKR)", f.customPrice, { v -> edit { customPrice = v } }, prompt = "The agreed total", rupees = true)
             // A fixed price still has a weight, and the bill says it (owner, 2026-10-07): it moves nothing, but it
             // prints, and the margin is costed from it instead of the 10% guess.
             NumberRow("Weight (g)", f.weight, { v -> edit { weight = v } }, prompt = "Optional")
@@ -245,9 +245,9 @@ private fun PriceSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() -
             } else {
                 NumberRow("Wastage (%)", f.wastage, { v -> edit { wastage = v } })
             }
-            NumberRow("Making (PKR)", f.making, { v -> edit { making = v } })
-            NumberRow("Stones (PKR)", f.stoneCharges, { v -> edit { stoneCharges = v } })
-            NumberRow("Misc (PKR)", f.miscCharges, { v -> edit { miscCharges = v } })
+            NumberRow("Making (PKR)", f.making, { v -> edit { making = v } }, rupees = true)
+            NumberRow("Stones (PKR)", f.stoneCharges, { v -> edit { stoneCharges = v } }, rupees = true)
+            NumberRow("Misc (PKR)", f.miscCharges, { v -> edit { miscCharges = v } }, rupees = true)
             if (silver) NumberRow("Wastage (%)", f.wastage, { v -> edit { wastage = v } })
         }
     }
@@ -260,7 +260,7 @@ private fun StonesSection(f: SaleLineFields, rev: Int, edit: (SaleLineFields.() 
         ToggleRow("Has diamonds", f.hasDiamonds, { v -> edit { hasDiamonds = v } })
         if (f.hasDiamonds) {
             // The charge only exists when the price is built from the rate; the details print either way.
-            if (!f.fixed) NumberRow("Diamonds (PKR)", f.diamondCharges, { v -> edit { diamondCharges = v } })
+            if (!f.fixed) NumberRow("Diamonds (PKR)", f.diamondCharges, { v -> edit { diamondCharges = v } }, rupees = true)
             FieldRow("Diamond details", f.diamondDetails, { v -> edit { diamondDetails = v } }, placeholder = "e.g. 0.5ct round")
         }
         ToggleRow("Has other stones", f.hasStones, { v -> edit { hasStones = v } })

@@ -412,7 +412,7 @@ private fun PriceSection(f: StockPieceFields, set: (StockPieceFields) -> Unit, t
             Segmented(listOf("0" to "Weight × rate", "1" to "Fixed price"), if (f.fixed) "1" else "0") { set(f.copy(fixed = it == "1")) }
         }
         if (f.fixed) {
-            NumberRow("Price (PKR)", f.customPrice, { set(f.copy(customPrice = it)) }, prompt = "e.g. 15000")
+            NumberRow("Price (PKR)", f.customPrice, { set(f.copy(customPrice = it)) }, prompt = "e.g. 15000", rupees = true)
             NumberRow("Reference rate per gram", f.silverRate, { set(f.copy(silverRate = it)) }, prompt = "Optional")
         } else {
             NumberRow("Weight", f.weight, { set(f.copy(weight = it)) }, prompt = "e.g. 5.75", unit = "g")
@@ -422,8 +422,8 @@ private fun PriceSection(f: StockPieceFields, set: (StockPieceFields) -> Unit, t
                 NumberRow("Wastage (%)", f.wastage, { set(f.copy(wastage = it)) }, prompt = "e.g. 10")
             }
             if (!f.isGoldCoin) {
-                if (!f.silver) NumberRow("Making (PKR)", f.making, { set(f.copy(making = it)) }, prompt = "e.g. 5000")
-                NumberRow("Misc (PKR)", f.miscCharges, { set(f.copy(miscCharges = it)) }, prompt = "e.g. 250")
+                if (!f.silver) NumberRow("Making (PKR)", f.making, { set(f.copy(making = it)) }, prompt = "e.g. 5000", rupees = true)
+                NumberRow("Misc (PKR)", f.miscCharges, { set(f.copy(miscCharges = it)) }, prompt = "e.g. 250", rupees = true)
             }
         }
         if (todaysPrice != null) {
@@ -439,7 +439,7 @@ private fun StonesSection(f: StockPieceFields, set: (StockPieceFields) -> Unit) 
     FormSection(title = "Diamonds and stones") {
         ToggleRow("Has diamonds", f.hasDiamonds) { set(f.copy(hasDiamonds = it)) }
         if (f.hasDiamonds) {
-            NumberRow("Diamonds (PKR)", f.diamondCharges, { set(f.copy(diamondCharges = it)) }, prompt = "e.g. 50000")
+            NumberRow("Diamonds (PKR)", f.diamondCharges, { set(f.copy(diamondCharges = it)) }, prompt = "e.g. 50000", rupees = true)
             TextRow("Diamond details", f.diamondDetails, { set(f.copy(diamondDetails = it)) }, prompt = "e.g. Centre 1ct VVS1, sides 12 × 0.05ct VS2", minLines = 2, maxLines = 4, capitalization = KeyboardCapitalization.Sentences)
         }
         ToggleRow("Has other stones", f.hasStones) { set(f.copy(hasStones = it)) }

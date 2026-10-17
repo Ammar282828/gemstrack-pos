@@ -312,14 +312,10 @@ fun OrdersHub() {
         PaymentSheet(
             title = "Advance on ${order.id}",
             onDismiss = { advancing = null },
-            onSave = { entry ->
-                ErpApi.shared.write(
-                    "recordOrderAdvance",
-                    mapOf("orderId" to order.id, "amount" to entry.amount, "method" to entry.method, "notes" to entry.note),
-                )
-            },
+            onSave = { entry -> OrderAdvance.record(order, entry.amount, entry.method, entry.note) },
             owed = order.grandTotal,
             noteDefault = "Advance payment received",
+            settle = if (isOwner) { entry, remainder -> OrderAdvance.settle(order, entry.amount, entry.method, entry.note, remainder) } else null,
         )
     }
 

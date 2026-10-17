@@ -4,6 +4,7 @@ import erp.core.Container
 import erp.core.Decodable
 import erp.core.Json
 import erp.core.logic.metalHasKarat
+import erp.core.logic.rupees
 import erp.core.models.Customer
 import java.time.Instant
 
@@ -272,11 +273,11 @@ fun SaleDraft.fillFromBill(reading: SaleBillReading, customer: Customer?, fallba
     val bill = reading.answer
     val d = bill.discount
     if (d != null && d > 0 && !((SaleNumber.parse(discount) ?: 0.0) > 0)) {
-        discount = NewOrderSlip.jsNumber(d)
+        discount = NewOrderSlip.jsNumber(rupees(d))
     }
     val paid = bill.amountPaid
     if (paid != null && paid > 0 && !payments.any { (SaleNumber.parse(it.amount) ?: 0.0) > 0 }) {
-        payments = mutableListOf(SalePaymentRow(amount = NewOrderSlip.jsNumber(paid)))
+        payments = mutableListOf(SalePaymentRow(amount = NewOrderSlip.jsNumber(rupees(paid))))
     }
     return held
 }

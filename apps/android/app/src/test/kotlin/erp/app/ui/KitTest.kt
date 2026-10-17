@@ -15,10 +15,12 @@ class KitTest {
         assertEquals(1500.0, PaymentText.amount("1,500"))
         assertEquals(1_500_000.0, PaymentText.amount("1,500,000"))
         // a region that types its decimal point as a comma: one or two digits after the last comma
-        assertEquals(1500.4, PaymentText.amount("1500,4"))
-        assertEquals(1500.45, PaymentText.amount("1500,45"))
-        assertEquals(1500.46, PaymentText.amount("1500.456"))
-        assertEquals(0.5, PaymentText.amount(".5"))
+        assertEquals(1500.0, PaymentText.amount("1500,4"))
+        assertEquals(1500.0, PaymentText.amount("1500,45"))
+        // whole rupees: paise typed are rounded away, a half going up
+        assertEquals(1500.0, PaymentText.amount("1500.456"))
+        assertEquals(1501.0, PaymentText.amount("1500.5"))
+        assertEquals(1.0, PaymentText.amount(".5"))
         assertEquals(5.0, PaymentText.amount("  5. "))
         assertNull(PaymentText.amount(""))
         assertNull(PaymentText.amount("abc"))
@@ -28,12 +30,17 @@ class KitTest {
 
     @Test
     fun paymentFieldAndWords() {
-        assertEquals("1500.4", PaymentText.field(1500.4))
+        assertEquals("1500", PaymentText.field(1500.4))
+        assertEquals("1501", PaymentText.field(1500.5))
         assertEquals("1500", PaymentText.field(1500.0))
         assertEquals("100", PaymentText.field(100.0))
         assertEquals("0", PaymentText.field(0.0))
         assertEquals("PKR 1,500", PaymentText.pkr(1500.0))
-        assertEquals("PKR 1,500.4", PaymentText.pkr(1500.4))
+        assertEquals("PKR 1,500", PaymentText.pkr(1500.4))
+        assertEquals("1500", PaymentText.whole("1,500.40"))
+        assertEquals("1500", PaymentText.whole("1500"))
+        assertEquals("", PaymentText.whole(""))
+        assertEquals("15", PaymentText.whole("1x5"))
         assertEquals("Cheque no.", PaymentText.referenceLabel("Cheque"))
         assertEquals("Last 4 digits", PaymentText.referenceLabel("Card"))
         assertEquals("Reference", PaymentText.referenceLabel("Bank Transfer"))

@@ -111,9 +111,11 @@ import erp.app.web.WebScreen
 import erp.core.logic.OrderStage
 import erp.core.logic.describeDelivery
 import erp.core.logic.describeExchangeEntry
+import erp.core.logic.isCredit
 import erp.core.logic.isOwing
 import erp.core.logic.orderExchanges
 import erp.core.logic.orderTiming
+import erp.core.logic.owesMoney
 import erp.core.logic.pieceCounts
 import erp.core.logic.stageOf
 import erp.core.logic.PromiseState
@@ -239,7 +241,7 @@ private fun Detail(order: Order) {
     fun barStep(): OrderNextStep? {
         val step = OrdersLogic.nextStep(order, stage, owed) ?: return null
         return when (step) {
-            is OrderNextStep.Invoice -> if (step.owed > 0.5) step else null
+            is OrderNextStep.Invoice -> if (step.owed >= 1) step else null
             is OrderNextStep.CheckTransfer -> if (role == "owner" || role == "staff") step else null
             else -> step
         }
@@ -311,14 +313,13 @@ private fun Detail(order: Order) {
             title = "Record an advance",
             onDismiss = { advancing = false },
             onSave = { entry ->
-                ErpApi.shared.write(
-                    "recordOrderAdvance",
-                    mapOf("orderId" to order.id, "amount" to entry.amount, "method" to entry.method, "notes" to entry.note),
-                )
+                OrderAdvance.record(order, entry.amount, entry.method, entry.note)
                 // PaymentSheet plays the success tap itself.
             },
-            owed = if (balance > 0) balance else null,
+            owed = if (owesMoney(balance)) balance else null,
             noteDefault = "Advance payment received",
+            // Settle gives a remainder under 5,000 off the order's discount (OrderAdvance.settle).
+            settle = if (erp.app.auth.LocalSession.current.isOwner) { entry, remainder -> OrderAdvance.settle(order, entry.amount, entry.method, entry.note, remainder) } else null,
         )
     }
     if (booking) OrderCourierSheet(order) { booking = false }
@@ -400,14 +401,14 @@ private fun HeroFigure(order: Order, stage: OrderStage, owed: Double, invoice: I
     if (stage == OrderStage.closed) return
     val due = if (OrdersLogic.hasInvoice(order)) (invoice?.balanceDue ?: owed) else OrdersLogic.balance(order)
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (due > 0.5) {
+        if (due >= 1) {
             Text(
                 "OWED",
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.6.sp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             HeroAmount(due, tone = Tone.owed.color())
-        } else if (due < -0.5) {
+        } else if (isCredit(due)) {
             Pill("In credit", tone = Tone.credit)
             HeroAmount(-due, tone = Tone.credit.color())
         } else {
@@ -599,7 +600,7 @@ private fun InvoiceCard(order: Order, invoice: Invoice?, owed: Double, isOwner: 
             ) {
                 Icon(Icons.Filled.Description, null, Modifier.size(18.dp), tint = ErpColors.accent)
                 Text("Invoiced · $invoiceId", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = ErpColors.accent)
-                if (owed > 0.5) {
+                if (owed >= 1) {
                     Text(
                         Money.pkr(owed) + " owed",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TabularDigits),

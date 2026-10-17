@@ -66,7 +66,7 @@ class WorkshopWritesTests {
         @Suppress("UNCHECKED_CAST")
         val job = w.fields["job"] as Map<String, Any?>
         assertEquals(
-            mapOf("karigarId" to "K1", "description" to "4 stacked rings", "metalType" to "silver", "itemCategory" to "cat001", "weightG" to 12.345, "quantity" to 3.0, "agreedCost" to 1500.55, "size" to "12", "notes" to "stones"),
+            mapOf("karigarId" to "K1", "description" to "4 stacked rings", "metalType" to "silver", "itemCategory" to "cat001", "weightG" to 12.345, "quantity" to 3.0, "agreedCost" to 1501.0, "size" to "12", "notes" to "stones"),
             job,
         )
         assertEquals(listOf("karigarId", "description", "metalType", "itemCategory", "weightG", "quantity", "agreedCost", "size", "notes"), job.keys.toList())

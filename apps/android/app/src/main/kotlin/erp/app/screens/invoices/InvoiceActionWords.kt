@@ -42,7 +42,7 @@ object InvoiceActionWords {
      * discount's write does not, and the ledger sync puts that right later).
      */
     fun ledger(inv: Invoice, balanceDue: Double, keepsCredit: Boolean = false): String {
-        if (balanceDue > 0) {
+        if (balanceDue >= 1) {
             return if (canHoldCredit(inv.customerId)) "${who(inv)}'s hisaab shows ${PaymentText.pkr(balanceDue)} owed on it."
             else "Its walk-in ledger row shows ${PaymentText.pkr(balanceDue)} owed."
         }

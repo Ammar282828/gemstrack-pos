@@ -42,13 +42,14 @@ private fun legacyCreditDescription(invoiceId: String): String = "Excess advance
 fun isCreditRow(row: HisaabEntry, invoiceId: String): Boolean =
     row.cashCredit > 0 && (row.description == creditDescription(invoiceId) || row.description == legacyCreditDescription(invoiceId))
 
-/** Under half a rupee either way is settled: paise from rounding are not a debt or a credit. */
-private const val SETTLED = 0.5
-
 /** `Number(x) || 0`: a missing or unreadable balance is nothing. */
 private fun balance(balanceDue: Double?): Double = if (balanceDue == null || balanceDue.isNaN()) 0.0 else balanceDue
 
-fun inCredit(balanceDue: Double?): Boolean = balance(balanceDue) < -SETTLED
+/**
+ * Under one rupee either way is settled: money is whole rupees (2026-10-17), and a fraction left on a
+ * bill from before is not a debt or a credit (MoneyRound.kt SETTLED_UNDER).
+ */
+fun inCredit(balanceDue: Double?): Boolean = isCredit(balanceDue)
 
 fun canHoldCredit(customerId: String?): Boolean {
     if (customerId.isNullOrEmpty()) return false
@@ -62,8 +63,8 @@ data class BalanceLine(val label: String, val amount: Double, val state: Balance
 
 fun balanceLine(balanceDue: Double?): BalanceLine {
     val b = balance(balanceDue)
-    if (b > SETTLED) return BalanceLine("Balance due", b, BalanceState.due)
-    if (b < -SETTLED) return BalanceLine("Credit to customer", -b, BalanceState.credit)
+    if (owesMoney(b)) return BalanceLine("Balance due", b, BalanceState.due)
+    if (isCredit(b)) return BalanceLine("Credit to customer", -b, BalanceState.credit)
     return BalanceLine("Paid in full", 0.0, BalanceState.paid)
 }
 

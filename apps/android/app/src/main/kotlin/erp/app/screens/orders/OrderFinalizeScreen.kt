@@ -53,7 +53,9 @@ import erp.app.ui.LedgerHeading
 import erp.app.ui.Monogram
 import erp.app.ui.MonogramSize
 import erp.app.ui.NotAvailableState
+import erp.app.ui.PaymentText
 import erp.app.ui.Pill
+import erp.app.ui.RoundOffChips
 import erp.app.ui.RowAmount
 import erp.app.ui.SkeletonLoading
 import erp.app.ui.Tone
@@ -65,8 +67,10 @@ import erp.app.ui.ledgerCard
 import erp.app.ui.rememberHaptics
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.theme.TabularDigits
+import erp.core.entry.NewOrderFormat
 import erp.core.entry.SaleNumber
 import erp.core.logic.Money
+import erp.core.logic.isCredit
 import erp.core.logic.takesWastageAndMaking
 import erp.core.models.Order
 import erp.core.models.Settings
@@ -110,7 +114,7 @@ fun OrderFinalizeScreen(id: String) {
     LaunchedEffect(order?.id) {
         if (started || order == null) return@LaunchedEffect
         rows = order.items.mapIndexed { i, item -> OrderFinalizeRow.of(item, i) }
-        discount = erp.core.entry.NewOrderFormat.boxText(order.discountAmount ?: 0.0)
+        discount = erp.core.entry.NewOrderFormat.rupeeBox(order.discountAmount)
         val perGram = order.costRate24k ?: 0.0
         costTola = if (perGram > 0) OrdersLogic.halfAway(perGram * erp.core.entry.NewOrderWords.gramsPerTola).toLong().toString() else ""
         started = true
@@ -203,7 +207,9 @@ private fun FinalizeForm(
                     PieceSection(row, if (row.index < f.prices.size) f.prices[row.index] else 0.0) { change -> update(row.index, change) }
                 }
                 Section(footer = "The 24k rate is the shop's own, for its margin. It is never printed.") {
-                    Field("Discount", discount, setDiscount, KeyboardType.Decimal, "0", enabled = !saving)
+                    Field("Discount", discount, setDiscount, KeyboardType.Number, "0", enabled = !saving)
+                    // FinalizeOrderDialog: the bill before any discount is the pieces less the exchange.
+                    RoundOffChips(f.subtotal - f.exchange, f.discount) { n -> setDiscount(NewOrderFormat.rupeeBox(n)) }
                     // The shop's own figure for its margin: owners only, never the customer (decisions.md "Margin").
                     Field("24k a tola now", costTola, setCostTola, KeyboardType.Number, "For the margin", enabled = !saving)
                 }
@@ -216,7 +222,7 @@ private fun FinalizeForm(
                     if (f.exchange > 0) Labeled("Exchange", "− " + Money.pkr(f.exchange))
                     Labeled("Invoice total", Money.pkr(f.total))
                     if (f.advances > 0) Labeled("Advance paid", "− " + Money.pkr(f.advances))
-                    Labeled(if (f.balance < 0) "Credit to customer" else "Balance due", Money.pkr(Math.abs(f.balance)), strong = true)
+                    Labeled(if (isCredit(f.balance)) "Credit to customer" else "Balance due", Money.pkr(Math.abs(f.balance)), strong = true)
                 }
             }
         },
@@ -229,7 +235,7 @@ private fun FinalizeForm(
                 figures = listOf(
                     TransactionReviewRow("Invoice total", Money.pkr(f.total)),
                     TransactionReviewRow("Advance paid", Money.pkr(f.advances)),
-                    TransactionReviewRow(if (f.balance < 0) "Credit to customer" else "Balance due", Money.pkr(Math.abs(f.balance))),
+                    TransactionReviewRow(if (isCredit(f.balance)) "Credit to customer" else "Balance due", Money.pkr(Math.abs(f.balance))),
                 ),
             )
         },
@@ -264,7 +270,7 @@ private fun FinalizeForm(
 
 /** What is agreed to: the invoice's total and what is left owing (or in credit). */
 internal fun confirmWords(order: Order, f: OrderFinalizeMath.Figures): String {
-    val rest = if (f.balance < 0) "with " + Money.pkr(Math.abs(f.balance)) + " in credit" else Money.pkr(f.balance) + " still due"
+    val rest = if (isCredit(f.balance)) "with " + Money.pkr(Math.abs(f.balance)) + " in credit" else Money.pkr(f.balance) + " still due"
     return order.id + " becomes an invoice of " + Money.pkr(f.total) + ", " + rest + ". The order is then completed. Undoing it needs the delete code."
 }
 
@@ -281,7 +287,7 @@ private fun Header(order: Order, due: Double) {
             Text(order.id, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            if (Math.abs(due) > 0.5) {
+            if (Math.abs(due) >= 1) {
                 RowAmount(Math.abs(due), tone = if (due < 0) Tone.credit.color() else Tone.owed.color())
                 Text(if (due < 0) "In credit" else "Due", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
@@ -363,8 +369,10 @@ private fun Field(
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        // A number-pad box is a sum of money, kept to whole rupees (owner, 2026-10-17: "there should be no decimals").
+        val whole = keyboard == KeyboardType.Number
         OutlinedTextField(
-            value = value, onValueChange = onChange, modifier = Modifier.width(160.dp), enabled = enabled, singleLine = true,
+            value = if (whole) PaymentText.whole(value) else value, onValueChange = { onChange(if (whole) PaymentText.whole(it) else it) }, modifier = Modifier.width(160.dp), enabled = enabled, singleLine = true,
             placeholder = { Text(placeholder, Modifier.fillMaxWidth(), textAlign = TextAlign.End) },
             textStyle = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.End, fontFeatureSettings = TabularDigits),
             supportingText = helper?.let { { Text(it, Modifier.fillMaxWidth(), textAlign = TextAlign.End) } },

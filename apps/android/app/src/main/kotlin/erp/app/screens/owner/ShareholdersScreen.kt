@@ -506,7 +506,7 @@ private fun Distribution(
     saveFloor: (Double) -> Unit,
 ) {
     var showHistory by rememberSaveable { mutableStateOf(false) }
-    val cash = maxOf(0.0, MoneyParse.amount(cashText) ?: 0.0)
+    val cash = maxOf(0.0, MoneyParse.rupees(cashText) ?: 0.0)
     // The calculator holds back the floor as saved, as the page's does (onFloorChange fires on load and save).
     val d = Partnership.calculateDistribution(
         cashOnHand = cash,
@@ -527,10 +527,10 @@ private fun Distribution(
             }
             LabeledRow("Cash available") {
                 OutlinedTextField(
-                    value = cashText, onValueChange = onCash, modifier = Modifier.widthIn130(),
+                    value = PaymentText.whole(cashText), onValueChange = { onCash(PaymentText.whole(it)) }, modifier = Modifier.widthIn130(),
                     singleLine = true, placeholder = { Text("0") },
                     textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
             }
             FloorRow(s, floorText, onFloorText, savingFloor, saveFloor)
@@ -601,15 +601,15 @@ private fun lastSet(s: PartnershipSettings): String {
 @Composable
 private fun FloorRow(s: PartnershipSettings, floorText: String?, onFloorText: (String?) -> Unit, saving: Boolean, saveFloor: (Double) -> Unit) {
     val typed = floorText ?: PaymentText.field(s.workingCapitalFloor)
-    val parsed = maxOf(0.0, MoneyParse.amount(typed) ?: 0.0)
-    val changed = parsed != s.workingCapitalFloor
+    val parsed = maxOf(0.0, MoneyParse.rupees(typed) ?: 0.0)
+    val changed = parsed != PaymentText.rounded(s.workingCapitalFloor)
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("Working capital floor", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         OutlinedTextField(
-            value = typed, onValueChange = { onFloorText(it) }, modifier = Modifier.widthIn130(),
+            value = typed, onValueChange = { onFloorText(PaymentText.whole(it)) }, modifier = Modifier.widthIn130(),
             singleLine = true, placeholder = { Text("0") },
             textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         )
         if (changed) {
             Button(onClick = { saveFloor(parsed) }, enabled = !saving) {

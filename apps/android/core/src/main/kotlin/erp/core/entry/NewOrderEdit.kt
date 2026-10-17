@@ -7,6 +7,7 @@ import erp.core.logic.isWalkInName
 import erp.core.logic.karatsFor
 import erp.core.logic.orderExchanges
 import erp.core.logic.rowsFromExchanges
+import erp.core.logic.rupees
 import erp.core.models.Customer
 import erp.core.models.OrderItem
 import erp.core.models.Order
@@ -55,8 +56,8 @@ class NewOrderEdit(o: Order) {
         }.toMutableList()
         d.rates = LinkedHashMap(rates(o.ratesApplied))
         d.ratesSeeded = true
-        d.discount = NewOrderFormat.boxText(o.discountAmount ?: 0.0)
-        d.advance = NewOrderFormat.boxText(o.advancePayment)
+        d.discount = NewOrderFormat.rupeeBox(o.discountAmount)
+        d.advance = NewOrderFormat.rupeeBox(o.advancePayment)
         d.advanceMethod = o.advanceMethod?.rawValue ?: "Cash"
         val rows = rowsFromExchanges(orderExchanges(o)).map { NewOrderExchangeDraft(it) }
         d.exchanges = if (rows.isEmpty()) mutableListOf(NewOrderExchangeDraft.blank()) else rows.toMutableList()
@@ -68,7 +69,7 @@ class NewOrderEdit(o: Order) {
             d.deliveryName = del.contactName ?: ""
             d.deliveryPhone = del.contactPhone ?: ""
             d.deliveryNotes = del.notes ?: ""
-            d.deliveryCharge = NewOrderFormat.boxText(del.charge ?: 0.0)
+            d.deliveryCharge = NewOrderFormat.rupeeBox(del.charge)
             d.deliveryExpected = del.expectedDate ?: ""
         }
         val perGram = o.costRate24k ?: 0.0
@@ -124,11 +125,11 @@ fun NewOrderPieceDraft.Companion.onFile(item: OrderItem): NewOrderPieceDraft {
     p.stoneWeight = NewOrderFormat.boxText(item.stoneWeightG, digits = 3)
     p.stoneDetails = item.stoneDetails ?: ""
     p.hasDiamonds = item.hasDiamonds
-    p.diamond = NewOrderFormat.boxText(item.diamondCharges)
+    p.diamond = NewOrderFormat.rupeeBox(item.diamondCharges)
     p.diamondDetails = item.diamondDetails ?: ""
     p.wastage = NewOrderFormat.boxText(item.wastagePercentage, digits = 4)
-    p.making = NewOrderFormat.boxText(item.makingCharges)
-    p.stones = NewOrderFormat.boxText(item.stoneCharges)
+    p.making = NewOrderFormat.rupeeBox(item.makingCharges)
+    p.stones = NewOrderFormat.rupeeBox(item.stoneCharges)
     p.size = item.size ?: ""
     p.platingType = item.platingType ?: ""
     p.platingNote = item.platingNote ?: ""
@@ -140,7 +141,7 @@ fun NewOrderPieceDraft.Companion.onFile(item: OrderItem): NewOrderPieceDraft {
     p.samplePhotoId = item.samplePhotoId
     p.sampleImageDataUri = item.sampleImageDataUri
     p.manual = item.isManualPrice
-    p.manualPrice = if (item.isManualPrice) NewOrderFormat.boxText(item.manualPrice ?: 0.0) else ""
+    p.manualPrice = if (item.isManualPrice) NewOrderFormat.rupeeBox(item.manualPrice) else ""
     p.adminNote = item.adminNote ?: ""
     return p
 }

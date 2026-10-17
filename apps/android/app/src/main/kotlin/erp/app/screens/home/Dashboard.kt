@@ -265,7 +265,7 @@ private fun StatCards(f: DashFigures, owner: Boolean, open: (String) -> Unit, mo
         DashMonthChange(f.monthAgainstLast, f.now)
     }
     DashStat("Owed to you", { open(if (owner && f.owedInHisaab > 0) "/hisaab" else "/invoices") }, modifier) {
-        if (f.totalOutstanding > 0) DashStatAmount(f.totalOutstanding, Tone.owed.color()) else DashStatValue("Nil")
+        if (f.totalOutstanding >= 1) DashStatAmount(f.totalOutstanding, Tone.owed.color()) else DashStatValue("Nil")
         // Owed is amber, never red: money still to come is not an alarm.
         DashStatNote("${f.unpaid.size} unpaid")
         if (f.owedInHisaab > 0) DashStatNote("${Money.lacCrore(f.owedInHisaab)} in hisaab")

@@ -8,6 +8,7 @@ import erp.core.logic.JS
 import erp.core.logic.Money
 import erp.core.logic.RateKey
 import erp.core.logic.blankExchangeRow
+import erp.core.logic.rupees
 import erp.core.models.Customer
 import erp.core.models.Karigar
 import erp.core.models.Settings
@@ -440,7 +441,7 @@ fun NewOrderDraft.fillFromSlip(
             karat = if (s.num(x.karat) > 0) "${s.jsNumber(s.jsRound(s.num(x.karat)))}k" else "",
             weightG = if (s.num(x.weightG) > 0) s.jsNumber(s.num(x.weightG)) else "",
             ratePerGram = if (s.num(x.ratePerGram) > 0) s.jsNumber(s.jsRound(s.num(x.ratePerGram))) else "",
-            value = if (ex.value > 0) s.jsNumber(ex.value) else "",
+            value = if (rupees(ex.value) > 0) s.jsNumber(rupees(ex.value)) else "",
             valueTyped = ex.from == NewOrderSlip.ExchangeFrom.written,
         )
         exchanges = mutableListOf(NewOrderExchangeDraft(row))
@@ -496,10 +497,10 @@ fun NewOrderDraft.fillFromSlip(
             if (rate > 0 && rateKey == null && metal == "silver") "Slip rate ${s.pkNumber(rate)}/g — silver is priced at the shop's rate in settings." else null,
             if (rate > 0 && rateKey == null && metal != "silver") "Slip rate ${s.pkNumber(rate)}/g could not be applied — no ${karatWritten ?: "karat"} rate box." else null,
             if (s.num(it.karat) > 0 && karat == null) "Slip says ${karatWritten ?: ""}, which the form does not offer." else null,
-            if (written > 0 && !fixed) "Slip writes ${s.pkNumber(written)} for this piece." else null,
+            if (written > 0 && !fixed) "Slip writes ${s.money(written)} for this piece." else null,
             if (check.itemsOff.contains(i)) "The slip's own sum for this piece does not match its written amount — check it." else null,
             if (i == 0 && !(scan.unreadable ?: "").isEmpty()) "Unread on the slip: ${scan.unreadable ?: ""}" else null,
-            if (i == 0 && s.num(scan.balanceDue) > 0) "Slip says balance ${s.pkNumber(s.num(scan.balanceDue))}." else null,
+            if (i == 0 && s.num(scan.balanceDue) > 0) "Slip says balance ${s.money(s.num(scan.balanceDue))}." else null,
             if (i == 0 && !(scan.expectedDate ?: "").isEmpty()) "Slip says wanted by ${scan.expectedDate ?: ""}." else null,
         )
         p.adminNote = notes.filterNotNull().filter { n -> n.isNotEmpty() }.joinToString(" ")

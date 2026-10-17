@@ -136,7 +136,8 @@ object InvoiceFacts {
      */
     fun paymentRefusal(inv: Invoice, amount: Double): String? {
         val due = maxOf(0.0, inv.balanceDue)
-        if (amount > due + 0.5 && !canHoldCredit(inv.customerId)) {
+        // Over by a whole rupee, as record-payment-dialog.tsx counts it (Math.round(amount - balance) > 0).
+        if (erp.core.logic.rupees(amount - due) > 0 && !canHoldCredit(inv.customerId)) {
             return "More than the balance of ${Money.pkr(due)}. Credit needs a customer: name who this invoice is for first."
         }
         return null
@@ -151,9 +152,21 @@ object InvoiceFacts {
     }
 
     /** Take a payment, as the invoice page and the list's "Take payment" do. */
-    suspend fun record(inv: Invoice, amount: Double, method: String, reference: String) {
+    suspend fun record(inv: Invoice, amount: Double, method: String, reference: String): Map<String, Any?> {
         paymentRefusal(inv, amount)?.let { throw ErpApi.Failure(400, it) }
-        ErpApi.shared.write("recordPayment", paymentFields(inv, amount, method, reference))
+        return ErpApi.shared.write("recordPayment", paymentFields(inv, amount, method, reference))
+    }
+
+    /**
+     * Settle (record-payment-dialog.tsx): the payment and the remainder off the bill's discount in one write
+     * (`settleInvoicePayment`, lib/writes/settle.ts), so the balance is 0 without a payment never made and never a
+     * payment taken without its discount. Owners only, as the discount is (/api/app/write).
+     */
+    suspend fun settle(inv: Invoice, amount: Double, method: String, reference: String, remainder: Double) {
+        val fields = linkedMapOf<String, Any?>("invoiceId" to inv.id, "amount" to amount, "extra" to remainder, "method" to method)
+        val ref = reference.trim()
+        if (method != "Cash" && ref.isNotEmpty()) fields["reference"] = ref
+        ErpApi.shared.write("settleInvoicePayment", fields)
     }
 
     // MARK: The customer's link
@@ -194,11 +207,8 @@ object InvoiceFacts {
         return "Invoice - " + karachiDay.format(made)
     }
 
-    /** toLocaleString(undefined, { minimumFractionDigits: 2 }): 12,345.00, as the estimate says it. */
-    internal fun twoPlaces(n: Double): String {
-        val f = DecimalFormat("#,##0.00#", DecimalFormatSymbols(Locale.US)).apply { roundingMode = RoundingMode.HALF_EVEN }
-        return f.format(BigDecimal(n.toString()))
-    }
+    /** The estimate's sums: whole rupees, 12,345, never ".00" (owner, 2026-10-17: "there should be no decimals"). */
+    internal fun rupees(n: Double): String = Money.grouped(if (n.isFinite()) n else 0.0)
 
     /**
      * The words that go with the link: who it is for and what is owed. Where invoices are named after the customer
@@ -211,11 +221,11 @@ object InvoiceFacts {
         if (!byCustomer) {
             // `inv.customerName || 'Customer'`: a walk-in's bill reads "Dear Walk-in Customer", as the web's does.
             val named = inv.customerName.ifEmpty { "Customer" }
-            var m = "Dear $named,\n\nHere is your estimate from $shopName.\n\n*Estimate ID:* ${inv.id}\n*Total Amount:* PKR ${twoPlaces(inv.grandTotal)}\n"
+            var m = "Dear $named,\n\nHere is your estimate from $shopName.\n\n*Estimate ID:* ${inv.id}\n*Total Amount:* PKR ${rupees(inv.grandTotal)}\n"
             m += if (inv.amountPaid > 0) {
-                "*Amount Paid:* PKR ${twoPlaces(inv.amountPaid)}\n*Balance Due:* PKR ${twoPlaces(inv.balanceDue)}\n\n"
+                "*Amount Paid:* PKR ${rupees(inv.amountPaid)}\n*Balance Due:* PKR ${rupees(inv.balanceDue)}\n\n"
             } else {
-                "*Amount Due:* PKR ${twoPlaces(inv.grandTotal)}\n\n"
+                "*Amount Due:* PKR ${rupees(inv.grandTotal)}\n\n"
             }
             return m + "Thank you for your business."
         }

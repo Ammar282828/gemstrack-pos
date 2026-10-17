@@ -88,7 +88,7 @@ data class FinalizedCosts(
 fun finalizedItemCosts(original: OrderItem, f: FinalizedItem, rates: InvoiceRates): FinalizedCosts {
     if (f.isManualPrice) {
         return FinalizedCosts(
-            price = JS.orZero(f.finalManualPrice),
+            price = rupees(f.finalManualPrice),
             metalCost = 0.0, wastageCost = 0.0, wastagePercentage = JS.orZero(original.wastagePercentage),
             makingCharges = 0.0, diamondCharges = 0.0, stoneCharges = 0.0,
         )

@@ -87,7 +87,7 @@ class OrderActionsTests {
             "*Item 1:* Ring\n  - Est. Weight: 5g (21k)\n" +
             "*Item 2:* Chain\n  - Est. Weight: 4.25g \n" +
             "*Item 3:* Set\n" +
-            "\n*Total Balance Due:* PKR 45,500.00\n\n" +
+            "\n*Total Balance Due:* PKR 45,500\n\n" +
             "We are working on your order and will notify you of any updates.\n\n" +
             "Thank you for your business."
         assertEquals(expected, OrderActions.customerMessage(order(), OrderActions.MessageKind.summary, "TAHERI"))
@@ -103,16 +103,16 @@ class OrderActionsTests {
             inProgress,
         )
         val completed = OrderActions.customerMessage(o, OrderActions.MessageKind.completed, "TAHERI")
-        assertTrue(completed.contains("Your custom order is now *Completed* and ready for collection.\n\n*Amount Due:* PKR 45,500.00\n\n"))
+        assertTrue(completed.contains("Your custom order is now *Completed* and ready for collection.\n\n*Amount Due:* PKR 45,500\n\n"))
     }
 
     @Test fun numbersAreWrittenAsJavaScriptWritesThem() {
         assertEquals("3", OrderActions.jsNumber(3.0))
         assertEquals("4.25", OrderActions.jsNumber(4.25))
-        assertEquals("45,500.00", OrderActions.amount(45_500.0))
-        assertEquals("1,234.5", OrderActions.amount(1234.5).replace("1,234.50", "1,234.5"))
-        assertEquals("1,234.568", OrderActions.amount(1234.5678))
-        assertEquals("0.00", OrderActions.amount(Double.NaN))
+        assertEquals("45,500", OrderActions.amount(45_500.0))
+        assertEquals("1,235", OrderActions.amount(1234.5))
+        assertEquals("1,235", OrderActions.amount(1234.5678))
+        assertEquals("0", OrderActions.amount(Double.NaN))
     }
 
     @Test fun courierWordsFollowTheShopifyLink() {

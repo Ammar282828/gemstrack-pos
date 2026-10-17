@@ -29,7 +29,7 @@ import erp.core.models.InvoiceStatus
 /** An invoice that is still owed money on. */
 fun isOwing(inv: Invoice?): Boolean {
     if (inv == null) return false
-    return inv.status != InvoiceStatus.refunded && inv.balanceDue > 0.5
+    return inv.status != InvoiceStatus.refunded && owesMoney(inv.balanceDue)
 }
 
 /** A customer's rows in the order they were first seen, so the sums below add in the order the TS adds them (a JavaScript `Map` remembers insertion order). */
@@ -88,7 +88,7 @@ fun owedToYou(
     }
     if (ledgerRows != null) {
         for ((key, balance) in ledgerBalanceList(ledgerRows)) {
-            if (balance <= 0.5) continue
+            if (!owesMoney(balance)) continue
             total += balance
             ledger += balance
             if (key == WALK_IN_ENTITY) walkIn += balance

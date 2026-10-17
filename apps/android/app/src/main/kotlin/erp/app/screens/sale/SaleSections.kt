@@ -60,6 +60,8 @@ import erp.app.ui.EntryStepState
 import erp.app.ui.MinTouchTarget
 import erp.app.ui.NumericText
 import erp.app.ui.PaymentMethods
+import erp.app.ui.PaymentText
+import erp.app.ui.RoundOffChips
 import erp.app.ui.RecentCustomers
 import erp.app.ui.Radius
 import erp.app.ui.SectionCard
@@ -312,7 +314,13 @@ internal fun RatesSection(s: SaleFormState, f: SaleFigures, d: SaleData) {
 @Composable
 internal fun DiscountSection(s: SaleFormState, f: SaleFigures) {
     FormSection("Discount", footer = f.discountProblem?.let { problem -> { Text(problem, color = Tone.problem.color()) } }) {
-        NumberRow("Amount (PKR)", s.draft.discount, { t -> s.update { it.discount = t } })
+        NumberRow("Amount (PKR)", s.draft.discount, { t -> s.update { it.discount = t } }, rupees = true)
+        // sale-page.tsx: offered once the bill can be worked out; the bill before any discount is the pieces less the exchange.
+        if (f.hasEstimate) {
+            RoundOffChips(f.subtotal - f.exchange, f.discount, Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) { n ->
+                s.update { it.discount = if (n > 0) n.toLong().toString() else "" }
+            }
+        }
     }
 }
 
@@ -350,8 +358,8 @@ private fun ExchangeRowView(s: SaleFormState, row: SaleExchangeRow) {
                 Modifier.weight(1f), capitalization = KeyboardCapitalization.Sentences,
             )
             FieldRow(
-                "Amount", text(ExchangeField.Value), { t -> set(ExchangeField.Value, t) },
-                Modifier.width(150.dp), keyboard = KeyboardType.Decimal,
+                "Amount", PaymentText.whole(text(ExchangeField.Value)), { t -> set(ExchangeField.Value, PaymentText.whole(t)) },
+                Modifier.width(150.dp), keyboard = KeyboardType.Number,
             )
         }
         if (live.hasDetails || s.openedExchange.contains(row.id)) {
@@ -443,7 +451,7 @@ private fun PaymentRowView(s: SaleFormState, row: SalePaymentRow, f: SaleFigures
     }
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            FieldRow("Amount (PKR)", live.amount, { t -> set { it.amount = t } }, Modifier.weight(1f), keyboard = KeyboardType.Decimal)
+            FieldRow("Amount (PKR)", PaymentText.whole(live.amount), { t -> set { it.amount = PaymentText.whole(t) } }, Modifier.weight(1f), keyboard = KeyboardType.Number)
             FilledTonalButton(
                 onClick = { s.update { it.payRest(row.id, f.total) } },
                 enabled = f.hasEstimate,
@@ -635,7 +643,7 @@ internal fun DeliverySection(s: SaleFormState, f: SaleFigures, d: SaleData) {
             if (delivery.expectedDate.isNotEmpty()) ExpectedDate(s)
             FieldRow("Receiver name", delivery.contactName, { t -> s.update { it.delivery.contactName = t } }, placeholder = "If not the customer", capitalization = KeyboardCapitalization.Words)
             FieldRow("Receiver phone", delivery.contactPhone, { t -> s.update { it.delivery.contactPhone = t } }, placeholder = "Optional", keyboard = KeyboardType.Phone)
-            NumberRow("Delivery charge (PKR)", delivery.charge, { t -> s.update { it.delivery.charge = t } }, prompt = "0 if free")
+            NumberRow("Delivery charge (PKR)", delivery.charge, { t -> s.update { it.delivery.charge = t } }, prompt = "0 if free", rupees = true)
             FieldRow("Instructions", delivery.notes, { t -> s.update { it.delivery.notes = t } }, placeholder = "Landmark, timing, gate code", capitalization = KeyboardCapitalization.Sentences)
         }
     }

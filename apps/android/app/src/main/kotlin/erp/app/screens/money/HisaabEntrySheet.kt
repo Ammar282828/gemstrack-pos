@@ -90,7 +90,7 @@ fun HisaabEntrySheet(
     }
 
     @Composable
-    fun CashField() = MoneyField("Cash amount (PKR)", cashText, { cashText = it }, placeholder = "0", number = true, enabled = !saving)
+    fun CashField() = MoneyField("Cash amount (PKR)", cashText, { cashText = it }, placeholder = "0", number = true, enabled = !saving, rupees = true)
 
     @Composable
     fun GramsField() = MoneyField("$metal (grams)", gramsText, { gramsText = it }, placeholder = "0", number = true, unit = "g", enabled = !saving)
