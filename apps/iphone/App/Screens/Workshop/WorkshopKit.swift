@@ -48,23 +48,23 @@ extension View {
     }
 }
 
-/// How old a piece is, in the colour every workshop surface uses: grey, orange from a week, red from two. A done piece
-/// shows nothing: done is the expected end (rule 15).
+/// How old a piece is: shown only when it needs someone (orange from a week, red from two). On track and done say
+/// nothing here (rule 15: the expected state has no badge); the card's caption carries the days.
 struct WorkshopAgeBadge: View {
     let job: WorkshopJob
 
     var body: some View {
-        if !job.isDone {
-            StatusBadge("\(job.ageDays)d", color: tone)
-                .monospacedDigit()
+        if !job.isDone, let tone = tone {
+            Pill("\(job.ageDays)d", tone: tone)
+                .contentTransition(.numericText(value: Double(job.ageDays)))
         }
     }
 
-    private var tone: Color {
+    private var tone: Tone? {
         switch job.urgency {
-        case .critical: return Tone.late.color
-        case .warning: return Tone.owed.color
-        case .ok: return .secondary
+        case .critical: return .late
+        case .warning: return .owed
+        case .ok: return nil
         }
     }
 }
@@ -76,8 +76,8 @@ struct WorkshopUrgencyBadges: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            if critical > 0 { StatusBadge("\(critical) critical", tone: .late) }
-            if late > 0 { StatusBadge("\(late) late", tone: .owed) }
+            if critical > 0 { Pill("\(critical) critical", tone: .late) }
+            if late > 0 { Pill("\(late) late", tone: .owed) }
         }
     }
 }
@@ -115,7 +115,7 @@ enum WorkshopStatusWords {
     static func say(_ s: KarigarJobStatus) -> String {
         switch s {
         case .pending: return "Pending"
-        case .inProgress: return "In Progress"
+        case .inProgress: return "In progress"
         case .completed: return "Completed"
         case .unknown(let raw): return raw
         }

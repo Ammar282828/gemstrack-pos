@@ -30,7 +30,9 @@ struct WorkshopBoard: View {
     @State private var editing: KarigarJob?
     @State private var editingPiece: WorkshopPieceAsk?
     @State private var deletion: OwnerDeletion?
-    @State private var note: OwnerNote?
+    @State private var note: Note?
+    /// Bumped when a piece's write goes through (done, given, a karigar): the success tap.
+    @State private var saved = 0
 
     /// `?karigar=<id>` (the karigar page's "On his bench") opens on his whole bench.
     init(path: String) {
@@ -57,31 +59,35 @@ struct WorkshopBoard: View {
         }
         .navigationTitle(orderId == nil ? "Workshop" : "Give out")
         .navigationBarTitleDisplayMode(.large)
+        .navigationSubtitle(orderId ?? "")
         .toolbar { if orderId == nil { boardToolbar } }
         .modifier(HouseGround())
         .workshopPlaceDestination($opened)
         .workshopFailureAlert($failure)
         .sheet(item: $assigning) { (ask: WorkshopStockJobAsk) in
-            WorkshopStockJobSheet(karigars: workshopLive(book.karigars.items), presetKarigarId: ask.karigarId) { (saved: OwnerNote) in
-                Note.show(saved, in: $note, reduce: reduceMotion)
+            WorkshopStockJobSheet(karigars: workshopLive(book.karigars.items), presetKarigarId: ask.karigarId) { (said: Note) in
+                Note.show(said, in: $note, reduce: reduceMotion)
             }
         }
         .sheet(item: $editing) { (job: KarigarJob) in
-            WorkshopJobDetailsSheet(job: job) { (saved: OwnerNote) in
-                Note.show(saved, in: $note, reduce: reduceMotion)
+            WorkshopJobDetailsSheet(job: job) { (said: Note) in
+                Note.show(said, in: $note, reduce: reduceMotion)
             }
         }
         .sheet(item: $editingPiece) { (ask: WorkshopPieceAsk) in
-            WorkshopPieceDetailsSheet(ask: ask) { (saved: OwnerNote) in
-                Note.show(saved, in: $note, reduce: reduceMotion)
+            WorkshopPieceDetailsSheet(ask: ask) { (said: Note) in
+                Note.show(said, in: $note, reduce: reduceMotion)
             }
         }
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {
-                Note.show(OwnerNote(title: "Job deleted"), in: $note, reduce: reduceMotion)
+                Note.show(Note(title: "Job deleted"), in: $note, reduce: reduceMotion)
             }
         }
-        .ownerNote($note)
+        .noteToast($note)
+        .savedFeedback(trigger: saved)
+        // The warning tap as a delete is asked for (the delete code sheet opens).
+        .sensoryFeedback(.warning, trigger: deletion != nil) { _, now in now }
         .onAppear {
             book.orders.need()
             book.invoices.need()
@@ -139,18 +145,16 @@ struct WorkshopBoard: View {
                 }
                 Section { controlBar(snap).chipRowInList() }
             }
-            if let orderId {
-                Section {
-                    Text(orderId).font(.headline)
-                }
-            }
             layout(snap, focused: focused, live: live, choices: choices)
-            if focused.isEmpty {
-                Section { emptyState(snap).listRowBackground(Color.clear) }
-            }
         }.houseRows()
         }
         .listStyle(.insetGrouped)
+        .overlay {
+            if focused.isEmpty {
+                // Centred over the list, not a row in it; nothing in it is pressed, so the chips stay reachable.
+                emptyState(snap).allowsHitTesting(false)
+            }
+        }
     }
 
     @ViewBuilder
@@ -191,7 +195,10 @@ struct WorkshopBoard: View {
         let grams = loads.reduce(0.0) { $0 + $1.totalWeightG }
         let value = loads.reduce(0.0) { $0 + $1.totalValue }
         return Section {
-            DisclosureGroup("Bench totals", isExpanded: $showTotals) {
+            DisclosureGroup("Bench totals", isExpanded: Binding(
+                get: { showTotals },
+                set: { on in Motion.run(reduce: reduceMotion) { showTotals = on } }
+            )) {
             FigureGrid {
                 FigureTile(label: "Late \(WorkshopLogic.warnDays)d+", value: "\(late)", tint: late > 0 ? Tone.owed.color : Color.primary)
                 FigureTile(label: "Critical \(WorkshopLogic.criticalDays)d+", value: "\(critical)", tint: critical > 0 ? Tone.late.color : Color.primary)
@@ -218,29 +225,27 @@ struct WorkshopBoard: View {
     }
 
     private func karigarHeader(_ load: WorkshopLoad) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: 2) {
+            AdaptiveStack(spacing: 8, alignment: .center) {
                 HStack(spacing: 6) {
                     Image(systemName: load.isUnassigned ? "exclamationmark.triangle.fill" : "hammer")
-                        .foregroundStyle(load.isUnassigned ? Tone.owed.color : Color.accentColor)
-                    Text(load.isUnassigned ? "Unassigned" : load.karigarName)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(load.isUnassigned ? Tone.owed.color : Color.primary)
+                        .foregroundStyle(load.isUnassigned ? Tone.owed.color : Theme.accent)
+                    LedgerHeading(title: load.isUnassigned ? "Unassigned" : load.karigarName)
                 }
-                Text(headerCounts(load))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 8)
-            WorkshopUrgencyBadges(critical: load.critical, late: load.late)
-            if !load.isUnassigned {
-                Button { opened = WorkshopPlace.karigar(load.karigarId) } label: {
-                    Image(systemName: "person.crop.circle")
+                Spacer(minLength: 8)
+                WorkshopUrgencyBadges(critical: load.critical, late: load.late)
+                if !load.isUnassigned {
+                    Button { opened = WorkshopPlace.karigar(load.karigarId) } label: {
+                        Image(systemName: "person.crop.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityLabel("Open " + load.karigarName)
                 }
-                .buttonStyle(.borderless)
-                .frame(minWidth: 44, minHeight: 44)
-                .accessibilityLabel("Open " + load.karigarName)
             }
+            Text(headerCounts(load))
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .textCase(nil)
     }
@@ -262,7 +267,10 @@ struct WorkshopBoard: View {
         let idle = live.filter { !busyIds.contains($0.id) }
         if !idle.isEmpty {
             Section {
-                DisclosureGroup(isExpanded: $showFree) {
+                DisclosureGroup(isExpanded: Binding(
+                    get: { showFree },
+                    set: { on in Motion.run(reduce: reduceMotion) { showFree = on } }
+                )) {
                     ForEach(idle) { k in
                         NavigationLink(value: Route(path: WorkshopLogic.karigarPath(k.id))) {
                             Label(k.name, systemImage: "hammer")
@@ -353,7 +361,7 @@ struct WorkshopBoard: View {
 
     private let stages: [Stage] = [
         Stage(status: .pending, title: "Pending", symbol: "circle"),
-        Stage(status: .inProgress, title: "In Progress", symbol: "circle.dotted"),
+        Stage(status: .inProgress, title: "In progress", symbol: "circle.dotted"),
         Stage(status: .completed, title: "Completed", symbol: "checkmark.circle"),
     ]
 
@@ -372,16 +380,16 @@ struct WorkshopBoard: View {
     }
 
     private func stageHeader(_ stage: Stage, _ jobs: [WorkshopJob]) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Label(stage.title, systemImage: stage.symbol)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.primary)
+        AdaptiveStack(spacing: 8, alignment: .center) {
+            HStack(spacing: 6) {
+                Image(systemName: stage.symbol).foregroundStyle(.secondary)
+                LedgerHeading(title: stage.title, count: jobs.count)
+            }
             Spacer(minLength: 8)
             WorkshopUrgencyBadges(
                 critical: jobs.filter { $0.urgency == .critical }.count,
                 late: jobs.filter { $0.urgency == .warning }.count
             )
-            Text("\(jobs.count)").font(.caption).foregroundStyle(.secondary)
         }
         .textCase(nil)
     }
@@ -432,42 +440,19 @@ struct WorkshopBoard: View {
 
     // MARK: The controls above the list
 
+    /// Only the Focus chips live in the list; the rest of the filtering (and Group by, and Reset) is the toolbar's Filter menu.
     private func controlBar(_ snap: WorkshopSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(WorkshopFocus.allCases) { f in
-                        // A count only where it asks for a hand (rule 15): All work's is the tile above.
-                        FilterChip(title: focusTitle(f), count: f == .all ? nil : snap.count(f), chosen: focus == f) { focus = f }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(WorkshopFocus.allCases) { f in
+                    // A count only where it asks for a hand (rule 15): All work's is the tile above.
+                    FilterChip(title: focusTitle(f), count: f == .all ? nil : snap.count(f), chosen: focus == f) {
+                        Motion.run(reduce: reduceMotion) { focus = f }
                     }
                 }
-            }
-            .accessibilityIdentifier("workshop.focus")
-            FigureRow {
-                Menu {
-                    Picker("Group by", selection: $grouping) {
-                        ForEach(WorkshopGrouping.allCases) { g in Text(g.title).tag(g) }
-                    }
-                } label: {
-                    Label(grouping == .list ? "All pieces" : grouping.title, systemImage: "rectangle.grid.1x2")
-                        .font(.subheadline).frame(minHeight: 44)
-                }
-                .buttonStyle(.borderless)
-                Spacer(minLength: 0)
-                if filter.menuCount > 0 {
-                    Button("Reset filters") { filter = WorkshopFilter() }
-                        .font(.subheadline).frame(minHeight: 44)
-                        .buttonStyle(.borderless)
-                }
-            }
-            if !activeFilterWords.isEmpty {
-                Text(activeFilterWords).font(.footnote).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if !filter.karigarId.isEmpty {
-                karigarFilterNote
             }
         }
+        .accessibilityIdentifier("workshop.focus")
     }
 
     private func focusTitle(_ f: WorkshopFocus) -> String {
@@ -476,24 +461,6 @@ struct WorkshopBoard: View {
         case .attention: return "Needs attention"
         case .unassigned: return "Unassigned"
         case .notGiven: return "To give"
-        }
-    }
-
-    private var activeFilterWords: String {
-        var words: [String] = []
-        if !filter.takenBy.isEmpty { words.append("Taken by " + filter.takenBy) }
-        if filter.type != .all { words.append(filter.type.title) }
-        if filter.status != .active { words.append(filter.status.title) }
-        return words.joined(separator: " · ")
-    }
-
-    private var karigarFilterNote: some View {
-        let name = book.karigars.item(filter.karigarId)?.name ?? "one karigar"
-        return HStack(spacing: 6) {
-            Text("Showing " + name).font(.caption).foregroundStyle(.secondary)
-            Button("Everyone") { filter.karigarId = "" }
-                .font(.caption)
-                .buttonStyle(.borderless)
         }
     }
 
@@ -515,6 +482,12 @@ struct WorkshopBoard: View {
         let people = session.shop.takenBy
         let live = workshopLive(book.karigars.items)
         return Menu {
+            Picker("Group by", selection: Binding(
+                get: { grouping },
+                set: { g in Motion.run(reduce: reduceMotion) { grouping = g } }
+            )) {
+                ForEach(WorkshopGrouping.allCases) { g in Text(g.title).tag(g) }
+            }
             if !people.isEmpty {
                 Picker("Taken by", selection: $filter.takenBy) {
                     Text("Anyone").tag("")
@@ -539,6 +512,12 @@ struct WorkshopBoard: View {
                     Text(s.title).tag(s)
                 }
             }
+            if filter.menuCount > 0 {
+                Divider()
+                Button("Reset filters", systemImage: "arrow.counterclockwise") {
+                    Motion.run(reduce: reduceMotion) { filter = WorkshopFilter() }
+                }
+            }
         } label: {
             Label("Filter", systemImage: filter.menuCount > 0 ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
         }
@@ -547,11 +526,6 @@ struct WorkshopBoard: View {
     /// The Workshop's other places.
     private var moreMenu: some View {
         Menu {
-            if session.isOwner {
-                Button { assigning = WorkshopStockJobAsk(karigarId: filter.karigarId) } label: {
-                    Label("Assign stock work", systemImage: "plus.circle")
-                }
-            }
             Button { opened = WorkshopPlace(path: "/karigars") } label: {
                 Label("Karigars", systemImage: "person.2")
             }
@@ -566,18 +540,21 @@ struct WorkshopBoard: View {
     @ViewBuilder
     private func emptyState(_ snap: WorkshopSnapshot) -> some View {
         let anyWork = !snap.all.isEmpty
+        let searching = !filter.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         switch focus {
         case .unassigned:
-            ContentUnavailableView("All work is assigned", systemImage: "checkmark.circle", description: Text("No work is awaiting assignment."))
+            EmptyState("All work is assigned", symbol: "checkmark.circle", message: "No work is awaiting assignment.")
         case .attention:
-            ContentUnavailableView("No work requires attention", systemImage: "checkmark.circle", description: Text("No overdue or unassigned work."))
+            EmptyState("No work requires attention", symbol: "checkmark.circle", message: "No overdue or unassigned work.")
         case .notGiven:
-            ContentUnavailableView("Everything assigned has been given", systemImage: "checkmark.circle", description: Text("No piece with a karigar is still in the safe."))
+            EmptyState("Everything assigned has been given", symbol: "checkmark.circle", message: "No piece with a karigar is still in the safe.")
         case .all:
-            if anyWork {
-                ContentUnavailableView("No jobs match", systemImage: "hammer", description: Text("Try adjusting the search or filters."))
+            if searching {
+                ContentUnavailableView.search(text: filter.query)
+            } else if anyWork {
+                EmptyState("No jobs match", symbol: "hammer", message: "Try adjusting the filters.")
             } else {
-                ContentUnavailableView("No pending work", systemImage: "hammer", description: Text("Nothing is on the bench."))
+                EmptyState("No pending work", symbol: "hammer", message: "Nothing is on the bench.")
             }
         }
     }
@@ -595,6 +572,7 @@ struct WorkshopBoard: View {
                 var named = fields
                 named["seq"] = UUID().uuidString
                 _ = try await ERPAPI.shared.write(op, named)
+                saved += 1
             } catch {
                 failure = error.localizedDescription
             }
@@ -690,7 +668,7 @@ struct WorkshopBoard: View {
     }
 }
 
-/// Assign Stock Work asked for, with the karigar it goes to when one is in focus ("" for none).
+/// Assign stock work asked for, with the karigar it goes to when one is in focus ("" for none).
 struct WorkshopStockJobAsk: Identifiable {
     let id = UUID()
     let karigarId: String

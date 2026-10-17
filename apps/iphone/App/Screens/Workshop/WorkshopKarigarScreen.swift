@@ -21,7 +21,8 @@ struct WorkshopKarigarScreen: View {
     @State private var ask: WorkshopPayAsk?
     @State private var deletion: OwnerDeletion?
     @Environment(\.dismiss) private var dismissKarigar
-    @State private var note: OwnerNote?
+    @State private var note: Note?
+    @State private var confirmingRemove = false
     /// The settled batches and the direct payments opened to show their payments.
     @State private var expanded: Set<String> = []
     @State private var showingAccounts = false
@@ -31,6 +32,7 @@ struct WorkshopKarigarScreen: View {
             .navigationTitle(book.karigars.item(id)?.name ?? "Karigar")
             .hubTitleDisplay()
             .modifier(HouseGround())
+            .zoomDestination(id: WorkshopLogic.karigarPath(id))
             .sheet(item: $ask) { (a: WorkshopPayAsk) in
                 paySheet(a)
             }
@@ -40,11 +42,14 @@ struct WorkshopKarigarScreen: View {
                         // He is off every list now; Recently removed has him.
                         dismissKarigar()
                     } else {
-                        Note.show(OwnerNote(title: d.what == "Delete this silver entry" ? "Silver entry deleted" : "Batch deleted"), in: $note, reduce: reduceMotion)
+                        Note.show(Note(title: d.what == "Delete this silver entry" ? "Silver entry deleted" : "Batch deleted"), in: $note, reduce: reduceMotion)
                     }
                 }
             }
-            .ownerNote($note)
+            .noteToast($note)
+            .selectionFeedback(trigger: showingAccounts)
+            // The warning tap as a delete is asked for (the delete code sheet opens).
+            .sensoryFeedback(.warning, trigger: deletion != nil) { _, now in now }
             .onDisappear { silverBook.stop() }
             .onAppear {
                 book.karigars.need()
@@ -63,7 +68,7 @@ struct WorkshopKarigarScreen: View {
 
     @ViewBuilder
     private func paySheet(_ a: WorkshopPayAsk) -> some View {
-        let saved: (OwnerNote) -> Void = { n in Note.show(n, in: $note, reduce: reduceMotion) }
+        let saved: (Note) -> Void = { n in Note.show(n, in: $note, reduce: reduceMotion) }
         if let karigar = book.karigars.item(id) {
             switch a {
             case .pay(let batch):
@@ -105,11 +110,8 @@ struct WorkshopKarigarScreen: View {
             if let karigar = book.karigars.item(id), (karigar.deletedAt ?? "").isEmpty {
                 page(karigar)
             } else {
-                ContentUnavailableView(
-                    "Karigar not found",
-                    systemImage: "person.crop.circle.badge.questionmark",
-                    description: Text("They may have been removed. Settings, Recently removed puts them back.")
-                )
+                EmptyState("Karigar not found", symbol: "person.crop.circle.badge.questionmark",
+                           message: "They may have been removed. Settings, Recently removed puts them back.")
             }
         }
     }
@@ -140,14 +142,18 @@ struct WorkshopKarigarScreen: View {
         return List { Group {
             if session.isOwner {
                 Section {
-                    Picker("Karigar view", selection: $showingAccounts) {
+                    Picker("Karigar view", selection: Binding(
+                        get: { showingAccounts },
+                        set: { on in Motion.run(reduce: reduceMotion) { showingAccounts = on } }
+                    )) {
                         Text("Work").tag(false)
-                        Text("Payments & khata").tag(true)
+                        Text("Payments").tag(true)
                     }
                     .pickerStyle(.segmented)
                     .chipRowInList()
                 }
             }
+            contactSection(karigar)
             nowSection(karigar, position, open: pay?.open, silver: silver)
             if !showingAccounts || !session.isOwner {
                 if !position.bench.isEmpty { benchSection(karigar, position) }
@@ -162,9 +168,26 @@ struct WorkshopKarigarScreen: View {
             }
             profileSection(karigar, pay: showingAccounts ? pay : nil)
             if session.isOwner { erpSection(karigar) }
+            if session.isOwner { removeSection(karigar) }
         }.houseRows()
         }
         .listStyle(.insetGrouped)
+        // Add payment never scrolls away from the Payments view while a batch is open.
+        .safeAreaBar(edge: .bottom, spacing: 0) {
+            if showingAccounts, session.isOwner, let open = pay?.open {
+                ActionBar(
+                    primary: .init("Add payment", systemImage: "plus") { ask = .pay(open.batch) },
+                    secondary: [.init("Silver", systemImage: "scalemass") { ask = .silver }],
+                    summary: (open.batch.label.isEmpty ? "Pay batch" : open.batch.label) + ": " + Money.pkr(open.total) + " paid"
+                )
+            }
+        }
+        .confirmDestructive(
+            isPresented: $confirmingRemove,
+            title: "Remove \(karigar.name.isEmpty ? "this karigar" : karigar.name)?",
+            message: "He is hidden from the lists. His jobs, given items and hisaab stay. Settings, then Recently removed, puts him back.",
+            action: "Remove karigar"
+        ) { askRemove(karigar) }
         .accessibilityIdentifier("workshop.karigar")
         .toolbar {
             if let load, load.active > 0 {
@@ -180,16 +203,22 @@ struct WorkshopKarigarScreen: View {
 
     // MARK: Who he is
 
+    /// Call and WhatsApp first: the number is what is reached for most.
+    @ViewBuilder
+    private func contactSection(_ karigar: Karigar) -> some View {
+        if let contact = karigar.contact, !contact.isEmpty {
+            Section {
+                ContactActions(phone: contact)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                    .listRowBackground(Color.clear)
+            }
+        }
+    }
+
     private func profileSection(_ karigar: Karigar, pay: KarigarPay.Figures?) -> some View {
         Section {
             if let contact = karigar.contact, !contact.isEmpty {
-                if let url = URL(string: "tel:" + WorkshopLogic.dialable(contact)) {
-                    Link(destination: url) {
-                        Label(contact, systemImage: "phone")
-                    }
-                } else {
-                    Label(contact, systemImage: "phone")
-                }
+                Label(contact, systemImage: "phone")
             }
             if let specialty = karigar.specialty, !specialty.isEmpty {
                 Label(specialty, systemImage: "hammer").foregroundStyle(.secondary)
@@ -198,9 +227,7 @@ struct WorkshopKarigarScreen: View {
                 Label(notes, systemImage: "note.text").foregroundStyle(.secondary)
             }
             if let pay {
-                LabeledContent("Total paid (all time)") {
-                    Text(Money.pkr(pay.totalPaid)).monospacedDigit().foregroundStyle(Color.primary)
-                }
+                MoneyRow("Total paid (all time)", pay.totalPaid)
                 LabeledContent("Active pay batch") {
                     if let open = pay.open, !open.batch.label.isEmpty {
                         Text(open.batch.label)
@@ -218,7 +245,11 @@ struct WorkshopKarigarScreen: View {
 
     private func nowSection(_ karigar: Karigar, _ p: WorkshopPosition, open: KarigarPay.InBatch?, silver: KarigarPay.Silver?) -> some View {
         let cash = p.cashBalance.rounded()
+        let footnote = nowFootnote(silver)
         return Section {
+            if session.isOwner {
+                cashHero(cash, open)
+            }
             NavigationLink(value: Route(path: "/workshop?karigar=" + WorkshopLogic.piece(karigar.id))) {
                 TwoLine(
                     title: "On his bench",
@@ -229,7 +260,7 @@ struct WorkshopKarigarScreen: View {
             TwoLine(
                 title: "Pieces weigh (est.)",
                 subtitle: weighHint(p),
-                trailing: p.metals.isEmpty ? "—" : p.metals.map { WorkshopLogic.grams3($0.grams) }.joined(separator: " · ")
+                trailing: p.metals.isEmpty ? "\u{2014}" : p.metals.map { WorkshopLogic.grams3($0.grams) }.joined(separator: " \u{00B7} ")
             )
             if session.isOwner {
                 NavigationLink(value: Route(path: hisaabPath(karigar))) {
@@ -240,20 +271,26 @@ struct WorkshopKarigarScreen: View {
                         trailingTint: p.khataNet > 0.0005 ? Tone.owed.color : Color.primary
                     )
                 }
-                NavigationLink(value: Route(path: hisaabPath(karigar))) {
-                    TwoLine(
-                        title: cash > 0 ? "He holds of ours" : (cash < 0 ? "We owe him" : "Cash"),
-                        subtitle: cashHint(open),
-                        trailing: cash == 0 ? "Square" : Money.pkr(abs(cash)),
-                        trailingTint: cash < 0 ? Tone.owed.color : Color.primary
-                    )
-                }
             }
         } header: {
             LedgerHeading(title: "Now")
         } footer: {
-            Text(nowFootnote(silver))
+            if !footnote.isEmpty { Text(footnote) }
         }
+    }
+
+    /// What he holds of ours, or what we owe him: the page's one big figure.
+    private func cashHero(_ cash: Double, _ open: KarigarPay.InBatch?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(cash > 0 ? "He holds of ours" : (cash < 0 ? "We owe him" : "Square"))
+                .font(.subheadline).foregroundStyle(.secondary)
+            HeroAmount(amount: abs(cash), tone: cash < 0 ? Tone.owed.color : Color.primary)
+            Text(cashHint(open)).font(.footnote).foregroundStyle(.secondary)
+        }
+        .heroSheen()
+        .accessibilityElement(children: .combine)
+        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+        .listRowBackground(Color.clear)
     }
 
     /// "March 2026: PKR 40,000 paid" while a pay batch is open, else just where the figure comes from.
@@ -271,18 +308,10 @@ struct WorkshopKarigarScreen: View {
         return s
     }
 
+    /// Only staff's silver line is said here; an owner reads silver in its own section (rule 15: not said twice).
     private func nowFootnote(_ silver: KarigarPay.Silver?) -> String {
-        var s = "The pieces' weight is what the jobs say they will weigh"
-        if session.isOwner {
-            s += "; the gold khata is what was handed over and brought back. Two measures, never added."
-        } else {
-            s += "."
-        }
-        // An owner reads silver in its own section (rule 15: not said twice).
-        if !session.isOwner, let silver, !silver.rows.isEmpty {
-            s += " Silver received: \(WorkshopLogic.grams3(silver.grams)) \u{00B7} \(Money.pkr(silver.surcharge)) surcharge."
-        }
-        return s
+        guard !session.isOwner, let silver, !silver.rows.isEmpty else { return "" }
+        return "Silver received: \(WorkshopLogic.grams3(silver.grams)) \u{00B7} \(Money.pkr(silver.surcharge)) surcharge."
     }
 
     private func hisaabPath(_ karigar: Karigar) -> String {
@@ -300,7 +329,7 @@ struct WorkshopKarigarScreen: View {
             }
             if p.bench.count > 12 {
                 NavigationLink(value: Route(path: "/workshop?karigar=" + WorkshopLogic.piece(karigar.id))) {
-                    Text("All \(p.bench.count) in Workshop").foregroundStyle(Color.accentColor)
+                    Text("All \(p.bench.count) in Workshop").foregroundStyle(Theme.accent)
                 }
             }
         } header: {
@@ -387,7 +416,7 @@ struct WorkshopKarigarScreen: View {
     private func statusWords(_ s: KarigarJobStatus) -> String {
         switch s {
         case .pending: return "Pending"
-        case .inProgress: return "In Progress"
+        case .inProgress: return "In progress"
         case .completed: return "Completed"
         case .unknown(let raw): return raw
         }
@@ -408,12 +437,10 @@ struct WorkshopKarigarScreen: View {
                 }
                 NavigationLink(value: Route(path: hisaabPath(karigar))) {
                     Text(rows.count > 8 ? "All \(rows.count) entries in Hisaab" : "Open in Hisaab")
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(Theme.accent)
                 }
             } header: {
                 LedgerHeading(title: "Hisaab")
-            } footer: {
-                Text("\(rows.count) entries · the gold khata above is the gold still with the karigar")
             }
         }
     }
@@ -437,6 +464,18 @@ struct WorkshopKarigarScreen: View {
             trailing: hisaabAmount(e),
             trailingTint: hisaabTint(e)
         )
+        // The arrows are for the eye; VoiceOver is told what they mean.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel([e.description.isEmpty ? "Entry" : e.description, ShopDate.say(e.date), hisaabSpoken(e)]
+            .filter { !$0.isEmpty }.joined(separator: ", "))
+    }
+
+    private func hisaabSpoken(_ e: HisaabEntry) -> String {
+        if e.goldDebitGrams > 0 { return "gold given " + WorkshopLogic.grams3(e.goldDebitGrams) }
+        if e.goldCreditGrams > 0 { return "gold received " + WorkshopLogic.grams3(e.goldCreditGrams) }
+        if e.cashDebit > 0 { return Money.pkr(e.cashDebit) }
+        if e.cashCredit > 0 { return "minus " + Money.pkr(e.cashCredit) }
+        return ""
     }
 
     /// "↑ 12.500g" gold given, "↓ 3.000g" received, else the cash.
@@ -444,7 +483,7 @@ struct WorkshopKarigarScreen: View {
         if e.goldDebitGrams > 0 { return "↑ " + WorkshopLogic.grams3(e.goldDebitGrams) }
         if e.goldCreditGrams > 0 { return "↓ " + WorkshopLogic.grams3(e.goldCreditGrams) }
         if e.cashDebit > 0 { return Money.pkr(e.cashDebit) }
-        if e.cashCredit > 0 { return "− " + Money.pkr(e.cashCredit) }
+        if e.cashCredit > 0 { return Money.minus(e.cashCredit) }
         return "—"
     }
 
@@ -462,40 +501,34 @@ struct WorkshopKarigarScreen: View {
     private func payBatchSection(_ karigar: Karigar, _ pay: KarigarPay.Figures) -> some View {
         if let open = pay.open {
             Section {
-                LabeledContent("Pay batch total") {
-                    Text(PaymentText.pkr(open.total)).monospacedDigit().fontWeight(.semibold).foregroundStyle(Color.primary)
-                }
+                MoneyRow("Pay batch total", open.total, emphasis: true)
                 if open.payments.isEmpty {
                     Text("No payments recorded. Select \u{201C}Add payment\u{201D} to record one.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
                 ForEach(open.payments) { e in paymentRow(e) }
-                Button { ask = .pay(open.batch) } label: {
-                    Label("Add payment", systemImage: "plus.circle")
-                }
-                Button { ask = .silver } label: {
-                    Label("Silver", systemImage: "scalemass")
-                }
+                // Add payment and Silver are the bar below; closing the batch is its own, last row.
                 Button { ask = .settle(open) } label: {
                     Label("Settle", systemImage: "checkmark.seal")
                 }
                 .tint(Tone.settled.color)
             } header: {
-                HStack(spacing: 6) {
-                    Image(systemName: "lock.open")
-                    Text(open.batch.label.isEmpty ? "Pay batch" : open.batch.label)
+                AdaptiveStack(spacing: 6, alignment: .center) {
+                    Image(systemName: "lock.open").foregroundStyle(.secondary)
+                    LedgerHeading(title: open.batch.label.isEmpty ? "Pay batch" : open.batch.label)
                 }
-                .textCase(nil)
             } footer: {
                 Text(startedWords(open))
             }
         } else {
             Section {
-                Text("No active pay batch").font(.headline)
-                Button { ask = .start } label: {
-                    Label("Start a pay batch", systemImage: "plus.circle")
+                ContentUnavailableView {
+                    Label("No active pay batch", systemImage: "book.closed")
+                } actions: {
+                    Button("Start a pay batch") { ask = .start }.buttonStyle(.bordered)
                 }
+                .listRowBackground(Color.clear)
             } header: {
                 LedgerHeading(title: "Pay batch")
             }
@@ -505,7 +538,7 @@ struct WorkshopKarigarScreen: View {
     /// "Started 1 Oct 2026 · 2 payments".
     private func startedWords(_ b: KarigarPay.InBatch) -> String {
         let n = b.payments.count
-        let started = OwnerText.shortDate(b.batch.startDate)
+        let started = ShopDate.say(b.batch.startDate)
         let count = "\(n) payment\(n == 1 ? "" : "s")"
         return started.isEmpty ? count : "Started \(started) \u{00B7} \(count)"
     }
@@ -515,7 +548,7 @@ struct WorkshopKarigarScreen: View {
         TwoLine(
             title: e.description.isEmpty ? (e.category.isEmpty ? "Payment" : e.category) : e.description,
             subtitle: [ShopDate.say(e.date), e.category].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "),
-            trailing: PaymentText.pkr(e.amount)
+            trailing: Money.pkr(e.amount)
         )
     }
 
@@ -542,16 +575,16 @@ struct WorkshopKarigarScreen: View {
         } header: {
             LedgerHeading(title: "Silver transactions")
         } footer: {
-            Text("\(WorkshopLogic.grams3(silver.grams)) received \u{00B7} \(PaymentText.pkr(silver.surcharge)) surcharge")
+            Text("\(WorkshopLogic.grams3(silver.grams)) received \u{00B7} \(Money.pkr(silver.surcharge)) surcharge")
         }
     }
 
     private func silverRow(_ t: KarigarSilverTransaction) -> some View {
         TwoLine(
             title: (t.description ?? "").isEmpty ? "\u{2014}" : (t.description ?? ""),
-            subtitle: [ShopDate.say(t.date), "\(WorkshopLogic.grams3(t.silverGrams)) at \(PaymentText.pkr(t.surchargePerGram))/g"]
+            subtitle: [ShopDate.say(t.date), "\(WorkshopLogic.grams3(t.silverGrams)) at \(Money.pkr(t.surchargePerGram))/g"]
                 .filter { !$0.isEmpty }.joined(separator: " \u{00B7} "),
-            trailing: PaymentText.pkr(t.totalSurcharge)
+            trailing: Money.pkr(t.totalSurcharge)
         )
     }
 
@@ -560,7 +593,7 @@ struct WorkshopKarigarScreen: View {
         let when = ShopDate.say(t.date)
         deletion = OwnerDeletion(
             what: "Delete this silver entry",
-            detail: "\(WorkshopLogic.grams3(t.silverGrams)) received\(when.isEmpty ? "" : " " + when), \(PaymentText.pkr(t.totalSurcharge)) surcharge: the record is removed permanently."
+            detail: "\(WorkshopLogic.grams3(t.silverGrams)) received\(when.isEmpty ? "" : " " + when), \(Money.pkr(t.totalSurcharge)) surcharge: the record is removed permanently."
         ) { code in
             _ = try await ERPAPI.shared.write("deleteSilverEntry", ["id": t.id, "deleteCode": code])
         }
@@ -580,7 +613,7 @@ struct WorkshopKarigarScreen: View {
                         Label("Delete batch", systemImage: "trash")
                     }
                 } label: {
-                    TwoLine(title: s.batch.label, subtitle: settledWords(s), trailing: PaymentText.pkr(s.total))
+                    TwoLine(title: s.batch.label, subtitle: settledWords(s), trailing: Money.pkr(s.total))
                 }
             }
         } header: {
@@ -590,8 +623,8 @@ struct WorkshopKarigarScreen: View {
 
     /// "1 Sep 2026 → 30 Sep 2026 · 3 payments".
     private func settledWords(_ s: KarigarPay.InBatch) -> String {
-        let from = OwnerText.shortDate(s.batch.startDate)
-        let to = OwnerText.shortDate(s.batch.closedDate ?? "")
+        let from = ShopDate.say(s.batch.startDate)
+        let to = ShopDate.say(s.batch.closedDate ?? "")
         let span = to.isEmpty ? from : "\(from) \u{2192} \(to)"
         let n = s.payments.count
         let count = "\(n) payment\(n == 1 ? "" : "s")"
@@ -604,7 +637,7 @@ struct WorkshopKarigarScreen: View {
         let n = s.payments.count
         let kept = n == 0
             ? "It has no payments."
-            : "Its \(n) payment\(n == 1 ? "" : "s") (\(PaymentText.pkr(s.total))) stay in Expenses and in his total paid, listed with his direct payments."
+            : "Its \(n) payment\(n == 1 ? "" : "s") (\(Money.pkr(s.total))) stay in Expenses and in his total paid, listed with his direct payments."
         deletion = OwnerDeletion(
             what: "Delete this karigar batch",
             detail: "\u{201C}\(s.batch.label)\u{201D} is deleted. \(kept)"
@@ -620,7 +653,7 @@ struct WorkshopKarigarScreen: View {
             DisclosureGroup(isExpanded: expandedBinding("direct")) {
                 ForEach(pay.direct) { e in paymentRow(e) }
             } label: {
-                TwoLine(title: "Direct payments", subtitle: "Not part of any hisaab \u{00B7} \(n) payment\(n == 1 ? "" : "s")", trailing: PaymentText.pkr(pay.directTotal))
+                TwoLine(title: "Direct payments", subtitle: "Not part of any hisaab \u{00B7} \(n) payment\(n == 1 ? "" : "s")", trailing: Money.pkr(pay.directTotal))
             }
         } header: {
             LedgerHeading(title: "Direct payments")
@@ -630,7 +663,11 @@ struct WorkshopKarigarScreen: View {
     private func expandedBinding(_ key: String) -> Binding<Bool> {
         Binding(
             get: { expanded.contains(key) },
-            set: { on in if on { expanded.insert(key) } else { expanded.remove(key) } }
+            set: { on in
+                Motion.run(reduce: reduceMotion) {
+                    if on { expanded.insert(key) } else { expanded.remove(key) }
+                }
+            }
         )
     }
 
@@ -646,13 +683,19 @@ struct WorkshopKarigarScreen: View {
             NavigationLink(value: Route(path: "/my-work?preview=" + WorkshopLogic.piece(karigar.id))) {
                 Label("Their view", systemImage: "eye")
             }
-            if session.isOwner {
-                Button(role: .destructive) { askRemove(karigar) } label: {
-                    Label("Remove karigar", systemImage: "person.crop.circle.badge.minus")
-                }
-            }
         } header: {
             LedgerHeading(title: "Karigar")
+        }
+    }
+
+    /// Alone, last: it asks first, then the delete code.
+    private func removeSection(_ karigar: Karigar) -> some View {
+        Section {
+            Button(role: .destructive) { confirmingRemove = true } label: {
+                Label("Remove karigar", systemImage: "person.crop.circle.badge.minus")
+            }
+        } footer: {
+            Text("He is hidden from the lists; his jobs, given items and hisaab stay.")
         }
     }
 

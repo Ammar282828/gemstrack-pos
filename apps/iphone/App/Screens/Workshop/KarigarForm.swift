@@ -45,8 +45,8 @@ struct KarigarForm: View {
             if let k = book.karigars.items.first(where: { $0.id == id }), (k.deletedAt ?? "").isEmpty {
                 KarigarFormBody(karigar: k)
             } else {
-                ContentUnavailableView("Karigar not found", systemImage: "person.crop.circle.badge.questionmark",
-                                       description: Text("They may have been removed. Settings, Recently removed puts them back."))
+                EmptyState("Karigar not found", symbol: "person.crop.circle.badge.questionmark",
+                           message: "They may have been removed. Settings, Recently removed puts them back.")
             }
         }
     }
@@ -86,6 +86,7 @@ private struct KarigarFormBody: View {
     @State private var draft: KarigarDraft
     @State private var saving = false
     @State private var error: String?
+    @State private var savedTick = 0
 
     /// The form opens on the karigar as it is when this screen is made, once: a change arriving from the book
     /// meanwhile must not throw away what is being typed.
@@ -141,18 +142,22 @@ private struct KarigarFormBody: View {
             workSection
             whereSection
             notesSection
-            if let error {
-                Section { Text(error).foregroundStyle(Tone.problem.color) }
-            }
             }
             .houseRows()
         }
         .disabled(saving)
         .scrollDismissesKeyboard(.interactively)
+        .keyboardDone()
+        .failureAlert($error, title: "Not saved")
+        .savedFeedback(trigger: savedTick)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") { Task { await save() } }
-                    .disabled(!canSave)
+                if saving {
+                    ProgressView().accessibilityLabel("Saving")
+                } else {
+                    Button("Save") { Task { await save() } }
+                        .disabled(!canSave)
+                }
             }
         }
     }
@@ -193,7 +198,7 @@ private struct KarigarFormBody: View {
             if !emailOK {
                 Text("Enter a valid email.").foregroundStyle(Tone.problem.color)
             } else {
-                Text("Adding a Gmail lets this karigar sign in and see only their own work list and account. They cannot see customers, prices, or any other karigar. The first time, Firebase must allow new accounts while he signs in (Authentication, Settings, User actions, Enable create), or Google refuses him.")
+                Text("With a Gmail he can sign in and see only his own work list and account: no customers, prices or other karigars.")
             }
         }
     }
@@ -239,6 +244,7 @@ private struct KarigarFormBody: View {
             } else {
                 try await ERPAPI.shared.write("addKarigar", ["karigar": patch])
             }
+            savedTick += 1
             dismiss()
         } catch {
             self.error = error.localizedDescription

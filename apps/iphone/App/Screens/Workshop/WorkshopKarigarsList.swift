@@ -7,6 +7,7 @@ import ERPCore
 struct WorkshopKarigarsList: View {
     @Environment(Book.self) private var book
     @Environment(Session.self) private var session
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var query = ""
     @State private var show: Show = .everyone
@@ -93,14 +94,16 @@ struct WorkshopKarigarsList: View {
         return List { Group {
             figures(live, loads, batches)
             showPicker
-            if show != .free { section("Working", hint: "busiest first", people: working, loads, batches) }
-            if show != .working { section("Free", hint: "nothing on the bench", people: free, loads, batches) }
-            if (show == .working && working.isEmpty) || (show == .free && free.isEmpty) || matched.isEmpty {
-                Section { emptyState.listRowBackground(Color.clear) }
-            }
+            if show != .free { section("Working", people: working, loads, batches) }
+            if show != .working { section("Free", people: free, loads, batches) }
         }.houseRows()
         }
         .listStyle(.insetGrouped)
+        .overlay {
+            if (show == .working && working.isEmpty) || (show == .free && free.isEmpty) || matched.isEmpty {
+                emptyState.allowsHitTesting(false)
+            }
+        }
     }
 
     /// The one holding the most, and the most overdue, is the one to look at.
@@ -118,8 +121,16 @@ struct WorkshopKarigarsList: View {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if q.isEmpty { return true }
         if k.name.localizedCaseInsensitiveContains(q) { return true }
+        // Numbers compare by their digits, so "0300 1234567" finds "+92 300 1234567".
+        let wanted = Self.digits(q)
+        if wanted.count >= 3 {
+            let have = Self.digits(k.contact ?? "")
+            return have.contains(wanted) || (wanted.hasPrefix("0") && have.contains(wanted.dropFirst()))
+        }
         return (k.contact ?? "").contains(q)
     }
+
+    private static func digits(_ s: String) -> String { s.filter(\.isNumber) }
 
     // MARK: Figures
 
@@ -153,7 +164,7 @@ struct WorkshopKarigarsList: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(Show.allCases) { s in
-                        FilterChip(title: s.title, chosen: show == s) { show = s }
+                        FilterChip(title: s.title, chosen: show == s) { Motion.run(reduce: reduceMotion) { show = s } }
                     }
                 }
             }
@@ -165,7 +176,7 @@ struct WorkshopKarigarsList: View {
     // MARK: Sections and rows
 
     @ViewBuilder
-    private func section(_ title: String, hint: String, people: [Karigar], _ loads: [String: WorkshopLoad], _ batches: [String: KarigarBatch]) -> some View {
+    private func section(_ title: String, people: [Karigar], _ loads: [String: WorkshopLoad], _ batches: [String: KarigarBatch]) -> some View {
         if !people.isEmpty {
             Section {
                 WorkshopCards(items: people) { k in
@@ -196,6 +207,21 @@ struct WorkshopKarigarsList: View {
             }
         }
         .buttonStyle(.plain)
+        .zoomSource(id: WorkshopLogic.karigarPath(k.id))
+        // The same actions as the page, on a long press (the cards share one list row, so no swipe).
+        .contextMenu {
+            NavigationLink(value: Route(path: WorkshopLogic.karigarPath(k.id))) {
+                Label("Open " + k.name, systemImage: "hammer")
+            }
+            if let contact = k.contact, !contact.isEmpty, let url = URL(string: "tel:" + Self.digits(contact)) {
+                Link(destination: url) { Label("Call", systemImage: "phone") }
+            }
+            if session.isOwner {
+                NavigationLink(value: Route(path: WorkshopLogic.karigarPath(k.id) + "/edit")) {
+                    Label("Edit", systemImage: "pencil")
+                }
+            }
+        }
     }
 
     /// What this karigar is holding, in one line: "3 pieces · 1 over 14d · 2 late · 8.5g out". Free says nothing: he
@@ -206,8 +232,8 @@ struct WorkshopKarigarsList: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(WorkshopLogic.pieces(load.active)).font(.subheadline.weight(.semibold)).monospacedDigit()
                 FigureRow(spacing: 8) {
-                    if load.critical > 0 { StatusBadge("\(load.critical) over \(WorkshopLogic.criticalDays)d", tone: .late) }
-                    if load.late > 0 { StatusBadge("\(load.late) late", tone: .owed) }
+                    if load.critical > 0 { Pill("\(load.critical) over \(WorkshopLogic.criticalDays)d", tone: .late) }
+                    if load.late > 0 { Pill("\(load.late) late", tone: .owed) }
                 }
                 if load.totalWeightG > 0 {
                     Text(WorkshopLogic.number(load.totalWeightG, digits: 1) + "g out")
@@ -219,12 +245,16 @@ struct WorkshopKarigarsList: View {
         }
     }
 
+    @ViewBuilder
     private var emptyState: some View {
-        let filtering = !query.isEmpty
-        return ContentUnavailableView(
-            "No karigars found",
-            systemImage: "person.2",
-            description: Text(filtering ? "Try a different search term." : "Add a karigar to begin.")
-        )
+        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            ContentUnavailableView.search(text: query)
+        } else {
+            switch show {
+            case .working: EmptyState("Nobody is working", symbol: "person.2", message: "Nothing is on any bench.")
+            case .free: EmptyState("Nobody is free", symbol: "person.2", message: "Every karigar has work.")
+            case .everyone: EmptyState("No karigars yet", symbol: "person.2", message: session.isOwner ? "Tap + to add one." : nil)
+            }
+        }
     }
 }

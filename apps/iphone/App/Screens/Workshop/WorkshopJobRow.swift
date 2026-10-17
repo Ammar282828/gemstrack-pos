@@ -24,6 +24,9 @@ struct WorkshopJobRow: View {
 
     private var isStock: Bool { job.source == .manual }
     @State private var instructionsOpen = false
+    /// The Given switch as tapped, held until the write settles so it does not snap back while the shelf catches up.
+    @State private var pendingGiven: Bool?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The stock job's status in the ERP's words.
     private var stockStatus: KarigarJobStatus {
@@ -51,17 +54,18 @@ struct WorkshopJobRow: View {
                 .accessibilityLabel("Actions for " + job.description)
             }
             referenceLine
-            if job.isOnline {
-                Label("Online sale", systemImage: "bag").font(.caption).foregroundStyle(.secondary)
-            }
             if showKarigar && !job.isUnassigned && (job.isDone || (isStock && canWrite)) {
                 Label(job.karigarName, systemImage: "hammer").font(.subheadline).foregroundStyle(.secondary)
             }
             specLine
             notesBox
             Divider()
+            // The controls stay where they are while a write is in flight: dimmed with a spinner over them, so the
+            // card never changes height.
             controls
-            if busy { SkeletonLoading("Updating job").frame(height: 20) }
+                .opacity(busy ? 0.35 : 1)
+                .overlay { if busy { ProgressView().accessibilityLabel("Updating job") } }
+                .motion(busy)
         }
         .padding(.vertical, 4)
         // No swipe actions: the cards share one list row (WorkshopCards' grid), so a swipe would act on whichever
@@ -83,7 +87,13 @@ struct WorkshopJobRow: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(stageTone)
                 .contentTransition(.symbolEffect(.replace))
+                .motion(stageWords)
             WorkshopAgeBadge(job: job)
+            if job.isOnline {
+                // A small glyph for where it was sold, not a line of its own.
+                Image(systemName: "bag").font(.caption).foregroundStyle(.secondary)
+                    .accessibilityLabel("Online sale")
+            }
         }
     }
 
@@ -120,10 +130,12 @@ struct WorkshopJobRow: View {
                     .frame(minHeight: 44, alignment: .leading)
                 }
                 .buttonStyle(.borderless)
-                Text(referenceWords)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                if !referenceWords.isEmpty {
+                    Text(referenceWords)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         } else {
             Label("Stock work", systemImage: "shippingbox")
@@ -141,7 +153,12 @@ struct WorkshopJobRow: View {
     private var referenceWords: String {
         var parts: [String] = []
         if let c = job.customerName, !c.isEmpty { parts.append(c) }
-        parts.append("Taken by " + ((job.takenBy ?? "").isEmpty ? "not recorded" : (job.takenBy ?? "")))
+        // Only when recorded: "not recorded" is noise on every piece nobody noted.
+        if let by = job.takenBy, !by.isEmpty { parts.append("Taken by " + by) }
+        // How long it has sat: a quiet caption while on track (a badge only when it needs someone).
+        if !job.isDone, job.urgency == .ok, job.ageDays > 0 {
+            parts.append(job.ageDays == 1 ? "1 day" : "\(job.ageDays) days")
+        }
         return parts.joined(separator: " · ")
     }
 
@@ -156,7 +173,10 @@ struct WorkshopJobRow: View {
     @ViewBuilder
     private var notesBox: some View {
         if let notes = job.notes, !notes.isEmpty {
-            DisclosureGroup(isExpanded: $instructionsOpen) {
+            DisclosureGroup(isExpanded: Binding(
+                get: { instructionsOpen },
+                set: { on in Motion.run(reduce: reduceMotion) { instructionsOpen = on } }
+            )) {
                 Text(notes)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -168,8 +188,6 @@ struct WorkshopJobRow: View {
                     .frame(minHeight: 44)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .background(Theme.ground, in: .rect(cornerRadius: Radius.tile, style: .continuous))
         }
     }
 
@@ -282,16 +300,21 @@ struct WorkshopJobRow: View {
     }
 
     private var givenToggle: some View {
-        Toggle(isOn: Binding(get: { job.hasGiven }, set: { on in actions.given(job, on) })) {
-            Text(givenWords).foregroundStyle(job.hasGiven ? Color.secondary : Color.primary)
+        let shown = pendingGiven ?? job.hasGiven
+        return Toggle(isOn: Binding(get: { shown }, set: { on in pendingGiven = on; actions.given(job, on) })) {
+            Text(givenWords(shown))
+                .foregroundStyle(shown ? Color.secondary : Color.primary)
+                .contentTransition(.opacity)
         }
         .font(.subheadline)
         .frame(minHeight: 44)
         .disabled(job.isUnassigned || busy)
+        .motion(job.hasGiven)
+        .onChange(of: busy) { _, now in if !now { pendingGiven = nil } }
     }
 
-    private var givenWords: String {
-        if job.hasGiven { return "Given " + ShopDate.say(job.givenAt) }
+    private func givenWords(_ given: Bool) -> String {
+        if given { return "Given " + ShopDate.say(job.givenAt) }
         if job.isUnassigned { return "Assign a karigar first" }
         return "Given to karigar"
     }
@@ -299,16 +322,15 @@ struct WorkshopJobRow: View {
     /// A piece the phone does not change (staff's view): who has it and whether it went.
     @ViewBuilder
     private var readOnlyControls: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            VStack(alignment: .leading, spacing: 6) {
-                Image(systemName: "hammer").foregroundStyle(.secondary)
-                if job.isUnassigned {
-                    Text("No karigar yet").foregroundStyle(Tone.owed.color)
-                } else {
-                    Text(job.karigarName).fontWeight(.medium)
-                    Text(job.hasGiven ? "Given " + ShopDate.say(job.givenAt) : "Not given yet")
-                        .foregroundStyle(job.hasGiven ? Color.secondary : Tone.owed.color)
-                }
+        // One row: who has it, and when it went. Amber only for the one thing missing (no karigar).
+        if job.isUnassigned {
+            Label("No karigar yet", systemImage: "hammer")
+                .font(.subheadline).foregroundStyle(Tone.owed.color)
+        } else {
+            AdaptiveStack(spacing: 8) {
+                Label(job.karigarName, systemImage: "hammer").fontWeight(.medium)
+                Text(job.hasGiven ? "Given " + ShopDate.say(job.givenAt) : "Not given yet")
+                    .foregroundStyle(.secondary)
             }
             .font(.subheadline)
         }

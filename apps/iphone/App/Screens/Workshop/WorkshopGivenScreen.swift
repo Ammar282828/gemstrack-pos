@@ -15,7 +15,9 @@ struct WorkshopGivenScreen: View {
     @State private var adding = false
     @State private var editing: GivenItem?
     @State private var deletion: OwnerDeletion?
-    @State private var note: OwnerNote?
+    @State private var note: Note?
+    /// Bumped when an item is marked back: the success tap.
+    @State private var returnedTick = 0
     /// Items with a write in flight.
     @State private var busy: Set<String> = []
     @State private var failure: String?
@@ -49,15 +51,17 @@ struct WorkshopGivenScreen: View {
         .sheet(item: $editing) { (item: GivenItem) in
             WorkshopGivenSheet(karigars: workshopLive(book.karigars.items), customers: liveCustomers,
                                takenBy: session.shop.takenBy, me: session.shop.person, item: item) {
-                Note.show(OwnerNote(title: "Updated", detail: "Item updated."), in: $note, reduce: reduceMotion)
+                Note.show(Note(title: "Updated", detail: "Item updated."), in: $note, reduce: reduceMotion)
             }
         }
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {
-                Note.show(OwnerNote(title: "Deleted"), in: $note, reduce: reduceMotion)
+                Note.show(Note(title: "Deleted"), in: $note, reduce: reduceMotion)
             }
         }
-        .ownerNote($note)
+        .noteToast($note)
+        .savedFeedback(trigger: returnedTick)
+        .sensoryFeedback(.warning, trigger: deletion != nil) { _, now in now }
         .workshopPlaceDestination($opened)
         .workshopFailureAlert($failure)
         .onAppear {
@@ -79,8 +83,7 @@ struct WorkshopGivenScreen: View {
         let all = book.givenItems.items
         let shown = all.filter { matches($0) }
         List { Group {
-            summarySection(all)
-            filterSection
+            filterSection(all)
             if !shown.isEmpty {
                 Section {
                     WorkshopCards(items: shown) { item in
@@ -89,13 +92,14 @@ struct WorkshopGivenScreen: View {
                 } header: {
                     LedgerHeading(title: filter == .returned ? "Returned items" : "Items", count: shown.count)
                 }
-            } else {
-                Section { emptyState.listRowBackground(Color.clear) }
             }
             }
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .overlay {
+            if shown.isEmpty { emptyState.allowsHitTesting(false) }
+        }
     }
 
     private func matches(_ g: GivenItem) -> Bool {
@@ -111,26 +115,16 @@ struct WorkshopGivenScreen: View {
             || (g.notes ?? "").localizedCaseInsensitiveContains(q)
     }
 
-    private func summarySection(_ all: [GivenItem]) -> some View {
+    /// The chips carry the one count that asks for a hand (what is still out); no tiles repeat it.
+    private func filterSection(_ all: [GivenItem]) -> some View {
         let out = all.filter { $0.status == .out }.count
-        let back = all.filter { $0.status == .returned }.count
         return Section {
-            FigureRow {
-                FigureTile(label: "Still out", value: "\(out)", tint: out > 0 ? Tone.owed.color : Color.primary)
-                FigureTile(label: "Returned", value: "\(back)")
-            }
-            .padding(.vertical, 4)
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
-        }
-    }
-
-    private var filterSection: some View {
-        Section {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(Filter.allCases) { f in
-                        FilterChip(title: f.title, chosen: filter == f) { filter = f }
+                        FilterChip(title: f.title, count: f == .out && out > 0 ? out : nil, chosen: filter == f) {
+                            Motion.run(reduce: reduceMotion) { filter = f }
+                        }
                     }
                 }
             }
@@ -170,6 +164,7 @@ struct WorkshopGivenScreen: View {
         // No swipe actions: the cards share one list row (WorkshopCards' grid), so a swipe would act on whichever
         // card the row picked. The … menu and the long press carry the same actions, on the right piece.
         .contextMenu { itemMenu(item) }
+        .motion(item.status)
     }
 
     @ViewBuilder
@@ -227,7 +222,13 @@ struct WorkshopGivenScreen: View {
     @ViewBuilder
     private func statusBadge(_ item: GivenItem) -> some View {
         if item.status == .out {
-            StatusBadge("Out", tone: .owed)
+            // Out is the expected state: a badge only once it has been out a week; before that a quiet word.
+            let days = daysOut(item)
+            if days >= 7 {
+                Pill("Out \(days) days", tone: .owed)
+            } else {
+                Text("Still out").font(.caption2).foregroundStyle(.secondary)
+            }
         } else {
             // Back is the expected end: no badge (rule 15), only when.
             if let back = item.returnedDate, !back.isEmpty {
@@ -236,11 +237,16 @@ struct WorkshopGivenScreen: View {
         }
     }
 
+    private func daysOut(_ item: GivenItem) -> Int {
+        guard let given = ERPDate.parse(item.date) else { return 0 }
+        return max(0, Calendar.current.dateComponents([.day], from: given, to: Date()).day ?? 0)
+    }
+
     private func gotBack(_ item: GivenItem) -> some View {
         HStack {
             Spacer()
             if busy.contains(item.id) {
-                SkeletonLoading()
+                ProgressView().frame(minHeight: 44).accessibilityLabel("Marking as back")
             } else {
                 Button { markReturned(item) } label: {
                     Label("Got back", systemImage: "checkmark.circle")
@@ -253,13 +259,18 @@ struct WorkshopGivenScreen: View {
         }
     }
 
+    @ViewBuilder
     private var emptyState: some View {
-        let filtering = !query.isEmpty || filter != .all
-        return ContentUnavailableView(
-            "Nothing here yet",
-            systemImage: "shippingbox",
-            description: Text(filtering ? "No items match your filter." : "Tap + to record an item given.")
-        )
+        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            ContentUnavailableView.search(text: query)
+        } else {
+            switch filter {
+            case .out: EmptyState("Nothing is out", symbol: "shippingbox", message: "Every item given has come back.")
+            case .returned: EmptyState("Nothing has come back yet", symbol: "shippingbox")
+            case .all: EmptyState("Nothing here yet", symbol: "shippingbox",
+                                  message: session.isOwner ? "Tap + to record an item given." : nil)
+            }
+        }
     }
 
     // MARK: Toolbar
@@ -294,6 +305,7 @@ struct WorkshopGivenScreen: View {
         Task { @MainActor in
             do {
                 _ = try await ERPAPI.shared.write("markGivenReturned", ["id": item.id, "returnedDate": ERPDate.iso(Date())])
+                returnedTick += 1
             } catch {
                 failure = error.localizedDescription
             }
@@ -307,7 +319,7 @@ struct WorkshopGivenScreen: View {
 /// The form of the Given page: the date, what it is, who it went to, and a note. The recipient is picked from the
 /// karigars or customers or typed; a name that is exactly one live karigar's or customer's is linked by id, so a
 /// customer merge and the karigar's page can find it (lib/given.ts `resolveRecipientId`). With an `item` it is
-/// "Edit Given Item": its fields to start from, and an edit whose name no longer resolves to one clears the old link,
+/// "Edit given item": its fields to start from, and an edit whose name no longer resolves to one clears the old link,
 /// as the web's does. Whether it came back is not changed by an edit.
 struct WorkshopGivenSheet: View {
     let karigars: [Karigar]
@@ -322,6 +334,7 @@ struct WorkshopGivenSheet: View {
     var onSaved: () -> Void = {}
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var date = Date()
     @State private var what = ""
@@ -335,6 +348,7 @@ struct WorkshopGivenSheet: View {
     @State private var givenBy = ""
     @State private var saving = false
     @State private var error: String?
+    @State private var savedTick = 0
 
     private let types: [GivenItemRecipientType] = [.karigar, .customer, .other]
 
@@ -375,7 +389,7 @@ struct WorkshopGivenSheet: View {
                 LedgerSection("Date given") {
                     DatePicker("Date given", selection: $date, in: ...Date(), displayedComponents: .date)
                 }
-                LedgerSection("Item / description") {
+                LedgerSection("What was given") {
                     TextField("e.g. Gold ring sample, Silver bangle repair", text: $what)
                 }
                 recipientSection
@@ -386,15 +400,15 @@ struct WorkshopGivenSheet: View {
                     TextField("Any extra details", text: $notes, axis: .vertical)
                         .lineLimit(2...4)
                 }
-                if let error {
-                    Section { Text(error).foregroundStyle(Tone.problem.color) }
-                }
                 }
                 .houseRows()
             }
-            .navigationTitle(item == nil ? "Record item given" : "Edit Given Item")
+            .scrollDismissesKeyboard(.interactively)
+            .failureAlert($error, title: "Not saved")
+            .navigationTitle(item == nil ? "Record item given" : "Edit given item")
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
+            .savedFeedback(trigger: savedTick)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }
@@ -405,7 +419,7 @@ struct WorkshopGivenSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
         .presentationSizing(.page)
         .interactiveDismissDisabled(saving)
     }
@@ -453,7 +467,7 @@ struct WorkshopGivenSheet: View {
                     if pickedId != nil && new != pickedName { pickedId = nil }
                 }
             ForEach(suggestions) { s in
-                Button { pick(s) } label: {
+                Button { Motion.run(reduce: reduceMotion) { pick(s) } } label: {
                     HStack {
                         Text(s.name)
                         Spacer()
@@ -463,8 +477,10 @@ struct WorkshopGivenSheet: View {
                     }
                 }
                 .buttonStyle(.borderless)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+        .motion(suggestions.map(\.id))
     }
 
     private struct Suggestion: Identifiable {
@@ -553,6 +569,7 @@ struct WorkshopGivenSheet: View {
                 } else {
                     _ = try await ERPAPI.shared.write("addGivenItem", sent)
                 }
+                savedTick += 1
                 dismiss()
             } catch {
                 self.error = error.localizedDescription

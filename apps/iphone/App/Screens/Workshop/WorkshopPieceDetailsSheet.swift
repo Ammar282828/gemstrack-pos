@@ -27,7 +27,7 @@ struct WorkshopPieceAsk: Identifiable {
 /// piece's weight is what the bill was priced from, so it is shown and not changed.
 struct WorkshopPieceDetailsSheet: View {
     let ask: WorkshopPieceAsk
-    let onSaved: (OwnerNote) -> Void
+    let onSaved: (Note) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var name: String
@@ -44,8 +44,9 @@ struct WorkshopPieceDetailsSheet: View {
     @State private var photoProblem: String?
     @State private var saving = false
     @State private var error: String?
+    @State private var savedTick = 0
 
-    init(ask: WorkshopPieceAsk, onSaved: @escaping (OwnerNote) -> Void) {
+    init(ask: WorkshopPieceAsk, onSaved: @escaping (Note) -> Void) {
         self.ask = ask
         self.onSaved = onSaved
         let job = ask.job
@@ -73,7 +74,7 @@ struct WorkshopPieceDetailsSheet: View {
                 } header: {
                     LedgerHeading(title: "Item name")
                 } footer: {
-                    Text("Also prints on the customer's estimate and invoice. \(ask.job.description): only the fields the karigar sees. Price, customer and quantity are unchanged.")
+                    Text("Also prints on the customer's estimate and invoice. Only the fields the karigar sees; price, customer and quantity are not changed.")
                 }
                 Section {
                     LabeledContent("Size") {
@@ -93,16 +94,15 @@ struct WorkshopPieceDetailsSheet: View {
                 } footer: {
                     if !ask.isOrder { Text("A sold piece keeps the weight its bill was priced from.") }
                 }
-                Section {
-                    if ask.isOrder {
+                // Only an order's piece keeps a sample picture; a sold piece has none to show.
+                if ask.isOrder {
+                    Section {
                         samplePicture
-                    } else {
-                        Text("Available on order items.").foregroundStyle(.secondary)
+                    } header: {
+                        LedgerHeading(title: "Sample picture")
+                    } footer: {
+                        Text("Shown to the karigar on their work list.")
                     }
-                } header: {
-                    LedgerHeading(title: "Sample picture")
-                } footer: {
-                    Text("Shown to the karigar on their work list.")
                 }
                 Section {
                     TextField("Stones, plating, sizing, or other specifications", text: $instructions, axis: .vertical)
@@ -112,12 +112,13 @@ struct WorkshopPieceDetailsSheet: View {
                 } footer: {
                     Text("Shown to the karigar and on the workshop slip. Never printed on a customer estimate or invoice: keep prices and customer details out of it.")
                 }
-                if let error {
-                    Section { Text(error).foregroundStyle(Tone.problem.color) }
-                }
                 }
                 .houseRows()
             }
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
+            .failureAlert($error, title: "Not saved")
+            .savedFeedback(trigger: savedTick)
             .navigationTitle("Making details")
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
@@ -131,7 +132,6 @@ struct WorkshopPieceDetailsSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
         .presentationSizing(.page)
         .interactiveDismissDisabled(saving)
         // A picture kept in its own document (lib/order-photos.ts) is read for the editor, as the web's dialog reads it.
@@ -205,7 +205,8 @@ struct WorkshopPieceDetailsSheet: View {
         error = nil
         do {
             try await ERPAPI.shared.write(op, fields)
-            onSaved(OwnerNote(title: "Details updated", detail: ask.job.description))
+            onSaved(Note(title: "Details updated", detail: ask.job.description))
+            savedTick += 1
             dismiss()
         } catch {
             self.error = error.localizedDescription

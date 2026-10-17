@@ -5,14 +5,14 @@ import ERPCore
 // write through the ERP (`addStockJob`, `updateStockJobDetails`, lib/writes/workshop-admin.ts). Nothing here moves
 // money: the making agreed is written on the job, and paying him is a payment from his page.
 
-/// "Assign Stock Work": pieces for the shop's own stock, not tied to a customer order; repairs and samples too. A
+/// "Assign stock work": pieces for the shop's own stock, not tied to a customer order; repairs and samples too. A
 /// karigar and what he is making are needed; the rest is the web form's, each left out when blank. The job starts
 /// Pending, written up now; the ERP names it with the karigar's name on file.
 struct WorkshopStockJobSheet: View {
     let karigars: [Karigar]
     /// The karigar the work goes to when one was in focus ("" for none).
     let presetKarigarId: String
-    let onSaved: (OwnerNote) -> Void
+    let onSaved: (Note) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var karigarId: String
@@ -26,8 +26,9 @@ struct WorkshopStockJobSheet: View {
     @State private var notes = ""
     @State private var saving = false
     @State private var error: String?
+    @State private var savedTick = 0
 
-    init(karigars: [Karigar], presetKarigarId: String, onSaved: @escaping (OwnerNote) -> Void) {
+    init(karigars: [Karigar], presetKarigarId: String, onSaved: @escaping (Note) -> Void) {
         self.karigars = karigars
         self.presetKarigarId = presetKarigarId
         self.onSaved = onSaved
@@ -51,7 +52,7 @@ struct WorkshopStockJobSheet: View {
                     TextField("What are they making? e.g. 4 stacked rings, moti set repair", text: $what, axis: .vertical)
                         .lineLimit(1...3)
                 } header: {
-                    LedgerHeading(title: "Work & karigar")
+                    LedgerHeading(title: "Work and karigar")
                 } footer: {
                     Text("Pieces for your own inventory, not tied to a customer order. Also use this for repairs and samples.")
                 }
@@ -84,13 +85,14 @@ struct WorkshopStockJobSheet: View {
                     TextField("Instructions, stone details…", text: $notes, axis: .vertical)
                         .lineLimit(2...5)
                 }
-                if let error {
-                    Section { Text(error).foregroundStyle(Tone.problem.color) }
-                }
                 }
                 .houseRows()
             }
-            .navigationTitle("Assign Stock Work")
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
+            .failureAlert($error, title: "Not saved")
+            .savedFeedback(trigger: savedTick)
+            .navigationTitle("Assign stock work")
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -103,7 +105,6 @@ struct WorkshopStockJobSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
         .presentationSizing(.page)
         .interactiveDismissDisabled(saving)
     }
@@ -130,7 +131,8 @@ struct WorkshopStockJobSheet: View {
         do {
             try await ERPAPI.shared.write("addStockJob", ["job": job])
             let name = karigars.first { $0.id == karigarId }?.name ?? ""
-            onSaved(OwnerNote(title: "Job assigned", detail: "\(cleanedWhat) \u{2192} \(name)"))
+            onSaved(Note(title: "Job assigned", detail: "\(cleanedWhat) \u{2192} \(name)"))
+            savedTick += 1
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -143,7 +145,7 @@ struct WorkshopStockJobSheet: View {
 /// instructions; a blank size or instructions is removed. Price, customer and quantity are unchanged.
 struct WorkshopJobDetailsSheet: View {
     let job: KarigarJob
-    let onSaved: (OwnerNote) -> Void
+    let onSaved: (Note) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var name: String
@@ -152,8 +154,9 @@ struct WorkshopJobDetailsSheet: View {
     @State private var instructions: String
     @State private var saving = false
     @State private var error: String?
+    @State private var savedTick = 0
 
-    init(job: KarigarJob, onSaved: @escaping (OwnerNote) -> Void) {
+    init(job: KarigarJob, onSaved: @escaping (Note) -> Void) {
         self.job = job
         self.onSaved = onSaved
         _name = State(initialValue: job.description)
@@ -173,7 +176,7 @@ struct WorkshopJobDetailsSheet: View {
                 } header: {
                     LedgerHeading(title: "Item name")
                 } footer: {
-                    Text("\(job.description): only the fields the karigar sees. Price, customer and quantity are unchanged.")
+                    Text("Only the fields the karigar sees. Price, customer and quantity are not changed.")
                 }
                 Section {
                     LabeledContent("Size") {
@@ -191,12 +194,13 @@ struct WorkshopJobDetailsSheet: View {
                 } footer: {
                     Text("Shown to the karigar and on the workshop slip.")
                 }
-                if let error {
-                    Section { Text(error).foregroundStyle(Tone.problem.color) }
-                }
                 }
                 .houseRows()
             }
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDone()
+            .failureAlert($error, title: "Not saved")
+            .savedFeedback(trigger: savedTick)
             .navigationTitle("Making details")
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
@@ -210,7 +214,6 @@ struct WorkshopJobDetailsSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
         .presentationSizing(.page)
         .interactiveDismissDisabled(saving)
     }
@@ -229,7 +232,8 @@ struct WorkshopJobDetailsSheet: View {
         error = nil
         do {
             try await ERPAPI.shared.write("updateStockJobDetails", ["jobId": job.id, "patch": patch])
-            onSaved(OwnerNote(title: "Details updated", detail: job.description))
+            onSaved(Note(title: "Details updated", detail: job.description))
+            savedTick += 1
             dismiss()
         } catch {
             self.error = error.localizedDescription
