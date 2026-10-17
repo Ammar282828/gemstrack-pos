@@ -2,25 +2,31 @@ import { describe, expect, it } from 'vitest';
 import { discountWithOffer, roundOffLabel, roundOffOffers, settleRemainderOffer } from './money-round';
 
 describe('roundOffOffers', () => {
-  it('offers the round-downs, smallest cost first, at most three', () => {
+  it('offers the round-downs, coarsest first, at most three', () => {
     expect(roundOffOffers(272_340)).toMatchObject([
-      { target: 272_300, extra: 40 },
-      { target: 272_000, extra: 340 },
       { target: 270_000, extra: 2_340 },
+      { target: 272_000, extra: 340 },
+      { target: 272_300, extra: 40 },
     ]);
+    expect(roundOffOffers(99_999)).toMatchObject([
+      { target: 95_000, extra: 4_999 },
+      { target: 99_000, extra: 999 },
+      { target: 99_500, extra: 499 },
+    ]);
+    expect(roundOffOffers(271_050).map(x => x.target)).toEqual([270_000, 271_000]);
   });
 
-  it('takes the three cheapest when more qualify', () => {
-    // 100 -> 273,600, 500 -> 273,500, 1000 -> 273,000, 5000/10000 -> 270,000
+  it('takes the three roundest when more qualify', () => {
+    // 10000/5000 -> 270,000, 1000 -> 273,000, 500 -> 273,500, 100 -> 273,600
     const o = roundOffOffers(273_640);
     expect(o).toHaveLength(3);
-    expect(o.map(x => x.target)).toEqual([273_600, 273_500, 273_000]);
+    expect(o.map(x => x.target)).toEqual([270_000, 273_000, 273_500]);
   });
 
   it('dedupes steps that land on the same target', () => {
-    const o = roundOffOffers(12_300); // 100 -> itself (round), 500 -> 12,000, 1000 -> 12,000, 5000/10000 -> 10,000
-    expect(o.map(x => x.target)).toEqual([12_000, 10_000]);
-    expect(o[0].extra).toBe(300);
+    const o = roundOffOffers(12_300); // 100 -> itself (round), 5000/10000 -> 10,000, 500/1000 -> 12,000
+    expect(o.map(x => x.target)).toEqual([10_000, 12_000]);
+    expect(o[1].extra).toBe(300);
   });
 
   it('offers nothing for a total that is already round', () => {
@@ -36,21 +42,21 @@ describe('roundOffOffers', () => {
 
   it('handles a small bill with a real round target', () => {
     expect(roundOffOffers(1_234)).toMatchObject([
-      { target: 1_200, extra: 34 },
       { target: 1_000, extra: 234 },
+      { target: 1_200, extra: 34 },
     ]);
   });
 
   it('draws the line at 5,000: under is a candidate, 5,000 itself never is', () => {
-    // 9,999 is 4,999 over 5,000 (a candidate) but three cheaper offers come first.
+    // 9,999 is 4,999 over 5,000: the coarsest step is offered first.
     expect(roundOffOffers(9_999)).toMatchObject([
-      { target: 9_900, extra: 99 }, { target: 9_500, extra: 499 }, { target: 9_000, extra: 999 },
+      { target: 5_000, extra: 4_999 }, { target: 9_000, extra: 999 }, { target: 9_500, extra: 499 },
     ]);
     // 15,000 and 5,000 are round: the next step down would cost exactly 5,000 and is not offered.
     expect(roundOffOffers(15_000)).toMatchObject([]);
     expect(roundOffOffers(5_000)).toMatchObject([]);
     expect(roundOffOffers(5_099)).toMatchObject([{ target: 5_000, extra: 99 }]);
-    expect(roundOffOffers(4_999).map(x => x.target)).toEqual([4_900, 4_500, 4_000]);
+    expect(roundOffOffers(4_999).map(x => x.target)).toEqual([4_000, 4_500, 4_900]);
   });
 
   it('never offers more than 4,999 off', () => {
@@ -113,9 +119,9 @@ describe('tables', () => {
     // name, total, existing discount, [target, extra]...
     ['round already', 270_000, 0, []],
     ['under 100', 99, 0, []],
-    ['typed discount counts', 300_000, 27_660, [[272_300, 40], [272_000, 340], [270_000, 2_340]]],
+    ['typed discount counts', 300_000, 27_660, [[270_000, 2_340], [272_000, 340], [272_300, 40]]],
     ['discount makes it round', 300_000, 30_000, []],
-    ['small', 1_234, 0, [[1_200, 34], [1_000, 234]]],
+    ['small', 1_234, 0, [[1_000, 234], [1_200, 34]]],
   ];
   it.each(rows)('%s', (_n, total, disc, want) => {
     const got = roundOffOffers(total, disc);

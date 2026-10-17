@@ -487,7 +487,7 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
 
 ### Round-off
 
-- **The bill is offered round** (owner, 2026-10-17: "offer discount options to round the bill for any amount under 5000"). Beside the discount field (New sale, invoice discount, Finalize & invoice, the order form): up to 3 chips "Round to 270,000 · −2,340", the cheapest round-downs to 100/500/1,000/5,000/10,000 that cost under 5,000 more; tap adds it to the typed discount, tap again undoes. At payment time (invoice, an order's advance) a remainder under 5,000 offers "Settle — give the remaining PKR X off", which raises the discount, never a payment that was not made. Rule and tests: `lib/money-round.ts`; chips `components/shared/round-off-chips.tsx`.
+- **The bill is offered round** (owner, 2026-10-17: "offer discount options to round the bill for any amount under 5000"). Beside the discount field (New sale, invoice discount, Finalize & invoice, the order form): up to 3 chips "Round to 270,000 · −2,340", the roundest round-downs to 10,000/5,000/1,000/500/100 that cost under 5,000 more, coarsest first (272,340 offers 270,000 · 272,000 · 272,300; a target two steps reach is listed once); tap adds it to the typed discount, tap again undoes. At payment time (invoice, an order's advance) a remainder under 5,000 offers "Settle — give the remaining PKR X off", which raises the discount, never a payment that was not made. Rule and tests: `lib/money-round.ts`; chips `components/shared/round-off-chips.tsx`.
 
 ### Lac and crore
 

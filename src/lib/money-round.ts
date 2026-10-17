@@ -17,7 +17,8 @@
  *
  * ROUND-OFF OFFERS. From total T (after any discount already typed), round DOWN to the nearest
  * 100, 500, 1,000, 5,000, 10,000: target = floor(T/step)*step, extra = T - target. Keep target > 0 and
- * 0 < extra < 5,000, drop duplicate targets, order by extra ascending, give at most 3.
+ * 0 < extra < 5,000, order by roundness (coarsest step first: 10,000, 5,000, 1,000, 500, 100), drop
+ * duplicate targets (the coarsest step's entry stays), give at most 3.
  * SETTLE: after a payment, a remainder R with 0 < R < 5,000 may be given off by adding R to the discount.
  */
 
@@ -60,6 +61,8 @@ export const totalOfLines = (totals: readonly unknown[]): number => lineTotal(to
 
 /** The round numbers a bill is rounded down to. */
 export const ROUND_OFF_STEPS = [100, 500, 1_000, 5_000, 10_000] as const;
+/** The same steps, coarsest first: the order the chips are offered in. */
+const STEPS_COARSEST_FIRST = [...ROUND_OFF_STEPS].reverse();
 /** An extra discount must be under this to be offered (and a leftover under it can be settled). */
 export const ROUND_OFF_LIMIT = 5_000;
 /** At most this many chips are shown. */
@@ -77,20 +80,20 @@ export interface RoundOffOffer {
 /**
  * The offers for a bill that comes to `total` (subtotal less the discount typed so far and the
  * exchange, before any round-off): round down to the nearest 100, 500, 1,000, 5,000 and 10,000,
- * keep those whose extra discount is more than 0 and under 5,000, drop duplicates, and give the
- * three that cost the least (smallest extra first). Nothing when the total is already round, is
+ * keep those whose extra discount is more than 0 and under 5,000, and give the three roundest
+ * (coarsest step first; a target two steps reach is listed once, under the coarser). Nothing when the total is already round, is
  * under 100 (rounding down would be free), or no step qualifies.
  */
 export function roundOffOffers(total: number, existingDiscount = 0): RoundOffOffer[] {
   const t = rupees(total) - rupees(existingDiscount);
   if (!(t > 0)) return [];
   const byTarget = new Map<number, RoundOffOffer>();
-  for (const step of ROUND_OFF_STEPS) {
+  for (const step of STEPS_COARSEST_FIRST) {
     const target = Math.floor(t / step) * step;
     const extra = t - target;
     if (target > 0 && extra > 0 && extra < ROUND_OFF_LIMIT && !byTarget.has(target)) byTarget.set(target, { target, extra, discount: rupees(existingDiscount) + extra });
   }
-  return [...byTarget.values()].sort((a, b) => a.extra - b.extra).slice(0, ROUND_OFF_MAX_OFFERS);
+  return [...byTarget.values()].slice(0, ROUND_OFF_MAX_OFFERS);
 }
 
 /** The discount once an offer is taken: whatever was already typed, plus the extra. */
