@@ -284,7 +284,6 @@ struct DesignResizeSheet: View {
             .modifier(DesignSpeech(get: { r.model.speak }, set: { r.model.speak = $0 }, note: $note))
             .failureAlert($problem, title: "Could not finish")
             .onChange(of: r.problem) { _, now in if let now { problem = now; r.problem = nil } }
-            .sensoryFeedback(.success, trigger: r.added)
         }
     }
 

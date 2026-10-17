@@ -273,15 +273,19 @@ struct DesignSmartSheet: View {
             .modifier(HouseGround())
             .navigationTitle("Start with anything").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
-            .actionBar(primary: primary, secondary: m.review == nil ? [] : [.init("Back") { m.review = nil }])
+            .actionBar(primary: primary, secondary: secondary)
             .failureAlert(bind(\.error), title: "Could not read that")
-            .refusedFeedback(trigger: m.error)
             .keyboardDone()
             .modifier(DesignSpeech(get: { m.start.speak }, set: { m.start.speak = $0 }, note: $note))
             .onChange(of: picked) { _, items in if !items.isEmpty { Task { await takePhotos(items) } } }
             .sensoryFeedback(.success, trigger: m.used)
         }
         .presentationDetents([.medium, .large])
+    }
+
+    private var secondary: [ActionBar.Action] {
+        if m.review == nil { return [] }
+        return [ActionBar.Action("Back") { m.review = nil }]
     }
 
     /// The one primary action, whichever step the sheet is at: read it, then use what was read.

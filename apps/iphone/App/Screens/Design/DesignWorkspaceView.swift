@@ -85,8 +85,6 @@ struct DesignWorkspaceView: View {
             primary: .init("Publish", systemImage: "paperplane", isDisabled: model.saving) { DesignHooks.shared.publish(model) },
             secondary: [.init("Save", systemImage: "square.and.arrow.down", isBusy: model.saving) { Task { await model.saveToShop() } }],
             summary: w.dirty ? "Not saved" : "Saved")
-        // A finished AI tool (the busy words clear) gives the success tap.
-        .sensoryFeedback(.success, trigger: model.aiBusy == nil) { old, new in !old && new }
     }
 
     // MARK: Name and kind (Save and Publish are the action bar)

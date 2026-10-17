@@ -172,7 +172,6 @@ struct StudioBoardEditor: View {
         }
         .presentationSizing(.page)
         .failureAlert(Binding(get: { panelShown && !regular ? nil : problem }, set: { problem = $0 }), title: "Could not finish")
-        .refusedFeedback(trigger: problem)
         .interactiveDismissDisabled(dirty || saving || busy != nil)
         .websiteBusy(busy)
         .task { await load() }
