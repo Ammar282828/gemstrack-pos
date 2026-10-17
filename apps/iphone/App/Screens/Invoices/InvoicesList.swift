@@ -318,6 +318,7 @@ struct InvoicesList: View {
                                 .overlay {
                                     RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                                         .strokeBorder(Theme.accent.opacity(isMine(inv) ? 0.22 : 0.08), lineWidth: 1)
+                                        .allowsHitTesting(false)
                                 }
                             }
                         }

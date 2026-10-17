@@ -32,3 +32,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-17: the large widget can show a second business under the first (Edit Widget → Second business), each in its own colours.
 - 2026-10-17: the old cards and layouts back everywhere (invoices, orders, home, money, workshop, ads…), only less noisy: no Paid or Done badges, no number twice, no obvious footers.
 - 2026-10-17: orders keep their status (stage words in colour, Paid) and every button; the card is cleaner: one line for what it is, its next step a small capsule.
+- 2026-10-17: order and invoice cards open on the first tap again (the zoom's tap recogniser, added 10-15, took taps from the list's rows).
