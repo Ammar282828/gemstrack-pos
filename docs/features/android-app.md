@@ -110,6 +110,41 @@ is its rulebook, mirroring `apps/iphone/CONVENTIONS.md`.
 5. Device: widgets, FCM (and the server side), voice, scanner, PDFs and share, deep links, biometrics.
 6. CI and distribution, owner steps.
 
+### Design is native (2026-10-19)
+
+Owner: "The post section in the Taheri app takes me to the web version of the ERP. I want it to be native." Posts › Design
+(`/design`) was the one tab still opening the ERP's page. It is the iPhone's Design, ported file for file
+(`apps/iphone/App/Screens/Design` → `app/screens/design`), registered after the Marketing group as the Swift's `NativeScreens` has it.
+`/website/post` (Post a piece) and `/ads/studio` keep their own native screens, as on the iPhone; no address redirects inside the app.
+
+- **Screens.** Make (the start screen, then the workspace: page strip, the page, Words, the photograph with its AI tools, Resize, Publish,
+  Save), Photos (the website's pieces; owner and marketing also Best for ads and Every photo), Saved (folders, drafts on this phone, In the
+  ad account, one design's sheet). Rule 16: Publish (with Save beside it) is pinned in the bar, deletes ask, the page is pinned beside the
+  words on a tablet. `?v=`, `?s=`, `?kind=`, `?play=`, `?draft=`, `?site=`, `?new=1` are answered as the web answers them.
+- **Roles** (`designGate`): owner, staff and marketing may design; the Board, the library with scores, the Ad kind, Flat image → layers and
+  Make the ad with AI are owner and marketing's.
+- **Endpoints, as the Swift sends them:** `/api/design/designs` (list, one file by `?key=`, multipart save, PATCH, DELETE, `folders`),
+  `/api/design/destinations`, `/api/design/{resize,parse,fetch,analyze,layers,remove-background}`, `/api/website/post/ai`,
+  `/api/ads/studio/{auto,uploads,library,saved,creatives}`, `/api/website/{site-pieces,photos,post,post/queue,post/health,featured,edits}`,
+  `/api/instagram/{story,post,connect}`, `/api/ads/{images,campaigns}`, `/api/app/website`.
+- **The designer's v2** (`screens/marketing/Artwork*`): blend and opacity, shadow / glow / outline, the nine text effects, rich text runs (per
+  word: face, bold, italic, underline, capitals, size, colour, foil), gradients (any angle, radial, up to eight stops) on text, shapes and the
+  background base, QR layers, the full photo adjust (filters, quick fixes, thirteen sliders) and cut-out, twenty faces, snapping to guides,
+  grid, margins and other layers with a haptic tick, "match the first one picked", Cancel that asks.
+- **The engine protocol** (`DesignProtocol`) gained `brand` (as `NativeArtwork.swift` sends it; the shipped bundles ignore it) and `message()`,
+  the one function `run` and the Chromium check share. The new actions (`resize`, `resizeMerge`, `words`, `siteLayouts`, the website's `names`)
+  and options (`swap`, `subject`, `photoMarked`, `targets`, `items`) pass through the generic options. `apps/android/scripts/check-design-engine.mjs`
+  runs both houses' real bundles in headless Chromium with the exact page and messages the app builds
+  (`DesignEngineFixturesTest` writes them; it reads the answers back through `DesignProtocol.parse`).
+- **Tests.** JVM: `DesignModelTests`, `DesignPublishTests`, `ArtworkV2Tests`, `DesignProtocolTests`, `DesignEngineFixturesTest`. Screenshots
+  (`DesignShots`, phone and tablet, light and dark, the demo's made-up designs; a stand-in engine draws the pages, as a JVM test cannot run
+  the bundle): start, workspace, Publish, Resize, Saved, Photos, the designer.
+- **Engine finding.** `carry` (Paste copied layers) throws a non-finite `createLinearGradient` in the bundle when the carried text has a gradient run; the iPhone sends the same message, so it is the engine's, not the port's. `check-design-engine.mjs` carries the v2 layers without the runs.
+- **Not at parity.** The Board section opens the ERP's own page (`/design?v=board&web=1`): the Studio's board (canvas, notes, Let it cook,
+  the agent) is a port of its own and Android has no Studio yet. The Posts hub's cards and Edit a piece do not yet offer "Open in Design" (the iPhone's
+  tray, `PostTray*`, is not ported here); Design is reached from Posts › Design. The share sheet cannot say whether a story was posted, so after Share it asks when the person returns.
+  Nothing here has run on a phone (no emulator here): the WebView engine on a device, the camera and the pickers are unverified.
+
 ### The interim app (apps/android-twa)
 
 Owner, 2026-10-12: "just give me an apk". Until the native app ships, `apps/android-twa` is a Trusted Web Activity: the

@@ -4,6 +4,7 @@ import erp.app.nav.ScreenRoute
 import erp.app.screens.ads.AdsRoutes
 import erp.app.screens.analytics.AnalyticsRoutes
 import erp.app.screens.customers.CustomersRoutes
+import erp.app.screens.design.DesignRoutes
 import erp.app.screens.home.HomeRoutes
 import erp.app.screens.invoices.InvoicesRoutes
 import erp.app.screens.marketing.MarketingRoutes
@@ -49,6 +50,8 @@ object NativeScreens {
             AdsRoutes,
             // Last, as in the Swift: its paths (/posts, /website/…, /marketing/…) share no prefix with the rest.
             MarketingRoutes,
+            // Posts › Design (/design): the start screen, the workspace, Photos, Saved. Its Post a piece and Studio addresses stay Marketing's.
+            DesignRoutes,
         ).flatten()
     }
 }

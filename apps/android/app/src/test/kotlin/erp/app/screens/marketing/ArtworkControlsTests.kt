@@ -111,7 +111,8 @@ class ArtworkControlsTests {
         assertEquals("Heading", ArtworkProperties.label("heading"))
         assertTrue(ArtworkProperties.isColorKey("fill2"))
         assertTrue(ArtworkProperties.isColorKey("bgColor"))
-        assertEquals(14, ArtworkProperties.choices.getValue("font").size)
+        // the fourteen faces and the six Designer v2 jewellery faces
+        assertEquals(20, ArtworkProperties.choices.getValue("font").size)
         assertEquals("12", ArtworkProperties.numberText(12.0))
         assertEquals("0.35", ArtworkProperties.numberText(0.35))
         assertEquals("1.5", ArtworkProperties.numberText(1.5))

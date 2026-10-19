@@ -95,7 +95,7 @@ object ScreenRegistry {
         val fills = setOf(
             "/", "/orders", "/invoices", "/workshop", "/karigars", "/products", "/calendar",
             "/my-work", "/given", "/orders/add", "/invoices/new", "/products/add",
-            "/products/bulk-add", "/settings/printer", "/app/widgets",
+            "/products/bulk-add", "/settings/printer", "/app/widgets", "/design",
         )
         if (bare in fills) return null
         for (prefix in listOf("/ads", "/website", "/posts", "/marketing")) if (bare == prefix || bare.startsWith("$prefix/")) return null

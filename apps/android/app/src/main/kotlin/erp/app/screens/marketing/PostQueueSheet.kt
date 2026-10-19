@@ -311,7 +311,7 @@ private fun PlaceRow(p: PostQueueLogic.Place, e: PostQueueEntry) {
 /** A day then a time of day in the shop's own clock (Karachi), not before now: the iPhone's date picker in two steps. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun KarachiTimeDialog(initial: Instant, onDismiss: () -> Unit, onPick: (Instant) -> Unit) {
+internal fun KarachiTimeDialog(initial: Instant, onDismiss: () -> Unit, onPick: (Instant) -> Unit) {
     val local = initial.atOffset(ERPDate.karachi)
     val todayStart = AppClock.now().atOffset(ERPDate.karachi).toLocalDate()
     val dates = rememberDatePickerState(
