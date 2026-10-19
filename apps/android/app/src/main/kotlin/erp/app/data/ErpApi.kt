@@ -96,6 +96,23 @@ class ErpApi private constructor() {
         }
     }
 
+    /** [upload] for a route that answers a file (Design's remove-background answers a PNG): the bytes whole, not text. */
+    suspend fun uploadBytes(path: String, fields: List<Pair<String, String>>, files: List<FormFile> = emptyList(), timeoutMs: Long = 120_000): ByteArray {
+        val form = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM).apply {
+            for ((name, value) in fields) addFormDataPart(name, value)
+            for (f in files) addFormDataPart(f.field, f.name, f.bytes.toRequestBody(f.type.toMediaType()))
+        }.build()
+        return open(path, "POST", null, timeoutMs, "*/*", form).use { r ->
+            val body = try {
+                r.body.bytes()
+            } catch (e: IOException) {
+                throw Failure(0, e.message?.takeIf { it.isNotBlank() } ?: "No connection to the ERP.")
+            }
+            if (r.code !in 200..299) throw Failure(r.code, said(String(body, Charsets.UTF_8)) ?: "The ERP answered ${r.code}.")
+            body
+        }
+    }
+
     /** The answer, parsed (maps, lists, text, numbers); model decoding is core's (`Json.decode<T>`). */
     suspend fun get(path: String): Any? = Json.parse(data(path))
 

@@ -189,7 +189,12 @@ object ArtworkProperties {
     }
 
     val choices: Map<String, List<String>> = mapOf(
-        "font" to listOf("condensed", "light", "regular", "bold", "serif", "serif-italic", "futura", "cormorant", "cormorant-italic", "playfair", "script", "montserrat", "montserrat-bold", "cinzel"),
+        "font" to listOf(
+            "condensed", "light", "regular", "bold", "serif", "serif-italic", "futura", "cormorant", "cormorant-italic", "playfair", "script", "montserrat", "montserrat-bold", "cinzel",
+            // Designer v2's jewellery set (src/lib/social/editor.ts FontKey, 2026-10-12); the bundled engine carries the faces.
+            "cormorant-infant", "italiana", "jost", "tenor", "dm-serif", "marcellus",
+        ),
+        "blend" to listOf("normal", "multiply", "screen", "overlay", "soft-light", "hard-light", "color-dodge", "darken", "lighten"),
         "align" to listOf("left", "center", "right"), "gradient" to listOf("none", "top", "bottom", "both"), "mode" to listOf("fill", "fit"), "dash" to listOf("solid", "dash", "dot"),
         "mask" to listOf("rounded", "ellipse", "arch", "heart", "star", "hexagon", "diamond", "sparkle", "gem", "pill"),
     )

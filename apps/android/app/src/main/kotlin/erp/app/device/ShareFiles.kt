@@ -38,6 +38,30 @@ fun shareBytes(context: Context, bytes: ByteArray, name: String, mime: String, t
     send(context, file, mime, title)
 }
 
+/** Writes each of [files] (name, bytes) under one shared folder and offers them together (every size of a design). */
+fun shareManyBytes(context: Context, files: List<Pair<String, ByteArray>>, mime: String, title: String) {
+    if (files.isEmpty()) return
+    if (files.size == 1) return shareBytes(context, files[0].second, files[0].first, mime, title)
+    val dir = freshDir(context)
+    val uris = ArrayList<Uri>()
+    val used = HashSet<String>()
+    for ((name, bytes) in files) {
+        var n = shareFileName(name)
+        // Two sizes never share a name: the second would overwrite the first.
+        if (!used.add(n)) { n = "${UUID.randomUUID().toString().take(4)}-$n"; used.add(n) }
+        val file = File(dir, n).also { it.writeBytes(bytes) }
+        uris.add(FileProvider.getUriForFile(context, "${House.applicationId}.files", file))
+    }
+    val send = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+        type = mime
+        putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+        putExtra(Intent.EXTRA_SUBJECT, title)
+        clipData = ClipData.newRawUri("", uris[0]).also { c -> uris.drop(1).forEach { c.addItem(ClipData.Item(it)) } }
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    start(context, Intent.createChooser(send, title))
+}
+
 /** Shares words and an address (the iPhone's ShareLink: a subject, a message and the link). */
 fun shareText(context: Context, subject: String, text: String) {
     val send = Intent(Intent.ACTION_SEND).apply {

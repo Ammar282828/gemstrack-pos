@@ -51,14 +51,26 @@ object DesignProtocol {
      * document, the photographs (id → data address), the fields (kicker, headline, weight, details) and the house on top
      * of them, as the Swift builds it. A null document is sent as null (the engine then starts a blank one).
      */
-    fun input(doc: MarketingValue, photos: Map<String, String>, fields: Map<String, String>, house: String, options: Map<String, Any?> = emptyMap()): String {
+    fun input(doc: MarketingValue, photos: Map<String, String>, fields: Map<String, String>, house: String, options: Map<String, Any?> = emptyMap(), brand: Map<String, Any?>? = null): String {
         val input = LinkedHashMap<String, Any?>(options)
         input["doc"] = doc.json
         input["photos"] = photos
         input["fields"] = fields
         input["house"] = house
+        // The business's own look, as NativeArtwork.swift sends it (the shipped bundles ignore it; an engine without a bundle of its own reads it).
+        if (brand != null) input["brand"] = brand
         return MarketingValue.of(input).text
     }
+
+    /** The brand the Swift sends with every call: the house's id and name. */
+    fun brandOf(id: String, name: String): Map<String, Any?> = mapOf("id" to id, "name" to name)
+
+    /**
+     * The whole message one `run` sends, from what the screens hold: the photographs (bytes) become data addresses. Pure, so the Chromium
+     * check (`scripts/check-design-engine.mjs`) is fed by this very function.
+     */
+    fun message(doc: MarketingValue, photos: Map<String, ByteArray>, fields: Map<String, String>, house: String, brandName: String, options: Map<String, Any?> = emptyMap()): String =
+        input(doc, photos.mapValues { photoDataUrl(it.value) }, fields, house, options, brandOf(house, brandName))
 
     /**
      * The answer, read. The engine reports a throw as `{nativeError}`; that becomes a failure in the Swift's words
@@ -97,7 +109,7 @@ object DesignProtocol {
  *         options = mapOf("action" to "preset", "value" to "stack-left", "px" to 540))
  *     val doc2 = answer["doc"]; val jpeg = DesignProtocol.imageBytes(answer)
  */
-class DesignEngine(context: Context, private val house: String = House.id, private val scriptSource: (() -> String)? = null) {
+open class DesignEngine(context: Context, private val house: String = House.id, private val scriptSource: (() -> String)? = null) {
     private val appContext = context.applicationContext
     private val lock = Mutex()
     private val ids = AtomicLong()
@@ -116,10 +128,9 @@ class DesignEngine(context: Context, private val house: String = House.id, priva
     private val bridge = Bridge()
 
     /** Draws or edits [doc]: see `DesignProtocol.input`. The caller's coroutine may be cancelled; a draw already begun just finishes unheard. */
-    suspend fun run(doc: MarketingValue, photos: Map<String, ByteArray>, fields: Map<String, String>, options: Map<String, Any?> = emptyMap()): MarketingValue {
+    open suspend fun run(doc: MarketingValue, photos: Map<String, ByteArray>, fields: Map<String, String>, options: Map<String, Any?> = emptyMap()): MarketingValue {
         if (closed) throw DesignFailure("The artwork renderer is closed.")
-        val urls = withContext(Dispatchers.Default) { photos.mapValues { DesignProtocol.photoDataUrl(it.value) } }
-        val body = withContext(Dispatchers.Default) { DesignProtocol.input(doc, urls, fields, house, options) }
+        val body = withContext(Dispatchers.Default) { DesignProtocol.message(doc, photos, fields, house, House.storeName, options) }
         return lock.withLock { exchange(body) }
     }
 
@@ -192,7 +203,7 @@ class DesignEngine(context: Context, private val house: String = House.id, priva
     }
 
     /** Releases the web view. Anything still drawing fails once. */
-    fun close() {
+    open fun close() {
         closed = true
         for ((_, w) in waiting) w.completeExceptionally(CancellationException("closed"))
         waiting.clear()
@@ -203,10 +214,15 @@ class DesignEngine(context: Context, private val house: String = House.id, priva
     }
 }
 
+/** Where a test puts an engine of its own: a JVM test has no web view that runs a script, so it draws with a stand-in. */
+object DesignEngines {
+    @Volatile var factory: ((Context) -> DesignEngine)? = null
+}
+
 @Composable
 fun rememberDesignEngine(): DesignEngine {
     val context = LocalContext.current
-    val engine = remember { DesignEngine(context) }
+    val engine = remember { DesignEngines.factory?.invoke(context) ?: DesignEngine(context) }
     DisposableEffect(engine) { onDispose { engine.close() } }
     return engine
 }
