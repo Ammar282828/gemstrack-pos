@@ -200,6 +200,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Design** (`docs/features/design.md`; plan `design-studio-plan.md`) — replaces Post a piece and the Ads Studio tab (2026-10-12)
 - [Design](docs/decisions.md#design) — Posts › Design: one editor, one Publish sheet, one shelf; Ads → Plan; old URLs redirect, every `/api` route kept; `/design/classic/{post,ad}` kept for AI restage/paint and "Make it with AI"
+- [Subject-aware stories](docs/decisions.md#design) — text kept off the piece; `findSubject`/`avoidSubject` in the shared engine (`lib/social/subject.ts`), the bundles rebuilt
 
 **Post a piece's engine** (`docs/features/post-a-piece.md`; the screen is Design)
 - [Drafts](docs/features/post-a-piece.md#post-a-piece-drafts) — on this device (IndexedDB), photos included; resumes

@@ -20,6 +20,7 @@ import type { Palette } from './palettes';
 import { SHAPES, applyAdjust, changesPixels, type Adjust, type MaskKey, type ShapeKey } from './design';
 import { colorWithAlpha, makeGradient } from './gradient';
 import { qrFor } from './qr';
+import { avoidSubject, subjectOf, withFoundSubject } from './subject';
 
 export type FontKey =
   | 'condensed' | 'light' | 'regular' | 'bold' | 'serif' | 'serif-italic' | 'futura'
@@ -216,7 +217,7 @@ export interface StoryDoc {
    */
   placements?: Record<string, Placement>;
   /** Designer v2: what the design is, where its subject sits (for resizing), the user's guides and grid (for snapping). */
-  meta?: { template?: string; master?: string; guides?: { x: number[]; y: number[] }; subject?: Box01; grid?: number; lettered?: LetteredMeta };
+  meta?: { template?: string; master?: string; guides?: { x: number[]; y: number[] }; subject?: Box01; /** The piece found in the photo on show (subject.ts), kept so a preset change does not look again; `subject` wins. */ found?: { photoId: string; box: Box01 }; grid?: number; lettered?: LetteredMeta };
 }
 
 /**
@@ -1532,7 +1533,8 @@ export const PRESETS: { id: PresetId; label: string }[] = [
  * Bound layers laid out the way a preset does it, measured so they stack
  * without overlapping. Custom layers (arrows, extra text, insets) are kept.
  */
-export function applyPreset(doc: StoryDoc, preset: PresetId, palette: Palette, fields: Fields, a: Assets, opts: { weightOwnLine: boolean; wordmark: boolean }): StoryDoc {
+export function applyPreset(input: StoryDoc, preset: PresetId, palette: Palette, fields: Fields, a: Assets, opts: { weightOwnLine: boolean; wordmark: boolean }): StoryDoc {
+  const doc = withFoundSubject(input, a);
   const keep = doc.layers.filter(l => !(l.kind === 'text' && l.bind) && l.kind !== 'wordmark');
   const center = preset === 'center';
   const align: TextLayer['align'] = center ? 'center' : 'left';
@@ -1559,7 +1561,10 @@ export function applyPreset(doc: StoryDoc, preset: PresetId, palette: Palette, f
   } else {
     push(text({ bind: 'weight', x, y: y + 14, size: 92, font: 'light', color: palette.body, align }), 14);
   }
-  return reflow({ ...doc, layers: [...out, ...keep] }, fields, a);
+  const laid = reflow({ ...doc, layers: [...out, ...keep] }, fields, a);
+  // Subject-aware (subject.ts): the layout's own lines keep off the piece in the photo; the person's layers stay put.
+  const subject = subjectOf(laid, a);
+  return subject ? avoidSubject(laid, subject, fields, a, { ids: new Set(out.map(l => l.id)) }) : laid;
 }
 
 /** Recolour the bound layers and the wordmark to a palette, leaving custom layers alone. */

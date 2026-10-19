@@ -44,7 +44,23 @@ class DesignEngineFixturesTest {
         return ByteArrayOutputStream().use { ImageIO.write(image, "jpg", it); it.toByteArray() }
     }
 
+    /** A jewellery-style shot: one gold disc, high and to the left, on a plain light ground (the engine finds it and keeps the words off it). */
+    private fun jpegOffCentre(w: Int, h: Int): ByteArray {
+        System.setProperty("java.awt.headless", "true")
+        val image = BufferedImage(w, h, BufferedImage.TYPE_INT_RGB)
+        val g = image.createGraphics()
+        g.color = Color(0xF3, 0xEF, 0xE8)
+        g.fillRect(0, 0, w, h)
+        g.color = Color(0xC9, 0x97, 0x3F)
+        g.fillOval(w * 3 / 20, h * 5 / 20, w * 5 / 12, w * 5 / 12)
+        g.color = Color(0xB3, 0x12, 0x3A)
+        g.fillOval(w * 11 / 40, h * 7 / 20, w / 8, w / 8)
+        g.dispose()
+        return ByteArrayOutputStream().use { ImageIO.write(image, "jpg", it); it.toByteArray() }
+    }
+
     private val photo = jpeg(900, 1200, Color(0x2B, 0x24, 0x20), Color(0x0F, 0x0C, 0x0A))
+    private val offCentre = jpegOffCentre(720, 1280)
     private val inset = jpeg(600, 600, Color(0x1E, 0x7A, 0x5A), Color(0x10, 0x30, 0x28))
     private val words = mapOf("kicker" to "The Ruby Edit", "headline" to "Ruby Rani Set", "weight" to "21K Yellow Gold · Ruby · 45.35g", "details" to "Ask us on WhatsApp")
     private val subject = mapOf("x" to 0.18, "y" to 0.2, "w" to 0.64, "h" to 0.6)
@@ -98,6 +114,8 @@ class DesignEngineFixturesTest {
             c("layout-catalogue", square, one, words, "action" to "square", "value" to "catalogue"),
             c("layout-preset", story, one, words, "action" to "preset", "value" to "stack-left"),
             c("layout-square", square, one, words, "action" to "square", "value" to "clean"),
+            // Subject-aware stories: the photo's piece is high and left; the preset keeps its words off it (the script checks the boxes).
+            c("layout-preset-subject", story, mapOf("photo" to offCentre), words, "action" to "preset", "value" to "stack-left"),
             c("palette", story, one, words, "action" to "palette", "value" to "", "palette" to "ivory", "selected" to emptyList<String>()),
             // refreshPreview, refreshThumb, render (Save and Publish).
             c("preview", story, one, words, "px" to 760, "quality" to 0.85),

@@ -143,6 +143,30 @@ async function checkHouse(browser, house) {
   expectPicture('layout-catalogue', cat1);
   expectPicture('layout-preset', await exec('layout-preset'));
   expectPicture('layout-square', await exec('layout-square'));
+
+  // Subject-aware stories (src/lib/social/subject.ts): the engine finds the piece in the photo (high and left here) and the preset's
+  // words and mark stay off it; an app's own `subject` wins and the words keep off that one instead.
+  const onBox = (a, s) => {
+    const fw = a.doc.frame.w, fh = a.doc.frame.h, sx = s.x * fw, sy = s.y * fh, sw = s.w * fw, sh = s.h * fh;
+    return (a.doc.layers ?? [])
+      .filter((l) => (l.kind === 'text' && l.bind) || l.kind === 'wordmark')
+      .map((l) => a.boxes.find((x) => x.id === l.id))
+      .filter((b) => b && Math.min(b.x + b.w, sx + sw) - Math.max(b.x, sx) > 3 && Math.min(b.y + b.h, sy + sh) - Math.max(b.y, sy) > 3);
+  };
+  const found = await exec('layout-preset-subject');
+  expectPicture('layout-preset-subject', found);
+  if (found) {
+    const s = found.subject;
+    if (!s || !(s.w > 0.2 && s.h > 0.1) || !(s.x < 0.25 && s.y < 0.3)) fail(house, 'layout-preset-subject', `the piece was not found high and left (${JSON.stringify(s)})`);
+    else if (!found.doc.meta?.found?.box) fail(house, 'layout-preset-subject', 'the found subject is not kept in doc.meta.found');
+    else if (onBox(found, s).length) fail(house, 'layout-preset-subject', `${onBox(found, s).length} text/mark layer(s) still overlap the subject`);
+    const given = { x: 0.55, y: 0.55, w: 0.35, h: 0.3 };
+    const own = await exec('layout-preset-subject', (m) => { m.subject = given; });
+    if (own) {
+      if (JSON.stringify(own.subject) !== JSON.stringify(given)) fail(house, 'layout-preset-subject*', 'an app\'s own subject did not win');
+      else if (onBox(own, given).length) fail(house, 'layout-preset-subject*', 'words overlap the app\'s own subject');
+    }
+  }
   expectPicture('palette', await exec('palette'));
   expectPicture('preview', await exec('preview'));
   expectPicture('thumb', await exec('thumb'));

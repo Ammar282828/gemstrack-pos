@@ -68,6 +68,9 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   Futura) edited in `src/app/website/post/story-editor.tsx` (tap to select, drag, corner to resize, top dot to rotate,
   pinch, centre/margin snapping, undo/redo, layouts saved per device). AI prompts: Ask AI (free instruction, op `custom`),
   every prompt editable before sending (`rawPrompt`), a brief for Make it with AI (`sceneBrief`), a style for AI lettering.
+  **Subject-aware (2026-10-19):** a Story preset (and a story ad template over a photo) finds the piece in the photo (`findSubject`,
+  `src/lib/social/subject.ts`) and keeps its own words off it: the block moves to the free band above or below, else the photo pans,
+  else the words shrink to 80% at most; your own layers never move; `doc.meta.found` remembers the box, `meta.subject` overrides it.
   **Instagram music:** the API can't add music; Share story opens Instagram's own editor for the music sticker. A video
   story with a licensed track baked in was offered, not built (owner to choose).
 
