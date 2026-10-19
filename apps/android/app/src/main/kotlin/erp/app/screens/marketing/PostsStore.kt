@@ -62,6 +62,9 @@ data class PostsState(
 
     val failingChecks: List<PostCheck> get() = checks.filter { it.status == "fail" }
 
+    /** What Send all and Spread over the day act on (queue-panel.tsx `pending`): held, scheduled or failed, in the queue's order. */
+    val waiting: List<PostQueueEntry> get() = queue.filter { it.status in listOf("held", "scheduled", "failed") }
+
     /** A send log's name for a place, in the counter's words (page.tsx `placeName`). */
     fun placeName(log: String): String = when {
         log == "whatsapp-community" -> audience.groups.firstOrNull { it.name == audience.communityName }?.label ?: "Announcements"
@@ -219,6 +222,49 @@ object PostsStore {
         // The demo has no server: its queue is the made-up one, read once.
         if (House.isDemo) { if (_state.value.queue.isEmpty()) _state.value = PostsDemo.state(AppClock.now()); return }
         loadQueue()
+    }
+
+    /** The tray asks again on opening: a group added or renamed since shows at once. */
+    suspend fun refreshAudience() {
+        if (House.isDemo) return
+        audienceAt = null
+        loadAudience()
+    }
+
+    /** After the tray sends: the day's list, and the pieces' "posted" and the weights the site now keeps. */
+    suspend fun afterSending() {
+        if (House.isDemo) return
+        coroutineScope {
+            launch { loadSent() }
+            launch { loadPieces() }
+        }
+    }
+
+    /**
+     * Spread over the day: each waiting piece its own time (PATCH /queue/:id), the times laid out by `spreadTimes`. The tick on
+     * the server sends them, with every screen closed. Stops at the first the server refuses.
+     */
+    suspend fun spread(ids: List<String>, times: List<Instant>) {
+        try {
+            for ((id, at) in ids.zip(times)) {
+                ErpApi.shared.send("/api/website/post/queue/$id", "PATCH", mapOf("action" to "schedule", "dueAt" to isoSeconds(at)))
+            }
+        } catch (e: Exception) {
+            loadQueue()
+            throw e
+        }
+        loadQueue()
+    }
+
+    /** Send all now: each waiting piece in turn, as Send now sends one. How many went whole, of how many. */
+    suspend fun sendAll(): Pair<Int, Int> {
+        val ids = _state.value.waiting.map { it.id }
+        var sent = 0
+        for (id in ids) {
+            val whole = try { sendNow(id) } catch (e: CancellationException) { throw e } catch (e: Exception) { false }
+            if (whole) sent++
+        }
+        return sent to ids.size
     }
 
     /**

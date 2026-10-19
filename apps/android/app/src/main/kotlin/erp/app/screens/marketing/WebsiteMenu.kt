@@ -21,15 +21,6 @@ import erp.app.nav.ScreenTitle
 import erp.app.ui.NotAvailableState
 import erp.app.ui.readableColumn
 
-/** What each page is for, in the ERP's words. */
-object WebsiteMenuWords {
-    val about: Map<String, String> = mapOf(
-        "/website/photos" to "Upload photographs to a collection on the site",
-        "/website/edit" to "Rename it, change its words or weight, hide it, re-make its photo",
-        "/website/weights" to "Record the weight the site draws on a photograph",
-    )
-}
-
 /**
  * Website: the house's own site, as the places that change it (nav.ts "website": Add photos, Edit a piece, Photo weights),
  * each a native screen on the web page's own routes (Website*.kt). The tabs come from the house's map (nav-<house>.json),
@@ -48,10 +39,10 @@ fun WebsiteMenu() {
     }
     Column(Modifier.fillMaxSize().readableColumn(720.dp).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         WebsiteCard(footer = { Text("What changes here is on the website within a minute; each change says where it goes first.") }) {
-            for (t in tabs) MarketingLink(t.label, NavIcon.vector(t.icon), t.href, WebsiteMenuWords.about[t.href])
+            for (t in tabs) MarketingLink(t.label, NavIcon.vector(t.icon), t.href)
         }
         WebsiteCard {
-            MarketingLink("Posts", Icons.AutoMirrored.Filled.Send, "/posts", "What went out, the queue, the site's pieces")
+            MarketingLink("Posts", Icons.AutoMirrored.Filled.Send, "/posts")
         }
     }
 }

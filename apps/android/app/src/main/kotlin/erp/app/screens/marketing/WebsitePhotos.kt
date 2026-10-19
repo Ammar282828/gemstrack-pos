@@ -582,7 +582,8 @@ private fun StatusLine(item: WebsitePhotoItem) {
     when (item.status) {
         WebsitePhotoItem.Status.Done -> Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Filled.CheckCircle, null, Modifier.size(16.dp), tint = Tone.settled.color())
-            Text("On the website", style = MaterialTheme.typography.bodySmall, color = Tone.settled.color())
+            // Done is the expected end: a quiet word, the dimmed photo says the rest.
+            Text("On the website", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         WebsitePhotoItem.Status.Failed -> Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.Top) {
             Icon(Icons.Filled.Cancel, null, Modifier.size(16.dp), tint = Tone.problem.color())
@@ -601,7 +602,7 @@ private fun AfterSection(m: WebsitePhotosModel, site: String?, role: String) {
     val context = LocalContext.current
     val url = WebsitePhotosLogic.collectionUrl(m.chosen, site)
     WebsiteCard {
-        if (MarketingKit.has("/website/weights", role)) MarketingLink("Record their weights", Icons.Filled.Scale, "/website/weights", "Photo weights: the weight the site draws on each")
+        if (MarketingKit.has("/website/weights", role)) MarketingLink("Record their weights", Icons.Filled.Scale, "/website/weights")
         if (url != null) ActionRow("See ${m.chosen?.collection ?: "the collection"} on the website", { openAddress(context, Intent.ACTION_VIEW, url) }, Icons.AutoMirrored.Filled.OpenInNew)
     }
 }

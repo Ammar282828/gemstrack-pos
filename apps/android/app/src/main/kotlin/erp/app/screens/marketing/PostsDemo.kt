@@ -67,7 +67,11 @@ object PostsDemo {
             ),
             gold = PostGold(ERPDate.karachiDay(now), mapOf("group" to ago(now, 2.0))),
             goldParts = PostsStore.goldOrder.filter { it != "channel" },
-            audience = PostAudience("Announcements", listOf(PostAudience.Place("diamonds", "Diamonds", "Demo Diamonds"), PostAudience.Place("gold", "Gold", "Demo Gold"), PostAudience.Place("announcements", "Announcements", "Announcements"))),
+            audience = PostAudience(
+                "Announcements",
+                listOf(PostAudience.Place("diamonds", "Diamonds", "Demo Diamonds", 212), PostAudience.Place("gold", "Gold", "Demo Gold", 148), PostAudience.Place("announcements", "Announcements", "Announcements", 1840)),
+                channelName = "Demo Channel", channelFollowers = 3560,
+            ),
         )
     }
 }

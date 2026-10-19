@@ -49,6 +49,8 @@ import erp.app.device.openAddress
 import erp.app.nav.ScreenActions
 import erp.app.nav.ScreenTitle
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import erp.app.screens.stock.StockImage
@@ -74,9 +76,10 @@ import kotlinx.coroutines.launch
  * tags (stone, metal, karat, cut, style) or the catalogue's facts, the weight, and hiding it; each field shows the site's own
  * and goes back to it. "Put the original photo back" and "Undo every change" are the route's own reverts.
  *
- * The photograph is re-made in the ERP's square editor (crop by pinch, the layouts that stamp the weight and the house's mark,
- * the designer, AI Enhance and Ask AI): a canvas this screen does not imitate, so it opens that page in the app (`?web=1`).
- * Every save changes the public site, so it lists exactly what changes and where before it is sent.
+ * The photograph is re-made here as the web's square editor re-makes it (WebsitePhotoEdit): its own shape or square, the layouts
+ * that stamp the weight and the house's mark, the designer (crop, filters, anything else), AI Enhance and Ask AI, drawn by the web's
+ * own engine and sent with the words in the web's form. Open in Design takes the photograph to the designer, as the web's button
+ * does. Every save changes the public site, so it lists exactly what changes and where before it is sent.
  */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -94,6 +97,11 @@ fun WebsiteEditPieceScreen(id: String) {
     var said by remember { mutableStateOf<String?>(null) }
     var failure by remember { mutableStateOf<String?>(null) }
     var refreshing by remember { mutableStateOf(false) }
+    // The photo being re-made; null until "Re-make the photo", and again after a photo is put back.
+    val engine = rememberDesignEngine()
+    var photo by remember { mutableStateOf<WebsitePhotoEdit?>(null) }
+    var photoWarning by remember { mutableStateOf<String?>(null) }
+    val role = erp.app.auth.LocalSession.current.role
     val siteName = edits.siteName
     ScreenTitle(piece?.words?.name?.ifEmpty { null } ?: "Edit a piece")
     // Undoing everything is the rarer thing, so it waits in the bar's menu (only once something has been changed here).
@@ -142,12 +150,35 @@ fun WebsiteEditPieceScreen(id: String) {
         load()
     }
 
-    fun post(fields: List<Pair<String, String>>, work: suspend (WebsiteEditSaved) -> Unit, doing: String) {
+    suspend fun beginPhoto(p: WebsiteEditPiece) {
+        val edit = photo ?: WebsitePhotoEdit(p.id, engine)
+        photo = edit
+        edit.begin(p, WebsiteEditLogic.photoFields(p, form))
+        if (edit.lastAI.isNotEmpty()) lastAI = edit.lastAI
+    }
+
+    fun runAI(edit: WebsitePhotoEdit, op: String, params: Map<String, Any?>, label: String) {
+        scope.launch {
+            busy = "The AI is working on the photo (about a minute)…"
+            photoWarning = null
+            try {
+                photoWarning = edit.runAI(op, params, label)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failure = "Couldn't change the photo. " + (e.message ?: "")
+            } finally {
+                busy = null
+            }
+        }
+    }
+
+    fun post(fields: List<Pair<String, String>>, work: suspend (WebsiteEditSaved) -> Unit, doing: String, files: List<ErpApi.FormFile> = emptyList()) {
         scope.launch {
             busy = doing
             said = null
             try {
-                val d = WebsiteApi.form("/api/website/edits", fields, WebsiteEditSaved, timeoutMs = 130_000)
+                val d = WebsiteApi.form("/api/website/edits", fields, WebsiteEditSaved, files, timeoutMs = 130_000)
                 work(d)
             } catch (e: CancellationException) {
                 throw e
@@ -163,7 +194,8 @@ fun WebsiteEditPieceScreen(id: String) {
     Box(Modifier.fillMaxSize()) {
         when {
             p != null -> {
-                val dirty = WebsiteEditLogic.dirty(p, form)
+                // The words or the photo differ from what the site shows.
+                val dirty = WebsiteEditLogic.dirty(p, form) || (photo?.changed(WebsiteEditLogic.photoFields(p, form)) ?: false)
                 MarketingPinned(bar = {
                     MarketingActionBar(
                         "Save to $siteName", Icons.Filled.Save, { confirm = WebsiteEditLogic.Confirm.Save }, busy = busy != null,
@@ -172,7 +204,11 @@ fun WebsiteEditPieceScreen(id: String) {
                     )
                 }) {
                     PullToRefreshBox(isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; load(); refreshing = false } }) {
-                        PiecePage(p, form, { form = it }, original, lastAI, siteName, said, ask = { confirm = it })
+                        PiecePage(
+                            p, form, { form = it }, original, lastAI, siteName, said, ask = { confirm = it },
+                            edit = photo, engine = engine, warning = photoWarning, role = role, busy = busy != null,
+                            beginPhoto = { scope.launch { beginPhoto(p) } }, runAI = { op, params, label -> photo?.let { runAI(it, op, params, label) } },
+                        )
                     }
                 }
             }
@@ -187,15 +223,48 @@ fun WebsiteEditPieceScreen(id: String) {
     if (c != null && p != null) {
         val choice = when (c) {
             WebsiteEditLogic.Confirm.Save -> WebsiteChoice("Save") {
-                post(listOf("id" to p.id, "words" to WebsiteApi.text(WebsiteEditLogic.wordsNow(p, form))), { d ->
-                    d.piece?.let { take(it); WebsiteEdits.replace(it) }
-                    val hiddenNow = d.piece?.hidden ?: form.hidden
-                    said = d.note ?: if (hiddenNow) "Saved. The piece leaves $siteName within a minute." else "Saved on $siteName. It shows within a minute."
-                }, "Saving on $siteName…")
+                // The photo with the words: the web's form exactly (file, stamped, design, shape, ai).
+                val ph = photo
+                val drawn = WebsiteEditLogic.photoFields(p, form)
+                val photoChanged = ph?.changed(drawn) ?: false
+                scope.launch {
+                    busy = "Saving on $siteName…"
+                    said = null
+                    try {
+                        val fields = arrayListOf("id" to p.id, "words" to WebsiteApi.text(WebsiteEditLogic.wordsNow(p, form)))
+                        val files = ArrayList<ErpApi.FormFile>()
+                        if (ph != null && photoChanged) {
+                            busy = "Drawing the photo…"
+                            val jpeg = ph.jpeg(drawn)
+                            busy = "Saving on $siteName…"
+                            files.add(ErpApi.FormFile("file", "photo.jpg", "image/jpeg", jpeg))
+                            fields.add("stamped" to if (ph.stamped(drawn)) "1" else "0")
+                            fields.add("design" to ph.keptDoc.text)
+                            fields.add("shape" to ph.shape)
+                            fields.add("ai" to MarketingValue.of(ph.ai).text)
+                        }
+                        val d = WebsiteApi.form("/api/website/edits", fields, WebsiteEditSaved, files, timeoutMs = 130_000)
+                        if (photoChanged) ph?.saved(drawn)
+                        d.piece?.let { take(it); WebsiteEdits.replace(it) }
+                        val hiddenNow = d.piece?.hidden ?: form.hidden
+                        said = d.note ?: if (photoChanged) "Saved on $siteName. The new photo shows within a minute; the original is kept to put back any time."
+                        else if (hiddenNow) "Saved. The piece leaves $siteName within a minute." else "Saved on $siteName. It shows within a minute."
+                        load()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        failure = e.message ?: "Something went wrong."
+                    } finally {
+                        busy = null
+                    }
+                }
             }
             WebsiteEditLogic.Confirm.Photo -> WebsiteChoice("Put the original back", destructive = true) {
                 post(listOf("id" to p.id, "photo" to "revert"), { d ->
                     d.piece?.let { take(it); WebsiteEdits.replace(it) }
+                    // The editor starts again from what the site now has, as the web's does.
+                    photo = null
+                    photoWarning = null
                     said = "The original photo is back on $siteName within a minute."
                     load()
                 }, "Putting it back…")
@@ -203,12 +272,16 @@ fun WebsiteEditPieceScreen(id: String) {
             WebsiteEditLogic.Confirm.All -> WebsiteChoice("Undo every change", destructive = true) {
                 post(listOf("id" to p.id, "action" to "revert"), { d ->
                     d.piece?.let { take(it); WebsiteEdits.replace(it) }
+                    photo = null
+                    photoWarning = null
                     said = "Everything put back: $siteName shows the piece as it was built, within a minute."
                     load()
                 }, "Putting it back…")
             }
         }
-        WebsiteConfirm(WebsiteEditLogic.confirmTitle(c, siteName), WebsiteEditLogic.confirmWords(c, p, form, siteName), listOf(choice), onDismiss = { confirm = null })
+        val drawn = WebsiteEditLogic.photoFields(p, form)
+        val change = photo?.takeIf { it.changed(drawn) }?.let { WebsiteEditLogic.PhotoChange(it.stamped(drawn), WebsiteEditLogic.weightLabel(form.weight), it.ai) }
+        WebsiteConfirm(WebsiteEditLogic.confirmTitle(c, siteName), WebsiteEditLogic.confirmWords(c, p, form, siteName, change), listOf(choice), onDismiss = { confirm = null })
     }
     FailureAlert(failure, { failure = null })
 }
@@ -223,8 +296,15 @@ private fun PiecePage(
     siteName: String,
     said: String?,
     ask: (WebsiteEditLogic.Confirm) -> Unit,
+    edit: WebsitePhotoEdit?,
+    engine: DesignEngine,
+    warning: String?,
+    role: String,
+    busy: Boolean,
+    beginPhoto: () -> Unit,
+    runAI: (String, Map<String, Any?>, String) -> Unit,
 ) {
-    val photo: @Composable () -> Unit = { PhotoSection(p, original, lastAI, siteName, ask) }
+    val photo: @Composable () -> Unit = { PhotoSection(p, form, original, lastAI, siteName, ask, edit, engine, warning, role, busy, beginPhoto, runAI) }
     val rest: @Composable () -> Unit = {
         if (said != null) {
             Row(Modifier.fillMaxWidth().ledgerCard(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -260,21 +340,46 @@ private fun PiecePage(
 }
 
 @Composable
-private fun PhotoSection(p: WebsiteEditPiece, original: String?, lastAI: List<String>, siteName: String, ask: (WebsiteEditLogic.Confirm) -> Unit) {
+private fun PhotoSection(
+    p: WebsiteEditPiece, form: WebsiteEditLogic.Form, original: String?, lastAI: List<String>, siteName: String, ask: (WebsiteEditLogic.Confirm) -> Unit,
+    edit: WebsitePhotoEdit?, engine: DesignEngine, warning: String?, role: String, busy: Boolean, beginPhoto: () -> Unit, runAI: (String, Map<String, Any?>, String) -> Unit,
+) {
     val context = LocalContext.current
     val header = WebsiteEditLogic.headerWords(p).ifEmpty { "Photo" }
     val note = WebsiteEditLogic.photoNote(p, lastAI, House.id)
     FormSection(header, footer = if (note.isEmpty()) null else ({ Text(note) })) {
-        Box(Modifier.fillMaxWidth().padding(8.dp)) {
-            StockImage(p.image, p.words.name, p.id + (p.change?.at ?: ""), Modifier.fillMaxWidth().aspectRatio(1f).clip(Radius.chipShape).alpha(if (p.hidden) 0.5f else 1f))
+        if (edit != null && edit.ready) {
+            val drawn = WebsiteEditLogic.photoFields(p, form)
+            WebsitePhotoEditRows(edit, engine, drawn, busy, onAI = runAI)
+            if (warning != null) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Filled.Warning, null, tint = Tone.owed.color())
+                    Text(warning, style = MaterialTheme.typography.bodySmall, color = Tone.owed.color())
+                }
+            }
+            val changed = edit.changed(drawn)
+            Text(
+                if (changed) "The photo will be replaced when you save." else if (p.photoEdited) "The website shows a photo made here." else "The website's photo, unchanged.",
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), style = MaterialTheme.typography.bodyMedium,
+                color = if (changed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Box(Modifier.fillMaxWidth().padding(8.dp)) {
+                StockImage(p.image, p.words.name, p.id + (p.change?.at ?: ""), Modifier.fillMaxWidth().aspectRatio(1f).clip(Radius.chipShape).alpha(if (p.hidden) 0.5f else 1f))
+            }
+            Text(
+                if (p.photoEdited) "The website shows a photo made here. The original is kept." else "The website's photo, unchanged.",
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            edit?.problem?.let { Text(it, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall, color = Tone.problem.color()) }
+            ActionRow(
+                if (edit?.loading == true) "Fetching the photo…" else "Re-make the photo", beginPhoto, Icons.Filled.Crop,
+                enabled = edit?.loading != true && !busy,
+            )
         }
-        Text(
-            if (p.photoEdited) "The website shows a photo made here. The original is kept." else "The website's photo, unchanged.",
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        MarketingLink("Re-make the photo", Icons.Filled.Crop, WebsiteEditLogic.remakePath(p.id), "Crop it, put the weight and the logo on, fix the light: the ERP's editor")
         if (original != null || p.photoEdited) ActionRow("Put the original photo back", { ask(WebsiteEditLogic.Confirm.Photo) }, Icons.Filled.Replay, tone = Tone.problem)
         if (p.url.isNotEmpty()) ActionRow("Open on $siteName", { openAddress(context, android.content.Intent.ACTION_VIEW, p.url) }, Icons.AutoMirrored.Filled.OpenInNew)
+        if (MarketingKit.has("/design", role)) MarketingLink("Open in Design", Icons.Filled.AutoFixHigh, WebsiteEditLogic.designPath(p.id))
     }
 }
 

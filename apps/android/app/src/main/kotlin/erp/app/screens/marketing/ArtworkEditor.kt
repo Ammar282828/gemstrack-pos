@@ -110,6 +110,11 @@ fun ArtworkEditor(
     onClose: () -> Unit,
     ad: Boolean = false,
     engine: DesignEngine = rememberDesignEngine(),
+    /**
+     * The catalogue's list the Layout menu offers as square layouts, in place of the frame's own (Edit a piece: "siteSquares",
+     * its website photo's layouts, in its own shape as well as square).
+     */
+    layoutGroup: String? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -229,7 +234,7 @@ fun ArtworkEditor(
     fun cancel() { onDoc(original); onClose() }
 
     val menus = ArtworkMenus(
-        catalogue = catalogue, photoIds = photos.keys.toList(), ad = ad, height = height, selected = selected, doc = doc, layers = layers,
+        catalogue = catalogue, photoIds = photos.keys.toList(), ad = ad, layoutGroup = layoutGroup, height = height, selected = selected, doc = doc, layers = layers,
         act = ::act,
         change = { change(it) },
         addLayer = ::addLayer,
@@ -385,6 +390,7 @@ private class ArtworkMenus(
     val catalogue: MarketingValue,
     val photoIds: List<String>,
     val ad: Boolean,
+    val layoutGroup: String?,
     val height: Double,
     val selected: Set<String>,
     val doc: MarketingValue,
@@ -439,8 +445,8 @@ private class ArtworkMenus(
 
     val layout: List<MenuNode>
         get() {
-            val group = if (ad) "templates" else if (height < 1400) "squares" else "presets"
-            val kind = if (ad) "ad" else if (height < 1400) "square" else "preset"
+            val group = layoutGroup ?: if (ad) "templates" else if (height < 1400) "squares" else "presets"
+            val kind = if (layoutGroup != null) "square" else if (ad) "ad" else if (height < 1400) "square" else "preset"
             return items(group).map { i -> action(i.s("label")) { act(kind, i.s("id"), emptyMap()) } }
         }
 

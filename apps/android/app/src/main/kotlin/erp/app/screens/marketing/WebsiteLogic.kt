@@ -213,8 +213,8 @@ object WebsiteEditLogic {
     /** One piece's own screen. Its id is a path on the site ("Rings/DSC0912.webp"), escaped whole. */
     fun piecePath(id: String): String = "/website/edit?id=${WebsiteNumber.query(id)}"
 
-    /** Re-making the photo is the ERP's own editor page, opened in the app. */
-    fun remakePath(id: String): String = piecePath(id) + "&web=1"
+    /** Open in Design takes the photograph to the designer, as the web's button does. */
+    fun designPath(id: String): String = "/design?v=make&site=" + WebsiteNumber.query(id)
 
     fun collections(pieces: List<WebsiteEditPiece>): List<String> = pieces.map { it.collection }.filter { it.isNotEmpty() }.toSet().sorted()
 
@@ -258,7 +258,7 @@ object WebsiteEditLogic {
     /** What the editor would warn about this photograph (edit/page.tsx, beside the layouts). */
     fun photoNote(p: WebsiteEditPiece, lastAI: List<String>, house: String): String {
         val notes = ArrayList<String>()
-        if (lastAI.isNotEmpty()) notes.add("Last time: ${lastAI.joinToString(", ")}. Editing starts from the original photo.")
+        if (lastAI.isNotEmpty()) notes.add("Last time: ${lastAI.joinToString(", ")}. Editing starts from the original photo: run the AI again if you want it on this one.")
         if (house == "mina" && p.photoSource != null) {
             notes.add(
                 if (p.sourceMarked) "This photo carries the house's mark already: add nothing more, or clear it first in the editor (AI → Enhance and clear old labels)."
@@ -282,6 +282,31 @@ object WebsiteEditLogic {
         val factsLines: List<String> get() = factsText.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
         val weightValue: Double? get() = WebsiteNumber.parse(weight)
     }
+
+    /** caption.ts weightLabel: the weight as typed, "12.4g", or nothing for no weight. */
+    fun weightLabel(weight: String): String {
+        var w = weight.trim().replace(",", ".")
+        if (w.lowercase().endsWith("g")) w = w.dropLast(1).trim()
+        val v = w.toDoubleOrNull() ?: return ""
+        return if (v.isFinite() && v > 0) w + "g" else ""
+    }
+
+    /**
+     * What the photo's bound words read (edit/page.tsx `fields`): the collection, the name, the weight, and the karat, metal
+     * and stone (taheri.shop) or the catalogue's facts.
+     */
+    fun photoFields(p: WebsiteEditPiece, f: Form): Map<String, String> {
+        val details = if (p.hasTags) {
+            val metal = listOf(f.tags.karat, f.tags.metal).filter { it.isNotEmpty() }.joinToString(" ")
+            listOf(metal, f.tags.stone).filter { it.isNotEmpty() && it.lowercase() != "none" }.joinToString(" | ")
+        } else {
+            p.facts.joinToString(" | ")
+        }
+        return mapOf("kicker" to p.collection, "headline" to f.name, "weight" to weightLabel(f.weight), "details" to details)
+    }
+
+    /** A photo re-made here that goes with the save: whether the weight is stamped on it, and what the AI did. */
+    class PhotoChange(val stamped: Boolean, val weightLabel: String, val ai: List<String>)
 
     /** The form a piece fills (take). */
     fun formOf(p: WebsiteEditPiece): Form = Form(
@@ -321,7 +346,7 @@ object WebsiteEditLogic {
     }
 
     /** Exactly what changes on the public site. */
-    fun confirmWords(c: Confirm, p: WebsiteEditPiece, f: Form, siteName: String): String {
+    fun confirmWords(c: Confirm, p: WebsiteEditPiece, f: Form, siteName: String, photo: PhotoChange? = null): String {
         val after = "\n\nPages opened from about a minute later show it, for everyone."
         return when (c) {
             Confirm.Photo -> "$siteName shows the photo as it was built. The design made here is forgotten; the words stay as they are.$after"
@@ -329,6 +354,11 @@ object WebsiteEditLogic {
                 (if (p.hasTags) " A weight typed here stays (it's the piece's weight)." else "") + after
             Confirm.Save -> {
                 val lines = ArrayList<String>()
+                if (photo != null) {
+                    val w = if (photo.stamped) ", with ${photo.weightLabel} on it" else ""
+                    val ai = if (photo.ai.isEmpty()) "" else " (${photo.ai.joinToString(", ").lowercase()})"
+                    lines.add("The photo is replaced$w$ai. The original is kept.")
+                }
                 if (f.name != p.words.name) lines.add("Name: “${f.name.trim()}”")
                 if (f.about != p.words.about) lines.add("A new description")
                 for ((label, value) in tagChanged(p, f)) lines.add("$label: ${value.ifEmpty { "(none)" }}")

@@ -550,10 +550,7 @@ private fun PlanSection(d: WebsiteGoldPost, gold: WebsiteGoldState, ask: (Websit
         if (gold.schedule?.mode == "approve") {
             val at = d.approvedAt
             if (at != null) {
-                Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Verified, null, tint = Tone.settled.color())
-                    Text("Approved ${ShopDate.say(at, withTime = true)}", color = Tone.settled.color())
-                }
+                Text("Approved ${ShopDate.say(at, withTime = true)}", Modifier.fillMaxWidth().ledgerRow(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else if (!d.hold) {
                 ActionRow("Approve today", { ask(WebsiteGoldAsk.Approve) }, Icons.Filled.Verified)
             }
@@ -587,10 +584,8 @@ private fun PartRow(
                 Text("to " + t.to, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (went != null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Check, null, Modifier.padding(0.dp), tint = Tone.settled.color())
-                    Text(ShopDate.say(went.at, withTime = true) + if (went.by == "schedule") " · auto" else "", style = MaterialTheme.typography.bodySmall, color = Tone.settled.color())
-                }
+                // Gone is the expected state: the time, quietly.
+                Text(ShopDate.say(went.at, withTime = true) + if (went.by == "schedule") " · auto" else "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         val line = part?.line
@@ -599,7 +594,8 @@ private fun PartRow(
                 Icon(Icons.Filled.Schedule, null, Modifier.padding(0.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
                     line, style = MaterialTheme.typography.bodySmall,
-                    color = when (part.tone) { "ok" -> Tone.settled.color(); "warn" -> Tone.owed.color(); else -> MaterialTheme.colorScheme.onSurfaceVariant },
+                    // A plan on time is the expected state: only a warning is coloured.
+                    color = if (part.tone == "warn") Tone.owed.color() else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

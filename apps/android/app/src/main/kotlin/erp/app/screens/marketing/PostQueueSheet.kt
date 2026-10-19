@@ -41,6 +41,8 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -186,7 +188,15 @@ private fun QueuePage(e: PostQueueEntry, state: PostsState, onClose: () -> Unit,
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
+    val haptics = erp.app.ui.rememberHaptics()
+    LaunchedEffect(said) { if (said != null) haptics.success() }
+    // Send now is the page's one action, pinned (the iPhone's ActionBar): only where there is something left to send.
+    val sendBar: (@Composable () -> Unit)? = if (PostQueueLogic.canSend(e)) ({
+        MarketingActionBar(
+            if (e.status == "failed") "Send what is left now" else "Send now", Icons.AutoMirrored.Filled.Send, { confirmingSend = true }, busy = busy != null,
+        )
+    }) else null
+    MarketingPinned(sendBar) { Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             QueueHeader(e)
             said?.let { Row(Modifier.fillMaxWidth().ledgerCard(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { Icon(Icons.Filled.CheckCircle, null, tint = Tone.settled.color()); Text(it, color = Tone.settled.color()) } }
@@ -204,15 +214,6 @@ private fun QueuePage(e: PostQueueEntry, state: PostsState, onClose: () -> Unit,
             val canTime = PostQueueLogic.canTime(e)
             if (canSend || canTime || e.status != "sending") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (canSend) {
-                        Button(
-                            onClick = { confirmingSend = true }, enabled = busy == null, modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent),
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.Send, null, Modifier.size(18.dp))
-                            Text(if (e.status == "failed") "Send what is left now" else "Send now", Modifier.padding(start = 8.dp))
-                        }
-                    }
                     RowsCard {
                         if (canTime) {
                             if (picking) {
@@ -236,7 +237,7 @@ private fun QueuePage(e: PostQueueEntry, state: PostsState, onClose: () -> Unit,
         if (busy != null) Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
             Box(Modifier.clip(Radius.cardShape).background(ErpColors.card).padding(20.dp)) { SkeletonLoading(label = busy) }
         }
-    }
+    } }
 
     if (confirmingSend) {
         AlertDialog(
@@ -279,9 +280,12 @@ private fun QueueHeader(e: PostQueueEntry) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(e.headline.ifEmpty { "A piece" }, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
             Text(PostQueueLogic.statusWords(e), style = MaterialTheme.typography.bodyMedium, color = if (e.status == "failed") Tone.problem.color() else MaterialTheme.colorScheme.onSurfaceVariant)
-            if (e.units > 0) {
-                LinearProgressIndicator(progress = { e.done.toFloat() / e.units }, Modifier.fillMaxWidth(), color = ErpColors.accent)
-                Text("${e.done} of ${e.units} gone", style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // Only part-way: each place below says what of it went, so the whole is shown once, as a bar.
+            if (e.done > 0 && e.done < e.units) {
+                LinearProgressIndicator(
+                    progress = { e.done.toFloat() / e.units }, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "${e.done} of ${e.units} gone" },
+                    color = ErpColors.accent,
+                )
             }
         }
     }
@@ -291,17 +295,14 @@ private fun QueueHeader(e: PostQueueEntry) {
 private fun PlaceRow(p: PostQueueLogic.Place, e: PostQueueEntry) {
     val gone = p.units.count { it in e.doneKeys }
     val problem = p.units.firstNotNullOfOrNull { e.unitErrors[it] }
-    val icon: ImageVector = when (p.kind) { "website" -> Icons.Filled.Public; "instagram" -> Icons.Filled.CameraAlt; "channel" -> Icons.Filled.Campaign; else -> Icons.Filled.Groups }
+    // Two lines, no icon per row; gone is a quiet word, only a failure is coloured (the iPhone's rule 15).
     Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(32.dp).clip(Radius.thumbShape).background(ErpColors.accent), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, Modifier.size(20.dp), tint = ErpColors.onAccent)
-        }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(p.title, style = MaterialTheme.typography.bodyLarge)
-            Text(problem ?: p.detail, style = MaterialTheme.typography.bodySmall, color = if (problem == null) MaterialTheme.colorScheme.onSurfaceVariant else Tone.problem.color())
+            Text(p.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
+            Text(problem ?: p.detail, style = MaterialTheme.typography.bodySmall, color = if (problem == null) MaterialTheme.colorScheme.onSurfaceVariant else Tone.problem.color(), maxLines = 1)
         }
         when {
-            gone == p.units.size -> Icon(Icons.Filled.CheckCircle, contentDescription = "Gone", tint = Tone.settled.color())
+            gone == p.units.size -> Text("Gone", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             problem != null -> Icon(Icons.Filled.Error, contentDescription = "Failed", tint = Tone.problem.color())
             gone > 0 -> Text("$gone/${p.units.size}", style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

@@ -22,6 +22,13 @@ data class PostPiece(
     val added: Double?,
     val newArrival: Boolean,
     val hidden: Boolean,
+    /** The photo already shows its weight (the tray then stamps none by default). */
+    val weightOnPhoto: Boolean = false,
+    /** "attributes" (taheri.shop's own photographs, whose weights the counter keeps) or "pieces" (the catalogue's). */
+    val source: String? = null,
+    /** The catalogue's photo before it was marked, which a design starts from (Mina). */
+    val photoSource: String? = null,
+    val sourceMarked: Boolean = false,
 ) {
     companion object : Decodable<PostPiece> {
         override fun fromMap(m: Map<String, Any?>): PostPiece {
@@ -33,6 +40,8 @@ data class PostPiece(
                 thumb = small.ifEmpty { image }, collection = c.string("collection", ""), weightGrams = c.double("weightGrams"),
                 facts = c.strings("facts"), about = c.string("about", ""), added = c.double("added"),
                 newArrival = c.bool("newArrival", false), hidden = c.bool("hidden", false),
+                weightOnPhoto = c.bool("weightOnPhoto", false), source = c.string("source"),
+                photoSource = c.string("photoSource")?.ifEmpty { null }, sourceMarked = c.bool("sourceMarked", false),
             )
         }
     }
@@ -191,22 +200,34 @@ data class PostGoldParts(val destinations: Map<String, Boolean>) {
     }
 }
 
-/** /api/website/post: where a post goes, to name the places in the day's list. */
-data class PostAudience(val communityName: String? = null, val groups: List<Place> = emptyList()) {
-    data class Place(val key: String, val label: String, val name: String) {
+/** /api/website/post: where a post goes, to name the places in the day's list and to choose them in the tray. */
+data class PostAudience(
+    val communityName: String? = null,
+    val groups: List<Place> = emptyList(),
+    /** The shop's WhatsApp channel, where one is set (WAHA only). */
+    val channelName: String? = null,
+    val channelFollowers: Int? = null,
+) {
+    /** [size]: members, when WhatsApp said. */
+    data class Place(val key: String, val label: String, val name: String, val size: Int? = null) {
         companion object : Decodable<Place> {
             override fun fromMap(m: Map<String, Any?>): Place {
                 val c = Container(m)
-                return Place(c.string("key", ""), c.string("label", ""), c.string("name", ""))
+                return Place(c.string("key", ""), c.string("label", ""), c.string("name", ""), c.int("size"))
             }
         }
     }
+
+    /** No community is set for this shop (WHATSAPP_COMMUNITY_CHAT_ID): nothing can be sent from the tray. */
+    val canSend: Boolean get() = communityName != null
 
     companion object : Decodable<PostAudience> {
         override fun fromMap(m: Map<String, Any?>): PostAudience {
             val c = Container(m)
             val community = (m["community"] as? Map<*, *>)?.get("name") as? String
-            return PostAudience(community, c.list("groups", Place))
+            val channel = m["channel"] as? Map<*, *>
+            val channelName = channel?.let { Container(it.entries.associate { e -> e.key.toString() to e.value }) }
+            return PostAudience(community, c.list("groups", Place), channelName?.string("name", ""), channelName?.int("followers"))
         }
     }
 }

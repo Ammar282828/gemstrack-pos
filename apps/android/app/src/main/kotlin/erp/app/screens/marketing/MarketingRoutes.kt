@@ -20,6 +20,8 @@ val MarketingRoutes: List<ScreenRoute> = buildList {
         }),
     )
     add(ScreenRoute.exact(MarketingKit.piecesPath) { PostPiecesScreen() })
+    // The tray: pick pieces, caption them, send them or queue them (`?id=` starts it on one).
+    add(ScreenRoute({ ScreenRoute.bare(it) == MarketingKit.trayPrefix }, { path -> PostTrayScreen(path) }))
     add(ScreenRoute({ ScreenRoute.bare(it) == MarketingKit.piecePrefix }, { path -> PostPieceScreen(MarketingKit.pieceId(path) ?: "") }))
     // --- Ads, Studio and the Website pages go here. ---
     // The Website pages, native (Website*.kt), on the web's own routes; /website/post is Post a piece (above).

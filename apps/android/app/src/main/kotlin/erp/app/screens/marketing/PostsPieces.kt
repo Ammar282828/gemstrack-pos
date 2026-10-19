@@ -6,6 +6,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -124,13 +131,14 @@ object PostPiecesLogic {
 
 /**
  * The website's pieces as a photo grid (the hub's "From the website" grid): search, a collection chip row that opens on
- * the new arrivals, and the web's default of hiding what went out in the last 30 days. Tapping one opens the piece;
- * sending it is the ERP's tray, which this screen does not imitate.
+ * the new arrivals, and the web's default of hiding what went out in the last 30 days. Tapping one opens the piece; given the
+ * tray (PostTrayScreen's Add pieces), a tap picks it or takes it out.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PostPiecesScreen() {
-    ScreenTitle("Pieces")
+fun PostPiecesScreen(tray: PostTrayModel? = null) {
+    if (tray == null) ScreenTitle("Pieces")
+    var refused by remember { mutableStateOf<String?>(null) }
     val state by PostsStore.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { PostsStore.load() }
@@ -143,10 +151,7 @@ fun PostPiecesScreen() {
 
     when (val phase = state.piecesPhase) {
         PostsPhase.Off -> NotAvailableState("This shop doesn't post its website's pieces", why = "Its website has no pieces for the ERP to post from, so there is nothing to choose here.", icon = Icons.Filled.Public)
-        is PostsPhase.Failed -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            NotAvailableState("Couldn't read the website", why = phase.message, icon = Icons.Filled.CloudOff)
-            Button(onClick = { scope.launch { PostsStore.load() } }, colors = ButtonDefaults.buttonColors(containerColor = ErpColors.accent, contentColor = ErpColors.onAccent)) { Text("Try again") }
-        }
+        is PostsPhase.Failed -> MarketingErrorState(phase.message) { scope.launch { PostsStore.load() } }
         PostsPhase.Idle, PostsPhase.Loading -> SkeletonLoading(Modifier.fillMaxSize())
         PostsPhase.Loaded -> {
             val items = PostPiecesLogic.filtered(state.pieces, state.posted, search, collection, freshOnly, erp.app.ui.AppClock.now())
@@ -191,12 +196,19 @@ fun PostPiecesScreen() {
                         }
                     } else {
                         items(items.take(shown), key = { it.id }) { p ->
-                            Box(Modifier.zoomSource(MarketingKit.piecePath(p.id)).clickable { navigator.open(MarketingKit.piecePath(p.id)) }.ledgerCard(10.dp)) { PostPieceTile(p, state.posted[p.id]) }
+                            if (tray != null) {
+                                Box(Modifier.clickable { refused = tray.pick(p) }.ledgerCard(10.dp)) {
+                                    PostPieceTile(p, state.posted[p.id])
+                                    PickMark(tray, p, Modifier.align(Alignment.TopEnd))
+                                }
+                            } else {
+                                Box(Modifier.zoomSource(MarketingKit.piecePath(p.id)).clickable { navigator.open(MarketingKit.piecePath(p.id)) }.ledgerCard(10.dp)) { PostPieceTile(p, state.posted[p.id]) }
+                            }
                         }
                         if (items.size > shown) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                    ActionRow("Show more (${items.size - shown} left)", { shown += PostPiecesLogic.PAGE_SIZE })
+                                    androidx.compose.material3.OutlinedButton(onClick = { shown += PostPiecesLogic.PAGE_SIZE }) { Text("Show more (${items.size - shown} left)") }
                                 }
                             }
                         }
@@ -204,6 +216,21 @@ fun PostPiecesScreen() {
                 }
             }
         }
+    }
+    erp.app.ui.FailureAlert(refused, { refused = null }, "Not now")
+}
+
+/** Its place in the tray, the order they go in (a ring where it isn't picked). */
+@Composable
+private fun PickMark(tray: PostTrayModel, p: PostPiece, modifier: Modifier = Modifier) {
+    val i = tray.cards.indexOfFirst { it.id == p.id }
+    if (i >= 0) {
+        Text(
+            "${i + 1}", modifier.padding(14.dp).size(24.dp).clip(CircleShape).background(ErpColors.accent).semantics { contentDescription = "Picked, number ${i + 1}" },
+            style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = TabularDigits, fontWeight = FontWeight.SemiBold), color = ErpColors.onAccent, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+    } else {
+        Box(modifier.padding(14.dp).size(24.dp).clip(CircleShape).background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.2f)).border(2.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f), CircleShape))
     }
 }
 
@@ -250,8 +277,8 @@ private fun PieceDetail(p: PostPiece, state: PostsState) {
             FormSection("About") { Text(p.about, Modifier.fillMaxWidth().padding(16.dp)) }
         }
         FormSection("Act on it") {
-            MarketingLink("Send or queue it", Icons.AutoMirrored.Filled.Send, MarketingKit.postsWeb, "Pick it in the ERP's tray, write the caption")
-            if (MarketingKit.has("/website/edit", role)) MarketingLink("Edit this piece", Icons.Filled.Edit, PostPiecesLogic.editPath(p), "Its name, words, photo or weight on the site")
+            MarketingLink("Send or queue it", Icons.AutoMirrored.Filled.Send, MarketingKit.trayPath(p.id))
+            if (MarketingKit.has("/website/edit", role)) MarketingLink("Edit this piece", Icons.Filled.Edit, PostPiecesLogic.editPath(p))
             if (p.url.startsWith("http")) {
                 ActionRow("Open on ${state.siteName}", { openAddress(context, android.content.Intent.ACTION_VIEW, p.url) }, Icons.AutoMirrored.Filled.OpenInNew)
             }

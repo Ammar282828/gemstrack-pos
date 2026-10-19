@@ -39,9 +39,9 @@ class WebsiteTests {
         assertNull(MarketingKit.pieceId("/website/edit"))
         assertNull(MarketingKit.pieceId("/website/edit?id="))
         assertEquals("/website/edit?id=Rings%2FR1%2Ewebp", WebsiteEditLogic.piecePath("Rings/R1.webp"))
-        // Re-making the photo is the ERP's own page.
-        assertEquals("/website/edit?id=Rings%2FR1%2Ewebp&web=1", WebsiteEditLogic.remakePath("Rings/R1.webp"))
-        assertTrue(erp.app.nav.ScreenRegistry.wantsWeb(WebsiteEditLogic.remakePath("Rings/R1.webp")))
+        // Re-making the photo is native now; Open in Design takes the photograph to the designer.
+        assertEquals("/design?v=make&site=Rings%2FR1%2Ewebp", WebsiteEditLogic.designPath("Rings/R1.webp"))
+        assertFalse(erp.app.nav.ScreenRegistry.wantsWeb(WebsiteEditLogic.piecePath("Rings/R1.webp")))
     }
 
     // MARK: Numbers
@@ -260,7 +260,7 @@ class WebsiteTests {
     }
 
     @Test fun thePhotoNoteWarnsAsTheEditorDoes() {
-        assertEquals("Last time: enhance, retouch. Editing starts from the original photo.", WebsiteEditLogic.photoNote(tagged, listOf("enhance", "retouch"), "taheri"))
+        assertEquals("Last time: enhance, retouch. Editing starts from the original photo: run the AI again if you want it on this one.", WebsiteEditLogic.photoNote(tagged, listOf("enhance", "retouch"), "taheri"))
         val burned = tagged.copy(weightOnPhoto = true)
         assertTrue(WebsiteEditLogic.photoNote(burned, emptyList(), "taheri").contains("a stamp would show them twice"))
         assertEquals("", WebsiteEditLogic.photoNote(burned.copy(change = WebsiteEditChange(setOf("photo"), true, null, null, true)), emptyList(), "taheri"))

@@ -58,7 +58,8 @@ import kotlinx.coroutines.withContext
 // link row) that look the same on Posts, Ads and Website (MarketingKit.swift).
 
 object MarketingKit {
-    const val postsWeb = "/posts?web=1"
+    /** The Posts tray (PostTrayScreen): pick website pieces, caption them, send them or queue them. */
+    const val trayPrefix = "/marketing/tray"
     const val piecesPath = "/marketing/pieces"
     const val piecePrefix = "/marketing/piece"
     const val websitePath = "/marketing/website"
@@ -78,6 +79,9 @@ object MarketingKit {
     fun piecePath(id: String): String = "$piecePrefix?id=${escape(id)}"
 
     fun pieceId(path: String): String? = query("id", path)
+
+    /** The tray, empty or starting on one piece. */
+    fun trayPath(id: String? = null): String = if (id == null) trayPrefix else "$trayPrefix?id=${escape(id)}"
 
     /** A query value of an ERP path ("/ads/new?piece=Rings%2FDSC0912.webp" → "Rings/DSC0912.webp"), null when empty (AdsQuery). */
     fun query(name: String, path: String): String? {

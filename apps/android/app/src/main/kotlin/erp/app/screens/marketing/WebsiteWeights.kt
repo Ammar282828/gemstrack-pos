@@ -279,7 +279,7 @@ private fun ProgressCard(
 ) {
     val (total, withWeight) = WebsiteWeightsLogic.counts(all, collection)
     WebsiteCard(
-        footer = { Text("Type the weight of the piece in the photograph. $siteName shows it in the corner, as on the photos that already carry one, and prices from it.") },
+        footer = { Text("$siteName shows it in the corner and prices from it.") },
     ) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
