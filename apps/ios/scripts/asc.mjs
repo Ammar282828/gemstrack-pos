@@ -283,13 +283,21 @@ async function testers(name, emails) {
         say(`Withdrew ${email}'s pending invitation to send a new one`);
       }
       {
-        await api('POST', '/v1/userInvitations', {
+        const invite = () => api('POST', '/v1/userInvitations', {
           data: {
             type: 'userInvitations',
             attributes: { email, ...personName(email, h.homeName), roles: ['MARKETING'], allAppsVisible: false, provisioningAllowed: false },
             relationships: { visibleApps: { data: [{ type: 'apps', id: app.id }] } },
           },
         });
+        // Apple holds a withdrawn invitation's email for a while ("409 The email is already being used",
+        // 2026-10-19): try again for up to three minutes.
+        for (let left = 12; ; left--) {
+          try { await invite(); break; } catch (e) {
+            if (e.status !== 409 || left <= 0) throw e;
+            await new Promise((r) => setTimeout(r, 15000));
+          }
+        }
         say(`Invited ${email} to App Store Connect (Marketing, ${h.storeName} only): they accept Apple's email, then the next run adds them`);
       }
       continue;
