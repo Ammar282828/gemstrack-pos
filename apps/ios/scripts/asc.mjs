@@ -274,7 +274,15 @@ async function testers(name, emails) {
     if (!user) {
       // Internal testers are App Store Connect users: invited with the least role TestFlight takes,
       // seeing this house's app only. Once they accept, the next run (the daily sweep below) adds them.
-      if (!invited.some((i) => i.attributes.email?.toLowerCase() === email)) {
+      // Someone named again with an invitation still pending is sent a new one, for this app: the old one may
+      // be for another app (the old Mina app before the one ERP app, 2026-10-19) or lost in their mail.
+      const pending = email === holder?.attributes?.username?.toLowerCase() ? null
+        : invited.find((i) => i.attributes.email?.toLowerCase() === email);
+      if (pending) {
+        await api('DELETE', `/v1/userInvitations/${pending.id}`);
+        say(`Withdrew ${email}'s pending invitation to send a new one`);
+      }
+      {
         await api('POST', '/v1/userInvitations', {
           data: {
             type: 'userInvitations',
@@ -283,10 +291,16 @@ async function testers(name, emails) {
           },
         });
         say(`Invited ${email} to App Store Connect (Marketing, ${h.storeName} only): they accept Apple's email, then the next run adds them`);
-      } else {
-        say(`${email} has not accepted the App Store Connect invitation yet`);
       }
       continue;
+    }
+    // Already a user who sees other apps only (accepted for the old Mina app): let them see this one too.
+    if (!user.attributes.allAppsVisible) {
+      const apps = (await api('GET', `/v1/users/${user.id}/visibleApps?limit=50`)).data;
+      if (!apps.some((a) => a.id === app.id)) {
+        await api('POST', `/v1/users/${user.id}/relationships/visibleApps`, { data: [{ type: 'apps', id: app.id }] });
+        say(`${email} can now see ${h.storeName} in App Store Connect`);
+      }
     }
     await join(email, user);
   }
