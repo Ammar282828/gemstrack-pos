@@ -116,11 +116,6 @@ fun ArtworkEditor(
     ad: Boolean = false,
     layoutGroup: String? = null,
     engine: DesignEngine = rememberDesignEngine(),
-    /**
-     * The catalogue's list the Layout menu offers as square layouts, in place of the frame's own (Edit a piece: "siteSquares",
-     * its website photo's layouts, in its own shape as well as square).
-     */
-    layoutGroup: String? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
