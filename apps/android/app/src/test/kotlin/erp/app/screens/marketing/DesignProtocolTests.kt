@@ -35,6 +35,33 @@ class DesignProtocolTests {
         assertEquals(1080.0, v["doc"]["frame"].n("w"))
     }
 
+    @Test fun theBrandRidesWithEveryCallAsTheSwiftSendsIt() {
+        val v = MarketingValue.parse(DesignProtocol.input(NativeArtwork.blank(), emptyMap(), emptyMap(), "mina", mapOf("action" to "words"), DesignProtocol.brandOf("mina", "House of Mina")))
+        assertEquals("mina", v["brand"].s("id"))
+        assertEquals("House of Mina", v["brand"].s("name"))
+        assertEquals("words", v.s("action"))
+        // without one the key is absent, not null
+        assertTrue(!MarketingValue.parse(DesignProtocol.input(NativeArtwork.blank(), emptyMap(), emptyMap(), "mina")).obj.containsKey("brand"))
+    }
+
+    @Test fun theNewActionsAndTheirOptionsPassThroughUntouched() {
+        // resize, resizeMerge, words, siteLayouts and friends: the protocol only carries what the screens name.
+        val options = mapOf(
+            "action" to "resize", "targets" to listOf(mapOf("w" to 1080.0, "h" to 1920.0)), "photoMarked" to true,
+            "swap" to mapOf("from" to "photo", "to" to "photo-x1"), "subject" to mapOf("x" to 0.2, "y" to 0.3, "w" to 0.5, "h" to 0.4),
+        )
+        val v = MarketingValue.parse(DesignProtocol.input(NativeArtwork.blank(), emptyMap(), mapOf("headline" to "Ruby"), "taheri", options))
+        assertEquals("resize", v.s("action"))
+        assertEquals(1920, v["targets"].array[0].n("h").toInt())
+        assertTrue(v["photoMarked"].bool)
+        assertEquals("photo-x1", v["swap"].s("to"))
+        assertEquals(0.5, v["subject"].n("w"))
+        val words = MarketingValue.parse(DesignProtocol.input(NativeArtwork.blank(null, 1080.0), emptyMap(), emptyMap(), "taheri", mapOf("action" to "words", "px" to 120, "texts" to mapOf("WhatsApp caption" to "hello"), "facts" to "21K")))
+        assertEquals("hello", words["texts"].s("WhatsApp caption"))
+        assertEquals("21K", words.s("facts"))
+        assertEquals(1080.0, words["doc"]["frame"].n("h"))
+    }
+
     @Test fun aNullDocumentIsSentAsNull() {
         val v = MarketingValue.parse(DesignProtocol.input(MarketingValue.NULL, emptyMap(), emptyMap(), "mina"))
         assertTrue(v["doc"].isNull)

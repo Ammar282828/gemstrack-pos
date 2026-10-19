@@ -721,6 +721,16 @@ their standing "do everything yourself": `docs/features/design-studio-plan.md`; 
   `/design/classic/post` and `/design/classic/ad` are redirects (with `?draft=`); a draft of the old Post a piece screen opens as a
   design ([Old drafts](features/design.md#old-drafts)).
 
+- **Subject-aware stories** (2026-10-19; the owner: "when formatting for stories, have it be smart enough to understand the subject in the
+  image and not cover it with text"). Built once in the shared engine (`src/lib/social/subject.ts`), so the web, the iPhone bundle and
+  Android lay out alike. `findSubject` boxes the piece in a ~128 px copy of the photo (ground estimated from the border, row by row and
+  column by column; colour distance plus edges; adaptive threshold; nearby blobs joined; null for a busy or blank picture; cached per image).
+  `avoidSubject` runs after `applyPreset` and after a story-shaped photo-ground ad template: the layout's own words go as one block to the free
+  band above or below the piece (inside the 14% / 20% story bands), else the photo is panned within its crop, else the words shrink (never
+  under 80%); a mark on the piece moves to a clear spot; the person's own layers never move. The box is kept in `doc.meta.found`; an
+  explicit `meta.subject` (an app's better box, `subject` in the bridge's message) wins. Squares and the site story are left as they were
+  (corner stamps; the photo is inset whole).
+
 ### One app, many businesses
 
 2026-10-16. The owner: one iPhone app for all his businesses, to switch between them and to add more.

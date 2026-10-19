@@ -20,8 +20,26 @@ val MarketingRoutes: List<ScreenRoute> = buildList {
         }),
     )
     add(ScreenRoute.exact(MarketingKit.piecesPath) { PostPiecesScreen() })
+    // The tray: pick pieces, caption them, send them or queue them (`?id=` starts it on one).
+    add(ScreenRoute({ ScreenRoute.bare(it) == MarketingKit.trayPrefix }, { path -> PostTrayScreen(path) }))
     add(ScreenRoute({ ScreenRoute.bare(it) == MarketingKit.piecePrefix }, { path -> PostPieceScreen(MarketingKit.pieceId(path) ?: "") }))
     // --- Ads, Studio and the Website pages go here. ---
+    // The Website pages, native (Website*.kt), on the web's own routes; /website/post is Post a piece (above).
+    add(ScreenRoute.exact(MarketingKit.websitePath) { WebsiteMenu() })
+    add(ScreenRoute.exact("/website/photos") { WebsitePhotosScreen() })
+    // Edit a piece: the grid, or one piece when the path names it (/website/edit?id=…, as the web's own links do).
+    add(
+        ScreenRoute({ ScreenRoute.bare(it) == "/website/edit" }, { path ->
+            val id = MarketingKit.pieceId(path)
+            if (!id.isNullOrEmpty()) WebsiteEditPieceScreen(id) else WebsiteEditScreen()
+        }),
+    )
+    add(ScreenRoute.exact("/website/weights") { WebsiteWeightsScreen() })
+    add(ScreenRoute.exact("/website/investments") { WebsiteInvestmentsScreen() })
+    // Insights (Insights*.kt): Instagram and Facebook, organic beside paid.
+    add(ScreenRoute.exact("/insights") { InsightsOverviewScreen() })
+    add(ScreenRoute.exact("/insights/posts") { InsightsPostsScreen() })
+    add(ScreenRoute.exact("/insights/audience") { InsightsAudienceScreen() })
     // From the website is the Posts hub now; the web redirects the old address there.
     add(ScreenRoute.exact("/website/from-site") { PostsHub() })
 }

@@ -17,6 +17,7 @@
  * template's layers and keeps anything the owner added.
  */
 
+import { avoidSubject, subjectOf, withFoundSubject } from '@/lib/social/subject';
 import { reflow, textLayer, newCornerMark, newLayerId, frameOf, type Assets, type Fields, type ImageLayer, type Layer, type ShapeLayer, type StoryDoc } from '@/lib/social/editor';
 import type { Frame } from '@/lib/social/story';
 import type { Placement } from './assessment';
@@ -179,7 +180,8 @@ function stack(f: Frame, top: number, opts: { align?: 'center' | 'left'; x?: num
 }
 
 /** Lay a template down on the doc, keeping what the owner added. */
-export function applyAdTemplate(doc: StoryDoc, id: AdTemplateId, fields: Fields, a: Assets, opts: { photoMarked?: boolean; rates?: RateBoard | null } = {}): StoryDoc {
+export function applyAdTemplate(input: StoryDoc, id: AdTemplateId, fields: Fields, a: Assets, opts: { photoMarked?: boolean; rates?: RateBoard | null } = {}): StoryDoc {
+  const doc = withFoundSubject(input, a);
   const f = frameOf(doc);
   const zone = safeZone(f);
   /** The band a story's words and piece must sit in (the whole frame elsewhere). */
@@ -352,7 +354,15 @@ export function applyAdTemplate(doc: StoryDoc, id: AdTemplateId, fields: Fields,
 
   // A photograph that already carries the house's mark (taheri.shop burns it in) gets no second one.
   const placed = opts.photoMarked ? out.filter(l => l.kind !== 'wordmark') : out;
-  return reflow({ ...doc, bg, layers: [...placed, ...keep] }, fields, a);
+  const laid = reflow({ ...doc, bg, layers: [...placed, ...keep] }, fields, a);
+  // A story whose photo is the ground keeps its words off the piece (subject.ts); the layouts that frame the photo, or put the words on a band of their own, are already clear of it.
+  const subject = zone.top && !wide && bg.photoId === PHOTO && (id === 'clean' || id === 'headline' || id === 'certified') ? subjectOf(laid, a) : null;
+  if (!subject) return laid;
+  const moved = avoidSubject(laid, subject, fields, a, { ids: new Set(placed.map(l => l.id)) });
+  // The shade follows the words: a block moved above the piece wants the shade at the top.
+  if (moved === laid || laid.bg.gradient === 'none') return moved;
+  const textTop = Math.min(...moved.layers.filter(l => l.kind === 'text' && !!l.bind && !l.hidden).map(l => l.y));
+  return textTop < f.h / 2 ? { ...moved, bg: { ...moved.bg, gradient: 'top' } } : moved;
 }
 
 /** A blank ad in a format, the photo as its ground. */

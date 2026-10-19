@@ -74,8 +74,8 @@ import kotlinx.coroutines.launch
 /**
  * Posts → Hub (src/app/posts/page.tsx): what went out today, where Taheri's gold post is, what waits in the queue, and
  * the website's pieces. A queued piece opens natively to be sent, held, timed or removed (PostQueueSheet: where it goes
- * is said in full before it goes). What makes a post is Post a piece (PostComposer); the tray with its captions and
- * spreading the queue over a day are the ERP's own pages, opened in the app.
+ * is said in full before it goes); the whole queue is sent at once or spread over the day (PostQueueSpreadSheet). Pick,
+ * caption and send is the tray (PostTrayScreen). Nothing here opens the ERP's web page.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,6 +90,10 @@ fun PostsHub() {
     var refreshing by remember { mutableStateOf(false) }
     var showAllToday by rememberSaveable { mutableStateOf(false) }
     var opened by remember { mutableStateOf<String?>(null) }
+    var spreading by remember { mutableStateOf(false) }
+    var confirmingAll by remember { mutableStateOf(false) }
+    var sendingAll by remember { mutableStateOf(false) }
+    val note = erp.app.ui.LocalNoteState.current
 
     LaunchedEffect(hasInvestments) { PostsStore.load(gold = hasInvestments) }
 
@@ -100,7 +104,7 @@ fun PostsHub() {
         { if (hasInvestments) GoldSection(state) },
     )
     val right: List<@Composable () -> Unit> = listOf(
-        { QueueSection(state) { opened = it } },
+        { QueueSection(state, sendingAll, onSpread = { spreading = true }, onSendAll = { confirmingAll = true }) { opened = it } },
         { SiteSection(state, hasInvestments) },
     )
 
@@ -126,6 +130,45 @@ fun PostsHub() {
     }
 
     opened?.let { id -> PostQueueSheet(id = id, onClose = { opened = null }) }
+    if (spreading) PostQueueSpreadSheet(onDone = { note.show(it) }, onClose = { spreading = false })
+    if (confirmingAll) {
+        val waiting = state.waiting.size
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmingAll = false },
+            title = { Text(if (waiting > 1) "Send all $waiting pieces now?" else "Send it now?") },
+            text = { Text(sendAllWords(state)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmingAll = false
+                    scope.launch {
+                        sendingAll = true
+                        try {
+                            val (sent, of) = PostsStore.sendAll()
+                            val whole = sent == of
+                            note.show(
+                                erp.app.ui.Note(
+                                    if (whole) "All $of sent" else "$sent of $of sent",
+                                    if (whole) "" else "The ones that failed say why; sending again sends only what didn't go.", failed = !whole,
+                                ),
+                            )
+                        } finally {
+                            sendingAll = false
+                        }
+                    }
+                }) { Text(if (state.failingChecks.isEmpty()) "Send" else "Send anyway") }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmingAll = false }) { Text("Not yet") } },
+        )
+    }
+}
+
+/** Each piece and where it goes, in the order they go, and what is failing now (queue-panel.tsx's confirm). */
+fun sendAllWords(state: PostsState): String {
+    var out = state.waiting.joinToString("\n") { "• ${it.headline.ifEmpty { "Untitled" }} → ${state.queueWhere(it)}" }
+    out += "\n\nOne after another, in this order. A post can't be unsent from here."
+    val failing = state.failingChecks
+    if (failing.isNotEmpty()) out += "\n\nThis will probably fail:\n" + failing.joinToString("\n") { "${it.label}: ${it.fix ?: it.detail}" }
+    return out
 }
 
 /** Rows on the house's card with a hairline between them. */
@@ -147,14 +190,12 @@ private fun Titled(title: String, footer: String? = null, content: @Composable (
 
 @Composable
 private fun MakeSection(role: String) {
-    val hasPostPiece = MarketingKit.has("/website/post", role)
     val hasInvestments = MarketingKit.has("/website/investments", role)
     val hasWebsite = MarketingKit.has("/website/photos", role)
     RowsCard {
-        if (hasPostPiece) MarketingLink("New piece", Icons.Filled.CameraAlt, "/website/post?new=1", "Post a piece: new photographs, a story, a caption")
-        if (hasInvestments) MarketingLink("Investments", Icons.AutoMirrored.Filled.TrendingUp, "/website/investments", "The day's gold post")
-        MarketingLink("Pick, caption and send", Icons.AutoMirrored.Filled.Send, MarketingKit.postsWeb, "Website pieces to the groups and the channel, or into the queue")
-        if (hasWebsite) MarketingLink("The website", Icons.Filled.Public, MarketingKit.websitePath, "Add photos, edit a piece, photo weights")
+        if (hasInvestments) MarketingLink("Investments", Icons.AutoMirrored.Filled.TrendingUp, "/website/investments")
+        MarketingLink("Pick, caption and send", Icons.AutoMirrored.Filled.Send, MarketingKit.trayPath())
+        if (hasWebsite) MarketingLink("The website", Icons.Filled.Public, MarketingKit.websitePath)
     }
 }
 
@@ -258,13 +299,17 @@ fun goldLine(state: PostsState): String {
 // MARK: The queue
 
 @Composable
-private fun QueueSection(state: PostsState, open: (String) -> Unit) {
+private fun QueueSection(state: PostsState, sendingAll: Boolean, onSpread: () -> Unit, onSendAll: () -> Unit, open: (String) -> Unit) {
     val items = state.queueShown()
     if (items.isEmpty()) return
     Titled("In the queue") {
         RowsCard {
             for (e in items) QueueRow(e, state) { open(e.id) }
-            MarketingLink("Spread the queue over the day", Icons.Filled.Schedule, MarketingKit.postsWeb, "In the ERP")
+            val waiting = state.waiting.size
+            if (waiting > 0) {
+                ActionRow("Spread over the day", onSpread, Icons.Filled.Schedule, enabled = !sendingAll)
+                ActionRow(if (sendingAll) "Sending…" else if (waiting > 1) "Send all $waiting now" else "Send it now", onSendAll, Icons.AutoMirrored.Filled.Send, enabled = !sendingAll)
+            }
         }
     }
 }
@@ -293,12 +338,13 @@ fun queueNote(e: PostQueueEntry, state: PostsState): String {
     }
 }
 
+/** Sent is the expected end: no tag, the line already says when (the iPhone's rule 15). */
 @Composable
 fun QueueBadge(e: PostQueueEntry) {
     val (words, tone) = when (e.status) {
         "scheduled" -> "Scheduled" to Tone.working
         "sending" -> "Sending" to Tone.owed
-        "sent" -> "Sent" to Tone.settled
+        "sent" -> return
         "failed" -> "Failed" to Tone.problem
         "draft" -> "Making" to Tone.quiet
         else -> "Held" to Tone.quiet
@@ -317,7 +363,7 @@ private fun SiteSection(state: PostsState, hasInvestments: Boolean) {
         is PostsPhase.Failed -> Titled("From the website") {
             RowsCard {
                 Text(phase.message, Modifier.fillMaxWidth().ledgerRow(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                ActionRow("Try again", { scope.launch { PostsStore.load(gold = hasInvestments) } })
+                androidx.compose.material3.OutlinedButton(onClick = { scope.launch { PostsStore.load(gold = hasInvestments) } }, modifier = Modifier.padding(16.dp)) { Text("Try again") }
             }
         }
         PostsPhase.Loaded -> {
@@ -333,7 +379,7 @@ private fun SiteSection(state: PostsState, hasInvestments: Boolean) {
                             }
                         }
                     }
-                    MarketingLink("All ${state.pieces.size} pieces", Icons.Filled.GridView, MarketingKit.piecesPath, "Search by name or collection")
+                    MarketingLink("All ${state.pieces.size} pieces", Icons.Filled.GridView, MarketingKit.piecesPath)
                 }
             }
         }
@@ -349,8 +395,8 @@ fun PostPieceTile(piece: PostPiece, posted: String?, modifier: Modifier = Modifi
             if (piece.newArrival) {
                 Text(
                     "New",
-                    Modifier.padding(6.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)).padding(horizontal = 6.dp, vertical = 2.dp),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                    Modifier.padding(6.dp).clip(CircleShape).background(ErpColors.accent).padding(horizontal = 6.dp, vertical = 2.dp),
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), color = ErpColors.onAccent,
                 )
             }
         }

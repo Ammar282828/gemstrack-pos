@@ -175,9 +175,12 @@ class PostsTests {
         assertTrue(matches("/marketing/pieces"))
         assertTrue(matches("/marketing/piece?id=a"))
         assertTrue(matches("/website/from-site"))
-        // other pages of the group are not here yet: they fall through to the ERP page
+        // the Website pages and Insights are native too (MarketingRoutes.swift registers them in the same list)
+        for (p in listOf("/marketing/website", "/website/photos", "/website/edit", "/website/edit?id=Rings%2FR1.webp", "/website/weights", "/website/investments", "/insights", "/insights/posts", "/insights/audience")) {
+            assertTrue(matches(p), p)
+        }
+        // Ads has its own list; other groups' pages are not here
         assertFalse(matches("/ads"))
-        assertFalse(matches("/website/photos"))
         assertFalse(matches("/orders"))
         assertEquals("/website/from-site", ScreenRoute.bare("/website/from-site?x"))
     }

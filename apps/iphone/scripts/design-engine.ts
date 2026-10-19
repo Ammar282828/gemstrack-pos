@@ -15,6 +15,7 @@ import { mergePlan, planOf, summariseLayers } from '../../../src/lib/design/resi
 import { wordProblems } from '../../../src/lib/design/publish';
 import { makeMeasure } from '../../../src/lib/design/score';
 import { weightLabel, detailsLine, whatsappCaption, websiteFileName, sitePieceCaption } from '../../../src/lib/social/caption';
+import { subjectOf } from '../../../src/lib/social/subject';
 import { siteDetailsLine, siteLayouts, siteStartLayout } from '../../../src/lib/social/site-design';
 
 declare const NATIVE_MARK: string;
@@ -102,6 +103,9 @@ async function run(input: any) {
     return JSON.parse(JSON.stringify({ source: { frame, layers: summariseLayers(doc, fields, m), thumb: jpeg(doc) }, results }));
   }
   const additions: E.Layer[] = [];
+  // Subject-aware stories (subject.ts): a preset or story ad keeps its words off the piece. The engine looks for the piece in
+  // the photo itself (kept in doc.meta.found); an app that knows better sends `subject` ({x,y,w,h}, 0…1 of the photo), which wins.
+  if (input.subject && (action === 'preset' || action === 'ad')) doc.meta = { ...doc.meta, subject: input.subject };
   if (action === 'preset') doc = E.applyPreset(doc, input.value, palette, fields, assets, { weightOwnLine: input.weightOwnLine !== false, wordmark: true });
   if (action === 'square') doc = E.applySquarePreset(doc, input.value === 'catalogue-t' ? 'catalogue' : input.value, fields, assets);
   if (action === 'ad') doc = A.applyAdTemplate(doc, input.value, fields, assets, { photoMarked: !!input.photoMarked, rates: input.rates?.rows ? input.rates : input.rates ? A.rateBoard(input.rates, new Date().toLocaleDateString('en-GB', {weekday:'long',day:'numeric',month:'long',timeZone:'Asia/Karachi'})) : null });
@@ -134,7 +138,7 @@ async function run(input: any) {
   // A caller that draws a design (the Studio, its board) sends no piece: the caption is then empty, not a throw.
   const piece = { headline: '', ...(input.piece ?? {}) };
   return JSON.parse(JSON.stringify({
-    doc, image: canvas.toDataURL('image/jpeg', input.quality ?? .92).split(',')[1],
+    doc, subject: subjectOf(doc, assets), image: canvas.toDataURL('image/jpeg', input.quality ?? .92).split(',')[1],
     boxes: doc.layers.map(l => ({ id: l.id, ...E.layerBox(l, fields, assets) })), added: additions.map(l => l.id),
     caption: whatsappCaption(piece, input.context ?? { whatsappNumbers: [] }), weight: weightLabel(piece), details: detailsLine(piece, false),
     names: Array.from({ length: input.count ?? 1 }, (_, i) => isMaisonFolder(input.folder) ? maisonFileName(input.maisonHouse ?? '', input.name ?? piece.headline ?? '', i) : websiteFileName(input.name ?? piece.headline ?? '', i)),

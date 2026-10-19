@@ -136,7 +136,7 @@ export const STORE_LINKS_PAGE = {
   // "Saddar" never go in front of a customer (CLAUDE.md, Decisions). Numbers in a row
   // are tappable on the page.
   visit: (nl(process.env.NEXT_PUBLIC_STORE_LINKS_VISIT)
-    || 'Saturday to Thursday, 11 am – 9 pm\nFriday, 3:30 – 8 pm\nKarachi · 0335 2275553 · 0326 2275554').split('\n').map((s) => s.trim()).filter(Boolean),
+    || 'Saturday to Thursday, 11 am – 9 pm\nFriday, 3:30 – 8 pm\nKarachi · 0335 2275553 · 0326 2275554 · 0339 4006890').split('\n').map((s) => s.trim()).filter(Boolean),
 };
 
 /**
