@@ -250,7 +250,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **iPhone app** (`docs/features/iphone-app.md`)
 - [iPhone app](docs/features/iphone-app.md#iphone-app) — `apps/ios`, Capacitor over the live ERP; TestFlight by `ios.yml`
-- [One app, many businesses](docs/features/iphone-app.md#one-app-many-businesses-2026-10-16) — `shop.taheri.erp` "ERP" holds Taheri, House of Mina and any business added by its ERP address (`/api/app/business`); a chip switches, each keeps its sign-in, data, push and widget entry; Mina's own app is deprecated; Mina needs `shop.taheri.erp` registered in its Firebase
+- [One app, many businesses](docs/features/iphone-app.md#one-app-many-businesses-2026-10-16) — `shop.taheri.erp` "ERP" holds Taheri, House of Mina and any business added by its ERP address (`/api/app/business`); a chip switches, each keeps its sign-in, data, push and widget entry; Mina's own app is retired (2026-10-20: no more builds, its Xcode Cloud workflows off); Mina needs `shop.taheri.erp` registered in its Firebase
 
 **Android app** (`docs/features/android-app.md`)
 - [Android app](docs/features/android-app.md#android-app) — `apps/android`, Kotlin/Compose port of `apps/iphone`, two flavors; money in `core` held to the iPhone's contract; Play internal testing; `apps/android-twa` until it ships

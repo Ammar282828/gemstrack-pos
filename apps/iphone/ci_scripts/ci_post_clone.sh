@@ -11,7 +11,7 @@ command -v xcodegen >/dev/null || brew install xcodegen
 command -v node >/dev/null || brew install node
 
 # The default build is the merged app (shop.taheri.erp, "ERP", every business in it): HOUSE=taheri is its bundle and asset base.
-# Mina's workflow is DEPRECATED (2026-10-16): the old Mina app keeps building until its testers have moved to the one app.
+# Mina's own app is RETIRED (owner, 2026-10-20): its Xcode Cloud workflows are switched off (asc.mjs ci-off mina); this branch stays only so an old workflow, if switched on again, still builds.
 # Mina's workflows build ERPMina.xcodeproj (project-mina.yml), Taheri's ERP.xcodeproj: Xcode Cloud keeps one
 # product per project file. CI_XCODE_PROJECT names the file the workflow builds; the bundle ID is the fallback.
 case "${CI_XCODE_PROJECT:-}" in

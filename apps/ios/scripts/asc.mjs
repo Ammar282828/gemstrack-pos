@@ -7,6 +7,7 @@
 //   node scripts/asc.mjs testers <house> [emails]       the house's "Shop" testers: the account holder, the emails, and anyone accepted since
 //   node scripts/asc.mjs builds <house> [--fix]         the app's newest builds, whether "Shop" has them; --fix adds the newest and answers export compliance
 //   node scripts/asc.mjs public-link <house> [--submit] the house's public TestFlight link (external group "Public"); --submit sends the build to beta review
+//   node scripts/asc.mjs ci-off <house>                 the house's Xcode Cloud workflows switched off (a retired app builds no more)
 //   node scripts/asc.mjs revoke                         the build's certificate and profile, gone again
 //   node scripts/asc.mjs key-file <path>                the key as a proper .p8, for xcodebuild's upload
 //
@@ -587,6 +588,22 @@ async function builds(name, fix) {
   say(`Added ${newest.version} (${newest.build}) to Shop (${testerCount} tester(s))`);
 }
 
+/** A retired app's Xcode Cloud workflows, switched off so a release line builds only the apps still made. */
+async function ciOff(name) {
+  const h = houses[name];
+  if (!h) throw new Error(`no house ${name}`);
+  const app = await appFor(h);
+  if (!app) { say(`${name}: no app in App Store Connect`); return; }
+  const product = await maybe(`/v1/apps/${app.id}/ciProduct`);
+  if (!product) { say(`${h.storeName}: no Xcode Cloud product`); return; }
+  const flows = (await api('GET', `/v1/ciProducts/${product.id}/workflows?limit=50`)).data;
+  for (const f of flows) {
+    if (f.attributes.isEnabled === false) { say(`${f.attributes.name}: already off`); continue; }
+    await api('PATCH', `/v1/ciWorkflows/${f.id}`, { data: { type: 'ciWorkflows', id: f.id, attributes: { isEnabled: false } } });
+    say(`${f.attributes.name}: switched off`);
+  }
+}
+
 const [cmd, ...args] = process.argv.slice(2);
 try {
   if (cmd === 'plan') await plan(args[0] || 'auto');
@@ -597,6 +614,7 @@ try {
   else if (cmd === 'key-file') { fs.mkdirSync(path.dirname(args[0]), { recursive: true }); fs.writeFileSync(args[0], ASC_PRIVATE_KEY, { mode: 0o600 }); }
   else if (cmd === 'builds') await builds(args[0], args.includes('--fix'));
   else if (cmd === 'public-link') await publicLink(args[0], args.includes('--submit'));
+  else if (cmd === 'ci-off') await ciOff(args[0]);
   else if (cmd === 'testers') await testers(args[0], String(args[1] || '').split(/[\s,;]+/).filter(Boolean));
   else throw new Error(`unknown command ${cmd}`);
 } catch (e) {

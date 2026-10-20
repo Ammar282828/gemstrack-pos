@@ -402,3 +402,10 @@ Left for later, because each is a redesign rather than a rule: one designer inst
 the Board's canvas, whose model is the better one), pinch/rotate and multi-select on the canvas, New sale and New
 order sharing one piece editor and one step order, the Workshop's cards as real list rows (swipe actions), the
 Studio's own tab strip, a shared money/weight field, and Search holding the map and the account rows.
+
+### House of Mina's own app retired (2026-10-20)
+
+Owner: "stop developing the house of mina app from now on." House of Mina lives on as a business inside the one
+ERP app (`shop.taheri.erp`). Its own app (`store.houseofmina.erp`) gets no more builds: its Xcode Cloud workflows
+are switched off by `asc.mjs ci-off mina` (run on every TestFlight status run, so they stay off), and the TestFlight
+status and tester jobs handle the ERP app only. Its testers move to the ERP app (`testers taheri`).

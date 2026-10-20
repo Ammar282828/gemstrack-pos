@@ -58,7 +58,7 @@ jobs:
           if [ -n "$HOUSE" ]; then
             node apps/ios/scripts/asc.mjs testers "$HOUSE" "$EMAILS"
           else
-            for h in taheri mina; do node apps/ios/scripts/asc.mjs testers "$h" "" || echo "::warning::$h: testers not swept"; done
+            for h in taheri; do node apps/ios/scripts/asc.mjs testers "$h" "" || echo "::warning::$h: testers not swept"; done  # Mina's own app is retired (2026-10-20)
           fi
       - name: Public link
         id: public

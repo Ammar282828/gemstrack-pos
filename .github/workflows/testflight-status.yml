@@ -2,7 +2,7 @@ name: TestFlight status
 
 # Why a build is or is not in TestFlight (docs/features/iphone-app.md, Xcode Cloud): each house's newest builds,
 # their processing and beta state, and whether the "Shop" group has them (apps/ios/scripts/asc.mjs builds).
-# A cloud session cannot dispatch it (403): a push that changes this file runs it (last: UI scan).
+# A cloud session cannot dispatch it (403): a push that changes this file runs it (last: Mina retired).
 # With fix (the default, and on a push to this file): the newest valid build joins Shop, export compliance answered.
 
 on:
@@ -36,4 +36,7 @@ jobs:
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
           FIX: ${{ (github.event_name == 'push' || inputs.fix) && '1' || '' }}
         run: |
-          for h in taheri mina; do node apps/ios/scripts/asc.mjs builds "$h" ${FIX:+--fix} || echo "::warning::$h failed"; done
+          # House of Mina's own app is retired (owner, 2026-10-20: "stop developing the house of mina app"): only the
+          # one ERP app is put in TestFlight, and Mina's Xcode Cloud workflows are kept switched off.
+          node apps/ios/scripts/asc.mjs builds taheri ${FIX:+--fix} || echo "::warning::taheri failed"
+          node apps/ios/scripts/asc.mjs ci-off mina || echo "::warning::Mina's Xcode Cloud workflows not switched off"
