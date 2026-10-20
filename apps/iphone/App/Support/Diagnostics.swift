@@ -30,18 +30,18 @@ final class Diagnostics: NSObject, MXMetricManagerSubscriber {
 
     private static func reports(_ p: MXDiagnosticPayload) -> [[String: Any]] {
         var out: [[String: Any]] = []
-        func base(_ kind: String, _ d: MXDiagnostic) -> [String: Any] {
+        func base(_ kind: String, _ d: MXDiagnostic, _ tree: MXCallStackTree) -> [String: Any] {
             var r: [String: Any] = ["kind": kind]
             let m = d.metaData
             r["appVersion"] = m.applicationBuildVersion
             r["osVersion"] = m.osVersion
             r["device"] = m.deviceType
-            let stack = frames(of: d.callStackTree)
+            let stack = frames(of: tree)
             if !stack.isEmpty { r["frames"] = stack }
             return r
         }
         for d in p.crashDiagnostics ?? [] {
-            var r = base("crash", d)
+            var r = base("crash", d, d.callStackTree)
             if let v = d.exceptionType { r["exceptionType"] = v.intValue }
             if let v = d.exceptionCode { r["exceptionCode"] = v.intValue }
             if let v = d.signal { r["signal"] = v.intValue }
@@ -49,20 +49,20 @@ final class Diagnostics: NSObject, MXMetricManagerSubscriber {
             out.append(r)
         }
         for d in p.hangDiagnostics ?? [] {
-            var r = base("hang", d)
+            var r = base("hang", d, d.callStackTree)
             r["durationMs"] = Int(d.hangDuration.converted(to: .milliseconds).value)
             out.append(r)
         }
         for d in p.cpuExceptionDiagnostics ?? [] {
-            var r = base("cpu", d)
+            var r = base("cpu", d, d.callStackTree)
             r["durationMs"] = Int(d.totalCPUTime.converted(to: .milliseconds).value)
             out.append(r)
         }
         for d in p.diskWriteExceptionDiagnostics ?? [] {
-            out.append(base("disk", d))
+            out.append(base("disk", d, d.callStackTree))
         }
         for d in p.appLaunchDiagnostics ?? [] {
-            var r = base("launch", d)
+            var r = base("launch", d, d.callStackTree)
             r["durationMs"] = Int(d.launchDuration.converted(to: .milliseconds).value)
             out.append(r)
         }
