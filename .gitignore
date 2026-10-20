@@ -65,3 +65,11 @@ scripts/*backup*.json
 # Ledger backups hold live financial records — never commit.
 backups/
 .next-build/
+
+# Customer data never goes in the repo: gemstrack-pos, which carries this history, is public (2026-10-20).
+*.csv
+scripts/audit-customers.*.json
+*export*.json
+scripts/*.report.json
+scripts/*.result.json
+scripts/*.[0-9]*.json

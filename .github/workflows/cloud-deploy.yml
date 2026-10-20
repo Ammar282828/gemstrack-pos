@@ -73,6 +73,17 @@ jobs:
             exit 1
           fi
 
+      # Nor the shop's customers (made-up fixtures use 03xx-0… / 03xx 555…): a Shopify orders export and phone-number dumps sat in the tree from 2026-10-09 to 10-20.
+      - name: No customer data in the tree
+        run: |
+          bad=$(git ls-files '*.csv'; git ls-files '*.json' | grep -v -e '^node_modules/' -e 'package' -e 'tsconfig' | while read -r f; do
+            n=$(grep -oE '(\+92|0)3[0-9]{2}[- ]?[0-9]{7}' "$f" 2>/dev/null | grep -vE '^(\+92|0)3[0-9]{2}[- ]?(0|555)' | wc -l); [ "$n" -ge 10 ] && echo "$f ($n phone numbers)"; done)
+          if [ -n "$bad" ]; then
+            echo "$bad"
+            echo "::error::Customer data is committed in the files above. Keep exports and audits outside the repo: gemstrack-pos, which carries this history, is public."
+            exit 1
+          fi
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
