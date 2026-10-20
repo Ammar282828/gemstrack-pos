@@ -19,6 +19,8 @@ import { Label } from '@/components/ui/label';
 import { produce } from 'immer';
 import { QrCode } from 'lucide-react';
 import { FormSkeleton } from '@/components/shared/skeletons';
+import { LabelLiveCard } from './label-live-card';
+import { LabelLiveButton } from '@/components/label-live-button';
 
 // --- Types --- (lib/label-layout.ts: the layout is kept in settings)
 type LabelLayout = StoredLabelLayout;
@@ -339,12 +341,14 @@ function PrinterPageComponent() {
 
   return (
     <PageShell subtitle={<>
-      Design the tag and export pieces to CSV for a label printing app like WEPrint.{' '}
+      Print tags with Label LIVE, or design the Zebra tag and export pieces to CSV.{' '}
       <span className="text-xs">{edited ? 'Saving…' : settings.labelLayout ? 'Layout saved.' : ''}</span>
       {settings.labelLayout && (
         <button type="button" className="ml-2 text-xs underline" onClick={() => { setLayout(defaultLayout); }}>Back to the standard tag</button>
       )}
     </>}>
+
+        <LabelLiveCard testProduct={selectedProduct} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
@@ -375,6 +379,7 @@ function PrinterPageComponent() {
                       <Download className="mr-2 h-4 w-4"/>
                       Download CSV for Selected Product
                   </Button>
+                  {selectedProduct && <LabelLiveButton products={[selectedProduct]} className="w-full" />}
                 </CardContent>
             </Card>
 

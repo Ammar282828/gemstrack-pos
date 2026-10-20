@@ -232,6 +232,9 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 **Ads** (`docs/features/ads.md`)
 - [Ads](docs/features/ads.md#ads) — Meta ad account per house; Overview, Campaigns, Plan, New ad, Setup
 
+**Label LIVE** (`docs/features/label-live.md`)
+- [Label LIVE](docs/features/label-live.md#label-live) — tags print by `labellive://` link (one piece, or a batch); set up by pasting Label LIVE's Integrate link on Settings → Labels; variables paired to fields
+
 **Insights** (`docs/features/insights.md`)
 - [Insights](docs/features/insights.md#insights) — Instagram + Facebook, organic beside paid, through the Ads login; hourly snapshot keeps stories and follower counts
 

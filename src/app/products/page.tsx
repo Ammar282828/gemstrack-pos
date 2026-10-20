@@ -31,6 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 import { generateProductCsv } from '@/lib/csv';
 import { PageShell } from '@/components/shared/page-shell';
 import { deleteErrorText } from '@/lib/delete-code';
+import { LabelLiveButton } from '@/components/label-live-button';
 
 type ViewMode = 'grid' | 'list';
 
@@ -308,6 +309,9 @@ export default function ProductsPage() {
             disabled={selectedProductSkus.length === 0} title="Export selected to CSV for WEPrint">
             <Download className="w-4 h-4 mr-2" />Export ({selectedProductSkus.length})
           </Button>
+          {selectedProductSkus.length > 0 && settings.labelLive && (
+            <LabelLiveButton className="h-10" products={allStoreProducts.filter(p => selectedProductSkus.includes(p.sku))} />
+          )}
         </>}
         footer={selectedProductSkus.length > 0 ? (
           /* Selection controls only appear once something is selected — they

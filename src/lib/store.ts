@@ -20,6 +20,7 @@ import { newShareToken } from '@/lib/share-token';
 import { changedRates, mainRate, type RateKey } from '@/lib/rates';
 import { personFor } from '@/lib/people';
 import type { StoredLabelLayout } from '@/lib/label-layout';
+import type { StoredLabelLive } from './label-live';
 
 
 // --- Firestore Collection Names ---
@@ -314,6 +315,8 @@ export interface Settings extends GoldRates {
   ratesUpdatedBy?: string;
   /** Settings → Labels: the shop's tag layout (lib/label-layout.ts). Absent: the standard Zebra tag. */
   labelLayout?: StoredLabelLayout;
+  /** Label LIVE on the Mac: the design, printer and which field fills each variable (lib/label-live.ts). */
+  labelLive?: StoredLabelLive;
   /** Keep unfinished orders and invoices on this device and offer them back.
    *  Defaults on — losing a half-entered order is worse than an occasional prompt. */
   autoDraftForms?: boolean;

@@ -28,6 +28,7 @@ import {
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { generateProductCsv } from '@/lib/csv';
 import { deleteErrorText } from '@/lib/delete-code';
+import { LabelLiveButton } from '@/components/label-live-button';
 
 
 type ProductWithCalculatedCosts = ReturnType<typeof selectProductWithCosts>;
@@ -351,6 +352,7 @@ export default function ProductDetailPage() {
                 ) : (
                   <div className="w-32 h-32 bg-gray-200 flex items-center justify-center text-sm text-gray-500 rounded-md">Generating QR...</div>
                 )}
+                <LabelLiveButton products={[productData]} size="sm" className="w-full" />
                 <Button variant="outline" size="sm" onClick={handleExportCsv} className="w-full">
                   <Download className="mr-2 h-4 w-4" /> Export CSV for this Item
                 </Button>
