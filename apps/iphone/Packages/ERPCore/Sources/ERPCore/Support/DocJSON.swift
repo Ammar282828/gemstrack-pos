@@ -53,11 +53,38 @@ public enum DocJSON {
         return ERPDate.iso(Date(timeIntervalSince1970: s.doubleValue + n.doubleValue / 1e9))
     }
 
-    /// A document as a model: its id is the document's (as store.ts does, `{ ...doc.data(), id: doc.id }`).
-    public static func decode<T: Decodable>(_ type: T.Type, id: String, data: [String: Any], custom: (Any) -> Any? = { _ in nil }) -> T? {
+    /// A document as JSON bytes, id included (as store.ts does, `{ ...doc.data(), id: doc.id }`): what a model is
+    /// decoded from, and what the phone keeps on disk as a shelf's snapshot, so the conversion is paid once.
+    public static func json(id: String, data: [String: Any], custom: (Any) -> Any? = { _ in nil }) -> Data? {
         var map = (plain(data, custom: custom) as? [String: Any]) ?? [:]
         map["id"] = id
-        return ERPDecode.model(T.self, from: map)
+        guard JSONSerialization.isValidJSONObject(map) else { return nil }
+        return try? JSONSerialization.data(withJSONObject: map)
+    }
+
+    /// A model from one document's JSON bytes (`json(id:data:)`).
+    public static func decode<T: Decodable>(_ type: T.Type, json: Data) -> T? {
+        try? JSONDecoder().decode(T.self, from: json)
+    }
+
+    /// The models of a JSON array of documents (a shelf's snapshot), one pass; a document that does not read is
+    /// left out. Nil when the bytes are not an array at all.
+    public static func decodeArray<T: Decodable>(_ type: T.Type, json: Data) -> [T]? {
+        guard let items = try? JSONDecoder().decode([Lossy<T>].self, from: json) else { return nil }
+        return items.compactMap(\.value)
+    }
+
+    /// A document as a model: its id is the document's (as store.ts does, `{ ...doc.data(), id: doc.id }`).
+    public static func decode<T: Decodable>(_ type: T.Type, id: String, data: [String: Any], custom: (Any) -> Any? = { _ in nil }) -> T? {
+        json(id: id, data: data, custom: custom).flatMap { decode(type, json: $0) }
+    }
+
+    /// The JSON bytes of each document of a server list (each carries its own `id`), as `decodeList` reads them.
+    public static func jsonList(from docs: [Any]) -> [Data] {
+        docs.compactMap { doc in
+            guard let map = plain(doc) as? [String: Any], JSONSerialization.isValidJSONObject(map) else { return nil }
+            return try? JSONSerialization.data(withJSONObject: map)
+        }
     }
 
     /// A list of documents from the ERP's server: each carries its own `id`.

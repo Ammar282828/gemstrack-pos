@@ -15,6 +15,10 @@ enum FirestoreSource {
     /// books are untouched.
     @MainActor
     static func forget(_ business: Business = House.business) async {
+        // The snapshots go first (and on the listeners' queue, behind any write they have pending), whatever else fails.
+        await withCheckedContinuation { (k: CheckedContinuation<Void, Never>) in
+            queue.async { ShelfSnapshots.erase(business: business.id); k.resume() }
+        }
         guard !House.isDemo, let db = Businesses.shared.firestore(for: business) else { return }
         do {
             try await db.terminate()
@@ -40,12 +44,12 @@ enum FirestoreSource {
     /// Listens on the open business's Firestore, resolved here on the main actor: a listener keeps its own
     /// business's database for as long as it runs, whatever is opened later.
     @MainActor
-    static func listen<T: Decodable>(_ name: String, docId: String?, deliver: @escaping @MainActor (Delivery<T>) -> Void) -> () -> Void {
+    static func listen<T: Decodable>(_ name: String, docId: String?, sort: ((T, T) -> Bool)? = nil, deliver: @escaping @MainActor (Delivery<T>) -> Void) -> () -> Void {
         guard let db = Businesses.shared.firestore else {
             Task { @MainActor in deliver(.failed("Not signed in to a business.")) }
             return {}
         }
-        let l = Listening<T>(db: db, name: name, docId: docId, deliver: deliver)
+        let l = Listening<T>(db: db, business: Businesses.shared.current.id, name: name, docId: docId, sort: sort, deliver: deliver)
         queue.async { l.start() }
         return { queue.async { l.stop() } }
     }
@@ -55,8 +59,11 @@ enum FirestoreSource {
 /// there too), so its state needs no lock.
 private final class Listening<T: Decodable>: @unchecked Sendable {
     let db: Firestore
+    let business: String
     let name: String
     let docId: String?
+    /// The shelf's order, applied here so a few thousand documents are sorted off the main thread.
+    let sort: ((T, T) -> Bool)?
     let deliver: @MainActor (Delivery<T>) -> Void
     private var registration: ListenerRegistration?
     private var stopped = false
@@ -64,11 +71,18 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
     private var first = true
     /// The cache flag last handed on, so a metadata-only snapshot is sent only when it flips.
     private var lastOffline = false
+    /// The snapshot is read once per Listening (a retry after permission-denied must not paint it again).
+    private var snapshotTried = false
+    /// The plain JSON of every document the shelf holds, by id: what the snapshot file is made of.
+    private var json: [String: Data] = [:]
+    private var pendingWrite: DispatchWorkItem?
 
-    init(db: Firestore, name: String, docId: String?, deliver: @escaping @MainActor (Delivery<T>) -> Void) {
+    init(db: Firestore, business: String, name: String, docId: String?, sort: ((T, T) -> Bool)?, deliver: @escaping @MainActor (Delivery<T>) -> Void) {
         self.db = db
+        self.business = business
         self.name = name
         self.docId = docId
+        self.sort = sort
         self.deliver = deliver
     }
 
@@ -77,14 +91,45 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
         Task { @MainActor in deliver(d) }
     }
 
+    private func sendAll(_ items: [T], offline: Bool, source: String? = nil) {
+        send(.all(sort.map { items.sorted(by: $0) } ?? items, offline: offline, source: source))
+    }
+
+    /// Writes the shelf's snapshot 1.5 s after the last change, so a burst of changes is one file.
+    private func scheduleWrite() {
+        guard !stopped else { return }
+        pendingWrite?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !self.stopped else { return }
+            ShelfSnapshots.write(.firestore, business: self.business, collection: self.name, docId: self.docId, documents: Array(self.json.values))
+        }
+        pendingWrite = work
+        FirestoreSource.queue.asyncAfter(deadline: .now() + 1.5, execute: work)
+    }
+
+    /// Paints from the snapshot before Firestore is asked: one file read and one decode pass.
+    private func paintSnapshot() {
+        guard !snapshotTried else { return }
+        snapshotTried = true
+        guard let data = ShelfSnapshots.read(.firestore, business: business, collection: name, docId: docId) else { return }
+        guard let items = DocJSON.decodeArray(T.self, json: data) else {
+            ShelfSnapshots.discard(.firestore, business: business, collection: name, docId: docId)
+            return
+        }
+        sendAll(items, offline: true, source: "snapshot")
+    }
+
     func stop() {
         stopped = true
+        pendingWrite?.cancel()
+        pendingWrite = nil
         registration?.remove()
         registration = nil
     }
 
     func start() {
         guard !stopped else { return }
+        paintSnapshot()
         registration?.remove()
         first = true
         lastOffline = false
@@ -93,8 +138,10 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
                 guard let self else { return }
                 if let error { return self.failed(error) }
                 guard let snap else { return }
-                let model = snap.data().flatMap { DocJSON.decode(T.self, id: snap.documentID, data: $0, custom: FirestoreSource.plainSDK) }
-                self.send(.all(model.map { [$0] } ?? [], offline: snap.metadata.isFromCache))
+                let model = snap.data().flatMap { self.decode(id: snap.documentID, data: $0) }
+                self.send(.all(model.map { [$0] } ?? [], offline: snap.metadata.isFromCache, source: nil))
+                if model == nil { self.json = [:] }
+                if !(model == nil && snap.metadata.isFromCache) { self.scheduleWrite() }
             }
         } else {
             registration = db.collection(name).addSnapshotListener(includeMetadataChanges: true) { [weak self] snap, error in
@@ -106,9 +153,15 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
         }
     }
 
-    private func decode(_ d: QueryDocumentSnapshot) -> T? {
-        DocJSON.decode(T.self, id: d.documentID, data: d.data(), custom: FirestoreSource.plainSDK)
+    /// One conversion, kept: the JSON the model is read from is the JSON the snapshot stores.
+    private func decode(id: String, data: [String: Any]) -> T? {
+        guard let bytes = DocJSON.json(id: id, data: data, custom: FirestoreSource.plainSDK),
+              let model = DocJSON.decode(T.self, json: bytes) else { json[id] = nil; return nil }
+        json[id] = bytes
+        return model
     }
+
+    private func decode(_ d: QueryDocumentSnapshot) -> T? { decode(id: d.documentID, data: d.data()) }
 
     private func take(_ snap: QuerySnapshot) {
         let off = snap.metadata.isFromCache
@@ -116,7 +169,10 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
             // Even an empty collection is an answer: "loaded, nothing in it".
             first = false
             lastOffline = off
-            send(.all(snap.documents.compactMap(decode), offline: off))
+            json = [:]
+            sendAll(snap.documents.compactMap { decode($0) }, offline: off)
+            // A cold, empty cache answer says nothing yet: it must not wipe the snapshot before the server speaks.
+            if !(off && snap.documents.isEmpty) { scheduleWrite() }
             return
         }
         // Metadata alone (pending write acknowledged, cache -> server) has no changes: it matters only when
@@ -127,6 +183,7 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
         var removed: [String] = []
         for c in snap.documentChanges {
             if c.type == .removed {
+                json[c.document.documentID] = nil
                 removed.append(c.document.documentID)
             } else if let m = decode(c.document) {
                 upserts.append(m)
@@ -136,6 +193,7 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
             }
         }
         send(.changes(upserts: upserts, removed: removed, offline: off))
+        if !upserts.isEmpty || !removed.isEmpty { scheduleWrite() }
     }
 
     private func failed(_ error: Error) {

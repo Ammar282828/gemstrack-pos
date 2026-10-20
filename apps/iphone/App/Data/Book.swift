@@ -51,32 +51,35 @@ final class Book {
 
     /// Where a shelf's documents come from; the shelf calls it on its first `need()` and keeps the
     /// returned stop for `reset()`.
-    func attach<T: Decodable>(_ name: String, docId: String? = nil, deliver: @escaping @MainActor (Delivery<T>) -> Void) -> () -> Void {
+    func attach<T: Decodable>(_ name: String, docId: String? = nil, sort: ((T, T) -> Bool)? = nil, deliver: @escaping @MainActor (Delivery<T>) -> Void) -> () -> Void {
         switch source {
         case .demo:
             // Decoded off the main thread, as the owners' Firestore answers are: thousands of documents
             // (`-ERPDemoScale`) must not hold up the first frame.
             let task = Task.detached(priority: .userInitiated) {
                 let docs = Demo.docs(name)
-                let items: [T] = docId.map { id in
+                var items: [T] = docId.map { id in
                     docs.filter { ($0["id"] as? String) == id }.compactMap { DocJSON.decode(T.self, id: id, data: $0) }
                 } ?? docs.compactMap { d in DocJSON.decode(T.self, id: d["id"] as? String ?? "", data: d) }
+                if let sort { items.sort(by: sort) }
                 guard !Task.isCancelled else { return }
-                await MainActor.run { deliver(.all(items, offline: false)) }
+                await MainActor.run { deliver(.all(items, offline: false, source: "demo")) }
             }
             return { task.cancel() }
         case .server:
-            return ServerShelf.poll(name: name == Collections.settings ? "settings" : name, single: docId != nil, deliver: deliver)
+            return ServerShelf.poll(name: name == Collections.settings ? "settings" : name, single: docId != nil, sort: sort, deliver: deliver)
         case .firestore:
-            return FirestoreSource.listen(name, docId: docId, deliver: deliver)
+            return FirestoreSource.listen(name, docId: docId, sort: sort, deliver: deliver)
         }
     }
 }
 
 /// What a source hands a shelf.
 enum Delivery<T> {
-    /// Everything there is (a first answer, a poll, the demo).
-    case all([T], offline: Bool)
+    /// Everything there is (a first answer, a poll, the demo), already in the shelf's order (sorted by the source,
+    /// off the main thread). `source` says where it came from for the launch report ("snapshot", "server", "demo");
+    /// nil means the shelf works it out from the source and the cache flag.
+    case all([T], offline: Bool, source: String? = nil)
     /// What changed since the last answer (Firestore's document changes).
     case changes(upserts: [T], removed: [String], offline: Bool)
     case failed(String)
@@ -111,7 +114,7 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
     /// Start filling, once. Every screen that shows this collection calls it on appear.
     func need() {
         guard stop == nil else { return }
-        stop = Book.shared.attach(name) { [weak self] (d: Delivery<T>) in self?.take(d) }
+        stop = Book.shared.attach(name, sort: before) { [weak self] (d: Delivery<T>) in self?.take(d) }
     }
 
     /// One document by id. Reads `items` first so a screen showing one document redraws when it changes
@@ -132,11 +135,24 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
         error = nil
     }
 
+    @ObservationIgnored private var firstMarked = false
+    @ObservationIgnored private var liveMarked = false
+
+    /// The launch report's two stamps for this shelf: its first books (from the snapshot or a source), and the first
+    /// that were not the snapshot.
+    private func stamp(_ source: String) {
+        let detail = "\(items.count) \(source)"
+        if !firstMarked { firstMarked = true; LaunchClock.mark("shelf:" + name, detail) }
+        if !liveMarked && source != "snapshot" { liveMarked = true; LaunchClock.mark("shelf:" + name + ":live", detail) }
+    }
+
     private func take(_ d: Delivery<T>) {
         switch d {
-        case .all(let list, let off):
+        case .all(let list, let off, let tag):
             byId = Dictionary(list.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-            publish(off)
+            // Sources hand the list sorted; only a list with repeated ids (one wins, as above) is sorted again here.
+            publish(off, presorted: byId.count == list.count ? list : nil)
+            stamp(tag ?? (Book.shared.source == .demo ? "demo" : Book.shared.source == .server ? "server" : off ? "cache" : "server"))
         case .changes(let upserts, let removed, let off):
             // Only the cache flag moved (Firestore's metadata change): no new books, so nothing re-reckoned.
             if upserts.isEmpty && removed.isEmpty { offline = off; return }
@@ -159,6 +175,7 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
             } else {
                 publish(off)
             }
+            stamp(Book.shared.source == .server ? "server" : off ? "cache" : "server")
         case .failed(let message):
             // Keep what is on screen: a dropped connection is no reason to blank the list being read.
             error = message
@@ -166,8 +183,8 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
         }
     }
 
-    private func publish(_ off: Bool) {
-        items = byId.values.sorted(by: before)
+    private func publish(_ off: Bool, presorted: [T]? = nil) {
+        items = presorted ?? byId.values.sorted(by: before)
         revision += 1
         offline = off
         loaded = true
@@ -196,7 +213,7 @@ final class Single<T: Decodable>: Resettable {
         stop = Book.shared.attach(collection, docId: docId) { [weak self] (d: Delivery<T>) in
             guard let self else { return }
             switch d {
-            case .all(let list, _): value = list.first ?? value; loaded = true; error = nil
+            case .all(let list, _, _): value = list.first ?? value; loaded = true; error = nil
             case .changes(let upserts, _, _): value = upserts.first ?? value; loaded = true; error = nil
             case .failed(let m): error = m; loaded = true
             }
@@ -221,24 +238,49 @@ enum ServerShelf {
     @MainActor static func wake() { nudges += 1 }
 
     @MainActor
-    static func poll<T: Decodable>(name: String, single: Bool, deliver: @escaping @MainActor (Delivery<T>) -> Void) -> () -> Void {
+    static func poll<T: Decodable>(name: String, single: Bool, sort: ((T, T) -> Bool)? = nil, deliver: @escaping @MainActor (Delivery<T>) -> Void) -> () -> Void {
+        let business = Businesses.shared.current.id
         let task = Task { @MainActor in
+            // The last poll's books from disk, before the network is asked (read and decoded off the main thread).
+            let snap: [T]? = await Task.detached(priority: .userInitiated) {
+                guard let data = ShelfSnapshots.read(.server, business: business, collection: name, docId: nil) else { return nil }
+                guard var items = DocJSON.decodeArray(T.self, json: data) else {
+                    ShelfSnapshots.discard(.server, business: business, collection: name, docId: nil)
+                    return nil
+                }
+                if let sort { items.sort(by: sort) }
+                return items
+            }.value
+            if let snap, !Task.isCancelled { deliver(.all(snap, offline: true, source: "snapshot")) }
+            var written: [Data] = []
             while !Task.isCancelled {
                 do {
                     let data = try await ERPAPI.shared.data("/api/staff/collections?name=\(name)")
                     // Read and decoded off the main thread: staff's whole copy arrives every 25 seconds.
-                    let items: [T] = await Task.detached(priority: .userInitiated) {
+                    let (items, bytes): ([T], [Data]) = await Task.detached(priority: .userInitiated) {
                         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+                        var bytes: [Data]
                         if single {
                             let doc = json["doc"] as? [String: Any] ?? [:]
-                            return DocJSON.decode(T.self, id: doc["id"] as? String ?? "global", data: doc).map { [$0] } ?? []
+                            bytes = [DocJSON.json(id: doc["id"] as? String ?? "global", data: doc)].compactMap { $0 }
+                        } else {
+                            bytes = DocJSON.jsonList(from: json["docs"] as? [Any] ?? [])
                         }
-                        return DocJSON.decodeList(T.self, from: json["docs"] as? [Any] ?? [])
+                        var items = bytes.compactMap { DocJSON.decode(T.self, json: $0) }
+                        if let sort { items.sort(by: sort) }
+                        return (items, bytes)
                     }.value
-                    deliver(.all(items, offline: false))
+                    deliver(.all(items, offline: false, source: "server"))
+                    // Kept for the next cold start; only when the books changed, and off the main thread.
+                    if bytes != written {
+                        written = bytes
+                        Task.detached(priority: .utility) {
+                            ShelfSnapshots.write(.server, business: business, collection: name, docId: nil, documents: bytes)
+                        }
+                    }
                 } catch let e as ERPAPI.Failure where e.status == 403 {
                     // Not this person's to read (a marketing account and the books): an empty shelf, not an error.
-                    deliver(.all([], offline: false))
+                    deliver(.all([], offline: false, source: "server"))
                     return
                 } catch {
                     deliver(.failed(error.localizedDescription))
