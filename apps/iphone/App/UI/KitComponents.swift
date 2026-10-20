@@ -139,7 +139,9 @@ struct MoneyRow: View {
                 }
             }
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue([Spoken.rupees(amount, lac: lac, signed: signed), tone.spokenWord].compactMap { $0 }.joined(separator: ", "))
     }
 }
 
@@ -179,7 +181,7 @@ struct PaidRing: View {
         .frame(width: size, height: size)
         .animation(reduce ? nil : Motion.travel, value: fraction)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Paid \(Money.pkr(paid)) of \(Money.pkr(total))")
+        .accessibilityLabel("Paid \(Spoken.rupees(paid)) of \(Spoken.rupees(total))")
     }
 }
 
@@ -324,4 +326,54 @@ extension View {
     /// On the page's root view: it zooms out of the row with the same id. Does nothing where there is no
     /// `zoomScope()`; Reduce Motion is the system's own fallback.
     func zoomDestination(id: String) -> some View { modifier(ZoomDestination(id: id)) }
+}
+
+// MARK: Money said aloud
+
+/// What VoiceOver reads for a sum: "15,000 rupees", not "P K R 15,000".
+enum Spoken {
+    /// A line of words with sums in it ("PKR 86,000 due"): the sums said as rupees.
+    static func text(_ s: String) -> String {
+        s.replacingOccurrences(of: #"PKR (-?[0-9][0-9,.]*(?: lac| crore)?)"#, with: "$1 rupees", options: .regularExpression)
+            .replacingOccurrences(of: "\u{2212}", with: "minus ")
+    }
+
+    static func rupees(_ amount: Double, lac: Bool = false, signed: Bool = false) -> String {
+        let a = abs(amount)
+        let body = (lac ? Money.lacCrore(a) : Money.grouped(a)) + " rupees"
+        if amount < 0 { return "minus " + body }
+        return signed && amount > 0 ? "plus " + body : body
+    }
+}
+
+extension Tone {
+    /// The word for a tone that matters, so colour is not the only carrier; nil for the quiet ones.
+    var spokenWord: String? {
+        switch self {
+        case .late: return "late"
+        case .owed: return "owed"
+        case .credit: return "in credit"
+        case .problem: return "problem"
+        default: return nil
+        }
+    }
+}
+
+/// A chart's numbers in a sentence for VoiceOver (the marks themselves are not reachable): how many, the total,
+/// the highest, the lowest and the latest. `money` says them as rupees.
+enum ChartSummary {
+    static func day(_ d: Date) -> String { d.formatted(.dateTime.day().month(.abbreviated)) }
+
+    static func say(_ points: [(label: String, value: Double)], money: Bool = true, total: Bool = true) -> String {
+        guard let high = points.max(by: { $0.value < $1.value }), let low = points.min(by: { $0.value < $1.value }), let last = points.last else {
+            return "No figures"
+        }
+        func v(_ x: Double) -> String { money ? Spoken.rupees(x, lac: true) : Money.grouped(x) }
+        var parts = ["\(points.count) values"]
+        if total { parts.append("total " + v(points.reduce(0) { $0 + $1.value })) }
+        parts.append("highest \(high.label), \(v(high.value))")
+        parts.append("lowest \(low.label), \(v(low.value))")
+        parts.append("latest \(last.label), \(v(last.value))")
+        return parts.joined(separator: ". ")
+    }
 }

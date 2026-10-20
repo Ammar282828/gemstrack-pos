@@ -406,7 +406,7 @@ final class PostTrayModel {
     static func noun(_ n: Int) -> String { n == 1 ? "piece" : "pieces" }
 
     /// The weight as the caption takes it: Number(typed), as the web's card passes it.
-    static func typedGrams(_ typed: String) -> Double { Double(typed.trimmingCharacters(in: .whitespaces)) ?? 0 }
+    static func typedGrams(_ typed: String) -> Double { ShopNumber.parse(typed) ?? 0 }
 
     /// "a", "a and b", "a, b and c" (queue-panel.tsx listOf).
     static func listOf(_ xs: [String]) -> String {

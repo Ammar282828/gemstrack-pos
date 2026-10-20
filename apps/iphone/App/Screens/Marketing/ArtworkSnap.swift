@@ -127,7 +127,7 @@ struct ArtworkGuideRows: View {
         }
         HStack {
             Picker("Guide", selection: $axis) { Text("Across").tag("x"); Text("Down").tag("y") }.pickerStyle(.segmented)
-            TextField("px", text: $position).keyboardType(.numberPad).multilineTextAlignment(.trailing).frame(maxWidth: 70)
+            TextField("px", text: $position).keyboardType(.numberPad).keyboardDone().multilineTextAlignment(.trailing).frame(maxWidth: 70)
             Button("Add") {
                 let length = doc["frame"].n(axis == "x" ? "w" : "h", axis == "x" ? 1080 : 1920)
                 guard let v = Double(position)?.rounded(), v > 0, v < length else { return }

@@ -239,7 +239,7 @@ struct WorkshopGivenScreen: View {
 
     private func daysOut(_ item: GivenItem) -> Int {
         guard let given = ERPDate.parse(item.date) else { return 0 }
-        return max(0, Calendar.current.dateComponents([.day], from: given, to: Date()).day ?? 0)
+        return max(0, ERPDate.karachiCalendar.dateComponents([.day], from: given, to: Date()).day ?? 0)
     }
 
     private func gotBack(_ item: GivenItem) -> some View {
@@ -462,6 +462,7 @@ struct WorkshopGivenSheet: View {
                 pickedName = ""
             }
             TextField("Name", text: $name)
+                .personName()
                 .onChange(of: name) { _, new in
                     // Typing over a picked name makes it a typed one again.
                     if pickedId != nil && new != pickedName { pickedId = nil }

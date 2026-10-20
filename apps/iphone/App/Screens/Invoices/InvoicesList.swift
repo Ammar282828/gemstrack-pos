@@ -179,7 +179,7 @@ enum InvoiceCalendar {
     /// The day a date picker shows, as "yyyy-MM-dd": the phone's own calendar (the 6th is the 6th wherever
     /// the phone is), whatever time of day the picker holds.
     static func day(picked: Date) -> String {
-        let c = Calendar.current.dateComponents([.year, .month, .day], from: picked)
+        let c = ERPDate.pickerCalendar.dateComponents([.year, .month, .day], from: picked)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 1, c.day ?? 1)
     }
 
@@ -188,7 +188,7 @@ enum InvoiceCalendar {
         guard let day, day.count == 10 else { return nil }
         let parts = day.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return nil }
-        return Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+        return ERPDate.pickerCalendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
     }
 
     /// "1 Oct – 8 Oct 2026", or "From 1 Oct 2026" while the end is open (up to today).

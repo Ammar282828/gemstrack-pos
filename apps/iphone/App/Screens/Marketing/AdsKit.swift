@@ -301,7 +301,7 @@ enum AdsDay {
     static func plot(_ ymd: String) -> Date? {
         let parts = ymd.split(separator: "-").compactMap { (s: Substring) in Int(s) }
         guard parts.count == 3 else { return nil }
-        return Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2], hour: 12))
+        return ERPDate.pickerCalendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2], hour: 12))
     }
 }
 

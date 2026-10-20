@@ -131,6 +131,8 @@ struct HisaabLedgerScreen: View {
                 Section {
                     TextField("WhatsApp number", text: $reminderPhone)
                         .keyboardType(.phonePad)
+                        .textContentType(.telephoneNumber)
+                        .keyboardDone()
                 } header: {
                     LedgerHeading(title: "To")
                 } footer: {

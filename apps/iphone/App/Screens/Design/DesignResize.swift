@@ -1,3 +1,4 @@
+import ERPCore
 import SwiftUI
 import Observation
 
@@ -60,7 +61,7 @@ final class DesignResizeModel {
 
     /// The person's own W:H (resize-sheet.tsx addCustom).
     func addCustom() {
-        guard let w = Double(customW.replacingOccurrences(of: ",", with: ".")), let h = Double(customH.replacingOccurrences(of: ",", with: ".")),
+        guard let w = ShopNumber.parse(customW), let h = ShopNumber.parse(customH),
               w > 0, h > 0, w <= 10_000, h <= 10_000 else {
             problem = "Give a width and a height. For example 7 and 3, or 1200 and 628."
             return

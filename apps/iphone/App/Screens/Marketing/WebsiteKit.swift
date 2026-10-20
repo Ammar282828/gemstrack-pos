@@ -433,8 +433,7 @@ enum WebsiteNumber {
 
     /// What the counter typed, as grams the site takes (more than 0, under 5,000), or nil.
     static func parse(_ text: String) -> Double? {
-        let t = text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")
-        guard !t.isEmpty, let v = Double(t), v > 0, v < 5000 else { return nil }
+        guard let v = ShopNumber.parse(text), v > 0, v < 5000 else { return nil }
         return v
     }
 

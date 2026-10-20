@@ -25,6 +25,8 @@ struct AnaBarChart: View {
                     .foregroundStyle(tint)
             }
             .frame(height: CGFloat(bars.count) * 28 + 36)
+            .accessibilityLabel("Amount by name")
+            .accessibilityValue(ChartSummary.say(bars.map { (label: $0.label, value: $0.value) }))
             Text("PKR lac")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -43,7 +45,8 @@ struct AnaRevenueBars: View {
         }
         .frame(height: 190)
         .chartYAxisLabel("PKR lac")
-        .accessibilityLabel("Revenue each day in PKR lac")
+        .accessibilityLabel("Revenue each day")
+        .accessibilityValue(ChartSummary.say(days.map { (label: ChartSummary.day($0.plotDate), value: $0.sales) }))
     }
 }
 
@@ -67,6 +70,7 @@ struct AnaSalesChart: View {
             }
             .frame(height: 200)
             .accessibilityLabel("Sales each day over the period")
+            .accessibilityValue(ChartSummary.say(days.map { (label: ChartSummary.day($0.plotDate), value: $0.sales) }))
             Text("Sales, PKR lac")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -86,6 +90,7 @@ struct AnaOrdersChart: View {
             }
             .frame(height: 110)
             .accessibilityLabel("Orders each day over the period")
+            .accessibilityValue(ChartSummary.say(days.map { (label: ChartSummary.day($0.plotDate), value: Double($0.orders)) }, money: false))
             Text("Orders")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -112,6 +117,7 @@ struct AnaMonthlyChart: View {
             }
             .frame(height: 220)
             .accessibilityLabel("Revenue for each month on record")
+            .accessibilityValue(ChartSummary.say(months.map { (label: $0.label, value: $0.revenue) }) + ". Average " + Spoken.rupees(average, lac: true))
             Text("Revenue, PKR lac. Dashed line: the average of months with sales.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -132,6 +138,9 @@ struct AnaSourceTrendChart: View {
             }
             .frame(height: 240)
             .accessibilityLabel("Revenue by source each day")
+            .accessibilityValue(Dictionary(grouping: points, by: { $0.label }).map { (name: String, rows: [AnaSourcePoint]) -> String in
+                "\(name), \(Spoken.rupees(rows.reduce(0) { $0 + $1.amount }, lac: true))"
+            }.sorted().joined(separator: ". "))
             Text("PKR lac")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -157,6 +166,7 @@ struct AnaShareChart: View {
             }
             .frame(height: 280)
             .accessibilityLabel("Share of revenue by category")
+            .accessibilityValue(slices.map { "\($0.name), \(Spoken.rupees($0.revenue, lac: true))" }.joined(separator: ". "))
         }
     }
 }

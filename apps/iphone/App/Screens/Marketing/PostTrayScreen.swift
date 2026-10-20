@@ -497,8 +497,9 @@ struct PostTrayCardSections: View {
             HStack {
                 Text("Weight")
                 Spacer()
-                TextField("0.00", text: Binding(get: { card.weight }, set: { (v: String) in card.weight = v.filter { (ch: Character) in ch.isNumber || ch == "." } }))
+                TextField("0.00", text: Binding(get: { card.weight }, set: { (v: String) in card.weight = ShopNumber.ascii(v).replacingOccurrences(of: ",", with: ".").filter { (ch: Character) in ch.isNumber || ch == "." } }))
                     .keyboardType(.decimalPad)
+                    .keyboardDone()
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
                     .frame(maxWidth: 110)

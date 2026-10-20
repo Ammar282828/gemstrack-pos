@@ -47,8 +47,7 @@ struct AdsBudgetSheet: View {
     private var isDaily: Bool { (target.daily ?? 0) > 0 || (target.lifetime ?? 0) <= 0 }
     private var before: Double { (isDaily ? target.daily : target.lifetime) ?? 0 }
     private var after: Double? {
-        let v = Double(amount.replacingOccurrences(of: ",", with: "").trimmingCharacters(in: .whitespaces))
-        guard let v, v.isFinite, v > 0 else { return nil }
+        guard let v = ShopNumber.parse(amount), v > 0 else { return nil }
         return v
     }
 

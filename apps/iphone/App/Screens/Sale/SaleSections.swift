@@ -368,7 +368,7 @@ extension SaleForm {
             LabeledContent("Taken by") {
                 TextField("Not set", text: $draft.takenBy)
                     .multilineTextAlignment(.trailing)
-                    .textInputAutocapitalization(.words)
+                    .personName()
             }
         } else {
             Picker("Taken by", selection: $draft.takenBy) {
@@ -503,7 +503,9 @@ extension SaleForm {
                     DatePicker("Date", selection: expectedDateBinding, displayedComponents: .date)
                 }
                 TextField("Receiver name", text: $draft.delivery.contactName, prompt: Text("If not the customer"))
+                    .personName()
                 TextField("Receiver phone", text: $draft.delivery.contactPhone, prompt: Text("Optional"))
+                    .textContentType(.telephoneNumber)
                     .keyboardType(.phonePad)
                 SaleNumberField(label: "Delivery charge (PKR)", text: $draft.delivery.charge, prompt: "0 if free", rupees: true)
                 TextField("Instructions", text: $draft.delivery.notes, prompt: Text("Landmark, timing, gate code"))

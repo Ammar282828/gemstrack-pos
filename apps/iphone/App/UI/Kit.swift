@@ -446,13 +446,7 @@ enum PaymentText {
     /// followed by one or two digits is the decimal point, since a thousands comma always has three. Paise
     /// typed are rounded away, as the ERP rounds every sum to the rupee.
     static func amount(_ text: String) -> Double? {
-        var t = text.trimmingCharacters(in: .whitespaces)
-        if !t.contains("."), let comma = t.lastIndex(of: ",") {
-            let after = t.distance(from: comma, to: t.endIndex) - 1
-            if after == 1 || after == 2 { t.replaceSubrange(comma...comma, with: ".") }
-        }
-        t = t.replacingOccurrences(of: ",", with: "")
-        guard !t.isEmpty, let v = Double(t), v.isFinite, v >= 0 else { return nil }
+        guard let v = ShopNumber.parse(text), v >= 0 else { return nil }
         return v.rounded()
     }
 
@@ -467,7 +461,7 @@ enum PaymentText {
     static func whole(_ text: String) -> String {
         if text.allSatisfy({ $0.isASCII && $0.isNumber }) { return text }
         if let v = amount(text), v < 1e15 { return field(v) }
-        return text.filter { $0.isASCII && $0.isNumber }
+        return ShopNumber.ascii(text).filter { $0.isASCII && $0.isNumber }
     }
 
     /// What the reference box is for, by how it was paid (the web's labels).

@@ -464,7 +464,7 @@ struct AdsAdvanced: Equatable {
     var bidding: [String: Any] {
         switch bid {
         case "cost_cap", "bid_cap": return ["kind": bid, "amount": AdsAmount.parse(amount) ?? 0]
-        case "min_roas": return ["kind": "min_roas", "roas": Double(roas.replacingOccurrences(of: ",", with: ".")) ?? 0]
+        case "min_roas": return ["kind": "min_roas", "roas": ShopNumber.parse(roas) ?? 0]
         default: return ["kind": "lowest"]
         }
     }

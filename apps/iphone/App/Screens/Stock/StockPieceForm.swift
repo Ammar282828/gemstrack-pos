@@ -578,7 +578,7 @@ struct StockPieceFields: Equatable {
     mutating func fill(fromVoice seed: [String: Any]) {
         func number(_ key: String) -> Double? {
             if let n = seed[key] as? NSNumber { return n.doubleValue }
-            if let t = seed[key] as? String { return Double(t.trimmingCharacters(in: .whitespaces)) }
+            if let t = seed[key] as? String { return ShopNumber.parse(t) }
             return nil
         }
         func text(_ key: String) -> String? { (seed[key] as? String).flatMap { $0.isEmpty ? nil : $0 } }

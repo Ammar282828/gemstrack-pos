@@ -311,10 +311,10 @@ struct WebsiteEditPieceScreen: View {
 
     private var weightLabel: String {
         // caption.ts weightLabel: the weight as typed, "12.4g", or nothing for no weight.
-        var w = weight.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")
+        var w = weight.trimmingCharacters(in: .whitespaces)
         if w.lowercased().hasSuffix("g") { w = String(w.dropLast()).trimmingCharacters(in: .whitespaces) }
-        guard let v = Double(w), v.isFinite, v > 0 else { return "" }
-        return w + "g"
+        guard let v = ShopNumber.parse(w), v > 0 else { return "" }
+        return WebsiteNumber.grams(v) + "g"
     }
 
     /// What the photo's bound words read (edit/page.tsx `fields`): the collection, the name, the weight, and the

@@ -114,11 +114,14 @@ struct SaleFigures {
     let inCreditNow: Bool
     let locked: Bool
     let discountProblem: String?
+    /// The first box holding text that is not a number, by name; Save waits for it.
+    let unreadable: String?
     let margin: Margin?
 
     init(draft: SaleDraft, settings: Settings?, customers: [Customer], marginSettings: MarginSettings) {
         let book = SaleRateBook(settings: settings, typed: draft.rates)
         rateBook = book
+        unreadable = draft.unreadableField
         let lines = draft.lines
         hasPieces = !lines.isEmpty
 
@@ -222,6 +225,7 @@ struct SaleFigures {
             return "Enter a \(missingRates.joined(separator: " and ")) gold rate under Rates: it is zero, so the total cannot be worked out."
         }
         if let p = discountProblem { return p }
+        if let field = unreadable { return "The \(field) is not a number. Retype it, or clear it." }
         if overpaid {
             return "The payments come to more than the total. To keep the rest as credit, name the customer; otherwise check the amounts received."
         }
@@ -236,6 +240,16 @@ struct SaleFigures {
 // MARK: What is sent
 
 extension SaleDraft {
+    /// The first box holding something that is not a number (it would otherwise count as 0), by name; nil when all read.
+    var unreadableField: String? {
+        if ShopNumber.isUnreadable(discount) { return "discount" }
+        if ShopNumber.isUnreadable(costTola) { return "24k rate for the margin" }
+        if rates.values.contains(where: { ShopNumber.isUnreadable($0) }) { return "rate" }
+        if payments.contains(where: { ShopNumber.isUnreadable($0.amount) }) { return "amount received" }
+        if exchanges.contains(where: { ShopNumber.isUnreadable($0.weightG) || ShopNumber.isUnreadable($0.ratePerGram) || ShopNumber.isUnreadable($0.value) }) { return "exchange figure" }
+        return nil
+    }
+
     private func exchangeJSON(_ e: ExchangeEntry) -> [String: Any] {
         var o: [String: Any] = ["description": e.description, "value": e.value]
         if let k = e.karat, !k.isEmpty { o["karat"] = k }

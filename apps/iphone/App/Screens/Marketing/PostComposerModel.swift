@@ -1,3 +1,4 @@
+import ERPCore
 import SwiftUI
 import Observation
 import FirebaseAuth
@@ -81,8 +82,8 @@ final class PostComposerModel {
     }
     var validWeight: String {
         let text = draft.words.s("weight").trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "g", with: "", options: .caseInsensitive)
-        guard let value = Double(text), value > 0 else { return "" }
-        return text + "g" + (draft.words["weightEach"].bool ? " each" : "")
+        guard let value = ShopNumber.parse(text), value > 0 else { return "" }
+        return WebsiteNumber.grams(value) + "g" + (draft.words["weightEach"].bool ? " each" : "")
     }
     var makeSquare: Bool { draft.words.s("formats") != "story" }
     var makeStory: Bool { draft.words.s("formats") != "square" }

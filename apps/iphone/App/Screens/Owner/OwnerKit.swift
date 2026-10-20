@@ -64,6 +64,7 @@ struct OwnerDeleteCodeSheet: View {
                 Section {
                     SecureField("Delete code", text: $code)
                         .keyboardType(.numberPad)
+                        .textContentType(.oneTimeCode)
                         .font(.title2.weight(.semibold))
                         .multilineTextAlignment(.center)
                         .onChange(of: code) { _, typed in

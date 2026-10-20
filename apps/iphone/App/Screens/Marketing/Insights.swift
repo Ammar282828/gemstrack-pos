@@ -588,6 +588,7 @@ struct InsightsOverviewScreen: View {
                 }
                 .frame(height: 180)
                 .accessibilityLabel("Accounts reached each day, ads included")
+                .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false))
             } header: {
                 LedgerHeading(title: "Reached, day by day")
             }
@@ -606,6 +607,8 @@ struct InsightsOverviewScreen: View {
                 }
                 .chartYScale(domain: .automatic(includesZero: false))
                 .frame(height: 160)
+                .accessibilityLabel("Followers over time")
+                .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false, total: false))
             } else {
                 Text("Meta keeps no follower history, so the ERP writes the count down every day. The line fills in from there.")
                     .font(.subheadline).foregroundStyle(.secondary)
@@ -668,6 +671,7 @@ struct InsightsOverviewScreen: View {
                     }
                     .frame(height: 140)
                     .accessibilityLabel("Page views each day")
+                    .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false))
                 }
             }
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
@@ -933,6 +937,7 @@ struct InsightsAudienceScreen: View {
                 }
                 .frame(height: 160)
                 .accessibilityLabel("Followers online each hour, Karachi time")
+                .accessibilityValue(ChartSummary.say(points.map { (label: InsightWords.hour($0.id), value: $0.online) }, money: false, total: false))
             } else {
                 Text("Meta isn't sharing this for the account yet (it holds it back for smaller accounts).").font(.subheadline).foregroundStyle(.secondary)
             }

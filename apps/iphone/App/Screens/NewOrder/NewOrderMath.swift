@@ -119,6 +119,13 @@ enum NewOrderMath {
 
     /// What the web's schema refuses (`orderFormSchema`), in its words; nil when the order can be saved.
     /// `takenBy` is the house's list of counter names: the name must be on it (empty list: any name).
+    private static func unreadableFigure(_ d: NewOrderDraft) -> Bool {
+        let u = NewOrderFormat.unreadable
+        return u(d.discount) || u(d.advance) || d.rates.values.contains(where: u)
+            || d.exchanges.contains(where: { u($0.weightG) || u($0.ratePerGram) || u($0.value) })
+            || d.pieces.contains(where: { u($0.weight) || u($0.stoneWeight) || u($0.wastage) || u($0.making) || u($0.stones) || u($0.manualPrice) })
+    }
+
     static func problem(_ d: NewOrderDraft, takenBy: [String] = []) -> String? {
         if d.pieces.isEmpty { return "Add at least one piece to the order." }
         for (i, p) in d.pieces.enumerated() {
@@ -129,6 +136,9 @@ enum NewOrderMath {
             } else if num(p.weight) <= 0 {
                 return "\(who): Weight must be a positive number."
             }
+        }
+        if unreadableFigure(d) {
+            return "A figure is not a number (discount, advance, a rate, a weight or an exchange). Retype it, or clear it."
         }
         let goldKarats = Set(d.pieces.filter { $0.metal == "gold" }.map { $0.karat })
         for k in ["18k", "21k", "22k", "24k"] where goldKarats.contains(k) {

@@ -82,7 +82,7 @@ struct DashHero: View {
         }
         .heroSheen(padding: 18)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Taken today, \(Money.pkrLac(amount)), \(line)")
+        .accessibilityLabel("Taken today, \(Spoken.rupees(amount, lac: true)), \(Spoken.text(line))")
     }
 }
 
@@ -108,6 +108,7 @@ struct DashWeekBars: View {
             .chartYAxis(.hidden)
             .frame(height: 44)
             .accessibilityLabel("Taken each day over the last 7 days")
+            .accessibilityValue(ChartSummary.say(days.map { (label: DashDate.weekdayDayMonth($0.day), value: $0.amount) }))
             HStack {
                 Text("Last 7 days")
                 Spacer()
@@ -164,7 +165,7 @@ struct DashStatAmount: View {
         .lineLimit(2)
         .minimumScaleFactor(0.8)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Money.pkrLac(amount))
+        .accessibilityLabel(Spoken.rupees(amount, lac: true))
     }
 }
 
@@ -526,7 +527,7 @@ struct DashSaleRow: View {
             .padding(.vertical, 10)
             .contentShape(Rectangle())
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(name), \(when), \(Money.pkrLac(invoiceSaleValue(invoice))), \(standing?.text ?? "Paid")")
+            .accessibilityLabel("\(name), \(when), \(Spoken.rupees(invoiceSaleValue(invoice), lac: true)), \(Spoken.text(standing?.text ?? "Paid"))")
         }
         .buttonStyle(.plain)
         .zoomSource(id: DashPath.invoice(invoice.id))
@@ -595,6 +596,7 @@ struct DashMonthCard: View {
             .chartYAxis(.hidden)
             .frame(height: 72)
             .accessibilityLabel("Taken each day this month")
+            .accessibilityValue(ChartSummary.say(figures.monthDays.map { (label: DashDate.dayMonth($0.day), value: $0.amount) }))
             HStack {
                 Text(DashDate.dayMonth(figures.monthDays.first?.day ?? figures.now))
                 Spacer()

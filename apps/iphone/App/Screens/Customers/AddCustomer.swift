@@ -114,6 +114,7 @@ struct AddCustomer: View {
         Form { Group {
             Section {
                 TextField("Full name", text: $name, prompt: Text("Optional"))
+                    .autocorrectionDisabled()
                     .textContentType(.name)
                     .textInputAutocapitalization(.words)
             } footer: {

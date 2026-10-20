@@ -45,7 +45,7 @@ struct WorkNotYours: View {
 enum WorkDays {
     /// The day the person picked on the phone's own calendar ("6 Oct" is the 6th wherever the phone is), as a
     /// "yyyy-MM-dd" day; a picker's time of day does not matter.
-    static func pickedDay(_ picked: Date, calendar: Calendar = .current) -> String {
+    static func pickedDay(_ picked: Date, calendar: Calendar = ERPDate.pickerCalendar) -> String {
         let c = calendar.dateComponents([.year, .month, .day], from: picked)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 1, c.day ?? 1)
     }
@@ -56,7 +56,7 @@ enum WorkDays {
 struct WorkRange: Equatable {
     var useFrom = false
     /// Offered as the first of this month once "From a date" is turned on.
-    var from: Date = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
+    var from: Date = ERPDate.pickerCalendar.dateInterval(of: .month, for: Date())?.start ?? Date()
     var useTo = false
     var to = Date()
 

@@ -167,6 +167,7 @@ private struct EditCustomerForm: View {
     private var nameSection: some View {
         Section {
             TextField("Full name", text: $draft.name, prompt: Text("Optional"))
+                .autocorrectionDisabled()
                 .textContentType(.name)
                 .textInputAutocapitalization(.words)
         } header: {

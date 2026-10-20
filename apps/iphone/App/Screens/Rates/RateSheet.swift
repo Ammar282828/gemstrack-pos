@@ -126,12 +126,7 @@ enum RateKeys {
     /// phone's region, so a lone comma with one or two digits after it is a decimal point; any other
     /// comma is grouping ("26,250").
     static func parse(_ text: String) -> Double? {
-        var t = text.filter { !$0.isWhitespace }
-        guard !t.isEmpty else { return nil }
-        if !t.contains("."), t.filter({ $0 == "," }).count == 1, let i = t.lastIndex(of: ","), t.distance(from: i, to: t.endIndex) <= 3 {
-            t.replaceSubrange(i...i, with: ".")
-        }
-        guard let n = Double(t.replacingOccurrences(of: ",", with: "")), n.isFinite else { return nil }
+        guard let n = ShopNumber.parse(text) else { return nil }
         return (n * 100).rounded() / 100
     }
 }

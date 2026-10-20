@@ -327,6 +327,7 @@ struct AdsOverviewScreen: View {
                 }
                 .frame(height: 180)
                 .accessibilityLabel("Spend each day over the range")
+                .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.spend) }, money: false))
             } header: {
                 LedgerHeading(title: "Day by day")
             }

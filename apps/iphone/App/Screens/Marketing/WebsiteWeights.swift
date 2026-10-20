@@ -224,6 +224,7 @@ struct WebsiteWeightsScreen: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 TextField("0.00", text: $value)
                     .keyboardType(.decimalPad)
+                    .keyboardDone()
                     .focused($typing)
                     .font(.system(.largeTitle, design: .serif).weight(.semibold))
                     .monospacedDigit()
@@ -274,7 +275,8 @@ struct WebsiteWeightsScreen: View {
 
     /// What the site would draw: what is typed, else the weight already recorded.
     private func preview(_ p: WebsiteWeightPiece) -> String? {
-        let typed = value.filter { (ch: Character) in ch.isNumber || ch == "." || ch == "," }.replacingOccurrences(of: ",", with: ".")
+        if let v = ShopNumber.parse(value) { return WebsiteNumber.grams(v) }
+        let typed = value.filter { (ch: Character) in ch.isNumber || ch == "." || ch == "," }
         if !typed.isEmpty { return typed }
         return p.weightGrams.map { (g: Double) in WebsiteNumber.grams(g) }
     }

@@ -13,11 +13,10 @@ enum NewOrderFormat {
 
     /// What was typed, as a number: commas are thousands, anything unreadable is 0 (`Number(x) || 0`).
     /// Never NaN or infinity: a NaN in the JSON body would crash JSONSerialization.
-    static func num(_ s: String) -> Double {
-        let t = s.replacingOccurrences(of: ",", with: "").trimmingCharacters(in: .whitespaces)
-        guard !t.isEmpty, let v = Double(t), v.isFinite else { return 0 }
-        return v
-    }
+    static func num(_ s: String) -> Double { ShopNumber.parse(s) ?? 0 }
+
+    /// Typed but not a number ("12abc"): the field is invalid, not 0 (a screen shows it and holds Save).
+    static func unreadable(_ s: String) -> Bool { ShopNumber.isUnreadable(s) }
 
     static func finite(_ x: Double) -> Double { x.isFinite ? x : 0 }
 

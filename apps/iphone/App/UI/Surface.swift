@@ -246,3 +246,18 @@ struct AdaptiveStack<Content: View>: View {
         layout { content() }
     }
 }
+
+extension View {
+    /// A person's name: Roman-Urdu spellings ("Hamza", "Tayyab") are not for autocorrect to rewrite, and the name
+    /// keys the hisaab, the invoice and the WhatsApp copy.
+    func personName() -> some View {
+        autocorrectionDisabled()
+            .textInputAutocapitalization(.words)
+            .textContentType(.name)
+    }
+
+    /// A phone number box.
+    func phoneNumber() -> some View {
+        keyboardType(.phonePad).textContentType(.telephoneNumber)
+    }
+}

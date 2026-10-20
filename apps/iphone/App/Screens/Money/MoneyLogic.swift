@@ -205,7 +205,7 @@ enum MoneyCalendar {
 
     /// The day the person picked on the phone's own calendar ("6 Oct" is the 6th wherever the phone
     /// is), as a day string; a picker's time of day does not matter.
-    static func pickedDay(_ picked: Date, calendar: Calendar = .current) -> String {
+    static func pickedDay(_ picked: Date, calendar: Calendar = ERPDate.pickerCalendar) -> String {
         let c = calendar.dateComponents([.year, .month, .day], from: picked)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 1, c.day ?? 1)
     }
@@ -312,7 +312,7 @@ enum ExpensePeriod: String, CaseIterable, Identifiable {
 struct MoneyCustomRange: Equatable {
     var useFrom = false
     /// Offered as the first of this month once "From a date" is turned on.
-    var from: Date = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
+    var from: Date = ERPDate.pickerCalendar.dateInterval(of: .month, for: Date())?.start ?? Date()
     var useTo = false
     var to = Date()
 
@@ -500,23 +500,10 @@ enum MoneyPartners {
 /// count, two decimals at most, so "PKR 1,25,000" is 125000 and "1 250.50" is 1250.5.
 enum MoneyParse {
     static func amount(_ raw: String, maxDecimals: Int = 2) -> Double? {
-        var out = ""
-        var seenDot = false
-        var decimals = 0
-        for ch in raw {
-            if ch >= "0" && ch <= "9" {
-                if seenDot {
-                    if decimals >= maxDecimals { continue }
-                    decimals += 1
-                }
-                out.append(ch)
-            } else if ch == "." && !seenDot {
-                seenDot = true
-                out.append(ch)
-            }
-        }
-        if out.isEmpty || out == "." { return nil }
-        return Double(out)
+        // Decimals past the box's places are cut off, as the web's box does (never rounded up).
+        guard let v = ShopNumber.parse(raw), v >= 0 else { return nil }
+        let k = pow(10.0, Double(maxDecimals))
+        return (v * k + 1e-9).rounded(.down) / k
     }
 
     /// A sum of money typed into a box, in whole rupees (owner, 2026-10-17: "there should be no decimals"):

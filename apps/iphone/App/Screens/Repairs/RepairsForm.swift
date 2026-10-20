@@ -151,7 +151,11 @@ struct RepairsForm: View {
         pieces.contains { !RepairsKit.trimmed($0.item).isEmpty || !RepairsKit.trimmed($0.work).isEmpty }
     }
 
-    private var canSave: Bool { hasPiece && !saving }
+    /// A price or advance that is typed but not a number holds Save, rather than counting as nothing.
+    private var figuresReadable: Bool {
+        !ShopNumber.isUnreadable(advance) && !pieces.contains { ShopNumber.isUnreadable($0.price) }
+    }
+    private var canSave: Bool { hasPiece && !saving && figuresReadable }
 
     /// The customers a ticket can be pinned to: not removed, and not the old "Walk-in Customer" records
     /// (lib/walk-in.ts: a walk-in is the absence of a customer).
@@ -175,8 +179,7 @@ struct RepairsForm: View {
 
     /// A number typed in the field: commas ignored, nothing or 0 is nothing (sale-flow fields show 0 as blank).
     private static func number(_ text: String) -> Double? {
-        let t = text.replacingOccurrences(of: ",", with: "").trimmingCharacters(in: .whitespaces)
-        guard !t.isEmpty, let v = Double(t), v > 0 else { return nil }
+        guard let v = ShopNumber.parse(text), v > 0 else { return nil }
         return v
     }
 
@@ -390,6 +393,7 @@ struct RepairsForm: View {
         let names = takenByNames
         if names.isEmpty {
             TextField("Taken by", text: $takenBy)
+                .personName()
                 .textInputAutocapitalization(.words)
             if !recentNames.isEmpty {
                 Menu("Names used lately") {

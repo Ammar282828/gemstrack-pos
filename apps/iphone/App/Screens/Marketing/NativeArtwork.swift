@@ -96,7 +96,7 @@ struct ArtworkProperties: View {
         case .number:
             LabeledContent(Self.label(key)) {
                 TextField(Self.label(key), value: Binding(get: { field.wrappedValue.number }, set: { field.wrappedValue = .number($0) }), format: .number)
-                    .keyboardType(.numbersAndPunctuation).multilineTextAlignment(.trailing)
+                    .keyboardType(.numbersAndPunctuation).keyboardDone().multilineTextAlignment(.trailing)
             }
         case .string:
             if Self.choices[key] != nil {

@@ -165,6 +165,7 @@ private struct KarigarFormBody: View {
     private var nameSection: some View {
         Section {
             TextField("Full name", text: $draft.name, prompt: Text("Required"))
+                .personName()
                 .textContentType(.name)
                 .textInputAutocapitalization(.words)
         } header: {

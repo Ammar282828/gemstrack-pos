@@ -5,6 +5,21 @@ import Foundation
 public enum ERPDate {
     public static let karachi = TimeZone(secondsFromGMT: 5 * 3600)!
 
+    /// The shop's days: gregorian, Karachi (a phone set to a Buddhist or Islamic calendar must not shift a year).
+    public static var karachiCalendar: Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = karachi
+        return c
+    }
+
+    /// For a date picker's day: gregorian whatever the phone's calendar, in the phone's own zone (the zone the
+    /// picker shows the 6th in), so "6 Oct" stays the 6th.
+    public static var pickerCalendar: Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = .current
+        return c
+    }
+
     private static let withFraction: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]

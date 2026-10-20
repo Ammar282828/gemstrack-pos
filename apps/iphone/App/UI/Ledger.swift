@@ -109,6 +109,8 @@ struct Pill: View {
         .padding(.vertical, 3)
         .foregroundStyle(tint ?? tone.color)
         .background((tint ?? tone.color).opacity(0.13), in: .capsule)
+        .accessibilityLabel(Spoken.text(text))
+        .accessibilityValue(tone.spokenWord.flatMap { word in text.lowercased().contains(word) ? nil : word } ?? "")
     }
 }
 
@@ -184,7 +186,8 @@ struct HeroAmount: View {
         // Scales to 0.8 and then wraps (a lac figure at AX sizes), never shrinks into something unreadable.
         .lineLimit(2)
         .minimumScaleFactor(0.8)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text.map { "\($0) \(unit)" } ?? Spoken.rupees(amount, lac: lac))
     }
 
     /// The number without its "PKR ".
@@ -209,6 +212,7 @@ struct RowAmount: View {
             // A sum is never cut off: it scales to 0.8, then wraps.
             .minimumScaleFactor(0.8)
             .lineLimit(2)
+            .accessibilityLabel(Spoken.rupees(amount, lac: lac))
     }
 }
 
@@ -222,7 +226,7 @@ struct PaidBar: View {
         let done = total - paid < 1
         ProgressView(value: min(max(paid, 0), whole), total: whole)
             .tint(done ? Tone.settled.color : Theme.accent)
-            .accessibilityLabel(done ? "Paid in full" : "Paid \(Money.pkr(paid)) of \(Money.pkr(total))")
+            .accessibilityLabel(done ? "Paid in full" : "Paid \(Spoken.rupees(paid)) of \(Spoken.rupees(total))")
     }
 }
 

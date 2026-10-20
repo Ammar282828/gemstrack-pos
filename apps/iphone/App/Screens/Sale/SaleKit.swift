@@ -59,6 +59,8 @@ enum SaleDates {
     private static let day: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
+        f.calendar = ERPDate.pickerCalendar
+        f.timeZone = ERPDate.pickerCalendar.timeZone
         f.dateFormat = "yyyy-MM-dd"
         return f
     }()

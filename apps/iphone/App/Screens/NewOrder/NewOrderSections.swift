@@ -69,6 +69,7 @@ struct NewOrderCustomerSection: View {
         if takenBy.isEmpty {
             LabeledContent("Taken by") {
                 TextField("Taken by", text: $draft.takenBy, prompt: Text("Not set"))
+                    .personName()
                     .multilineTextAlignment(.trailing)
                     .textInputAutocapitalization(.words)
             }
@@ -488,10 +489,12 @@ struct NewOrderDeliverySection: View {
         }
         LabeledContent("Receiver") {
             TextField("Receiver's name", text: $draft.deliveryName, prompt: Text("If not the customer"))
+                .personName()
                 .textInputAutocapitalization(.words)
         }
         LabeledContent("Receiver's phone") {
             TextField("Receiver's phone", text: $draft.deliveryPhone, prompt: Text("Optional"))
+                .textContentType(.telephoneNumber)
                 .keyboardType(.phonePad)
         }
         NewOrderNumberRow(title: "Delivery charge (PKR)", text: $draft.deliveryCharge, prompt: "0 if free", rupees: true)
