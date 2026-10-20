@@ -382,55 +382,99 @@ extension NewOrderDraftStore {
 // MARK: On the phone
 
 /// One serial queue, so a write that was already on its way can never land after a newer one (or after
-/// a clear), and the encoding (photos included) stays off the main thread.
+/// a clear), and the encoding stays off the main thread. The photos are files in Application Support (per
+/// business), not part of the UserDefaults value: all of UserDefaults is read into memory at launch.
 enum NewOrderDraftStore {
     /// Per business (BizKey): an order begun in one business is never opened in another.
     static var key: String { BizKey("erp.orderDraft") }
+    private static func key(for business: String) -> String { BizKey("erp.orderDraft", business) }
 
-    /// More than this and the photos are left out, so the rest of the order is always kept.
-    private static let ceiling = 3_000_000
+    /// More than this much of photos and they are left out, so the rest of the order is always kept.
+    private static let ceiling = 12_000_000
 
     private static let queue = DispatchQueue(label: "erp.orderDraft", qos: .utility)
 
+    private static func photoDir(_ business: String) -> URL? {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("erp-drafts", isDirectory: true)
+            .appendingPathComponent(business.map { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" ? String($0) : "_" }.joined(), isDirectory: true)
+            .appendingPathComponent("order-photos", isDirectory: true)
+    }
+
     static func load() -> NewOrderDraft? {
-        queue.sync {
-            guard let data = UserDefaults.standard.data(forKey: key),
-                  let draft = try? JSONDecoder().decode(NewOrderDraft.self, from: data),
+        let biz = House.id
+        return queue.sync {
+            guard let data = UserDefaults.standard.data(forKey: key(for: biz)),
+                  var draft = try? JSONDecoder().decode(NewOrderDraft.self, from: data),
                   !draft.isBlank else { return nil }
+            // Photos kept as files are put back; an old draft that still carries its photos keeps them.
+            if let dir = photoDir(biz) {
+                for i in draft.pieces.indices where draft.pieces[i].photo == nil {
+                    draft.pieces[i].photo = try? Data(contentsOf: dir.appendingPathComponent(draft.pieces[i].id.uuidString))
+                }
+            }
             return draft
         }
     }
 
-    /// `now` waits for the write: for the moment the screen or the app is going away.
+    /// `now` is for the moment the screen or the app is going away: the write is still off the main thread (the
+    /// encode can be heavy), under a few seconds the phone lends so it finishes after the app has left.
     static func save(_ draft: NewOrderDraft, now: Bool = false) {
+        // A screen leaving just after a business switch saves for the business it was in.
+        let biz = now ? BusinessSwitchPin.id() : House.id
         if now {
-            queue.sync { write(draft) }
+            ProcessInfo.processInfo.performExpiringActivity(withReason: "erp.orderDraft") { expired in
+                guard !expired else { return }
+                queue.sync { write(draft, biz) }
+            }
         } else {
-            queue.async { write(draft) }
+            queue.async { write(draft, biz) }
         }
     }
 
     static func clear() {
-        queue.sync { UserDefaults.standard.removeObject(forKey: key) }
+        let biz = House.id
+        queue.sync {
+            UserDefaults.standard.removeObject(forKey: key(for: biz))
+            if let dir = photoDir(biz) { try? FileManager.default.removeItem(at: dir) }
+        }
     }
 
-    private static func write(_ draft: NewOrderDraft) {
+    private static func write(_ draft: NewOrderDraft, _ biz: String) {
+        let k = key(for: biz)
+        let dir = photoDir(biz)
         if draft.isBlank {
-            UserDefaults.standard.removeObject(forKey: key)
+            UserDefaults.standard.removeObject(forKey: k)
+            if let dir { try? FileManager.default.removeItem(at: dir) }
             return
         }
-        guard var data = try? JSONEncoder().encode(draft) else { return }
-        if data.count > ceiling {
-            var lite = draft
-            lite.pieces = lite.pieces.map { p in
-                var q = p
-                q.photo = nil
-                return q
+        var lite = draft
+        let total = draft.pieces.reduce(0) { $0 + ($1.photo?.count ?? 0) }
+        let keepPhotos = total <= ceiling
+        if !keepPhotos { lite.photosLeftOut = true }
+        if let dir {
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            var kept = Set<String>()
+            if keepPhotos {
+                for p in draft.pieces {
+                    guard let photo = p.photo else { continue }
+                    let name = p.id.uuidString
+                    kept.insert(name)
+                    let url = dir.appendingPathComponent(name)
+                    if (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) != photo.count {
+                        try? photo.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                    }
+                }
             }
-            lite.photosLeftOut = true
-            guard let smaller = try? JSONEncoder().encode(lite) else { return }
-            data = smaller
+            // A photo whose piece is gone (or left out) is not kept on the phone.
+            for f in (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? [] where !kept.contains(f) {
+                try? FileManager.default.removeItem(at: dir.appendingPathComponent(f))
+            }
+            lite.pieces = lite.pieces.map { p in var q = p; q.photo = nil; return q }
+        } else if !keepPhotos {
+            lite.pieces = lite.pieces.map { p in var q = p; q.photo = nil; return q }
         }
-        UserDefaults.standard.set(data, forKey: key)
+        guard let data = try? JSONEncoder().encode(lite) else { return }
+        UserDefaults.standard.set(data, forKey: k)
     }
 }

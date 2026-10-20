@@ -204,6 +204,10 @@ final class Businesses {
     func `switch`(to id: String) {
         guard !House.isDemo, id != current.id, let next = business(id) else { return }
         let left = current
+        // Open work is saved under the business it was typed in, before the open business changes.
+        BusinessSwitchPin.leaving(left)
+        WorkDraftSync.order.flush(leaving: left)
+        WorkDraftSync.sale.flush(leaving: left)
         UserDefaults.standard.set(id, forKey: BusinessStorage.currentKey)
         BusinessBox.shared.set(current: next, list: list)
         Sessions.shared.deactivate(left.id)

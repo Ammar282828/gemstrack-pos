@@ -12,6 +12,7 @@
  */
 
 import { withInlinePhotos } from '@/lib/order-photos-server';
+import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
@@ -32,6 +33,22 @@ function previewAsStaff(req: NextRequest, role: string): boolean {
     && req.headers.get('x-dev-role') === 'staff';
 }
 
+
+/**
+ * An ETag from what is cheap to know: the ids and update times (the phones poll every 25 s, and most polls
+ * find nothing new). The same ETag back in If-None-Match gets a bare 304, so the photos are not read, the
+ * documents are not filtered and re-sent, and the phone decodes nothing.
+ */
+function etagOf(parts: string[]): string {
+  return `"${createHash('sha1').update(parts.join('|')).digest('hex')}"`;
+}
+
+function notModified(req: NextRequest, etag: string): NextResponse | null {
+  const sent = req.headers.get('if-none-match');
+  if (!sent) return null;
+  const same = sent.split(',').some(t => t.trim().replace(/^W\//, '') === etag);
+  return same ? new NextResponse(null, { status: 304, headers: { ETag: etag, 'Cache-Control': 'no-store' } }) : null;
+}
 
 export async function GET(req: NextRequest) {
   const email = await verifyRequestEmail(req);
@@ -59,9 +76,12 @@ export async function GET(req: NextRequest) {
     try {
       // Ids must match store.ts: FIRESTORE_COLLECTIONS.SETTINGS / GLOBAL_SETTINGS_DOC_ID.
       const doc = await adminDb.collection('app_settings').doc('global').get();
+      const etag = etagOf(['settings', doc.exists ? String(doc.updateTime?.toMillis()) : 'none']);
+      const same = notModified(req, etag);
+      if (same) return same;
       return NextResponse.json(
         { collection: 'settings', doc: doc.exists ? staffSettingsView(doc.data() || {}) : {} },
-        { headers: { 'Cache-Control': 'no-store' } },
+        { headers: { 'Cache-Control': 'no-store', ETag: etag } },
       );
     } catch (e) {
       console.error('[/api/staff/collections] settings', e);
@@ -78,13 +98,16 @@ export async function GET(req: NextRequest) {
 
   try {
     const snap = await adminDb.collection(name).get();
+    const etag = etagOf([name, ...snap.docs.map(d => `${d.id}:${d.updateTime?.toMillis()}`).sort()]);
+    const same = notModified(req, etag);
+    if (same) return same;
     const raw = snap.docs.map(d => ({ ...d.data(), id: d.id }) as { id: string; items?: unknown });
     // Staff can't read photo documents themselves: orders go out with their photos inline.
     const docs = name === 'orders' ? await withInlinePhotos(adminDb, raw) : raw;
     return NextResponse.json(
       { collection: name, docs: staffViewAll(name, docs) },
       // Never cached: an order taken thirty seconds ago has to be there.
-      { headers: { 'Cache-Control': 'no-store' } },
+      { headers: { 'Cache-Control': 'no-store', ETag: etag } },
     );
   } catch (e) {
     console.error(`[/api/staff/collections] ${name}`, e);

@@ -12,9 +12,7 @@ enum SaleNumber {
     /// Text to a number: commas are thousands, blank or unreadable is nil. Never NaN or infinity
     /// (a NaN in a JSON body would crash JSONSerialization).
     static func parse(_ text: String) -> Double? {
-        let t = text.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "")
-        guard !t.isEmpty, let v = Double(t), v.isFinite else { return nil }
-        return v
+        ShopNumber.parse(text)
     }
 
     /// `Number(v) || 0`.
@@ -429,16 +427,21 @@ enum SaleDraftStore {
     /// Per business (BizKey).
     static var key: String { BizKey("erp.saleDraft") }
 
+    /// A screen going away right after a business switch saves for the business it was in; later saves (a
+    /// new screen's, 0.7 s after a keystroke) are the open business's.
+    private static func key(for business: String) -> String { BizKey("erp.saleDraft", business) }
+
     static func load() -> SaleDraft? {
         guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
         return try? JSONDecoder().decode(SaleDraft.self, from: data)
     }
 
     static func save(_ draft: SaleDraft) {
+        let k = key(for: BusinessSwitchPin.id(within: 0.4))
         if draft.isBlank {
-            UserDefaults.standard.removeObject(forKey: key)
+            UserDefaults.standard.removeObject(forKey: k)
         } else if let data = try? JSONEncoder().encode(draft) {
-            UserDefaults.standard.set(data, forKey: key)
+            UserDefaults.standard.set(data, forKey: k)
         }
     }
 

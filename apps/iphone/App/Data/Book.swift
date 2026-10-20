@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import Observation
 import ERPCore
 
@@ -105,6 +106,9 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
     private let before: (T, T) -> Bool
     @ObservationIgnored private var byId: [String: T] = [:]
     @ObservationIgnored private var stop: (() -> Void)?
+    /// Goes up on every reset: a delivery from a source attached before it (a slow answer for the business
+    /// left) is dropped, not painted into the books now open.
+    @ObservationIgnored private var epoch = 0
 
     init(_ name: String, sort before: @escaping (T, T) -> Bool) {
         self.name = name
@@ -114,7 +118,11 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
     /// Start filling, once. Every screen that shows this collection calls it on appear.
     func need() {
         guard stop == nil else { return }
-        stop = Book.shared.attach(name, sort: before) { [weak self] (d: Delivery<T>) in self?.take(d) }
+        let mine = epoch
+        stop = Book.shared.attach(name, sort: before) { [weak self] (d: Delivery<T>) in
+            guard let self, self.epoch == mine else { return }
+            self.take(d)
+        }
     }
 
     /// One document by id. Reads `items` first so a screen showing one document redraws when it changes
@@ -125,6 +133,7 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
     }
 
     func reset() {
+        epoch += 1
         stop?()
         stop = nil
         byId = [:]
@@ -155,7 +164,7 @@ final class Shelf<T: Decodable & Identifiable>: Resettable where T.ID == String 
             stamp(tag ?? (Book.shared.source == .demo ? "demo" : Book.shared.source == .server ? "server" : off ? "cache" : "server"))
         case .changes(let upserts, let removed, let off):
             // Only the cache flag moved (Firestore's metadata change): no new books, so nothing re-reckoned.
-            if upserts.isEmpty && removed.isEmpty { offline = off; return }
+            if upserts.isEmpty && removed.isEmpty { offline = off; error = nil; return }
             for x in upserts { byId[x.id] = x }
             for id in removed { byId[id] = nil }
             // A handful of documents changed (a payment, a status): placed where they sort, rather than
@@ -202,6 +211,7 @@ final class Single<T: Decodable>: Resettable {
     private(set) var loaded = false
     private(set) var error: String?
     @ObservationIgnored private var stop: (() -> Void)?
+    @ObservationIgnored private var epoch = 0
 
     init(_ collection: String, _ docId: String) {
         self.collection = collection
@@ -210,8 +220,9 @@ final class Single<T: Decodable>: Resettable {
 
     func need() {
         guard stop == nil else { return }
+        let mine = epoch
         stop = Book.shared.attach(collection, docId: docId) { [weak self] (d: Delivery<T>) in
-            guard let self else { return }
+            guard let self, self.epoch == mine else { return }
             switch d {
             case .all(let list, _, _): value = list.first ?? value; loaded = true; error = nil
             case .changes(let upserts, _, _): value = upserts.first ?? value; loaded = true; error = nil
@@ -221,6 +232,7 @@ final class Single<T: Decodable>: Resettable {
     }
 
     func reset() {
+        epoch += 1
         stop?()
         stop = nil
         value = nil
@@ -230,15 +242,36 @@ final class Single<T: Decodable>: Resettable {
 }
 
 /// Staff and marketing: the ERP's server, polled (store.ts attachStaffPoll, 25 s).
+///
+/// Only while the app is in the foreground: in the background the phone asks for nothing, and coming back asks
+/// at once. The ERP answers 304 to the last answer's ETag when the collection has not changed, so a quiet shop
+/// costs a header, nothing is decoded, and the shelf is not handed the same books again.
 enum ServerShelf {
     static let every: Duration = .seconds(25)
-    /// Bumped after every change the phone makes: each poller stops waiting and reads again.
+    /// Bumped after every change the phone makes (and on coming back to the front): each poller stops waiting
+    /// and reads again.
     @MainActor private static var nudges = 0
+    @MainActor private static var foreground = true
+    @MainActor private static var observing = false
 
     @MainActor static func wake() { nudges += 1 }
 
+    @MainActor private static func observe() {
+        guard !observing else { return }
+        observing = true
+        foreground = UIApplication.shared.applicationState != .background
+        let c = NotificationCenter.default
+        c.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in foreground = false }
+        }
+        c.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in foreground = true; nudges += 1 }
+        }
+    }
+
     @MainActor
     static func poll<T: Decodable>(name: String, single: Bool, sort: ((T, T) -> Bool)? = nil, deliver: @escaping @MainActor (Delivery<T>) -> Void) -> () -> Void {
+        observe()
         let business = Businesses.shared.current.id
         let task = Task { @MainActor in
             // The last poll's books from disk, before the network is asked (read and decoded off the main thread).
@@ -253,41 +286,55 @@ enum ServerShelf {
             }.value
             if let snap, !Task.isCancelled { deliver(.all(snap, offline: true, source: "snapshot")) }
             var written: [Data] = []
+            var etag: String?
             while !Task.isCancelled {
+                // Not in the foreground: nothing is asked until the app is back (which nudges).
+                while !foreground && !Task.isCancelled { try? await Task.sleep(for: .seconds(1)) }
+                if Task.isCancelled { return }
                 do {
-                    let data = try await ERPAPI.shared.data("/api/staff/collections?name=\(name)")
-                    // Read and decoded off the main thread: staff's whole copy arrives every 25 seconds.
-                    let (items, bytes): ([T], [Data]) = await Task.detached(priority: .userInitiated) {
-                        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
-                        var bytes: [Data]
-                        if single {
-                            let doc = json["doc"] as? [String: Any] ?? [:]
-                            bytes = [DocJSON.json(id: doc["id"] as? String ?? "global", data: doc)].compactMap { $0 }
-                        } else {
-                            bytes = DocJSON.jsonList(from: json["docs"] as? [Any] ?? [])
-                        }
-                        var items = bytes.compactMap { DocJSON.decode(T.self, json: $0) }
-                        if let sort { items.sort(by: sort) }
-                        return (items, bytes)
-                    }.value
-                    deliver(.all(items, offline: false, source: "server"))
-                    // Kept for the next cold start; only when the books changed, and off the main thread.
-                    if bytes != written {
-                        written = bytes
-                        Task.detached(priority: .utility) {
-                            ShelfSnapshots.write(.server, business: business, collection: name, docId: nil, documents: bytes)
+                    let answer = try await ERPAPI.shared.conditional("/api/staff/collections?name=\(name)", ifNoneMatch: etag)
+                    if Task.isCancelled { return }
+                    if answer.unchanged {
+                        // The books are as they were: the shelf only learns it is live, not offline.
+                        deliver(.changes(upserts: [], removed: [], offline: false))
+                    } else {
+                        let data = answer.data
+                        // Read and decoded off the main thread: staff's whole copy arrives when it has changed.
+                        let (items, bytes): ([T], [Data]) = await Task.detached(priority: .userInitiated) {
+                            let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+                            var bytes: [Data]
+                            if single {
+                                let doc = json["doc"] as? [String: Any] ?? [:]
+                                bytes = [DocJSON.json(id: doc["id"] as? String ?? "global", data: doc)].compactMap { $0 }
+                            } else {
+                                bytes = DocJSON.jsonList(from: json["docs"] as? [Any] ?? [])
+                            }
+                            var items = bytes.compactMap { DocJSON.decode(T.self, json: $0) }
+                            if let sort { items.sort(by: sort) }
+                            return (items, bytes)
+                        }.value
+                        if Task.isCancelled { return }
+                        etag = answer.etag
+                        deliver(.all(items, offline: false, source: "server"))
+                        // Kept for the next cold start; only when the books changed, and off the main thread.
+                        if bytes != written {
+                            written = bytes
+                            Task.detached(priority: .utility) {
+                                ShelfSnapshots.write(.server, business: business, collection: name, docId: nil, documents: bytes)
+                            }
                         }
                     }
                 } catch let e as ERPAPI.Failure where e.status == 403 {
                     // Not this person's to read (a marketing account and the books): an empty shelf, not an error.
-                    deliver(.all([], offline: false, source: "server"))
+                    if !Task.isCancelled { deliver(.all([], offline: false, source: "server")) }
                     return
                 } catch {
+                    if Task.isCancelled { return }
                     deliver(.failed(error.localizedDescription))
                 }
-                // Wait out the interval, unless a change made on this phone asks for the books now.
+                // Wait out the interval, unless a change made on this phone (or coming back to the front) asks now.
                 let seen = nudges
-                for _ in 0..<25 where !Task.isCancelled && nudges == seen {
+                for _ in 0..<25 where !Task.isCancelled && nudges == seen && foreground {
                     try? await Task.sleep(for: .seconds(1))
                 }
             }

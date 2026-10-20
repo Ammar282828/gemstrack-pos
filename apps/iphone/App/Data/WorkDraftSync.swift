@@ -19,11 +19,14 @@ final class WorkDraftSync {
     static let sale = WorkDraftSync(kind: "sale")
 
     let kind: String
-    /// Per business (BizKey): the draft in one business's Drafts is not another's.
-    private var idKey: String { BizKey("erp.\(kind)Draft.remoteId") }
-    private var createdKey: String { BizKey("erp.\(kind)Draft.remoteCreatedAt") }
+    /// Per business (BizKey): the draft in one business's Drafts is not another's. Always asked for a business:
+    /// the one a piece of work was begun in, never "whichever is open when this runs".
+    private func idKey(_ b: String) -> String { BizKey("erp.\(kind)Draft.remoteId", b) }
+    private func createdKey(_ b: String) -> String { BizKey("erp.\(kind)Draft.remoteCreatedAt", b) }
     /// Set once a send has landed: until then "not in Drafts" says nothing about the phone's copy.
-    private var landedKey: String { BizKey("erp.\(kind)Draft.remoteLanded") }
+    private func landedKey(_ b: String) -> String { BizKey("erp.\(kind)Draft.remoteLanded", b) }
+    /// A push waiting out its second: what the switch sends at once, for the business being left.
+    private var pending: (make: () -> Snapshot, gen: Int, biz: Business)?
     /// The last draft sent, as text: the same work is not sent twice.
     private var lastSent = ""
     private var waiting: Task<Void, Never>?
@@ -40,11 +43,22 @@ final class WorkDraftSync {
     func reset() {
         waiting?.cancel()
         waiting = nil
+        pending = nil
         lastSent = ""
     }
 
+    /// Called by `Businesses.switch` before the business changes: work waiting for its second is sent now, to the
+    /// business it was typed in. (Screens going away after the switch are pinned the same way: BusinessSwitchPin.)
+    func flush(leaving left: Business) {
+        guard let p = pending, p.biz.id == left.id else { return }
+        waiting?.cancel()
+        waiting = nil
+        pending = nil
+        send(p.make(), gen: p.gen, biz: left)
+    }
+
     /// This phone's draft in Drafts, once it has been sent.
-    var id: String? { UserDefaults.standard.string(forKey: idKey) }
+    var id: String? { UserDefaults.standard.string(forKey: idKey(House.business.id)) }
 
     /// What goes to Drafts: the web form's values, and the card's total and name.
     struct Snapshot {
@@ -60,43 +74,51 @@ final class WorkDraftSync {
         waiting?.cancel()
         // The demo's made-up books never leave the phone.
         guard enabled, !House.isDemo else { return }
+        // A screen going away just after a switch (`now`) writes for the business it was in.
+        let biz = now ? BusinessSwitchPin.business() : House.business
         if blank {
-            if id != nil { drop() }
+            if UserDefaults.standard.string(forKey: idKey(biz.id)) != nil { drop(biz) }
             return
         }
         let gen = generation
+        if !now { pending = (make, gen, biz) } else { pending = nil }
         waiting = Task { [weak self] in
             if !now {
                 do { try await Task.sleep(for: .seconds(1)) } catch { return }
             }
-            self?.send(make(), gen: gen)
+            self?.pending = nil
+            self?.send(make(), gen: gen, biz: biz)
         }
     }
 
     /// The order or sale was saved, or started over: its Drafts copy goes, and the next is a new draft.
-    func drop() {
+    func drop() { drop(House.business) }
+
+    private func drop(_ biz: Business) {
         waiting?.cancel()
+        pending = nil
         generation += 1
         lastSent = ""
-        guard let gone = id else { return }
-        forget()
-        let biz = House.business
+        guard let gone = UserDefaults.standard.string(forKey: idKey(biz.id)) else { return }
+        forget(biz.id)
         enqueue { _ = try? await ERPAPI.shared.send("/api/app/drafts", ["action": "drop", "id": gone], business: biz) }
     }
 
     /// Lets go of the Drafts copy without touching it: it was finished or thrown away on another device.
-    func forget() {
-        UserDefaults.standard.removeObject(forKey: idKey)
-        UserDefaults.standard.removeObject(forKey: createdKey)
-        UserDefaults.standard.removeObject(forKey: landedKey)
+    func forget(_ business: String? = nil) {
+        let b = business ?? House.business.id
+        UserDefaults.standard.removeObject(forKey: idKey(b))
+        UserDefaults.standard.removeObject(forKey: createdKey(b))
+        UserDefaults.standard.removeObject(forKey: landedKey(b))
         lastSent = ""
     }
 
     /// Whether this phone's draft is still in Drafts. Nil when none has landed there, or there is no answer:
     /// the phone's copy then stands.
     func stillThere() async -> Bool? {
-        guard let draftId = id, UserDefaults.standard.bool(forKey: landedKey) else { return nil }
-        guard let out = try? await ERPAPI.shared.send("/api/app/drafts", ["action": "check", "id": draftId], business: House.business) else { return nil }
+        let biz = House.business
+        guard let draftId = UserDefaults.standard.string(forKey: idKey(biz.id)), UserDefaults.standard.bool(forKey: landedKey(biz.id)) else { return nil }
+        guard let out = try? await ERPAPI.shared.send("/api/app/drafts", ["action": "check", "id": draftId], business: biz) else { return nil }
         return out["exists"] as? Bool
     }
 
@@ -106,36 +128,38 @@ final class WorkDraftSync {
     func adopt(id draftId: String, createdAt: String) {
         waiting?.cancel()
         lastSent = ""
-        UserDefaults.standard.set(draftId, forKey: idKey)
-        UserDefaults.standard.set(createdAt.isEmpty ? Date().ISO8601Format() : createdAt, forKey: createdKey)
+        let b = House.business.id
+        UserDefaults.standard.set(draftId, forKey: idKey(b))
+        UserDefaults.standard.set(createdAt.isEmpty ? Date().ISO8601Format() : createdAt, forKey: createdKey(b))
         // It is in Drafts already: one finished at the counter since lets go of the phone's copy too.
-        UserDefaults.standard.set(true, forKey: landedKey)
+        UserDefaults.standard.set(true, forKey: landedKey(b))
     }
 
-    private func send(_ snap: Snapshot, gen: Int) {
+    private func send(_ snap: Snapshot, gen: Int, biz: Business) {
         let values = snap.values
         guard gen == generation, JSONSerialization.isValidJSONObject(values),
               let json = try? JSONSerialization.data(withJSONObject: values, options: [.sortedKeys]) else { return }
         let text = String(decoding: json, as: UTF8.self)
-        guard text != lastSent else { return }
-        let draftId = id ?? Self.newId(kind)
-        let created = UserDefaults.standard.string(forKey: createdKey) ?? Date().ISO8601Format()
-        UserDefaults.standard.set(draftId, forKey: idKey)
-        UserDefaults.standard.set(created, forKey: createdKey)
-        lastSent = text
+        // `lastSent` is the open business's; a send for the one just left leaves it alone.
+        let open = biz.id == House.business.id
+        if open { guard text != lastSent else { return } }
+        let draftId = UserDefaults.standard.string(forKey: idKey(biz.id)) ?? Self.newId(kind)
+        let created = UserDefaults.standard.string(forKey: createdKey(biz.id)) ?? Date().ISO8601Format()
+        UserDefaults.standard.set(draftId, forKey: idKey(biz.id))
+        UserDefaults.standard.set(created, forKey: createdKey(biz.id))
+        if open { lastSent = text }
         let body: [String: Any] = [
             "action": "save", "id": draftId, "kind": kind, "data": values,
             "total": snap.total.isFinite ? snap.total : 0, "customerName": snap.customerName,
             "device": UIDevice.current.model, "createdAt": created,
         ]
-        let biz = House.business
         enqueue { [weak self] in
             do {
                 _ = try await ERPAPI.shared.send("/api/app/drafts", body, business: biz)
-                if let self, self.id == draftId { UserDefaults.standard.set(true, forKey: self.landedKey) }
+                if let self, UserDefaults.standard.string(forKey: self.idKey(biz.id)) == draftId { UserDefaults.standard.set(true, forKey: self.landedKey(biz.id)) }
             } catch {
                 // Not sent: the next change, or the screen going, sends it again.
-                if self?.lastSent == text { self?.lastSent = "" }
+                if open, self?.lastSent == text { self?.lastSent = "" }
             }
             // Saved or started over while it was on its way: take it back out.
             if let self, self.generation != gen {
@@ -159,4 +183,26 @@ final class WorkDraftSync {
         let tail = String((0..<5).map { _ in letters.randomElement()! })
         return "\(kind)-\(String(ms, radix: 36))-\(tail)"
     }
+}
+
+/// Screens go away after `Businesses.switch` has already made the next business the open one, and write what
+/// they hold on the way out. For a moment after a switch, "the business" for such a write is the one just left.
+enum BusinessSwitchPin {
+    private static let lock = NSLock()
+    private static var left: (business: Business, at: Date)?
+
+    /// Called before the open business changes.
+    static func leaving(_ b: Business) {
+        lock.lock(); left = (b, Date()); lock.unlock()
+    }
+
+    /// The business a draft write belongs to: the one just left inside the window, else the open one.
+    static func business(within window: TimeInterval = 2) -> Business {
+        lock.lock(); defer { lock.unlock() }
+        if let l = left, Date().timeIntervalSince(l.at) < window { return l.business }
+        return House.business
+    }
+
+    /// For a store keyed by id (BizKey).
+    static func id(within window: TimeInterval = 2) -> String { business(within: window).id }
 }

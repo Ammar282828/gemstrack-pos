@@ -148,14 +148,15 @@ final class Session {
         guard let auth else { state = .needsSetup; return }
         guard let user = auth.currentUser else {
             // Opened on the cached answer, but Firebase has nobody signed in: back to the sign-in page.
-            if me != nil { me = nil; lastMe = nil; Book.shared.signedOut() }
+            // (A session for a business that was left must not reset the books of the one open now.)
+            if me != nil { me = nil; lastMe = nil; if isActive { Book.shared.signedOut() } }
             state = .signedOut
             return
         }
         if let me, me.email.lowercased() != user.email?.lowercased() {
             // The cached answer was someone else's: show nothing of theirs while the ERP is asked.
             self.me = nil
-            Book.shared.signedOut()
+            if isActive { Book.shared.signedOut() }
             state = .starting
         }
         await loadMe()

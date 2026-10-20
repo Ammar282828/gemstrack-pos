@@ -51,7 +51,8 @@ enum FirestoreSource {
         }
         let l = Listening<T>(db: db, business: Businesses.shared.current.id, name: name, docId: docId, sort: sort, deliver: deliver)
         queue.async { l.start() }
-        return { queue.async { l.stop() } }
+        // Stopped on the spot (a lock), then on the queue: an answer already on its way to the main actor is dropped.
+        return { l.cancel(); queue.async { l.stop() } }
     }
 }
 
@@ -76,6 +77,15 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
     /// The plain JSON of every document the shelf holds, by id: what the snapshot file is made of.
     private var json: [String: Data] = [:]
     private var pendingWrite: DispatchWorkItem?
+    private var lastWrite: Date?
+    /// Retries after an error that is not "permission denied" (the web store retries too); reset by any answer.
+    private var retries = 0
+    /// Read from any thread: set the moment the shelf lets go, so no snapshot is painted after `stop()`.
+    private let alive = NSLock()
+    private var cancelled = false
+
+    func cancel() { alive.lock(); cancelled = true; alive.unlock() }
+    private var isCancelled: Bool { alive.lock(); defer { alive.unlock() }; return cancelled }
 
     init(db: Firestore, business: String, name: String, docId: String?, sort: ((T, T) -> Bool)?, deliver: @escaping @MainActor (Delivery<T>) -> Void) {
         self.db = db
@@ -88,23 +98,29 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
 
     private func send(_ d: Delivery<T>) {
         let deliver = deliver
-        Task { @MainActor in deliver(d) }
+        Task { @MainActor [weak self] in
+            guard let self, !self.isCancelled else { return }
+            deliver(d)
+        }
     }
 
     private func sendAll(_ items: [T], offline: Bool, source: String? = nil) {
         send(.all(sort.map { items.sorted(by: $0) } ?? items, offline: offline, source: source))
     }
 
-    /// Writes the shelf's snapshot 1.5 s after the last change, so a burst of changes is one file.
+    /// Writes the shelf's snapshot 1.5 s after the last change, so a burst of changes is one file, and not
+    /// more than once in ten seconds (a busy shop rewrites a big file for every payment otherwise).
     private func scheduleWrite() {
         guard !stopped else { return }
         pendingWrite?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self, !self.stopped else { return }
+            self.lastWrite = Date()
             ShelfSnapshots.write(.firestore, business: self.business, collection: self.name, docId: self.docId, documents: Array(self.json.values))
         }
         pendingWrite = work
-        FirestoreSource.queue.asyncAfter(deadline: .now() + 1.5, execute: work)
+        let wait = max(1.5, lastWrite.map { 10 - Date().timeIntervalSince($0) } ?? 0)
+        FirestoreSource.queue.asyncAfter(deadline: .now() + wait, execute: work)
     }
 
     /// Paints from the snapshot before Firestore is asked: one file read and one decode pass.
@@ -120,6 +136,7 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
     }
 
     func stop() {
+        cancel()
         stopped = true
         pendingWrite?.cancel()
         pendingWrite = nil
@@ -138,6 +155,8 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
                 guard let self else { return }
                 if let error { return self.failed(error) }
                 guard let snap else { return }
+                self.retries = 0
+                self.tries = 0
                 let model = snap.data().flatMap { self.decode(id: snap.documentID, data: $0) }
                 self.send(.all(model.map { [$0] } ?? [], offline: snap.metadata.isFromCache, source: nil))
                 if model == nil { self.json = [:] }
@@ -164,6 +183,8 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
     private func decode(_ d: QueryDocumentSnapshot) -> T? { decode(id: d.documentID, data: d.data()) }
 
     private func take(_ snap: QuerySnapshot) {
+        retries = 0
+        tries = 0
         let off = snap.metadata.isFromCache
         if first {
             // Even an empty collection is an answer: "loaded, nothing in it".
@@ -203,6 +224,14 @@ private final class Listening<T: Decodable>: @unchecked Sendable {
         if code == .permissionDenied, tries < 4 {
             tries += 1
             FirestoreSource.queue.asyncAfter(deadline: .now() + 0.5 * pow(2, Double(tries - 1))) { [weak self] in self?.start() }
+            return
+        }
+        // Any other error (a dropped channel, unavailable): the listener is dead, so it is started again, 1, 2, 4,
+        // 8, 16 seconds apart, before the error is shown.
+        if code != .permissionDenied, retries < 5, !stopped {
+            let wait = pow(2, Double(retries))
+            retries += 1
+            FirestoreSource.queue.asyncAfter(deadline: .now() + wait) { [weak self] in self?.start() }
             return
         }
         send(.failed(code == .permissionDenied ? "This account can't read the shop's books." : error.localizedDescription))
