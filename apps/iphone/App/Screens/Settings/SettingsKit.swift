@@ -9,6 +9,8 @@ import ERPCore
 @Observable
 final class SettingsWriter {
     var error: String?
+    /// The business the screen was opened in: a change made as it closes (after a switch) still goes there.
+    let business = House.business
     private(set) var on: [String: Bool] = [:]
     private(set) var chosen: [String: String] = [:]
 
@@ -18,7 +20,7 @@ final class SettingsWriter {
     func save(_ patch: [String: Any]) async -> Bool {
         error = nil
         do {
-            try await ERPAPI.shared.write("updateSettings", ["patch": patch, "seq": UUID().uuidString])
+            try await ERPAPI.shared.write("updateSettings", ["patch": patch, "seq": UUID().uuidString], business: business)
             return true
         } catch {
             self.error = error.localizedDescription

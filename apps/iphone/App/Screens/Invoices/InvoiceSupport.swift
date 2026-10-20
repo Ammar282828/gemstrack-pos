@@ -80,6 +80,7 @@ enum InvoiceFacts {
     /// particular it is change to hand back, so it is refused (invoice-credit.ts).
     @MainActor @discardableResult
     static func record(_ inv: Invoice, amount: Double, method: String, reference: String) async throws -> [String: Any] {
+        try UpdateGate.refuse()
         let due = max(0, inv.balanceDue)
         // Over by a whole rupee, as record-payment-dialog.tsx counts it (Math.round(amount - balance) > 0).
         if ERPCore.rupees(amount - due) > 0 && !canHoldCredit(inv.customerId) {
@@ -96,6 +97,7 @@ enum InvoiceFacts {
     /// payment taken without its discount. Owners only, as the discount is (/api/app/write).
     @MainActor
     static func settle(_ inv: Invoice, amount: Double, method: String, reference: String, remainder: Double) async throws {
+        try UpdateGate.refuse()
         var fields: [String: Any] = ["invoiceId": inv.id, "amount": amount, "extra": remainder, "method": method]
         let ref = reference.trimmingCharacters(in: .whitespacesAndNewlines)
         if method != "Cash" && !ref.isEmpty { fields["reference"] = ref }

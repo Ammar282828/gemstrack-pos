@@ -60,6 +60,8 @@ struct SaleForm: View {
     /// The invoice has been put in the form, once (a change arriving meanwhile must not undo what is typed).
     @State var editLoaded = false
 
+    /// The business this sale was opened in: its draft, Drafts copy and save go to it, whatever is open later.
+    @State var biz = House.business
     @State var draft = SaleDraft()
     @State var query = ""
     @State var notice: String?
@@ -240,7 +242,7 @@ struct SaleForm: View {
             // An edit is never kept on the phone or in Drafts: the invoice on file is the copy.
             guard edit == nil, takenByStarted else { return }
             do { try await Task.sleep(for: .milliseconds(700)) } catch { return }
-            SaleDraftStore.save(draft)
+            SaleDraftStore.save(draft, business: biz.id)
             sync(draft)
         }
         .onChange(of: scenePhase) { _, phase in
@@ -260,7 +262,7 @@ struct SaleForm: View {
     /// The unfinished sale, written now rather than after the pause (the app leaving, the screen going).
     func keepNow() {
         guard made == nil, edit == nil, takenByStarted else { return }
-        SaleDraftStore.save(draft)
+        SaleDraftStore.save(draft, business: biz.id)
         sync(draft, now: true)
     }
 
@@ -278,7 +280,7 @@ struct SaleForm: View {
             }
             return
         }
-        if let stored = SaleDraftStore.load() {
+        if let stored = SaleDraftStore.load(business: biz.id) {
             var kept = stored
             // A sale begun from Scan a tag has no Taken by yet: it starts on the signed-in person, as every new one.
             if kept.takenBy.isEmpty && !takenByStarted { kept.takenBy = defaultTaker }
@@ -302,7 +304,7 @@ struct SaleForm: View {
     func sync(_ d: SaleDraft, now: Bool = false) {
         let settings = book.settings.value
         let customers = book.customers.items
-        WorkDraftSync.sale.push(blank: d.isBlank, enabled: settings?.autoDraftForms ?? true, now: now) {
+        WorkDraftSync.sale.push(blank: d.isBlank, enabled: settings?.autoDraftForms ?? true, now: now, business: biz) {
             let subtotal = SaleFigures(draft: d, settings: settings, customers: customers, marginSettings: House.margin).subtotal
             return WorkDraftSync.Snapshot(values: d.webValues(subtotal: subtotal), total: subtotal, customerName: d.customerName)
         }
@@ -311,9 +313,9 @@ struct SaleForm: View {
     /// The sale kept on this phone is in Drafts too: one invoiced or thrown away at the counter since is not
     /// this phone's to bill a second time, so it goes from here as well.
     func stillOurs() async {
-        guard await WorkDraftSync.sale.stillThere() == false, made == nil else { return }
-        SaleDraftStore.clear()
-        WorkDraftSync.sale.forget()
+        guard await WorkDraftSync.sale.stillThere(business: biz) == false, made == nil else { return }
+        SaleDraftStore.clear(business: biz.id)
+        WorkDraftSync.sale.forget(biz.id)
         startOver()
         failure = "The sale kept on this phone was invoiced or discarded from Drafts on another device, so it is cleared here. Look for it under Invoices."
     }
@@ -390,8 +392,8 @@ struct SaleForm: View {
     }
 
     func startOver() {
-        SaleDraftStore.clear()
-        WorkDraftSync.sale.drop()
+        SaleDraftStore.clear(business: biz.id)
+        WorkDraftSync.sale.drop(business: biz)
         draft = SaleDraft()
         draft.takenBy = defaultTaker
         query = ""

@@ -70,12 +70,12 @@ final class WorkDraftSync {
     /// The work as it stands, a second after the last change (or `now`, as the screen or the app goes); `make`
     /// is asked for it then, not on every key. Blank work is nothing worth keeping: the Drafts copy goes.
     /// Nothing is sent where the shop has turned drafts off (Settings, `autoDraftForms`).
-    func push(blank: Bool, enabled: Bool, now: Bool = false, _ make: @escaping () -> Snapshot) {
+    func push(blank: Bool, enabled: Bool, now: Bool = false, business: Business? = nil, _ make: @escaping () -> Snapshot) {
         waiting?.cancel()
         // The demo's made-up books never leave the phone.
         guard enabled, !House.isDemo else { return }
         // A screen going away just after a switch (`now`) writes for the business it was in.
-        let biz = now ? BusinessSwitchPin.business() : House.business
+        let biz = business ?? (now ? BusinessSwitchPin.business() : House.business)
         if blank {
             if UserDefaults.standard.string(forKey: idKey(biz.id)) != nil { drop(biz) }
             return
@@ -92,7 +92,7 @@ final class WorkDraftSync {
     }
 
     /// The order or sale was saved, or started over: its Drafts copy goes, and the next is a new draft.
-    func drop() { drop(House.business) }
+    func drop(business: Business? = nil) { drop(business ?? House.business) }
 
     private func drop(_ biz: Business) {
         waiting?.cancel()
@@ -115,8 +115,8 @@ final class WorkDraftSync {
 
     /// Whether this phone's draft is still in Drafts. Nil when none has landed there, or there is no answer:
     /// the phone's copy then stands.
-    func stillThere() async -> Bool? {
-        let biz = House.business
+    func stillThere(business: Business? = nil) async -> Bool? {
+        let biz = business ?? House.business
         guard let draftId = UserDefaults.standard.string(forKey: idKey(biz.id)), UserDefaults.standard.bool(forKey: landedKey(biz.id)) else { return nil }
         guard let out = try? await ERPAPI.shared.send("/api/app/drafts", ["action": "check", "id": draftId], business: biz) else { return nil }
         return out["exists"] as? Bool

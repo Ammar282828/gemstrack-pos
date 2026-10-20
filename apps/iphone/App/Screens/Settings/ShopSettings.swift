@@ -204,7 +204,7 @@ private struct ShopForm: View {
         savingNumbers = true
         defer { savingNumbers = false }
         do {
-            let out = try await ERPAPI.shared.write("setCounters", ["counters": counters, "deleteCode": deleteCode])
+            let out = try await ERPAPI.shared.write("setCounters", ["counters": counters, "deleteCode": deleteCode], business: writer.business)
             let moved = (out["moved"] as? [String])?.count ?? counters.count
             numbers = nil
             deleteCode = ""

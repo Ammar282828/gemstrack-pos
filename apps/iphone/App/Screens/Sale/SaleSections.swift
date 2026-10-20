@@ -630,9 +630,9 @@ extension SaleForm {
     /// A rate typed on the sale becomes the shop's, after the invoice is saved and never before (the invoice
     /// is priced from the rates in hand), as the web does. It is not waited for: if it does not go, the
     /// sale is still saved and a line says so.
-    func keepRates(_ rates: [String: Double]) async {
+    func keepRates(_ rates: [String: Double], business: Business) async {
         do {
-            try await ERPAPI.shared.write("setRates", ["rates": rates])
+            try await ERPAPI.shared.write("setRates", ["rates": rates], business: business)
         } catch {
             Note.show(Note(title: "The sale is saved", detail: "The rate you typed was not kept for next time: set it from the rate chip.", failed: true),
                       in: $ratesNote, reduce: reduceMotion)
@@ -645,6 +645,7 @@ extension SaleForm {
     /// Save is off (sale-page.tsx `invoiceBlockedReason`: a disabled button with no explanation reads as broken).
     func saveBar(_ f: SaleFigures) -> some View {
         VStack(spacing: 8) {
+            UpdateBanner()
             // What the refusal asks to be done about it. The refusal's own words come as an alert (failureAlert),
             // on whatever step the person is on.
             if alreadySold {
@@ -683,7 +684,7 @@ extension SaleForm {
             }
             .buttonStyle(.houseProminent)
             .controlSize(.large)
-            .disabled(!f.canSave || saving)
+            .disabled(!f.canSave || saving || UpdateGate.blocked)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
@@ -709,7 +710,7 @@ extension SaleForm {
             // The sale page's edit: the same write under the invoice's own number. Its rates are its own, held,
             // never the shop's (an edit writes no rate back).
             do {
-                _ = try await ERPAPI.shared.write("createInvoice", draft.editPayload(f, invoiceId: edit.invoiceId) { book.products.item($0)?.qrCodeDataUrl })
+                _ = try await ERPAPI.shared.write("createInvoice", draft.editPayload(f, invoiceId: edit.invoiceId) { book.products.item($0)?.qrCodeDataUrl }, business: biz)
                 saving = false
                 dismiss()
             } catch let e as ERPAPI.Failure {
@@ -729,11 +730,11 @@ extension SaleForm {
         // A rate a written bill set is the bill's, never today's (SaleScanHeld).
         let kept = SaleScanHeld.unheld(draft.ratesToWriteBack(f, current: book.settings.value), in: draft)
         do {
-            let out = try await ERPAPI.shared.write("createInvoice", draft.payload(f) { book.products.item($0)?.qrCodeDataUrl })
+            let out = try await ERPAPI.shared.write("createInvoice", draft.payload(f) { book.products.item($0)?.qrCodeDataUrl }, business: biz)
             let id = (out["invoice"] as? [String: Any])?["id"] as? String ?? ""
-            if let kept { Task { await keepRates(kept) } }
-            SaleDraftStore.clear()
-            WorkDraftSync.sale.drop()
+            if let kept { let b = biz; Task { await keepRates(kept, business: b) } }
+            SaleDraftStore.clear(business: biz.id)
+            WorkDraftSync.sale.drop(business: biz)
             draft = SaleDraft()
             if id.isEmpty {
                 failure = "The sale was saved, but the ERP did not say its number. Look for it under Invoices."

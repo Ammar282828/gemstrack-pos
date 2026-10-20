@@ -38,6 +38,7 @@ struct Dashboard: View {
         ShelfState(loaded: ready, error: book.orders.error ?? book.invoices.error, offline: book.orders.offline) {
             page(makeFigures())
         }
+        .safeAreaInset(edge: .top, spacing: 0) { UpdateBanner() }
         .navigationTitle(title)
         .onAppear { needAll() }
         .onChange(of: session.role) { _, _ in needAll() }

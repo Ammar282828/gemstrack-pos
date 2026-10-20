@@ -102,8 +102,10 @@ final class ERPAPI {
     /// The business is the one open when the tap was made: the answer's follow-ups go there, not to
     /// whichever business is open when it comes back.
     @discardableResult
-    func write(_ op: String, _ fields: [String: Any], requestId explicit: String? = nil) async throws -> [String: Any] {
-        let biz = House.business
+    func write(_ op: String, _ fields: [String: Any], requestId explicit: String? = nil, business: Business? = nil) async throws -> [String: Any] {
+        let biz = business ?? House.business
+        // A build older than this ERP's minimum writes nothing (its rules for money may be out of date).
+        if biz.needsUpdate { throw Failure(status: 426, message: "This app is out of date: update it from TestFlight.") }
         var body = fields
         body["op"] = op
         let intent = explicit == nil ? WriteIntents.key(for: body) : nil

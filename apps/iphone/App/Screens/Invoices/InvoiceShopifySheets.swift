@@ -47,7 +47,7 @@ private struct InvoicePaymentLink: ViewModifier {
         let refreshed = !(inv.shopifyCheckoutUrl ?? "").isEmpty
         do {
             let url = try await InvoiceFacts.paymentLink(inv)
-            UIPasteboard.general.url = url
+            SecretPasteboard.copy(url)
             made(InvoiceNote(title: refreshed ? "Link refreshed and copied" : "Payment link created",
                              detail: "Checkout link copied to clipboard. Share it with the customer via WhatsApp or SMS."))
         } catch {

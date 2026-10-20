@@ -431,13 +431,13 @@ enum SaleDraftStore {
     /// new screen's, 0.7 s after a keystroke) are the open business's.
     private static func key(for business: String) -> String { BizKey("erp.saleDraft", business) }
 
-    static func load() -> SaleDraft? {
-        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+    static func load(business: String? = nil) -> SaleDraft? {
+        guard let data = UserDefaults.standard.data(forKey: business.map { key(for: $0) } ?? key) else { return nil }
         return try? JSONDecoder().decode(SaleDraft.self, from: data)
     }
 
-    static func save(_ draft: SaleDraft) {
-        let k = key(for: BusinessSwitchPin.id(within: 0.4))
+    static func save(_ draft: SaleDraft, business: String? = nil) {
+        let k = key(for: business ?? BusinessSwitchPin.id(within: 0.4))
         if draft.isBlank {
             UserDefaults.standard.removeObject(forKey: k)
         } else if let data = try? JSONEncoder().encode(draft) {
@@ -445,7 +445,7 @@ enum SaleDraftStore {
         }
     }
 
-    static func clear() { UserDefaults.standard.removeObject(forKey: key) }
+    static func clear(business: String? = nil) { UserDefaults.standard.removeObject(forKey: business.map { key(for: $0) } ?? key) }
 
     /// Puts a piece on the unfinished sale (a new one if there is none). False when it is already there.
     @discardableResult

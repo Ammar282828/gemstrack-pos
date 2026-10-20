@@ -55,7 +55,7 @@ struct AddExpenseSheet: View {
     /// The web's schema: a category, a description, and an amount of at least 0.01; a salary also says whose.
     private var canSave: Bool {
         if isSalary && salaryFor.isEmpty { return false }
-        return amount >= 0.01 && !cleanedWhat.isEmpty && !chosenCategory.isEmpty && !saving
+        return amount >= 0.01 && !cleanedWhat.isEmpty && !chosenCategory.isEmpty && !saving && !UpdateGate.blocked
     }
 
     // MARK: The karigar and his hisaab
@@ -106,6 +106,7 @@ struct AddExpenseSheet: View {
                 }
                 .houseRows()
             }
+            .safeAreaInset(edge: .top, spacing: 0) { UpdateBanner() }
             .navigationTitle("Add expense")
             .navigationBarTitleDisplayMode(.inline)
             .disabled(saving)

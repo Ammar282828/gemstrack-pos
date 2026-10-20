@@ -71,7 +71,7 @@ struct WorkshopPaySheet: View {
     private var chosenCategory: String {
         (category == Self.typed ? typedCategory : category).trimmingCharacters(in: .whitespacesAndNewlines)
     }
-    private var canSave: Bool { amount >= 0.01 && !cleanedWhat.isEmpty && !chosenCategory.isEmpty && !saving }
+    private var canSave: Bool { amount >= 0.01 && !cleanedWhat.isEmpty && !chosenCategory.isEmpty && !saving && !UpdateGate.blocked }
     private var name: String { karigar.name.isEmpty ? karigar.id : karigar.name }
     private var partner: MoneyPartner? { MoneyPartners.all.first { $0.id == paidBy } }
 
@@ -124,6 +124,7 @@ struct WorkshopPaySheet: View {
             .scrollDismissesKeyboard(.interactively)
             .keyboardDone()
             .failureAlert($error, title: "Not paid")
+            .safeAreaInset(edge: .top, spacing: 0) { UpdateBanner() }
             .navigationTitle("Record payment")
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)

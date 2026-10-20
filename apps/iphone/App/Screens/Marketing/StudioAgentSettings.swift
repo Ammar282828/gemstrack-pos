@@ -42,7 +42,7 @@ struct StudioAgentSettings: View {
                             .privacySensitive()
                         Button(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc") {
                             // The key leaves the clipboard after ten minutes (time enough to paste it on the Mac).
-                            UIPasteboard.general.setItems([["public.utf8-plain-text": command]], options: [.expirationDate: Date().addingTimeInterval(600)])
+                            SecretPasteboard.copy(command, minutes: 10)
                             copied = true
                         }
                         .buttonStyle(.bordered)

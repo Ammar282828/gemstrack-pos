@@ -30,6 +30,8 @@ struct NewOrder: View {
     @State private var draft = NewOrderDraft.fresh()
     /// The phone's copy has been read (and not before: an unread draft must never be overwritten).
     @State private var loaded = false
+    /// The business this screen was opened in: every draft and the save go to it, whatever is open when they run.
+    @State private var biz = House.business
     @State private var restored = false
     @State private var editing: NewOrderPieceRef?
     @State private var saving = false
@@ -111,7 +113,7 @@ struct NewOrder: View {
         book.orders.need()
         book.invoices.need()
         if !loaded {
-            if let saved = NewOrderDraftStore.load() {
+            if let saved = NewOrderDraftStore.load(business: biz.id) {
                 draft = saved
                 restored = true
                 Task { await stillOurs() }
@@ -129,9 +131,9 @@ struct NewOrder: View {
     /// The order kept on this phone is in Drafts too: one saved or thrown away at the counter since is not this
     /// phone's to save a second time, so it goes from here as well.
     private func stillOurs() async {
-        guard await WorkDraftSync.order.stillThere() == false, created == nil else { return }
-        NewOrderDraftStore.clear()
-        WorkDraftSync.order.forget()
+        guard await WorkDraftSync.order.stillThere(business: biz) == false, created == nil else { return }
+        NewOrderDraftStore.clear(business: biz.id)
+        WorkDraftSync.order.forget(biz.id)
         draft = NewOrderDraft.fresh()
         restored = false
         editing = nil
@@ -146,7 +148,7 @@ struct NewOrder: View {
         guard loaded, created == nil, edit == nil else { return }
         let d = draft
         let settings = book.settings.value
-        WorkDraftSync.order.push(blank: d.isBlank, enabled: settings?.autoDraftForms ?? true, now: now) {
+        WorkDraftSync.order.push(blank: d.isBlank, enabled: settings?.autoDraftForms ?? true, now: now, business: biz) {
             WorkDraftSync.Snapshot(
                 values: d.webValues(settings: settings),
                 total: NewOrderMath.totals(d, settings).balance,
@@ -315,13 +317,14 @@ struct NewOrder: View {
             settingsValue: book.settings.value,
             keep: { keepNow() },
             sync: { sync() },
+            business: biz.id,
             seed: { seedRates() }
         )
     }
 
     private func keepNow() {
         guard loaded, created == nil, edit == nil else { return }
-        NewOrderDraftStore.save(draft, now: true)
+        NewOrderDraftStore.save(draft, now: true, business: biz.id)
         sync(now: true)
     }
 
@@ -453,8 +456,8 @@ struct NewOrder: View {
     }
 
     private func startOver() {
-        NewOrderDraftStore.clear()
-        WorkDraftSync.order.drop()
+        NewOrderDraftStore.clear(business: biz.id)
+        WorkDraftSync.order.drop(business: biz)
         draft = NewOrderDraft.fresh()
         restored = false
         editing = nil
@@ -468,10 +471,13 @@ struct NewOrder: View {
     /// THE action of the screen: Save, with the balance in the line above it.
     private func saveBar(_ totals: NewOrderMath.Totals) -> some View {
         let word = totals.balance < 0 ? "Credit to customer " : "Balance due "
-        return ActionBar(
-            primary: .init(edit == nil ? "Save order" : "Save changes", isBusy: saving) { Task { await save() } },
-            summary: word + Money.pkr(abs(totals.balance))
-        )
+        return VStack(spacing: 0) {
+            UpdateBanner()
+            ActionBar(
+                primary: .init(edit == nil ? "Save order" : "Save changes", isBusy: saving, isDisabled: UpdateGate.blocked) { Task { await save() } },
+                summary: word + Money.pkr(abs(totals.balance))
+            )
+        }
         .padding(.top, 8)
     }
 
@@ -511,7 +517,7 @@ struct NewOrder: View {
             // The form's edit path: the ERP lays these fields over the order on file and its pieces.
             let request = NewOrderMath.editRequest(draft, edit: edit, settings: settings, customers: people)
             do {
-                _ = try await ERPAPI.shared.write("updateOrder", request)
+                _ = try await ERPAPI.shared.write("updateOrder", request, business: biz)
                 savedEdit = true
                 saves += 1
                 if let order = request["order"] as? [String: Any] { offerSizes(order) }
@@ -525,17 +531,17 @@ struct NewOrder: View {
         }
         let request = NewOrderMath.request(draft, settings: settings, customers: people)
         do {
-            let out = try await ERPAPI.shared.write("createOrder", request)
+            let out = try await ERPAPI.shared.write("createOrder", request, business: biz)
             guard let made = out["order"] as? [String: Any], let id = made["id"] as? String, !id.isEmpty else {
                 throw ERPAPI.Failure(status: 0, message: "The ERP saved the order but didn't say its number. Look for it in Orders.")
             }
-            NewOrderDraftStore.clear()
-            WorkDraftSync.order.drop()
+            NewOrderDraftStore.clear(business: biz.id)
+            WorkDraftSync.order.drop(business: biz)
             // Made from the sale in progress: the pieces are the order's now, and leaving them on the sale would
             // bill the same pieces a second time (the web clears the cart).
             if draft.fromSale {
-                SaleDraftStore.clear()
-                WorkDraftSync.sale.drop()
+                SaleDraftStore.clear(business: biz.id)
+                WorkDraftSync.sale.drop(business: biz)
             }
             saves += 1
             offerSizes(made)
@@ -569,6 +575,7 @@ struct NewOrderKeeping: ViewModifier {
     let keep: () -> Void
     /// Drafts' copy, a second after this phone's (WorkDraftSync).
     let sync: () -> Void
+    let business: String
     let seed: () -> Void
 
     @Environment(\.scenePhase) private var scenePhase
@@ -578,7 +585,7 @@ struct NewOrderKeeping: ViewModifier {
             .task(id: draft) {
                 guard loaded else { return }
                 do { try await Task.sleep(for: .milliseconds(700)) } catch { return }
-                NewOrderDraftStore.save(draft)
+                NewOrderDraftStore.save(draft, business: business)
                 sync()
             }
             .onChange(of: scenePhase) { _, phase in

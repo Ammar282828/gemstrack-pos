@@ -139,6 +139,8 @@ private struct SettingsLabelStandard: Decodable {
 
 private struct LabelDesigner: View {
     @Environment(Book.self) private var book
+    /// The business this screen was opened in: the layout is saved there even if it closes after a switch.
+    @State private var biz = House.business
     @State private var doc = Single<SettingsLabelDoc>(Collections.settings, Collections.globalSettingsDoc)
     @State private var standard: SettingsLabelLayout?
     @State private var layout: SettingsLabelLayout?
@@ -221,7 +223,7 @@ private struct LabelDesigner: View {
         saving = true
         do {
             // `seq` makes each save its own: a field moved and moved back is a new change, not one sent twice.
-            try await ERPAPI.shared.write("saveLabelLayout", ["layout": next.stored, "seq": UUID().uuidString])
+            try await ERPAPI.shared.write("saveLabelLayout", ["layout": next.stored, "seq": UUID().uuidString], business: biz)
             if layout == next { edited = false }
         } catch {
             problem = "The layout was not saved. Check the connection; it will try again on the next change. \(error.localizedDescription)"

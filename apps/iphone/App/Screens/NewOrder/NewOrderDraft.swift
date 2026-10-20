@@ -401,8 +401,8 @@ enum NewOrderDraftStore {
             .appendingPathComponent("order-photos", isDirectory: true)
     }
 
-    static func load() -> NewOrderDraft? {
-        let biz = House.id
+    static func load(business: String? = nil) -> NewOrderDraft? {
+        let biz = business ?? House.id
         return queue.sync {
             guard let data = UserDefaults.standard.data(forKey: key(for: biz)),
                   var draft = try? JSONDecoder().decode(NewOrderDraft.self, from: data),
@@ -419,9 +419,9 @@ enum NewOrderDraftStore {
 
     /// `now` is for the moment the screen or the app is going away: the write is still off the main thread (the
     /// encode can be heavy), under a few seconds the phone lends so it finishes after the app has left.
-    static func save(_ draft: NewOrderDraft, now: Bool = false) {
-        // A screen leaving just after a business switch saves for the business it was in.
-        let biz = now ? BusinessSwitchPin.id() : House.id
+    static func save(_ draft: NewOrderDraft, now: Bool = false, business: String? = nil) {
+        // A screen passes the business it was opened in, so leaving after a switch never writes into the next one.
+        let biz = business ?? (now ? BusinessSwitchPin.id() : House.id)
         if now {
             ProcessInfo.processInfo.performExpiringActivity(withReason: "erp.orderDraft") { expired in
                 guard !expired else { return }
@@ -432,8 +432,8 @@ enum NewOrderDraftStore {
         }
     }
 
-    static func clear() {
-        let biz = House.id
+    static func clear(business: String? = nil) {
+        let biz = business ?? House.id
         queue.sync {
             UserDefaults.standard.removeObject(forKey: key(for: biz))
             if let dir = photoDir(biz) { try? FileManager.default.removeItem(at: dir) }
