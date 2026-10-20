@@ -41,6 +41,7 @@ struct Dashboard: View {
         .navigationTitle(title)
         .onAppear { needAll() }
         .onChange(of: session.role) { _, _ in needAll() }
+        .onChange(of: ready, initial: true) { _, isReady in if isReady { LaunchClock.finish("home") } }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 now = Date()

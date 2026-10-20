@@ -9,6 +9,7 @@ struct BusinessesScreen: View {
     var inSheet = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage(LaunchPicker.key) private var askAtLaunch = true
     @FocusState private var typing: Bool
     /// The email signed in to each business, by id; read once the screen is up (it makes each business's Firebase app).
     @State private var who: [String: String] = [:]
@@ -40,6 +41,12 @@ struct BusinessesScreen: View {
                     LedgerHeading(title: "Your businesses", count: store.list.count)
                 } footer: {
                     Text("Each business keeps its own sign-in, books, drafts and alerts on this phone.")
+                }
+                if store.list.count > 1 && !House.isDemo {
+                    Section {
+                        Toggle("Ask which business on opening", isOn: $askAtLaunch)
+                            .savedFeedback(trigger: askAtLaunch)
+                    }
                 }
                 addSection
             }

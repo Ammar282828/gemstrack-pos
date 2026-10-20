@@ -82,6 +82,7 @@ struct MyWorkScreen: View {
         // The web's focus handler and its minute timer: a karigar has no live link to the books.
         .task {
             await load()
+            LaunchClock.finish("work")
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(60))
                 if Task.isCancelled { break }

@@ -11,6 +11,8 @@ struct ERPApp: App {
     init() {
         // The businesses first (this moves what the one-house builds kept), then the open one's session:
         // opened straight onto the books (Session's cached answer), the lock covers them from the first frame.
+        LaunchClock.armTimeout()
+        LaunchClock.mark("app:init")
         _ = Businesses.shared
         if Sessions.shared.current.state == .signedIn { AppLock.shared.launched(signedIn: true) }
     }
@@ -25,12 +27,20 @@ struct ERPApp: App {
 /// Follows the open business: its session is the environment, and the whole screen is rebuilt on its id when the
 /// business changes, so every `@State` below it (a tab, a draft in progress, a sheet) starts from nothing.
 private struct BusinessHost: View {
+    /// The cold start's business picker. Held here, above the `.id` below, so a switch never brings it back.
+    @State private var launch = LaunchPicker()
+
     var body: some View {
         let store = Businesses.shared
         let business = store.current
-        BusinessRoot(session: Sessions.shared.session(for: business))
+        BusinessRoot(session: Sessions.shared.session(for: business), launch: launch)
             .id(business.id)
-            .task { await Businesses.shared.refresh() }
+            .onAppear { LaunchClock.mark("frame:first") }
+            // The businesses describe themselves again once the launch is under way, not racing its first frame.
+            .task {
+                try? await Task.sleep(for: .seconds(2))
+                await Businesses.shared.refresh()
+            }
             // The switcher sits above the screens, not in them: a switch rebuilds those, and the sheet closes itself.
             .sheet(isPresented: Bindable(store).switcherOpen) {
                 NavigationStack { BusinessesScreen(inSheet: true) }
@@ -42,33 +52,49 @@ private struct BusinessHost: View {
 
 private struct BusinessRoot: View {
     let session: Session
+    let launch: LaunchPicker
     @State private var lock = AppLock.shared
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
             let locked = lock.locked || lock.covered
-            RootGate()
-                .environment(session)
-                .environment(Book.shared)
-                // Behind the cover nothing is reachable: not by touch, not by VoiceOver's swipe.
-                .accessibilityHidden(locked)
-                .allowsHitTesting(!locked)
-            if lock.locked || lock.covered { LockCover(lock: lock) }
+            // Not built in the picker's first pass: it paints, then the open business's books load beneath it.
+            if launch.mountsApp {
+                RootGate()
+                    .environment(session)
+                    .environment(Book.shared)
+                    // Behind the cover nothing is reachable: not by touch, not by VoiceOver's swipe.
+                    .accessibilityHidden(locked || launch.showing)
+                    .allowsHitTesting(!locked && !launch.showing)
+            }
+            // Above the app, below the lock: Face ID still guards the list of businesses.
+            if launch.showing {
+                BusinessPicker(launch: launch)
+                    .accessibilityHidden(locked)
+                    .allowsHitTesting(!locked)
+                    .transition(reduceMotion ? .opacity : .scale(scale: 1.06).combined(with: .opacity))
+                    .zIndex(1)
+            }
+            Group { if locked { LockCover(lock: lock) } }
+                .zIndex(2)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: locked)
         }
         .tint(Theme.accent)
         // Dates the way the shop writes them ("23 Oct 2026"), in the pickers as in ShopDate, whatever the
         // phone's region; the clock stays the phone's own.
         .environment(\.locale, Locale(identifier: "en_PK"))
-        .animation(.easeOut(duration: 0.2), value: lock.locked || lock.covered)
         .onChange(of: scenePhase) { _, phase in lock.phase(phase, signedIn: session.state == .signedIn) }
         // The list of businesses names people's emails: it does not stay over the lock.
         .onChange(of: lock.locked) { _, locked in if locked { Businesses.shared.switcherOpen = false } }
         // A cold start of a signed-in app asks for the face too; a fresh sign-in does not.
         .onChange(of: session.state) { old, new in
+            if new == .signedIn { LaunchClock.mark("session:signedIn", session.role) }
             if old == .starting && new == .signedIn { lock.launched(signedIn: true) }
             if new != .signedIn && lock.locked { lock.signedOut() }
         }
+        .onAppear { if session.state == .signedIn { LaunchClock.mark("session:signedIn", session.role) } }
         // The launch's own ask, if the app was not yet in front when the lock went up.
         .task { if lock.locked, UIApplication.shared.applicationState == .active { await lock.unlock() } }
     }
