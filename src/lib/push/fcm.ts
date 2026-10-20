@@ -17,6 +17,9 @@ export interface FcmAlert {
   url?: string;
   /** The push kind; also the Android notification channel's id. */
   kind: string;
+  /** The shop's name, shown under the title, and its business id for the tap. */
+  subtitle?: string;
+  business?: string;
 }
 
 export interface FcmOutcome {
@@ -34,8 +37,8 @@ export async function sendFcm(tokens: string[], alert: FcmAlert): Promise<FcmOut
   if (!tokens.length) return out;
   const res = await getMessaging(getApp()).sendEach(tokens.map((token) => ({
     token,
-    notification: { title: alert.title, body: alert.body },
-    data: { url: alert.url ?? '', kind: alert.kind },
+    notification: { title: alert.title, body: alert.subtitle ? `${alert.subtitle} · ${alert.body}` : alert.body },
+    data: { url: alert.url ?? '', kind: alert.kind, ...(alert.business ? { business: alert.business } : {}) },
     android: { priority: 'high' as const, notification: { channelId: alert.kind } },
   })));
   res.responses.forEach((r, i) => {

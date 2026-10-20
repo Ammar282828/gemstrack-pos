@@ -102,3 +102,47 @@ struct LockCover: View {
         .transition(.opacity)
     }
 }
+
+/// The cover in a window of its own, above every sheet, full-screen cover, menu and alert of the app's window (a
+/// SwiftUI ZStack can only cover what it contains), and so in the app switcher's snapshot. Made once, moved to the
+/// active scene, gone the moment the lock is.
+@MainActor
+final class LockWindow {
+    static let shared = LockWindow()
+    private var window: UIWindow?
+
+    func update(show: Bool) {
+        if show { present() } else { dismiss() }
+    }
+
+    private func present() {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive }
+            ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        guard let scene else { return }
+        if let window, window.windowScene === scene { window.isHidden = false; return }
+        window?.isHidden = true
+        let host = UIHostingController(rootView: LockCoverHost())
+        host.view.backgroundColor = .clear
+        // VoiceOver stays on the cover: nothing beneath it is reachable.
+        host.view.accessibilityViewIsModal = true
+        let w = UIWindow(windowScene: scene)
+        w.windowLevel = UIWindow.Level.alert + 1
+        w.rootViewController = host
+        w.isHidden = false
+        window = w
+        UIAccessibility.post(notification: .screenChanged, argument: host.view)
+    }
+
+    private func dismiss() {
+        window?.isHidden = true
+        window = nil
+    }
+}
+
+private struct LockCoverHost: View {
+    @State private var lock = AppLock.shared
+    var body: some View {
+        LockCover(lock: lock)
+    }
+}

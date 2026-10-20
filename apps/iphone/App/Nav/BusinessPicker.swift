@@ -50,6 +50,7 @@ struct BusinessPicker: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var entered = false
     @State private var tick = 0
+    @ScaledMetric(relativeTo: .title3) private var badge: CGFloat = 56
 
     var body: some View {
         let store = Businesses.shared
@@ -98,11 +99,11 @@ struct BusinessPicker: View {
 
     private func card(_ b: Business, last: Bool) -> some View {
         HStack(spacing: 16) {
-            BusinessBadge(business: b, size: 56)
+            BusinessBadge(business: b, size: badge)
             VStack(alignment: .leading, spacing: 4) {
                 Text(b.displayName).font(.title3.weight(.semibold)).foregroundStyle(.primary)
                 if let email = signedInEmail(b) {
-                    Text(email).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    Text(email).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 if last {
                     Text("Last opened").font(.caption).foregroundStyle(.tertiary)

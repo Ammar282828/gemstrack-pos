@@ -77,24 +77,35 @@ private struct BusinessRoot: View {
                     .transition(reduceMotion ? .opacity : .scale(scale: 1.06).combined(with: .opacity))
                     .zIndex(1)
             }
-            Group { if locked { LockCover(lock: lock) } }
-                .zIndex(2)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: locked)
+            // The cover itself is a window above everything (LockWindow), so a presented sheet or menu is under it too.
         }
         .tint(Theme.accent)
         // Dates the way the shop writes them ("23 Oct 2026"), in the pickers as in ShopDate, whatever the
         // phone's region; the clock stays the phone's own.
         .environment(\.locale, Locale(identifier: "en_PK"))
-        .onChange(of: scenePhase) { _, phase in lock.phase(phase, signedIn: session.state == .signedIn) }
+        .onChange(of: scenePhase) { _, phase in
+            lock.phase(phase, signedIn: session.state == .signedIn)
+            // The window follows the scene: a move to another scene brings it along.
+            LockWindow.shared.update(show: lock.locked || lock.covered)
+        }
+        .onChange(of: lock.covered) { _, _ in LockWindow.shared.update(show: lock.locked || lock.covered) }
         // The list of businesses names people's emails: it does not stay over the lock.
-        .onChange(of: lock.locked) { _, locked in if locked { Businesses.shared.switcherOpen = false } }
+        .onChange(of: lock.locked) { _, locked in
+            if locked { Businesses.shared.switcherOpen = false }
+            LockWindow.shared.update(show: lock.locked || lock.covered)
+            // A tapped notification waits for the face, then opens.
+            if !locked { AppRouter.shared.lockPassed() }
+        }
         // A cold start of a signed-in app asks for the face too; a fresh sign-in does not.
         .onChange(of: session.state) { old, new in
             if new == .signedIn { LaunchClock.mark("session:signedIn", session.role) }
             if old == .starting && new == .signedIn { lock.launched(signedIn: true) }
             if new != .signedIn && lock.locked { lock.signedOut() }
         }
-        .onAppear { if session.state == .signedIn { LaunchClock.mark("session:signedIn", session.role) } }
+        .onAppear {
+            if session.state == .signedIn { LaunchClock.mark("session:signedIn", session.role) }
+            LockWindow.shared.update(show: lock.locked || lock.covered)
+        }
         // The launch's own ask, if the app was not yet in front when the lock went up.
         .task { if lock.locked, UIApplication.shared.applicationState == .active { await lock.unlock() } }
     }

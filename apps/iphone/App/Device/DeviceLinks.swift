@@ -38,7 +38,25 @@ final class AppRouter {
     /// Opens a page of a business that may not be the open one (a tapped notification names its business):
     /// the business is switched to first, then the page opens over its screens.
     func route(path: String, business id: String?) {
-        if let id, id != House.id, Businesses.shared.business(id) != nil { Businesses.shared.switch(to: id) }
+        // Behind the lock a tap waits: the business is switched and the page opened once the face has passed.
+        if AppLock.shared.locked { pending = (path, id); return }
+        go(path: path, business: id)
+    }
+
+    func lockPassed() {
+        guard let p = pending else { return }
+        pending = nil
+        go(path: p.path, business: p.business)
+    }
+
+    private var pending: (path: String, business: String?)?
+
+    private func go(path: String, business id: String?) {
+        if let id, id != House.id {
+            // A business that is not on this phone: the app opens, nothing is routed into the wrong books.
+            guard Businesses.shared.business(id) != nil else { return }
+            Businesses.shared.switch(to: id)
+        }
         open = Route(path: path)
     }
 }

@@ -56,7 +56,7 @@ describe('who a notification goes to', () => {
     const r = await pushToShop(m);
     expect(r).toMatchObject({ status: 'sent', sent: 2, phones: 2 });
     expect(vi.mocked(sendApns).mock.calls[0][1]).toEqual([{ token: APNS, bundleId: 'shop.taheri.erp' }]);
-    expect(vi.mocked(sendFcm).mock.calls[0]).toEqual([[FCM], { title: 'Sale', body: 'INV-1', url: '/invoices/INV-1', kind: 'sales' }]);
+    expect(vi.mocked(sendFcm).mock.calls[0]).toEqual([[FCM], expect.objectContaining({ title: 'Sale', body: 'INV-1', url: '/invoices/INV-1', kind: 'sales', business: 'taheri' })]);
   });
   it('still sends to Android when no Apple key is set', async () => {
     vi.mocked(store.loadApnsKey).mockResolvedValue(null);

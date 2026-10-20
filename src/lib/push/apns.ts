@@ -19,13 +19,18 @@ export interface ApnsAlert {
   url?: string;
   /** Groups the shop's notifications by kind in Notification Centre. */
   thread?: string;
+  /** The shop's name under the title, so a phone that holds two businesses says whose it is. */
+  subtitle?: string;
+  /** The business id (/api/app/business `id`): a tap on the phone switches to it before opening the page. */
+  business?: string;
 }
 
 /** The payload Apple delivers to the phone. */
 export function apnsPayload(a: ApnsAlert) {
   return {
-    aps: { alert: { title: a.title, body: a.body }, sound: 'default', ...(a.thread ? { 'thread-id': a.thread } : {}) },
+    aps: { alert: { title: a.title, ...(a.subtitle ? { subtitle: a.subtitle } : {}), body: a.body }, sound: 'default', ...(a.thread ? { 'thread-id': a.thread } : {}) },
     ...(a.url ? { url: a.url } : {}),
+    ...(a.business ? { business: a.business } : {}),
   };
 }
 

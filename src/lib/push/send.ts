@@ -19,6 +19,7 @@
 
 import { adminDb } from '@/lib/firebase-admin';
 import { roleForEmail } from '@/lib/roles';
+import { STORE_BRAND, STORE_CONFIG } from '@/lib/store-config';
 import type { AlertDoc } from '@/lib/notifications/doc';
 import { sendApns } from './apns';
 import { sendFcm } from './fcm';
@@ -88,10 +89,11 @@ export async function pushToShop(m: PushMessage, only?: { token: string }): Prom
     if (ios.length && !android.length && !key) { warnNoKey(m.kind); return { status: 'no-key' }; }
     if (!devices.length) { console.warn(`[push] no devices: ${m.kind}`); return { status: 'none', phones: 0 }; }
     if (m.key && !(await claim(`${m.kind}_${m.key}`))) return { status: 'already' };
-    const alert = { title: m.title, body: m.body, url: m.url };
+    // Which house this server is (the same id /api/app/business gives): one phone holds several businesses.
+    const alert = { title: m.title, body: m.body, url: m.url, subtitle: STORE_CONFIG.name, business: STORE_BRAND };
     const nothing = { sent: 0, gone: [] as string[], failed: [] as { token: string; status: number; reason: string }[] };
     const [apns, fcm] = await Promise.all([
-      key && ios.length ? sendApns(key, ios.map((d) => ({ token: d.token, bundleId: d.bundleId })), { ...alert, thread: m.kind }) : nothing,
+      key && ios.length ? sendApns(key, ios.map((d) => ({ token: d.token, bundleId: d.bundleId })), { ...alert, thread: `${STORE_BRAND}:${m.kind}` }) : nothing,
       android.length ? sendFcm(android.map((d) => d.token), { ...alert, kind: m.kind }) : nothing,
     ]);
     const gone = [...apns.gone, ...fcm.gone];

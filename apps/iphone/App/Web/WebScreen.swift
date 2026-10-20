@@ -65,7 +65,9 @@ private struct WebView: UIViewRepresentable {
         web.navigationDelegate = context.coordinator
         web.uiDelegate = context.coordinator
         web.allowsBackForwardNavigationGestures = true
+        #if DEBUG
         web.isInspectable = true
+        #endif
         let refresh = UIRefreshControl()
         refresh.addTarget(context.coordinator, action: #selector(Coordinator.reload(_:)), for: .valueChanged)
         web.scrollView.refreshControl = refresh

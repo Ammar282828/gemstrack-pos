@@ -50,6 +50,13 @@ describe('what goes to Apple', () => {
       url: '/invoices/INV-000083',
     });
   });
+  it('names the business and the shop, for a phone that holds several', () => {
+    expect(apnsPayload({ title: 'Sale', body: 'b', url: '/x', thread: 'mina:sales', subtitle: 'House of Mina', business: 'mina' })).toEqual({
+      aps: { alert: { title: 'Sale', subtitle: 'House of Mina', body: 'b' }, sound: 'default', 'thread-id': 'mina:sales' },
+      url: '/x',
+      business: 'mina',
+    });
+  });
   it('sorts the WhatsApp alerts into the phone\'s kinds', () => {
     expect(kindOfDoc({ kind: 'sale' })).toBe('sales');
     expect(kindOfDoc({ kind: 'online-slip' })).toBe('payments');
