@@ -19,6 +19,7 @@ import { BACKGROUND_REMOVAL, removeBackground } from '@/lib/social/retouch';
 import { designFail, designGate, noStore } from '@/lib/design/gate';
 import { bounded, imageFromRequest } from '@/lib/design/image-in';
 import { ANALYZE_SCHEMA, ANALYZE_SYSTEM, DESIGN_LAYERS, normalizeAnalysis, planSplit } from '@/lib/design/layers';
+import { dailyCap, dailyCapForRequest, AI_PER_DAY, WHATSAPP_PER_DAY, INSTAGRAM_PER_DAY } from '@/lib/daily-cap';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,8 @@ export async function POST(req: NextRequest) {
   if (!DESIGN_LAYERS) return NextResponse.json({ error: 'The layer splitter is off.' }, { status: 404 });
   const who = await designGate(req, 'ads');
   if (who instanceof NextResponse) return who;
+  const capped = await dailyCap('ai', who, req, AI_PER_DAY);
+  if (capped) return capped;
   try {
     const img = await imageFromRequest(req);
     const frame = { w: img.width, h: img.height };

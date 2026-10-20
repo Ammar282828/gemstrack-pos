@@ -30,5 +30,5 @@ export async function staffGate(req: NextRequest): Promise<string | NextResponse
 export function staffFail(e: unknown, label: string) {
   if (e instanceof FulfilmentError) return NextResponse.json({ error: e.message }, { status: e.status });
   console.error(`[${label}]`, e);
-  return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed' }, { status: 500 });
+  return NextResponse.json({ error: 'Something went wrong. Try again; if it keeps happening, tell the shop admin.' }, { status: 500 });
 }

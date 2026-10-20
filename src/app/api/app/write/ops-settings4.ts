@@ -17,7 +17,7 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { adminPort } from '@/lib/db-admin-port';
 import { planBookImport, type TaheriBook } from '@/lib/import/taheri-book';
-import bookJson from '@/lib/import/taheri-book.json';
+import { loadTaheriBook } from '@/lib/import/taheri-book-server';
 import { customerIdMaker } from '@/lib/writes/new-customer';
 import { gather } from '@/lib/writes/gathered';
 import { bookHalfMatches, bookPlanFingerprint, bookWillAdd, ledgerCounts, runBookImport } from '@/lib/writes/taheri-book-import';
@@ -29,13 +29,13 @@ export const SETTINGS4_OPS: OpRoles = {
   importTaheriBook: ['owner'],
 };
 
-const book = bookJson as TaheriBook;
-
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
 
 export const runSettings4Op: OpHandler = async (op, body, ctx) => {
   switch (op) {
     case 'importTaheriBook': {
+      const book: TaheriBook | null = await loadTaheriBook();
+      if (!book) return bad('No book', 404);
       const people = await readPeople();
       const plan = planBookImport(book, people.customers, people.karigars);
       const takeConflicts = body.takeConflicts === true;

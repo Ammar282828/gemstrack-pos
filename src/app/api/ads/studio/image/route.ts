@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adsGate } from '@/lib/ads/gate';
 import { STORE_AD_STUDIO } from '@/lib/store-config';
 import { assetImage } from '@/lib/ads/studio/assets';
+import { dailyCap, dailyCapForRequest, AI_PER_DAY, WHATSAPP_PER_DAY, INSTAGRAM_PER_DAY } from '@/lib/daily-cap';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -18,6 +19,8 @@ export const maxDuration = 60;
 export async function GET(req: NextRequest) {
   const who = await adsGate(req, STORE_AD_STUDIO);
   if (who instanceof NextResponse) return who;
+  const capped = await dailyCap('ai', who, req, AI_PER_DAY);
+  if (capped) return capped;
   const q = req.nextUrl.searchParams;
   const id = q.get('id') || '';
   const size = Math.min(3000, Math.max(160, Number(q.get('size')) || 1080));

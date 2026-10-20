@@ -40,7 +40,7 @@ export function designFail(e: unknown, where: string): NextResponse {
   const status = (e as { status?: unknown })?.status;
   if (typeof status === 'number' && status >= 400 && status < 500 && e instanceof Error) return NextResponse.json({ error: e.message }, { status });
   console.error(`[design] ${where}:`, e);
-  return NextResponse.json({ error: e instanceof Error ? e.message : 'Something went wrong' }, { status: 500 });
+  return NextResponse.json({ error: 'Something went wrong. Try again; if it keeps happening, tell the shop admin.' }, { status: 500 });
 }
 
 export const noStore = { 'Cache-Control': 'no-store' };

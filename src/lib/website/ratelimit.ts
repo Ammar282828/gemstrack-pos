@@ -50,8 +50,31 @@ export async function refundRateLimit(scope: string, caller: string): Promise<vo
   }).catch(() => {});
 }
 
-/** The caller's address as the App Hosting proxy reports it. */
+/**
+ * Addresses that are our own plumbing, not a caller: private ranges and Google's load-balancer / health-check
+ * ranges (35.191.0.0/16, 130.211.0.0/22), which a front end can append after the client's address.
+ */
+function plumbing(ip: string): boolean {
+  const m = ip.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (!m) return /^(::1|f[cd]|fe[89ab])/i.test(ip);
+  const [a, b, c] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31)
+    || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127)
+    || (a === 35 && b === 191) || (a === 130 && b === 211 && c <= 3);
+}
+
+/**
+ * The caller's address. X-Forwarded-For is "whatever the caller sent, then each hop appends the address it saw":
+ * Google's front end (Cloud Run behind App Hosting) adds the real client address at the RIGHT, so the left-most
+ * entry is the caller's own claim and anyone can forge it (one fresh value per request defeats every per-IP
+ * limit). We therefore read from the right and take the first entry that is not our own plumbing (private
+ * ranges, Google's load balancer). If every entry is plumbing, fall back to x-real-ip, then 'unknown'.
+ * (Not verifiable from this repo: if a deploy ever shows all callers sharing one key, check which hop is last.)
+ */
 export function callerKey(headers: Headers): string {
-  const fwd = headers.get('x-forwarded-for') || '';
-  return fwd.split(',')[0].trim() || headers.get('x-real-ip') || 'unknown';
+  const hops = (headers.get('x-forwarded-for') || '').split(',').map(h => h.trim()).filter(Boolean);
+  for (let i = hops.length - 1; i >= 0; i--) {
+    if (!plumbing(hops[i])) return hops[i];
+  }
+  return headers.get('x-real-ip') || 'unknown';
 }

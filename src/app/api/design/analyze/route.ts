@@ -17,6 +17,7 @@ import { bounded, imageFromRequest } from '@/lib/design/image-in';
 import { ANALYZE_SCHEMA, ANALYZE_SYSTEM, normalizeAnalysis, type Analysis } from '@/lib/design/layers';
 import { ASSETS, docIdOf } from '@/lib/ads/studio/assets';
 import { headlineOf } from '@/lib/website/site-photo';
+import { dailyCap, dailyCapForRequest, AI_PER_DAY, WHATSAPP_PER_DAY, INSTAGRAM_PER_DAY } from '@/lib/daily-cap';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,8 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   const who = await designGate(req, 'post');
   if (who instanceof NextResponse) return who;
+  const capped = await dailyCap('ai', who, req, AI_PER_DAY);
+  if (capped) return capped;
   try {
     const img = await imageFromRequest(req);
     const base = { width: img.width, height: img.height, name: headlineOf(img.name.replace(/\.[a-z0-9]{2,5}$/i, '').replace(/[-_]+/g, ' ')) };

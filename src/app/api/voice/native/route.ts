@@ -8,6 +8,7 @@ import type { Book } from '@/lib/voice/args';
 import type { HisaabEntry } from '@/lib/store';
 import { DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL } from '@/lib/pricing';
 import { POST as listen } from '../listen/route';
+import { dailyCap, dailyCapForRequest, AI_PER_DAY, WHATSAPP_PER_DAY, INSTAGRAM_PER_DAY } from '@/lib/daily-cap';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -44,6 +45,8 @@ export async function POST(req: NextRequest) {
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (roleForEmail(email) !== 'owner') return NextResponse.json({ error: 'Not available on this account.' }, { status: 403 });
+  const capped = await dailyCap('ai', email, req, AI_PER_DAY);
+  if (capped) return capped;
   let input: Record<string, unknown>;
   try { input = await req.json(); } catch { return NextResponse.json({ error: 'Could not read the request.' }, { status: 400 }); }
   if (!input || Array.isArray(input) || typeof input !== 'object') return NextResponse.json({ error: 'A sentence is needed.' }, { status: 400 });

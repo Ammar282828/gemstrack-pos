@@ -17,6 +17,7 @@ import { sendWhatsAppFile, toWhatsAppNumber, whatsAppNumberExists, whatsAppProvi
 import { invoiceFileName, invoiceWhatsAppCaption } from '@/lib/invoice-share';
 import { STORE_CONFIG, STORE_INVOICE_BY_CUSTOMER, STORE_INVOICE_WHATSAPP_PDF } from '@/lib/store-config';
 import type { Invoice } from '@/lib/store';
+import { dailyCap, dailyCapForRequest, AI_PER_DAY, WHATSAPP_PER_DAY, INSTAGRAM_PER_DAY } from '@/lib/daily-cap';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -27,6 +28,8 @@ const MAX_BYTES = 8 * 1024 * 1024;
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const who = await staffGate(req);
   if (who instanceof NextResponse) return who;
+  const capped = await dailyCap('whatsapp', who, req, WHATSAPP_PER_DAY);
+  if (capped) return capped;
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as { to?: string; pdf?: string };
 

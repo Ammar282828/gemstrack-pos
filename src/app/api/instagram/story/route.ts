@@ -9,6 +9,7 @@ import { postGate, mediaOrigin } from '@/lib/social/gate';
 import { InstagramError } from '@/lib/social/instagram';
 import { postStoryImage } from '@/lib/social/story-post';
 import { recordError } from '@/lib/social/errors';
+import { dailyCap, dailyCapForRequest, AI_PER_DAY, WHATSAPP_PER_DAY, INSTAGRAM_PER_DAY } from '@/lib/daily-cap';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -16,6 +17,8 @@ export const maxDuration = 120;
 export async function POST(req: NextRequest) {
   const who = await postGate(req);
   if (who instanceof NextResponse) return who;
+  const capped = await dailyCap('instagram', who, req, INSTAGRAM_PER_DAY);
+  if (capped) return capped;
   const form = await req.formData().catch(() => null);
   const file = form?.get('file');
   if (!(file instanceof File)) return NextResponse.json({ error: 'No story image was received.' }, { status: 400 });

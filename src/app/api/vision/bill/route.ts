@@ -17,6 +17,7 @@ import { roleForEmail } from '@/lib/roles';
 import { generateJson, geminiConfigured, GeminiError } from '@/lib/voice/gemini';
 import { scanModel } from '@/lib/vision/scan-model';
 import { ORDER_CATEGORIES } from '@/lib/vision/order-draft';
+import { dailyCap, dailyCapForRequest, AI_PER_DAY, WHATSAPP_PER_DAY, INSTAGRAM_PER_DAY } from '@/lib/daily-cap';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -123,6 +124,8 @@ RULES, hardest first:
 export async function POST(req: NextRequest) {
   const denied = await denyUnlessOwner(req);
   if (denied) return denied;
+  const capped = await dailyCapForRequest('ai', req, AI_PER_DAY);
+  if (capped) return capped;
 
   if (!geminiConfigured()) {
     return NextResponse.json({ error: 'Scanning is not set up on this deployment.' }, { status: 503 });

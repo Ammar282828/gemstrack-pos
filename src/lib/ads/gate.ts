@@ -44,7 +44,7 @@ export function adsFail(e: unknown, where: string): NextResponse {
   }
   if (e instanceof SecretError) return NextResponse.json({ error: e.message }, { status: e.status });
   console.error(`[ads] ${where}:`, e);
-  return NextResponse.json({ error: e instanceof Error ? e.message : 'Something went wrong' }, { status: 500 });
+  return NextResponse.json({ error: 'Something went wrong. Try again; if it keeps happening, tell the shop admin.' }, { status: 500 });
 }
 
 export const noStore = { 'Cache-Control': 'no-store' };

@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { designFail, designGate, noStore } from '@/lib/design/gate';
 import { publicUrl } from '@/lib/ads/studio/outside-image';
 import { fetchPicture } from '@/lib/design/parse-url';
+import { dailyCap, dailyCapForRequest, AI_PER_DAY, WHATSAPP_PER_DAY, INSTAGRAM_PER_DAY } from '@/lib/daily-cap';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,8 @@ export const maxDuration = 40;
 export async function GET(req: NextRequest) {
   const who = await designGate(req, 'post');
   if (who instanceof NextResponse) return who;
+  const capped = await dailyCap('ai', who, req, AI_PER_DAY);
+  if (capped) return capped;
   const u = publicUrl(req.nextUrl.searchParams.get('url') || '');
   if (!u) return NextResponse.json({ error: 'Paste a web address (https://…).' }, { status: 400 });
   try {

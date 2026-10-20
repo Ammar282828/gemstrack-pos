@@ -21,6 +21,7 @@ import { bounded } from '@/lib/design/image-in';
 import { pieceSpecs } from '@/lib/ads/studio/specs';
 import { headlineOf } from '@/lib/website/site-photo';
 import { getSitePieces, siteOrigin } from '@/lib/website/site-pieces';
+import { dailyCap, dailyCapForRequest, AI_PER_DAY, WHATSAPP_PER_DAY, INSTAGRAM_PER_DAY } from '@/lib/daily-cap';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -137,6 +138,8 @@ async function fromSku(sku: string): Promise<ParseResponse> {
 export async function POST(req: NextRequest) {
   const who = await designGate(req, 'post');
   if (who instanceof NextResponse) return who;
+  const capped = await dailyCap('ai', who, req, AI_PER_DAY);
+  if (capped) return capped;
   try {
     const body = await req.json().catch(() => null) as { input?: unknown; ai?: unknown } | null;
     const input = typeof body?.input === 'string' ? body.input.trim() : '';

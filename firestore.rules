@@ -49,8 +49,16 @@ service cloud.firestore {
     // Sign-in audit trail: any authenticated account may record its own
     // sign-in, but only owners can read the log back.
     match /signInLogs/{logId} {
+      // Only your own, verified address, only the fields the sign-in gate writes, bounded in size
+      // (any Google account can authenticate to this project, so this is the limit on log spam).
       allow create: if request.auth != null
-        && request.resource.data.uid == request.auth.uid;
+        && request.auth.token.email_verified == true
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'browser', 'os', 'userAgent', 'timestamp'])
+        && (!('userAgent' in request.resource.data) || (request.resource.data.userAgent is string && request.resource.data.userAgent.size() <= 400))
+        && (!('displayName' in request.resource.data) || request.resource.data.displayName == null || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 200))
+        && (!('photoURL' in request.resource.data) || request.resource.data.photoURL == null || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() <= 500));
       allow read, update, delete: if isOwner();
     }
 
@@ -76,6 +84,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /website_slips/{id} {
+      allow read, write: if false;
+    }
+
+    // The one-off customer book (app_private/taheri_book) and the app-launch log: Admin SDK only. Owners read
+    // them through the server, never from a browser.
+    match /app_private/{id} {
+      allow read, write: if false;
+    }
+    match /app_launches/{id} {
       allow read, write: if false;
     }
 

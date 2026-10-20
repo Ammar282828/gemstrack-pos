@@ -17,7 +17,7 @@ import React, { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { planBookImport, type BookPlan, type Planned, type IncomingCustomer, type IncomingKarigar, type TaheriBook } from '@/lib/import/taheri-book';
-import bookJson from '@/lib/import/taheri-book.json';
+import { auth as firebaseAuth } from '@/lib/firebase';
 import { bookImportRows, bookWillAdd, ledgerCounts } from '@/lib/writes/taheri-book-import';
 import { PageShell } from '@/components/shared/page-shell';
 import { PageBack } from '@/components/shared/page-back';
@@ -29,10 +29,30 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Briefcase, Database, Loader2, TriangleAlert, Users } from 'lucide-react';
 
-const book = bookJson as TaheriBook;
+const NO_BOOK: TaheriBook = { source: '', customers: [], karigars: [] };
 
 export default function ImportTaheriPage() {
   const { toast } = useToast();
+  // The book is the owners' and no longer ships in the code: the server hands it over (/api/app/taheri-book).
+  const [fetched, setFetched] = useState<TaheriBook | null>(null);
+  const [bookError, setBookError] = useState<string | null>(null);
+  React.useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const t = await firebaseAuth?.currentUser?.getIdToken();
+        const res = await fetch('/api/app/taheri-book', { headers: t ? { Authorization: `Bearer ${t}` } : {} });
+        const j = await res.json().catch(() => ({}));
+        if (!live) return;
+        if (!res.ok) setBookError(res.status === 404 ? 'This house has no old book to import.' : (j?.error || 'Could not load the book.'));
+        else setFetched(j as TaheriBook);
+      } catch {
+        if (live) setBookError('Could not load the book.');
+      }
+    })();
+    return () => { live = false; };
+  }, []);
+  const book = fetched ?? NO_BOOK;
   const customers = useAppStore((s) => s.customers);
   const karigars = useAppStore((s) => s.karigars);
   const addCustomer = useAppStore((s) => s.addCustomer);
@@ -135,6 +155,18 @@ export default function ImportTaheriPage() {
       </div>
     );
   };
+
+  if (!fetched) {
+    return (
+      <PageShell
+        title="Import the Taheri Software book"
+        icon={<Database className="h-6 w-6" />}
+        action={<PageBack fallback="/settings" />}
+      >
+        <p className="text-sm text-muted-foreground">{bookError ?? 'Loading the book…'}</p>
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell

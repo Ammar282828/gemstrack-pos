@@ -34,6 +34,16 @@ export async function GET(request: NextRequest) {
   }
 
   const shop = searchParams.get('shop')!;
+  // The sign-in cookie only proves the same browser started the install, and /auth is open, so a stranger can
+  // install the app on a shop of their own. Never re-point the ERP at a different shop than the one connected.
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shop)) {
+    return NextResponse.redirect(`${appUrl}/settings?shopify=error&reason=shop`);
+  }
+  const current = String((await adminDb.collection('app_settings').doc('global').get()).get('shopifyStoreDomain') || '').toLowerCase();
+  if (current && current !== shop.toLowerCase()) {
+    console.warn('[shopify/callback] refused: install is for a different shop than the connected one');
+    return NextResponse.redirect(`${appUrl}/settings?shopify=error&reason=other-shop`);
+  }
   const code = searchParams.get('code')!;
 
   // Exchange code for access token

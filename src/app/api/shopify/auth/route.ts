@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { adminDb } from '@/lib/firebase-admin';
 
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY!;
 const SCOPES = 'read_orders,write_orders,read_customers,write_customers,read_products,write_products,read_draft_orders,write_draft_orders';
@@ -9,6 +10,12 @@ export async function GET(request: NextRequest) {
 
   if (!shop || !shop.endsWith('.myshopify.com')) {
     return NextResponse.json({ error: 'Invalid or missing shop parameter' }, { status: 400 });
+  }
+
+  // Only the connected shop may be (re)authorised; the first connection (none stored) goes through.
+  const current = String((await adminDb.collection('app_settings').doc('global').get()).get('shopifyStoreDomain') || '').toLowerCase();
+  if (current && current !== shop.toLowerCase()) {
+    return NextResponse.json({ error: 'This ERP is connected to a different Shopify store.' }, { status: 403 });
   }
 
   if (!SHOPIFY_API_KEY) {

@@ -42,6 +42,23 @@ const nextConfig: NextConfig = {
       { source: '/billing', destination: '/invoices', permanent: false },
     ];
   },
+  // Security headers (audit 2026-10). No CSP: too risky to add blind. The public pages a customer opens from a
+  // message (/links, /view-invoice, /api/public) may be framed elsewhere, so they are exempt from X-Frame-Options.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        ],
+      },
+      {
+        source: '/((?!view-invoice|links|api/public).*)',
+        headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }],
+      },
+    ];
+  },
   // A browser, bookmark or preview asking for the root icons gets this house's
   // (public/icons/<brand>/, scripts/make-icons.mjs); the page itself links them too.
   async rewrites() {

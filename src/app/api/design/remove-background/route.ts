@@ -9,6 +9,7 @@ import { mediaOrigin } from '@/lib/social/gate';
 import { BACKGROUND_REMOVAL, removeBackground } from '@/lib/social/retouch';
 import { designFail, designGate } from '@/lib/design/gate';
 import { imageFromRequest } from '@/lib/design/image-in';
+import { dailyCap, dailyCapForRequest, AI_PER_DAY, WHATSAPP_PER_DAY, INSTAGRAM_PER_DAY } from '@/lib/daily-cap';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,8 @@ export async function POST(req: NextRequest) {
   if (!BACKGROUND_REMOVAL) return NextResponse.json({ error: 'Removing the background is off.' }, { status: 404 });
   const who = await designGate(req, 'post');
   if (who instanceof NextResponse) return who;
+  const capped = await dailyCap('ai', who, req, AI_PER_DAY);
+  if (capped) return capped;
   try {
     const img = await imageFromRequest(req);
     const out = await removeBackground(img.jpeg, mediaOrigin(req));

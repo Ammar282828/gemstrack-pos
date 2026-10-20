@@ -16,6 +16,7 @@ import { systemPrompt } from '@/lib/voice/prompt';
 import { READING_SCHEMA } from '@/lib/voice/schema';
 import type { RosterEntry } from '@/lib/voice/phonetics';
 import { documentLines, type DocEntry } from '@/lib/voice/documents';
+import { dailyCap, dailyCapForRequest, AI_PER_DAY, WHATSAPP_PER_DAY, INSTAGRAM_PER_DAY } from '@/lib/daily-cap';
 
 export const runtime = 'nodejs';
 /** Audio in, a model call out — there is nothing here worth caching. */
@@ -58,6 +59,8 @@ const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
 export async function POST(req: NextRequest) {
   const denied = await denyUnlessOwner(req);
   if (denied) return denied;
+  const capped = await dailyCapForRequest('ai', req, AI_PER_DAY);
+  if (capped) return capped;
 
   if (!geminiConfigured()) {
     return NextResponse.json({ error: 'Voice is not set up on this deployment.' }, { status: 503 });

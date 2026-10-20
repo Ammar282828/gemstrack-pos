@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getShopifyCredentials, webhookResourceId } from '../../_lib';
 import { adminDb } from '@/lib/firebase-admin';
@@ -34,8 +35,28 @@ async function pushFor(topic: string, orderId: string, o: OrderMirrorOutcome) {
  * arriving out of order, or twice (Mina's store sends each to two addresses), all end in Shopify's
  * latest word.
  */
+/**
+ * X-Shopify-Hmac-Sha256 = base64 HMAC-SHA256 of the raw body with the app's API secret (SHOPIFY_API_SECRET).
+ * Checked only when that secret is available at run time; with none (today: Taheri sets none, Mina's is
+ * build-only) it says so in the log and accepts, as before, since a wrong app's secret once froze the orders.
+ * Add the secret with availability RUNTIME to turn the check on.
+ */
+function signatureOk(raw: string, header: string | null): boolean {
+  const secret = process.env.SHOPIFY_API_SECRET;
+  if (!secret) { console.warn('[shopify/webhooks/orders] no SHOPIFY_API_SECRET at run time: notice not verified'); return true; }
+  if (!header) return false;
+  const want = crypto.createHmac('sha256', secret).update(raw, 'utf8').digest();
+  const got = Buffer.from(header, 'base64');
+  return got.length === want.length && crypto.timingSafeEqual(got, want);
+}
+
 export async function POST(request: NextRequest) {
-  const orderId = webhookResourceId(await request.text());
+  const raw = await request.text();
+  if (!signatureOk(raw, request.headers.get('x-shopify-hmac-sha256'))) {
+    console.warn('[shopify/webhooks/orders] bad signature, refused');
+    return NextResponse.json({ error: 'bad signature' }, { status: 401 });
+  }
+  const orderId = webhookResourceId(raw);
   if (!orderId) return NextResponse.json({ ok: true, skipped: 'no-order-id' });
 
   let creds: { shop: string; token: string };
