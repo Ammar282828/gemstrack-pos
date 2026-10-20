@@ -7,6 +7,7 @@
 //   node scripts/asc.mjs testers <house> [emails]       the house's "Shop" testers: the account holder, the emails, and anyone accepted since
 //   node scripts/asc.mjs builds <house> [--fix]         the app's newest builds, whether "Shop" has them; --fix adds the newest and answers export compliance
 //   node scripts/asc.mjs public-link <house> [--submit] the house's public TestFlight link (external group "Public"); --submit sends the build to beta review
+//   node scripts/asc.mjs keep-fresh <house> [--days N] [--dry]  an Xcode Cloud build of main when the newest valid build is N days old (default 60), before TestFlight's 90 end it
 //   node scripts/asc.mjs ci-off <house>                 the house's Xcode Cloud workflows switched off (a retired app builds no more)
 //   node scripts/asc.mjs revoke                         the build's certificate and profile, gone again
 //   node scripts/asc.mjs key-file <path>                the key as a proper .p8, for xcodebuild's upload
@@ -588,6 +589,48 @@ async function builds(name, fix) {
   say(`Added ${newest.version} (${newest.build}) to Shop (${testerCount} tester(s))`);
 }
 
+/**
+ * TestFlight builds die at 90 days and a lapse locks every phone out of the app: when the newest VALID build is
+ * `days` old (60 by default), start an Xcode Cloud build of the release workflow on `main` (the same one a push
+ * starts). Does nothing while a build is already running or queued. With dry, only says what it would do.
+ */
+async function keepFresh(name, days, dry) {
+  const h = houses[name];
+  if (!h) throw new Error(`no house ${name}`);
+  const app = await appFor(h);
+  if (!app) throw new Error(`${h.storeName} has no app in App Store Connect`);
+  const list = (await api('GET', `/v1/builds?filter[app]=${app.id}&sort=-uploadedDate&limit=20`)).data;
+  const valid = list.find((b) => b.attributes.processingState === 'VALID' && !b.attributes.expired);
+  const age = valid ? (Date.now() - new Date(valid.attributes.uploadedDate).getTime()) / 86_400_000 : Infinity;
+  if (valid) say(`${h.storeName}: newest valid build ${valid.attributes.version} uploaded ${valid.attributes.uploadedDate.slice(0, 10)}, ${Math.floor(age)} day(s) old (limit ${days}).`);
+  else say(`::warning::${h.storeName}: no valid, unexpired build at all.`);
+  if (age < days) { say('Fresh enough: nothing started.'); return; }
+
+  const product = await maybe(`/v1/apps/${app.id}/ciProduct`);
+  if (!product) throw new Error(`${h.storeName} has no Xcode Cloud product`);
+  const running = (await api('GET', `/v1/ciProducts/${product.id}/buildRuns?limit=10&sort=-number`)).data
+    .filter((r) => r.attributes.executionProgress === 'PENDING' || r.attributes.executionProgress === 'RUNNING');
+  if (running.length) { say(`A build is already ${running[0].attributes.executionProgress.toLowerCase()} (#${running[0].attributes.number}): nothing started.`); return; }
+
+  const flows = (await api('GET', `/v1/ciProducts/${product.id}/workflows?limit=50`)).data.filter((f) => f.attributes.isEnabled !== false);
+  // The release line: a workflow named for TestFlight or release, else the only enabled one.
+  const flow = flows.find((f) => /testflight|release|archive|deliver/i.test(f.attributes.name)) || (flows.length === 1 ? flows[0] : null);
+  if (!flow) throw new Error(`Cannot tell which of the enabled workflows (${flows.map((f) => f.attributes.name).join(', ') || 'none'}) is the release one.`);
+  const repos = (await api('GET', `/v1/ciProducts/${product.id}/primaryRepositories?limit=5`)).data;
+  if (!repos.length) throw new Error('The Xcode Cloud product has no repository.');
+  const refs = (await api('GET', `/v1/scmRepositories/${repos[0].id}/gitReferences?limit=200`)).data;
+  const main = refs.find((r) => r.attributes.name === 'main' && r.attributes.kind === 'BRANCH') || refs.find((r) => r.attributes.name === 'main');
+  if (!main) throw new Error('No branch "main" in the Xcode Cloud repository.');
+  if (dry) { say(`Dry run: would start "${flow.attributes.name}" on main (${main.id}).`); return; }
+  const run = (await api('POST', '/v1/ciBuildRuns', {
+    data: {
+      type: 'ciBuildRuns', attributes: { clean: false },
+      relationships: { workflow: { data: { type: 'ciWorkflows', id: flow.id } }, sourceBranchOrTag: { data: { type: 'scmGitReferences', id: main.id } } },
+    },
+  })).data;
+  say(`Started Xcode Cloud build #${run.attributes?.number ?? run.id} of "${flow.attributes.name}" on main: the newest build was ${Number.isFinite(age) ? Math.floor(age) + ' days' : 'missing'} old.`);
+}
+
 /** A retired app's Xcode Cloud workflows, switched off so a release line builds only the apps still made. */
 async function ciOff(name) {
   const h = houses[name];
@@ -614,6 +657,12 @@ try {
   else if (cmd === 'key-file') { fs.mkdirSync(path.dirname(args[0]), { recursive: true }); fs.writeFileSync(args[0], ASC_PRIVATE_KEY, { mode: 0o600 }); }
   else if (cmd === 'builds') await builds(args[0], args.includes('--fix'));
   else if (cmd === 'public-link') await publicLink(args[0], args.includes('--submit'));
+  else if (cmd === 'keep-fresh') {
+    const i = args.indexOf('--days');
+    const days = i >= 0 ? Number(args[i + 1]) : 60;
+    if (!Number.isFinite(days) || days <= 0) throw new Error('--days needs a number of days');
+    await keepFresh(args[0], days, args.includes('--dry'));
+  }
   else if (cmd === 'ci-off') await ciOff(args[0]);
   else if (cmd === 'testers') await testers(args[0], String(args[1] || '').split(/[\s,;]+/).filter(Boolean));
   else throw new Error(`unknown command ${cmd}`);

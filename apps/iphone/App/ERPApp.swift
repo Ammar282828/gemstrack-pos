@@ -14,6 +14,8 @@ struct ERPApp: App {
         LaunchClock.armTimeout()
         LaunchClock.mark("app:init")
         _ = Businesses.shared
+        // Crash and hang reports from MetricKit go to the ERP (app_diagnostics): no personal data in them.
+        Diagnostics.start()
         if Sessions.shared.current.state == .signedIn { AppLock.shared.launched(signedIn: true) }
     }
 

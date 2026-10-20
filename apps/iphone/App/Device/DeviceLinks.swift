@@ -22,7 +22,8 @@ enum DeviceLinks {
             }
         }
         // The widget holds one link per business (its key is for that ERP): only this business's sign-out or removal
-        // takes its link; the others keep showing.
+        // takes its link; the others keep showing. The key is revoked on the ERP first, so a lost phone's widget stops reading.
+        if unregister { await WidgetKeys.revoke(business: business) }
         ERPWidgetLink.remove(id: business.id)
         WidgetCenter.shared.reloadAllTimelines()
     }

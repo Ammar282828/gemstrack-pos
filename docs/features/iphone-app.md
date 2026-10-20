@@ -409,3 +409,25 @@ Owner: "stop developing the house of mina app from now on." House of Mina lives 
 ERP app (`shop.taheri.erp`). Its own app (`store.houseofmina.erp`) gets no more builds: its Xcode Cloud workflows
 are switched off by `asc.mjs ci-off mina` (run on every TestFlight status run, so they stay off), and the TestFlight
 status and tester jobs handle the ERP app only. Its testers move to the ERP app (`testers taheri`).
+
+### Release hygiene (2026-10-20)
+
+From the blind-spot audit (App Store, platform, security):
+- **Privacy manifests:** `App/Resources/PrivacyInfo.xcprivacy` and `Widget/PrivacyInfo.xcprivacy` (manifests are per bundle;
+  XcodeGen takes them with their folders). No tracking. UserDefaults, reason CA92.1, in both (the widget's cache is its own
+  defaults, no App Group). Not declared: file timestamps, disk space, keyboards (no use), and system boot time: `LaunchClock`
+  reads the process's own start through `sysctl(KERN_PROC_PID)` (`p_starttime`), not `kern.boottime` or `systemUptime`, so it
+  is not a required-reason API. Collected, linked, never for tracking: name, email, phone number, other user content,
+  photos (scans), device ID (push token), crash and performance data (MetricKit, below). Run Xcode's Privacy Report on the
+  Mac to confirm the Firebase and gRPC SDKs carry their own manifests.
+- **TestFlight never lapses:** `asc.mjs keep-fresh taheri --days 60` starts an Xcode Cloud build of the release workflow on
+  `main` when the newest valid build is 60 days old (nothing while a build is queued or running; `--dry` only says).
+  `testflight-status.yml` runs it daily with the `builds --fix` pass.
+- **Crash and hang reports:** `App/Support/Diagnostics.swift` (MetricKit) sends code signatures only (exception, signal,
+  termination reason, the heaviest stack as `Binary+offset`, build, OS, model) to `/api/app/diagnostics`, kept in Firestore
+  `app_diagnostics`. What cannot be sent waits on the phone for the next launch. Needs `Diagnostics.start()` at launch.
+- **Widget:** the figures and the pinned note are `.privacySensitive()` (hidden on the locked Lock Screen); the widget key list
+  is `AfterFirstUnlockThisDeviceOnly` (an old item is moved in place). `DELETE /api/widget/key` (`{ key }`, the same account)
+  takes a key back; `WidgetKeys.revoke(business:)` calls it, capped at 3 s.
+- **Pasteboard:** `SecretPasteboard.copy` (this device only, gone in 5 minutes) is for links that carry a key and for tokens.
+- **Minimum build:** `/api/app/business` carries `minBuild` (`APP_MIN_BUILD`, default 0); `Business.needsUpdate` is true below it.

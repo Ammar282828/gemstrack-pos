@@ -15,12 +15,25 @@ import { shopFlags } from '@/lib/app-shop';
 
 export const dynamic = 'force-dynamic';
 
-/** The address the app was reached at (behind App Hosting's proxy, the forwarded host), https except on localhost. */
+/**
+ * The ERP's address. From configuration (NEXT_PUBLIC_APP_URL), not from a header: this answer is cached and the
+ * app then talks to its serverURL with the user's token, so a forged Host must not choose it. Each house is
+ * reached at both erp.* and pos.* (the app checks that the descriptor's host is the one typed), so the request's
+ * host is honoured only when it is one of those two; anything else gets the configured address. With no
+ * configured address (local dev) the request's host is used, as before.
+ */
 const originOf = (req: NextRequest): string => {
-  const first = (v: string | null) => (v || '').split(',')[0].trim();
-  const host = first(req.headers.get('x-forwarded-host')) || first(req.headers.get('host')) || req.nextUrl.host;
-  const local = /^(localhost|127\.|\[::1\]|192\.168\.|10\.)/.test(host);
-  return `${local ? 'http' : 'https'}://${host}`;
+  const first = (v: string | null) => (v || '').split(',')[0].trim().toLowerCase();
+  const reqHost = first(req.headers.get('x-forwarded-host')) || first(req.headers.get('host')) || req.nextUrl.host;
+  let configured: URL | null = null;
+  try { configured = STORE_CONFIG.appUrl ? new URL(STORE_CONFIG.appUrl) : null; } catch { configured = null; }
+  if (configured) {
+    const h = configured.host.toLowerCase();
+    const twin = h.replace(/^(erp|pos)\./, (_, p: string) => (p === 'erp' ? 'pos.' : 'erp.'));
+    return reqHost === twin ? `https://${twin}` : `${configured.protocol}//${configured.host}`;
+  }
+  const local = /^(localhost|127\.|\[::1\]|192\.168\.|10\.)/.test(reqHost);
+  return `${local ? 'http' : 'https'}://${reqHost}`;
 };
 
 export async function GET(req: NextRequest) {
@@ -41,6 +54,8 @@ export async function GET(req: NextRequest) {
     icon: abs(`${STORE_ICONS.dir}/icon-512.png`),
     ios: storeAppIos(),
     flags: shopFlags(),
+    // The oldest app build this ERP takes (APP_MIN_BUILD, a CFBundleVersion number); 0: any. The app says "Update from TestFlight" below it.
+    minBuild: Math.max(0, Math.floor(Number(process.env.APP_MIN_BUILD) || 0)),
   };
   return NextResponse.json(body, { headers: { 'Cache-Control': 'public, max-age=300' } });
 }

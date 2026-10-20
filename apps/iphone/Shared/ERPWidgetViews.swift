@@ -136,7 +136,7 @@ struct ERPWidgetFace: View {
                 .font(.system(.title3, design: .rounded).weight(.semibold)).monospacedDigit()
                 .lineLimit(1).minimumScaleFactor(0.7).privacySensitive()
             if let note {
-                Label(note, systemImage: "pin.fill").font(.caption).lineLimit(1)
+                Label(note, systemImage: "pin.fill").font(.caption).lineLimit(1).privacySensitive()
             } else if s.figures.count > 1 {
                 Text("\(s.figures[1].label) · \(s.figures[1].value)")
                     .font(.caption).lineLimit(1).privacySensitive()
@@ -294,14 +294,14 @@ struct ERPWidgetFace: View {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Image(systemName: "pin.fill").font(.caption2.weight(.semibold))
                         .foregroundStyle(ink).erpAccentable()
-                    Text(text).font(.caption.weight(.medium)).lineLimit(lines).minimumScaleFactor(0.8)
+                    Text(text).font(.caption.weight(.medium)).lineLimit(lines).minimumScaleFactor(0.8).privacySensitive()
                 }
             } else {
                 Label("Pinned", systemImage: "pin.fill")
                     .textCase(.uppercase)
                     .font(.caption2.weight(.semibold)).tracking(1.1)
                     .foregroundStyle(ink).erpAccentable()
-                Text(text).font(.footnote.weight(.medium)).lineLimit(lines).minimumScaleFactor(0.8)
+                Text(text).font(.footnote.weight(.medium)).lineLimit(lines).minimumScaleFactor(0.8).privacySensitive()
             }
         }
         .accessibilityElement(children: .combine)

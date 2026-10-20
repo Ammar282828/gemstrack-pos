@@ -32,6 +32,7 @@ targets:
   App:
     type: application
     platform: iOS
+    # App/Resources/PrivacyInfo.xcprivacy (the app's privacy manifest) rides in with the App path as a resource.
     sources:
       - path: App
       - path: Shared
@@ -56,6 +57,7 @@ targets:
   ERPWidget:
     type: app-extension
     platform: iOS
+    # Widget/PrivacyInfo.xcprivacy: the extension's own manifest (manifests are per bundle), a resource of this path.
     sources:
       - path: Widget
       - path: Shared

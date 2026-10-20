@@ -27,6 +27,15 @@ struct Business: Codable, Sendable, Equatable, Identifiable {
     var icon: String?
     var ios: IOS
     var flags: Flags?
+    /// The oldest build (CFBundleVersion) the ERP still takes (`APP_MIN_BUILD`); 0 or absent: any.
+    var minBuild: Int?
+
+    /// This app is older than the ERP allows: the UI says "Update from TestFlight" and keeps money screens shut.
+    var needsUpdate: Bool {
+        guard let need = minBuild, need > 0 else { return false }
+        let have = Int((Bundle.main.infoDictionary?["CFBundleVersion"] as? String) ?? "") ?? Int.max
+        return have < need
+    }
 
     /// lib/margin.ts: Taheri costs a sale at 24K less so many ratti; a house with no costing has a percent.
     enum Margin: Codable, Sendable, Equatable {
@@ -131,6 +140,7 @@ struct Business: Codable, Sendable, Equatable, Identifiable {
         icon = try? c.decode(String.self, forKey: .icon)
         ios = try c.decode(IOS.self, forKey: .ios)
         flags = try? c.decode(Flags.self, forKey: .flags)
+        minBuild = try? c.decode(Int.self, forKey: .minBuild)
     }
 
     // MARK: Derived

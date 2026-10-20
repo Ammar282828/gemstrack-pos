@@ -79,14 +79,16 @@ enum ERPWidgetLink {
         SecItemDelete(query(account) as CFDictionary)
         var item = query(account)
         item[kSecValueData as String] = data
-        // The widget refreshes in the background, locked phone included, once it has been unlocked.
-        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        // The widget refreshes in the background, locked phone included, once it has been unlocked. This device only:
+        // the key must not ride an encrypted backup onto another phone (security audit 2026-10-20, item 7).
+        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         return SecItemAdd(item as CFDictionary, nil)
     }
 
     /// Every linked business, in the order they were linked. A link from a one-house build is moved into the list
     /// the first time it is read.
     static func all() -> [Link] {
+        _ = migrateAccessibility
         if let data = read(listAccount), let list = try? JSONDecoder().decode([Link].self, from: data) { return list }
         guard let data = read(legacyAccount), let old = try? JSONDecoder().decode(Legacy.self, from: data) else { return [] }
         let host = URL(string: old.url)?.host ?? ""
@@ -96,6 +98,13 @@ enum ERPWidgetLink {
         SecItemDelete(query(legacyAccount) as CFDictionary)
         return [link]
     }
+
+    /// Keys saved before 2026-10-20 were `AfterFirstUnlock` (they migrate with a backup): moved once per process to
+    /// this-device-only, in place, so nobody has to link again.
+    private static let migrateAccessibility: Void = {
+        let change: [String: Any] = [kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
+        for account in [listAccount, legacyAccount] { SecItemUpdate(query(account) as CFDictionary, change as CFDictionary) }
+    }()
 
     static func entry(for id: String) -> Link? { all().first { $0.id == id } }
 
