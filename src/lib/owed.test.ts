@@ -60,3 +60,22 @@ describe("with the hisaab's hand-written balances", () => {
     expect(owedToYou(book).ledger).toBe(0);
   });
 });
+
+describe('records that cannot be read', () => {
+  it('counts a money field that is not a number instead of dropping it silently', () => {
+    const out = owedToYou(
+      [
+        { id: 'A', balanceDue: 1_000 },
+        { id: 'B', balanceDue: { oops: 1 } as never },
+        { id: 'C', balanceDue: 'abc' as never },
+        { id: 'D', balanceDue: '2500' as never },
+        { id: 'E' },
+        { id: 'F', status: 'Refunded', balanceDue: 'abc' as never },
+      ],
+      undefined,
+      [{ entityId: 'c1', entityType: 'customer', cashDebit: 'x' as never }, { entityId: 'c1', entityType: 'customer', cashDebit: 5 }],
+    );
+    expect(out.bad).toBe(3);
+    expect(out.total).toBe(1_000 + 2_500 + 5);
+  });
+});

@@ -272,6 +272,6 @@ describe('deleteInvoice', () => {
     expect(col('orders')['ORD-1']).toEqual({ status: 'Completed' });
     expect(invoiceReads).toBe(1);
     expect(r?.body.followUps).toEqual([{ path: '/api/shopify/sync/invoice', body: { invoiceId: 'INV-2', shopifyOrderId: '99001', action: 'cancel' } }]);
-    expect(logged).toEqual([['invoice.delete', 'Deleted invoice INV-2', 'Customer: Sakina Demo', 'INV-2']]);
+    expect(logged).toEqual([['invoice.delete', 'Deleted invoice INV-2', 'Customer: Sakina Demo | Total: 100,000 | Paid: 60,000 in 2 payment(s)', 'INV-2']]);
   });
 });

@@ -24,6 +24,7 @@ import { cleanRates, setRates } from '@/lib/writes/rates';
 import { cleanSettingsPatch } from '@/lib/writes/settings';
 import { cleanObject, createInvoice, type SaleInput, type SaleLine } from '@/lib/writes/create-invoice';
 import { createOrder } from '@/lib/writes/create-order';
+import { InputError, checkIsoDate, checkMoney } from '@/lib/writes/validate';
 import { updateOrder } from '@/lib/writes/update-order';
 import { finalizeOrder } from '@/lib/writes/finalize-order';
 import type { FinalizedItem } from '@/lib/order-finalize';
@@ -38,6 +39,7 @@ import { mainRate } from '@/lib/rates';
 import { personFor } from '@/lib/people';
 import { STORE_CONFIG, STORE_TAKEN_BY } from '@/lib/store-config';
 import type { OpHandler, OpRoles } from './op-context';
+import { MONEY_OP_NAMES, REQUEST_ID, claimRequest, finishRequest, releaseRequest } from './idempotency';
 import { PEOPLE_OPS, runPeopleOp } from './ops-people';
 import { STOCK_OPS, runStockOp } from './ops-stock';
 import { INVOICE_OPS, runInvoiceOp } from './ops-invoices';
@@ -166,20 +168,26 @@ export async function POST(req: NextRequest) {
   const followUps: FollowUp[] = [];
   const alert = (b: Record<string, unknown>) => followUps.push({ path: '/api/notifications/alert', body: b });
 
-  // The same change sent twice (a double tap, a retry after a dropped line, a second sheet over a
-  // balance not yet refreshed) is recorded once: the phone names each change, and the name is claimed
-  // here before anything is written. A refusal or a failure gives the claim back, so a corrected retry
-  // goes through.
-  const requestId = typeof body.requestId === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(body.requestId) ? body.requestId : null;
-  const claim = requestId ? adminDb.collection('app_requests').doc(requestId) : null;
-  if (claim) {
-    try {
-      await claim.create({ op, by: email, at: new Date().toISOString(), expireAt: new Date(Date.now() + 7 * 864e5) });
-    } catch (e) {
-      if ((e as { code?: number }).code === 6) {
-        return NextResponse.json({ error: 'This was already sent and recorded. Check it before entering it again.', duplicate: true }, { status: 409 });
-      }
-      throw e;
+  // The same change sent twice (a double tap, a retry after a dropped line or a timeout, a second sheet
+  // over a balance not yet refreshed) is recorded once: the phone names each change, and the name is
+  // claimed here before anything is written (idempotency.ts). The same name again is answered with the
+  // first answer; a failure gives the claim back, so a corrected retry goes through. Money operations
+  // must carry a name (only the iPhone sends them here; the web runs the shared writes directly).
+  const requestId = typeof body.requestId === 'string' && REQUEST_ID.test(body.requestId) ? body.requestId : null;
+  if (!requestId && MONEY_OP_NAMES.has(op)) {
+    return NextResponse.json({ error: 'This change needs a request id. Update the app and try again.' }, { status: 400 });
+  }
+  if (requestId) {
+    const claim = await claimRequest(requestId, op, email);
+    if (claim.kind === 'replay') {
+      // The first answer, without its follow-ups: the alert and the Shopify sync went out the first time.
+      return NextResponse.json({ ...claim.body, followUps: [], replayed: true }, { status: claim.status });
+    }
+    if (claim.kind === 'busy') {
+      return NextResponse.json({ error: 'This was already sent and is being recorded. Check it before entering it again.', duplicate: true }, { status: 409 });
+    }
+    if (claim.kind === 'foreign') {
+      return NextResponse.json({ error: 'That request id is already used for another change.', duplicate: true }, { status: 409 });
     }
   }
 
@@ -189,10 +197,11 @@ export async function POST(req: NextRequest) {
         case 'recordPayment': {
           const invoiceId = text(body.invoiceId);
           const amount = Number(body.amount);
-          const date = text(body.date) || new Date().toISOString();
+          const date = checkIsoDate(text(body.date) || new Date().toISOString(), 'The payment date');
           if (!invoiceId || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: 'A positive amount is required.' }, { status: 400 });
+          checkMoney(amount, 'The payment', { positive: true });
           const invoice = await recordInvoicePayment(adminPort,
-            { invoiceId, amount, date, method: text(body.method) || undefined, reference: text(body.reference) || undefined },
+            { invoiceId, amount, date, method: text(body.method) || undefined, reference: text(body.reference) || undefined, requestId: requestId ?? undefined },
             { log, notify: id => alert({ event: 'payment', id, payment: { amount, date } }) });
           return NextResponse.json({ ok: true, invoice, followUps });
         }
@@ -202,7 +211,7 @@ export async function POST(req: NextRequest) {
           const amount = Number(body.amount);
           if (!orderId || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: 'A positive amount is required.' }, { status: 400 });
           const order = await recordOrderAdvance(adminPort,
-            { orderId, amount, notes: text(body.notes) || undefined, method: text(body.method) || undefined }, { log });
+            { orderId, amount, notes: text(body.notes) || undefined, method: text(body.method) || undefined, requestId: requestId ?? undefined }, { log });
           return NextResponse.json({ ok: true, order, followUps });
         }
 
@@ -263,6 +272,7 @@ export async function POST(req: NextRequest) {
             internalNote: text(body.internalNote) || undefined,
             payments: Array.isArray(body.payments) ? (body.payments as SaleInput['payments']) : [],
             costRate24k: Number(body.costRate24k) || undefined,
+            requestId: requestId ?? undefined,
           }, { log, notify: (id) => alert({ event: 'sale', id }) });
           return NextResponse.json({ ok: true, invoice, followUps });
         }
@@ -394,8 +404,10 @@ export async function POST(req: NextRequest) {
           const id = text(body.repairId);
           const amount = Number(body.amount);
           if (!id || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: 'A positive amount is required.' }, { status: 400 });
+          checkMoney(amount, 'The payment', { positive: true });
           await recordRepairPayment(adminPort, id, {
-            amount, date: text(body.date) || new Date().toISOString(),
+            ...(requestId && { id: `pay-${requestId}` }),
+            amount, date: checkIsoDate(text(body.date) || new Date().toISOString(), 'The payment date'),
             ...(text(body.method) && { method: text(body.method) as never }),
             ...(text(body.note) && { note: text(body.note) }),
           }, { log });
@@ -406,9 +418,10 @@ export async function POST(req: NextRequest) {
           const amount = Number(body.amount);
           const description = text(body.description);
           if (!description || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: 'A description and a positive amount are needed.' }, { status: 400 });
+          checkMoney(amount, 'The expense', { positive: true });
           const paidBy = text(body.paidBy);
           const expense = await addExpense(adminPort, {
-            date: text(body.date) || new Date().toISOString(),
+            date: checkIsoDate(text(body.date) || new Date().toISOString(), 'The expense date'),
             category: text(body.category) || 'Other',
             description, amount,
             ...(paidBy === 'ammar' || paidBy === 'mina' || paidBy === 'business' ? { paidBy } : {}),
@@ -552,11 +565,19 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Not saved.';
       console.error('[/api/app/write]', op, message);
-      return NextResponse.json({ error: message }, { status: /not found|no such|invoiced|not on this order|already exists|more than the invoice|has changed since/i.test(message) ? 409 : 500 });
+      if (e instanceof InputError) return NextResponse.json({ error: message }, { status: 400 });
+      return NextResponse.json({ error: message }, { status: /no longer in stock|not found|no such|invoiced|not on this order|already exists|more than the invoice|has changed since/i.test(message) ? 409 : 500 });
     }
   };
 
-  const res = await perform();
-  if (claim && res.status >= 300) await claim.delete().catch(() => undefined);
+  let res: NextResponse;
+  try { res = await perform(); } catch (e) {
+    if (requestId) await releaseRequest(requestId);
+    throw e;
+  }
+  if (requestId) {
+    if (res.status >= 300) await releaseRequest(requestId);
+    else await finishRequest(requestId, res.status, await res.clone().json().catch(() => ({ ok: true })));
+  }
   return res;
 }

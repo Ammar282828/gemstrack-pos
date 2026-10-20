@@ -69,7 +69,11 @@ vi.mock('@/lib/people', () => ({ personFor: () => undefined }));
 
 const { POST } = await import('./route');
 
+// Money operations must carry a request id (idempotency.ts): the helper gives each call its own unless it names one
+// (`requestId: undefined` sends none).
+let autoId = 0;
 const call = async (body: unknown, email: string | null = 'owner@example.com') => {
+  if (body && typeof body === 'object' && !('requestId' in body)) body = { ...body, requestId: `req-auto-${String(++autoId).padStart(6, '0')}` };
   const res = await POST(new NextRequest('https://erp.example.com/api/app/write', {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...(email ? { 'x-test-email': email } : {}) },
@@ -448,8 +452,11 @@ describe('the same change sent twice', () => {
     const first = await call(pay);
     expect(first.status).toBe(200);
     const again = await call(pay);
-    expect(again.status).toBe(409);
-    expect(again.body.duplicate).toBe(true);
+    // The first answer comes back (no second write, no second alert), flagged as a replay.
+    expect(again.status).toBe(200);
+    expect(again.body.replayed).toBe(true);
+    expect(again.body.followUps).toEqual([]);
+    expect((again.body.invoice as { amountPaid: number }).amountPaid).toBe(40_000);
     expect((data.invoices['INV-000001'].paymentHistory as unknown[]).length).toBe(1);
     expect(data.invoices['INV-000001'].amountPaid).toBe(40_000);
   });
@@ -465,15 +472,95 @@ describe('the same change sent twice', () => {
   it('an order sent twice is one order', async () => {
     const order = { op: 'createOrder', requestId: 'req-demo-0003', order: { items: [{ description: 'Demo ring', metalType: 'gold', karat: '21k', estimatedWeightG: 4 }], subtotal: 1, grandTotal: 1, customerName: 'Walk-in Customer' } };
     put('app_settings', 'global', { lastOrderNumber: 2 }, true);
-    expect((await call(order)).status).toBe(200);
-    expect((await call(order)).status).toBe(409);
+    const first = await call(order);
+    expect(first.status).toBe(200);
+    const again = await call(order);
+    expect(again.status).toBe(200);
+    expect((again.body.order as { id: string }).id).toBe((first.body.order as { id: string }).id);
     expect(Object.keys(data.orders).filter((k) => k.startsWith('ORD-0000')).length).toBe(3);
   });
 
-  it('a request name that is not one is ignored, never trusted as a key', async () => {
+  it('a request name that is not one is never trusted as a key: a money change without a good one is refused', async () => {
     const r = await call({ op: 'recordPayment', invoiceId: 'INV-000001', amount: 1_000, requestId: '../settings/global' });
-    expect(r.status).toBe(200);
+    expect(r.status).toBe(400);
     expect(data.app_requests).toBeUndefined();
+    expect((await call({ op: 'recordPayment', invoiceId: 'INV-000001', amount: 1_000, requestId: undefined })).status).toBe(400);
+    expect(data.invoices['INV-000001'].amountPaid).toBe(0);
+    // A change that moves no money may go without one, as before.
+    expect((await call({ op: 'setOrderStatus', orderId: 'ORD-000001', status: 'Cancelled', requestId: undefined })).status).toBe(200);
+  });
+});
+
+describe('idempotency: pending, done, failed, stale', () => {
+  const pay = (id: string, over: Record<string, unknown> = {}) => ({ op: 'recordPayment', invoiceId: 'INV-000001', amount: 7_000, method: 'Cash', requestId: id, ...over });
+
+  it('a retry after success returns the stored result and writes once', async () => {
+    const first = await call(pay('req-once-0001'));
+    const retry = await call(pay('req-once-0001'));
+    expect(retry.status).toBe(200);
+    expect(retry.body.replayed).toBe(true);
+    expect(retry.body.invoice).toEqual(first.body.invoice);
+    expect(data.app_requests['req-once-0001']).toMatchObject({ status: 'done', op: 'recordPayment' });
+    expect((data.invoices['INV-000001'].paymentHistory as unknown[]).length).toBe(1);
+    expect(data.invoices['INV-000001'].amountPaid).toBe(7_000);
+  });
+
+  it('a retry after failure goes through: the failed change gave its name back', async () => {
+    delete data.invoices['INV-000001'];
+    const failed = await call(pay('req-fail-0001'));
+    expect(failed.status).toBeGreaterThanOrEqual(400);
+    expect(data.app_requests?.['req-fail-0001']).toBeUndefined();
+    put('invoices', 'INV-000001', { grandTotal: 100_000, amountPaid: 0, balanceDue: 100_000, customerId: 'c1', customerName: 'Demo One', paymentHistory: [] });
+    const retry = await call(pay('req-fail-0001'));
+    expect(retry.status).toBe(200);
+    expect(retry.body.replayed).toBeUndefined();
+    expect(data.invoices['INV-000001'].amountPaid).toBe(7_000);
+  });
+
+  it('two of the same sent at once write once', async () => {
+    const [a, b] = await Promise.all([call(pay('req-race-0001')), call(pay('req-race-0001'))]);
+    expect([a.status, b.status]).toContain(200);
+    expect((data.invoices['INV-000001'].paymentHistory as unknown[]).length).toBe(1);
+    expect([a, b].filter((r) => r.status === 200 && !r.body.replayed).length).toBe(1);
+    // The other was told it is being recorded, or was answered with the stored result: never a second write.
+    const other = [a, b].find((r) => r.status !== 200 || r.body.replayed)!;
+    expect(other.status === 409 ? other.body.duplicate : other.body.replayed).toBe(true);
+  });
+
+  it('a claim still pending is waited for; one pending over two minutes is a dead write and is taken over', async () => {
+    put('app_requests', 'req-late-0001', { op: 'recordPayment', by: 'owner@example.com', status: 'pending', at: new Date().toISOString() });
+    const busy = await call(pay('req-late-0001'));
+    expect(busy.status).toBe(409);
+    expect(busy.body.duplicate).toBe(true);
+    expect(data.invoices['INV-000001'].amountPaid).toBe(0);
+    put('app_requests', 'req-late-0001', { op: 'recordPayment', by: 'owner@example.com', status: 'pending', at: new Date(Date.now() - 3 * 60_000).toISOString() });
+    const taken = await call(pay('req-late-0001'));
+    expect(taken.status).toBe(200);
+    expect(data.invoices['INV-000001'].amountPaid).toBe(7_000);
+    expect(data.app_requests['req-late-0001'].status).toBe('done');
+  });
+
+  it('a name used for another change, or by another person, is never answered with that change\'s result', async () => {
+    await call(pay('req-own-0001'));
+    const other = await call({ op: 'recordOrderAdvance', orderId: 'ORD-000001', amount: 100, requestId: 'req-own-0001' });
+    expect(other.status).toBe(409);
+    expect(data.orders['ORD-000001'].advancePayment).toBe(0);
+  });
+
+  it('every money operation needs a name', async () => {
+    for (const op of ['recordOrderAdvance', 'createInvoice', 'createOrder', 'finalizeOrder', 'addRepair', 'recordRepairPayment', 'addExpense', 'addHisaabEntry',
+      'updateInvoiceDiscount', 'refundInvoicePartial', 'settleInvoicePayment', 'settleOrderAdvance', 'raiseOrderDiscount', 'addShareholderEntry', 'addExtraRevenue']) {
+      const r = await call({ op, requestId: undefined });
+      expect(r.status, op).toBe(400);
+      expect(String(r.body.error), op).toMatch(/request id/);
+    }
+  });
+
+  it('the payment amount and date are checked on the way in', async () => {
+    expect((await call(pay('req-bad-0001', { amount: 1e308 }))).status).toBe(400);
+    expect((await call(pay('req-bad-0002', { date: 'last week' }))).status).toBe(400);
+    expect(data.app_requests?.['req-bad-0001']).toBeUndefined();
+    expect(data.invoices['INV-000001'].amountPaid).toBe(0);
   });
 });
 

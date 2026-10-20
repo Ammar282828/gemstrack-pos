@@ -77,7 +77,40 @@ export interface UpdatedOrder {
   movedTo: 'In Progress' | 'Completed' | null;
 }
 
-/** Reads the order, writes the edit and its photos in one commit, and logs what changed. */
+/**
+ * What the form may say about the order's money, given the order as it stands NOW (not as the form opened it).
+ * Another phone may have recorded an advance since; the form's copy of the totals is then stale, and writing
+ * it back would undo that money while its entry stays in `advances`. So:
+ * - an invoiced order's balance is the invoice's (followBalance): the form never sets it;
+ * - an advance typed LOWER than what is stored is a stale form, not a refund (deleting an advance is its own
+ *   operation): it is ignored; one typed higher is more money taken, joined to the advances (orderEditPatch);
+ * - the balance (grandTotal) is never taken from the form: it is recomputed from the stored advance and the
+ *   subtotal, discount and exchange as they will stand after the edit, the formula "Record an advance" uses.
+ */
+export function reconcileOrderMoney(existing: OrderOnFile, edit: OrderEdit): OrderEdit {
+  const out: OrderEdit = { ...edit };
+  if (existing.invoiceId) {
+    delete out.advancePayment;
+    delete out.grandTotal;
+    return out;
+  }
+  const stored = rupees(existing.advancePayment);
+  if ('advancePayment' in out && !(rupees(out.advancePayment) > stored)) delete out.advancePayment;
+  const touchesMoney = ['advancePayment', 'subtotal', 'discountAmount', 'advanceInExchangeValue'].some((k) => k in edit);
+  // The form always sends the parts; a bare total with none of them is an explicit figure and stays.
+  if (touchesMoney) {
+    const pick = (k: string) => rupees((k in out ? out[k] : existing[k]) as number | undefined);
+    const advance = 'advancePayment' in out ? rupees(out.advancePayment) : stored;
+    out.grandTotal = pick('subtotal') - pick('discountAmount') - advance - pick('advanceInExchangeValue');
+  }
+  return out;
+}
+
+/**
+ * Reads the order, writes the edit and its photos in one commit, and logs what changed. The read is inside
+ * the transaction: a payment another phone records meanwhile makes this try again on the new figures, and the
+ * form's old totals are never put back (reconcileOrderMoney).
+ */
 export async function updateOrder(
   db: DbPort,
   input: { orderId: string; edit: OrderEdit; now?: string },
@@ -86,27 +119,29 @@ export async function updateOrder(
 ): Promise<UpdatedOrder> {
   const { orderId, edit } = input;
   const now = input.now || new Date().toISOString();
-  const existing = await db.get<OrderOnFile>(ORDERS, orderId);
-  if (!existing) throw new Error(`Order ${orderId} not found.`);
-  let { patch, addedAdvance, movedTo } = orderEditPatch(existing, edit, now, deps.clean);
-  // A picture sent again unchanged (a copy of the order that holds it inline, an old app build) must
-  // not become another document: an item whose stored document already holds these bytes, but was
-  // filed before documents carried a hash, is recognised by reading that one document.
-  if (Array.isArray(patch.items)) {
-    patch = { ...patch, items: await Promise.all((patch.items as PhotoEdit[]).map(async it => {
-      if (!it || !isInlinePhoto(it.sampleImageDataUri) || !it.samplePhotoId || it.samplePhotoHash) return it;
-      const stored = await db.get<{ dataUri?: string }>(ORDER_PHOTOS, it.samplePhotoId).catch(() => null);
-      return stored?.dataUri === it.sampleImageDataUri ? { ...it, samplePhotoHash: photoHash(it.sampleImageDataUri) } : it;
-    })) };
-  }
-  const split = Array.isArray(patch.items) ? splitItemPhotos(patch.items as never[]) : null;
-  const cleanData = deps.clean(split ? { ...patch, items: split.items } : patch);
-  const batch = db.batch();
-  batch.set(ORDERS, orderId, cleanData as Record<string, unknown>, true);
-  for (const ph of split?.photos ?? []) batch.set(ORDER_PHOTOS, ph.id, { dataUri: ph.dataUri, hash: ph.hash, orderId, createdAt: now });
-  // The documents this edit let go of (a replaced or removed picture), in the same commit.
-  if (split) for (const id of droppedPhotoIds(existing.items as never[], split.items as never[])) batch.delete(ORDER_PHOTOS, id);
-  await batch.commit();
+  const result = await db.runTransaction(async tx => {
+    const existing = await tx.get<OrderOnFile>(ORDERS, orderId);
+    if (!existing) throw new Error(`Order ${orderId} not found.`);
+    let { patch, addedAdvance, movedTo } = orderEditPatch(existing, reconcileOrderMoney(existing, edit), now, deps.clean);
+    // A picture sent again unchanged (a copy of the order that holds it inline, an old app build) must
+    // not become another document: an item whose stored document already holds these bytes, but was
+    // filed before documents carried a hash, is recognised by reading that one document.
+    if (Array.isArray(patch.items)) {
+      patch = { ...patch, items: await Promise.all((patch.items as PhotoEdit[]).map(async it => {
+        if (!it || !isInlinePhoto(it.sampleImageDataUri) || !it.samplePhotoId || it.samplePhotoHash) return it;
+        const stored = await tx.get<{ dataUri?: string }>(ORDER_PHOTOS, it.samplePhotoId).catch(() => null);
+        return stored?.dataUri === it.sampleImageDataUri ? { ...it, samplePhotoHash: photoHash(it.sampleImageDataUri) } : it;
+      })) };
+    }
+    const split = Array.isArray(patch.items) ? splitItemPhotos(patch.items as never[]) : null;
+    const cleanData = deps.clean(split ? { ...patch, items: split.items } : patch);
+    tx.set(ORDERS, orderId, cleanData as Record<string, unknown>, true);
+    for (const ph of split?.photos ?? []) tx.set(ORDER_PHOTOS, ph.id, { dataUri: ph.dataUri, hash: ph.hash, orderId, createdAt: now });
+    // The documents this edit let go of (a replaced or removed picture), in the same commit.
+    if (split) for (const id of droppedPhotoIds(existing.items as never[], split.items as never[])) tx.delete(ORDER_PHOTOS, id);
+    return { addedAdvance, movedTo, status: movedTo ?? (patch.status as string | undefined) ?? existing.status };
+  });
+  const { addedAdvance, movedTo } = result;
   await fx.log?.('order.update', `Updated order: ${orderId}`, 'Details updated', orderId);
   if (addedAdvance) {
     await fx.log?.('order.update', `Advance recorded for Order ${orderId}`,
@@ -116,5 +151,5 @@ export async function updateOrder(
     await fx.log?.('order.update', `${orderId} → ${movedTo}`, movedTo === 'Completed' ? 'Every piece is finished' : 'Every piece now has a karigar', orderId);
     if (movedTo === 'Completed') fx.notifyStatus?.(orderId, movedTo);
   }
-  return { id: orderId, status: movedTo ?? (patch.status as string | undefined) ?? existing.status, addedAdvance, movedTo };
+  return { id: orderId, status: result.status, addedAdvance, movedTo };
 }

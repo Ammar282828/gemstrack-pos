@@ -29,6 +29,8 @@ const HISAAB = 'hisaab';
 const ORDERS = 'orders';
 const PRODUCTS = 'products';
 const SOLD = 'sold_products';
+/** The tombstones: an invoice taken off the books keeps its whole record here, for the owner to read back. */
+export const DELETED_INVOICES = 'deleted_invoices';
 
 /** The store's words for it, as its delete-code dialog says them and the ERP's log of tries records them. */
 export const deleteInvoiceWhat = (invoiceId: string) => `Delete invoice ${invoiceId}`;
@@ -48,6 +50,11 @@ export type InvoiceDoc = {
   sourceOrderId?: string;
   shopifyOrderId?: string | number;
   shopifyOrderNumber?: string | number;
+  customerId?: string;
+  grandTotal?: number;
+  amountPaid?: number;
+  balanceDue?: number;
+  paymentHistory?: unknown[];
 };
 
 export interface InvoiceDeleteDeps {
@@ -101,6 +108,8 @@ export interface StagedInvoiceRemoval {
   /** The stock numbers going back in stock. */
   restocked: string[];
   ledgerRows: number;
+  /** The ledger rows that go with it, as they were (kept in the tombstone). */
+  rowsData: Record<string, unknown>[];
   /** The order's link, moved to its other invoice or cleared, for the caller to write or fold into its own change. */
   order: { id: string; invoiceId: string | null; patch: Record<string, unknown> } | null;
   /** Every other write: the pieces back in stock, the ledger rows, the invoice itself. */
@@ -112,11 +121,11 @@ export interface StagedInvoiceRemoval {
  * stay sold, being the order's, and no other invoice is looked for, the order being opened again.
  */
 export async function stageInvoiceRemoval(
-  db: DbPort, invoiceId: string, deps: InvoiceDeleteDeps, opts: { editing?: boolean } = {},
+  db: DbPort, invoiceId: string, deps: InvoiceDeleteDeps, opts: { editing?: boolean; by?: string } = {},
 ): Promise<StagedInvoiceRemoval> {
   const editing = opts.editing === true;
   const invoice = await db.get<InvoiceDoc>(INVOICES, invoiceId);
-  if (!invoice) return { invoice: null, restocked: [], ledgerRows: 0, order: null, write: () => undefined };
+  if (!invoice) return { invoice: null, restocked: [], ledgerRows: 0, rowsData: [], order: null, write: () => undefined };
 
   const orderId = invoice.sourceOrderId;
   // The other invoices are read only when a piece could go back.
@@ -140,6 +149,7 @@ export async function stageInvoiceRemoval(
     invoice,
     restocked: back.map(l => l.sku!),
     ledgerRows: rows.length,
+    rowsData: rows as unknown as Record<string, unknown>[],
     order,
     write: (b) => {
       for (const l of back) {
@@ -147,32 +157,53 @@ export async function stageInvoiceRemoval(
         b.delete(SOLD, l.sku!);
       }
       for (const r of rows) b.delete(HISAAB, r.id);
+      // The tombstone, in the same commit: the whole invoice, its payments and ledger rows, who and when.
+      b.set(DELETED_INVOICES, invoiceId, cleanObject({
+        invoiceId, deletedAt: new Date().toISOString(), ...(opts.by && { deletedBy: opts.by }),
+        grandTotal: Number(invoice.grandTotal) || 0, amountPaid: Number(invoice.amountPaid) || 0, balanceDue: Number(invoice.balanceDue) || 0,
+        customerName: invoice.customerName, customerId: invoice.customerId,
+        restocked: back.map(l => l.sku!), ledgerRows: rows,
+        invoice: { ...invoice, id: invoiceId },
+      }) as Record<string, unknown>);
       b.delete(INVOICES, invoiceId);
     },
   };
 }
 
 /** The activity log's line for an invoice taken off the books (store.ts deleteInvoice). */
-export function logInvoiceDeleted(fx: SideEffects, invoice: Pick<InvoiceDoc, 'id' | 'customerName'>) {
-  void Promise.resolve(fx.log?.('invoice.delete', `Deleted invoice ${invoice.id}`, `Customer: ${invoice.customerName}`, invoice.id))
+export function logInvoiceDeleted(fx: SideEffects, invoice: Pick<InvoiceDoc, 'id' | 'customerName'> & { grandTotal?: number; amountPaid?: number; paymentHistory?: unknown[] }) {
+  // The amounts too: the log and the tombstone (deleted_invoices) are all that is left of it.
+  const money = invoice.grandTotal !== undefined
+    ? ` | Total: ${Number(invoice.grandTotal).toLocaleString()} | Paid: ${Number(invoice.amountPaid || 0).toLocaleString()} in ${(invoice.paymentHistory || []).length} payment(s)`
+    : '';
+  void Promise.resolve(fx.log?.('invoice.delete', `Deleted invoice ${invoice.id}`, `Customer: ${invoice.customerName}${money}`, invoice.id))
     .catch(() => undefined);
 }
 
 export async function deleteInvoice(
   db: DbPort,
-  input: { invoiceId: string; syncShopify?: boolean },
+  input: { invoiceId: string; syncShopify?: boolean; by?: string },
   deps: InvoiceDeleteDeps,
   fx: InvoiceDeleteEffects = {},
 ): Promise<DeletedInvoice> {
   const { invoiceId, syncShopify = true } = input;
-  const staged = await stageInvoiceRemoval(db, invoiceId, deps);
+  const staged = await stageInvoiceRemoval(db, invoiceId, deps, { by: input.by });
   const invoice = staged.invoice;
   if (!invoice) return { deleted: false, invoiceId, restocked: [], ledgerRows: 0 };
 
-  const b = db.batch();
-  staged.write(b);
-  if (staged.order) b.set(ORDERS, staged.order.id, staged.order.patch, true);
-  await b.commit();
+  // One transaction: the invoice is read again inside it, and if a payment (or an edit) landed since the first
+  // read the delete is refused rather than burying that money; the tombstone goes in the same commit.
+  await db.runTransaction(async tx => {
+    const now = await tx.get<Record<string, unknown>>(INVOICES, invoiceId);
+    if (!now) throw new Error(`No such invoice ${invoiceId}: it was deleted already.`);
+    const seen = invoice as unknown as Record<string, unknown>;
+    const changed = ['amountPaid', 'grandTotal', 'balanceDue'].some(k => (Number(now[k]) || 0) !== (Number(seen[k]) || 0))
+      || ((now.paymentHistory as unknown[] | undefined)?.length ?? 0) !== ((seen.paymentHistory as unknown[] | undefined)?.length ?? 0);
+    if (changed) throw new Error('The invoice has changed since you opened it (a payment or an edit landed). Open it again and try once more.');
+    // The writes staged for the batch go through the transaction as they are: it takes the same set / delete.
+    staged.write({ set: (c, id, d, m) => tx.set(c, id, d, m), update: (c, id, d) => tx.update(c, id, d), delete: (c, id) => tx.delete(c, id), commit: async () => undefined });
+    if (staged.order) tx.set(ORDERS, staged.order.id, staged.order.patch, true);
+  });
 
   logInvoiceDeleted(fx, invoice);
   // A Shopify order's own invoice is Shopify's record, not a copy of one. The invoice is gone by now, so its

@@ -20,6 +20,8 @@ import { newShareToken } from '@/lib/share-token';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { shouldCreateCustomer } from '@/lib/walk-in';
 import { owesMoney, rupees } from '@/lib/money';
+import { isOneOffSku } from '@/lib/sku';
+import { checkMoney } from './validate';
 
 const SETTINGS = 'app_settings';
 const GLOBAL = 'global';
@@ -51,6 +53,8 @@ export interface SaleInput {
   costRate24k?: number;
   /** The invoice counter this device last saw: its next number is read with the rest, saving a trip when right. */
   lastInvoiceNumber?: number;
+  /** The app's name for this change: each payment taken with the sale carries an id derived from it, so none is appended twice. */
+  requestId?: string;
 }
 
 export interface SaleSideEffects extends SideEffects {
@@ -93,6 +97,9 @@ export async function createInvoice(db: DbPort, input: SaleInput, fx: SaleSideEf
   const { cart, customer: customerInfo, rates: invoiceRates, discountAmount, exchanges, existingInvoiceId, delivery,
     takenBy, hideRates, internalNote, payments, costRate24k } = input;
   if (!cart.length) throw new Error('The sale has no pieces.');
+  // Refused before anything is read: a payment or discount that is not a sane figure.
+  for (const p of payments || []) checkMoney(p.amount, 'A payment', { positive: false });
+  checkMoney(discountAmount ?? 0, 'The discount');
   const now = fx.now ?? (() => new Date().toISOString());
   const before: { total: number | null } = { total: null };
 
@@ -106,7 +113,10 @@ export async function createInvoice(db: DbPort, input: SaleInput, fx: SaleSideEf
 
   const result = await db.runTransaction<Invoice>(async (tx) => {
     // --- READS FIRST, AND TOGETHER ---
-    const [currentSettings, customerDoc, existingInvoiceData, predictedDoc, oldRows] = await Promise.all([
+    // Each piece is read here, in the transaction, so two counters selling the same piece cannot both win:
+    // the second finds it gone (a piece made for this bill, NEW-…, was never stock: refused only once sold).
+    const [stock, currentSettings, customerDoc, existingInvoiceData, predictedDoc, oldRows] = await Promise.all([
+      Promise.all(cart.map((l) => tx.get(isOneOffSku(l.sku) ? SOLD : PRODUCTS, l.sku))),
       tx.get<Settings>(SETTINGS, GLOBAL),
       customerInfo.id ? tx.get<Customer>(CUSTOMERS, customerInfo.id) : Promise.resolve(null),
       existingInvoiceId ? tx.get<Omit<Invoice, 'id'>>(INVOICES, existingInvoiceId) : Promise.resolve(null),
@@ -114,6 +124,15 @@ export async function createInvoice(db: DbPort, input: SaleInput, fx: SaleSideEf
       oldHisaab,
     ]);
     if (!currentSettings) throw new Error('Global settings not found.');
+    // The invoice's own pieces are sold already, to it: an edit keeps them without asking the stock.
+    const onInvoice = new Set<string>();
+    if (existingInvoiceData) {
+      const lines = existingInvoiceData.items;
+      for (const l of (Array.isArray(lines) ? lines : Object.values(lines || {})) as { sku?: string }[]) if (l?.sku) onInvoice.add(l.sku);
+    }
+    const gone = cart.filter((l, i) => !onInvoice.has(l.sku) && (isOneOffSku(l.sku) ? stock[i] : !stock[i]))
+      .map((l) => isOneOffSku(l.sku) ? `${l.name || 'a new piece'} (already sold)` : l.sku);
+    if (gone.length) throw new Error(`No longer in stock: ${gone.join(', ')}.`);
 
     // Existing invoice: payment history and creation date must survive a re-save.
     const existingPaymentHistory: Payment[] = existingInvoiceData?.paymentHistory || [];
@@ -218,15 +237,20 @@ export async function createInvoice(db: DbPort, input: SaleInput, fx: SaleSideEf
     // Payments taken at the counter go into the same history, in the same shape, as a payment recorded
     // afterwards (writes/invoice-payment.ts). Paid is recomputed from the whole history.
     const paidAt = now();
-    const takenNow: Payment[] = (payments || [])
+    const takenAll: Payment[] = (payments || [])
       .map((p) => ({ ...p, amount: rupees(p.amount) }))
       .filter((p) => p.amount > 0)
-      .map((p) => ({
+      .map((p, i) => ({
+        // Named from the request, so the same payment sent again (a retry through another path) is not listed twice.
+        ...(input.requestId && { id: `pay-${input.requestId}${i ? `-${i}` : ''}` }),
         amount: p.amount, date: paidAt,
         notes: p.method ? `Payment received (${p.method})` : 'Payment received',
         ...(p.method && { method: p.method }),
         ...(p.reference?.trim() && { reference: p.reference.trim() }),
       }));
+    // A payment whose id is in the history already was taken by an earlier try of this very request.
+    const listed = new Set(existingPaymentHistory.map((p) => (p as { id?: string }).id).filter(Boolean));
+    const takenNow = takenAll.filter((p) => !((p as { id?: string }).id && listed.has((p as { id?: string }).id)));
     const paymentHistory = [...existingPaymentHistory, ...takenNow];
     const amountPaid = rupees(paymentHistory.reduce((acc, p) => acc + (p.amount || 0), 0));
     // Over the total is credit for a named customer; nobody holds a walk-in's (lib/invoice-credit.ts).

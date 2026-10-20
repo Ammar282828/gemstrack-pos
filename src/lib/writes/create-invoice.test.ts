@@ -77,39 +77,39 @@ describe('a new sale', () => {
   });
 
   it('refuses a stale counter rather than writing over an invoice', async () => {
-    const { db, data } = fakeDb({ app_settings: { global: { lastInvoiceNumber: 5 } }, invoices: { 'INV-000006': { grandTotal: 1 } } });
+    const { db, data } = fakeDb({ app_settings: { global: { lastInvoiceNumber: 5 } }, invoices: { 'INV-000006': { grandTotal: 1 } }, products: { R: ring('R') as never } });
     await expect(createInvoice(db, { cart: [ring('R')], customer: { name: 'Walk-in Customer' }, rates, discountAmount: 0, lastInvoiceNumber: 5 }, fx()))
       .rejects.toThrow(/already exists/);
     expect(data.app_settings.global.lastInvoiceNumber).toBe(5);
   });
 
   it('a walk-in makes no customer; a typed name does', async () => {
-    const walkIn = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } } });
+    const walkIn = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } }, products: { R: ring('R') as never } });
     const a = await createInvoice(walkIn.db, { cart: [ring('R')], customer: { name: 'Walk-in Customer' }, rates, discountAmount: 0 }, fx());
     expect(a.customerId).toBeUndefined();
     expect(walkIn.data.customers).toBeUndefined();
     // Owed by a walk-in is booked under the fixed walk-in entity.
     expect(Object.values(walkIn.data.hisaab)[0]).toMatchObject({ entityId: 'walk-in', entityName: 'Walk-in Customer' });
 
-    const named = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } } });
+    const named = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } }, products: { R: ring('R') as never } });
     const b = await createInvoice(named.db, { cart: [ring('R')], customer: { name: 'New Person', phone: '0300 0000002' }, rates, discountAmount: 0 }, fx());
     expect(b.customerId).toBe('cust-new');
     expect(named.data.customers['cust-new']).toEqual({ name: 'New Person', phone: '0300 0000002', address: '', email: '' });
   });
 
   it('a walk-in cannot pay past the total; a named customer keeps the rest as credit', async () => {
-    const w = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } } });
+    const w = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } }, products: { R: ring('R') as never } });
     await expect(createInvoice(w.db, { cart: [ring('R')], customer: { name: 'Walk-in Customer' }, rates, discountAmount: 0, payments: [{ amount: RING + 10_000 }] }, fx()))
       .rejects.toThrow(/Name the customer/);
 
-    const n = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } }, customers: { c9: { name: 'Demo Credit' } } });
+    const n = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } }, products: { R: ring('R') as never }, customers: { c9: { name: 'Demo Credit' } } });
     const inv = await createInvoice(n.db, { cart: [ring('R')], customer: { id: 'c9', name: 'Demo Credit' }, rates, discountAmount: 0, payments: [{ amount: RING + 10_000 }] }, fx());
     expect(inv.balanceDue).toBe(-10_000);
     expect(Object.values(n.data.hisaab)).toEqual([expect.objectContaining({ entityId: 'c9', cashCredit: 10_000, cashDebit: 0, description: 'Credit held for Invoice INV-000001' })]);
   });
 
   it('a discount is never more than the pieces, and the exchange comes off the total', async () => {
-    const { db } = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } } });
+    const { db } = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } }, products: { R: ring('R') as never } });
     const inv = await createInvoice(db, {
       cart: [ring('R')], customer: { name: 'Walk-in Customer' }, rates, discountAmount: 999_999,
       exchanges: [{ description: 'Old ring', value: 20_000 }],
@@ -160,5 +160,47 @@ describe('an invoice edited and saved again', () => {
     const { db, data } = seed();
     await expect(createInvoice(db, { cart: [], customer: { name: 'x' }, rates, discountAmount: 0 }, fx())).rejects.toThrow(/no pieces/);
     expect(data.hisaab.old1).toBeDefined();
+  });
+});
+
+describe('a piece is read inside the transaction, so it is sold once', () => {
+  const sale = (sku = 'R', extra: Record<string, unknown> = {}) => ({ cart: [ring(sku)], customer: { name: 'Walk-in Customer' }, rates, discountAmount: 0, ...extra });
+
+  it('refuses a piece that is no longer in stock, writing nothing', async () => {
+    const { db, data } = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } } });
+    await expect(createInvoice(db, sale(), fx())).rejects.toThrow(/No longer in stock: R/);
+    expect(data.invoices).toBeUndefined();
+    expect(data.app_settings.global.lastInvoiceNumber).toBe(0);
+  });
+
+  it('two counters selling the same piece: the second finds it gone', async () => {
+    const { db, data } = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } }, products: { R: ring('R') as never } });
+    await createInvoice(db, sale(), fx());
+    await expect(createInvoice(db, sale(), fx())).rejects.toThrow(/No longer in stock/);
+    expect(Object.keys(data.invoices)).toEqual(['INV-000001']);
+  });
+
+  it('a piece made for this bill (NEW-…) is refused only once sold; an edit keeps its own pieces', async () => {
+    const { db, data } = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } } });
+    const first = await createInvoice(db, sale('NEW-AB12'), fx());
+    await expect(createInvoice(db, sale('NEW-AB12'), fx())).rejects.toThrow(/already sold/);
+    // Editing the invoice that sold it is not a second sale.
+    await createInvoice(db, sale('NEW-AB12', { existingInvoiceId: first.id }), fx());
+    expect(Object.keys(data.invoices)).toEqual([first.id]);
+  });
+
+  it('refuses a payment that is not a sane figure', async () => {
+    const { db } = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } }, products: { R: ring('R') as never } });
+    await expect(createInvoice(db, sale('R', { payments: [{ amount: 1e308 }] }), fx())).rejects.toThrow(/payment must be/i);
+    await expect(createInvoice(db, sale('R', { payments: [{ amount: -5 }] }), fx())).rejects.toThrow(/payment must be/i);
+  });
+
+  it('payments taken with a request carry ids from it: the same request sent again adds none', async () => {
+    const { db, data } = fakeDb({ app_settings: { global: { lastInvoiceNumber: 0 } }, products: { R: ring('R') as never }, customers: { c1: { name: 'Demo' } } });
+    const first = await createInvoice(db, sale('R', { customer: { id: 'c1', name: 'Demo' }, payments: [{ amount: 1_000 }] , requestId: 'req-aaaa-0001' }), fx());
+    expect((first.paymentHistory[0] as { id?: string }).id).toBe('pay-req-aaaa-0001');
+    await createInvoice(db, sale('R', { customer: { id: 'c1', name: 'Demo' }, existingInvoiceId: first.id, payments: [{ amount: 1_000 }], requestId: 'req-aaaa-0001' }), fx());
+    expect((data.invoices[first.id].paymentHistory as unknown[]).length).toBe(1);
+    expect(data.invoices[first.id].amountPaid).toBe(1_000);
   });
 });

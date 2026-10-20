@@ -152,7 +152,7 @@ export const runInvoiceActionOp: OpHandler = async (op, body, ctx) => {
       // The page's Delete, and its Refund → Full refund: the same store call, asked in the same words.
       const code = await passDeleteCode(ctx.email, body.deleteCode, deleteInvoiceWhat(invoiceId));
       if (!code.ok) return bad(code.error, code.status);
-      const out = await deleteInvoice(adminPort, { invoiceId }, {
+      const out = await deleteInvoice(adminPort, { invoiceId, by: ctx.email }, {
         deleteField: () => FieldValue.delete(),
         // The browser asks its live list of invoices; here they are read, their pieces only.
         invoices: async () => {

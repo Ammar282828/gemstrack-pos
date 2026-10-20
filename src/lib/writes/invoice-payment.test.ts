@@ -59,11 +59,11 @@ describe('recording a payment', () => {
       invoices: { 'INV-2': { grandTotal: 10_000, amountPaid: 0, balanceDue: 10_000, customerId: 'c2', paymentHistory: [] } },
       hisaab: { h1: { linkedInvoiceId: 'INV-2', cashDebit: 10_000 } },
     });
-    await recordInvoicePayment(db, { invoiceId: 'INV-2', amount: 10_000, date: 'd' });
+    await recordInvoicePayment(db, { invoiceId: 'INV-2', amount: 10_000, date: '2026-10-01' });
     expect(data.hisaab.h1).toBeUndefined();
 
     const two = fakeDb({ invoices: { 'INV-3': { grandTotal: 10_000, amountPaid: 0, balanceDue: 10_000, customerId: 'c3', paymentHistory: [] } } });
-    await recordInvoicePayment(two.db, { invoiceId: 'INV-3', amount: 4_000, date: 'd' });
+    await recordInvoicePayment(two.db, { invoiceId: 'INV-3', amount: 4_000, date: '2026-10-01' });
     expect(Object.values(two.data.hisaab)).toEqual([expect.objectContaining({ linkedInvoiceId: 'INV-3', cashDebit: 6_000, entityId: 'c3' })]);
   });
 });
@@ -85,14 +85,14 @@ describe('deleting a payment', () => {
   });
 
   it("a walk-in's paid invoice owing again gets the walk-in row it would have had", async () => {
-    const { db, data } = fakeDb({ invoices: { 'INV-2': { grandTotal: 1_000, amountPaid: 1_000, balanceDue: 0, customerName: 'Walk-in Customer', paymentHistory: [{ amount: 1_000, date: 'd' }] } } });
-    await removeInvoicePayment(db, { invoiceId: 'INV-2', index: 0, amount: 1_000, date: 'd' });
+    const { db, data } = fakeDb({ invoices: { 'INV-2': { grandTotal: 1_000, amountPaid: 1_000, balanceDue: 0, customerName: 'Walk-in Customer', paymentHistory: [{ amount: 1_000, date: '2026-10-01' }] } } });
+    await removeInvoicePayment(db, { invoiceId: 'INV-2', index: 0, amount: 1_000, date: '2026-10-01' });
     expect(Object.values(data.hisaab)).toEqual([expect.objectContaining({ entityId: 'walk-in', cashDebit: 1_000 })]);
   });
 
   it('refuses when the invoice changed since the page showed it', async () => {
-    const { db, data } = fakeDb({ invoices: { 'INV-3': { grandTotal: 1_000, amountPaid: 500, balanceDue: 500, paymentHistory: [{ amount: 500, date: 'd' }] } } });
-    await expect(removeInvoicePayment(db, { invoiceId: 'INV-3', index: 0, amount: 400, date: 'd' })).rejects.toThrow(/changed/);
+    const { db, data } = fakeDb({ invoices: { 'INV-3': { grandTotal: 1_000, amountPaid: 500, balanceDue: 500, paymentHistory: [{ amount: 500, date: '2026-10-01' }] } } });
+    await expect(removeInvoicePayment(db, { invoiceId: 'INV-3', index: 0, amount: 400, date: '2026-10-01' })).rejects.toThrow(/changed/);
     expect(data.invoices['INV-3']).toMatchObject({ amountPaid: 500 });
   });
 });
@@ -123,7 +123,7 @@ describe("Shopify's word on a web order", () => {
 
   it('never takes twice what the counter already took, and never lowers what is paid', async () => {
     const { db, data } = fakeDb({ invoices: {
-      'SHOPIFY-1': { grandTotal: 7_850, amountPaid: 7_850, balanceDue: 0, paymentHistory: [{ amount: 7_850, date: 'd', method: 'Cash' }] },
+      'SHOPIFY-1': { grandTotal: 7_850, amountPaid: 7_850, balanceDue: 0, paymentHistory: [{ amount: 7_850, date: '2026-10-01', method: 'Cash' }] },
       // An import from before the history was kept: paid, with no payments listed.
       'SHOPIFY-2': { grandTotal: 5_000, amountPaid: 5_000, balanceDue: 0, paymentHistory: [] },
     } });
@@ -138,7 +138,7 @@ describe("Shopify's word on a web order", () => {
   });
 
   it('fills only what is owed; refunds, failures and authorisations are not payments', async () => {
-    const { db, data } = fakeDb({ invoices: { 'SHOPIFY-3': { grandTotal: 10_000, amountPaid: 4_000, balanceDue: 6_000, customerId: 'shopify-1', paymentHistory: [{ amount: 4_000, date: 'd' }] } } });
+    const { db, data } = fakeDb({ invoices: { 'SHOPIFY-3': { grandTotal: 10_000, amountPaid: 4_000, balanceDue: 6_000, customerId: 'shopify-1', paymentHistory: [{ amount: 4_000, date: '2026-10-01' }] } } });
     await mirrorShopifyOrder(db, 'SHOPIFY-3', { ...order, order_number: 3 }, [
       { id: 1, kind: 'authorization', status: 'success', amount: '10000', gateway: 'Safepay Checkout Onsite' },
       { id: 2, kind: 'capture', status: 'success', amount: '10000', gateway: 'Safepay Checkout Onsite', processed_at: '2026-09-02' },
@@ -161,7 +161,7 @@ describe("Shopify's word on a web order", () => {
     const { db, data } = fakeDb({
       invoices: {
         'SHOPIFY-1406': { grandTotal: 11_850, amountPaid: 0, balanceDue: 11_850, customerId: 'shopify-7', paymentHistory: [] },
-        'SHOPIFY-7': { grandTotal: 5_000, amountPaid: 2_000, balanceDue: 3_000, paymentHistory: [{ amount: 2_000, date: 'd', method: 'Cash' }] },
+        'SHOPIFY-7': { grandTotal: 5_000, amountPaid: 2_000, balanceDue: 3_000, paymentHistory: [{ amount: 2_000, date: '2026-10-01', method: 'Cash' }] },
         'INV-000300': { grandTotal: 9_000, amountPaid: 0, balanceDue: 9_000, paymentHistory: [] },
       },
       hisaab: { h1: { linkedInvoiceId: 'SHOPIFY-1406', cashDebit: 11_850 } },
@@ -194,7 +194,7 @@ describe('paying past the total', () => {
       hisaab: { h1: { linkedInvoiceId: 'INV-5', cashDebit: 10_000, description: 'Outstanding balance for Invoice INV-5' } },
       orders: { 'ORD-5': { grandTotal: 10_000 } },
     });
-    const out = await recordInvoicePayment(db, { invoiceId: 'INV-5', amount: 15_000, date: 'd', method: 'Cash' });
+    const out = await recordInvoicePayment(db, { invoiceId: 'INV-5', amount: 15_000, date: '2026-10-01', method: 'Cash' });
     expect(out.balanceDue).toBe(-5_000);
     expect(data.hisaab.h1).toBeUndefined();
     const credits = Object.values(data.hisaab).filter(h => h.linkedInvoiceId === 'INV-5');
@@ -208,7 +208,7 @@ describe('paying past the total', () => {
       invoices: { 'INV-6': { grandTotal: 10_000, amountPaid: 12_000, balanceDue: -2_000, customerId: 'c6', paymentHistory: [{ amount: 12_000, date: 'a' }] } },
       hisaab: { h1: { linkedInvoiceId: 'INV-6', cashCredit: 2_000, cashDebit: 0, description: 'Excess advance returned for Invoice INV-6' } },
     });
-    await recordInvoicePayment(db, { invoiceId: 'INV-6', amount: 1_000, date: 'b' });
+    await recordInvoicePayment(db, { invoiceId: 'INV-6', amount: 1_000, date: '2026-10-02' });
     expect(data.hisaab.h1).toMatchObject({ cashCredit: 3_000, description: 'Credit held for Invoice INV-6' });
     await removeInvoicePayment(db, { invoiceId: 'INV-6', index: 0, amount: 12_000, date: 'a' });
     expect(data.invoices['INV-6']).toMatchObject({ balanceDue: 9_000 });
@@ -221,7 +221,7 @@ describe('paying past the total', () => {
       invoices: { 'INV-7': { grandTotal: 1_000, amountPaid: 0, balanceDue: 1_000, paymentHistory: [] } },
       hisaab: {},
     });
-    await recordInvoicePayment(db, { invoiceId: 'INV-7', amount: 1_500, date: 'd' });
+    await recordInvoicePayment(db, { invoiceId: 'INV-7', amount: 1_500, date: '2026-10-01' });
     expect(Object.keys(data.hisaab)).toHaveLength(0);
   });
 });

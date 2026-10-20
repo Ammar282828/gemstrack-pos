@@ -10,6 +10,7 @@ import type { DbPort, SideEffects } from '@/lib/db-port';
 import type { Repair, RepairPayment } from '@/lib/store';
 import { REPAIR_STATUS_LABELS, repairSummary, type RepairStatus } from '@/lib/repairs';
 import { cleanObject } from './create-invoice';
+import { checkIsoDate, checkMoney } from './validate';
 
 const SETTINGS = 'app_settings';
 const GLOBAL = 'global';
@@ -67,11 +68,16 @@ export async function setRepairStatus(db: DbPort, id: string, status: RepairStat
 }
 
 /** Money taken on a ticket, and its Extra Revenue row, in one commit. */
-export async function recordRepairPayment(db: DbPort, id: string, payment: RepairPayment, fx: SideEffects = {}): Promise<void> {
+export async function recordRepairPayment(db: DbPort, id: string, payment: RepairPayment & { id?: string }, fx: SideEffects = {}): Promise<void> {
   if (!(payment.amount > 0)) return;
+  checkMoney(payment.amount, 'The payment', { positive: true });
+  checkIsoDate(payment.date, 'The payment date');
+  let alreadyIn = false;
   await db.runTransaction(async (tx) => {
     const repair = await tx.get<Repair>(REPAIRS, id);
     if (!repair) throw new Error(`Repair ${id} not found.`);
+    // A payment carrying an id already listed (the same request by another path) is not added twice.
+    if (payment.id && (repair.payments || []).some((p) => (p as { id?: string }).id === payment.id)) { alreadyIn = true; return; }
     const revenueId = db.newId(REVENUE);
     tx.set(REVENUE, revenueId, {
       date: payment.date, amount: payment.amount, repairId: id,
@@ -79,5 +85,6 @@ export async function recordRepairPayment(db: DbPort, id: string, payment: Repai
     });
     tx.update(REPAIRS, id, { payments: [...(repair.payments || []), cleanObject({ ...payment, revenueId })] });
   });
+  if (alreadyIn) return;
   log(fx, 'repair.payment', `Repair ${id}: PKR ${payment.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} received`, payment.method || '', id);
 }

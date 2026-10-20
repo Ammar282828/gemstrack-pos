@@ -90,7 +90,9 @@ vi.mock('@/lib/people', () => ({ personFor: () => undefined }));
 
 const { POST } = await import('./route');
 
+let autoId = 0;
 const call = async (body: unknown, email: string | null = 'owner@example.com') => {
+  if (body && typeof body === 'object' && !('requestId' in body)) body = { ...body, requestId: `req-auto-${String(++autoId).padStart(6, '0')}` };
   const res = await POST(new NextRequest('https://erp.example.com/api/app/write', {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...(email ? { 'x-test-email': email } : {}) },

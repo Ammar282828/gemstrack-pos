@@ -25,6 +25,10 @@ import { owesMoney } from '@/lib/money';
 type OwedInvoice = { id: string; status?: string; balanceDue?: number; customerId?: string | null; customerName?: string | null; createdAt?: string };
 export type LedgerRow = { entityId?: string; entityType?: string; cashDebit?: number; cashCredit?: number; linkedInvoiceId?: string | null };
 
+/** A money field that is there but is not a number (a map, a word, NaN): it reads as 0, so it is counted, not lost quietly. */
+export const isUnreadableMoney = (v: unknown): boolean =>
+  v !== undefined && v !== null && v !== '' && !Number.isFinite(Number(v));
+
 /** An invoice that is still owed money on. */
 export const isOwing = (inv: OwedInvoice | null | undefined): boolean =>
   !!inv && inv.status !== 'Refunded' && owesMoney(inv.balanceDue);
@@ -52,6 +56,8 @@ export interface Owed<I extends OwedInvoice> {
   nameOnly: number;
   /** What the hisaab holds by hand (also in total and byKey). 0 when no ledger was given. */
   ledger: number;
+  /** Records whose money field could not be read as a number (they count as 0 above): "N records unreadable". */
+  bad: number;
 }
 
 export function owedToYou<I extends OwedInvoice>(
@@ -62,6 +68,8 @@ export function owedToYou<I extends OwedInvoice>(
   const owing = invoices.filter(isOwing).sort((a, b) => String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? '')));
   const byKey = new Map<string, { amount: number; count: number }>();
   let total = 0, walkIn = 0, nameOnly = 0, ledger = 0;
+  // An unreadable balanceDue reads as 0 and so drops out of `owing`: it is counted from the whole list.
+  let bad = invoices.filter((inv) => inv && inv.status !== 'Refunded' && isUnreadableMoney(inv.balanceDue)).length;
   for (const inv of owing) {
     const due = Number(inv.balanceDue) || 0;
     total += due;
@@ -73,6 +81,7 @@ export function owedToYou<I extends OwedInvoice>(
     byKey.set(key, cur);
   }
   if (ledgerRows) {
+    bad += ledgerRows.filter((r) => r && (isUnreadableMoney(r.cashDebit) || isUnreadableMoney(r.cashCredit))).length;
     for (const [key, balance] of ledgerBalances(ledgerRows)) {
       if (!owesMoney(balance)) continue;
       total += balance; ledger += balance;
@@ -82,5 +91,5 @@ export function owedToYou<I extends OwedInvoice>(
       byKey.set(key, cur);
     }
   }
-  return { total, invoices: owing, byKey, walkIn, nameOnly, ledger };
+  return { total, invoices: owing, byKey, walkIn, nameOnly, ledger, bad };
 }

@@ -11,6 +11,49 @@ import type { DbPort, SideEffects } from '@/lib/db-port';
 import { rupees, rupeesIn } from '@/lib/money';
 import { ORDER_PHOTOS, splitItemPhotos } from '@/lib/order-photos';
 import { statusFromPieces } from '@/lib/order-stage';
+import { InputError, checkIsoDate, checkIsoDateIfGiven, checkMoney } from './validate';
+
+/**
+ * The fields an order may be created with (the order form's create path, the app's, the website's confirm).
+ * Anything else sent (`status`, `invoiceId`, `shareToken`, `shopifyDraftOrderId`, `payments`, `karigarId`…)
+ * is dropped: it is the server's to set, never the caller's.
+ */
+export const ORDER_CREATE_FIELDS = [
+  'customerId', 'customerName', 'customerContact', 'source', 'promisedDate', 'takenBy', 'notes', 'hideRates',
+  'costRate24k', 'advanceMethod', 'advanceGoldDetails', 'exchanges', 'advanceInExchangeDescription', 'delivery',
+  'summary', 'website', 'leopards',
+] as const;
+const ORDER_MONEY_FIELDS = ['subtotal', 'discountAmount', 'advancePayment', 'advanceInExchangeValue', 'costRate24k'] as const;
+
+/** The input as the order is made from it: known fields only, the figures and dates checked (an InputError otherwise). */
+export function pickOrderInput(input: OrderInput): Record<string, unknown> {
+  if (!input || typeof input !== 'object' || !Array.isArray(input.items) || input.items.length === 0) throw new InputError('An order needs at least one piece.');
+  const src = input as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const k of ORDER_CREATE_FIELDS) if (src[k] !== undefined) out[k] = src[k];
+  for (const k of ORDER_MONEY_FIELDS) if (src[k] !== undefined && src[k] !== null) out[k] = checkMoney(src[k], k === 'subtotal' ? 'The subtotal' : `The ${k.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+  // What is still owed may dip below 0 when an advance runs past the pieces; it must still be a figure within the cap.
+  if (src.grandTotal !== undefined && src.grandTotal !== null) {
+    const g = Number(src.grandTotal);
+    if (!Number.isFinite(g) || Math.abs(g) > 1e10) throw new InputError('The total must be a figure of at most 10,000,000,000.');
+    out.grandTotal = g;
+  }
+  const promised = checkIsoDateIfGiven(src.promisedDate, 'The promised date');
+  if (promised) out.promisedDate = promised;
+  if (Array.isArray(src.advances)) {
+    out.advances = (src.advances as Record<string, unknown>[]).map((a) => ({
+      amount: checkMoney(a?.amount, 'An advance', { positive: true }),
+      date: checkIsoDate(a?.date, 'An advance date'),
+      ...(typeof a?.notes === 'string' && { notes: a.notes.slice(0, 300) }),
+      ...(typeof a?.method === 'string' && { method: a.method }),
+    }));
+  }
+  for (const it of input.items as Record<string, unknown>[]) {
+    if (!it || typeof it !== 'object' || Array.isArray(it)) throw new InputError('Each piece of an order is a set of details.');
+    for (const k of PIECE_MONEY) if (it[k] !== undefined && it[k] !== null) checkMoney(it[k], `A piece's ${k}`);
+  }
+  return out;
+}
 
 /** A piece's money fields, kept in whole rupees on the order. */
 const PIECE_MONEY = ['makingCharges', 'diamondCharges', 'stoneCharges', 'manualPrice', 'metalCost', 'wastageCost', 'totalEstimate'] as const;
@@ -78,6 +121,8 @@ export async function createOrder(
   fx: SideEffects = {},
 ): Promise<CreatedOrder> {
   const { createCustomer, normalizePhone = v => v, clean } = deps;
+  // Known fields only, figures and dates checked, before anything is read or made (a customer included).
+  const picked = pickOrderInput(input);
 
   // Resolving the customer WRITES, so it has to finish before the transaction
   // opens — Firestore forbids a write inside one from depending on a read
@@ -150,7 +195,7 @@ export async function createOrder(
     }
 
     const doc = {
-      ...input,
+      ...picked,
       items: itemsOut.map(it => ({ ...it, ...rupeesIn(it as Record<string, unknown>, PIECE_MONEY) })),
       id,
       customerId,
@@ -159,7 +204,7 @@ export async function createOrder(
       source,
       subtotal,
       grandTotal,
-      ...rupeesIn(input, ['discountAmount', 'advancePayment', 'advanceInExchangeValue']),
+      ...rupeesIn(picked, ['discountAmount', 'advancePayment', 'advanceInExchangeValue']),
       createdAt,
       // Made with every piece already given out (or finished), it starts there (lib/order-stage.ts).
       status: statusFromPieces('Pending', input.items as { karigarId?: string; isCompleted?: boolean }[]) ?? 'Pending',

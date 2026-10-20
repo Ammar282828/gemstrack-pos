@@ -11,6 +11,7 @@ import type { DbPort, SideEffects } from '@/lib/db-port';
 import type { Payment } from '@/lib/store';
 import { canHoldCredit, creditDescription, inCredit, isCreditRow } from '@/lib/invoice-credit';
 import { owesMoney, rupees } from '@/lib/money';
+import { checkIsoDate, checkMoney } from './validate';
 import { planShopifyMirror, type MirroredInvoice, type ShopifyOrderState, type ShopifyTransaction } from '@/lib/shopify-mirror';
 
 const INVOICES = 'invoices';
@@ -23,7 +24,12 @@ export interface PaymentInput {
   date: string;
   method?: string;
   reference?: string;
+  /** The change's name from the app (route idempotency): the payment's own id derives from it, so it is appended once whatever path it takes. */
+  requestId?: string;
 }
+
+/** The id a payment carries when it came with a request name. */
+export const paymentIdFor = (requestId: string | undefined, n = 0) => (requestId ? `pay-${requestId}${n ? `-${n}` : ''}` : undefined);
 
 export interface PaidInvoice {
   id: string;
@@ -34,7 +40,7 @@ export interface PaidInvoice {
   amountPaid: number;
   balanceDue: number;
   sourceOrderId?: string;
-  paymentHistory: { amount: number; date: string; notes?: string }[];
+  paymentHistory: { id?: string; amount: number; date: string; notes?: string }[];
 }
 
 export async function recordInvoicePayment(
@@ -42,9 +48,11 @@ export async function recordInvoicePayment(
   input: PaymentInput,
   fx: SideEffects = {},
 ): Promise<PaidInvoice> {
-  const { invoiceId, date, method, reference } = input;
+  const { invoiceId, method, reference } = input;
+  // Refused before anything is read: not a figure, not above 0, absurdly large, or not a date.
+  const date = checkIsoDate(input.date, 'The payment date');
   // Whole rupees: a fraction sent by any caller is rounded here, once, for the web and the apps alike.
-  const amount = rupees(input.amount);
+  const amount = rupees(checkMoney(input.amount, 'The payment', { positive: true }));
 
   // One round trip to the database, not five (2026-10-01, "why is every update so slow"): the
   // ledger rows linked to this invoice are looked up while the transaction reads the invoice, and
@@ -53,14 +61,20 @@ export async function recordInvoicePayment(
   const linkedRows = db.queryEquals<LinkedRow>(HISAAB, 'linkedInvoiceId', invoiceId);
   linkedRows.catch(() => { /* surfaced by the await inside the transaction */ });
 
+  const paymentId = paymentIdFor(input.requestId);
+  let alreadyIn = false;
   const updated = await db.runTransaction<PaidInvoice>(async tx => {
+    alreadyIn = false;
     const [invoice, linked] = await Promise.all([
       tx.get<Omit<PaidInvoice, 'id'>>(INVOICES, invoiceId),
       linkedRows,
     ]);
     if (!invoice) throw new Error('Invoice not found!');
+    // This very payment is in the history already (the same request reached us by another path): once.
+    if (paymentId && (invoice.paymentHistory || []).some(p => p.id === paymentId)) { alreadyIn = true; return { ...invoice, id: invoiceId }; }
 
     const payment = {
+      ...(paymentId && { id: paymentId }),
       amount, date,
       notes: method ? `Payment received (${method})` : 'Payment received',
       ...(method && { method }),
@@ -79,6 +93,7 @@ export async function recordInvoicePayment(
     return { ...invoice, paymentHistory, amountPaid, balanceDue, id: invoiceId };
   });
 
+  if (alreadyIn) return updated;
   // The log is a record, not part of the sale: it never holds the counter up.
   void Promise.resolve(fx.log?.(
     'invoice.payment',

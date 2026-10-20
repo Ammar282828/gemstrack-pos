@@ -223,7 +223,8 @@ describe('deleting an invoice', () => {
     expect(data.products['ORD-000001-1']).toBeUndefined();               // made for the order, never stock
     expect(data.hisaab).toEqual({ h9: { linkedInvoiceId: 'INV-9', cashDebit: 1 } });
     expect(data.orders['ORD-1']).toEqual({ status: 'Completed' });         // the link went, nothing else
-    expect(stats.commits).toBe(1);
+    expect(stats.transactions).toBe(1);   // one transaction: the invoice is read again inside it
+    expect(data.deleted_invoices['INV-2']).toMatchObject({ invoiceId: 'INV-2', customerName: 'Sakina Demo', restocked: ['RNG-001'] });
     expect(log).toHaveBeenCalledWith('invoice.delete', 'Deleted invoice INV-2', 'Customer: Sakina Demo', 'INV-2');
     expect(shopify).toHaveBeenCalledWith({ path: '/api/shopify/sync/invoice', body: { invoiceId: 'INV-2', shopifyOrderId: '99001', action: 'cancel' } });
     expect(deleteInvoiceWhat('INV-2')).toBe('Delete invoice INV-2');
