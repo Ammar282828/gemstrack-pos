@@ -77,7 +77,7 @@ jobs:
       - name: No customer data in the tree
         run: |
           bad=$(git ls-files '*.csv'; git ls-files '*.json' | grep -v -e '^node_modules/' -e 'package' -e 'tsconfig' | while read -r f; do
-            n=$(grep -oE '(\+92|0)3[0-9]{2}[- ]?[0-9]{7}' "$f" 2>/dev/null | grep -vE '^(\+92|0)3[0-9]{2}[- ]?(0|555)' | wc -l); [ "$n" -ge 10 ] && echo "$f ($n phone numbers)"; done)
+            n=$(grep -oE '(\+92|0)3[0-9]{2}[- ]?[0-9]{7}' "$f" 2>/dev/null | grep -vE '^(\+92|0)3[0-9]{2}[- ]?(0|555)' | wc -l); if [ "$n" -ge 10 ]; then echo "$f ($n phone numbers)"; fi; done)
           if [ -n "$bad" ]; then
             echo "$bad"
             echo "::error::Customer data is committed in the files above. Keep exports and audits outside the repo: gemstrack-pos, which carries this history, is public."
