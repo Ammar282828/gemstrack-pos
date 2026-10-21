@@ -563,6 +563,8 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
   none); the link is `/view-invoice/<id>?t=<key>` and **`/api/public/invoice/[id]`** serves that one invoice for the key (tested;
   no shop notes, admin notes or karigars). Links sent before 2026-09-30 have no key: once the rules are published they say to ask
   the shop again (a signed-in owner still opens them).
+  **AI keys wait for these rules** (2026-10-21): while an anonymous list of `app_private` answers 200, every AI key is refused
+  (`lib/agent/rules-guard.ts`; [AI keys](#ai-keys)) — a key record there could be forged. Publishing the rules turns them on.
 
 ### Signed-in defaults
 
@@ -760,8 +762,11 @@ built: `docs/features/ai-keys.md`.
   three copies. Scopes are checked server-side on every call; a refusal names the scope. Connectors that can only sign in use the ERP's
   own small OAuth (paste the key once on the ERP's page); their tokens die with the key. No new secret.
 - **An AI's post waits for the owner.** `make_post` draws the story and the square on the server (the board's renderer) and keeps them as
-  a Design on the Saved shelf; `queue_post` puts it in the post queue with `proposedBy`; nothing (the tick, Send all, Spread) sends it
-  until a person sends it or gives it a time in Posts, or a key with `posts:publish` does. The website stays with people.
+  a Design on the Saved shelf; `queue_post` puts it in the post queue with `proposedBy`; it goes only after its own Approve in Posts
+  (or a `posts:publish` key's send) — the server refuses a person's Send now or time before that, so no Send all, Spread, phone tray
+  or tick can send it. The website stays with people.
+- **Paused while the rules are open.** No key is honoured unless an anonymous probe finds `app_private` locked (`rules-guard.ts`);
+  Taheri's keys start working when the owner publishes `firestore.rules`.
 - **The books through the app's own writes.** Write tools run `/api/app/write`'s code (`run-op.ts`) as the key's owner: the same roles,
   lock, request id, shared writes, follow-ups (alert, Shopify) and the delete code for anything that deletes. Reads use the screens' own
   calculations (widget figures, Today's cash, owed, the monthly report). Every call is in the activity log under the key's name

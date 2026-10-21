@@ -78,6 +78,8 @@ vi.mock('@/lib/writes/invoice-payment', async orig => {
   const real = await orig<typeof import('@/lib/writes/invoice-payment')>();
   return { ...real, recordInvoicePayment: vi.fn(real.recordInvoicePayment) };
 });
+const rules = { ok: true as boolean };
+vi.mock('@/lib/agent/rules-guard', () => ({ keysAllowed: async () => (rules.ok ? { ok: true } : { ok: false, state: 'open', message: 'AI keys are paused: publish firestore.rules' }) }));
 process.env.WHATSAPP_COMMUNITY_CHAT_ID = '120363000000000001@g.us';
 
 const { createKey, revokeKey } = await import('./keys');
@@ -87,6 +89,9 @@ const { buildOpenApi } = await import('./openapi');
 const { POST: mcp } = await import('@/app/api/agent/mcp/route');
 const { POST: rest } = await import('@/app/api/agent/v1/[tool]/route');
 const { POST: appWrite } = await import('@/app/api/app/write/route');
+const { POST: queueSend } = await import('@/app/api/website/post/queue/[id]/send/route');
+const { PATCH: queuePatch } = await import('@/app/api/website/post/queue/[id]/route');
+const { POST: oauthToken } = await import('@/app/api/agent/oauth/token/route');
 const { claimItem, changeItem } = await import('@/lib/social/queue');
 const { recordInvoicePayment } = await import('@/lib/writes/invoice-payment');
 type Scope = import('./scopes').Scope;
@@ -98,6 +103,8 @@ beforeAll(async () => {
 beforeEach(() => {
   fake.reset();
   limit.ok = true;
+  rules.ok = true;
+  sendWa.mockClear();
   fake.col('invoices')['INV-000001'] = { grandTotal: 100_000, amountPaid: 0, balanceDue: 100_000, customerId: 'c1', customerName: 'Demo One', paymentHistory: [], createdAt: '2026-10-01T10:00:00.000Z' };
 });
 
@@ -213,6 +220,19 @@ describe('MCP', () => {
     expect(JSON.stringify(log)).not.toContain(key.slice(-40));
   });
 
+  it('refuses every key while the database rules are open', async () => {
+    const key = await keyWith(['read']);
+    rules.ok = false;
+    const r = await rpc(key, { jsonrpc: '2.0', id: 1, method: 'ping' });
+    expect(r.status).toBe(401);
+    expect(r.body.error.message).toMatch(/paused/);
+    const tok = await oauthToken(new NextRequest('https://erp.example/api/agent/oauth/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'grant_type=authorization_code&code=x&code_verifier=y' }));
+    expect(tok.status).toBe(503);
+    expect(await tok.json()).toMatchObject({ error: 'temporarily_unavailable' });
+    rules.ok = true;
+    expect((await rpc(key, { jsonrpc: '2.0', id: 1, method: 'ping' })).status).toBe(200);
+  });
+
   it('turns away a revoked or expired key, and one over its hour', async () => {
     const { key, info } = await createKey({ label: 'Old', scopes: ['read'], by: 'owner@example.com' });
     await revokeKey(info.id);
@@ -247,7 +267,7 @@ describe('a post, made and queued by an AI', () => {
     // Nothing sends it without someone's OK: not the tick, not a send with nobody named, not a time.
     expect(await claimItem(id, new Date())).toBeNull();
     expect(await claimItem(id, new Date(), true)).toBeNull();
-    await expect(changeItem(id, { action: 'schedule', dueAt: new Date().toISOString() })).rejects.toThrow(/needs someone's OK/);
+    await expect(changeItem(id, { action: 'schedule', dueAt: new Date().toISOString() })).rejects.toThrow(/approve it first/);
     expect((await call(key, 'send_post', { queue_id: id })).status).toBe(403);
     expect(sendWa).not.toHaveBeenCalled();
 
@@ -257,6 +277,28 @@ describe('a post, made and queued by an AI', () => {
     expect(sent.body.data).toMatchObject({ status: 'sent', awaitingApproval: false });
     expect(sendWa).toHaveBeenCalledTimes(1);
     expect(fake.col('social_queue')[id]).toMatchObject({ approvedBy: 'ai:Publisher' });
+  });
+
+  it('goes out only on its own approval: never by a person’s Send now, a time, Send all or the tick', async () => {
+    const key = await keyWith(['posts:draft']);
+    const made = await call(key, 'make_post', { photo: ASSET.id, format: 'square' });
+    const id = (await call(key, 'queue_post', { post: made.body.data.post, whatsapp: ['announcements'] })).body.data.queued;
+    const asOwner = (method: string, url: string, body?: unknown) => new NextRequest(url, { method, headers: { 'content-type': 'application/json', 'x-test-email': 'owner@example.com' }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    const params = { params: Promise.resolve({ id }) };
+    // A tray's Send all is one Send now per piece: refused for this one.
+    const send = await queueSend(asOwner('POST', `https://erp.example/api/website/post/queue/${id}/send`), params);
+    expect(send.status).toBe(409);
+    expect(await send.json()).toMatchObject({ needsApproval: true, error: expect.stringMatching(/approve it first/) });
+    // Spread is one time per piece: refused too.
+    expect((await queuePatch(asOwner('PATCH', `https://erp.example/api/website/post/queue/${id}`, { action: 'schedule', dueAt: new Date().toISOString() }), params)).status).toBe(409);
+    expect(await claimItem(id, new Date(Date.now() + 86_400_000))).toBeNull();
+    expect(sendWa).not.toHaveBeenCalled();
+    // Its own Approve, then it goes like any other.
+    const ok = await queuePatch(asOwner('PATCH', `https://erp.example/api/website/post/queue/${id}`, { action: 'approve' }), params);
+    expect(await ok.json()).toMatchObject({ item: { awaitingApproval: false, approvedBy: 'owner@example.com' } });
+    const sent = await queueSend(asOwner('POST', `https://erp.example/api/website/post/queue/${id}/send`), params);
+    expect(await sent.json()).toMatchObject({ ok: true, item: { status: 'sent' } });
+    expect(sendWa).toHaveBeenCalledTimes(1);
   });
 
   it('refuses words that break the house rules, with the reason', async () => {

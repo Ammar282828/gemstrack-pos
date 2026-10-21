@@ -161,6 +161,11 @@ export function useQueue() {
     try { put((await call<{ item: QueueEntry }>(`/api/website/post/queue/${id}`, { method: 'PATCH', json: { action: 'schedule', dueAt: at.toISOString() } })).item); }
     catch (e) { toast({ title: 'Could not set the time', description: e instanceof Error ? e.message : '', variant: 'destructive' }); }
   };
+  /** A person's OK for one piece an AI queued (it can't be sent or timed before). */
+  const approve = async (id: string) => {
+    try { put((await call<{ item: QueueEntry }>(`/api/website/post/queue/${id}`, { method: 'PATCH', json: { action: 'approve' } })).item); }
+    catch (e) { toast({ title: 'Could not approve it', description: e instanceof Error ? e.message : '', variant: 'destructive' }); }
+  };
   const hold = async (id: string) => {
     try { put((await call<{ item: QueueEntry }>(`/api/website/post/queue/${id}`, { method: 'PATCH', json: { action: 'hold' } })).item); }
     catch (e) { toast({ title: 'Could not hold it', description: e instanceof Error ? e.message : '', variant: 'destructive' }); }
@@ -175,7 +180,7 @@ export function useQueue() {
     for (let i = 0; i < list.length; i++) await schedule(list[i].id, times[i]);
     toast({ title: `${list.length} piece${list.length === 1 ? '' : 's'} spread from ${clock(times[0])} to ${clock(times[times.length - 1])}`, description: 'They go by themselves — this page can be closed.' });
   };
-  return { items, load, add, adding, sendNow, sendAll, sending, schedule, hold, remove, spread };
+  return { items, load, add, adding, sendNow, sendAll, sending, schedule, hold, remove, spread, approve };
 }
 
 export type QueueApi = ReturnType<typeof useQueue>;
@@ -211,7 +216,7 @@ export function QueuePanel({ api, destinationName, blockers }: {
   /** Failing checks for where the queue is about to send, as the page's publish confirm lists them. */
   blockers: (entries: QueueEntry[]) => { id: string; label: string; fix?: string; detail: string }[];
 }) {
-  const { items, sending, sendNow, sendAll, schedule, hold, remove, spread } = api;
+  const { items, sending, sendNow, sendAll, schedule, hold, remove, spread, approve } = api;
   const [confirmAll, setConfirmAll] = useState(false);
   const [spreadOpen, setSpreadOpen] = useState(false);
   const [from, setFrom] = useState('');
@@ -256,7 +261,7 @@ export function QueuePanel({ api, destinationName, blockers }: {
           : <span className="h-12 w-12 rounded-md bg-muted shrink-0" />}
         <div className="flex-1 min-w-0 space-y-0.5">
           <p className="text-sm font-medium truncate">{e.headline || 'Untitled piece'}</p>
-          {e.awaitingApproval && <p className="text-xs font-medium text-tone-owed-ink">Made by {e.proposedBy} — look at it, then send it or give it a time</p>}
+          {e.awaitingApproval && <p className="text-xs font-medium text-tone-owed-ink">Made by {e.proposedBy} — look at it, then approve it to send or time it</p>}
           <p className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-1.5">
             {e.website && <Globe className="h-3 w-3" />}{e.website?.featured && <Star className="h-3 w-3" />}{e.instagram && <Instagram className="h-3 w-3" />}
             {e.whatsapp.filter(k => k !== 'channel').length > 0 && <MessageCircle className="h-3 w-3" />}{e.whatsapp.includes('channel') && <Radio className="h-3 w-3" />}
@@ -278,10 +283,16 @@ export function QueuePanel({ api, destinationName, blockers }: {
             </div>
           )}
         </div>
-        {pending(e) && !busy && editing !== e.id && (
+        {pending(e) && e.awaitingApproval && !busy && (
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Button size="sm" className="h-8 rounded-full" onClick={() => approve(e.id)}><Check className="h-4 w-4 mr-1" /> Approve</Button>
+            <button type="button" title="Take it out of the queue" disabled={!!sending} onClick={() => remove(e.id)} className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40"><Trash2 className="h-4 w-4" /></button>
+          </div>
+        )}
+        {pending(e) && !e.awaitingApproval && !busy && editing !== e.id && (
           <div className="flex items-center gap-0.5 shrink-0">
             <button type="button" title="Give it a time" onClick={() => setEditing(e.id)} className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"><Clock className="h-4 w-4" /></button>
-            <button type="button" title={e.awaitingApproval ? 'Approve and send it now' : e.status === 'failed' ? 'Retry what didn’t go' : 'Send it now'} disabled={!!sending} onClick={() => sendNow(e.id)} className="h-8 w-8 rounded-md flex items-center justify-center text-primary hover:bg-primary/10 disabled:opacity-40">
+            <button type="button" title={e.status === 'failed' ? 'Retry what didn’t go' : 'Send it now'} disabled={!!sending} onClick={() => sendNow(e.id)} className="h-8 w-8 rounded-md flex items-center justify-center text-primary hover:bg-primary/10 disabled:opacity-40">
               {e.status === 'failed' ? <RotateCw className="h-4 w-4" /> : <Send className="h-4 w-4" />}
             </button>
             <button type="button" title="Take it out of the queue" disabled={!!sending} onClick={() => remove(e.id)} className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40"><Trash2 className="h-4 w-4" /></button>
@@ -297,7 +308,7 @@ export function QueuePanel({ api, destinationName, blockers }: {
         <p className="font-medium flex items-center gap-2"><ListPlus className="h-4 w-4" /> Queue{waiting.length ? <span className="text-muted-foreground font-normal text-sm">· {waiting.length} to go</span> : null}</p>
       </div>
       {(waiting.length > 0 || going.length > 0) && <ul className="divide-y">{[...going, ...waiting].map(row)}</ul>}
-      {toApprove > 0 && <p className="text-xs text-muted-foreground">{toApprove === 1 ? 'One piece an AI made waits' : `${toApprove} pieces an AI made wait`} for your OK: tap its picture to look, then its send or clock. Send all leaves {toApprove === 1 ? 'it' : 'them'} out.</p>}
+      {toApprove > 0 && <p className="text-xs text-muted-foreground">{toApprove === 1 ? 'One piece an AI made waits' : `${toApprove} pieces an AI made wait`} for your OK: tap its picture to look, then Approve. Until then nothing sends {toApprove === 1 ? 'it' : 'them'}.</p>}
       {together.length > 0 && (
         <div className="grid grid-cols-2 gap-2 pt-1">
           <Button size="sm" className="h-auto min-h-9 whitespace-normal py-1.5 leading-tight" disabled={!!sending} onClick={() => setConfirmAll(true)}>

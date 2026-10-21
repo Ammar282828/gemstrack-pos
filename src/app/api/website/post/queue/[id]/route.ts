@@ -2,7 +2,8 @@
  * One queued piece.
  *
  *   POST    multipart { key, file } → one of a draft's images ("site-0", "wa-1", "story")
- *   PATCH   { action: 'ready' | 'hold' } or { action: 'schedule', dueAt } → the counter's say
+ *   PATCH   { action: 'ready' | 'hold' | 'approve' } or { action: 'schedule', dueAt } → the counter's say
+ *           (`approve`: a person's OK for one piece an AI queued; until then it can't be sent or timed)
  *   DELETE  → out of the queue (with its images)
  */
 
@@ -40,11 +41,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!idOk(id)) return NextResponse.json({ error: 'No such piece.' }, { status: 404 });
   const b = await req.json().catch(() => null) as { action?: string; dueAt?: string } | null;
   const change = b?.action === 'ready' ? { action: 'ready' as const }
+    : b?.action === 'approve' ? { action: 'approve' as const, by: who }
     : b?.action === 'hold' ? { action: 'hold' as const }
-    // A person giving a time to an AI's piece is their OK for it to go (social/queue.ts).
-    : b?.action === 'schedule' && typeof b.dueAt === 'string' ? { action: 'schedule' as const, dueAt: b.dueAt, by: who }
+    // A time is not an approval: an AI's piece needs its own `approve` first (social/queue.ts), so Spread can't send one.
+    : b?.action === 'schedule' && typeof b.dueAt === 'string' ? { action: 'schedule' as const, dueAt: b.dueAt }
     : null;
-  if (!change) return NextResponse.json({ error: 'action must be ready, hold, or schedule with dueAt.' }, { status: 400 });
+  if (!change) return NextResponse.json({ error: 'action must be ready, hold, approve, or schedule with dueAt.' }, { status: 400 });
   try { return NextResponse.json({ item: toView(await changeItem(id, change)) }); }
   catch (e) { return fail(e); }
 }

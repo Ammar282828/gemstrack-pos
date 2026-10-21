@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addToken } from '@/lib/agent/keys';
 import { pkceOk, takeCode } from '@/lib/agent/oauth';
+import { keysAllowed } from '@/lib/agent/rules-guard';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,9 @@ export async function POST(req: NextRequest) {
   const basic = /^Basic\s+(.+)$/i.exec(req.headers.get('authorization') || '')?.[1];
   const clientId = f.client_id || (basic ? Buffer.from(basic, 'base64').toString().split(':')[0] : '');
   if (f.grant_type !== 'authorization_code') return refuse('unsupported_grant_type', 'Only authorization_code.');
+  // No token while the database's rules are open (rules-guard.ts): a forged code would mint one.
+  const rules = await keysAllowed();
+  if (!rules.ok) return refuse('temporarily_unavailable', rules.message, 503);
   const grant = await takeCode(f.code || '');
   if (!grant) return refuse('invalid_grant', 'That code is unknown, used or expired. Connect again.');
   if (clientId && clientId !== grant.clientId) return refuse('invalid_grant', 'That code is another client’s.');

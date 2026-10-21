@@ -53,10 +53,12 @@ account's Studio key keeps only `studio`).
    Maisons piece priced by the gram — refused with the reason.
 2. `queue_post { post, whatsapp: [keys], instagram_story }` puts its square (WhatsApp) and story (Instagram, where connected) in the
    post queue as **held**, with `proposedBy` (the key's label) and `design`.
-3. In **Posts** the queue shows "Made by ChatGPT — look at it, then send it or give it a time"; the thumbnail opens larger. Its own Send
-   or clock is the approval (`approvedBy`, `approvedAt`); **Send all** and **Spread** leave it out. The tick never sends it unapproved
-   (`claimItem`, `dueItems`), nor does a schedule without someone named (`changeItem`). The native apps' queue sends go through the same
-   route, so a send there approves too. A key with `posts:publish` may `send_post` / `schedule_post` itself.
+3. In **Posts** the queue shows "Made by ChatGPT — look at it, then approve it"; the thumbnail opens larger. Its own **Approve**
+   (`PATCH /api/website/post/queue/<id> { action: 'approve' }` → `approvedBy`, `approvedAt`) is the only way a person lets it go;
+   after that it is an ordinary queued piece. **Enforced on the server** (`social/queue.ts`): a person's Send now (`/send`) and a time
+   (`schedule`) are refused with 409 ("approve it first") while it waits, so no bulk path — the web's Send all and Spread, the iPhone's
+   and Android's trays — and not the tick (`claimItem`, `dueItems`) can send it. A key with `posts:publish` may `send_post` /
+   `schedule_post` it, which is that key's approval.
 4. The website is not offered to an AI: its collections, names and the Maisons stay with people (Design, Add photos).
 
 ## Setting up each AI
@@ -78,6 +80,18 @@ claude.ai's and ChatGPT's connectors speak OAuth 2.1, so the ERP is its own smal
 (`/api/agent/oauth/register`), `/api/agent/oauth/authorize` (a plain page: who is asking, where the answer goes, a box for the key),
 `/api/agent/oauth/token` (PKCE S256; a one-use 5-minute code). The token is a key of its own for the same record (`addToken`): same
 scopes, limit and log, and revoking the key stops it. The MCP 401 names the metadata (`WWW-Authenticate: Bearer resource_metadata=…`).
+
+## Paused while the rules are open
+
+A key is a record in `app_private`. While a house's Firestore rules are open (Taheri's, until the owner publishes `firestore.rules`;
+an anonymous list of `app_private` answered 200 on 2026-10-21, Mina's 403), anyone could write that collection and forge a key record
+or a token hash — `posts:publish` included. So `agent/rules-guard.ts` asks Firestore as a stranger first
+(`GET …/projects/<project>/databases/(default)/documents/app_private?pageSize=1&mask.fieldPaths=__name__&key=<web key>`, no auth,
+4 s): **200 = open, 401/403 = locked**, anything else (no answer, an error, a missing setting) = unknown. Open is remembered ten minutes,
+locked an hour, unknown never. Unless locked, `checkKey` refuses every key ("AI keys are paused: this shop's database rules aren't
+published yet — publish firestore.rules in the Firebase console, then keys work at once"), and so do the connector sign-in page and the
+token exchange. Keys can still be made; Settings → Connect an AI shows the same line in a card. The Studio's old `tstudio_` keys are
+not covered.
 
 ## Security
 
@@ -116,5 +130,7 @@ rows were deleted after.
 
 - Website uploads from an AI (see above). Instagram feed posts by API (the publish sheet has them; the queue carries stories only).
 - The Android app's icon map has no `Bot` (it falls back to its default); the iPhone's maps it to `sparkles`.
+- The phones' queue trays have no Approve button yet: an AI's piece shows there and is refused with "approve it first"; approve it
+  on the web (Posts).
 - The iPhone app's own server writes still log only the server's shape, which Settings → Activity doesn't read (found with this;
   an AI's writes log both shapes).

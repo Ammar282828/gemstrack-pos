@@ -19,8 +19,10 @@
  *
  * A piece an outside AI queued (an AI key, lib/agent) carries `proposedBy`, the
  * key's label, and waits for a person's OK: nothing sends or schedules it until
- * someone approves — a signed-in person's Send now or time (the Posts hub), or a
- * key with "Send posts" (posts:publish). The tick never sends one unapproved.
+ * it is approved on its own — a person's Approve on that piece (`approve`), or a
+ * key with "Send posts" (posts:publish). A send or a time from a person is not
+ * an approval, so no bulk path (Send all, Spread, the phones' trays) and not the
+ * tick can ever send one unapproved.
  *
  * Server-only.
  */
@@ -160,9 +162,10 @@ const statusError = (message: string, status: number) => Object.assign(new Error
 /**
  * `ready`: every image has arrived, so the draft joins the queue (held).
  * `schedule`: send it at `dueAt` (the tick does). `hold`: keep it until told.
- * Scheduling an AI's piece is approving it: `by` says who (without it, refused).
+ * `approve`: a person's OK for an AI's piece, that one piece (`by` says who).
+ * An AI's piece is scheduled only once approved, or with `by` from a posts:publish key.
  */
-export async function changeItem(id: string, change: { action: 'ready' } | { action: 'hold' } | { action: 'schedule'; dueAt: string; by?: string }): Promise<QueueItem> {
+export async function changeItem(id: string, change: { action: 'ready' } | { action: 'hold' } | { action: 'approve'; by: string } | { action: 'schedule'; dueAt: string; by?: string }): Promise<QueueItem> {
   const ref = col().doc(id);
   return adminDb.runTransaction(async tx => {
     const d = (await tx.get(ref)).data() as QueueItem | undefined;
@@ -178,12 +181,16 @@ export async function changeItem(id: string, change: { action: 'ready' } | { act
       patch = { status: 'held' };
     } else if (d.status === 'draft') {
       throw statusError('That piece has not finished arriving.', 409);
+    } else if (change.action === 'approve') {
+      if (!d.proposedBy || d.approvedAt) return d;
+      if (!change.by) throw statusError('Who approves it?', 400);
+      patch = approval(d, change.by);
     } else if (change.action === 'hold') {
       // Something already went (or may have): it stays "failed" so the list says what is left.
       patch = { status: d.status === 'failed' || d.status === 'sending' ? 'failed' : 'held', dueAt: null, claimedAt: null };
     } else {
       if (!Number.isFinite(Date.parse(change.dueAt))) throw statusError('That time could not be read.', 400);
-      if (awaitingApproval(d) && !change.by) throw statusError(`${d.proposedBy} made this piece: it needs someone's OK before it can go.`, 409);
+      if (awaitingApproval(d) && !change.by) throw statusError(`${d.proposedBy} made this piece: approve it first (its own Approve, in Posts).`, 409);
       // Scheduling again is also how the counter gives a failed piece its tries back.
       patch = { status: 'scheduled', dueAt: new Date(change.dueAt).toISOString(), attempts: 0, claimedAt: null, ...approval(d, change.by) };
     }

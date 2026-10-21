@@ -11,7 +11,8 @@
  *                                was given for it through the sign-in page, oauth.ts). Never the key.
  *
  * `app_private` is the Admin SDK's alone under the locked rules (firestore.rules), so not even an owner's
- * browser can read the hashes or forge a record. The secret is compared in constant time. A key is good
+ * browser can read the hashes or forge a record — and while the rules are not locked (Taheri's, until the owner
+ * publishes them) no key is honoured at all: rules-guard.ts asks Firestore as a stranger first. The secret is compared in constant time. A key is good
  * only while the person who made it still has the role it needs (an owner removed from the list takes
  * their keys with them). Server-only.
  */
@@ -22,6 +23,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { roleForEmail } from '@/lib/roles';
 import { STORE_BRAND } from '@/lib/store-config';
 import { cleanScopes, type Scope } from './scopes';
+import { keysAllowed } from './rules-guard';
 
 const COL = 'app_private';
 const PREFIX = 'ai_key__';
@@ -55,7 +57,7 @@ export type KeyInfo = Omit<KeyRecord, 'hash' | 'tokens' | 'kind'> & { connectors
 /** A checked key: who it acts as and what it may do. */
 export interface AgentKey { id: string; label: string; scopes: Scope[]; email: string; role: ReturnType<typeof roleForEmail>; expiresAt: string | null }
 
-export type KeyCheck = { ok: true; key: AgentKey } | { ok: false; reason: 'missing' | 'malformed' | 'house' | 'unknown' | 'expired' | 'orphaned'; message: string };
+export type KeyCheck = { ok: true; key: AgentKey } | { ok: false; reason: 'missing' | 'malformed' | 'house' | 'unknown' | 'expired' | 'orphaned' | 'paused'; message: string };
 
 const now = () => new Date().toISOString();
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -142,6 +144,9 @@ export async function checkKey(raw: string | null | undefined, at = new Date()):
   const parts = text.length <= 120 ? parseKey(text) : null;
   if (!parts) return { ok: false, reason: 'malformed', message: 'That is not an ERP AI key (they start tk_).' };
   if (parts.house !== houseHint()) return { ok: false, reason: 'house', message: `That key is for ${parts.house}’s ERP, not this one.` };
+  // While anyone could write app_private, a matching record proves nothing: every key waits for the locked rules.
+  const rules = await keysAllowed();
+  if (!rules.ok) return { ok: false, reason: 'paused', message: rules.message };
   const s = await ref(parts.id).get();
   const r = s.exists ? (s.data() as KeyRecord) : null;
   const h = sha256(parts.secret);

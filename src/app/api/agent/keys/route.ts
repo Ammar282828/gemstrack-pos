@@ -1,8 +1,8 @@
 /**
  * Settings → Connect an AI (lib/agent/keys.ts). The owner only.
  *
- *   GET            the keys (label, scopes, made by and when, expiry, last used, calls, last four characters)
- *                  and the scopes this house offers
+ *   GET            the keys (label, scopes, made by and when, expiry, last used, calls, last four characters),
+ *                  the scopes this house offers, and `rules` ('locked' | 'open' | 'unknown': keys work only when locked)
  *   POST           { label, scopes, expiresAt? } → { key, info }: the whole key, this once
  *   DELETE ?id=    revoke one: it stops at once, with every connector signed in with it
  */
@@ -12,6 +12,7 @@ import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
 import { createKey, listKeys, revokeKey } from '@/lib/agent/keys';
 import { availableScopes } from '@/lib/agent/scopes';
+import { databaseRules } from '@/lib/agent/rules-guard';
 import { adminDb } from '@/lib/firebase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -40,7 +41,9 @@ export async function GET(req: NextRequest) {
   const who = await owner(req);
   if (who instanceof NextResponse) return who;
   try {
-    return NextResponse.json({ keys: await listKeys(), scopes: availableScopes().map(({ available: _a, ...s }) => s) }, { headers: noStore });
+    const [keys, rules] = await Promise.all([listKeys(), databaseRules()]);
+    // `rules`: while not 'locked' every key is refused (rules-guard.ts); the page says what to do.
+    return NextResponse.json({ keys, rules, scopes: availableScopes().map(({ available: _a, ...s }) => s) }, { headers: noStore });
   } catch (e) { return fail(e); }
 }
 

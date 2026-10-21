@@ -129,13 +129,15 @@ export default function ConnectAiPage() {
   const [fresh, setFresh] = useState<{ key: string; info: KeyRow } | null>(null);
   const [revoking, setRevoking] = useState<KeyRow | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [rules, setRules] = useState<'locked' | 'open' | 'unknown' | null>(null);
 
   const base = useMemo(() => (STORE_CONFIG.appUrl || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/+$/, ''), []);
 
   const load = useCallback(async () => {
     try {
-      const d = await call<{ keys: KeyRow[]; scopes: ScopeRow[] }>('/api/agent/keys');
+      const d = await call<{ keys: KeyRow[]; scopes: ScopeRow[]; rules: 'locked' | 'open' | 'unknown' }>('/api/agent/keys');
       setKeys(d.keys);
+      setRules(d.rules);
       setScopeRows(d.scopes);
       setPicked(prev => (prev.size ? prev : new Set(d.scopes.filter(s => s.byDefault).map(s => s.id))));
       setProblem(null);
@@ -176,6 +178,18 @@ export default function ConnectAiPage() {
   return (
     <PageShell subtitle="Let ChatGPT, Claude, Gemini or Cursor work in the ERP: make posts for your OK, read the books, and only what you allow." width="narrow">
       <div className="space-y-4">
+        {rules && rules !== 'locked' && (
+          <Card className={tonePill('owed')}>
+            <CardHeader>
+              <CardTitle>AI keys are paused</CardTitle>
+              <CardDescription className="text-current">
+                {rules === 'open'
+                  ? 'This shop’s database rules aren’t published yet, so anyone could forge a key. Publish firestore.rules in the Firebase console, then keys work at once.'
+                  : 'The database’s rules couldn’t be checked just now, so keys are refused until they can. Try again in a minute.'}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
         {fresh && (
           <Card>
             <CardHeader>

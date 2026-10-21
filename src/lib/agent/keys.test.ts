@@ -6,10 +6,12 @@ vi.mock('@/lib/firebase-admin', () => ({ adminDb: fake.db }));
 vi.mock('firebase-admin/firestore', () => ({ FieldValue: { increment: (n: number) => ({ __inc: n }) } }));
 const roles: Record<string, string> = { 'owner@example.com': 'owner', 'mkt@example.com': 'marketing', 'staff@example.com': 'staff' };
 vi.mock('@/lib/roles', () => ({ roleForEmail: (e: string) => roles[e] ?? 'none' }));
+const rules = { ok: true as boolean };
+vi.mock('./rules-guard', () => ({ keysAllowed: async () => (rules.ok ? { ok: true } : { ok: false, state: 'open', message: 'AI keys are paused: publish firestore.rules' }) }));
 
 const { createKey, checkKey, listKeys, revokeKey, noteUse, addToken, parseKey, sameHash, scopesFor } = await import('./keys');
 
-beforeEach(() => fake.reset());
+beforeEach(() => { fake.reset(); rules.ok = true; });
 
 const make = (o: Partial<Parameters<typeof createKey>[0]> = {}) => createKey({ label: 'ChatGPT', scopes: ['posts:draft', 'read'], by: 'owner@example.com', ...o });
 
@@ -41,6 +43,14 @@ describe('AI keys', () => {
     expect(await revokeKey(info.id)).toBe(true);
     expect(await checkKey(key)).toMatchObject({ ok: false, reason: 'unknown' });
     expect(await checkKey(token)).toMatchObject({ ok: false, reason: 'unknown' });
+  });
+
+  it('no key works while the database rules are open, a good one included', async () => {
+    const { key } = await make();
+    rules.ok = false;
+    expect(await checkKey(key)).toMatchObject({ ok: false, reason: 'paused', message: expect.stringMatching(/firestore\.rules/) });
+    rules.ok = true;
+    expect((await checkKey(key)).ok).toBe(true);
   });
 
   it('an expired key stops', async () => {
