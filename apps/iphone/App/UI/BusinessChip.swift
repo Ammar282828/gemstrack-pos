@@ -10,19 +10,34 @@ struct BusinessBadge: View {
     var size: CGFloat = 28
     @Environment(\.colorScheme) private var scheme
 
+    /// The ground each bundled BadgeMark-<art> is drawn on (its corner colour), so the circle and the art are one.
+    private static let markGround = ["taheri": "0A1111", "mina": "FAF7F2"]
+
     var body: some View {
         let side = scheme == .dark ? business.palette.dark : business.palette.light
         let accent = Color(hex: side.accent) ?? .gray
         ZStack {
-            Circle().fill(accent)
-            Text(business.initial)
-                .font(.system(size: size * 0.46, weight: .semibold, design: .rounded))
-                .foregroundStyle(Color(hex: side.onAccent) ?? .white)
-            if let icon = business.icon.flatMap(URL.init(string:)), icon.scheme == "https" {
-                AsyncImage(url: icon) { phase in
-                    if let image = phase.image { image.resizable().scaledToFill().transition(.opacity) }
+            if let art = business.art, let ground = Self.markGround[art] {
+                // A built-in: the bundled mark (the "t", the MINA wordmark) centred with whitespace, on its own ground so
+                // the whitespace is seamless. Not scaledToFill: nothing touches the edge.
+                Circle().fill(Color(hex: ground) ?? .gray)
+                Image("BadgeMark-\(art)").resizable().scaledToFit()
+            } else {
+                Circle().fill(accent)
+                Text(business.initial)
+                    .font(.system(size: size * 0.46, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color(hex: side.onAccent) ?? .white)
+                if let icon = business.icon.flatMap(URL.init(string:)), icon.scheme == "https" {
+                    // The ERP's icon, fitted with ~14% padding on the business's card colour.
+                    let card = Color(hex: side.card) ?? accent
+                    AsyncImage(url: icon) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFit().padding(size * 0.14)
+                                .frame(width: size, height: size).background(card).transition(.opacity)
+                        }
+                    }
+                    .clipShape(Circle())
                 }
-                .clipShape(Circle())
             }
         }
         .frame(width: size, height: size)
@@ -48,7 +63,8 @@ struct BusinessLogo: View {
                 Text(business.name).font(.title2.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.5)
             }
         }
-        .frame(maxWidth: 200, maxHeight: 48, alignment: .leading)
+        .padding(.vertical, 4)
+        .frame(maxWidth: 200, maxHeight: 56, alignment: .leading)
         .task(id: "\(business.id)|\(scheme == .dark)") {
             guard business.art == nil else { return }
             fetched = await BusinessLogos.load(business, dark: scheme == .dark)

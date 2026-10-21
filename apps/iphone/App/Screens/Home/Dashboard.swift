@@ -39,7 +39,7 @@ struct Dashboard: View {
             page(makeFigures())
         }
         .safeAreaInset(edge: .top, spacing: 0) { UpdateBanner() }
-        .navigationTitle(title)
+        .navigationTitle("Today")
         .onAppear { needAll() }
         .onChange(of: session.role) { _, _ in needAll() }
         .onChange(of: ready, initial: true) { _, isReady in if isReady { LaunchClock.finish("home") } }
@@ -109,12 +109,6 @@ struct Dashboard: View {
             hisaab: book.hisaab.items, now: now)
     }
 
-    /// The web's heading: the shop's name.
-    private var title: String {
-        let name = book.settings.value?.shopName ?? ""
-        return name.isEmpty ? "Dashboard" : name
-    }
-
     // MARK: The page
 
     private func page(_ f: DashFigures) -> some View {
@@ -128,15 +122,14 @@ struct Dashboard: View {
                     wideColumns(f, needs: needs)
                 } else {
                     VStack(alignment: .leading, spacing: 22) {
-                        VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 12) {
                             dateLine
                             hero(f)
-                            stats(f)
+                            figureGrid(f)
                         }
                         needsSection(needs)
                         dueSection(f)
                         salesSection(f)
-                        monthSection(f)
                     }
                 }
             }
@@ -148,16 +141,17 @@ struct Dashboard: View {
             .frame(maxWidth: .infinity)
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .motion(needs.count)
     }
 
     /// An iPad's Home: today and the two cards across the top (the cards shown, there is room for them),
     /// then the lists in two columns: what needs doing on the left, what has happened on the right.
     private func wideColumns(_ f: DashFigures, needs: [DashNeed]) -> some View {
         VStack(alignment: .leading, spacing: 26) {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 dateLine
                 hero(f)
-                HStack(alignment: .top, spacing: 14) { statCards(f) }.fixedSize(horizontal: false, vertical: true)
+                figureGrid(f)
             }
             HStack(alignment: .top, spacing: 24) {
                 VStack(alignment: .leading, spacing: 22) {
@@ -167,14 +161,13 @@ struct Dashboard: View {
                 .frame(maxWidth: .infinity, alignment: .top)
                 VStack(alignment: .leading, spacing: 22) {
                     salesSection(f)
-                    monthSection(f)
                 }
                 .frame(maxWidth: .infinity, alignment: .top)
             }
         }
     }
 
-    /// "FRIDAY 9 OCTOBER", under the shop's name.
+    /// "TUESDAY 21 OCTOBER", a quiet line above the hero.
     private var dateLine: some View {
         Text(DashDate.dayLabel(now))
             .font(.caption.weight(.semibold))
@@ -206,20 +199,56 @@ struct Dashboard: View {
         }
     }
 
-    private func stats(_ f: DashFigures) -> some View {
-        DisclosureGroup {
-            VStack(spacing: 10) { statCards(f) }.padding(.top, 12)
-        } label: {
-            Text("Shop overview").font(.subheadline.weight(.semibold))
+    /// The four figures, always showing: two by two, one under another at accessibility sizes.
+    @ViewBuilder
+    private func figureGrid(_ f: DashFigures) -> some View {
+        if typeSize.isAccessibilitySize {
+            VStack(spacing: 10) {
+                owedTile(f)
+                benchTile(f)
+                monthTile(f)
+                dueTile(f)
+            }
+        } else {
+            VStack(spacing: 10) {
+                HStack(alignment: .top, spacing: 10) { owedTile(f); benchTile(f) }
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .top, spacing: 10) { monthTile(f); dueTile(f) }
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
-        .ledgerCard()
     }
 
-    @ViewBuilder
-    private func statCards(_ f: DashFigures) -> some View {
-        // The hisaab is the owners' book. This month's takings are the This month card's, said once (rule 15).
+    private func owedTile(_ f: DashFigures) -> some View {
+        // The hisaab is the owners' book.
         linked(session.isOwner && f.owedInHisaab > 0 ? "/hisaab" : "/invoices") { owedCard(f) }
+    }
+
+    private func benchTile(_ f: DashFigures) -> some View {
         linked("/workshop") { onTheBench(f) }
+    }
+
+    /// This month's takings against last (the old This month card, now a tile; the detail is Analytics).
+    private func monthTile(_ f: DashFigures) -> some View {
+        linked(session.isOwner ? "/analytics" : nil) {
+            DashStat(label: "This month", linked: session.isOwner) {
+                DashStatAmount(amount: f.revenueMonth)
+                DashMonthChange(ratio: f.monthAgainstLast, now: f.now)
+            }
+        }
+    }
+
+    /// Orders and repairs promised to customers; red only for the late ones. (Their totals are not what is left to
+    /// collect, so no sum is shown here: Owed to you says that.)
+    private func dueTile(_ f: DashFigures) -> some View {
+        let n = f.due.count
+        let late = f.due.filter { $0.isLate }.count
+        return linked("/orders") {
+            DashStat(label: "Orders due", linked: true) {
+                DashStatValue(text: n == 0 ? "None" : "\(n) open")
+                if late > 0 { DashStatNote(text: "\(late) late", tint: Tone.late.color) }
+            }
+        }
     }
 
     /// Owed is amber, never red: money still to come is not an alarm.
@@ -253,20 +282,21 @@ struct Dashboard: View {
 
     // MARK: The three lists
 
+    /// Nothing needing anyone: no section, no empty card.
+    @ViewBuilder
     private func needsSection(_ needs: [DashNeed]) -> some View {
+        if !needs.isEmpty { needsCard(needs) }
+    }
+
+    private func needsCard(_ needs: [DashNeed]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             DashHeader(title: "Needs you", count: needs.count)
-            Group {
-                if needs.isEmpty {
-                    DashAllClear()
-                } else {
-                    DashNeedList(needs: allNeeds ? needs : Array(needs.prefix(3)), onRates: { rateSheet = true })
-                }
-            }
-            .dashRowsCard()
+            DashNeedList(needs: allNeeds ? needs : Array(needs.prefix(3)), onRates: { rateSheet = true })
+                .dashRowsCard()
             if needs.count > 3 { reveal($allNeeds, count: needs.count - 3) }
         }
         .motion(allNeeds)
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     private func dueSection(_ f: DashFigures) -> some View {
@@ -306,18 +336,6 @@ struct Dashboard: View {
             Motion.run(expanded.wrappedValue ? Motion.exit : Motion.enter, reduce: reduceMotion) { expanded.wrappedValue.toggle() }
         }
         .font(.subheadline.weight(.medium)).frame(minHeight: 44).padding(.horizontal, 4)
-    }
-
-    private func monthSection(_ f: DashFigures) -> some View {
-        let path: String? = session.isOwner ? "/analytics" : nil
-        return DisclosureGroup {
-            linked(path) {
-                DashMonthCard(figures: f, showCosts: session.isOwner, linked: path != nil)
-            }.padding(.top, 12)
-        } label: {
-            Text("This month").font(.subheadline.weight(.semibold))
-        }
-        .ledgerCard()
     }
 
     // MARK: Time and the server

@@ -1,8 +1,8 @@
 import SwiftUI
 import ERPCore
 
-// The Search tab (title "Search"): a find-anything screen. Idle it is the ERP's whole map as tiles with the
-// recent picks and the quick actions above and the account below; typed into it finds places, customers,
+// The Search tab (title "Search"): a find-anything screen. Idle it is a plain grouped list: quick actions, recents,
+// the ERP's whole map by group, then the account, all in the house accent; typed into it finds places, customers,
 // invoices, orders, stock and repairs. CONVENTIONS rules 9, 12, 15, 16.
 
 // MARK: Recents
@@ -35,74 +35,6 @@ enum SearchRecents {
     }
 }
 
-// MARK: Look
-
-/// A light press, for a tile.
-private struct TilePress: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .opacity(configuration.isPressed ? 0.85 : 1)
-            .animation(Motion.enter, value: configuration.isPressed)
-    }
-}
-
-/// Each group's colour: from a small curated set that reads in light and dark, picked from the group's key
-/// so a group keeps its colour. Never red (late / problem).
-private enum SearchPalette {
-    static var colours: [Color] { [Theme.accent, Tone.working.color, Tone.credit.color, Tone.settled.color, .purple, .indigo, Tone.owed.color] }
-
-    static func colour(for key: String) -> Color {
-        let all = colours
-        let sum = key.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) % 9973 }
-        return all[sum % all.count]
-    }
-}
-
-/// Fades and lifts in, one after another; nothing moves under Reduce Motion.
-private struct SearchEntrance: ViewModifier {
-    let index: Int
-    let shown: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduce
-
-    func body(content: Content) -> some View {
-        content
-            .opacity(shown || reduce ? 1 : 0)
-            .offset(y: shown || reduce ? 0 : 12)
-            .animation(reduce ? nil : Motion.enter.delay(Double(min(index, 8)) * 0.04), value: shown)
-    }
-}
-
-private extension View {
-    func searchEntrance(_ index: Int, shown: Bool) -> some View { modifier(SearchEntrance(index: index, shown: shown)) }
-}
-
-/// An icon on a filled rounded square, with its words under it.
-private struct SearchTile: View {
-    let symbol: String
-    let label: String
-    let fill: Color
-    @ScaledMetric(relativeTo: .body) private var side: CGFloat = 52
-
-    var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: symbol)
-                .font(.title3.weight(.medium))
-                .foregroundStyle(Color.white)
-                .frame(width: side, height: side)
-                .background(fill, in: .rect(cornerRadius: Radius.tile, style: .continuous))
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.primary)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-        }
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
-    }
-}
-
 // MARK: The screen
 
 struct SearchView: View {
@@ -116,7 +48,6 @@ struct SearchView: View {
     @State private var query = ""
     @State private var confirmingSignOut = false
     @State private var recents: [SearchRecent] = []
-    @State private var shown = false
     @State private var expanded: Set<String> = []
 
     private var typed: String { text.trimmingCharacters(in: .whitespaces).lowercased() }
@@ -139,7 +70,6 @@ struct SearchView: View {
         }
         .onAppear {
             recents = SearchRecents.load()
-            shown = true
         }
         // Debounced; the shelves are asked for only once someone types.
         .task(id: text) {
@@ -168,22 +98,13 @@ struct SearchView: View {
     // MARK: Nothing typed
 
     private var idle: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                if !recents.isEmpty { recentsRow.searchEntrance(0, shown: shown) }
-                if !quick.isEmpty { quickRow.searchEntrance(1, shown: shown) }
-                ForEach(Array(groups.enumerated()), id: \.element.group.key) { i, g in
-                    groupCard(g.group, g.entries).searchEntrance(i + 2, shown: shown)
-                }
-                accountCard.searchEntrance(groups.count + 2, shown: shown)
-                Text(versionLine)
-                    .font(.caption).foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, 8)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+        List {
+            if !quick.isEmpty { quickSection }
+            if !recents.isEmpty { recentSection }
+            ForEach(groups, id: \.group.key) { g in groupSection(g.group, g.entries) }
+            accountSection
         }
+        .listStyle(.insetGrouped)
         .scrollDismissesKeyboard(.interactively)
         .modifier(HouseGround())
     }
@@ -192,7 +113,7 @@ struct SearchView: View {
         let info = Bundle.main.infoDictionary
         let v = info?["CFBundleShortVersionString"] as? String ?? ""
         let b = info?["CFBundleVersion"] as? String ?? ""
-        return "\(session.shop.name) · \(v) (\(b))"
+        return "\(session.shop.name) \u{00B7} \(v) (\(b))"
     }
 
     private var groups: [(group: NavMap.Group, entries: [NavEntry])] {
@@ -202,89 +123,94 @@ struct SearchView: View {
         }
     }
 
+    /// New sale (owners), New order, Scan, Voice: one row of at most four.
     private var quick: [NavPlace] {
         var out: [NavPlace] = []
         if let s = map.newSale { out.append(s.place) }
         out.append(contentsOf: map.actions)
         var seen = Set<String>()
-        return out.filter { seen.insert($0.href).inserted }
+        return Array(out.filter { seen.insert($0.href).inserted }.prefix(4))
     }
 
-    private var recentsRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            LedgerHeading(title: "Jump back in")
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(recents) { r in recentChip(r) }
-                }
+    private var quickSection: some View {
+        // In the header, not a row: a List row with several links in it opens them all on one tap.
+        Section {
+        } header: {
+            HStack(alignment: .top, spacing: 8) {
+                ForEach(quick) { p in quickButton(p) }
             }
+            .textCase(nil)
+            .padding(.horizontal, -20)
+            .padding(.bottom, 4)
         }
     }
 
-    private func recentChip(_ r: SearchRecent) -> some View {
-        NavigationLink(value: Route(path: r.path)) {
-            Label(r.label, systemImage: r.symbol)
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(Theme.card, in: .rect(cornerRadius: Radius.chip, style: .continuous))
-        }
-        .buttonStyle(TilePress())
-        .simultaneousGesture(TapGesture().onEnded { remember(r) })
-        .contextMenu {
-            Button("Remove", role: .destructive) {
-                Motion.run(reduce: reduce) {
-                    recents.removeAll { $0.path == r.path }
-                    SearchRecents.save(recents)
-                }
-            }
-        }
-    }
-
-    private var quickRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            LedgerHeading(title: "Start something")
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(quick) { p in quickTile(p) }
-                }
-            }
-        }
-    }
-
-    private func quickTile(_ p: NavPlace) -> some View {
+    private func quickButton(_ p: NavPlace) -> some View {
         let symbol = NavIcon.symbol(for: p.icon)
         return NavigationLink(value: Route(path: p.href)) {
-            SearchTile(symbol: symbol, label: p.label, fill: Theme.accent)
-                .frame(width: 84)
+            VStack(spacing: 6) {
+                Image(systemName: symbol).font(.title3).foregroundStyle(Theme.accent)
+                Text(p.label).font(.caption).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44)
         }
-        .buttonStyle(TilePress())
+        .buttonStyle(.bordered)
+        .tint(Theme.accent)
+        .controlSize(.large)
         .zoomSource(id: p.href)
         .simultaneousGesture(TapGesture().onEnded {
             remember(SearchRecent(path: p.href, label: p.label, symbol: symbol, kind: "place"))
         })
     }
 
-    private func groupCard(_ g: NavMap.Group, _ entries: [NavEntry]) -> some View {
-        let fill = SearchPalette.colour(for: g.key)
-        return VStack(alignment: .leading, spacing: 12) {
-            LedgerHeading(title: g.label)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 8, alignment: .top)], spacing: 12) {
-                ForEach(entries) { e in entryTile(e, fill: fill) }
+    private var recentSection: some View {
+        Section {
+            ForEach(recents.prefix(5)) { r in
+                NavigationLink(value: Route(path: r.path)) {
+                    HStack(spacing: 8) {
+                        Label { Text(r.label).lineLimit(1) } icon: { Image(systemName: r.symbol).foregroundStyle(Theme.accent) }
+                        Spacer(minLength: 8)
+                        Text(kindWord(r.kind)).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .frame(minHeight: 44)
+                }
+                .simultaneousGesture(TapGesture().onEnded { remember(r) })
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button("Remove", role: .destructive) {
+                        Motion.run(reduce: reduce) {
+                            recents.removeAll { $0.path == r.path }
+                            SearchRecents.save(recents)
+                        }
+                    }
+                }
             }
+        } header: {
+            LedgerHeading(title: "Recent")
         }
-        .ledgerCard()
+        .houseRows()
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
-    private func entryTile(_ e: NavEntry, fill: Color) -> some View {
+    private func kindWord(_ kind: String) -> String {
+        kind == "place" ? "Page" : kind.prefix(1).uppercased() + String(kind.dropFirst())
+    }
+
+    private func groupSection(_ g: NavMap.Group, _ entries: [NavEntry]) -> some View {
+        Section {
+            ForEach(entries) { e in entryRow(e) }
+        } header: {
+            LedgerHeading(title: g.label)
+        }
+        .houseRows()
+    }
+
+    private func entryRow(_ e: NavEntry) -> some View {
         let symbol = NavIcon.symbol(for: e.icon)
         let subs = subPlaces(e)
         return NavigationLink(value: Route(path: e.href)) {
-            SearchTile(symbol: symbol, label: e.label, fill: fill)
+            Label { Text(e.label) } icon: { Image(systemName: symbol).foregroundStyle(Theme.accent) }
+                .frame(minHeight: 44)
         }
-        .buttonStyle(TilePress())
         .zoomSource(id: e.href)
         .simultaneousGesture(TapGesture().onEnded {
             remember(SearchRecent(path: e.href, label: e.label, symbol: symbol, kind: "place"))
@@ -306,47 +232,30 @@ struct SearchView: View {
 
     // MARK: Account
 
-    private var accountCard: some View {
-        let email = session.me?.email ?? ""
-        return VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
-                Monogram(name: email, size: Monogram.Size.row)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(email).font(.subheadline.weight(.medium)).lineLimit(1)
-                    Text(session.shop.name).font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.bottom, 8)
+    private var accountSection: some View {
+        Section {
             accountLink("Businesses", "building.2", "/app/businesses")
             if session.isOwner { accountLink("This phone", "iphone", "/app/phone") }
             if let s = map.settings { accountLink(s.label, NavIcon.symbol(for: s.icon), s.href) }
-            Divider()
-            Button(role: .destructive) { confirmingSignOut = true } label: {
-                Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 12)
-                    .contentShape(Rectangle())
+            if let email = session.me?.email, !email.isEmpty {
+                Text("Signed in as \(email)").font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    .frame(minHeight: 44, alignment: .leading)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(Tone.problem.color)
+            Button(role: .destructive) { confirmingSignOut = true } label: {
+                Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right").frame(minHeight: 44)
+            }
+        } header: {
+            LedgerHeading(title: "Account")
+        } footer: {
+            Text(versionLine).font(.caption).frame(maxWidth: .infinity)
         }
-        .ledgerCard()
+        .houseRows()
     }
 
     private func accountLink(_ title: String, _ symbol: String, _ path: String) -> some View {
-        VStack(spacing: 0) {
-            Divider()
-            NavigationLink(value: Route(path: path)) {
-                HStack {
-                    Label(title, systemImage: symbol).foregroundStyle(.primary)
-                    Spacer(minLength: 8)
-                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
-                }
-                .padding(.vertical, 12)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+        NavigationLink(value: Route(path: path)) {
+            Label { Text(title) } icon: { Image(systemName: symbol).foregroundStyle(Theme.accent) }
+                .frame(minHeight: 44)
         }
     }
 
