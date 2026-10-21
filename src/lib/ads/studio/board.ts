@@ -4,14 +4,16 @@
  *   studio_boards/{id}                  the board: name, designs, notes, rev
  *   studio_board_views/{board}__{frame} the design as the page last drew it (a JPEG, ≤ 900 KB) and the
  *                                        design's rev it shows — what a connected agent looks at
- *   app_settings/studio_agent           the agent keys, as SHA-256 hashes (a key is shown once)
+ *   app_settings/studio_agent           the old agent keys (tstudio_…), as SHA-256 hashes; still honoured.
+ *                                        New keys are the ERP's AI keys with the `studio` scope (lib/agent/keys.ts)
  *
  * Every change is a list of operations applied in a transaction, so the page and an agent working on
  * the same board at once never overwrite each other. Server-only.
  */
 
-import { createHash, randomBytes } from 'crypto';
+import { createHash, timingSafeEqual } from 'crypto';
 import { adminDb } from '@/lib/firebase-admin';
+import { checkKey, createKey, listKeys, revokeKey } from '@/lib/agent/keys';
 import { applyOps, type Board, type BoardOp } from './board-shape';
 
 export const BOARDS = 'studio_boards';
@@ -95,25 +97,25 @@ export async function viewRevs(board: string): Promise<Record<string, number>> {
 
 export interface AgentKey { hash: string; label: string; at: string; last: string | null; tail: string }
 const hashKey = (key: string) => createHash('sha256').update(key).digest('hex');
+type ShownKey = Omit<AgentKey, 'hash'>;
 
-export async function listAgentKeys(): Promise<Omit<AgentKey, 'hash'>[]> {
-  const s = await adminDb.doc(AGENT).get();
-  return ((s.get('keys') as AgentKey[] | undefined) ?? []).map(({ hash: _h, ...k }) => k);
+/**
+ * The Studio's keys, as Connect an agent lists them (the web dialog and the iPhone app): the old ones, and the
+ * ERP's AI keys that may use the Studio (Settings → Connect an AI lists and revokes them all).
+ */
+export async function listAgentKeys(): Promise<ShownKey[]> {
+  const [s, keys] = await Promise.all([adminDb.doc(AGENT).get(), listKeys()]);
+  const old = ((s.get('keys') as AgentKey[] | undefined) ?? []).map(({ hash: _h, ...k }) => k);
+  const ai = keys.filter(k => k.scopes.includes('studio')).map(k => ({ label: k.label, at: k.createdAt, last: k.lastUsedAt, tail: k.tail }));
+  return [...old, ...ai];
 }
 
-/** A new key: returned once, kept only as its hash. */
-export async function createAgentKey(label: string): Promise<string> {
-  const key = `tstudio_${randomBytes(24).toString('base64url')}`;
-  const entry: AgentKey = { hash: hashKey(key), label: label.trim().slice(0, 60) || 'Claude Code', at: now(), last: null, tail: key.slice(-4) };
-  await adminDb.runTransaction(async tx => {
-    const ref = adminDb.doc(AGENT);
-    const s = await tx.get(ref);
-    const keys = ((s.get('keys') as AgentKey[] | undefined) ?? []).slice(-9);
-    tx.set(ref, { keys: [...keys, entry] }, { merge: true });
-  });
-  return key;
+/** A new key for the Studio: an AI key with the `studio` scope, returned once, kept only as its hash. */
+export async function createAgentKey(label: string, by: string): Promise<string> {
+  return (await createKey({ label: label.trim().slice(0, 60) || 'Claude Code', scopes: ['studio'], by })).key;
 }
 
+/** Revoke by the last four characters, old or new (only a Studio-only AI key is revoked from here). */
 export async function revokeAgentKey(tail: string): Promise<void> {
   await adminDb.runTransaction(async tx => {
     const ref = adminDb.doc(AGENT);
@@ -121,16 +123,21 @@ export async function revokeAgentKey(tail: string): Promise<void> {
     const keys = ((s.get('keys') as AgentKey[] | undefined) ?? []).filter(k => k.tail !== tail);
     tx.set(ref, { keys }, { merge: true });
   });
+  for (const k of await listKeys()) if (k.tail === tail && k.scopes.length === 1 && k.scopes[0] === 'studio') await revokeKey(k.id);
 }
 
-/** The key's label when it is one of ours (and its last use is noted, at most once a minute); null otherwise. */
+/** The key's label when it may use the Studio (and its last use is noted, at most once a minute); null otherwise. */
 export async function checkAgentKey(key: string): Promise<string | null> {
+  if (key.startsWith('tk_')) {
+    const c = await checkKey(key);
+    return c.ok && c.key.scopes.includes('studio') ? c.key.label : null;
+  }
   if (!key || !key.startsWith('tstudio_') || key.length > 80) return null;
   const h = hashKey(key);
   const ref = adminDb.doc(AGENT);
   const s = await ref.get();
   const keys = (s.get('keys') as AgentKey[] | undefined) ?? [];
-  const hit = keys.find(k => k.hash === h);
+  const hit = keys.find(k => k.hash.length === h.length && timingSafeEqual(Buffer.from(k.hash), Buffer.from(h)));
   if (!hit) return null;
   if (!hit.last || Date.now() - Date.parse(hit.last) > 60_000) {
     await ref.set({ keys: keys.map(k => (k.hash === h ? { ...k, last: now() } : k)) }, { merge: true }).catch(() => undefined);

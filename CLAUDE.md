@@ -27,9 +27,8 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 - **Node 20**, not the Mac's default: launch config "POS (node 20)" (`PATH=/opt/homebrew/opt/node@20/bin:$PATH npm run dev`, port 3000), or per house
   "Taheri (node 20)" (port 3000) / "Mina (node 20)" (port 3001). On Node 26 Google auth fails ("Premature close"). The per-house
   configs drop the second laptop's `GOOGLE_APPLICATION_CREDENTIALS` (a missing file that breaks every Google call).
-- The app is behind Google sign-in, locally and in **both** houses since 2026-09-30 (Taheri ran
-  `NEXT_PUBLIC_OPEN_ACCESS=1` with open Firestore rules from 2026-09-07; owner: "taheri being open to all is a bit
-  dangerous"). Don't reintroduce the open-access flag.
+- The app is behind Google sign-in, locally and in **both** houses since 2026-09-30 (owner: "taheri being open to all
+  is a bit dangerous"). Don't reintroduce `NEXT_PUBLIC_OPEN_ACCESS`.
 - Typecheck: `npx tsc --noEmit -p .`. ESLint (v9) is broken; the build is the lint gate.
 
 ## Configuration and access
@@ -46,7 +45,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
   Never print a secret value; compare `sha256` of trimmed values instead.
 - Hostinger: SSH with `~/.ssh/taheri_deploy` (port 65002, user in `taheri-site/.github/workflows/deploy.yml`). **Only on the owner's Mac.**
 - **A bare 503 is the server dying**, not a route (routes answer JSON): out of memory kills every request on it.
-  `gcloud logging read 'textPayload:"Memory limit of"'`. 1 GiB since 2026-10-01 — [why](docs/features/ad-studio.md#out-of-memory).
+  `gcloud logging read 'textPayload:"Memory limit of"'`; 1 GiB ([why](docs/features/ad-studio.md#out-of-memory)).
 - The owner is a Firebase/GCP Owner but lacks `iam.serviceAccounts.signBlob`, so `createCustomToken` fails from a laptop;
   test storage layers directly (`npx tsx`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID=gemstrack-pos`).
 
@@ -73,52 +72,25 @@ Mina's. Keep `taheri`'s `main` level too: every cloud session starts there. `mai
 **Running a house locally:** `npm run env:taheri` or `npm run env:mina` writes `.env.<house>.local`
 from the YAML files (secrets left blank to fill from Secret Manager), then `npm run dev:taheri`
 (port 3000) or `npm run dev:mina` (port 3001). `.env.local` is a hand-kept Taheri file that plain `npm run dev` uses.
-Next reads `.env.local` / `.env.development.local` even under `dev:mina` and fills any variable the process lacks, so the
-generator writes every variable that isn't the house's as **empty** (Next then leaves it alone). Re-run `npm run env:mina`
-after changing either YAML.
+The generator writes every other house's variable as **empty** (Next reads `.env.local` even under `dev:mina` and fills
+gaps). Re-run it after changing either YAML.
 
 ## Cloud sessions (claude.ai/code, since 2026-09-27)
 
-Claude Code runs these repos in the cloud too, with no Mac.
-- **One Google credential:** the service account `claude-cloud@gemstrack-pos`. Its JSON key, base64, is the environment
-  variable `GCP_SA_KEY_B64` of the claude.ai/code environment (the Mac keeps it in `~/.config/claude-cloud/`, owner-only;
-  `environment.env` there is the line to paste). It may read exactly the secrets the backends use (Taheri 13, Mina 14 —
-  never `apphosting-github-conn-*`, `waha-dashboard-password`, `DASHBOARD_SECRET`), read/write Firestore in both projects
-  (`datastore.user`), call Vertex in gemstrack-pos and Murtaza's `jewelgen-mm-e3d43ecb`, and view App Hosting, Cloud Build,
-  Cloud Run, logs and Scheduler in both. **To cut the cloud off, delete its key**
-  (`gcloud iam service-accounts keys list --iam-account claude-cloud@gemstrack-pos.iam.gserviceaccount.com`, then `… keys delete`).
-  A secret added later needs `roles/secretmanager.secretAccessor` for it on that secret too. It cannot create or list secrets.
-  **gcloud in a cloud session:** the environment sets `CLOUDSDK_AUTH_ACCESS_TOKEN` to a placeholder ("proxy-injected") that
-  beats the activated account, so every call answers UNAUTHENTICATED — run gcloud as `env -u CLOUDSDK_AUTH_ACCESS_TOKEN gcloud …`
-  Node's Google libraries (the ADC file) are unaffected.
-- **Every session starts** with `scripts/cloud/session-start.sh` (the SessionStart hook in `.claude/settings.json`, only when
-  `CLAUDE_CODE_REMOTE=true`; hooks run in single-repo sessions only, so run it by hand in a multi-repo one): the key becomes the
-  machine's default Google credentials (and gcloud's), Node 20 goes first on PATH, and `.env.taheri.local` / `.env.mina.local`
-  are written from the YAML with every secret filled (`scripts/cloud/fill-secrets.mjs`; prints counts, never values). The
-  environment's setup script is `scripts/cloud/environment-setup.sh` (gcloud CLI), pasted into the environment. Network: Full
-  (Meta, WAHA, Green API, Shopify, Magnific and the sites are off the Trusted list).
-- **Going live:** a cloud session can push only its own `claude/…` branch. `.github/workflows/cloud-deploy.yml` takes any push to
-  `claude/**`, merges `main`, `taheri-next` and gemstrack-pos `main` into it, runs the typecheck and tests, and pushes the result
-  to `main` + `taheri-next` here and to gemstrack-pos `main` (a write deploy key there; its private half is this repo's Actions
-  secret `HOM_DEPLOY_KEY`): both houses at once, **with no review** (owner, 2026-09-27). A conflict or a failed check stops
-  it before any push; nothing is force-pushed. taheri-site and mina-catalogue have their own `cloud-deploy.yml`. In a cloud
-  session: commit, push the branch, watch the run; on a conflict, rebase on `origin/main` and push again. "Run workflow" is a dry run.
-- **Mac only:** SSH to Hostinger (the sites deploy through Actions), Google sign-in to a local ERP (typecheck, tests and the
-  gate's `?dev=1` work here), the Mac's memory files (this file is the handoff), GoDaddy / Hostinger API tokens.
+The rest (the account's reach, the setup script, network) is in `docs/cloud-sessions.md`. In short:
+- `scripts/cloud/session-start.sh` runs first (the SessionStart hook, single-repo sessions only; by hand in a multi-repo one): Google
+  credentials from `GCP_SA_KEY_B64` (`claude-cloud@gemstrack-pos`), Node 20, `.env.taheri.local` / `.env.mina.local` with secrets filled.
+  **To cut the cloud off, delete that service account's key.**
+- **gcloud:** `env -u CLOUDSDK_AUTH_ACCESS_TOKEN gcloud …` (the placeholder token otherwise answers UNAUTHENTICATED).
+- **Going live:** push only your `claude/…` branch; `.github/workflows/cloud-deploy.yml` merges `main`, `taheri-next` and gemstrack-pos
+  `main` into it, typechecks, tests, and pushes both houses at once, **with no review** (owner, 2026-09-27). On a conflict, rebase on
+  `origin/main` and push again. "Run workflow" is a dry run.
+- **Mac only:** SSH to Hostinger, Google sign-in to a local ERP (`?dev=1` works here), the Mac's memory files, GoDaddy / Hostinger tokens.
 
 ## Security: Mina's repo is public (found 2026-09-27)
 
-- **gemstrack-pos is a public repository** and its `main` is this exact history, so everything here (code, this file,
-  every script ever committed) is public; taheri-pos being private protects nothing. Making gemstrack-pos private breaks
-  nothing we use: cloud-deploy reaches it over SSH with `HOM_DEPLOY_KEY`, App Hosting through its GitHub app.
-- **hom-pos's Firebase admin key was committed** in `scripts/cleanup-shopify-customers.mjs`, `migrate-silver-hisaab.mjs`
-  and `pitr-restore-invoices.mjs` (commit 3aea1ff, 2026-09-25) and so published. Those scripts now use
-  `applicationDefault()`; the key is still in the history and **must be deleted in IAM**:
-  `gcloud iam service-accounts keys list --iam-account firebase-adminsdk-fbsvc@hom-pos-52710474-ceeea.iam.gserviceaccount.com --project hom-pos-52710474-ceeea --managed-by=user`,
-  then `… keys delete <KEY_ID>`. It bypasses Firestore rules. The second laptop's Mina `.env.local` may use that key.
-  cloud-deploy now refuses a tree with a PEM private key in it (a push from a Mac is not checked).
-- Scripts' `client_id`/`client_secret`: the Firebase CLI's public client.
-- **Taheri's Firestore is open until the owner publishes `firestore.rules`** in the Firebase console (never the CLI from here): see [Taheri sign-in](docs/decisions.md#taheri-sign-in).
+gemstrack-pos is public and its `main` is this history. hom-pos's Firebase admin key (commit 3aea1ff) **must still be deleted in
+IAM**; Taheri's Firestore is open until the owner publishes `firestore.rules`. Details: `docs/security.md`.
 
 ## Where the rest is written down
 
@@ -133,7 +105,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Navigation and the look**
 - [The map](docs/decisions.md#the-map) — the sidebar rows, the one tab row per screen, and `lib/nav.ts` as the only registry
-- [Web matches the app](docs/decisions.md#web-matches-the-app) — the app's palette (light is grey/cream, Taheri's accent gold), flat 22px cards, capsules, tones in `lib/tones.ts`; spec `docs/features/web-matches-app.md`
+- [Web matches the app](docs/decisions.md#web-matches-the-app) — the app's palette, flat 22px cards, capsules, tones in `lib/tones.ts`; spec `docs/features/web-matches-app.md`
 - [The name ERP](docs/decisions.md#the-name-erp) — ERP in every word people read; Shopify codes and code names stay POS
 - [Number fields](docs/decisions.md#number-fields) — and sale-flow fields show 0 as blank
 - [Hooks](docs/decisions.md#hooks) — the `/orders/add` crash of 2026-09-22
@@ -198,9 +170,9 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Scanners](docs/features/ai.md#scanners) — wastage in grams, weight before stones, the bill's rate and discount; never 3.8-flash
 - [Voice](docs/features/ai.md#voice) — live words; every part editable; anything, several steps
 
-**Design** (`docs/features/design.md`; plan `design-studio-plan.md`) — replaces Post a piece and the Ads Studio tab (2026-10-12)
-- [Design](docs/decisions.md#design) — Posts › Design: one editor, one Publish sheet, one shelf; Ads → Plan; old URLs redirect, every `/api` route kept; `/design/classic/{post,ad}` kept for AI restage/paint and "Make it with AI"
-- [Subject-aware stories](docs/decisions.md#design) — text kept off the piece; `findSubject`/`avoidSubject` in the shared engine (`lib/social/subject.ts`), the bundles rebuilt
+**Design** (`docs/features/design.md`) — replaced Post a piece and the Ads Studio tab (2026-10-12)
+- [Design](docs/decisions.md#design) — Posts › Design: one editor, one Publish sheet, one shelf; Ads → Plan; old URLs redirect, every `/api` route kept
+- [Subject-aware stories](docs/decisions.md#design) — text kept off the piece (`lib/social/subject.ts`, the shared engine)
 
 **Post a piece's engine** (`docs/features/post-a-piece.md`; the screen is Design)
 - [Drafts](docs/features/post-a-piece.md#post-a-piece-drafts) — on this device (IndexedDB), photos included; resumes
@@ -211,6 +183,9 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Queue and Mina](docs/features/post-a-piece.md#queue-and-mina) — per-destination ticks, the queue and its tick, Mina's community
 - [Maisons](docs/features/post-a-piece.md#maisons) — house + official name; never priced by the gram
 - [Retouch](docs/features/post-a-piece.md#retouch) — Magnific (GPT Image) + Precision, then the same-piece check
+
+**AI keys** (`docs/features/ai-keys.md`)
+- [AI keys](docs/decisions.md#ai-keys) — Settings → Connect an AI: scoped, hashed, revocable keys; MCP + REST + OpenAPI from one registry; an AI's posts wait for the owner's OK
 
 **WhatsApp reports and the monthly PDF** (`docs/features/notifications.md`)
 - [WhatsApp reports](docs/features/notifications.md#whatsapp-reports) — `app_settings/global` by name; daily; [PDFs only](docs/features/notifications.md#pdfs-only)
@@ -233,27 +208,27 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Ads](docs/features/ads.md#ads) — Meta ad account per house; Overview, Campaigns, Plan, New ad, Setup
 
 **Label LIVE** (`docs/features/label-live.md`)
-- [Label LIVE](docs/features/label-live.md#label-live) — tags print by `labellive://` link (one piece, or a batch); set up by pasting Label LIVE's Integrate link on Settings → Labels; variables paired to fields
+- [Label LIVE](docs/features/label-live.md#label-live) — tags print by `labellive://` link; set up on Settings → Labels; variables paired to fields
 
 **Insights** (`docs/features/insights.md`)
-- [Insights](docs/features/insights.md#insights) — Instagram + Facebook, organic beside paid, through the Ads login; hourly snapshot keeps stories and follower counts
+- [Insights](docs/features/insights.md#insights) — Instagram + Facebook, organic beside paid, via the Ads login; an hourly snapshot
 
 **Ad studio** (`docs/features/ad-studio.md`) — its Plan is Ads → Plan, the rest are Design sections
 - [Ad studio](docs/features/ad-studio.md#ad-studio) — both houses; [any shape](docs/features/ad-studio.md#any-shape)
 - [Board](docs/features/ad-studio.md#board) — endless canvas, Let it cook, MCP agent (`/api/studio/mcp`), Use it; a weekly board Mondays 9:00
-- [Editing on the board](docs/features/ad-studio.md#board-designer-flow) — saved as you go; ‹ › / [ ], size tabs and the strip move between designs without closing; Tidy keeps an ad's sizes together; a pinch zooms the board or the designer, never the browser's page (`useNoPageZoom`)
+- [Editing on the board](docs/features/ad-studio.md#board-designer-flow) — saved as you go; ‹ › and the strip move between designs; Tidy keeps sizes together; a pinch never zooms the page (`useNoPageZoom`)
 - [Server draws the board](docs/features/ad-studio.md#server-draw) — `server-draw.ts` on @napi-rs/canvas: agents and the weekly board lay out and draw without the page; `/draw` settles a board
 - [The background, by hand](docs/features/ad-studio.md#free-background) — drag/scroll/pinch/double-click the photo; a new picture starts centred; one shade with on-page dots
-- [Sizes, linked](docs/features/ad-studio.md#sizes) — `group` per ad; linked texts carry what changed to every size (size by ratio, place kept); unlink keeps the key; a new size is the design resized
+- [Sizes, linked](docs/features/ad-studio.md#sizes) — `group` per ad; linked texts carry a change to every size; unlink keeps the key
 - [Buttons](docs/features/ad-studio.md#buttons) — one text with a sized background (`box.w/h`); Words in it on a rectangle; Add → Button
-- [Mina's ad style](docs/features/ad-studio.md#house-of-mina-ad-style) — from the owner's edits: named designs = italic name + pink caps only; benefit ads add a red SHOP NOW pill + wordmark; a deep shade; benefits over proof; in `brand.ts`
+- [Mina's ad style](docs/features/ad-studio.md#house-of-mina-ad-style) — named designs: italic name + pink caps; benefit ads: red SHOP NOW pill + wordmark; a deep shade; in `brand.ts`
 
 **iPhone app** (`docs/features/iphone-app.md`)
 - [iPhone app](docs/features/iphone-app.md#iphone-app) — `apps/ios`, Capacitor over the live ERP; TestFlight by `ios.yml`
-- [One app, many businesses](docs/features/iphone-app.md#one-app-many-businesses-2026-10-16) — `shop.taheri.erp` "ERP" holds Taheri, House of Mina and any business added by its ERP address (`/api/app/business`); a chip switches, each keeps its sign-in, data, push and widget entry; Mina's own app is retired (2026-10-20: no more builds, its Xcode Cloud workflows off); Mina needs `shop.taheri.erp` registered in its Firebase
+- [One app, many businesses](docs/features/iphone-app.md#one-app-many-businesses-2026-10-16) — `shop.taheri.erp` "ERP": Taheri, Mina and any business by its address (`/api/app/business`), each its own sign-in, data, push, widget; Mina's own app retired 2026-10-20; Mina needs `shop.taheri.erp` in its Firebase
 
 **Android app** (`docs/features/android-app.md`)
-- [Android app](docs/features/android-app.md#android-app) — `apps/android`, Kotlin/Compose port of `apps/iphone`, two flavors; money in `core` held to the iPhone's contract; Play internal testing; `apps/android-twa` until it ships
+- [Android app](docs/features/android-app.md#android-app) — `apps/android`, Kotlin/Compose port of `apps/iphone`, two flavors; money in `core` to the iPhone's contract; Play internal testing
 
 ## graphify
 

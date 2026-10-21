@@ -5,7 +5,7 @@ import Foundation
 enum NavIcon {
     static let symbols: [String: String] = [
         "ArchiveRestore": "archivebox", "Banknote": "banknote", "Bell": "bell", "BookUser": "book.closed",
-        "Boxes": "shippingbox", "Briefcase": "briefcase", "Calendar": "calendar", "Camera": "camera",
+        "Bot": "sparkles", "Boxes": "shippingbox", "Briefcase": "briefcase", "Calendar": "calendar", "Camera": "camera",
         "ChartColumn": "chart.bar", "Rows3": "rectangle.grid.1x2", "ChartPie": "chart.pie", "CirclePlus": "plus.circle", "ClipboardList": "list.clipboard",
         "Coins": "dollarsign.circle", "Contact": "person.crop.rectangle", "Database": "cylinder.split.1x2", "FileClock": "doc.badge.clock",
         "Gem": "diamond", "Globe": "globe", "Hammer": "hammer", "History": "clock.arrow.circlepath",

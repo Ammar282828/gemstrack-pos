@@ -227,8 +227,9 @@ longer forms (Let it cook with an aim, the name, every shape).
   `op=direct` once per variant, each asked from another angle — `ANGLES` — plus the owner's aim or a note, three at a time for the
   Vertex quota; each lands beside the last, `by: 'ai'`, with the model's `why`), **In another shape** (a copy laid out afresh in any
   shape), Duplicate, Download (full size JPEG), Remove. Measured: two variants in 24 s.
-  **An agent over MCP** (`/api/studio/mcp`, `board-agent.ts`, tested): **Connect an agent** makes a key (`tstudio_…`, kept as a
-  SHA-256 hash in `app_settings/studio_agent`, shown once, revocable there, 600 calls an hour) and the `claude mcp add --transport
+  **An agent over MCP** (`/api/studio/mcp`, `board-agent.ts`, tested): **Connect an agent** makes a key (since 2026-10-21 an ERP AI key
+  with the `studio` scope, [ai-keys.md](ai-keys.md), also listed in Settings → Connect an AI; the older `tstudio_…` keys, SHA-256 hashes in
+  `app_settings/studio_agent`, still work; shown once, revocable there, 600 calls an hour) and the `claude mcp add --transport
   http …` line. Plain JSON-RPC (Streamable HTTP, JSON answers only; notifications get 202). Fifteen tools: `get_style` (the house
   brief from `brand.ts`, the shapes, the layouts, the StoryDoc format, how to work), `list_boards`, `create_board`, `get_board` (notes
   first — the owner's instructions), `find_photos` (the library with the ERP's specs line and the assessment), `view_photo`,

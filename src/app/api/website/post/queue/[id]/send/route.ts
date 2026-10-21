@@ -1,7 +1,8 @@
 /**
  * POST → send a queued piece now (the page's "Send now" and "Send all now",
  * one piece per call). Only what hasn't gone is sent, so pressing it again
- * after a failure never posts a group twice.
+ * after a failure never posts a group twice. On a piece an AI queued, it is
+ * the person's approval too.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -16,7 +17,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (who instanceof NextResponse) return who;
   const { id } = await params;
   if (!/^[A-Za-z0-9]{10,40}$/.test(id)) return NextResponse.json({ error: 'No such piece.' }, { status: 404 });
-  const item = await claimItem(id, new Date(), true);
+  // A person's Send now is also their OK for an AI's piece (social/queue.ts).
+  const item = await claimItem(id, new Date(), true, who);
   if (!item) {
     const now = await getItem(id);
     if (!now) return NextResponse.json({ error: 'That piece is no longer in the queue.' }, { status: 404 });

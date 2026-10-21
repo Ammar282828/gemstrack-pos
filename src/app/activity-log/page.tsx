@@ -9,7 +9,7 @@ import { ListSkeleton } from '@/components/shared/skeletons';
 import { useAppStore, ActivityLog, LOG_EVENT_TYPES, LogEventType } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, History, Filter, Calendar as CalendarIcon, User, Package, FileText, Briefcase, CreditCard, RotateCcw, TrendingUp, HandCoins, Hammer, Wrench, Coins } from 'lucide-react';
+import { Loader2, History, Filter, Calendar as CalendarIcon, User, Package, FileText, Briefcase, CreditCard, RotateCcw, TrendingUp, HandCoins, Hammer, Wrench, Coins, Bot } from 'lucide-react';
 import { format, parseISO, isWithinInterval, startOfDay } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import type { DateRange } from "react-day-picker";
@@ -59,6 +59,11 @@ const eventIcons: Record<LogEventType, React.ReactNode> = {
     'repair.payment': <Wrench className="h-4 w-4" />,
     'repair.delete': <Wrench className="h-4 w-4" />,
     'rates.update': <Coins className="h-4 w-4" />,
+    'ai.read': <Bot className="h-4 w-4" />,
+    'ai.post': <Bot className="h-4 w-4" />,
+    'ai.write': <Bot className="h-4 w-4" />,
+    'ai.refused': <Bot className="h-4 w-4" />,
+    'ai.key': <Bot className="h-4 w-4" />,
 };
 
 const getEventTypeColor = (eventType: LogEventType) => {
@@ -154,7 +159,7 @@ export default function ActivityLogPage() {
                             <SelectContent>
                                 <SelectItem value="All">All</SelectItem>
                                 {LOG_EVENT_TYPES.map((cat) => (
-                                    <SelectItem key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</SelectItem>
+                                    <SelectItem key={cat} value={cat}>{cat === 'ai' ? 'AI keys' : cat.charAt(0).toUpperCase() + cat.slice(1)}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>

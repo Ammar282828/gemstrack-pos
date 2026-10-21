@@ -25,7 +25,7 @@ import {
   Wallet, TrendingUp, Settings as SettingsIcon, Calendar, Briefcase, Package, Gem, Layers, ImagePlus, Scale,
   PenLine, Coins, Target, BookUser, PieChart, Landmark, Tag, ArchiveRestore, RotateCcw, Mic, History, Palette,
   Rocket, BarChart3, UsersRound, ListChecks, SlidersHorizontal, Contact, Import, Database, ScanLine, Camera,
-  LayoutGrid, Bell, Plug, Banknote, Map as MapIcon, Rows3,
+  LayoutGrid, Bell, Plug, Banknote, Map as MapIcon, Rows3, Bot,
 } from 'lucide-react';
 import {
   STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE,
@@ -245,6 +245,8 @@ export const SETTINGS: NavEntry = {
       match: ['/settings/backups', '/settings/recently-removed', '/settings/contact-import', '/settings/hisaab-import', '/settings/import-taheri'] },
     { href: '/activity-log', label: 'Activity', heading: 'Activity', icon: History, keywords: ['activity log', 'history', 'who changed', 'sign-in', 'emergency lock', 'security'] },
     { href: '/settings/voice', label: 'Voice', icon: Mic, keywords: ['microphone'] },
+    // AI keys: ChatGPT, Claude, Gemini, Cursor into the ERP over MCP or REST (docs/features/ai-keys.md). Owners only.
+    { href: '/settings/ai', label: 'Connect an AI', icon: Bot, keywords: ['ai keys', 'api key', 'chatgpt', 'claude', 'gemini', 'cursor', 'mcp', 'gpt', 'agent', 'openapi'] },
   ],
   pages: [
     { href: SETTINGS_SHOP_HREF, label: 'Shop details', icon: SettingsIcon, keywords: ['shop name', 'address', 'numbering', 'appearance'] },

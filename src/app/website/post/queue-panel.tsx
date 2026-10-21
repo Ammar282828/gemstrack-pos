@@ -35,6 +35,9 @@ export interface QueueEntry extends QueueTargets {
   errors: Record<string, { message: string; at: string }>;
   attempts: number;
   sentAt?: string;
+  /** An AI key's label, when an outside AI made and queued it (lib/agent): it waits for a person's OK. */
+  proposedBy?: string;
+  awaitingApproval?: boolean;
 }
 
 /** A finished piece from the page, ready to be queued. */
@@ -74,6 +77,8 @@ const base64 = async (b: Blob) => {
 };
 
 const pending = (e: QueueEntry) => e.status === 'held' || e.status === 'scheduled' || e.status === 'failed';
+/** What Send all and Spread take: not an AI's piece nobody has looked at — each of those is its own tap. */
+const bulk = (e: QueueEntry) => pending(e) && !e.awaitingApproval;
 
 export function useQueue() {
   const { toast } = useToast();
@@ -146,7 +151,7 @@ export function useQueue() {
     }
   };
   const sendAll = async () => {
-    const ids = items.filter(pending).map(e => e.id);
+    const ids = items.filter(bulk).map(e => e.id);
     let ok = 0;
     for (const id of ids) if (await sendNow(id)) ok++;
     toast({ title: ok === ids.length ? `All ${ids.length} sent` : `${ok} of ${ids.length} sent`, description: ok === ids.length ? undefined : 'The ones that failed say why; Retry sends only what didn’t go.', variant: ok === ids.length ? undefined : 'destructive' });
@@ -165,7 +170,7 @@ export function useQueue() {
     catch (e) { toast({ title: 'Could not remove it', description: e instanceof Error ? e.message : '', variant: 'destructive' }); }
   };
   const spread = async (from: Date, to: Date) => {
-    const list = items.filter(pending);
+    const list = items.filter(bulk);
     const times = spreadTimes(list.length, from, to);
     for (let i = 0; i < list.length; i++) await schedule(list[i].id, times[i]);
     toast({ title: `${list.length} piece${list.length === 1 ? '' : 's'} spread from ${clock(times[0])} to ${clock(times[times.length - 1])}`, description: 'They go by themselves — this page can be closed.' });
@@ -213,9 +218,12 @@ export function QueuePanel({ api, destinationName, blockers }: {
   const [to, setTo] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
   const [showSent, setShowSent] = useState(false);
+  const [big, setBig] = useState<string | null>(null);
   const timeRef = useRef<HTMLInputElement>(null);
 
   const waiting = items.filter(pending);
+  const together = waiting.filter(bulk);
+  const toApprove = waiting.length - together.length;
   const going = items.filter(e => e.status === 'sending');
   const sent = items.filter(e => e.status === 'sent' && sameDay(new Date(e.sentAt || e.createdAt), new Date()));
   if (!items.length) return null;
@@ -229,7 +237,7 @@ export function QueuePanel({ api, destinationName, blockers }: {
   const fromAt = atTime(from);
   // The last time is on the first one's day: a "last" before the "first" just sends them all at the first.
   const toAt = fromAt && /^\d{1,2}:\d{2}$/.test(to) ? (() => { const d = new Date(fromAt); const [h, m] = to.split(':').map(Number); d.setHours(h, m, 0, 0); return d; })() : null;
-  const preview = fromAt && toAt ? spreadTimes(waiting.length, fromAt, toAt) : [];
+  const preview = fromAt && toAt ? spreadTimes(together.length, fromAt, toAt) : [];
   const where = (e: QueueEntry) => [
     e.website && `${e.website.collection}${e.website.featured ? ' (set of the day)' : ''}`,
     e.instagram && 'Instagram',
@@ -243,9 +251,12 @@ export function QueuePanel({ api, destinationName, blockers }: {
     const busy = sending === e.id || e.status === 'sending';
     return (
       <li key={e.id} className="flex items-start gap-2.5 py-2">
-        {e.thumb ? <img src={e.thumb} alt="" className="h-12 w-12 rounded-md object-cover shrink-0" /> : <span className="h-12 w-12 rounded-md bg-muted shrink-0" />}
+        {e.thumb
+          ? <button type="button" title={big === e.id ? 'Smaller' : 'Look closer'} onClick={() => setBig(b => (b === e.id ? null : e.id))} className="shrink-0 min-h-0 p-0"><img src={e.thumb} alt="" className={cn('rounded-md object-cover transition-all', big === e.id ? 'h-48 w-48' : 'h-12 w-12')} /></button>
+          : <span className="h-12 w-12 rounded-md bg-muted shrink-0" />}
         <div className="flex-1 min-w-0 space-y-0.5">
           <p className="text-sm font-medium truncate">{e.headline || 'Untitled piece'}</p>
+          {e.awaitingApproval && <p className="text-xs font-medium text-tone-owed-ink">Made by {e.proposedBy} — look at it, then send it or give it a time</p>}
           <p className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-1.5">
             {e.website && <Globe className="h-3 w-3" />}{e.website?.featured && <Star className="h-3 w-3" />}{e.instagram && <Instagram className="h-3 w-3" />}
             {e.whatsapp.filter(k => k !== 'channel').length > 0 && <MessageCircle className="h-3 w-3" />}{e.whatsapp.includes('channel') && <Radio className="h-3 w-3" />}
@@ -270,7 +281,7 @@ export function QueuePanel({ api, destinationName, blockers }: {
         {pending(e) && !busy && editing !== e.id && (
           <div className="flex items-center gap-0.5 shrink-0">
             <button type="button" title="Give it a time" onClick={() => setEditing(e.id)} className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"><Clock className="h-4 w-4" /></button>
-            <button type="button" title={e.status === 'failed' ? 'Retry what didn’t go' : 'Send it now'} disabled={!!sending} onClick={() => sendNow(e.id)} className="h-8 w-8 rounded-md flex items-center justify-center text-primary hover:bg-primary/10 disabled:opacity-40">
+            <button type="button" title={e.awaitingApproval ? 'Approve and send it now' : e.status === 'failed' ? 'Retry what didn’t go' : 'Send it now'} disabled={!!sending} onClick={() => sendNow(e.id)} className="h-8 w-8 rounded-md flex items-center justify-center text-primary hover:bg-primary/10 disabled:opacity-40">
               {e.status === 'failed' ? <RotateCw className="h-4 w-4" /> : <Send className="h-4 w-4" />}
             </button>
             <button type="button" title="Take it out of the queue" disabled={!!sending} onClick={() => remove(e.id)} className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40"><Trash2 className="h-4 w-4" /></button>
@@ -286,10 +297,11 @@ export function QueuePanel({ api, destinationName, blockers }: {
         <p className="font-medium flex items-center gap-2"><ListPlus className="h-4 w-4" /> Queue{waiting.length ? <span className="text-muted-foreground font-normal text-sm">· {waiting.length} to go</span> : null}</p>
       </div>
       {(waiting.length > 0 || going.length > 0) && <ul className="divide-y">{[...going, ...waiting].map(row)}</ul>}
-      {waiting.length > 0 && (
+      {toApprove > 0 && <p className="text-xs text-muted-foreground">{toApprove === 1 ? 'One piece an AI made waits' : `${toApprove} pieces an AI made wait`} for your OK: tap its picture to look, then its send or clock. Send all leaves {toApprove === 1 ? 'it' : 'them'} out.</p>}
+      {together.length > 0 && (
         <div className="grid grid-cols-2 gap-2 pt-1">
           <Button size="sm" className="h-auto min-h-9 whitespace-normal py-1.5 leading-tight" disabled={!!sending} onClick={() => setConfirmAll(true)}>
-            {sending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Send className="h-4 w-4 mr-1.5" />} Send {waiting.length > 1 ? `all ${waiting.length}` : 'it'} now
+            {sending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Send className="h-4 w-4 mr-1.5" />} Send {together.length > 1 ? `all ${together.length}` : 'it'} now
           </Button>
           <Button size="sm" variant="secondary" className="h-auto min-h-9 whitespace-normal py-1.5 leading-tight" disabled={!!sending} onClick={openSpread}><Clock className="h-4 w-4 mr-1.5 shrink-0" /> Spread over the day</Button>
         </div>
@@ -304,10 +316,10 @@ export function QueuePanel({ api, destinationName, blockers }: {
       <AlertDialog open={confirmAll} onOpenChange={setConfirmAll}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Send {waiting.length > 1 ? `all ${waiting.length} pieces` : 'it'} now?</AlertDialogTitle>
+            <AlertDialogTitle>Send {together.length > 1 ? `all ${together.length} pieces` : 'it'} now?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-1.5">
-                <ul className="text-xs space-y-1">{waiting.map(e => <li key={e.id}><span className="font-medium text-foreground">{e.headline || 'Untitled'}</span> → {listOf(where(e))}</li>)}</ul>
+                <ul className="text-xs space-y-1">{together.map(e => <li key={e.id}><span className="font-medium text-foreground">{e.headline || 'Untitled'}</span> → {listOf(where(e))}</li>)}</ul>
                 <p>One after another, in this order. A post cannot be unsent from here.</p>
                 {allBlockers.length > 0 && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2.5 space-y-2 text-foreground">
@@ -329,7 +341,7 @@ export function QueuePanel({ api, destinationName, blockers }: {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Spread over the day</DialogTitle>
-            <DialogDescription>The {waiting.length} piece{waiting.length === 1 ? '' : 's'} go{waiting.length === 1 ? 'es' : ''} out evenly between these times, in the queue’s order, each to wherever it was set to go. They go by themselves — nobody needs to be on this page.</DialogDescription>
+            <DialogDescription>The {together.length} piece{together.length === 1 ? '' : 's'} go{together.length === 1 ? 'es' : ''} out evenly between these times, in the queue’s order, each to wherever it was set to go. They go by themselves — nobody needs to be on this page.</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label htmlFor="spread-from">First</Label><Input id="spread-from" type="time" value={from} onChange={e => setFrom(e.target.value)} /></div>

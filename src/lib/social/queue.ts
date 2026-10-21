@@ -17,6 +17,11 @@
  * didn't go, and never posts a group twice. A claim guards against two
  * senders at once.
  *
+ * A piece an outside AI queued (an AI key, lib/agent) carries `proposedBy`, the
+ * key's label, and waits for a person's OK: nothing sends or schedules it until
+ * someone approves — a signed-in person's Send now or time (the Posts hub), or a
+ * key with "Send posts" (posts:publish). The tick never sends one unapproved.
+ *
  * Server-only.
  */
 
@@ -63,10 +68,20 @@ export interface QueueItem extends QueueTargets {
   attempts: number;
   claimedAt: string | null;
   sentAt?: string;
+  /** An AI key's label, when an outside AI made and queued it (lib/agent): it waits for approval. */
+  proposedBy?: string;
+  /** The design it was drawn from (Design › Saved), when there is one. */
+  design?: string;
+  /** Who said it may go, and when (a person, or `ai:<label>` with posts:publish). */
+  approvedBy?: string;
+  approvedAt?: string;
 }
 
+/** Made by an AI and nobody has said it may go yet. */
+export const awaitingApproval = (d: Pick<QueueItem, 'proposedBy' | 'approvedAt'>): boolean => !!d.proposedBy && !d.approvedAt;
+
 /** What the page sees: everything but the images. */
-export type QueueItemView = Omit<QueueItem, 'thumb' | 'stored'> & { thumb: string | null; units: string[] };
+export type QueueItemView = Omit<QueueItem, 'thumb' | 'stored'> & { thumb: string | null; units: string[]; awaitingApproval: boolean };
 
 const col = () => adminDb.collection(QUEUE);
 const mediaId = (id: string, key: string, part: number) => `${id}__${key}__${part}`;
@@ -80,12 +95,13 @@ export function toView(d: QueueItem): QueueItemView {
     ...(stalled ? { status: 'failed' as const, errors: { ...d.errors, stalled: { message: 'It stopped part-way', at: d.claimedAt || d.createdAt } } } : {}),
     thumb: thumb ? `data:image/jpeg;base64,${Buffer.from(thumb).toString('base64')}` : null,
     units: queueUnits(d, d.counts),
+    awaitingApproval: awaitingApproval(d),
   };
 }
 
 // ── Making a piece ───────────────────────────────────────────────────────────
 
-export async function createItem(p: Pick<QueueItem, 'by' | 'headline' | 'caption' | 'fileBase' | 'counts' | 'website' | 'instagram' | 'whatsapp' | 'sitePiece'> & { thumb?: Buffer }): Promise<QueueItem> {
+export async function createItem(p: Pick<QueueItem, 'by' | 'headline' | 'caption' | 'fileBase' | 'counts' | 'website' | 'instagram' | 'whatsapp' | 'sitePiece'> & Partial<Pick<QueueItem, 'proposedBy' | 'design'>> & { thumb?: Buffer }): Promise<QueueItem> {
   const ref = col().doc();
   const item: QueueItem = {
     ...p, id: ref.id, createdAt: new Date().toISOString(), status: 'draft', dueAt: null,
@@ -93,6 +109,8 @@ export async function createItem(p: Pick<QueueItem, 'by' | 'headline' | 'caption
   };
   if (!p.thumb) delete item.thumb;
   if (!p.sitePiece) delete item.sitePiece;
+  if (!p.proposedBy) delete item.proposedBy;
+  if (!p.design) delete item.design;
   await ref.set(item);
   return item;
 }
@@ -142,8 +160,9 @@ const statusError = (message: string, status: number) => Object.assign(new Error
 /**
  * `ready`: every image has arrived, so the draft joins the queue (held).
  * `schedule`: send it at `dueAt` (the tick does). `hold`: keep it until told.
+ * Scheduling an AI's piece is approving it: `by` says who (without it, refused).
  */
-export async function changeItem(id: string, change: { action: 'ready' } | { action: 'hold' } | { action: 'schedule'; dueAt: string }): Promise<QueueItem> {
+export async function changeItem(id: string, change: { action: 'ready' } | { action: 'hold' } | { action: 'schedule'; dueAt: string; by?: string }): Promise<QueueItem> {
   const ref = col().doc(id);
   return adminDb.runTransaction(async tx => {
     const d = (await tx.get(ref)).data() as QueueItem | undefined;
@@ -164,8 +183,9 @@ export async function changeItem(id: string, change: { action: 'ready' } | { act
       patch = { status: d.status === 'failed' || d.status === 'sending' ? 'failed' : 'held', dueAt: null, claimedAt: null };
     } else {
       if (!Number.isFinite(Date.parse(change.dueAt))) throw statusError('That time could not be read.', 400);
+      if (awaitingApproval(d) && !change.by) throw statusError(`${d.proposedBy} made this piece: it needs someone's OK before it can go.`, 409);
       // Scheduling again is also how the counter gives a failed piece its tries back.
-      patch = { status: 'scheduled', dueAt: new Date(change.dueAt).toISOString(), attempts: 0, claimedAt: null };
+      patch = { status: 'scheduled', dueAt: new Date(change.dueAt).toISOString(), attempts: 0, claimedAt: null, ...approval(d, change.by) };
     }
     tx.update(ref, patch);
     return { ...d, ...patch };
@@ -191,22 +211,28 @@ export async function listItems(): Promise<QueueItem[]> {
 
 // ── Sending ─────────────────────────────────────────────────────────────────
 
+/** The approval an AI's piece gets from whoever sends or schedules it (nothing for anyone else's). */
+const approval = (d: QueueItem, by: string | undefined, at = new Date()): Partial<QueueItem> =>
+  awaitingApproval(d) && by ? { approvedBy: by, approvedAt: at.toISOString() } : {};
+
 /**
  * Take a piece to send. `force` is the counter's "send now" — any held,
  * scheduled or failed piece; otherwise only one whose time has come and that
- * has tries left.
+ * has tries left. An AI's piece nobody has approved is taken only with `approver`
+ * (who is sending it), and is approved by them as it is taken.
  */
-export async function claimItem(id: string, now = new Date(), force = false): Promise<QueueItem | null> {
+export async function claimItem(id: string, now = new Date(), force = false, approver?: string): Promise<QueueItem | null> {
   const ref = col().doc(id);
   return adminDb.runTransaction(async tx => {
     const d = (await tx.get(ref)).data() as QueueItem | undefined;
     if (!d || d.status === 'draft' || d.status === 'sent') return null;
+    if (awaitingApproval(d) && !(force && approver)) return null;
     if (d.status === 'sending' && d.claimedAt && now.getTime() - Date.parse(d.claimedAt) < CLAIM_MS) return null;
     if (!force) {
       if (!d.dueAt || Date.parse(d.dueAt) > now.getTime()) return null;
       if (d.status === 'held' || d.attempts >= MAX_TRIES) return null;
     }
-    const patch = { status: 'sending' as const, claimedAt: now.toISOString(), attempts: (d.attempts || 0) + 1 };
+    const patch = { status: 'sending' as const, claimedAt: now.toISOString(), attempts: (d.attempts || 0) + 1, ...approval(d, approver, now) };
     tx.update(ref, patch);
     return { ...d, ...patch };
   });
@@ -303,7 +329,7 @@ export async function sendItem(item: QueueItem, opts: { by: string; origin: stri
 export async function dueItems(now = new Date()): Promise<QueueItem[]> {
   const snap = await col().where('dueAt', '<=', now.toISOString()).where('dueAt', '>=', new Date(now.getTime() - 2 * 86_400_000).toISOString()).orderBy('dueAt').get();
   return snap.docs.map(d => d.data() as QueueItem)
-    .filter(d => (d.status === 'scheduled' || d.status === 'failed' || d.status === 'sending') && (d.attempts || 0) < MAX_TRIES);
+    .filter(d => (d.status === 'scheduled' || d.status === 'failed' || d.status === 'sending') && (d.attempts || 0) < MAX_TRIES && !awaitingApproval(d));
 }
 
 /** Drafts that never finished arriving (the page closed mid-way), and pieces that went out over a week ago. */

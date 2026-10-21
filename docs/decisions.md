@@ -742,3 +742,27 @@ their standing "do everything yourself": `docs/features/design-studio-plan.md`; 
 - **The icon never changes by itself.** Taheri's is primary, Mina's an alternate; Settings → This phone sets it, because iOS alerts on every change.
 - **House of Mina's own app is deprecated** (kept building until its testers move). House of Mina inside the one app needs `shop.taheri.erp` registered as an
   iOS app in its Firebase project (`docs/features/iphone-app.md`).
+
+## Outside AI
+
+### AI keys
+
+2026-10-21. The owner: "an API key thing so that I can use other AI to go into the ERP and make posts for me and stuff." What was
+built: `docs/features/ai-keys.md`.
+
+- **One key system for every outside AI.** Settings → Connect an AI (owners only) makes a key per AI: a name, what it may do (scopes:
+  `posts:draft` and `read` ticked; `posts:publish`, `write:shop`, `write:money` and, where the house has the Ad studio, `studio` opt-in),
+  an optional expiry. Shown once (`tk_<house>_…`), kept as a SHA-256 in `app_private` (Admin SDK only), compared in constant time,
+  revocable; last use and calls shown. A key stops when its maker loses the role. The Studio's board agent is the same system: Connect an
+  agent now makes a `studio`-only key; the old `tstudio_` keys still work.
+- **Both protocols from one registry.** MCP over Streamable HTTP at `/api/agent/mcp` (Claude, ChatGPT connectors, Gemini CLI, Cursor), a
+  REST twin at `/api/agent/v1/<tool>` and `/api/agent/openapi.json` (a custom GPT's Actions) are drawn from `lib/agent/tools.ts`: no
+  three copies. Scopes are checked server-side on every call; a refusal names the scope. Connectors that can only sign in use the ERP's
+  own small OAuth (paste the key once on the ERP's page); their tokens die with the key. No new secret.
+- **An AI's post waits for the owner.** `make_post` draws the story and the square on the server (the board's renderer) and keeps them as
+  a Design on the Saved shelf; `queue_post` puts it in the post queue with `proposedBy`; nothing (the tick, Send all, Spread) sends it
+  until a person sends it or gives it a time in Posts, or a key with `posts:publish` does. The website stays with people.
+- **The books through the app's own writes.** Write tools run `/api/app/write`'s code (`run-op.ts`) as the key's owner: the same roles,
+  lock, request id, shared writes, follow-ups (alert, Shopify) and the delete code for anything that deletes. Reads use the screens' own
+  calculations (widget figures, Today's cash, owed, the monthly report). Every call is in the activity log under the key's name
+  ("· via ChatGPT"; filter "AI keys"). Words for customers are held to the house rules (brand book, the caption rules, the Maisons).

@@ -1179,7 +1179,7 @@ export function sizeScaleFor(categoryId?: string): SizeScale | undefined {
   return categoryId ? SIZE_SCALES[categoryId] : undefined;
 }
 
-export const LOG_EVENT_TYPES = ['product', 'customer', 'karigar', 'invoice', 'order', 'expense', 'repair', 'rates'] as const;
+export const LOG_EVENT_TYPES = ['product', 'customer', 'karigar', 'invoice', 'order', 'expense', 'repair', 'rates', 'ai'] as const;
 export type LogEventType = 
   | 'product.create' | 'product.update' | 'product.delete'
   | 'customer.create' | 'customer.update' | 'customer.delete'
@@ -1191,7 +1191,10 @@ export type LogEventType =
   | 'given.create' | 'given.update' | 'given.delete' | 'given.returned'
   | 'job.create' | 'job.update' | 'job.delete'
   | 'repair.create' | 'repair.update' | 'repair.status' | 'repair.payment' | 'repair.delete'
-  | 'rates.update';
+  | 'rates.update'
+  // An AI key's own calls (lib/agent/call.ts): what it read, made or changed, and what was refused; its writes
+  // to the books log as the write's own type with "· via <label>".
+  | 'ai.read' | 'ai.post' | 'ai.write' | 'ai.refused' | 'ai.key';
 
 export interface ActivityLog {
     id: string;

@@ -726,6 +726,23 @@
         "keywords": [
           "microphone"
         ]
+      },
+      {
+        "href": "/settings/ai",
+        "label": "Connect an AI",
+        "icon": "Bot",
+        "keywords": [
+          "ai keys",
+          "api key",
+          "chatgpt",
+          "claude",
+          "gemini",
+          "cursor",
+          "mcp",
+          "gpt",
+          "agent",
+          "openapi"
+        ]
       }
     ],
     "pages": [

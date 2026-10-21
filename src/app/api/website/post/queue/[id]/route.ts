@@ -41,7 +41,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const b = await req.json().catch(() => null) as { action?: string; dueAt?: string } | null;
   const change = b?.action === 'ready' ? { action: 'ready' as const }
     : b?.action === 'hold' ? { action: 'hold' as const }
-    : b?.action === 'schedule' && typeof b.dueAt === 'string' ? { action: 'schedule' as const, dueAt: b.dueAt }
+    // A person giving a time to an AI's piece is their OK for it to go (social/queue.ts).
+    : b?.action === 'schedule' && typeof b.dueAt === 'string' ? { action: 'schedule' as const, dueAt: b.dueAt, by: who }
     : null;
   if (!change) return NextResponse.json({ error: 'action must be ready, hold, or schedule with dueAt.' }, { status: 400 });
   try { return NextResponse.json({ item: toView(await changeItem(id, change)) }); }

@@ -1,7 +1,9 @@
 /**
  * Keys for an agent (Claude Code) to work on the Studio's boards over /api/studio/mcp (board.ts):
  * GET the keys (label, when made, last used, last four characters), POST { label } a new one —
- * answered once with the whole key — and DELETE ?tail= to revoke one. The owner only.
+ * answered once with the whole key — and DELETE ?tail= to revoke one. Owner and marketing (adsGate).
+ * A new key is an ERP AI key with the `studio` scope (lib/agent/keys.ts), so it also shows, and can be
+ * revoked, in Settings → Connect an AI; the old tstudio_ keys keep working.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -23,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (who instanceof NextResponse) return who;
   try {
     const body = await req.json().catch(() => ({}));
-    return NextResponse.json({ key: await createAgentKey(String(body?.label ?? '')) }, { headers: noStore });
+    return NextResponse.json({ key: await createAgentKey(String(body?.label ?? ''), who) }, { headers: noStore });
   } catch (e) { return studioFail(e, 'agent keys'); }
 }
 

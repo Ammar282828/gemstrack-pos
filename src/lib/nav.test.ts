@@ -135,7 +135,7 @@ describe('Settings is an index list on a phone', () => {
   });
   it('every row of the index is a tab of Settings, the first being Shop at /settings', () => {
     expect(owner.tabs?.[0].href).toBe('/settings');
-    expect(owner.tabs?.map(t => t.label)).toEqual(['Shop', 'Alerts', 'Bank accounts', 'Integrations', 'Data', 'Activity', 'Voice']);
+    expect(owner.tabs?.map(t => t.label)).toEqual(['Shop', 'Alerts', 'Bank accounts', 'Integrations', 'Data', 'Activity', 'Voice', 'Connect an AI']);
   });
   it('the Shop page lights Settings and its Shop tab', () => {
     const found = locate(SETTINGS_SHOP_HREF, [owner]);
