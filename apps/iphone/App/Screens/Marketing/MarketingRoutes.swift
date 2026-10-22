@@ -53,6 +53,7 @@ enum MarketingRoutes {
             editPiece,
             .exact("/website/weights") { WebsiteWeightsScreen() },
             .exact("/website/investments") { WebsiteInvestmentsScreen() },
+            .exact("/website/interest") { WebsiteInterestScreen() },
             // From the website is the Posts hub now; the web redirects the old address there.
             .exact("/website/from-site") { PostsHub() },
         ]

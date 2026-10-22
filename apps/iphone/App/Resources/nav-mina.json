@@ -345,6 +345,22 @@
             "hide",
             "overlay"
           ]
+        },
+        {
+          "href": "/website/interest",
+          "label": "Interest",
+          "icon": "Heart",
+          "staff": true,
+          "keywords": [
+            "saved",
+            "favourites",
+            "most saved",
+            "enquiries",
+            "inquired",
+            "looked at",
+            "popular",
+            "website analytics"
+          ]
         }
       ]
     },

@@ -8,7 +8,7 @@ enum NavIcon {
         "Bot": "sparkles", "Boxes": "shippingbox", "Briefcase": "briefcase", "Calendar": "calendar", "Camera": "camera",
         "ChartColumn": "chart.bar", "Rows3": "rectangle.grid.1x2", "ChartPie": "chart.pie", "CirclePlus": "plus.circle", "ClipboardList": "list.clipboard",
         "Coins": "dollarsign.circle", "Contact": "person.crop.rectangle", "Database": "cylinder.split.1x2", "FileClock": "doc.badge.clock",
-        "Gem": "diamond", "Globe": "globe", "Hammer": "hammer", "History": "clock.arrow.circlepath",
+        "Gem": "diamond", "Globe": "globe", "Hammer": "hammer", "Heart": "heart", "History": "clock.arrow.circlepath",
         "House": "house", "ImagePlus": "photo.badge.plus", "Import": "square.and.arrow.down", "Landmark": "building.columns",
         "Layers": "square.3.layers.3d", "LayoutGrid": "square.grid.2x2", "ListChecks": "checklist", "Megaphone": "megaphone",
         "Mic": "mic", "Package": "shippingbox.and.arrow.backward", "Palette": "paintpalette", "PenLine": "pencil.line",
