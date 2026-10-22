@@ -161,6 +161,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Weight preview](docs/decisions.md#weight-preview) — the overlay tool's Futura geometry
 - [Shop outage](docs/decisions.md#shop-outage) — the hosted.app address still works
 - [Community twin](docs/decisions.md#community-twin) — sends to "Taheri Collections" groups also reach their namesakes in "- II"; `/links` shows the community
+- [Piece interest](docs/decisions.md#piece-interest) — both sites count opens, time looked, saves and WhatsApp enquiries per piece; Website → Interest ranks them
 
 **Liquid Glass** (`docs/features/liquid-glass.md`)
 - [Liquid Glass](docs/features/liquid-glass.md#liquid-glass) — Settings → Appearance; Apple HIG glass on the control layer only (`ui-glass`)

@@ -691,6 +691,17 @@ taheri.shop's footer. Posts still go to the channel.
 
 ## Design
 
+
+### Piece interest
+
+The owner, 2026-10-22: "which ones are saved, inquired about, looked at for the longest". Both sites (taheri.shop and
+the Mina catalogue) send anonymous events per piece — opened, time on the page while visible, heart on/off, a WhatsApp
+enquiry naming it (a saved list counts each piece) — with `navigator.sendBeacon` as text/plain to
+`POST /api/public/events`. Only the house's own `WEBSITE_ORIGIN` is counted, 400 events an hour per caller, a look capped
+at ten minutes and under a second ignored. Totals and per-day counts (Karachi's day) sit in `piece_stats/<key>`, the key
+being the site's own piece id (`SitePiece.id`: `mina/piece/<handle>`, or taheri.shop's photo path) with `/` as `~`.
+Website → Interest ranks them (Saved, Asked about, Looked at longest with at least three looks, Opened) for 7 days,
+30 days or all time. No person, cookie or account is stored. Before this, saves lived only in each browser.
 ### Design
 
 2026-10-12. The owner: "make further improvements … more powerful than Canva, especially fine-tuning controls … instant resizing using

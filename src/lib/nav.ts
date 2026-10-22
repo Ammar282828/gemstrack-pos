@@ -22,7 +22,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Home, PlusCircle, ClipboardList, Receipt, Wrench, Users, FileClock, Hammer, Boxes, Send, Globe, Megaphone,
-  Wallet, TrendingUp, Settings as SettingsIcon, Calendar, Briefcase, Package, Gem, Layers, ImagePlus, Scale,
+  Wallet, TrendingUp, Settings as SettingsIcon, Calendar, Briefcase, Package, Gem, Layers, ImagePlus, Scale, Heart,
   PenLine, Coins, Target, BookUser, PieChart, Landmark, Tag, ArchiveRestore, RotateCcw, Mic, History, Palette,
   Rocket, BarChart3, UsersRound, ListChecks, SlidersHorizontal, Contact, Import, Database, ScanLine, Camera,
   LayoutGrid, Bell, Plug, Banknote, Map as MapIcon, Rows3, Bot,
@@ -166,6 +166,7 @@ export const NAV: NavEntry[] = [
       { staff: true, href: '/website/photos', label: 'Add photos', icon: ImagePlus, keywords: ['website', 'upload', 'photos'] },
       { staff: true, href: '/website/edit', label: 'Edit a piece', icon: PenLine, when: () => STORE_SITE_EDIT, keywords: ['website', 'edit', 'crop', 'photo', 'description', 'hide', 'overlay'] },
       { staff: true, href: '/website/weights', label: 'Photo weights', icon: Scale, when: () => STORE_WEBSITE_WEIGHTS, keywords: ['weights', 'website'] },
+      { staff: true, href: '/website/interest', label: 'Interest', icon: Heart, keywords: ['saved', 'favourites', 'most saved', 'enquiries', 'inquired', 'looked at', 'popular', 'website analytics'] },
     ],
   },
   {
