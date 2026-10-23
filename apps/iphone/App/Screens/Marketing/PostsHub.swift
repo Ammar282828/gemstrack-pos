@@ -243,8 +243,8 @@ struct PostsHub: View {
         guard n > 0 else { return }
         Note.show(Note(title: "Sending \(n) \(n == 1 ? "piece" : "pieces")…", detail: "It says here when they have gone."), in: $note, reduce: reduceMotion)
         // In the Outbox: the hub is free at once; "sendNow" only sends what has not gone, so a Retry posts nothing twice.
-        Outbox.shared.post(label: "Send \(n) queued \(n == 1 ? "piece" : "pieces")") { [store] in
-            let r = await store.sendAll()
+        Outbox.shared.post(label: "Send \(n) queued \(n == 1 ? "piece" : "pieces")") {
+            let r = await PostsStore.shared.sendAll()
             if r.sent == r.of { return "All \(r.of) sent" }
             throw ERPAPI.Failure(status: 400, message: "\(r.sent) of \(r.of) sent. The ones that failed say why; Retry sends only what didn't go.")
         }

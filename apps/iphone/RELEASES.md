@@ -49,3 +49,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-23: Analytics in sections as the ERP has them (Sales, Website, Social, Ads), a section picker above each page, the marketing account seeing only its Analytics tabs; Settings headed Shop, Connections, Records.
 - 2026-10-23: a post's card starts with the hero photo alone; the piece's other photos are offered under it (one tap adds one, Add all adds the rest).
 - 2026-10-23: website analytics lists open straight onto sources and cities, with a small switch to kinds and countries (no rows to open).
+- 2026-10-23: snappy: non-money saves, status changes, weights, posts and edits are instant with background retries (money still confirmed); one server kept warm; new widgets (sparkline, the week's change, owed/due/bench, Needs you, Lock Screen gauge) that open the app; categories read as the web; the iPad and Analytics/Settings sections.
