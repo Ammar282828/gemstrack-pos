@@ -104,6 +104,7 @@ struct OwnerDeleteCodeSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .interactiveDismissDisabled(busy)
         // Asked by face as soon as the sheet opens, when this phone keeps the code.
         .task { if canFace && kept { await byFace() } }

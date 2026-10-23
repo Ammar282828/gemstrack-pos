@@ -114,5 +114,6 @@ struct AnaCustomPeriod: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
     }
 }

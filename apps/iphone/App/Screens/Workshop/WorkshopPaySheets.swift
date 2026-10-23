@@ -144,6 +144,7 @@ struct WorkshopPaySheet: View {
                 Text(consequence)
             }
         }
+        .presentationSizing(.form)
         .interactiveDismissDisabled(saving)
     }
 
@@ -267,6 +268,7 @@ struct WorkshopSilverSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .interactiveDismissDisabled(saving)
     }
 
@@ -337,6 +339,7 @@ struct WorkshopBatchStartSheet: View {
             }
         }
         .presentationDetents([.medium])
+        .presentationSizing(.form)
         .interactiveDismissDisabled(saving)
     }
 
@@ -422,6 +425,7 @@ struct WorkshopSettleSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .interactiveDismissDisabled(saving)
     }
 
