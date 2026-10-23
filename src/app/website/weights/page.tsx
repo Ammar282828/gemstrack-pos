@@ -6,7 +6,7 @@
  *
  * Built for a person at the counter with a scale and a queue of a thousand
  * pieces: one photograph at a time, big, with one number to type. Enter saves
- * it and shows the next one that needs a weight; the arrow keys move without
+ * it — in the background, so the next one that needs a weight shows at once; the arrow keys move without
  * saving; a filmstrip shows what is coming. Nothing else on the screen asks
  * for attention.
  *
@@ -70,7 +70,6 @@ function PhotoWeightsPage() {
   const [search, setSearch] = useState('');
   const [index, setIndex] = useState(0);
   const [value, setValue] = useState('');
-  const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -106,24 +105,33 @@ function PhotoWeightsPage() {
     return { total: scoped.length, withWeight: scoped.filter(p => p.weightGrams).length };
   }, [pieces, collection]);
 
-  const save = useCallback(async (advance: boolean) => {
-    if (!current || saving) return;
+  // Saved behind the counter's back (2026-10-23, the owner: "adding weights is dead slow"): the photo takes its weight
+  // and the next one comes up at once; the saves go one after another, and one that fails says so and puts the photo back.
+  const saves = useRef(Promise.resolve());
+  const [pending, setPending] = useState(0);
+  const save = useCallback((advance: boolean) => {
+    if (!current) return;
     const grams = value.trim() === '' ? null : Number(value.replace(',', '.'));
     if (grams !== null && !(grams > 0 && grams < 5000)) { toast({ title: 'Enter a weight in grams', variant: 'destructive' }); return; }
-    setSaving(true);
-    try {
-      const res = await fetch('/api/website/pieces', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(await authed()) }, body: JSON.stringify({ key: current.key, weightGrams: grams }) });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Failed (${res.status})`);
-      setPieces(ps => (ps || []).map(p => p.key === current.key
-        ? { ...p, weightGrams: grams ?? p.labelWeightGrams, source: grams ? 'pos' : (p.labelWeightGrams ? 'label' : null), enteredBy: grams ? 'you' : null, enteredAt: grams ? new Date().toISOString() : null }
-        : p));
-      // With "only missing" on, the piece leaves the queue and the next one slides
-      // into this index; otherwise step forward.
-      if (advance && !onlyMissing) setIndex(i => Math.min(i + 1, queue.length - 1));
-    } catch (e) {
-      toast({ title: 'Not saved', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
-    } finally { setSaving(false); }
-  }, [current, value, saving, onlyMissing, queue.length, toast]);
+    const before = current;
+    setPieces(ps => (ps || []).map(p => p.key === before.key
+      ? { ...p, weightGrams: grams ?? p.labelWeightGrams, source: grams ? 'pos' : (p.labelWeightGrams ? 'label' : null), enteredBy: grams ? 'you' : null, enteredAt: grams ? new Date().toISOString() : null }
+      : p));
+    // With "only missing" on, the piece leaves the queue and the next one slides
+    // into this index; otherwise step forward.
+    if (advance && !onlyMissing) setIndex(i => Math.min(i + 1, queue.length - 1));
+    setPending(n => n + 1);
+    saves.current = saves.current.then(async () => {
+      try {
+        const res = await fetch('/api/website/pieces', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(await authed()) }, body: JSON.stringify({ key: before.key, weightGrams: grams }) });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Failed (${res.status})`);
+      } catch (e) {
+        setPieces(ps => (ps || []).map(p => (p.key === before.key ? before : p)));
+        toast({ title: `${before.file}: not saved`, description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+      } finally { setPending(n => n - 1); }
+    });
+  }, [current, value, onlyMissing, queue.length, toast]);
+  const saving = pending > 0;
 
   // Arrow keys move between photos when the field is not focused (the field
   // handles its own keys above, so typing a number is never hijacked).
@@ -229,9 +237,10 @@ function PhotoWeightsPage() {
               {current.source === 'pos' && current.enteredAt && <p className="text-xs text-muted-foreground mt-1.5">Recorded {new Date(current.enteredAt).toLocaleString('en-PK')}{current.enteredBy && current.enteredBy !== 'counter' ? ` by ${current.enteredBy}` : ''}. Clear the field and press Enter to remove it.</p>}
             </div>
             <div className="flex gap-2">
-              <Button className="flex-1 h-11" onClick={() => save(true)} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Check className="h-4 w-4 mr-2" /> Save &amp; next</>}</Button>
+              <Button className="flex-1 h-11" onClick={() => save(true)}><Check className="h-4 w-4 mr-2" /> Save &amp; next</Button>
               <Button variant="secondary" className="h-11" onClick={() => setIndex(i => Math.min(i + 1, queue.length - 1))} disabled={index >= queue.length - 1}>Skip</Button>
             </div>
+            {saving && <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" /> Saving {pending > 1 ? `${pending} weights` : 'the weight'} — carry on</p>}
             <p className="text-xs text-muted-foreground"><kbd className="px-1 rounded border">Enter</kbd> saves and moves on · <kbd className="px-1 rounded border">←</kbd> <kbd className="px-1 rounded border">→</kbd> move without saving</p>
             <FeatureToggle pieceKey={current.key} />
 

@@ -39,6 +39,7 @@ import { toTola, formatWeight } from '@/lib/units';
 import { MonthlyReportButton } from '@/components/reports/monthly-report-button';
 import { bookedAsSale } from '@/lib/order-stage';
 import { chartMotion } from '@/lib/chart-motion';
+import { lineCategory } from '@/lib/categories';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
@@ -426,12 +427,9 @@ export function AnalyticsView({ section }: { section: AnalyticsSection }) {
           productPerformance[item.sku].quantity += quantity;
           productPerformance[item.sku].revenue += itemTotal;
           
-          if (item.categoryId) {
-              if (!categoryPerformance[item.categoryId]) {
-                  categoryPerformance[item.categoryId] = 0;
-              }
-              categoryPerformance[item.categoryId] += itemTotal;
-          }
+          // Its own category, else its order's, else its name's (lib/categories.ts lineCategory).
+          const cat = lineCategory(item);
+          if (cat) categoryPerformance[cat] = (categoryPerformance[cat] || 0) + itemTotal;
         });
       }
     });

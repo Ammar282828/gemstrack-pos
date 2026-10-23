@@ -88,14 +88,24 @@ export async function PUT(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: 'Send { key, weightGrams }' }, { status: 400 });
   const key = normalisePieceKey(parsed.data.key);
   const catalog = await getCatalogAttributes();
-  if (!catalog[key]) {
-    // A new upload the site hasn't listed yet takes its weight under the key it keeps once listed.
-    const site = (process.env.WEBSITE_ORIGIN || 'https://taheri.shop').replace(/\/+$/, '');
-    const drops = await listDrops(site).catch(() => []);
-    if (!drops.some(d => d.key === key)) return NextResponse.json({ error: 'No such photograph in the catalogue' }, { status: 404 });
+  // A new upload the site hasn't listed yet takes its weight under the key it keeps once listed. Its list is asked of
+  // the site once in two minutes, not on every weight (2026-10-23, the owner: "adding weights is dead slow" — each save
+  // waited on the shared host).
+  if (!catalog[key] && !(await dropKeys()).has(key) && !(await dropKeys(true)).has(key)) {
+    return NextResponse.json({ error: 'No such photograph in the catalogue' }, { status: 404 });
   }
   await setPosWeight(key, parsed.data.weightGrams, who);
   return NextResponse.json({ ok: true, key, weightGrams: parsed.data.weightGrams });
+}
+
+let drops: { at: number; keys: Set<string> } | null = null;
+/** The site's new uploads' keys, kept two minutes; `fresh` asks again (a photo uploaded a moment ago). */
+async function dropKeys(fresh = false): Promise<Set<string>> {
+  if (!fresh && drops && Date.now() - drops.at < 120_000) return drops.keys;
+  const site = (process.env.WEBSITE_ORIGIN || 'https://taheri.shop').replace(/\/+$/, '');
+  const list = await listDrops(site).catch(() => null);
+  if (list) drops = { at: Date.now(), keys: new Set(list.map(d => d.key)) };
+  return drops?.keys ?? new Set();
 }
 
 /** The site's `added`: seconds or milliseconds since 1970, as ms; nothing for anything else. */
