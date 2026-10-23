@@ -28,13 +28,14 @@ struct PostAlbumPhoto: Identifiable {
     let image: UIImage?
     let label: String
 
-    /// What a card starts with: the lead, then the piece's own `photos` in the site's order.
+    /// What a card starts with: the hero photo alone (owner, 2026-10-23); the piece's others are offered on the card.
     static func start(_ p: PostPiece) -> [PostAlbumPhoto] {
-        var out = [PostAlbumPhoto(id: "lead", kind: .lead, thumb: p.thumb, image: nil, label: p.name)]
-        for (i, extra) in p.photos.enumerated() {
-            out.append(PostAlbumPhoto(id: "angle-\(i + 2)", kind: .angle(i + 2), thumb: extra.thumb, image: nil, label: "\(p.name), photo \(i + 2)"))
-        }
-        return out
+        [PostAlbumPhoto(id: "lead", kind: .lead, thumb: p.thumb, image: nil, label: p.name)]
+    }
+
+    /// The piece's own n-th photograph (n from 2), as it joins the card.
+    static func own(_ p: PostPiece, _ i: Int) -> PostAlbumPhoto {
+        PostAlbumPhoto(id: "angle-\(i + 2)", kind: .angle(i + 2), thumb: p.photos[i].thumb, image: nil, label: "\(p.name), photo \(i + 2)")
     }
 
     var isLead: Bool {
@@ -70,6 +71,28 @@ struct PostAlbumStrip: View {
                 .padding(.vertical, 10)
             }
             .listRowInsets(EdgeInsets())
+            if !ownLeft.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("More of this piece:").font(.subheadline).foregroundStyle(.secondary)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(ownLeft, id: \.self) { (i: Int) in
+                                Button { addOwn([i]) } label: {
+                                    StockImage(imageUrl: card.piece.photos[i].thumb, name: "\(card.piece.name), photo \(i + 2)", key: card.id + "|own\(i)")
+                                        .frame(width: 56, height: 56)
+                                        .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+                                }
+                                .buttonStyle(.borderless)
+                                .accessibilityLabel("Add photo \(i + 2) of this piece")
+                            }
+                        }
+                    }
+                    if ownLeft.count > 1 {
+                        Button("Add all \(ownLeft.count)") { addOwn(ownLeft) }.buttonStyle(.borderless)
+                    }
+                }
+                .disabled(locked || card.album.count >= Album.max)
+            }
             PhotosPicker(selection: $chosen, maxSelectionCount: Swift.max(1, Album.max - card.album.count), matching: .images) {
                 Label(reading ? "Reading the photos…" : "Add from this phone", systemImage: "photo.on.rectangle")
             }
@@ -88,6 +111,21 @@ struct PostAlbumStrip: View {
         .sheet(isPresented: $choosing) {
             PostAlbumSitePicker(card: card, model: model, onSay: onSay)
                 .presentationSizing(.page)
+        }
+    }
+
+    /// The piece's own photos not on the card yet (indexes into `piece.photos`).
+    private var ownLeft: [Int] {
+        card.piece.photos.indices.filter { (i: Int) in !card.album.contains { (x: PostAlbumPhoto) in x.id == "angle-\(i + 2)" } }
+    }
+
+    private func addOwn(_ indexes: [Int]) {
+        for i in indexes {
+            if card.album.count >= Album.max {
+                onSay([Note(title: "\(Album.max) photos at most", detail: "Take some out first, or send this piece twice.", failed: true)])
+                return
+            }
+            card.album.append(PostAlbumPhoto.own(card.piece, i))
         }
     }
 
