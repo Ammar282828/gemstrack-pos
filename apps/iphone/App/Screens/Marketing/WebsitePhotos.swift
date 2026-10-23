@@ -80,7 +80,7 @@ struct WebsitePhotosScreen: View {
             .ignoresSafeArea()
         }
         .sheet(isPresented: $choosing) {
-            WebsiteCollectionSheet(collections: collections ?? [], folder: $folder)
+            WebsiteCollectionSheet(collections: collections ?? [], folder: $folder).presentationSizing(.form)
         }
         .confirmationDialog("Put them on \(site.siteName)?", isPresented: $confirmingSend, titleVisibility: .visible) {
             Button("Send \(pending.count) to the website") { Task { await sendAll() } }
@@ -130,6 +130,7 @@ struct WebsitePhotosScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .readableColumn(780)
         .scrollDismissesKeyboard(.interactively)
         .refreshable { await load() }
         .safeAreaBar(edge: .bottom, spacing: 0) {

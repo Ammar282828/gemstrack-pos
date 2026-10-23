@@ -63,10 +63,10 @@ struct PostComposerScreen: View {
         .fullScreenCover(isPresented: $camera) { NewOrderCamera { image in camera = false; if let image, let data = WebsitePhoto.jpeg(image) { Task { await model.add(data, name: "Camera photo") } } }.ignoresSafeArea() }
         .sheet(isPresented: $sitePicker) { NativeSitePhotoPicker { piece, data in
             Task { if d.words.s("headline").isEmpty { model.draft.words["headline"] = piece["name"] }; if d.words.s("weight").isEmpty, piece.n("weightGrams") > 0 { model.draft.words["weight"] = .string(WebsiteNumber.grams(piece.n("weightGrams"))) }; await model.add(data, name: piece.s("name"), from: MarketingValue(["id": piece.s("id"), "name": piece.s("name"), "url": piece.s("url"), "marked": piece["photoSource"] == .null || piece["sourceMarked"].bool])) }
-        } }
-        .sheet(isPresented: $draftsOpen) { draftSheet }
+        }.presentationSizing(.page) }
+        .sheet(isPresented: $draftsOpen) { draftSheet.presentationSizing(.form) }
         .sheet(isPresented: Binding(get: { design != nil }, set: { if !$0 { design = nil } })) { ArtworkEditor(doc: Binding(get: { design == "story" ? model.draft.story : model.draft.square }, set: { if design == "story" { model.draft.story = $0 } else { model.draft.square = $0 } }), photos: model.assets, fields: model.fields) }
-        .sheet(item: $ai) { NativePostAISheet(request: $0, model: model) }
+        .sheet(item: $ai) { NativePostAISheet(request: $0, model: model).presentationSizing(.form) }
         .sheet(item: $share) { MarketingShareSheet(items: $0.items) { completed in
             if completed && sharedStory { model.draft.words["storyOut"] = .bool(true); Task { await model.saveNow() } }
             sharedStory = false

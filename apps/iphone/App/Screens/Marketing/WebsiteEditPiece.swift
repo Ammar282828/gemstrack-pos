@@ -118,6 +118,7 @@ struct WebsiteEditPieceScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .readableColumn(780)
         .scrollDismissesKeyboard(.interactively)
         .keyboardDone()
         .refreshable { await load() }

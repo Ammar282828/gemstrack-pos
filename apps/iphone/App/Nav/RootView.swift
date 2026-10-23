@@ -102,20 +102,45 @@ struct RootView: View {
         session.shop.websiteSelling && (session.role == "owner" || session.role == "staff")
     }
 
+    /// A menu command or shortcut (⌘1…⌘5, ⌘N, ⇧⌘N, ⌘F).
+    private func perform(_ kind: ShellCommands.Kind, entries: [NavEntry], map: NavMap) {
+        guard creating == nil, !voice else { return }
+        switch kind {
+        case .tab(let i):
+            if entries.indices.contains(i) { tab = entries[i].id }
+        case .newSale:
+            if session.isOwner, let sale = map.newSale { creating = Route(path: sale.href) }
+        case .newOrder:
+            if session.role != "marketing" { creating = Route(path: "/orders/add") }
+        case .search:
+            ShellCommands.shared.searchWanted = true
+            tab = "search"
+        }
+    }
+
     var body: some View {
         let map = map
         let entries = tabEntries(map)
         TabView(selection: selection(entries)) {
             ForEach(entries) { e in
                 Tab(e.id == "home" ? "Home" : e.label, systemImage: NavIcon.symbol(for: e.icon), value: e.id) {
-                    NavigationStack {
-                        PlaceScreen(path: e.href, isRoot: true)
-                            .modifier(CreateAccessory(map: map, shown: session.role != "marketing", voiceShown: session.isOwner,
-                                                      open: { creating = Route(path: $0) }, talk: { voice = true }))
-                            .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                    if sizeClass.isPadLayout, session.role != "marketing", let prompt = HubSplitKind.prompt(for: e.href) {
+                        // Orders, Invoices, Customers, Stock, Repairs on an iPad: the list with the item beside it.
+                        HubSplit(prompt: prompt) {
+                            PlaceScreen(path: e.href, isRoot: true)
+                                .modifier(CreateAccessory(map: map, shown: true, voiceShown: session.isOwner,
+                                                          open: { creating = Route(path: $0) }, talk: { voice = true }))
+                        }
+                    } else {
+                        NavigationStack {
+                            PlaceScreen(path: e.href, isRoot: true)
+                                .modifier(CreateAccessory(map: map, shown: session.role != "marketing", voiceShown: session.isOwner,
+                                                          open: { creating = Route(path: $0) }, talk: { voice = true }))
+                                .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                        }
+                        // Outside the stack, so its pages see the same namespace as the rows they zoom from.
+                        .zoomScope()
                     }
-                    // Outside the stack, so its pages see the same namespace as the rows they zoom from.
-                    .zoomScope()
                 }
                 .badge(badge(for: e))
             }
@@ -135,14 +160,18 @@ struct RootView: View {
         .tabViewStyle(.sidebarAdaptable)
         // The bar folds down while a page scrolls, giving the page its height back.
         .tabBarMinimizeBehavior(.onScrollDown)
-        // The house's whole logo heads an iPad's sidebar, as the ERP's own sidebar is headed.
+        // An iPad's sidebar is headed by the business chip alone: which business this is and the way to the others
+        // (the house's whole wordmark here was too big for a sidebar, owner 2026-10-23).
         .tabViewSidebarHeader {
-            VStack(alignment: .leading, spacing: 10) {
-                HouseLogo().frame(maxWidth: .infinity, alignment: .leading)
-                // Which business this is, and the way to the others (an iPhone has it in each tab's bar).
-                BusinessChip(wide: true)
-            }
-            .padding(.vertical, 8)
+            BusinessChip(wide: true)
+                .padding(.vertical, 6)
+        }
+        .onChange(of: ShellCommands.shared.request) { _, r in
+            if let r { perform(r.kind, entries: entries, map: map) }
+        }
+        .onAppear { ShellCommands.shared.tabTitles = entries.prefix(5).map { $0.id == "home" ? "Home" : $0.label } }
+        .onChange(of: entries.map(\.id)) { _, _ in
+            ShellCommands.shared.tabTitles = entries.prefix(5).map { $0.id == "home" ? "Home" : $0.label }
         }
         .sheet(isPresented: $voice, onDismiss: {
             if let p = pendingRoute { pendingRoute = nil; creating = p }
@@ -297,6 +326,11 @@ struct PlaceScreen: View {
         let atTab = entry.map { e in bare == e.href || (e.tabs ?? []).contains { $0.href == bare } } ?? false
         let tabs = atTab ? (entry?.tabs ?? []) : []
         let current = chosen ?? path
+        // An entry whose tabs are sectioned (Analytics): a picker of the sections on top, and the title menu holds
+        // the open section's pages. Settings is its own sectioned list, so it takes neither.
+        let sections = entry?.id == "settings" ? [] : (entry?.sections ?? [])
+        let openSection = tabs.first { $0.href == ScreenRoute.bare(current) }?.section ?? sections.first
+        let menuTabs = SectionedTabs.menu(tabs, sections: sections, open: openSection)
         let title = tabs.first { $0.href == ScreenRoute.bare(current) }?.title
             ?? (entry?.href == ScreenRoute.bare(current) ? (entry?.heading ?? entry?.label) : nil)
         ScreenRegistry.view(for: current)
@@ -306,7 +340,8 @@ struct PlaceScreen: View {
             .motion(current, Motion.enter)
             // A native screen names itself (and a hub keeps its large title); an ERP page is named from the map.
             .modifier(WebTitle(title: ScreenRegistry.hasNative(current) ? nil : (title ?? "")))
-            .modifier(TabsMenu(tabs: tabs, current: ScreenRoute.bare(current), chosen: $chosen))
+            .modifier(TabsMenu(tabs: menuTabs, section: sections.count > 1 ? openSection : nil, current: ScreenRoute.bare(current), chosen: $chosen))
+            .modifier(SectionPicker(tabs: tabs, sections: sections, open: openSection, chosen: $chosen))
             // Native screens sit on the house's ground; an ERP page brings its own (the same palette).
             .modifier(OptionalGround(on: ScreenRegistry.hasNative(current), width: ScreenRegistry.readableWidth(for: current)))
             .modifier(TeamNotePresentation(shown: isRoot))
@@ -359,19 +394,69 @@ private struct WebTitle: ViewModifier {
     }
 }
 
+enum SectionedTabs {
+    /// The pages the title menu lists: all of them, or only the open section's when the entry has sections to pick.
+    static func menu(_ tabs: [NavPlace], sections: [String], open: String?) -> [NavPlace] {
+        guard sections.count > 1, let open else { return tabs }
+        return tabs.filter { $0.section == open }
+    }
+}
+
+/// The web's top row of a sectioned entry: its sections, each opening its first page.
+private struct SectionPicker: ViewModifier {
+    let tabs: [NavPlace]
+    let sections: [String]
+    let open: String?
+    @Binding var chosen: String?
+
+    private var selection: Binding<String> {
+        Binding(
+            get: { open ?? sections.first ?? "" },
+            set: { name in
+                if let first = tabs.first(where: { $0.section == name }) { chosen = first.href }
+            })
+    }
+
+    func body(content: Content) -> some View {
+        if sections.count > 1 {
+            content.safeAreaInset(edge: .top, spacing: 0) {
+                Picker("Section", selection: selection) {
+                    ForEach(sections, id: \.self) { name in Text(name).tag(name) }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16).padding(.vertical, 8)
+                .background(Theme.ground)
+                .selectionFeedback(trigger: selection.wrappedValue)
+            }
+        } else {
+            content
+        }
+    }
+}
+
 private struct TabsMenu: ViewModifier {
     let tabs: [NavPlace]
+    /// The open section's name when the entry's sections are picked above; the menu heads its pages with it.
+    var section: String?
     /// The sub-tab showing now, ticked in the menu.
     let current: String
     @Binding var chosen: String?
 
+    @ViewBuilder private var items: some View {
+        ForEach(tabs) { t in
+            Button { chosen = t.href } label: {
+                Label(t.label, systemImage: t.href == current ? "checkmark" : NavIcon.symbol(for: t.icon))
+            }
+        }
+    }
+
     func body(content: Content) -> some View {
         if tabs.count > 1 {
             content.toolbarTitleMenu {
-                ForEach(tabs) { t in
-                    Button { chosen = t.href } label: {
-                        Label(t.label, systemImage: t.href == current ? "checkmark" : NavIcon.symbol(for: t.icon))
-                    }
+                if let section {
+                    Section(section) { items }
+                } else {
+                    items
                 }
             }
         } else {

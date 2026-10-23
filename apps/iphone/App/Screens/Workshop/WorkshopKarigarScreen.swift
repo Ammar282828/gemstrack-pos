@@ -26,6 +26,11 @@ struct WorkshopKarigarScreen: View {
     /// The settled batches and the direct payments opened to show their payments.
     @State private var expanded: Set<String> = []
     @State private var showingAccounts = false
+    @State private var width: CGFloat = 0
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
         content
@@ -139,7 +144,7 @@ struct WorkshopKarigarScreen: View {
             ? KarigarPay.figures(karigarId: karigar.id, expenses: book.expenses.items, batches: book.karigarBatches.items)
             : nil
         let silver = session.isOwner ? KarigarPay.silver(karigarId: karigar.id, rows: silverBook.silver.items) : nil
-        return List { Group {
+        @ViewBuilder func head() -> some View {
             if session.isOwner {
                 Section {
                     Picker("Karigar view", selection: Binding(
@@ -155,6 +160,8 @@ struct WorkshopKarigarScreen: View {
             }
             contactSection(karigar)
             nowSection(karigar, position, open: pay?.open, silver: silver)
+        }
+        @ViewBuilder func work() -> some View {
             if !showingAccounts || !session.isOwner {
                 if !position.bench.isEmpty { benchSection(karigar, position) }
                 if !position.given.isEmpty { givenSection(karigar, position) }
@@ -166,12 +173,28 @@ struct WorkshopKarigarScreen: View {
                 if let pay, !pay.settled.isEmpty { settledSection(pay) }
                 if let pay, !pay.direct.isEmpty { directSection(pay) }
             }
+        }
+        @ViewBuilder func tail() -> some View {
             profileSection(karigar, pay: showingAccounts ? pay : nil)
             if session.isOwner { erpSection(karigar) }
             if session.isOwner { removeSection(karigar) }
-        }.houseRows()
         }
-        .listStyle(.insetGrouped)
+        return Group {
+            if wide {
+                // An iPad: who he is and where he stands on the left, his work or his payments beside it.
+                HStack(alignment: .top, spacing: 0) {
+                    List { Group { head(); tail() }.houseRows() }
+                        .listStyle(.insetGrouped)
+                        .frame(maxWidth: 440)
+                    List { Group { work() }.houseRows() }
+                        .listStyle(.insetGrouped)
+                }
+            } else {
+                List { Group { head(); work(); tail() }.houseRows() }
+                    .listStyle(.insetGrouped)
+            }
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         // Add payment never scrolls away from the Payments view while a batch is open.
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if showingAccounts, session.isOwner, let open = pay?.open {

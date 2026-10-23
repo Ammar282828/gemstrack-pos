@@ -250,7 +250,7 @@ struct RepairsRow: View {
                 Text(RepairsKit.repairSummary(repair))
                     .font(.headline)
                     .foregroundStyle(greyed ? Color.secondary : Color.primary)
-                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 2)
                 if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 if busy { SkeletonLoading() } else { money }
             }

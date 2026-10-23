@@ -21,9 +21,17 @@ struct DesignSheet: Identifiable {
     let id = UUID()
     let title: String
     let content: AnyView
-    init<V: View>(title: String, @ViewBuilder content: () -> V) {
+    /// A big workspace (Resize's grid of shapes) takes the iPad's page sheet; the rest are forms.
+    let wide: Bool
+    init<V: View>(title: String, wide: Bool = false, @ViewBuilder content: () -> V) {
         self.title = title
+        self.wide = wide
         self.content = AnyView(content())
+    }
+
+    /// The content at the iPad's sheet size for what it is.
+    @ViewBuilder var shown: some View {
+        if wide { content.presentationSizing(.page) } else { content.presentationSizing(.form) }
     }
 }
 
@@ -35,7 +43,7 @@ final class DesignHooks {
 
     /// "Resize…" in the workspace and "Size" in the page strip: the master's design on another shape (AI resize).
     var resize: (DesignWorkspaceModel) -> Void = { model in
-        model.sheet = DesignSheet(title: "Resize") { DesignResizeSheet(model: model) }
+        model.sheet = DesignSheet(title: "Resize", wide: true) { DesignResizeSheet(model: model) }
     }
     /// "Re-do from the master" on a resized page that is behind it (resize engine, one page).
     var redoFromMaster: (DesignWorkspaceModel, String) -> Void = { model, pageId in

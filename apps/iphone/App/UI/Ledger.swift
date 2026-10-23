@@ -514,6 +514,14 @@ extension View {
     }
 }
 
+extension View {
+    /// A card that opens something, lit under an iPad's pointer: `.ledgerCard().cardHover()`. Only on a tappable card.
+    func cardHover() -> some View {
+        self.contentShape(.hoverEffect, .rect(cornerRadius: Radius.card, style: .continuous))
+            .hoverEffect(.highlight)
+    }
+}
+
 // MARK: Reaching the customer
 
 /// Call, WhatsApp and Message for a number, as the round buttons under a contact's name in Contacts.

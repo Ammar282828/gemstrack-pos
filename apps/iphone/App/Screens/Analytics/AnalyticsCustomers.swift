@@ -19,18 +19,12 @@ struct AnaCustomersPage: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        List {
-            Section {
-                bar
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
+        AnaSplit(bar: bar, head: { (_: Bool) in EmptyView() }, left: { (_: Bool) in
             topSection
             sourceSection
+        }, right: { (_: Bool) in
             allSection
-        }
-        .listStyle(.insetGrouped)
+        })
         .searchable(text: $search, prompt: "Search everyone by name")
     }
 

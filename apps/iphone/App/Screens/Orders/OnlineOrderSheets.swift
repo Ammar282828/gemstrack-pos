@@ -112,6 +112,7 @@ struct OnlineConfirmSheet: View {
             .failureAlert($failure, title: "Not confirmed")
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .interactiveDismissDisabled(busy)
         .task { await readPreview() }
     }
@@ -273,6 +274,7 @@ struct OnlineDeclineSheet: View {
             .failureAlert($failure, title: "Not declined")
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .interactiveDismissDisabled(busy)
         .onChange(of: reason) { _, now in
             if now.count > OnlineOrdersLogic.reasonLimit { reason = String(now.prefix(OnlineOrdersLogic.reasonLimit)) }
@@ -376,6 +378,7 @@ struct OnlineMoveSheet: View {
             .failureAlert($failure, title: kind == .paid ? "Transfer not booked" : "Not lapsed")
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .interactiveDismissDisabled(busy)
         .task { await readPreview() }
     }

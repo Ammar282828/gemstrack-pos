@@ -88,6 +88,7 @@ struct NewOrderPieceEditor: View {
         }
         .motion(piece.hasDiamonds)
         .motion(piece.hasStones)
+        .formColumn()
         } review: {
             PieceInspector(title: piece.description, rows: [
                 .init(label: "Metal", value: describeMetal(piece.metal, piece.karat)),
@@ -100,6 +101,11 @@ struct NewOrderPieceEditor: View {
         .navigationTitle("Piece \(number)")
         .navigationBarTitleDisplayMode(.inline)
         .keyboardDone()
+        // ⌘S is Done: the piece is kept as typed.
+        .background {
+            Button("Done") { dismiss() }
+                .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
+        }
         // The piece's price stays in view while typing; Done is the one way out with the piece kept.
         .actionBar(primary: .init("Done") { dismiss() },
                    summary: "This piece · " + Money.pkr(NewOrderMath.price(piece, rates)))

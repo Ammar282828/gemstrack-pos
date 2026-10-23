@@ -25,6 +25,12 @@ struct DesignWorkspaceView: View {
     @State private var removing: DesignPageState?
     @State private var safe = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var width: CGFloat = 0
+
+    /// An iPad's wide window: the page and its strip stay in sight on the left, the words and the photograph scroll on the right.
+    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
         Group {
@@ -33,10 +39,11 @@ struct DesignWorkspaceView: View {
                 else { content(w) }
             }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .sheet(item: $editing, onDismiss: { model.endEditing() }) { target in
             ArtworkEditor(doc: model.docBinding(target.pageId), photos: model.photos, fields: model.work?.fields ?? [:], ad: model.work?.kind == "ad")
         }
-        .sheet(item: $model.sheet) { $0.content }
+        .sheet(item: $model.sheet) { $0.shown }
         .photosPicker(isPresented: $devicePicker, selection: $picked, matching: .images)
         .sheet(isPresented: $sitePicker) {
             NativeSitePhotoPicker { piece, data in
@@ -44,6 +51,7 @@ struct DesignWorkspaceView: View {
                 let p = DesignPhotoSources.site(piece, data: data)
                 model.replacePhoto(data, label: p.label, fields: p.fields, source: p.source, marked: p.marked)
             }
+            .presentationSizing(.page)
         }
         .sheet(isPresented: $camera) {
             NewOrderCamera { image in
@@ -61,6 +69,17 @@ struct DesignWorkspaceView: View {
     }
 
     private func content(_ w: DesignWork) -> some View {
+        Group {
+            if wide { wideContent(w) } else { narrowContent(w) }
+        }
+        // The one primary action stays at the foot where it never scrolls away (rule 16): Publish, with Save beside it.
+        .actionBar(
+            primary: .init("Publish", systemImage: "paperplane", isDisabled: model.saving) { DesignHooks.shared.publish(model) },
+            secondary: [.init("Save", systemImage: "square.and.arrow.down", isBusy: model.saving) { Task { await model.saveToShop() } }],
+            summary: w.dirty ? "Not saved" : "Saved")
+    }
+
+    private func narrowContent(_ w: DesignWork) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -80,11 +99,37 @@ struct DesignWorkspaceView: View {
                 if id != nil { Motion.run(Motion.travel, reduce: reduceMotion) { proxy.scrollTo("candidate", anchor: .top) } }
             }
         }
-        // The one primary action stays at the foot where it never scrolls away (rule 16): Publish, with Save beside it.
-        .actionBar(
-            primary: .init("Publish", systemImage: "paperplane", isDisabled: model.saving) { DesignHooks.shared.publish(model) },
-            secondary: [.init("Save", systemImage: "square.and.arrow.down", isBusy: model.saving) { Task { await model.saveToShop() } }],
-            summary: w.dirty ? "Not saved" : "Saved")
+    }
+
+    /// The page and its sizes on the left (each scrolls on its own), the name, words and photograph on the right.
+    private func wideContent(_ w: DesignWork) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        strip(w)
+                        DesignCandidateBanner(model: model).id("candidate")
+                        stage(w)
+                    }
+                    .padding(.horizontal, 24).padding(.vertical, 12)
+                }
+                .onChange(of: model.candidate?.id) { _, id in
+                    if id != nil { Motion.run(Motion.travel, reduce: reduceMotion) { proxy.scrollTo("candidate", anchor: .top) } }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    header(w)
+                    words(w)
+                    photograph
+                    if w.kind == "ad" || !(w.copy["adText"] ?? "").isEmpty { adCopy }
+                }
+                .padding(.horizontal, 24).padding(.vertical, 12)
+            }
+            .frame(width: min(480, max(380, width * 0.4)))
+        }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     // MARK: Name and kind (Save and Publish are the action bar)

@@ -107,6 +107,7 @@ private struct BankAccountsForm: View {
                 if let i = next.firstIndex(where: { $0.id == saved.id }) { next[i] = saved } else { next.append(saved) }
                 return await write(next)
             }
+            .presentationSizing(.form)
         }
         .onChange(of: settings) { _, _ in
             shown = nil

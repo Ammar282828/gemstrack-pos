@@ -9,13 +9,7 @@ struct AnaCategoriesPage: View {
     let bar: AnaPeriodBar
 
     var body: some View {
-        List {
-            Section {
-                bar
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
+        AnaSplit(bar: bar, head: { (_: Bool) in EmptyView() }, left: { (_: Bool) in
             if rows.isEmpty {
                 Section {
                     Text("No category sales data for the selected period.").foregroundStyle(.secondary)
@@ -23,13 +17,13 @@ struct AnaCategoriesPage: View {
                 .houseRows()
             } else {
                 shareSection
-                tableSection
             }
+        }, right: { (_: Bool) in
+            if !rows.isEmpty { tableSection }
             LedgerSection("About these figures", collapsible: true) {
                 Text("Revenue is before invoice discounts and trade-ins, so it can be higher than Overview.").font(.footnote).foregroundStyle(.secondary)
             }
-        }
-        .listStyle(.insetGrouped)
+        })
     }
 
     private var tableSection: some View {

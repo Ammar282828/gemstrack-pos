@@ -136,11 +136,13 @@ struct ExpenseEditSheet: View {
                     } else {
                         Button(role: .confirm) { Task { await save() } }
                             .disabled(!canSave)
+                            .keyboardShortcut("s", modifiers: .command)
                     }
                 }
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .interactiveDismissDisabled(saving)
         .failureAlert($error, title: "Could not save")
         .task {
