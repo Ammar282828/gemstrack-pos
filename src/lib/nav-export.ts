@@ -17,6 +17,10 @@ export interface ExportedPlace {
   /** lucide's name for the icon ("House"); the app maps it to an SF Symbol. */
   icon?: string;
   staff?: boolean;
+  /** The marketing account may open it from outside the Marketing group (Analytics' Website, Social, Ads). */
+  marketing?: boolean;
+  /** Its sub-section in a grouped entry (Analytics: Sales, Website, Social, Ads). */
+  section?: string;
   keywords?: string[];
   match?: string[];
   /** The address only redirects now (Post a piece, the Studio → Design): the app keeps its screen but lists no row. */
@@ -51,6 +55,8 @@ function place(p: Place): ExportedPlace {
     ...(p.heading ? { heading: p.heading } : {}),
     ...(iconName(p.icon) ? { icon: iconName(p.icon) } : {}),
     ...(p.staff ? { staff: true } : {}),
+    ...(p.marketing ? { marketing: true } : {}),
+    ...(p.section ? { section: p.section } : {}),
     ...(p.keywords?.length ? { keywords: p.keywords } : {}),
     ...(p.match?.length ? { match: p.match } : {}),
     ...(p.moved ? { moved: true } : {}),

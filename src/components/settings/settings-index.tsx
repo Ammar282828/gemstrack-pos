@@ -30,8 +30,6 @@ const SQUARE: Record<string, Tone> = {
   '/settings/voice': 'owed',
 };
 
-/** The app's two groups of rows: the shop, then the rest. */
-const FIRST_GROUP = ['/settings', '/settings/alerts', '/settings/payment-methods'];
 
 export function SettingsIndex({ className }: { className?: string }) {
   const { user, signOut } = useAuth();
@@ -42,7 +40,9 @@ export function SettingsIndex({ className }: { className?: string }) {
   const tabs = entry?.tabs ?? [];
   const shopName = settings.shopName || STORE_CONFIG.name;
   const name = user?.displayName || user?.email || 'Owner';
-  const groups = [tabs.filter(t => FIRST_GROUP.includes(t.href)), tabs.filter(t => !FIRST_GROUP.includes(t.href))].filter(g => g.length > 0);
+  // The rows in Settings' sections (lib/nav.ts: Shop, Connections, Records), each its own card under its heading.
+  const sections = [...new Set(tabs.map(t => t.section ?? ''))];
+  const groups = sections.map(sec => ({ sec, rows: tabs.filter(t => (t.section ?? '') === sec) })).filter(g => g.rows.length > 0);
 
   return (
     <div className={cn('space-y-[22px]', className)}>
@@ -57,8 +57,10 @@ export function SettingsIndex({ className }: { className?: string }) {
         </div>
       </div>
 
-      {groups.map((rows, gi) => (
-        <ul key={gi} className="overflow-hidden rounded-card bg-card divide-y divide-separator">
+      {groups.map(({ sec, rows }) => (
+        <div key={sec} className="space-y-1.5">
+        {sec && <p className="px-4 text-ios-foot uppercase tracking-wide text-muted-foreground">{sec}</p>}
+        <ul className="overflow-hidden rounded-card bg-card divide-y divide-separator">
           {rows.map(t => {
             const Icon = t.icon ?? SETTINGS.icon;
             const tone = toneClasses(SQUARE[t.href] ?? 'quiet');
@@ -76,6 +78,7 @@ export function SettingsIndex({ className }: { className?: string }) {
             );
           })}
         </ul>
+        </div>
       ))}
 
       <div>

@@ -60,12 +60,16 @@ describe('who sees what', () => {
     expect(staff).not.toContain('ads');
     expect(forRole(SETTINGS, true)).toBeNull();
   });
-  it('a marketing account gets the Marketing group and nothing else', () => {
+  it('a marketing account gets the Marketing group and Analytics\' marketing sections, nothing else', () => {
     const groups = sidebarFor('marketing');
-    expect(groups.map(g => g.key)).toEqual(['marketing']);
+    expect(groups.map(g => g.key)).toEqual(['home', 'marketing']);
     const ids = groups.flatMap(g => g.entries.map(e => e.id));
     expect(ids.length).toBeGreaterThan(0);
-    expect(groups.flatMap(g => g.entries).every(e => e.group === 'marketing')).toBe(true);
+    expect(groups.flatMap(g => g.entries).every(e => e.group === 'marketing' || e.id === 'analytics')).toBe(true);
+    // Of Analytics, only what is marked for it: never the books.
+    const analytics = groups.flatMap(g => g.entries).find(e => e.id === 'analytics');
+    expect(analytics?.tabs?.every(t => t.marketing)).toBe(true);
+    expect(analytics?.tabs?.map(t => t.href)).not.toContain('/analytics/sales');
     expect(ids).not.toContain('home');
     expect(ids).not.toContain('orders');
     expect(forRole(SETTINGS, 'marketing')).toBeNull();
@@ -135,7 +139,8 @@ describe('Settings is an index list on a phone', () => {
   });
   it('every row of the index is a tab of Settings, the first being Shop at /settings', () => {
     expect(owner.tabs?.[0].href).toBe('/settings');
-    expect(owner.tabs?.map(t => t.label)).toEqual(['Shop', 'Alerts', 'Bank accounts', 'Integrations', 'Data', 'Activity', 'Voice', 'Connect an AI']);
+    expect(owner.tabs?.map(t => t.label)).toEqual(['Shop', 'Bank accounts', 'Alerts', 'Integrations', 'Connect an AI', 'Voice', 'Data', 'Activity']);
+    expect([...new Set(owner.tabs?.map(t => t.section))]).toEqual(['Shop', 'Connections', 'Records']);
   });
   it('the Shop page lights Settings and its Shop tab', () => {
     const found = locate(SETTINGS_SHOP_HREF, [owner]);

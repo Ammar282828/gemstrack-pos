@@ -48,6 +48,13 @@ interface Place {
   label: string;
   /** Reachable by shop-floor staff. Absent means owners only. */
   staff?: boolean;
+  /** Reachable by the marketing account from outside the Marketing group (Analytics' Website and Social). */
+  marketing?: boolean;
+  /**
+   * The sub-section a tab belongs to, in an entry whose tabs are grouped (Analytics: Sales, Website, Social, Ads). The
+   * shell shows the sections as one row and the lit section's tabs under it.
+   */
+  section?: string;
   /** Whether this house has it at all (store-config flags). Absent: always. */
   when?: () => boolean;
   /** Other words people use for it, for the palette. */
@@ -166,19 +173,16 @@ export const NAV: NavEntry[] = [
       { staff: true, href: '/website/photos', label: 'Add photos', icon: ImagePlus, keywords: ['website', 'upload', 'photos'] },
       { staff: true, href: '/website/edit', label: 'Edit a piece', icon: PenLine, when: () => STORE_SITE_EDIT, keywords: ['website', 'edit', 'crop', 'photo', 'description', 'hide', 'overlay'] },
       { staff: true, href: '/website/weights', label: 'Photo weights', icon: Scale, when: () => STORE_WEBSITE_WEIGHTS, keywords: ['weights', 'website'] },
-      // The website's own analytics (Shopify's, for sites that sell by WhatsApp): the period report and the pieces; Live beside it.
-      { staff: true, href: '/website/interest', label: 'Interest', icon: Heart, keywords: ['saved', 'favourites', 'most saved', 'enquiries', 'inquired', 'looked at', 'popular', 'website analytics', 'visitors', 'sessions', 'traffic', 'bounce rate', 'traffic source', 'location', 'country', 'city', 'device', 'browser', 'landing page', 'exit page', 'search terms', '404', 'conversion', 'funnel'] },
-      { staff: true, href: '/website/interest/live', label: 'Live', icon: Radio, keywords: ['live visitors', 'live view', 'on the site now', 'right now', 'real time', 'realtime'] },
     ],
   },
   {
     // This house's Meta ad account (NEXT_PUBLIC_STORE_META_ADS). Owners: it is money.
-    id: 'ads', group: 'marketing', href: '/ads', label: 'Ads', icon: Megaphone, when: () => STORE_META_ADS, qualify: true,
+    // Its Overview (what the ads did) is Analytics › Ads since 2026-10-23; the row opens on Campaigns.
+    id: 'ads', group: 'marketing', href: '/ads/campaigns', label: 'Ads', icon: Megaphone, when: () => STORE_META_ADS, qualify: true,
     keywords: ['meta', 'facebook', 'instagram ads', 'boost', 'ad spend'],
     // Five tabs (the audit of 2026-10-01; there were eight). Ad sets is reached from Campaigns and New ad
     // and lights Campaigns; Audiences and Rules are cards on Setup and light it. Their addresses stay.
     tabs: [
-      { href: '/ads', label: 'Overview', heading: 'Ads', icon: BarChart3 },
       { href: '/ads/campaigns', label: 'Campaigns', icon: ListChecks, keywords: ['campaigns', 'ad sets running'], match: ['/ads/adset'] },
       // What to run and why (the Studio's Plan half; its design half is Posts › Design). NEXT_PUBLIC_STORE_AD_STUDIO.
       { href: '/ads/plan', label: 'Plan', icon: MapIcon, when: () => STORE_AD_STUDIO, keywords: ['plays', 'what to run', 'competitors', 'rivals', 'ad days', 'guide', 'rules', 'strategy'] },
@@ -195,18 +199,6 @@ export const NAV: NavEntry[] = [
     ],
   },
   {
-    // Instagram and the Facebook Page, organic beside paid (lib/social-insights; owner, 2026-10-17:
-    // "all analytics possible to track on the instagram and facebook … through ads and organically").
-    // Through the Ads connection, so it lives where Ads does; owners and the marketing account.
-    id: 'insights', group: 'marketing', href: '/insights', label: 'Insights', icon: BarChart3, when: () => STORE_META_ADS,
-    keywords: ['instagram insights', 'facebook insights', 'followers', 'reach', 'engagement', 'analytics', 'organic', 'reels', 'stories'],
-    tabs: [
-      { href: '/insights', label: 'Overview', heading: 'Insights', icon: BarChart3 },
-      { href: '/insights/posts', label: 'Posts', icon: Rows3, keywords: ['post performance', 'reels', 'stories', 'best post'] },
-      { href: '/insights/audience', label: 'Audience', icon: UsersRound, keywords: ['demographics', 'age', 'gender', 'cities', 'when followers online'] },
-    ],
-  },
-  {
     id: 'money', group: 'money', href: '/expenses', label: 'Money', icon: Wallet,
     tabs: [
       { href: '/expenses', label: 'Expenses', icon: Wallet, keywords: ['money', 'spend', 'costs'] },
@@ -218,14 +210,30 @@ export const NAV: NavEntry[] = [
     ],
   },
   {
-    id: 'analytics', group: 'money', href: '/analytics', label: 'Analytics', icon: TrendingUp, qualify: true, keepQuery: true,
-    keywords: ['reports', 'sales report', 'monthly pdf'],
+    // Every analytics in one place (the owner, 2026-10-23: "why are some analytics somewhere and other analytics in other
+    // places. make the analytics page one where all analytics live under sub sections"): Sales (the books), Website (the
+    // site's own visits and pieces), Social (Instagram and Facebook) and Ads, each a section of its own pages. The pages
+    // kept their addresses. Staff see Website; the marketing account Website, Social and Ads; owners all.
+    id: 'analytics', group: 'home', href: '/analytics', label: 'Analytics', icon: TrendingUp, qualify: true, keepQuery: true, staff: true,
+    keywords: ['reports', 'sales report', 'monthly pdf', 'stats', 'statistics'],
     tabs: [
-      { href: '/analytics', label: 'Overview', heading: 'Analytics', icon: TrendingUp },
-      { href: '/analytics/sales', label: 'Sales', icon: BarChart3, keywords: ['by day', 'months', 'years', 'payments'] },
-      { href: '/analytics/products', label: 'Products', icon: Gem, keywords: ['best sellers', 'pieces sold'] },
-      { href: '/analytics/customers', label: 'Customers', icon: Users, keywords: ['top customers'] },
-      { href: '/analytics/categories', label: 'Categories', icon: LayoutGrid },
+      { section: 'Sales', href: '/analytics', label: 'Overview', heading: 'Analytics', icon: TrendingUp },
+      { section: 'Sales', href: '/analytics/sales', label: 'Sales', icon: BarChart3, keywords: ['by day', 'months', 'years', 'payments'] },
+      { section: 'Sales', href: '/analytics/products', label: 'Products', icon: Gem, keywords: ['best sellers', 'pieces sold'] },
+      { section: 'Sales', href: '/analytics/customers', label: 'Customers', icon: Users, keywords: ['top customers'] },
+      { section: 'Sales', href: '/analytics/categories', label: 'Categories', icon: LayoutGrid },
+      // The website's own analytics (Shopify's, for sites that sell by WhatsApp): the period report and the pieces; Live beside it.
+      { section: 'Website', staff: true, marketing: true, href: '/website/interest', label: 'Visitors', heading: 'Website', icon: Globe, when: website,
+        keywords: ['interest', 'saved', 'favourites', 'most saved', 'enquiries', 'inquired', 'looked at', 'popular', 'website analytics', 'visitors', 'sessions', 'traffic', 'bounce rate', 'traffic source', 'location', 'country', 'city', 'device', 'browser', 'landing page', 'exit page', 'search terms', '404', 'conversion', 'funnel'] },
+      { section: 'Website', staff: true, marketing: true, href: '/website/interest/live', label: 'Live', icon: Radio, when: website, keywords: ['live visitors', 'live view', 'on the site now', 'right now', 'real time', 'realtime'] },
+      // Instagram and the Facebook Page, organic beside paid (lib/social-insights; owner, 2026-10-17:
+      // "all analytics possible to track on the instagram and facebook … through ads and organically"). Through the Ads connection.
+      { section: 'Social', marketing: true, href: '/insights', label: 'Insights', heading: 'Insights', icon: BarChart3, when: () => STORE_META_ADS,
+        keywords: ['insights', 'instagram insights', 'facebook insights', 'followers', 'reach', 'engagement', 'organic', 'reels', 'stories'] },
+      { section: 'Social', marketing: true, href: '/insights/posts', label: 'Posts', icon: Rows3, when: () => STORE_META_ADS, keywords: ['post performance', 'reels', 'stories', 'best post'] },
+      { section: 'Social', marketing: true, href: '/insights/audience', label: 'Audience', icon: UsersRound, when: () => STORE_META_ADS, keywords: ['demographics', 'age', 'gender', 'cities', 'when followers online'] },
+      // What the ads did; running them (campaigns, plan, new ad, setup) stays in Ads.
+      { section: 'Ads', marketing: true, href: '/ads', label: 'Ad results', heading: 'Ads', icon: Megaphone, when: () => STORE_META_ADS, keywords: ['ad spend', 'ads report', 'meta ads results'] },
     ],
   },
 ];
@@ -239,17 +247,19 @@ export const SETTINGS: NavEntry = {
   phoneIndex: true,
   // One route per tab (the audit of 2026-10-01: Settings had seven top-bar tabs and six in-page ones).
   // The rates left for the top bar's chip; Labels went to Stock; Security's sign-in log and lock to Activity.
+  // In three sections since 2026-10-23 (the owner, of scattered places: "do this for any other sections that might need
+  // it"): the shop itself, what it connects to, and its records. The phone's index lists them under the same headings.
   tabs: [
-    { href: '/settings', label: 'Shop', heading: 'Settings', icon: SettingsIcon, keywords: ['shop details', 'theme', 'appearance', 'numbering', 'liquid glass'] },
-    { href: '/settings/alerts', label: 'Alerts', icon: Bell, keywords: ['notifications', 'whatsapp alerts', 'reports', 'monthly pdf'] },
-    { href: '/settings/payment-methods', label: 'Bank accounts', icon: Landmark, keywords: ['bank', 'iban', 'accounts', 'payment methods'] },
-    { href: '/settings/integrations', label: 'Integrations', icon: Plug, keywords: ['shopify', 'website selling', 'meta'] },
-    { href: '/settings/data', label: 'Data', icon: Database, keywords: ['backups', 'import', 'restore defaults', 'drafts'],
-      match: ['/settings/backups', '/settings/recently-removed', '/settings/contact-import', '/settings/hisaab-import', '/settings/import-taheri'] },
-    { href: '/activity-log', label: 'Activity', heading: 'Activity', icon: History, keywords: ['activity log', 'history', 'who changed', 'sign-in', 'emergency lock', 'security'] },
-    { href: '/settings/voice', label: 'Voice', icon: Mic, keywords: ['microphone'] },
+    { section: 'Shop', href: '/settings', label: 'Shop', heading: 'Settings', icon: SettingsIcon, keywords: ['shop details', 'theme', 'appearance', 'numbering', 'liquid glass'] },
+    { section: 'Shop', href: '/settings/payment-methods', label: 'Bank accounts', icon: Landmark, keywords: ['bank', 'iban', 'accounts', 'payment methods'] },
+    { section: 'Shop', href: '/settings/alerts', label: 'Alerts', icon: Bell, keywords: ['notifications', 'whatsapp alerts', 'reports', 'monthly pdf'] },
+    { section: 'Connections', href: '/settings/integrations', label: 'Integrations', icon: Plug, keywords: ['shopify', 'website selling', 'meta'] },
     // AI keys: ChatGPT, Claude, Gemini, Cursor into the ERP over MCP or REST (docs/features/ai-keys.md). Owners only.
-    { href: '/settings/ai', label: 'Connect an AI', icon: Bot, keywords: ['ai keys', 'api key', 'chatgpt', 'claude', 'gemini', 'cursor', 'mcp', 'gpt', 'agent', 'openapi'] },
+    { section: 'Connections', href: '/settings/ai', label: 'Connect an AI', icon: Bot, keywords: ['ai keys', 'api key', 'chatgpt', 'claude', 'gemini', 'cursor', 'mcp', 'gpt', 'agent', 'openapi'] },
+    { section: 'Connections', href: '/settings/voice', label: 'Voice', icon: Mic, keywords: ['microphone'] },
+    { section: 'Records', href: '/settings/data', label: 'Data', icon: Database, keywords: ['backups', 'import', 'restore defaults', 'drafts'],
+      match: ['/settings/backups', '/settings/recently-removed', '/settings/contact-import', '/settings/hisaab-import', '/settings/import-taheri'] },
+    { section: 'Records', href: '/activity-log', label: 'Activity', heading: 'Activity', icon: History, keywords: ['activity log', 'history', 'who changed', 'sign-in', 'emergency lock', 'security'] },
   ],
   pages: [
     { href: SETTINGS_SHOP_HREF, label: 'Shop details', icon: SettingsIcon, keywords: ['shop name', 'address', 'numbering', 'appearance'] },
@@ -296,9 +306,14 @@ const asRole = (who: boolean | NavRole): NavRole => (typeof who === 'boolean' ? 
 
 export function forRole(entry: NavEntry, who: boolean | NavRole): NavEntry | null {
   const role = asRole(who);
-  // A marketing account (roles.ts) sees the Marketing group whole — Posts, Website, Ads — and nothing else.
+  // A marketing account (roles.ts) sees the Marketing group whole — Posts, Website, Ads — and Analytics' marketing sections.
   if (role === 'marketing') {
-    if (!on(entry) || entry.group !== 'marketing') return null;
+    if (!on(entry)) return null;
+    if (entry.group !== 'marketing') {
+      // Outside its group, only the tabs marked for it (Analytics' Website, Social and Ads).
+      const tabs = (entry.tabs ?? []).filter(t => on(t) && t.marketing);
+      return tabs.length ? { ...entry, href: tabs[0].href, tabs, pages: [] } : null;
+    }
     if (!entry.tabs) return entry;
     const tabs = entry.tabs.filter(on);
     return tabs.length ? { ...entry, href: tabs[0].href, tabs, pages: entry.pages?.filter(on) } : null;

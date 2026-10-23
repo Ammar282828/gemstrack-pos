@@ -12,7 +12,14 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   the ones people learned — what changed is underneath). **One registry, `src/lib/nav.ts`:** the sidebar, the top-bar
   tabs, the Ctrl+K palette (same role rule and house flags) and `PageShell`'s headings all read it; `nav.test.ts` fails when
   a page under `src/app` is in no entry, an entry has no page, or two rows of a group share a name. Add a page there or it
-  is nowhere. **One tab row per screen** — no in-page `Tabs` under the top bar's. **On a phone** (2026-10-10, the owner:
+  is nowhere. **One tab row per screen** — no in-page `Tabs` under the top bar's. **Grouped tabs** (2026-10-23, the owner: "why are some analytics
+  somewhere and other analytics in other places. make the analytics page one where all analytics live under sub sections …
+  do this for any other sections that might need it"): a tab may name a `section`; the bar's row is then the sections
+  and the lit section's own pages are one segmented row at the top of the page. **Analytics** (beside Home) holds every
+  report: Sales (the books' five pages), Website (Visitors and Live, was Website → Interest), Social (Instagram and Facebook,
+  was the Insights row), Ads (Ad results, was Ads → Overview; Ads keeps running them). Addresses unchanged. Staff see
+  Website; the marketing account Website, Social and Ads (tabs marked `marketing`). **Settings**: Shop (Shop, Bank accounts,
+  Alerts), Connections (Integrations, Connect an AI, Voice), Records (Data, Activity); the phone's index uses the same headings. **On a phone** (2026-10-10, the owner:
   "too cluttered on my phone with a weird tab bar on the top") the bar is menu · rate chip · search, and the tabs are their
   own full-width segmented row under it (up to three share the width; more scroll, the page's centred); light/dark moves
   into the menu's footer. From md the tabs sit beside the menu as before. Sticky toolbars use `--app-header-h`.

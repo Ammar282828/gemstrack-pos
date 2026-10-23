@@ -174,13 +174,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pageTabs = here?.tab && here.entry.tabs && here.entry.tabs.length > 1 ? here.entry.tabs : null;
   // On a phone the Settings index is itself the list of its pages (`phoneIndex`), so the tab row would only repeat it.
   const phoneTabs = pageTabs && !(here?.entry.phoneIndex && pathname === here.entry.href) ? pageTabs : null;
+  // Grouped tabs (Analytics: Sales · Website · Social · Ads, 2026-10-23): the bar's row is the sections, each opening its
+  // first page; the lit section's own pages are a second row at the top of the page. Ungrouped entries are as before.
+  type TabItem = { href: string; label: string; on: boolean };
+  const sectioned = !!pageTabs?.some(t => t.section);
+  const litSection = here?.tab?.section;
+  const barItems: TabItem[] | null = !pageTabs ? null : sectioned
+    ? [...new Set(pageTabs.map(t => t.section ?? ''))].map(sec => ({ href: pageTabs.find(t => (t.section ?? '') === sec)!.href, label: sec, on: sec === litSection }))
+    : pageTabs.map(t => ({ href: t.href, label: t.label, on: t.href === here?.tab?.href }));
+  const sectionItems: TabItem[] | null = sectioned && pageTabs
+    ? (() => { const own = pageTabs.filter(t => t.section === litSection); return own.length > 1 ? own.map(t => ({ href: t.href, label: t.label, on: t.href === here?.tab?.href })) : null; })()
+    : null;
   // `phone`: the row under the bar, one segmented group filling the width (glass or not); otherwise the
   // tabs beside the menu, underlined (or glass pills, globals.css .app-tabs).
-  const renderTabs = (className: string, phone: boolean) => pageTabs && (
-    <nav aria-label={`${here?.entry.label} pages`}
+  const renderTabs = (className: string, phone: boolean, items: TabItem[] | null = barItems, label = `${here?.entry.label} pages`) => items && (
+    <nav aria-label={label}
       className={cn('app-tabs flex items-center gap-1', phone && 'phone-tabs h-9 rounded-full bg-muted p-[3px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', className)}>
-      {pageTabs.map(t => {
-        const on = t.href === here?.tab?.href;
+      {items.map(t => {
+        const on = t.on;
         return (
           <Link
             key={t.href}
@@ -191,7 +202,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             className={cn(
               'app-tab relative flex shrink-0 items-center whitespace-nowrap px-3 text-sm transition-colors',
               // Up to three share the width evenly; more (Money's five) keep their own and scroll.
-              phone ? cn('h-full justify-center rounded-full', pageTabs.length <= 3 && 'flex-1') : 'h-full',
+              phone ? cn('h-full justify-center rounded-full', items.length <= 3 && 'flex-1') : 'h-full',
               on ? 'font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
               phone && on && 'bg-background shadow-sm',
             )}
@@ -446,6 +457,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             barHidden ? 'pb-28' : 'pb-[calc(49px+env(safe-area-inset-bottom)+76px)]',
           )}>
             <TeamNote owner={role === 'owner'} />
+            {/* A grouped entry's section: its own pages, one segmented row above the page (Analytics › Sales: Overview, Sales…). */}
+            {sectionItems && <div className={cn('mb-4 flex', here?.entry.phoneIndex && pathname === here.entry.href && 'max-md:hidden')}>{renderTabs('max-w-full overflow-x-auto', true, sectionItems, `${litSection} pages`)}</div>}
             {children}
           </main>
 

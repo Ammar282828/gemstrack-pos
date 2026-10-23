@@ -104,7 +104,7 @@ IAM**; Taheri's Firestore is open until the owner publishes `firestore.rules`. D
 One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a new decision there and a line here.
 
 **Navigation and the look**
-- [The map](docs/decisions.md#the-map) — the sidebar rows, the one tab row per screen, and `lib/nav.ts` as the only registry
+- [The map](docs/decisions.md#the-map) — the sidebar rows, the one tab row per screen, and `lib/nav.ts` as the only registry; grouped tabs: Analytics (Sales · Website · Social · Ads) and Settings in sections
 - [Web matches the app](docs/decisions.md#web-matches-the-app) — the app's palette, flat 22px cards, capsules, tones in `lib/tones.ts`; spec `docs/features/web-matches-app.md`
 - [The name ERP](docs/decisions.md#the-name-erp) — ERP in every word people read; Shopify codes and code names stay POS
 - [Number fields](docs/decisions.md#number-fields) — and sale-flow fields show 0 as blank
@@ -162,7 +162,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Shop outage](docs/decisions.md#shop-outage) — the hosted.app address still works
 - [Community twin](docs/decisions.md#community-twin) — sends to "Taheri Collections" groups also reach their namesakes in "- II"; `/links` shows the community
 - [Piece interest](docs/decisions.md#piece-interest) — both sites count opens, time looked, saves and WhatsApp enquiries per piece; Website → Interest ranks them
-- [Website analytics](docs/decisions.md#website-analytics) — Interest is each site's Shopify-style report (sources, places, devices, funnel to WhatsApp, pages, searches, 404s) and Live; day counters, no person or address kept
+- [Website analytics](docs/decisions.md#website-analytics) — Analytics › Website (Visitors, Live) is each site's Shopify-style report (sources, places, devices, funnel to WhatsApp, pages, searches, 404s) and Live; day counters, no person or address kept
 
 **Liquid Glass** (`docs/features/liquid-glass.md`)
 - [Liquid Glass](docs/features/liquid-glass.md#liquid-glass) — Settings → Appearance; Apple HIG glass on the control layer only (`ui-glass`)

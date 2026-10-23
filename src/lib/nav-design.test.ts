@@ -14,7 +14,9 @@ describe('Design is a tab of Posts (docs/features/design.md)', () => {
   });
   it('Ads has Plan in place of the Studio; the moved addresses are not offered twice', () => {
     const ads = forRole(NAV.find(e => e.id === 'ads')!, 'owner')!;
-    expect(ads.tabs?.map(t => t.label)).toEqual(['Overview', 'Campaigns', 'Plan', 'New ad', 'Setup']);
+    expect(ads.tabs?.map(t => t.label)).toEqual(['Campaigns', 'Plan', 'New ad', 'Setup']);
+    // Its Overview is Analytics › Ads (2026-10-23).
+    expect(NAV.find(e => e.id === 'analytics')!.tabs?.some(t => t.href === '/ads' && t.section === 'Ads')).toBe(true);
     const hrefs = paletteFor(false).map(d => d.href);
     expect(hrefs).toContain('/design');
     expect(hrefs).toContain('/ads/plan');

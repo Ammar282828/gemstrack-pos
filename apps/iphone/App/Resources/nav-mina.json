@@ -345,59 +345,13 @@
             "hide",
             "overlay"
           ]
-        },
-        {
-          "href": "/website/interest",
-          "label": "Interest",
-          "icon": "Heart",
-          "staff": true,
-          "keywords": [
-            "saved",
-            "favourites",
-            "most saved",
-            "enquiries",
-            "inquired",
-            "looked at",
-            "popular",
-            "website analytics",
-            "visitors",
-            "sessions",
-            "traffic",
-            "bounce rate",
-            "traffic source",
-            "location",
-            "country",
-            "city",
-            "device",
-            "browser",
-            "landing page",
-            "exit page",
-            "search terms",
-            "404",
-            "conversion",
-            "funnel"
-          ]
-        },
-        {
-          "href": "/website/interest/live",
-          "label": "Live",
-          "icon": "Radio",
-          "staff": true,
-          "keywords": [
-            "live visitors",
-            "live view",
-            "on the site now",
-            "right now",
-            "real time",
-            "realtime"
-          ]
         }
       ]
     },
     {
       "id": "ads",
       "group": "marketing",
-      "href": "/ads",
+      "href": "/ads/campaigns",
       "label": "Ads",
       "icon": "Megaphone",
       "keywords": [
@@ -408,12 +362,6 @@
         "ad spend"
       ],
       "tabs": [
-        {
-          "href": "/ads",
-          "label": "Overview",
-          "heading": "Ads",
-          "icon": "ChartColumn"
-        },
         {
           "href": "/ads/campaigns",
           "label": "Campaigns",
@@ -515,55 +463,6 @@
       ]
     },
     {
-      "id": "insights",
-      "group": "marketing",
-      "href": "/insights",
-      "label": "Insights",
-      "icon": "ChartColumn",
-      "keywords": [
-        "instagram insights",
-        "facebook insights",
-        "followers",
-        "reach",
-        "engagement",
-        "analytics",
-        "organic",
-        "reels",
-        "stories"
-      ],
-      "tabs": [
-        {
-          "href": "/insights",
-          "label": "Overview",
-          "heading": "Insights",
-          "icon": "ChartColumn"
-        },
-        {
-          "href": "/insights/posts",
-          "label": "Posts",
-          "icon": "Rows3",
-          "keywords": [
-            "post performance",
-            "reels",
-            "stories",
-            "best post"
-          ]
-        },
-        {
-          "href": "/insights/audience",
-          "label": "Audience",
-          "icon": "UsersRound",
-          "keywords": [
-            "demographics",
-            "age",
-            "gender",
-            "cities",
-            "when followers online"
-          ]
-        }
-      ]
-    },
-    {
       "id": "money",
       "group": "money",
       "href": "/expenses",
@@ -626,26 +525,31 @@
     },
     {
       "id": "analytics",
-      "group": "money",
+      "group": "home",
       "href": "/analytics",
       "label": "Analytics",
       "icon": "TrendingUp",
+      "staff": true,
       "keywords": [
         "reports",
         "sales report",
-        "monthly pdf"
+        "monthly pdf",
+        "stats",
+        "statistics"
       ],
       "tabs": [
         {
           "href": "/analytics",
           "label": "Overview",
           "heading": "Analytics",
-          "icon": "TrendingUp"
+          "icon": "TrendingUp",
+          "section": "Sales"
         },
         {
           "href": "/analytics/sales",
           "label": "Sales",
           "icon": "ChartColumn",
+          "section": "Sales",
           "keywords": [
             "by day",
             "months",
@@ -657,6 +561,7 @@
           "href": "/analytics/products",
           "label": "Products",
           "icon": "Gem",
+          "section": "Sales",
           "keywords": [
             "best sellers",
             "pieces sold"
@@ -666,6 +571,7 @@
           "href": "/analytics/customers",
           "label": "Customers",
           "icon": "Users",
+          "section": "Sales",
           "keywords": [
             "top customers"
           ]
@@ -673,7 +579,119 @@
         {
           "href": "/analytics/categories",
           "label": "Categories",
-          "icon": "LayoutGrid"
+          "icon": "LayoutGrid",
+          "section": "Sales"
+        },
+        {
+          "href": "/website/interest",
+          "label": "Visitors",
+          "heading": "Website",
+          "icon": "Globe",
+          "staff": true,
+          "marketing": true,
+          "section": "Website",
+          "keywords": [
+            "interest",
+            "saved",
+            "favourites",
+            "most saved",
+            "enquiries",
+            "inquired",
+            "looked at",
+            "popular",
+            "website analytics",
+            "visitors",
+            "sessions",
+            "traffic",
+            "bounce rate",
+            "traffic source",
+            "location",
+            "country",
+            "city",
+            "device",
+            "browser",
+            "landing page",
+            "exit page",
+            "search terms",
+            "404",
+            "conversion",
+            "funnel"
+          ]
+        },
+        {
+          "href": "/website/interest/live",
+          "label": "Live",
+          "icon": "Radio",
+          "staff": true,
+          "marketing": true,
+          "section": "Website",
+          "keywords": [
+            "live visitors",
+            "live view",
+            "on the site now",
+            "right now",
+            "real time",
+            "realtime"
+          ]
+        },
+        {
+          "href": "/insights",
+          "label": "Insights",
+          "heading": "Insights",
+          "icon": "ChartColumn",
+          "marketing": true,
+          "section": "Social",
+          "keywords": [
+            "insights",
+            "instagram insights",
+            "facebook insights",
+            "followers",
+            "reach",
+            "engagement",
+            "organic",
+            "reels",
+            "stories"
+          ]
+        },
+        {
+          "href": "/insights/posts",
+          "label": "Posts",
+          "icon": "Rows3",
+          "marketing": true,
+          "section": "Social",
+          "keywords": [
+            "post performance",
+            "reels",
+            "stories",
+            "best post"
+          ]
+        },
+        {
+          "href": "/insights/audience",
+          "label": "Audience",
+          "icon": "UsersRound",
+          "marketing": true,
+          "section": "Social",
+          "keywords": [
+            "demographics",
+            "age",
+            "gender",
+            "cities",
+            "when followers online"
+          ]
+        },
+        {
+          "href": "/ads",
+          "label": "Ad results",
+          "heading": "Ads",
+          "icon": "Megaphone",
+          "marketing": true,
+          "section": "Ads",
+          "keywords": [
+            "ad spend",
+            "ads report",
+            "meta ads results"
+          ]
         }
       ]
     }
@@ -693,6 +711,7 @@
         "label": "Shop",
         "heading": "Settings",
         "icon": "Settings",
+        "section": "Shop",
         "keywords": [
           "shop details",
           "theme",
@@ -702,20 +721,10 @@
         ]
       },
       {
-        "href": "/settings/alerts",
-        "label": "Alerts",
-        "icon": "Bell",
-        "keywords": [
-          "notifications",
-          "whatsapp alerts",
-          "reports",
-          "monthly pdf"
-        ]
-      },
-      {
         "href": "/settings/payment-methods",
         "label": "Bank accounts",
         "icon": "Landmark",
+        "section": "Shop",
         "keywords": [
           "bank",
           "iban",
@@ -724,9 +733,22 @@
         ]
       },
       {
+        "href": "/settings/alerts",
+        "label": "Alerts",
+        "icon": "Bell",
+        "section": "Shop",
+        "keywords": [
+          "notifications",
+          "whatsapp alerts",
+          "reports",
+          "monthly pdf"
+        ]
+      },
+      {
         "href": "/settings/integrations",
         "label": "Integrations",
         "icon": "Plug",
+        "section": "Connections",
         "keywords": [
           "shopify",
           "website selling",
@@ -734,9 +756,37 @@
         ]
       },
       {
+        "href": "/settings/ai",
+        "label": "Connect an AI",
+        "icon": "Bot",
+        "section": "Connections",
+        "keywords": [
+          "ai keys",
+          "api key",
+          "chatgpt",
+          "claude",
+          "gemini",
+          "cursor",
+          "mcp",
+          "gpt",
+          "agent",
+          "openapi"
+        ]
+      },
+      {
+        "href": "/settings/voice",
+        "label": "Voice",
+        "icon": "Mic",
+        "section": "Connections",
+        "keywords": [
+          "microphone"
+        ]
+      },
+      {
         "href": "/settings/data",
         "label": "Data",
         "icon": "Database",
+        "section": "Records",
         "keywords": [
           "backups",
           "import",
@@ -756,6 +806,7 @@
         "label": "Activity",
         "heading": "Activity",
         "icon": "History",
+        "section": "Records",
         "keywords": [
           "activity log",
           "history",
@@ -763,31 +814,6 @@
           "sign-in",
           "emergency lock",
           "security"
-        ]
-      },
-      {
-        "href": "/settings/voice",
-        "label": "Voice",
-        "icon": "Mic",
-        "keywords": [
-          "microphone"
-        ]
-      },
-      {
-        "href": "/settings/ai",
-        "label": "Connect an AI",
-        "icon": "Bot",
-        "keywords": [
-          "ai keys",
-          "api key",
-          "chatgpt",
-          "claude",
-          "gemini",
-          "cursor",
-          "mcp",
-          "gpt",
-          "agent",
-          "openapi"
         ]
       }
     ],
