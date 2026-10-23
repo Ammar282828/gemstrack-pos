@@ -3,7 +3,7 @@
  * (lib/website/site-analytics.ts, lib/website/piece-interest.ts).
  *
  * Sent with navigator.sendBeacon as text/plain, so no preflight; JSON is accepted too. Only the
- * house's own site (WEBSITE_ORIGIN) is counted. Bots (by user agent), Do Not Track and Global Privacy
+ * house's own site (WEBSITE_ORIGIN) is counted. Bots (by the page's own user agent: the front end sends "Google"), Do Not Track and Global Privacy
  * Control are dropped here as well as on the page. A visitor id is held to 400 batches an hour (a page beats
  * 120 times an hour) and an address to 3,000 (a mobile network's shared address), in this server's memory
  * (memory-limit.ts: no Firestore transaction per beacon).
@@ -20,12 +20,15 @@ import { karachiDay, PIECE_STATS, statsDocId, tallyEvents } from '@/lib/website/
 import { placeFor } from '@/lib/website/geo';
 import { memoryLimit } from '@/lib/website/memory-limit';
 import {
-  addDays, classifySource, dayUpdate, LIVE_MS, parseDevice, parseVisit, SITE_DAYS, SITE_LIVE, SITE_VISITORS, sourceKey,
+  addDays, classifySource, dayUpdate, LIVE_MS, parseDevice, parseVisit, SITE_DAYS, SITE_LIVE, SITE_VISITORS, sourceKey, visitorAgent,
 } from '@/lib/website/site-analytics';
 
 export const dynamic = 'force-dynamic';
 
 export function OPTIONS(req: NextRequest) { return preflight(req); }
+
+/** Once per server: which headers the front end passes (names only), to see if it ever adds a location one. */
+let headersNoted = false;
 
 const done = (req: NextRequest) => new NextResponse(null, { status: 204, headers: corsHeaders(req) });
 
@@ -42,12 +45,14 @@ function fromOwnSite(req: NextRequest): boolean {
 export async function POST(req: NextRequest) {
   if (!fromOwnSite(req)) return done(req);
   if (req.headers.get('dnt') === '1' || req.headers.get('sec-gpc') === '1') return done(req);
-  const device = parseDevice(req.headers.get('user-agent') || '');
-  if (device.bot) return done(req);
   let body: unknown;
   try { body = JSON.parse((await req.text()).slice(0, 20_000)); } catch { return done(req); }
+  const ua = visitorAgent(req.headers.get('user-agent'), (body as { ua?: unknown } | null)?.ua);
+  const device = parseDevice(ua ?? '');
+  if (ua && device.bot) return done(req);
   const tally = tallyEvents(body);
-  const visit = parseVisit(body);
+  // A visit needs the page's own user agent (see visitorAgent): without it, bots could not be told apart.
+  const visit = ua ? parseVisit(body) : null;
   if (!tally.size && !visit) return done(req);
 
   const ip = callerKey(req.headers);
@@ -71,6 +76,7 @@ export async function POST(req: NextRequest) {
 
   if (visit) {
     const place = placeFor(req.headers, ip);
+    if (!headersNoted) { headersNoted = true; console.log(`[events] headers: ${[...req.headers.keys()].sort().join(',')}; place via ${place.via}`); }
     const source = classifySource(visit, siteHost());
     const hour = new Date(now.getTime() + 5 * 3600_000).getUTCHours();
     // Nested objects in set(merge): keys are kept as written, and the increments add up.

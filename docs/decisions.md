@@ -714,6 +714,9 @@ Website → Interest ranks them (Saved, Asked about, Looked at longest with at l
   location headers if it ever sends any (App Hosting documents none), else a bundled table from DB-IP's free City Lite (CC BY 4.0,
   credited on the screen; `scripts/geo-build.mjs`, re-run a few times a year): city for Pakistan and the Gulf, country elsewhere.
   Do Not Track, Global Privacy Control, automated browsers and bot user agents are not counted (page and server both).
+  **App Hosting's front end replaces every request's User-Agent with `Google`** (the `[sign-in]` log shows it), so the page sends
+  its own `navigator.userAgent` as `ua` and devices and bots are told from that (`visitorAgent`); a beacon without one counts its
+  pieces but no visit.
 - **Cheap to keep.** No document per hit: one counter document per Karachi day (`site_days/<day>`, `FieldValue.increment`, maps by
   place, device, OS, browser, source, campaign, landing/exit/viewed page, collection, search, 404, hour), one short-lived document
   per open session (`site_live/<session>`, `expireAt`; Live deletes ones quiet for an hour too), one per visitor per day seen

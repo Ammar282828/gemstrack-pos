@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  classifySource, cleanPath, dayUpdate, fieldKey, liveSummary, parseDevice, parseVisit, period, series, summarize, unFieldKey,
+  visitorAgent, classifySource, cleanPath, dayUpdate, fieldKey, liveSummary, parseDevice, parseVisit, period, series, summarize, unFieldKey,
   type Ctx, type DayDoc,
 } from './site-analytics';
 
@@ -65,6 +65,15 @@ describe('classifySource', () => {
     expect(classifySource(v('', 'instagram', '', 'fb'))).toEqual({ channel: 'paid', name: 'Instagram' });
     expect(classifySource(v('', '', '', 'g'))).toEqual({ channel: 'paid', name: 'Google' });
     expect(classifySource(v('', 'newsletter', 'email'))).toEqual({ channel: 'email', name: 'newsletter' });
+  });
+});
+
+describe('visitorAgent', () => {
+  it('reads the page\'s own agent when the front end says "Google"', () => {
+    expect(visitorAgent('Google', 'Mozilla/5.0 (iPhone)')).toBe('Mozilla/5.0 (iPhone)');
+    expect(visitorAgent('Mozilla/5.0 (Android)', 'x')).toBe('Mozilla/5.0 (Android)');
+    expect(visitorAgent('Google', undefined)).toBeNull();
+    expect(visitorAgent(null, '  ')).toBeNull();
   });
 });
 
