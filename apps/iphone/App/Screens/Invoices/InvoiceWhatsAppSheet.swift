@@ -76,6 +76,7 @@ struct InvoiceWhatsAppSheet: View {
             })
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
     }
 }
 
@@ -139,6 +140,7 @@ struct InvoicePDFNumberSheet: View {
             .failureAlert($failure, title: "Could not send the PDF")
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .interactiveDismissDisabled(sending)
     }
 

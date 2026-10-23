@@ -77,6 +77,7 @@ struct OrderCourierSheet: View {
             })
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .interactiveDismissDisabled(busy != nil)
     }
 

@@ -33,7 +33,7 @@ struct AdsTestsScreen: View {
             } else if let status, status.ready {
                 content(status)
             } else {
-                AdsNotReady(status: status, problem: problem, retry: load)
+                AdsNotReady(status: status, problem: problem, retry: { await load(fresh: true) })
             }
         }
         .navigationTitle("A/B tests")
@@ -51,9 +51,9 @@ struct AdsTestsScreen: View {
 
     // MARK: Asking the ERP
 
-    private func load() async {
+    private func load(fresh: Bool = false) async {
         do {
-            let s = try await AdsAPI.status()
+            let s = try await AdsAPI.status(fresh: fresh)
             status = s
             problem = nil
             if s.ready { await loadTests() }
@@ -107,6 +107,7 @@ struct AdsTestsScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .readableColumn(780)
         .refreshable { await loadTests() }
     }
 

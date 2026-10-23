@@ -74,6 +74,7 @@ struct NewOrderSizeAskSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .interactiveDismissDisabled(saving)
         .failureAlert($failure, title: "The sizes weren't saved")
         .savedFeedback(trigger: saved)

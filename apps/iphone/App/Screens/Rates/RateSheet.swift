@@ -216,6 +216,7 @@ struct RateReadout: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
     }
 }
 
@@ -315,6 +316,7 @@ struct RateSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
     }
 
     /// The web's "Fill gold from gold.pk" (rate-chip.tsx): the ERP's server reads gold.pk, and the four

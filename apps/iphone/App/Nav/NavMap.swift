@@ -13,6 +13,10 @@ struct NavPlace: Decodable, Hashable, Identifiable {
     let match: [String]?
     /// nav.ts `moved`: the address redirects (Post a piece, the Studio, into Design). The route stays; search lists no row for it.
     let moved: Bool?
+    /// nav.ts `section`: the sub-section of an entry whose tabs are grouped (Analytics: Sales, Website, Social, Ads; Settings: Shop, Connections, Records).
+    let section: String?
+    /// nav.ts `marketing`: the marketing account may open this tab from outside the Marketing group.
+    let marketing: Bool?
     var id: String { href }
     var title: String { heading ?? label }
 }
@@ -32,7 +36,16 @@ struct NavEntry: Decodable, Hashable, Identifiable {
     let pages: [NavPlace]?
     let count: String?
 
-    var place: NavPlace { NavPlace(href: href, label: label, heading: heading, icon: icon, staff: staff, keywords: keywords, match: match, moved: nil) }
+    var place: NavPlace { NavPlace(href: href, label: label, heading: heading, icon: icon, staff: staff, keywords: keywords, match: match, moved: nil, section: nil, marketing: nil) }
+
+    /// The tabs' sections in order of first appearance; empty when the tabs are not grouped.
+    var sections: [String] {
+        var seen = Set<String>()
+        return (tabs ?? []).compactMap { $0.section }.filter { seen.insert($0).inserted }
+    }
+
+    /// The tabs of one section, in the JSON's order.
+    func tabs(in section: String) -> [NavPlace] { (tabs ?? []).filter { $0.section == section } }
 }
 
 struct NavMap: Decodable {
@@ -72,9 +85,17 @@ struct NavMap: Decodable {
     func visible(to role: String) -> NavMap {
         if role == "owner" { return self }
         if role == "marketing" {
-            // Every entry of the group with all its tabs and pages, `staff` or not (Ads has none); no
-            // Settings, no New sale and nothing to create.
-            return NavMap(groups: groups, newSale: nil, entries: self.entries.filter { $0.group == "marketing" }, settings: nil, actions: [])
+            // The Marketing group whole, with all its tabs and pages, `staff` or not (Ads has none). Outside it, as
+            // nav.ts forRole does, only the tabs marked `marketing` (Analytics' Website, Social and Ads), and the entry
+            // only if it has any. No Settings, no New sale and nothing to create.
+            let theirs = entries.compactMap { e -> NavEntry? in
+                if e.group == "marketing" { return e }
+                let tabs = (e.tabs ?? []).filter { $0.marketing == true }
+                guard let first = tabs.first else { return nil }
+                return NavEntry(id: e.id, group: e.group, href: first.href, label: e.label, heading: e.heading, icon: e.icon, staff: e.staff,
+                                keywords: e.keywords, match: e.match, tabs: tabs, pages: [], count: e.count)
+            }
+            return NavMap(groups: groups, newSale: nil, entries: theirs, settings: nil, actions: [])
         }
         func keep(_ p: NavPlace) -> Bool { p.staff == true }
         let mine = entries.compactMap { e -> NavEntry? in

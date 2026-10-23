@@ -58,7 +58,7 @@ struct StudioLibrary: View {
         .searchable(text: $q, prompt: "Name, subject or collection")
         .task(id: queryKey) { if !House.isDemo { do { try await Task.sleep(for: .milliseconds(250)); await load() } catch {} } }
         .refreshable { await load(fresh: true) }
-        .sheet(item: $opened) { choice in StudioAssetSheet(item: choice.item, placement: placement, model: model) { await load() } }
+        .sheet(item: $opened) { choice in StudioAssetSheet(item: choice.item, placement: placement, model: model) { await load() }.presentationSizing(.page) }
         .confirmationDialog("Unlink “\(unlinking?.s("name") ?? "this folder")”? Its photos leave the library.", isPresented: Binding(get: { unlinking != nil }, set: { if !$0 { unlinking = nil } }), titleVisibility: .visible) {
             Button("Unlink folder", role: .destructive) { if let folder = unlinking { Task { await model.run("Unlinking folder…") { _ = try await MarketingRequest.send("/api/ads/studio/drive?id=" + AdsQuery.escape(folder.s("id")), method: "DELETE") }; await load(fresh: true) } } }
         }

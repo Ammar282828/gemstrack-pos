@@ -106,6 +106,7 @@ private struct BackupPage: View {
         .failureAlert($failure, title: "Could not do that")
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {}
+                .presentationSizing(.form)
         }
         .fileImporter(isPresented: $pickingBackup, allowedContentTypes: [.json]) { result in
             switch result {

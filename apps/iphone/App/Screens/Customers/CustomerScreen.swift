@@ -72,6 +72,7 @@ struct CustomerScreen: View {
         }
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {}
+                .presentationSizing(.form)
         }
         .noteToast($note)
         .destructiveFeedback(trigger: deletion != nil)
@@ -117,12 +118,15 @@ struct CustomerScreen: View {
     }
 
     private func page(_ f: Facts) -> some View {
-        List { Group {
+        // An iPad's wide window: who they are and what they owe on the left, their invoices, orders and hisaab right.
+        WideDetailList {
             Section {
                 header(f.customer)
                     .listRowBackground(Color.clear)
             }
-            owedSection(f.owing)
+            .houseRows()
+            Group { owedSection(f.owing) }.houseRows()
+        } right: { Group {
             invoicesSection(f.invoices)
             ordersSection(f.orders)
             repairsSection(f.repairs)
@@ -141,7 +145,6 @@ struct CustomerScreen: View {
             }
         }.houseRows()
         }
-        .listStyle(.insetGrouped)
     }
 
     /// Says what stays with them before it asks for the code (the web's confirmation), then hides them.

@@ -84,15 +84,19 @@ struct OrderScreen: View {
         let owed = invoice.map { isOwing($0) ? $0.balanceDue : 0 } ?? 0
         let stage = stageOf(order, owedOnInvoice: owed)
         let now = Date()
-        return List {
+        return WideDetailList {
             heroSection(order, stage: stage, now: now, owed: owed, invoice: invoice)
             noteSection(order)
-            Group {
-                if OrdersLogic.isOnline(order) {
+            if OrdersLogic.isOnline(order) {
+                Group {
                     OrderOnlineSection(order: order, leopards: { leopardsOpen = true }) { kind, t in
                         onlineMoved(kind, t)
                     }
                 }
+                .houseRows()
+            }
+        } right: {
+            Group {
                 piecesSection(order)
                 if OrdersLogic.hasInvoice(order) {
                     invoiceSection(order, invoice: invoice, owed: owed)
@@ -103,11 +107,9 @@ struct OrderScreen: View {
             }
             .houseRows()
         }
-        .listStyle(.insetGrouped)
-        .modifier(HouseGround())
         .safeAreaBar(edge: .bottom, spacing: 0) { actionBar(order, stage: stage, owed: owed) }
         .toolbar { orderToolbar(order, stage: stage, owed: owed) }
-        .sheet(isPresented: $advancing) { advanceSheet(order) }
+        .sheet(isPresented: $advancing) { advanceSheet(order).presentationSizing(.form) }
         .sheet(isPresented: $booking) { OrderCourierSheet(order: order) }
         .sheet(isPresented: $tracking) { OrderTrackingSheet(order: order) }
         .sheet(isPresented: $leopardsOpen) { OrderLeopardsSheet(order: order) }

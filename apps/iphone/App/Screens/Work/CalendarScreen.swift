@@ -17,6 +17,9 @@ struct CalendarScreen: View {
     /// The day chosen, "yyyy-MM-dd"; today to start with.
     @State private var selected = CalendarScreen.todayKey()
     @State private var reckoned = Memo<Reckoned>()
+    @State private var width: CGFloat = 0
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// A day cell's height grows with the reader's text.
     @ScaledMetric(relativeTo: .caption) private var cellHeight: CGFloat = 60
@@ -91,22 +94,40 @@ struct CalendarScreen: View {
             )
         }
         let figures = shopCalendarMonth(books.days, year: year, month: month)
-        List {
-            Section {
-                tiles(figures)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
+        Group {
+            if wide {
+                // An iPad: the month's grid on the left, the day chosen and what was promised for it beside it.
+                HStack(alignment: .top, spacing: 0) {
+                    List { monthSections(figures, books) }.listStyle(.insetGrouped)
+                    List { daySection(books); dueSection() }.listStyle(.insetGrouped)
+                }
+            } else {
+                List {
+                    monthSections(figures, books)
+                    daySection(books)
+                    dueSection()
+                }
+                .listStyle(.insetGrouped)
             }
-            Section {
-                monthGrid(books)
-            } footer: {
-                legend
-            }
-            .houseRows()
-            daySection(books)
-            dueSection()
         }
-        .listStyle(.insetGrouped)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+    }
+
+    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+
+    @ViewBuilder
+    private func monthSections(_ figures: ShopCalendarMonth, _ books: Reckoned) -> some View {
+        Section {
+            tiles(figures)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+        }
+        Section {
+            monthGrid(books)
+        } footer: {
+            legend
+        }
+        .houseRows()
     }
 
     /// The month on screen: its money, its sales and orders, and the average day that took anything.

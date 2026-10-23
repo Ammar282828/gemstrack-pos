@@ -423,6 +423,111 @@ private struct InsightsLocked: View {
 
 // MARK: - Overview
 
+// MARK: - An iPad's wide window
+
+/// A titled block of an insights screen: a List section on a phone, a card in a column on an iPad's wide window
+/// (`bare`: the content is tiles that are cards already).
+struct InsightBlock<Content: View>: View {
+    let title: String
+    var trailing: String?
+    var count: Int?
+    var footer: String?
+    var bare = false
+    @ViewBuilder let content: () -> Content
+    @Environment(\.siteWide) private var wide
+
+    var body: some View {
+        if wide {
+            if bare {
+                stack
+            } else {
+                stack.ledgerCard()
+            }
+        } else if title.isEmpty {
+            Section {
+                content()
+            } footer: {
+                if let footer { Text(footer) }
+            }
+            .houseRows()
+        } else {
+            Section {
+                content()
+            } header: {
+                LedgerHeading(title: title, count: count, trailing: trailing)
+            } footer: {
+                if let footer { Text(footer) }
+            }
+            .houseRows()
+        }
+    }
+
+    private var stack: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if !title.isEmpty { LedgerHeading(title: title, count: count, trailing: trailing) }
+            content()
+            if let footer { Text(footer).font(.footnote).foregroundStyle(.secondary) }
+        }
+    }
+}
+
+/// Figure tiles: pairs on a phone, four across on an iPad's wide window.
+private struct InsightTiles: View {
+    let tiles: [FigureTile]
+    @Environment(\.siteWide) private var wide
+
+    var body: some View {
+        if wide {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: 4), spacing: 10) {
+                ForEach(tiles.indices, id: \.self) { (i: Int) in tiles[i] }
+            }
+        } else {
+            VStack(spacing: 10) {
+                ForEach(Array(stride(from: 0, to: tiles.count, by: 2)), id: \.self) { (i: Int) in
+                    FigureRow(spacing: 10) {
+                        tiles[i]
+                        if i + 1 < tiles.count { tiles[i + 1] }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// The phone's List, or on an iPad's wide window (regular width, 820 points and more) the same blocks as cards in a
+/// scrolling page. `wide` is told the page's width, for the number of columns.
+private struct InsightPage<Narrow: View, Wide: View>: View {
+    var refresh: () async -> Void
+    @ViewBuilder let narrow: () -> Narrow
+    @ViewBuilder let wide: (CGFloat) -> Wide
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var width: CGFloat = 0
+
+    private var isWide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+
+    var body: some View {
+        Group {
+            if isWide {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) { wide(width) }
+                        .environment(\.siteWide, true)
+                        .padding(.horizontal, 28)
+                        .padding(.top, 8)
+                        .padding(.bottom, 28)
+                        .frame(maxWidth: 1240)
+                        .frame(maxWidth: .infinity)
+                }
+                .background(Theme.ground)
+                .refreshable { await refresh() }
+            } else {
+                narrow()
+            }
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+    }
+}
+
 struct InsightsOverviewScreen: View {
     @Environment(Session.self) private var session
     @AppStorage("insights.range") private var rangeKey = "last_28d"
@@ -462,29 +567,49 @@ struct InsightsOverviewScreen: View {
     }
 
     private func content(_ d: InsightsOverview) -> some View {
-        List {
-            Group {
-                findingsSection
-                if let ig = d.instagram {
-                    instagramFigures(ig)
-                    splitSection(ig)
-                    reachChart(ig)
-                    followersSection(d)
+        InsightPage(refresh: { await load(fresh: true) }) {
+            List {
+                Group {
+                    findingsSection
+                    if let ig = d.instagram {
+                        instagramFigures(ig)
+                        splitSection(ig)
+                        reachChart(ig)
+                        followersSection(d)
+                    }
+                    paidSection(d)
+                    if let fb = d.facebook { facebookSection(fb) }
+                    placesSection(d)
                 }
-                paidSection(d)
-                if let fb = d.facebook { facebookSection(fb) }
-                placesSection(d)
+                .houseRows()
             }
-            .houseRows()
+            .listStyle(.insetGrouped)
+            .refreshable { await load(fresh: true) }
+        } wide: { _ in
+            findingsSection
+            if let ig = d.instagram {
+                instagramFigures(ig)
+                // The two charts side by side, then the split beside the paid platforms.
+                HStack(alignment: .top, spacing: 20) {
+                    reachChart(ig).frame(maxWidth: .infinity, alignment: .top)
+                    followersSection(d).frame(maxWidth: .infinity, alignment: .top)
+                }
+                HStack(alignment: .top, spacing: 20) {
+                    splitSection(ig).frame(maxWidth: .infinity, alignment: .top)
+                    paidSection(d).frame(maxWidth: .infinity, alignment: .top)
+                }
+            } else {
+                paidSection(d)
+            }
+            if let fb = d.facebook { facebookSection(fb) }
+            placesSection(d)
         }
-        .listStyle(.insetGrouped)
-        .refreshable { await load(fresh: true) }
     }
 
     @ViewBuilder
     private var findingsSection: some View {
         if !found.isEmpty {
-            Section {
+            InsightBlock(title: "What the numbers say") {
                 ForEach(found) { (f: InsightFinding) in
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: f.tone == "good" ? "checkmark.circle" : (f.tone == "warn" ? "exclamationmark.triangle.fill" : "info.circle"))
@@ -495,8 +620,6 @@ struct InsightsOverviewScreen: View {
                         }
                     }
                 }
-            } header: {
-                LedgerHeading(title: "What the numbers say")
             }
         }
     }
@@ -507,41 +630,28 @@ struct InsightsOverviewScreen: View {
         let follows = ig.follows.map { (f: InsightFollows) in "\(f.net >= 0 ? "+" : "−")\(AdsFormat.count(abs(f.net))) · \(AdsFormat.count(f.follows)) in, \(AdsFormat.count(f.unfollows)) out" }
         let newPeople = ig.nonFollowerReach.map { (s: Double) in "\(Int((s * 100).rounded()))% not following" }
         let linkShare = v("profile_views") > 0 ? String(format: "%.1f%% of visits", 100 * v("website_clicks") / v("profile_views")) : nil
-        return Section {
-            VStack(spacing: 10) {
-                FigureRow(spacing: 10) {
-                    FigureTile(label: "Followers", value: AdsFormat.count(ig.followers), detail: follows)
-                    FigureTile(label: "Accounts reached", value: AdsFormat.compact(v("reach")), detail: AdsFormat.change(v("reach"), p["reach"]) ?? newPeople)
-                }
-                FigureRow(spacing: 10) {
-                    FigureTile(label: "Views", value: AdsFormat.compact(v("views")), detail: AdsFormat.change(v("views"), p["views"]))
-                    FigureTile(label: "Accounts engaged", value: AdsFormat.compact(v("accounts_engaged")), detail: AdsFormat.change(v("accounts_engaged"), p["accounts_engaged"]))
-                }
-                FigureRow(spacing: 10) {
-                    FigureTile(label: "Interactions", value: AdsFormat.compact(v("total_interactions")), detail: "\(AdsFormat.compact(v("likes"))) likes · \(AdsFormat.compact(v("comments"))) comments")
-                    FigureTile(label: "Shares · saves", value: "\(AdsFormat.compact(v("shares"))) · \(AdsFormat.compact(v("saves")))", detail: "\(AdsFormat.compact(v("replies"))) story replies")
-                }
-                FigureRow(spacing: 10) {
-                    FigureTile(label: "Profile visits", value: AdsFormat.compact(v("profile_views")), detail: AdsFormat.change(v("profile_views"), p["profile_views"]))
-                    FigureTile(label: "Link taps", value: AdsFormat.compact(v("website_clicks")), detail: linkShare)
-                }
-            }
-            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-            .listRowBackground(Color.clear)
-        } header: {
-            LedgerHeading(title: "Instagram", trailing: "@\(ig.username)")
+        let tiles: [FigureTile] = [
+            FigureTile(label: "Followers", value: AdsFormat.count(ig.followers), detail: follows),
+            FigureTile(label: "Accounts reached", value: AdsFormat.compact(v("reach")), detail: AdsFormat.change(v("reach"), p["reach"]) ?? newPeople),
+            FigureTile(label: "Views", value: AdsFormat.compact(v("views")), detail: AdsFormat.change(v("views"), p["views"])),
+            FigureTile(label: "Accounts engaged", value: AdsFormat.compact(v("accounts_engaged")), detail: AdsFormat.change(v("accounts_engaged"), p["accounts_engaged"])),
+            FigureTile(label: "Interactions", value: AdsFormat.compact(v("total_interactions")), detail: "\(AdsFormat.compact(v("likes"))) likes · \(AdsFormat.compact(v("comments"))) comments"),
+            FigureTile(label: "Shares · saves", value: "\(AdsFormat.compact(v("shares"))) · \(AdsFormat.compact(v("saves")))", detail: "\(AdsFormat.compact(v("replies"))) story replies"),
+            FigureTile(label: "Profile visits", value: AdsFormat.compact(v("profile_views")), detail: AdsFormat.change(v("profile_views"), p["profile_views"])),
+            FigureTile(label: "Link taps", value: AdsFormat.compact(v("website_clicks")), detail: linkShare)
+        ]
+        return InsightBlock(title: "Instagram", trailing: "@\(ig.username)", bare: true) {
+            InsightTiles(tiles: tiles)
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
         }
     }
 
     private func splitSection(_ ig: InstagramInsight) -> some View {
-        Section {
+        InsightBlock(title: "Ads or own posts?", footer: "Counted per surface (posts, carousels, reels, stories, ads), so the parts can add up to more than the account's reach.") {
             splitRow("Accounts reached", ig.reach)
             splitRow("Views", ig.views)
             splitRow("Interactions", ig.interactions)
-        } header: {
-            LedgerHeading(title: "Ads or own posts?")
-        } footer: {
-            Text("Counted per surface (posts, carousels, reels, stories, ads), so the parts can add up to more than the account's reach.")
         }
     }
 
@@ -582,15 +692,13 @@ struct InsightsOverviewScreen: View {
             return Point(id: d.date, date: date, value: d.reach)
         }
         if points.count > 1 {
-            Section {
+            InsightBlock(title: "Reached, day by day") {
                 Chart(points) { (p: Point) in
                     BarMark(x: .value("Day", p.date, unit: .day), y: .value("Reached", p.value)).foregroundStyle(Theme.accent)
                 }
                 .frame(height: 180)
                 .accessibilityLabel("Accounts reached each day, ads included")
                 .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.value) }, money: false))
-            } header: {
-                LedgerHeading(title: "Reached, day by day")
             }
         }
     }
@@ -600,7 +708,7 @@ struct InsightsOverviewScreen: View {
             guard let date = AdsDay.plot(k.date) else { return nil }
             return Point(id: k.date, date: date, value: k.followers)
         }
-        return Section {
+        return InsightBlock(title: "Followers over time") {
             if points.count > 1 {
                 Chart(points) { (p: Point) in
                     LineMark(x: .value("Day", p.date, unit: .day), y: .value("Followers", p.value)).foregroundStyle(Theme.accent)
@@ -613,15 +721,13 @@ struct InsightsOverviewScreen: View {
                 Text("Meta keeps no follower history, so the ERP writes the count down every day. The line fills in from there.")
                     .font(.subheadline).foregroundStyle(.secondary)
             }
-        } header: {
-            LedgerHeading(title: "Followers over time")
         }
     }
 
     private func paidSection(_ d: InsightsOverview) -> some View {
         let shown = d.paid.filter { (p: InsightPlatform) in p.metrics.spend > 0 || p.metrics.impressions > 0 }
         let before = Dictionary(uniqueKeysWithValues: d.paidBefore.map { (p: InsightPlatform) in (p.platform, p.metrics.spend) })
-        return Section {
+        return InsightBlock(title: "Ads by platform") {
             if shown.isEmpty {
                 Text("No ad ran in \(InsightRange.label(rangeKey).lowercased()).").foregroundStyle(.secondary)
             } else {
@@ -643,8 +749,6 @@ struct InsightsOverviewScreen: View {
                 }
             }
             MarketingLink(title: "Ads overview", symbol: "megaphone", path: "/ads")
-        } header: {
-            LedgerHeading(title: "Ads by platform")
         }
     }
 
@@ -655,16 +759,14 @@ struct InsightsOverviewScreen: View {
             guard let date = AdsDay.plot(d.date) else { return nil }
             return Point(id: d.date, date: date, value: d.views)
         }
-        return Section {
+        return InsightBlock(title: "Facebook", trailing: fb.name) {
             VStack(spacing: 10) {
-                FigureRow(spacing: 10) {
-                    FigureTile(label: "Followers", value: AdsFormat.count(fb.followers), detail: "+\(AdsFormat.count(v("page_daily_follows_unique"))) · −\(AdsFormat.count(v("page_daily_unfollows_unique")))")
-                    FigureTile(label: "Views", value: AdsFormat.compact(v("page_media_view")), detail: AdsFormat.change(v("page_media_view"), p["page_media_view"]) ?? "\(AdsFormat.compact(v("page_total_media_view_unique"))) people")
-                }
-                FigureRow(spacing: 10) {
-                    FigureTile(label: "Engagement", value: AdsFormat.compact(v("page_post_engagements")), detail: AdsFormat.change(v("page_post_engagements"), p["page_post_engagements"]))
+                InsightTiles(tiles: [
+                    FigureTile(label: "Followers", value: AdsFormat.count(fb.followers), detail: "+\(AdsFormat.count(v("page_daily_follows_unique"))) · −\(AdsFormat.count(v("page_daily_unfollows_unique")))"),
+                    FigureTile(label: "Views", value: AdsFormat.compact(v("page_media_view")), detail: AdsFormat.change(v("page_media_view"), p["page_media_view"]) ?? "\(AdsFormat.compact(v("page_total_media_view_unique"))) people"),
+                    FigureTile(label: "Engagement", value: AdsFormat.compact(v("page_post_engagements")), detail: AdsFormat.change(v("page_post_engagements"), p["page_post_engagements"])),
                     FigureTile(label: "Page visits", value: AdsFormat.compact(v("page_views_total")), detail: AdsFormat.change(v("page_views_total"), p["page_views_total"]))
-                }
+                ])
                 if points.count > 1 && points.contains(where: { (x: Point) in x.value > 0 }) {
                     Chart(points) { (x: Point) in
                         BarMark(x: .value("Day", x.date, unit: .day), y: .value("Views", x.value)).foregroundStyle(Theme.accent)
@@ -676,19 +778,14 @@ struct InsightsOverviewScreen: View {
             }
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             .listRowBackground(Color.clear)
-        } header: {
-            LedgerHeading(title: "Facebook", trailing: fb.name)
         }
     }
 
     private func placesSection(_ d: InsightsOverview) -> some View {
-        Section {
+        let foot = d.at.isEmpty ? nil : "\(ShopDate.say(d.since)) to \(ShopDate.say(d.until)), compared with \(ShopDate.say(d.beforeSince)) to \(ShopDate.say(d.beforeUntil)). From Meta, \(MarketingTime.clock(d.at)). Instagram's numbers include its ads; the split takes them apart."
+        return InsightBlock(title: "", footer: foot) {
             MarketingLink(title: "Posts", subtitle: "Every post, reel and story, with its numbers", symbol: "square.grid.2x2", path: "/insights/posts")
             MarketingLink(title: "Audience", subtitle: "Who follows, who was reached, when they're online", symbol: "person.2", path: "/insights/audience")
-        } footer: {
-            if !d.at.isEmpty {
-                Text("\(ShopDate.say(d.since)) to \(ShopDate.say(d.until)), compared with \(ShopDate.say(d.beforeSince)) to \(ShopDate.say(d.beforeUntil)). From Meta, \(MarketingTime.clock(d.at)). Instagram's numbers include its ads; the split takes them apart.")
-            }
         }
     }
 }
@@ -759,7 +856,41 @@ struct InsightsPostsScreen: View {
         let all = d.posts + d.stories
         let rows = all.filter { (p: InsightPost) in filter == "all" ? true : (filter == "older" ? p.older : p.kind == filter) }
         let shown = sort == "at" ? rows.sorted { (a: InsightPost, b: InsightPost) in a.at > b.at } : rows.sorted { (a: InsightPost, b: InsightPost) in value(a) > value(b) }
-        return List {
+        return InsightPage(refresh: { await load(fresh: true) }) {
+            postsList(d, shown)
+        } wide: { _ in
+            postsWide(d, shown)
+        }
+    }
+
+    private static let postsNote = "A post's numbers are its lifetime so far. A story's exist only while it's up, so the ERP reads every live story each hour and keeps the last count. Engagement rate is interactions over reach."
+
+    /// An iPad's page: the filters, then the posts as cards, two across.
+    @ViewBuilder
+    private func postsWide(_ d: InsightsPosts, _ shown: [InsightPost]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Self.filters, id: \.key) { (f: (key: String, label: String)) in
+                    FilterChip(title: f.label, chosen: filter == f.key) { filter = f.key }
+                }
+            }
+        }
+        if let last = d.lastPostAt {
+            Text("Last Instagram post \(ShopDate.say(last))").font(.footnote).foregroundStyle(.secondary)
+        }
+        LedgerHeading(title: "Posts", count: shown.count)
+        if shown.isEmpty {
+            Text("Nothing here for \(InsightRange.label(rangeKey).lowercased()).").foregroundStyle(.secondary)
+        } else {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 440), spacing: 14, alignment: .top)], spacing: 14) {
+                ForEach(shown) { (p: InsightPost) in row(p, live: d.live.contains(p.id)).ledgerCard() }
+            }
+        }
+        Text(Self.postsNote).font(.footnote).foregroundStyle(.secondary)
+    }
+
+    private func postsList(_ d: InsightsPosts, _ shown: [InsightPost]) -> some View {
+        List {
             Group {
                 Section {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -783,7 +914,7 @@ struct InsightsPostsScreen: View {
                 } header: {
                     LedgerHeading(title: "Posts", count: shown.count)
                 } footer: {
-                    Text("A post's numbers are its lifetime so far. A story's exist only while it's up, so the ERP reads every live story each hour and keeps the last count. Engagement rate is interactions over reach.")
+                    Text(Self.postsNote)
                 }
             }
             .houseRows()
@@ -871,7 +1002,47 @@ struct InsightsAudienceScreen: View {
 
     private func content(_ a: InsightsAudience) -> some View {
         let dims = group == "reached" ? a.reached : (group == "engaged" ? a.engaged : a.followers)
-        return List {
+        return InsightPage(refresh: { await load(fresh: true) }) {
+            audienceList(a, dims)
+        } wide: { _ in
+            audienceWide(a, dims)
+        }
+    }
+
+    private func audienceNote() -> String {
+        group == "followers" ? "Everyone following now. Meta gives these only as they are now, with no history." : "This month. Meta gives these only as they are now, with no history."
+    }
+
+    /// An iPad's page: the choice, the four breakdowns two across, then when followers are online.
+    @ViewBuilder
+    private func audienceWide(_ a: InsightsAudience, _ dims: InsightDims?) -> some View {
+        Picker("Who", selection: $group) {
+            Text("Followers").tag("followers")
+            Text("Reached").tag("reached")
+            Text("Engaged").tag("engaged")
+        }
+        .pickerStyle(.segmented)
+        .frame(maxWidth: 480)
+        Text(audienceNote()).font(.footnote).foregroundStyle(.secondary)
+        if let dims {
+            HStack(alignment: .top, spacing: 20) {
+                VStack(alignment: .leading, spacing: 20) {
+                    shares("Age", dims.age, label: { (k: String) in k })
+                    shares("Cities", dims.city, label: { (k: String) in k })
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+                VStack(alignment: .leading, spacing: 20) {
+                    shares("Gender", dims.gender, label: { (k: String) in InsightWords.gender[k] ?? k })
+                    shares("Countries", dims.country, label: { (k: String) in InsightWords.country[k] ?? k })
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
+        }
+        onlineSection(a.online)
+    }
+
+    private func audienceList(_ a: InsightsAudience, _ dims: InsightDims?) -> some View {
+        List {
             Group {
                 Section {
                     Picker("Who", selection: $group) {
@@ -903,7 +1074,7 @@ struct InsightsAudienceScreen: View {
         let total = max(1, parts.reduce(0) { (s: Double, p: InsightPart) in s + p.value })
         let top = Array(parts.sorted { (a: InsightPart, b: InsightPart) in a.value > b.value }.prefix(8))
         let biggest = max(top.first?.value ?? 1, 1)
-        Section {
+        InsightBlock(title: title) {
             if top.isEmpty {
                 Text("Meta has nothing for this yet.").foregroundStyle(.secondary)
             } else {
@@ -918,8 +1089,6 @@ struct InsightsAudienceScreen: View {
                     }
                 }
             }
-        } header: {
-            LedgerHeading(title: title)
         }
     }
 
@@ -929,7 +1098,7 @@ struct InsightsAudienceScreen: View {
     }
 
     private func onlineSection(_ hours: [Double]?) -> some View {
-        Section {
+        InsightBlock(title: "When followers are online", trailing: "Karachi time") {
             if let hours, hours.count == 24, hours.contains(where: { (v: Double) in v > 0 }) {
                 let points: [HourPoint] = hours.indices.map { (i: Int) in HourPoint(id: i, online: hours[i]) }
                 Chart(points) { (p: HourPoint) in
@@ -941,8 +1110,6 @@ struct InsightsAudienceScreen: View {
             } else {
                 Text("Meta isn't sharing this for the account yet (it holds it back for smaller accounts).").font(.subheadline).foregroundStyle(.secondary)
             }
-        } header: {
-            LedgerHeading(title: "When followers are online", trailing: "Karachi time")
         }
     }
 }

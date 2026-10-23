@@ -240,6 +240,7 @@ struct NewOrder: View {
             .transition(.opacity)
           }
           .motion(step)
+          .formColumn()
         } review: {
             TransactionReview(customer: draft.customerName, contact: draft.customerPhone,
                 pieces: draft.pieces.enumerated().map { index, p in
@@ -285,6 +286,11 @@ struct NewOrder: View {
             }
         }
         .keyboardDone()
+        // ⌘S saves from any step; a step still missing something is told what, as the Save button would.
+        .background {
+            Button("Save") { Task { await save() } }
+                .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
+        }
         .navigationDestination(item: $editing) { ref in editor(ref.id) }
     }
 

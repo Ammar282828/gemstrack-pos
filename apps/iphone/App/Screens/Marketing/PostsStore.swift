@@ -164,6 +164,8 @@ final class PostsStore {
             return "Channel"
         case "instagram-story":
             return "Instagram story"
+        case "instagram-post":
+            return "Instagram post"
         default:
             if log.hasPrefix("whatsapp-group:") {
                 let key = String(log.dropFirst("whatsapp-group:".count))
@@ -255,6 +257,7 @@ final class PostsStore {
         var places: [String] = []
         if e.toWebsite { places.append("Website") }
         if e.toInstagram { places.append("Instagram story") }
+        if e.unitKeys.contains("ig-post") { places.append("Instagram post") }
         for key in e.whatsapp {
             if key == "channel" { places.append("Channel") }
             else { places.append(audience.groups.first { (g: PostAudience.Place) in g.key == key }?.label ?? key) }
