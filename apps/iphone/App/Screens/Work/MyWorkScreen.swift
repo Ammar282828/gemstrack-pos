@@ -39,6 +39,12 @@ struct MyWorkScreen: View {
     @State private var confirmingSignOut = false
     /// Bumped when a tick has gone through, so the success tap fires on the event.
     @State private var tickCount = 0
+    @State private var width: CGFloat = 0
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// An iPad's wide window: the orders stand as cards in a grid rather than one long column.
+    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     private var previewId: String? {
         guard let id = WorkPaths.query("preview", in: path), !id.isEmpty else { return nil }
@@ -192,6 +198,9 @@ struct MyWorkScreen: View {
             }
         }
         .listStyle(.insetGrouped)
+        .frame(maxWidth: wide ? 1180 : .infinity)
+        .frame(maxWidth: .infinity)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .refreshable { await load() }
         .motion(tab)
         .selectionFeedback(trigger: tab)
@@ -232,14 +241,33 @@ struct MyWorkScreen: View {
     private func group(_ title: String, jobs: [KarigarPortalJob], symbol: String?, tone: Tone, hint: String?, showsCount: Bool = true, readOnly: Bool) -> some View {
         if !jobs.isEmpty {
             Section {
-                ForEach(KarigarPortalRules.groups(jobs)) { (g: KarigarPortalGroup) in
-                    orderHeader(g)
-                    ForEach(g.jobs) { (j: KarigarPortalJob) in pieceRow(j, readOnly: readOnly) }
+                if wide {
+                    orderGrid(jobs, readOnly: readOnly)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                        .listRowBackground(Color.clear)
+                } else {
+                    ForEach(KarigarPortalRules.groups(jobs)) { (g: KarigarPortalGroup) in
+                        orderHeader(g)
+                        ForEach(g.jobs) { (j: KarigarPortalJob) in pieceRow(j, readOnly: readOnly) }
+                    }
                 }
             } header: {
                 LedgerHeading(title: title, count: showsCount ? jobs.count : nil, trailing: hint, tone: tone)
             }
             .houseRows()
+        }
+    }
+
+    /// An iPad: each order a card of its pieces, as many across as fit.
+    private func orderGrid(_ jobs: [KarigarPortalJob], readOnly: Bool) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 12, alignment: .top)], alignment: .leading, spacing: 12) {
+            ForEach(KarigarPortalRules.groups(jobs)) { (g: KarigarPortalGroup) in
+                VStack(alignment: .leading, spacing: 10) {
+                    orderHeader(g)
+                    ForEach(g.jobs) { (j: KarigarPortalJob) in pieceRow(j, readOnly: readOnly) }
+                }
+                .ledgerCard()
+            }
         }
     }
 

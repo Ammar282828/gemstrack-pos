@@ -11,6 +11,10 @@ struct ArtworkEditor: View {
     /// its website photo's layouts, in its own shape as well as square).
     var layoutGroup: String? = nil
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// The sheet's own width: on an iPad's page sheet the artwork is pinned on the left and the tools sit beside it.
+    @State private var sheetWidth: CGFloat = 0
     @State private var engine = NativeArtwork()
     @State private var response = MarketingValue.null
     @State private var selected: Set<String> = []
@@ -41,6 +45,7 @@ struct ArtworkEditor: View {
     @State private var picks: [String] = []
     @State private var qrOpen = false
     @State private var qrText = ""
+    private var sideBySide: Bool { sizeClass.isPadLayout && sheetWidth >= 820 && !typeSize.isAccessibilitySize }
     private var pageWidth: Double { doc["frame"].n("w", 1080) }
     private var allPhotos: [String: Data] { clipboard.photos.merging(photos) { _, current in current } }
     private var placement: Binding<MarketingValue> {
@@ -123,10 +128,21 @@ struct ArtworkEditor: View {
                 .scrollDismissesKeyboard(.interactively)
                 // The artwork stays on screen while a property is changed: it is pinned above the Form, never a row that scrolls away.
                 .safeAreaInset(edge: .top, spacing: 0) {
-                    preview.frame(maxWidth: .infinity)
-                        .containerRelativeFrame(.vertical) { length, _ in length * 0.36 }
-                        .padding(.vertical, 8)
-                        .background(Theme.ground)
+                    if !sideBySide {
+                        preview.frame(maxWidth: .infinity)
+                            .containerRelativeFrame(.vertical) { length, _ in length * 0.36 }
+                            .padding(.vertical, 8)
+                            .background(Theme.ground)
+                    }
+                }
+                // An iPad: the artwork on the left at its own size, the tools in the column beside it.
+                .safeAreaInset(edge: .leading, spacing: 0) {
+                    if sideBySide {
+                        preview.padding(24)
+                            .frame(width: max(360, sheetWidth * 0.56))
+                            .frame(maxHeight: .infinity)
+                            .background(Theme.ground)
+                    }
                 }
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { if let original, original != doc { confirmingDiscard = true } else { dismiss() } } }
@@ -159,6 +175,8 @@ struct ArtworkEditor: View {
                     Button("Cancel", role: .cancel) {}
                 } message: { Text("What the code opens: a link, a number or any words. Dark on light reads on every phone.") }
         }
+        .presentationSizing(.page)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { sheetWidth = $0 }
     }
     private var preview: some View {
         GeometryReader { g in

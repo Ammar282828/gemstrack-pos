@@ -27,7 +27,7 @@ struct SettingsRoot: View {
             rates = true
         }
         .sheet(isPresented: $rates) {
-            if session.isOwner { RateSheet() } else { RateReadout() }
+            if session.isOwner { RateSheet().presentationSizing(.form) } else { RateReadout().presentationSizing(.form) }
         }
     }
 
@@ -41,17 +41,10 @@ struct SettingsRoot: View {
                 Text("Switch between the shops on this phone, or add another by its ERP's address.")
             }
 
-            Section {
-                SettingsLinkRow(title: "Shop", symbol: "storefront.fill", color: .blue, path: "/app/settings/shop")
-                SettingsLinkRow(title: "Alerts", symbol: "bell.badge.fill", color: .red, path: "/settings/alerts")
-                SettingsLinkRow(title: "Bank accounts", symbol: "building.columns.fill", color: .green, path: "/settings/payment-methods")
-            }
-
-            Section {
-                SettingsLinkRow(title: "Integrations", symbol: "puzzlepiece.extension.fill", color: .purple, path: "/settings/integrations")
-                SettingsLinkRow(title: "Data", symbol: "externaldrive.fill", color: .gray, path: "/settings/data")
-                SettingsLinkRow(title: "Activity", symbol: "clock.arrow.circlepath", color: .indigo, path: "/activity-log")
-                SettingsLinkRow(title: "Voice", symbol: "mic.fill", color: .pink, path: "/settings/voice")
+            ForEach(settingsSections, id: \.name) { section in
+                Section {
+                    ForEach(section.tabs) { t in row(t) }
+                } header: { LedgerHeading(title: section.name) }
             }
 
             Section {
@@ -73,6 +66,26 @@ struct SettingsRoot: View {
             Button("Sign out", role: .destructive) { session.signOut() }
         } message: {
             Text("The books are cleared from this phone until you sign in again.")
+        }
+    }
+
+    /// The web's Settings sections (nav.ts SETTINGS `section`: Shop, Connections, Records) with their tabs in its order.
+    private var settingsSections: [(name: String, tabs: [NavPlace])] {
+        guard let e = NavMap.current.visible(to: session.role).settings else { return [] }
+        return e.sections.map { (name: $0, tabs: e.tabs(in: $0)) }
+    }
+
+    /// A tab as a row: the app's own look for the ones it has drawn, the map's icon for any the web adds.
+    @ViewBuilder private func row(_ t: NavPlace) -> some View {
+        switch t.href {
+        case "/settings": SettingsLinkRow(title: "Shop", symbol: "storefront.fill", color: .blue, path: "/app/settings/shop")
+        case "/settings/alerts": SettingsLinkRow(title: "Alerts", symbol: "bell.badge.fill", color: .red, path: t.href)
+        case "/settings/payment-methods": SettingsLinkRow(title: "Bank accounts", symbol: "building.columns.fill", color: .green, path: t.href)
+        case "/settings/integrations": SettingsLinkRow(title: "Integrations", symbol: "puzzlepiece.extension.fill", color: .purple, path: t.href)
+        case "/settings/data": SettingsLinkRow(title: "Data", symbol: "externaldrive.fill", color: .gray, path: t.href)
+        case "/activity-log": SettingsLinkRow(title: "Activity", symbol: "clock.arrow.circlepath", color: .indigo, path: t.href)
+        case "/settings/voice": SettingsLinkRow(title: "Voice", symbol: "mic.fill", color: .pink, path: t.href)
+        default: SettingsLinkRow(title: t.label, symbol: NavIcon.symbol(for: t.icon), color: .teal, path: t.href)
         }
     }
 

@@ -52,6 +52,7 @@ struct RepairsSheet: View {
         .sheet(isPresented: deletionShown, onDismiss: afterDeletion) {
             if let d = deletion {
                 OwnerDeleteCodeSheet(deletion: d) { deleted = true }
+                    .presentationSizing(.form)
             }
         }
         .onAppear { book.repairs.need() }
@@ -94,16 +95,12 @@ struct RepairsSheet: View {
     }
 
     private func detail(_ r: Repair) -> some View {
-        List { Group {
-            headerSection(r)
-            piecesSection(r)
-            moneySection(r)
-            detailsSection(r)
-            }
-            .houseRows()
+        // The ticket's header left, its pieces, money and details right, once the sheet is wide enough.
+        WideDetailList(leftWidth: 340, wideFrom: 720) {
+            Group { headerSection(r) }.houseRows()
+        } right: {
+            Group { piecesSection(r); moneySection(r); detailsSection(r) }.houseRows()
         }
-        .listStyle(.insetGrouped)
-        .modifier(HouseGround())
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if session.isOwner && RepairsKit.hasActions(r) { actionBar(r) }
         }

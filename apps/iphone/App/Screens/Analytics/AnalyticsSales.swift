@@ -17,19 +17,13 @@ struct AnaSalesPage: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        List {
-            Section {
-                bar
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
+        AnaSplit(bar: bar, head: { (_: Bool) in EmptyView() }, left: { (_: Bool) in
             overTimeSection
             monthlySection
+        }, right: { (_: Bool) in
             yearlySection
             dailySection
-        }
-        .listStyle(.insetGrouped)
+        })
         .sheet(item: $day) { (d: AnaDay) in
             AnaDaySheet(day: d, invoices: figures.invoicesByDay[d.date] ?? [])
         }
@@ -244,5 +238,6 @@ struct AnaDaySheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
     }
 }

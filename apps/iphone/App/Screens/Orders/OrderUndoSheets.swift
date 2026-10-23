@@ -125,6 +125,7 @@ private struct OrderUndoPresenter: ViewModifier {
         content
             .sheet(item: $ask, onDismiss: follow) { (a: OrderUndoAsk) in
                 OwnerDeleteCodeSheet(deletion: a.deletion) { then = a.then }
+                    .presentationSizing(.form)
             }
             .noteToast($note)
     }

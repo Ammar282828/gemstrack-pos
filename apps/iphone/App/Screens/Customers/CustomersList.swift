@@ -78,9 +78,11 @@ struct CustomersList: View {
         }
         .sheet(isPresented: $merging) {
             CustomerMergeSheet()
+                .presentationSizing(.page)
         }
         .sheet(isPresented: $cleaning) {
             CustomerSpamSheet()
+                .presentationSizing(.page)
         }
         .task {
             book.customers.need()

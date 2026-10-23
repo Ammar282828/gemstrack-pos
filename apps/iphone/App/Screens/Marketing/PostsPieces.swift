@@ -8,6 +8,7 @@ struct PostPiecesScreen: View {
     var tray: PostTrayModel?
     private var store: PostsStore { PostsStore.shared }
     @State private var refused: String?
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     /// The "new arrivals" chip; "" is everything.
     private static let newKey = "__new"
@@ -87,7 +88,7 @@ struct PostPiecesScreen: View {
                     ContentUnavailableView("Nothing matches", systemImage: "square.grid.2x2",
                                            description: Text("Clear the search, pick another collection, or show what went out lately."))
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 12)], spacing: 14) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: sizeClass.isPadLayout ? 180 : 140), spacing: 12)], spacing: 14) {
                         ForEach(Array(items.prefix(shown))) { (p: PostPiece) in
                             if let tray {
                                 Button { refused = tray.pick(p) } label: {
@@ -96,6 +97,7 @@ struct PostPiecesScreen: View {
                                         .overlay(alignment: .topTrailing) { pickMark(tray, p) }
                                 }
                                 .buttonStyle(.plain)
+                                .hoverEffect()
                                 .accessibilityAddTraits(tray.has(p.id) ? .isSelected : [])
                             } else {
                                 NavigationLink(value: Route(path: MarketingKit.piecePath(p.id))) {
@@ -210,6 +212,7 @@ struct PostPieceScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .readableColumn(820)
     }
 
     @ViewBuilder

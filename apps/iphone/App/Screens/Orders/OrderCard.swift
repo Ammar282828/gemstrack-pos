@@ -80,6 +80,8 @@ struct OrderCardRows: View {
                 .strokeBorder(Theme.accent.opacity(mine ? 0.22 : 0.08), lineWidth: 1)
                 .allowsHitTesting(false)
         }
+        .contentShape(.hoverEffect, .rect(cornerRadius: Radius.card, style: .continuous))
+        .hoverEffect()
         .contextMenu { menu }
       } else {
         NavigationLink(value: Route(path: "/orders/\(order.id)")) {

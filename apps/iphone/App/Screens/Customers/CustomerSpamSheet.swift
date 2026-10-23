@@ -76,6 +76,7 @@ struct CustomerSpamSheet: View {
             OwnerDeleteCodeSheet(deletion: d) {
                 Task { await removeTheRest() }
             }
+            .presentationSizing(.form)
         }
         .noteToast($note)
         .destructiveFeedback(trigger: run?.removed.count ?? 0)
