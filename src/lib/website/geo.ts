@@ -101,13 +101,8 @@ export function lookupIn(t: Table, ip: string): Place {
   else { const a6 = parseV6Top(ip); if (a6 !== null) { const i = floor(t.v6, a6); if (i >= 0) label = t.labels[t.l6[i]]; } }
   if (!label) return NOWHERE;
   const [c, region = '', city = ''] = label.split('|');
-  return { cc: c, region, city, via: 'table' };
-}
-
-/** An address's country alone ("" when unknown): for the events route's check of which header holds the visitor. */
-export function countryOf(ip: string): string {
-  const t = loadTable();
-  return t && ip ? lookupIn(t, ip.trim()).cc || '?' : '';
+  // DB-IP names some neighbourhoods "Karachi (Block 2)": they are the city.
+  return { cc: c, region, city: city.replace(/\s*\([^)]*\)\s*$/, ''), via: 'table' };
 }
 
 /** The visitor's place; `ip` is used here and nowhere else. */

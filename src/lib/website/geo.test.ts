@@ -15,6 +15,10 @@ describe('the address table', () => {
     expect(lookupIn(table, '::ffff:5.62.35.10').city).toBe('Karachi');
     expect(lookupIn(table, '2001:df0:2d40::1')).toMatchObject({ cc: 'PK', city: 'Lahore' });
   });
+  it('folds a neighbourhood into its city', () => {
+    const t = { labels: ['', 'PK|Sindh|Karachi (Block 2)'], v4: new Uint32Array([0, 16843009]), l4: new Uint16Array([0, 1]), v6: new BigUint64Array(0), l6: new Uint16Array(0) };
+    expect(lookupIn(t, '1.1.1.1').city).toBe('Karachi');
+  });
   it('knows nothing of private or broken addresses', () => {
     expect(lookupIn(table, '10.0.0.1').cc).toBe('');
     expect(lookupIn(table, 'unknown').cc).toBe('');
