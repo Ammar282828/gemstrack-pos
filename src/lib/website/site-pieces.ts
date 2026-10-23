@@ -74,6 +74,12 @@ export interface SitePiece {
    */
   photoSource: string | null;
   sourceMarked: boolean;
+  /**
+   * The piece's other photographs, in the site's order, after its lead (2026-10-23, the owner: "automatically knowing
+   * from back of the pieces since that's how they're added on website, or if a piece has multiples"): the catalogue's
+   * extra images; on taheri.shop the photographs marked at the counter as another angle of it (`angleOf`).
+   */
+  photos?: { key: string; image: string; thumb: string }[];
   /** The site's own words, and the same with the counter's changes laid over. */
   own: PieceWords;
   words: PieceWords;
@@ -91,7 +97,7 @@ type Listed = Omit<SitePiece, 'words' | 'change' | 'hidden'> & { labelGrams?: nu
 
 export const siteOrigin = () => (process.env.WEBSITE_ORIGIN || process.env.NEXT_PUBLIC_STORE_WEBSITE_URL || '').trim().replace(/\/+$/, '');
 
-type Published = { site?: string; pieces?: { id: string; name: string; path: string; image: string; thumb?: string; collection?: string; stones?: string[]; plating?: string[]; about?: string; story?: string[]; facts?: string[]; source?: string; marked?: boolean; added?: string | null; newArrival?: boolean }[] };
+type Published = { site?: string; pieces?: { id: string; name: string; path: string; image: string; thumb?: string; images?: { image: string; thumb?: string }[]; collection?: string; stones?: string[]; plating?: string[]; about?: string; story?: string[]; facts?: string[]; source?: string; marked?: boolean; added?: string | null; newArrival?: boolean }[] };
 
 /** "Rhodium", "Gold" → "rhodium or gold plated". */
 const plated = (p: string[] = []) => (p.length ? `${p.map(x => x.toLowerCase()).join(' or ')} plated` : '');
@@ -110,6 +116,8 @@ async function fromCatalogPieces(site: string): Promise<Listed[] | null> {
     added: p.added ? Date.parse(p.added) || null : null,
     newArrival: !!p.newArrival,
     imagePath: imagePathOf(abs(p.image), site),
+    // Every photograph after the first (a catalogue built before 2026-10-23 lists only the first).
+    photos: (p.images ?? []).slice(1).filter(x => x?.image).map((x, i) => ({ key: `${p.id}#${i + 2}`, image: abs(x.image), thumb: abs(x.thumb || x.image) })),
     source: 'pieces' as const,
     photoSource: p.source ? abs(p.source) : null,
     sourceMarked: !!p.marked,
@@ -237,6 +245,27 @@ function withChange(p: Listed, o: SiteOverride | undefined): SitePiece {
   };
 }
 
+/**
+ * taheri.shop's extra angles (a photograph's `angleOf` names its lead's key) laid on their lead as `photos`, in file
+ * order as the site's piece page shows them (App.jsx PIECE_ANGLES). Hidden angles stay off.
+ */
+export function withAngles(pieces: SitePiece[], changes: Record<string, SiteOverride | undefined>): SitePiece[] {
+  const byId = new Map(pieces.map(p => [p.id, p]));
+  const angles = new Map<string, SitePiece[]>();
+  for (const [key, o] of Object.entries(changes)) {
+    const lead = o?.angleOf, a = byId.get(key);
+    if (!lead || !a || a.hidden || lead === key) continue;
+    angles.set(lead, [...(angles.get(lead) ?? []), a]);
+  }
+  if (!angles.size) return pieces;
+  return pieces.map(p => {
+    const more = angles.get(p.id);
+    if (!more) return p;
+    more.sort((x, y) => x.id.localeCompare(y.id, undefined, { numeric: true }));
+    return { ...p, photos: [...(p.photos ?? []), ...more.map(a => ({ key: a.id, image: a.image, thumb: a.thumb }))] };
+  });
+}
+
 /** After a weight is typed: the next read lists the site again. */
 export function forgetSitePieces() { cache = null; }
 
@@ -258,8 +287,9 @@ export async function getSitePieces(opts: { all?: boolean; fresh?: boolean } = {
   const site = siteOrigin();
   if (!site) return { site: '', pieces: [] };
   const [list, changes, counter] = await Promise.all([listed(site), getSiteOverrides(site, opts.fresh), getPieceWeights().catch((): Record<string, { weightGrams: number }> => ({}))]);
-  const pieces = list.map(p => withChange(withCounterWeight(p, counter), changes[p.id]))
-    .filter(p => opts.all ? p.url || p.hidden || p.change || p.drop : p.url && !p.hidden);
+  const pieces = withAngles(list.map(p => withChange(withCounterWeight(p, counter), changes[p.id])), changes)
+    // An angle is a photograph of another piece: it is offered with that piece, not as a piece of its own.
+    .filter(p => opts.all ? p.url || p.hidden || p.change || p.drop : p.url && !p.hidden && !changes[p.id]?.angleOf);
   return { site, pieces };
 }
 

@@ -22,7 +22,7 @@ import type { Piece } from './piece-card';
 /** One photo of the piece, in the order it goes. `main` is the card's own (its design or weight decide it). */
 export type AlbumPhoto =
   | { id: 'main'; kind: 'main' }
-  | { id: string; kind: 'site'; pieceId: string; thumb: string; label: string }
+  | { id: string; kind: 'site'; pieceId: string; thumb: string; label: string; photo?: number }
   | { id: string; kind: 'device'; blob: Blob; url: string; label: string };
 
 /** A photograph as WhatsApp and Instagram take it: JPEG, at most `edge` px on its long side. */
@@ -56,9 +56,14 @@ export interface PiecePhotos {
   firstPreview: () => string | null;
 }
 
-export function usePiecePhotos(main: () => Promise<Blob>, sitePhoto: (id: string) => Promise<Blob>): PiecePhotos {
+export function usePiecePhotos(main: () => Promise<Blob>, sitePhoto: (id: string, n?: number) => Promise<Blob>, piece?: Pick<Piece, 'id' | 'name' | 'photos'>): PiecePhotos {
   const { toast } = useToast();
-  const [list, setList] = useState<AlbumPhoto[]>([{ id: 'main', kind: 'main' }]);
+  // The piece's own other photographs (its back, another angle) come with it, in the site's order (the owner,
+  // 2026-10-23: "automatically knowing from back of the pieces … or if a piece has multiples"); any can be taken out.
+  const [list, setList] = useState<AlbumPhoto[]>(() => [
+    { id: 'main', kind: 'main' },
+    ...(piece?.photos ?? []).slice(0, ALBUM_MAX - 1).map((x, i): AlbumPhoto => ({ id: `a${i + 2}`, kind: 'site', pieceId: piece!.id, photo: i + 2, thumb: x.thumb, label: `${piece!.name}, photo ${i + 2}` })),
+  ]);
   const [adding, setAdding] = useState(false);
   const seq = useRef(0);
   const urls = useRef(new Set<string>());
@@ -106,7 +111,7 @@ export function usePiecePhotos(main: () => Promise<Blob>, sitePhoto: (id: string
     setAdding(false);
     if (failed.length) toast({ title: `Couldn’t read ${photosLabel(failed.length)}`, description: failed.join(', '), variant: 'destructive' });
   };
-  const blobOf = (x: AlbumPhoto): Promise<Blob> => (x.kind === 'main' ? main() : x.kind === 'site' ? sitePhoto(x.pieceId).then(b => jpegOf(b)) : Promise.resolve(x.blob));
+  const blobOf = (x: AlbumPhoto): Promise<Blob> => (x.kind === 'main' ? main() : x.kind === 'site' ? sitePhoto(x.pieceId, x.photo).then(b => jpegOf(b)) : Promise.resolve(x.blob));
   return {
     list, count: list.length, move, remove, addSite, addFiles, adding,
     blobs: async () => { const out: Blob[] = []; for (const x of list) out.push(await blobOf(x)); return out; },

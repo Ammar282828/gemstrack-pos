@@ -44,6 +44,8 @@ export interface Piece {
   source?: 'attributes' | 'pieces';
   /** A new upload not yet on the site's list: it has no page and takes no weight yet. */
   drop?: boolean;
+  /** Its other photographs on the site (its back, another angle), after the lead: they go with it by themselves. */
+  photos?: { key: string; image: string; thumb: string }[];
 }
 export interface IgStatus { configured: boolean; connected: boolean; username: string | null }
 
@@ -82,7 +84,8 @@ export function PieceCard({ piece, pieces, igPost, shown, siteName, posted, phot
   siteName: string;
   posted?: string;
   /** The website's photograph, through this server, fetched once for the page. */
-  photo: (id: string) => Promise<Blob>;
+  /** A website photograph: the piece's lead, or its n-th (2 and on). */
+  photo: (id: string, n?: number) => Promise<Blob>;
   token: () => Promise<Record<string, string>>;
   ig: IgStatus | null;
   /** The hub is sending. */
@@ -126,7 +129,7 @@ export function PieceCard({ piece, pieces, igPost, shown, siteName, posted, phot
     stamped.current = { key, blob };
     return blob;
   };
-  const album = usePiecePhotos(mainPhoto, photo);
+  const album = usePiecePhotos(mainPhoto, photo, p);
   /** What a one-photo place takes (the story): the first of the piece's photos. */
   const outgoing = (): Promise<Blob> => album.first();
   const going = (design.on ? 'Your design of the photo' : overlay && validWeight(weight) ? `The photo with ${weight.trim()}g on it` : 'The photo as it is on the website')
