@@ -86,6 +86,7 @@ struct AddCustomer: View {
                         if saving { ProgressView() } else { Text("Save") }
                     }
                     .disabled(!canSave)
+                    .keyboardShortcut("s", modifiers: .command)
                 }
             }
             if saved != nil {
