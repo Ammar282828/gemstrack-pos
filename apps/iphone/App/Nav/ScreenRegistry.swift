@@ -61,9 +61,21 @@ enum ScreenRegistry {
         if bare.hasSuffix("/edit") && (bare.hasPrefix("/orders/") || bare.hasPrefix("/invoices/") || bare.hasPrefix("/products/")) { return nil }
         if bare.hasSuffix("/finalize") { return nil }
         if bare.hasPrefix("/analytics") { return 980 }
-        // An order, an invoice or a customer: their figures sit side by side, so a little wider than a form.
+        // One order, invoice, customer, karigar, piece or repair: the page lays its own two columns out from its
+        // width (summary beside the lines at 820 pt and up), so it takes the whole column it is in. That is the
+        // detail side of a hub's split, or the full window from Home or Search.
+        for prefix in ["/orders/", "/invoices/", "/customers/", "/karigars/", "/products/", "/repairs/"] where isItem(bare, prefix) { return nil }
+        if bare == "/repairs" { return nil }
+        // The rest of those families (a list's sub-pages): their figures sit side by side, so a little wider than a form.
         if bare.hasPrefix("/orders/") || bare.hasPrefix("/invoices/") || bare.hasPrefix("/customers/") || bare.hasPrefix("/repairs") { return 820 }
         return 720
+    }
+
+    /// "<prefix><id>": one item's own page, not a page beneath it (`/orders/ORD-1`, not `/orders/ORD-1/edit` or `/orders/add`).
+    private static func isItem(_ bare: String, _ prefix: String) -> Bool {
+        guard bare.hasPrefix(prefix) else { return false }
+        let rest = bare.dropFirst(prefix.count)
+        return !rest.isEmpty && !rest.contains("/") && !["add", "new", "bulk-add"].contains(String(rest))
     }
 
     @MainActor
