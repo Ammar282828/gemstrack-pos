@@ -116,6 +116,7 @@ struct HisaabScreen: View {
             }
         }) {
             HisaabAccountPicker { (route: Route) in pending = route }
+                .presentationSizing(.form)
         }
         .navigationDestination(item: $go) { (r: Route) in
             HisaabDestination(path: r.path)

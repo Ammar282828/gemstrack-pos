@@ -155,6 +155,7 @@ struct ShareholderEntrySheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .interactiveDismissDisabled(saving || amount > 0 || !cleaned.isEmpty)
     }
 

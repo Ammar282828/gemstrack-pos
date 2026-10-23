@@ -107,6 +107,7 @@ struct AdsTestsScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .readableColumn(780)
         .refreshable { await loadTests() }
     }
 

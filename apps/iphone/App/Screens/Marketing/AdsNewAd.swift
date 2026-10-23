@@ -124,13 +124,15 @@ struct AdsNewAdScreen: View {
             .sheet(isPresented: $editingAudience) {
                 AdsAudienceSheet(title: "Who sees it", draft: audience, goal: goal?.optimization ?? "REACH",
                                  positions: lists?.igPositions ?? []) { (a: AdsAudience) in audience = a }
+                    .presentationSizing(.form)
             }
             .sheet(isPresented: $libraryOpen) {
                 AdsLibrarySheet(chosen: Set(photos.map { (p: AdsPhoto) in p.hash }), room: max(0, 10 - photos.count)) { (img: AdsLibraryImage) in
                     addLibrary(img)
                 }
+                .presentationSizing(.page)
             }
-            .sheet(item: $previewSet) { (s: AdsPreviewSet) in AdsPreviewSheet(previews: s.previews) }
+            .sheet(item: $previewSet) { (s: AdsPreviewSet) in AdsPreviewSheet(previews: s.previews).presentationSizing(.page) }
             .photosPicker(isPresented: $picking, selection: $picked, maxSelectionCount: max(1, 10 - photos.count), matching: .images)
             .onChange(of: picked) { _, items in
                 if !items.isEmpty { Task { await take(items) } }
@@ -594,6 +596,7 @@ struct AdsNewAdScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .readableColumn(780)
         .scrollDismissesKeyboard(.interactively)
         .keyboardDone()
         .safeAreaBar(edge: .bottom, spacing: 0) { reviewBar }
@@ -1034,5 +1037,6 @@ struct AdsNewAdScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .readableColumn(780)
     }
 }

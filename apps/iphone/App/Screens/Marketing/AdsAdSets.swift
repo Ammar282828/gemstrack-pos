@@ -106,6 +106,7 @@ struct AdsAdSetsScreen: View {
                                  goal: lists?.goal(s.goal)?.optimization ?? "REACH", positions: lists?.igPositions ?? []) { (a: AdsAudience) in
                     if let i = sets.firstIndex(where: { (x: AdsSetDraft) in x.key == s.key }) { sets[i].audience = a }
                 }
+                .presentationSizing(.form)
             }
             .confirmationDialog(launch == "live" ? "Make them and run them?" : "Make these ad sets?", isPresented: $confirming, titleVisibility: .visible) {
                 Button(launch == "live" ? "Make them and run them" : "Make them, paused") { Task { await send() } }

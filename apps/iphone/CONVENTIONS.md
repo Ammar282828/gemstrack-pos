@@ -140,6 +140,7 @@ Reach for these before writing a screen's own. Files: `App/UI/Ledger.swift`, `Ki
 - **Cards:** `.ledgerCard()` for any card; `SectionCard("Title", count:, trailing:) { … }` for a titled one. In a
   List, `LedgerSection`. **`.heroSheen()` on the ONE hero card of a screen**, in place of `ledgerCard`.
   `PerforationDivider()` between a bill's lines and its totals.
+- **Pointer:** `.ledgerCard().cardHover()` on a card that opens something (the highlight under an iPad's pointer); never on a card that only shows.
 - **Money:** `MoneyRow(label, amount, tone:, lac:, emphasis:, signed:)` for a label and its sum; `RowAmount` inside
   custom rows; `HeroAmount` for the screen's one big figure (`unit:` + `text:` for a weight: `Weight.grams(g)`).
   Every sum passes `value:` to `.numericText(value:)`. `Money.signed(n)` ("+ / − PKR x"), `Money.minus(n)`.

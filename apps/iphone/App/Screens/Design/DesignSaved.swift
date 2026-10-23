@@ -117,11 +117,13 @@ struct DesignSavedView: View {
             else { designs }
         }
         .listStyle(.insetGrouped).modifier(HouseGround())
+        .readableColumn(900)
         .searchable(text: $q, prompt: "Find a design")
         .refreshable { await shelf.load(); await shelf.loadDrafts() }
         .task { await shelf.load(); await shelf.loadDrafts() }
         .sheet(item: $detail) { r in
             DesignDetailSheet(record: r, shelf: shelf, onOpen: { rec in detail = nil; onOpen(rec) }, onChanged: { Task { await shelf.load() } })
+                .presentationSizing(.form)
         }
         .alert(renaming == nil ? "New folder" : "Rename folder", isPresented: $asking) {
             TextField("Name", text: $folderText)

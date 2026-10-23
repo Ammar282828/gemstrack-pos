@@ -49,6 +49,7 @@ struct ExtraRevenueScreen: View {
             OwnerDeleteCodeSheet(deletion: d) {
                 Note.show(Note(title: "Deleted", detail: "Revenue entry deleted."), in: $note, reduce: reduceMotion)
             }
+            .presentationSizing(.form)
         }
         .noteToast($note)
         .destructiveFeedback(trigger: deletion != nil)

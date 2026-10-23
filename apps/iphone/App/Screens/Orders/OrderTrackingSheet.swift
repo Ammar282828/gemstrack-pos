@@ -66,6 +66,7 @@ struct OrderTrackingSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .task { await ask() }
     }
 

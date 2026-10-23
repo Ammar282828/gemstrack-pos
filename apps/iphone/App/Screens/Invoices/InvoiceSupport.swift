@@ -319,6 +319,7 @@ private struct InvoiceTakePayment: View {
             recorded?(inv, amount)
         }
         .houseForm()
+        .presentationSizing(.form)
     }
 
     /// Settle: the payment, then the remainder off the discount. The page hears of the payment either way.

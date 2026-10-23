@@ -32,7 +32,18 @@ struct StockList: View {
     @State private var deletion: OwnerDeletion?
     @State private var note: Note?
 
-    private var layout: StockLayout { StockLayout(rawValue: layoutRaw) ?? .list }
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var width: CGFloat = 0
+    @FocusState private var searching: Bool
+
+    /// A window wide enough for cards (measured, not the size class alone: this screen is also a split view's ~400 pt
+    /// content column, which stays a List).
+    private var wide: Bool { sizeClass.isPadLayout && width >= 620 }
+
+    private var layout: StockLayout {
+        if wide { return .grid }
+        return StockLayout(rawValue: layoutRaw) ?? .list
+    }
 
     var body: some View {
         ShelfState(loaded: book.products.loaded, error: book.products.error, offline: book.products.offline) {
@@ -41,6 +52,12 @@ struct StockList: View {
         .navigationTitle("Stock")
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $search, prompt: "Search by name or SKU")
+        .searchFocused($searching)
+        .background {
+            Button("Search") { searching = true }
+                .keyboardShortcut("f", modifiers: .command).opacity(0).accessibilityHidden(true)
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .toolbar { toolbarButtons }
         .stockDestination($go)
         .sheet(item: $deletion) { (d: OwnerDeletion) in
@@ -55,13 +72,16 @@ struct StockList: View {
 
     @ToolbarContentBuilder
     private var toolbarButtons: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                Motion.run(reduce: reduceMotion) {
-                    layoutRaw = layout == .grid ? StockLayout.list.rawValue : StockLayout.grid.rawValue
+        // A wide window is always cards, so the switch is for the narrow one.
+        if !wide {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    Motion.run(reduce: reduceMotion) {
+                        layoutRaw = layout == .grid ? StockLayout.list.rawValue : StockLayout.grid.rawValue
+                    }
+                } label: {
+                    Label(layout == .grid ? "List" : "Grid", systemImage: layout == .grid ? "list.bullet" : "square.grid.2x2")
                 }
-            } label: {
-                Label(layout == .grid ? "List" : "Grid", systemImage: layout == .grid ? "list.bullet" : "square.grid.2x2")
             }
         }
         if session.isOwner {
@@ -131,7 +151,7 @@ struct StockList: View {
             VStack(spacing: 14) {
                 header(all, shown)
                 if !shown.isEmpty {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 12)], spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: wide ? 220 : 160), spacing: 12)], spacing: 12) {
                         ForEach(shown) { row in
                             StockCard(row: row)
                                 .stockContextMenu(row.product, go: $go, mayEdit: session.isOwner, onDelete: askToDelete)
@@ -139,7 +159,7 @@ struct StockList: View {
                     }
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, wide ? 24 : 16)
             .padding(.bottom, 16)
         }
         .overlay { if shown.isEmpty { emptyState } }
@@ -340,5 +360,6 @@ private struct StockCard: View {
             .ledgerCard(padding: 10)
         }
         .buttonStyle(.plain)
+        .hoverEffect()
     }
 }

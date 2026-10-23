@@ -57,6 +57,8 @@ struct ActionBar: View {
                     // The width goes on the label: on the button the glass kept its own size and the
                     // action sat as a small pill in the middle of the bar.
                     Button(role: primary.role, action: primary.action) { label(primary, wide: true) }
+                        // Return does it from a keyboard (an iPad's), as the system's own default button.
+                        .keyboardShortcut(.defaultAction)
                         .buttonStyle(.houseProminent)
                         .controlSize(.large)
                         .disabled(primary.isDisabled || primary.isBusy)

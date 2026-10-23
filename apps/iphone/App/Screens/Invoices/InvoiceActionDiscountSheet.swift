@@ -111,6 +111,7 @@ struct InvoiceActionDiscountSheet: View {
                     } else {
                         Button("Change", role: .confirm) { Task { await save() } }
                             .disabled(after == nil || !changed)
+                            .keyboardShortcut("s", modifiers: .command)
                     }
                 }
             }

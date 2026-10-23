@@ -63,6 +63,7 @@ struct ExpensesScreen: View {
             OwnerDeleteCodeSheet(deletion: d) {
                 Note.show(ExpenseSavedNote(title: "Expense deleted", detail: "The record has been removed."), in: $note, reduce: reduceMotion)
             }
+            .presentationSizing(.form)
         }
         .navigationDestination(item: $report) { t in
             PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)

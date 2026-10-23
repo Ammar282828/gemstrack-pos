@@ -115,7 +115,7 @@ struct Dashboard: View {
         // A house whose website does not sell has no online orders to confirm and no rate to pause on.
         let selling = session.shop.websiteSelling
         let needs = f.needs(onlineWaiting: selling ? inbox.waiting : 0, ratePause: selling ? inbox.ratePause : nil)
-        let wide = width >= 900 && !typeSize.isAccessibilitySize
+        let wide = width >= 820 && !typeSize.isAccessibilitySize
         return ScrollView {
             Group {
                 if wide {
@@ -137,34 +137,69 @@ struct Dashboard: View {
             .padding(.top, 4)
             .padding(.bottom, 24)
             // On the widest windows the page stays a page: the two columns never drift a room apart.
-            .frame(maxWidth: wide ? 1240 : .infinity)
+            .frame(maxWidth: wide ? 1480 : .infinity)
             .frame(maxWidth: .infinity)
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .motion(needs.count)
     }
 
-    /// An iPad's Home: today and the two cards across the top (the cards shown, there is room for them),
-    /// then the lists in two columns: what needs doing on the left, what has happened on the right.
+    /// An iPad's Home: today, the hero across the full width and the four figures in one row, then the three
+    /// lists in columns: three from 1180 pt, else two, each list dealt to the shorter column so they balance.
     private func wideColumns(_ f: DashFigures, needs: [DashNeed]) -> some View {
         VStack(alignment: .leading, spacing: 26) {
             VStack(alignment: .leading, spacing: 12) {
                 dateLine
                 hero(f)
-                figureGrid(f)
+                wideFigureRow(f)
             }
+            let lists = wideLists(f, needs: needs)
             HStack(alignment: .top, spacing: 24) {
-                VStack(alignment: .leading, spacing: 22) {
-                    needsSection(needs)
-                    dueSection(f)
+                ForEach(lists.indices, id: \.self) { (c: Int) in
+                    VStack(alignment: .leading, spacing: 22) {
+                        ForEach(lists[c], id: \.self) { (l: HomeList) in wideList(l, f, needs: needs) }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .top)
                 }
-                .frame(maxWidth: .infinity, alignment: .top)
-                VStack(alignment: .leading, spacing: 22) {
-                    salesSection(f)
-                }
-                .frame(maxWidth: .infinity, alignment: .top)
             }
         }
+    }
+
+    private enum HomeList: Hashable { case needs, due, sales }
+
+    private func wideFigureRow(_ f: DashFigures) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            owedTile(f); benchTile(f); monthTile(f); dueTile(f)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder
+    private func wideList(_ l: HomeList, _ f: DashFigures, needs: [DashNeed]) -> some View {
+        switch l {
+        case .needs: needsSection(needs)
+        case .due: dueSection(f)
+        case .sales: salesSection(f)
+        }
+    }
+
+    /// Lists in the order the page reads (needs, due, sales), each given to the column with the fewer rows so far.
+    private func wideLists(_ f: DashFigures, needs: [DashNeed]) -> [[HomeList]] {
+        func rows(_ n: Int, _ all: Bool) -> Int { n == 0 ? 2 : 2 + (all ? n : min(n, 3)) }
+        let weights: [(HomeList, Int)] = [
+            (.needs, needs.isEmpty ? 0 : rows(needs.count, allNeeds)),
+            (.due, rows(f.due.count, allDue)),
+            (.sales, rows(f.recentInvoices.count, allSales)),
+        ]
+        let count = width >= 1180 ? 3 : 2
+        var cols = Array(repeating: [HomeList](), count: count)
+        var load = Array(repeating: 0, count: count)
+        for (l, w) in weights {
+            let i = load.indices.min { load[$0] < load[$1] } ?? 0
+            cols[i].append(l)
+            load[i] += w
+        }
+        return cols.filter { !$0.isEmpty }
     }
 
     /// "TUESDAY 21 OCTOBER", a quiet line above the hero.
@@ -184,7 +219,7 @@ struct Dashboard: View {
     private func linked<C: View>(_ path: String?, @ViewBuilder _ label: () -> C) -> some View {
         let content = label()
         if let path {
-            NavigationLink(value: Route(path: path)) { content }.buttonStyle(.plain)
+            NavigationLink(value: Route(path: path)) { content }.buttonStyle(.plain).hoverEffect()
         } else {
             content
         }

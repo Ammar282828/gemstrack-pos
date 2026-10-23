@@ -57,7 +57,7 @@ struct OrdersHub: View {
         .searchable(text: $query, prompt: "Order, customer, phone or piece")
         .toolbar { hubToolbar }
         .ordersWebDestination($web)
-        .sheet(item: $advancing) { order in advanceSheet(order) }
+        .sheet(item: $advancing) { order in advanceSheet(order).presentationSizing(.form) }
         .confirmDestructive(isPresented: cancelShown, title: cancelling.map { "Cancel order \($0.id)?" } ?? "Cancel order?",
                             message: OrdersLogic.cancelWords, action: "Cancel order",
                             perform: cancelAction(cancelling))

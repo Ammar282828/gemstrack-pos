@@ -264,6 +264,7 @@ struct InvoicesList: View {
             InvoiceCSVImportSheet { (done: InvoiceNote) in
                 Note.show(Note(title: done.title, detail: done.detail), in: $note, reduce: reduceMotion)
             }
+            .presentationSizing(.form)
         }
         .noteToast($note)
         .sheet(isPresented: $pickingRange) {
@@ -315,6 +316,8 @@ struct InvoicesList: View {
                                     }
                                 }
                                 .ledgerCard(padding: 20)
+                                .contentShape(.hoverEffect, .rect(cornerRadius: Radius.card, style: .continuous))
+                                .hoverEffect()
                                 // The card carries the row's own actions (rule 16); the row says "You" itself.
                                 .contextMenu { invoiceActions(inv) }
                             }
@@ -843,6 +846,7 @@ private struct InvoiceRangeSheet: View {
             }
         }
         .presentationDetents([.medium])
+        .presentationSizing(.form)
     }
 }
 

@@ -89,10 +89,12 @@ struct InvoiceScreen: View {
     // MARK: The page
 
     private func detail(_ inv: Invoice) -> some View {
-        List {
+        // On an iPad's wide window the receipt and the quick row stand left, the bill and its payments right.
+        WideDetailList {
             // The receipt and the quick row carry their own surface; the rest sit on the house's cards.
             heroSection(inv)
             quickSection(inv)
+        } right: {
             Group {
                 piecesSection(inv)
                 paymentsSection(inv)
@@ -101,8 +103,6 @@ struct InvoiceScreen: View {
             }
             .houseRows()
         }
-        .listStyle(.insetGrouped)
-        .modifier(HouseGround())
         .safeAreaBar(edge: .bottom, spacing: 0) { paymentBar(inv) }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -124,13 +124,17 @@ struct InvoiceScreen: View {
         .invoicePaymentSheet(for: $paying) { paid, amount in recorded(paid, amount) }
         .sheet(isPresented: $settingCustomer) {
             InvoiceCustomerSheet(invoice: inv) { (saved: InvoiceNote) in say(saved) }
+                .presentationSizing(.form)
         }
         .sheet(item: $acting) { a in
-            switch a {
-            case .discount: InvoiceActionDiscountSheet(invoice: inv, onDone: acted)
-            case .refund: InvoiceActionRefundSheet(invoice: inv, onDone: acted)
-            case .delete: InvoiceActionDeleteSheet(invoice: inv, onDone: acted)
+            Group {
+                switch a {
+                case .discount: InvoiceActionDiscountSheet(invoice: inv, onDone: acted)
+                case .refund: InvoiceActionRefundSheet(invoice: inv, onDone: acted)
+                case .delete: InvoiceActionDeleteSheet(invoice: inv, onDone: acted)
+                }
             }
+            .presentationSizing(.form)
         }
         .invoiceActionCode($paymentDeletion) {
             if let outcome = paymentOutcome { acted(outcome) }

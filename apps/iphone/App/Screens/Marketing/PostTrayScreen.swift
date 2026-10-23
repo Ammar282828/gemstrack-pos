@@ -57,6 +57,7 @@ struct PostTrayScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .readableColumn(780)
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle(model.cards.count > 1 ? "\(model.cards.count) to send" : "Send a piece")
         .navigationBarTitleDisplayMode(.inline)
@@ -78,8 +79,9 @@ struct PostTrayScreen: View {
                 PostPiecesScreen(tray: model)
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { picking = false } } }
             }
+            .presentationSizing(.page)
         }
-        .sheet(item: $story) { (s: Story) in storySheet(s) }
+        .sheet(item: $story) { (s: Story) in storySheet(s).presentationSizing(.page) }
         .confirmationDialog(confirmTitle, isPresented: $confirming, titleVisibility: .visible) {
             Button(model.blockers.isEmpty ? "Send" : "Send anyway") { Task { await send() } }
             Button("Not yet", role: .cancel) {}

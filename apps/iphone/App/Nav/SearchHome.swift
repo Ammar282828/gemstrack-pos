@@ -49,6 +49,7 @@ struct SearchView: View {
     @State private var confirmingSignOut = false
     @State private var recents: [SearchRecent] = []
     @State private var expanded: Set<String> = []
+    @FocusState private var searchFocused: Bool
 
     private var typed: String { text.trimmingCharacters(in: .whitespaces).lowercased() }
     /// Marketing has no Firestore and the server refuses it the books: nothing to read for them.
@@ -61,6 +62,9 @@ struct SearchView: View {
         .navigationTitle("Search")
         .hubTitleDisplay()
         .searchable(text: $text, prompt: "Customers, invoices, orders, stock, places")
+        .searchFocused($searchFocused)
+        // ⌘F: the field takes the keyboard (the tab may have only just been made).
+        .onChange(of: ShellCommands.shared.searchWanted) { _, wanted in focusIfWanted(wanted) }
         .confirmDestructive(isPresented: $confirmingSignOut, title: "Sign out?",
                             message: "You will need to sign in with Google again.", action: "Sign out") {
             session.signOut()
@@ -70,6 +74,7 @@ struct SearchView: View {
         }
         .onAppear {
             recents = SearchRecents.load()
+            focusIfWanted(ShellCommands.shared.searchWanted)
         }
         // Debounced; the shelves are asked for only once someone types.
         .task(id: text) {
@@ -79,6 +84,15 @@ struct SearchView: View {
             try? await Task.sleep(for: .milliseconds(150))
             if Task.isCancelled { return }
             query = next
+        }
+    }
+
+    private func focusIfWanted(_ wanted: Bool) {
+        guard wanted else { return }
+        ShellCommands.shared.searchWanted = false
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(250))
+            searchFocused = true
         }
     }
 

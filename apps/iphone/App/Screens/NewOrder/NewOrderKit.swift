@@ -4,6 +4,32 @@ import ERPCore
 
 // Three small controls the order form's views share, and the size box.
 
+// MARK: Wide windows
+
+/// A form column no wider than `maxWidth` on an iPad's wide window, centred in the room it is given (the editor side of
+/// TransactionWorkspace, a pushed piece page). The margin goes into the safe area so a Form keeps scrolling edge to edge;
+/// a phone and a compact iPad window are never touched.
+private struct FormColumn: ViewModifier {
+    var maxWidth: CGFloat
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var width: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        Group {
+            if sizeClass.isPadLayout {
+                content.safeAreaPadding(.horizontal, max(0, ((width - maxWidth) / 2).rounded()))
+            } else {
+                content
+            }
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+    }
+}
+
+extension View {
+    func formColumn(_ maxWidth: CGFloat = 680) -> some View { modifier(FormColumn(maxWidth: maxWidth)) }
+}
+
 // MARK: Controls
 
 /// A quick choice (7d, 10d, 14d): a bordered chip (glass stays off list rows), the selected one prominent.
