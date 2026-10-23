@@ -553,16 +553,19 @@ extension EnvironmentValues {
 }
 
 /// A titled block of the report: a List section on a phone, a card in a column on an iPad's wide window.
+/// `options` (two names) put a small segmented switch beside the title, bound to `choice`.
 struct SiteBlock<Content: View>: View {
     let title: String
     var note: String?
+    var options: [String] = []
+    var choice: Binding<Int>?
     @ViewBuilder let content: () -> Content
     @Environment(\.siteWide) private var wide
 
     var body: some View {
         if wide {
             VStack(alignment: .leading, spacing: 12) {
-                LedgerHeading(title: title)
+                head
                 content()
                 if let note {
                     Text(note).font(.footnote).foregroundStyle(.secondary)
@@ -573,25 +576,43 @@ struct SiteBlock<Content: View>: View {
             Section {
                 content()
             } header: {
-                LedgerHeading(title: title)
+                head
             } footer: {
                 if let note { Text(note) }
             }
             .houseRows()
         }
     }
+
+    @ViewBuilder private var head: some View {
+        if let choice, options.count > 1 {
+            HStack(alignment: .center, spacing: 12) {
+                LedgerHeading(title: title)
+                Spacer(minLength: 8)
+                Picker(title, selection: choice) {
+                    ForEach(0..<options.count, id: \.self) { (i: Int) in
+                        Text(options[i]).tag(i)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 190)
+            }
+        } else {
+            LedgerHeading(title: title)
+        }
+    }
 }
 
 // MARK: Ranked lists
 
-/// One line of a ranked list; `children` open under it (a channel's sources, a country's cities).
+/// One line of a ranked list.
 struct SiteRankRow: Identifiable {
     let id: String
     var lead: String?
     let label: String
     var sub: String?
     let value: Int
-    var children: [SiteRankRow] = []
 }
 
 enum SiteRanks {
@@ -603,28 +624,50 @@ enum SiteRanks {
 
     static func plain(_ xs: [SiteCount]) -> [SiteRankRow] { counts(xs, label: { (k: String) in k }) }
 
-    static func places(_ countries: [SiteCount], cities: [SiteCity]) -> [SiteRankRow] {
+    /// Countries, one row each.
+    static func countryRows(_ countries: [SiteCount]) -> [SiteRankRow] {
         countries.map { (c: SiteCount) -> SiteRankRow in
-            let inside = cities.filter { (x: SiteCity) in x.cc == c.key }
-            let kids = inside.map { (x: SiteCity) -> SiteRankRow in
-                SiteRankRow(id: x.id, label: x.city, sub: x.region.isEmpty ? nil : x.region, value: x.sessions)
-            }
-            return SiteRankRow(id: c.key, lead: SiteWords.flag(c.key), label: SiteWords.countryName(c.key), value: c.value, children: kids)
+            SiteRankRow(id: c.key, lead: SiteWords.flag(c.key), label: SiteWords.countryName(c.key), value: c.value)
         }
     }
 
-    static func channels(_ s: SiteSummary) -> [SiteRankRow] {
-        s.channels.map { (c: SiteCount) -> SiteRankRow in
-            let inside = s.sources.filter { (x: SiteSource) in x.channel == c.key }
-            let kids = inside.map { (x: SiteSource) -> SiteRankRow in
-                SiteRankRow(id: x.key, label: SiteWords.source(x.key), sub: x.enquire > 0 ? "\(x.enquire) asked" : nil, value: x.sessions)
-            }
-            return SiteRankRow(id: c.key, label: SiteWords.channel(c.key), value: c.value, children: kids)
+    /// Cities, flat: flag + city, "region, country" beneath. What a country has beyond its listed cities is one
+    /// row: the country itself when no city is known there, "Other cities" when some are.
+    static func cityRows(_ countries: [SiteCount], cities: [SiteCity]) -> [SiteRankRow] {
+        var out: [SiteRankRow] = []
+        for x in cities {
+            let place = x.region.isEmpty ? SiteWords.countryName(x.cc) : x.region + ", " + SiteWords.countryName(x.cc)
+            out.append(SiteRankRow(id: x.id, lead: SiteWords.flag(x.cc), label: x.city, sub: place, value: x.sessions))
         }
+        for c in countries {
+            let inside = cities.filter { (x: SiteCity) in x.cc == c.key }
+            let counted = inside.reduce(0) { (n: Int, x: SiteCity) in n + x.sessions }
+            let rest = c.value - counted
+            if rest <= 0 { continue }
+            if inside.isEmpty {
+                out.append(SiteRankRow(id: "country/" + c.key, lead: SiteWords.flag(c.key), label: SiteWords.countryName(c.key), value: rest))
+            } else {
+                out.append(SiteRankRow(id: "other/" + c.key, lead: SiteWords.flag(c.key), label: "Other cities", sub: SiteWords.countryName(c.key), value: rest))
+            }
+        }
+        return out.sorted { (a: SiteRankRow, b: SiteRankRow) in a.value > b.value }
+    }
+
+    /// Sources, flat, with how many asked on WhatsApp beside each.
+    static func sourceRows(_ xs: [SiteSource]) -> [SiteRankRow] {
+        xs.map { (x: SiteSource) -> SiteRankRow in
+            SiteRankRow(id: x.key, label: SiteWords.source(x.key), sub: x.enquire > 0 ? "\(x.enquire) asked" : nil, value: x.sessions)
+        }
+    }
+
+    /// Kinds of source (direct, search, social, ads, other sites, email).
+    static func channelRows(_ xs: [SiteCount]) -> [SiteRankRow] {
+        counts(xs, label: SiteWords.channel)
     }
 }
 
-/// A List section of ranked rows: the first few, "Show all", rows with children opening in place.
+/// A List section of ranked rows: the first few, then "Show all". With `alt` and two `picks`, a small switch
+/// in the header changes the list between the two (no row opens into others).
 /// Hidden when it has no rows and no `empty` words.
 struct SiteRankSection: View {
     let title: String
@@ -634,34 +677,46 @@ struct SiteRankSection: View {
     var empty: String?
     var note: String?
     var show = 5
+    /// The second list and the names of the two, as ["Sources", "Kinds"].
+    var alt: [SiteRankRow]?
+    var picks: [String] = []
 
     @State private var all = false
-    @State private var open: String?
+    @State private var second = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private struct Entry: Identifiable {
-        let id: String
-        let row: SiteRankRow
-        let nested: Bool
-    }
-
     var body: some View {
-        if rows.isEmpty && empty == nil {
+        if rows.isEmpty && (alt ?? []).isEmpty && empty == nil {
             EmptyView()
         } else {
-            SiteBlock(title: title, note: note) { content }
+            SiteBlock(title: title, note: note, options: switchable ? picks : [], choice: pickBinding) { content }
         }
     }
 
+    private var switchable: Bool { alt != nil && picks.count > 1 }
+
+    private var pickBinding: Binding<Int> {
+        Binding<Int>(get: { second }, set: { (v: Int) in
+            all = false
+            second = v
+        })
+    }
+
+    private var shownRows: [SiteRankRow] {
+        if second == 1, switchable, let a = alt { return a }
+        return rows
+    }
+
     @ViewBuilder private var content: some View {
-        if rows.isEmpty {
+        let list = shownRows
+        if list.isEmpty {
             Text(empty ?? "").font(.subheadline).foregroundStyle(.secondary)
         } else {
-            ForEach(entries) { (e: Entry) in
-                line(e)
+            ForEach(all ? list : Array(list.prefix(show))) { (r: SiteRankRow) in
+                rowBody(r, in: list)
             }
-            if rows.count > show {
-                Button(all ? "Show fewer" : "Show all \(rows.count)") {
+            if list.count > show {
+                Button(all ? "Show fewer" : "Show all \(list.count)") {
                     Motion.run(reduce: reduceMotion) { all.toggle() }
                 }
                 .buttonStyle(.borderless)
@@ -669,75 +724,37 @@ struct SiteRankSection: View {
         }
     }
 
-    private var sum: Int {
+    private func sum(_ list: [SiteRankRow]) -> Int {
         if let total { return total }
-        return rows.reduce(0) { (n: Int, r: SiteRankRow) in n + r.value }
+        return list.reduce(0) { (n: Int, r: SiteRankRow) in n + r.value }
     }
 
-    /// A child's share is of its parent (a channel's sessions), as the web's nested list.
-    private var openTotal: Int {
-        let parent = rows.first { (r: SiteRankRow) in r.id == open }
-        return parent?.value ?? sum
-    }
-
-    private var entries: [Entry] {
-        let shown = all ? rows : Array(rows.prefix(show))
-        var out: [Entry] = []
-        for r in shown {
-            out.append(Entry(id: r.id, row: r, nested: false))
-            if open == r.id {
-                for k in r.children.prefix(12) { out.append(Entry(id: r.id + "/" + k.id, row: k, nested: true)) }
-            }
-        }
-        return out
-    }
-
-    @ViewBuilder private func line(_ e: Entry) -> some View {
-        if e.row.children.isEmpty {
-            rowBody(e)
-        } else {
-            Button {
-                Motion.run(reduce: reduceMotion) { open = (open == e.row.id) ? nil : e.row.id }
-            } label: {
-                rowBody(e)
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint(open == e.row.id ? "Hides the list inside" : "Shows the list inside")
-        }
-    }
-
-    private func rowBody(_ e: Entry) -> some View {
-        let parentTotal = e.nested ? Swift.max(1, openTotal) : sum
-        let share = parentTotal > 0 ? Double(e.row.value) / Double(parentTotal) : 0
-        let top = Swift.max(1, rows.map { (r: SiteRankRow) in r.value }.max() ?? 1)
+    private func rowBody(_ row: SiteRankRow, in list: [SiteRankRow]) -> some View {
+        let parentTotal = sum(list)
+        let share = parentTotal > 0 ? Double(row.value) / Double(parentTotal) : 0
+        let top = Swift.max(1, list.map { (r: SiteRankRow) in r.value }.max() ?? 1)
         return VStack(alignment: .leading, spacing: 6) {
             AdaptiveStack(spacing: 8) {
                 HStack(spacing: 6) {
-                    if let lead = e.row.lead { Text(lead).accessibilityHidden(true) }
-                    Text(e.row.label)
-                    if let sub = e.row.sub {
-                        Text(sub).font(.footnote).foregroundStyle(.secondary)
-                    }
-                    if !e.row.children.isEmpty {
-                        Image(systemName: open == e.row.id ? "chevron.up" : "chevron.down")
-                            .font(.caption2).foregroundStyle(.tertiary)
-                            .contentTransition(.symbolEffect(.replace))
+                    if let lead = row.lead { Text(lead).accessibilityHidden(true) }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(row.label)
+                        if let sub = row.sub {
+                            Text(sub).font(.footnote).foregroundStyle(.secondary)
+                        }
                     }
                 }
                 Spacer(minLength: 8)
                 HStack(spacing: 6) {
-                    Text(SiteWords.number(e.row.value)).monospacedDigit()
-                        .contentTransition(.numericText(value: Double(e.row.value)))
+                    Text(SiteWords.number(row.value)).monospacedDigit()
+                        .contentTransition(.numericText(value: Double(row.value)))
                     Text(SiteWords.pct(share)).font(.footnote).foregroundStyle(.secondary).monospacedDigit()
                 }
             }
-            if !e.nested {
-                ProgressView(value: Double(e.row.value), total: Double(top))
-                    .tint(Theme.accent)
-                    .accessibilityHidden(true)
-            }
+            ProgressView(value: Double(row.value), total: Double(top))
+                .tint(Theme.accent)
+                .accessibilityHidden(true)
         }
-        .padding(.leading, e.nested ? 20 : 0)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }

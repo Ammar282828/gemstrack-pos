@@ -76,7 +76,8 @@ struct WebsiteLiveScreen: View {
     }
 
     private func places(_ l: SiteLive) -> some View {
-        SiteRankSection(title: "Where they are", rows: SiteRanks.places(l.countries, cities: l.cityRows), total: l.visitors)
+        SiteRankSection(title: "Where they are", rows: SiteRanks.cityRows(l.countries, cities: l.cityRows), total: l.visitors,
+                        alt: SiteRanks.countryRows(l.countries), picks: ["Cities", "Countries"])
     }
     private func looking(_ l: SiteLive) -> some View {
         SiteRankSection(title: "What they\u{2019}re looking at", rows: SiteRanks.pages(l.pages), total: l.visitors)
@@ -108,7 +109,8 @@ struct WebsiteLiveScreen: View {
                 heroSection(l)
                 todaySection(l.today)
                 if l.visitors > 0 {
-                    SiteRankSection(title: "Where they are", rows: SiteRanks.places(l.countries, cities: l.cityRows), total: l.visitors)
+                    SiteRankSection(title: "Where they are", rows: SiteRanks.cityRows(l.countries, cities: l.cityRows), total: l.visitors,
+                        alt: SiteRanks.countryRows(l.countries), picks: ["Cities", "Countries"])
                     SiteRankSection(title: "What they\u{2019}re looking at", rows: SiteRanks.pages(l.pages), total: l.visitors)
                     SiteRankSection(title: "How they came", rows: SiteRanks.counts(l.sources, label: SiteWords.source), total: l.visitors)
                     SiteRankSection(title: "On", rows: SiteRanks.counts(l.devices, label: SiteWords.device), total: l.visitors)

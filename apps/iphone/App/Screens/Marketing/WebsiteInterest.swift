@@ -253,14 +253,16 @@ struct WebsiteInterestScreen: View {
         HStack(alignment: .top, spacing: 20) {
             VStack(alignment: .leading, spacing: 20) {
                 SiteFunnelSection(now: n, before: r.before)
-                SiteRankSection(title: "Where they came from", rows: SiteRanks.channels(n), total: n.sessions, empty: "No sessions yet.")
+                SiteRankSection(title: "Where they came from", rows: SiteRanks.sourceRows(n.sources), total: n.sessions, empty: "No sessions yet.",
+                                alt: SiteRanks.channelRows(n.channels), picks: ["Sources", "Kinds"])
                 SiteSourcesSection(sources: n.sources)
                 SiteRankSection(title: "Campaigns", rows: campaignRows(n), total: n.sessions)
                 deviceSections(n)
             }
             .frame(maxWidth: .infinity, alignment: .top)
             VStack(alignment: .leading, spacing: 20) {
-                SiteRankSection(title: "Where they are", rows: SiteRanks.places(n.countries, cities: n.cities), total: n.sessions, empty: "No sessions yet.")
+                SiteRankSection(title: "Where they are", rows: SiteRanks.cityRows(n.countries, cities: n.cities), total: n.sessions, empty: "No sessions yet.",
+                                alt: SiteRanks.countryRows(n.countries), picks: ["Cities", "Countries"])
                 pageSections(n)
             }
             .frame(maxWidth: .infinity, alignment: .top)
@@ -352,8 +354,10 @@ struct WebsiteInterestScreen: View {
         tilesSection(r)
         SiteChartSection(report: r)
         SiteFunnelSection(now: n, before: r.before)
-        SiteRankSection(title: "Where they came from", rows: SiteRanks.channels(n), total: n.sessions, empty: "No sessions yet.")
-        SiteRankSection(title: "Where they are", rows: SiteRanks.places(n.countries, cities: n.cities), total: n.sessions, empty: "No sessions yet.")
+        SiteRankSection(title: "Where they came from", rows: SiteRanks.sourceRows(n.sources), total: n.sessions, empty: "No sessions yet.",
+                                alt: SiteRanks.channelRows(n.channels), picks: ["Sources", "Kinds"])
+        SiteRankSection(title: "Where they are", rows: SiteRanks.cityRows(n.countries, cities: n.cities), total: n.sessions, empty: "No sessions yet.",
+                                alt: SiteRanks.countryRows(n.countries), picks: ["Cities", "Countries"])
         SiteSourcesSection(sources: n.sources)
         SiteRankSection(title: "Campaigns", rows: campaignRows(n), total: n.sessions)
         deviceSections(n)

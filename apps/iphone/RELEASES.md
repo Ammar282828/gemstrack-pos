@@ -48,3 +48,4 @@ cloud session cannot press that button, but it can push. One line per build, new
 - 2026-10-23: iPad, properly: lists beside their item (Orders, Invoices, Customers, Stock, Repairs), item pages and dashboards in columns, sheets sized as forms, ⌘ shortcuts, hover; the sidebar headed by the business chip and badges no longer squares. Posts: several photos of a piece, one caption, an Instagram carousel of the first 10; Ads check again fresh.
 - 2026-10-23: Analytics in sections as the ERP has them (Sales, Website, Social, Ads), a section picker above each page, the marketing account seeing only its Analytics tabs; Settings headed Shop, Connections, Records.
 - 2026-10-23: a post's card starts with the hero photo alone; the piece's other photos are offered under it (one tap adds one, Add all adds the rest).
+- 2026-10-23: website analytics lists open straight onto sources and cities, with a small switch to kinds and countries (no rows to open).
