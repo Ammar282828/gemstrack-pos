@@ -385,12 +385,13 @@ private final class AnaGather {
         products[item.sku]?.quantity += quantity
         products[item.sku]?.revenue += item.itemTotal
 
-        if !item.categoryId.isEmpty {
-            if categories[item.categoryId] == nil {
-                categoryOrder.append(item.categoryId)
-                categories[item.categoryId] = 0
+        // Its own category, else its order's, else its name's (lineCategory, categories.ts).
+        if let cat = lineCategory(categoryId: item.categoryId, itemCategory: item.itemCategory, name: item.name) {
+            if categories[cat] == nil {
+                categoryOrder.append(cat)
+                categories[cat] = 0
             }
-            categories[item.categoryId, default: 0] += item.itemTotal
+            categories[cat, default: 0] += item.itemTotal
         }
     }
 
@@ -634,7 +635,7 @@ enum AnaBreakdown {
         var acc: [String: CategoryAcc] = [:]
         for inv in invoices(books, range: range) {
             for item in inv.items {
-                let id = item.categoryId.isEmpty ? "uncategorized" : item.categoryId
+                let id = lineCategory(categoryId: item.categoryId, itemCategory: item.itemCategory, name: item.name) ?? "uncategorized"
                 if acc[id] == nil {
                     order.append(id)
                     acc[id] = CategoryAcc()

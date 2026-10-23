@@ -20,7 +20,9 @@
 # rollout fails. A secret only one house has goes in that house's file.
 
 runConfig:
-  minInstances: 0
+  # One instance kept warm (owner, 2026-10-23: "make the app snappier"): with none, the first request after a quiet
+  # spell waited 10–18 s for a cold start (saves, posts, the five-minute ticks). About $10–20 a month per house.
+  minInstances: 1
   # 1 GiB, not Cloud Run's 512 MiB: one instance serves up to 80 requests at once — the counter,
   # taheri.shop's live quotes, the five-minute ticks, photo work in sharp — and a request that
   # runs it out of memory kills every other one on it with a bare 503 (95 times on 2026-10-01).

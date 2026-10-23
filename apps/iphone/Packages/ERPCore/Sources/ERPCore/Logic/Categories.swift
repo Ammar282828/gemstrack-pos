@@ -46,6 +46,58 @@ public func categorySingular(_ id: String?) -> String? {
     return staticCategories.first { $0.id == id }?.singular
 }
 
+/// categories.ts NAME_RULES: a piece's category from its name, the more particular words first
+/// ("bangle & ring" is a set, not a ring). Same order, same patterns, case-insensitive.
+private let nameRules: [(NSRegularExpression, String)] = {
+    let rules: [(String, String)] = [
+        (#"\b(men'?s|gents?)\b.*\bring|\bring\b.*\b(men'?s|gents?)\b"#, "cat018"),
+        (#"\bbutton"#, "cat020"),
+        (#"(bracelet|bangle|kara).*\bring|\bring\b.*(bracelet|bangle|kara)"#, "cat006"),
+        (#"\b(locket|takhti|thakti)s? set\b.*bangle"#, "cat011"),
+        (#"\b(locket|takhti|thakti)s? set"#, "cat010"),
+        (#"\bstring set"#, "cat012"),
+        (#"\b(necklace|full set|set)\b.*(bracelet)"#, "cat014"),
+        (#"\b(coin|biscuit|bar)\b|\bary\b|\b\d+(\.\d+)?\s?g\b.*24k"#, "cat017"),
+        (#"\b(necklace|neckless|full set|set|haar|choker)\b"#, "cat013"),
+        (#"\bloose bracelet"#, "cat019"),
+        (#"\b(bangle|kara|kangan|churi)"#, "cat007"),
+        (#"\bbracelet"#, "cat005"),
+        (#"\bchain"#, "cat008"),
+        (#"\b(locket|takhti|thakti|taweez|tawiz|pendant)"#, "cat004"),
+        (#"\b(bali|balis|hoop)"#, "cat003"),
+        (#"\b(tops?|earrings?|studs?|jhum(k|ki|ka|kay))\b"#, "cat002"),
+        (#"\bbands?\b"#, "cat009"),
+        (#"\brings?\b"#, "cat001"),
+    ]
+    return rules.compactMap { (pattern: String, id: String) -> (NSRegularExpression, String)? in
+        guard let re = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
+        return (re, id)
+    }
+}()
+
+/// categories.ts guessCategory: a piece's category from its name, for a line that carries none.
+public func guessCategory(_ name: String?) -> String? {
+    let n = (name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    if n.isEmpty { return nil }
+    let range = NSRange(n.startIndex..., in: n)
+    for (re, id) in nameRules where re.firstMatch(in: n, options: [], range: range) != nil { return id }
+    return nil
+}
+
+/// categories.ts lineCategory: a sold line's category for the reports: its own, else the custom
+/// order's (`itemCategory`), else read from its name. Empty strings count as none.
+public func lineCategory(categoryId: String?, itemCategory: String?, name: String?) -> String? {
+    if let c = categoryId, !c.isEmpty { return c }
+    if let c = itemCategory, !c.isEmpty { return c }
+    return guessCategory(name)
+}
+
+/// category-breakdown.tsx: a category's share of revenue as written beside its bar: "32%", and one
+/// decimal under 10%: "0.7%". `share` is a fraction (0.32).
+public func categoryShareText(_ share: Double) -> String {
+    share >= 0.1 ? "\(Int((share * 100).rounded()))%" : String(format: "%.1f%%", share * 100)
+}
+
 /// store.ts CUSTOMER_SOURCES, in the ERP's order.
 public let customerSources: [String] = ["taheri_spillover", "referral", "walkin", "social_media", "website", "other"]
 

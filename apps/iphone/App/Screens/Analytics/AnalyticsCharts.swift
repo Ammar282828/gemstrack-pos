@@ -148,25 +148,47 @@ struct AnaSourceTrendChart: View {
     }
 }
 
-/// Each category's share of revenue.
+/// Each category's share of revenue (category-breakdown.tsx): a ranked list of bars in one hue, the share
+/// written beside each with its revenue in lac; Uncategorized, if any, in muted grey. Not a pie: seventeen
+/// slices could not be read.
 struct AnaShareChart: View {
     let rows: [AnaBreakdown.CategoryRow]
 
-    /// A share is of what came in: a category at nothing (or below, after returns) has no slice.
-    private var slices: [AnaBreakdown.CategoryRow] { rows.filter { $0.revenue > 0 } }
+    private var total: Double { rows.reduce(0) { $0 + $1.revenue } }
+    private var top: Double { max(1, rows.map { $0.revenue }.max() ?? 1) }
 
     var body: some View {
-        if slices.isEmpty {
+        if rows.isEmpty {
             Text("No category revenue in this period.").font(.subheadline).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, minHeight: 80)
         } else {
-            Chart(slices) { (c: AnaBreakdown.CategoryRow) in
-                SectorMark(angle: .value("Revenue", c.revenue), innerRadius: .ratio(0.55), angularInset: 1.5)
-                    .foregroundStyle(by: .value("Category", c.name))
+            VStack(spacing: 12) {
+                ForEach(rows) { (c: AnaBreakdown.CategoryRow) in
+                    let muted = c.id == "uncategorized"
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            Text(c.name).font(.subheadline).lineLimit(1)
+                                .foregroundStyle(muted ? Color.secondary : Color.primary)
+                            Spacer(minLength: 0)
+                            Text(categoryShareText(total > 0 ? c.revenue / total : 0)).font(.subheadline).monospacedDigit()
+                            Text(Money.lacCrore(c.revenue)).font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                        }
+                        GeometryReader { (geo: GeometryProxy) in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Color.secondary.opacity(0.15))
+                                Capsule().fill(muted ? Color.secondary.opacity(0.4) : Theme.accent.opacity(0.75))
+                                    .frame(width: geo.size.width * CGFloat(max(0, c.revenue) / top))
+                            }
+                        }
+                        .frame(height: 8)
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(c.name), \(categoryShareText(total > 0 ? c.revenue / total : 0)) of revenue")
+                    .accessibilityValue(Spoken.rupees(c.revenue, lac: true))
+                }
             }
-            .frame(height: 280)
-            .accessibilityLabel("Share of revenue by category")
-            .accessibilityValue(slices.map { "\($0.name), \(Spoken.rupees($0.revenue, lac: true))" }.joined(separator: ". "))
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Share of revenue by category, largest first")
         }
     }
 }
