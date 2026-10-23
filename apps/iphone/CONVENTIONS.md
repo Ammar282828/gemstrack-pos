@@ -150,6 +150,10 @@ Reach for these before writing a screen's own. Files: `App/UI/Ledger.swift`, `Ki
 - **Saying something:** the `Note` toast. `.noteToast($note)` on the screen, then `Note.show(Note(title:), in: $note,
   reduce: reduceMotion)`. Never a bare `withAnimation`: use `Motion.run(_, reduce:)` (or `.motion(value)`).
   `OwnerNote` / `.ownerNote` still compile; new code says `Note`.
+- **Saves: `Outbox`** (`App/Data/Outbox.swift`). A non-money save is `Outbox.shared.send(op:fields:business:label:)`: it returns at once,
+  runs in the background with the same `requestId` on every retry, is kept on disk, and a failure is said app-wide with Retry
+  (`pending` / `status(of:)` for a "Saving…"); a long send is `Outbox.shared.post(label:) { … }`. Money writes (`Outbox.moneyOps`)
+  stay awaited through `ERPAPI.write`.
 - **Feel:** `.moneyFeedback(success:failure:)` on a screen that takes or refunds money (triggers change only on
   the event); `.destructiveFeedback(trigger:)` where a delete or refund is confirmed.
 - **List to detail:** `.zoomSource(id: route.path)` on the row, `.zoomDestination(id: path)` on the page's root

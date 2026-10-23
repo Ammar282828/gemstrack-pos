@@ -20,14 +20,16 @@ final class ERPAPI {
     ///
     /// `business` is the one asked (its server, its sign-in); omitted, the one open now. A change already on its
     /// way when the person switches business names its own (WorkDraftSync), so it never lands in the next one.
-    func data(_ path: String, method: String = "GET", json: [String: Any]? = nil, timeout: TimeInterval = 60, business: Business? = nil) async throws -> Data {
-        try await raw(path, method: method, json: json, timeout: timeout, business: business, ifNoneMatch: nil).data
+    func data(_ path: String, method: String = "GET", json: [String: Any]? = nil, timeout: TimeInterval? = nil, business: Business? = nil) async throws -> Data {
+        // A page load that has not answered in 15 s is a dead line, not a slow server: say so and let it retry.
+        // Writes and sends keep a minute. None of this is serialized: each call is its own task on the shared session.
+        try await raw(path, method: method, json: json, timeout: timeout ?? (method == "GET" ? 15 : 60), business: business, ifNoneMatch: nil).data
     }
 
     /// A read the ERP may answer "unchanged" (304) when `ifNoneMatch` is the ETag of the last answer: `data` is
     /// then empty and `etag` is the one passed in. The staff poll uses it so a quiet shop costs a header.
     func conditional(_ path: String, ifNoneMatch: String?, business: Business? = nil) async throws -> (data: Data, etag: String?, unchanged: Bool) {
-        let r = try await raw(path, method: "GET", json: nil, timeout: 60, business: business, ifNoneMatch: ifNoneMatch)
+        let r = try await raw(path, method: "GET", json: nil, timeout: 15, business: business, ifNoneMatch: ifNoneMatch)
         return (r.data, r.etag, r.status == 304)
     }
 
@@ -76,6 +78,12 @@ final class ERPAPI {
         c.urlCache = nil
         c.requestCachePolicy = .reloadIgnoringLocalCacheData
         c.httpCookieAcceptPolicy = .never
+        // Fail fast on a dead line (the screen's retry is better than a silent wait); one session means HTTP/2
+        // connections to the ERP are reused, so a tap does not pay a new handshake.
+        c.waitsForConnectivity = false
+        c.httpShouldUsePipelining = true
+        c.httpMaximumConnectionsPerHost = 6
+        c.timeoutIntervalForResource = 330
         return URLSession(configuration: c)
     }()
 
@@ -137,7 +145,7 @@ final class ERPAPI {
     }
 
     @discardableResult
-    func send(_ path: String, method: String = "POST", _ json: [String: Any] = [:], timeout: TimeInterval = 60, business: Business? = nil) async throws -> [String: Any] {
+    func send(_ path: String, method: String = "POST", _ json: [String: Any] = [:], timeout: TimeInterval? = nil, business: Business? = nil) async throws -> [String: Any] {
         let d = try await data(path, method: method, json: json, timeout: timeout, business: business)
         return ((try? JSONSerialization.jsonObject(with: d)) as? [String: Any]) ?? [:]
     }

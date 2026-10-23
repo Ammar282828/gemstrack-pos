@@ -83,11 +83,13 @@ private struct BusinessRoot: View {
             // The cover itself is a window above everything (LockWindow), so a presented sheet or menu is under it too.
         }
         .tint(Theme.accent)
+        .outboxToast()
         // Dates the way the shop writes them ("23 Oct 2026"), in the pickers as in ShopDate, whatever the
         // phone's region; the clock stays the phone's own.
         .environment(\.locale, Locale(identifier: "en_PK"))
         .onChange(of: scenePhase) { _, phase in
             lock.phase(phase, signedIn: session.state == .signedIn)
+            if phase == .active, session.state == .signedIn { Outbox.shared.warm(); Outbox.shared.resume() }
             // The window follows the scene: a move to another scene brings it along.
             LockWindow.shared.update(show: lock.locked || lock.covered)
         }
