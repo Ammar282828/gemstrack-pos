@@ -119,6 +119,7 @@ private struct HisaabImportPage: View {
         }
         .sheet(isPresented: $choosingPerson) {
             HisaabPersonPicker(people: people) { person = $0 }
+                .presentationSizing(.form)
         }
         .onAppear {
             book.customers.need()

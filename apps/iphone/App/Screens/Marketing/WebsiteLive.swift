@@ -7,11 +7,102 @@ import ERPCore
 struct WebsiteLiveScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var width: CGFloat = 0
+
+    /// An iPad's wide window: the count and today's tiles across the top, the lists in two or three columns.
+    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     @State private var live: SiteLive?
     @State private var problem: String?
 
     var body: some View {
+        content
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .motion(live?.visitors)
+        .overlay { stateOverlay }
+        .navigationTitle("Live")
+        .navigationBarTitleDisplayMode(.inline)
+        .refreshable { await load() }
+        .task(id: scenePhase) { await poll() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if wide {
+            wideBody
+        } else {
+            phoneList
+        }
+    }
+
+    // MARK: An iPad's wide window
+
+    private var wideBody: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                if let l = live {
+                    wideTop(l)
+                    if l.visitors > 0 {
+                        columns(l)
+                    } else {
+                        Text("No one on the site at the moment. Visits are counted from 23 October 2026.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .environment(\.siteWide, true)
+            .padding(.horizontal, 28)
+            .padding(.top, 8)
+            .padding(.bottom, 28)
+            .frame(maxWidth: 1360)
+            .frame(maxWidth: .infinity)
+        }
+        .background(Theme.ground)
+    }
+
+    private func wideTop(_ l: SiteLive) -> some View {
+        let t = l.today
+        return HStack(alignment: .top, spacing: 12) {
+            heroBody(l).ledgerCard().frame(maxWidth: 340)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 4), spacing: 12) {
+                FigureTile(label: "Sessions", value: SiteWords.number(t.sessions), detail: SiteWords.number(t.visitors) + " people")
+                FigureTile(label: "Page views", value: SiteWords.number(t.pageviews), detail: SiteWords.duration(t.avgSessionMs) + " a session")
+                FigureTile(label: "Opened a piece", value: SiteWords.number(t.pieces), detail: SiteWords.number(t.saves) + " saved one")
+                FigureTile(label: "Asked on WhatsApp", value: SiteWords.number(t.enquiries), detail: SiteWords.pct(t.conversion, digits: 1) + " of sessions")
+            }
+        }
+    }
+
+    private func places(_ l: SiteLive) -> some View {
+        SiteRankSection(title: "Where they are", rows: SiteRanks.places(l.countries, cities: l.cityRows), total: l.visitors)
+    }
+    private func looking(_ l: SiteLive) -> some View {
+        SiteRankSection(title: "What they\u{2019}re looking at", rows: SiteRanks.pages(l.pages), total: l.visitors)
+    }
+    private func came(_ l: SiteLive) -> some View {
+        SiteRankSection(title: "How they came", rows: SiteRanks.counts(l.sources, label: SiteWords.source), total: l.visitors)
+    }
+    private func devices(_ l: SiteLive) -> some View {
+        SiteRankSection(title: "On", rows: SiteRanks.counts(l.devices, label: SiteWords.device), total: l.visitors)
+    }
+
+    @ViewBuilder
+    private func columns(_ l: SiteLive) -> some View {
+        HStack(alignment: .top, spacing: 20) {
+            if width >= 1180 {
+                VStack(alignment: .leading, spacing: 20) { places(l); devices(l) }.frame(maxWidth: .infinity, alignment: .top)
+                VStack(alignment: .leading, spacing: 20) { looking(l); came(l) }.frame(maxWidth: .infinity, alignment: .top)
+                VStack(alignment: .leading, spacing: 20) { visitsSection(l.sessions) }.frame(maxWidth: .infinity, alignment: .top)
+            } else {
+                VStack(alignment: .leading, spacing: 20) { places(l); came(l); devices(l) }.frame(maxWidth: .infinity, alignment: .top)
+                VStack(alignment: .leading, spacing: 20) { looking(l); visitsSection(l.sessions) }.frame(maxWidth: .infinity, alignment: .top)
+            }
+        }
+    }
+
+    private var phoneList: some View {
         List {
             if let l = live {
                 heroSection(l)
@@ -33,19 +124,19 @@ struct WebsiteLiveScreen: View {
         }
         .listStyle(.insetGrouped)
         .modifier(HouseGround())
-        .motion(live?.visitors)
-        .overlay { stateOverlay }
-        .navigationTitle("Live")
-        .navigationBarTitleDisplayMode(.inline)
-        .refreshable { await load() }
-        .task(id: scenePhase) { await poll() }
     }
 
     // MARK: The count
 
     private func heroSection(_ l: SiteLive) -> some View {
         Section {
-            HStack(spacing: 14) {
+            heroBody(l)
+        }
+        .houseRows()
+    }
+
+    private func heroBody(_ l: SiteLive) -> some View {
+        HStack(spacing: 14) {
                 Image(systemName: "circle.fill")
                     .font(.caption)
                     .foregroundStyle(l.visitors > 0 ? Tone.settled.color : Color.secondary.opacity(0.4))
@@ -62,8 +153,6 @@ struct WebsiteLiveScreen: View {
                 Spacer(minLength: 0)
             }
             .accessibilityElement(children: .combine)
-        }
-        .houseRows()
     }
 
     private func heroWords(_ l: SiteLive) -> String {
@@ -94,16 +183,11 @@ struct WebsiteLiveScreen: View {
     // MARK: Each visit
 
     private func visitsSection(_ visits: [SiteLiveVisit]) -> some View {
-        Section {
+        SiteBlock(title: "Each visit", note: "Newest first; no names, no addresses.") {
             ForEach(visits) { (v: SiteLiveVisit) in
                 visitRow(v)
             }
-        } header: {
-            LedgerHeading(title: "Each visit")
-        } footer: {
-            Text("Newest first; no names, no addresses.")
         }
-        .houseRows()
     }
 
     private func place(_ v: SiteLiveVisit) -> String {

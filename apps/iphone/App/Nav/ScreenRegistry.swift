@@ -56,7 +56,7 @@ enum ScreenRegistry {
                                   "/my-work", "/given", "/orders/add", "/invoices/new", "/products/add", "/design",
                                   "/products/bulk-add", "/settings/printer", "/app/widgets", "/today"]
         if fills.contains(bare) { return nil }
-        for prefix in ["/ads", "/website", "/posts", "/marketing"] where bare == prefix || bare.hasPrefix(prefix + "/") { return nil }
+        for prefix in ["/ads", "/website", "/posts", "/marketing", "/insights"] where bare == prefix || bare.hasPrefix(prefix + "/") { return nil }
         // The forms beside their summary (TransactionWorkspace): editing an order, a sale or a piece, and Finalize.
         if bare.hasSuffix("/edit") && (bare.hasPrefix("/orders/") || bare.hasPrefix("/invoices/") || bare.hasPrefix("/products/")) { return nil }
         if bare.hasSuffix("/finalize") { return nil }

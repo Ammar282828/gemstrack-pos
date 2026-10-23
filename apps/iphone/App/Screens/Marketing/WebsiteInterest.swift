@@ -120,6 +120,12 @@ struct WebsiteInterestScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// The window's own width, to choose between the phone's List and an iPad's columns of cards.
+    @State private var width: CGFloat = 0
+
+    /// An iPad's wide window: tiles four across, the sections in two columns.
+    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     /// The period last chosen on this device (the web keeps it too); Custom is not remembered.
     @AppStorage("erp.websiteInterest.period") private var storedPeriod = "30d"
@@ -146,17 +152,8 @@ struct WebsiteInterestScreen: View {
     }
 
     var body: some View {
-        List {
-            periodSection
-            if let r = report {
-                reportSections(r)
-            }
-            if report != nil || pieces != nil {
-                piecesSection
-            }
-        }
-        .listStyle(.insetGrouped)
-        .modifier(HouseGround())
+        content
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .motion(query)
         .motion(list)
         .overlay { stateOverlay }
@@ -175,7 +172,118 @@ struct WebsiteInterestScreen: View {
                 customTo = b
                 custom = true
             }
+            .presentationSizing(.form)
         }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if wide {
+            wideBody
+        } else {
+            List {
+                periodSection
+                if let r = report {
+                    reportSections(r)
+                }
+                if report != nil || pieces != nil {
+                    piecesSection
+                }
+            }
+            .listStyle(.insetGrouped)
+            .modifier(HouseGround())
+        }
+    }
+
+    // MARK: An iPad's wide window
+
+    private var wideBody: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                widePeriod
+                if let r = report {
+                    wideReport(r)
+                }
+                if report != nil || pieces != nil {
+                    widePieces
+                }
+            }
+            .environment(\.siteWide, true)
+            .padding(.horizontal, 28)
+            .padding(.top, 8)
+            .padding(.bottom, 28)
+            .frame(maxWidth: 1240)
+            .frame(maxWidth: .infinity)
+        }
+        .background(Theme.ground)
+    }
+
+    private var widePeriod: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 16) {
+                ChipRow {
+                    ForEach(periods, id: \.key) { (p: (key: String, label: String)) in
+                        FilterChip(title: p.label, chosen: !custom && periodKey == p.key) { choose(p.key) }
+                    }
+                    FilterChip(title: "Custom", chosen: custom) { picking = true }
+                }
+                .padding(.leading, -16)
+                NavigationLink(value: Route(path: "/website/interest/live")) { liveLabel }
+                    .buttonStyle(.bordered)
+                    .hoverEffect()
+            }
+            if let r = report {
+                Text(spanLine(r)).font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func wideReport(_ r: SiteReport) -> some View {
+        let n = r.now
+        if n.sessions == 0 && r.before.sessions == 0 {
+            Text("Nothing counted in this period yet. Visits are counted from 23 October 2026; piece interest from 22 October. It fills as people use the website.")
+                .font(.subheadline).foregroundStyle(.secondary)
+        }
+        // Eight tiles in two rows of four.
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 4), spacing: 12) {
+            tiles(r)
+        }
+        SiteChartSection(report: r)
+        HStack(alignment: .top, spacing: 20) {
+            VStack(alignment: .leading, spacing: 20) {
+                SiteFunnelSection(now: n, before: r.before)
+                SiteRankSection(title: "Where they came from", rows: SiteRanks.channels(n), total: n.sessions, empty: "No sessions yet.")
+                SiteSourcesSection(sources: n.sources)
+                SiteRankSection(title: "Campaigns", rows: campaignRows(n), total: n.sessions)
+                deviceSections(n)
+            }
+            .frame(maxWidth: .infinity, alignment: .top)
+            VStack(alignment: .leading, spacing: 20) {
+                SiteRankSection(title: "Where they are", rows: SiteRanks.places(n.countries, cities: n.cities), total: n.sessions, empty: "No sessions yet.")
+                pageSections(n)
+            }
+            .frame(maxWidth: .infinity, alignment: .top)
+        }
+    }
+
+    private var widePieces: some View {
+        let rows = list.ranked(pieces ?? [])
+        return VStack(alignment: .leading, spacing: 12) {
+            LedgerHeading(title: "Pieces")
+            picker
+            if pieces != nil && rows.isEmpty {
+                Text(list.emptyTitle + ". It fills as people use the website.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 20, alignment: .top), GridItem(.flexible(), spacing: 20, alignment: .top)], spacing: 14) {
+                ForEach(Array(rows.enumerated()), id: \.element.id) { (i: Int, r: WebsiteInterestPiece) in
+                    row(r, rank: i + 1, in: list)
+                }
+            }
+            Text(LocalizedStringKey(Self.countingNote)).font(.footnote).foregroundStyle(.secondary)
+        }
+        .ledgerCard()
     }
 
     // MARK: Period and live
@@ -204,19 +312,21 @@ struct WebsiteInterestScreen: View {
     }
 
     private var liveRow: some View {
-        NavigationLink(value: Route(path: "/website/interest/live")) {
-            HStack(spacing: 10) {
-                Image(systemName: "dot.radiowaves.left.and.right")
-                    .foregroundStyle((liveNow ?? 0) > 0 ? Tone.settled.color : Color.secondary)
-                if let n = liveNow {
-                    Text("\(n) on the site now").monospacedDigit()
-                        .contentTransition(.numericText(value: Double(n)))
-                } else {
-                    Text("Live")
-                }
+        NavigationLink(value: Route(path: "/website/interest/live")) { liveLabel }
+            .listRowBackground(Theme.card)
+    }
+
+    private var liveLabel: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "dot.radiowaves.left.and.right")
+                .foregroundStyle((liveNow ?? 0) > 0 ? Tone.settled.color : Color.secondary)
+            if let n = liveNow {
+                Text("\(n) on the site now").monospacedDigit()
+                    .contentTransition(.numericText(value: Double(n)))
+            } else {
+                Text("Live")
             }
         }
-        .listRowBackground(Theme.card)
     }
 
     private func choose(_ key: String) {

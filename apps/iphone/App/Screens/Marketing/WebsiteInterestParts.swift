@@ -19,21 +19,13 @@ struct SiteChartSection: View {
 
     var body: some View {
         if let hours = report.hours {
-            Section {
+            SiteBlock(title: "Sessions by the hour", note: "Karachi time; the faint shape is the day before") {
                 hoursChart(hours)
-            } header: {
-                LedgerHeading(title: "Sessions by the hour")
-            } footer: {
-                Text("Karachi time; the faint shape is the day before")
             }
-            .houseRows()
         } else if report.series.count > 1 {
-            Section {
+            SiteBlock(title: "Sessions, day by day") {
                 daysChart
-            } header: {
-                LedgerHeading(title: "Sessions, day by day")
             }
-            .houseRows()
         }
     }
 
@@ -116,14 +108,11 @@ struct SiteFunnelSection: View {
 
     var body: some View {
         let all = steps
-        Section {
+        SiteBlock(title: "From a visit to a WhatsApp message") {
             ForEach(Array(all.enumerated()), id: \.element.id) { (i: Int, s: Step) in
                 stepRow(s, index: i, all: all)
             }
-        } header: {
-            LedgerHeading(title: "From a visit to a WhatsApp message")
         }
-        .houseRows()
     }
 
     private func stepRow(_ s: Step, index i: Int, all: [Step]) -> some View {
@@ -169,7 +158,7 @@ struct SiteSourcesSection: View {
 
     var body: some View {
         if !sources.isEmpty {
-            Section {
+            SiteBlock(title: "Which sources bring enquiries", note: "Of each source's sessions, the share that reached each step") {
                 ForEach(shown) { (s: SiteSource) in
                     row(s)
                 }
@@ -179,12 +168,7 @@ struct SiteSourcesSection: View {
                     }
                     .buttonStyle(.borderless)
                 }
-            } header: {
-                LedgerHeading(title: "Which sources bring enquiries")
-            } footer: {
-                Text("Of each source's sessions, the share that reached each step")
             }
-            .houseRows()
         }
     }
 

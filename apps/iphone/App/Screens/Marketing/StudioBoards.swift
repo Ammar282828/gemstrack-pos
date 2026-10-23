@@ -359,11 +359,12 @@ struct StudioBoards: View {
             .sheet(item: Binding(get: { active ? sheet : nil }, set: { sheet = $0 })) { s in
                 switch s {
                 case .editor(let id): StudioBoardEditor(frameID: id, board: board)
-                case .queue(let id): if let f = board.frame(id) { StudioBoardQueueSheet(frame: f, board: board) }
+                case .queue(let id): if let f = board.frame(id) { StudioBoardQueueSheet(frame: f, board: board).presentationSizing(.form) }
                 case .picker: StudioBoardPhotoPicker(board: board) { item, format in
                     sheet = nil
                     Task { if let id = await board.add(item, format: format) { selected = id } }
                 }
+                .presentationSizing(.page)
                 case .agents: StudioAgentSettings()
                 case .share(let files): MarketingShareSheet(items: files.items)
                 }

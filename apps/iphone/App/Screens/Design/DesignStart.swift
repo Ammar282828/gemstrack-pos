@@ -175,6 +175,7 @@ struct DesignStartView: View {
             .padding(.horizontal, 16).padding(.vertical, 12)
         }
         .scrollDismissesKeyboard(.interactively)
+        .readableColumn(760)
         .keyboardDone()
         // The one primary action stays at the foot, below the choices that decide it (rule 16).
         .actionBar(primary: .init("Continue", isBusy: starting, action: onBegin))
@@ -187,6 +188,7 @@ struct DesignStartView: View {
                 sitePicker = false
                 start.photo = DesignPhotoSources.site(piece, data: data)
             }
+            .presentationSizing(.page)
         }
         .sheet(isPresented: $camera) {
             NewOrderCamera { image in
@@ -194,7 +196,7 @@ struct DesignStartView: View {
                 if let image, let data = WebsitePhoto.jpeg(image) { start.photo = DesignPhotoSources.device(data, name: "Camera photo") }
             }.ignoresSafeArea()
         }
-        .sheet(item: $start.sheet) { $0.content }
+        .sheet(item: $start.sheet) { $0.shown }
         .failureAlert($problem, title: "Could not use that photograph")
     }
 

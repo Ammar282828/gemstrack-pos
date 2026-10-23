@@ -117,7 +117,7 @@ struct StudioSaved: View {
         .task { if !House.isDemo { await load() } }
         .task(id: view) { if view == "account", !House.isDemo { await loadAccount() } }
         .refreshable { await load() }
-        .sheet(item: $selected) { choice in detail(choice.item) }
+        .sheet(item: $selected) { choice in detail(choice.item).presentationSizing(.page) }
         .sheet(item: $share) { MarketingShareSheet(items: $0.items) }
         // From the detail sheet the question is asked in the sheet (below); here only for the list's own deletes.
         .confirmationDialog("Delete “\(deleting?.s("name") ?? "")”?", isPresented: Binding(get: { deleting != nil && selected == nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {

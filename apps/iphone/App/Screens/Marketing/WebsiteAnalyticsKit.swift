@@ -540,6 +540,48 @@ struct SiteTile: View {
     }
 }
 
+// MARK: One block, two homes
+
+private struct SiteWideKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    /// The report is laid out as cards in columns (an iPad's wide window) rather than as a List's sections.
+    var siteWide: Bool {
+        get { self[SiteWideKey.self] }
+        set { self[SiteWideKey.self] = newValue }
+    }
+}
+
+/// A titled block of the report: a List section on a phone, a card in a column on an iPad's wide window.
+struct SiteBlock<Content: View>: View {
+    let title: String
+    var note: String?
+    @ViewBuilder let content: () -> Content
+    @Environment(\.siteWide) private var wide
+
+    var body: some View {
+        if wide {
+            VStack(alignment: .leading, spacing: 12) {
+                LedgerHeading(title: title)
+                content()
+                if let note {
+                    Text(note).font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            .ledgerCard()
+        } else {
+            Section {
+                content()
+            } header: {
+                LedgerHeading(title: title)
+            } footer: {
+                if let note { Text(note) }
+            }
+            .houseRows()
+        }
+    }
+}
+
 // MARK: Ranked lists
 
 /// One line of a ranked list; `children` open under it (a channel's sources, a country's cities).
@@ -607,14 +649,7 @@ struct SiteRankSection: View {
         if rows.isEmpty && empty == nil {
             EmptyView()
         } else {
-            Section {
-                content
-            } header: {
-                LedgerHeading(title: title)
-            } footer: {
-                if let note { Text(note) }
-            }
-            .houseRows()
+            SiteBlock(title: title, note: note) { content }
         }
     }
 

@@ -117,18 +117,36 @@ struct MarketingLink: View {
     let symbol: String
     let path: String
 
+    @Environment(\.siteWide) private var wide
+
     var body: some View {
-        NavigationLink(value: Route(path: path)) {
-            Label {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                    if let subtitle, !subtitle.isEmpty {
-                        Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
-                    }
+        if wide {
+            // On an iPad's page of cards there is no List row to draw the chevron.
+            NavigationLink(value: Route(path: path)) {
+                HStack {
+                    label
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
                 }
-            } icon: {
-                Image(systemName: symbol).foregroundStyle(Theme.accent)
+                .contentShape(.rect)
             }
+            .buttonStyle(.plain)
+            .hoverEffect()
+        } else {
+            NavigationLink(value: Route(path: path)) { label }
+        }
+    }
+
+    private var label: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
+        } icon: {
+            Image(systemName: symbol).foregroundStyle(Theme.accent)
         }
     }
 }

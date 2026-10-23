@@ -182,6 +182,7 @@ struct AdsSetupScreen: View {
             .disabled(busy != nil)
         }
         .listStyle(.insetGrouped)
+        .readableColumn(780)
         .scrollDismissesKeyboard(.interactively)
         .keyboardDone()
         .refreshable { await load() }
