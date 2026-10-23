@@ -19,6 +19,8 @@ struct PostsHub: View {
     @State private var confirmingAll = false
     @State private var sendingAll = false
     @State private var note: Note?
+    /// The connection checks stay folded until tapped, even when something fails (owner, 2026-10-23).
+    @State private var checksOpen = false
 
     struct Opened: Identifiable { let id: String }
 
@@ -84,17 +86,21 @@ struct PostsHub: View {
         let failing = store.failingChecks
         if !failing.isEmpty {
             Section {
-                ForEach(failing) { (c: PostCheck) in
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("\(c.group): \(c.label)").font(.body.weight(.medium))
-                            Text(c.fix ?? c.detail).font(.subheadline).foregroundStyle(.secondary)
+                DisclosureGroup(isExpanded: $checksOpen) {
+                    ForEach(failing) { (c: PostCheck) in
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(c.group): \(c.label)").font(.body.weight(.medium))
+                                Text(c.fix ?? c.detail).font(.subheadline).foregroundStyle(.secondary)
+                            }
                         }
                     }
+                } label: {
+                    Label("\(failing.count) \(failing.count == 1 ? "thing needs" : "things need") attention", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Tone.owed.color)
                 }
-            } header: {
-                LedgerHeading(title: "Needs a look")
+                .motion(checksOpen)
             }
         }
     }

@@ -89,7 +89,7 @@ struct AdsAdSetsScreen: View {
             } else if let status, status.ready, let lists, info != nil {
                 form(lists)
             } else {
-                AdsNotReady(status: status, problem: problem, retry: load)
+                AdsNotReady(status: status, problem: problem, retry: { await load(fresh: true) })
             }
         }
         .navigationTitle("Ad sets")
@@ -195,9 +195,9 @@ struct AdsAdSetsScreen: View {
 
     // MARK: Asking the ERP
 
-    private func load() async {
+    private func load(fresh: Bool = false) async {
         do {
-            let s = try await AdsAPI.status()
+            let s = try await AdsAPI.status(fresh: fresh)
             status = s
             problem = nil
             guard s.ready else { return }

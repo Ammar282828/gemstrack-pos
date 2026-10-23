@@ -4,6 +4,24 @@ import ERPCore
 // The Posts hub's answers, read as leniently as the web reads them (src/app/posts/page.tsx): a
 // missing or odd field gives a default, never an error that would empty the hub (CONVENTIONS.md rule 2).
 
+/// One more photograph of a piece, after its lead (`photos` of /api/website/site-pieces; the n-th, from 2, is
+/// /api/website/site-pieces/image?id=<piece>&photo=<n>).
+struct PostPiecePhoto: Decodable, Hashable {
+    let key: String
+    let image: String
+    let thumb: String
+
+    private enum K: String, CodingKey { case key, image, thumb }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: K.self)
+        key = c.string(.key, default: "")
+        image = c.string(.image, default: "")
+        let small = c.string(.thumb, default: "")
+        thumb = small.isEmpty ? c.string(.image, default: "") : small
+    }
+}
+
 /// A piece on the house's own website (src/lib/website/site-pieces.ts `SitePiece`), with what the phone shows.
 struct PostPiece: Decodable, Identifiable, Hashable {
     let id: String
@@ -27,9 +45,11 @@ struct PostPiece: Decodable, Identifiable, Hashable {
     /// The catalogue's photo before it was marked, which a design starts from (Mina).
     let photoSource: String?
     let sourceMarked: Bool
+    /// The piece's own other photographs, after the lead, in order (none on most sites).
+    let photos: [PostPiecePhoto]
 
     private enum K: String, CodingKey {
-        case id, name, url, image, thumb, collection, weightGrams, facts, about, added, newArrival, hidden, weightOnPhoto, source, photoSource, sourceMarked
+        case id, name, url, image, thumb, collection, weightGrams, facts, about, added, newArrival, hidden, weightOnPhoto, source, photoSource, sourceMarked, photos
     }
 
     init(from decoder: Decoder) throws {
@@ -51,6 +71,7 @@ struct PostPiece: Decodable, Identifiable, Hashable {
         source = c.string(.source)
         photoSource = c.string(.photoSource).flatMap { (s: String) -> String? in s.isEmpty ? nil : s }
         sourceMarked = c.bool(.sourceMarked, default: false)
+        photos = c.list(.photos, of: PostPiecePhoto.self).filter { (p: PostPiecePhoto) in !p.image.isEmpty }
     }
 }
 
