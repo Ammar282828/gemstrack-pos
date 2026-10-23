@@ -200,13 +200,14 @@ function PostsHub() {
   useEffect(() => { setShown(PAGE); }, [q, collection, freshOnly]);
 
   /** The website's photograph, fetched once through this server (the site doesn't share it with other pages). */
-  const photo = useCallback(async (id: string): Promise<Blob> => {
-    const have = photos.current.get(id);
+  const photo = useCallback(async (id: string, n = 1): Promise<Blob> => {
+    const key = n > 1 ? `${id}#${n}` : id;
+    const have = photos.current.get(key);
     if (have) return have;
-    const res = await fetch(`/api/website/site-pieces/image?id=${encodeURIComponent(id)}`, { headers: await authHeaders() });
+    const res = await fetch(`/api/website/site-pieces/image?id=${encodeURIComponent(id)}${n > 1 ? `&photo=${n}` : ''}`, { headers: await authHeaders() });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `The photograph didn’t come (${res.status}).`);
     const b = await res.blob();
-    photos.current.set(id, b);
+    photos.current.set(key, b);
     return b;
   }, []);
   const register = useCallback((id: string, h: CardHandle | null) => { if (h) cards.current.set(id, h); else cards.current.delete(id); }, []);

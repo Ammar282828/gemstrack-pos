@@ -4,6 +4,8 @@
  * browser read its images across origins. Only a piece the website lists can be
  * fetched — the address is the site's own, never one from the request.
  *
+ * `photo=n` (2 and on) is the piece's n-th photograph (SitePiece.photos: its back, another angle), as the site lists it.
+ *
  * For Website → Edit a piece: `size` up to 3000 (the site's own full size), and
  * `original=1` for the photograph every edit starts from, so a stamp or a crop is
  * never made twice over: on the catalogue, the photo before it was framed and
@@ -37,7 +39,10 @@ export async function GET(req: NextRequest) {
   const size = Math.min(3000, Math.max(256, Number(q.get('size')) || 2048));
   const replaced = !!piece.change?.photo?.edited && piece.change.photo.image === piece.imagePath && !!piece.imagePath;
   const source = piece.photoSource && (piece.photoSource.startsWith(`${siteOrigin()}/`) || SOURCE_HOST.test(hostOf(piece.photoSource))) ? piece.photoSource : null;
-  const src = q.get('original') !== '1' ? piece.image
+  const n = Math.floor(Number(q.get('photo')) || 1);
+  const extra = n > 1 ? piece.photos?.[n - 2] : null;
+  if (n > 1 && (!extra || !extra.image.startsWith(`${siteOrigin()}/`))) return NextResponse.json({ error: 'That piece has no such photograph.' }, { status: 404 });
+  const src = extra ? extra.image : q.get('original') !== '1' ? piece.image
     : source ? withWidth(source)
       : replaced ? originalUrl(siteOrigin(), piece.imagePath!) : piece.image;
   const res = await fetch(src, { cache: 'no-store', signal: AbortSignal.timeout(20000) }).catch(() => null);
