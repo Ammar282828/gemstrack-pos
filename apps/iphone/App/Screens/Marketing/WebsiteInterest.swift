@@ -4,7 +4,8 @@ import ERPCore
 
 /// Website → Interest (src/app/website/interest/page.tsx): which of the site's pieces visitors save, ask about on
 /// WhatsApp, open and stay on, counted anonymously by the house's own site since 22 October. One read
-/// (GET /api/website/interest?days=7|30|0); the web's rules, here as four short lists instead of its four tabs.
+/// (GET /api/website/interest?from=&to=); the web's rules, here as four short lists instead of its four tabs.
+/// Above them the site's report (WebsiteAnalyticsKit.swift: GET /api/website/analytics) for the chosen period; Live is its own screen.
 
 /// One piece's counts, as /api/website/interest sends them. Any number may be missing.
 struct WebsiteInterestPiece: Decodable, Identifiable, Hashable {
@@ -117,55 +118,240 @@ enum WebsiteInterestList: String, CaseIterable, Identifiable {
 struct WebsiteInterestScreen: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     @Environment(\.dynamicTypeSize) private var typeSize
-    @State private var days = 30
+    @Environment(\.scenePhase) private var scenePhase
+
+    /// The period last chosen on this device (the web keeps it too); Custom is not remembered.
+    @AppStorage("erp.websiteInterest.period") private var storedPeriod = "30d"
+    @State private var custom = false
+    @State private var customFrom = ""
+    @State private var customTo = ""
+    @State private var picking = false
     @State private var list: WebsiteInterestList = .saved
+    @State private var report: SiteReport?
     @State private var pieces: [WebsiteInterestPiece]?
     @State private var problem: String?
+    @State private var liveNow: Int?
 
-    private let periods: [(days: Int, label: String)] = [(7, "7 days"), (30, "30 days"), (0, "All time")]
+    private let periods: [(key: String, label: String)] = [
+        ("today", "Today"), ("yesterday", "Yesterday"), ("7d", "7 days"), ("30d", "30 days"), ("90d", "90 days"), ("all", "All time")
+    ]
+
+    private var periodKey: String {
+        periods.contains { (p: (key: String, label: String)) in p.key == storedPeriod } ? storedPeriod : "30d"
+    }
+
+    private var query: String {
+        custom ? "range=custom&from=\(customFrom)&to=\(customTo)" : "range=\(periodKey)"
+    }
 
     var body: some View {
-        let rows = list.ranked(pieces ?? [])
         List {
-            Section {
-                ChipRow {
-                    ForEach(periods, id: \.days) { (p: (days: Int, label: String)) in
-                        FilterChip(title: p.label, chosen: days == p.days) { choose(p.days) }
-                    }
-                }
-                .chipRowInList()
-                picker
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+            periodSection
+            if let r = report {
+                reportSections(r)
             }
-            if !rows.isEmpty {
-                Section {
-                    ForEach(Array(rows.enumerated()), id: \.element.id) { (i: Int, r: WebsiteInterestPiece) in
-                        row(r, rank: i + 1, in: list)
-                    }
-                } header: {
-                    LedgerHeading(title: list.title)
-                }
-                .houseRows()
-                .transition(.opacity.combined(with: .move(edge: .top)))
+            if report != nil || pieces != nil {
+                piecesSection
             }
         }
         .listStyle(.insetGrouped)
         .modifier(HouseGround())
-        .motion(days)
+        .motion(query)
         .motion(list)
-        .overlay { stateOverlay(wholeEmpty: pieces != nil && shownCount == 0, listEmpty: pieces != nil && rows.isEmpty) }
+        .overlay { stateOverlay }
         .navigationTitle("Interest")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
-        .task(id: days) { await load() }
+        .task(id: query) { await load() }
+        .task(id: scenePhase) { await pollLive() }
         .onAppear { remember() }
         .onChange(of: list) { _, new in
             UserDefaults.standard.set(new.rawValue, forKey: BizKey("erp.interestList"))
         }
+        .sheet(isPresented: $picking) {
+            SiteCustomRangeSheet(from: customFrom, to: customTo) { (a: String, b: String) in
+                customFrom = a
+                customTo = b
+                custom = true
+            }
+        }
     }
+
+    // MARK: Period and live
+
+    private var periodSection: some View {
+        Section {
+            ChipRow {
+                ForEach(periods, id: \.key) { (p: (key: String, label: String)) in
+                    FilterChip(title: p.label, chosen: !custom && periodKey == p.key) { choose(p.key) }
+                }
+                FilterChip(title: "Custom", chosen: custom) { picking = true }
+            }
+            .chipRowInList()
+            if let r = report {
+                Text(spanLine(r))
+                    .font(.footnote).foregroundStyle(.secondary)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+            liveRow
+        }
+    }
+
+    private func spanLine(_ r: SiteReport) -> String {
+        SiteWords.span(r.from, r.to) + " · compared with " + SiteWords.span(r.previous.from, r.previous.to)
+    }
+
+    private var liveRow: some View {
+        NavigationLink(value: Route(path: "/website/interest/live")) {
+            HStack(spacing: 10) {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .foregroundStyle((liveNow ?? 0) > 0 ? Tone.settled.color : Color.secondary)
+                if let n = liveNow {
+                    Text("\(n) on the site now").monospacedDigit()
+                        .contentTransition(.numericText(value: Double(n)))
+                } else {
+                    Text("Live")
+                }
+            }
+        }
+        .listRowBackground(Theme.card)
+    }
+
+    private func choose(_ key: String) {
+        guard custom || key != periodKey else { return }
+        Motion.run(reduce: reduceMotion) {
+            custom = false
+            storedPeriod = key
+        }
+    }
+
+    // MARK: The report
+
+    @ViewBuilder
+    private func reportSections(_ r: SiteReport) -> some View {
+        let n = r.now
+        if n.sessions == 0 && r.before.sessions == 0 {
+            Section {
+                Text("Nothing counted in this period yet. Visits are counted from 23 October 2026; piece interest from 22 October. It fills as people use the website.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
+            .houseRows()
+        }
+        tilesSection(r)
+        SiteChartSection(report: r)
+        SiteFunnelSection(now: n, before: r.before)
+        SiteRankSection(title: "Where they came from", rows: SiteRanks.channels(n), total: n.sessions, empty: "No sessions yet.")
+        SiteRankSection(title: "Where they are", rows: SiteRanks.places(n.countries, cities: n.cities), total: n.sessions, empty: "No sessions yet.")
+        SiteSourcesSection(sources: n.sources)
+        SiteRankSection(title: "Campaigns", rows: campaignRows(n), total: n.sessions)
+        deviceSections(n)
+        pageSections(n)
+    }
+
+    @ViewBuilder
+    private func deviceSections(_ n: SiteSummary) -> some View {
+        SiteRankSection(title: "Device", rows: SiteRanks.counts(n.devices, label: SiteWords.device), total: n.sessions, empty: "No sessions yet.")
+        SiteRankSection(title: "System", rows: SiteRanks.plain(n.os), total: n.sessions, empty: "No sessions yet.")
+        SiteRankSection(title: "Browser", rows: SiteRanks.plain(n.browsers), total: n.sessions, empty: "No sessions yet.",
+                        note: "Instagram and Facebook are their in-app browsers.")
+    }
+
+    @ViewBuilder
+    private func pageSections(_ n: SiteSummary) -> some View {
+        SiteRankSection(title: "Pages they arrived on", rows: SiteRanks.pages(n.landing), total: n.sessions, empty: "No sessions yet.")
+        SiteRankSection(title: "Pages they left from", rows: SiteRanks.pages(n.exits), total: n.sessions, empty: "No sessions yet.")
+        SiteRankSection(title: "Most viewed pages", rows: SiteRanks.pages(n.pages), total: n.pageviews, empty: "No page views yet.")
+        SiteRankSection(title: "Collections browsed", rows: SiteRanks.pages(n.collections), empty: "No collection pages opened yet.")
+        SiteRankSection(title: "What they searched for", rows: searchRows(n))
+        SiteRankSection(title: "Pages not found", rows: SiteRanks.pages(n.notFound),
+                        note: "A broken link somewhere, or a piece taken down.")
+    }
+
+    private func campaignRows(_ n: SiteSummary) -> [SiteRankRow] {
+        n.campaigns.map { (c: SiteCampaign) -> SiteRankRow in
+            SiteRankRow(id: c.key, label: c.key, sub: "\(c.piece) opened a piece · \(c.enquire) asked", value: c.value)
+        }
+    }
+
+    private func searchRows(_ n: SiteSummary) -> [SiteRankRow] {
+        n.searches.map { (s: SiteCount) -> SiteRankRow in
+            SiteRankRow(id: s.key, label: "\u{201C}" + s.key + "\u{201D}", value: s.value)
+        }
+    }
+
+    // MARK: Tiles
+
+    private func tilesSection(_ r: SiteReport) -> some View {
+        Section {
+            FigureGrid {
+                tiles(r)
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+        }
+    }
+
+    @ViewBuilder
+    private func tiles(_ r: SiteReport) -> some View {
+        let n = r.now
+        let b = r.before
+        SiteTile(label: "Sessions", value: SiteWords.number(n.sessions), now: Double(n.sessions), before: Double(b.sessions),
+                 detail: String(format: "%.1f pages each", n.pagesPerSession))
+        SiteTile(label: "Visitors", value: SiteWords.number(n.visitors), now: Double(n.visitors), before: Double(b.visitors),
+                 detail: r.visitorsExact ? nil : "day by day, added")
+        SiteTile(label: "Page views", value: SiteWords.number(n.pageviews), now: Double(n.pageviews), before: Double(b.pageviews))
+        SiteTile(label: "Time on site", value: SiteWords.duration(n.avgSessionMs), now: n.avgSessionMs, before: b.avgSessionMs,
+                 detail: "a session, on average")
+        SiteTile(label: "Bounce rate", value: SiteWords.pct(n.bounceRate), now: n.bounceRate, before: b.bounceRate, invert: true,
+                 detail: "left after one page")
+        askedTile(n, b)
+        SiteTile(label: "Saved a piece", value: SiteWords.number(n.funnel.save), now: Double(n.funnel.save), before: Double(b.funnel.save),
+                 detail: "sessions")
+        returningTile(n, b)
+    }
+
+    private func askedTile(_ n: SiteSummary, _ b: SiteSummary) -> some View {
+        SiteTile(label: "Asked on WhatsApp", value: SiteWords.number(n.funnel.enquire),
+                 now: Double(n.funnel.enquire), before: Double(b.funnel.enquire),
+                 detail: SiteWords.pct(n.conversion, digits: 1) + " of sessions")
+    }
+
+    private func returningTile(_ n: SiteSummary, _ b: SiteSummary) -> some View {
+        let share = n.sessions > 0 ? Double(n.returningSessions) / Double(n.sessions) : 0
+        let detail = SiteWords.number(n.returningSessions) + " sessions · " + SiteWords.number(n.newVisitors) + " new people"
+        return SiteTile(label: "Returning", value: SiteWords.pct(share),
+                        now: Double(n.returningSessions), before: Double(b.returningSessions), detail: detail)
+    }
+
+    // MARK: Pieces
+
+    private var piecesSection: some View {
+        let rows = list.ranked(pieces ?? [])
+        return Section {
+            picker
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            if pieces != nil && rows.isEmpty {
+                Text(list.emptyTitle + ". It fills as people use the website.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .listRowBackground(Theme.card)
+            }
+            ForEach(Array(rows.enumerated()), id: \.element.id) { (i: Int, r: WebsiteInterestPiece) in
+                row(r, rank: i + 1, in: list)
+                    .listRowBackground(Theme.card)
+            }
+        } header: {
+            LedgerHeading(title: "Pieces")
+        } footer: {
+            Text(LocalizedStringKey(Self.countingNote))
+        }
+    }
+
+    /// How the numbers are counted (the web's note), with the geolocation credit DB-IP's licence asks for.
+    private static let countingNote = "A session is one visit; a new one starts after 30 minutes away. Visitors are told apart by a random id their browser keeps, never by name or address; visitors who ask not to be tracked (Do Not Track) and bots are not counted. Places come from the visitor\u{2019}s network address, looked up and then forgotten \u{2014} [IP Geolocation by DB-IP](https://db-ip.com); city for Pakistan and the Gulf, the country elsewhere."
 
     @ViewBuilder
     private var picker: some View {
@@ -192,29 +378,13 @@ struct WebsiteInterestScreen: View {
         if let raw = UserDefaults.standard.string(forKey: BizKey("erp.interestList")), let l = WebsiteInterestList(rawValue: raw) { list = l }
     }
 
-    private var shownCount: Int {
-        let all = pieces ?? []
-        return WebsiteInterestList.allCases.reduce(0) { (n: Int, l: WebsiteInterestList) in n + l.ranked(all).count }
-    }
-
     @ViewBuilder
-    private func stateOverlay(wholeEmpty: Bool, listEmpty: Bool) -> some View {
-        if pieces == nil, let problem {
+    private var stateOverlay: some View {
+        if report == nil, let problem {
             ErrorState(problem) { Task { await load() } }
-        } else if pieces == nil {
+        } else if report == nil {
             SkeletonLoading("Loading…").controlSize(.large)
-        } else if wholeEmpty {
-            EmptyState("Nothing counted yet", symbol: "heart",
-                       message: "The website counts anonymously what visitors save, ask about on WhatsApp, open and stay on, since 22 October. It fills as people use the website.")
-        } else if listEmpty {
-            EmptyState(list.emptyTitle, symbol: "heart", message: "It fills as people use the website.")
-                .padding(.top, 120)
         }
-    }
-
-    private func choose(_ d: Int) {
-        guard d != days else { return }
-        Motion.run(reduce: reduceMotion) { days = d }
     }
 
     private func row(_ r: WebsiteInterestPiece, rank: Int, in list: WebsiteInterestList) -> some View {
@@ -249,16 +419,33 @@ struct WebsiteInterestScreen: View {
         }
     }
 
-    /// The previous list stays while the next period loads; a failure shows only when there is nothing to show.
+    // MARK: Loading
+
+    /// The previous report and list stay while the next period loads; a failure shows only when there is nothing to show.
     private func load() async {
+        guard !(custom && (customFrom.isEmpty || customTo.isEmpty)) else { return }
         do {
-            let a = try await ERPAPI.shared.get("/api/website/interest?days=\(days)", as: WebsiteInterestAnswer.self)
-            pieces = a.pieces
+            let r = try await ERPAPI.shared.get("/api/website/analytics?\(query)", as: SiteReport.self)
+            report = r
             problem = nil
+            // The piece rankings for the same days as the report.
+            let a = try await ERPAPI.shared.get("/api/website/interest?from=\(r.from)&to=\(r.to)", as: WebsiteInterestAnswer.self)
+            pieces = a.pieces
         } catch is CancellationError {
             return
         } catch {
-            if pieces == nil { problem = error.localizedDescription }
+            if report == nil { problem = error.localizedDescription }
+        }
+    }
+
+    /// "N on the site now": asked once on appearing, then every 30 seconds, only while this screen is up and the app is active.
+    private func pollLive() async {
+        guard scenePhase == .active else { return }
+        while !Task.isCancelled {
+            if let l = try? await ERPAPI.shared.get("/api/website/analytics/live", as: SiteLive.self) {
+                Motion.run(reduce: reduceMotion) { liveNow = l.visitors }
+            }
+            do { try await Task.sleep(for: .seconds(30)) } catch { return }
         }
     }
 }
