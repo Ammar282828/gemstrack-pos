@@ -135,14 +135,11 @@ struct RootView: View {
         .tabViewStyle(.sidebarAdaptable)
         // The bar folds down while a page scrolls, giving the page its height back.
         .tabBarMinimizeBehavior(.onScrollDown)
-        // The house's whole logo heads an iPad's sidebar, as the ERP's own sidebar is headed.
+        // An iPad's sidebar is headed by the business chip alone: which business this is and the way to the others
+        // (the house's whole wordmark here was too big for a sidebar, owner 2026-10-23).
         .tabViewSidebarHeader {
-            VStack(alignment: .leading, spacing: 10) {
-                HouseLogo().frame(maxWidth: .infinity, alignment: .leading)
-                // Which business this is, and the way to the others (an iPhone has it in each tab's bar).
-                BusinessChip(wide: true)
-            }
-            .padding(.vertical, 8)
+            BusinessChip(wide: true)
+                .padding(.vertical, 6)
         }
         .sheet(isPresented: $voice, onDismiss: {
             if let p = pendingRoute { pendingRoute = nil; creating = p }
