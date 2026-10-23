@@ -75,7 +75,7 @@ struct DesignWorkspaceView: View {
         // The one primary action stays at the foot where it never scrolls away (rule 16): Publish, with Save beside it.
         .actionBar(
             primary: .init("Publish", systemImage: "paperplane", isDisabled: model.saving) { DesignHooks.shared.publish(model) },
-            secondary: [.init("Save", systemImage: "square.and.arrow.down", isBusy: model.saving) { Task { await model.saveToShop() } }],
+            secondary: [.init("Save", systemImage: "square.and.arrow.down", isBusy: model.saving || model.uploading) { Task { await model.saveInBackground() } }],
             summary: w.dirty ? "Not saved" : "Saved")
     }
 

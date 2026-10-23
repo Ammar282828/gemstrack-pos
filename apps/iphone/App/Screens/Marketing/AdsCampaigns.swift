@@ -25,6 +25,8 @@ struct AdsCampaignsScreen: View {
     @State private var failure: String?
     @State private var go: Route?
     @State private var budgeting: AdsBudgetTarget?
+    /// A switch shows what was asked at once; it is dropped when Meta has answered (or refused).
+    @State private var shownStatus: [String: String] = [:]
     /// The range's campaigns as a CSV (the web's Download (CSV)), ready for the share sheet.
     @State private var csvFile: URL?
     @State private var exporting = false
@@ -107,6 +109,7 @@ struct AdsCampaignsScreen: View {
     // MARK: Asking Meta
 
     private func load() async {
+        if data == nil, let cached = AdsAPI.lastCampaigns(range: rangeKey, archived: archived) { data = cached }
         do {
             data = try await AdsAPI.campaigns(range: rangeKey, archived: archived)
             problem = nil
@@ -128,15 +131,20 @@ struct AdsCampaignsScreen: View {
         }
     }
 
+    /// Optimistic: the switch moves now; Meta's answer follows through the Outbox (put back, with Retry, if refused).
     private func setRunning(_ t: Target, running: Bool) async {
-        busy = t.id
-        defer { busy = nil }
-        do {
-            try await AdsAPI.setRunning(level: t.level, id: t.id, running: running)
-            Note.show(Note(title: running ? "Running" : "Paused", detail: t.name), in: $note, reduce: reduceMotion)
+        shownStatus[t.id] = running ? "ACTIVE" : "PAUSED"
+        Outbox.shared.post(label: (running ? "Run " : "Pause ") + t.name) {
+            shownStatus[t.id] = running ? "ACTIVE" : "PAUSED"
+            do {
+                try await AdsAPI.setRunning(level: t.level, id: t.id, running: running)
+            } catch {
+                shownStatus[t.id] = nil
+                throw error
+            }
             await load()
-        } catch {
-            failure = error.localizedDescription
+            shownStatus[t.id] = nil
+            return running ? "Running: \(t.name)" : "Paused: \(t.name)"
         }
     }
 
@@ -414,7 +422,7 @@ struct AdsCampaignsScreen: View {
     /// Run or pause. Pausing is at once, as the web's switch; running asks first.
     private func runSwitch(_ t: Target, status: String) -> some View {
         let on = Binding<Bool>(
-            get: { status == "ACTIVE" },
+            get: { (shownStatus[t.id] ?? status) == "ACTIVE" },
             set: { (wantOn: Bool) in
                 if wantOn { asking = t } else { Task { await setRunning(t, running: false) } }
             }

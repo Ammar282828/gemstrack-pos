@@ -416,11 +416,11 @@ struct WebsiteEditPieceScreen: View {
         try await WebsiteForm.json("/api/website/edits", fields: fields, timeout: 130, as: WebsiteEditSaved.self)
     }
 
+    /// Only the photo is drawn here (the phone's own work, shown as "Drawing the photo…"); the upload is the Outbox's.
+    /// The screen is free at once; the words come back from there, or a failure with Retry (the same save is safe to repeat).
     private func save() async {
         guard let p = piece else { return }
-        busy = "Saving on \(siteName)…"
         said = nil
-        defer { busy = nil }
         do {
             var fields: [(String, String)] = [("id", p.id), ("words", WebsiteForm.text(wordsNow(p)))]
             var files: [WebsiteForm.File] = []
@@ -429,23 +429,30 @@ struct WebsiteEditPieceScreen: View {
             if let photo, photoChanged {
                 // The photo with the words: the web's form exactly (file, stamped, design, shape, ai).
                 busy = "Drawing the photo…"
+                defer { busy = nil }
                 let jpeg = try await photo.jpeg(fields: drawn)
-                busy = "Saving on \(siteName)…"
                 files.append(WebsiteForm.File(field: "file", name: "photo.jpg", type: "image/jpeg", data: jpeg))
                 fields.append(("stamped", photo.stamped(drawn) ? "1" : "0"))
                 fields.append(("design", photo.kept.text))
                 fields.append(("shape", photo.shape))
                 fields.append(("ai", WebsiteForm.text(photo.ai)))
             }
-            let d = try await WebsiteForm.json("/api/website/edits", fields: fields, files: files, timeout: 130, as: WebsiteEditSaved.self)
-            if photoChanged { photo?.saved(drawn) }
-            if let fresh = d.piece {
-                take(fresh)
-                store.replace(fresh)
+            let shownName = name.trimmingCharacters(in: .whitespaces)
+            let nowHidden = hidden
+            let (sendFields, sendFiles, site, edit) = (fields, files, siteName, photo)
+            said = "Saving on \(site)…"
+            Outbox.shared.post(label: "Save \(shownName.isEmpty ? "the piece" : "“" + shownName + "”") on \(site)") {
+                let d = try await WebsiteForm.json("/api/website/edits", fields: sendFields, files: sendFiles, timeout: 130, as: WebsiteEditSaved.self)
+                if photoChanged { edit?.saved(drawn) }
+                if let fresh = d.piece {
+                    // The baseline moves on; what is being typed meanwhile stays.
+                    piece = fresh
+                    store.replace(fresh)
+                }
+                said = d.note ?? (photoChanged ? "Saved on \(site). The new photo shows within a minute; the original is kept to put back any time."
+                    : nowHidden ? "Saved. The piece leaves \(site) within a minute." : "Saved on \(site). It shows within a minute.")
+                return "Saved on \(site)"
             }
-            said = d.note ?? (photoChanged ? "Saved on \(siteName). The new photo shows within a minute; the original is kept to put back any time."
-                : hidden ? "Saved. The piece leaves \(siteName) within a minute." : "Saved on \(siteName). It shows within a minute.")
-            await load()
         } catch {
             failure = error.localizedDescription
         }
@@ -453,11 +460,11 @@ struct WebsiteEditPieceScreen: View {
 
     private func putBack(photoOnly: Bool) async {
         guard let p = piece else { return }
-        busy = "Putting it back…"
-        said = nil
-        defer { busy = nil }
-        do {
-            let d = try await post(photoOnly ? [("id", p.id), ("photo", "revert")] : [("id", p.id), ("action", "revert")])
+        said = "Putting it back…"
+        let site = siteName
+        let fields: [(String, String)] = photoOnly ? [("id", p.id), ("photo", "revert")] : [("id", p.id), ("action", "revert")]
+        Outbox.shared.post(label: photoOnly ? "Put the original photo back on \(site)" : "Undo every change on \(site)") {
+            let d = try await WebsiteForm.json("/api/website/edits", fields: fields, timeout: 130, as: WebsiteEditSaved.self)
             if let fresh = d.piece {
                 take(fresh)
                 store.replace(fresh)
@@ -465,10 +472,8 @@ struct WebsiteEditPieceScreen: View {
             // The editor starts again from what the site now has, as the web's does.
             photo = nil
             photoWarning = nil
-            said = photoOnly ? "The original photo is back on \(siteName) within a minute." : "Everything put back: \(siteName) shows the piece as it was built, within a minute."
-            await load()
-        } catch {
-            failure = error.localizedDescription
+            said = photoOnly ? "The original photo is back on \(site) within a minute." : "Everything put back: \(site) shows the piece as it was built, within a minute."
+            return photoOnly ? "Original photo back on \(site)" : "Everything put back on \(site)"
         }
     }
 

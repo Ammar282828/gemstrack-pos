@@ -72,6 +72,8 @@ final class DesignWorkspaceModel {
     @ObservationIgnored private var draftID: String?
     @ObservationIgnored private var createdAt = Date()
     @ObservationIgnored private var autosave: Task<Void, Never>?
+    /// A save is on its way through the Outbox.
+    private(set) var uploading = false
     @ObservationIgnored private var pendingOld: String?
     @ObservationIgnored private var token = UUID()
     @ObservationIgnored private var serial = 0
@@ -491,7 +493,44 @@ final class DesignWorkspaceModel {
 
     // MARK: Save to the shop
 
+    /// What a save sends, drawn now (the phone's own work): the same parts the web posts.
+    private struct SaveParts {
+        let meta: MarketingValue
+        let id: String?
+        let docs: [String: Data]
+        let images: [String: Data]
+        let files: [String: Data]
+    }
+
+    private func drawSave(_ w: DesignWork) async throws -> SaveParts {
+        let small = try await engine.run(doc: w.masterPage.doc, photos: previewPhotos, fields: w.fields, options: ["px": 200, "quality": 0.7])
+        let thumb = "data:image/jpeg;base64," + small.s("image")
+        var docs: [String: Data] = [:], images: [String: Data] = [:]
+        for p in w.pages {
+            docs[p.id] = p.doc.data
+            images[p.id] = try await render(pageId: p.id, px: Int(min(2160, max(p.w, 1080))))
+        }
+        // The photograph it is drawn on, at most 2048 px; the others only when a page uses them.
+        var files: [String: Data] = [:]
+        for (id, data) in photos where id == "photo" || w.pages.contains(where: { DesignRecords.docUses($0.doc, id) }) {
+            guard let image = UIImage(data: data), let jpeg = WebsitePhoto.jpeg(image, longestEdge: 2048, quality: 0.9) else { continue }
+            files[id] = jpeg
+        }
+        return SaveParts(meta: w.meta(thumb: thumb), id: w.id, docs: docs, images: images, files: files)
+    }
+
+    private func kept(_ record: DesignRecord, before: Int) {
+        if var cur = work {
+            cur.id = record.id
+            cur.folder = record.folder
+            cur.dirty = serial != before
+            work = cur
+            changed()
+        }
+    }
+
     /// Save: the same parts the web posts (DesignRecords.save). Returns the record, or nil with `error` set.
+    /// Awaited, for Publish, which needs the record.
     @discardableResult
     func saveToShop() async -> DesignRecord? {
         guard let w = work, !w.fresh else { return nil }
@@ -499,32 +538,38 @@ final class DesignWorkspaceModel {
         defer { saving = false }
         let before = serial
         do {
-            let small = try await engine.run(doc: w.masterPage.doc, photos: previewPhotos, fields: w.fields, options: ["px": 200, "quality": 0.7])
-            let thumb = "data:image/jpeg;base64," + small.s("image")
-            var docs: [String: Data] = [:], images: [String: Data] = [:]
-            for p in w.pages {
-                docs[p.id] = p.doc.data
-                images[p.id] = try await render(pageId: p.id, px: Int(min(2160, max(p.w, 1080))))
-            }
-            // The photograph it is drawn on, at most 2048 px; the others only when a page uses them.
-            var files: [String: Data] = [:]
-            for (id, data) in photos where id == "photo" || w.pages.contains(where: { DesignRecords.docUses($0.doc, id) }) {
-                guard let image = UIImage(data: data), let jpeg = WebsitePhoto.jpeg(image, longestEdge: 2048, quality: 0.9) else { continue }
-                files[id] = jpeg
-            }
-            let record = try await DesignRecords.save(meta: w.meta(thumb: thumb), id: w.id, docs: docs, images: images, photos: files)
-            if var cur = work {
-                cur.id = record.id
-                cur.folder = record.folder
-                cur.dirty = serial != before
-                work = cur
-                changed()
-            }
+            let p = try await drawSave(w)
+            let record = try await DesignRecords.save(meta: p.meta, id: p.id, docs: p.docs, images: p.images, photos: p.files)
+            kept(record, before: before)
             say("Saved", detail: "On the Saved shelf.")
             return record
         } catch {
             self.error = "Couldn’t save it. " + error.localizedDescription
             return nil
+        }
+    }
+
+    /// The Save button: the design is drawn here, the upload goes through the Outbox and the editor is free at once.
+    /// A second Save while one is on its way waits for it (a first save would otherwise make two records).
+    func saveInBackground() async {
+        guard let w = work, !w.fresh, !uploading else { return }
+        saving = true
+        let before = serial
+        let parts: SaveParts
+        do { parts = try await drawSave(w) } catch {
+            saving = false
+            self.error = "Couldn’t save it. " + error.localizedDescription
+            return
+        }
+        saving = false
+        uploading = true
+        say("Saving…", detail: "It goes on in the background.")
+        Outbox.shared.post(label: "Save “\(w.displayName)”") { [self] in
+            uploading = true
+            defer { uploading = false }
+            let record = try await DesignRecords.save(meta: parts.meta, id: parts.id ?? work?.id, docs: parts.docs, images: parts.images, photos: parts.files)
+            kept(record, before: before)
+            return "Saved to the Saved shelf"
         }
     }
 

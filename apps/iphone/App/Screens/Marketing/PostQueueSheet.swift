@@ -32,7 +32,7 @@ struct PostQueueSheet: View {
                     }
                 }
                 // Not swiped away mid-send: the answer (or the error) is shown here.
-                .interactiveDismissDisabled(busy != nil)
+                
             }
         }.task { await store.refreshQueue() }
     }
@@ -227,47 +227,42 @@ struct PostQueueSheet: View {
         }
     }
 
-    private func run(_ doing: String, _ work: () async throws -> String?) async {
-        busy = doing
+    /// Handed to the Outbox: the sheet is free at once, and the words (or the failure, with Retry) come back from there.
+    private func hand(_ label: String, saying: String, close: Bool = false, _ work: @escaping () async throws -> String) {
+        said = saying
         failure = nil
-        said = nil
-        defer { busy = nil }
-        do {
-            said = try await work()
-        } catch {
-            failure = error.localizedDescription
-        }
+        Outbox.shared.post(label: label, work)
+        if close && !embedded { dismiss() }
     }
 
     private func send(_ e: PostQueueEntry) async {
-        await run("Sending…") {
-            let all = try await store.sendNow(e.id)
-            if all { return "Sent to every place." }
-            failure = "Not all of it went. What failed is marked; Send what is left tries only those."
-            return nil
+        let n = places(e).filter { (p: Place) in !p.units.allSatisfy { e.doneKeys.contains($0) } }.count
+        let id = e.id
+        hand("Send “\(e.headline.isEmpty ? "a piece" : e.headline)”", saying: "Sending to \(n) \(n == 1 ? "place" : "places")…", close: true) {
+            // A refusal is not retried by itself (a post must not go twice); the banner's Retry sends only what is left.
+            let all: Bool
+            do { all = try await PostsStore.shared.sendNow(id) } catch { throw ERPAPI.Failure(status: 400, message: error.localizedDescription) }
+            if all { return "Posted to \(n) \(n == 1 ? "place" : "places")" }
+            throw ERPAPI.Failure(status: 400, message: "Not all of it went. What failed is marked; Send what is left tries only those.")
         }
     }
 
     private func hold(_ e: PostQueueEntry) async {
-        await run("Holding…") {
-            try await store.hold(e.id)
-            return "Held. It waits for you."
-        }
+        let id = e.id
+        hand("Hold the piece", saying: "Holding…") { try await PostsStore.shared.hold(id); return "Held. It waits for you." }
     }
 
     private func schedule(_ e: PostQueueEntry) async {
-        await run("Scheduling…") {
-            try await store.schedule(e.id, at: when)
-            picking = false
-            return "It goes " + ShopDate.say(when.ISO8601Format(), withTime: true) + "."
+        let id = e.id, at = when
+        picking = false
+        hand("Schedule the piece", saying: "Scheduling…") {
+            try await PostsStore.shared.schedule(id, at: at)
+            return "It goes " + ShopDate.say(at.ISO8601Format(), withTime: true) + "."
         }
     }
 
     private func remove(_ e: PostQueueEntry) async {
-        await run("Removing…") {
-            try await store.remove(e.id)
-            dismiss()
-            return nil
-        }
+        let id = e.id
+        hand("Remove the piece from the queue", saying: "Removing…", close: true) { try await PostsStore.shared.remove(id); return "Removed from the queue" }
     }
 }

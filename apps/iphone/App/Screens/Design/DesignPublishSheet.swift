@@ -38,7 +38,7 @@ struct DesignPublishSheet: View {
                                 action: "Send again from the start") { p.forgetAll() }
             .sheet(item: $share) { r in MarketingShareSheet(items: r.items, completion: { done in if done, let id = r.step { p.markDone(id) } }) }
             .confirmationDialog(confirmTitle, isPresented: bind(\.confirming), titleVisibility: .visible) {
-                Button("Yes, send") { Task { await p.run() } }
+                Button("Yes, send") { startRun() }
                 Button("Not yet", role: .cancel) {}
             } message: { Text(confirmMessage) }
         }
@@ -312,9 +312,18 @@ struct DesignPublishSheet: View {
                 guard problems.isEmpty, p.wordIssues.isEmpty else { return }
                 let groups = p.failingGroups(plan)
                 if !p.whatsappChoice.isEmpty || p.igMode("instagram-story") == "api" && p.storyOn || p.igMode("instagram-post") == "api" && p.postOn || !groups.isEmpty { p.confirming = true }
-                else { await p.run() }
+                else { startRun() }
             }
         }
+    }
+
+    /// Off to the Outbox and the sheet closes with a Note, unless a step still needs the person's hands (a story to share).
+    private func startRun() {
+        let waiting = plan.steps.contains { (s: DesignPublishModel.Step) in s.manual && p.ref(s.id) == nil }
+        let n = plan.steps.filter { (s: DesignPublishModel.Step) in p.ref(s.id) == nil && !s.manual }.count
+        p.runInBackground()
+        p.model.say("Sending to \(n) \(n == 1 ? "place" : "places")…", detail: "It says when it has gone.")
+        if !waiting { dismiss() }
     }
 
     private func steps(_ plan: DesignPublishModel.Plan) -> some View {

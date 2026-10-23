@@ -386,7 +386,12 @@ enum InsightRange {
 @MainActor
 enum InsightsAPI {
     static func get<T: Decodable>(_ part: String, range: String, fresh: Bool, as type: T.Type) async throws -> T {
-        try await ERPAPI.shared.get("/api/insights?part=\(part)&range=\(range)\(fresh ? "&fresh=1" : "")", as: T.self)
+        try await SWR.get("/api/insights?part=\(part)&range=\(range)\(fresh ? "&fresh=1" : "")", keep: "/api/insights?part=\(part)&range=\(range)", as: T.self)
+    }
+
+    /// The last answer for this part and range, shown while the new one is read.
+    static func last<T: Decodable>(_ part: String, range: String, as type: T.Type) -> T? {
+        SWR.peek("/api/insights?part=\(part)&range=\(range)", as: T.self)
     }
 }
 
@@ -556,6 +561,7 @@ struct InsightsOverviewScreen: View {
     }
 
     private func load(fresh: Bool = false) async {
+        if data == nil, let cached = InsightsAPI.last("overview", range: rangeKey, as: InsightsOverview.self) { data = cached }
         do {
             data = try await InsightsAPI.get("overview", range: rangeKey, fresh: fresh, as: InsightsOverview.self)
             problem = nil
@@ -832,6 +838,7 @@ struct InsightsPostsScreen: View {
     }
 
     private func load(fresh: Bool = false) async {
+        if data == nil, let cached = InsightsAPI.last("posts", range: rangeKey, as: InsightsPosts.self) { data = cached }
         do {
             data = try await InsightsAPI.get("posts", range: rangeKey, fresh: fresh, as: InsightsPosts.self)
             problem = nil
@@ -992,6 +999,7 @@ struct InsightsAudienceScreen: View {
     }
 
     private func load(fresh: Bool = false) async {
+        if data == nil, let cached = InsightsAPI.last("audience", range: rangeKey, as: InsightsAudience.self) { data = cached }
         do {
             data = try await InsightsAPI.get("audience", range: rangeKey, fresh: fresh, as: InsightsAudience.self)
             problem = nil

@@ -24,7 +24,16 @@ struct WebsiteWeightsScreen: View {
     @State private var trusted = false
     @State private var failure: String?
     @State private var savedTick = 0
+    /// Weights that went through the Outbox and came back (the row under the progress bar ticks).
+    @State private var done = WeightsDone()
     @FocusState private var typing: Bool
+
+    @MainActor @Observable final class WeightsDone { var count = 0 }
+
+    private var outbox: Outbox { Outbox.shared }
+    private static let labelPrefix = "Weight: "
+    /// The weights still on their way (or that failed): label "Weight: <file>".
+    private var weightItems: [Outbox.Item] { outbox.items.filter { (i: Outbox.Item) in i.label.hasPrefix(Self.labelPrefix) } }
 
     /// A weight about to go to the site, waiting for the counter's yes.
     struct Pending: Identifiable {
@@ -61,10 +70,10 @@ struct WebsiteWeightsScreen: View {
         .onChange(of: queue.count) { _, n in index = min(index, max(0, n - 1)) }
         .onChange(of: current?.key) { _, _ in prefill() }
         .confirmationDialog("Put this on \(site.siteName)?", isPresented: confirmingShown, titleVisibility: .visible, presenting: confirming) { (p: Pending) in
-            Button("Save") { Task { await save(p) } }
+            Button("Save") { save(p) }
             Button("Save, and don't ask again here") {
                 trusted = true
-                Task { await save(p) }
+                save(p)
             }
         } message: { (p: Pending) in
             Text(words(p))
@@ -134,6 +143,7 @@ struct WebsiteWeightsScreen: View {
                         ProgressView(value: Double(c.withWeight), total: Double(max(1, c.total))).tint(Theme.accent)
                     }
                     .padding(.vertical, 4)
+                    savingRow
                     Picker("Collection", selection: $collection) {
                         Text("All collections").tag("")
                         ForEach(collections, id: \.self) { (name: String) in Text(name).tag(name) }
@@ -165,8 +175,22 @@ struct WebsiteWeightsScreen: View {
         .savedFeedback(trigger: savedTick)
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if current != nil {
-                ActionBar(primary: .init("Save & next", systemImage: "checkmark", isBusy: saving) { ask(advance: true) })
+                ActionBar(primary: .init("Save & next", systemImage: "checkmark") { ask(advance: true) })
             }
+        }
+    }
+
+    /// "Saving…" while weights go, a warning if one failed (the banner has Retry), then a tick.
+    @ViewBuilder
+    private var savingRow: some View {
+        let items = weightItems
+        if let bad = items.first(where: { (i: Outbox.Item) in i.status == .failed }) {
+            Label("Not saved: \(bad.label.dropFirst(Self.labelPrefix.count))", systemImage: "exclamationmark.triangle.fill")
+                .font(.footnote).foregroundStyle(Tone.problem.color)
+        } else if !items.isEmpty {
+            Label("Saving \(items.count)…", systemImage: "arrow.triangle.2.circlepath").font(.footnote).foregroundStyle(.secondary)
+        } else if done.count > 0 {
+            Label("\(done.count) saved", systemImage: "checkmark.circle.fill").font(.footnote).foregroundStyle(.secondary)
         }
     }
 
@@ -255,6 +279,12 @@ struct WebsiteWeightsScreen: View {
                             StockImage(imageUrl: u.piece.thumb, name: u.piece.file, key: u.piece.key)
                                 .frame(width: 64, height: 64)
                                 .clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
+                                .overlay(alignment: .topTrailing) {
+                                    if let st = outbox.status(of: Self.labelPrefix + u.piece.file) {
+                                        Image(systemName: st == .failed ? "exclamationmark.circle.fill" : "ellipsis.circle.fill")
+                                            .font(.caption).foregroundStyle(st == .failed ? Tone.problem.color : Color.secondary).padding(2)
+                                    }
+                                }
                                 .overlay(alignment: .bottom) {
                                     if let g = u.piece.weightGrams {
                                         Text("\(WebsiteNumber.grams(g))g")
@@ -285,8 +315,9 @@ struct WebsiteWeightsScreen: View {
     // MARK: Reading and saving
 
     private func load() async {
+        if pieces == nil, let cached = SWR.peek("/api/website/pieces", as: WebsiteWeightsAnswer.self) { pieces = cached.pieces; prefill() }
         do {
-            let a = try await ERPAPI.shared.get("/api/website/pieces", as: WebsiteWeightsAnswer.self)
+            let a = try await SWR.get("/api/website/pieces", as: WebsiteWeightsAnswer.self)
             pieces = a.pieces
             problem = nil
             prefill()
@@ -320,7 +351,7 @@ struct WebsiteWeightsScreen: View {
             return
         }
         let pending = Pending(key: p.key, file: p.file, grams: grams, label: p.labelWeightGrams, advance: advance)
-        if trusted { Task { await save(pending) } } else { confirming = pending }
+        if trusted { save(pending) } else { confirming = pending }
     }
 
     /// Exactly what changes on the site, for every visitor.
@@ -332,27 +363,28 @@ struct WebsiteWeightsScreen: View {
         return "The weight typed for \(p.file) comes off \(site.siteName): the site stops drawing it and pricing from it.\(own)"
     }
 
-    private func save(_ p: Pending) async {
-        saving = true
-        defer { saving = false }
-        do {
-            let body: [String: Any] = ["key": p.key, "weightGrams": p.grams.map { (g: Double) -> Any in g } ?? NSNull()]
-            _ = try await ERPAPI.shared.send("/api/website/pieces", method: "PUT", body)
-            let was = queue
-            if var list = pieces, let k = list.firstIndex(where: { (x: WebsiteWeightPiece) in x.key == p.key }) {
-                list[k].weightGrams = p.grams ?? list[k].labelWeightGrams
-                list[k].source = p.grams != nil ? "pos" : (list[k].labelWeightGrams != nil ? "label" : nil)
-                list[k].enteredBy = p.grams != nil ? "you" : nil
-                list[k].enteredAt = p.grams != nil ? ERPDate.iso(Date()) : nil
-                pieces = list
-            }
-            // With "only missing" on, the piece leaves the list and the next slides into its place; otherwise step on.
-            if p.advance && !onlyMissing { index = min(index + 1, max(0, was.count - 1)) }
-            prefill()
-            typing = true
-            savedTick += 1
-        } catch {
-            failure = error.localizedDescription
+    /// Instant: the piece is changed here and the counter moves on; the site's PUT goes through the Outbox
+    /// (a failure comes back with Retry, and the same PUT is safe to repeat).
+    private func save(_ p: Pending) {
+        let body: [String: Any] = ["key": p.key, "weightGrams": p.grams.map { (g: Double) -> Any in g } ?? NSNull()]
+        let was = queue
+        if var list = pieces, let k = list.firstIndex(where: { (x: WebsiteWeightPiece) in x.key == p.key }) {
+            list[k].weightGrams = p.grams ?? list[k].labelWeightGrams
+            list[k].source = p.grams != nil ? "pos" : (list[k].labelWeightGrams != nil ? "label" : nil)
+            list[k].enteredBy = p.grams != nil ? "you" : nil
+            list[k].enteredAt = p.grams != nil ? ERPDate.iso(Date()) : nil
+            pieces = list
         }
+        let tracker = done
+        Outbox.shared.post(label: Self.labelPrefix + p.file) {
+            _ = try await ERPAPI.shared.send("/api/website/pieces", method: "PUT", body)
+            tracker.count += 1
+            return ""
+        }
+        // With "only missing" on, the piece leaves the list and the next slides into its place; otherwise step on.
+        if p.advance && !onlyMissing { index = min(index + 1, max(0, was.count - 1)) }
+        prefill()
+        typing = true
+        savedTick += 1
     }
 }

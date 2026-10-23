@@ -268,11 +268,18 @@ enum AdsObjective {
 @MainActor
 enum AdsAPI {
     static func overview(range: String, fresh: Bool) async throws -> AdOverview {
-        try await ERPAPI.shared.get("/api/ads/overview?range=\(range)\(fresh ? "&fresh=1" : "")", as: AdOverview.self)
+        try await SWR.get("/api/ads/overview?range=\(range)\(fresh ? "&fresh=1" : "")", keep: "/api/ads/overview?range=\(range)", as: AdOverview.self)
     }
 
+    /// The last overview of this range, shown while the new one is read.
+    static func lastOverview(range: String) -> AdOverview? { SWR.peek("/api/ads/overview?range=\(range)", as: AdOverview.self) }
+
     static func campaigns(range: String, archived: Bool) async throws -> AdCampaigns {
-        try await ERPAPI.shared.get("/api/ads/campaigns?range=\(range)\(archived ? "&archived=1" : "")", as: AdCampaigns.self)
+        try await SWR.get("/api/ads/campaigns?range=\(range)\(archived ? "&archived=1" : "")", as: AdCampaigns.self)
+    }
+
+    static func lastCampaigns(range: String, archived: Bool) -> AdCampaigns? {
+        SWR.peek("/api/ads/campaigns?range=\(range)\(archived ? "&archived=1" : "")", as: AdCampaigns.self)
     }
 
     /// Run or pause one campaign, ad set or ad (`level` is "campaign", "adset" or "ad"): the route the web's

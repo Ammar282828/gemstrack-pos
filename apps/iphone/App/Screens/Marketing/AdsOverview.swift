@@ -66,6 +66,7 @@ struct AdsOverviewScreen: View {
     // MARK: Asking Meta
 
     private func load(fresh: Bool = false) async {
+        if data == nil, let cached = AdsAPI.lastOverview(range: rangeKey) { data = cached }
         do {
             data = try await AdsAPI.overview(range: rangeKey, fresh: fresh)
             problem = nil

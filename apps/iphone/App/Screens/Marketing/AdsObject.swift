@@ -166,6 +166,23 @@ struct AdsObjectScreen: View {
         } catch { failure = error.localizedDescription }
     }
     private func act(_ action: String, _ fields: [String: Any]) async {
+        if action == "status", let status = fields["status"] as? String {
+            // Run / pause: optimistic. The page shows it now; Meta's answer follows through the Outbox (put back if refused).
+            let before = response
+            var body = fields; body["action"] = action; body["level"] = level
+            let (sendId, sendLevel) = (id, level)
+            func show(_ s: String) { if var r = response, var obj = r[sendLevel] as? [String: Any] { obj["status"] = s; r[sendLevel] = obj; response = r } }
+            show(status)
+            Outbox.shared.post(label: (status == "ACTIVE" ? "Run " : "Pause ") + name) {
+                show(status)
+                do { _ = try await ERPAPI.shared.send("/api/ads/object/\(AdsQuery.escape(sendId))", body) }
+                catch { response = before; throw error }
+                savedTick += 1
+                await load()
+                return status == "ACTIVE" ? "Running: \(name)" : "Paused: \(name)"
+            }
+            return
+        }
         guard !busy else { return }; busy = true; failure = nil
         defer { busy = false }
         do {

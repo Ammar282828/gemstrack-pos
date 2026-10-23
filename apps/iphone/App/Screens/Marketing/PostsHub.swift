@@ -239,12 +239,15 @@ struct PostsHub: View {
     }
 
     private func sendAll() async {
-        sendingAll = true
-        defer { sendingAll = false }
-        let r = await store.sendAll()
-        let whole = r.sent == r.of
-        Note.show(Note(title: whole ? "All \(r.of) sent" : "\(r.sent) of \(r.of) sent",
-                       detail: whole ? "" : "The ones that failed say why; sending again sends only what didn't go.", failed: !whole), in: $note, reduce: reduceMotion)
+        let n = store.waiting.count
+        guard n > 0 else { return }
+        Note.show(Note(title: "Sending \(n) \(n == 1 ? "piece" : "pieces")…", detail: "It says here when they have gone."), in: $note, reduce: reduceMotion)
+        // In the Outbox: the hub is free at once; "sendNow" only sends what has not gone, so a Retry posts nothing twice.
+        Outbox.shared.post(label: "Send \(n) queued \(n == 1 ? "piece" : "pieces")") { [store] in
+            let r = await store.sendAll()
+            if r.sent == r.of { return "All \(r.of) sent" }
+            throw ERPAPI.Failure(status: 400, message: "\(r.sent) of \(r.of) sent. The ones that failed say why; Retry sends only what didn't go.")
+        }
     }
 
     /// Opens the piece: where it goes, word for word, and Send now, Hold, a time or Remove.

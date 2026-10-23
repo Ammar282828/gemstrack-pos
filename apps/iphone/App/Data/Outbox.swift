@@ -173,7 +173,7 @@ final class Outbox {
     private func finish(_ id: String, said: String?) {
         running.remove(id)
         remove(id)
-        if let said { notice = Note(title: said, detail: "") }
+        if let said, !said.isEmpty { notice = Note(title: said, detail: "") }
         if failure?.id == id { failure = nil }
     }
 

@@ -93,7 +93,9 @@ final class PostComposerModel {
     var waKeys: [String] { draft.words["toWhatsApp"].bool && makeSquare ? draft.words["waTargets"].array.map(\.string) : [] }
     var igOn: Bool { makeStory && draft.words["toInstagram"].bool && instagram["connected"].bool }
     var manualStory: Bool { makeStory && !igOn }
-    var frozen: Bool { draft.queuedID != nil }
+    /// True from the press of Publish until the Outbox is done with it: the piece is not edited under a send.
+    var submitting = false
+    var frozen: Bool { draft.queuedID != nil || submitting }
     var problems: [String] {
         var out: [String] = []
         if hero == nil { out.append("Add a photo.") }
@@ -211,7 +213,27 @@ final class PostComposerModel {
         guard problems.isEmpty else { error = problems.joined(separator: " "); return }
         guard siteOn || !waKeys.isEmpty || igOn else { error = "Choose a destination, or share the story from your phone."; return }
         guard !manualStory || draft.words["storyOut"].bool else { error = "Share or save the story first, or choose Post only."; return }
-        busy = "Preparing the post…"; error = nil; defer { busy = nil }
+        error = nil
+        let places = (siteOn ? 1 : 0) + waKeys.count + (igOn ? 1 : 0)
+        let label = queueOnly ? "Queue “\(draft.title)”" : "Post “\(draft.title)”"
+        submitting = true
+        said = queueOnly ? "Adding to the queue…" : "Sending to \(places) \(places == 1 ? "place" : "places")…"
+        // The whole send runs in the Outbox: the screen is free at once, and a failure comes back there with Retry.
+        // Retrying carries on from where it stopped (the queue entry and what it holds are kept on the draft).
+        Outbox.shared.post(label: label) { [self] in
+            submitting = true
+            do { return try await publish(queueOnly: queueOnly) }
+            catch {
+                submitting = false
+                await saveNow()
+                // A refusal is not retried by itself (a post must not go twice); the banner's Retry carries on.
+                throw ERPAPI.Failure(status: 400, message: error.localizedDescription)
+            }
+        }
+    }
+    private func publish(queueOnly: Bool) async throws -> String {
+        submitting = true
+        defer { submitting = false }
         do {
             if draft.queuedID == nil {
                 let thumb = try await render(story: false, photo: hero, px: 240)
@@ -236,14 +258,18 @@ final class PostComposerModel {
                 if siteOn { for (i, p) in sitePhotos.enumerated() { let px = max(1080, min(3000, Int(UIImage(data: p.data).map { min($0.size.width, $0.size.height) } ?? 1080))); let r = try await render(story: false, photo: p, px: px, site: true); if let bytes = Data(base64Encoded: r.s("image")) { uploads.append(("site-\(i)", bytes)) } } }
                 if !waKeys.isEmpty { for (i, p) in waPhotos.enumerated() { let r = try await render(story: false, photo: p, px: 1600); if let bytes = Data(base64Encoded: r.s("image")) { uploads.append(("wa-\(i)", bytes)) } } }
                 if igOn { let r = try await render(story: true, photo: hero, px: 1080); if let bytes = Data(base64Encoded: r.s("image")) { uploads.append(("story", bytes)) } }
-                for (i, upload) in uploads.enumerated() { busy = "Keeping photo \(i + 1) of \(uploads.count)…"; _ = try await WebsiteForm.send("/api/website/post/queue/\(id)", fields: [("key", upload.0)], files: [.init(field: "file", name: upload.0 + ".jpg", type: "image/jpeg", data: upload.1)]) }
+                for upload in uploads { _ = try await WebsiteForm.send("/api/website/post/queue/\(id)", fields: [("key", upload.0)], files: [.init(field: "file", name: upload.0 + ".jpg", type: "image/jpeg", data: upload.1)]) }
                 _ = try await MarketingRequest.send("/api/website/post/queue/\(id)", ["action": "ready"], method: "PATCH"); draft.queueReady = true; await saveNow()
             }
-            if !queueOnly { busy = "Sending…"; _ = try await PostsStore.shared.sendNow(id) }
+            if !queueOnly { _ = try await PostsStore.shared.sendNow(id) }
             let entry = try await MarketingRequest.get("/api/website/post/queue")
             if let found = entry["items"].array.first(where: { $0.s("id") == id }) { queueEntry = try JSONDecoder().decode(PostQueueEntry.self, from: found.data) }
             said = queueOnly ? "In the queue. It waits until you send or schedule it." : (queueEntry?.status == "sent" ? "Sent to every destination." : "Open the queued piece to see what went and retry what remains.")
             await PostsStore.shared.load()
-        } catch { self.error = error.localizedDescription; await saveNow() }
+            if queueOnly { return "“\(draft.title)” is in the queue" }
+            if queueEntry?.status == "sent" { return "Posted to \((siteOn ? 1 : 0) + waKeys.count + (igOn ? 1 : 0)) places" }
+            let failed = queueEntry.map { (e: PostQueueEntry) in e.unitErrors.values.first } ?? nil
+            throw ERPAPI.Failure(status: 400, message: "Not all of it went" + (failed.map { ": " + $0 } ?? "") + ". Retry sends only what is left.")
+        } catch { throw error }
     }
 }

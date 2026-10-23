@@ -263,6 +263,25 @@ final class WebsiteStore {
         featuredRead = true
     }
 
+    /// Instant: taken off here at once, the DELETE goes through the Outbox (put back here if it is refused).
+    func clearFeaturedNow() {
+        let prev = featured
+        Outbox.shared.post(label: "Take the set of the day off \(siteName)") { [self] in
+            featured = nil
+            do { _ = try await ERPAPI.shared.send("/api/website/featured", method: "DELETE") }
+            catch { featured = prev; throw error }
+            return ""
+        }
+    }
+
+    /// Instant: the PUT goes through the Outbox; the home page's set of the day shows here when the site has it.
+    func featureNow(_ key: String, note: String? = nil) {
+        Outbox.shared.post(label: "Feature on \(siteName)") { [self] in
+            try await feature(key, note: note)
+            return ""
+        }
+    }
+
     /// The same piece whatever its file ending (the site keeps a .webp of every upload): set-of-the-day.tsx `sameFeaturedKey`.
     static func sameKey(_ a: String?, _ b: String?) -> Bool {
         guard let a, let b, !a.isEmpty, !b.isEmpty else { return false }
@@ -301,7 +320,7 @@ struct WebsiteFeatureButton: View {
             }
             .disabled(busy || !store.featuredRead)
             .confirmationDialog(on ? "Take it off the home page?" : "Lead the home page with it?", isPresented: $asking, titleVisibility: .visible) {
-                Button(on ? "Take it off" : "Feature today", role: on ? .destructive : nil) { Task { await toggle(on) } }
+                Button(on ? "Take it off" : "Feature today", role: on ? .destructive : nil) { toggle(on) }
             } message: {
                 Text(words(on))
             }
@@ -318,14 +337,8 @@ struct WebsiteFeatureButton: View {
         return "\(name) becomes the set of the day: the first piece on \(store.siteName)'s home page, for everyone who opens it\(instead)."
     }
 
-    private func toggle(_ on: Bool) async {
-        busy = true
-        defer { busy = false }
-        do {
-            if on { try await store.clearFeatured() } else { try await store.feature(key) }
-        } catch {
-            failure = error.localizedDescription
-        }
+    private func toggle(_ on: Bool) {
+        if on { store.clearFeaturedNow() } else { store.featureNow(key) }
     }
 }
 
@@ -384,9 +397,9 @@ struct WebsiteSetOfTheDay: View {
             .confirmationDialog(asking == .remove ? "Take it off the home page?" : "Change the line on the home page?",
                                 isPresented: askingShown, titleVisibility: .visible, presenting: asking) { (a: Asking) in
                 if a == .remove {
-                    Button("Take it off", role: .destructive) { Task { await remove() } }
+                    Button("Take it off", role: .destructive) { store.clearFeaturedNow() }
                 } else {
-                    Button("Put it on the home page") { Task { await saveNote() } }
+                    Button("Put it on the home page") { saveNote() }
                 }
             } message: { (a: Asking) in
                 if a == .remove {
@@ -406,17 +419,9 @@ struct WebsiteSetOfTheDay: View {
     }
 
 
-    private func saveNote() async {
+    private func saveNote() {
         guard let f = store.featured else { return }
-        busy = true
-        defer { busy = false }
-        do { try await store.feature(f.key, note: String(note.prefix(160))) } catch { failure = error.localizedDescription }
-    }
-
-    private func remove() async {
-        busy = true
-        defer { busy = false }
-        do { try await store.clearFeatured() } catch { failure = error.localizedDescription }
+        store.featureNow(f.key, note: String(note.prefix(160)))
     }
 }
 

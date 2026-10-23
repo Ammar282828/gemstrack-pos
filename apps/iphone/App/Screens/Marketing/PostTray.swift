@@ -386,11 +386,28 @@ final class PostTrayModel {
         var notes: [Note] = []
     }
 
-    /// Every piece in the tray, one after another, each to the chosen places. Stops at the first that fails; one that
-    /// some places took has gone, so it leaves the tray (sending it again would post twice).
+    /// Every piece in the tray, one after another, each to the chosen places. The tray clears at once and the whole
+    /// send runs in the Outbox (owner, 2026-10-23: instant); "Posted to …" or the place that failed comes back from
+    /// there, with Retry. Stops at the first that fails; one that some places took has gone, so a retry never posts it twice.
     func send() async -> Outcome {
-        busy = "send"
-        defer { busy = nil }
+        let batch = cards
+        guard !batch.isEmpty else { return Outcome() }
+        let places = whatsappPlaces
+        let toIg = toInstagram
+        let names = placeNamesSent(places, toIg)
+        cards = []
+        active = nil
+        var finished = Set<String>()
+        Outbox.shared.post(label: "Post \(batch.count) \(Self.noun(batch.count)) to \(Self.listOf(names))") { [self] in
+            try await deliver(batch, places: places, toIg: toIg, finished: &finished)
+        }
+        var out = Outcome()
+        out.notes.append(Note(title: "Sending to \(names.count) \(names.count == 1 ? "place" : "places")…", detail: "You can carry on: it says here when it has gone."))
+        return out
+    }
+
+    /// The send itself. `finished` is what has gone already, so the Outbox's Retry skips it.
+    private func deliver(_ batch: [PostTrayCard], places: [String], toIg: Bool, finished: inout Set<String>) async throws -> String {
         var done: [PostTrayCard] = []
         var partly: [String] = []
         var weighed: [String] = []
@@ -398,21 +415,16 @@ final class PostTrayModel {
         var photoCounts: [String: Int] = [:]
         var igSaid: [String] = []
         var stopped: (name: String, why: String)?
-        let places = whatsappPlaces
-        let toIg = toInstagram
         // A card whose caption the engine never wrote (it was still starting) gets it now: nothing goes without one.
-        for card in cards where card.caption.isEmpty && !card.edited { await refresh(card) }
-        for card in cards {
-            card.sending = true
-            card.failed = nil
-            defer { card.sending = false }
+        for card in batch where card.caption.isEmpty && !card.edited && !finished.contains(card.id) { await refresh(card) }
+        for card in batch where !finished.contains(card.id) {
             do {
                 let blobs = try await albumData(card)
                 var wentSomewhere = false
                 if !places.isEmpty {
                     let sent = try await sendWhatsApp(card, blobs, places)
                     wentSomewhere = !sent.got.isEmpty
-                    // Some places took it and some didn't: it has gone, so it leaves the tray.
+                    // Some places took it and some didn't: it has gone, so it is not sent again.
                     let missed = places.filter { (k: String) in sent.got[k] == nil }
                     if let first = missed.first {
                         partly.append("\(card.piece.name) didn't go to \(Self.listOf(missed.map(label))): \(sent.failed[first] ?? "Send failed")")
@@ -443,39 +455,27 @@ final class PostTrayModel {
                 case .some(false): unweighed.append(card.piece.name)
                 case .none: break
                 }
+                finished.insert(card.id)
                 done.append(card)
             } catch {
-                card.failed = error.localizedDescription
                 stopped = (card.piece.name, error.localizedDescription)
                 break
             }
         }
-        cards.removeAll { (c: PostTrayCard) in done.contains { $0 === c } }
-        if let a = active, !has(a) { active = cards.first?.id }
         if !done.isEmpty { await store.afterSending() }
-
-        var out = Outcome()
         let n = done.count
+        // A 400 is never retried by itself (a post must not go twice); the banner's Retry sends only what is left.
         if let s = stopped {
-            out.notes.append(Note(title: n > 0 ? "\(n) sent, then \(s.name) didn't go" : "\(s.name) didn't go",
-                                  detail: s.why + (cards.count > 1 ? " The rest are still in the tray." : ""), failed: true))
-        } else if !partly.isEmpty {
-            out.notes.append(Note(title: "Sent \(n) \(Self.noun(n)), not everywhere", detail: partly.joined(separator: " · "), failed: true))
-        } else if n > 0 {
-            let one = photoCounts[done[0].id] ?? 1
-            let together = photoCounts.values.contains { (c: Int) in c > 1 }
-            out.notes.append(Note(title: "Sent \(n) \(Self.noun(n)) to \(Self.listOf(placeNamesSent(places, toIg)))",
-                                  detail: n == 1 ? "\(done[0].piece.name)\(one > 1 ? ": \(Album.photosLabel(one)), one caption" : ""), with its link."
-                                      : "Each with its own caption and link\(together ? ", its photos together" : "")."))
-            if !igSaid.isEmpty { out.notes[out.notes.count - 1].detail += " " + igSaid.joined(separator: " ") }
+            throw ERPAPI.Failure(status: 400, message: (n > 0 ? "\(n) sent, then \(s.name) didn't go: " : "\(s.name) didn't go: ") + s.why)
         }
-        if !weighed.isEmpty {
-            out.notes.append(Note(title: "Weight saved on \(store.siteName)", detail: "\(Self.listOf(weighed)) now \(weighed.count == 1 ? "shows its" : "show their") weight on the website."))
+        if !partly.isEmpty {
+            throw ERPAPI.Failure(status: 400, message: "Sent \(n) \(Self.noun(n)), not everywhere: " + partly.joined(separator: " · "))
         }
-        if !unweighed.isEmpty {
-            out.notes.append(Note(title: "The weight wasn't saved on \(store.siteName)", detail: "\(Self.listOf(unweighed)): add it in Website → Weights.", failed: true))
-        }
-        return out
+        var said = n == 0 ? "Nothing left to send" : "Posted \(n) \(Self.noun(n)) to \(Self.listOf(placeNamesSent(places, toIg)))"
+        if !igSaid.isEmpty { said += ". " + igSaid.joined(separator: " ") }
+        if !unweighed.isEmpty { said += ". The weight wasn't saved on \(store.siteName) for \(Self.listOf(unweighed)): add it in Website → Weights." }
+        else if !weighed.isEmpty { said += ". Weight saved on \(store.siteName)." }
+        return said
     }
 
     private func placeNamesSent(_ places: [String], _ toIg: Bool) -> [String] { places.map(label) + (toIg ? ["Instagram"] : []) }
@@ -551,40 +551,30 @@ final class PostTrayModel {
     }
 
     /// Into the queue, to send later or spread over the day: each piece exactly as its card makes it now, every photo
-    /// of it (up to Album.max), with an Instagram post when it is chosen.
+    /// of it (up to Album.max), with an Instagram post when it is chosen. The tray clears at once; the Outbox does it.
     func queue() async -> Outcome {
-        busy = "queue"
-        defer { busy = nil }
-        var done: [PostTrayCard] = []
-        var problem: String?
+        let batch = cards
+        guard !batch.isEmpty else { return Outcome() }
         let places = whatsappPlaces
         let toIg = toInstagram
-        for card in cards where card.caption.isEmpty && !card.edited { await refresh(card) }
-        for card in cards {
-            card.sending = true
-            card.failed = nil
-            defer { card.sending = false }
-            do {
+        cards = []
+        active = nil
+        var finished = Set<String>()
+        Outbox.shared.post(label: "Queue \(batch.count) \(Self.noun(batch.count))") { [self] in
+            for card in batch where card.caption.isEmpty && !card.edited && !finished.contains(card.id) { await refresh(card) }
+            for card in batch where !finished.contains(card.id) {
                 let blobs = try await albumData(card)
                 let thumb = blobs.first.flatMap { (d: Data) in UIImage(data: d) }.flatMap { (img: UIImage) in AdsPhotoCodec.thumbnail(from: img) }
                 try await enqueue(card, blobs: blobs, thumb: thumb, places: places, instagramPost: toIg)
                 // Queued is as good as typed in for good: the website keeps the weight now, not when the post goes.
                 _ = await keepWeight(card)
-                done.append(card)
-            } catch {
-                card.failed = error.localizedDescription
-                problem = error.localizedDescription
-                break
+                finished.insert(card.id)
             }
+            await store.refreshQueue()
+            return "\(batch.count) \(Self.noun(batch.count)) in the queue"
         }
-        cards.removeAll { (c: PostTrayCard) in done.contains { $0 === c } }
-        if let a = active, !has(a) { active = cards.first?.id }
-        await store.refreshQueue()
         var out = Outcome()
-        if !done.isEmpty {
-            out.notes.append(Note(title: "\(done.count) \(Self.noun(done.count)) in the queue", detail: "Send them now, give each a time, or spread them over the day: they go by themselves."))
-        }
-        if let problem { out.notes.append(Note(title: "Could not queue it", detail: problem, failed: true)) }
+        out.notes.append(Note(title: "Queueing \(batch.count) \(Self.noun(batch.count))…", detail: "They go to the queue in the background."))
         return out
     }
 

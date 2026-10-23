@@ -474,52 +474,63 @@ struct WebsitePhotosScreen: View {
 
     // MARK: Sending (one after another: shop wifi, big files)
 
+    /// Handed to the Outbox: the tray is free at once (each photo shows its own state), and "n photographs sent" or what
+    /// failed comes back from there, with Retry (which sends only what has not gone).
     private func sendAll() async {
         guard canSend else { return }
         sending = true
-        said = nil
-        defer { sending = false }
         let target = folder
-        // The Maisons: the ERP names the whole tray (sent ones included, so a later photo of a piece numbers after them).
-        var names: [UUID: String] = [:]
-        if isMaison {
-            do {
-                let tray: [[String: Any]] = items.map { (i: WebsitePhotoItem) in ["house": i.house, "model": i.model, "ext": i.kind.ext] }
-                let a = try await ERPAPI.shared.post("/api/website/photos/names", ["folder": target, "items": tray], as: WebsiteMaisonNames.self)
-                guard a.maison, a.names.count == items.count else { throw ERPAPI.Failure(status: 0, message: "The ERP didn't name the photographs.") }
-                for (i, name) in zip(items, a.names) { names[i.id] = name }
-            } catch {
-                failure = "Not sent. " + error.localizedDescription
-                return
-            }
-        }
-        let queue = pending.map { (i: WebsitePhotoItem) in i.id }
-        var sent = 0
-        for id in queue {
-            guard let k = items.firstIndex(where: { (i: WebsitePhotoItem) in i.id == id }) else { continue }
-            items[k].status = .uploading
-            items[k].error = nil
-            let item = items[k]
-            let name = names[id] ?? (item.stem + "." + item.kind.ext)
-            do {
-                let up = try await WebsiteForm.json("/api/website/photos", fields: [("folder", target), ("name", name)],
-                                                    files: [WebsiteForm.File(field: "file", name: "photo.\(item.kind.ext)", type: item.kind.mime, data: item.data)],
-                                                    timeout: 120, as: WebsiteUploaded.self)
-                if let j = items.firstIndex(where: { (i: WebsitePhotoItem) in i.id == id }) {
-                    items[j].status = .done
-                    items[j].rel = up.rel
-                }
-                sent += 1
-            } catch {
-                if let j = items.firstIndex(where: { (i: WebsitePhotoItem) in i.id == id }) {
-                    items[j].status = .failed
-                    items[j].error = error.localizedDescription
+        let n = pending.count
+        said = "Sending \(n) photograph\(n == 1 ? "" : "s")…"
+        for p in pending { if let k = items.firstIndex(where: { (i: WebsitePhotoItem) in i.id == p.id }) { items[k].status = .uploading; items[k].error = nil } }
+        Outbox.shared.post(label: "Send \(n) photograph\(n == 1 ? "" : "s") to \(site.siteName)") {
+            sending = true
+            defer { sending = false }
+            // The Maisons: the ERP names the whole tray (sent ones included, so a later photo of a piece numbers after them).
+            var names: [UUID: String] = [:]
+            if isMaison {
+                do {
+                    let tray: [[String: Any]] = items.map { (i: WebsitePhotoItem) in ["house": i.house, "model": i.model, "ext": i.kind.ext] }
+                    let a = try await ERPAPI.shared.post("/api/website/photos/names", ["folder": target, "items": tray], as: WebsiteMaisonNames.self)
+                    guard a.maison, a.names.count == items.count else { throw ERPAPI.Failure(status: 0, message: "The ERP didn't name the photographs.") }
+                    for (i, name) in zip(items, a.names) { names[i.id] = name }
+                } catch {
+                    for k in items.indices where items[k].status == .uploading { items[k].status = .failed }
+                    throw error
                 }
             }
-        }
-        if sent > 0 {
-            said = "\(sent) photograph\(sent == 1 ? "" : "s") sent: on \(site.siteName) in \(chosen?.collection ?? "the collection") now."
-            await site.loadFeatured()
+            let queue = items.filter { (i: WebsitePhotoItem) in i.status != .done }.map { (i: WebsitePhotoItem) in i.id }
+            var sent = 0
+            var lastProblem: String?
+            for id in queue {
+                guard let k = items.firstIndex(where: { (i: WebsitePhotoItem) in i.id == id }) else { continue }
+                items[k].status = .uploading
+                items[k].error = nil
+                let item = items[k]
+                let name = names[id] ?? (item.stem + "." + item.kind.ext)
+                do {
+                    let up = try await WebsiteForm.json("/api/website/photos", fields: [("folder", target), ("name", name)],
+                                                        files: [WebsiteForm.File(field: "file", name: "photo.\(item.kind.ext)", type: item.kind.mime, data: item.data)],
+                                                        timeout: 120, as: WebsiteUploaded.self)
+                    if let j = items.firstIndex(where: { (i: WebsitePhotoItem) in i.id == id }) {
+                        items[j].status = .done
+                        items[j].rel = up.rel
+                    }
+                    sent += 1
+                } catch {
+                    lastProblem = error.localizedDescription
+                    if let j = items.firstIndex(where: { (i: WebsitePhotoItem) in i.id == id }) {
+                        items[j].status = .failed
+                        items[j].error = error.localizedDescription
+                    }
+                }
+            }
+            if sent > 0 { await site.loadFeatured() }
+            let words = "\(sent) photograph\(sent == 1 ? "" : "s") sent: on \(site.siteName) in \(chosen?.collection ?? "the collection") now."
+            // A refusal is not retried by itself; the banner's Retry sends only the photographs that did not go.
+            if let lastProblem { throw ERPAPI.Failure(status: 400, message: (sent > 0 ? "\(sent) sent. " : "") + lastProblem) }
+            said = words
+            return "\(sent) photograph\(sent == 1 ? "" : "s") on \(site.siteName)"
         }
     }
 }

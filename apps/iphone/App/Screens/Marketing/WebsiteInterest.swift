@@ -538,8 +538,9 @@ struct WebsiteInterestScreen: View {
     /// The previous report and list stay while the next period loads; a failure shows only when there is nothing to show.
     private func load() async {
         guard !(custom && (customFrom.isEmpty || customTo.isEmpty)) else { return }
+        if report == nil, let cached = SWR.peek("/api/website/analytics?\(query)", as: SiteReport.self) { report = cached }
         do {
-            let r = try await ERPAPI.shared.get("/api/website/analytics?\(query)", as: SiteReport.self)
+            let r = try await SWR.get("/api/website/analytics?\(query)", as: SiteReport.self)
             report = r
             problem = nil
             // The piece rankings for the same days as the report.

@@ -162,3 +162,27 @@ struct MarketingReading: View {
         }
     }
 }
+
+/// Stale-while-revalidate for the Marketing screens' first reads (owner, 2026-10-23: "snappier for every page"): the last answer
+/// per business and address is kept in memory, so going back into a screen shows it at once while the new one is fetched behind it.
+/// Memory only (gone with the app), keyed by the business so one business never shows another's figures.
+@MainActor
+enum SWR {
+    private static var store: [String: Data] = [:]
+    private static func key(_ path: String) -> String { House.business.id + "|" + path }
+
+    /// What the last read of this address said, if there was one.
+    static func peek<T: Decodable>(_ path: String, as type: T.Type = T.self) -> T? {
+        guard let d = store[key(path)] else { return nil }
+        return try? JSONDecoder().decode(T.self, from: d)
+    }
+
+    /// The network read; its answer is kept under `keep` (the address without a "fresh" flag) for the next visit.
+    static func get<T: Decodable>(_ path: String, keep: String? = nil, as type: T.Type = T.self) async throws -> T {
+        let biz = key(keep ?? path)
+        let d = try await ERPAPI.shared.data(path)
+        let value = try JSONDecoder().decode(T.self, from: d)
+        store[biz] = d
+        return value
+    }
+}

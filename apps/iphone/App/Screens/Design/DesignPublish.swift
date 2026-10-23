@@ -556,6 +556,26 @@ final class DesignPublishModel {
         }
     }
 
+    /// Publish without waiting: the whole run is the Outbox's, and "Published to 3 places" (or which place failed, with Retry,
+    /// which sends only what has not gone) comes back from there. The steps keep their states for anyone still looking at the sheet.
+    func runInBackground() {
+        let todo = plan().steps.filter { memory[$0.id] == nil && !$0.manual }
+        guard !todo.isEmpty, !busy else { return }
+        busy = true
+        confirming = false
+        let title = work?.displayName ?? "the design"
+        Outbox.shared.post(label: "Publish “\(title)”") { [self] in
+            await run()
+            let left = plan().steps.filter { states[$0.id]?.status == .failed && memory[$0.id] == nil }
+            if let first = left.first {
+                // A refusal is not retried by itself (a post must not go twice); the banner's Retry runs only what failed.
+                throw ERPAPI.Failure(status: 400, message: "\(first.label) didn't go: \(states[first.id]?.error ?? "it failed")" + (left.count > 1 ? " (and \(left.count - 1) more)" : ""))
+            }
+            let n = todo.count
+            return queued ? "Done: \(n) \(n == 1 ? "step" : "steps") in the queue" : "Published to \(n) \(n == 1 ? "place" : "places")"
+        }
+    }
+
     /// The person did the step themselves (shared the story from the phone).
     func markDone(_ id: String, _ ref: String = "shared") {
         memory[id] = ref
