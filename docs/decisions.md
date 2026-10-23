@@ -716,7 +716,8 @@ Website → Interest ranks them (Saved, Asked about, Looked at longest with at l
   Do Not Track, Global Privacy Control, automated browsers and bot user agents are not counted (page and server both).
   **App Hosting's front end replaces every request's User-Agent with `Google`** (the `[sign-in]` log shows it), so the page sends
   its own `navigator.userAgent` as `ua` and devices and bots are told from that (`visitorAgent`); a beacon without one counts its
-  pieces but no visit.
+  pieces but no visit. Its own header `x-fah-client-ip` carries the visitor's address (it sends no location header): the
+  place is looked up from that.
 - **Cheap to keep.** No document per hit: one counter document per Karachi day (`site_days/<day>`, `FieldValue.increment`, maps by
   place, device, OS, browser, source, campaign, landing/exit/viewed page, collection, search, 404, hour), one short-lived document
   per open session (`site_live/<session>`, `expireAt`; Live deletes ones quiet for an hour too), one per visitor per day seen

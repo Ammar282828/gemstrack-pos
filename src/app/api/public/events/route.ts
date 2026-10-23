@@ -55,7 +55,9 @@ export async function POST(req: NextRequest) {
   const visit = ua ? parseVisit(body) : null;
   if (!tally.size && !visit) return done(req);
 
-  const ip = callerKey(req.headers);
+  // App Hosting names the visitor's address itself (x-fah-client-ip, seen in this route's header log); the forwarded chain
+  // is the fallback. Used for the limit and the place, then dropped.
+  const ip = (req.headers.get('x-fah-client-ip') || '').trim() || callerKey(req.headers);
   if (!memoryLimit('events', ip, 3000, 3600).ok || (visit && !memoryLimit('visitor', visit.v, 400, 3600).ok)) return done(req);
 
   const now = new Date();
