@@ -15,6 +15,12 @@ export interface QueueTargets {
   instagram: boolean;
   /** Its squares to these WhatsApp destinations, by key (destinations.ts). */
   whatsapp: string[];
+  /**
+   * Its squares as one Instagram feed post — a carousel of the first ten, the caption once (the Posts hub,
+   * 2026-10-23; album.ts). It takes the WhatsApp squares (`wa-*`), so nothing is stored twice. Absent on
+   * everything queued before.
+   */
+  instagramPost?: boolean;
 }
 
 export interface QueueCounts { site: number; wa: number; story: boolean }
@@ -22,8 +28,9 @@ export interface QueueCounts { site: number; wa: number; story: boolean }
 /**
  * Every single send a piece makes, in the order they go: the website photos,
  * the set of the day (it needs the first photo's place on the site), the
- * story, then each WhatsApp destination's squares in turn — so each group
- * gets its photos together, the caption on the first.
+ * story, the Instagram post (one unit, however many photos), then each
+ * WhatsApp destination's squares in turn — so each group gets its photos
+ * together, the caption on the first.
  */
 export function queueUnits(t: QueueTargets, c: QueueCounts): string[] {
   const units: string[] = [];
@@ -32,6 +39,7 @@ export function queueUnits(t: QueueTargets, c: QueueCounts): string[] {
     if (t.website.featured) units.push('featured');
   }
   if (t.instagram && c.story) units.push('instagram');
+  if (t.instagramPost && c.wa > 0) units.push('ig-post');
   for (const key of t.whatsapp) for (let i = 0; i < c.wa; i++) units.push(`wa:${key}:${i}`);
   return units;
 }
@@ -40,7 +48,7 @@ export function queueUnits(t: QueueTargets, c: QueueCounts): string[] {
 export function queueMediaKeys(t: QueueTargets, c: QueueCounts): string[] {
   return [
     ...(t.website ? Array.from({ length: c.site }, (_, i) => `site-${i}`) : []),
-    ...(t.whatsapp.length ? Array.from({ length: c.wa }, (_, i) => `wa-${i}`) : []),
+    ...(t.whatsapp.length || t.instagramPost ? Array.from({ length: c.wa }, (_, i) => `wa-${i}`) : []),
     ...(t.instagram && c.story ? ['story'] : []),
   ];
 }

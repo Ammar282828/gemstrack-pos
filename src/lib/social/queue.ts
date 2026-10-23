@@ -31,6 +31,8 @@ import { adminDb } from '@/lib/firebase-admin';
 import { sendWhatsAppFileToGroup } from '@/lib/whatsapp';
 import { logName, postChannel, postGroups, type Destination } from '@/lib/social/destinations';
 import { postStoryImage } from '@/lib/social/story-post';
+import { postFeedImages } from '@/lib/social/feed-post';
+import { carouselPlan, instagramText } from '@/lib/social/album';
 import { recordError } from '@/lib/social/errors';
 import { uploadToSite } from '@/lib/website/upload';
 import { saveFeatured } from '@/lib/website/featured';
@@ -103,7 +105,7 @@ export function toView(d: QueueItem): QueueItemView {
 
 // ── Making a piece ───────────────────────────────────────────────────────────
 
-export async function createItem(p: Pick<QueueItem, 'by' | 'headline' | 'caption' | 'fileBase' | 'counts' | 'website' | 'instagram' | 'whatsapp' | 'sitePiece'> & Partial<Pick<QueueItem, 'proposedBy' | 'design'>> & { thumb?: Buffer }): Promise<QueueItem> {
+export async function createItem(p: Pick<QueueItem, 'by' | 'headline' | 'caption' | 'fileBase' | 'counts' | 'website' | 'instagram' | 'whatsapp' | 'sitePiece'> & Partial<Pick<QueueItem, 'proposedBy' | 'design' | 'instagramPost'>> & { thumb?: Buffer }): Promise<QueueItem> {
   const ref = col().doc();
   const item: QueueItem = {
     ...p, id: ref.id, createdAt: new Date().toISOString(), status: 'draft', dueAt: null,
@@ -113,6 +115,7 @@ export async function createItem(p: Pick<QueueItem, 'by' | 'headline' | 'caption
   if (!p.sitePiece) delete item.sitePiece;
   if (!p.proposedBy) delete item.proposedBy;
   if (!p.design) delete item.design;
+  if (!p.instagramPost) delete item.instagramPost;
   await ref.set(item);
   return item;
 }
@@ -251,6 +254,8 @@ export interface Senders {
   featured(rel: string, by: string): Promise<string>;
   story(jpeg: Buffer, origin: string): Promise<string>;
   whatsapp(d: Destination, body: Blob, name: string, caption: string): Promise<string>;
+  /** The squares, in order, as one Instagram feed post (a carousel for more than one). */
+  instagramPost(jpegs: Buffer[], caption: string, origin: string): Promise<string>;
 }
 
 const realSenders: Senders = {
@@ -262,9 +267,10 @@ const realSenders: Senders = {
   },
   story: (jpeg, origin) => postStoryImage(jpeg, origin),
   whatsapp: (d, body, name, caption) => sendWhatsAppFileToGroup(d.chatId, body, name, caption),
+  instagramPost: (jpegs, caption, origin) => postFeedImages(jpegs, caption, origin, 'crop'),
 };
 
-const whereOf = (unit: string): Where => (unit.startsWith('site-') ? 'website' : unit === 'featured' ? 'featured' : unit === 'instagram' ? 'instagram' : 'whatsapp');
+const whereOf = (unit: string): Where => (unit.startsWith('site-') ? 'website' : unit === 'featured' ? 'featured' : unit === 'instagram' || unit === 'ig-post' ? 'instagram' : 'whatsapp');
 const jpegBlob = (b: Buffer) => new Blob([new Uint8Array(b)], { type: 'image/jpeg' });
 
 /**
@@ -297,6 +303,17 @@ export async function sendItem(item: QueueItem, opts: { by: string; origin: stri
       } else if (unit === 'instagram') {
         ref_ = await s.story(await image('story'), opts.origin);
         await adminDb.collection('social_posts').add({ at: new Date().toISOString(), by: opts.by, destination: 'instagram-story', mediaId: ref_, queue: item.id }).catch(() => undefined);
+      } else if (unit === 'ig-post') {
+        // The WhatsApp squares, the first ten, as one post with the caption once (album.ts).
+        const plan = carouselPlan(item.counts.wa);
+        const jpegs = [];
+        for (let i = 0; i < plan.take; i++) jpegs.push(await image(`wa-${i}`));
+        const caption = instagramText(item.caption);
+        ref_ = await s.instagramPost(jpegs, caption, opts.origin);
+        await adminDb.collection('social_posts').add({
+          at: new Date().toISOString(), by: opts.by, destination: 'instagram-post', mediaId: ref_, caption: caption.slice(0, 1024), queue: item.id,
+          ...(plan.carousel ? { photos: plan.take } : {}), ...(item.sitePiece ? { sitePiece: item.sitePiece } : {}),
+        }).catch(() => undefined);
       } else if (wa) {
         const d = destinations.get(wa[1]);
         if (!d) throw new Error(`"${wa[1]}" is no longer one of this shop's WhatsApp destinations.`);

@@ -84,3 +84,48 @@ describe('publishPhoto', () => {
     await expect(publishPhoto('https://x/a')).rejects.toMatchObject({ status: 400, message: 'The daily publishing limit was reached' });
   });
 });
+
+describe('publishCarousel (2026-10-23)', () => {
+  beforeEach(() => {
+    let n = 0;
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      seen.push({ url, body: init?.body instanceof URLSearchParams ? init.body : null });
+      if (url.includes('secretmanager')) return json({ payload: { data: Buffer.from(JSON.stringify(CONN)).toString('base64') } });
+      if (url.endsWith('/178/media')) return json({ id: `k${++n}` });
+      if (/\/k\d+\?/.test(url)) return json({ status_code: 'FINISHED' });
+      if (url.endsWith('/178/media_publish')) return json({ id: 'post-9' });
+      return json({ error: { message: 'unexpected ' + url } }, 500);
+    });
+  });
+
+  it('makes a child per photo in order, then one CAROUSEL with the caption once, then publishes it', async () => {
+    const { publishCarousel } = await import('./instagram');
+    expect(await publishCarousel(['https://x/1', 'https://x/2', 'https://x/3'], ' A ruby ring ')).toBe('post-9');
+    const creates = seen.filter(s => s.url.endsWith('/178/media'));
+    expect(creates.slice(0, 3).map(c => [c.body?.get('image_url'), c.body?.get('is_carousel_item'), c.body?.has('caption')])).toEqual([
+      ['https://x/1', 'true', false], ['https://x/2', 'true', false], ['https://x/3', 'true', false],
+    ]);
+    const parent = creates[3].body!;
+    expect(parent.get('media_type')).toBe('CAROUSEL');
+    expect(parent.get('children')).toBe('k1,k2,k3');
+    expect(parent.get('caption')).toBe('A ruby ring');
+    expect(seen.find(s => s.url.endsWith('/media_publish'))!.body?.get('creation_id')).toBe('k4');
+  });
+
+  it('is a plain photo for one picture, exactly as before', async () => {
+    const { publishCarousel } = await import('./instagram');
+    await publishCarousel(['https://x/1'], 'hi');
+    const creates = seen.filter(s => s.url.endsWith('/178/media'));
+    expect(creates).toHaveLength(1);
+    expect(creates[0].body?.get('media_type')).toBeNull();
+    expect(creates[0].body?.has('is_carousel_item')).toBe(false);
+    expect(creates[0].body?.get('caption')).toBe('hi');
+  });
+
+  it('refuses more than ten before calling Instagram', async () => {
+    const { publishCarousel } = await import('./instagram');
+    await expect(publishCarousel(Array.from({ length: 11 }, (_, i) => `https://x/${i}`))).rejects.toMatchObject({ status: 400 });
+    expect(seen).toEqual([]);
+  });
+});

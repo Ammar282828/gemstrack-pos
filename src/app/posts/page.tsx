@@ -18,7 +18,9 @@
  *   The site   the website's pieces (what From the website was): tap one or several; each is a card
  *              of its own in the tray (./piece-card.tsx) with its caption, weight, design and story,
  *              and one Send takes them all to the same places, one after another, after one confirm
- *              — or Queue them, to send later or spread over the day
+ *              — or Queue them, to send later or spread over the day. A card can carry several photos of its
+ *              piece with its one caption (./piece-photos.tsx, 2026-10-23): WhatsApp gets them together with the
+ *              caption under the first; "Instagram post" makes them one carousel (the first ten)
  *   New piece  Post a Piece, for new photographs (its drafts open from here), and any website piece
  *              can be carried into it for the full designer
  *
@@ -35,7 +37,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Camera, Check, Clock, FileClock, History, Loader2, MessageCircle, Radio, Search, Send, Shuffle, Sparkles, X } from 'lucide-react';
+import { Camera, Check, Clock, FileClock, History, Instagram, Loader2, MessageCircle, Radio, Search, Send, Shuffle, Sparkles, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { diagnose } from '@/lib/social/diagnose';
 import { loadImage } from '@/lib/social/story';
@@ -47,6 +49,8 @@ import { HealthPanel, useHealth } from '@/app/website/post/health-panel';
 import { QueuePanel, useQueue, listOf } from '@/app/website/post/queue-panel';
 import { PostDraftsDialog } from '@/app/website/post/post-drafts-panel';
 import { PieceCard, agoLabel, slugOf, type CardHandle, type IgStatus, type Piece } from './piece-card';
+import { jpegOf } from './piece-photos';
+import { IG_CAROUSEL_MAX, albumCaptions, albumFileName, carouselPlan, instagramText, photosLabel, placesFor } from '@/lib/social/album';
 import { TodayCard, type InvestmentsToday } from './today';
 
 /** The "collection" chip for the new arrivals — what the grid opens on. */
@@ -86,6 +90,8 @@ function PostsHub() {
   const [error, setError] = useState<string | null>(null);
   const [audience, setAudience] = useState<Audience>({ community: null, channel: null, groups: [] });
   const [targets, setTargets] = useState<string[]>([]);
+  // Each piece's photos as one Instagram post too (a carousel of the first ten) — this device's choice.
+  const [igPost, setIgPost] = useState(() => !!readPostPrefs().hubInstagramPost);
   const [ig, setIg] = useState<IgStatus | null>(null);
   const [sent, setSent] = useState<Sent[] | null>(null);
   const [inv, setInv] = useState<InvestmentsToday | null>(null);
@@ -248,6 +254,11 @@ function PostsHub() {
     setTargets(sorted);
     writePostPrefs({ ...readPostPrefs(), waTargets: sorted });
   };
+  const chooseIg = () => {
+    const next = !igPost;
+    setIgPost(next);
+    writePostPrefs({ ...readPostPrefs(), hubInstagramPost: next });
+  };
   /** What a destination key is called on the page. */
   const labelOf = (k: string) => (k === 'channel' ? 'the channel' : audience.groups.find(g => g.key === k)?.label ?? k);
   const reachOf = (k: string) => (k === 'channel' ? audience.channel?.followers ?? null : audience.groups.find(g => g.key === k)?.size ?? null);
@@ -260,7 +271,11 @@ function PostsHub() {
 
   const n = picked.length;
   const noun = (k: number) => (k === 1 ? 'piece' : 'pieces');
-  const canSend = !!audience.community && targets.length > 0 && n > 0 && !busy;
+  // Instagram only while it is connected; the chip is hidden otherwise.
+  const toIg = igPost && !!ig?.connected;
+  const canSend = ((!!audience.community && targets.length > 0) || toIg) && n > 0 && !busy;
+  /** Where a send goes, in words: the WhatsApp places, then Instagram. */
+  const places = () => [...targets.map(labelOf), ...(toIg ? ['Instagram'] : [])];
 
   /**
    * A weight typed on a card for a piece taheri.shop has none for (CardHandle.newWeight), kept on the site as Website →
@@ -278,6 +293,54 @@ function PostsHub() {
     } catch { return 'failed'; }
   };
 
+  /**
+   * One piece's photos to the chosen WhatsApp places: photo by photo, each to every place still going, the caption
+   * under the first only (album.ts) — one request a photo, so a piece of many photos never meets a request's size
+   * or time limit. A place that fails a photo gets none of the rest (they would arrive without the caption).
+   */
+  const sendWhatsApp = async (p: Piece, blobs: Blob[], caption: string) => {
+    const captions = albumCaptions(caption, blobs.length);
+    const failed = new Map<string, string>();
+    const got = new Map<string, number>();
+    for (let i = 0; i < blobs.length; i++) {
+      const live = placesFor(targets, new Set(failed.keys()));
+      if (!live.length) break;
+      const form = new FormData();
+      form.set('file', new File([blobs[i]], albumFileName(slugOf(p), i), { type: 'image/jpeg' }));
+      form.set('caption', captions[i]);
+      form.set('sitePiece', p.id);
+      form.set('targets', live.join(','));
+      const res = await fetch('/api/website/post', { method: 'POST', headers: await authHeaders(), body: form });
+      const d = await res.json().catch(() => ({}));
+      const results = (d.results ?? []) as { key: string; ok: boolean; error?: string }[];
+      if (!res.ok && !results.some(r => r.ok)) {
+        // Nothing took the first photo: nothing went, and the batch stops here as before.
+        if (i === 0) throw Object.assign(new Error(d.error || `${res.status}`), { status: res.status });
+        live.forEach(k => failed.set(k, d.error || `${res.status}`));
+        break;
+      }
+      for (const r of results) {
+        if (r.ok) got.set(r.key, (got.get(r.key) ?? 0) + 1);
+        else failed.set(r.key, r.error || 'Send failed');
+      }
+    }
+    return { got, failed };
+  };
+
+  /** One piece's photos as one Instagram post: a carousel of the first ten, the caption once. */
+  const sendInstagram = async (p: Piece, blobs: Blob[], caption: string) => {
+    const plan = carouselPlan(blobs.length);
+    const form = new FormData();
+    for (let i = 0; i < plan.take; i++) form.append('file', new File([await jpegOf(blobs[i], 1440)], albumFileName(slugOf(p), i), { type: 'image/jpeg' }));
+    form.set('caption', instagramText(caption));
+    form.set('fit', 'crop');
+    form.set('sitePiece', p.id);
+    const res = await fetch('/api/instagram/post', { method: 'POST', headers: await authHeaders(), body: form });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(d.error || `${res.status}`), { status: res.status });
+    return plan;
+  };
+
   /** Every piece in the tray, one after another, each to the chosen places. Stops at the first that fails. */
   const send = async () => {
     const ids = picked.filter(id => cards.current.has(id) && byId.has(id));
@@ -287,29 +350,45 @@ function PostsHub() {
     const partly: string[] = [];
     const weighed: string[] = [];
     const unweighed: string[] = [];
+    const photoCounts = new Map<string, number>();
     for (const id of ids) {
       const p = byId.get(id)!, card = cards.current.get(id)!;
       setStates(s => ({ ...s, [id]: { s: 'sending' } }));
+      let where: 'whatsapp' | 'instagram' = 'whatsapp';
       try {
-        const form = new FormData();
-        form.set('file', new File([await card.outgoing()], `${slugOf(p)}.jpg`, { type: 'image/jpeg' }));
-        form.set('caption', card.caption());
-        form.set('sitePiece', p.id);
-        form.set('targets', targets.join(','));
-        const res = await fetch('/api/website/post', { method: 'POST', headers: await authHeaders(), body: form });
-        const d = await res.json().catch(() => ({}));
-        const results = (d.results ?? []) as { key: string; ok: boolean; error?: string }[];
-        if (!res.ok && !results.some(r => r.ok)) throw Object.assign(new Error(d.error || `${res.status}`), { status: res.status });
+        const blobs = await card.photos();
+        const caption = card.caption();
+        let wentSomewhere = false;
+        if (targets.length && audience.community) {
+          const { got, failed } = await sendWhatsApp(p, blobs, caption);
+          wentSomewhere = got.size > 0;
+          // Some places took it and some didn't: it has gone, so it leaves the tray (sending it again would post twice).
+          const missed = targets.filter(k => !got.has(k));
+          if (missed.length) partly.push(`${p.name} didn’t go to ${listOf(missed.map(labelOf))}: ${failed.get(missed[0]) ?? 'Send failed'}`);
+          const short = targets.filter(k => (got.get(k) ?? 0) > 0 && got.get(k)! < blobs.length);
+          if (short.length) partly.push(`${listOf(short.map(labelOf))} got ${got.get(short[0])} of ${blobs.length} photos of ${p.name}: ${failed.get(short[0]) ?? 'Send failed'}`);
+        }
+        if (toIg) {
+          where = 'instagram';
+          try {
+            const plan = await sendInstagram(p, blobs, caption);
+            wentSomewhere = true;
+            if (plan.dropped) partly.push(`Instagram took the first ${plan.take} of ${blobs.length} photos of ${p.name} (its limit).`);
+          } catch (e) {
+            // WhatsApp has it already: said beside it, not fatal. Instagram alone: the batch stops, as for WhatsApp.
+            if (!wentSomewhere) throw e;
+            const dg = diagnose('instagram', { status: (e as { status?: number }).status, message: e instanceof Error ? e.message : String(e) });
+            partly.push(`${p.name} didn’t go to Instagram: ${dg.title} — ${dg.fix}`);
+          }
+        }
+        photoCounts.set(id, blobs.length);
         setPosted(prev => ({ ...prev, [id]: new Date().toISOString() }));
-        // Some places took it and some didn't: it has gone, so it leaves the tray (sending it again would post twice).
-        const missed = results.filter(r => !r.ok);
-        if (missed.length) partly.push(`${p.name} didn’t go to ${listOf(missed.map(r => labelOf(r.key)))}: ${missed[0].error}`);
         const kept = await keepWeight(p, card);
         if (kept === 'saved') weighed.push(p.name); else if (kept === 'failed') unweighed.push(p.name);
         done.push(id);
         setStates(s => { const { [id]: _, ...rest } = s; return rest; });
       } catch (e) {
-        const dg = diagnose('whatsapp', { status: (e as { status?: number }).status, message: e instanceof Error ? e.message : String(e) });
+        const dg = diagnose(where, { status: (e as { status?: number }).status, message: e instanceof Error ? e.message : String(e) });
         setStates(s => ({ ...s, [id]: { s: 'failed', error: `${dg.title} — ${dg.fix}` } }));
         stopped = { name: p.name, title: dg.title, fix: dg.fix };
         break;
@@ -320,14 +399,17 @@ function PostsHub() {
     setPicked(left);
     setActive(cur => (cur && left.includes(cur) ? cur : left[0] ?? null));
     if (done.length) loadSent();
-    const where = listOf(targets.map(labelOf));
+    const where = listOf(places());
     if (stopped) {
       const s = stopped as { name: string; title: string; fix: string };
       toast({ title: done.length ? `${done.length} sent, then ${s.name} didn’t go` : `${s.name} didn’t go`, description: `${s.title} — ${s.fix}${left.length > 1 ? ' The rest are still in the tray.' : ''}`, variant: 'destructive' });
     } else if (partly.length) {
       toast({ title: `Sent ${done.length} ${noun(done.length)}, not everywhere`, description: partly.join(' · '), variant: 'destructive' });
     } else if (done.length) {
-      toast({ title: `Sent ${done.length} ${noun(done.length)} to ${where}`, description: done.length === 1 ? `${byId.get(done[0])?.name}, with its link.` : 'Each with its own caption and link.' });
+      const one = photoCounts.get(done[0]) ?? 1;
+      toast({ title: `Sent ${done.length} ${noun(done.length)} to ${where}`, description: done.length === 1
+        ? `${byId.get(done[0])?.name}${one > 1 ? `: ${photosLabel(one)}, one caption` : ''}, with its link.`
+        : `Each with its own caption and link${[...photoCounts.values()].some(c => c > 1) ? ', its photos together' : ''}.` });
     }
     if (weighed.length) toast({ title: `Weight saved on ${siteName}`, description: `${listOf(weighed)} now ${weighed.length === 1 ? 'shows its' : 'show their'} weight on the website.` });
     if (unweighed.length) toast({ title: `The weight wasn’t saved on ${siteName}`, description: `${listOf(unweighed)}: add it in Website → Weights.`, variant: 'destructive' });
@@ -342,11 +424,13 @@ function PostsHub() {
       const p = byId.get(id)!, card = cards.current.get(id)!;
       setStates(s => ({ ...s, [id]: { s: 'sending' } }));
       try {
-        const blob = await card.outgoing();
-        const thumb = await loadImage(blob).then(img => thumbOf(img)).catch(() => null);
+        // Every photo of the piece, in order: the queue sends them as the hub does, the caption under the first.
+        const blobs = await card.photos();
+        const thumb = await loadImage(blobs[0]).then(img => thumbOf(img)).catch(() => null);
         const ok = await queue.add({
           headline: p.name, caption: card.caption(), fileBase: slugOf(p), sitePiece: p.id,
-          targets: { website: null, instagram: false, whatsapp: targets }, site: [], wa: [blob], story: null, thumb,
+          targets: { website: null, instagram: false, whatsapp: audience.community ? targets : [], ...(toIg ? { instagramPost: true } : {}) },
+          site: [], wa: blobs, story: null, thumb,
         });
         setStates(s => { const { [id]: _, ...rest } = s; return rest; });
         if (!ok) break;
@@ -378,7 +462,9 @@ function PostsHub() {
   }, [n > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const siteName = site ? host(site) : host(STORE_LINKS.website || '') || 'the website';
-  const waBlockers = blockers(true);
+  const waBlockers = blockers(targets.length > 0, toIg);
+  // The most photos any picked piece has, for the confirm's words (read as the dialog opens).
+  const maxPhotos = confirm ? Math.max(1, ...picked.map(id => cards.current.get(id)?.photoCount() ?? 1)) : 1;
   const hasQueue = queue.items.some(e => e.status !== 'sent') || queue.items.some(e => e.status === 'sent' && new Date(e.sentAt || e.createdAt).toDateString() === new Date().toDateString());
 
   return (
@@ -416,7 +502,7 @@ function PostsHub() {
         {hasQueue && (
           <div ref={queueRef} className="scroll-mt-20 [&>div]:rounded-2xl [&>div]:bg-card [&>div]:shadow-sm">
             <QueuePanel api={queue} destinationName={k => (k === 'channel' ? audience.channel?.name ?? 'Channel' : audience.groups.find(g => g.key === k)?.label ?? k)}
-              blockers={entries => blockers(entries.some(e => e.whatsapp.length), entries.some(e => e.instagram), entries.some(e => !!e.website))} />
+              blockers={entries => blockers(entries.some(e => e.whatsapp.length), entries.some(e => e.instagram || !!e.instagramPost), entries.some(e => !!e.website))} />
           </div>
         )}
       </div>
@@ -429,7 +515,7 @@ function PostsHub() {
           </div>
         </div>
         {error && <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">{error} <button type="button" className="text-primary ml-2" onClick={load}>Try again</button></div>}
-        {pieces && !audience.community && <p className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">No WhatsApp community is set up for this shop yet (WHATSAPP_COMMUNITY_CHAT_ID), so nothing can be sent from here.</p>}
+        {pieces && !audience.community && <p className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">No WhatsApp community is set up for this shop yet (WHATSAPP_COMMUNITY_CHAT_ID), so nothing can be sent to WhatsApp from here.</p>}
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
           {/* The tray — first on a phone, beside the grid on a computer (its own scroll, so Send never leaves the screen). */}
@@ -455,7 +541,7 @@ function PostsHub() {
 
               {/* Where they go and the one press that sends them — above the cards, so a batch is sent without scrolling. */}
               <div ref={sendRef} className="rounded-xl border bg-card p-3 space-y-2.5 shadow-sm">
-                {audience.groups.length > 0 && (
+                {(audience.groups.length > 0 || !!ig?.connected) && (
                   <div className="flex flex-wrap gap-1.5">
                     {audience.groups.map(g => {
                       const on = targets.includes(g.key);
@@ -472,6 +558,13 @@ function PostsHub() {
                         {targets.includes('channel') ? <Check className="h-3 w-3 mr-1" /> : <Radio className="h-3 w-3 mr-1" />}Channel{audience.channel.followers ? <span className="opacity-70">&nbsp;· {audience.channel.followers.toLocaleString()}</span> : null}
                       </button>
                     )}
+                    {/* The piece's photos as one feed post — a carousel when there are several. */}
+                    {ig?.connected && (
+                      <button type="button" disabled={!!busy} onClick={chooseIg} title={ig.username ? `A post on @${ig.username}` : 'A post on Instagram'}
+                        className={cn('rounded-full border px-3 py-1.5 text-xs inline-flex items-center', igPost ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground')}>
+                        {igPost ? <Check className="h-3 w-3 mr-1" /> : <Instagram className="h-3 w-3 mr-1" />}Instagram post
+                      </button>
+                    )}
                   </div>
                 )}
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
@@ -484,7 +577,7 @@ function PostsHub() {
                   </Button>
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  {!targets.length ? 'Choose where they go.' : <>To {listOf(targets.map(labelOf))}{n > 1 ? ', one after another' : ''}. <b className="font-medium">Later</b> puts {n > 1 ? 'them' : 'it'} in the queue to send at a time, or spread over the day.</>}
+                  {!places().length ? 'Choose where they go.' : <>To {listOf(places())}{n > 1 ? ', one after another' : ''}. <b className="font-medium">Later</b> puts {n > 1 ? 'them' : 'it'} in the queue to send at a time, or spread over the day.</>}
                 </p>
                 {waBlockers.length > 0 && <p className="text-[11px] text-destructive">{waBlockers.map(c => `${c.label}: ${c.fix ?? c.detail}`).join(' · ')}</p>}
               </div>
@@ -492,7 +585,7 @@ function PostsHub() {
               {picked.map(id => {
                 const p = byId.get(id);
                 return p ? (
-                  <PieceCard key={id} piece={p} shown={id === active} siteName={siteName} posted={posted[id]} photo={photo} token={authHeaders} ig={ig}
+                  <PieceCard key={id} piece={p} pieces={pieces ?? []} igPost={toIg} shown={id === active} siteName={siteName} posted={posted[id]} photo={photo} token={authHeaders} ig={ig}
                     locked={!!busy} failed={states[id]?.s === 'failed' ? states[id]?.error : undefined} onRegister={register} onRemove={() => take(id)} onAnother={() => another(id)} />
                 ) : null;
               })}
@@ -565,7 +658,7 @@ function PostsHub() {
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Send {n > 1 ? `these ${n} pieces` : 'it'} to {listOf(targets.map(labelOf))}?</AlertDialogTitle>
+            <AlertDialogTitle>Send {n > 1 ? `these ${n} pieces` : 'it'} to {listOf(places())}?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2.5 text-sm">
                 <ul className="space-y-1.5 max-h-[40vh] overflow-y-auto">
@@ -579,8 +672,11 @@ function PostsHub() {
                     ) : null;
                   })}
                 </ul>
-                <ul className="text-xs">{targets.map(k => <li key={k}>{k === 'channel' ? `${audience.channel?.name ?? 'Channel'} (channel)` : labelOf(k)}{reachOf(k) ? ` — ${reachOf(k)!.toLocaleString()} ${k === 'channel' ? 'followers' : 'members'}` : ''}</li>)}</ul>
-                <p className="text-xs">Each with its own caption and link{n > 1 ? ', one after another — it stops at the first that fails' : ''}. A post can’t be unsent from here.</p>
+                <ul className="text-xs">
+                  {targets.map(k => <li key={k}>{k === 'channel' ? `${audience.channel?.name ?? 'Channel'} (channel)` : labelOf(k)}{reachOf(k) ? ` — ${reachOf(k)!.toLocaleString()} ${k === 'channel' ? 'followers' : 'members'}` : ''}</li>)}
+                  {toIg && <li>Instagram{ig?.username ? ` @${ig.username}` : ''} — one post{maxPhotos > 1 ? `, a carousel of up to ${IG_CAROUSEL_MAX}` : ''}</li>}
+                </ul>
+                <p className="text-xs">Each with its own caption and link{maxPhotos > 1 ? '; a piece’s photos go together, the caption under the first on WhatsApp' : ''}{n > 1 ? ', one after another — it stops at the first that fails' : ''}. A post can’t be unsent from here.</p>
                 {waBlockers.length > 0 && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2.5 space-y-1 text-foreground">
                     <p className="font-semibold text-destructive text-xs">This will probably fail:</p>

@@ -150,6 +150,10 @@ export const setCurrentPostDraft = (id: string | null) => {
 };
 
 /** Where pieces usually go from this device, so a new one starts there. */
-export interface PostPrefs { waTargets?: string[]; toWhatsApp?: boolean; toInstagram?: boolean; toWebsite?: boolean; weightOwnLine?: boolean }
+export interface PostPrefs {
+  waTargets?: string[]; toWhatsApp?: boolean; toInstagram?: boolean; toWebsite?: boolean; weightOwnLine?: boolean;
+  /** The Posts hub's "Instagram post" chip: each piece's photos also go as one feed post (a carousel for more than one). */
+  hubInstagramPost?: boolean;
+}
 export const readPostPrefs = (): PostPrefs => { try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') as PostPrefs; } catch { return {}; } };
 export const writePostPrefs = (p: PostPrefs) => { try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch { /* private mode */ } };

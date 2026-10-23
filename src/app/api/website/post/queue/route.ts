@@ -2,8 +2,10 @@
  * Post a Piece's queue (src/lib/social/queue.ts).
  *
  *   GET   → the queue: what is waiting, scheduled or failed, and what went in the last two days
- *   POST  { headline, caption, fileBase, counts, website, instagram, whatsapp, thumb?, sitePiece? }
+ *   POST  { headline, caption, fileBase, counts, website, instagram, whatsapp, thumb?, sitePiece?, instagramPost? }
  *         → a new draft; its images follow one by one (POST /queue/:id), then PATCH { action: 'ready' }
+ *         `instagramPost`: its WhatsApp squares also go as one Instagram post, a carousel of the first ten (the
+ *         Posts hub's photos of a piece, 2026-10-23); `counts.wa` takes up to ALBUM_MAX photos (lib/social/album.ts)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,6 +13,7 @@ import { z } from 'zod';
 import { postGate } from '@/lib/social/gate';
 import { postChannel, postGroups } from '@/lib/social/destinations';
 import { createItem, listItems, toView } from '@/lib/social/queue';
+import { ALBUM_MAX } from '@/lib/social/album';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,9 +30,10 @@ const Create = z.object({
   headline: z.string().max(200),
   caption: z.string().max(4000),
   fileBase: z.string().max(120).regex(/^[\w-]+$/),
-  counts: z.object({ site: z.number().int().min(0).max(12), wa: z.number().int().min(0).max(12), story: z.boolean() }),
+  counts: z.object({ site: z.number().int().min(0).max(12), wa: z.number().int().min(0).max(ALBUM_MAX), story: z.boolean() }),
   website: z.object({ folder: z.string().max(200).refine(folderOk, 'Choose a collection.'), collection: z.string().max(200), names: z.array(z.string().max(200).refine(nameOk, 'A photo name is not usable.')).max(12), featured: z.boolean() }).nullable(),
   instagram: z.boolean(),
+  instagramPost: z.boolean().optional(),   // the WhatsApp squares as one Instagram post (carousel)
   whatsapp: z.array(z.string().max(80)).max(12),
   thumb: z.string().max(200_000).optional(),   // base64 JPEG
   sitePiece: z.string().max(300).optional(),     // a piece already on the website (the Posts hub)
@@ -46,10 +50,11 @@ export async function POST(req: NextRequest) {
   const unknown = p.whatsapp.filter(k => !known.has(k));
   if (unknown.length) return NextResponse.json({ error: `Unknown WhatsApp destination: ${unknown.join(', ')}.` }, { status: 400 });
   if (p.website && p.website.names.length !== p.counts.site) return NextResponse.json({ error: 'Every website photo needs a name.' }, { status: 400 });
-  if (!p.website && !p.instagram && !p.whatsapp.length) return NextResponse.json({ error: 'This piece is not going anywhere.' }, { status: 400 });
+  if (p.instagramPost && !p.counts.wa) return NextResponse.json({ error: 'An Instagram post needs at least one photo.' }, { status: 400 });
+  if (!p.website && !p.instagram && !p.instagramPost && !p.whatsapp.length) return NextResponse.json({ error: 'This piece is not going anywhere.' }, { status: 400 });
   const item = await createItem({
     by: who, headline: p.headline.trim(), caption: p.caption, fileBase: p.fileBase, counts: p.counts,
-    website: p.website, instagram: p.instagram, whatsapp: [...new Set(p.whatsapp)],
+    website: p.website, instagram: p.instagram, whatsapp: [...new Set(p.whatsapp)], ...(p.instagramPost ? { instagramPost: true } : {}),
     thumb: p.thumb ? Buffer.from(p.thumb, 'base64') : undefined, sitePiece: p.sitePiece || undefined,
   });
   return NextResponse.json({ item: toView(item) });

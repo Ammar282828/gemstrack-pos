@@ -182,7 +182,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Checks](docs/features/post-a-piece.md#checks) — each dependency tested live, with its fix
 - [Story editor](docs/features/post-a-piece.md#story-editor), [Square only](docs/features/post-a-piece.md#square-only), [Designer](docs/features/post-a-piece.md#designer) — the layer document and its editors
 - [Story and post](docs/features/post-a-piece.md#story-and-post), [Website photos](docs/features/post-a-piece.md#website-photos)
-- [Queue and Mina](docs/features/post-a-piece.md#queue-and-mina) — per-destination ticks, the queue and its tick, Mina's community
+- [Queue and Mina](docs/features/post-a-piece.md#queue-and-mina) — per-destination ticks, the queue and its tick, Mina's community; several photos, one caption (WhatsApp in a row, Instagram carousel of 10)
 - [Maisons](docs/features/post-a-piece.md#maisons) — house + official name; never priced by the gram
 - [Retouch](docs/features/post-a-piece.md#retouch) — Magnific (GPT Image) + Precision, then the same-piece check
 

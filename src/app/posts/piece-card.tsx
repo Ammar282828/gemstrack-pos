@@ -32,6 +32,8 @@ import { siteDetailsLine } from '@/lib/social/site-design';
 import { STORE_BRAND, STORE_MARK_SVG, STORE_META_ADS, STORE_POST_FOOTER, STORE_POST_METAL, STORE_POST_PIECE, STORE_POST_TAGLINE, STORE_SITE_EDIT, STORE_WHATSAPP_NUMBERS } from '@/lib/store-config';
 import { FONTS } from '@/app/website/post/fonts';
 import { PieceDesignPanel, usePieceDesign } from './piece-design';
+import { PiecePhotosStrip, usePiecePhotos } from './piece-photos';
+import { photosLabel } from '@/lib/social/album';
 import { postOnlyWeight, validWeight, weightForSite } from '@/lib/website/site-weight';
 
 export interface Piece {
@@ -45,10 +47,14 @@ export interface Piece {
 }
 export interface IgStatus { configured: boolean; connected: boolean; username: string | null }
 
-/** What the hub asks of a card when it sends: always the card's latest words and photo. */
+/** What the hub asks of a card when it sends: always the card's latest words and photos. */
 export interface CardHandle {
   caption: () => string;
+  /** The first photo: what a one-photo place takes. */
   outgoing: () => Promise<Blob>;
+  /** Every photo of the piece, in the order they go (2026-10-23: one caption for them all). */
+  photos: () => Promise<Blob[]>;
+  photoCount: () => number;
   /** "The photo with 3.84g on it". */
   going: () => string;
   /** A small copy of what goes, when it isn't the website's own photo. */
@@ -65,8 +71,12 @@ const daysAgo = (iso: string) => Math.floor((Date.now() - Date.parse(iso)) / 86_
 export const agoLabel = (iso: string) => { const d = daysAgo(iso); return d <= 0 ? 'posted today' : d === 1 ? 'posted yesterday' : `posted ${d} days ago`; };
 export const slugOf = (p: Pick<Piece, 'url'>) => p.url.split('/').filter(Boolean).pop()?.replace(/[^\w-]+/g, '-').slice(0, 100) || 'piece';
 
-export function PieceCard({ piece, shown, siteName, posted, photo, token, ig, locked, failed, onRegister, onRemove, onAnother }: {
+export function PieceCard({ piece, pieces, igPost, shown, siteName, posted, photo, token, ig, locked, failed, onRegister, onRemove, onAnother }: {
   piece: Piece;
+  /** Every piece on the website, to add another photograph from. */
+  pieces: Piece[];
+  /** The hub sends an Instagram post too (a carousel of the first ten). */
+  igPost: boolean;
   /** The card in view; the others stay mounted, keeping their words and design. */
   shown: boolean;
   siteName: string;
@@ -106,8 +116,8 @@ export function PieceCard({ piece, shown, siteName, posted, photo, token, ig, lo
   const mark = useRef<Promise<HTMLImageElement | null> | null>(null);
 
   const design = usePieceDesign(p, { weight, onWeight: setWeight, stamped: overlay && validWeight(weight), token, sitePhoto: photo });
-  /** The photo that goes out: the design while there is one, else stamped with the weight when the overlay is on. */
-  const outgoing = async (): Promise<Blob> => {
+  /** The card's own photo as it goes: the design while there is one, else stamped with the weight when the overlay is on. */
+  const mainPhoto = async (): Promise<Blob> => {
     if (design.on) return design.jpeg();
     if (!overlay || !validWeight(weight)) return photo(p.id);
     const key = `${weight}|${ink}`;
@@ -116,14 +126,24 @@ export function PieceCard({ piece, shown, siteName, posted, photo, token, ig, lo
     stamped.current = { key, blob };
     return blob;
   };
-  const going = design.on ? 'Your design of the photo' : overlay && validWeight(weight) ? `The photo with ${weight.trim()}g on it` : 'The photo as it is on the website';
+  const album = usePiecePhotos(mainPhoto, photo);
+  /** What a one-photo place takes (the story): the first of the piece's photos. */
+  const outgoing = (): Promise<Blob> => album.first();
+  const going = (design.on ? 'Your design of the photo' : overlay && validWeight(weight) ? `The photo with ${weight.trim()}g on it` : 'The photo as it is on the website')
+    + (album.count > 1 ? `, then ${album.count - 1} more (${photosLabel(album.count)} in all)` : '');
   const goingPhoto = design.on ? design.preview : preview;
 
   // The hub reads the card through this, so it always gets what the card shows now.
   const self = useRef<CardHandle>(null!);
-  self.current = { caption: () => caption, outgoing, going: () => going, preview: () => goingPhoto, newWeight: () => weightForSite(p, weight) };
+  self.current = {
+    caption: () => caption, outgoing, photos: album.blobs, photoCount: () => album.count, going: () => going,
+    preview: () => album.firstPreview() ?? goingPhoto, newWeight: () => weightForSite(p, weight),
+  };
   useEffect(() => {
-    onRegister(p.id, { caption: () => self.current.caption(), outgoing: () => self.current.outgoing(), going: () => self.current.going(), preview: () => self.current.preview(), newWeight: () => self.current.newWeight() });
+    onRegister(p.id, {
+      caption: () => self.current.caption(), outgoing: () => self.current.outgoing(), photos: () => self.current.photos(), photoCount: () => self.current.photoCount(),
+      going: () => self.current.going(), preview: () => self.current.preview(), newWeight: () => self.current.newWeight(),
+    });
     return () => onRegister(p.id, null);
   }, [p.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -132,7 +152,7 @@ export function PieceCard({ piece, shown, siteName, posted, photo, token, ig, lo
     if (design.on || !overlay || !validWeight(weight)) { setPreview(null); return; }
     let alive = true, url = '';
     const t = setTimeout(async () => {
-      try { const b = await outgoing(); if (alive) { url = URL.createObjectURL(b); setPreview(url); } }
+      try { const b = await mainPhoto(); if (alive) { url = URL.createObjectURL(b); setPreview(url); } }
       catch (e) { if (alive) toast({ title: 'Could not put the weight on', description: e instanceof Error ? e.message : '', variant: 'destructive' }); }
     }, 250);
     return () => { alive = false; clearTimeout(t); if (url) URL.revokeObjectURL(url); };
@@ -158,7 +178,7 @@ export function PieceCard({ piece, shown, siteName, posted, photo, token, ig, lo
     }
   };
 
-  /** The piece as a 9:16 story: the photo that would go to WhatsApp, whole, with the name and weight. */
+  /** The piece as a 9:16 story: the first photo that would go to WhatsApp, whole, with the name and weight (a story is one picture). */
   const makeStory = async () => {
     setBusy('story');
     try {
@@ -268,6 +288,7 @@ export function PieceCard({ piece, shown, siteName, posted, photo, token, ig, lo
             )
           ) : null}
         </div>
+        <PiecePhotosStrip photos={album} piece={p} pieces={pieces} mainThumb={goingPhoto ?? p.thumb} siteName={siteName} igPost={igPost} locked={off} />
         <div>
           <p className="font-semibold leading-tight">{p.name}</p>
           <p className="text-xs text-muted-foreground">{[p.collection, p.weightGrams ? `${p.weightGrams}g` : ''].filter(Boolean).join(' · ')}</p>

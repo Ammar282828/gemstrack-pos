@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Check, Clock, Globe, Instagram, ListPlus, Loader2, MessageCircle, Radio, RotateCw, Send, Star, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { defaultSpreadEnd, spreadTimes, type QueueCounts, type QueueStatus, type QueueTargets } from '@/lib/social/queue-plan';
+import { IG_CAROUSEL_MAX } from '@/lib/social/album';
 
 /** A queued piece as GET /api/website/post/queue returns it. */
 export interface QueueEntry extends QueueTargets {
@@ -107,12 +108,13 @@ export function useQueue() {
         headline: p.headline, caption: p.caption, fileBase: p.fileBase,
         counts: { site: p.site.length, wa: p.wa.length, story: !!p.story },
         website: p.targets.website, instagram: p.targets.instagram, whatsapp: p.targets.whatsapp,
+        ...(p.targets.instagramPost ? { instagramPost: true } : {}),
         ...(p.thumb ? { thumb: await base64(p.thumb) } : {}), ...(p.sitePiece ? { sitePiece: p.sitePiece } : {}),
       } });
       id = item.id;
       const files: [string, Blob][] = [
         ...(p.targets.website ? p.site.map((b, i) => [`site-${i}`, b] as [string, Blob]) : []),
-        ...(p.targets.whatsapp.length ? p.wa.map((b, i) => [`wa-${i}`, b] as [string, Blob]) : []),
+        ...(p.targets.whatsapp.length || p.targets.instagramPost ? p.wa.map((b, i) => [`wa-${i}`, b] as [string, Blob]) : []),
         ...(p.targets.instagram && p.story ? [['story', p.story] as [string, Blob]] : []),
       ];
       for (let i = 0; i < files.length; i++) {
@@ -245,7 +247,8 @@ export function QueuePanel({ api, destinationName, blockers }: {
   const preview = fromAt && toAt ? spreadTimes(together.length, fromAt, toAt) : [];
   const where = (e: QueueEntry) => [
     e.website && `${e.website.collection}${e.website.featured ? ' (set of the day)' : ''}`,
-    e.instagram && 'Instagram',
+    e.instagram && (e.instagramPost ? 'Instagram story' : 'Instagram'),
+    e.instagramPost && (e.counts.wa > 1 ? `Instagram (${Math.min(e.counts.wa, IG_CAROUSEL_MAX)} photos)` : 'Instagram'),
     ...e.whatsapp.map(k => (k === 'channel' ? 'the channel' : destinationName(k))),
   ].filter(Boolean) as string[];
   const allBlockers = blockers(waiting);
@@ -263,7 +266,7 @@ export function QueuePanel({ api, destinationName, blockers }: {
           <p className="text-sm font-medium truncate">{e.headline || 'Untitled piece'}</p>
           {e.awaitingApproval && <p className="text-xs font-medium text-tone-owed-ink">Made by {e.proposedBy} — look at it, then approve it to send or time it</p>}
           <p className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-1.5">
-            {e.website && <Globe className="h-3 w-3" />}{e.website?.featured && <Star className="h-3 w-3" />}{e.instagram && <Instagram className="h-3 w-3" />}
+            {e.website && <Globe className="h-3 w-3" />}{e.website?.featured && <Star className="h-3 w-3" />}{(e.instagram || e.instagramPost) && <Instagram className="h-3 w-3" />}
             {e.whatsapp.filter(k => k !== 'channel').length > 0 && <MessageCircle className="h-3 w-3" />}{e.whatsapp.includes('channel') && <Radio className="h-3 w-3" />}
             <span className="truncate">{listOf(where(e))}</span>
           </p>

@@ -26,6 +26,29 @@ describe('queueMediaKeys', () => {
   });
 });
 
+describe('a hub piece of several photos (2026-10-23)', () => {
+  const hub = { website: null, instagram: false, whatsapp: ['announcements', 'channel'] };
+  it('sends every photo to each place in turn, so each group gets them together', () => {
+    expect(queueUnits(hub, { site: 0, wa: 3, story: false })).toEqual([
+      'wa:announcements:0', 'wa:announcements:1', 'wa:announcements:2', 'wa:channel:0', 'wa:channel:1', 'wa:channel:2',
+    ]);
+    expect(queueMediaKeys(hub, { site: 0, wa: 3, story: false })).toEqual(['wa-0', 'wa-1', 'wa-2']);
+  });
+  it('makes the Instagram post one unit from the same photos, stored once', () => {
+    const both = { ...hub, instagramPost: true };
+    expect(queueUnits(both, { site: 0, wa: 2, story: false })).toEqual(['ig-post', 'wa:announcements:0', 'wa:announcements:1', 'wa:channel:0', 'wa:channel:1']);
+    expect(queueMediaKeys(both, { site: 0, wa: 2, story: false })).toEqual(['wa-0', 'wa-1']);
+  });
+  it('keeps the photos for an Instagram-only piece', () => {
+    const igOnly = { website: null, instagram: false, whatsapp: [], instagramPost: true };
+    expect(queueUnits(igOnly, { site: 0, wa: 12, story: false })).toEqual(['ig-post']);
+    expect(queueMediaKeys(igOnly, { site: 0, wa: 2, story: false })).toEqual(['wa-0', 'wa-1']);
+  });
+  it('reads an entry queued before the field existed exactly as before', () => {
+    expect(queueUnits({ website: null, instagram: false, whatsapp: ['announcements'] }, { site: 0, wa: 1, story: false })).toEqual(['wa:announcements:0']);
+  });
+});
+
 describe('spreadTimes', () => {
   const from = new Date('2026-09-25T11:00:00'), to = new Date('2026-09-25T20:00:00');
   it('spreads evenly, first and last at the ends', () => {

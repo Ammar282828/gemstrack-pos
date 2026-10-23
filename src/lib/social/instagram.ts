@@ -198,18 +198,61 @@ export async function publishPhoto(imageUrl: string, caption = ''): Promise<stri
 }
 
 /**
+ * A carousel (2 to 10 photos, one caption) from public JPEG URLs, in order: a child container per photo
+ * (`is_carousel_item`), each waited on until Instagram has fetched it, then the CAROUSEL container naming them
+ * and its caption, then published. Instagram shows every child at the first one's shape. One URL is a plain
+ * photo (publishPhoto); more than ten are refused here — the caller sends the first ten (album.ts). Resolves to
+ * the new media's id.
+ */
+export async function publishCarousel(imageUrls: string[], caption = ''): Promise<string> {
+  if (imageUrls.length === 1) return publishPhoto(imageUrls[0], caption);
+  if (imageUrls.length < 1) throw new InstagramError('No photos for the post.', 400);
+  if (imageUrls.length > 10) throw new InstagramError(`Instagram takes up to 10 photos in one post; this has ${imageUrls.length}.`, 400);
+  const text = caption.trim();
+  if (text.length > FEED_CAPTION_MAX) throw new InstagramError(`Instagram takes captions up to ${FEED_CAPTION_MAX} characters; this one is ${text.length}.`, 400);
+  const conn = await freshConnection();
+  const v = VERSION();
+  // One after another, so a refusal names its photo and Instagram's per-minute limit is not tested.
+  const children: string[] = [];
+  for (let i = 0; i < imageUrls.length; i++) {
+    try {
+      const child = await igJson(await fetch(`${GRAPH}/${v}/${conn.userId}/media`, {
+        method: 'POST',
+        body: new URLSearchParams({ image_url: imageUrls[i], is_carousel_item: 'true', access_token: conn.token }),
+      }));
+      await waitForContainer(conn, String(child.id));
+      children.push(String(child.id));
+    } catch (e) {
+      if (e instanceof InstagramError) throw new InstagramError(`Photo ${i + 1}: ${e.message}`, e.status);
+      throw e;
+    }
+  }
+  const container = await igJson(await fetch(`${GRAPH}/${v}/${conn.userId}/media`, {
+    method: 'POST',
+    body: new URLSearchParams({ media_type: 'CAROUSEL', children: children.join(','), ...(text ? { caption: text } : {}), access_token: conn.token }),
+  }));
+  return publishContainer(conn, container);
+}
+
+/** Until Instagram has the container's image (FINISHED), at most half a minute; a refused one says why. */
+async function waitForContainer(conn: Connection, id: string): Promise<void> {
+  const v = VERSION();
+  for (let i = 0; i < 15; i++) {
+    const s = await igJson(await fetch(`${GRAPH}/${v}/${id}?${new URLSearchParams({ fields: 'status_code,status', access_token: conn.token })}`));
+    if (s.status_code === 'FINISHED') return;
+    if (s.status_code === 'ERROR' || s.status_code === 'EXPIRED') throw new InstagramError(`Instagram could not take the image: ${String(s.status || s.status_code)}`, 422);
+    await new Promise(r => setTimeout(r, 2000));
+  }
+}
+
+/**
  * A made container → published. Images are usually ready at once; Instagram gets up to half a minute,
  * and a container it refuses ("ERROR" / "EXPIRED") says why. Resolves to the new media's id.
  */
 async function publishContainer(conn: Connection, container: Record<string, unknown>): Promise<string> {
   const v = VERSION();
   const id = String(container.id);
-  for (let i = 0; i < 15; i++) {
-    const s = await igJson(await fetch(`${GRAPH}/${v}/${id}?${new URLSearchParams({ fields: 'status_code,status', access_token: conn.token })}`));
-    if (s.status_code === 'FINISHED') break;
-    if (s.status_code === 'ERROR' || s.status_code === 'EXPIRED') throw new InstagramError(`Instagram could not take the image: ${String(s.status || s.status_code)}`, 422);
-    await new Promise(r => setTimeout(r, 2000));
-  }
+  await waitForContainer(conn, id);
   const published = await igJson(await fetch(`${GRAPH}/${v}/${conn.userId}/media_publish`, {
     method: 'POST',
     body: new URLSearchParams({ creation_id: id, access_token: conn.token }),

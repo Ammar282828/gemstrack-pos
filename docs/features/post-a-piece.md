@@ -164,6 +164,13 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   `roles/aiplatform.user` there, with the mmurtaza1970 gcloud account on this Mac). Mina's voice stays on `VERTEX_PROJECT`.
   Locally both houses sign AI with Murtaza's ADC (`IMAGE_AI_CREDENTIALS`, which `env-for-house` never blanks).
 
+**Several photos, one caption** (2026-10-23; the owner: "the hub should allow me to send multiple pics of a product together with
+one description, 1 to as many as i want"): a Hub card takes up to 30 photos of its piece (the site's, the same page's others, or
+this device's), reordered or removed on the card. WhatsApp gets them back to back with the caption under the first only (WAHA has
+no album call; the phone groups them); a place that misses one gets none of the rest. The "Instagram post" chip sends them as one
+carousel of the first 10 (`publishCarousel`, `lib/social/album.ts`). The queue keeps every photo, with an optional `instagramPost`
+using the same photos. One photo works exactly as before.
+
 ### Maisons
 
 - **The Maisons from the counter** (2026-09-26, the owner: "add pos functionality for maison"): taheri.shop's collection of the
