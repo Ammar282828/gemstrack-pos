@@ -164,6 +164,17 @@ export interface Device { device: 'mobile' | 'tablet' | 'desktop'; os: string; b
 /** Crawlers, previews and headless browsers; real people never send these. */
 const BOT = /bot\b|bot\/|crawl|spider|slurp|scrape|headless|phantom|puppeteer|playwright|selenium|lighthouse|pagespeed|gtmetrix|pingdom|uptime|monitor|preview|facebookexternalhit|facebot|whatsapp\/|telegrambot|discordbot|embedly|quora link|skypeuripreview|bitlybot|curl\/|wget\/|python-|java\/|go-http|okhttp|axios|node-fetch|libwww|httpclient|^mozilla\/5\.0$/i;
 
+/**
+ * The visitor's own user agent. App Hosting's front end replaces the header with "Google" on every request (seen in the
+ * `[sign-in]` log), so the page sends navigator.userAgent as `ua` and that is read instead; null when neither says
+ * anything (an older page's beacon): its piece counts still go in, but no visit is counted and no bot is judged.
+ */
+export function visitorAgent(header: string | null, sent: unknown): string | null {
+  const h = (header || '').trim();
+  if (h && !/^google$/i.test(h)) return h;
+  return typeof sent === 'string' && sent.trim() ? sent.trim().slice(0, 400) : null;
+}
+
 export function parseDevice(ua: string): Device {
   const u = ua || '';
   const bot = !u || u.length < 20 || BOT.test(u);
