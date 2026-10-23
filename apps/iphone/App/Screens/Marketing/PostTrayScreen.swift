@@ -33,7 +33,7 @@ struct PostTrayScreen: View {
     var body: some View {
         List {
             Group {
-                if store.piecesPhase == .loaded && !model.audience.canSend {
+                if store.piecesPhase == .loaded && !model.audience.canSend && !model.toInstagram {
                     Section {
                         Text("No WhatsApp community is set up for this shop yet (WHATSAPP_COMMUNITY_CHAT_ID), so nothing can be sent from here.")
                             .foregroundStyle(Tone.owed.color)
@@ -57,6 +57,7 @@ struct PostTrayScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .readableColumn(780)
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle(model.cards.count > 1 ? "\(model.cards.count) to send" : "Send a piece")
         .navigationBarTitleDisplayMode(.inline)
@@ -78,8 +79,9 @@ struct PostTrayScreen: View {
                 PostPiecesScreen(tray: model)
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { picking = false } } }
             }
+            .presentationSizing(.page)
         }
-        .sheet(item: $story) { (s: Story) in storySheet(s) }
+        .sheet(item: $story) { (s: Story) in storySheet(s).presentationSizing(.page) }
         .confirmationDialog(confirmTitle, isPresented: $confirming, titleVisibility: .visible) {
             Button(model.blockers.isEmpty ? "Send" : "Send anyway") { Task { await send() } }
             Button("Not yet", role: .cancel) {}
@@ -179,13 +181,25 @@ struct PostTrayScreen: View {
     @ViewBuilder
     private var whereSection: some View {
         let a = model.audience
-        if !a.groups.isEmpty || a.channelName != nil {
+        let igConnected = model.instagram["connected"].bool
+        if !a.groups.isEmpty || a.channelName != nil || igConnected {
             Section {
                 ForEach(a.groups, id: \.key) { (g: PostAudience.Place) in
                     placeToggle(g.key, title: g.label, reach: g.size, noun: "members")
                 }
                 if a.channelName != nil {
                     placeToggle("channel", title: "Channel", reach: a.channelFollowers, noun: "followers")
+                }
+                if igConnected {
+                    // The photos as one Instagram carousel, the first ten, the caption once (album.ts).
+                    Toggle(isOn: Binding(get: { model.instagramPost }, set: { (_: Bool) in model.chooseInstagram() })) {
+                        HStack {
+                            Text("Instagram post")
+                            if !model.instagram.s("username").isEmpty { Text("@\(model.instagram.s("username"))").font(.subheadline).foregroundStyle(.secondary) }
+                        }
+                    }
+                    .tint(Theme.accent)
+                    .disabled(model.busy != nil)
                 }
             } header: {
                 LedgerHeading(title: "Where they go")
@@ -218,9 +232,9 @@ struct PostTrayScreen: View {
     /// The page's one action, pinned: send now, or put it in the queue for later.
     private var sendBar: some View {
         let n = model.cards.count
-        let summary = model.targets.isEmpty
+        let summary = model.placeNames.isEmpty
             ? "Choose where they go."
-            : "To \(PostTrayModel.listOf(model.targets.map(model.label)))\(n > 1 ? ", one after another" : ""). Later puts \(n > 1 ? "them" : "it") in the queue."
+            : "To \(PostTrayModel.listOf(model.placeNames))\(n > 1 ? ", one after another" : ""). Later puts \(n > 1 ? "them" : "it") in the queue."
         return ActionBar(
             primary: .init(n > 1 ? "Send all \(n)" : "Send it", systemImage: "paperplane.fill",
                            isBusy: model.busy == "send", isDisabled: !model.canSend) { confirming = true },
@@ -232,7 +246,7 @@ struct PostTrayScreen: View {
 
     private var confirmTitle: String {
         let n = model.cards.count
-        return "Send \(n > 1 ? "these \(n) pieces" : "it") to \(PostTrayModel.listOf(model.targets.map(model.label)))?"
+        return "Send \(n > 1 ? "these \(n) pieces" : "it") to \(PostTrayModel.listOf(model.placeNames))?"
     }
 
     /// Every piece and what of it goes, every place with how many it reaches, and what is failing now.
@@ -241,10 +255,14 @@ struct PostTrayScreen: View {
             let ago = MarketingTime.postedAgo(store.posted[c.id]).map { (s: String) in " · " + s } ?? ""
             return "• \(c.piece.name): \(c.going.lowercasedFirst)\(ago)"
         }
-        let places = model.targets.map { (k: String) -> String in
+        var places = model.whatsappPlaces.map { (k: String) -> String in
             let name = k == "channel" ? "\(model.audience.channelName ?? "Channel") (channel)" : model.label(k)
             let reach = model.reach(k).map { (r: Int) in " — \(r.formatted()) \(k == "channel" ? "followers" : "members")" } ?? ""
             return name + reach
+        }
+        if model.toInstagram {
+            let most = model.cards.map { (c: PostTrayCard) in c.album.count }.max() ?? 1
+            places.append("Instagram: one post" + (most > Album.igCarouselMax ? ", the first \(Album.igCarouselMax) photos of a piece (its limit)" : ""))
         }
         var out = pieces.joined(separator: "\n") + "\n\n" + places.joined(separator: "\n")
         out += "\n\nEach with its own caption and link\(model.cards.count > 1 ? ", one after another: it stops at the first that fails" : ""). A post can't be unsent from here."
@@ -404,6 +422,7 @@ struct PostTrayCardSections: View {
                     guard !Task.isCancelled else { return }
                     await model.refresh(card)
                 }
+            PostAlbumStrip(card: card, model: model, siteName: siteName, locked: locked, onSay: onSay)
             weightSection
             captionSection
             moreSection

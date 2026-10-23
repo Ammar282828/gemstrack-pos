@@ -28,15 +28,32 @@ struct ScanTag: View {
     /// The new sale, opened from the bar's Open the sale.
     @State private var openSale: Route?
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var width: CGFloat = 0
+
+    /// A wide iPad window: the camera takes the room, what it found stands at its side.
+    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                TagScanner(active: found == nil) { code in handle(code) }
-                if let found { result(found).transition(.opacity) }
-                if found == nil && onSale > 0 && session.isOwner { saleCard }
+            if wide {
+                HStack(alignment: .top, spacing: 20) {
+                    TagScanner(active: found == nil, height: 560) { code in handle(code) }
+                        .frame(maxWidth: .infinity)
+                    VStack(spacing: 16) { foundBlock }
+                        .frame(width: 360)
+                }
+                .padding(20)
+            } else {
+                VStack(spacing: 16) {
+                    TagScanner(active: found == nil) { code in handle(code) }
+                    foundBlock
+                }
+                .padding(16)
             }
-            .padding(16)
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if let primary = barAction { ActionBar(primary: primary) }
         }
@@ -51,6 +68,13 @@ struct ScanTag: View {
             book.invoices.need()
             book.settings.need()
         }
+    }
+
+    /// What the last tag turned out to be, and the sale waiting.
+    @ViewBuilder
+    private var foundBlock: some View {
+        if let found { result(found).transition(.opacity) }
+        if found == nil && onSale > 0 && session.isOwner { saleCard }
     }
 
     // MARK: Reading a tag

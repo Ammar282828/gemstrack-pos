@@ -102,20 +102,45 @@ struct RootView: View {
         session.shop.websiteSelling && (session.role == "owner" || session.role == "staff")
     }
 
+    /// A menu command or shortcut (⌘1…⌘5, ⌘N, ⇧⌘N, ⌘F).
+    private func perform(_ kind: ShellCommands.Kind, entries: [NavEntry], map: NavMap) {
+        guard creating == nil, !voice else { return }
+        switch kind {
+        case .tab(let i):
+            if entries.indices.contains(i) { tab = entries[i].id }
+        case .newSale:
+            if session.isOwner, let sale = map.newSale { creating = Route(path: sale.href) }
+        case .newOrder:
+            if session.role != "marketing" { creating = Route(path: "/orders/add") }
+        case .search:
+            ShellCommands.shared.searchWanted = true
+            tab = "search"
+        }
+    }
+
     var body: some View {
         let map = map
         let entries = tabEntries(map)
         TabView(selection: selection(entries)) {
             ForEach(entries) { e in
                 Tab(e.id == "home" ? "Home" : e.label, systemImage: NavIcon.symbol(for: e.icon), value: e.id) {
-                    NavigationStack {
-                        PlaceScreen(path: e.href, isRoot: true)
-                            .modifier(CreateAccessory(map: map, shown: session.role != "marketing", voiceShown: session.isOwner,
-                                                      open: { creating = Route(path: $0) }, talk: { voice = true }))
-                            .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                    if sizeClass.isPadLayout, session.role != "marketing", let prompt = HubSplitKind.prompt(for: e.href) {
+                        // Orders, Invoices, Customers, Stock, Repairs on an iPad: the list with the item beside it.
+                        HubSplit(prompt: prompt) {
+                            PlaceScreen(path: e.href, isRoot: true)
+                                .modifier(CreateAccessory(map: map, shown: true, voiceShown: session.isOwner,
+                                                          open: { creating = Route(path: $0) }, talk: { voice = true }))
+                        }
+                    } else {
+                        NavigationStack {
+                            PlaceScreen(path: e.href, isRoot: true)
+                                .modifier(CreateAccessory(map: map, shown: session.role != "marketing", voiceShown: session.isOwner,
+                                                          open: { creating = Route(path: $0) }, talk: { voice = true }))
+                                .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                        }
+                        // Outside the stack, so its pages see the same namespace as the rows they zoom from.
+                        .zoomScope()
                     }
-                    // Outside the stack, so its pages see the same namespace as the rows they zoom from.
-                    .zoomScope()
                 }
                 .badge(badge(for: e))
             }
@@ -135,14 +160,18 @@ struct RootView: View {
         .tabViewStyle(.sidebarAdaptable)
         // The bar folds down while a page scrolls, giving the page its height back.
         .tabBarMinimizeBehavior(.onScrollDown)
-        // The house's whole logo heads an iPad's sidebar, as the ERP's own sidebar is headed.
+        // An iPad's sidebar is headed by the business chip alone: which business this is and the way to the others
+        // (the house's whole wordmark here was too big for a sidebar, owner 2026-10-23).
         .tabViewSidebarHeader {
-            VStack(alignment: .leading, spacing: 10) {
-                HouseLogo().frame(maxWidth: .infinity, alignment: .leading)
-                // Which business this is, and the way to the others (an iPhone has it in each tab's bar).
-                BusinessChip(wide: true)
-            }
-            .padding(.vertical, 8)
+            BusinessChip(wide: true)
+                .padding(.vertical, 6)
+        }
+        .onChange(of: ShellCommands.shared.request) { _, r in
+            if let r { perform(r.kind, entries: entries, map: map) }
+        }
+        .onAppear { ShellCommands.shared.tabTitles = entries.prefix(5).map { $0.id == "home" ? "Home" : $0.label } }
+        .onChange(of: entries.map(\.id)) { _, _ in
+            ShellCommands.shared.tabTitles = entries.prefix(5).map { $0.id == "home" ? "Home" : $0.label }
         }
         .sheet(isPresented: $voice, onDismiss: {
             if let p = pendingRoute { pendingRoute = nil; creating = p }

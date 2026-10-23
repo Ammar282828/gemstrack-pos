@@ -73,5 +73,6 @@ struct OrderNotifySheet: View {
             })
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
     }
 }

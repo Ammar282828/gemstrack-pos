@@ -82,6 +82,7 @@ struct InvoiceCustomerSheet: View {
                     } else {
                         Button("Save", role: .confirm) { Task { await save() } }
                             .disabled(!canSave)
+                            .keyboardShortcut("s", modifiers: .command)
                     }
                 }
             }

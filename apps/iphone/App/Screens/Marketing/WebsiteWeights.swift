@@ -159,6 +159,7 @@ struct WebsiteWeightsScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .readableColumn(780)
         .scrollDismissesKeyboard(.interactively)
         .refreshable { await load() }
         .savedFeedback(trigger: savedTick)

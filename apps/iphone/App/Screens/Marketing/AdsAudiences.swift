@@ -170,6 +170,7 @@ struct AdsAudiencesScreen: View {
             .disabled(busy != nil)
         }
         .listStyle(.insetGrouped)
+        .readableColumn(780)
         .refreshable { await loadAudiences() }
     }
 

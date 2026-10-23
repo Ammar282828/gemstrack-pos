@@ -58,6 +58,7 @@ struct SaleLineEditor: View {
                 }
                 .houseRows()
             }
+            .formColumn()
             } review: {
                 PieceInspector(title: f.name, rows: [
                     .init(label: "Metal", value: describeMetal(f.metalType, f.karat)),
@@ -73,6 +74,14 @@ struct SaleLineEditor: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
             .keyboardDone()
+            .background {
+                Button("Apply") {
+                    guard !(create && f.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) else { return }
+                    apply(f.applied(to: line))
+                    dismiss()
+                }
+                .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
+            }
             // The one action stays at the foot with the line total beside it, where a long form never scrolls it away.
             // A new item needs a name before it can go on the bill (the web's dialog, mode "create").
             .actionBar(primary: ActionBar.Action(create ? "Add to bill" : "Apply",

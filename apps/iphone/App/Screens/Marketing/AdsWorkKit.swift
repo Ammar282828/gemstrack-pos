@@ -19,8 +19,9 @@ enum AdsQuery {
 extension AdsAPI {
     // MARK: The account
 
-    static func status() async throws -> AdsStatusAnswer {
-        try await ERPAPI.shared.get("/api/ads/status", as: AdsStatusAnswer.self)
+    /// `fresh` asks Meta again, past the server's short memories (the web's Check again / retry: ?fresh=1).
+    static func status(fresh: Bool = false) async throws -> AdsStatusAnswer {
+        try await ERPAPI.shared.get(fresh ? "/api/ads/status?fresh=1" : "/api/ads/status", as: AdsStatusAnswer.self)
     }
 
     // MARK: New ad and the ad set designer

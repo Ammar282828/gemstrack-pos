@@ -80,6 +80,7 @@ struct OrderLeopardsSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .interactiveDismissDisabled(busy)
     }
 

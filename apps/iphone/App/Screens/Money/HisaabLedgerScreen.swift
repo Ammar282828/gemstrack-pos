@@ -172,10 +172,12 @@ struct HisaabLedgerScreen: View {
                         }
                     }
                     .disabled(reminderPhone.trimmingCharacters(in: .whitespaces).isEmpty || reminderBusy)
+                    .keyboardShortcut(.return, modifiers: .command)
                 }
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
     }
 
     // MARK: The ledger
@@ -183,7 +185,8 @@ struct HisaabLedgerScreen: View {
     @ViewBuilder
     private func ledger(name: String, id: String, isCustomer: Bool, rows: [HisaabEntry], onFile: Bool) -> some View {
         let result = HisaabLedger.page(rows)
-        List { Group {
+        // Wide: the figures stand left, the rows of the ledger right.
+        WideDetailList(leftWidth: 360) {
             Section {
                 tiles(result)
                     .listRowInsets(EdgeInsets())
@@ -191,6 +194,8 @@ struct HisaabLedgerScreen: View {
             } header: {
                 LedgerHeading(title: isCustomer ? "Customer ledger" : "Karigar ledger")
             }
+            .houseRows()
+        } right: {
             Section {
                 if result.lines.isEmpty {
                     Text("No transactions found.").foregroundStyle(.secondary)
@@ -216,9 +221,8 @@ struct HisaabLedgerScreen: View {
             } header: {
                 LedgerHeading(title: "Transactions", count: result.lines.count)
             }
-        }.houseRows()
+            .houseRows()
         }
-        .listStyle(.insetGrouped)
         .navigationTitle(name.isEmpty ? "Hisaab" : name)
         .sheet(item: $reminder) { (r: HisaabReminder) in reminderSheet(r, id: id) }
         // The page's job is the two entries: pinned where they never scroll away, once (not also in a menu).
@@ -256,6 +260,7 @@ struct HisaabLedgerScreen: View {
             OwnerDeleteCodeSheet(deletion: d) {
                 Note.show(Note(title: "Transaction deleted"), in: $note, reduce: reduceMotion)
             }
+            .presentationSizing(.form)
         }
         .navigationDestination(item: $statement) { t in
             PDFDocumentScreen(path: t.path, fileName: t.fileName, title: t.title)

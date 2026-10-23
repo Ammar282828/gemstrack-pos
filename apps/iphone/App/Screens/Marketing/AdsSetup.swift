@@ -43,7 +43,7 @@ struct AdsSetupScreen: View {
             } else if let status {
                 content(status)
             } else if let problem {
-                AdsNotReady(status: nil, problem: problem, retry: load)
+                AdsNotReady(status: nil, problem: problem, retry: { await load(fresh: true) })
             } else {
                 SkeletonLoading("Checking…").frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -87,11 +87,11 @@ struct AdsSetupScreen: View {
 
     // MARK: Asking the ERP
 
-    private func load() async {
+    private func load(fresh: Bool = false) async {
         loading = true
         defer { loading = false }
         do {
-            let s = try await AdsAPI.status()
+            let s = try await AdsAPI.status(fresh: fresh)
             status = s
             problem = nil
             if let id = s.app?.loginConfigId, configId.isEmpty { configId = id }
@@ -129,7 +129,7 @@ struct AdsSetupScreen: View {
         defer { busy = nil }
         do {
             _ = try await AdsAPI.saveSetup(patch)
-            await load()
+            await load(fresh: true)
         } catch {
             failure = error.localizedDescription
         }
@@ -142,7 +142,7 @@ struct AdsSetupScreen: View {
             try await AdsAPI.disconnect()
             assets = nil
             pixel = nil
-            await load()
+            await load(fresh: true)
         } catch {
             failure = error.localizedDescription
         }
@@ -154,7 +154,7 @@ struct AdsSetupScreen: View {
         do {
             try await AdsAPI.pixel(body)
             await loadPixel()
-            if let s = try? await AdsAPI.status() { status = s }
+            if let s = try? await AdsAPI.status(fresh: true) { status = s }
         } catch {
             failure = "Couldn't change the pixel. \(error.localizedDescription)"
         }
@@ -182,9 +182,10 @@ struct AdsSetupScreen: View {
             .disabled(busy != nil)
         }
         .listStyle(.insetGrouped)
+        .readableColumn(780)
         .scrollDismissesKeyboard(.interactively)
         .keyboardDone()
-        .refreshable { await load() }
+        .refreshable { await load(fresh: true) }
     }
 
     private func stepHeader(_ n: Int, _ title: String, done: Bool?) -> some View {

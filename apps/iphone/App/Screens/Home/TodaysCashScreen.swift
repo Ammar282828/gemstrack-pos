@@ -16,6 +16,9 @@ struct TodaysCashScreen: View {
     @Environment(Session.self) private var session
 
     @State private var now = Date()
+    @State private var width: CGFloat = 0
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         Group {
@@ -57,44 +60,69 @@ struct TodaysCashScreen: View {
     // MARK: The page
 
     private func page(_ t: TodaysCash) -> some View {
-        List { Group {
-            Section {
-                tiles(t)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-            } header: {
-                Text(DashDate.dayLabel(now)).textCase(nil)
-            }
-            // A method nothing came in by is not a row of zeros; with nothing in, the section is not there.
-            if METHODS.contains(where: { (t.byMethod[$0] ?? 0) != 0 }) {
-                LedgerSection("By how it was paid") {
-                    ForEach(METHODS.filter { (t.byMethod[$0] ?? 0) != 0 }, id: \.self) { (m: CashMethod) in
-                        methodRow(m, t.byMethod[m] ?? 0)
-                    }
+        Group {
+            if wide {
+                // An iPad: the day's figures and what went out on the left, the sales that came in on the right.
+                HStack(alignment: .top, spacing: 0) {
+                    List { Group { figureSections(t); paidOutSection(t) }.houseRows() }
+                        .listStyle(.insetGrouped)
+                    List { Group { cameInSection(t) }.houseRows() }
+                        .listStyle(.insetGrouped)
                 }
+            } else {
+                List { Group { figureSections(t); cameInSection(t); paidOutSection(t) }.houseRows() }
+                    .listStyle(.insetGrouped)
             }
-            LedgerSection("Came in") {
-                if t.lines.isEmpty {
-                    Text("Nothing yet today.").foregroundStyle(.secondary)
-                } else {
-                    ForEach(Self.keyed(t.lines) { "\($0.ref)|\($0.at)|\($0.method.rawValue)|\($0.amount)" }) { row in
-                        cameInRow(row.item)
-                    }
-                }
-            }
-            if !t.expenseLines.isEmpty {
-                LedgerSection("Paid out") {
-                    ForEach(Self.keyed(t.expenseLines) { "\($0.description)|\($0.category)|\($0.amount)" }) { row in
-                        TwoLine(title: row.item.description, subtitle: row.item.category, trailing: Money.minus(row.item.amount))
-                    }
-                } footer: {
-                    Text("Expenses carry no method, so every one the business paid today counts as leaving the drawer; one a partner paid out of pocket does not.")
-                }
-            }
-        }.houseRows()
         }
-        .listStyle(.insetGrouped)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         .motion(t.lines.count + t.expenseLines.count)
+    }
+
+    private var wide: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
+
+    @ViewBuilder
+    private func figureSections(_ t: TodaysCash) -> some View {
+        Section {
+            tiles(t)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+        } header: {
+            Text(DashDate.dayLabel(now)).textCase(nil)
+        }
+        // A method nothing came in by is not a row of zeros; with nothing in, the section is not there.
+        if METHODS.contains(where: { (t.byMethod[$0] ?? 0) != 0 }) {
+            LedgerSection("By how it was paid") {
+                ForEach(METHODS.filter { (t.byMethod[$0] ?? 0) != 0 }, id: \.self) { (m: CashMethod) in
+                    methodRow(m, t.byMethod[m] ?? 0)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func cameInSection(_ t: TodaysCash) -> some View {
+        LedgerSection("Came in") {
+            if t.lines.isEmpty {
+                Text("Nothing yet today.").foregroundStyle(.secondary)
+            } else {
+                ForEach(Self.keyed(t.lines) { "\($0.ref)|\($0.at)|\($0.method.rawValue)|\($0.amount)" }) { row in
+                    cameInRow(row.item)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func paidOutSection(_ t: TodaysCash) -> some View {
+        if !t.expenseLines.isEmpty {
+            LedgerSection("Paid out") {
+                ForEach(Self.keyed(t.expenseLines) { "\($0.description)|\($0.category)|\($0.amount)" }) { row in
+                    TwoLine(title: row.item.description, subtitle: row.item.category, trailing: Money.minus(row.item.amount))
+                }
+            } footer: {
+                Text("Expenses carry no method, so every one the business paid today counts as leaving the drawer; one a partner paid out of pocket does not.")
+            }
+        }
     }
 
     /// A line with a stable id (what it is, not where it sits), so a new sale inserts a row rather than re-dealing them all.

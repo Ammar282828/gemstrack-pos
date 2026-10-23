@@ -150,6 +150,7 @@ private struct StockPieceEditor: View {
             }
             .houseRows()
         }
+        .formColumn()
         } review: {
             PieceInspector(title: f.name, rows: [
                 .init(label: "Metal", value: describeMetal(f.metalType, f.karat)),
@@ -161,6 +162,10 @@ private struct StockPieceEditor: View {
         .scrollDismissesKeyboard(.interactively)
         .keyboardDone()
         .disabled(saving)
+        .background {
+            Button(editing ? "Save changes" : "Save piece") { Task { await save() } }
+                .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
+        }
         // The one action stays at the foot of a long form, with what the piece sells for today beside it.
         .actionBar(primary: ActionBar.Action(editing ? "Save changes" : "Save piece", isBusy: saving) { Task { await save() } },
                    summary: todaysPrice.map { $0 > 0 ? "At today's rates · \(Money.pkr($0))" : "At today's rates · Price N/A" })
