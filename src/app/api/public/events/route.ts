@@ -17,7 +17,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { corsHeaders, preflight } from '@/lib/website/cors';
 import { callerKey } from '@/lib/website/ratelimit';
 import { karachiDay, PIECE_STATS, statsDocId, tallyEvents } from '@/lib/website/piece-interest';
-import { placeFor } from '@/lib/website/geo';
+import { countryOf, placeFor } from '@/lib/website/geo';
 import { memoryLimit } from '@/lib/website/memory-limit';
 import {
   addDays, classifySource, dayUpdate, LIVE_MS, parseDevice, parseVisit, SITE_DAYS, SITE_LIVE, SITE_VISITORS, sourceKey, visitorAgent,
@@ -29,6 +29,16 @@ export function OPTIONS(req: NextRequest) { return preflight(req); }
 
 /** Once per server: which headers the front end passes (names only), to see if it ever adds a location one. */
 let headersNoted = false;
+/**
+ * The first visits on each server: which country each address-bearing header resolves to — countries only, never an
+ * address — to find which one holds the visitor's (every visit read as the US on 2026-10-23 from x-fah-client-ip).
+ */
+let placesNoted = 0;
+function notePlaces(h: Headers) {
+  const xff = (h.get('x-forwarded-for') || '').split(',').map(x => x.trim()).filter(Boolean);
+  const fwd = [...(h.get('forwarded') || '').matchAll(/for="?\[?([^\]";,]+)/gi)].map(m => m[1]);
+  console.log(`[events] places: fah=${countryOf(h.get('x-fah-client-ip') || '')} xff=${xff.map(countryOf).join('>')} forwarded=${fwd.map(countryOf).join('>')} real=${countryOf(h.get('x-real-ip') || '')}`);
+}
 
 const done = (req: NextRequest) => new NextResponse(null, { status: 204, headers: corsHeaders(req) });
 
@@ -78,6 +88,7 @@ export async function POST(req: NextRequest) {
 
   if (visit) {
     const place = placeFor(req.headers, ip);
+    if (placesNoted < 25) { placesNoted++; notePlaces(req.headers); }
     if (!headersNoted) { headersNoted = true; console.log(`[events] headers: ${[...req.headers.keys()].sort().join(',')}; place via ${place.via}`); }
     const source = classifySource(visit, siteHost());
     const hour = new Date(now.getTime() + 5 * 3600_000).getUTCHours();

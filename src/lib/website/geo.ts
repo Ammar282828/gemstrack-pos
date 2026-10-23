@@ -104,6 +104,12 @@ export function lookupIn(t: Table, ip: string): Place {
   return { cc: c, region, city, via: 'table' };
 }
 
+/** An address's country alone ("" when unknown): for the events route's check of which header holds the visitor. */
+export function countryOf(ip: string): string {
+  const t = loadTable();
+  return t && ip ? lookupIn(t, ip.trim()).cc || '?' : '';
+}
+
 /** The visitor's place; `ip` is used here and nowhere else. */
 export function placeFor(h: Headers, ip: string): Place {
   const fromHeader = placeFromHeaders(h);
