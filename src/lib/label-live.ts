@@ -14,7 +14,15 @@
  * a piece's field by its name; Settings → Labels lets the owner change any pairing.
  *
  * The design must be pinned to Label LIVE's Home screen (its rule for a link to find it).
+ *
+ * A design can hold several tags (House of Mina's "minalabel", 2026-10-23: two tags side by side, built on
+ * the ERP's double-tag CSV, every variable twice as `SKU_1` / `SKU_2`). A variable ending `_<n>` belongs to
+ * tag n, each print fills as many pieces as the design has tags, and a tag left over is printed blank. A
+ * variable named after a CSV column (`TOTAL_PRICE_PKR_1`) is filled exactly as the CSV fills it
+ * (`labelCsvValues`), so the design reads what it was built on.
  */
+
+import { BASE_HEADERS as CSV_COLUMNS } from './label-csv';
 
 export interface LabelLiveConfig {
   /** The design's name as Label LIVE pins it ("minalabel"). */
@@ -48,8 +56,11 @@ export const LABEL_FIELDS = [
   { key: 'qr', label: 'QR / barcode (the SKU)' },
   { key: 'date', label: 'Today’s date' },
 ] as const;
-export type LabelFieldKey = typeof LABEL_FIELDS[number]['key'];
-export const FIELD_KEYS = LABEL_FIELDS.map(f => f.key) as readonly LabelFieldKey[];
+/** The tag CSV's own columns (lib/label-csv.ts), as the file writes them: `csv:total_price_pkr` → "20650". */
+export type CsvFieldKey = `csv:${typeof CSV_COLUMNS[number]}`;
+export const CSV_FIELDS = CSV_COLUMNS.map(c => ({ key: `csv:${c}` as CsvFieldKey, label: `Tag CSV: ${c}` }));
+export type LabelFieldKey = typeof LABEL_FIELDS[number]['key'] | CsvFieldKey;
+export const FIELD_KEYS = [...LABEL_FIELDS.map(f => f.key), ...CSV_FIELDS.map(f => f.key)] as readonly LabelFieldKey[];
 
 /** The values one piece gives a label — worked out by the caller (it has the rates). */
 export type LabelValues = Partial<Record<LabelFieldKey, string>>;
@@ -123,7 +134,11 @@ export function parseIntegrateUrl(raw: string): ParsedIntegrate | null {
 
 /** The field a design variable most likely wants, by its name; "" when nothing fits. */
 export function guessField(variable: string): LabelFieldKey | '' {
-  const v = variable.toLowerCase().replace(/[^a-z0-9]/g, '');
+  // A tag CSV column with its tag's number (`TOTAL_PRICE_PKR_1`): the design was built on the CSV.
+  const csv = /^(.+)_\d{1,2}$/.exec(variable)?.[1].toLowerCase();
+  if (csv && (CSV_COLUMNS as readonly string[]).includes(csv)) return `csv:${csv}` as CsvFieldKey;
+  const base = variable.replace(/_\d{1,2}$/, '').toLowerCase();
+  const v = base.replace(/[^a-z0-9]/g, '');
   const has = (...w: string[]) => w.some(x => v.includes(x));
   if (has('qr', 'barcode')) return 'qr';
   if (has('sku', 'code', 'tag', 'itemno', 'productid') || v === 'id') return 'sku';
@@ -153,26 +168,53 @@ export function configFromIntegrate(p: ParsedIntegrate, previous?: LabelLiveConf
 // ── Making the print link ─────────────────────────────────────────────────
 
 /**
- * One value as RJSON: always single-quoted, a quote escaped. An "&" becomes "and" rather than Label
- * LIVE's "\&" escape, which a percent-encoded link may or may not keep; a tag never needs the sign.
+ * Tag n of a design that holds several: the `_<n>` its variables end with, when they end with at least two
+ * different numbers (one `_2` alone is just a name). 0 for a variable shared by the whole label.
  */
-export const rjsonValue = (v: string) => `'${String(v).replace(/\r?\n/g, ' ').replace(/&/g, 'and').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+export function tagsOf(config: LabelLiveConfig): { count: number; tagOf: (name: string) => number } {
+  const num = (name: string) => Number(/_(\d{1,2})$/.exec(name)?.[1] ?? 0);
+  const seen = new Set(Object.keys(config.map).map(num).filter(n => n > 0));
+  if (seen.size < 2) return { count: 1, tagOf: () => 0 };
+  return { count: Math.min(12, Math.max(...seen)), tagOf: num };
+}
 
-/** The design's variables filled from one piece: `SKU:'TC-1042',PRICE:'Rs 12,500'`. */
-export function variablesFor(config: LabelLiveConfig, values: LabelValues): string {
-  return Object.entries(config.map)
-    .filter(([, field]) => field)
-    .map(([name, field]) => `${name}:${rjsonValue(values[field as LabelFieldKey] ?? '')}`)
-    .join(',');
+/** A value for the link: one line, and "&" as "and" (Label LIVE splits its options at "&"; a tag never needs it). */
+const clean = (v: string) => String(v).replace(/\r?\n/g, ' ').replace(/&/g, 'and');
+
+/**
+ * One label's variables, filled from its pieces (as many as the design has tags), as the JSON object
+ * Label LIVE's Integrate link carries: `{"SKU_1":"RIN-000069","SKU_2":""}`. A paired variable takes its
+ * piece's field; a tag with no piece is sent blank, every variable of it, so the design's sample text
+ * never prints; anything else is left as the design has it.
+ */
+export function variablesFor(config: LabelLiveConfig, pieces: LabelValues | LabelValues[]): string {
+  const group = Array.isArray(pieces) ? pieces : [pieces];
+  const { tagOf } = tagsOf(config);
+  const out: Record<string, string> = {};
+  for (const [name, field] of Object.entries(config.map)) {
+    const tag = tagOf(name);
+    const piece = group[Math.max(0, tag - 1)];
+    if (!piece) out[name] = '';
+    else if (field) out[name] = clean(piece[field as LabelFieldKey] ?? '');
+  }
+  return JSON.stringify(out);
 }
 
 const enc = (v: string) => encodeURIComponent(v);
 
-/** One piece → `labellive://print?…`. */
-export function printUrl(config: LabelLiveConfig, values: LabelValues, copies = config.copies): string {
+/** The pieces in labels: one per label, or two (or more) to a label for a design that holds that many. */
+export function labelsOf<T>(config: LabelLiveConfig, pieces: T[]): T[][] {
+  const { count } = tagsOf(config);
+  const out: T[][] = [];
+  for (let i = 0; i < pieces.length; i += count) out.push(pieces.slice(i, i + count));
+  return out;
+}
+
+/** One label → `labellive://print?…`. */
+export function printUrl(config: LabelLiveConfig, pieces: LabelValues | LabelValues[], copies = config.copies): string {
   const q = [
     `design=${enc(config.design)}`,
-    `variables=${enc(variablesFor(config, values))}`,
+    `variables=${enc(variablesFor(config, pieces))}`,
     ...(config.printer ? [`printer=${enc(config.printer)}`] : []),
     `copies=${Math.max(1, Math.min(99, Math.round(copies) || 1))}`,
     `window=${config.hideWindow ? 'hide' : 'show'}`,
@@ -194,7 +236,7 @@ function b64(s: string): string {
  * tap starts, so pieces go together). Each job has the design, its variables, printer and copies.
  */
 export function batchUrl(config: LabelLiveConfig, pieces: LabelValues[], copies = config.copies): string {
-  const jobs = pieces.map(v => ({
+  const jobs = labelsOf(config, pieces).map(v => ({
     design: config.design,
     variables: variablesFor(config, v),
     ...(config.printer ? { printer: config.printer } : {}),
@@ -205,9 +247,9 @@ export function batchUrl(config: LabelLiveConfig, pieces: LabelValues[], copies 
   return `labellive://batch?payload=${enc(b64(JSON.stringify(jobs)))}`;
 }
 
-/** The link for one piece or many. */
+/** The link for one label's pieces, or a batch of labels. */
 export const labelLiveUrl = (config: LabelLiveConfig, pieces: LabelValues[], copies?: number) =>
-  pieces.length === 1 ? printUrl(config, pieces[0], copies) : batchUrl(config, pieces, copies);
+  labelsOf(config, pieces).length === 1 ? printUrl(config, pieces, copies) : batchUrl(config, pieces, copies);
 
 /**
  * As the shop's settings keep it: the pairings as a list, because the settings document is written with
@@ -231,7 +273,7 @@ export function cleanLabelLive(input: unknown): LabelLiveConfig | null {
     ? (o.vars as unknown[]).map(v => (v && typeof v === 'object' ? [String((v as { name?: unknown }).name ?? ''), (v as { field?: unknown }).field] : ['', '']))
     : o.map && typeof o.map === 'object' ? Object.entries(o.map as Record<string, unknown>) : [];
   {
-    for (const [k, v] of pairs.slice(0, 60)) {
+    for (const [k, v] of pairs.slice(0, 120)) {
       if (!k || k.length > 60) continue;
       map[k] = typeof v === 'string' && (FIELD_KEYS as readonly string[]).includes(v) ? (v as LabelFieldKey) : '';
     }

@@ -5,7 +5,8 @@
 
 import { calculateProductCosts, type Product, type Settings } from '@/lib/store';
 import { categoryTitle } from '@/lib/categories';
-import type { LabelValues } from '@/lib/label-live';
+import type { CsvFieldKey, LabelValues } from '@/lib/label-live';
+import { labelCsvValues } from '@/lib/label-csv';
 
 const rs = (n: number) => `Rs ${Math.round(n).toLocaleString('en-US')}`;
 const grams = (n: number | undefined) => (Number.isFinite(n) ? Number(n).toFixed(3) : '');
@@ -38,5 +39,7 @@ export function labelValuesFor(p: Product, settings: Settings, today = new Date(
     shop: settings.shopName ?? '',
     qr: p.sku,
     date: today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Karachi' }),
+    // A design built on the tag CSV reads its columns as the file writes them.
+    ...Object.fromEntries(Object.entries(labelCsvValues(p, settings)).map(([k, v]) => [`csv:${k}` as CsvFieldKey, v])),
   };
 }

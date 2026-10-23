@@ -9,7 +9,8 @@
 import type { Product, Settings } from '@/lib/store';
 import { calculateProductCosts } from '@/lib/pricing';
 
-const BASE_HEADERS = [
+/** One tag's columns, in order; the file has each twice, `_1` for the left tag and `_2` for the right. */
+export const BASE_HEADERS = [
   // Primary Details
   'sku', 'product_name', 'category_id', 'shop_name', 'image_url',
   // Pricing
@@ -35,53 +36,11 @@ export function labelCsvFileName(now: Date = new Date()): string {
 export function productCsv(products: Product[], settings: Settings): string {
   const headers = [...BASE_HEADERS.map((h) => `${h}_1`), ...BASE_HEADERS.map((h) => `${h}_2`)];
 
-  const ratesForCalc = {
-    goldRatePerGram24k: settings.goldRatePerGram24k,
-    goldRatePerGram22k: settings.goldRatePerGram22k,
-    goldRatePerGram21k: settings.goldRatePerGram21k,
-    goldRatePerGram18k: settings.goldRatePerGram18k,
-    palladiumRatePerGram: settings.palladiumRatePerGram,
-    platinumRatePerGram: settings.platinumRatePerGram,
-    silverRatePerGram: settings.silverRatePerGram,
-  };
-
-  const formatField = (value: unknown): string => {
-    if (value === null || value === undefined) return '';
-    const str = String(value);
-    if (str.includes(',') || str.includes('"') || str.includes('\n')) return `"${str.replace(/"/g, '""')}"`;
-    return str;
-  };
-
+  const formatField = (value: string): string =>
+    value.includes(',') || value.includes('"') || value.includes('\n') ? `"${value.replace(/"/g, '""')}"` : value;
   const dataOf = (product: Product | undefined): Record<string, string> => {
-    if (!product) return Object.fromEntries(BASE_HEADERS.map((h) => [h, '']));
-    const costs = calculateProductCosts(product, ratesForCalc);
-    return {
-      sku: formatField(product.sku),
-      product_name: formatField(product.name),
-      category_id: formatField(product.categoryId),
-      shop_name: formatField(settings.shopName),
-      image_url: formatField(product.imageUrl),
-      total_price_pkr: Math.round(costs.totalPrice).toString(),
-      is_custom_price: product.isCustomPrice ? 'TRUE' : 'FALSE',
-      custom_price: product.customPrice != null ? String(Math.round(product.customPrice)) : '0',
-      metal_type: formatField(product.metalType),
-      metal_weight_g: product.metalWeightG.toFixed(3),
-      karat: formatField(product.karat),
-      secondary_metal_type: formatField(product.secondaryMetalType),
-      secondary_metal_weight_g: product.secondaryMetalWeightG?.toFixed(3) || '0',
-      secondary_karat: formatField(product.secondaryMetalKarat),
-      has_stones: product.hasStones ? 'TRUE' : 'FALSE',
-      stone_weight_g: product.stoneWeightG.toFixed(3),
-      has_diamonds: product.hasDiamonds ? 'TRUE' : 'FALSE',
-      stone_details: formatField(product.stoneDetails),
-      diamond_details: formatField(product.diamondDetails),
-      making_charges: Math.round(product.makingCharges).toString(),
-      diamond_charges: Math.round(product.diamondCharges).toString(),
-      stone_charges: Math.round(product.stoneCharges).toString(),
-      misc_charges: Math.round(product.miscCharges).toString(),
-      wastage_percentage: product.wastagePercentage.toFixed(2),
-      qr_content: formatField(product.sku),
-    };
+    const raw = labelCsvValues(product, settings);
+    return Object.fromEntries(BASE_HEADERS.map((h) => [h, formatField(raw[h])]));
   };
 
   const rows: string[] = [];
@@ -92,6 +51,54 @@ export function productCsv(products: Product[], settings: Settings): string {
     rows.push([...BASE_HEADERS.map((h) => left[h]), ...BASE_HEADERS.map((h) => right[h])].join(','));
   }
   return [headers.join(','), ...rows].join('\n');
+}
+
+export type LabelCsvColumn = typeof BASE_HEADERS[number];
+
+/**
+ * One tag's values as the CSV has them, unquoted: what a label design built on this file (House of Mina's
+ * "minalabel" in Label LIVE) reads, so lib/label-live.ts fills such a design exactly as an import of the file
+ * would. No piece (the right tag of an odd last row): every column empty.
+ */
+export function labelCsvValues(product: Product | undefined, settings: Settings): Record<LabelCsvColumn, string> {
+  if (!product) return Object.fromEntries(BASE_HEADERS.map((h) => [h, ''])) as Record<LabelCsvColumn, string>;
+  const costs = calculateProductCosts(product, {
+    goldRatePerGram24k: settings.goldRatePerGram24k,
+    goldRatePerGram22k: settings.goldRatePerGram22k,
+    goldRatePerGram21k: settings.goldRatePerGram21k,
+    goldRatePerGram18k: settings.goldRatePerGram18k,
+    palladiumRatePerGram: settings.palladiumRatePerGram,
+    platinumRatePerGram: settings.platinumRatePerGram,
+    silverRatePerGram: settings.silverRatePerGram,
+  });
+  const text = (value: unknown) => (value === null || value === undefined ? '' : String(value));
+  return {
+    sku: text(product.sku),
+    product_name: text(product.name),
+    category_id: text(product.categoryId),
+    shop_name: text(settings.shopName),
+    image_url: text(product.imageUrl),
+    total_price_pkr: Math.round(costs.totalPrice).toString(),
+    is_custom_price: product.isCustomPrice ? 'TRUE' : 'FALSE',
+    custom_price: product.customPrice != null ? String(Math.round(product.customPrice)) : '0',
+    metal_type: text(product.metalType),
+    metal_weight_g: product.metalWeightG.toFixed(3),
+    karat: text(product.karat),
+    secondary_metal_type: text(product.secondaryMetalType),
+    secondary_metal_weight_g: product.secondaryMetalWeightG?.toFixed(3) || '0',
+    secondary_karat: text(product.secondaryMetalKarat),
+    has_stones: product.hasStones ? 'TRUE' : 'FALSE',
+    stone_weight_g: product.stoneWeightG.toFixed(3),
+    has_diamonds: product.hasDiamonds ? 'TRUE' : 'FALSE',
+    stone_details: text(product.stoneDetails),
+    diamond_details: text(product.diamondDetails),
+    making_charges: Math.round(product.makingCharges).toString(),
+    diamond_charges: Math.round(product.diamondCharges).toString(),
+    stone_charges: Math.round(product.stoneCharges).toString(),
+    misc_charges: Math.round(product.miscCharges).toString(),
+    wastage_percentage: product.wastagePercentage.toFixed(2),
+    qr_content: text(product.sku),
+  };
 }
 
 /**

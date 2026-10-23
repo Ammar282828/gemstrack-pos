@@ -23,3 +23,15 @@
 - **iCloud**: a design Label LIVE opens by path breaks when iCloud moves or offloads it (the 2026-10-20 `minalabel.lsc`,
   moved from Downloads to iCloud Drive › 08 Library › Software › Label Printer). Keep that folder "Keep Downloaded" and
   pin the design from its new place.
+
+### Two tags to a label (2026-10-23)
+
+House of Mina's `minalabel` is two tags side by side, built on the double-tag CSV (`lib/label-csv.ts`): its
+Integrate link carries the variables as **JSON** (`{"SKU_1":"…","SKU_2":"…"}`), every CSV column twice. So:
+- A variable ending `_<n>` belongs to tag n (`tagsOf`, when at least two numbers appear). Each print fills as many
+  pieces as the design has tags (`labelsOf`); a tag with no piece is sent **blank**, every variable of it, so the
+  design's sample text (`TOP-000002`) never prints. A batch is one job per label.
+- A variable named after a CSV column with its tag's number (`TOTAL_PRICE_PKR_1`) pairs with **Tag CSV: <column>**
+  and gets exactly what the CSV writes (`labelCsvValues`, shared with `productCsv`): `TRUE`/`FALSE`, weights to three
+  places, whole rupees. The design reads what it was built on.
+- The link now always carries JSON (valid RJSON); one-tag designs print as before.
