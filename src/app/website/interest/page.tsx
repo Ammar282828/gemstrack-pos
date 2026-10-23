@@ -25,7 +25,7 @@ import { chartMotion } from '@/lib/chart-motion';
 import { STORE_LINKS } from '@/lib/store-config';
 import { Delta, Tile } from '@/app/insights/insights-kit';
 import type { Summary } from '@/lib/website/site-analytics';
-import { Card, CHANNEL, DEVICE, duration, pageLabel, pct, placeRows, Ranked, sourceLabel, type RankRow } from './site-kit';
+import { Card, CHANNEL, cityRows, countryName, flag, DEVICE, duration, pageLabel, pct, Ranked, sourceLabel, SwitchCard, type RankRow } from './site-kit';
 
 interface Row {
   piece: string; name: string; thumb: string; url: string; collection: string;
@@ -190,14 +190,14 @@ export default function InterestPage() {
           <Funnel now={n} before={b} />
 
           <div className="grid gap-2.5 md:grid-cols-2">
-            <Card title="Where they came from" note="sessions">
-              <Ranked rows={n.channels.map(c => ({ key: c.key, value: c.value, label: CHANNEL[c.key as keyof typeof CHANNEL] ?? c.key,
-                children: n.sources.filter(s => s.channel === c.key).map(s => ({ key: s.key, value: s.sessions, label: sourceLabel(s.key), sub: s.enquire ? `${s.enquire} asked` : undefined })) }))}
-                total={n.sessions} empty="No sessions yet." />
-            </Card>
-            <Card title="Where they are" note="sessions; tap a country for its cities">
-              <Ranked rows={placeRows(n.countries, n.cities)} total={n.sessions} empty="No sessions yet." />
-            </Card>
+            <SwitchCard title="Where they came from" note="sessions" views={[
+              { key: 'source', label: 'Sources', node: <Ranked rows={n.sources.map(x => ({ key: x.key, value: x.sessions, label: sourceLabel(x.key), sub: x.enquire ? `${x.enquire} asked` : undefined }))} total={n.sessions} empty="No sessions yet." /> },
+              { key: 'kind', label: 'Kinds', node: <Ranked rows={n.channels.map(c => ({ key: c.key, value: c.value, label: CHANNEL[c.key as keyof typeof CHANNEL] ?? c.key }))} total={n.sessions} empty="No sessions yet." /> },
+            ]} />
+            <SwitchCard title="Where they are" note="sessions" views={[
+              { key: 'city', label: 'Cities', node: <Ranked rows={cityRows(n.countries, n.cities)} total={n.sessions} empty="No sessions yet." /> },
+              { key: 'country', label: 'Countries', node: <Ranked rows={n.countries.map(c => ({ key: c.key, value: c.value, label: <>{flag(c.key)} {countryName(c.key)}</> }))} total={n.sessions} empty="No sessions yet." /> },
+            ]} />
           </div>
 
           <SourceTable now={n} />
