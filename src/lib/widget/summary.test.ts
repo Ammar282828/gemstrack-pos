@@ -40,6 +40,17 @@ describe('the widget\'s figures', () => {
     expect(due).toEqual({ label: 'Due', value: '2', detail: '1 late' });
   });
 
+  it('adds the week, the late work and the latest sales', () => {
+    const e = widgetSummary(rows(), 'Taheri', 'gold', now).extras!;
+    expect(e.days).toHaveLength(7);
+    expect(e.days[6]).toBe(50_000);
+    expect(e.weekDelta).toBeNull();
+    expect(e).toMatchObject({ bench: 2, due: 2, late: 1 });
+    expect(e.needs[0]).toMatchObject({ tone: 'late', path: '/orders' });
+    expect(e.needs.some((n) => n.tone === 'owed' && n.title === 'Ali')).toBe(true);
+    expect(e.recent[0].path).toBe('/invoices');
+  });
+
   it('says when the rate was not set today, and shows silver for a silver house', () => {
     const s = widgetSummary(rows({ rates: { silverRatePerGram: 410, updatedAt: '2026-10-06T04:40:00Z' } }), 'House of Mina', 'silver', now);
     expect(s.figures[2]).toEqual({ label: 'Silver', value: 'Rs 410', detail: 'not set today' });

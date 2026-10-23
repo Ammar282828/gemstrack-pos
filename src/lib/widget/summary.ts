@@ -16,9 +16,23 @@ import { owedToYou, type LedgerRow } from '@/lib/owed';
 import { isActiveOrder, orderTiming } from '@/lib/order-timing';
 import { awaitingTransfer } from '@/lib/order-stage';
 import { lacCrore } from '@/lib/money';
+import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 
 export interface WidgetFigure { label: string; value: string; detail: string | null }
-export interface WidgetSummary { house: string; updated: string; figures: WidgetFigure[]; asOf?: string; teamNote?: string }
+/** Added after the first widget; a phone that does not know them ignores them, and the widget decodes them leniently. */
+export interface WidgetExtras {
+  /** Revenue per day, the last seven Karachi days, oldest first; the last is today. */
+  days: number[];
+  /** Percent against the seven days before those; null when there was nothing to compare. */
+  weekDelta: number | null;
+  /** Orders still on the bench, orders and repairs due today or late, and the late ones. */
+  bench: number; due: number; late: number;
+  /** What needs someone: late work first, then the biggest unpaid bills. At most four. */
+  needs: { title: string; detail: string; tone: 'late' | 'owed'; path: string }[];
+  /** The latest three sales. */
+  recent: { title: string; amount: string; when: string; path: string }[];
+}
+export interface WidgetSummary { house: string; updated: string; figures: WidgetFigure[]; asOf?: string; teamNote?: string; extras?: WidgetExtras }
 
 export interface WidgetRows {
   invoices: Invoice[];
@@ -56,8 +70,39 @@ export function widgetSummary(r: WidgetRows, house: string, metal: 'gold' | 'sil
   const month = monthBounds(karachiMonth(now));
   const todayRevenue = revenueForPeriod(r, day.from!, new Date(day.to!.getTime() + 1));
   const monthRevenue = revenueForPeriod(r, month.from, new Date(month.to.getTime() + 1));
+  const week = (back: number) => {
+    const from = new Date(day.from!.getTime() - back * 86_400_000);
+    return revenueForPeriod(r, from, new Date(from.getTime() + 86_400_000));
+  };
+  const days = Array.from({ length: 7 }, (_, i) => Math.round(week(6 - i)));
+  const thisWeek = days.reduce((a, b) => a + b, 0);
+  const lastWeek = Array.from({ length: 7 }, (_, i) => week(13 - i)).reduce((a, b) => a + b, 0);
+
+  const lateOrders = r.orders
+    .filter((o) => isActiveOrder(o) && !awaitingTransfer(o))
+    .map((o) => ({ o, t: orderTiming(o, karachiNow) }))
+    .filter((x) => x.t.state === 'late')
+    .sort((a, b) => b.t.daysLate - a.t.daysLate);
+  const unpaid = r.invoices.filter((i) => i.status !== 'Refunded' && (Number(i.balanceDue) || 0) >= 1)
+    .sort((a, b) => b.balanceDue - a.balanceDue);
+  const needs: WidgetExtras['needs'] = [
+    ...lateOrders.map(({ o, t }) => ({
+      title: o.customerName || o.id, detail: `${t.daysLate} day${t.daysLate === 1 ? '' : 's'} late`, tone: 'late' as const, path: '/orders',
+    })),
+    ...unpaid.map((i) => ({ title: i.customerName || i.id, detail: `owes ${rs(i.balanceDue)}`, tone: 'owed' as const, path: '/invoices' })),
+  ].slice(0, 4);
+  const recent = [...r.invoices].filter((i) => i.status !== 'Refunded' && i.createdAt)
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 3)
+    .map((i) => ({
+      title: i.customerName || i.id, amount: rs(invoiceSaleValue(i)), path: '/invoices',
+      when: new Date(i.createdAt).toLocaleDateString('en-GB', { timeZone: 'Asia/Karachi', day: 'numeric', month: 'short' }),
+    }));
   return {
     house,
+    extras: {
+      days, weekDelta: lastWeek >= 1 ? Math.round(((thisWeek - lastWeek) / lastWeek) * 100) : null,
+      bench: r.orders.filter((o) => isActiveOrder(o) && !awaitingTransfer(o)).length, due: today + late, late, needs, recent,
+    },
     teamNote: String(r.teamNote ?? '').trim().slice(0, 600),
     updated: clock(now),
     asOf: karachiDayPeriod(now).day,

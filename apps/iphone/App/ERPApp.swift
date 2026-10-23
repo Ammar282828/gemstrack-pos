@@ -22,6 +22,15 @@ struct ERPApp: App {
     var body: some Scene {
         WindowGroup {
             BusinessHost()
+                // A widget's tap (shoperp://open?b=<business>&p=<path>): the app on that business and screen, through
+                // the same router a notification uses (it waits for Face ID and switches business first).
+                .onOpenURL { url in
+                    guard url.scheme == "shoperp", url.host == "open",
+                          let q = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems else { return }
+                    let path = q.first { $0.name == "p" }?.value ?? "/"
+                    let business = q.first { $0.name == "b" }?.value
+                    AppRouter.shared.route(path: path, business: business)
+                }
         }
         .commands { ShellMenu() }
     }

@@ -58,6 +58,8 @@ final class AppRouter {
             guard Businesses.shared.business(id) != nil else { return }
             Businesses.shared.switch(to: id)
         }
+        // "/" is the business's Home (a widget's tap): the switch was the whole of it.
+        guard path != "/" && !path.isEmpty else { return }
         open = Route(path: path)
     }
 }

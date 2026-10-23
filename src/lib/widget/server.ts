@@ -38,7 +38,7 @@ export async function widgetKeyOwner(key: string): Promise<string | null> {
   return email;
 }
 
-const SCHEMA = 2;
+const SCHEMA = 3;
 let memo: { at: number; day: string; summary: WidgetSummary } | null = null;
 
 export async function currentWidgetSummary(now = new Date()): Promise<WidgetSummary> {

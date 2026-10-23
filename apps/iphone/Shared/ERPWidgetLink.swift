@@ -141,8 +141,14 @@ struct ERPWidgetLook {
     let name: String
     let brand: String?
     let palette: ERPWidgetLink.Palette?
+    /// The business's ERP address.
+    let baseURL: String
+    /// Which business this is: a tap opens the app on it (the app's `shoperp://` link), never Safari.
+    let businessId: String
 
     init(_ link: ERPWidgetLink.Link) {
+        baseURL = link.url
+        businessId = link.id
         name = link.name
         brand = link.brand
         palette = link.palette
@@ -154,6 +160,16 @@ struct ERPWidgetLook {
             return Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? d : l })
         }
         return Color("\(asset)-taheri")
+    }
+
+    /// The app on this business's Home; `url(path)` the app on one of its screens (ERPApp's onOpenURL routes it).
+    var rootURL: URL? { url("/") }
+    func url(_ path: String) -> URL? {
+        var c = URLComponents()
+        c.scheme = "shoperp"
+        c.host = "open"
+        c.queryItems = [URLQueryItem(name: "b", value: businessId), URLQueryItem(name: "p", value: path)]
+        return c.url
     }
 
     var accent: Color { color("Accent") { $0.accent } }

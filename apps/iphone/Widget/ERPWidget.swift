@@ -141,7 +141,8 @@ struct ERPWidgetEntryView: View {
     @Environment(\.widgetRenderingMode) private var renderingMode
     let entry: ERPEntry
 
-    private var isAccessory: Bool { size == .rectangular || size == .inline }
+    private var isAccessory: Bool { size == .rectangular || size == .inline || size == .circular }
+    private var tinted: Bool { renderingMode != .fullColor }
     private var look: ERPWidgetLook? { entry.link.map(ERPWidgetLook.init) }
 
     private var size: ERPWidgetSize {
@@ -150,6 +151,7 @@ struct ERPWidgetEntryView: View {
         case .systemLarge: return .large
         case .systemExtraLarge: return .extraLarge
         case .accessoryRectangular: return .rectangular
+        case .accessoryCircular: return .circular
         case .accessoryInline: return .inline
         default: return .medium
         }
@@ -160,27 +162,30 @@ struct ERPWidgetEntryView: View {
             // Two businesses, one above the other: each a medium face on its own paper.
             let otherLook = ERPWidgetLook(other)
             VStack(spacing: 0) {
-                ERPWidgetFace(summary: entry.summary, size: .medium, look: look, accented: renderingMode == .accented)
+                ERPWidgetFace(summary: entry.summary, size: .medium, look: look, accented: tinted)
                     .frame(maxHeight: .infinity)
                     .padding(.bottom, 12)
-                ERPWidgetFace(summary: entry.secondSummary, size: .medium, look: otherLook, accented: renderingMode == .accented)
+                ERPWidgetFace(summary: entry.secondSummary, size: .medium, look: otherLook, accented: tinted)
                     .frame(maxHeight: .infinity)
                     .padding(.top, 12)
             }
             .containerBackground(for: .widget) {
-                VStack(spacing: 0) {
-                    ERPWidgetPaper(look: look)
-                    ERPWidgetPaper(look: otherLook)
+                if tinted { Color.clear } else {
+                    VStack(spacing: 0) {
+                        ERPWidgetPaper(look: look)
+                        ERPWidgetPaper(look: otherLook)
+                    }
                 }
             }
         } else {
-            ERPWidgetFace(summary: entry.summary, size: size, look: look, accented: renderingMode == .accented)
+            ERPWidgetFace(summary: entry.summary, size: size, look: look, accented: tinted)
                 .containerBackground(for: .widget) { background }
         }
     }
 
+    /// Tinted and clear home screens (accented, vibrant) take no ground of ours.
     @ViewBuilder private var background: some View {
-        if isAccessory { Color.clear } else { ERPWidgetPaper(look: look) }
+        if isAccessory || tinted { Color.clear } else { ERPWidgetPaper(look: look) }
     }
 }
 
@@ -194,6 +199,6 @@ struct ERPWidget: Widget {
         }
         .configurationDisplayName("Today at the shop")
         .description("Revenue today and this month, with the shop’s pinned message. Touch and hold, then Edit Widget, to choose the business; a large widget can show a second one under it.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge, .accessoryRectangular, .accessoryInline])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge, .accessoryRectangular, .accessoryCircular, .accessoryInline])
     }
 }
