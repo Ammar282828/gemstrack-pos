@@ -14,10 +14,9 @@ import { parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { pkrLac, lacCrore } from '@/lib/money';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { chartMotion } from '@/lib/chart-motion';
+import { cn } from '@/lib/utils';
+import { lineCategory } from '@/lib/categories';
 
-const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
 export function CategoryBreakdown({ range: dateRange }: { range: DateRange | undefined }) {
   const { generatedInvoices, categories } = useAppStore();
@@ -43,7 +42,8 @@ export function CategoryBreakdown({ range: dateRange }: { range: DateRange | und
       if (!invoice || !Array.isArray(invoice.items)) return;
       
       invoice.items.forEach(item => {
-        const categoryId = item.categoryId || 'uncategorized';
+        // Its own category, else its order's, else its name's (lib/categories.ts lineCategory).
+        const categoryId = lineCategory(item) || 'uncategorized';
         
         if (!performanceMap[categoryId]) {
           performanceMap[categoryId] = { revenue: 0, itemsSold: 0, orders: new Set() };
@@ -66,6 +66,8 @@ export function CategoryBreakdown({ range: dateRange }: { range: DateRange | und
       };
     }).sort((a,b) => b.revenue - a.revenue);
   }, [filteredInvoices, categories]);
+  const total = categoryPerformance.reduce((a, c) => a + c.revenue, 0);
+  const top = Math.max(1, ...categoryPerformance.map(c => c.revenue));
 
 
   return (
@@ -117,31 +119,30 @@ export function CategoryBreakdown({ range: dateRange }: { range: DateRange | und
                             <CardDescription>Share of total revenue by category.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <PieChart>
-                                    <Pie {...chartMotion()} data={categoryPerformance} dataKey="revenue" nameKey="name" cx="50%" cy="50%" outerRadius={100} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-                                          const RADIAN = Math.PI / 180;
-                                          const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                                          const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                                          const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                          return (percent > 0.05) ? (
-                                            <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
-                                              {`${(percent * 100).toFixed(0)}%`}
-                                            </text>
-                                          ) : null;
-                                        }}>
-                                        {categoryPerformance.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                                    </Pie>
-                                    <Tooltip formatter={(value: number) => [pkrLac(value), 'Revenue']} />
-                                    <Legend />
-                                </PieChart>
-                            </ResponsiveContainer>
+                            {/* Ranked bars in one hue, the share written beside each (2026-10-23, the owner: "fix pie chart" — seventeen
+                                slices could not be read, nor their legend, which sat on the pie). */}
+                            <ul className="space-y-2.5">
+                                {categoryPerformance.map(c => {
+                                    const share = total ? c.revenue / total : 0;
+                                    return (
+                                        <li key={c.id} className="space-y-1" title={`${c.name}: ${pkrLac(c.revenue)} (${(share * 100).toFixed(1)}%)`}>
+                                            <div className="flex items-baseline justify-between gap-3 text-sm">
+                                                <span className={cn('min-w-0 truncate', c.id === 'uncategorized' && 'text-muted-foreground')}>{c.name}</span>
+                                                <span className="shrink-0 tabular-nums">{share >= 0.1 ? Math.round(share * 100) : (share * 100).toFixed(1)}%<span className="ml-1.5 text-xs text-muted-foreground">{lacCrore(c.revenue)}</span></span>
+                                            </div>
+                                            <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                                <div className={cn('h-full rounded-full', c.id === 'uncategorized' ? 'bg-muted-foreground/40' : 'bg-primary/75')} style={{ width: `${(c.revenue / top) * 100}%` }} />
+                                            </div>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
                         </CardContent>
                     </Card>
                 </div>
             </div>
         )}
-      <p className="text-xs text-muted-foreground">Revenue here is each piece&apos;s own total, before invoice discounts and trade-ins, so it runs higher than the Overview&apos;s net figure.</p>
+      <p className="text-xs text-muted-foreground">Revenue here is each piece&apos;s own total, before invoice discounts and trade-ins, so it runs higher than the Overview&apos;s net figure. A custom order&apos;s piece counts under the order&apos;s category; a line with none is placed by its name (&ldquo;Jhumki&rdquo; under Tops).</p>
     </div>
   );
 }

@@ -57,7 +57,8 @@ export function invoiceFromOrder(
     const itemToAdd: InvoiceItem = {
       sku: `ORD-${numericPart}-${index + 1}`,
       name: originalItem.description,
-      categoryId: '',
+      // The order's category, so the invoice's line is counted under it (Analytics → Categories called these "Uncategorized").
+      categoryId: originalItem.itemCategory || '',
       metalType: originalItem.metalType,
       karat: originalItem.karat,
       // A fixed price keeps its weight too: it prints, and costs the margin (2026-10-07).

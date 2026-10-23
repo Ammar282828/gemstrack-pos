@@ -42,6 +42,44 @@ export const staticCategories: Category[] = [
   { id: 'cat020', title: "Men's Buttons", singular: "Men's Button" },
 ];
 
+/**
+ * A piece's category from its name, for a line that carries none (an old custom order's, or a bill typed by hand:
+ * "Necklace", "Jhumki", "Cat's eye ring"). The more particular words first: "bangle & ring" is a set, not a ring.
+ */
+const NAME_RULES: [RegExp, string][] = [
+  [/\b(men'?s|gents?)\b.*\bring|\bring\b.*\b(men'?s|gents?)\b/i, 'cat018'],
+  [/\bbutton/i, 'cat020'],
+  [/(bracelet|bangle|kara).*\bring|\bring\b.*(bracelet|bangle|kara)/i, 'cat006'],
+  [/\b(locket|takhti|thakti)s? set\b.*bangle/i, 'cat011'],
+  [/\b(locket|takhti|thakti)s? set/i, 'cat010'],
+  [/\bstring set/i, 'cat012'],
+  [/\b(necklace|full set|set)\b.*(bracelet)/i, 'cat014'],
+  [/\b(coin|biscuit|bar)\b|\bary\b|\b\d+(\.\d+)?\s?g\b.*24k/i, 'cat017'],
+  [/\b(necklace|neckless|full set|set|haar|choker)\b/i, 'cat013'],
+  [/\bloose bracelet/i, 'cat019'],
+  [/\b(bangle|kara|kangan|churi)/i, 'cat007'],
+  [/\bbracelet/i, 'cat005'],
+  [/\bchain/i, 'cat008'],
+  [/\b(locket|takhti|thakti|taweez|tawiz|pendant)/i, 'cat004'],
+  [/\b(bali|balis|hoop)/i, 'cat003'],
+  [/\b(tops?|earrings?|studs?|jhum(k|ki|ka|kay))\b/i, 'cat002'],
+  [/\bbands?\b/i, 'cat009'],
+  [/\brings?\b/i, 'cat001'],
+];
+export function guessCategory(name: string | undefined | null): string | undefined {
+  const n = (name || '').trim();
+  return n ? NAME_RULES.find(([re]) => re.test(n))?.[1] : undefined;
+}
+
+/**
+ * A sold line's category for the reports: its own, else the custom order's (an order's lines kept theirs in
+ * `itemCategory`; until 2026-10-23 its invoice line left `categoryId` empty), else read from its name. The owner,
+ * 2026-10-23, of Analytics → Categories: "so much is uncategorized why" — 39% of October's revenue was custom orders.
+ */
+export function lineCategory(item: { categoryId?: string | null; itemCategory?: string | null; name?: string | null }): string | undefined {
+  return item.categoryId || item.itemCategory || guessCategory(item.name);
+}
+
 /** Resolve a category id to its display name. Returns undefined when unknown. */
 export function categoryTitle(id: string | undefined | null): string | undefined {
   if (!id) return undefined;
