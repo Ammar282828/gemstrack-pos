@@ -162,6 +162,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Shop outage](docs/decisions.md#shop-outage) — the hosted.app address still works
 - [Community twin](docs/decisions.md#community-twin) — sends to "Taheri Collections" groups also reach their namesakes in "- II"; `/links` shows the community
 - [Piece interest](docs/decisions.md#piece-interest) — both sites count opens, time looked, saves and WhatsApp enquiries per piece; Website → Interest ranks them
+- [Website analytics](docs/decisions.md#website-analytics) — Interest is each site's Shopify-style report (sources, places, devices, funnel to WhatsApp, pages, searches, 404s) and Live; day counters, no person or address kept
 
 **Liquid Glass** (`docs/features/liquid-glass.md`)
 - [Liquid Glass](docs/features/liquid-glass.md#liquid-glass) — Settings → Appearance; Apple HIG glass on the control layer only (`ui-glass`)

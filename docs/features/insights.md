@@ -44,7 +44,7 @@ how little reached new people, follower growth or loss, profile visits that don'
 Pakistan, days since the last post, an older post carrying the range, the busiest online hours. Each only when the
 data behind it is big enough.
 
-**Ranges**: 7, 14, 28 days, this month (≤ 30: Instagram's limit). Cached 5 minutes per part and range; Refresh asks again.
+**Ranges**: 7, 14, 28 days, this month (≤ 30: Instagram's limit). Cached 5 minutes per part and range, then shown at once for up to 30 minutes while it is asked again behind the scenes (`lib/ads/swr.ts`); Refresh asks again. Post and story numbers go in Meta's batch calls (50 to a trip), one refused falling back to its own call (2026-10-23, the owner: "refresh times for meta ads is laggy and unresponsive").
 **Posts** lists the latest 50 Instagram posts and reels with lifetime numbers (an older one still being watched is marked
 — House of Mina's month of 2026-10 was carried by reels from before it), the range's Facebook posts, and the stories.
 

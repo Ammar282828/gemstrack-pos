@@ -5,7 +5,12 @@
  * stopped or flagged.
  *
  * Kept for 90 seconds per range (Meta rations calls per ad account, and a
- * development-tier app gets few); `fresh=1` asks again.
+ * development-tier app gets few), then shown at once for up to ten minutes more
+ * while it is asked again behind the scenes (swr.ts); `fresh=1` asks now.
+ *
+ * About 17 Graph calls, all at once: the only waits in a row are the account's
+ * currency before the campaign tree and the range's dates before the period
+ * before it.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,11 +19,10 @@ import { accountSummary, requireAccount } from '@/lib/ads/settings';
 import { breakdowns, daily, previousPeriod, problemAds, topAds, totals, tree } from '@/lib/ads/insights';
 import { attentionItems, pacing } from '@/lib/ads/attention';
 import { currencyOffset, isRange, type RangeKey } from '@/lib/ads/shape';
+import { remembered } from '@/lib/ads/swr';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
-
-const cache = new Map<string, { at: number; body: unknown }>();
 
 export async function GET(req: NextRequest) {
   const who = await adsGate(req);
@@ -27,46 +31,51 @@ export async function GET(req: NextRequest) {
   const r: RangeKey = isRange(q.get('range')) ? (q.get('range') as RangeKey) : 'last_7d';
   try {
     const { act } = await requireAccount();
-    const key = `${act}|${r}`;
-    const hit = cache.get(key);
-    if (hit && q.get('fresh') !== '1' && Date.now() - hit.at < 90_000) return NextResponse.json(hit.body, { headers: noStore });
-
-    const account = await accountSummary(act);
-    const [now, days, top, split, problems, campaigns, thisMonth, lastMonth] = await Promise.all([
-      totals(act, r),
-      daily(act, r).catch(() => []),
-      topAds(act, r),
-      breakdowns(act, r),
-      problemAds(act),
-      tree(act, r, { offset: currencyOffset(account.currency) }).catch(() => []),
-      totals(act, 'this_month').catch(() => null),
-      totals(act, 'last_month').catch(() => null),
-    ]);
-    const prevRange = r !== 'maximum' && now.since && now.until ? previousPeriod(now.since, now.until) : null;
-    const before = prevRange ? await totals(act, prevRange).catch(() => null) : null;
-    const rangeDays = now.since && now.until ? Math.max(1, Math.round((Date.parse(now.until) - Date.parse(now.since)) / 86_400_000) + 1) : 7;
-    // Today in the ad account's own time zone, for "day 27 of 30".
-    const tz = account.timezone || 'Asia/Karachi';
-    const today = new Date(new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()).replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2') + 'T12:00:00');
-
-    const body = {
-      range: r,
-      account,
-      since: now.since,
-      until: now.until,
-      totals: now.metrics,
-      previous: before ? { since: prevRange!.since, until: prevRange!.until, metrics: before.metrics } : null,
-      daily: days,
-      topAds: top,
-      breakdowns: split,
-      problems,
-      attention: attentionItems({ account, campaigns, days: rangeDays }),
-      month: pacing(thisMonth?.metrics.spend ?? 0, lastMonth?.metrics.spend ?? 0, today),
-      at: new Date().toISOString(),
-    };
-    cache.set(key, { at: Date.now(), body });
+    const body = await remembered(`overview|${act}|${r}`, () => build(act, r), { ttl: 90_000, stale: 10 * 60_000, fresh: q.get('fresh') === '1' });
     return NextResponse.json(body, { headers: noStore });
   } catch (e) {
     return adsFail(e, 'overview');
   }
+}
+
+async function build(act: string, r: RangeKey) {
+  // Everything at once; only the tree waits for the currency, and the period before for the range's dates.
+  const accountP = accountSummary(act);
+  const nowP = totals(act, r);
+  const [account, now, before, days, top, split, problems, campaigns, thisMonth, lastMonth] = await Promise.all([
+    accountP,
+    nowP,
+    nowP.then(n => {
+      const prev = r !== 'maximum' && n.since && n.until ? previousPeriod(n.since, n.until) : null;
+      return prev ? totals(act, prev).then(t => ({ ...prev, metrics: t.metrics })) : null;
+    }).catch(() => null),
+    daily(act, r).catch(() => []),
+    topAds(act, r),
+    breakdowns(act, r),
+    problemAds(act),
+    // Only for "Needs a look": no ad-level numbers or big pictures (the Campaigns tab has those).
+    accountP.then(a => tree(act, r, { offset: currencyOffset(a.currency), light: true })).catch(() => []),
+    totals(act, 'this_month').catch(() => null),
+    totals(act, 'last_month').catch(() => null),
+  ]);
+  const rangeDays = now.since && now.until ? Math.max(1, Math.round((Date.parse(now.until) - Date.parse(now.since)) / 86_400_000) + 1) : 7;
+  // Today in the ad account's own time zone, for "day 27 of 30".
+  const tz = account.timezone || 'Asia/Karachi';
+  const today = new Date(new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()).replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2') + 'T12:00:00');
+
+  return {
+    range: r,
+    account,
+    since: now.since,
+    until: now.until,
+    totals: now.metrics,
+    previous: before,
+    daily: days,
+    topAds: top,
+    breakdowns: split,
+    problems,
+    attention: attentionItems({ account, campaigns, days: rangeDays }),
+    month: pacing(thisMonth?.metrics.spend ?? 0, lastMonth?.metrics.spend ?? 0, today),
+    at: new Date().toISOString(),
+  };
 }

@@ -25,7 +25,7 @@ import {
   Wallet, TrendingUp, Settings as SettingsIcon, Calendar, Briefcase, Package, Gem, Layers, ImagePlus, Scale, Heart,
   PenLine, Coins, Target, BookUser, PieChart, Landmark, Tag, ArchiveRestore, RotateCcw, Mic, History, Palette,
   Rocket, BarChart3, UsersRound, ListChecks, SlidersHorizontal, Contact, Import, Database, ScanLine, Camera,
-  LayoutGrid, Bell, Plug, Banknote, Map as MapIcon, Rows3, Bot,
+  LayoutGrid, Bell, Plug, Banknote, Map as MapIcon, Rows3, Bot, Radio,
 } from 'lucide-react';
 import {
   STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE,
@@ -166,7 +166,9 @@ export const NAV: NavEntry[] = [
       { staff: true, href: '/website/photos', label: 'Add photos', icon: ImagePlus, keywords: ['website', 'upload', 'photos'] },
       { staff: true, href: '/website/edit', label: 'Edit a piece', icon: PenLine, when: () => STORE_SITE_EDIT, keywords: ['website', 'edit', 'crop', 'photo', 'description', 'hide', 'overlay'] },
       { staff: true, href: '/website/weights', label: 'Photo weights', icon: Scale, when: () => STORE_WEBSITE_WEIGHTS, keywords: ['weights', 'website'] },
-      { staff: true, href: '/website/interest', label: 'Interest', icon: Heart, keywords: ['saved', 'favourites', 'most saved', 'enquiries', 'inquired', 'looked at', 'popular', 'website analytics'] },
+      // The website's own analytics (Shopify's, for sites that sell by WhatsApp): the period report and the pieces; Live beside it.
+      { staff: true, href: '/website/interest', label: 'Interest', icon: Heart, keywords: ['saved', 'favourites', 'most saved', 'enquiries', 'inquired', 'looked at', 'popular', 'website analytics', 'visitors', 'sessions', 'traffic', 'bounce rate', 'traffic source', 'location', 'country', 'city', 'device', 'browser', 'landing page', 'exit page', 'search terms', '404', 'conversion', 'funnel'] },
+      { staff: true, href: '/website/interest/live', label: 'Live', icon: Radio, keywords: ['live visitors', 'live view', 'on the site now', 'right now', 'real time', 'realtime'] },
     ],
   },
   {

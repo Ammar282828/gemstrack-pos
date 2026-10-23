@@ -11,9 +11,11 @@ const nextConfig: NextConfig = {
   // would take jsPDF's browser build ("module"); from node_modules Node takes its own ("main").
   // @napi-rs/canvas is a native Skia binary: the board is drawn on the server with it (lib/ads/studio/server-draw.ts).
   serverExternalPackages: ['heic-convert', 'heic-decode', 'libheif-js', 'jspdf', 'jspdf-autotable', '@napi-rs/canvas'],
-  // Read from disk by server-draw.ts, so traced into every route that may draw a board.
+  // Read from disk by server-draw.ts, so traced into every route that may draw a board; the website's
+  // address → place table by lib/website/geo.ts, in the events route.
   outputFileTracingIncludes: {
     '/api/**/*': ['./src/lib/ads/studio/server-fonts/**/*', './public/brand/**/*', './public/*.png', './public/*.svg'],
+    '/api/public/events': ['./src/lib/website/geo/ip-geo.bin.gz'],
   },
   images: {
     unoptimized: true,

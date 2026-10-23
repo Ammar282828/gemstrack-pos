@@ -359,7 +359,37 @@
             "inquired",
             "looked at",
             "popular",
-            "website analytics"
+            "website analytics",
+            "visitors",
+            "sessions",
+            "traffic",
+            "bounce rate",
+            "traffic source",
+            "location",
+            "country",
+            "city",
+            "device",
+            "browser",
+            "landing page",
+            "exit page",
+            "search terms",
+            "404",
+            "conversion",
+            "funnel"
+          ]
+        },
+        {
+          "href": "/website/interest/live",
+          "label": "Live",
+          "icon": "Radio",
+          "staff": true,
+          "keywords": [
+            "live visitors",
+            "live view",
+            "on the site now",
+            "right now",
+            "real time",
+            "realtime"
           ]
         }
       ]

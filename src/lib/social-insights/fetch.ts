@@ -12,7 +12,7 @@
  */
 
 import { adminDb } from '@/lib/firebase-admin';
-import { graph, graphAll, MetaAdsError, actId } from '@/lib/ads/meta';
+import { graph, graphAll, graphBatch, MetaAdsError, actId } from '@/lib/ads/meta';
 import { insights } from '@/lib/ads/insights';
 import { metricsOf, type Metrics } from '@/lib/ads/shape';
 import {
@@ -42,6 +42,19 @@ async function metricsCall(path: string, metrics: string[], params: Record<strin
       .catch(err => { missing.push({ what: m, why: err instanceof Error ? err.message : String(err) }); return { data: [] } as Body; })));
     return { data: parts.flatMap(p => p.data ?? []) };
   }
+}
+
+/**
+ * Each object's metrics in batched trips (fifty to a call, graphBatch); one Meta refuses is asked
+ * again by itself through metricsCall, which falls back to a metric at a time.
+ */
+async function metricsBatch(items: { id: string; metrics: string[] }[], missing: Missing[], token?: string): Promise<Body[]> {
+  if (!items.length) return [];
+  const answers = await graphBatch<Body>(items.map(x => `${x.id}/insights?metric=${x.metrics.join(',')}`), { token });
+  return pool(items.map((x, k) => ({ ...x, k })), 6, async x => {
+    const a = answers[x.k];
+    return a instanceof MetaAdsError ? metricsCall(`${x.id}/insights`, x.metrics, {}, missing, token) : a;
+  });
 }
 
 /** Run `fn` over `items`, `n` at a time — Meta rations calls, and a page of 50 posts is 50 calls. */
@@ -162,13 +175,17 @@ export async function instagramPosts(ig: string, w: Window, missing: Missing[]):
     soft('Instagram stories', missing, () => graphAll<IgMedia>(`${ig}/stories`, { fields }, 50)),
   ]);
   const quiet: Missing[] = []; // a single post's missing metric isn't worth a line on the page
-  const rows = await pool(media ?? [], 6, async m => {
-    const list = m.media_product_type === 'REELS' ? REEL_METRICS : FEED_METRICS;
-    const row = igRow(m, mediaValues(await metricsCall(`${m.id}/insights`, list, {}, quiet)));
+  // Every post's and story's numbers together, in batched trips (it was one call per post, six at a time).
+  const posts = media ?? [], live = stories ?? [];
+  const values = await metricsBatch([
+    ...posts.map(m => ({ id: m.id, metrics: m.media_product_type === 'REELS' ? REEL_METRICS : FEED_METRICS })),
+    ...live.map(m => ({ id: m.id, metrics: STORY_METRICS })),
+  ], quiet);
+  const rows = posts.map((m, k) => {
+    const row = igRow(m, mediaValues(values[k]));
     return (m.timestamp ?? '') < since.slice(0, 10) ? { ...row, older: true } : row;
   });
-  const live = await pool(stories ?? [], 6, async m => igRow(m, mediaValues(await metricsCall(`${m.id}/insights`, STORY_METRICS, {}, quiet))));
-  return { posts: rows, liveStories: live, lastPostAt: media?.[0]?.timestamp ?? null };
+  return { posts: rows, liveStories: live.map((m, k) => igRow(m, mediaValues(values[posts.length + k]))), lastPostAt: media?.[0]?.timestamp ?? null };
 }
 
 // ── Facebook Page ─────────────────────────────────────────────────────────
@@ -227,8 +244,9 @@ export async function facebookPosts(page: string, w: Window, missing: Missing[])
     return first.data ?? [];
   });
   const quiet: Missing[] = [];
-  return pool(posts ?? [], 6, async p => {
-    const v = mediaValues(await metricsCall(`${p.id}/insights`, ['post_media_view', 'post_total_media_view_unique', 'post_clicks'], {}, quiet, token));
+  const values = await metricsBatch((posts ?? []).map(p => ({ id: p.id, metrics: ['post_media_view', 'post_total_media_view_unique', 'post_clicks'] })), quiet, token);
+  return (posts ?? []).map((p, k) => {
+    const v = mediaValues(values[k]);
     const reactions = p.reactions?.summary?.total_count ?? 0, comments = p.comments?.summary?.total_count ?? 0, shares = p.shares?.count ?? 0;
     const reach = v.post_total_media_view_unique ?? null;
     const interactions = reactions + comments + shares;

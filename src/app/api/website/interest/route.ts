@@ -1,7 +1,7 @@
 /**
  * GET /api/website/interest?days=30 — what the house's site counted about each piece
  * (POST /api/public/events, lib/website/piece-interest.ts), with the piece's name, photo and page.
- * Owners, staff and marketing; days=0 is all time.
+ * Owners, staff and marketing; days=0 is all time. Or from=YYYY-MM-DD&to=YYYY-MM-DD (Karachi days) for any period.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,7 +9,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
 import { getSitePieces } from '@/lib/website/site-pieces';
-import { PIECE_STATS, windowed, type PieceStats } from '@/lib/website/piece-interest';
+import { between, PIECE_STATS, windowed, type PieceStats } from '@/lib/website/piece-interest';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,10 @@ export async function GET(req: NextRequest) {
   const role = roleForEmail(email);
   if (role !== 'owner' && role !== 'staff' && role !== 'marketing') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const days = Math.max(0, Math.min(365, Number(req.nextUrl.searchParams.get('days') ?? 30) || 0));
+  const q = req.nextUrl.searchParams;
+  const days = Math.max(0, Math.min(365, Number(q.get('days') ?? 30) || 0));
+  const day = (x: string | null) => (x && /^\d{4}-\d{2}-\d{2}$/.test(x) ? x : null);
+  const from = day(q.get('from')), to = day(q.get('to'));
   const [snap, site] = await Promise.all([
     adminDb.collection(PIECE_STATS).get(),
     getSitePieces({ all: true }).catch(() => ({ site: '', pieces: [] })),
@@ -27,7 +30,7 @@ export async function GET(req: NextRequest) {
   const byId = new Map(site.pieces.map(p => [p.id, p]));
   const pieces = snap.docs.map(d => {
     const s = d.data() as PieceStats;
-    const t = windowed(s, days);
+    const t = from && to ? between(s, from, to) : windowed(s, days);
     const p = byId.get(s.piece);
     return {
       piece: s.piece, ...t,
@@ -38,5 +41,5 @@ export async function GET(req: NextRequest) {
       lastAt: s.lastAt ?? null,
     };
   }).filter(p => p.views || p.saves || p.enquiries || p.dwellN);
-  return NextResponse.json({ days, pieces });
+  return NextResponse.json({ days, ...(from && to ? { from, to } : {}), pieces });
 }

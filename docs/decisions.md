@@ -702,6 +702,32 @@ at ten minutes and under a second ignored. Totals and per-day counts (Karachi's 
 being the site's own piece id (`SitePiece.id`: `mina/piece/<handle>`, or taheri.shop's photo path) with `/` as `~`.
 Website → Interest ranks them (Saved, Asked about, Looked at longest with at least three looks, Opened) for 7 days,
 30 days or all time. No person, cookie or account is stored. Before this, saves lived only in each browser.
+### Website analytics
+
+2026-10-23. The owner: "add by location, live visitors, everything Shopify shows for catalogue.hom and taheri.shop". Website →
+**Interest** became the site's own analytics, Shopify's report adapted to sites that sell by WhatsApp; **Live** is a tab beside it.
+
+- **Counted by the sites themselves**, in the same beacon as piece interest (`visits.js` in taheri-site and mina-catalogue →
+  `POST /api/public/events`; `lib/website/site-analytics.ts`). Each ERP counts only its own `WEBSITE_ORIGIN`.
+- **No person kept.** A random id in the browser's localStorage tells new from returning; no cookie, no fingerprint. The referrer
+  is sent as its host. The address is used for the rate limit and the place, then dropped (`lib/website/geo.ts`): the front end's
+  location headers if it ever sends any (App Hosting documents none), else a bundled table from DB-IP's free City Lite (CC BY 4.0,
+  credited on the screen; `scripts/geo-build.mjs`, re-run a few times a year): city for Pakistan and the Gulf, country elsewhere.
+  Do Not Track, Global Privacy Control, automated browsers and bot user agents are not counted (page and server both).
+- **Cheap to keep.** No document per hit: one counter document per Karachi day (`site_days/<day>`, `FieldValue.increment`, maps by
+  place, device, OS, browser, source, campaign, landing/exit/viewed page, collection, search, 404, hour), one short-lived document
+  per open session (`site_live/<session>`, `expireAt`; Live deletes ones quiet for an hour too), one per visitor per day seen
+  (`site_visitors/<id>`, for unique visitors over any period by count query). Bounces and exits are kept by give-and-take
+  (the first page adds both, each later page moves the exit and the second takes the bounce back), so no job closes sessions.
+  The rate limit is in memory (400 batches an hour per visitor, 3,000 per address), not a Firestore transaction per beacon.
+- **What it shows**: Today, Yesterday, 7, 30, 90 days, all time or custom, against the period before. Sessions, visitors, page views,
+  time on site, bounce rate, returning; sessions by day (by hour for one day); the funnel visit → piece → saved → WhatsApp (any wa.me
+  tap counts), overall and per source; sources (direct, search, social, ads by utm_medium or click id, other sites, email) and
+  utm campaigns; countries opening into cities; device, system, browser (Instagram and Facebook's in-app browsers apart); landing,
+  exit and most-viewed pages, collections, searches (Mina's search box; taheri.shop has none), 404s; then the four piece rankings
+  for the same days (`/api/website/interest?from&to`, added; `days` unchanged for the iPhone app). Live: people in the last five
+  minutes (pages beat every 30 s while visible), where, on what, how they came, each visit, and today's totals.
+- A session ends after 30 minutes away, or when the visitor arrives again from a referrer or tagged link.
 ### Design
 
 2026-10-12. The owner: "make further improvements … more powerful than Canva, especially fine-tuning controls … instant resizing using

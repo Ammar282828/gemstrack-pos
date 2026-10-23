@@ -58,19 +58,27 @@ export interface AdsStatus {
   accountError: string | null;
 }
 
+/**
+ * The last status this tab read, kept across Ads pages: a page opens on it at once (its numbers start
+ * loading without waiting for the status round trip) while the status is read again behind it.
+ */
+let lastStatus: AdsStatus | null = null;
+
 export function useAdsStatus() {
-  const [status, setStatus] = useState<AdsStatus | null>(null);
+  const [status, setStatus] = useState<AdsStatus | null>(lastStatus);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const load = useCallback(async () => {
+  const load = useCallback(async (fresh = false) => {
     setLoading(true);
-    try { setStatus(await api<AdsStatus>('/api/ads/status')); setError(null); }
+    try { const s = await api<AdsStatus>(`/api/ads/status${fresh ? '?fresh=1' : ''}`); lastStatus = s; setStatus(s); setError(null); }
     catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
+  // A reload is someone asking (Check again, Try again, after connecting): past the server's short memory.
+  const reload = useCallback(() => load(true), [load]);
   const ready = !!status?.connection?.connected && !!status?.settings?.adAccountId;
-  return { status, error, loading, reload: load, ready };
+  return { status, error, loading, reload, ready };
 }
 
 const RANGE_KEY = 'taheri_ads_range';

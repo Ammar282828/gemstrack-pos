@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { statsDocId, tallyEvents, windowed } from './piece-interest';
+import { between, statsDocId, tallyEvents, windowed } from './piece-interest';
 
 describe('tallyEvents', () => {
   it('sums each piece, both sites\' keys', () => {
@@ -23,4 +23,9 @@ describe('windowed', () => {
   const s = { piece: 'a', views: 9, dwellMs: 0, dwellN: 0, saves: 3, unsaves: 0, enquiries: 1, days: { '2026-10-20': { views: 4, saves: 1 }, '2026-10-22': { views: 2 }, '2026-09-01': { views: 3 } } };
   it('counts only the days asked for', () => expect(windowed(s, 7, '2026-10-22')).toMatchObject({ views: 6, saves: 1 }));
   it('all time is the totals', () => expect(windowed(s, 0)).toMatchObject({ views: 9, saves: 3, enquiries: 1 }));
+});
+
+describe('between', () => {
+  const s = { piece: 'a', views: 9, dwellMs: 0, dwellN: 0, saves: 3, unsaves: 0, enquiries: 1, days: { '2026-10-20': { views: 4, saves: 1 }, '2026-10-22': { views: 2 } } };
+  it('counts any period, both ends in', () => expect(between(s, '2026-10-20', '2026-10-21')).toMatchObject({ views: 4, saves: 1 }));
 });

@@ -12,13 +12,15 @@
  *
  * - findings: what the three say, in words (shape.ts findingsFor) — the web and the iPhone app read the same.
  *
- * Kept five minutes per part and range (Meta rations Instagram insight calls per account);
- * `fresh=1` asks again.
+ * Kept five minutes per part and range (Meta rations Instagram insight calls per account), then
+ * shown at once for up to half an hour more while it is asked again behind the scenes (swr.ts);
+ * `fresh=1` asks now.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
 import { accountSummary, loadAdsSettings } from '@/lib/ads/settings';
+import { remembered } from '@/lib/ads/swr';
 import { findingsFor, isInsightRange, previousWindow, windowFor, type InsightRange } from '@/lib/social-insights/shape';
 import {
   facebookOverview, facebookPosts, instagramAudience, instagramOverview, instagramPosts, paidByPlatform, savedDays, savedStories,
@@ -28,8 +30,8 @@ import {
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
-const cache = new Map<string, { at: number; body: unknown }>();
 const TTL = 5 * 60_000;
+const STALE = 30 * 60_000;
 
 type Part = 'overview' | 'posts' | 'audience' | 'findings';
 type Settings = Awaited<ReturnType<typeof loadAdsSettings>>;
@@ -57,17 +59,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/** One part for a range, kept five minutes; two callers at once share one trip to Meta. */
-const inflight = new Map<string, Promise<Record<string, unknown>>>();
-async function cached(part: Exclude<Part, 'findings'>, range: InsightRange, s: Settings, fresh: boolean): Promise<Record<string, unknown>> {
-  const key = `${part}|${range}`;
-  const hit = cache.get(key);
-  if (hit && !fresh && Date.now() - hit.at < TTL) return hit.body as Record<string, unknown>;
-  const running = inflight.get(key);
-  if (running) return running;
-  const job = build(part, range, s).then(out => { cache.set(key, { at: Date.now(), body: out }); return out; }).finally(() => inflight.delete(key));
-  inflight.set(key, job);
-  return job;
+/** One part for a range, kept five minutes (then served while it is read again); two callers at once share one trip to Meta. */
+function cached(part: Exclude<Part, 'findings'>, range: InsightRange, s: Settings, fresh: boolean): Promise<Record<string, unknown>> {
+  return remembered(`insights|${part}|${range}`, () => build(part, range, s), { ttl: TTL, stale: STALE, fresh });
 }
 
 async function build(part: Exclude<Part, 'findings'>, range: InsightRange, s: Settings): Promise<Record<string, unknown>> {

@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
 import { accountSummary, requireAccount } from '@/lib/ads/settings';
 import { campaignTotals, previousPeriod, totals, tree } from '@/lib/ads/insights';
-import { currencyOffset, isRange, type RangeKey } from '@/lib/ads/shape';
+import { currencyOffset, isRange, type Metrics, type RangeKey } from '@/lib/ads/shape';
 import { campaignsCsv } from '@/lib/ads/export';
 
 export const dynamic = 'force-dynamic';
@@ -22,19 +22,22 @@ export async function GET(req: NextRequest) {
   const r: RangeKey = isRange(q.get('range')) ? (q.get('range') as RangeKey) : 'last_7d';
   try {
     const { act } = await requireAccount();
-    const account = await accountSummary(act);
-    const [campaigns, span] = await Promise.all([
-      tree(act, r, { archived: q.get('archived') === '1', offset: currencyOffset(account.currency) }),
-      r === 'maximum' ? Promise.resolve(null) : totals(act, r).catch(() => null),
+    const csv = q.get('format') === 'csv';
+    // All at once: the tree waits only for the currency, the period before only for the range's dates.
+    const accountP = accountSummary(act);
+    const [account, campaigns, before] = await Promise.all([
+      accountP,
+      accountP.then(a => tree(act, r, { archived: q.get('archived') === '1', offset: currencyOffset(a.currency) })),
+      // Against the same length of time before — "▲ 18%" on each campaign row.
+      csv || r === 'maximum' ? new Map<string, Metrics>() : totals(act, r)
+        .then(span => { const prev = span.since && span.until ? previousPeriod(span.since, span.until) : null; return prev ? campaignTotals(act, prev) : new Map<string, Metrics>(); })
+        .catch(() => new Map<string, Metrics>()),
     ]);
-    if (q.get('format') === 'csv') {
+    if (csv) {
       return new NextResponse(campaignsCsv(campaigns), {
         headers: { ...noStore, 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="ads-${r}-${new Date().toISOString().slice(0, 10)}.csv"` },
       });
     }
-    // Against the same length of time before — "▲ 18%" on each campaign row.
-    const prev = span?.since && span.until ? previousPeriod(span.since, span.until) : null;
-    const before = prev ? await campaignTotals(act, prev).catch(() => new Map()) : new Map();
     for (const c of campaigns) { const b = before.get(c.id); if (b) c.previous = b; }
     return NextResponse.json({ range: r, account, campaigns }, { headers: noStore });
   } catch (e) {

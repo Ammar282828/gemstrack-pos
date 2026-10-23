@@ -100,15 +100,22 @@ export function liveReadiness(d: Record<string, unknown>): LiveReadiness {
   return { privacyPolicyUrl: s(d.privacy_policy_url), category: s(d.category), icon: !!icon && !/static\.xx\.fbcdn\.net\/rsrc\.php/.test(icon) };
 }
 
-/** Read with the app token (id|secret); null when there is no secret or Meta doesn't answer. */
-export async function appLiveReadiness(): Promise<LiveReadiness | null> {
+/**
+ * Read with the app token (id|secret); null when there is no secret or Meta doesn't answer.
+ * Kept ten minutes: the app's settings change by hand, rarely, and every Ads page's status asks.
+ */
+let liveCache: { at: number; value: LiveReadiness | null } | null = null;
+export async function appLiveReadiness(fresh = false): Promise<LiveReadiness | null> {
+  if (!fresh && liveCache && Date.now() - liveCache.at < 10 * 60_000) return liveCache.value;
   const id = META_APP_ID(), secret = await appSecret();
   if (!id || !secret) return null;
   try {
     const q = new URLSearchParams({ fields: 'privacy_policy_url,category,icon_url', access_token: `${id}|${secret}` });
     const res = await fetch(`${GRAPH}/${GRAPH_VERSION()}/${id}?${q}`, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
     const d = await res.json().catch(() => ({}));
-    return res.ok && !d.error ? liveReadiness(d) : null;
+    const value = res.ok && !d.error ? liveReadiness(d) : null;
+    if (value) liveCache = { at: Date.now(), value };
+    return value;
   } catch { return null; }
 }
 
@@ -146,6 +153,7 @@ export async function loadConnection(fresh = false): Promise<AdsConnection | nul
 async function saveConnection(conn: AdsConnection | null): Promise<void> {
   await addSecretVersion(TOKEN_SECRET(), JSON.stringify(conn ?? {}));
   connCache = { at: Date.now(), conn };
+  checkCache = null;
 }
 
 export const disconnect = () => saveConnection(null);
@@ -235,7 +243,7 @@ export async function graph<T = Record<string, unknown>>(path: string, opts: Gra
   try {
     return await parse<T>(res);
   } catch (e) {
-    if (e instanceof MetaAdsError && e.code === 190 && !opts.token) connCache = null; // re-read the secret next time
+    if (e instanceof MetaAdsError && e.code === 190 && !opts.token) { connCache = null; checkCache = null; } // re-read the secret next time
     throw e;
   }
 }
@@ -272,6 +280,34 @@ export async function graphAll<T>(path: string, params: Params = {}, max = 1000)
     next = page.paging?.next;
   }
   return rows.slice(0, max);
+}
+
+/**
+ * Many GETs in one trip (Meta's batch API, 50 to a call, the calls at once): each answer is its body, or
+ * the MetaAdsError Meta gave that one request (null body: Meta ran out of time for it). Each request still
+ * counts against Meta's rations; what it saves is the round trips — fifty posts' numbers in one.
+ */
+export async function graphBatch<T = Record<string, unknown>>(urls: string[], opts: { token?: string; timeoutMs?: number } = {}): Promise<(T | MetaAdsError)[]> {
+  const chunks = Array.from({ length: Math.ceil(urls.length / 50) }, (_, n) => urls.slice(n * 50, n * 50 + 50));
+  const answers = await Promise.all(chunks.map(async chunk => {
+    try {
+      const rows = await graph<({ code?: number; body?: string } | null)[]>('', {
+        method: 'POST', token: opts.token, timeoutMs: opts.timeoutMs ?? 60_000,
+        params: { include_headers: false, batch: chunk.map(u => ({ method: 'GET', relative_url: u.replace(/^\/+/, '') })) },
+      });
+      return chunk.map((_, i): T | MetaAdsError => {
+        const row = Array.isArray(rows) ? rows[i] : null;
+        if (!row || typeof row.body !== 'string') return new MetaAdsError('Meta didn’t answer this one in time.', 504);
+        let body: unknown;
+        try { body = JSON.parse(row.body); } catch { return new MetaAdsError(`Meta answered ${row.code ?? '?'}`, 502); }
+        return (row.code ?? 200) >= 400 || (body && typeof body === 'object' && 'error' in body) ? metaError(body, row.code ?? 502) : body as T;
+      });
+    } catch (e) {
+      const err = e instanceof MetaAdsError ? e : new MetaAdsError(e instanceof Error ? e.message : String(e), 502);
+      return chunk.map(() => err);
+    }
+  }));
+  return answers.flat();
 }
 
 /** "123" or "act_123" → "act_123". */
@@ -356,10 +392,21 @@ export async function completeConnection(origin: string, code: string): Promise<
   return conn;
 }
 
+type Checked = { conn: AdsConnection; valid: boolean; scopes: string[]; expiresAt: string | null; error?: string };
+/** Meta's word on the login, kept two minutes per token (every Ads page's status asks; a refused call clears it). */
+let checkCache: { at: number; token: string; value: Checked } | null = null;
+
 /** The saved connection with Meta's current word on it (valid? permissions? expiry?). */
-export async function checkConnection(): Promise<{ conn: AdsConnection; valid: boolean; scopes: string[]; expiresAt: string | null; error?: string } | null> {
-  const conn = await loadConnection();
+export async function checkConnection(fresh = false): Promise<Checked | null> {
+  const conn = await loadConnection(fresh);
   if (!conn) return null;
+  if (!fresh && checkCache && checkCache.token === conn.token && checkCache.value.valid && Date.now() - checkCache.at < 2 * 60_000) return { ...checkCache.value, conn };
+  const value = await askConnection(conn);
+  checkCache = value.valid ? { at: Date.now(), token: conn.token, value } : null;
+  return value;
+}
+
+async function askConnection(conn: AdsConnection): Promise<Checked> {
   try {
     const info = await inspectToken(conn.token);
     if (!info) {

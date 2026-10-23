@@ -123,3 +123,15 @@ and every campaign: all are Sales, Advantage+ audience, automatic bidding, optim
     Meta at all, so chat ads look worse than they are. Sending ERP orders to Meta (offline Purchase events) is the next lever,
     an owner's decision because it hands customer records to Meta.
   - Not added: editing the bid strategy or hours of an ad set made elsewhere (Ads Manager), Meta's lift studies.
+
+## Speed (2026-10-23)
+
+The owner: "the erp refresh times for meta ads is laggy and unresponsive". Measured on Cloud Run over 14 days: Overview p90 3.5 s
+(Mina 6.5 s, one 30 s), Insights p90 10.9 s. Every Ads page waited on `/api/ads/status` (three Meta trips in a row) before asking
+for its numbers, and Overview made 3–4 trips in a row. Now: a page opens on the tab's last status and loads its numbers alongside;
+status runs its checks at once, with the login check kept 2 minutes and the app's Live details 10; the ad account's details are
+kept a minute and shared; Overview is one parallel step (its campaign tree without ad-level numbers or big pictures), kept 90 s and
+then served at once for 10 minutes while refreshed behind (`lib/ads/swr.ts`, which also shares one trip between callers asking
+at once). Campaigns runs its calls together and keeps no cache (actions reload it). Refresh, Check again and Try again always ask
+Meta now. `minInstances: 0` still means a cold start can be slow; that is a cost choice.
+

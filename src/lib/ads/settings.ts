@@ -15,6 +15,7 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { actId, graph, graphAll, MetaAdsError } from './meta';
 import { fromMinor, type AdsAccount } from './shape';
+import { remembered } from './swr';
 
 const DOC = () => adminDb.collection('app_settings').doc('meta_ads');
 
@@ -108,7 +109,12 @@ export async function listInstagramAccounts(act: string | null, pages: PageChoic
   return [...out.values()];
 }
 
-export async function accountSummary(act: string): Promise<AdsAccount> {
+/** The ad account's own state. Every Ads screen and Insights asks for it, often at once: kept a minute, one trip shared. */
+export function accountSummary(act: string, fresh = false): Promise<AdsAccount> {
+  return remembered(`account|${actId(act)}`, () => readAccount(act), { ttl: 60_000, stale: 0, fresh });
+}
+
+async function readAccount(act: string): Promise<AdsAccount> {
   const d = await graph<Record<string, unknown>>(actId(act), {
     params: { fields: 'account_id,name,currency,timezone_name,account_status,disable_reason,amount_spent,spend_cap,balance,min_daily_budget,funding_source_details,business{name}' },
   });

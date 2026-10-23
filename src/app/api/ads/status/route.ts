@@ -21,12 +21,19 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   const who = await adsGate(req);
   if (who instanceof NextResponse) return who;
+  // ?fresh=1 (Setup's "Check again", a retry): past the short memories of the login check, the app and the account.
+  const fresh = req.nextUrl.searchParams.get('fresh') === '1';
 
-  const [secret, store, checked, settings] = await Promise.all([
+  // Every part at once (each Ads page waits on this before it asks for its own numbers): the ad account
+  // is read beside Meta's word on the login, and kept only if the login turns out good.
+  const settingsP = loadAdsSettings().catch(() => null);
+  const [secret, store, checked, settings, read, live] = await Promise.all([
     appSecret().catch(() => null),
     secretAccess(TOKEN_SECRET()).catch(() => ({ exists: false, read: false, write: false })),
-    checkConnection().catch(e => ({ error: e instanceof Error ? e.message : String(e) })),
-    loadAdsSettings().catch(() => null),
+    checkConnection(fresh).catch(e => ({ error: e instanceof Error ? e.message : String(e) })),
+    settingsP,
+    settingsP.then(s => (s?.adAccountId ? accountSummary(s.adAccountId, fresh).then(account => ({ account, error: null }), (e: unknown) => ({ account: null, error: e instanceof Error ? e.message : String(e) })) : null)),
+    appLiveReadiness(fresh),
   ]);
 
   let connection = null;
@@ -50,9 +57,7 @@ export async function GET(req: NextRequest) {
 
   let account: AdsAccount | null = null;
   let accountError: string | null = null;
-  if (connection?.connected && settings?.adAccountId) {
-    try { account = await accountSummary(settings.adAccountId); } catch (e) { accountError = e instanceof Error ? e.message : String(e); }
-  }
+  if (connection?.connected && settings?.adAccountId && read) ({ account, error: accountError } = read);
 
   return NextResponse.json({
     app: {
@@ -68,7 +73,7 @@ export async function GET(req: NextRequest) {
       version: GRAPH_VERSION(),
       loginConfigId: LOGIN_CONFIG_ID() || settings?.loginConfigId || null,
       loginConfigFromEnv: !!LOGIN_CONFIG_ID(),
-      live: await appLiveReadiness(),
+      live,
       pages: APP_PAGES(),
     },
     connection,

@@ -110,7 +110,11 @@ type Issue = { error_summary?: string; error_message?: string };
 const issues = (x: { issues_info?: Issue[] }) => (x.issues_info ?? []).map(i => i.error_summary || i.error_message || '').filter(Boolean);
 const minor = (v: unknown, offset: number) => (v === undefined || v === null || v === '' || Number(v) === 0 ? null : Number(v) / offset);
 
-export async function tree(act: string, r: RangeKey, opts: { archived?: boolean; offset: number }): Promise<TreeCampaign[]> {
+/**
+ * `light`: campaign and ad set numbers only — no per-ad numbers (Meta's slowest list, paged 200 at a
+ * time) and no 480-px pictures. Enough for "Needs a look", which reads ads only for their warnings.
+ */
+export async function tree(act: string, r: RangeKey, opts: { archived?: boolean; offset: number; light?: boolean }): Promise<TreeCampaign[]> {
   const statuses = opts.archived ? [...LIVE, 'ARCHIVED'] : LIVE;
   const filter = { effective_status: statuses };
   const [campaigns, adsets, ads, ci, ai, adi] = await Promise.all([
@@ -119,7 +123,7 @@ export async function tree(act: string, r: RangeKey, opts: { archived?: boolean;
     graphAll<Record<string, unknown>>(`${act}/ads`, { ...filter, fields: 'id,name,adset_id,campaign_id,status,effective_status,issues_info,creative{id,thumbnail_url,image_url,instagram_permalink_url,title,body,call_to_action_type}' }, 2000),
     insights(act, ['campaign_id', ...BASE_FIELDS], { ...range(r), level: 'campaign' }, 500).catch(() => []),
     insights(act, ['adset_id', ...BASE_FIELDS], { ...range(r), level: 'adset' }, 1000).catch(() => []),
-    insights(act, ['ad_id', ...BASE_FIELDS], { ...range(r), level: 'ad' }, 2000).catch(() => []),
+    opts.light ? [] : insights(act, ['ad_id', ...BASE_FIELDS], { ...range(r), level: 'ad' }, 2000).catch(() => []),
   ]);
   const idx = (rows: InsightRow[], key: string) => new Map(rows.map(x => [String(x[key]), metricsOf(x)]));
   const cm = idx(ci, 'campaign_id'), am = idx(ai, 'adset_id'), dm = idx(adi, 'ad_id');
@@ -139,14 +143,15 @@ export async function tree(act: string, r: RangeKey, opts: { archived?: boolean;
     adsBySet.set(k, [...(adsBySet.get(k) ?? []), ad]);
   }
   // A boosted post or a video has no image_url, and its thumbnail is 64 px: ask for the pictures at 480.
-  const small = [...adsBySet.values()].flat().filter(a => !a.image && a.creativeId);
-  for (let i = 0; i < small.length; i += 50) {
-    const chunk = small.slice(i, i + 50);
+  // Fifty a call (Meta's limit for ?ids=), every call at once.
+  const small = opts.light ? [] : [...adsBySet.values()].flat().filter(a => !a.image && a.creativeId);
+  await Promise.all(Array.from({ length: Math.ceil(small.length / 50) }, async (_, n) => {
+    const chunk = small.slice(n * 50, n * 50 + 50);
     const big = await graph<Record<string, { thumbnail_url?: string }>>('', {
       params: { ids: [...new Set(chunk.map(a => a.creativeId))].join(','), fields: 'thumbnail_url', thumbnail_width: 480, thumbnail_height: 480 },
     }).catch(() => ({} as Record<string, { thumbnail_url?: string }>));
     for (const a of chunk) a.image = big[a.creativeId!]?.thumbnail_url || a.thumbnail;
-  }
+  }));
   const setsByCampaign = new Map<string, TreeAdSet[]>();
   for (const s of adsets) {
     const learning = (s.learning_stage_info as { status?: string } | undefined)?.status;

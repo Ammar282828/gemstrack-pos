@@ -57,11 +57,16 @@ export interface PieceStats extends PieceTally { piece: string; lastAt?: string;
 
 /** Totals over the last `days` days (from the per-day counts), or all time when days is 0. */
 export function windowed(s: PieceStats, days: number, today = karachiDay()): PieceTally {
-  if (!days) return { views: s.views || 0, dwellMs: s.dwellMs || 0, dwellN: s.dwellN || 0, saves: s.saves || 0, unsaves: s.unsaves || 0, enquiries: s.enquiries || 0 };
-  const from = new Date(Date.parse(today) - (days - 1) * 86_400_000).toISOString().slice(0, 10);
+  return days ? between(s, new Date(Date.parse(today) - (days - 1) * 86_400_000).toISOString().slice(0, 10), today) : totals(s);
+}
+
+const totals = (s: PieceStats): PieceTally => ({ views: s.views || 0, dwellMs: s.dwellMs || 0, dwellN: s.dwellN || 0, saves: s.saves || 0, unsaves: s.unsaves || 0, enquiries: s.enquiries || 0 });
+
+/** Totals from `from` to `to` (Karachi days, both counted). */
+export function between(s: PieceStats, from: string, to: string): PieceTally {
   const t = empty();
   for (const [day, d] of Object.entries(s.days || {})) {
-    if (day < from || day > today) continue;
+    if (day < from || day > to) continue;
     for (const k of Object.keys(t) as (keyof PieceTally)[]) t[k] += Number(d[k]) || 0;
   }
   return t;

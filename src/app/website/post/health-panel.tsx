@@ -88,10 +88,10 @@ export function HealthPanel({ health }: { health: ReturnType<typeof useHealth> }
   const { report, loading, failed, refresh } = health;
   const problems = report?.checks.filter(c => c.status === 'fail' || c.status === 'warn') ?? [];
   const hasFail = problems.some(c => c.status === 'fail');
+  // Folded until tapped, even when something is broken (the owner, 2026-10-23: "the things need attention in the hub
+  // should be minimized by default"); the one line still says how many, in the warning's colour.
   const [open, setOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  // Open by itself the first time something is found broken.
-  useEffect(() => { if (hasFail) setOpen(true); }, [hasFail]);
 
   const tone = failed || hasFail ? 'border-destructive/40 bg-destructive/5' : problems.length ? 'border-amber-500/40 bg-amber-500/5' : 'border-emerald-500/30 bg-emerald-500/5';
   const headline = loading && !report
