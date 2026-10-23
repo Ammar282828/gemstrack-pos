@@ -81,23 +81,47 @@ struct SaleScanSheet: View {
     @State private var added = 0
     @State private var missed = 0
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var width: CGFloat = 0
+
+    private var wide: Bool { sizeClass.isPadLayout && width >= 700 }
+
+    private var camera: some View {
+        TagScanner(height: wide ? 520 : 300) { code in
+            let result = handle(code)
+            said = result.said
+            if result.added { added += 1 } else { missed += 1 }
+        }
+    }
+
+    @ViewBuilder
+    private var saidCard: some View {
+        if !said.isEmpty {
+            Text(said)
+                .font(.subheadline.weight(.medium))
+                .ledgerCard(padding: 14)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    TagScanner { code in
-                        let result = handle(code)
-                        said = result.said
-                        if result.added { added += 1 } else { missed += 1 }
+                if wide {
+                    // Landscape on an iPad: the camera large, what the last tag did at its side.
+                    HStack(alignment: .top, spacing: 20) {
+                        camera.frame(maxWidth: .infinity)
+                        saidCard.frame(width: 300)
                     }
-                    if !said.isEmpty {
-                        Text(said)
-                            .font(.subheadline.weight(.medium))
-                            .ledgerCard(padding: 14)
+                    .padding(20)
+                } else {
+                    VStack(spacing: 16) {
+                        camera
+                        saidCard
                     }
+                    .padding(16)
                 }
-                .padding(16)
             }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
             .navigationTitle("Scan a tag")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

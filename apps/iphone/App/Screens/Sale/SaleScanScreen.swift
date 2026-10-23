@@ -71,6 +71,7 @@ struct SaleScanScreen: View {
             }
             .houseRows()
         }
+        .formColumn()
         .actionBar(primary: fillAction)
     }
 

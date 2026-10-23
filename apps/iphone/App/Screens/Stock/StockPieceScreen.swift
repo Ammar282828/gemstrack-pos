@@ -18,6 +18,12 @@ struct StockPieceScreen: View {
     /// Set once the ERP has deleted the piece: the page goes back to the list as the code's sheet closes, as the
     /// web's goes to /products.
     @State private var deleted = false
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var width: CGFloat = 0
+
+    /// A wide window: the photo and facts on the left, the price and how it adds up on the right.
+    private var twoColumns: Bool { sizeClass.isPadLayout && width >= 820 && !typeSize.isAccessibilitySize }
 
     var body: some View {
         ShelfState(loaded: book.products.loaded, error: book.products.error, offline: book.products.offline) {
@@ -50,17 +56,43 @@ struct StockPieceScreen: View {
         let settings: Settings? = book.settings.value
         let rates: PricingRates? = StockKit.rates(settings) ?? (p.isCustomPrice ? PricingRates() : nil)
         let costs: ProductCosts? = rates.map { StockKit.costs(p, $0) }
-        return List { Group {
-            heroSection(p)
-            priceSection(p, costs, settings)
-            if !p.isCustomPrice { specsSection(p) }
-            }
-            .houseRows()
-        }
-        .listStyle(.insetGrouped)
+        return pageBody(p, costs, settings)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
         // Selling is the owners' (createInvoice is owner-only): staff read the piece without a Sell they cannot finish.
         .safeAreaBar(edge: .bottom, spacing: 0) { if session.isOwner { sellBar(p) } }
         .toolbar { if session.isOwner { ToolbarItem(placement: .primaryAction) { actionsMenu(p) } } }
+    }
+
+    @ViewBuilder
+    private func pageBody(_ p: Product, _ costs: ProductCosts?, _ settings: Settings?) -> some View {
+        if twoColumns {
+            HStack(spacing: 0) {
+                List { Group {
+                    heroSection(p)
+                    if !p.isCustomPrice { specsSection(p) }
+                    }
+                    .houseRows()
+                }
+                .listStyle(.insetGrouped)
+                .frame(width: min(420, width * 0.4))
+                Divider()
+                List { Group {
+                    priceSection(p, costs, settings)
+                    }
+                    .houseRows()
+                }
+                .listStyle(.insetGrouped)
+            }
+        } else {
+            List { Group {
+                heroSection(p)
+                priceSection(p, costs, settings)
+                if !p.isCustomPrice { specsSection(p) }
+                }
+                .houseRows()
+            }
+            .listStyle(.insetGrouped)
+        }
     }
 
     /// Sell puts the piece on the sale in progress (the New sale screen's own draft, as Scan does) and opens it.

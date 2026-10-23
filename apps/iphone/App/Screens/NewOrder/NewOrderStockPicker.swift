@@ -53,6 +53,7 @@ struct NewOrderStockPicker: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationSizing(.form)
         .task { book.products.need() }
     }
 }

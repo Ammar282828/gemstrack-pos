@@ -74,6 +74,7 @@ struct NewOrderScanScreen: View {
         .motion(busy)
         .motion(stale)
         .scrollDismissesKeyboard(.interactively)
+        .formColumn()
         .failureAlert($problem, title: "Could not read that")
         .actionBar(primary: primaryAction)
         .sensoryFeedback(.success, trigger: filled)
