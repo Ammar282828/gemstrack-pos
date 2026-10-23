@@ -472,15 +472,17 @@ private struct StockPieceEditor: View {
             failure = problem
             return
         }
+        // An edit is not a sale: the sheet closes at once and the Outbox carries it. A new piece waits for its SKU.
+        if let original {
+            Outbox.shared.send(op: "updateProduct", fields: ["sku": original.sku, "piece": f.piece],
+                               business: House.business, label: "Piece \(original.sku)")
+            tick += 1
+            SaveTap.play()
+            dismiss()
+            return
+        }
         saving = true
         do {
-            if let original {
-                try await ERPAPI.shared.write("updateProduct", ["sku": original.sku, "piece": f.piece])
-                tick += 1
-                saving = false
-                dismiss()
-                return
-            }
             let out = try await ERPAPI.shared.write("addProduct", ["piece": f.piece, "batch": batch])
             batch = UUID().uuidString
             let doc: [String: Any] = out["product"] as? [String: Any] ?? [:]

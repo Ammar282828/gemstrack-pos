@@ -237,19 +237,15 @@ private struct KarigarFormBody: View {
 
     private func save() async {
         guard canSave else { return }
-        saving = true
         error = nil
-        do {
-            if let karigar {
-                try await ERPAPI.shared.write("updateKarigar", ["karigarId": karigar.id, "patch": patch])
-            } else {
-                try await ERPAPI.shared.write("addKarigar", ["karigar": patch])
-            }
-            savedTick += 1
-            dismiss()
-        } catch {
-            self.error = error.localizedDescription
+        if let karigar {
+            Outbox.shared.send(op: "updateKarigar", fields: ["karigarId": karigar.id, "patch": patch],
+                               business: House.business, label: "Karigar \(karigar.name)")
+        } else {
+            Outbox.shared.send(op: "addKarigar", fields: ["karigar": patch], business: House.business, label: "New karigar")
         }
-        saving = false
+        savedTick += 1
+        SaveTap.play()
+        dismiss()
     }
 }

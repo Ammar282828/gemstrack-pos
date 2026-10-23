@@ -123,12 +123,9 @@ private struct BankAccountsForm: View {
     }
 
     private func write(_ next: [BankAccountDraft]) async -> String? {
-        let before = shown
         shown = next
-        let ok = await writer.save(["paymentMethods": next.map(\.stored)])
-        if ok { return nil }
-        shown = before
-        return writer.error ?? "Not saved."
+        writer.queue(["paymentMethods": next.map(\.stored)], label: "Bank accounts")
+        return nil
     }
 }
 

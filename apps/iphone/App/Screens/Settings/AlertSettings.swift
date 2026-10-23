@@ -161,12 +161,8 @@ private struct AlertsForm: View {
     }
 
     private func savePhones(_ next: [String]) {
-        let before = phones
         phones = next
-        Task {
-            let ok = await writer.save(["notifPhones": next])
-            if !ok { phones = before }
-        }
+        writer.queue(["notifPhones": next], label: "Alert numbers")
     }
 
     /// International format with no plus, as the sender reads it. A leading 0 is Pakistan's.
@@ -222,7 +218,7 @@ private struct AlertsForm: View {
             if checklist != (stored.notifDailyChecklistTime ?? "09:00") { patch["notifDailyChecklistTime"] = checklist }
             if endOfDay != (stored.notifEndOfDayTime ?? "19:00") { patch["notifEndOfDayTime"] = endOfDay }
             if report != (stored.notifDailyReportTime ?? "21:00") { patch["notifDailyReportTime"] = report }
-            if !patch.isEmpty { _ = await writer.save(patch) }
+            if !patch.isEmpty { writer.queue(patch, label: "Alert times") }
             timeSave = nil
         }
     }

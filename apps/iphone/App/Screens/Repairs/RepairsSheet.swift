@@ -73,7 +73,7 @@ struct RepairsSheet: View {
         let paid = RepairsKit.repairPaid(r)
         var detail = "\(RepairsKit.repairSummary(r)) \u{2014} \(RepairsKit.customer(r)). Delete removes it for good"
         detail += paid > 0 ? ", and the \(Money.pkr(paid)) paid comes out of Extra revenue with it." : "."
-        if r.status == .received || r.status == .ready { detail += " Cancel repair keeps the record instead." }
+        if desk.status(r) == .received || desk.status(r) == .ready { detail += " Cancel repair keeps the record instead." }
         deletion = OwnerDeletion(what: "Delete repair \(id)", detail: detail) { code in
             _ = try await ERPAPI.shared.write("deleteRepair", ["repairId": id, "deleteCode": code])
         }
@@ -119,7 +119,7 @@ struct RepairsSheet: View {
     /// Print receipt is the ERP's receipt for this ticket, open to everyone who can read the ticket (the
     /// ERP prints it for owners and staff); Edit, Cancel and Delete are native and owners'. Cancel keeps the record.
     private var ticketMenu: some View {
-        let cancellable = current.map { $0.status == .received || $0.status == .ready } ?? false
+        let cancellable = current.map { desk.status($0) == .received || desk.status($0) == .ready } ?? false
         return Menu {
             Button { receipt = RepairsKit.receipt(id) } label: {
                 Label("Print receipt", systemImage: "printer")
@@ -153,7 +153,7 @@ struct RepairsSheet: View {
                     Text(RepairsKit.repairSummary(r))
                         .font(.title3.weight(.bold))
                     Spacer(minLength: 8)
-                    Pill(RepairsKit.label(r.status), tone: RepairsKit.tone(r.status))
+                    Pill(RepairsKit.label(desk.status(r)), tone: RepairsKit.tone(desk.status(r)))
                 }
                 // The number is the sheet's title and the day it came in is under Details: the promise only.
                 RepairsPromiseText(repair: r, now: Date(), font: .subheadline)
@@ -192,7 +192,7 @@ struct RepairsSheet: View {
     /// The page's "Tell them": the ready message, on WhatsApp, for a Ready ticket with a number.
     @ViewBuilder
     private func tellThemRow(_ r: Repair) -> some View {
-        if r.status == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
+        if desk.status(r) == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
             Link(destination: url) {
                 Label("Tell them it's ready", systemImage: "message")
             }
@@ -281,7 +281,7 @@ struct RepairsSheet: View {
         Section {
             LabeledContent("Taken in", value: ShopDate.say(r.receivedAt, withTime: true))
             // The promise is said under the title while the ticket is in the shop; here once it has moved on.
-            if r.status != .received, let d = RepairsKit.filled(r.promisedDate) {
+            if desk.status(r) != .received, let d = RepairsKit.filled(r.promisedDate) {
                 LabeledContent("Ready by", value: ShopDate.say(d))
             }
             if let d = RepairsKit.filled(r.readyAt) {
@@ -321,9 +321,9 @@ struct RepairsSheet: View {
     /// the ticket has nothing else to move on to.
     private func actionBar(_ r: Repair) -> some View {
         let busy = desk.isBusy(r.id)
-        let owing = r.status != .cancelled && RepairsKit.repairBalance(r) > 0
+        let owing = desk.status(r) != .cancelled && RepairsKit.repairBalance(r) > 0
         let pay = ActionBar.Action("Take payment", systemImage: "banknote", isBusy: busy) { desk.taking = r }
-        switch r.status {
+        switch desk.status(r) {
         case .received:
             return ActionBar(primary: ActionBar.Action("Mark ready", systemImage: "checkmark.circle", isBusy: busy) { desk.markReady(r) },
                              secondary: owing ? [pay] : [])

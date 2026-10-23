@@ -33,6 +33,10 @@ final class RepairsDesk {
     /// The ERP's words when a write was refused.
     var failure: String?
     private(set) var busy: Set<String> = []
+    /// Statuses just chosen, by ticket: shown while the shelf's copy is still the old one.
+    private var moved: [String: (from: RepairStatus, to: RepairStatus)] = [:]
+    /// Bumped on each status move, so the screen can tap for it.
+    private(set) var moves = 0
     /// Bumped as a payment lands, so the screen can tap for it (`moneyFeedback`).
     private(set) var paymentsTaken = 0
     /// Bumped when a write is refused, so the money tap can warn (`moneyFeedback`'s failure).
@@ -59,13 +63,24 @@ final class RepairsDesk {
     }
 
     /// "received" | "ready" | "collected" | "cancelled".
+    /// Not money: the ticket moves on the screen at once and the write goes through the Outbox.
     func setStatus(_ r: Repair, _ status: String) {
         let id = r.id
-        run(id) {
-            _ = try await ERPAPI.shared.write("setRepairStatus", ["repairId": id, "status": status])
-            self.say(Note(title: Self.words(id, status)))
-        }
+        moved[id] = (from: r.status, to: RepairStatus(rawValue: status))
+        moves += 1
+        say(Note(title: Self.words(id, status)))
+        Outbox.shared.send(op: "setRepairStatus", fields: ["repairId": id, "status": status],
+                           business: House.business, label: "\(id) status")
     }
+
+    /// The status to show: the one just chosen until the shelf's copy has moved off the one it was.
+    func status(_ r: Repair) -> RepairStatus {
+        if let m = moved[r.id], m.from == r.status { return m.to }
+        return r.status
+    }
+
+    /// The Outbox gave up on a change: show the shelf's copy again.
+    func forgetMoves() { moved = [:] }
 
     /// "REP-000012 is ready".
     private static func words(_ id: String, _ status: String) -> String {
@@ -144,6 +159,8 @@ private struct RepairsDeskModifier: ViewModifier {
             .failureAlert(failureBinding, title: "Not changed")
             .noteToast(noteBinding)
             .moneyFeedback(success: desk.paymentsTaken, failure: false)
+            .savedFeedback(trigger: desk.moves)
+            .onChange(of: Outbox.shared.failure?.id) { _, _ in desk.forgetMoves() }
     }
 
     // MARK: The questions

@@ -81,16 +81,10 @@ struct NewOrderSizeAskSheet: View {
     }
 
     private func save() async {
-        saving = true
-        failure = nil
-        defer { saving = false }
         let picked = ask.rows.filter { chosen.contains($0.id) }
-        do {
-            try await ERPAPI.shared.write("setCustomerSizes", NewOrderSizes.request(customerId: ask.customerId, chosen: picked))
-            saved += 1
-            dismiss()
-        } catch {
-            failure = error.localizedDescription
-        }
+        Outbox.shared.send(op: "setCustomerSizes", fields: NewOrderSizes.request(customerId: ask.customerId, chosen: picked),
+                           business: House.business, label: "Customer sizes")
+        saved += 1
+        dismiss()
     }
 }

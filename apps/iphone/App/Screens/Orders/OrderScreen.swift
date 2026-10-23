@@ -26,10 +26,6 @@ struct OrderScreen: View {
     @State private var web: OrdersWebTarget?
     @State private var advancing = false
     @State private var confirmCancel = false
-    @State private var updatingStatus = false
-    @State private var ticking: Int?
-    /// A piece whose karigar is being picked.
-    @State private var assigning: Int?
     @State private var failure: String?
     @State private var undo: OrderUndoAsk?
     @State private var booking = false
@@ -43,6 +39,11 @@ struct OrderScreen: View {
     /// Counted so each event is felt once: money taken, an order marked ready or a piece ticked.
     @State private var moneyTick = 0
     @State private var savedTick = 0
+    /// What the person just did, shown before the shelf's copy catches up (cleared when it matches, or when the
+    /// Outbox gives up on the change).
+    @State private var localStatus: String?
+    @State private var localDone: [Int: Bool] = [:]
+    @State private var localKarigar: [Int: String] = [:]
 
     var body: some View {
         // "/orders/" + "add" can reach this screen as an order id: it is New order's form (NewOrderRoutes).
@@ -68,6 +69,8 @@ struct OrderScreen: View {
         .ordersWebDestination($web)
         .orderUndo($undo, open: $web)
         .ordersFailureAlert($failure)
+        .onChange(of: shelfSignature) { _, _ in reconcile() }
+        .onChange(of: Outbox.shared.failure?.id) { _, _ in localStatus = nil; localDone = [:]; localKarigar = [:] }
         .moneyFeedback(success: moneyTick, failure: 0)
         .savedFeedback(trigger: savedTick)
         .noteToast($note)
@@ -82,7 +85,7 @@ struct OrderScreen: View {
         let invoice = invoiceOf(order)
         // What the invoice still has owing, by the hub's own rule (isOwing), so the stage reads the same on both.
         let owed = invoice.map { isOwing($0) ? $0.balanceDue : 0 } ?? 0
-        let stage = stageOf(order, owedOnInvoice: owed)
+        let stage = localStage(order, owedOnInvoice: owed)
         let now = Date()
         return WideDetailList {
             heroSection(order, stage: stage, now: now, owed: owed, invoice: invoice)
@@ -250,7 +253,7 @@ struct OrderScreen: View {
     private func standingRow(_ order: Order, stage: OrderStage) -> some View {
         if stage == .closed {
             HStack {
-                Pill(order.status.rawValue.isEmpty ? "Closed" : order.status.rawValue, tone: .quiet)
+                Pill(shownStatus(order).isEmpty ? "Closed" : shownStatus(order), tone: .quiet)
                 Spacer(minLength: 0)
             }
         } else {
@@ -409,24 +412,28 @@ struct OrderScreen: View {
         let canRemove = OrderActions.canRemovePiece(order, isOwner: session.isOwner)
         // The page's inline picker: an owner's (setPieceKarigar), until the order is invoiced.
         let karigars = session.isOwner && !invoiced ? workshopLive(book.karigars.items) : []
-        let counts = pieceCounts(order.items)
+        let counts = LocalPieceCounts(total: order.items.count,
+                                 unassigned: order.items.indices.filter { !hasKarigarNow(order, $0) }.count,
+                                 done: order.items.indices.filter { isDone(order, $0) }.count)
         // Open pieces first; the finished ones follow, quieter. Each keeps its own index for the tick.
-        let unfinished: [Int] = order.items.indices.filter { !order.items[$0].isCompleted }
-        let finished: [Int] = order.items.indices.filter { order.items[$0].isCompleted }
+        let unfinished: [Int] = order.items.indices.filter { !isDone(order, $0) }
+        let finished: [Int] = order.items.indices.filter { isDone(order, $0) }
         let ordered: [Int] = unfinished + finished
         return Section {
             ForEach(ordered, id: \.self) { i in
                 OrderPieceRow(
                     index: i,
                     item: order.items[i],
-                    karigar: karigarName(order.items[i]),
+                    karigar: karigarName(order, i),
                     canTick: session.isOwner && !invoiced,
-                    busy: ticking == i,
+                    busy: false,
                     showBreakdown: session.isOwner,
                     onTick: { done in tick(order, i, done) },
-                    assign: karigars.isEmpty ? nil : OrderPieceAssign(karigars: karigars, busy: assigning == i) { kid in
+                    assign: karigars.isEmpty ? nil : OrderPieceAssign(karigars: karigars, busy: false) { kid in
                         assign(order, i, kid)
-                    }
+                    },
+                    doneOverride: localDone[i],
+                    karigarOverride: localKarigar[i]
                 )
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     if canRemove {
@@ -469,7 +476,12 @@ struct OrderScreen: View {
         }
     }
 
-    private func karigarName(_ item: OrderItem) -> String? {
+    private func karigarName(_ order: Order, _ index: Int) -> String? {
+        let item = order.items[index]
+        if let kid = localKarigar[index] {
+            if kid == "none" { return nil }
+            return book.karigars.items.first(where: { $0.id == kid })?.name ?? "Karigar " + kid
+        }
         guard OrdersLogic.hasKarigar(item), let kid = item.karigarId else { return nil }
         return book.karigars.items.first(where: { $0.id == kid })?.name ?? "Karigar " + kid
     }
@@ -585,17 +597,12 @@ struct OrderScreen: View {
         } else {
             Button { run(order, step) } label: {
                 Group {
-                    if updatingStatus && step == .markReady {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Label(step.title, systemImage: step.symbol)
-                    }
+                    Label(step.title, systemImage: step.symbol)
                 }
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.houseProminent)
             .controlSize(.large)
-            .disabled(updatingStatus)
         }
     }
 
@@ -638,7 +645,7 @@ struct OrderScreen: View {
         let step = barStep(order, stage: stage, owed: owed)
         let barOffersAdvance = stage != .closed && OrdersLogic.offersAdvance(order, stage: stage, isOwner: session.isOwner)
         let showAdvance = session.isOwner && OrdersLogic.canAdvance(order) && !barOffersAdvance
-        let showFinalize = !OrdersLogic.hasInvoice(order) && (order.status == .completed || order.status == .inProgress)
+        let showFinalize = !OrdersLogic.hasInvoice(order) && (shownStatus(order) == "Completed" || shownStatus(order) == "In Progress")
             && step != .finalize
         let tcs = OrderActions.tcsConsignment(order)
         let canBook = OrderActions.canBookCourier(order, isOwner: session.isOwner)
@@ -649,10 +656,9 @@ struct OrderScreen: View {
             Section("Status") {
                 ForEach(OrdersLogic.settableStatuses, id: \.self) { s in
                     Button(role: s == "Cancelled" ? .destructive : nil) { choose(order, s) } label: {
-                        if s == order.status.rawValue { Label(s, systemImage: "checkmark") } else { Text(s) }
+                        if s == shownStatus(order) { Label(s, systemImage: "checkmark") } else { Text(s) }
                     }
-                    .disabled(updatingStatus)
-                }
+                        }
             }
             if showAdvance || showFinalize {
                 Section {
@@ -730,61 +736,83 @@ struct OrderScreen: View {
     // MARK: Writes
 
     private func choose(_ order: Order, _ status: String) {
-        if status == order.status.rawValue { return }
+        if status == shownStatus(order) { return }
         if status == "Cancelled" { confirmCancel = true } else { setStatus(order, status) }
     }
 
     private func setStatus(_ order: Order, _ status: String) {
-        if updatingStatus { return }
-        updatingStatus = true
-        Task { @MainActor in
-            do {
-                _ = try await ERPAPI.shared.write("setOrderStatus", ["orderId": order.id, "status": status])
-                if status == "Completed" {
-                    Note.show(Note(title: "Marked ready", detail: order.id), in: $note, reduce: reduceMotion)
-                } else if status == "Cancelled" {
-                    Note.show(Note(title: "Order cancelled", detail: order.id), in: $note, reduce: reduceMotion)
-                } else {
-                    Note.show(Note(title: "Now " + status.lowercased(), detail: order.id), in: $note, reduce: reduceMotion)
-                }
-            } catch {
-                failure = error.localizedDescription
-            }
-            updatingStatus = false
+        Motion.run(Motion.enter, reduce: reduceMotion) { localStatus = status }
+        savedTick += 1
+        if status == "Completed" {
+            Note.show(Note(title: "Marked ready", detail: order.id), in: $note, reduce: reduceMotion)
+        } else if status == "Cancelled" {
+            Note.show(Note(title: "Order cancelled", detail: order.id), in: $note, reduce: reduceMotion)
+        } else {
+            Note.show(Note(title: "Now " + status.lowercased(), detail: order.id), in: $note, reduce: reduceMotion)
         }
+        Outbox.shared.send(op: "setOrderStatus", fields: ["orderId": order.id, "status": status],
+                           business: House.business, label: "\(order.id) status")
     }
 
     /// Owners pick a piece's karigar: the bench's own write, which moves a Pending order on once every piece has
     /// one (lib/writes/order-status.ts).
     private func assign(_ order: Order, _ index: Int, _ karigarId: String) {
-        if assigning != nil || (order.items.indices.contains(index) && (order.items[index].karigarId ?? "none") == karigarId) { return }
-        assigning = index
-        Task { @MainActor in
-            do {
-                _ = try await ERPAPI.shared.write("setPieceKarigar", ["orderId": order.id, "index": index, "karigarId": karigarId])
-            } catch {
-                failure = error.localizedDescription
-            }
-            assigning = nil
-        }
+        if order.items.indices.contains(index) && (localKarigar[index] ?? order.items[index].karigarId ?? "none") == karigarId { return }
+        Motion.run(Motion.enter, reduce: reduceMotion) { localKarigar[index] = karigarId }
+        savedTick += 1
+        Outbox.shared.send(op: "setPieceKarigar", fields: ["orderId": order.id, "index": index, "karigarId": karigarId],
+                           business: House.business, label: "\(order.id) karigar")
     }
 
     /// Owners tick a piece done; the last one finishes the order, and unticking a finished one sends it
     /// back to the karigars (the server works that out: lib/order-stage.ts).
     private func tick(_ order: Order, _ index: Int, _ done: Bool) {
-        if ticking != nil { return }
-        ticking = index
-        Task { @MainActor in
-            do {
-                _ = try await ERPAPI.shared.write("setPieceDone", ["orderId": order.id, "index": index, "done": done])
-                savedTick += 1
-            } catch {
-                failure = error.localizedDescription
-            }
-            ticking = nil
+        Motion.run(Motion.enter, reduce: reduceMotion) { localDone[index] = done }
+        savedTick += 1
+        Outbox.shared.send(op: "setPieceDone", fields: ["orderId": order.id, "index": index, "done": done],
+                           business: House.business, label: "\(order.id) piece \(index + 1)")
+    }
+
+    // MARK: What the person just did, before the shelf says so
+
+    private func shownStatus(_ order: Order) -> String { localStatus ?? order.status.rawValue }
+
+    private func isDone(_ order: Order, _ i: Int) -> Bool { localDone[i] ?? order.items[i].isCompleted }
+
+    private func hasKarigarNow(_ order: Order, _ i: Int) -> Bool {
+        if let k = localKarigar[i] { return k != "none" && !k.isEmpty }
+        return OrdersLogic.hasKarigar(order.items[i])
+    }
+
+    /// The stage with the status just chosen (an invoiced or awaiting-transfer order keeps its own).
+    private func localStage(_ order: Order, owedOnInvoice: Double) -> OrderStage {
+        let base = stageOf(order, owedOnInvoice: owedOnInvoice)
+        guard let s = localStatus, base != .transfer, !OrdersLogic.hasInvoice(order) else { return base }
+        switch s {
+        case "Cancelled", "Refunded": return .closed
+        case "Completed": return .ready
+        case "In Progress": return .karigar
+        case "Pending": return .new
+        default: return base
         }
     }
+
+    private var shelfSignature: String {
+        guard let o = book.orders.item(id) else { return "" }
+        return o.status.rawValue + "|" + o.items.map { "\($0.isCompleted ? 1 : 0)\($0.karigarId ?? "none")" }.joined(separator: ",")
+    }
+
+    /// Drop what the shelf now agrees with.
+    private func reconcile() {
+        guard let o = book.orders.item(id) else { return }
+        if localStatus == o.status.rawValue { localStatus = nil }
+        for (i, v) in localDone where !o.items.indices.contains(i) || o.items[i].isCompleted == v { localDone[i] = nil }
+        for (i, v) in localKarigar where !o.items.indices.contains(i) || (o.items[i].karigarId ?? "none") == v { localKarigar[i] = nil }
+    }
 }
+
+/// `pieceCounts`, with what the person just ticked or assigned counted in.
+private struct LocalPieceCounts { let total: Int; let unassigned: Int; let done: Int }
 
 extension View {
     /// An advance line's delete, when it has one: a swipe and a held press, as a payment's on an invoice.

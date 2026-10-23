@@ -345,21 +345,15 @@ struct RateSheet: View {
         }
     }
 
+    /// Rates are not a money write: the sheet closes at once and the Outbox carries them.
     private func save() async {
-        saving = true
-        error = nil
         var rates: [String: Any] = [:]
         // Only what moved: a figure left blank or unchanged is never sent back over a newer one.
         for f in changed { rates[f.key] = value(f) }
         var fields: [String: Any] = ["rates": rates]
         if fromGoldPk { fields["source"] = "gold.pk" }
-        do {
-            try await ERPAPI.shared.write("setRates", fields)
-            savedCount += 1
-            dismiss()
-        } catch {
-            self.error = error.localizedDescription
-        }
-        saving = false
+        Outbox.shared.send(op: "setRates", fields: fields, business: House.business, label: "Rates")
+        savedCount += 1
+        dismiss()
     }
 }

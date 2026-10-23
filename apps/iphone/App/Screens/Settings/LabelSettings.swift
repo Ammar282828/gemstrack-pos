@@ -220,15 +220,10 @@ private struct LabelDesigner: View {
     }
 
     private func save(_ next: SettingsLabelLayout) async {
-        saving = true
-        do {
-            // `seq` makes each save its own: a field moved and moved back is a new change, not one sent twice.
-            try await ERPAPI.shared.write("saveLabelLayout", ["layout": next.stored, "seq": UUID().uuidString], business: biz)
-            if layout == next { edited = false }
-        } catch {
-            problem = "The layout was not saved. Check the connection; it will try again on the next change. \(error.localizedDescription)"
-        }
-        saving = false
+        // `seq` makes each save its own: a field moved and moved back is a new change, not one sent twice.
+        Outbox.shared.send(op: "saveLabelLayout", fields: ["layout": next.stored, "seq": UUID().uuidString],
+                           business: biz, label: "Label layout")
+        if layout == next { edited = false }
     }
 
     /// A change from the editor: drawn at once, saved a second later.
@@ -252,7 +247,7 @@ private struct LabelDesigner: View {
             } header: {
                 LedgerHeading(title: "Tag builder")
             } footer: {
-                Text("Design the tag and export pieces to CSV for a label printing app like WEPrint. \(edited || saving ? "Saving…" : saved != nil ? "Layout saved." : "")")
+                Text("Design the tag and export pieces to CSV for a label printing app like WEPrint. \(edited || saving || Outbox.shared.status(of: "Label layout") != nil ? "Saving…" : saved != nil ? "Layout saved." : "")")
             }
 
             exportSection

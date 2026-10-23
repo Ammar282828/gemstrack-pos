@@ -278,18 +278,12 @@ struct WorkshopSilverSheet: View {
         var fields: [String: Any] = ["karigarId": karigar.id, "silverGrams": grams, "surchargePerGram": rate]
         let note = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         if !note.isEmpty { fields["description"] = note }
-        saving = true
         error = nil
-        do {
-            try await ERPAPI.shared.write("addSilverEntry", fields)
-            onSaved(Note(title: "Silver transaction recorded"))
-            savedTick += 1
-            dismiss()
-        } catch {
-            failedTick += 1
-            self.error = error.localizedDescription
-        }
-        saving = false
+        Outbox.shared.send(op: "addSilverEntry", fields: fields, business: House.business, label: "Silver entry")
+        onSaved(Note(title: "Silver transaction recorded"))
+        savedTick += 1
+        SaveTap.play()
+        dismiss()
     }
 }
 

@@ -101,7 +101,7 @@ struct RepairsScreen: View {
         }
         .listStyle(.insetGrouped)
         // A ticket moving to another group slides there instead of jumping.
-        .motion(shown.map { "\($0.id)-\($0.status)" })
+        .motion(shown.map { "\($0.id)-\(desk.status($0))" })
         .overlay {
             if groups.isEmpty { emptyState(searching: !q.isEmpty) }
         }
@@ -168,7 +168,7 @@ struct RepairsScreen: View {
         Button {
             sheet = RepairsOpen(id: r.id, seed: nil)
         } label: {
-            RepairsRow(repair: r, now: now, busy: desk.isBusy(r.id))
+            RepairsRow(repair: r, status: desk.status(r), now: now, busy: desk.isBusy(r.id))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -181,11 +181,11 @@ struct RepairsScreen: View {
 
     @ViewBuilder
     private func trailingSwipe(_ r: Repair) -> some View {
-        if session.isOwner && r.status == .received {
+        if session.isOwner && desk.status(r) == .received {
             Button { desk.markReady(r) } label: { Label("Mark ready", systemImage: "checkmark.circle") }
                 .tint(Theme.accent)
         }
-        if session.isOwner && r.status == .ready {
+        if session.isOwner && desk.status(r) == .ready {
             Button { desk.collect(r) } label: { Label("Collected", systemImage: "shippingbox") }
                 .tint(.gray)
         }
@@ -193,7 +193,7 @@ struct RepairsScreen: View {
 
     @ViewBuilder
     private func leadingSwipe(_ r: Repair) -> some View {
-        if r.status == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
+        if desk.status(r) == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
             Button { openURL(url) } label: { Label("Tell them", systemImage: "message") }
                 .tint(.green)
         }
@@ -201,19 +201,19 @@ struct RepairsScreen: View {
 
     @ViewBuilder
     private func menu(_ r: Repair) -> some View {
-        if session.isOwner && r.status == .received {
+        if session.isOwner && desk.status(r) == .received {
             Button { desk.markReady(r) } label: { Label("Mark ready", systemImage: "checkmark.circle") }
         }
-        if session.isOwner && r.status == .ready {
+        if session.isOwner && desk.status(r) == .ready {
             Button { desk.collect(r) } label: { Label("Collected", systemImage: "shippingbox") }
         }
-        if r.status == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
+        if desk.status(r) == .ready, let url = RepairsKit.whatsAppURL(for: r, shopName: session.shop.name) {
             Button { openURL(url) } label: { Label("Tell them it's ready", systemImage: "message") }
         }
-        if session.isOwner && r.status != .cancelled && RepairsKit.repairBalance(r) > 0 {
+        if session.isOwner && desk.status(r) != .cancelled && RepairsKit.repairBalance(r) > 0 {
             Button { desk.taking = r } label: { Label("Take payment", systemImage: "banknote") }
         }
-        if session.isOwner && (r.status == .received || r.status == .ready) {
+        if session.isOwner && (desk.status(r) == .received || desk.status(r) == .ready) {
             Button(role: .destructive) { desk.askCancel(r) } label: { Label("Cancel repair", systemImage: "xmark.circle") }
         }
     }
@@ -234,10 +234,12 @@ struct RepairsScreen: View {
 /// and the karigar if it is with one.
 struct RepairsRow: View {
     let repair: Repair
+    /// The status to show: the shelf's, or the one just chosen.
+    let status: RepairStatus
     let now: Date
     let busy: Bool
 
-    private var greyed: Bool { repair.status == .collected || repair.status == .cancelled }
+    private var greyed: Bool { status == .collected || status == .cancelled }
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -252,7 +254,7 @@ struct RepairsRow: View {
                     .foregroundStyle(greyed ? Color.secondary : Color.primary)
                     .lineLimit(typeSize.isAccessibilitySize ? 3 : 2)
                 if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
-                if busy { SkeletonLoading() } else { money }
+                money
             }
             Text(who)
                 .font(.subheadline)
@@ -273,7 +275,7 @@ struct RepairsRow: View {
     /// "REP-000012 · in Tue 6 Oct · with Ustad Demo".
     private var facts: String {
         var parts: [String] = [repair.id]
-        switch repair.status {
+        switch status {
         case .ready:
             if let d = RepairsKit.filled(repair.readyAt) { parts.append("ready " + RepairsKit.byDay(d)) }
         case .collected:

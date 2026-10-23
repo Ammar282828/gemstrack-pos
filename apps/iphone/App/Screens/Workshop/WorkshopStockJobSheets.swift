@@ -125,18 +125,13 @@ struct WorkshopStockJobSheet: View {
         if !s.isEmpty { job["size"] = s }
         let n = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         if !n.isEmpty { job["notes"] = n }
-        saving = true
         error = nil
-        do {
-            try await ERPAPI.shared.write("addStockJob", ["job": job])
-            let name = karigars.first { $0.id == karigarId }?.name ?? ""
-            onSaved(Note(title: "Job assigned", detail: "\(cleanedWhat) \u{2192} \(name)"))
-            savedTick += 1
-            dismiss()
-        } catch {
-            self.error = error.localizedDescription
-        }
-        saving = false
+        Outbox.shared.send(op: "addStockJob", fields: ["job": job], business: House.business, label: "Job: \(cleanedWhat)")
+        let name = karigars.first { $0.id == karigarId }?.name ?? ""
+        onSaved(Note(title: "Job assigned", detail: "\(cleanedWhat) \u{2192} \(name)"))
+        savedTick += 1
+        SaveTap.play()
+        dismiss()
     }
 }
 
@@ -226,16 +221,12 @@ struct WorkshopJobDetailsSheet: View {
         var patch: [String: Any] = ["description": cleanedName, "size": size, "notes": instructions]
         // An empty weight box leaves the weight as it is, as the web's dialog sends none.
         if let w = WorkshopFigure.read(weightText) { patch["weightG"] = w }
-        saving = true
         error = nil
-        do {
-            try await ERPAPI.shared.write("updateStockJobDetails", ["jobId": job.id, "patch": patch])
-            onSaved(Note(title: "Details updated", detail: job.description))
-            savedTick += 1
-            dismiss()
-        } catch {
-            self.error = error.localizedDescription
-        }
-        saving = false
+        Outbox.shared.send(op: "updateStockJobDetails", fields: ["jobId": job.id, "patch": patch],
+                           business: House.business, label: "Details of \(job.description)")
+        onSaved(Note(title: "Details updated", detail: job.description))
+        savedTick += 1
+        SaveTap.play()
+        dismiss()
     }
 }

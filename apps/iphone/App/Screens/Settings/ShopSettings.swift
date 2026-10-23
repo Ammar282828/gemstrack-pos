@@ -230,7 +230,6 @@ private struct ShopForm: View {
     }
 
     private func commit() {
-        let before = base
         var next = base
         var patch: [String: Any] = [:]
 
@@ -258,10 +257,6 @@ private struct ShopForm: View {
 
         base = next
         draft = next
-        Task {
-            let ok = await writer.save(patch)
-            // Not taken: what was typed stays, and the next time it is left it is sent again.
-            if !ok { base = before }
-        }
+        writer.queue(patch, label: "Shop details")
     }
 }

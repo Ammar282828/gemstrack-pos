@@ -269,17 +269,13 @@ private struct EditCustomerForm: View {
 
     // MARK: Save
 
+    /// Not money: the sheet closes at once and the Outbox carries the change (the book brings it in).
     private func save() async {
         guard canSave else { return }
-        saving = true
-        error = nil
-        do {
-            try await ERPAPI.shared.write("updateCustomer", ["customerId": customer.id, "patch": patch])
-            dismiss()
-        } catch {
-            self.error = error.localizedDescription
-        }
-        saving = false
+        SaveTap.play()
+        Outbox.shared.send(op: "updateCustomer", fields: ["customerId": customer.id, "patch": patch],
+                           business: House.business, label: "Customer \(customer.name)")
+        dismiss()
     }
 }
 

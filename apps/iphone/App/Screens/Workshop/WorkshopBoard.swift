@@ -24,6 +24,8 @@ struct WorkshopBoard: View {
     private let orderId: String?
     /// Pieces with a write in flight.
     @State private var busy: Set<String> = []
+    /// What the person just did to a piece, shown while the shelf's copy is still the old one.
+    @State private var patches: [String: JobPatch] = [:]
     @State private var failure: String?
     @State private var opened: WorkshopPlace?
     @State private var assigning: WorkshopStockJobAsk?
@@ -86,6 +88,7 @@ struct WorkshopBoard: View {
         }
         .noteToast($note)
         .savedFeedback(trigger: saved)
+        .onChange(of: Outbox.shared.failure?.id) { _, _ in patches = [:] }
         // The warning tap as a delete is asked for (the delete code sheet opens).
         .sensoryFeedback(.warning, trigger: deletion != nil) { _, now in now }
         .onAppear {
@@ -125,7 +128,8 @@ struct WorkshopBoard: View {
             karigars: live,
             invoices: book.invoices.items
         )
-        let all = orderId.map { id in jobs.filter { $0.orderId == id } } ?? jobs
+        let shownJobs = patches.isEmpty ? jobs : jobs.map { patched($0) }
+        let all = orderId.map { id in shownJobs.filter { $0.orderId == id } } ?? shownJobs
         let snap = WorkshopSnapshot(all: all, filter: filter)
         board(snap, live)
     }
@@ -561,23 +565,38 @@ struct WorkshopBoard: View {
 
     // MARK: Writes (owners only; the ERP refuses anyone else)
 
-    /// One write for one piece, with its controls off meanwhile. The shelf brings the change back.
-    private func write(_ job: WorkshopJob, _ op: String, _ fields: [String: Any]) {
-        if busy.contains(job.id) { return }
-        busy.insert(job.id)
-        Task { @MainActor in
-            do {
-                // These say the state wanted (done, given, a karigar), so Done → Not done → Done within the ERP's
-                // 30-second once-only window is three changes, not a repeat: `seq` makes each its own (busy stops double taps).
-                var named = fields
-                named["seq"] = UUID().uuidString
-                _ = try await ERPAPI.shared.write(op, named)
-                saved += 1
-            } catch {
-                failure = error.localizedDescription
-            }
-            busy.remove(job.id)
+    /// One write for one piece: the board shows it at once and the Outbox carries it (the shelf brings the real copy).
+    private func write(_ job: WorkshopJob, _ op: String, _ fields: [String: Any],
+                       status: WorkshopJob.Status? = nil, given: Bool? = nil, karigarId: String? = nil) {
+        // These say the state wanted (done, given, a karigar), so Done → Not done → Done within the ERP's
+        // 30-second once-only window is three changes, not a repeat: `seq` makes each its own.
+        var named = fields
+        named["seq"] = UUID().uuidString
+        let from = patches[job.id]?.from ?? JobSig(job)
+        var to = patches[job.id]?.to ?? from
+        var name = patches[job.id]?.toName
+        if let status { to.status = status }
+        if let given { to.given = given }
+        if let karigarId {
+            to.karigarId = karigarId == "none" ? WorkshopLogic.unassigned : karigarId
+            name = karigarId == "none" ? "Unassigned" : (book.karigars.items.first { $0.id == karigarId }?.name ?? job.karigarName)
         }
+        Motion.run(Motion.enter, reduce: reduceMotion) { patches[job.id] = JobPatch(from: from, to: to, toName: name) }
+        saved += 1
+        Outbox.shared.send(op: op, fields: named, business: House.business, label: job.description)
+    }
+
+    /// The piece as the person left it, until the shelf's copy has moved off the one it was.
+    private func patched(_ job: WorkshopJob) -> WorkshopJob {
+        guard let p = patches[job.id], JobSig(job) == p.from else { return job }
+        var j = WorkshopJob(id: job.id, source: job.source, karigarId: p.to.karigarId, karigarName: p.toName ?? job.karigarName,
+                            description: job.description, status: p.to.status, assignedDate: job.assignedDate)
+        j.orderId = job.orderId; j.invoiceId = job.invoiceId; j.takenBy = job.takenBy; j.isOnline = job.isOnline
+        j.itemIndex = job.itemIndex; j.customerName = job.customerName; j.category = job.category
+        j.metalType = job.metalType; j.karat = job.karat; j.weightG = job.weightG; j.quantity = job.quantity
+        j.size = job.size; j.referenceSku = job.referenceSku; j.plating = job.plating; j.value = job.value; j.notes = job.notes
+        j.givenAt = p.to.given ? (job.hasGiven ? job.givenAt : ERPDate.iso(Date())) : nil
+        return j
     }
 
     /// Done: an order's piece (its order moves on when every piece is), a sold piece (it leaves the board), or a
@@ -585,11 +604,12 @@ struct WorkshopBoard: View {
     private func setDone(_ job: WorkshopJob, _ done: Bool) {
         switch WorkshopLogic.writeTarget(job) {
         case .order(let id, let index):
-            write(job, "setPieceDone", ["orderId": id, "index": index, "done": done])
+            write(job, "setPieceDone", ["orderId": id, "index": index, "done": done], status: done ? .completed : .pending)
         case .invoice(let id, let index):
-            write(job, "setInvoicePieceDone", ["invoiceId": id, "index": index, "done": done])
+            write(job, "setInvoicePieceDone", ["invoiceId": id, "index": index, "done": done], status: done ? .completed : .pending)
         case .stock(let id):
-            write(job, "setStockJobStatus", ["jobId": id, "status": done ? KarigarJobStatus.completed.rawValue : KarigarJobStatus.pending.rawValue])
+            write(job, "setStockJobStatus", ["jobId": id, "status": done ? KarigarJobStatus.completed.rawValue : KarigarJobStatus.pending.rawValue],
+                  status: done ? .completed : .pending)
         case nil:
             return
         }
@@ -603,11 +623,11 @@ struct WorkshopBoard: View {
         }
         switch WorkshopLogic.writeTarget(job) {
         case .order(let id, let index):
-            write(job, "setPieceGiven", ["orderId": id, "index": index, "given": given])
+            write(job, "setPieceGiven", ["orderId": id, "index": index, "given": given], given: given)
         case .invoice(let id, let index):
-            write(job, "setInvoicePieceGiven", ["invoiceId": id, "index": index, "given": given])
+            write(job, "setInvoicePieceGiven", ["invoiceId": id, "index": index, "given": given], given: given)
         case .stock(let id):
-            write(job, "setStockJobGiven", ["jobId": id, "given": given])
+            write(job, "setStockJobGiven", ["jobId": id, "given": given], given: given)
         case nil:
             return
         }
@@ -616,9 +636,9 @@ struct WorkshopBoard: View {
     private func setKarigar(_ job: WorkshopJob, _ karigarId: String) {
         switch WorkshopLogic.writeTarget(job) {
         case .order(let id, let index):
-            write(job, "setPieceKarigar", ["orderId": id, "index": index, "karigarId": karigarId])
+            write(job, "setPieceKarigar", ["orderId": id, "index": index, "karigarId": karigarId], karigarId: karigarId)
         case .invoice(let id, let index):
-            write(job, "setInvoicePieceKarigar", ["invoiceId": id, "index": index, "karigarId": karigarId])
+            write(job, "setInvoicePieceKarigar", ["invoiceId": id, "index": index, "karigarId": karigarId], karigarId: karigarId)
         case .stock, nil:
             // A stock job is written for its karigar; the web offers no reassigning it either.
             return
@@ -627,7 +647,8 @@ struct WorkshopBoard: View {
 
     private func setStatus(_ job: WorkshopJob, _ status: KarigarJobStatus) {
         guard case .stock(let id) = WorkshopLogic.writeTarget(job) else { return }
-        write(job, "setStockJobStatus", ["jobId": id, "status": status.rawValue])
+        write(job, "setStockJobStatus", ["jobId": id, "status": status.rawValue],
+              status: status == .completed ? .completed : (status == .inProgress ? .inProgress : .pending))
     }
 
     /// A stock job as it is on file: its sheet edits its own fields (the board's line merges the instructions). An order's
@@ -714,4 +735,19 @@ private struct FocusedCells: View {
             .padding(.vertical, 2)
         }
     }
+}
+
+/// A piece's state in the three things a tap can change.
+private struct JobSig: Equatable {
+    var status: WorkshopJob.Status
+    var given: Bool
+    var karigarId: String
+    init(_ job: WorkshopJob) { status = job.status; given = job.hasGiven; karigarId = job.karigarId }
+}
+
+/// A piece as the person left it (`to`), good while the shelf's copy still reads `from`.
+private struct JobPatch {
+    let from: JobSig
+    let to: JobSig
+    let toName: String?
 }

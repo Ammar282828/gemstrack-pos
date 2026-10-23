@@ -59,6 +59,8 @@ private struct VoiceSettingsPage: View {
     @State private var ready: Bool?
     @State private var reason: String?
     @State private var busy: String?
+    /// Names just forgotten: gone from the list before the shelf says so.
+    @State private var forgotten: Set<String> = []
     @State private var note: Note?
     @State private var forgetting: SettingsVoiceAlias?
     @State private var confirmingForget = false
@@ -164,7 +166,7 @@ private struct VoiceSettingsPage: View {
             } else if aliases.items.isEmpty {
                 Text("Nothing learned yet.").foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .center)
             } else {
-                ForEach(aliases.items) { (a: SettingsVoiceAlias) in
+                ForEach(aliases.items.filter { !forgotten.contains($0.id) }) { (a: SettingsVoiceAlias) in
                     row(a)
                 }
             }
@@ -207,18 +209,13 @@ private struct VoiceSettingsPage: View {
         confirmingForget = true
     }
 
+    /// Not money: the name leaves the list at once; the Outbox tells the ERP (a 409 there means it was already gone).
     private func forget(_ a: SettingsVoiceAlias) async {
-        guard busy == nil else { return }
-        busy = a.id
-        do {
-            try await ERPAPI.shared.write("forgetVoiceAlias", ["aliasId": a.id])
-            Motion.run(reduce: reduce) { note = Note(title: "Forgotten", detail: "“\(a.heard)” no longer means \(a.refName).") }
-        } catch let f as ERPAPI.Failure where f.status == 409 {
-            // Forgotten on another device a moment ago: the list catches up by itself.
-            Motion.run(reduce: reduce) { note = Note(title: "Forgotten", detail: "“\(a.heard)” no longer means \(a.refName).") }
-        } catch {
-            failure = error.localizedDescription
+        Motion.run(reduce: reduce) {
+            forgotten.insert(a.id)
+            note = Note(title: "Forgotten", detail: "“\(a.heard)” no longer means \(a.refName).")
         }
-        busy = nil
+        SaveTap.play()
+        Outbox.shared.send(op: "forgetVoiceAlias", fields: ["aliasId": a.id], business: House.business, label: "Forget “\(a.heard)”")
     }
 }

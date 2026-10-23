@@ -28,6 +28,8 @@ struct OrdersHub: View {
     @State private var opened: Set<String> = []
     /// Orders with a write in flight.
     @State private var busy: Set<String> = []
+    /// Statuses just chosen, shown before the shelf's copy catches up (order id to status).
+    @State private var localStatus: [String: String] = [:]
     @State private var advancing: Order?
     @State private var cancelling: Order?
     @State private var web: OrdersWebTarget?
@@ -50,7 +52,7 @@ struct OrdersHub: View {
             offline: book.orders.offline
         ) {
             // A new grouping or filter settles in on the enter curve rather than jumping.
-            hub.motion([groupingRaw, statusFilter, month, takenBy, payment, stageSignature])
+            hub.motion([groupingRaw, statusFilter, month, takenBy, payment, stageSignature, localStatus.values.joined()])
         }
         .navigationTitle("Orders")
         .hubTitleDisplay()
@@ -65,6 +67,10 @@ struct OrdersHub: View {
         .noteToast($note)
         .moneyFeedback(success: moneyTick, failure: 0)
         .savedFeedback(trigger: savedTick)
+        .onChange(of: stageSignature) { _, _ in
+            for o in book.orders.items where localStatus[o.id] == o.status.rawValue { localStatus[o.id] = nil }
+        }
+        .onChange(of: Outbox.shared.failure?.id) { _, _ in localStatus = [:] }
         .selectionFeedback(trigger: groupingRaw)
         .onAppear {
             book.orders.need()
@@ -200,7 +206,7 @@ struct OrdersHub: View {
     private func stageSections(_ orders: [Order], _ owedOn: [String: Double]) -> [OrdersSection] {
         var byStage: [OrderStage: [Order]] = [:]
         for o in orders {
-            let st = stageOf(o, owedOnInvoice: OrdersLogic.owed(o, owedOn))
+            let st = localStage(o, owedOn)
             byStage[st, default: []].append(o)
         }
         return STAGE_ORDER.compactMap { (st: OrderStage) -> OrdersSection? in
@@ -270,7 +276,7 @@ struct OrdersHub: View {
     private func card(_ order: Order, owedOn: [String: Double], now: Date, standalone: Bool = false) -> some View {
             OrderCardRows(
                 order: order,
-                stage: stageOf(order, owedOnInvoice: OrdersLogic.owed(order, owedOn)),
+                stage: localStage(order, owedOn),
                 owed: OrdersLogic.owed(order, owedOn),
                 now: now,
                 isOwner: session.isOwner,
@@ -488,22 +494,29 @@ struct OrdersHub: View {
     }
 
     private func setStatus(_ order: Order, _ status: String) {
-        if busy.contains(order.id) { return }
-        busy.insert(order.id)
-        Task { @MainActor in
-            do {
-                _ = try await ERPAPI.shared.write("setOrderStatus", ["orderId": order.id, "status": status])
-                if status == "Completed" {
-                    Note.show(Note(title: "Marked ready", detail: order.id), in: $note, reduce: reduceMotion)
-                } else if status == "Cancelled" {
-                    Note.show(Note(title: "Order cancelled", detail: order.id), in: $note, reduce: reduceMotion)
-                } else {
-                    Note.show(Note(title: "Now " + status.lowercased(), detail: order.id), in: $note, reduce: reduceMotion)
-                }
-            } catch {
-                failure = error.localizedDescription
-            }
-            busy.remove(order.id)
+        Motion.run(Motion.enter, reduce: reduceMotion) { localStatus[order.id] = status }
+        savedTick += 1
+        if status == "Completed" {
+            Note.show(Note(title: "Marked ready", detail: order.id), in: $note, reduce: reduceMotion)
+        } else if status == "Cancelled" {
+            Note.show(Note(title: "Order cancelled", detail: order.id), in: $note, reduce: reduceMotion)
+        } else {
+            Note.show(Note(title: "Now " + status.lowercased(), detail: order.id), in: $note, reduce: reduceMotion)
+        }
+        Outbox.shared.send(op: "setOrderStatus", fields: ["orderId": order.id, "status": status],
+                           business: House.business, label: "\(order.id) status")
+    }
+
+    /// The stage with the status just chosen (an invoiced or awaiting-transfer order keeps its own).
+    private func localStage(_ order: Order, _ owedOn: [String: Double]) -> OrderStage {
+        let base = stageOf(order, owedOnInvoice: OrdersLogic.owed(order, owedOn))
+        guard let s = localStatus[order.id], base != .transfer, !OrdersLogic.hasInvoice(order) else { return base }
+        switch s {
+        case "Cancelled", "Refunded": return .closed
+        case "Completed": return .ready
+        case "In Progress": return .karigar
+        case "Pending": return .new
+        default: return base
         }
     }
 

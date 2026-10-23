@@ -4,7 +4,7 @@ import ERPCore
 /// Saving from the settings screens: one call to the ERP (`updateSettings`), which keeps only the
 /// fields the phone may change. A switch or a choice shows the new value at once and keeps it until
 /// the book answers with the change (`settled`), so it never snaps back for the moment the round trip
-/// takes; a refusal puts it back and says why.
+/// takes; a refusal puts it back and says why. Switches and choices go through the Outbox (they return at once).
 @MainActor
 @Observable
 final class SettingsWriter {
@@ -28,24 +28,37 @@ final class SettingsWriter {
         }
     }
 
-    func isOn(_ key: String, _ stored: Bool) -> Bool { on[key] ?? stored }
+    /// Not money: queued in the Outbox and gone from the screen at once (a failure is said app-wide with Retry).
+    /// `seq` makes each save its own, as `save` does.
+    func queue(_ patch: [String: Any], label: String) {
+        error = nil
+        Outbox.shared.send(op: "updateSettings", fields: ["patch": patch, "seq": UUID().uuidString],
+                           business: business, label: label)
+    }
+
+    private func label(_ key: String) -> String { "Setting " + key }
+
+    /// A failed change is not shown any more: the stored value is true again.
+    private func failed(_ key: String) -> Bool { Outbox.shared.status(of: label(key)) == .failed }
+
+    func isOn(_ key: String, _ stored: Bool) -> Bool {
+        if failed(key) { return stored }
+        return on[key] ?? stored
+    }
 
     func set(_ key: String, _ value: Bool) {
         on[key] = value
-        Task {
-            let ok = await save([key: value])
-            if !ok { on[key] = nil }
-        }
+        queue([key: value], label: label(key))
     }
 
-    func pick(_ key: String, _ stored: String) -> String { chosen[key] ?? stored }
+    func pick(_ key: String, _ stored: String) -> String {
+        if failed(key) { return stored }
+        return chosen[key] ?? stored
+    }
 
     func choose(_ key: String, _ value: String) {
         chosen[key] = value
-        Task {
-            let ok = await save([key: value])
-            if !ok { chosen[key] = nil }
-        }
+        queue([key: value], label: label(key))
     }
 
     /// The book has answered: what it holds is true again.

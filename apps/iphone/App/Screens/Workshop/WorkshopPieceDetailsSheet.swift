@@ -200,16 +200,11 @@ struct WorkshopPieceDetailsSheet: View {
             fields = ["invoiceId": id, "itemIndex": index]
         }
         fields["patch"] = patch
-        saving = true
         error = nil
-        do {
-            try await ERPAPI.shared.write(op, fields)
-            onSaved(Note(title: "Details updated", detail: ask.job.description))
-            savedTick += 1
-            dismiss()
-        } catch {
-            self.error = error.localizedDescription
-        }
-        saving = false
+        Outbox.shared.send(op: op, fields: fields, business: House.business, label: "Details of \(ask.job.description)")
+        onSaved(Note(title: "Details updated", detail: ask.job.description))
+        savedTick += 1
+        SaveTap.play()
+        dismiss()
     }
 }

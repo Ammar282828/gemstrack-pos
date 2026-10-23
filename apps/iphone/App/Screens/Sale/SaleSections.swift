@@ -631,12 +631,7 @@ extension SaleForm {
     /// is priced from the rates in hand), as the web does. It is not waited for: if it does not go, the
     /// sale is still saved and a line says so.
     func keepRates(_ rates: [String: Double], business: Business) async {
-        do {
-            try await ERPAPI.shared.write("setRates", ["rates": rates], business: business)
-        } catch {
-            Note.show(Note(title: "The sale is saved", detail: "The rate you typed was not kept for next time: set it from the rate chip.", failed: true),
-                      in: $ratesNote, reduce: reduceMotion)
-        }
+        Outbox.shared.send(op: "setRates", fields: ["rates": rates], business: business, label: "Rates")
     }
 
     // MARK: Save

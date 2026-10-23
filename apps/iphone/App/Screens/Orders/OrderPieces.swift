@@ -20,8 +20,12 @@ struct OrderPieceRow: View {
     let onTick: (Bool) -> Void
     /// Who makes it, picked here (owners, until the order is invoiced); nil shows the karigar only.
     var assign: OrderPieceAssign? = nil
+    /// What the person just did, shown before the shelf's copy catches up (nil: the shelf's value).
+    var doneOverride: Bool? = nil
+    var karigarOverride: String? = nil
 
     @State private var priceOpen = false
+    private var done: Bool { doneOverride ?? item.isCompleted }
     /// The sample photo kept in its own document, once read (OrderPiecePhoto.stored).
     @State private var storedPhoto: String?
 
@@ -38,7 +42,7 @@ struct OrderPieceRow: View {
                 price
             }
             // A finished piece sits quieter than one still to make.
-            .opacity(item.isCompleted ? 0.7 : 1)
+            .opacity(done ? 0.7 : 1)
             Spacer(minLength: 0)
             tick
         }
@@ -58,7 +62,7 @@ struct OrderPieceRow: View {
             }
             Text(item.description.isEmpty ? "Piece \(index + 1)" : item.description)
                 .font(.headline)
-                .foregroundStyle(item.isCompleted ? Color.secondary : Color.primary)
+                .foregroundStyle(done ? Color.secondary : Color.primary)
         }
         .accessibilityElement(children: .combine)
     }
@@ -111,7 +115,7 @@ struct OrderPieceRow: View {
     private var karigarLine: some View {
         if let assign {
             Menu {
-                Picker("Karigar", selection: Binding(get: { item.karigarId ?? "none" }, set: { assign.pick($0) })) {
+                Picker("Karigar", selection: Binding(get: { karigarOverride ?? item.karigarId ?? "none" }, set: { assign.pick($0) })) {
                     Text("Unassigned").tag("none")
                     ForEach(assign.karigars) { k in Text(k.name).tag(k.id) }
                 }
@@ -120,7 +124,7 @@ struct OrderPieceRow: View {
             }
             .disabled(assign.busy)
             .accessibilityHint("Picks the karigar for this piece")
-        } else if karigar != nil || !item.isCompleted {
+        } else if karigar != nil || !done {
             karigarWords
         }
     }
@@ -128,13 +132,13 @@ struct OrderPieceRow: View {
     private var karigarWords: some View {
         HStack(spacing: 6) {
             Image(systemName: "hammer")
-                .foregroundStyle(karigar == nil && !item.isCompleted ? Tone.owed.color : Color.secondary)
+                .foregroundStyle(karigar == nil && !done ? Tone.owed.color : Color.secondary)
             if let karigar {
                 Text(karigar).fontWeight(.medium)
                 Text("· " + givenWords)
-                    .foregroundStyle(item.givenAt == nil && !item.isCompleted ? Tone.owed.color : Color.secondary)
+                    .foregroundStyle(item.givenAt == nil && !done ? Tone.owed.color : Color.secondary)
             } else {
-                Text("Not given out").foregroundStyle(item.isCompleted ? Color.secondary : Tone.owed.color)
+                Text("Not given out").foregroundStyle(done ? Color.secondary : Tone.owed.color)
             }
             if assign != nil {
                 Image(systemName: "chevron.up.chevron.down")
@@ -246,19 +250,19 @@ struct OrderPieceRow: View {
                 .frame(width: 44, height: 44)
         } else if canTick {
             Button {
-                onTick(!item.isCompleted)
+                onTick(!done)
             } label: {
-                Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
+                Image(systemName: done ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
-                    .foregroundStyle(item.isCompleted ? Tone.settled.color : Color.secondary)
+                    .foregroundStyle(done ? Tone.settled.color : Color.secondary)
                     .contentTransition(.symbolEffect(.replace))
-                    .motion(item.isCompleted)
+                    .motion(done)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel(item.isCompleted ? "Done. Tap to mark not done." : "Mark as complete")
-        } else if item.isCompleted {
+            .accessibilityLabel(done ? "Done. Tap to mark not done." : "Mark as complete")
+        } else if done {
             Image(systemName: "checkmark.circle.fill")
                 .font(.title2)
                 .foregroundStyle(Tone.settled.color)

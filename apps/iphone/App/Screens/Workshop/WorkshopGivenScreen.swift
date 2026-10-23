@@ -20,6 +20,8 @@ struct WorkshopGivenScreen: View {
     @State private var returnedTick = 0
     /// Items with a write in flight.
     @State private var busy: Set<String> = []
+    /// Items just marked back: shown as back before the shelf says so.
+    @State private var returnedNow: Set<String> = []
     @State private var failure: String?
     @State private var opened: WorkshopPlace?
 
@@ -61,6 +63,7 @@ struct WorkshopGivenScreen: View {
         }
         .noteToast($note)
         .savedFeedback(trigger: returnedTick)
+        .onChange(of: Outbox.shared.failure?.id) { _, _ in returnedNow = [] }
         .sensoryFeedback(.warning, trigger: deletion != nil) { _, now in now }
         .workshopPlaceDestination($opened)
         .workshopFailureAlert($failure)
@@ -102,11 +105,13 @@ struct WorkshopGivenScreen: View {
         }
     }
 
+    private func isOut(_ g: GivenItem) -> Bool { g.status == .out && !returnedNow.contains(g.id) }
+
     private func matches(_ g: GivenItem) -> Bool {
         switch filter {
         case .all: break
-        case .out: if g.status != .out { return false }
-        case .returned: if g.status != .returned { return false }
+        case .out: if !isOut(g) { return false }
+        case .returned: if isOut(g) { return false }
         }
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if q.isEmpty { return true }
@@ -117,7 +122,7 @@ struct WorkshopGivenScreen: View {
 
     /// The chips carry the one count that asks for a hand (what is still out); no tiles repeat it.
     private func filterSection(_ all: [GivenItem]) -> some View {
-        let out = all.filter { $0.status == .out }.count
+        let out = all.filter { isOut($0) }.count
         return Section {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -164,7 +169,7 @@ struct WorkshopGivenScreen: View {
         // No swipe actions: the cards share one list row (WorkshopCards' grid), so a swipe would act on whichever
         // card the row picked. The … menu and the long press carry the same actions, on the right piece.
         .contextMenu { itemMenu(item) }
-        .motion(item.status)
+        .motion(isOut(item))
     }
 
     @ViewBuilder
@@ -190,7 +195,7 @@ struct WorkshopGivenScreen: View {
     }
 
     private func canReturn(_ item: GivenItem) -> Bool {
-        session.isOwner && item.status == .out
+        session.isOwner && isOut(item)
     }
 
     /// "3 Oct 2026 · Ustad Demo · by Ammar".
@@ -221,7 +226,7 @@ struct WorkshopGivenScreen: View {
 
     @ViewBuilder
     private func statusBadge(_ item: GivenItem) -> some View {
-        if item.status == .out {
+        if isOut(item) {
             // Out is the expected state: a badge only once it has been out a week; before that a quiet word.
             let days = daysOut(item)
             if days >= 7 {
@@ -245,17 +250,13 @@ struct WorkshopGivenScreen: View {
     private func gotBack(_ item: GivenItem) -> some View {
         HStack {
             Spacer()
-            if busy.contains(item.id) {
-                ProgressView().frame(minHeight: 44).accessibilityLabel("Marking as back")
-            } else {
-                Button { markReturned(item) } label: {
-                    Label("Got back", systemImage: "checkmark.circle")
-                        .font(.subheadline)
-                        .frame(minHeight: 44)
-                }
-                .buttonStyle(.bordered)
-                .tint(Tone.settled.color)
+            Button { markReturned(item) } label: {
+                Label("Got back", systemImage: "checkmark.circle")
+                    .font(.subheadline)
+                    .frame(minHeight: 44)
             }
+            .buttonStyle(.bordered)
+            .tint(Tone.settled.color)
         }
     }
 
@@ -299,18 +300,13 @@ struct WorkshopGivenScreen: View {
         }
     }
 
+    /// Not money: marked at once (the row leaves "out" with the shelf's next copy) and the Outbox carries it.
     private func markReturned(_ item: GivenItem) {
-        if busy.contains(item.id) { return }
-        busy.insert(item.id)
-        Task { @MainActor in
-            do {
-                _ = try await ERPAPI.shared.write("markGivenReturned", ["id": item.id, "returnedDate": ERPDate.iso(Date())])
-                returnedTick += 1
-            } catch {
-                failure = error.localizedDescription
-            }
-            busy.remove(item.id)
-        }
+        if returnedNow.contains(item.id) { return }
+        Motion.run(Motion.enter, reduce: reduceMotion) { returnedNow.insert(item.id) }
+        returnedTick += 1
+        Outbox.shared.send(op: "markGivenReturned", fields: ["id": item.id, "returnedDate": ERPDate.iso(Date())],
+                           business: House.business, label: "Returned: \(item.description)")
     }
 }
 
@@ -559,24 +555,15 @@ struct WorkshopGivenSheet: View {
             fields["givenBy"] = by
         }
         let sent = fields
-        let editing = item
-        saving = true
-        error = nil
-        Task { @MainActor in
-            do {
-                if let editing {
-                    _ = try await ERPAPI.shared.write("updateGivenItem", ["id": editing.id, "item": sent])
-                    onSaved()
-                } else {
-                    _ = try await ERPAPI.shared.write("addGivenItem", sent)
-                    // The edit says "Updated" in a toast (which taps); only an add needs its own tap.
-                    savedTick += 1
-                }
-                dismiss()
-            } catch {
-                self.error = error.localizedDescription
-            }
-            saving = false
+        if let editing = item {
+            Outbox.shared.send(op: "updateGivenItem", fields: ["id": editing.id, "item": sent],
+                               business: House.business, label: "Given item: \(what)")
+            onSaved()
+        } else {
+            Outbox.shared.send(op: "addGivenItem", fields: sent, business: House.business, label: "Given item: \(what)")
+            // The edit says "Updated" in a toast (which taps); only an add needs its own tap.
+            savedTick += 1
         }
+        dismiss()
     }
 }

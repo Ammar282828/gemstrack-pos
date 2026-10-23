@@ -359,19 +359,15 @@ private struct WebsiteSellingForm: View {
     }
 
     private func save() async {
-        guard dirty, !saving else { return }
-        saving = true
-        defer { saving = false }
+        guard dirty else { return }
         let sending = draft
-        do {
-            // `seq` makes each save its own: the same form saved twice within half a minute is two saves (ERPAPI).
-            try await ERPAPI.shared.write("saveWebsiteConfig", ["config": sending.json, "seq": UUID().uuidString])
-            base = sending
-            Note.show(Note(title: "Website settings saved",
-                           detail: sending.enabled ? "The site shows prices at the next rate refresh." : "Selling is switched off; the site shows no prices."),
-                      in: $note, reduce: reduceMotion)
-        } catch {
-            failure = error.localizedDescription
-        }
+        // `seq` makes each save its own: the same form saved twice within half a minute is two saves (ERPAPI).
+        Outbox.shared.send(op: "saveWebsiteConfig", fields: ["config": sending.json, "seq": UUID().uuidString],
+                           business: House.business, label: "Website settings")
+        base = sending
+        SaveTap.play()
+        Note.show(Note(title: "Website settings saved",
+                       detail: sending.enabled ? "The site shows prices at the next rate refresh." : "Selling is switched off; the site shows no prices."),
+                  in: $note, reduce: reduceMotion)
     }
 }
