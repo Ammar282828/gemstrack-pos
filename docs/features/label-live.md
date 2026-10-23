@@ -35,3 +35,10 @@ Integrate link carries the variables as **JSON** (`{"SKU_1":"…","SKU_2":"…"}
   and gets exactly what the CSV writes (`labelCsvValues`, shared with `productCsv`): `TRUE`/`FALSE`, weights to three
   places, whole rupees. The design reads what it was built on.
 - The link now always carries JSON (valid RJSON); one-tag designs print as before.
+
+### Many labels: a list, not the batch link (2026-10-23)
+
+Label LIVE 4.3.3 failed on the ERP's `labellive://batch?payload=…` ("Unexpected token … is not valid JSON"): it reads
+the base64 payload without undoing the link's percent-encoding. Several labels now go in **one print link with a
+list of variables** (`variables=[{…},{…}]`, Label LIVE's own form for one design on one printer). `batchUrl` stays
+for reference but nothing prints with it.

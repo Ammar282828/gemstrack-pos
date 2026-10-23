@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { batchUrl, cleanLabelLive, toStoredLabelLive, configFromIntegrate, guessField, parseIntegrateUrl, labelsOf, printUrl, rjsonPairs, tagsOf, variablesFor, type LabelLiveConfig } from './label-live';
+import { batchUrl, cleanLabelLive, labelLiveUrl, toStoredLabelLive, configFromIntegrate, guessField, parseIntegrateUrl, labelsOf, printUrl, rjsonPairs, tagsOf, variablesFor, type LabelLiveConfig } from './label-live';
 
 // The shape Label LIVE's guide shows for its Integrate link.
 const SAMPLE = "labellive://print?design=sample-address-label&variables=NAME:'Jane Doe',ADDRESS:'1 Main St',CITY:Springfield&printer=Preview&window=show&copies=2";
@@ -98,5 +98,19 @@ describe('a design with two tags to a label (minalabel)', () => {
   });
   it('keeps one-tag designs as they were', () => {
     expect(tagsOf({ design: 'x', printer: '', copies: 1, map: { SKU: 'sku', SIZE_2: 'size' }, hideWindow: true }).count).toBe(1);
+  });
+});
+
+describe('many labels in one print link', () => {
+  const config: LabelLiveConfig = { design: 'minalabel', printer: '', copies: 1, map: { SKU_1: 'sku', SKU_2: 'sku' }, hideWindow: true };
+  it('sends a list of labels as the variables, never the batch link Label LIVE misreads', () => {
+    const url = labelLiveUrl(config, [{ sku: 'A' }, { sku: 'B' }, { sku: 'C' }]);
+    expect(url.startsWith('labellive://print?design=minalabel&variables=')).toBe(true);
+    const v = JSON.parse(decodeURIComponent(/variables=([^&]*)/.exec(url)![1]));
+    expect(v).toEqual([{ SKU_1: 'A', SKU_2: 'B' }, { SKU_1: 'C', SKU_2: '' }]);
+  });
+  it('keeps one label as a single object', () => {
+    const v = JSON.parse(decodeURIComponent(/variables=([^&]*)/.exec(labelLiveUrl(config, [{ sku: 'A' }]))![1]));
+    expect(v).toEqual({ SKU_1: 'A', SKU_2: '' });
   });
 });

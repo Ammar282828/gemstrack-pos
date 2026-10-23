@@ -188,7 +188,10 @@ const clean = (v: string) => String(v).replace(/\r?\n/g, ' ').replace(/&/g, 'and
  * never prints; anything else is left as the design has it.
  */
 export function variablesFor(config: LabelLiveConfig, pieces: LabelValues | LabelValues[]): string {
-  const group = Array.isArray(pieces) ? pieces : [pieces];
+  return JSON.stringify(variablesObject(config, Array.isArray(pieces) ? pieces : [pieces]));
+}
+
+function variablesObject(config: LabelLiveConfig, group: LabelValues[]): Record<string, string> {
   const { tagOf } = tagsOf(config);
   const out: Record<string, string> = {};
   for (const [name, field] of Object.entries(config.map)) {
@@ -197,7 +200,7 @@ export function variablesFor(config: LabelLiveConfig, pieces: LabelValues | Labe
     if (!piece) out[name] = '';
     else if (field) out[name] = clean(piece[field as LabelFieldKey] ?? '');
   }
-  return JSON.stringify(out);
+  return out;
 }
 
 const enc = (v: string) => encodeURIComponent(v);
@@ -210,11 +213,17 @@ export function labelsOf<T>(config: LabelLiveConfig, pieces: T[]): T[][] {
   return out;
 }
 
-/** One label → `labellive://print?…`. */
+/**
+ * One label, or several as a list (`variables=[{…},{…}]`, Label LIVE's own way to print many labels of one
+ * design on one printer) → `labellive://print?…`.
+ */
 export function printUrl(config: LabelLiveConfig, pieces: LabelValues | LabelValues[], copies = config.copies): string {
+  const all = Array.isArray(pieces) ? pieces : [pieces];
+  const labels = labelsOf(config, all);
+  const variables = labels.length > 1 ? JSON.stringify(labels.map(l => variablesObject(config, l))) : variablesFor(config, all);
   const q = [
     `design=${enc(config.design)}`,
-    `variables=${enc(variablesFor(config, pieces))}`,
+    `variables=${enc(variables)}`,
     ...(config.printer ? [`printer=${enc(config.printer)}`] : []),
     `copies=${Math.max(1, Math.min(99, Math.round(copies) || 1))}`,
     `window=${config.hideWindow ? 'hide' : 'show'}`,
@@ -232,8 +241,9 @@ function b64(s: string): string {
 }
 
 /**
- * Several pieces → one `labellive://batch?payload=…` (a browser opens only the first of several links a
- * tap starts, so pieces go together). Each job has the design, its variables, printer and copies.
+ * Several pieces → one `labellive://batch?payload=…`. Not used to print: Label LIVE 4.3.3 reads the payload
+ * without undoing the link's percent-encoding, so an encoded "+", "/" or "=" breaks it ("… is not valid JSON",
+ * 2026-10-23). `labelLiveUrl` sends a list of labels in one print link instead. Each job has the design, its variables, printer and copies.
  */
 export function batchUrl(config: LabelLiveConfig, pieces: LabelValues[], copies = config.copies): string {
   const jobs = labelsOf(config, pieces).map(v => ({
@@ -247,9 +257,8 @@ export function batchUrl(config: LabelLiveConfig, pieces: LabelValues[], copies 
   return `labellive://batch?payload=${enc(b64(JSON.stringify(jobs)))}`;
 }
 
-/** The link for one label's pieces, or a batch of labels. */
-export const labelLiveUrl = (config: LabelLiveConfig, pieces: LabelValues[], copies?: number) =>
-  labelsOf(config, pieces).length === 1 ? printUrl(config, pieces, copies) : batchUrl(config, pieces, copies);
+/** The link for any number of pieces: one print link, a list of labels when there are several. */
+export const labelLiveUrl = (config: LabelLiveConfig, pieces: LabelValues[], copies?: number) => printUrl(config, pieces, copies);
 
 /**
  * As the shop's settings keep it: the pairings as a list, because the settings document is written with
