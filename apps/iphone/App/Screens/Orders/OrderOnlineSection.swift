@@ -51,7 +51,7 @@ struct OrderOnlineSection: View {
                     moved(k, t)
                 }
             }
-            .sheet(item: $slip) { (s: WebsiteSlip) in OnlineSlipSheet(orderId: order.id, slip: s) }
+            .sheet(item: $slip) { (s: WebsiteSlip) in OnlineSlipSheet(orderId: order.id, slip: s).presentationSizing(.form) }
         }
     }
 

@@ -144,11 +144,20 @@ struct FigureGrid<Content: View>: View {
     var spacing: CGFloat = 12
     @ViewBuilder let content: () -> Content
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var availableWidth: CGFloat = 0
+
+    /// Two across, up to four where 240 pt each fit; on an iPad's wide window four across as soon as 160 pt each do
+    /// (a dashboard's figures in one row). Accessibility sizes stack in one column.
+    private var columns: Int {
+        if typeSize.isAccessibilitySize { return 1 }
+        if sizeClass.isPadLayout, availableWidth >= 640 { return 4 }
+        return max(2, min(4, Int(availableWidth / 240)))
+    }
 
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing),
-                                 count: typeSize.isAccessibilitySize ? 1 : max(2, min(4, Int(availableWidth / 240)))), spacing: spacing) {
+                                 count: columns), spacing: spacing) {
             content()
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { availableWidth = $0 }

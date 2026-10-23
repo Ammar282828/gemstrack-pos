@@ -84,6 +84,7 @@ struct RepairsForm: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", role: .confirm) { Task { await save() } }
                         .disabled(!canSave)
+                        .keyboardShortcut("s", modifiers: .command)
                 }
             }
             .confirmDestructive(isPresented: $confirmingDiscard,

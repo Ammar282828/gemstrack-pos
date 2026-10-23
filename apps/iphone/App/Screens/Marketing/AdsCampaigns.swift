@@ -30,6 +30,7 @@ struct AdsCampaignsScreen: View {
     @State private var exporting = false
     @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     enum Filter: String, CaseIterable, Identifiable {
         case all = "All", running = "Running", paused = "Paused", problems = "Problems"
@@ -58,7 +59,9 @@ struct AdsCampaignsScreen: View {
             }
         }
         .navigationTitle("Campaigns")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
+        // An iPad's rows and tables sit in a centred column.
+        .readableColumn(1040)
         .searchable(text: $search, prompt: "Search campaigns, ad sets, ads")
         .toolbar {
             if mayRead {
@@ -90,7 +93,7 @@ struct AdsCampaignsScreen: View {
             Text("\(t.name) will start spending its budget.")
         }
         .sheet(item: $budgeting) { (t: AdsBudgetTarget) in
-            AdsBudgetSheet(target: t) { await load() }
+            AdsBudgetSheet(target: t) { await load() }.presentationSizing(.form)
         }
         .failureAlert($failure, title: "Meta didn't take that")
         .noteToast($note)
@@ -370,23 +373,38 @@ struct AdsCampaignsScreen: View {
             }
         }
         return Section {
-            ForEach(ads) { ad in
-                VStack(alignment: .leading, spacing: 12) {
-                    Button { go = Route(path: objectPath("ad", ad.id)) } label: {
-                        VStack(alignment: .leading, spacing: 10) {
-                            StockImage(imageUrl: ad.image, name: ad.name, key: ad.id).aspectRatio(1, contentMode: .fit).clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
-                            Text(ad.name).font(.headline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
-                        }
-                    }.buttonStyle(.plain)
-                    AdsStatusBadge(status: ad.effectiveStatus)
-                    numbers(ad.metrics, goal: nil, before: nil, cur)
-                    issues(ad.issues)
-                    HStack {
-                        detailsButton("ad", ad.id)
-                        Spacer()
-                        runSwitch(Target(level: "ad", id: ad.id, name: ad.name), status: ad.status)
+            if sizeClass.isPadLayout {
+                // The same cards in an adaptive grid: a square picture at 1,000 points wide is not an ad.
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 14, alignment: .top)], spacing: 14) {
+                    ForEach(ads) { ad in
+                        galleryCard(ad, cur).padding(14).background(Theme.card, in: .rect(cornerRadius: Radius.tile, style: .continuous))
                     }
-                }.padding(.vertical, 10)
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
+            } else {
+                ForEach(ads) { ad in
+                    galleryCard(ad, cur).padding(.vertical, 10)
+                }
+            }
+        }
+    }
+
+    private func galleryCard(_ ad: AdItem, _ cur: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button { go = Route(path: objectPath("ad", ad.id)) } label: {
+                VStack(alignment: .leading, spacing: 10) {
+                    StockImage(imageUrl: ad.image, name: ad.name, key: ad.id).aspectRatio(1, contentMode: .fit).clipShape(.rect(cornerRadius: Radius.chip, style: .continuous))
+                    Text(ad.name).font(.headline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
+                }
+            }.buttonStyle(.plain)
+            AdsStatusBadge(status: ad.effectiveStatus)
+            numbers(ad.metrics, goal: nil, before: nil, cur)
+            issues(ad.issues)
+            HStack {
+                detailsButton("ad", ad.id)
+                Spacer()
+                runSwitch(Target(level: "ad", id: ad.id, name: ad.name), status: ad.status)
             }
         }
     }

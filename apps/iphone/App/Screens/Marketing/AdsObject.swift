@@ -36,15 +36,17 @@ struct AdsObjectScreen: View {
             else { SkeletonLoading().frame(maxWidth: .infinity, maxHeight: .infinity) }
         }
         .modifier(HouseGround()).navigationTitle(name.isEmpty ? "Ad details" : name).navigationBarTitleDisplayMode(.inline)
+        .readableColumn(780)
         .task { await load() }
         .sheet(isPresented: $audienceSheet) {
             if let audience {
                 AdsAudienceSheet(title: "Audience and placements", draft: audience, goal: object["optimization_goal"] as? String ?? "CONVERSATIONS", positions: []) { edited in
                     Task { await act("targeting", ["draft": edited.json]) }
                 }
+                .presentationSizing(.form)
             }
         }
-        .sheet(item: $budgeting) { target in AdsBudgetSheet(target: target) { await load() } }
+        .sheet(item: $budgeting) { target in AdsBudgetSheet(target: target) { await load() }.presentationSizing(.form) }
         .confirmationDialog(confirmTitle, isPresented: Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } }), titleVisibility: .visible) {
             if let action = confirming {
                 Button(confirmTitle, role: action == "delete" ? .destructive : nil) {

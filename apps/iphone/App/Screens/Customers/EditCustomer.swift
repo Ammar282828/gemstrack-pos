@@ -160,6 +160,7 @@ private struct EditCustomerForm: View {
                     if saving { ProgressView() } else { Text("Save") }
                 }
                 .disabled(!canSave)
+                .keyboardShortcut("s", modifiers: .command)
             }
         }
     }

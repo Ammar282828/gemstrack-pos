@@ -104,6 +104,7 @@ extension View {
     func invoiceActionCode(_ deletion: Binding<OwnerDeletion?>, done: @escaping () -> Void) -> some View {
         sheet(item: deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) { done() }
+                .presentationSizing(.form)
         }
     }
 }

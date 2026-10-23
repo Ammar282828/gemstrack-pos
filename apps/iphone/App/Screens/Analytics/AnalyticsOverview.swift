@@ -12,23 +12,19 @@ struct AnaOverviewPage: View {
     @State private var monthlyPDF = false
 
     var body: some View {
-        List {
-            Section {
-                bar
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
-            moneySection
+        AnaSplit(bar: bar, head: { (wide: Bool) in
+            if wide { tiles(wide: true) }
+        }, left: { (wide: Bool) in
+            moneySection(wide: wide)
             trendSection
             countsSection
+            expensesSection
+        }, right: { (_: Bool) in
             goldSection
             coinsSection
             cashSection
-            expensesSection
             staffNote
-        }
-        .listStyle(.insetGrouped)
+        })
         .sheet(isPresented: $monthlyPDF) { AnaMonthlyReportSheet() }
         .toolbar {
             // The month's PDF is the ERP's own: any month, drawn by the server, the same document the 1st's WhatsApp report carries.
@@ -44,11 +40,14 @@ struct AnaOverviewPage: View {
 
     // MARK: Money
 
-    private var moneySection: some View {
+    private func moneySection(wide: Bool) -> some View {
         Section {
-            tiles
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
+            // An iPad's wide page shows the tiles across the top of both columns instead.
+            if !wide {
+                tiles(wide: false)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+            }
             DisclosureGroup("Revenue and profit details") {
                 MoneyRow("Invoices", figures.invoiceSales, lac: true)
                 MoneyRow("Orders", figures.orderSales, lac: true)
@@ -58,13 +57,14 @@ struct AnaOverviewPage: View {
         }.houseRows()
     }
 
-    private var tiles: some View {
+    private func tiles(wide: Bool) -> some View {
         let f = figures
         let net = f.totalSales - f.totalExpenses
         let netPct = f.totalSales > 0 ? net / f.totalSales * 100 : 0
         let netDetail = f.totalSales > 0 ? "\(AnaFormat.fixed(netPct, 1))% margin" : "No revenue in period"
         let netTint: Color = net >= 0 ? Tone.settled.color : Tone.owed.color
-        return VStack(spacing: 10) {
+        let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 10)) : AnyLayout(VStackLayout(spacing: 10))
+        return layout {
             FigureRow(alignment: .top, spacing: 10) {
                 FigureTile(label: "Revenue", value: Money.pkrLac(f.totalSales), detail: "Sales in this period", tint: Tone.settled.color)
                 if showCosts {
@@ -351,5 +351,6 @@ private struct AnaMonthlyReportSheet: View {
                 PDFDocumentScreen(path: "/api/reports/monthly?month=" + key(months[selected]), fileName: "monthly-report-" + key(months[selected]) + ".pdf", title: label(months[selected]))
             }
         }.presentationDetents([.medium, .large])
+        .presentationSizing(.form)
     }
 }

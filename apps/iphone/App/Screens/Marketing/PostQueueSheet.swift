@@ -145,6 +145,13 @@ struct PostQueueSheet: View {
         if e.unitKeys.contains("instagram") {
             out.append(Place(id: "instagram", title: "Instagram story", detail: "The story picture", symbol: "camera", units: ["instagram"]))
         }
+        if e.unitKeys.contains("ig-post") {
+            // The WhatsApp photos as one carousel, the first ten (album.ts); its own send, so its own line.
+            let n = Swift.min(e.waPhotos, Album.igCarouselMax)
+            let cut = e.waPhotos > Album.igCarouselMax ? " · the first \(Album.igCarouselMax) of \(e.waPhotos)" : ""
+            out.append(Place(id: "ig-post", title: "Instagram (\(Album.photosLabel(n)))", detail: "One post, the caption once" + cut,
+                             symbol: "square.stack", units: ["ig-post"]))
+        }
         for key in e.whatsapp {
             let units = e.unitKeys.filter { $0.hasPrefix("wa:\(key):") }
             guard !units.isEmpty else { continue }

@@ -27,7 +27,7 @@ struct SettingsRoot: View {
             rates = true
         }
         .sheet(isPresented: $rates) {
-            if session.isOwner { RateSheet() } else { RateReadout() }
+            if session.isOwner { RateSheet().presentationSizing(.form) } else { RateReadout().presentationSizing(.form) }
         }
     }
 

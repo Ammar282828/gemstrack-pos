@@ -20,6 +20,8 @@ struct AdsOverviewScreen: View {
     @State private var go: Route?
     @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var mayRead: Bool { session.role == "owner" || session.role == "marketing" }
 
@@ -36,7 +38,9 @@ struct AdsOverviewScreen: View {
             }
         }
         .navigationTitle("Ads")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
+        // An iPad's tables and rows sit in a centred column, not across the whole window.
+        .readableColumn(1040)
         .toolbar {
             if mayRead {
                 ToolbarItem(placement: .primaryAction) { AdsRangeMenu(key: $rangeKey) }
@@ -174,7 +178,21 @@ struct AdsOverviewScreen: View {
             .compactMap { (s: String?) in s }
             .joined(separator: " · ")
         let reachNote = AdsFormat.change(t.reach, b?.reach) ?? "\(AdsFormat.compact(t.impressions)) views"
+        let across = sizeClass.isPadLayout && !typeSize.isAccessibilitySize
         return Section {
+            if across {
+                // An iPad: every figure in one grid, four across.
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: 4), spacing: 10) {
+                    FigureTile(label: "Spent", value: AdsFormat.money(t.spend, cur), detail: spentNote)
+                    FigureTile(label: "People reached", value: AdsFormat.compact(t.reach), detail: reachNote)
+                    mainTile(t, b, main, cur)
+                    FigureTile(label: "Click-through", value: AdsFormat.pct(t.ctr),
+                               detail: "\(AdsFormat.money(t.cpm, cur)) per 1,000 views")
+                    salesTilePair(t, b, cur)
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
+            } else {
             VStack(spacing: 10) {
                 FigureRow(spacing: 10) {
                     FigureTile(label: "Spent", value: AdsFormat.money(t.spend, cur), detail: spentNote)
@@ -189,6 +207,20 @@ struct AdsOverviewScreen: View {
             }
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             .listRowBackground(Color.clear)
+            }
+        }
+    }
+
+    /// The sales tiles alone, for the iPad's grid (no row around them).
+    @ViewBuilder
+    private func salesTilePair(_ t: AdMetrics, _ b: AdMetrics?, _ cur: String) -> some View {
+        let s = AdsResults.sales(t)
+        if s.purchases > 0 || s.value > 0 {
+            let before = b.map { (m: AdMetrics) in AdsResults.sales(m) }
+            FigureTile(label: "Sales from ads", value: AdsFormat.money(s.value, cur),
+                       detail: AdsFormat.change(s.value, before?.value) ?? "\(AdsFormat.count(s.purchases)) order\(s.purchases == 1 ? "" : "s")")
+            FigureTile(label: "ROAS", value: AdsResults.roasText(s.roas),
+                       detail: s.costPerPurchase.map { (c: Double) in "\(AdsFormat.money(c, cur)) per order" } ?? "Sales for every rupee spent")
         }
     }
 

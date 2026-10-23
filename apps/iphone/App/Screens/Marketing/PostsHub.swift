@@ -8,6 +8,8 @@ import ERPCore
 struct PostsHub: View {
     @Environment(Session.self) private var session
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
     private var store: PostsStore { PostsStore.shared }
     @State private var showAllToday = false
     @State private var go: Route?
@@ -17,6 +19,8 @@ struct PostsHub: View {
     @State private var confirmingAll = false
     @State private var sendingAll = false
     @State private var note: Note?
+    /// The connection checks stay folded until tapped, even when something fails (owner, 2026-10-23).
+    @State private var checksOpen = false
 
     struct Opened: Identifiable { let id: String }
 
@@ -38,12 +42,15 @@ struct PostsHub: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Posts")
-        .navigationBarTitleDisplayMode(.large)
+        .hubTitleDisplay()
+        // An iPad's rows sit in a centred column rather than across the whole window.
+        .readableColumn(860)
         .navigationDestination(item: $go) { (r: Route) in PlaceScreen(path: r.path) }
         .refreshable { await store.load(gold: hasInvestments) }
-        .sheet(item: $opened) { (o: Opened) in PostQueueSheet(id: o.id) }
+        .sheet(item: $opened) { (o: Opened) in PostQueueSheet(id: o.id).presentationSizing(.form) }
         .sheet(isPresented: $spreading) {
             PostQueueSpreadSheet { (n: Note) in Note.show(n, in: $note, reduce: reduceMotion) }
+                .presentationSizing(.form)
         }
         .confirmationDialog(sendAllTitle, isPresented: $confirmingAll, titleVisibility: .visible) {
             Button(store.failingChecks.isEmpty ? "Send" : "Send anyway") { Task { await sendAll() } }
@@ -79,17 +86,21 @@ struct PostsHub: View {
         let failing = store.failingChecks
         if !failing.isEmpty {
             Section {
-                ForEach(failing) { (c: PostCheck) in
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("\(c.group): \(c.label)").font(.body.weight(.medium))
-                            Text(c.fix ?? c.detail).font(.subheadline).foregroundStyle(.secondary)
+                DisclosureGroup(isExpanded: $checksOpen) {
+                    ForEach(failing) { (c: PostCheck) in
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tone.owed.color)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(c.group): \(c.label)").font(.body.weight(.medium))
+                                Text(c.fix ?? c.detail).font(.subheadline).foregroundStyle(.secondary)
+                            }
                         }
                     }
+                } label: {
+                    Label("\(failing.count) \(failing.count == 1 ? "thing needs" : "things need") attention", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Tone.owed.color)
                 }
-            } header: {
-                LedgerHeading(title: "Needs a look")
+                .motion(checksOpen)
             }
         }
     }
@@ -302,7 +313,21 @@ struct PostsHub: View {
         let fresh = store.pieces.filter { (p: PostPiece) in p.newArrival }
         let strip = Array((fresh.isEmpty ? store.pieces : fresh).prefix(12))
         Section {
-            if !strip.isEmpty {
+            if !strip.isEmpty && sizeClass.isPadLayout && !typeSize.isAccessibilitySize {
+                // The same tiles as an adaptive grid: all twelve in sight, none behind a swipe.
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 12, alignment: .top)], spacing: 14) {
+                    ForEach(strip) { (p: PostPiece) in
+                        Button { go = Route(path: MarketingKit.piecePath(p.id)) } label: {
+                            PostPieceTile(piece: p, posted: store.posted[p.id])
+                        }
+                        .buttonStyle(.plain)
+                        .hoverEffect()
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .listRowInsets(EdgeInsets())
+            } else if !strip.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(alignment: .top, spacing: 12) {
                         ForEach(strip) { (p: PostPiece) in

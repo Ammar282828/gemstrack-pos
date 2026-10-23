@@ -53,6 +53,7 @@ struct CustomerMergeSheet: View {
         }
         .sheet(item: $deletion) { (d: OwnerDeletion) in
             OwnerDeleteCodeSheet(deletion: d) {}
+                .presentationSizing(.form)
         }
         .noteToast($note)
         .destructiveFeedback(trigger: deletion != nil)

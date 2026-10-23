@@ -33,6 +33,7 @@ struct WebsiteMenu: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .readableColumn(780)
         .navigationTitle("Website")
         .navigationBarTitleDisplayMode(.large)
     }

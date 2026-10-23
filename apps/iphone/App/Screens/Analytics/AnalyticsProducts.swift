@@ -21,18 +21,12 @@ struct AnaProductsPage: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        List {
-            Section {
-                bar
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
+        AnaSplit(bar: bar, head: { (_: Bool) in EmptyView() }, left: { (_: Bool) in
             topSection
             categorySection
+        }, right: { (_: Bool) in
             allSection
-        }
-        .listStyle(.insetGrouped)
+        })
         .searchable(text: $search, prompt: "Search every piece by name or SKU")
     }
 

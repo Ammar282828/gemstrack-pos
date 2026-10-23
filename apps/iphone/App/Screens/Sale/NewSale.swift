@@ -171,6 +171,7 @@ struct SaleForm: View {
             .transition(.opacity)
           }
           .motion(step, Motion.enter)
+          .formColumn()
         } review: {
             TransactionReview(customer: f.who.name, contact: draft.customerPhone,
                 pieces: draft.lines.enumerated().map { index, line in
@@ -188,6 +189,11 @@ struct SaleForm: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .keyboardDone()
+        // ⌘S saves from any step (save(f) does nothing until the sale can be saved).
+        .background {
+            Button("Save") { Task { await save(f) } }
+                .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
+        }
         .failureAlert($failure, title: "About this sale")
         .toolbar {
             // The AI bill reader (SaleScanScreen), up where New order puts its slip reader.
@@ -219,6 +225,7 @@ struct SaleForm: View {
         }
         .sheet(isPresented: $scanning) {
             SaleScanSheet { code in scanned(code) }
+                .presentationSizing(.page)
         }
         .sheet(isPresented: $rateSheet) { RateSheet() }
         .sheet(isPresented: $addingStock) {
@@ -227,6 +234,7 @@ struct SaleForm: View {
                     .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
                     .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { addingStock = false } } }
             }
+            .presentationSizing(.page)
         }
         .confirmDestructive(isPresented: $confirmingReset, title: "Start over?",
                             message: "This empties the sale on this phone and takes it out of Drafts: the pieces, the customer and everything typed.",

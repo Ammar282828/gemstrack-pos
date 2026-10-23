@@ -21,7 +21,9 @@ struct BusinessBadge: View {
                 // A built-in: the bundled mark (the "t", the MINA wordmark) centred with whitespace, on its own ground so
                 // the whitespace is seamless. Not scaledToFill: nothing touches the edge.
                 Circle().fill(Color(hex: ground) ?? .gray)
-                Image("BadgeMark-\(art)").resizable().scaledToFit()
+                // Clipped to the circle, and drawn as itself: in a toolbar Menu's label an image is otherwise
+                // turned into a template and painted solid, which showed as a square block (owner, 2026-10-23).
+                Image("BadgeMark-\(art)").renderingMode(.original).resizable().scaledToFit().clipShape(Circle())
             } else {
                 Circle().fill(accent)
                 Text(business.initial)
@@ -32,7 +34,7 @@ struct BusinessBadge: View {
                     let card = Color(hex: side.card) ?? accent
                     AsyncImage(url: icon) { phase in
                         if let image = phase.image {
-                            image.resizable().scaledToFit().padding(size * 0.14)
+                            image.renderingMode(.original).resizable().scaledToFit().padding(size * 0.14)
                                 .frame(width: size, height: size).background(card).transition(.opacity)
                         }
                     }

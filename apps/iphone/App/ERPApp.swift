@@ -23,6 +23,7 @@ struct ERPApp: App {
         WindowGroup {
             BusinessHost()
         }
+        .commands { ShellMenu() }
     }
 }
 

@@ -38,9 +38,12 @@ final class PostTrayCard: Identifiable {
     var design: WebsitePhotoEdit?
     /// The name drawn on the design; the piece's own to start with.
     var designName: String
+    /// The photos that go, in order: the lead (this card's own photo), the piece's others, then any added (1 to Album.max).
+    var album: [PostAlbumPhoto]
 
     init(_ piece: PostPiece) {
         self.piece = piece
+        album = PostAlbumPhoto.start(piece)
         designName = piece.name
         weight = piece.weightGrams.map { (g: Double) in WebsiteNumber.grams(g) } ?? ""
         overlay = (piece.weightGrams ?? 0) > 0 && !piece.weightOnPhoto
@@ -69,7 +72,10 @@ final class PostTrayCard: Identifiable {
         } ?? false)
     }
     /// What the confirm says goes: "The photo with 3.84g on it".
-    var going: String { designed ? "Your design of the photo" : stamps ? "The photo with \(grams) on it" : "The photo as it is on the website" }
+    var going: String {
+        let lead = designed ? "Your design of the photo" : stamps ? "The photo with \(grams) on it" : "The photo as it is on the website"
+        return lead + (album.count > 1 ? ", then \(album.count - 1) more (\(Album.photosLabel(album.count)) in all)" : "")
+    }
     /// The weight the website keeps when this goes (taheri.shop's own photographs that have none).
     var newWeight: Double? { weightForSite(source: piece.source, siteGrams: piece.weightGrams, typed: weight) }
     var postOnly: Bool { postOnlyWeight(siteGrams: piece.weightGrams, typed: weight) }
@@ -91,6 +97,8 @@ final class PostTrayModel {
     private(set) var busy: String?
     private(set) var instagram = MarketingValue.null
     private(set) var posting = MarketingValue.null
+    /// "Instagram post" is chosen: the photos also go as one carousel (a device choice, kept for the next sitting).
+    private(set) var instagramPost = false
 
     let engine = NativeArtwork()
     @ObservationIgnored private var photos: [String: Data] = [:]
@@ -99,10 +107,22 @@ final class PostTrayModel {
 
     var audience: PostAudience { store.audience }
     var activeCard: PostTrayCard? { cards.first { (c: PostTrayCard) in c.id == active } ?? cards.first }
-    var canSend: Bool { audience.canSend && !targets.isEmpty && !cards.isEmpty && busy == nil }
+    /// Instagram only while it is connected (the chip is hidden otherwise).
+    var toInstagram: Bool { instagramPost && instagram["connected"].bool }
+    /// WhatsApp places to send to: needs the community, as the web's `audience.community`.
+    var whatsappPlaces: [String] { audience.canSend ? targets : [] }
+    var canSend: Bool { (!whatsappPlaces.isEmpty || toInstagram) && !cards.isEmpty && busy == nil }
+    /// Where a send goes, in words: the WhatsApp places, then Instagram.
+    var placeNames: [String] { whatsappPlaces.map(label) + (toInstagram ? ["Instagram"] : []) }
 
     /// Where a post goes is this phone's choice, kept for the next sitting (the web keeps it on the device too).
     private var targetsKey: String { BizKey("erp.postTargets") }
+    private var instagramKey: String { BizKey("erp.postInstagramPost") }
+
+    func chooseInstagram() {
+        instagramPost.toggle()
+        UserDefaults.standard.set(instagramPost, forKey: instagramKey)
+    }
 
     // MARK: Starting
 
@@ -117,6 +137,7 @@ final class PostTrayModel {
         posting = (try? await config)?["posting"] ?? .null
         instagram = (try? await ig) ?? .null
         chooseTargets()
+        instagramPost = UserDefaults.standard.bool(forKey: instagramKey)
         for c in cards { await refresh(c) }
     }
 
@@ -229,11 +250,84 @@ final class PostTrayModel {
     }
 
     /// The website's photograph, fetched once through the ERP (the site doesn't share it with the app).
-    func photo(_ id: String) async throws -> Data {
-        if let have = photos[id] { return have }
-        let data = try await ERPAPI.shared.data("/api/website/site-pieces/image?id=\(AdsQuery.escape(id))", timeout: 120)
-        photos[id] = data
+    func photo(_ id: String, n: Int? = nil) async throws -> Data {
+        let key = n.map { (k: Int) in "\(id)#\(k)" } ?? id
+        if let have = photos[key] { return have }
+        let more = n.map { (k: Int) in "&photo=\(k)" } ?? ""
+        let data = try await ERPAPI.shared.data("/api/website/site-pieces/image?id=\(AdsQuery.escape(id))" + more, timeout: 120)
+        photos[key] = data
         return data
+    }
+
+    // MARK: A card's photos (piece-photos.tsx)
+
+    /// Every photo, in order, as it goes: the lead as the card makes it (design, weight), the rest as the site or the phone has them.
+    func albumData(_ card: PostTrayCard) async throws -> [Data] {
+        var out: [Data] = []
+        for x in card.album {
+            switch x.kind {
+            case .lead: out.append(try await outgoing(card))
+            case .angle(let n): out.append(try await photo(card.id, n: n))
+            case .site(let id): out.append(try await photo(id))
+            case .device(let data): out.append(data)
+            }
+        }
+        return out
+    }
+
+    /// The first photo: what a one-photo place (the Instagram story) takes.
+    func firstPhoto(_ card: PostTrayCard) async throws -> Data {
+        guard let x = card.album.first else { return try await outgoing(card) }
+        switch x.kind {
+        case .lead: return try await outgoing(card)
+        case .angle(let n): return try await photo(card.id, n: n)
+        case .site(let id): return try await photo(id)
+        case .device(let data): return data
+        }
+    }
+
+    func move(_ card: PostTrayCard, _ id: String, by step: Int) {
+        guard let i = card.album.firstIndex(where: { (x: PostAlbumPhoto) in x.id == id }) else { return }
+        let j = i + step
+        guard j >= 0, j < card.album.count else { return }
+        Motion.run(Motion.travel, reduce: UIAccessibility.isReduceMotionEnabled) { card.album.swapAt(i, j) }
+    }
+
+    /// A drag: the dragged photo goes in front of the one it was dropped on.
+    func reorder(_ card: PostTrayCard, moving id: String, before target: String) {
+        guard id != target, let from = card.album.firstIndex(where: { (x: PostAlbumPhoto) in x.id == id }),
+              card.album.contains(where: { (x: PostAlbumPhoto) in x.id == target }) else { return }
+        Motion.run(Motion.travel, reduce: UIAccessibility.isReduceMotionEnabled) {
+            let moved = card.album.remove(at: from)
+            let to = card.album.firstIndex { (x: PostAlbumPhoto) in x.id == target } ?? card.album.count
+            card.album.insert(moved, at: to)
+        }
+    }
+
+    func remove(_ card: PostTrayCard, _ id: String) {
+        guard card.album.count > 1, let x = card.album.first(where: { (y: PostAlbumPhoto) in y.id == id }), !x.isLead else { return }
+        Motion.run(Motion.travel, reduce: UIAccessibility.isReduceMotionEnabled) { card.album.removeAll { (y: PostAlbumPhoto) in y.id == id } }
+    }
+
+    /// Another website piece's photograph in, or out again; nil, or why it can't go in.
+    func toggleSite(_ card: PostTrayCard, _ p: PostPiece) -> String? {
+        if card.album.contains(where: { (x: PostAlbumPhoto) in x.pieceID == p.id }) {
+            card.album.removeAll { (x: PostAlbumPhoto) in x.pieceID == p.id }
+            return nil
+        }
+        if card.album.count >= Album.max { return "\(Album.max) photos at most" }
+        card.album.append(PostAlbumPhoto(id: "site-" + p.id, kind: .site(p.id), thumb: p.thumb, image: nil, label: p.name))
+        return nil
+    }
+
+    /// Photos from this phone, as JPEGs; nil, or why not all went in.
+    func addDevice(_ card: PostTrayCard, _ jpegs: [Data]) -> String? {
+        var refused = false
+        for data in jpegs {
+            if card.album.count >= Album.max { refused = true; break }
+            card.album.append(PostAlbumPhoto(id: "device-" + UUID().uuidString, kind: .device(data), thumb: nil, image: UIImage(data: data), label: "A photo from this phone"))
+        }
+        return refused ? "\(Album.max) photos at most" : nil
     }
 
     /// The photo that goes out: stamped with the weight while the overlay is on, else the site's own.
@@ -276,7 +370,7 @@ final class PostTrayModel {
 
     /// The piece as a 9:16 story: the photo that would go to WhatsApp, whole, with the name and the weight.
     func story(_ card: PostTrayCard) async throws -> Data {
-        let photo = try await outgoing(card)
+        let photo = try await firstPhoto(card)
         let r = try await engine.run(doc: .null, photos: ["site": photo], fields: [:], options: [
             "action": "siteStory", "photoId": "site", "headline": card.designed ? (card.designName.trimmingCharacters(in: .whitespaces).isEmpty ? card.piece.name : card.designName) : card.piece.name, "collection": card.piece.collection,
             "metal": posting.s("metal"), "weight": card.weightOK ? card.grams : "",
@@ -301,8 +395,11 @@ final class PostTrayModel {
         var partly: [String] = []
         var weighed: [String] = []
         var unweighed: [String] = []
+        var photoCounts: [String: Int] = [:]
+        var igSaid: [String] = []
         var stopped: (name: String, why: String)?
-        let places = targets
+        let places = whatsappPlaces
+        let toIg = toInstagram
         // A card whose caption the engine never wrote (it was still starting) gets it now: nothing goes without one.
         for card in cards where card.caption.isEmpty && !card.edited { await refresh(card) }
         for card in cards {
@@ -310,15 +407,37 @@ final class PostTrayModel {
             card.failed = nil
             defer { card.sending = false }
             do {
-                let photo = try await outgoing(card)
-                let fields: [(String, String)] = [("caption", card.caption), ("sitePiece", card.id), ("targets", places.joined(separator: ","))]
-                let bytes = try await WebsiteForm.send("/api/website/post", fields: fields,
-                                                       files: [.init(field: "file", name: Self.slug(card.piece) + ".jpg", type: "image/jpeg", data: photo)], timeout: 300)
-                let answer = (try? JSONDecoder().decode(MarketingValue.self, from: bytes)) ?? .null
-                let missed = answer["results"].array.filter { (r: MarketingValue) in !r["ok"].bool }
-                if let first = missed.first {
-                    partly.append("\(card.piece.name) didn't go to \(Self.listOf(missed.map { (r: MarketingValue) in label(r.s("key")) })): \(first.s("error"))")
+                let blobs = try await albumData(card)
+                var wentSomewhere = false
+                if !places.isEmpty {
+                    let sent = try await sendWhatsApp(card, blobs, places)
+                    wentSomewhere = !sent.got.isEmpty
+                    // Some places took it and some didn't: it has gone, so it leaves the tray.
+                    let missed = places.filter { (k: String) in sent.got[k] == nil }
+                    if let first = missed.first {
+                        partly.append("\(card.piece.name) didn't go to \(Self.listOf(missed.map(label))): \(sent.failed[first] ?? "Send failed")")
+                    }
+                    let short = places.filter { (k: String) in (sent.got[k] ?? 0) > 0 && (sent.got[k] ?? 0) < blobs.count }
+                    if let first = short.first {
+                        partly.append("\(Self.listOf(short.map(label))) got \(sent.got[first] ?? 0) of \(blobs.count) photos of \(card.piece.name): \(sent.failed[first] ?? "Send failed")")
+                    }
                 }
+                if toIg {
+                    do {
+                        let ig = try await sendInstagram(card, blobs)
+                        wentSomewhere = true
+                        if ig.left > 0 {
+                            partly.append("Instagram took the first \(ig.took) of \(ig.took + ig.left) photos of \(card.piece.name) (its limit).")
+                        } else if ig.took > 1 {
+                            igSaid.append("Instagram: \(Album.photosLabel(ig.took)) as one post.")
+                        }
+                    } catch {
+                        // WhatsApp has it already: said beside it, not fatal. Instagram alone: the batch stops.
+                        if !wentSomewhere { throw error }
+                        partly.append("\(card.piece.name) didn't go to Instagram: \(error.localizedDescription)")
+                    }
+                }
+                photoCounts[card.id] = blobs.count
                 switch await keepWeight(card) {
                 case .some(true): weighed.append(card.piece.name)
                 case .some(false): unweighed.append(card.piece.name)
@@ -343,8 +462,12 @@ final class PostTrayModel {
         } else if !partly.isEmpty {
             out.notes.append(Note(title: "Sent \(n) \(Self.noun(n)), not everywhere", detail: partly.joined(separator: " · "), failed: true))
         } else if n > 0 {
-            out.notes.append(Note(title: "Sent \(n) \(Self.noun(n)) to \(Self.listOf(places.map(label)))",
-                                  detail: n == 1 ? "\(done[0].piece.name), with its link." : "Each with its own caption and link."))
+            let one = photoCounts[done[0].id] ?? 1
+            let together = photoCounts.values.contains { (c: Int) in c > 1 }
+            out.notes.append(Note(title: "Sent \(n) \(Self.noun(n)) to \(Self.listOf(placeNamesSent(places, toIg)))",
+                                  detail: n == 1 ? "\(done[0].piece.name)\(one > 1 ? ": \(Album.photosLabel(one)), one caption" : ""), with its link."
+                                      : "Each with its own caption and link\(together ? ", its photos together" : "")."))
+            if !igSaid.isEmpty { out.notes[out.notes.count - 1].detail += " " + igSaid.joined(separator: " ") }
         }
         if !weighed.isEmpty {
             out.notes.append(Note(title: "Weight saved on \(store.siteName)", detail: "\(Self.listOf(weighed)) now \(weighed.count == 1 ? "shows its" : "show their") weight on the website."))
@@ -355,22 +478,96 @@ final class PostTrayModel {
         return out
     }
 
-    /// Into the queue, to send later or spread over the day: each piece exactly as its card makes it now.
+    private func placeNamesSent(_ places: [String], _ toIg: Bool) -> [String] { places.map(label) + (toIg ? ["Instagram"] : []) }
+
+    /// One piece's photos to the chosen WhatsApp places: photo by photo, each to every place still going, the caption
+    /// under the first only (album.ts) — one request a photo. A place that fails a photo gets none of the rest.
+    private func sendWhatsApp(_ card: PostTrayCard, _ blobs: [Data], _ places: [String]) async throws -> (got: [String: Int], failed: [String: String]) {
+        let captions = Album.captions(card.caption, count: blobs.count)
+        let base = Self.slug(card.piece)
+        var failed: [String: String] = [:]
+        var got: [String: Int] = [:]
+        for i in blobs.indices {
+            let live = Album.placesFor(places, failed: Set(failed.keys))
+            if live.isEmpty { break }
+            let fields: [(String, String)] = [("caption", captions[i]), ("sitePiece", card.id), ("targets", live.joined(separator: ","))]
+            let file = WebsiteForm.File(field: "file", name: Album.fileName(base, i), type: "image/jpeg", data: blobs[i])
+            let bytes: Data
+            do {
+                bytes = try await WebsiteForm.send("/api/website/post", fields: fields, files: [file], timeout: 300)
+            } catch {
+                // Nothing took the first photo: nothing went, and the batch stops here. Later: the places left miss the rest.
+                if i == 0 { throw error }
+                for k in live { failed[k] = error.localizedDescription }
+                break
+            }
+            let answer = (try? JSONDecoder().decode(MarketingValue.self, from: bytes)) ?? .null
+            let results = answer["results"].array
+            if results.isEmpty {
+                for k in live { got[k, default: 0] += 1 }
+            }
+            for r in results {
+                let key = r.s("key")
+                if r["ok"].bool {
+                    got[key, default: 0] += 1
+                } else {
+                    let why = r.s("error")
+                    failed[key] = why.isEmpty ? "Send failed" : why
+                }
+            }
+        }
+        return (got, failed)
+    }
+
+    /// One piece's photos as one Instagram post: a carousel of the first ten, the caption once, WhatsApp's markers off.
+    /// How many photos went in the post, and how many were left out.
+    private func sendInstagram(_ card: PostTrayCard, _ blobs: [Data]) async throws -> (took: Int, left: Int) {
+        let plan = Album.carouselPlan(blobs.count)
+        let base = Self.slug(card.piece)
+        var files: [WebsiteForm.File] = []
+        for i in 0..<plan.take {
+            files.append(WebsiteForm.File(field: "file", name: Album.fileName(base, i), type: "image/jpeg", data: Self.feedJpeg(blobs[i])))
+        }
+        let fields: [(String, String)] = [("caption", Album.instagramText(card.caption)), ("fit", "crop"), ("sitePiece", card.id)]
+        let bytes = try await WebsiteForm.send("/api/instagram/post", fields: fields, files: files, timeout: 300)
+        let answer = (try? JSONDecoder().decode(MarketingValue.self, from: bytes)) ?? .null
+        // The answer's own count wins; a one-photo post says neither.
+        let took = answer["photos"] == .null ? plan.take : Int(answer.n("photos"))
+        let left = answer["dropped"] == .null ? plan.dropped : Int(answer.n("dropped"))
+        return (took, left)
+    }
+
+    /// A photo as Instagram's feed takes it: JPEG, at most 1440 px on its long side.
+    private static func feedJpeg(_ data: Data) -> Data {
+        guard let image = UIImage(data: data) else { return data }
+        let side = max(image.size.width, image.size.height)
+        guard side > 1440 else { return data }
+        let scale = 1440 / side
+        let size = CGSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let small = UIGraphicsImageRenderer(size: size, format: format).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+        return small.jpegData(compressionQuality: 0.9) ?? data
+    }
+
+    /// Into the queue, to send later or spread over the day: each piece exactly as its card makes it now, every photo
+    /// of it (up to Album.max), with an Instagram post when it is chosen.
     func queue() async -> Outcome {
         busy = "queue"
         defer { busy = nil }
         var done: [PostTrayCard] = []
         var problem: String?
+        let places = whatsappPlaces
+        let toIg = toInstagram
         for card in cards where card.caption.isEmpty && !card.edited { await refresh(card) }
         for card in cards {
             card.sending = true
             card.failed = nil
             defer { card.sending = false }
             do {
-                let photo = try await outgoing(card)
-                let thumb = UIImage(data: photo).flatMap { (img: UIImage) in AdsPhotoCodec.thumbnail(from: img) }
-                _ = try await DesignSend.queue(headline: card.piece.name, caption: card.caption, fileBase: Self.slug(card.piece), sitePiece: card.id,
-                                               website: nil, whatsapp: targets, count: 1, images: ["wa-0": photo], thumb: thumb, dueAt: nil)
+                let blobs = try await albumData(card)
+                let thumb = blobs.first.flatMap { (d: Data) in UIImage(data: d) }.flatMap { (img: UIImage) in AdsPhotoCodec.thumbnail(from: img) }
+                try await enqueue(card, blobs: blobs, thumb: thumb, places: places, instagramPost: toIg)
                 // Queued is as good as typed in for good: the website keeps the weight now, not when the post goes.
                 _ = await keepWeight(card)
                 done.append(card)
@@ -389,6 +586,31 @@ final class PostTrayModel {
         }
         if let problem { out.notes.append(Note(title: "Could not queue it", detail: problem, failed: true)) }
         return out
+    }
+
+    /// The queue's entry for a piece (DesignSend.queue's steps): the entry, each photo as "wa-<i>", then "ready" (held).
+    /// A failure takes the half-made entry out so the retry starts clean.
+    private func enqueue(_ card: PostTrayCard, blobs: [Data], thumb: Data?, places: [String], instagramPost: Bool) async throws {
+        var qid: String?
+        do {
+            let counts: [String: Any] = ["site": 0, "wa": blobs.count, "story": false]
+            var body: [String: Any] = ["headline": card.piece.name, "caption": card.caption, "fileBase": Self.slug(card.piece), "counts": counts,
+                                       "instagram": false, "whatsapp": places, "website": NSNull(), "sitePiece": card.id]
+            if instagramPost { body["instagramPost"] = true }
+            if let thumb { body["thumb"] = thumb.base64EncodedString() }
+            let made = try await MarketingRequest.send("/api/website/post/queue", body)
+            qid = made["item"].s("id")
+            guard let id = qid, !id.isEmpty else { throw ERPAPI.Failure(status: 0, message: "The queue gave no entry.") }
+            for (i, data) in blobs.enumerated() {
+                let key = "wa-\(i)"
+                _ = try await WebsiteForm.send("/api/website/post/queue/" + id, fields: [("key", key)],
+                                               files: [WebsiteForm.File(field: "file", name: key + ".jpg", type: "image/jpeg", data: data)])
+            }
+            _ = try await MarketingRequest.send("/api/website/post/queue/" + id, ["action": "ready"], method: "PATCH")
+        } catch {
+            if let id = qid, !id.isEmpty { _ = try? await MarketingRequest.send("/api/website/post/queue/" + id, method: "DELETE") }
+            throw error
+        }
     }
 
     /// A weight typed for a piece the website has none for, kept there as Website → Weights keeps it. The post has

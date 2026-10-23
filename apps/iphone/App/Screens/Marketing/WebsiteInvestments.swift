@@ -103,6 +103,7 @@ struct WebsiteInvestmentsScreen: View {
             .houseRows()
         }
         .listStyle(.insetGrouped)
+        .readableColumn(780)
         .refreshable { await gold.load() }
     }
 
