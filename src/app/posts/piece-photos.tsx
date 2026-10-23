@@ -46,6 +46,9 @@ export interface PiecePhotos {
   move: (id: string, by: -1 | 1) => void;
   remove: (id: string) => void;
   addSite: (p: Piece) => void;
+  /** The piece's own other photographs not in the list yet, and adding one (or all of them). */
+  ownLeft: (AlbumPhoto & { kind: 'site' })[];
+  addOwn: (ids: string[]) => void;
   addFiles: (files: File[]) => Promise<void>;
   adding: boolean;
   /** Every photo, in order, as it goes. */
@@ -58,12 +61,10 @@ export interface PiecePhotos {
 
 export function usePiecePhotos(main: () => Promise<Blob>, sitePhoto: (id: string, n?: number) => Promise<Blob>, piece?: Pick<Piece, 'id' | 'name' | 'photos'>): PiecePhotos {
   const { toast } = useToast();
-  // The piece's own other photographs (its back, another angle) come with it, in the site's order (the owner,
-  // 2026-10-23: "automatically knowing from back of the pieces … or if a piece has multiples"); any can be taken out.
-  const [list, setList] = useState<AlbumPhoto[]>(() => [
-    { id: 'main', kind: 'main' },
-    ...(piece?.photos ?? []).slice(0, ALBUM_MAX - 1).map((x, i): AlbumPhoto => ({ id: `a${i + 2}`, kind: 'site', pieceId: piece!.id, photo: i + 2, thumb: x.thumb, label: `${piece!.name}, photo ${i + 2}` })),
-  ]);
+  // The hero photo alone by default (the owner, 2026-10-23: "the default in sending posts to WhatsApp should be just the
+  // hero photo"); the piece's own other photographs (its back, another angle) are offered on the strip, one tap each.
+  const [list, setList] = useState<AlbumPhoto[]>([{ id: 'main', kind: 'main' }]);
+  const own = (piece?.photos ?? []).map((x, i): AlbumPhoto & { kind: 'site' } => ({ id: `a${i + 2}`, kind: 'site', pieceId: piece!.id, photo: i + 2, thumb: x.thumb, label: `${piece!.name}, photo ${i + 2}` }));
   const [adding, setAdding] = useState(false);
   const seq = useRef(0);
   const urls = useRef(new Set<string>());
@@ -114,6 +115,11 @@ export function usePiecePhotos(main: () => Promise<Blob>, sitePhoto: (id: string
   const blobOf = (x: AlbumPhoto): Promise<Blob> => (x.kind === 'main' ? main() : x.kind === 'site' ? sitePhoto(x.pieceId, x.photo).then(b => jpegOf(b)) : Promise.resolve(x.blob));
   return {
     list, count: list.length, move, remove, addSite, addFiles, adding,
+    ownLeft: own.filter(o => !list.some(x => x.id === o.id)),
+    addOwn: (ids: string[]) => setList(l => {
+      const more = own.filter(o => ids.includes(o.id) && !l.some(x => x.id === o.id)).slice(0, Math.max(0, ALBUM_MAX - l.length));
+      return [...l, ...more];
+    }),
     blobs: async () => { const out: Blob[] = []; for (const x of list) out.push(await blobOf(x)); return out; },
     first: () => blobOf(list[0]),
     firstPreview: () => (list[0].kind === 'site' ? list[0].thumb : list[0].kind === 'device' ? list[0].url : null),
@@ -172,6 +178,21 @@ export function PiecePhotosStrip({ photos, piece, pieces, mainThumb, siteName, i
             onChange={e => { const fs = Array.from(e.target.files ?? []); e.target.value = ''; photos.addFiles(fs); }} />
         </div>
       </div>
+      {photos.ownLeft.length > 0 && !locked && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+          <span className="shrink-0 text-[11px] text-muted-foreground">More of this piece:</span>
+          {photos.ownLeft.map(x => (
+            <button key={x.id} type="button" onClick={() => photos.addOwn([x.id])} title={`Add ${x.label}`} aria-label={`Add ${x.label}`}
+              className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md border opacity-80 hover:opacity-100 hover:border-primary/60">
+              <img src={x.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+              <span className="absolute inset-0 flex items-center justify-center bg-black/25 text-sm font-semibold text-white">+</span>
+            </button>
+          ))}
+          {photos.ownLeft.length > 1 && (
+            <button type="button" onClick={() => photos.addOwn(photos.ownLeft.map(x => x.id))} className="shrink-0 rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground">Add all {photos.ownLeft.length}</button>
+          )}
+        </div>
+      )}
       <div className="flex gap-1.5 overflow-x-auto pb-0.5">
         {photos.list.map((x, i) => (
           <div key={x.id} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border bg-muted">

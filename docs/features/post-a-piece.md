@@ -170,7 +170,8 @@ this device's), reordered or removed on the card. WhatsApp gets them back to bac
 no album call; the phone groups them); a place that misses one gets none of the rest. The "Instagram post" chip sends them as one
 carousel of the first 10 (`publishCarousel`, `lib/social/album.ts`). The queue keeps every photo, with an optional `instagramPost`
 using the same photos. One photo works exactly as before.
-A card **starts with the piece's own other photographs** (the owner, the same day: "automatically knowing from back of the pieces
+A card **offers the piece's own other photographs** (it sends the hero photo alone by default — the owner, the same day:
+"the default in sending posts to WhatsApp should be just the hero photo"; a tap adds one, "Add all" the rest) (the owner, the same day: "automatically knowing from back of the pieces
 … or if a piece has multiples"): taheri.shop's angles marked at the counter (`angleOf`, laid on the lead by `withAngles`; an angle
 is no longer offered as a piece of its own) and the catalogue's extra images (`catalog-pieces.json` `images`), fetched through
 `/api/website/site-pieces/image?photo=n`. Any can be taken out or moved.
