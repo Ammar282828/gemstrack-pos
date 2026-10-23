@@ -14,7 +14,7 @@ import { Loader2, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_LINKS } from '@/lib/store-config';
 import { Tile } from '@/app/insights/insights-kit';
-import { Card, countryName, DEVICE, duration, flag, pageLabel, pct, placeRows, Ranked, sourceLabel } from '../site-kit';
+import { Card, cityRows, countryName, DEVICE, duration, flag, pageLabel, pct, Ranked, sourceLabel, SwitchCard } from '../site-kit';
 
 interface Live {
   at: number; visitors: number; newVisitors: number;
@@ -85,7 +85,10 @@ export default function LivePage() {
           {live.visitors > 0 && (
             <>
               <div className="grid gap-2.5 md:grid-cols-2">
-                <Card title="Where they are"><Ranked rows={placeRows(live.countries, cities)} total={live.visitors} /></Card>
+                <SwitchCard title="Where they are" views={[
+                  { key: 'city', label: 'Cities', node: <Ranked rows={cityRows(live.countries, cities)} total={live.visitors} /> },
+                  { key: 'country', label: 'Countries', node: <Ranked rows={live.countries.map(c => ({ key: c.key, value: c.value, label: <>{flag(c.key)} {countryName(c.key)}</> }))} total={live.visitors} /> },
+                ]} />
                 <Card title="What they're looking at"><Ranked rows={live.pages.map(p => ({ key: p.key, value: p.value, label: pageLabel(p.key), href: site ? site + p.key : undefined }))} total={live.visitors} /></Card>
                 <Card title="How they came"><Ranked rows={live.sources.map(s => ({ ...s, label: sourceLabel(s.key) }))} total={live.visitors} /></Card>
                 <Card title="On"><Ranked rows={live.devices.map(d => ({ ...d, label: DEVICE[d.key] ?? d.key }))} total={live.visitors} /></Card>

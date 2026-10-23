@@ -35,6 +35,32 @@ export function duration(ms: number): string {
 /** A page's address as people read it: "/rings-bands/band-147" → "rings-bands › band-147"; the front page by name. */
 export const pageLabel = (p: string) => (p === '/' ? 'Front page' : p.replace(/^\//, '').split('/').join(' › '));
 
+/**
+ * A card that shows one of a few views of the same numbers, picked by small chips beside its title (the owner, 2026-10-23:
+ * "sub categories are hard to access in iPhones, like I need to scroll down then tap the arrow"): the detailed list
+ * first (cities, sources), the summary a tap away (countries, kinds of source) — no rows to open.
+ */
+export function SwitchCard({ title, note, views }: { title: React.ReactNode; note?: React.ReactNode; views: { key: string; label: string; node: React.ReactNode }[] }) {
+  const [on, setOn] = useState(views[0]?.key);
+  const shown = views.find(v => v.key === on) ?? views[0];
+  return (
+    <section className="rounded-[22px] bg-card p-4 space-y-2.5 min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold">{title}{note && <span className="font-normal text-muted-foreground text-xs"> — {note}</span>}</h2>
+        {views.length > 1 && (
+          <div className="flex rounded-full bg-muted p-0.5" role="tablist">
+            {views.map(v => (
+              <button key={v.key} type="button" role="tab" aria-selected={v.key === shown?.key} onClick={() => setOn(v.key)}
+                className={cn('rounded-full px-3 py-1 text-xs min-h-0', v.key === shown?.key ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground')}>{v.label}</button>
+            ))}
+          </div>
+        )}
+      </div>
+      {shown?.node}
+    </section>
+  );
+}
+
 export function Card({ title, note, children, className }: { title: React.ReactNode; note?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
     <section className={cn('rounded-[22px] bg-card p-4 space-y-2.5 min-w-0', className)}>
@@ -82,10 +108,15 @@ export function Ranked({ rows, total, empty = 'Nothing yet.', show = 8, unit }: 
   );
 }
 
-/** Places as a ranked list: countries, each opening into its cities when the site knows them. */
-export function placeRows(countries: { key: string; value: number }[], cities: { cc: string; region: string; city: string; sessions: number }[]): RankRow[] {
-  return countries.map(c => ({
-    key: c.key, value: c.value, label: <>{flag(c.key)} {countryName(c.key)}</>,
-    children: cities.filter(x => x.cc === c.key).map(x => ({ key: `${x.region}|${x.city}`, value: x.sessions, label: x.city, sub: x.region || undefined })),
-  }));
+/**
+ * Places as one flat list, city by city (flag, city, then its region and country), with a country's visits the address
+ * table can't place in a city as one row for the country — so every visit is counted once.
+ */
+export function cityRows(countries: { key: string; value: number }[], cities: { cc: string; region: string; city: string; sessions: number }[]): RankRow[] {
+  const rows: RankRow[] = cities.map(x => ({ key: `${x.cc}|${x.region}|${x.city}`, value: x.sessions, label: <>{flag(x.cc)} {x.city}</>, sub: [x.region, countryName(x.cc)].filter(Boolean).join(', ') }));
+  for (const c of countries) {
+    const placed = cities.filter(x => x.cc === c.key).reduce((a, x) => a + x.sessions, 0);
+    if (c.value > placed) rows.push({ key: `${c.key}|rest`, value: c.value - placed, label: <>{flag(c.key)} {countryName(c.key)}</>, sub: placed ? 'other cities' : undefined });
+  }
+  return rows.sort((a, b) => b.value - a.value);
 }
