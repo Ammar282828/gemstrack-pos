@@ -126,8 +126,10 @@ class WidgetPlanTests {
     }
 
     @Test fun `a long figure is shrunk to its room, never below half, and a short one keeps its size`() {
+        // The large face's hero shares its row with the wordmark and the bars: it fits half the width (it was clipped to "3.12 …" with the whole).
         val roomy = WidgetLayout.face(WidgetSummary.sample(), "T", FaceKind.Large, now, widthDp = 340f)!!
-        assertEquals(40f, roomy.heroSp)
+        assertTrue(roomy.heroSp < 40f && roomy.heroSp >= 20f)
+        assertEquals(40f, WidgetLayout.face(WidgetSummary.sample(), "T", FaceKind.Large, now, widthDp = 600f)!!.heroSp)
         val narrow = WidgetLayout.face(WidgetSummary.sample(), "T", FaceKind.Small, now, widthDp = 110f)!!
         assertTrue(narrow.heroSp < 30f && narrow.heroSp >= 15f)
         val huge = WidgetSummary("T", "1:00 pm", listOf(WidgetFigure("Made today", "Rs 12,345.67 crore", null)))

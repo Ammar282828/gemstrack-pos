@@ -291,11 +291,13 @@ object WidgetFit {
     const val PAD = 32f
     private const val GAP = 14f
 
-    /** The room the hero number has: the widget's width less its padding, or half of it where the face is a column beside another text. */
+    /**
+     * The room the hero number has: the widget's width less its padding, or half of it where the face is a column beside another text
+     * (the large face's hero shares its row with the wordmark and the week's bars, so it was clipped to "3.12 …" when it had the whole).
+     */
     fun heroRoom(kind: FaceKind, widthDp: Float): Float = when (kind) {
-        FaceKind.Small, FaceKind.SmallHalf, FaceKind.Large -> widthDp - PAD - (if (kind == FaceKind.Large) 40f else 0f)
-        FaceKind.Medium -> (widthDp - PAD - GAP) / 2f - 14f
-        FaceKind.MediumHalf -> (widthDp - PAD - GAP) / 2f - 14f
+        FaceKind.Small, FaceKind.SmallHalf -> widthDp - PAD
+        FaceKind.Medium, FaceKind.MediumHalf, FaceKind.Large -> (widthDp - PAD - GAP) / 2f - 14f
     }
 
     /** [base] sp, shrunk to fit [text] in [roomDp], but never below [minScale] of it. */

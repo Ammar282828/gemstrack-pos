@@ -235,8 +235,9 @@ private fun Delta(f: FacePlan, long: Boolean = true) {
 @Composable
 private fun Stat(s: WidgetStat) {
     Column {
-        Text(s.value, color = if (s.late) lateInk else inkPrimary(), fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-        Text(s.label, color = inkSecondary(), fontSize = 10.sp, maxLines = 1)
+        // An explicit line height: the theme's 24 sp one would give each figure twice the room the widget's own text takes, and clip the third.
+        Text(s.value, color = if (s.late) lateInk else inkPrimary(), fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(s.label, color = inkSecondary(), fontSize = 10.sp, lineHeight = 13.sp, maxLines = 1)
     }
 }
 
