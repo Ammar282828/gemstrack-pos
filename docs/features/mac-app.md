@@ -58,8 +58,11 @@ How a tag reaches Label LIVE (`App/Device/LabelLivePrinter.swift`):
   the "ERP Mac" scheme for TestFlight (internal) and builds the iPhone's "ERP" scheme beside it, so a Mac change that breaks
   the iPhone shows on the same run. Started by a line in `apps/iphone/MAC-RELEASES.md` on a `claude/` branch.
 - **`.github/workflows/mac-status.yml`** runs on the same push: makes sure macOS is on the app record and the workflow exists,
-  waits for Xcode Cloud's run of the pushed commit, and prints every compile error with its file and line (`asc.mjs ci-runs`),
-  then puts a valid Mac build in "Shop" (`builds --fix`, now per platform: a Mac upload never displaces the iPhone's).
+  prints the newest finished run's results and every compile error with its file and line (`asc.mjs ci-runs`), and puts a
+  valid Mac build in "Shop" (`builds --fix`, per platform: a Mac upload never displaces the iPhone's). It never waits for a
+  run (2026-10-24, the Actions allowance ran out and the owner can't pay for more): while one is going, Xcode Cloud's own
+  checks on the commit ("App | Mac release | …") say how it went, free. The "Shop" group has access to all builds, so a
+  Mac build that passes reaches TestFlight even when this job cannot run.
 - `keep-fresh` leaves the Mac workflow alone (it picks the iPhone's release line only).
 
 ## Status
