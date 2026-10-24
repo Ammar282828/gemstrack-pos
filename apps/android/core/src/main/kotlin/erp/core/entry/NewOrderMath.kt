@@ -67,8 +67,8 @@ object NewOrderMath {
 
     /**
      * The rate card this order is priced at: the four gold rates and the two palladium grades as typed, and the flat
-     * palladium, platinum and silver rates from the shop (silver has one all-in rate that the order form has no box
-     * for: order-form.tsx `ratesForOrder`).
+     * palladium and platinum rates from the shop. Silver has one all-in rate (it holds the making and wastage); the
+     * order's own box wins and a blank one is the shop's (order-form.tsx `ratesForOrder`, `silverRate`).
      */
     fun formRates(d: NewOrderDraft, settings: Settings?): PricingRates {
         fun typed(k: RateKey): Double = num(d.rates[k.name] ?: "")
@@ -81,7 +81,7 @@ object NewOrderMath {
             palladiumRatePerGram18k = typed(RateKey.palladiumRatePerGram18k),
             palladiumRatePerGram12k = typed(RateKey.palladiumRatePerGram12k),
             platinumRatePerGram = settings?.platinumRatePerGram ?: 0.0,
-            silverRatePerGram = settings?.silverRatePerGram ?: 0.0,
+            silverRatePerGram = typed(RateKey.silverRatePerGram).takeIf { it > 0 } ?: (settings?.silverRatePerGram ?: 0.0),
         )
     }
 

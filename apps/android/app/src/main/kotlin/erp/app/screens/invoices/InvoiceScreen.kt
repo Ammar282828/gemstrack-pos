@@ -244,6 +244,8 @@ private fun InvoiceDetail(inv: Invoice, customers: List<erp.core.models.Customer
                 HorizontalDivider()
                 MenuHeading("Change")
                 item("Edit", Icons.Filled.Edit, false) { navigator.open(InvoiceFacts.editPath(inv.id)) }
+                // Gold moves: the same edit, at its rates (owners', as Edit invoice is).
+                if (owner) item("Change rate", Icons.Filled.Percent, false) { navigator.open(InvoiceFacts.changeRatePath(inv.id)) }
                 if (inv.status != InvoiceStatus.refunded) {
                     // The store's own Firestore write on the web, which the shop floor cannot make: an owner's.
                     if (owner) item(if (InvoiceFacts.unnamed(inv)) "Name the customer" else "Change customer", Icons.Filled.Person, false) { settingCustomer = true }

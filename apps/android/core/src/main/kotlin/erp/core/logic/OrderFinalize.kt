@@ -53,6 +53,69 @@ fun orderInvoiceRates(ratesApplied: Rates?, settings: Settings): InvoiceRates {
     return InvoiceRates(settings).flatPalladiumOnly
 }
 
+/** A rate a counter can type, by the key the server's `ratesApplied` knows it as (TS `RATE_FIELDS`). */
+enum class RateField(val key: String) {
+    GOLD_24K("goldRatePerGram24k"), GOLD_22K("goldRatePerGram22k"), GOLD_21K("goldRatePerGram21k"), GOLD_18K("goldRatePerGram18k"),
+    PALLADIUM("palladiumRatePerGram"), PALLADIUM_18K("palladiumRatePerGram18k"), PALLADIUM_12K("palladiumRatePerGram12k"),
+    PLATINUM("platinumRatePerGram"), SILVER("silverRatePerGram");
+
+    fun of(r: PricingRates): Double = when (this) {
+        GOLD_24K -> r.goldRatePerGram24k; GOLD_22K -> r.goldRatePerGram22k; GOLD_21K -> r.goldRatePerGram21k
+        GOLD_18K -> r.goldRatePerGram18k; PALLADIUM -> r.palladiumRatePerGram; PALLADIUM_18K -> r.palladiumRatePerGram18k
+        PALLADIUM_12K -> r.palladiumRatePerGram12k; PLATINUM -> r.platinumRatePerGram; SILVER -> r.silverRatePerGram
+    }
+
+    fun put(r: PricingRates, v: Double): PricingRates = when (this) {
+        GOLD_24K -> r.copy(goldRatePerGram24k = v); GOLD_22K -> r.copy(goldRatePerGram22k = v)
+        GOLD_21K -> r.copy(goldRatePerGram21k = v); GOLD_18K -> r.copy(goldRatePerGram18k = v)
+        PALLADIUM -> r.copy(palladiumRatePerGram = v); PALLADIUM_18K -> r.copy(palladiumRatePerGram18k = v)
+        PALLADIUM_12K -> r.copy(palladiumRatePerGram12k = v); PLATINUM -> r.copy(platinumRatePerGram = v)
+        SILVER -> r.copy(silverRatePerGram = v)
+    }
+}
+
+/**
+ * The booked rates with any typed at Finalize laid over them (TS `finalizeRates`): gold moves daily and an order is
+ * delivered weeks after it was booked, so the counter may price it at today's. Only positive figures win; none is
+ * the booked rates exactly.
+ */
+fun finalizeRates(order: Order, settings: Settings, typed: Map<RateField, Double> = emptyMap()): InvoiceRates {
+    var out = orderInvoiceRates(order, settings)
+    for ((f, v) in typed) if (v.isFinite() && v > 0) out = f.put(out, v)
+    return out
+}
+
+/** One rate box: the field and the words above it (TS `RateRow`). */
+data class RateRow(val field: RateField, val label: String)
+
+/** The rate boxes an order's pieces need (TS `finalizeRateRows`): only the metals and karats in use, silver last. */
+fun finalizeRateRows(items: List<OrderItem>): List<RateRow> {
+    val rows = ArrayList<RateRow>()
+    fun add(f: RateField, label: String) { if (rows.none { it.field == f }) rows.add(RateRow(f, label)) }
+    val gold = items.filter { it.metalType == MetalType.gold }.map { it.karat?.rawValue ?: "" }.toSet()
+    for ((k, f) in listOf("24k" to RateField.GOLD_24K, "22k" to RateField.GOLD_22K, "21k" to RateField.GOLD_21K, "18k" to RateField.GOLD_18K)) {
+        if (k in gold) add(f, "Gold $k")
+    }
+    for (i in items.filter { it.metalType == MetalType.palladium }) {
+        when (i.karat?.rawValue ?: "") {
+            "18k" -> add(RateField.PALLADIUM_18K, "Palladium 18k")
+            "12k" -> add(RateField.PALLADIUM_12K, "Palladium 12k")
+            else -> add(RateField.PALLADIUM, "Palladium")
+        }
+    }
+    if (items.any { it.metalType == MetalType.platinum }) add(RateField.PLATINUM, "Platinum")
+    // Silver's rate is all-in: it holds the making and the wastage (pricing.ts), so only the number changes.
+    if (items.any { it.metalType == MetalType.silver }) add(RateField.SILVER, "Silver (all-in)")
+    return rows
+}
+
+/** The figure a rate box holds (TS `rateShown`): a palladium karat with no rate of its own is priced at the flat one. */
+fun rateShown(rates: PricingRates, field: RateField): Double {
+    val own = field.of(rates)
+    if (own > 0) return own
+    return if (field == RateField.PALLADIUM_18K || field == RateField.PALLADIUM_12K) rates.palladiumRatePerGram else 0.0
+}
+
 /** Wastage is a percentage of the metal: the weight less the stones (pricing.ts). */
 fun netMetalG(weightG: Double, stoneWeightG: Double = 0.0): Double = JS.atLeastZero(JS.orZero(weightG) - JS.orZero(stoneWeightG))
 

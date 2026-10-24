@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Public
@@ -269,6 +270,10 @@ private fun Detail(shelfOrder: Order) {
             onBook = { booking = true },
             onUndo = { undo = it },
             onWeb = { navigator.open(OrderPaths.orderPage(order.id)) },
+            // Gold moves: Edit order (before an invoice) or Edit invoice (after), opened at the rates. Owners', as those are.
+            onChangeRate = if (isOwner && !OrderActions.isClosed(order)) {
+                { navigator.open(if (OrdersLogic.hasInvoice(order)) OrderPaths.invoice(order.invoiceId.orEmpty()) + "/edit?rates=1" else OrderPaths.changeRate(order.id)) }
+            } else null,
         )
     }
 
@@ -727,6 +732,7 @@ private fun MoreMenu(
     onBook: () -> Unit,
     onUndo: (OrderUndoAsk) -> Unit,
     onWeb: () -> Unit,
+    onChangeRate: (() -> Unit)? = null,
 ) {
     var open by remember { mutableStateOf(false) }
     val showAdvance = isOwner && OrdersLogic.canAdvance(order) && !(stage != OrderStage.closed && barOffersAdvance)
@@ -774,6 +780,7 @@ private fun MoreMenu(
         }
         HorizontalDivider()
         MenuHeader("More")
+        if (onChangeRate != null) item("Change rate", Icons.Filled.Percent, onClick = onChangeRate)()
         if (canUndo) item("Unlock & edit", Icons.Filled.LockOpen) { onUndo(OrderUndo.unlockAndEdit(order)) }()
         // Anything else the page has.
         item("Open in the ERP", Icons.Filled.Public, onClick = onWeb)()
