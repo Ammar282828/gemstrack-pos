@@ -30,20 +30,15 @@ data class RepairsFormValues(
 
 /** The pure rules of the New repair / Edit form (RepairsForm.swift), kept off the view so the JVM tests reach them. */
 object RepairsFormLogic {
-    /** A number typed in the field: commas ignored, nothing or 0 is nothing (sale-flow fields show 0 as blank). */
-    fun number(text: String): Double? {
-        val t = text.replace(",", "").trim(' ', '\t')
-        if (t.isEmpty()) return null
-        val v = swiftDouble(t) ?: return null
-        return if (v > 0) v else null
-    }
+    /** A number typed in the field, by the one reader: nothing or 0 is nothing (sale-flow fields show 0 as blank). */
+    fun number(text: String): Double? = erp.core.logic.ShopNumber.parse(text)?.takeIf { it > 0 }
 
     /** A price or an advance: whole rupees (owner, 2026-10-17: "there should be no decimals"). */
     fun rupees(text: String): Double? = number(text)?.let { erp.app.ui.PaymentText.rounded(it) }?.takeIf { it > 0 }
 
-    // Swift's `Double(String)`: a plain decimal (a phone's number pad types nothing else), no spaces inside.
-    private val plain = Regex("""^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$""")
-    private fun swiftDouble(t: String): Double? = if (plain.matches(t)) t.toDoubleOrNull()?.takeIf { it.isFinite() } else null
+    /** A price or an advance that is typed but not a number holds Save, rather than counting as nothing. */
+    fun figuresReadable(advance: String, pieces: List<RepairsDraftPiece>): Boolean =
+        !erp.core.logic.ShopNumber.isUnreadable(advance) && pieces.none { erp.core.logic.ShopNumber.isUnreadable(it.price) }
 
     fun hasPiece(pieces: List<RepairsDraftPiece>): Boolean =
         pieces.any { it.item.trim().isNotEmpty() || it.work.trim().isNotEmpty() }

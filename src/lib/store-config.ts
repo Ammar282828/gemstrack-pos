@@ -419,3 +419,31 @@ export const storeAppIos = () => ({
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || 'gemstrack-pos.firebasestorage.app',
   },
 });
+
+/** A value that means "not set": empty, or the words App Hosting needs in place of "" ("none", "0", "off"). */
+const isOff = (v: string | undefined) => !v || /^(none|off|0)$/i.test(v.trim());
+
+/**
+ * What the one Android app (applicationId shop.taheri.erp) signs in with for this house: the house's Android app in
+ * its Firebase project and the web OAuth client Credential Manager asks Google for. Public identifiers, run-time
+ * variables, defaults Taheri's (apps/android/houses.json). Null while this house has not registered the app: an
+ * override cannot remove a variable, so a house that has none writes "none" (apphosting.mina.yaml), and the phone then
+ * says the business isn't set up for Android yet. The rest comes from the web's `NEXT_PUBLIC_FIREBASE_*` values.
+ */
+export const storeAppAndroid = () => {
+  const appId = process.env.APP_ANDROID_FIREBASE_APP_ID === undefined
+    ? '1:948018742883:android:e42554c3a7f534a6089a56' : process.env.APP_ANDROID_FIREBASE_APP_ID.trim();
+  const webClient = process.env.APP_ANDROID_GOOGLE_WEB_CLIENT_ID === undefined
+    ? '948018742883-q27leh2et2p8948jadblbg6skpdhjcea.apps.googleusercontent.com' : process.env.APP_ANDROID_GOOGLE_WEB_CLIENT_ID.trim();
+  if (isOff(appId) || isOff(webClient)) return null;
+  return {
+    googleWebClientId: webClient,
+    firebase: {
+      appId,
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim() || 'AIzaSyAl3W_9_Z9j0sR7rGIwwM1uiiXvOxGQ7IA',
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() || 'gemstrack-pos',
+      senderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?.trim() || '948018742883',
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || 'gemstrack-pos.firebasestorage.app',
+    },
+  };
+};

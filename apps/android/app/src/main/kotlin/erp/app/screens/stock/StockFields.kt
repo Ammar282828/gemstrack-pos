@@ -143,7 +143,7 @@ data class StockPieceFields(
                 "Diamond charges" to diamondCharges, "Stone charges" to stoneCharges, "Misc charges" to miscCharges,
                 "Price" to customPrice,
             )
-            for ((label, text) in amounts) if (num(text) < 0) return "$label must be non-negative"
+            for ((label, text) in amounts) if (NewOrderFormat.below0(text)) return "$label must be non-negative"
             if (num(wastage) > 100) return "Wastage must be between 0 and 100"
 
             if (fixed) {

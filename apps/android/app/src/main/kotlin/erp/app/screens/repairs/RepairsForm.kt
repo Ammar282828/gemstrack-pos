@@ -116,7 +116,7 @@ fun RepairsForm(editing: Repair?, onDismiss: () -> Unit, onSaved: (id: String, s
         allKarigars.filter { RepairsKit.filled(it.deletedAt) == null || it.id == current }
     }
     val hasPiece = RepairsFormLogic.hasPiece(pieces)
-    val canSave = hasPiece && !saving
+    val canSave = hasPiece && !saving && RepairsFormLogic.figuresReadable(advance, pieces)
     val total = RepairsFormLogic.total(pieces)
     val advanceAmount = RepairsFormLogic.rupees(advance) ?: 0.0
 

@@ -49,6 +49,19 @@ env:
     value: "1:288366939838:ios:b765f9330f8080358798ef"
     availability:
       - RUNTIME
+  # The Android app (applicationId shop.taheri.erp) is not registered in Mina's Firebase project yet. An override
+  # cannot remove a variable and the code's defaults are Taheri's Android app, so Mina says "none" (App Hosting refuses
+  # ""): /api/app/business then answers `android: null` and the phone says Mina isn't set up for Android. When the owner
+  # registers the app (docs/features/android-app.md "House of Mina on the one Android app"), put its App ID and web
+  # client id here and in apps/android/houses.json "mina".
+  - variable: APP_ANDROID_FIREBASE_APP_ID
+    value: "none"
+    availability:
+      - RUNTIME
+  - variable: APP_ANDROID_GOOGLE_WEB_CLIENT_ID
+    value: "none"
+    availability:
+      - RUNTIME
   - variable: NEXT_PUBLIC_STORE_LOGO_URL
     value: /house-of-mina-logo.png
     availability:

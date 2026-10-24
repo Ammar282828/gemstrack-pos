@@ -105,7 +105,7 @@ import kotlinx.coroutines.withContext
 // browser. (NewOrder.swift.)
 
 @Composable
-fun NewOrder(readsSlip: Boolean = false, edit: NewOrderEdit? = null) {
+fun NewOrder(readsSlip: Boolean = false, edit: NewOrderEdit? = null, ratesFirst: Boolean = false) {
     // The core knows no BuildConfig: the house is told once, before any piece starts on its metal.
     EntryHouse.id = House.id
     val session = LocalSession.current
@@ -114,13 +114,13 @@ fun NewOrder(readsSlip: Boolean = false, edit: NewOrderEdit? = null) {
     when {
         edit != null && role != "owner" ->
             NotAvailableState("Only an owner can change an order", why = "Ask an owner to make the change, or add a note on the order.")
-        role == "owner" || role == "staff" -> NewOrderForm(readsSlip, edit)
+        role == "owner" || role == "staff" -> NewOrderForm(readsSlip, edit, ratesFirst)
         else -> NotAvailableState("Orders are taken by the shop", why = "Sign in with an owner or staff account to take an order.")
     }
 }
 
 @Composable
-private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?) {
+private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?, ratesFirst: Boolean) {
     val session = LocalSession.current
     val me by session.me.collectAsStateWithLifecycle()
     val shop = me?.shop ?: session.shop
@@ -152,7 +152,8 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?) {
     var pickingStock by remember { mutableStateOf(false) }
     var readingSlip by remember { mutableStateOf(false) }
     var readerOpened by remember { mutableStateOf(false) }
-    var stepIndex by rememberSaveable { mutableIntStateOf(0) }
+    // Change rate opens an order on file at the Pieces step, its rates on top (the owner, 2026-10-24).
+    var stepIndex by rememberSaveable { mutableIntStateOf(if (ratesFirst && edit != null) EntryStep.pieces.ordinal else 0) }
     val step = EntryStep.entries[stepIndex.coerceIn(0, EntryStep.entries.size - 1)]
 
     ScreenTitle(created ?: edit?.let { "Edit ${it.orderId}" } ?: "New order")
@@ -379,6 +380,7 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?) {
                             PromisedSection(holder)
                         }
                         EntryStep.pieces -> {
+                            if (ratesFirst) RatesSection(holder, settings)
                             PiecesSection(
                                 holder, totals,
                                 onOpen = { editingId = it },
@@ -389,7 +391,7 @@ private fun NewOrderForm(readsSlip: Boolean, edit: NewOrderEdit?) {
                                 },
                                 onStock = { pickingStock = true },
                             )
-                            RatesSection(holder, settings)
+                            if (!ratesFirst) RatesSection(holder, settings)
                             PrintedSection(holder)
                         }
                         EntryStep.payment -> {

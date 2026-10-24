@@ -28,10 +28,10 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Dashboard: four figures, Needs you, Due to customers, Recent sales | ✓ | ✓ | ✓ | ✓ | 2026-09 | [Dashboard](decisions.md#dashboard); `Screens/Home`, `screens/home` |
 | Today's cash | ✓ | ✓ | ✓ | ✓ | 2026-10 | `Screens/Home/TodaysCashScreen.swift`, `screens/home/TodaysCashScreen.kt` |
 | Team note (owners write, staff read) | ✓ | ✓ | ✓ | ✓ | 2026-09 | [Team note](decisions.md#team-note) |
-| Search that finds customers, invoices, orders, stock, repairs, places; launcher of recents and tiled groups | n/a (web search is the page's own) | ✓ | owed | ✓ | 2026-10-21 | `Nav/SearchHome.swift`; Android's Search is the menu only |
-| Analytics listed in Search | n/a | ✓ | owed | ✓ | 2026-10-24 | with the row above |
-| Business switcher: Taheri, Mina and any business by address, a widget each | n/a | ✓ | owed | ✓ | 2026-10-16 | [iphone-app.md](features/iphone-app.md#one-app-many-businesses-2026-10-16); Android ships one app per house (two flavors) |
-| Cold start asks which business | n/a | ✓ | owed | ✓ | 2026-10-20 | `Nav/BusinessPicker.swift` |
+| Search: one calm list (the map by group, then the account; no quick buttons, no recents) that finds customers, invoices, orders, stock, repairs, places | n/a (web search is the page's own) | ✓ | ✓ | ✓ | 2026-10-21 | `Nav/SearchHome.swift`, `nav/SearchScreen.kt` + `SearchLogic.kt`; Android has no long-press menu of a row's tabs |
+| Analytics listed in Search (Home's group shown as Overview) | n/a | ✓ | ✓ | ✓ | 2026-10-24 | with the row above |
+| Business switcher: Taheri, Mina and any business by address, a widget each | n/a | ✓ | ✓ | ✓ | 2026-10-16 | [iphone-app.md](features/iphone-app.md#one-app-many-businesses-2026-10-16), [android-app.md](features/android-app.md#one-app-many-businesses-2026-10-24); `screens/businesses`, `config/Businesses.kt`; Mina needs its Android app registered |
+| Cold start asks which business | n/a | ✓ | ✓ | ✓ | 2026-10-20 | `Nav/BusinessPicker.swift`, `screens/businesses/BusinessPicker.kt` |
 
 ## Sales and invoices
 
@@ -44,8 +44,8 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Whole rupees, round-off chips, Settle | ✓ | ✓ | ✓ | ✓ | 2026-10-17 | [Whole rupees](decisions.md#whole-rupees), [Round-off](decisions.md#round-off) |
 | Invoice PDF and WhatsApp send | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Invoice PDF](decisions.md#invoice-pdf) |
 | Exchange as cash / exchange rows | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Exchange as cash](decisions.md#exchange-as-cash) |
-| Give back customer credit (overpaid refund) | ✓ | ✓ | owed | ✓ | 2026-10-24 | [Invoice credit](decisions.md#invoice-credit); `src/lib/writes/invoice-credit-payback.ts` (`payBackCredit`) |
-| A money write keeps its request id across timeouts and relaunches | ✓ | ✓ | owed | ✓ | 2026-10-20 | Android de-duplicates 30 s only; `Data/Outbox.swift`, `src/app/api/app/write/idempotency.ts` |
+| Give back customer credit (overpaid refund) | ✓ | ✓ | ✓ | ✓ | 2026-10-24 | [Invoice credit](decisions.md#invoice-credit); `src/lib/writes/invoice-credit-payback.ts` (`payBackCredit`); Android `InvoiceCreditSheet` (invoice page, customer page), Today's cash Paid out and Analytics Cash out show it |
+| A money write keeps its request id across timeouts and relaunches | ✓ | ✓ | ✓ | ✓ | 2026-10-20 | `WriteIntents` (iPhone `Data/ERPAPI.swift`, Android `data/WriteIntents.kt`), `src/app/api/app/write/idempotency.ts` |
 
 ## Orders
 
@@ -57,9 +57,10 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Edit order (keeps quoted rates, ticks, photos) | ✓ | ✓ | ✓ | ✓ | 2026-10-09 | `NewOrderEdit.swift`; Android (check) |
 | Finalize and invoice | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Order to invoice](decisions.md#order-to-invoice) |
 | Online orders: a person confirms | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Online orders](decisions.md#online-orders) |
-| Order advance with exchanged gold | ✓ | ✓ | owed | ✓ | 2026-10-24 | Edit order rewrites the rows untagged, so deleting an older gold advance after an edit leaves its gold (removed by editing the order). [Order to invoice](decisions.md#order-to-invoice), [Exchange rows](decisions.md#exchange-rows) |
+| Order advance with exchanged gold | ✓ | ✓ | ✓ | ✓ | 2026-10-24 | Edit order rewrites the rows untagged, so deleting an older gold advance after an edit leaves its gold (removed by editing the order). Android `ui/AdvanceExchange.kt` in the advance sheet. [Order to invoice](decisions.md#order-to-invoice), [Exchange rows](decisions.md#exchange-rows) |
 | Settle an advance (order stays as it was) | ✓ | ✓ | ✓ | ✓ | 2026-10-17 | `settleOrderAdvance` |
 | Order slip printed from the phone | ✓ | ✓ | ✓ | ✓ | 2026-10-09 | |
+| Change the rate: at finalize, from the order and invoice pages, silver per order | ✓ | owed | ✓ | owed | 2026-10-24 | [Order to invoice](decisions.md#order-to-invoice); `finalizeOrder` takes `ratesApplied`; web `order-dialogs.tsx`, Android `OrderFinalizeScreen.kt`, `?rates=1` on the edit pages |
 
 ## Repairs
 
@@ -113,8 +114,8 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
 | Overview, Sales, Products, Customers (this month by default) | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Analytics default](decisions.md#analytics-default-this-month) |
-| Categories as ranked share bars | ✓ | ✓ | owed | ✓ | 2026-10-20 | `lineCategory`, `AnalyticsCategories.swift`; Android's is the pie (check) |
-| One Analytics with sections (Sales · Website · Social · Ads) and a section picker | ✓ | ✓ | owed | ✓ | 2026-10-23 | [The map](decisions.md#the-map) |
+| Categories as ranked share bars | ✓ | ✓ | ✓ | ✓ | 2026-10-20 | `lineCategory`/`guessCategory`: `Categories.swift`, `core/logic/Categories.kt` (+ tests); `AnaShareChart` |
+| One Analytics with sections (Sales · Website · Social · Ads) and a section picker; the marketing account sees only tabs marked `marketing` | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | [The map](decisions.md#the-map) |
 | Monthly PDF | ✓ | ✓ | ✓ | ✓ | 2026-10 | [Monthly PDF](features/notifications.md#monthly-pdf) |
 | Sums spoken in rupees, charts summarised for screen readers | n/a | ✓ | n/a | ✓ | 2026-10-20 | Android uses TalkBack labels (`android-app.md`) |
 
@@ -124,8 +125,8 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 |---|---|---|---|---|---|---|
 | Website menu, Photos, Edit a piece, Photo weights | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | `screens/marketing/Website*` |
 | Investments and its schedule | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | [Investments](features/investments.md) |
-| Website → Interest: site report (sources, places, devices, funnel, pages, searches) and piece rankings | ✓ | ✓ | owed | ✓ | 2026-10-22 | [Website analytics](decisions.md#website-analytics), [Piece interest](decisions.md#piece-interest); `WebsiteInterest.swift` |
-| Website → Live (who is on the site now) | ✓ | ✓ | owed | ✓ | 2026-10-23 | `WebsiteLive.swift` |
+| Website → Interest: site report (sources, places, devices, funnel, pages, searches) and piece rankings | ✓ | ✓ | ✓ | ✓ | 2026-10-22 | [Website analytics](decisions.md#website-analytics), [Piece interest](decisions.md#piece-interest); `WebsiteInterest.swift`, `screens/marketing/WebsiteInterest.kt` |
+| Website → Live (who is on the site now) | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | `WebsiteLive.swift`, `WebsiteLive.kt` |
 | Website selling settings | ✓ | ✓ | owed | ✓ | 2026-10 | `WebsiteSellingSettings.swift` (check) |
 
 ## Posts and Design
@@ -134,7 +135,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 |---|---|---|---|---|---|---|
 | Posts hub: Today, queue, pieces, Send all, Spread over the day | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | [Hub](features/from-the-website.md#posts-hub) |
 | Several photos of a piece, one caption, Instagram carousel of 10 | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | [Queue and Mina](features/post-a-piece.md#queue-and-mina) |
-| A post's card starts with the hero photo alone | ✓ | ✓ | owed | ✓ | 2026-10-23 | `PostTrayPhotos.swift` (check) |
+| A post's card starts with the hero photo alone | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | `PostTrayPhotos.swift` |
 | Design: make, pages, resize, publish, AI tools, saved | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | [Design](decisions.md#design) |
 | Designer v2 (effects, rich text, gradients, QR, photo adjust) | ✓ | ✓ | ✓ | ✓ | 2026-10-19 | |
 | Design Board (Studio canvas, Let it cook, agent) | ✓ | ✓ | pg | ✓ | 2026-10-15 | [Ad studio](features/ad-studio.md#board); Android opens `/design?v=board&web=1` |
@@ -152,20 +153,20 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
-| Settings in sections (Shop, Connections, Records) | ✓ | ✓ | owed | ✓ | 2026-10-23 | `SettingsRoot.swift` vs `SettingsRoot.kt` |
+| Settings in sections (Shop, Connections, Records) | ✓ | ✓ | ✓ | ✓ | 2026-10-23 | `SettingsRoot.swift` vs `SettingsRoot.kt` |
 | Shop, alerts, bank accounts, integrations, Shopify, data, voice, labels, backups, contact and hisaab imports, This phone | ✓ | ✓ | ✓ | ✓ | 2026-10 | `screens/settings` |
 | Taheri book import | ✓ | ✓ | owed | ✓ | 2026-10-17 | `TaheriBookImportSettings.swift` |
 | Connect an AI (scoped keys; MCP + REST) | ✓ | wip | pg | wip | 2026-10-19 | [AI keys](features/ai-keys.md) |
 | Appearance, Liquid Glass | ✓ | ✓ | n/a | ✓ | 2026-10 | Apple HIG glass; Android is Material 3 |
-| Businesses (add by address, order, turn off the picker) | n/a | ✓ | owed | ✓ | 2026-10-16 | `BusinessesScreen.swift` |
+| Businesses (add by address, order, turn off the picker) | n/a | ✓ | ✓ | ✓ | 2026-10-16 | `BusinessesScreen.swift`, `screens/businesses/BusinessesPanel.kt` |
 
 ## Widgets and notifications
 
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
 | Home-screen widget, three sizes, refreshed in the background | n/a | ✓ | ✓ | ✓ | 2026-10-13 | `Widget/`, `widget/` (Glance) |
-| Widgets redone: 7-day sparkline, week's change, owed/due/bench, Needs you, recent sales; taps open the app on that screen | n/a | ✓ | owed | ✓ | 2026-10-23 | `shoperp://`; Android draws the old faces |
-| Both businesses on every widget size | n/a | ✓ | owed | ✓ | 2026-10-24 | |
+| Widgets redone: 7-day sparkline, week's change, owed/due/bench, Needs you, recent sales; taps open the app on that screen | n/a | ✓ | ✓ | ✓ | 2026-10-23 | `shoperp://`; `widget/` (Glance, `WidgetLayout.plan`) |
+| Both businesses on every widget size | n/a | ✓ | ✓ | ✓ | 2026-10-24 | "Show both businesses" in Settings → Widgets (Android has no per-widget configuration) |
 | Lock Screen widget / gauge | n/a | ✓ | n/a | ✓ | 2026-10-23 | no lock-screen widgets on Android |
 | Push notifications, per-kind switches, naming the store | n/a | ✓ | ✓ | ✓ | 2026-10-13 | `src/lib/push` |
 | WhatsApp reports and the monthly PDF by WhatsApp | ✓ | n/a | n/a | n/a | 2026-10 | server-side, [notifications.md](features/notifications.md) |
@@ -175,14 +176,17 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 
 | Feature | Web | iPhone | Android | Mac | Since | Where |
 |---|---|---|---|---|---|---|
-| Outbox: non-money saves leave at once and retry in the background, kept on disk | n/a | ✓ | owed | ✓ | 2026-10-20 | `Data/Outbox.swift` |
+| Outbox: non-money saves leave at once and retry in the background, kept on disk | n/a | ✓ | ✓ | ✓ | 2026-10-20 | `Data/Outbox.swift`, Android `data/Outbox.kt` + `ui/OutboxHost.kt`; Android: settings, labels, voice, ads Run/Pause, posting and queueing, website photos and weights, edit-a-piece, Design save and publish go through it (saveWebsiteConfig has no Android screen yet); money ops stay awaited |
 | Books paint from the phone's own copy before Firestore answers | n/a | ✓ | ✓ | ✓ | 2026-10-20 | Android: Firestore persistent cache |
-| Launch clock: cold-start steps timed and sent (`app_launches`) | n/a | ✓ | owed | ✓ | 2026-10-20 | `LaunchClock` |
+| Launch clock: cold-start steps timed and sent (`app_launches`) | n/a | ✓ | ✓ | ✓ | 2026-10-20 | `LaunchClock` (Android `device/LaunchClock.kt`, `platform: "android"`) |
 | Crash and hang reports | n/a | ✓ | ✓ | ✓ | 2026-10-20 | MetricKit / `last-crash.txt` |
 | Biometric lock; delete code by biometric | n/a | ✓ | ✓ | ✓ | 2026-10 | Face ID / BiometricPrompt |
 | Widget key revoked on sign-out, kept on the device | n/a | ✓ | ✓ | ✓ | 2026-10-20 | `/api/widget/key` |
 | Update gate (out-of-date build writes nothing) | n/a | ✓ | owed | ✓ | 2026-10-20 | `Home/UpdateGate.swift` |
-| Tablet / iPad: lists beside item, columns, shortcuts | n/a | ✓ | ✓ | ✓ | 2026-10-23 | window size classes; ⌘ shortcuts n/a on Android |
+| Tablet / iPad: lists beside item, columns, shortcuts; the item side always open with "Choose an order" etc. until picked | n/a | ✓ | ✓ | ✓ | 2026-10-23 | `HubSplit.swift`, `nav/HubSplit.kt`; ⌘ shortcuts n/a on Android |
 | Menus from `lib/nav.ts` via the exported JSON | ✓ | ✓ | ✓ | ✓ | 2026-10 | checked by `parity.yml` |
 | Money contract (`contract/cases.json` equal on both phones) | ✓ | ✓ | ✓ | ✓ | 2026-10-12 | `src/app/api/app/write/contract.test.ts` |
 | Store distribution | n/a | ✓ TestFlight | ✓ Play internal | ✓ TestFlight (Mac) | 2026-10 | `ios.yml`, `android.yml` |
+| One number reader (Urdu and Arabic digits, lakh commas, never a silent 0) | n/a | ✓ | ✓ | owed | 2026-10-20 | `ShopNumber` (Android `core/logic/ShopNumber.kt`); marketing's weight and artwork boxes read through it on Android too |
+| The lock covers every sheet and dialog | n/a | ✓ | ✓ | owed | 2026-10-20 | Android: the cover is a window of its own, `device/AppLock.kt`; not run on a phone |
+| Page loads time out at 15 s; the server is warmed when the app comes forward | n/a | ✓ | ✓ | owed | 2026-10-23 | `/api/app/me`, `Outbox.warm()` |

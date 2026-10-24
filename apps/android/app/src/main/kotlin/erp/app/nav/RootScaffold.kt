@@ -140,11 +140,8 @@ fun RootScaffold() {
         navigationSuiteType = layout,
         navigationItems = {
             if (wide) {
-                Image(
-                    painterResource(R.drawable.brand_logo),
-                    stringResource(R.string.app_name),
-                    Modifier.widthIn(max = 200.dp).fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), // widthIn first: after fillMaxWidth it cannot narrow
-                )
+                // The open business's mark and name, where the iPad's sidebar header keeps it: tap for the Businesses sheet, hold to switch.
+                erp.app.screens.businesses.BusinessChip(Modifier.widthIn(max = 240.dp).fillMaxWidth().padding(vertical = 8.dp), wide = true)
             }
             tabs.forEach { e ->
                 NavigationSuiteItem(
@@ -183,6 +180,7 @@ fun RootScaffold() {
             ) { tab ->
                 CompositionLocalProvider(
                     LocalBottomBar provides !wide,
+                    LocalChipInRail provides wide,
                     LocalCreateInBar provides (if (wide && canCreate) create else null),
                 ) {
                     stacks[tab]?.let { StackHost(it, Modifier.fillMaxSize()) }

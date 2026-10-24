@@ -7,6 +7,7 @@ package erp.core.logic
 import erp.core.models.HisaabEntry
 import erp.core.models.Invoice
 import erp.core.models.Order
+import erp.core.models.Payment
 
 // What a sale was worth, for every revenue figure.
 //
@@ -55,6 +56,13 @@ fun canHoldCredit(customerId: String?): Boolean {
     if (customerId.isNullOrEmpty()) return false
     return customerId != WALK_IN_ENTITY
 }
+
+/** The payment-history line written when the shop hands a customer their credit back (negative; not a refund of the sale). */
+fun isCreditPayback(p: Payment?): Boolean = p != null && p.kind == "credit-payback" && p.amount < 0
+
+/** What is given back in these payments, as a positive figure (Today's cash and Analytics' Cash Out show it as money out). */
+fun creditPaidBack(history: List<Payment>?): Double =
+    (history ?: emptyList()).fold(0.0) { s, p -> s + if (isCreditPayback(p)) -p.amount else 0.0 }
 
 enum class BalanceState { due, paid, credit }
 

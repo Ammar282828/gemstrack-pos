@@ -12,6 +12,8 @@ import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Construction
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Sensors
 import androidx.compose.material.icons.rounded.ContactPage
 import androidx.compose.material.icons.rounded.Contacts
 import androidx.compose.material.icons.rounded.CropSquare
@@ -63,7 +65,7 @@ import androidx.compose.material.icons.automirrored.outlined.*
 object NavIcon {
     private val icons: Map<String, () -> ImageVector> = mapOf(
         "ArchiveRestore" to { Icons.Rounded.Unarchive }, "Banknote" to { Icons.Rounded.Payments }, "Bell" to { Icons.Rounded.Notifications },
-        "BookUser" to { Icons.Rounded.ContactPage }, "Boxes" to { Icons.Rounded.Inventory2 }, "Briefcase" to { Icons.Rounded.BusinessCenter },
+        "BookUser" to { Icons.Rounded.ContactPage }, "Bot" to { Icons.Rounded.AutoAwesome }, "Radio" to { Icons.Rounded.Sensors }, "Boxes" to { Icons.Rounded.Inventory2 }, "Briefcase" to { Icons.Rounded.BusinessCenter },
         "Calendar" to { Icons.Rounded.CalendarMonth }, "Camera" to { Icons.Rounded.PhotoCamera }, "ChartColumn" to { Icons.Rounded.BarChart },
         "ChartPie" to { Icons.Rounded.PieChart }, "CirclePlus" to { Icons.Rounded.AddCircleOutline }, "ClipboardList" to { Icons.AutoMirrored.Rounded.Assignment },
         "Coins" to { Icons.Rounded.Paid }, "Contact" to { Icons.Rounded.Contacts }, "Database" to { Icons.Rounded.Storage },
@@ -83,7 +85,7 @@ object NavIcon {
     /** The same places drawn as outlines: the bar shows these until a tab is chosen, then crossfades to the filled one. */
     private val outlined: Map<String, () -> ImageVector> = mapOf(
         "ArchiveRestore" to { Icons.Outlined.Unarchive }, "Banknote" to { Icons.Outlined.Payments }, "Bell" to { Icons.Outlined.Notifications },
-        "BookUser" to { Icons.Outlined.ContactPage }, "Boxes" to { Icons.Outlined.Inventory2 }, "Briefcase" to { Icons.Outlined.BusinessCenter },
+        "BookUser" to { Icons.Outlined.ContactPage }, "Bot" to { Icons.Outlined.AutoAwesome }, "Radio" to { Icons.Outlined.Sensors }, "Boxes" to { Icons.Outlined.Inventory2 }, "Briefcase" to { Icons.Outlined.BusinessCenter },
         "Calendar" to { Icons.Outlined.CalendarMonth }, "Camera" to { Icons.Outlined.PhotoCamera }, "ChartColumn" to { Icons.Outlined.BarChart },
         "ChartPie" to { Icons.Outlined.PieChart }, "CirclePlus" to { Icons.Outlined.AddCircleOutline }, "ClipboardList" to { Icons.AutoMirrored.Outlined.Assignment },
         "Coins" to { Icons.Outlined.Paid }, "Contact" to { Icons.Outlined.Contacts }, "Database" to { Icons.Outlined.Storage },
