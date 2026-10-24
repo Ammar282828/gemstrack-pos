@@ -8,7 +8,7 @@
  *   so a typo shows on the tag.
  * - `{date}`, `{date:d MMM yyyy}`, `{time}`, `{counter:START:STEP:PAD}`, and after a pipe `{price|prefix:Rs |suffix:/-}`,
  *   `{name|upper}`, `{name|lower}`, `{weight|fixed:2}`, `{price|group}`, `{name|max:18}`.
- * - Text is sent with ^FH\ so a ^, ~ or \ in a name prints as itself.
+ * - Text is sent with ^FH_ (ZPL's own hex escape) so a ^, ~, \ or _ in a name prints as itself, and `\&` stays a block's new line.
  * - A field's x, y is the top-left corner of its rotated box (what ^FO means), so rotation never moves the corner.
  */
 
@@ -217,14 +217,15 @@ export function resolveFields(layout: StoredLabelLayout, pieces: LabelValues[], 
 
 // ── ZPL ───────────────────────────────────────────────────────────────────
 
-/** ^FH\ sends `\5E` for a ^, `\7E` for a ~, `\5C` for a \; a new line is `\&` in a text block and `\0A` elsewhere. */
-export function escapeZpl(s: string, newline: '\\&' | '\\0A'): string {
+/** ^FH_ sends `_5E` for a ^, `_7E` for a ~, `_5C` for a \, `_5F` for a _; a new line is `\&` in a text block and `_0A` elsewhere. */
+export function escapeZpl(s: string, newline: '\\&' | '_0A'): string {
   let out = '';
   for (let i = 0; i < s.length; i++) {
     const c = s[i];
-    if (c === '^') out += '\\5E';
-    else if (c === '~') out += '\\7E';
-    else if (c === '\\') out += '\\5C';
+    if (c === '^') out += '_5E';
+    else if (c === '~') out += '_7E';
+    else if (c === '\\') out += '_5C';
+    else if (c === '_') out += '_5F';
     else if (c === '\n') out += newline;
     else out += c;
   }
@@ -243,8 +244,8 @@ function textZpl(f: LabelField): string[] {
   const x = dots(f.x), y = dots(f.y);
   const out: string[] = [];
   const emit = (px: number, py: number, block: string, text: string) => {
-    out.push(`^FO${px},${py}^A${font}${o},${fs},${fs}${block}^FH\\^FD${text}^FS`);
-    if (f.bold) out.push(`^FO${px + 1},${py}^A${font}${o},${fs},${fs}${block}^FH\\^FD${text}^FS`);
+    out.push(`^FO${px},${py}^A${font}${o},${fs},${fs}${block}^FH_^FD${text}^FS`);
+    if (f.bold) out.push(`^FO${px + 1},${py}^A${font}${o},${fs},${fs}${block}^FH_^FD${text}^FS`);
   };
   if (num(f.width) >= 0.5) {
     const newLines = data.split('\n').length - 1;
@@ -261,7 +262,7 @@ function textZpl(f: LabelField): string[] {
     const back = (n - 1 - i) * pitch, fwd = i * pitch;
     const px = turn === 90 ? x + back : turn === 270 ? x + fwd : x;
     const py = turn === 180 ? y + back : turn === 0 ? y + fwd : y;
-    emit(dots(px), dots(py), '', escapeZpl(part, '\\0A'));
+    emit(dots(px), dots(py), '', escapeZpl(part, '_0A'));
   });
   return out;
 }
@@ -282,7 +283,7 @@ function barcodeZpl(f: LabelField): string[] {
     case 'pdf417': command = `^BY${m}^B7${o},${h}`; break;
     default: command = `^BY${m}^BC${o},${h},${yn},N,N`;
   }
-  return [`^FO${dots(f.x)},${dots(f.y)}${command}^FH\\^FD${escapeZpl(data, '\\0A')}^FS`];
+  return [`^FO${dots(f.x)},${dots(f.y)}${command}^FH_^FD${escapeZpl(data, '_0A')}^FS`];
 }
 
 function fieldZpl(f: LabelField): string[] {
@@ -293,7 +294,7 @@ function fieldZpl(f: LabelField): string[] {
       if (data === '') return [];
       const mag = f.qrMagnification === undefined ? 2 : clampInt(f.qrMagnification, 1, 10);
       const ec = f.errorCorrection === 'L' || f.errorCorrection === 'Q' || f.errorCorrection === 'H' ? f.errorCorrection : 'M';
-      return [`^FO${dots(f.x)},${dots(f.y)}^BQ${orientation(f.rotation)},2,${mag},${ec}^FH\\^FD${ec}A,${escapeZpl(data, '\\0A')}^FS`];
+      return [`^FO${dots(f.x)},${dots(f.y)}^BQ${orientation(f.rotation)},2,${mag},${ec}^FH_^FD${ec}A,${escapeZpl(data, '_0A')}^FS`];
     }
     case 'barcode': return barcodeZpl(f);
     case 'line':

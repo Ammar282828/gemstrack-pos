@@ -121,8 +121,8 @@ describe('importLsc', () => {
     expect(cleanLabelLayout(layout)).toEqual({ ok: true, layout });
     const zpl = renderZpl(layout, [{ 'csv:sku': 'TST-000001', 'csv:product_name': 'Test Ring' }, { 'csv:sku': 'TST-000002' }], { now: new Date(0) });
     expect(zpl.startsWith('^XA^CI28^PW400^LL200^LS0^MTD^PR4~SD18\n')).toBe(true);
-    expect(zpl).toContain('^FO50,40^A0N,20,20^FB100,2,3,C^FH\\^FDTST-000001\\&Test Ring^FS\n');
-    expect(zpl).toContain('^FO320,20^A0R,10,10^FB60,1,4,L^FH\\^FDTST-000002^FS\n');
+    expect(zpl).toContain('^FO50,40^A0N,20,20^FB100,2,3,C^FH_^FDTST-000001\\&Test Ring^FS\n');
+    expect(zpl).toContain('^FO320,20^A0R,10,10^FB60,1,4,L^FH_^FDTST-000002^FS\n');
     expect(zpl).not.toContain('{');
   });
   it('gives null for what is not a design', () => {

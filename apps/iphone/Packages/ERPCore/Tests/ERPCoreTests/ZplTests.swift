@@ -85,52 +85,52 @@ final class ZplTests: XCTestCase {
     // MARK: Escaping
 
     func testSendsCaretTildeAndBackslashAsHexUnderFH() {
-        XCTAssertEqual(Zpl.escape("a^b~c\\d", newline: "\\&"), "a\\5Eb\\7Ec\\5Cd")
+        XCTAssertEqual(Zpl.escape("a^b~c\\d", newline: "\\&"), "a_5Eb_7Ec_5Cd")
         XCTAssertEqual(Zpl.escape("a\nb", newline: "\\&"), "a\\&b")
-        XCTAssertEqual(Zpl.escape("a\nb", newline: "\\0A"), "a\\0Ab")
-        XCTAssertEqual(one(text("50% ^off~ \\")), label(#"^FO10,20^A0N,20,20^FH\^FD50% \5Eoff\7E \5C^FS"#))
+        XCTAssertEqual(Zpl.escape("a\nb", newline: "_0A"), "a_0Ab")
+        XCTAssertEqual(one(text("50% ^off~ \\")), label(#"^FO10,20^A0N,20,20^FH_^FD50% _5Eoff_7E _5C^FS"#))
     }
 
     // MARK: Text
 
     func testDrawsTheStandardTag() {
         XCTAssertEqual(Zpl.render(LabelLayout.standard, pieces: [p1], now: now),
-                       "^XA^CI28^PW664^LL296^LS0\n" + #"^FO100,150^A0R,20,20^FH\^FDSKU: TST-000001^FS"# + "\n" + #"^FO450,80^BQN,2,4,M^FH\^FDMA,TST-000001^FS"# + "\n^PQ1,0,1,Y^XZ\n")
+                       "^XA^CI28^PW664^LL296^LS0\n" + #"^FO100,150^A0R,20,20^FH_^FDSKU: TST-000001^FS"# + "\n" + #"^FO450,80^BQN,2,4,M^FH_^FDMA,TST-000001^FS"# + "\n^PQ1,0,1,Y^XZ\n")
     }
 
     func testPicksTheFontSizeOrientation() {
-        XCTAssertEqual(one(text("Hi", rotation: 180, fontFamily: "D", fontSize: 30)), label(#"^FO10,20^ADI,30,30^FH\^FDHi^FS"#))
-        XCTAssertEqual(one(text("Hi", rotation: 270)), label(#"^FO10,20^A0B,20,20^FH\^FDHi^FS"#))
+        XCTAssertEqual(one(text("Hi", rotation: 180, fontFamily: "D", fontSize: 30)), label(#"^FO10,20^ADI,30,30^FH_^FDHi^FS"#))
+        XCTAssertEqual(one(text("Hi", rotation: 270)), label(#"^FO10,20^A0B,20,20^FH_^FDHi^FS"#))
     }
 
     func testWrapsInABlockWithAWidth() {
-        XCTAssertEqual(one(text("a\nb", width: 120, align: "C")), label(#"^FO10,20^A0N,20,20^FB120,2,0,C^FH\^FDa\&b^FS"#))
-        XCTAssertEqual(one(text("a", width: 120, lines: 3, lineSpacing: -4, align: "R")), label(#"^FO10,20^A0N,20,20^FB120,3,-4,R^FH\^FDa^FS"#))
+        XCTAssertEqual(one(text("a\nb", width: 120, align: "C")), label(#"^FO10,20^A0N,20,20^FB120,2,0,C^FH_^FDa\&b^FS"#))
+        XCTAssertEqual(one(text("a", width: 120, lines: 3, lineSpacing: -4, align: "R")), label(#"^FO10,20^A0N,20,20^FB120,3,-4,R^FH_^FDa^FS"#))
     }
 
     func testGivesEachLineItsOwnFieldWithoutAWidthAndTurnsTheStackWithTheText() {
         func f(_ rotation: Int) -> String { one(text("a\nb\nc", x: 100, y: 100, rotation: rotation, fontSize: 20, lineSpacing: 2)) }
-        XCTAssertEqual(f(0), label(#"^FO100,100^A0N,20,20^FH\^FDa^FS"#, #"^FO100,122^A0N,20,20^FH\^FDb^FS"#, #"^FO100,144^A0N,20,20^FH\^FDc^FS"#))
-        XCTAssertEqual(f(90), label(#"^FO144,100^A0R,20,20^FH\^FDa^FS"#, #"^FO122,100^A0R,20,20^FH\^FDb^FS"#, #"^FO100,100^A0R,20,20^FH\^FDc^FS"#))
-        XCTAssertEqual(f(180), label(#"^FO100,144^A0I,20,20^FH\^FDa^FS"#, #"^FO100,122^A0I,20,20^FH\^FDb^FS"#, #"^FO100,100^A0I,20,20^FH\^FDc^FS"#))
-        XCTAssertEqual(f(270), label(#"^FO100,100^A0B,20,20^FH\^FDa^FS"#, #"^FO122,100^A0B,20,20^FH\^FDb^FS"#, #"^FO144,100^A0B,20,20^FH\^FDc^FS"#))
+        XCTAssertEqual(f(0), label(#"^FO100,100^A0N,20,20^FH_^FDa^FS"#, #"^FO100,122^A0N,20,20^FH_^FDb^FS"#, #"^FO100,144^A0N,20,20^FH_^FDc^FS"#))
+        XCTAssertEqual(f(90), label(#"^FO144,100^A0R,20,20^FH_^FDa^FS"#, #"^FO122,100^A0R,20,20^FH_^FDb^FS"#, #"^FO100,100^A0R,20,20^FH_^FDc^FS"#))
+        XCTAssertEqual(f(180), label(#"^FO100,144^A0I,20,20^FH_^FDa^FS"#, #"^FO100,122^A0I,20,20^FH_^FDb^FS"#, #"^FO100,100^A0I,20,20^FH_^FDc^FS"#))
+        XCTAssertEqual(f(270), label(#"^FO100,100^A0B,20,20^FH_^FDa^FS"#, #"^FO122,100^A0B,20,20^FH_^FDb^FS"#, #"^FO144,100^A0B,20,20^FH_^FDc^FS"#))
     }
 
     func testDrawsBoldTextTwiceADotApart() {
-        XCTAssertEqual(one(text("B", bold: true)), label(#"^FO10,20^A0N,20,20^FH\^FDB^FS"#, #"^FO11,20^A0N,20,20^FH\^FDB^FS"#))
+        XCTAssertEqual(one(text("B", bold: true)), label(#"^FO10,20^A0N,20,20^FH_^FDB^FS"#, #"^FO11,20^A0N,20,20^FH_^FDB^FS"#))
     }
 
     func testRoundsAndBoundsPositionsAndDefaultsTheSize() {
         // 10.5 reads as 11 (a half goes up), -3 as 0.
         let a = decoded(LabelLayoutField.self, #"{"id":"a","type":"text","x":10.5,"y":-3,"fontSize":0,"data":"x"}"#)
-        XCTAssertEqual(one(a), label(#"^FO11,0^A0N,20,20^FH\^FDx^FS"#))
+        XCTAssertEqual(one(a), label(#"^FO11,0^A0N,20,20^FH_^FDx^FS"#))
         let b = decoded(LabelLayoutField.self, #"{"id":"a","type":"text","x":99999,"y":0.4,"fontSize":12.6,"data":"x"}"#)
-        XCTAssertEqual(one(b), label(#"^FO32000,0^A0N,13,13^FH\^FDx^FS"#))
+        XCTAssertEqual(one(b), label(#"^FO32000,0^A0N,13,13^FH_^FDx^FS"#))
     }
 
     func testFillsThePlaceholdersOfEachPieceIntoOneLabel() {
         XCTAssertEqual(Zpl.render(layout([text("{SKU_1}/{SKU_2}", width: 50)], tags: 2), pieces: [p1, p2], now: now),
-                       label(#"^FO10,20^A0N,20,20^FB50,1,0,L^FH\^FDTST-000001/TST-000002^FS"#))
+                       label(#"^FO10,20^A0N,20,20^FB50,1,0,L^FH_^FDTST-000001/TST-000002^FS"#))
     }
 
     // MARK: Codes
@@ -140,10 +140,10 @@ final class ZplTests: XCTestCase {
     }
 
     func testDrawsAQRCode() {
-        XCTAssertEqual(one(qr()), label(#"^FO5,6^BQN,2,2,M^FH\^FDMA,TST-000001^FS"#))
-        XCTAssertEqual(one(qr(rotation: 90, mag: 7, ec: "H")), label(#"^FO5,6^BQR,2,7,H^FH\^FDHA,TST-000001^FS"#))
-        XCTAssertEqual(one(qr(mag: 40)), label(#"^FO5,6^BQN,2,10,M^FH\^FDMA,TST-000001^FS"#))
-        XCTAssertEqual(one(qr(data: "a^b")), label(#"^FO5,6^BQN,2,2,M^FH\^FDMA,a\5Eb^FS"#))
+        XCTAssertEqual(one(qr()), label(#"^FO5,6^BQN,2,2,M^FH_^FDMA,TST-000001^FS"#))
+        XCTAssertEqual(one(qr(rotation: 90, mag: 7, ec: "H")), label(#"^FO5,6^BQR,2,7,H^FH_^FDHA,TST-000001^FS"#))
+        XCTAssertEqual(one(qr(mag: 40)), label(#"^FO5,6^BQN,2,10,M^FH_^FDMA,TST-000001^FS"#))
+        XCTAssertEqual(one(qr(data: "a^b")), label(#"^FO5,6^BQN,2,2,M^FH_^FDMA,a_5Eb^FS"#))
     }
 
     func testDrawsNothingForACodeWithNoData() {
@@ -155,13 +155,13 @@ final class ZplTests: XCTestCase {
         func bc(data: String = "{sku}", rotation: Int = 0, symbology: String? = nil, height: Int? = nil, moduleWidth: Int? = nil, showText: Bool? = nil) -> String {
             one(LabelLayoutField(id: "b", type: .barcode, x: 8, y: 9, rotation: rotation, data: data, symbology: symbology, height: height, moduleWidth: moduleWidth, showText: showText))
         }
-        XCTAssertEqual(bc(), label(#"^FO8,9^BY2^BCN,40,N,N,N^FH\^FDTST-000001^FS"#))
-        XCTAssertEqual(bc(rotation: 90, height: 60, moduleWidth: 3, showText: true), label(#"^FO8,9^BY3^BCR,60,Y,N,N^FH\^FDTST-000001^FS"#))
-        XCTAssertEqual(bc(symbology: "code39"), label(#"^FO8,9^BY2^B3N,N,40,N,N^FH\^FDTST-000001^FS"#))
-        XCTAssertEqual(bc(data: "5901234123457", symbology: "ean13", showText: true), label(#"^FO8,9^BY2^BEN,40,Y,N^FH\^FD5901234123457^FS"#))
-        XCTAssertEqual(bc(data: "036000291452", symbology: "upca"), label(#"^FO8,9^BY2^BUN,40,N,N,Y^FH\^FD036000291452^FS"#))
-        XCTAssertEqual(bc(symbology: "datamatrix", moduleWidth: 4), label(#"^FO8,9^BXN,4,200^FH\^FDTST-000001^FS"#))
-        XCTAssertEqual(bc(symbology: "pdf417", height: 80, moduleWidth: 12), label(#"^FO8,9^BY10^B7N,80^FH\^FDTST-000001^FS"#))
+        XCTAssertEqual(bc(), label(#"^FO8,9^BY2^BCN,40,N,N,N^FH_^FDTST-000001^FS"#))
+        XCTAssertEqual(bc(rotation: 90, height: 60, moduleWidth: 3, showText: true), label(#"^FO8,9^BY3^BCR,60,Y,N,N^FH_^FDTST-000001^FS"#))
+        XCTAssertEqual(bc(symbology: "code39"), label(#"^FO8,9^BY2^B3N,N,40,N,N^FH_^FDTST-000001^FS"#))
+        XCTAssertEqual(bc(data: "5901234123457", symbology: "ean13", showText: true), label(#"^FO8,9^BY2^BEN,40,Y,N^FH_^FD5901234123457^FS"#))
+        XCTAssertEqual(bc(data: "036000291452", symbology: "upca"), label(#"^FO8,9^BY2^BUN,40,N,N,Y^FH_^FD036000291452^FS"#))
+        XCTAssertEqual(bc(symbology: "datamatrix", moduleWidth: 4), label(#"^FO8,9^BXN,4,200^FH_^FDTST-000001^FS"#))
+        XCTAssertEqual(bc(symbology: "pdf417", height: 80, moduleWidth: 12), label(#"^FO8,9^BY10^B7N,80^FH_^FDTST-000001^FS"#))
     }
 
     // MARK: Shapes and pictures
@@ -219,8 +219,8 @@ final class ZplTests: XCTestCase {
         let z = Zpl.render(l, pieces: [p1, p2, p1], copies: 3, skip: 1, now: now)
         XCTAssertEqual(z,
             "\(head)^PQ1,0,1,Y^XZ\n" +
-            "\(head)" + #"^FO1,2^A0N,20,20^FH\^FDTST-000001 TST-000002 #007^FS"# + "\n^PQ3,0,1,Y^XZ\n" +
-            "\(head)" + #"^FO1,2^A0N,20,20^FH\^FDTST-000001  #008^FS"# + "\n^PQ3,0,1,Y^XZ\n")
+            "\(head)" + #"^FO1,2^A0N,20,20^FH_^FDTST-000001 TST-000002 #007^FS"# + "\n^PQ3,0,1,Y^XZ\n" +
+            "\(head)" + #"^FO1,2^A0N,20,20^FH_^FDTST-000001  #008^FS"# + "\n^PQ3,0,1,Y^XZ\n")
         XCTAssertTrue(Zpl.render(l, pieces: [p1, p2, p1], counterStart: 90, now: now).contains("#090^FS"))
         XCTAssertEqual(Zpl.render(l, pieces: [], skip: 0), "")
         XCTAssertTrue(Zpl.render(l, pieces: [p1], copies: 0).contains("^PQ1,0,1,Y"))
@@ -237,7 +237,7 @@ final class ZplTests: XCTestCase {
         var hidden = text("B")
         hidden.id = "b"; hidden.hidden = true; hidden.locked = true; hidden.name = "Hidden"
         let l = layout([text("A"), hidden])
-        XCTAssertEqual(Zpl.render(l, pieces: [p1]), label(#"^FO10,20^A0N,20,20^FH\^FDA^FS"#))
+        XCTAssertEqual(Zpl.render(l, pieces: [p1]), label(#"^FO10,20^A0N,20,20^FH_^FDA^FS"#))
         XCTAssertEqual(Zpl.resolveFields(l, pieces: [p1]).map { "\($0.id) \($0.hidden)" }, ["a false", "b true"])
     }
 
@@ -251,5 +251,13 @@ final class ZplTests: XCTestCase {
         let r = Zpl.resolveFields(l, pieces: [p1, p2], labelIndex: 3, now: now)
         XCTAssertEqual(r.map(\.data), ["TST-000002 31", "TST-000001", "25 Oct 2026", nil])
         XCTAssertEqual(l.fields[0].data, "{SKU_2} {counter::10:2}")
+    }
+}
+
+final class ZplEscapeTests: XCTestCase {
+    /// zebra-zpl.test.ts "escapeZpl (^FH_)".
+    func testEscapesUnderscoreCaretTildeBackslashAndKeepsTheBlockNewLine() {
+        XCTAssertEqual(Zpl.escape("a_b^c\\d~e\nf", newline: "\\&"), "a_5Fb_5Ec_5Cd_7Ee\\&f")
+        XCTAssertEqual(Zpl.escape("x\ny", newline: "_0A"), "x_0Ay")
     }
 }

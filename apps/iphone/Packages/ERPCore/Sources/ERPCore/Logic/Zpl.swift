@@ -7,7 +7,7 @@
 //   typed, so a typo shows on the tag.
 // - `{date}`, `{date:d MMM yyyy}`, `{time}`, `{counter:START:STEP:PAD}`, and after a pipe `{price|prefix:Rs |suffix:/-}`,
 //   `{name|upper}`, `{name|lower}`, `{weight|fixed:2}`, `{price|group}`, `{name|max:18}`.
-// - Text is sent with ^FH\ so a ^, ~ or \ in a name prints as itself.
+// - Text is sent with ^FH_ (ZPL's own hex escape) so a ^, ~, \ or _ in a name prints as itself, and `\&` stays a block's new line.
 // - A field's x, y is the corner of its rotated box (what ^FO means), so a turn never moves the corner.
 //
 // Braces are read by hand, not with a regular expression, and every piece of text is walked as Unicode scalars, so the
@@ -266,14 +266,15 @@ public enum Zpl {
 
     // MARK: ZPL
 
-    /// ^FH\ sends `\5E` for a ^, `\7E` for a ~, `\5C` for a \; a new line is `\&` in a text block and `\0A` elsewhere.
+    /// ^FH_ sends `_5E` for a ^, `_7E` for a ~, `_5C` for a \, `_5F` for a _; a new line is `\&` in a text block and `_0A` elsewhere.
     public static func escape(_ s: String, newline: String) -> String {
         var out = ""
         for c in s.unicodeScalars {
             switch c {
-            case "^": out += "\\5E"
-            case "~": out += "\\7E"
-            case "\\": out += "\\5C"
+            case "^": out += "_5E"
+            case "~": out += "_7E"
+            case "\\": out += "_5C"
+            case "_": out += "_5F"
             case "\n": out += newline
             default: out.unicodeScalars.append(c)
             }
@@ -303,8 +304,8 @@ public enum Zpl {
         let x = dots(f.x), y = dots(f.y)
         var out: [String] = []
         func emit(_ px: Int, _ py: Int, _ block: String, _ text: String) {
-            out.append("^FO\(px),\(py)^A\(font)\(o),\(fs),\(fs)\(block)^FH\\^FD\(text)^FS")
-            if f.bold == true { out.append("^FO\(px + 1),\(py)^A\(font)\(o),\(fs),\(fs)\(block)^FH\\^FD\(text)^FS") }
+            out.append("^FO\(px),\(py)^A\(font)\(o),\(fs),\(fs)\(block)^FH_^FD\(text)^FS")
+            if f.bold == true { out.append("^FO\(px + 1),\(py)^A\(font)\(o),\(fs),\(fs)\(block)^FH_^FD\(text)^FS") }
         }
         if (f.width ?? 0) >= 1 {
             let newLines = splitScalars(data, "\n").count - 1
@@ -321,7 +322,7 @@ public enum Zpl {
             let back = (n - 1 - i) * pitch, fwd = i * pitch
             let px = turn == 90 ? x + back : turn == 270 ? x + fwd : x
             let py = turn == 180 ? y + back : turn == 0 ? y + fwd : y
-            emit(dots(px), dots(py), "", escape(part, newline: "\\0A"))
+            emit(dots(px), dots(py), "", escape(part, newline: "_0A"))
         }
         return out
     }
@@ -342,7 +343,7 @@ public enum Zpl {
         case "pdf417": command = "^BY\(m)^B7\(o),\(h)"
         default: command = "^BY\(m)^BC\(o),\(h),\(yn),N,N"
         }
-        return ["^FO\(dots(f.x)),\(dots(f.y))\(command)^FH\\^FD\(escape(data, newline: "\\0A"))^FS"]
+        return ["^FO\(dots(f.x)),\(dots(f.y))\(command)^FH_^FD\(escape(data, newline: "_0A"))^FS"]
     }
 
     private static func fieldZpl(_ f: LabelLayoutField) -> [String] {
@@ -353,7 +354,7 @@ public enum Zpl {
             if data.isEmpty { return [] }
             let mag = f.qrMagnification == nil ? 2 : clampInt(f.qrMagnification, 1, 10)
             let ec = f.errorCorrection == "L" || f.errorCorrection == "Q" || f.errorCorrection == "H" ? f.errorCorrection! : "M"
-            return ["^FO\(dots(f.x)),\(dots(f.y))^BQ\(orientation(f.rotation)),2,\(mag),\(ec)^FH\\^FD\(ec)A,\(escape(data, newline: "\\0A"))^FS"]
+            return ["^FO\(dots(f.x)),\(dots(f.y))^BQ\(orientation(f.rotation)),2,\(mag),\(ec)^FH_^FD\(ec)A,\(escape(data, newline: "_0A"))^FS"]
         case .barcode: return barcodeZpl(f)
         case .line, .box:
             let w = size(f.width, 1), h = size(f.height, 1)

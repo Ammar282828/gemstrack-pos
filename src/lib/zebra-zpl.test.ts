@@ -69,53 +69,53 @@ describe('placeholders', () => {
 
 describe('escaping', () => {
   it('sends ^, ~ and \\ as hex under ^FH\\', () => {
-    expect(escapeZpl('a^b~c\\d', '\\&')).toBe('a\\5Eb\\7Ec\\5Cd');
+    expect(escapeZpl('a^b~c\\d', '\\&')).toBe('a_5Eb_7Ec_5Cd');
     expect(escapeZpl('a\nb', '\\&')).toBe('a\\&b');
-    expect(escapeZpl('a\nb', '\\0A')).toBe('a\\0Ab');
-    expect(one(text('50% ^off~ \\'))).toBe(`${HEAD}^FO10,20^A0N,20,20^FH\\^FD50% \\5Eoff\\7E \\5C^FS\n${FOOT}`);
+    expect(escapeZpl('a\nb', '_0A')).toBe('a_0Ab');
+    expect(one(text('50% ^off~ \\'))).toBe(`${HEAD}^FO10,20^A0N,20,20^FH_^FD50% _5Eoff_7E _5C^FS\n${FOOT}`);
   });
 });
 
 describe('renderZpl: text', () => {
   it('draws the standard tag', () => {
     expect(renderZpl(STANDARD_LABEL_LAYOUT, [p1], { now: NOW })).toBe(
-      '^XA^CI28^PW664^LL296^LS0\n^FO100,150^A0R,20,20^FH\\^FDSKU: TST-000001^FS\n^FO450,80^BQN,2,4,M^FH\\^FDMA,TST-000001^FS\n^PQ1,0,1,Y^XZ\n');
+      '^XA^CI28^PW664^LL296^LS0\n^FO100,150^A0R,20,20^FH_^FDSKU: TST-000001^FS\n^FO450,80^BQN,2,4,M^FH_^FDMA,TST-000001^FS\n^PQ1,0,1,Y^XZ\n');
   });
   it('picks the font, size, orientation', () => {
-    expect(one(text('Hi', { fontFamily: 'D', fontSize: 30, rotation: 180 }))).toBe(`${HEAD}^FO10,20^ADI,30,30^FH\\^FDHi^FS\n${FOOT}`);
-    expect(one(text('Hi', { rotation: 270 }))).toBe(`${HEAD}^FO10,20^A0B,20,20^FH\\^FDHi^FS\n${FOOT}`);
+    expect(one(text('Hi', { fontFamily: 'D', fontSize: 30, rotation: 180 }))).toBe(`${HEAD}^FO10,20^ADI,30,30^FH_^FDHi^FS\n${FOOT}`);
+    expect(one(text('Hi', { rotation: 270 }))).toBe(`${HEAD}^FO10,20^A0B,20,20^FH_^FDHi^FS\n${FOOT}`);
   });
   it('wraps in a block with a width', () => {
-    expect(one(text('a\nb', { width: 120, align: 'C' }))).toBe(`${HEAD}^FO10,20^A0N,20,20^FB120,2,0,C^FH\\^FDa\\&b^FS\n${FOOT}`);
-    expect(one(text('a', { width: 120, lines: 3, lineSpacing: -4, align: 'R' }))).toBe(`${HEAD}^FO10,20^A0N,20,20^FB120,3,-4,R^FH\\^FDa^FS\n${FOOT}`);
+    expect(one(text('a\nb', { width: 120, align: 'C' }))).toBe(`${HEAD}^FO10,20^A0N,20,20^FB120,2,0,C^FH_^FDa\\&b^FS\n${FOOT}`);
+    expect(one(text('a', { width: 120, lines: 3, lineSpacing: -4, align: 'R' }))).toBe(`${HEAD}^FO10,20^A0N,20,20^FB120,3,-4,R^FH_^FDa^FS\n${FOOT}`);
   });
   it('gives each line its own field without a width, and turns the stack with the text', () => {
     const f = (rotation: 0 | 90 | 180 | 270) => one(text('a\nb\nc', { x: 100, y: 100, fontSize: 20, lineSpacing: 2, rotation }));
-    expect(f(0)).toBe(`${HEAD}^FO100,100^A0N,20,20^FH\\^FDa^FS\n^FO100,122^A0N,20,20^FH\\^FDb^FS\n^FO100,144^A0N,20,20^FH\\^FDc^FS\n${FOOT}`);
-    expect(f(90)).toBe(`${HEAD}^FO144,100^A0R,20,20^FH\\^FDa^FS\n^FO122,100^A0R,20,20^FH\\^FDb^FS\n^FO100,100^A0R,20,20^FH\\^FDc^FS\n${FOOT}`);
-    expect(f(180)).toBe(`${HEAD}^FO100,144^A0I,20,20^FH\\^FDa^FS\n^FO100,122^A0I,20,20^FH\\^FDb^FS\n^FO100,100^A0I,20,20^FH\\^FDc^FS\n${FOOT}`);
-    expect(f(270)).toBe(`${HEAD}^FO100,100^A0B,20,20^FH\\^FDa^FS\n^FO122,100^A0B,20,20^FH\\^FDb^FS\n^FO144,100^A0B,20,20^FH\\^FDc^FS\n${FOOT}`);
+    expect(f(0)).toBe(`${HEAD}^FO100,100^A0N,20,20^FH_^FDa^FS\n^FO100,122^A0N,20,20^FH_^FDb^FS\n^FO100,144^A0N,20,20^FH_^FDc^FS\n${FOOT}`);
+    expect(f(90)).toBe(`${HEAD}^FO144,100^A0R,20,20^FH_^FDa^FS\n^FO122,100^A0R,20,20^FH_^FDb^FS\n^FO100,100^A0R,20,20^FH_^FDc^FS\n${FOOT}`);
+    expect(f(180)).toBe(`${HEAD}^FO100,144^A0I,20,20^FH_^FDa^FS\n^FO100,122^A0I,20,20^FH_^FDb^FS\n^FO100,100^A0I,20,20^FH_^FDc^FS\n${FOOT}`);
+    expect(f(270)).toBe(`${HEAD}^FO100,100^A0B,20,20^FH_^FDa^FS\n^FO122,100^A0B,20,20^FH_^FDb^FS\n^FO144,100^A0B,20,20^FH_^FDc^FS\n${FOOT}`);
   });
   it('draws bold text twice, a dot apart', () => {
-    expect(one(text('B', { bold: true }))).toBe(`${HEAD}^FO10,20^A0N,20,20^FH\\^FDB^FS\n^FO11,20^A0N,20,20^FH\\^FDB^FS\n${FOOT}`);
+    expect(one(text('B', { bold: true }))).toBe(`${HEAD}^FO10,20^A0N,20,20^FH_^FDB^FS\n^FO11,20^A0N,20,20^FH_^FDB^FS\n${FOOT}`);
   });
   it('rounds and bounds positions, and defaults the size', () => {
-    expect(one(text('x', { x: 10.5, y: -3, fontSize: 0 }))).toBe(`${HEAD}^FO11,0^A0N,20,20^FH\\^FDx^FS\n${FOOT}`);
-    expect(one(text('x', { x: 99999, y: 0.4, fontSize: 12.6 }))).toBe(`${HEAD}^FO32000,0^A0N,13,13^FH\\^FDx^FS\n${FOOT}`);
+    expect(one(text('x', { x: 10.5, y: -3, fontSize: 0 }))).toBe(`${HEAD}^FO11,0^A0N,20,20^FH_^FDx^FS\n${FOOT}`);
+    expect(one(text('x', { x: 99999, y: 0.4, fontSize: 12.6 }))).toBe(`${HEAD}^FO32000,0^A0N,13,13^FH_^FDx^FS\n${FOOT}`);
   });
   it('fills the placeholders of each piece into one label', () => {
     expect(renderZpl(layout([text('{SKU_1}/{SKU_2}', { width: 50 })], { tags: 2 }), [p1, p2], { now: NOW })).toBe(
-      `${HEAD}^FO10,20^A0N,20,20^FB50,1,0,L^FH\\^FDTST-000001/TST-000002^FS\n${FOOT}`);
+      `${HEAD}^FO10,20^A0N,20,20^FB50,1,0,L^FH_^FDTST-000001/TST-000002^FS\n${FOOT}`);
   });
 });
 
 describe('renderZpl: codes', () => {
   const qr = (extra: Partial<LabelField> = {}): LabelField => ({ id: 'q', type: 'qr', x: 5, y: 6, data: '{sku}', ...extra });
   it('draws a QR code', () => {
-    expect(one(qr())).toBe(`${HEAD}^FO5,6^BQN,2,2,M^FH\\^FDMA,TST-000001^FS\n${FOOT}`);
-    expect(one(qr({ qrMagnification: 7, errorCorrection: 'H', rotation: 90 }))).toBe(`${HEAD}^FO5,6^BQR,2,7,H^FH\\^FDHA,TST-000001^FS\n${FOOT}`);
-    expect(one(qr({ qrMagnification: 40 }))).toBe(`${HEAD}^FO5,6^BQN,2,10,M^FH\\^FDMA,TST-000001^FS\n${FOOT}`);
-    expect(one(qr({ data: 'a^b' }))).toBe(`${HEAD}^FO5,6^BQN,2,2,M^FH\\^FDMA,a\\5Eb^FS\n${FOOT}`);
+    expect(one(qr())).toBe(`${HEAD}^FO5,6^BQN,2,2,M^FH_^FDMA,TST-000001^FS\n${FOOT}`);
+    expect(one(qr({ qrMagnification: 7, errorCorrection: 'H', rotation: 90 }))).toBe(`${HEAD}^FO5,6^BQR,2,7,H^FH_^FDHA,TST-000001^FS\n${FOOT}`);
+    expect(one(qr({ qrMagnification: 40 }))).toBe(`${HEAD}^FO5,6^BQN,2,10,M^FH_^FDMA,TST-000001^FS\n${FOOT}`);
+    expect(one(qr({ data: 'a^b' }))).toBe(`${HEAD}^FO5,6^BQN,2,2,M^FH_^FDMA,a_5Eb^FS\n${FOOT}`);
   });
   it('draws nothing for a code with no data', () => {
     expect(one(qr({ data: '{SKU_2}' }))).toBe(HEAD + FOOT);
@@ -123,13 +123,13 @@ describe('renderZpl: codes', () => {
   });
   it('draws each barcode kind', () => {
     const bc = (extra: Partial<LabelField>): string => one({ id: 'b', type: 'barcode', x: 8, y: 9, data: '{sku}', ...extra });
-    expect(bc({})).toBe(`${HEAD}^FO8,9^BY2^BCN,40,N,N,N^FH\\^FDTST-000001^FS\n${FOOT}`);
-    expect(bc({ height: 60, moduleWidth: 3, showText: true, rotation: 90 })).toBe(`${HEAD}^FO8,9^BY3^BCR,60,Y,N,N^FH\\^FDTST-000001^FS\n${FOOT}`);
-    expect(bc({ symbology: 'code39' })).toBe(`${HEAD}^FO8,9^BY2^B3N,N,40,N,N^FH\\^FDTST-000001^FS\n${FOOT}`);
-    expect(bc({ symbology: 'ean13', data: '5901234123457', showText: true })).toBe(`${HEAD}^FO8,9^BY2^BEN,40,Y,N^FH\\^FD5901234123457^FS\n${FOOT}`);
-    expect(bc({ symbology: 'upca', data: '036000291452' })).toBe(`${HEAD}^FO8,9^BY2^BUN,40,N,N,Y^FH\\^FD036000291452^FS\n${FOOT}`);
-    expect(bc({ symbology: 'datamatrix', moduleWidth: 4 })).toBe(`${HEAD}^FO8,9^BXN,4,200^FH\\^FDTST-000001^FS\n${FOOT}`);
-    expect(bc({ symbology: 'pdf417', height: 80, moduleWidth: 12 })).toBe(`${HEAD}^FO8,9^BY10^B7N,80^FH\\^FDTST-000001^FS\n${FOOT}`);
+    expect(bc({})).toBe(`${HEAD}^FO8,9^BY2^BCN,40,N,N,N^FH_^FDTST-000001^FS\n${FOOT}`);
+    expect(bc({ height: 60, moduleWidth: 3, showText: true, rotation: 90 })).toBe(`${HEAD}^FO8,9^BY3^BCR,60,Y,N,N^FH_^FDTST-000001^FS\n${FOOT}`);
+    expect(bc({ symbology: 'code39' })).toBe(`${HEAD}^FO8,9^BY2^B3N,N,40,N,N^FH_^FDTST-000001^FS\n${FOOT}`);
+    expect(bc({ symbology: 'ean13', data: '5901234123457', showText: true })).toBe(`${HEAD}^FO8,9^BY2^BEN,40,Y,N^FH_^FD5901234123457^FS\n${FOOT}`);
+    expect(bc({ symbology: 'upca', data: '036000291452' })).toBe(`${HEAD}^FO8,9^BY2^BUN,40,N,N,Y^FH_^FD036000291452^FS\n${FOOT}`);
+    expect(bc({ symbology: 'datamatrix', moduleWidth: 4 })).toBe(`${HEAD}^FO8,9^BXN,4,200^FH_^FDTST-000001^FS\n${FOOT}`);
+    expect(bc({ symbology: 'pdf417', height: 80, moduleWidth: 12 })).toBe(`${HEAD}^FO8,9^BY10^B7N,80^FH_^FDTST-000001^FS\n${FOOT}`);
   });
 });
 
@@ -181,8 +181,8 @@ describe('renderZpl: the printer and the job', () => {
     const z = renderZpl(l, [p1, p2, p1], { copies: 3, skip: 1, now: NOW });
     expect(z).toBe(
       `${HEAD}^PQ1,0,1,Y^XZ\n` +
-      `${HEAD}^FO1,2^A0N,20,20^FH\\^FDTST-000001 TST-000002 #007^FS\n^PQ3,0,1,Y^XZ\n` +
-      `${HEAD}^FO1,2^A0N,20,20^FH\\^FDTST-000001  #008^FS\n^PQ3,0,1,Y^XZ\n`);
+      `${HEAD}^FO1,2^A0N,20,20^FH_^FDTST-000001 TST-000002 #007^FS\n^PQ3,0,1,Y^XZ\n` +
+      `${HEAD}^FO1,2^A0N,20,20^FH_^FDTST-000001  #008^FS\n^PQ3,0,1,Y^XZ\n`);
     expect(renderZpl(l, [p1, p2, p1], { counterStart: 90, now: NOW })).toContain('#090^FS');
     expect(renderZpl(l, [], { skip: 0 })).toBe('');
     expect(renderZpl(l, [p1], { copies: 0 })).toContain('^PQ1,0,1,Y');
@@ -195,7 +195,7 @@ describe('renderZpl: the printer and the job', () => {
   });
   it('skips hidden fields on print but keeps them for the designer', () => {
     const l = layout([text('A'), { ...text('B'), id: 'b', hidden: true, locked: true, name: 'Hidden' }]);
-    expect(renderZpl(l, [p1])).toBe(`${HEAD}^FO10,20^A0N,20,20^FH\\^FDA^FS\n${FOOT}`);
+    expect(renderZpl(l, [p1])).toBe(`${HEAD}^FO10,20^A0N,20,20^FH_^FDA^FS\n${FOOT}`);
     const r = resolveFields(l, [p1]);
     expect(r.map((f) => [f.id, f.hidden])).toEqual([['a', undefined], ['b', true]]);
   });
@@ -223,6 +223,13 @@ describe('generateZplFromLayout (the older entry point)', () => {
       ],
     }, { sku: 'TST-000009', extra: 5 });
     expect(zpl).toBe(
-      '^XA^CI28^PW664^LL296^LS0\n^FO10,20^A0R,30,30^FB200,1,0,C^FH\\^FDSKU: TST-000009^FS\n^FO300,50^BQN,2,4,M^FH\\^FDMA,TST-000009^FS\n^PQ1,0,1,Y^XZ\n');
+      '^XA^CI28^PW664^LL296^LS0\n^FO10,20^A0R,30,30^FB200,1,0,C^FH_^FDSKU: TST-000009^FS\n^FO300,50^BQN,2,4,M^FH_^FDMA,TST-000009^FS\n^PQ1,0,1,Y^XZ\n');
+  });
+});
+
+describe('escapeZpl (^FH_)', () => {
+  it('escapes _ ^ ~ \\ as hex and keeps \\& as the block new line', () => {
+    expect(escapeZpl('a_b^c\\d~e\nf', '\\&')).toBe('a_5Fb_5Ec_5Cd_7Ee\\&f');
+    expect(escapeZpl('x\ny', '_0A')).toBe('x_0Ay');
   });
 });
