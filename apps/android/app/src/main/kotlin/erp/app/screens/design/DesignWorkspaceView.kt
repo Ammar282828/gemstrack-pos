@@ -168,7 +168,7 @@ fun DesignWorkspaceView(
         // The one primary action stays at the foot where it never scrolls away (rule 16): Publish, with Save beside it.
         DesignActionBar(
             DesignAction("Publish", Icons.AutoMirrored.Filled.Send, disabled = model.saving) { DesignHooks.publish(model) },
-            secondary = listOf(DesignAction("Save", Icons.Filled.Save, busy = model.saving) { scope.launch { model.saveToShop() } }),
+            secondary = listOf(DesignAction("Save", Icons.Filled.Save, busy = model.saving || model.uploading) { scope.launch { model.saveInBackground() } }),
             summary = if (w.dirty) "Not saved" else "Saved",
         )
     }

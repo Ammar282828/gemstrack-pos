@@ -183,7 +183,7 @@ async function deleteCollection(collectionName: string) {
 export { calculateProductPrice } from './pricing';
 import { planHisaabSync } from './writes/hisaab-sync';
 import { _calculateProductCostsInternal, calculateProductCosts, GOLD_COIN_CATEGORY_ID_INTERNAL, DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL } from './pricing';
-import { finalizedItemCosts, orderInvoiceRates, type FinalizedItem } from './order-finalize';
+import { finalizedItemCosts, orderInvoiceRates, type FinalizedItem, type RateField } from './order-finalize';
 
 // --- Type Definitions ---
 export type { MetalType, KaratValue } from './materials';
@@ -1483,7 +1483,9 @@ export interface AppState {
     finalizedItems: FinalizedOrderItemData[],
     additionalDiscount: number,
     /** The 24k rate typed at Finalize for the shop's margin; none, and the sale is taken at 10%. */
-    costRate24k?: number
+    costRate24k?: number,
+    /** Rates typed at Finalize (PKR per gram) over the order's booked ones; none, and it prices as booked. */
+    ratesApplied?: Partial<Record<RateField, number>>
   ) => Promise<Invoice | null>;
   revertOrderFromInvoice: (orderId: string, invoiceId: string) => Promise<void>;
   refundOrder: (orderId: string) => Promise<void>;
@@ -3355,12 +3357,12 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      generateInvoiceFromOrder: async (order, finalizedItems, additionalDiscount, costRate24k) => {
+      generateInvoiceFromOrder: async (order, finalizedItems, additionalDiscount, costRate24k, ratesApplied) => {
         if (get().settings.databaseLocked) return null;
         const { settings } = get();
         // The invoice the order becomes, priced as the dialog showed it: lib/writes/finalize-order.ts, the one
         // copy the iPhone app's Finalize runs on the server too.
-        const baseInvoiceData = invoiceFromOrder(order, finalizedItems, additionalDiscount, costRate24k, settings, new Date().toISOString(), cleanObject);
+        const baseInvoiceData = invoiceFromOrder(order, finalizedItems, additionalDiscount, costRate24k, settings, new Date().toISOString(), cleanObject, ratesApplied);
 
         try {
             const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);

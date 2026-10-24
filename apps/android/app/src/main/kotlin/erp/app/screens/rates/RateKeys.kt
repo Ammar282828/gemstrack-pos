@@ -63,18 +63,12 @@ object RateKeys {
     fun plain(n: Double): String = format(2, false).format(n)
 
     /**
-     * What was typed, to two decimals as the web's amount box allows. The decimal pad follows the phone's region,
-     * so a lone comma with one or two digits after it is a decimal point; any other comma is grouping ("26,250").
+     * What was typed, to two decimals as the web's amount box allows, by the one number reader (the decimal pad follows
+     * the phone's region, so a lone comma with one or two digits after it is a decimal point; any other comma is
+     * grouping: "26,250").
      */
     fun parse(text: String): Double? {
-        var t = text.filter { !it.isWhitespace() }
-        if (t.isEmpty()) return null
-        if (!t.contains('.') && t.count { it == ',' } == 1) {
-            val i = t.lastIndexOf(',')
-            if (t.length - i <= 3) t = t.replaceRange(i, i + 1, ".")
-        }
-        val n = t.replace(",", "").toDoubleOrNull() ?: return null
-        if (!n.isFinite()) return null
+        val n = erp.core.logic.ShopNumber.parse(text) ?: return null
         // Swift's .rounded(): halves go away from zero.
         val scaled = n * 100
         return (if (scaled < 0) -floor(-scaled + 0.5) else floor(scaled + 0.5)) / 100

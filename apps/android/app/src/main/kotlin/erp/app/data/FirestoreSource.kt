@@ -14,6 +14,8 @@ import com.google.firebase.firestore.PersistentCacheSettings
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.QuerySnapshot
 import erp.app.ErpApp
+import erp.app.config.Business
+import erp.app.config.Businesses
 import erp.app.config.House
 import erp.core.Decodable
 import erp.core.ERPDate
@@ -32,28 +34,21 @@ object FirestoreSource {
     /** Listeners answer here, off the main thread: a first answer can be a few thousand documents, and decoding must not stall a scroll. */
     val queue: ScheduledExecutorService by lazy { Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "erp-firestore").apply { isDaemon = true } } }
 
-    /** Once, after FirebaseApp is initialized and before anything reads. */
-    fun configure() {
-        val settings = FirebaseFirestoreSettings.Builder()
-            .setLocalCacheSettings(PersistentCacheSettings.newBuilder().setSizeBytes(512L * 1024 * 1024).build())
-            .build()
-        FirebaseFirestore.getInstance().firestoreSettings = settings
-    }
-
     /**
      * Signing out forgets the books on this phone: the client is shut, its copy on disk erased, and a fresh one
      * set up as at launch, so the next person to sign in starts from nothing.
      */
-    suspend fun forget() {
-        if (House.isDemo || !ErpApp.firebaseReady) return
+    suspend fun forget(business: Business) {
+        if (House.isDemo) return
         try {
-            val db = FirebaseFirestore.getInstance()
+            val db = Businesses.firestore(business) ?: return
             db.terminate().await()
             db.clearPersistence().await()
         } catch (e: Exception) {
             android.util.Log.w("firestore", "could not clear the phone's copy: ${e.message}")
         }
-        configure()
+        // The next use makes a fresh instance and sets it up (Businesses.firestore).
+        Businesses.firestore(business)
     }
 
     /** SDK values JSON cannot hold, as text the models read (dates as ISO, as the ERP writes its own). */
@@ -69,8 +64,8 @@ object FirestoreSource {
      * A collection unordered (sorted on the phone, so a document missing the sort field is still shown), or one
      * document. Every change after the first answer arrives as just that change. `deliver` runs on the main thread.
      */
-    fun <T : Any> listen(name: String, model: Decodable<T>, docId: String?, deliver: (Delivery<T>) -> Unit): () -> Unit {
-        val l = Listening(name, model, docId) { d -> ErpApp.scope.launch { deliver(d) } }
+    fun <T : Any> listen(business: Business, name: String, model: Decodable<T>, docId: String?, deliver: (Delivery<T>) -> Unit): () -> Unit {
+        val l = Listening(business, name, model, docId) { d -> ErpApp.scope.launch { deliver(d) } }
         queue.execute { l.start() }
         return { queue.execute { l.stop() } }
     }
@@ -81,6 +76,7 @@ object FirestoreSource {
 
 /** One listener and its retries. Everything in it runs on FirestoreSource.queue (Firestore answers there too), so its state needs no lock. */
 private class Listening<T : Any>(
+    val business: Business,
     val name: String,
     val model: Decodable<T>,
     val docId: String?,
@@ -105,7 +101,8 @@ private class Listening<T : Any>(
         registration?.remove()
         first = true
         lastOffline = false
-        val db = FirebaseFirestore.getInstance()
+        // The business's own Firestore: its books, its sign-in, its copy on disk.
+        val db = Businesses.firestore(business) ?: return send(Delivery.Failed("This business isn't set up for this Android app yet."))
         val executor = FirestoreSource.queue
         registration = if (docId != null) {
             db.collection(name).document(docId).addSnapshotListener(executor, MetadataChanges.INCLUDE) { snap, error ->

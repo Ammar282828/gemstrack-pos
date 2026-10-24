@@ -114,6 +114,14 @@ fun DesignPublishSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
     androidx.activity.compose.BackHandler(enabled = p.busy) {}
 
     val plan = p.plan()
+    // Off to the Outbox and the sheet closes with a Note, unless a step still needs the person's hands (a story to share).
+    fun startRun() {
+        val waiting = plan.steps.any { it.manual && p.ref(it.id) == null }
+        val n = plan.steps.count { p.ref(it.id) == null && !it.manual }
+        p.runInBackground()
+        model.say("Sending to $n ${if (n == 1) "place" else "places"}…", "It says when it has gone.")
+        if (!waiting) dismiss()
+    }
     val problems = p.problems(plan)
 
     MoneyFeedback(success = p.sent, failure = p.failures)
@@ -205,7 +213,7 @@ fun DesignPublishSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
                             if (problems.isNotEmpty() || p.wordIssues.isNotEmpty()) return@launch
                             val groups = p.failingGroups(plan)
                             if (p.whatsappChoice.isNotEmpty() || (p.igMode("instagram-story") == "api" && p.storyOn) || (p.igMode("instagram-post") == "api" && p.postOn) || groups.isNotEmpty()) p.confirming = true
-                            else p.run()
+                            else startRun()
                         }
                     },
                     summary = summary,
@@ -222,7 +230,7 @@ fun DesignPublishSheet(model: DesignWorkspaceModel, dismiss: () -> Unit) {
             onDismissRequest = { p.confirming = false },
             title = { Text("Send to $n place${if (n == 1) "" else "s"}?") },
             text = { Text(whole + (if (groups.isEmpty()) "A published post cannot be taken back." else "A check is failing for ${groups.joinToString(" and ")}; it may not go.")) },
-            confirmButton = { TextButton(onClick = { scope.launch { p.run() } }) { Text("Yes, send") } },
+            confirmButton = { TextButton(onClick = { startRun() }) { Text("Yes, send") } },
             dismissButton = { TextButton(onClick = { p.confirming = false }) { Text("Not yet") } },
         )
     }

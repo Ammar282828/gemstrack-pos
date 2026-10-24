@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.data.Book
+import erp.app.data.Outbox
 import erp.app.data.ErpApi
 import erp.app.data.Shelf
 import erp.app.screens.owner.OwnerText
@@ -136,7 +137,7 @@ private fun VoiceSettingsPage() {
     // null while the ERP is being asked.
     var ready by remember { mutableStateOf<Boolean?>(null) }
     var reason by remember { mutableStateOf<String?>(null) }
-    var busy by remember { mutableStateOf<String?>(null) }
+    var forgotten by remember { mutableStateOf(setOf<String>()) }
     var failure by remember { mutableStateOf<String?>(null) }
     var refreshing by remember { mutableStateOf(false) }
 
@@ -164,24 +165,16 @@ private fun VoiceSettingsPage() {
     val loaded by aliases.loaded.collectAsStateWithLifecycle()
     val error by aliases.error.collectAsStateWithLifecycle()
 
+    // Not money: the name leaves the list at once; the Outbox tells the ERP (a 409 there means it was already gone).
     fun forget(a: SettingsVoiceAlias) {
-        if (busy != null) return
-        busy = a.id
-        scope.launch {
-            try {
-                ErpApi.shared.write("forgetVoiceAlias", mapOf("aliasId" to a.id))
-                note.show(Note("Forgotten", "“${a.heard}” no longer means ${a.refName}."))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: ErpApi.Failure) {
-                // Forgotten on another device a moment ago: the list catches up by itself.
-                if (e.status == 409) note.show(Note("Forgotten", "“${a.heard}” no longer means ${a.refName}.")) else failure = e.message
-            } catch (e: Exception) {
-                failure = e.message ?: e.toString()
-            }
-            busy = null
-        }
+        forgotten = forgotten + a.id
+        note.show(Note("Forgotten", "“${a.heard}” no longer means ${a.refName}."))
+        ErpApi.shared.enqueue("forgetVoiceAlias", mapOf("aliasId" to a.id), "Forget “${a.heard}”")
     }
+
+    // A forget that failed for good puts the name back: the list is the ERP's again.
+    val outboxFailure by Outbox.failure.collectAsStateWithLifecycle()
+    LaunchedEffect(outboxFailure?.id) { forgotten = emptySet() }
 
     ErpPullToRefreshBox(
         isRefreshing = refreshing,
@@ -216,10 +209,10 @@ private fun VoiceSettingsPage() {
                         Icon(Icons.Filled.CloudOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(error!!, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                } else if (items.isEmpty()) {
+                } else if (items.none { it.id !in forgotten }) {
                     Text("Nothing learned yet.", Modifier.fillMaxWidth().ledgerRow(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
-                    items.forEach { a -> AliasRow(a, busy == a.id, busy != null) { forget(a) } }
+                    items.filter { it.id !in forgotten }.forEach { a -> AliasRow(a, false, false) { forget(a) } }
                 }
             }
         }

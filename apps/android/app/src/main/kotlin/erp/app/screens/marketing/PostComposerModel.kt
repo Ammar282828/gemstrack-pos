@@ -3,8 +3,12 @@ package erp.app.screens.marketing
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import erp.app.ErpApp
 import erp.app.config.House
+import erp.app.data.Outbox
 import erp.app.data.ErpApi
+import erp.app.ui.Note
+import erp.app.ui.NoteState
 import java.io.File
 import java.util.UUID
 import kotlin.coroutines.cancellation.CancellationException
@@ -80,7 +84,9 @@ class PostComposerModel(
     val waKeys: List<String> get() = PostComposerRules.waKeys(draft)
     val igOn: Boolean get() = PostComposerRules.igOn(draft, instagramConnected)
     val manualStory: Boolean get() = PostComposerRules.manualStory(draft, instagramConnected)
-    val frozen: Boolean get() = draft.queuedID != null
+    /** True from the press of Publish until the send is done with it: the piece is not edited under a send. */
+    var submitting by mutableStateOf(false)
+    val frozen: Boolean get() = draft.queuedID != null || submitting
     val problems: List<String> get() = PostComposerRules.problems(draft, instagramConnected)
 
     // MARK: Loading
@@ -347,13 +353,36 @@ class PostComposerModel(
      * (`queuedID`), so a failure half way is resumed rather than made twice. The pictures are drawn here at their sizes
      * (the website's full size, WhatsApp's 1600, the story's 1080) and uploaded one by one; `ready` tells the server they are all in.
      */
-    suspend fun finish(queueOnly: Boolean) {
+    fun finish(queueOnly: Boolean) {
         if (problems.isNotEmpty()) { error = problems.joinToString(" "); return }
         if (!(siteOn || waKeys.isNotEmpty() || igOn)) { error = "Choose a destination, or share the story from your phone."; return }
         if (manualStory && !draft.words["storyOut"].bool) { error = "Share or save the story first, or choose Post only."; return }
-        busy = "Preparing the post…"
         error = null
-        try {
+        val places = (if (siteOn) 1 else 0) + waKeys.size + (if (igOn) 1 else 0)
+        val label = if (queueOnly) "Queue “${draft.title}”" else "Post “${draft.title}”"
+        submitting = true
+        said = if (queueOnly) "Adding to the queue…" else "Sending to $places ${if (places == 1) "place" else "places"}…"
+        // The whole send runs in the Outbox: the screen is free at once, and a failure comes back there with Retry.
+        // Retrying carries on from where it stopped (the queue entry and what it holds are kept on the draft).
+        Outbox.post(label) {
+            submitting = true
+            try {
+                publish(queueOnly, places)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                submitting = false
+                saveNow()
+                // A refusal is not retried by itself (a post must not go twice); the banner's Retry carries on.
+                throw ErpApi.Failure(400, e.message ?: "Something went wrong.")
+            } finally {
+                submitting = false
+            }
+        }
+    }
+
+    private suspend fun publish(queueOnly: Boolean, places: Int): String {
+        run {
             if (draft.queuedID == null) {
                 val thumb = render(story = false, photo = hero, px = 240)
                 val names = thumb["names"].array.map { it.string }
@@ -391,26 +420,22 @@ class PostComposerModel(
                     val r = render(story = true, photo = hero, px = 1080)
                     DesignProtocol.imageBytes(r)?.let { uploads.add("story" to it) }
                 }
-                uploads.forEachIndexed { i, (key, bytes) ->
-                    busy = "Keeping photo ${i + 1} of ${uploads.size}…"
+                uploads.forEach { (key, bytes) ->
                     ErpApi.shared.upload("/api/website/post/queue/$id", listOf("key" to key), listOf(ErpApi.FormFile("file", "$key.jpg", "image/jpeg", bytes)))
                 }
                 MarketingRequest.send("/api/website/post/queue/$id", mapOf("action" to "ready"), method = "PATCH")
                 update { it.copy(queueReady = true) }
                 saveNow()
             }
-            if (!queueOnly) { busy = "Sending…"; PostsStore.sendNow(id) }
+            if (!queueOnly) PostsStore.sendNow(id)
             val entry = MarketingRequest.get("/api/website/post/queue")
             entry["items"].array.firstOrNull { it.s("id") == id }?.let { queueEntry = PostQueueEntry.from(it.any) }
             said = if (queueOnly) "In the queue. It waits until you send or schedule it." else if (queueEntry?.status == "sent") "Sent to every destination." else "Open the queued piece to see what went and retry what remains."
             PostsStore.load()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            error = e.message
-            saveNow()
-        } finally {
-            busy = null
+            if (queueOnly) return "“${draft.title}” is in the queue"
+            if (queueEntry?.status == "sent") return "Posted to $places ${if (places == 1) "place" else "places"}"
+            val failed = queueEntry?.unitErrors?.values?.firstOrNull()
+            throw ErpApi.Failure(400, "Not all of it went" + (failed?.let { ": $it" } ?: "") + ". Retry sends only what is left.")
         }
     }
 }

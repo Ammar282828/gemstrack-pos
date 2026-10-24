@@ -10,6 +10,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -94,8 +95,14 @@ object ThemeChoice {
 @Composable
 fun AppRoot(session: Session) {
     AppShell(session) {
-        RootGate()
-        CrashReportDialog()
+        // The cold start's business picker (when this phone holds two or more) paints first; the app is built under it
+        // once it has, so the last business's books load while the person decides.
+        erp.app.screens.businesses.LaunchPickerLayer {
+            RootGate()
+            CrashReportDialog()
+        }
+        // The Businesses sheet sits above the screens, not in them: a switch rebuilds those, and the sheet closes with it.
+        erp.app.screens.businesses.BusinessesSheetHost()
     }
 }
 
@@ -106,7 +113,8 @@ fun AppRoot(session: Session) {
  */
 @Composable
 fun AppShell(session: Session, content: @Composable BoxScope.() -> Unit) {
-    val book = LocalBook.current
+    // This business's own books (LocalBook's default is whichever business was open when it was first read).
+    val book = remember(session) { erp.app.data.Book.of(session.business) }
     val settings by book.settings.value.collectAsStateWithLifecycle()
     val device by ThemeChoice.device.collectAsStateWithLifecycle()
     val lastShop by ThemeChoice.lastShop.collectAsStateWithLifecycle()
@@ -121,10 +129,12 @@ fun AppShell(session: Session, content: @Composable BoxScope.() -> Unit) {
             // One toast per Activity: the banner sits over every screen, so `LocalNoteState.current.show(Note(...))`
             // works wherever it is called (a page on top of the tabs shows it on the page).
             val note = rememberNoteState()
-            CompositionLocalProvider(LocalSession provides session, LocalNoteState provides note) {
+            CompositionLocalProvider(LocalSession provides session, LocalBook provides book, LocalNoteState provides note) {
                 Box(Modifier.fillMaxSize()) {
                     content()
                     NoteHost(note)
+                    // What a save that left its screen could not do, with Retry (Outbox).
+                    erp.app.ui.OutboxHost(Modifier.align(androidx.compose.ui.Alignment.BottomCenter))
                 }
                 LockLayer()
             }
@@ -227,12 +237,38 @@ fun StackHost(
     onClose: (() -> Unit)? = null,
     trailing: (@Composable androidx.compose.foundation.layout.RowScope.() -> Unit)? = null,
 ) {
+    // A hub tab's root on a wide window is the list with its item beside it (HubSplit); anywhere else, the one stack.
+    val rootPath = (stack.firstOrNull() as? Route)?.path
+    val prompt = if (onClose == null && stack.size == 1 && rootPath != null) HubSplitKind.prompt(rootPath) else null
+    if (prompt == null) {
+        PlainStack(stack, modifier, onClose, trailing, null)
+        return
+    }
+    BoxWithConstraints(modifier) {
+        if (maxWidth >= HubSplitKind.wideEnough) {
+            HubSplit(prompt) { pick -> PlainStack(stack, Modifier.fillMaxSize(), onClose, trailing, pick) }
+        } else {
+            PlainStack(stack, Modifier.fillMaxSize(), onClose, trailing, null)
+        }
+    }
+}
+
+@Composable
+private fun PlainStack(
+    stack: NavBackStack<NavKey>,
+    modifier: Modifier,
+    onClose: (() -> Unit)?,
+    trailing: (@Composable androidx.compose.foundation.layout.RowScope.() -> Unit)?,
+    /** In a split's list column: where a tapped row goes, instead of a page of its own. */
+    intercept: ((String) -> Unit)?,
+) {
     val context = LocalContext.current
-    val navigator = remember(stack, onClose, context) {
+    val navigator = remember(stack, onClose, context, intercept) {
         object : Navigator {
             // A page is its own Activity (the system's open and Back animations): the stack here is only the tab's root.
             // A stack seeded with more than the root (the screenshot tests') still pops and swaps in place.
             override fun open(path: String) {
+                if (intercept != null) { intercept(path); return }
                 if ((stack.lastOrNull() as? Route)?.path != path) PageActivity.start(context, path)
             }
 

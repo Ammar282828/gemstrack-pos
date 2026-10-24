@@ -40,6 +40,8 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   `shop` block spreads, so the two agree. New variables: `NEXT_PUBLIC_STORE_PALETTE` (compact JSON, `{"light":{…},"dark":{…}}`, #RRGGBB;
   Taheri's colours are the code's defaults, a missing or malformed colour falls back to them) and, run time only,
   `APP_IOS_GOOGLE_CLIENT_ID`, `APP_IOS_FIREBASE_API_KEY`, `APP_IOS_FIREBASE_APP_ID` (the iOS sign-in identifiers; defaults are Taheri's;
+  `APP_ANDROID_FIREBASE_APP_ID` and `APP_ANDROID_GOOGLE_WEB_CLIENT_ID` do the same for the Android app, answered as `android: {…}` beside `ios`: a house that has not
+  registered `shop.taheri.erp` writes `"none"` in both (Mina does, `apphosting.mina.yaml`) and is answered `android: null`;
   project, sender and bucket come from `NEXT_PUBLIC_FIREBASE_*`). All public identifiers. Mina's `APP_IOS_*` are the old
   `store.houseofmina.erp` app's until the owner registers `shop.taheri.erp` in Mina's Firebase project. Push needs nothing:
   `/api/push/devices` accepts any bundle id shaped like one (no allow-list), and the APNs key is team-scoped, so topic

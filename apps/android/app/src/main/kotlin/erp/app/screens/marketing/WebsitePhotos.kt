@@ -70,6 +70,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.auth.LocalSession
 import erp.app.config.House
 import erp.app.config.Prefs
+import erp.app.data.Outbox
 import erp.app.data.ErpApi
 import erp.app.device.Foreground
 import erp.app.device.openAddress
@@ -283,51 +284,64 @@ class WebsitePhotosModel(private val scope: CoroutineScope) {
 
     // MARK: Sending (one after another: shop wifi, big files)
 
-    suspend fun sendAll(siteName: String) {
+    /**
+     * Handed to the Outbox: the tray is free at once (each photo shows its own state), and "n photographs sent" or what failed
+     * comes back from there, with Retry (which sends only what has not gone).
+     */
+    fun sendAll(siteName: String) {
         if (!canSend) return
         sending = true
         said = null
-        try {
-            val target = folder
-            // The Maisons: the ERP names the whole tray (sent ones included, so a later photo of a piece numbers after them).
-            val names = HashMap<String, String>()
-            if (isMaison) {
-                try {
-                    val tray = items.map { mapOf("house" to it.house, "model" to it.model, "ext" to it.kind.ext) }
-                    val a = WebsiteApi.post("/api/website/photos/names", mapOf("folder" to target, "items" to tray), WebsiteMaisonNames)
-                    if (!a.maison || a.names.size != items.size) throw ErpApi.Failure(0, "The ERP didn't name the photographs.")
-                    items.zip(a.names).forEach { (i, n) -> names[i.id] = n }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    failure = "Not sent. " + (e.message ?: "")
-                    return
+        failure = null
+        val target = folder
+        val n = pending.size
+        for (p in pending) update(p.id) { it.copy(status = WebsitePhotoItem.Status.Uploading, error = null) }
+        Outbox.post("Send $n photograph${if (n == 1) "" else "s"} to $siteName") {
+            sending = true
+            try {
+                // The Maisons: the ERP names the whole tray (sent ones included, so a later photo of a piece numbers after them).
+                val names = HashMap<String, String>()
+                if (isMaison) {
+                    try {
+                        val tray = items.map { mapOf("house" to it.house, "model" to it.model, "ext" to it.kind.ext) }
+                        val a = WebsiteApi.post("/api/website/photos/names", mapOf("folder" to target, "items" to tray), WebsiteMaisonNames)
+                        if (!a.maison || a.names.size != items.size) throw ErpApi.Failure(0, "The ERP didn't name the photographs.")
+                        items.zip(a.names).forEach { (i, name) -> names[i.id] = name }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        for (i in items.filter { it.status == WebsitePhotoItem.Status.Uploading }) update(i.id) { it.copy(status = WebsitePhotoItem.Status.Failed) }
+                        throw e
+                    }
                 }
-            }
-            var sent = 0
-            for (id in pending.map { it.id }) {
-                val item = items.firstOrNull { it.id == id } ?: continue
-                update(id) { it.copy(status = WebsitePhotoItem.Status.Uploading, error = null) }
-                val name = names[id] ?: (item.stem + "." + item.kind.ext)
-                try {
-                    val up = WebsiteApi.form(
-                        "/api/website/photos", listOf("folder" to target, "name" to name), WebsiteUploaded,
-                        listOf(ErpApi.FormFile("file", "photo.${item.kind.ext}", item.kind.mime, item.data)), timeoutMs = 120_000,
-                    )
-                    update(id) { it.copy(status = WebsitePhotoItem.Status.Done, rel = up.rel) }
-                    sent++
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    update(id) { it.copy(status = WebsitePhotoItem.Status.Failed, error = e.message ?: "Failed") }
+                var sent = 0
+                var lastProblem: String? = null
+                for (id in items.filter { it.status != WebsitePhotoItem.Status.Done }.map { it.id }) {
+                    val item = items.firstOrNull { it.id == id } ?: continue
+                    update(id) { it.copy(status = WebsitePhotoItem.Status.Uploading, error = null) }
+                    val name = names[id] ?: (item.stem + "." + item.kind.ext)
+                    try {
+                        val up = WebsiteApi.form(
+                            "/api/website/photos", listOf("folder" to target, "name" to name), WebsiteUploaded,
+                            listOf(ErpApi.FormFile("file", "photo.${item.kind.ext}", item.kind.mime, item.data)), timeoutMs = 120_000,
+                        )
+                        update(id) { it.copy(status = WebsitePhotoItem.Status.Done, rel = up.rel) }
+                        sent++
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        lastProblem = e.message ?: "Failed"
+                        update(id) { it.copy(status = WebsitePhotoItem.Status.Failed, error = e.message ?: "Failed") }
+                    }
                 }
-            }
-            if (sent > 0) {
+                if (sent > 0) WebsiteStore.loadFeatured()
+                // A refusal is not retried by itself; the banner's Retry sends only the photographs that did not go.
+                lastProblem?.let { throw ErpApi.Failure(400, (if (sent > 0) "$sent sent. " else "") + it) }
                 said = WebsitePhotosLogic.sentWords(sent, siteName, chosen?.collection ?: "the collection")
-                WebsiteStore.loadFeatured()
+                "$sent photograph${if (sent == 1) "" else "s"} on $siteName"
+            } finally {
+                sending = false
             }
-        } finally {
-            sending = false
         }
     }
 
@@ -436,7 +450,7 @@ fun WebsitePhotosScreen() {
     if (confirmingSend) {
         WebsiteConfirm(
             "Put them on ${site.siteName}?", WebsitePhotosLogic.sendWords(model.pending, WebsitePhotosLogic.shelfName(model.chosen, model.folder), site.siteName),
-            listOf(WebsiteChoice("Send ${model.pending.size} to the website") { scope.launch { model.sendAll(site.siteName) } }),
+            listOf(WebsiteChoice("Send ${model.pending.size} to the website") { model.sendAll(site.siteName) }),
             onDismiss = { confirmingSend = false },
         )
     }

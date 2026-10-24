@@ -38,7 +38,8 @@ object GoogleAuth {
 
     data class Tokens(val idToken: String, val accessToken: String = "")
 
-    private var cached: Pair<Tokens, Long>? = null
+    /** The token in hand, with its expiry and the web client it was asked for: another business's project has another client, so its token is no use here. */
+    private var cached: Triple<Tokens, Long, String>? = null
 
     /** The web client is what Credential Manager needs; empty until the owner has registered the house's Android app. */
     private val clientId: String get() = House.googleWebClientId
@@ -64,11 +65,11 @@ object GoogleAuth {
     }
 
     /** The token in hand while it has ten minutes left. */
-    internal fun cachedToken(nowMs: Long): Tokens? = cached?.takeIf { it.second - Jwt.REFRESH_MARGIN_MS > nowMs }?.first
+    internal fun cachedToken(nowMs: Long): Tokens? = cached?.takeIf { it.third == clientId && it.second - Jwt.REFRESH_MARGIN_MS > nowMs }?.first
 
     private fun remember(t: Tokens): Tokens {
         // A token whose expiry cannot be read is used once, never kept.
-        Jwt.expiryMillis(t.idToken)?.let { cached = t to it }
+        Jwt.expiryMillis(t.idToken)?.let { cached = Triple(t, it, clientId) }
         return t
     }
 

@@ -124,12 +124,17 @@ private fun OwnersOnly() {
 
 /** The sale form: [edit] is Edit invoice (SaleEdit), opened on the invoice on file. */
 @Composable
-fun SaleForm(edit: SaleEdit? = null, startsReading: Boolean = false) {
+fun SaleForm(edit: SaleEdit? = null, startsReading: Boolean = false, ratesFirst: Boolean = false) {
     val book = LocalBook.current
     val session = LocalSession.current
     val navigator = LocalNavigator.current
     val settingsLoaded by book.settings.loaded.collectAsStateWithLifecycle()
-    val s = remember { SaleFormState(book, edit, session.shop.person ?: "", startsReading, { navigator.open(it) }, { navigator.back() }) }
+    val s = remember {
+        SaleFormState(book, edit, session.shop.person ?: "", startsReading, { navigator.open(it) }, { navigator.back() }).also {
+            // Change rate opens an invoice on file at the Pieces step, its rates on top (the owner, 2026-10-24).
+            if (ratesFirst && edit != null) { it.ratesFirst = true; it.step = EntryStep.pieces }
+        }
+    }
 
     // This phone's own unfinished sale, written as it is typed (SaleFormState.setDraft). It is read again whenever the
     // screen shows, and kept in Drafts a moment after the last change; going away sends what is waiting.
@@ -228,8 +233,9 @@ private fun Page(s: SaleFormState) {
                         when (step) {
                             EntryStep.customer -> CustomerSection(s, f, data)
                             EntryStep.pieces -> {
+                                if (s.ratesFirst) RatesSection(s, f, data)
                                 PiecesSection(s, f, data)
-                                RatesSection(s, f, data)
+                                if (!s.ratesFirst) RatesSection(s, f, data)
                             }
                             EntryStep.payment -> {
                                 DiscountSection(s, f)
