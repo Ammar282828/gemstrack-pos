@@ -146,8 +146,8 @@ fun Dashboard() {
         }
     }
 
-    // The web's heading: the shop's name.
-    ScreenTitle(settings?.shopName?.takeIf { it.isNotEmpty() } ?: "Dashboard")
+    // Home says Today, not the shop's name (the business is the badge's and the chip's to say).
+    ScreenTitle("Today")
     if (owner) {
         ScreenActions {
             IconButton(onClick = { noteSheet = true }) { Icon(Icons.Filled.PushPin, "Team note") }
@@ -205,7 +205,7 @@ private fun DashboardPage(
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         DateLine(f)
                         Hero(f, open)
-                        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(14.dp)) { StatCards(f, owner, open, Modifier.weight(1f)) }
+                        FigureGrid(f, owner, open)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.Top) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(22.dp)) {
@@ -214,28 +214,24 @@ private fun DashboardPage(
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(22.dp)) {
                             SalesSection(f, allSales, toggleSales, open)
-                            MonthSection(f, owner, open)
                         }
                     }
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         DateLine(f)
                         Hero(f, open)
-                        DashDisclosure("Shop overview") {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { StatCards(f, owner, open, Modifier) }
-                        }
+                        FigureGrid(f, owner, open)
                     }
                     NeedsSection(needs, allNeeds, toggleNeeds, open, onRates)
                     DueSection(f, allDue, toggleDue, open)
                     SalesSection(f, allSales, toggleSales, open)
-                    MonthSection(f, owner, open)
                 }
             }
         }
     }
 }
 
-/** "FRIDAY 9 OCTOBER", under the shop's name. */
+/** "TUESDAY 21 OCTOBER", a quiet line above the hero. */
 @Composable
 private fun DateLine(f: DashFigures) {
     Text(
@@ -255,21 +251,39 @@ private fun Hero(f: DashFigures, open: (String) -> Unit) {
     )
 }
 
-/** The three cards, each a link; [modifier] gives each its share of a row on a wide window. */
+/** The four figures, always showing: two by two, one under another at large text sizes. */
 @Composable
-private fun StatCards(f: DashFigures, owner: Boolean, open: (String) -> Unit, modifier: Modifier) {
+private fun FigureGrid(f: DashFigures, owner: Boolean, open: (String) -> Unit) {
     // Analytics and the hisaab are the owners' books.
-    val monthPath = if (owner) "/analytics" else null
-    DashStat("This month", monthPath?.let { p -> { open(p) } }, modifier) {
-        DashStatAmount(f.monthRevenue)
-        DashMonthChange(f.monthAgainstLast, f.now)
+    val tiles: List<@Composable (Modifier) -> Unit> = listOf(
+        { m -> OwedTile(f, owner, open, m) },
+        { m -> BenchTile(f, open, m) },
+        { m -> MonthTile(f, owner, open, m) },
+        { m -> DueTile(f, open, m) },
+    )
+    if (isLargeText()) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { tiles.forEach { it(Modifier) } }
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            for (pair in tiles.chunked(2)) {
+                Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) { pair.forEach { it(Modifier.weight(1f)) } }
+            }
+        }
     }
+}
+
+/** Owed is amber, never red: money still to come is not an alarm. */
+@Composable
+private fun OwedTile(f: DashFigures, owner: Boolean, open: (String) -> Unit, modifier: Modifier) {
     DashStat("Owed to you", { open(if (owner && f.owedInHisaab > 0) "/hisaab" else "/invoices") }, modifier) {
         if (f.totalOutstanding >= 1) DashStatAmount(f.totalOutstanding, Tone.owed.color()) else DashStatValue("Nil")
-        // Owed is amber, never red: money still to come is not an alarm.
         DashStatNote("${f.unpaid.size} unpaid")
         if (f.owedInHisaab > 0) DashStatNote("${Money.lacCrore(f.owedInHisaab)} in hisaab")
     }
+}
+
+@Composable
+private fun BenchTile(f: DashFigures, open: (String) -> Unit, modifier: Modifier) {
     DashStat("On the bench", { open("/workshop") }, modifier) {
         val n = f.activeJobs
         DashStatValue("$n piece${if (n == 1) "" else "s"}")
@@ -279,11 +293,36 @@ private fun StatCards(f: DashFigures, owner: Boolean, open: (String) -> Unit, mo
     }
 }
 
+/** This month's takings against last (the old This month card, now a tile; the detail is Analytics). */
+@Composable
+private fun MonthTile(f: DashFigures, owner: Boolean, open: (String) -> Unit, modifier: Modifier) {
+    DashStat("This month", if (owner) ({ open("/analytics") }) else null, modifier) {
+        DashStatAmount(f.monthRevenue)
+        DashMonthChange(f.monthAgainstLast, f.now)
+    }
+}
+
+/**
+ * Orders and repairs promised to customers; red only for the late ones. Their totals are not what is left to collect,
+ * so no sum is shown here: Owed to you says that.
+ */
+@Composable
+private fun DueTile(f: DashFigures, open: (String) -> Unit, modifier: Modifier) {
+    val n = f.due.size
+    val late = f.lateDue.size
+    DashStat("Orders due", { open("/orders") }, modifier) {
+        DashStatValue(if (n == 0) "None" else "$n open")
+        if (late > 0) DashStatNote("$late late", Tone.late.color())
+    }
+}
+
 @Composable
 private fun NeedsSection(needs: List<DashNeed>, all: Boolean, toggle: () -> Unit, open: (String) -> Unit, onRates: (() -> Unit)?) {
+    // Nothing needing anyone: no section, no empty card.
+    if (needs.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         DashHeader("Needs you", count = needs.size)
-        if (needs.isEmpty()) DashAllClear() else DashNeedList(if (all) needs else needs.take(3), open, onRates)
+        DashNeedList(if (all) needs else needs.take(3), open, onRates)
         if (needs.size > 3) DashReveal(all, needs.size - 3, toggle)
     }
 }
@@ -305,12 +344,5 @@ private fun SalesSection(f: DashFigures, all: Boolean, toggle: () -> Unit, open:
         if (f.recentInvoices.isEmpty()) DashEmpty("No sales yet.")
         else DashRowsCard(if (all) f.recentInvoices else f.recentInvoices.take(3), inset = SALE_MONOGRAM + 12.dp) { i -> DashSaleRow(i, f.now, open) }
         if (f.recentInvoices.size > 3) DashReveal(all, f.recentInvoices.size - 3, toggle)
-    }
-}
-
-@Composable
-private fun MonthSection(f: DashFigures, owner: Boolean, open: (String) -> Unit) {
-    DashDisclosure("Last 30 days") {
-        DashMonthCard(f, showCosts = owner, onClick = if (owner) ({ open("/analytics") }) else null)
     }
 }

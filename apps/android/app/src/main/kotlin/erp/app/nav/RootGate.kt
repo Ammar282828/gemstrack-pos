@@ -10,6 +10,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -227,12 +228,38 @@ fun StackHost(
     onClose: (() -> Unit)? = null,
     trailing: (@Composable androidx.compose.foundation.layout.RowScope.() -> Unit)? = null,
 ) {
+    // A hub tab's root on a wide window is the list with its item beside it (HubSplit); anywhere else, the one stack.
+    val rootPath = (stack.firstOrNull() as? Route)?.path
+    val prompt = if (onClose == null && stack.size == 1 && rootPath != null) HubSplitKind.prompt(rootPath) else null
+    if (prompt == null) {
+        PlainStack(stack, modifier, onClose, trailing, null)
+        return
+    }
+    BoxWithConstraints(modifier) {
+        if (maxWidth >= HubSplitKind.wideEnough) {
+            HubSplit(prompt) { pick -> PlainStack(stack, Modifier.fillMaxSize(), onClose, trailing, pick) }
+        } else {
+            PlainStack(stack, Modifier.fillMaxSize(), onClose, trailing, null)
+        }
+    }
+}
+
+@Composable
+private fun PlainStack(
+    stack: NavBackStack<NavKey>,
+    modifier: Modifier,
+    onClose: (() -> Unit)?,
+    trailing: (@Composable androidx.compose.foundation.layout.RowScope.() -> Unit)?,
+    /** In a split's list column: where a tapped row goes, instead of a page of its own. */
+    intercept: ((String) -> Unit)?,
+) {
     val context = LocalContext.current
-    val navigator = remember(stack, onClose, context) {
+    val navigator = remember(stack, onClose, context, intercept) {
         object : Navigator {
             // A page is its own Activity (the system's open and Back animations): the stack here is only the tab's root.
             // A stack seeded with more than the root (the screenshot tests') still pops and swaps in place.
             override fun open(path: String) {
+                if (intercept != null) { intercept(path); return }
                 if ((stack.lastOrNull() as? Route)?.path != path) PageActivity.start(context, path)
             }
 

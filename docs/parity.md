@@ -28,8 +28,8 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Dashboard: four figures, Needs you, Due to customers, Recent sales | ✓ | ✓ | ✓ | 2026-09 | [Dashboard](decisions.md#dashboard); `Screens/Home`, `screens/home` |
 | Today's cash | ✓ | ✓ | ✓ | 2026-10 | `Screens/Home/TodaysCashScreen.swift`, `screens/home/TodaysCashScreen.kt` |
 | Team note (owners write, staff read) | ✓ | ✓ | ✓ | 2026-09 | [Team note](decisions.md#team-note) |
-| Search that finds customers, invoices, orders, stock, repairs, places; launcher of recents and tiled groups | n/a (web search is the page's own) | ✓ | owed | 2026-10-21 | `Nav/SearchHome.swift`; Android's Search is the menu only |
-| Analytics listed in Search | n/a | ✓ | owed | 2026-10-24 | with the row above |
+| Search: one calm list (the map by group, then the account; no quick buttons, no recents) that finds customers, invoices, orders, stock, repairs, places | n/a (web search is the page's own) | ✓ | ✓ | 2026-10-21 | `Nav/SearchHome.swift`, `nav/SearchScreen.kt` + `SearchLogic.kt`; Android has no long-press menu of a row's tabs |
+| Analytics listed in Search (Home's group shown as Overview) | n/a | ✓ | ✓ | 2026-10-24 | with the row above |
 | Business switcher: Taheri, Mina and any business by address, a widget each | n/a | ✓ | owed | 2026-10-16 | [iphone-app.md](features/iphone-app.md#one-app-many-businesses-2026-10-16); Android ships one app per house (two flavors) |
 | Cold start asks which business | n/a | ✓ | owed | 2026-10-20 | `Nav/BusinessPicker.swift` |
 
@@ -109,8 +109,8 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Feature | Web | iPhone | Android | Since | Where |
 |---|---|---|---|---|---|
 | Overview, Sales, Products, Customers (this month by default) | ✓ | ✓ | ✓ | 2026-10 | [Analytics default](decisions.md#analytics-default-this-month) |
-| Categories as ranked share bars | ✓ | ✓ | owed | 2026-10-20 | `lineCategory`, `AnalyticsCategories.swift`; Android's is the pie (check) |
-| One Analytics with sections (Sales · Website · Social · Ads) and a section picker | ✓ | ✓ | owed | 2026-10-23 | [The map](decisions.md#the-map) |
+| Categories as ranked share bars | ✓ | ✓ | ✓ | 2026-10-20 | `lineCategory`/`guessCategory`: `Categories.swift`, `core/logic/Categories.kt` (+ tests); `AnaShareChart` |
+| One Analytics with sections (Sales · Website · Social · Ads) and a section picker; the marketing account sees only tabs marked `marketing` | ✓ | ✓ | ✓ | 2026-10-23 | [The map](decisions.md#the-map) |
 | Monthly PDF | ✓ | ✓ | ✓ | 2026-10 | [Monthly PDF](features/notifications.md#monthly-pdf) |
 | Sums spoken in rupees, charts summarised for screen readers | n/a | ✓ | n/a | 2026-10-20 | Android uses TalkBack labels (`android-app.md`) |
 
@@ -148,7 +148,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 
 | Feature | Web | iPhone | Android | Since | Where |
 |---|---|---|---|---|---|
-| Settings in sections (Shop, Connections, Records) | ✓ | ✓ | owed | 2026-10-23 | `SettingsRoot.swift` vs `SettingsRoot.kt` |
+| Settings in sections (Shop, Connections, Records) | ✓ | ✓ | ✓ | 2026-10-23 | `SettingsRoot.swift` vs `SettingsRoot.kt` |
 | Shop, alerts, bank accounts, integrations, Shopify, data, voice, labels, backups, contact and hisaab imports, This phone | ✓ | ✓ | ✓ | 2026-10 | `screens/settings` |
 | Taheri book import | ✓ | ✓ | owed | 2026-10-17 | `TaheriBookImportSettings.swift` |
 | Connect an AI (scoped keys; MCP + REST) | ✓ | pg | pg | 2026-10-19 | [AI keys](features/ai-keys.md) |
@@ -178,7 +178,7 @@ screen: where the evidence was thin the row says "check" in *Where* and is marke
 | Biometric lock; delete code by biometric | n/a | ✓ | ✓ | 2026-10 | Face ID / BiometricPrompt |
 | Widget key revoked on sign-out, kept on the device | n/a | ✓ | ✓ | 2026-10-20 | `/api/widget/key` |
 | Update gate (out-of-date build writes nothing) | n/a | ✓ | owed | 2026-10-20 | `Home/UpdateGate.swift` |
-| Tablet / iPad: lists beside item, columns, shortcuts | n/a | ✓ | ✓ | 2026-10-23 | window size classes; ⌘ shortcuts n/a on Android |
+| Tablet / iPad: lists beside item, columns, shortcuts; the item side always open with "Choose an order" etc. until picked | n/a | ✓ | ✓ | 2026-10-23 | `HubSplit.swift`, `nav/HubSplit.kt`; ⌘ shortcuts n/a on Android |
 | Menus from `lib/nav.ts` via the exported JSON | ✓ | ✓ | ✓ | 2026-10 | checked by `parity.yml` |
 | Money contract (`contract/cases.json` equal on both phones) | ✓ | ✓ | ✓ | 2026-10-12 | `src/app/api/app/write/contract.test.ts` |
 | Store distribution | n/a | ✓ TestFlight | ✓ Play internal | 2026-10 | `ios.yml`, `android.yml` |

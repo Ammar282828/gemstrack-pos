@@ -38,6 +38,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.BuildConfig
 import erp.app.auth.LocalSession
 import erp.app.config.House
+import erp.app.nav.NavIcon
+import erp.app.nav.NavMap
+import erp.app.nav.NavPlace
 import erp.app.nav.ScreenTitle
 import erp.app.ui.NotAvailableState
 import erp.app.ui.Tone
@@ -61,20 +64,19 @@ fun SettingsRoot() {
     var signingOut by remember { mutableStateOf(false) }
     val me by session.me.collectAsStateWithLifecycle()
 
+    // The web's Settings sections (nav.ts SETTINGS `section`: Shop, Connections, Records) with their tabs in its order.
+    val sections = remember(session.me) {
+        val e = NavMap.current.visible(me?.role ?: "owner").settings
+        e?.sections?.map { it to e.tabsIn(it) } ?: emptyList()
+    }
+
     SettingsPage {
         SettingsSection { Account(me?.email.orEmpty(), session.shop.person, session.shop.name) }
 
-        SettingsSection {
-            SettingsLinkRow("Shop", Icons.Filled.Storefront, SettingsColors.blue, "/app/settings/shop")
-            SettingsLinkRow("Alerts", Icons.Filled.NotificationsActive, SettingsColors.red, "/settings/alerts")
-            SettingsLinkRow("Bank accounts", Icons.Filled.AccountBalance, SettingsColors.green, "/settings/payment-methods")
-        }
-
-        SettingsSection {
-            SettingsLinkRow("Integrations", Icons.Filled.Extension, SettingsColors.purple, "/settings/integrations")
-            SettingsLinkRow("Data", Icons.Filled.Storage, SettingsColors.gray, "/settings/data")
-            SettingsLinkRow("Activity", Icons.Filled.History, SettingsColors.indigo, "/activity-log")
-            SettingsLinkRow("Voice", Icons.Filled.Mic, SettingsColors.pink, "/settings/voice")
+        for (section in sections) {
+            SettingsSection(title = section.first) {
+                for (t in section.second) SettingsTabRow(t)
+            }
         }
 
         SettingsSection {
@@ -99,6 +101,21 @@ fun SettingsRoot() {
             confirmButton = { TextButton(onClick = { signingOut = false; session.signOut() }) { Text("Sign out", color = Tone.problem.color()) } },
             dismissButton = { TextButton(onClick = { signingOut = false }) { Text("Cancel") } },
         )
+    }
+}
+
+/** A tab as a row: the app's own look for the ones it has drawn, the map's icon for any the web adds. */
+@Composable
+private fun SettingsTabRow(t: NavPlace) {
+    when (t.href) {
+        "/settings" -> SettingsLinkRow("Shop", Icons.Filled.Storefront, SettingsColors.blue, "/app/settings/shop")
+        "/settings/alerts" -> SettingsLinkRow("Alerts", Icons.Filled.NotificationsActive, SettingsColors.red, t.href)
+        "/settings/payment-methods" -> SettingsLinkRow("Bank accounts", Icons.Filled.AccountBalance, SettingsColors.green, t.href)
+        "/settings/integrations" -> SettingsLinkRow("Integrations", Icons.Filled.Extension, SettingsColors.purple, t.href)
+        "/settings/data" -> SettingsLinkRow("Data", Icons.Filled.Storage, SettingsColors.gray, t.href)
+        "/activity-log" -> SettingsLinkRow("Activity", Icons.Filled.History, SettingsColors.indigo, t.href)
+        "/settings/voice" -> SettingsLinkRow("Voice", Icons.Filled.Mic, SettingsColors.pink, t.href)
+        else -> SettingsLinkRow(t.label, NavIcon.vector(t.icon), SettingsColors.teal, t.href)
     }
 }
 

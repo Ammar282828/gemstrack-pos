@@ -47,6 +47,7 @@ import erp.app.ui.reduceMotion
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.theme.TabularDigits
 import erp.core.logic.Money
+import erp.core.logic.categoryShareText
 import kotlin.math.max
 
 // The charts, kept simple (AnalyticsCharts.swift): Compose Canvas, no axes to read, the amounts said in lac and every
@@ -348,46 +349,47 @@ private fun Legend(entries: List<Pair<String, Color>>) {
 
 // MARK: Share of revenue
 
-/** Each category's share of revenue. */
+/**
+ * Each category's share of revenue (category-breakdown.tsx): a ranked list of bars in one hue, the share written beside
+ * each with its revenue in lac; Uncategorized, if any, in muted grey. Not a pie: seventeen slices could not be read.
+ */
 @Composable
 fun AnaShareChart(rows: List<AnaBreakdown.CategoryRow>, modifier: Modifier = Modifier) {
-    // A share is of what came in: a category at nothing (or below, after returns) has no slice.
-    val slices = rows.filter { it.revenue > 0 }
-    if (slices.isEmpty()) {
+    if (rows.isEmpty()) {
         Box(modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
             Text("No category revenue in this period.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
     }
-    val palette = chartPalette()
+    val total = rows.sumOf { it.revenue }
+    val top = max(1.0, rows.maxOf { it.revenue })
     val reveal = rememberReveal()
-    // Seven colours can be told apart; the rest are one slice, "Other" (the table below lists every category).
-    val shown: List<Pair<String, Double>> = if (slices.size <= 7) slices.map { it.name to it.revenue }
-    else slices.take(6).map { it.name to it.revenue } + ("Other" to slices.drop(6).sumOf { it.revenue })
-    val total = shown.sumOf { it.second }
-    val spoken = "Share of revenue by category: " + shown.joinToString(", ") { it.first + " " + AnaFormat.fixed(it.second / total * 100, 1) + " percent" }
-    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Canvas(Modifier.size(200.dp).semantics { contentDescription = spoken }) {
-            val stroke = 38.dp.toPx()
-            val inset = stroke / 2
-            val arc = Size(size.width - stroke, size.height - stroke)
-            var start = -90f
-            shown.forEachIndexed { i, (_, value) ->
-                val sweep = (value / total).toFloat() * 360f * reveal
-                // A hairline gap between slices, as the Swift's angularInset.
-                val gap = if (shown.size > 1) 1.5f else 0f
-                drawArc(palette[i % palette.size], start + gap / 2, max(sweep - gap, 0.1f), false, Offset(inset, inset), arc, style = Stroke(stroke))
-                start += (value / total).toFloat() * 360f * reveal
-            }
-        }
-        Column(Modifier.fillMaxWidth().clearAndSetSemantics {}, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            shown.forEachIndexed { i, (name, value) ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(10.dp).clip(CircleShape).background(palette[i % palette.size]))
-                    Text(name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+    val track = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)
+    Column(modifier.fillMaxWidth().semantics { contentDescription = "Share of revenue by category, largest first" }, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        for (c in rows) {
+            val muted = c.id == "uncategorized"
+            val share = categoryShareText(if (total > 0) c.revenue / total else 0.0)
+            Column(
+                Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = "${c.name}, $share of revenue, ${Money.lacCrore(c.revenue)}" },
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Bottom) {
                     Text(
-                        AnaFormat.fixed(value / total * 100, 1) + "%",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = TabularDigits),
+                        c.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1,
+                        color = if (muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(share, style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = TabularDigits))
+                    Text(
+                        Money.lacCrore(c.revenue),
+                        style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Box(Modifier.fillMaxWidth().height(8.dp).clip(CircleShape).background(track)) {
+                    val fraction = (max(0.0, c.revenue) / top).toFloat() * reveal
+                    Box(
+                        Modifier.fillMaxWidth(fraction).height(8.dp).clip(CircleShape)
+                            .background(if (muted) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f) else ErpColors.accent.copy(alpha = 0.75f)),
                     )
                 }
             }
