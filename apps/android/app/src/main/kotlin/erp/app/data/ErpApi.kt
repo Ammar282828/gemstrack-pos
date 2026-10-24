@@ -1,6 +1,8 @@
 package erp.app.data
 
 import erp.app.ErpApp
+import erp.app.config.Business
+import erp.app.config.Businesses
 import erp.app.config.House
 import erp.core.Json
 import java.io.IOException
@@ -25,9 +27,18 @@ import okhttp3.Response
 /**
  * The ERP's server routes, as the signed-in person (their Firebase ID token). Every write that moves money
  * goes this way (CONVENTIONS.md rule 1): the rules live once, in the ERP.
+ *
+ * One per business (`forBusiness`): its address, and the token of its own Firebase app. `shared` is the open business's. A
+ * call that began for one business is finished for that business, whichever is open by then (an Outbox entry, a push
+ * registration), so nothing of one business's reaches another's server.
  */
-class ErpApi private constructor() {
+class ErpApi private constructor(private val initial: Business) {
     class Failure(val status: Int, override val message: String) : Exception(message)
+
+    private val id = initial.id
+
+    /** The business as the phone has it now (a refresh may have given it its Android sign-in); the address never moves. */
+    private val biz: Business get() = Businesses.business(id) ?: initial
 
     /**
      * The sign-in token goes to the house's own ERP and nowhere else, whatever path is passed in. `timeoutMs` is how
@@ -60,8 +71,9 @@ class ErpApi private constructor() {
     /** The one place a request is built and sent, so text and bytes cannot drift apart in auth, pinning or failure. */
     private suspend fun open(path: String, method: String, json: Map<String, Any?>?, timeoutMs: Long, accept: String, form: RequestBody? = null): Response {
         // The demo has no server and no Firebase: every call answers as if offline.
-        if (House.isDemo || !ErpApp.firebaseReady) throw Failure(0, "Not connected to the ERP in the demo.")
-        val url = resolve(House.serverUrl, path) ?: throw Failure(0, "Not an address of this ERP.")
+        if (House.isDemo || Businesses.firebaseApp(biz) == null) throw Failure(0, "Not connected to the ERP in the demo.")
+        val base = biz.serverURL
+        val url = resolve(base, path) ?: throw Failure(0, "Not an address of this ERP.")
         val builder = Request.Builder().url(url).header("Accept", accept)
         token()?.let { builder.header("Authorization", "Bearer $it") }
         if (form != null) {
@@ -72,7 +84,13 @@ class ErpApi private constructor() {
         } else if (method != "GET") {
             builder.method(method, ByteArray(0).toRequestBody(null))
         }
-        val call = client.newBuilder().callTimeout(timeoutMs, TimeUnit.MILLISECONDS).build().newCall(builder.build())
+        val call = client.newBuilder().callTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+            // A redirect off the ERP's own host (or off https) is refused, so the Authorization header never
+            // follows one somewhere else. Network interceptors see every hop.
+            .addNetworkInterceptor { chain ->
+                if (!stays(chain.request().url, base)) throw IOException("Redirected away from the ERP.")
+                chain.proceed(chain.request())
+            }.build().newCall(builder.build())
         return try {
             call.await()
         } catch (e: IOException) {
@@ -140,7 +158,7 @@ class ErpApi private constructor() {
     suspend fun write(op: String, fields: Map<String, Any?>, requestId: String? = null): Map<String, Any?> {
         val body = LinkedHashMap(fields)
         body["op"] = op
-        val intents = WriteIntents.shared
+        val intents = WriteIntents.forBusiness(id)
         val intent = if (requestId == null) intents.key(body) else null
         body["requestId"] = requestId ?: intents.id(intent!!)
         val out = withContext(NonCancellable) {
@@ -167,7 +185,7 @@ class ErpApi private constructor() {
      * same name for every try, and says "Not saved: <label>" app-wide if it cannot (Outbox.kt). Money ops are refused
      * here: they stay awaited through `write`.
      */
-    fun enqueue(op: String, fields: Map<String, Any?>, label: String) = Outbox.enqueue(op, fields, label)
+    fun enqueue(op: String, fields: Map<String, Any?>, label: String) = Outbox.of(biz).enqueue(op, fields, label)
 
     suspend fun send(path: String, method: String = "POST", body: Map<String, Any?> = emptyMap(), timeoutMs: Long? = null): Map<String, Any?> {
         val text = data(path, method, body, timeoutMs)
@@ -176,13 +194,24 @@ class ErpApi private constructor() {
     }
 
     private suspend fun token(): String? = try {
-        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token
+        Businesses.auth(biz)?.currentUser?.getIdToken(false)?.await()?.token
     } catch (e: Exception) {
         null
     }
 
     companion object {
-        val shared: ErpApi by lazy { ErpApi() }
+        private val all = HashMap<String, ErpApi>()
+
+        /** The business's own: its address and its sign-in, whichever business is open. */
+        @Synchronized
+        fun forBusiness(b: Business): ErpApi = all.getOrPut(b.id) { ErpApi(b) }
+
+        /** The open business's. */
+        val shared: ErpApi get() = forBusiness(Businesses.current)
+
+        /** A business was removed from this phone. */
+        @Synchronized
+        fun drop(id: String) { all.remove(id) }
 
         private val JSON = "application/json".toMediaType()
 
@@ -195,13 +224,6 @@ class ErpApi private constructor() {
                 .cache(null)
                 .followRedirects(true)
                 .followSslRedirects(false)
-                // A redirect off the ERP's own host (or off https) is refused, so the Authorization header never
-                // follows one somewhere else. Network interceptors see every hop.
-                .addNetworkInterceptor { chain ->
-                    val u = chain.request().url
-                    if (!stays(u, House.serverUrl)) throw IOException("Redirected away from the ERP.")
-                    chain.proceed(chain.request())
-                }
                 .connectTimeout(20, TimeUnit.SECONDS)
                 .build()
         }

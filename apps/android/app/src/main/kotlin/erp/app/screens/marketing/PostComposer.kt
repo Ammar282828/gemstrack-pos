@@ -99,7 +99,7 @@ import kotlinx.coroutines.withContext
 private fun draftsFolder(context: Context): File {
     val scope = when {
         House.isDemo -> "demo"
-        ErpApp.firebaseReady -> FirebaseAuth.getInstance().currentUser?.uid ?: "signed-out"
+        ErpApp.firebaseReady -> erp.app.config.Businesses.auth?.currentUser?.uid ?: "signed-out"
         else -> "signed-out"
     }
     return File(context.filesDir, "PostDrafts-${House.id}-$scope")

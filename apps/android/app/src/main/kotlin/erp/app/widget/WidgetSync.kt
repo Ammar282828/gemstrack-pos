@@ -11,18 +11,19 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import erp.app.config.House
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-/** The widget's figures: fetched with its own key, kept, and drawn (ERPWidget.swift's provider, in Android's terms). */
+/** The widget's figures: fetched with each business's own key, kept, and drawn (ERPWidget.swift's provider, in Android's terms). */
 object WidgetSync {
     private const val PERIODIC = "erp.widget.periodic"
     private const val NOW = "erp.widget.now"
@@ -37,7 +38,7 @@ object WidgetSync {
 
     /** What the ERP says, or null (offline, refused, not a summary). The key is checked still to be the kept one afterwards. */
     suspend fun fetch(context: Context, link: WidgetLinkData): WidgetSummary? = withContext(Dispatchers.IO) {
-        val url = ErpWidgetUrl.summary(link.url, House.serverHost) ?: return@withContext null
+        val url = ErpWidgetUrl.summary(link.url, erp.app.config.Business.hostOf(link.url)) ?: return@withContext null
         val request = Request.Builder().url(url).header("Authorization", WidgetLinkData.authorization(link.key)).header("Accept", "application/json").build()
         try {
             client.newCall(request).execute().use { r ->
@@ -45,7 +46,7 @@ object WidgetSync {
                 val text = r.body.string()
                 val summary = WidgetSummary.decode(text) ?: return@use null
                 // Signed out or re-linked meanwhile: those figures are not the new link's.
-                if (WidgetStore.load(context)?.key != link.key) return@use null
+                if (WidgetStore.link(context, link.id)?.key != link.key) return@use null
                 WidgetStore.cache(context, link, text)
                 summary
             }
@@ -54,12 +55,13 @@ object WidgetSync {
         }
     }
 
-    /** Fetches, keeps and redraws every widget. Quiet when the phone has no link. */
+    /** Fetches, keeps and redraws every widget, each business's figures asked for at once. Quiet when the phone has no link. */
     suspend fun refresh(context: Context): Boolean {
-        val link = WidgetStore.load(context) ?: return false
-        val fresh = fetch(context, link)
+        val links = WidgetStore.all(context)
+        if (links.isEmpty()) return false
+        val fresh = coroutineScope { links.map { async { fetch(context, it) } }.map { it.await() } }
         ErpWidget().updateAll(context)
-        return fresh != null
+        return fresh.any { it != null }
     }
 
     /** The half-hourly refresh: started when the first widget is placed, stopped with the last. */
@@ -83,7 +85,7 @@ object WidgetSync {
     }
 }
 
-/** Where the summary is asked for: the house's own https address only. */
+/** Where the summary is asked for: the business's own https address only. */
 object ErpWidgetUrl {
     fun summary(base: String, serverHost: String): HttpUrl? {
         val url = runCatching { (base.trimEnd('/') + "/api/widget/summary").toHttpUrl() }.getOrNull() ?: return null

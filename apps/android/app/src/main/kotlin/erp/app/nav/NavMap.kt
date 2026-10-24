@@ -121,12 +121,20 @@ data class NavMap(
     }
 
     companion object {
-        /** This house's map, bundled as assets/nav-<house>.json (`npm run nav:export`). */
-        val current: NavMap by lazy {
+        private val byArt = HashMap<String, NavMap>()
+
+        /**
+         * The open business's map, bundled as assets/nav-<art>.json (`npm run nav:export`): a built-in's own, Taheri's for a business added
+         * by its address (the map is the ERP's code, the same for every house; only the built-ins' differ by what each switches off).
+         */
+        val current: NavMap get() = forArt(House.art)
+
+        @Synchronized
+        fun forArt(art: String): NavMap = byArt.getOrPut(art) {
             val text = runCatching {
-                ErpApp.instance.assets.open("nav-${House.id}.json").bufferedReader().use { it.readText() }
-            }.getOrNull() ?: error("nav-${House.id}.json is missing: run `npm run nav:export`.")
-            parse(text) ?: error("nav-${House.id}.json can't be read.")
+                ErpApp.instance.assets.open("nav-$art.json").bufferedReader().use { it.readText() }
+            }.getOrNull() ?: error("nav-$art.json is missing: run `npm run nav:export`.")
+            parse(text) ?: error("nav-$art.json can't be read.")
         }
 
         fun parse(text: String): NavMap? {

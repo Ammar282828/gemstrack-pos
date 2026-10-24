@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Clear
+import androidx.compose.material.icons.rounded.Domain
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
@@ -83,6 +84,7 @@ fun SearchScreen() {
             }
             item(key = "account") {
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                Row("Businesses", null, Icons.Rounded.Domain) { navigator.open("/app/businesses") }
                 if (session.isOwner) Row("This phone", null, Icons.Rounded.PhoneAndroid) { navigator.open("/app/phone") }
                 Row("Signed in", me?.email ?: "", null, null)
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {

@@ -172,11 +172,8 @@ private fun LockCoverBody(locked: Boolean, unlocking: Boolean, onUnlock: () -> U
             verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Image(
-                painterResource(R.drawable.brand_logo),
-                contentDescription = stringResource(R.string.app_name),
-                modifier = Modifier.widthIn(max = 280.dp),
-            )
+            // The open business's own mark, not the build's.
+            erp.app.screens.businesses.BusinessLogo(House.business, Modifier.widthIn(max = 280.dp), height = 64.dp)
             if (locked) Button(onClick = onUnlock, enabled = !unlocking) { Text("Unlock") }
         }
     }

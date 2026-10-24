@@ -81,8 +81,22 @@ data class Shop(
             )
         }
 
-        fun demo(house: String): Shop {
-            val f = fallback(house)
+        /** The open business's own switches (its descriptor's `flags`) stand in before the ERP has answered; a missing one is Taheri's. */
+        fun fallbackFor(b: erp.app.config.Business): Shop {
+            val f = b.flags
+            return Shop(
+                name = b.name, person = null, takenBy = emptyList(), expenseCategories = emptyList(),
+                partnership = f?.partnership ?: false, websiteSelling = f?.websiteSelling ?: true,
+                invoiceByCustomer = f?.invoiceByCustomer ?: true, invoiceWhatsappPdf = f?.invoiceWhatsappPdf ?: true,
+                sizeToProfile = f?.sizeToProfile ?: true,
+            )
+        }
+
+        fun demo(house: String): Shop = demo(fallback(house))
+
+        fun demo(business: erp.app.config.Business): Shop = demo(fallbackFor(business))
+
+        private fun demo(f: Shop): Shop {
             return f.copy(
                 name = "DEMO", person = "Demo", takenBy = listOf("Demo", "Counter Two", "Counter Three"),
                 expenseCategories = listOf("Shop", "Utilities", "Karigar", "Rent", "Partner Drawings", "Partner Salary", "Other"),
@@ -90,8 +104,9 @@ data class Shop(
         }
 
         /** A field the answer lacks is the house's default, not a refusal to read the rest. */
-        fun from(m: Map<*, *>, house: String = erp.app.config.House.id): Shop {
-            val f = fallback(house)
+        fun from(m: Map<*, *>, house: String): Shop = from(m, fallback(house))
+
+        fun from(m: Map<*, *>, f: Shop = fallbackFor(erp.app.config.House.business)): Shop {
             fun strings(k: String, d: List<String>) = (m[k] as? List<*>)?.mapNotNull { it as? String } ?: d
             return Shop(
                 name = m["name"] as? String ?: f.name,

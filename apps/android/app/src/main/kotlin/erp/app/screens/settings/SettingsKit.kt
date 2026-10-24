@@ -210,6 +210,7 @@ object SettingsColors {
     val indigo = Color(0xFF5856D6)
     val pink = Color(0xFFFF2D55)
     val teal = Color(0xFF30B0C7)
+    val orange = Color(0xFFFF9500)
 }
 
 /** A row that opens another place, with its icon on a coloured square (the iPhone's `SettingsLinkRow`). */
