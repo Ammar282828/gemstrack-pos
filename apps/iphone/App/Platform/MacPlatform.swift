@@ -264,3 +264,10 @@ extension NSColor {
     }
 }
 #endif
+
+#if os(macOS)
+import ERPCore
+/// On the Mac, SwiftUI has a `Settings` scene of its own: the shop's settings stay ERPCore's everywhere in the app (the
+/// Mac's scene is written `SwiftUI.Settings` in MacApp.swift).
+typealias Settings = ERPCore.Settings
+#endif

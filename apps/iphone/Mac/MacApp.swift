@@ -35,7 +35,7 @@ struct ERPMacApp: App {
         }
         .defaultSize(width: 1000, height: 780)
 
-        Settings {
+        SwiftUI.Settings {
             MacSettingsWindow()
         }
 
