@@ -11,8 +11,18 @@ object EntryHouse {
     @Volatile
     var id: String = "taheri"
 
-    /** The metal a new piece starts on. */
-    val metal: String get() = if (id == "mina") "silver" else "gold"
+    /**
+     * The open business's own metal and margin, when the app has one that is not a built-in (a business added by its ERP
+     * address says both in its descriptor); null: the id decides, as for Taheri and Mina.
+     */
+    @Volatile
+    var metalOverride: String? = null
 
-    val margin: MarginSettings get() = if (id == "mina") MarginSettings.mina else MarginSettings.taheri
+    @Volatile
+    var marginOverride: MarginSettings? = null
+
+    /** The metal a new piece starts on. */
+    val metal: String get() = metalOverride ?: if (id == "mina") "silver" else "gold"
+
+    val margin: MarginSettings get() = marginOverride ?: if (id == "mina") MarginSettings.mina else MarginSettings.taheri
 }

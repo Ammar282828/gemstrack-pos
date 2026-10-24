@@ -9,6 +9,7 @@ import erp.core.logic.blankExchangeRow
 import erp.core.logic.gramsPerTola
 import erp.core.logic.metalHasKarat
 import erp.core.logic.newExchangeRowId
+import erp.core.logic.ShopNumber
 import erp.core.logic.rupees
 import erp.core.models.Customer
 import erp.core.models.KaratValue
@@ -31,13 +32,8 @@ import kotlin.math.abs
 
 /** Numbers as the sale's fields hold them: typed text in, a finite number out. */
 object SaleNumber {
-    /** Text to a number: commas are thousands, blank or unreadable is null. Never NaN or infinity. */
-    fun parse(text: String): Double? {
-        val t = swiftTrimNewlines(text).replace(",", "")
-        if (t.isEmpty()) return null
-        val v = swiftDouble(t) ?: return null
-        return if (v.isFinite()) v else null
-    }
+    /** Text to a number by the one reader (Urdu and Arabic digits, lakh commas): blank or unreadable is null, never NaN or infinity. */
+    fun parse(text: String): Double? = ShopNumber.parse(text)
 
     /** `Number(v) || 0`. */
     fun value(text: String): Double = parse(text) ?: 0.0

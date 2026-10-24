@@ -45,17 +45,24 @@ object BiometricVault {
     private fun prefs() = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private fun alias(key: String) = "erp.secret.$key"
 
+    /**
+     * A secret belongs to one business (each shop has its own delete code): the build's own business keeps the key it always had (an
+     * install keeps its fingerprint-sealed code), every other business's is named for it.
+     */
+    private fun scoped(key: String): String = erp.app.config.House.id.let { if (it == erp.app.config.Businesses.buildId) key else "$key.$it" }
+
     /** Whether a fingerprint or face can be used, and which (the page only asks whether). */
     fun biometry(): Pair<Boolean, String> {
         val ok = BiometricManager.from(app).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
         return ok to (if (ok) "biometric" else "none")
     }
 
-    fun save(value: String, key: String) {
+    fun save(value: String, name: String) {
+        val key = scoped(name)
         val bytes = value.toByteArray(Charsets.UTF_8)
         if (bytes.size > MAX_BYTES) throw Failure("failed", "That is too long to keep.")
         try {
-            delete(key)
+            purge(key)
             val pair = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, PROVIDER).run {
                 initialize(
                     KeyGenParameterSpec.Builder(alias(key), KeyProperties.PURPOSE_DECRYPT or KeyProperties.PURPOSE_ENCRYPT)
@@ -75,30 +82,34 @@ object BiometricVault {
         } catch (e: Failure) {
             throw e
         } catch (e: Exception) {
-            delete(key)
+            purge(key)
             throw Failure("unavailable", "This phone can't keep it behind a fingerprint.")
         }
     }
 
     /** Whether a secret is kept, without asking for a finger. */
-    fun has(key: String): Boolean = prefs().contains(key) && keyStore().containsAlias(alias(key))
+    fun has(name: String): Boolean = scoped(name).let { key -> prefs().contains(key) && keyStore().containsAlias(alias(key)) }
 
-    fun delete(key: String) {
+    fun delete(name: String) = purge(scoped(name))
+
+    /** Forgets an already-scoped key. */
+    private fun purge(key: String) {
         prefs().edit().remove(key).apply()
         runCatching { keyStore().deleteEntry(alias(key)) }
     }
 
     /** The secret after the biometric prompt, or null when none is kept (or the phone's biometrics changed and it is gone). */
-    suspend fun read(key: String, reason: String): String? {
+    suspend fun read(name: String, reason: String): String? {
+        val key = scoped(name)
         val stored = prefs().getString(key, null) ?: return null
         val activity = Foreground.activity ?: throw Failure("failed", "The app isn't in front.")
         val cipher = try {
-            val private = keyStore().getKey(alias(key), null) ?: run { delete(key); return null }
+            val private = keyStore().getKey(alias(key), null) ?: run { purge(key); return null }
             Cipher.getInstance(TRANSFORM).apply {
                 init(Cipher.DECRYPT_MODE, private as java.security.PrivateKey, OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA1, PSource.PSpecified.DEFAULT))
             }
         } catch (e: KeyPermanentlyInvalidatedException) {
-            delete(key) // the enrolled biometrics changed: the phone forgets it, the page asks for the code typed
+            purge(key) // the enrolled biometrics changed: the phone forgets it, the page asks for the code typed
             return null
         } catch (e: Exception) {
             throw Failure("failed", "The fingerprint didn't unlock it.")

@@ -8,11 +8,13 @@ const MINA = {
   NEXT_PUBLIC_STORE_LOGO_URL: '/house-of-mina-logo.png', NEXT_PUBLIC_STORE_LOGO_LIGHT_URL: '/house-of-mina-logo-light.png',
   NEXT_PUBLIC_STORE_LOGO_ASPECT: '4.9458',
   NEXT_PUBLIC_STORE_PALETTE: '{"light":{"accent":"#380000","ground":"#F4EFE8","card":"#FFFDF9","onAccent":"#FBF9F9"},"dark":{"accent":"#E8A5AE","ground":"#1C1114","card":"#27191D","onAccent":"#251318"}}',
+  APP_ANDROID_FIREBASE_APP_ID: 'none', APP_ANDROID_GOOGLE_WEB_CLIENT_ID: 'none',
+  NEXT_PUBLIC_FIREBASE_API_KEY: 'mina-web-key',
   APP_IOS_GOOGLE_CLIENT_ID: 'mina-client', APP_IOS_FIREBASE_API_KEY: 'mina-key', APP_IOS_FIREBASE_APP_ID: '1:2:ios:3',
   NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'hom-pos', NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '288366939838',
   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: 'hom-pos.firebasestorage.app',
 };
-const KEYS = Object.keys(MINA);
+const KEYS = [...Object.keys(MINA), 'APP_ANDROID_FIREBASE_APP_ID', 'APP_ANDROID_GOOGLE_WEB_CLIENT_ID'];
 
 async function get(env: Record<string, string> = {}, host = 'erp.taheri.shop') {
   vi.resetModules();
@@ -62,6 +64,29 @@ describe('/api/app/business', () => {
       ios: { googleClientId: 'mina-client', firebase: { apiKey: 'mina-key', appId: '1:2:ios:3', projectId: 'hom-pos', senderId: '288366939838', storageBucket: 'hom-pos.firebasestorage.app' } },
       flags: { partnership: true, invoiceByCustomer: false, workshopStart: 'anyone' },
     });
+  });
+
+  it('says which Android app signs in: Taheri\'s by default, from the variables otherwise', async () => {
+    const { body } = await get();
+    expect(body.android).toEqual({
+      googleWebClientId: '948018742883-q27leh2et2p8948jadblbg6skpdhjcea.apps.googleusercontent.com',
+      firebase: { appId: '1:948018742883:android:e42554c3a7f534a6089a56', apiKey: 'AIzaSyAl3W_9_Z9j0sR7rGIwwM1uiiXvOxGQ7IA', projectId: 'gemstrack-pos', senderId: '948018742883', storageBucket: 'gemstrack-pos.firebasestorage.app' },
+    });
+    const own = await get({ APP_ANDROID_FIREBASE_APP_ID: '1:2:android:3', APP_ANDROID_GOOGLE_WEB_CLIENT_ID: 'web-client.apps.googleusercontent.com', NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'hom-pos', NEXT_PUBLIC_FIREBASE_API_KEY: 'hom-key' });
+    expect(own.body.android).toEqual({
+      googleWebClientId: 'web-client.apps.googleusercontent.com',
+      firebase: { appId: '1:2:android:3', apiKey: 'hom-key', projectId: 'hom-pos', senderId: '948018742883', storageBucket: 'gemstrack-pos.firebasestorage.app' },
+    });
+  });
+
+  it('answers android: null for a house that has not registered the app (none, 0, off or empty), never Taheri\'s', async () => {
+    expect((await get(MINA, 'erp.houseofmina.store')).body.android).toBeNull();
+    for (const off of ['none', 'NONE', '0', 'off', '']) {
+      expect((await get({ APP_ANDROID_FIREBASE_APP_ID: off })).body.android).toBeNull();
+      expect((await get({ APP_ANDROID_GOOGLE_WEB_CLIENT_ID: off })).body.android).toBeNull();
+    }
+    // The iOS block is untouched by it.
+    expect((await get(MINA, 'erp.houseofmina.store')).body.ios.firebase.appId).toBe('1:2:ios:3');
   });
 
   it('falls back to Taheri\'s colours for a malformed palette', async () => {

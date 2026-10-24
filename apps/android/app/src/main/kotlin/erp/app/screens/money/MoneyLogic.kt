@@ -418,23 +418,10 @@ object MoneyPartners {
  */
 object MoneyParse {
     fun amount(raw: String, maxDecimals: Int = 2): Double? {
-        val out = StringBuilder()
-        var seenDot = false
-        var decimals = 0
-        for (ch in raw) {
-            if (ch in '0'..'9') {
-                if (seenDot) {
-                    if (decimals >= maxDecimals) continue
-                    decimals += 1
-                }
-                out.append(ch)
-            } else if (ch == '.' && !seenDot) {
-                seenDot = true
-                out.append(ch)
-            }
-        }
-        if (out.isEmpty() || out.toString() == ".") return null
-        return out.toString().toDoubleOrNull()
+        // Decimals past the box's places are cut off, as the web's box does (never rounded up).
+        val v = erp.core.logic.ShopNumber.parse(raw)?.takeIf { it >= 0 } ?: return null
+        val k = Math.pow(10.0, maxDecimals.toDouble())
+        return Math.floor(v * k + 1e-9) / k
     }
 
     /**

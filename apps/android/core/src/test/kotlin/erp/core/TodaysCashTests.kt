@@ -117,6 +117,25 @@ class TodaysCashTests {
     }
 
     @Test
+    fun testCreditGivenBackLowersMoneyInAndTheDrawerAndShowsAsPaidBack() {
+        val back = models<Invoice>(
+            listOf(
+                mapOf(
+                    "id" to "INV-C", "customerName" to "Sana Example", "customerId" to "c1", "status" to "Paid", "createdAt" to "2026-09-20T10:00:00+05:00",
+                    "paymentHistory" to listOf(
+                        mapOf("amount" to -5_000, "date" to T("10:00"), "method" to "Cash", "kind" to "credit-payback", "notes" to "Credit paid back"),
+                        mapOf("amount" to -700, "date" to T("10:30"), "method" to "Cash", "notes" to "Refund: damaged"),
+                    ),
+                ),
+            ),
+        )
+        val r = todaysCash(invoices = back, orders = emptyList(), repairs = emptyList(), extraRevenues = emptyList(), expenses = emptyList(), now = now)
+        assertEquals(5_000.0, r.paidBack)
+        assertEquals(-5_700.0, r.netCash)
+        assertEquals(listOf(true, false), r.lines.map { it.payback })
+    }
+
+    @Test
     fun testTheDayRunsFromKarachisMidnightToItsLastMillisecond() {
         val (_, period) = karachiDayPeriod(now)
         assertEquals(ERPDate.parse("2026-09-30T19:00:00Z"), period.from)

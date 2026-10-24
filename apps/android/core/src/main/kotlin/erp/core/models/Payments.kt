@@ -94,6 +94,11 @@ data class Payment(
     val method: PaymentType? = null,
     /** Cheque number, last four of the card, transfer reference. */
     val reference: String? = null,
+    /** Gold handed over with an order's advance (alone when `amount` is 0). The same rows sit on the order's `exchanges`;
+     *  this is what lets the advance list show, and deleting the advance take them (lib/order-payment.ts). */
+    val exchanges: List<ExchangeEntry> = emptyList(),
+    /** "credit-payback" on the negative line written when a customer's credit is handed back (lib/invoice-credit.ts). */
+    val kind: String? = null,
 ) {
     companion object : Decodable<Payment> {
         override fun fromMap(m: Map<String, Any?>): Payment {
@@ -104,6 +109,8 @@ data class Payment(
                 notes = c.string("notes"),
                 method = c.word("method", PaymentType),
                 reference = c.string("reference"),
+                exchanges = c.list("exchanges", ExchangeEntry),
+                kind = c.string("kind"),
             )
         }
     }

@@ -98,6 +98,29 @@ abstract class HouseAssets : DefaultTask() {
     }
 }
 
+/**
+ * The art of both built-in businesses, in every flavor: one app holds Taheri and House of Mina (docs/features/android-app.md), so
+ * the wordmark and the round badge of each are resources of the app, not of its flavor. Copied from the iPhone's asset catalog
+ * (BrandLogo-<id>, BadgeMark-<id>) so a change to the art there is a change here.
+ */
+abstract class BusinessArt : DefaultTask() {
+    @get:InputFiles @get:PathSensitive(PathSensitivity.RELATIVE) abstract val imagesets: ConfigurableFileCollection
+    @get:OutputDirectory abstract val outDir: DirectoryProperty
+
+    @TaskAction fun run() {
+        val out = outDir.get().asFile
+        out.deleteRecursively()
+        for (art in listOf("taheri", "mina")) {
+            fun set(name: String) = imagesets.files.first { it.parentFile.name == "$name-$art.imageset" }.parentFile
+            File(out, "drawable-nodpi").mkdirs()
+            File(out, "drawable-night-nodpi").mkdirs()
+            File(set("BrandLogo"), "logo.png").copyTo(File(out, "drawable-nodpi/brand_logo_$art.png"), overwrite = true)
+            File(set("BrandLogo"), "logo-dark.png").copyTo(File(out, "drawable-night-nodpi/brand_logo_$art.png"), overwrite = true)
+            File(set("BadgeMark"), "badge.png").copyTo(File(out, "drawable-nodpi/badge_mark_$art.png"), overwrite = true)
+        }
+    }
+}
+
 // ---- The app ---------------------------------------------------------------------------------------
 
 android {
@@ -107,8 +130,8 @@ android {
     defaultConfig {
         minSdk = 26
         targetSdk = 37
-        versionCode = 2 // above the interim web app (apps/android-twa, 1), so this installs over it
-        versionName = "0.1.0"
+        versionCode = 4 // above the interim web app (apps/android-twa, 1), so this installs over it
+        versionName = "0.2.1"
     }
 
     buildFeatures {
@@ -149,6 +172,8 @@ android {
                 buildConfigField("String", "FIREBASE_ANDROID_APP_ID", q(a["firebaseAndroidAppId"] as? String ?: ""))
                 buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", q(a["googleWebClientId"] as? String ?: ""))
                 manifestPlaceholders["erpHost"] = URI(url).host
+                // The one app holds both houses: the other house's address opens here too (the Mina flavor, deprecated, repeats its own).
+                manifestPlaceholders["erpHostOther"] = URI((shared.getValue(if (id == "taheri") "mina" else id)["url"]) as String).host
             }
         }
     }
@@ -205,8 +230,13 @@ kotlin {
 // Each house's generated resources and assets, wired to every variant of that flavor.
 val houseRes = HashMap<String, TaskProvider<HouseResources>>()
 val houseAssets = HashMap<String, TaskProvider<HouseAssets>>()
+val businessArt = tasks.register<BusinessArt>("generateBusinessArt") {
+    imagesets.from(fileTree(xcassets) { include("BrandLogo-*.imageset/logo*.png", "BadgeMark-*.imageset/badge.png") })
+    outDir.set(layout.buildDirectory.dir("generated/business/res"))
+}
 
 androidComponents.onVariants { variant ->
+    variant.sources.res?.addGeneratedSourceDirectory(businessArt, BusinessArt::outDir)
     val house = variant.productFlavors.first { it.first == "house" }.second
     val cap = house.replaceFirstChar { it.uppercase() }
 
@@ -225,11 +255,11 @@ androidComponents.onVariants { variant ->
         tasks.register<HouseAssets>("generate${cap}HouseAssets") {
             this.house.set(house)
             // this house's design bundle and menus, plus the demo data; names stay as on the iPhone
-            files.from(
-                File(iphoneRes, "Design/design-$house.js"),
-                File(iphoneRes, "nav-$house.json"),
-                File(iphoneRes, "demo.json"),
-            )
+            // The one app (taheri) holds House of Mina too, so it carries Mina's bundle and menu as well.
+            for (art in if (house == "taheri") listOf("taheri", "mina") else listOf(house)) {
+                files.from(File(iphoneRes, "Design/design-$art.js"), File(iphoneRes, "nav-$art.json"))
+            }
+            files.from(File(iphoneRes, "demo.json"))
             outDir.set(layout.buildDirectory.dir("generated/house/$house/assets"))
         }
     }

@@ -174,10 +174,10 @@ fun AdsSetupScreen() {
         }
     }
 
-    suspend fun load() {
+    suspend fun load(fresh: Boolean = false) {
         loading = true
         try {
-            val s = backend.status()
+            val s = backend.status(fresh)
             status = s
             problem = null
             val id = s.app?.loginConfigId
@@ -200,7 +200,7 @@ fun AdsSetupScreen() {
         try {
             backend.saveSetup(patch)
             AdsChanges.bump()
-            load()
+            load(fresh = true)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -215,7 +215,7 @@ fun AdsSetupScreen() {
         try {
             backend.pixelAct(body)
             loadPixel()
-            try { status = backend.status() } catch (e: CancellationException) { throw e } catch (_: Exception) {}
+            try { status = backend.status(fresh = true) } catch (e: CancellationException) { throw e } catch (_: Exception) {}
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -229,7 +229,7 @@ fun AdsSetupScreen() {
 
     if (mayUse && status != null) {
         ScreenActions {
-            TextButton(onClick = { scope.launch { load() } }, enabled = !loading) {
+            TextButton(onClick = { scope.launch { load(fresh = true) } }, enabled = !loading) {
                 Icon(Icons.Filled.Refresh, contentDescription = null, Modifier.size(18.dp))
                 Text("Check again", Modifier.padding(start = 6.dp), maxLines = 1)
             }
@@ -240,7 +240,7 @@ fun AdsSetupScreen() {
     when {
         !mayUse -> AdsOwnersOnly()
         s0 != null -> PullToRefreshBox(
-            isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; load(); refreshing = false } }, modifier = Modifier.fillMaxSize(),
+            isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; load(fresh = true); refreshing = false } }, modifier = Modifier.fillMaxSize(),
         ) {
             AdsPage {
                 AdsAlertsSection(s0)
@@ -268,7 +268,7 @@ fun AdsSetupScreen() {
                 )
             }
         }
-        problem != null -> AdsNotReady(null, problem) { scope.launch { load() } }
+        problem != null -> AdsNotReady(null, problem) { scope.launch { load(fresh = true) } }
         else -> SkeletonLoading(Modifier.fillMaxSize(), label = "Checking…")
     }
 
@@ -285,7 +285,7 @@ fun AdsSetupScreen() {
                         assets = null
                         pixel = null
                         AdsChanges.bump()
-                        load()
+                        load(fresh = true)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {

@@ -33,4 +33,11 @@ class AnalyticsShots(config: ShotConfig) : ShotBase(config) {
         showPlace("/analytics/sales", below = listOf("/analytics"))
         shoot("analytics-sales")
     }
+
+    // Ranked share bars, not a pie; the section picker sits above (Sales is the open section).
+    @Test fun analytics_categories() {
+        onlyTaheri()
+        showPlace("/analytics/categories", below = listOf("/analytics"))
+        shoot("analytics-categories")
+    }
 }
