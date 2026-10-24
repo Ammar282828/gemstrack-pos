@@ -43,6 +43,61 @@ export function orderInvoiceRates(order: Pick<Order, 'ratesApplied'>, settings: 
   }) as InvoiceRates;
 }
 
+/** The rate card an order or invoice carries: the metals a rate can be typed for. */
+export const RATE_FIELDS = [
+  'goldRatePerGram18k', 'goldRatePerGram21k', 'goldRatePerGram22k', 'goldRatePerGram24k',
+  'palladiumRatePerGram', 'platinumRatePerGram', 'silverRatePerGram',
+  // Palladium's own 18k and 12k rates, which price a palladium piece of that karat before the flat one (pricing.ts).
+  'palladiumRatePerGram18k', 'palladiumRatePerGram12k',
+] as const;
+export type RateField = typeof RATE_FIELDS[number];
+
+/**
+ * The booked rates with any typed at Finalize laid over them: gold moves daily and an order is delivered
+ * weeks after it was booked, so the counter may price it at today's. Only positive figures win; none given
+ * is the booked rates exactly.
+ */
+export function finalizeRates(order: Pick<Order, 'ratesApplied'>, settings: Settings, typed?: Partial<Record<RateField, number>>): InvoiceRates {
+  const booked = orderInvoiceRates(order, settings);
+  if (!typed) return booked;
+  const out: Record<string, number> = { ...booked };
+  for (const f of RATE_FIELDS) {
+    const n = Number(typed[f]);
+    if (Number.isFinite(n) && n > 0) out[f] = n;
+  }
+  return out as InvoiceRates;
+}
+
+export interface RateRow { field: RateField; label: string }
+
+/**
+ * The rates an order's pieces are priced at, one box each: gold per karat in use, palladium per karat
+ * (its flat rate with no karat), platinum, silver. Only what is in use, as the order form shows them.
+ */
+export function finalizeRateRows(items: Pick<OrderItem, 'metalType' | 'karat'>[]): RateRow[] {
+  const rows: RateRow[] = [];
+  const add = (field: RateField, label: string) => { if (!rows.some((r) => r.field === field)) rows.push({ field, label }); };
+  const gold = new Set(items.filter((i) => i.metalType === 'gold').map((i) => String(i.karat || '')));
+  for (const k of ['24k', '22k', '21k', '18k'] as const) if (gold.has(k)) add(`goldRatePerGram${k}` as RateField, `Gold ${k}`);
+  for (const i of items.filter((x) => x.metalType === 'palladium')) {
+    const k = String(i.karat || '');
+    if (k === '18k') add('palladiumRatePerGram18k', 'Palladium 18k');
+    else if (k === '12k') add('palladiumRatePerGram12k', 'Palladium 12k');
+    else add('palladiumRatePerGram', 'Palladium');
+  }
+  if (items.some((i) => i.metalType === 'platinum')) add('platinumRatePerGram', 'Platinum');
+  // Silver's rate is all-in: it holds the making and the wastage (pricing.ts), so only the number changes.
+  if (items.some((i) => i.metalType === 'silver')) add('silverRatePerGram', 'Silver (all-in)');
+  return rows;
+}
+
+/** The figure a rate box holds: a palladium karat with no rate of its own is priced at the flat one. */
+export function rateShown(rates: Partial<Record<RateField, number>>, field: RateField): number {
+  const own = Number(rates[field]) || 0;
+  if (own > 0) return own;
+  return field === 'palladiumRatePerGram18k' || field === 'palladiumRatePerGram12k' ? Number(rates.palladiumRatePerGram) || 0 : 0;
+}
+
 /** Wastage is a percentage of the metal — the weight less the stones (pricing.ts). */
 export const netMetalG = (weightG: number, stoneWeightG = 0) => Math.max(0, (Number(weightG) || 0) - (Number(stoneWeightG) || 0));
 

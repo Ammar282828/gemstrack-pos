@@ -5,31 +5,43 @@ import com.google.firebase.FirebaseOptions
 import erp.app.BuildConfig
 import erp.core.logic.MarginSettings
 
-/** Which shop this build is. Every difference between the houses is a BuildConfig variable, never a branch in code. */
+/**
+ * The business that is open, as the places that say `House.id`, `House.serverUrl`, `House.margin` read it (House.swift). One app
+ * holds many businesses (config/Businesses.kt); this is a thin facade over the open one, so nothing that reads it can freeze a
+ * business's values at first use: every property is computed, per call. Changed only by `Businesses.switchTo`, which rebuilds
+ * the shell. Every difference between the shops is a variable of the business, never a branch in code.
+ */
 object House {
-    val id: String = BuildConfig.HOUSE
-    val storeName: String = BuildConfig.STORE_NAME
-    val homeName: String = BuildConfig.HOME_NAME
-    val serverUrl: String = BuildConfig.SERVER_URL
-    val metal: String = BuildConfig.METAL
+    /** The whole descriptor of the business open now. */
+    val business: Business get() = Businesses.current
+
+    val id: String get() = business.id
+
+    /** "Taheri ERP": the ERP's own name. Anything a customer or a karigar reads says `session.shop.name`. */
+    val storeName: String get() = business.displayName
+    val serverUrl: String get() = business.serverURL
+    val metal: String get() = business.metal
     val applicationId: String = BuildConfig.APPLICATION_ID
 
     /** The ERP's host: the only place the app's sign-in token and the page bridge answer to. */
-    val serverHost: String = java.net.URI(serverUrl).host
+    val serverHost: String get() = business.host
 
-    val firebaseProjectId: String = BuildConfig.FIREBASE_PROJECT_ID
-    val firebaseApiKey: String = BuildConfig.FIREBASE_API_KEY
-    val firebaseSenderId: String = BuildConfig.FIREBASE_SENDER_ID
-    val firebaseStorageBucket: String = BuildConfig.FIREBASE_STORAGE_BUCKET
-    val firebaseAndroidAppId: String = BuildConfig.FIREBASE_ANDROID_APP_ID.trim()
-    val googleWebClientId: String = BuildConfig.GOOGLE_WEB_CLIENT_ID.trim()
+    /** The id of the bundled art this business wears ("taheri", "mina"); an added business takes Taheri's for the files that ship with the app (menus, the artwork engine). */
+    val art: String get() = business.art ?: "taheri"
+
+    /** The same, but null for an added business: for a screen that belongs to one of the built-ins and must not appear for one that merely borrows Taheri's files. */
+    val bundledArt: String? get() = business.art
+
+    val googleWebClientId: String get() = business.android?.googleWebClientId.orEmpty().trim()
+
+    /** The business's Firebase project (Settings → Backups links to its console). */
+    val firebaseProjectId: String get() = business.android?.firebase?.projectId.orEmpty()
 
     /**
-     * How the shop's own margin is worked out (lib/margin.ts, the house's COST_RATTI_LESS and STORE_EST_MARGIN):
-     * Taheri costs a sale at 24K less 6 ratti, else 10%; Mina has no costing, 40%. Shop screens only: a customer
-     * never sees a margin.
+     * How the shop's own margin is worked out (lib/margin.ts, the house's COST_RATTI_LESS and STORE_EST_MARGIN): Taheri costs a
+     * sale at 24K less 6 ratti, else 10%; Mina has no costing, 40%. Shop screens only: a customer never sees a margin.
      */
-    val margin: MarginSettings = marginFor(id)
+    val margin: MarginSettings get() = business.margin.settings
 
     fun marginFor(house: String): MarginSettings = if (house == "mina") MarginSettings.mina else MarginSettings.taheri
 
@@ -44,23 +56,13 @@ object House {
         if (intent?.hasExtra(DEMO_EXTRA) == true) isDemo = intent.getBooleanExtra(DEMO_EXTRA, false)
     }
 
-    /**
-     * Firebase for this house's project. Null until the house's Android app is registered in Firebase
-     * (houses.json firebaseAndroidAppId): the app then says so on its sign-in screen.
-     */
-    val firebaseOptions: FirebaseOptions? by lazy {
-        if (!firebaseAndroidAppId.contains(":android:")) null
-        else FirebaseOptions.Builder()
-            .setApplicationId(firebaseAndroidAppId)
-            .setApiKey(firebaseApiKey)
-            .setProjectId(firebaseProjectId)
-            .setGcmSenderId(firebaseSenderId)
-            .setStorageBucket(firebaseStorageBucket)
-            .build()
-    }
+    /** Firebase options for the open business's project. Null until its Android app is registered in Firebase: the app then says so on its sign-in screen. */
+    val firebaseOptions: FirebaseOptions? get() = Businesses.firebaseOptions(business)
 
     /** What the sign-in page says while Firebase is not configured (Session.State.NeedsSetup). */
-    val needsSetupMessage: String
-        get() = "This build can't reach the shop's book yet: the Android app is not registered in Firebase for " +
-            "$firebaseProjectId (firebaseAndroidAppId in apps/android/houses.json is empty)."
+    val needsSetupMessage: String get() = needsSetupMessage(business)
+
+    fun needsSetupMessage(b: Business): String =
+        "${b.displayName} isn't set up for this Android app yet. The owner has to register the Android app " +
+            "(shop.taheri.erp, with this app's signing fingerprints) in its Firebase project. Your other businesses still work."
 }

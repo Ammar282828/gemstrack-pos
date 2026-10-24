@@ -77,6 +77,57 @@ class NavMapTests {
         assertTrue(m.actions.isEmpty())
     }
 
+    private val sectioned = NavMap.parse(
+        """
+        {"groups":[{"key":"home","label":""},{"key":"marketing","label":"Marketing"}],
+         "entries":[
+           {"id":"analytics","group":"home","href":"/analytics","label":"Analytics","staff":true,"tabs":[
+              {"href":"/analytics","label":"Overview","section":"Sales"},
+              {"href":"/analytics/sales","label":"Sales","section":"Sales"},
+              {"href":"/website/interest","label":"Visitors","section":"Website","staff":true,"marketing":true},
+              {"href":"/insights","label":"Insights","section":"Social","marketing":true},
+              {"href":"/ads","label":"Ad results","section":"Ads","marketing":true}]},
+           {"id":"posts","group":"marketing","href":"/posts","label":"Posts"}],
+         "settings":{"id":"settings","group":"home","href":"/settings","label":"Settings","tabs":[
+              {"href":"/settings","label":"Shop","section":"Shop"},{"href":"/settings/data","label":"Data","section":"Records"}]},
+         "actions":[]}
+        """.trimIndent(),
+    )!!
+
+    @Test fun tabsGroupedInSectionsKeepTheOrderOfFirstAppearance() {
+        val a = sectioned.entries.first()
+        assertEquals(listOf("Sales", "Website", "Social", "Ads"), a.sections)
+        assertEquals(listOf("/analytics", "/analytics/sales"), a.tabsIn("Sales").map { it.href })
+        assertEquals(listOf("Shop", "Records"), sectioned.settings!!.sections)
+        assertTrue(small.entries.all { it.sections.isEmpty() }, "tabs without a section have none")
+    }
+
+    @Test fun staffSeeOnlyTheSectionsTabsMarkedForThem() {
+        val a = sectioned.visible("staff").entries.single()
+        assertEquals(listOf("Website"), a.sections)
+        assertEquals("/website/interest", a.href)
+    }
+
+    @Test fun marketingSeesItsGroupAndOutsideItOnlyTheTabsMarkedMarketing() {
+        val m = sectioned.visible("marketing")
+        assertEquals(listOf("analytics", "posts"), m.entries.map { it.id })
+        val a = m.entries.first()
+        assertEquals(listOf("/website/interest", "/insights", "/ads"), a.tabs!!.map { it.href })
+        assertEquals(listOf("Website", "Social", "Ads"), a.sections)
+        assertEquals("/website/interest", a.href)
+        assertTrue(a.pages!!.isEmpty())
+        assertNull(m.settings)
+    }
+
+    @Test fun aMovedPlaceIsInTheMapButNotInSearch() {
+        val m = NavMap.parse(
+            """{"groups":[],"entries":[{"id":"d","group":"g","href":"/design","label":"Design","staff":true,"tabs":[
+               {"href":"/design","label":"Design"},{"href":"/post","label":"Post a piece","moved":true}]}],"actions":[]}""",
+        )!!
+        assertEquals("d", m.entry("/post")?.id)
+        assertTrue(m.search("post").isEmpty())
+    }
+
     @Test fun anUnknownRoleIsStaffNotOwner() {
         assertEquals(small.visible("staff"), small.visible("none"))
     }
@@ -117,7 +168,12 @@ class NavMapTests {
             assertTrue(staff.entries.all { it.staff == true })
             assertTrue(staff.entries.flatMap { it.tabs ?: emptyList() }.all { it.staff == true })
             val marketing = m.visible("marketing")
-            assertTrue(marketing.entries.isNotEmpty() && marketing.entries.all { it.group == "marketing" })
+            // The Marketing group whole, and outside it only Analytics, cut to the tabs marked `marketing`.
+            assertTrue(marketing.entries.isNotEmpty() && marketing.entries.all { it.group == "marketing" || it.id == "analytics" })
+            marketing.entries.firstOrNull { it.id == "analytics" }?.let { a ->
+                assertTrue(a.tabs!!.isNotEmpty() && a.tabs.all { it.marketing == true }, house)
+                assertEquals(a.tabs.first().href, a.href)
+            }
             // every place under a row of the real maps resolves to a row (the actions and New sale sit under none)
             for (hit in m.allPlaces.filter { it.entry != null && it.entry.id != "new-sale" }) assertNotNull(m.entry(hit.place.href), "${hit.place.href} in $house")
         }

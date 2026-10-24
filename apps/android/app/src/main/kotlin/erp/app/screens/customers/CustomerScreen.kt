@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -42,7 +43,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import erp.app.screens.invoices.InvoiceCredit
+import erp.app.screens.invoices.InvoiceCreditSheet
 import erp.app.ui.OwnerDeleteCodeSheet
+import erp.app.ui.RowAction
+import erp.app.ui.SwipeActions
 import erp.app.ui.OwnerDeletion
 import erp.app.auth.LocalSession
 import erp.app.config.House
@@ -143,6 +148,8 @@ fun CustomerScreen(id: String) {
     val note = if (own !== NoteState.Inert) own else rememberNoteState()
 
     val seed = CustomerSeeds[id]
+    /** An invoice whose credit is being handed back (InvoiceCreditSheet). */
+    var givingBack by remember { mutableStateOf<Invoice?>(null) }
     val customer = customers.items.firstOrNull { it.id == id } ?: seed
     val loaded = seed != null || (customers.loaded && invoices.loaded && orders.loaded && repairs.loaded && (!owner || hisaabLoaded))
     val failure = customers.error ?: invoices.error ?: orders.error ?: repairs.error ?: (if (owner) hisaabError else null)
@@ -197,16 +204,19 @@ fun CustomerScreen(id: String) {
                 CustomerKit.isRemoved(customer) -> NotAvailableState(
                     "Removed", why = "${CustomerKit.shown(customer)} was removed. Settings, then Recently removed, puts them back.", icon = Icons.Filled.PersonOff,
                 )
-                shown != null -> Page(shown, owner) { askToRemove(shown) }
+                shown != null -> Page(shown, owner, onGiveBack = { givingBack = it }) { askToRemove(shown) }
             }
         }
         if (own === NoteState.Inert) NoteHost(note)
     }
     deletion?.let { OwnerDeleteCodeSheet(it, onDismiss = { deletion = null }, onDone = {}) }
+    givingBack?.let { inv ->
+        InvoiceCreditSheet(inv, onDismiss = { givingBack = null }, onDone = { o -> note.show(Note(o.note.title, o.note.detail)) })
+    }
 }
 
 @Composable
-private fun Page(f: Facts, owner: Boolean, onRemove: () -> Unit) {
+private fun Page(f: Facts, owner: Boolean, onGiveBack: (Invoice) -> Unit, onRemove: () -> Unit) {
     val navigator = LocalNavigator.current
     LazyColumn(
         Modifier.fillMaxSize().readableColumn(820.dp),
@@ -215,7 +225,7 @@ private fun Page(f: Facts, owner: Boolean, onRemove: () -> Unit) {
     ) {
         item { Header(f.customer) }
         item { OwedCard(f.owing) }
-        item { InvoicesSection(f.invoices) { navigator.open(CustomerKit.place("/invoices/", it)) } }
+        item { InvoicesSection(f.invoices, owner, onGiveBack) { navigator.open(CustomerKit.place("/invoices/", it)) } }
         item { OrdersSection(f.orders) { navigator.open(CustomerKit.place("/orders/", it)) } }
         item { RepairsSection(f.repairs) { navigator.open(CustomerKit.place("/repairs?id=", it)) } }
         if (owner) item { HisaabSection(f.hisaab, f.customer.id) { navigator.open(CustomerKit.hisaabPath(f.customer.id)) } }
@@ -345,12 +355,26 @@ private fun EmptyLine(text: String) {
 }
 
 @Composable
-private fun InvoicesSection(list: List<Invoice>, open: (String) -> Unit) {
+private fun InvoicesSection(list: List<Invoice>, owner: Boolean, onGiveBack: (Invoice) -> Unit, open: (String) -> Unit) {
     LedgerSection("Invoices · ${list.size}") {
         if (list.isEmpty()) EmptyLine("No sales history found for this customer.")
         list.forEachIndexed { i, inv ->
-            Box(Modifier.clickable(role = Role.Button) { open(inv.id) }.ledgerRow()) { CustInvoiceRow(inv) }
+            // Credit they have paid ahead: the owner can hand it back (decision "Invoice credit").
+            val giveBack = if (owner && InvoiceCredit.canGiveBack(inv)) RowAction("Give back", Icons.Filled.Payments, Tone.credit) { onGiveBack(inv) } else null
+            SwipeActions(end = giveBack, menu = listOfNotNull(giveBack)) {
+                Box(Modifier.clickable(role = Role.Button) { open(inv.id) }.ledgerRow()) { CustInvoiceRow(inv) }
+            }
             if (i < list.lastIndex) LedgerDivider()
+        }
+        // A swipe is easy to miss: the same action as a plain row, one per invoice in credit.
+        if (owner) {
+            list.filter { InvoiceCredit.canGiveBack(it) }.forEach { inv ->
+                LedgerDivider()
+                Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onGiveBack(inv) }.ledgerRow(), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Payments, null, Modifier.padding(end = 8.dp), tint = Tone.credit.color())
+                    Text(InvoiceCredit.rowWords(inv), color = Tone.credit.color(), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
         }
     }
 }

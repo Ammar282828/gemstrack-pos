@@ -152,7 +152,20 @@ private fun rememberHouseColors(dark: Boolean): HouseColors {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val inspecting = LocalInspectionMode.current
-    return remember(context, configuration, dark, inspecting) {
+    // The open business's own palette (its descriptor's hex colours, light and dark): one app holds many businesses, so the colours
+    // are not the flavor's resources. The resources below are only the stand-in if a colour cannot be read.
+    val business = if (inspecting) null else erp.app.config.Businesses.current
+    return remember(context, configuration, dark, inspecting, business) {
+        business?.let { b ->
+            val side = if (dark) b.palette.dark else b.palette.light
+            val accent = erp.app.config.parseHexColor(side.accent)
+            val ground = erp.app.config.parseHexColor(side.ground)
+            val card = erp.app.config.parseHexColor(side.card)
+            val onAccent = erp.app.config.parseHexColor(side.onAccent)
+            if (accent != null && ground != null && card != null && onAccent != null) {
+                return@remember HouseColors(Color(accent), Color(ground), Color(card), Color(onAccent), dark)
+            }
+        }
         val night = if (dark) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
         val forced = Configuration(configuration).apply {
             uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or night

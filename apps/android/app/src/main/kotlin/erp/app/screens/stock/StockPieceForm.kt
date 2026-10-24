@@ -205,15 +205,15 @@ private fun StockPieceEditor(original: Product?, onCreated: ((Product) -> Unit)?
     suspend fun save() {
         if (saving) return
         f.problem?.let { failure = it; return }
+        // An edit is not a sale: the screen closes at once and the Outbox carries it. A new piece waits for its SKU.
+        if (original != null) {
+            ErpApi.shared.enqueue("updateProduct", mapOf("sku" to original.sku, "piece" to f.piece), "Piece ${original.sku}")
+            haptics.success()
+            navigator.back()
+            return
+        }
         saving = true
         try {
-            if (original != null) {
-                ErpApi.shared.write("updateProduct", mapOf("sku" to original.sku, "piece" to f.piece))
-                haptics.success()
-                saving = false
-                navigator.back()
-                return
-            }
             val out = ErpApi.shared.write("addProduct", mapOf("piece" to f.piece, "batch" to batch))
             batch = UUID.randomUUID().toString()
             @Suppress("UNCHECKED_CAST")

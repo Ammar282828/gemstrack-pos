@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.core.logic.ShopNumber
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -7,8 +8,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import erp.app.config.Prefs
+import erp.app.data.Outbox
 import erp.app.data.ErpApi
+import erp.app.ErpApp
 import erp.app.ui.Note
+import erp.core.logic.Album
 import erp.core.logic.postOnlyWeight
 import erp.core.logic.validWeight
 import erp.core.logic.weightForSite
@@ -38,7 +42,7 @@ object PostTrayLogic {
     fun noun(n: Int): String = if (n == 1) "piece" else "pieces"
 
     /** The weight as the caption takes it: Number(typed), as the web's card passes it. */
-    fun typedGrams(typed: String): Double = typed.trim().toDoubleOrNull() ?: 0.0
+    fun typedGrams(typed: String): Double = ShopNumber.parse(typed) ?: 0.0
 
     /** "a", "a and b", "a, b and c" (queue-panel.tsx listOf). */
     fun listOf(xs: List<String>): String = if (xs.size > 1) xs.dropLast(1).joinToString(", ") + " and " + xs.last() else xs.firstOrNull() ?: ""
@@ -160,6 +164,9 @@ class PostTrayCard(val piece: PostPiece) {
     /** The name drawn on the design; the piece's own to start with. */
     var designName by mutableStateOf(piece.name)
 
+    /** The photos that go, in order: the lead (this card's own photo), the piece's others, then any added (1 to Album.max). */
+    val album = mutableStateListOf(PostAlbumPhoto.start(piece))
+
     val weightOK: Boolean get() = validWeight(weight)
     val grams: String get() = weight.trim() + "g"
     val stamps: Boolean get() = design == null && overlay && weightOK
@@ -181,7 +188,11 @@ class PostTrayCard(val piece: PostPiece) {
     val designShowsWeight: Boolean get() = weightOK && designHas("weight", "details")
 
     /** What the confirm says goes: "The photo with 3.84g on it". */
-    val going: String get() = if (designed) "Your design of the photo" else if (stamps) "The photo with $grams on it" else "The photo as it is on the website"
+    val going: String
+        get() {
+            val lead = if (designed) "Your design of the photo" else if (stamps) "The photo with $grams on it" else "The photo as it is on the website"
+            return lead + if (album.size > 1) ", then ${album.size - 1} more (${Album.photosLabel(album.size)} in all)" else ""
+        }
 
     /** The weight the website keeps when this goes (taheri.shop's own photographs that have none). */
     val newWeight: Double? get() = weightForSite(piece.source, piece.weightGrams, weight)
@@ -205,14 +216,32 @@ class PostTrayModel(val engine: DesignEngine, private val scope: CoroutineScope)
     var posting by mutableStateOf(MarketingValue.NULL)
         private set
 
+    /** "Instagram post" is chosen: the photos also go as one carousel (a device choice, kept for the next sitting). */
+    var instagramPost by mutableStateOf(false)
+        private set
+
     private val photos = HashMap<String, ByteArray>()
     private var ready = false
     private val store: PostsState get() = PostsStore.state.value
 
     val audience: PostAudience get() = store.audience
     val activeCard: PostTrayCard? get() = cards.firstOrNull { it.id == active } ?: cards.firstOrNull()
-    val canSend: Boolean get() = audience.canSend && targets.isNotEmpty() && cards.isNotEmpty() && busy == null
+
+    /** Instagram only while it is connected (the chip is hidden otherwise). */
+    val toInstagram: Boolean get() = instagramPost && instagram["connected"].bool
+
+    /** WhatsApp places to send to: needs the community, as the web's `audience.community`. */
+    val whatsappPlaces: List<String> get() = if (audience.canSend) targets else emptyList()
+    val canSend: Boolean get() = (whatsappPlaces.isNotEmpty() || toInstagram) && cards.isNotEmpty() && busy == null
+
+    /** Where a send goes, in words: the WhatsApp places, then Instagram. */
+    val placeNames: List<String> get() = whatsappPlaces.map { label(it) } + (if (toInstagram) listOf("Instagram") else emptyList())
     val metal: String get() = posting.s("metal")
+
+    fun chooseInstagram() {
+        instagramPost = !instagramPost
+        Prefs.putBool(INSTAGRAM_KEY, instagramPost)
+    }
 
     /** The keys of the places a post can go, in the order they are offered. */
     private val keys: List<String> get() = audience.groups.map { it.key } + (if (audience.channelName != null) listOf("channel") else emptyList())
@@ -233,6 +262,7 @@ class PostTrayModel(val engine: DesignEngine, private val scope: CoroutineScope)
             instagram = ig.await() ?: MarketingValue.NULL
         }
         chooseTargets()
+        instagramPost = Prefs.bool(INSTAGRAM_KEY) ?: false
         for (c in cards.toList()) refresh(c)
     }
 
@@ -352,11 +382,73 @@ class PostTrayModel(val engine: DesignEngine, private val scope: CoroutineScope)
     }
 
     /** The website's photograph, fetched once through the ERP (the site doesn't share it with the app). */
-    suspend fun photo(id: String): ByteArray {
-        photos[id]?.let { return it }
-        val data = ErpApi.shared.bytes("/api/website/site-pieces/image?id=${MarketingKit.escape(id)}", timeoutMs = 120_000)
-        photos[id] = data
+    suspend fun photo(id: String, n: Int? = null): ByteArray {
+        val key = if (n != null) "$id#$n" else id
+        photos[key]?.let { return it }
+        val more = if (n != null) "&photo=$n" else ""
+        val data = ErpApi.shared.bytes("/api/website/site-pieces/image?id=${MarketingKit.escape(id)}$more", timeoutMs = 120_000)
+        photos[key] = data
         return data
+    }
+
+    // MARK: A card's photos (piece-photos.tsx)
+
+    /** Every photo, in order, as it goes: the lead as the card makes it (design, weight), the rest as the site or the phone has them. */
+    suspend fun albumData(card: PostTrayCard): List<ByteArray> = card.album.toList().map { x ->
+        when (val k = x.kind) {
+            is PostAlbumPhoto.Kind.Lead -> outgoing(card)
+            is PostAlbumPhoto.Kind.Angle -> photo(card.id, k.n)
+            is PostAlbumPhoto.Kind.Site -> photo(k.id)
+            is PostAlbumPhoto.Kind.Device -> k.data
+        }
+    }
+
+    /** The first photo: what a one-photo place (the Instagram story) takes. */
+    suspend fun firstPhoto(card: PostTrayCard): ByteArray {
+        val x = card.album.firstOrNull() ?: return outgoing(card)
+        return when (val k = x.kind) {
+            is PostAlbumPhoto.Kind.Lead -> outgoing(card)
+            is PostAlbumPhoto.Kind.Angle -> photo(card.id, k.n)
+            is PostAlbumPhoto.Kind.Site -> photo(k.id)
+            is PostAlbumPhoto.Kind.Device -> k.data
+        }
+    }
+
+    fun move(card: PostTrayCard, id: String, step: Int) {
+        val i = card.album.indexOfFirst { it.id == id }
+        val j = i + step
+        if (i < 0 || j < 0 || j >= card.album.size) return
+        val moved = card.album[i]
+        card.album[i] = card.album[j]
+        card.album[j] = moved
+    }
+
+    /** The lead stays: it is the card's own photo (design, weight). */
+    fun remove(card: PostTrayCard, id: String) {
+        val x = card.album.firstOrNull { it.id == id } ?: return
+        if (card.album.size > 1 && !x.isLead) card.album.remove(x)
+    }
+
+    /** Another website piece's photograph in, or out again; null, or why it can't go in. */
+    fun toggleSite(card: PostTrayCard, p: PostPiece): String? {
+        if (card.album.any { it.pieceID == p.id }) {
+            card.album.removeAll { it.pieceID == p.id }
+            return null
+        }
+        if (card.album.size >= Album.max) return "${Album.max} photos at most"
+        card.album.add(PostAlbumPhoto("site-" + p.id, PostAlbumPhoto.Kind.Site(p.id), p.thumb, null, p.name))
+        return null
+    }
+
+    /** Photos from this phone, as JPEGs; null, or why not all went in. */
+    fun addDevice(card: PostTrayCard, jpegs: List<ByteArray>): String? {
+        var refused = false
+        for (data in jpegs) {
+            if (card.album.size >= Album.max) { refused = true; break }
+            val shown = MarketingPhotos.decode(data, 400)?.asImageBitmap()
+            card.album.add(PostAlbumPhoto("device-" + java.util.UUID.randomUUID(), PostAlbumPhoto.Kind.Device(data), null, shown, "A photo from this phone"))
+        }
+        return if (refused) "${Album.max} photos at most" else null
     }
 
     /** The photo that goes out: stamped with the weight while the overlay is on, else the site's own. */
@@ -405,7 +497,7 @@ class PostTrayModel(val engine: DesignEngine, private val scope: CoroutineScope)
 
     /** The piece as a 9:16 story: the photo that would go to WhatsApp, whole, with the name and the weight. */
     suspend fun story(card: PostTrayCard): ByteArray {
-        val photo = outgoing(card)
+        val photo = firstPhoto(card)
         val headline = if (card.designed) (card.designName.trim().ifEmpty { card.piece.name }) else card.piece.name
         val r = engine.run(
             MarketingValue.NULL, mapOf("site" to photo), emptyMap(),
@@ -422,121 +514,259 @@ class PostTrayModel(val engine: DesignEngine, private val scope: CoroutineScope)
     /** How a send or a queue went, said once at the end. */
     class Outcome(val notes: List<Note> = emptyList())
 
+    /** A card with everything it sends, read now: the tray can be left while the uploads go (the engine is the screen's). */
+    private class Prepared(val card: PostTrayCard, val blobs: List<ByteArray>, val caption: String)
+
+    /** Reads every card's caption and photos. A card that can't be read stops the batch, still in the tray, saying why. */
+    private suspend fun prepare(batch: List<PostTrayCard>): Pair<List<Prepared>, Note?> {
+        // A card whose caption the engine never wrote (it was still starting) gets it now: nothing goes without one.
+        for (card in batch) if (card.caption.isEmpty() && !card.edited) refresh(card)
+        val out = ArrayList<Prepared>()
+        for (card in batch) {
+            card.sending = true
+            card.failed = null
+            try {
+                out.add(Prepared(card, albumData(card), card.caption))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val why = e.message ?: "Something went wrong."
+                card.failed = why
+                return out to Note("${card.piece.name} didn't go", why + if (batch.size > 1) " The rest are still in the tray." else "", failed = true)
+            } finally {
+                card.sending = false
+            }
+        }
+        return out to null
+    }
+
     /**
-     * Every piece in the tray, one after another, each to the chosen places. Stops at the first that fails; one that some places
-     * took has gone, so it leaves the tray (sending it again would post twice).
+     * Every piece in the tray, one after another, each to the chosen places. The photos are read here, then the tray clears at
+     * once and the send runs in the Outbox (owner, 2026-10-23: instant); "Posted to …" or the place that failed comes
+     * back from there, with Retry. Stops at the first that fails; one that some places took has gone, so it is not sent
+     * again, and a Retry sends only what is left.
      */
     suspend fun send(): Outcome {
+        val places = whatsappPlaces
+        val toIg = toInstagram
+        val names = placeNamesSent(places, toIg)
         busy = "send"
+        val batch = cards.toList()
+        val prepared: List<Prepared>
         try {
-            val done = ArrayList<PostTrayCard>()
-            val partly = ArrayList<String>()
-            val weighed = ArrayList<String>()
-            val unweighed = ArrayList<String>()
-            var stopped: Pair<String, String>? = null
-            val places = targets
-            // A card whose caption the engine never wrote (it was still starting) gets it now: nothing goes without one.
-            for (card in cards.toList()) if (card.caption.isEmpty() && !card.edited) refresh(card)
-            for (card in cards.toList()) {
-                card.sending = true
-                card.failed = null
-                try {
-                    val photo = outgoing(card)
-                    val fields = listOf("caption" to card.caption, "sitePiece" to card.id, "targets" to places.joinToString(","))
-                    val text = ErpApi.shared.upload(
-                        "/api/website/post", fields, listOf(ErpApi.FormFile("file", PostTrayLogic.slug(card.piece) + ".jpg", "image/jpeg", photo)), timeoutMs = 300_000,
-                    )
-                    val missed = MarketingValue.parse(text)["results"].array.filter { !it["ok"].bool }
-                    missed.firstOrNull()?.let { first ->
-                        partly.add("${card.piece.name} didn't go to ${PostTrayLogic.listOf(missed.map { r -> label(r.s("key")) })}: ${first.s("error")}")
-                    }
-                    when (keepWeight(card)) {
-                        true -> weighed.add(card.piece.name)
-                        false -> unweighed.add(card.piece.name)
-                        null -> Unit
-                    }
-                    done.add(card)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    val why = e.message ?: "Something went wrong."
-                    card.failed = why
-                    stopped = card.piece.name to why
-                    break
-                } finally {
-                    card.sending = false
-                }
-            }
-            cards.removeAll { c -> done.any { it === c } }
-            val a = active
-            if (a != null && !has(a)) active = cards.firstOrNull()?.id
-            if (done.isNotEmpty()) PostsStore.afterSending()
-
-            val notes = ArrayList<Note>()
-            val n = done.size
-            val s = stopped
-            if (s != null) {
-                notes.add(Note(if (n > 0) "$n sent, then ${s.first} didn't go" else "${s.first} didn't go", s.second + if (cards.size > 1) " The rest are still in the tray." else "", failed = true))
-            } else if (partly.isNotEmpty()) {
-                notes.add(Note("Sent $n ${PostTrayLogic.noun(n)}, not everywhere", partly.joinToString(" · "), failed = true))
-            } else if (n > 0) {
-                notes.add(Note("Sent $n ${PostTrayLogic.noun(n)} to ${PostTrayLogic.listOf(places.map { label(it) })}", if (n == 1) "${done[0].piece.name}, with its link." else "Each with its own caption and link."))
-            }
-            if (weighed.isNotEmpty()) {
-                notes.add(Note("Weight saved on ${store.siteName}", "${PostTrayLogic.listOf(weighed)} now ${if (weighed.size == 1) "shows its" else "show their"} weight on the website."))
-            }
-            if (unweighed.isNotEmpty()) {
-                notes.add(Note("The weight wasn't saved on ${store.siteName}", "${PostTrayLogic.listOf(unweighed)}: add it in Website → Weights.", failed = true))
-            }
-            return Outcome(notes)
+            val (ready, problem) = prepare(batch)
+            if (problem != null) return Outcome(listOf(problem))
+            prepared = ready
         } finally {
             busy = null
         }
+        if (prepared.isEmpty()) return Outcome()
+        cards.clear()
+        active = null
+        val finished = HashSet<String>()
+        // A 400 is never retried by itself (a post must not go twice); the banner's Retry sends only what is left.
+        Outbox.post("Post ${batch.size} ${PostTrayLogic.noun(batch.size)} to ${PostTrayLogic.listOf(names)}") { deliver(prepared, places, toIg, finished) }
+        return Outcome(listOf(Note("Sending to ${names.size} ${if (names.size == 1) "place" else "places"}…", "You can carry on: it says here when it has gone.")))
     }
 
-    /** Into the queue, to send later or spread over the day: each piece exactly as its card makes it now. */
-    suspend fun queue(): Outcome {
-        busy = "queue"
-        try {
-            val done = ArrayList<PostTrayCard>()
-            var problem: String? = null
-            for (card in cards.toList()) if (card.caption.isEmpty() && !card.edited) refresh(card)
-            for (card in cards.toList()) {
-                card.sending = true
-                card.failed = null
-                try {
-                    val photo = outgoing(card)
-                    val thumb = withContext(Dispatchers.Default) { MarketingPhotos.decode(photo, 240)?.let { MarketingPhotos.jpeg(it, 240, 70) } }
-                    PostQueueMaker.queue(
-                        headline = card.piece.name, caption = card.caption, fileBase = PostTrayLogic.slug(card.piece), sitePiece = card.id,
-                        whatsapp = targets, count = 1, images = mapOf("wa-0" to photo), thumb = thumb, dueAt = null,
-                    )
-                    // Queued is as good as typed in for good: the website keeps the weight now, not when the post goes.
-                    keepWeight(card)
-                    done.add(card)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    val why = e.message ?: "Something went wrong."
-                    card.failed = why
-                    problem = why
-                    break
-                } finally {
-                    card.sending = false
+    /** The send itself. [finished] is what has gone already, so a second go skips it. The words said when all went; throws when not. */
+    private suspend fun deliver(batch: List<Prepared>, places: List<String>, toIg: Boolean, finished: MutableSet<String>): String {
+        val done = ArrayList<PostTrayCard>()
+        val partly = ArrayList<String>()
+        val weighed = ArrayList<String>()
+        val unweighed = ArrayList<String>()
+        val igSaid = ArrayList<String>()
+        var stopped: Pair<String, String>? = null
+        for (item in batch) {
+            val card = item.card
+            if (card.id in finished) continue
+            try {
+                val blobs = item.blobs
+                var wentSomewhere = false
+                if (places.isNotEmpty()) {
+                    val sent = sendWhatsApp(card, item.caption, blobs, places)
+                    wentSomewhere = sent.got.isNotEmpty()
+                    // Some places took it and some didn't: it has gone, so it is not sent again.
+                    val missed = places.filter { sent.got[it] == null }
+                    missed.firstOrNull()?.let { first ->
+                        partly.add("${card.piece.name} didn't go to ${PostTrayLogic.listOf(missed.map { label(it) })}: ${sent.failed[first] ?: "Send failed"}")
+                    }
+                    val short = places.filter { (sent.got[it] ?: 0) in 1 until blobs.size }
+                    short.firstOrNull()?.let { first ->
+                        partly.add("${PostTrayLogic.listOf(short.map { label(it) })} got ${sent.got[first] ?: 0} of ${blobs.size} photos of ${card.piece.name}: ${sent.failed[first] ?: "Send failed"}")
+                    }
                 }
+                if (toIg) {
+                    try {
+                        val ig = sendInstagram(card, item.caption, blobs)
+                        wentSomewhere = true
+                        if (ig.second > 0) partly.add("Instagram took the first ${ig.first} of ${ig.first + ig.second} photos of ${card.piece.name} (its limit).")
+                        else if (ig.first > 1) igSaid.add("Instagram: ${Album.photosLabel(ig.first)} as one post.")
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        // WhatsApp has it already: said beside it, not fatal. Instagram alone: the batch stops.
+                        if (!wentSomewhere) throw e
+                        partly.add("${card.piece.name} didn't go to Instagram: ${e.message ?: "Something went wrong."}")
+                    }
+                }
+                when (keepWeight(card)) {
+                    true -> weighed.add(card.piece.name)
+                    false -> unweighed.add(card.piece.name)
+                    null -> Unit
+                }
+                finished.add(card.id)
+                done.add(card)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                stopped = card.piece.name to (e.message ?: "Something went wrong.")
+                break
             }
-            cards.removeAll { c -> done.any { it === c } }
-            val a = active
-            if (a != null && !has(a)) active = cards.firstOrNull()?.id
-            PostsStore.refreshQueue()
-            val notes = ArrayList<Note>()
-            if (done.isNotEmpty()) {
-                notes.add(Note("${done.size} ${PostTrayLogic.noun(done.size)} in the queue", "Send them now, give each a time, or spread them over the day: they go by themselves."))
+        }
+        if (done.isNotEmpty()) PostsStore.afterSending()
+        val n = done.size
+        stopped?.let { throw ErpApi.Failure(400, (if (n > 0) "$n sent, then ${it.first} didn't go: " else "${it.first} didn't go: ") + it.second) }
+        if (partly.isNotEmpty()) throw ErpApi.Failure(400, "Sent $n ${PostTrayLogic.noun(n)}, not everywhere: " + partly.joinToString(" · "))
+        var said = if (n == 0) "Nothing left to send" else "Posted $n ${PostTrayLogic.noun(n)} to ${PostTrayLogic.listOf(placeNamesSent(places, toIg))}"
+        if (igSaid.isNotEmpty()) said += ". " + igSaid.joinToString(" ")
+        if (unweighed.isNotEmpty()) said += ". The weight wasn't saved on ${store.siteName} for ${PostTrayLogic.listOf(unweighed)}: add it in Website → Weights."
+        else if (weighed.isNotEmpty()) said += ". Weight saved on ${store.siteName}."
+        return said
+    }
+
+    private fun placeNamesSent(places: List<String>, toIg: Boolean): List<String> = places.map { label(it) } + (if (toIg) listOf("Instagram") else emptyList())
+
+    /** What each place got of a piece's photos, and why one stopped. */
+    private class WhatsAppResult(val got: Map<String, Int>, val failed: Map<String, String>)
+
+    /**
+     * One piece's photos to the chosen WhatsApp places: photo by photo, each to every place still going, the caption under the
+     * first only (album.ts), one request a photo. A place that fails a photo gets none of the rest.
+     */
+    private suspend fun sendWhatsApp(card: PostTrayCard, caption: String, blobs: List<ByteArray>, places: List<String>): WhatsAppResult {
+        val captions = Album.captions(caption, blobs.size)
+        val base = PostTrayLogic.slug(card.piece)
+        val failed = LinkedHashMap<String, String>()
+        val got = LinkedHashMap<String, Int>()
+        for (i in blobs.indices) {
+            val live = Album.placesFor(places, failed.keys)
+            if (live.isEmpty()) break
+            val fields = listOf("caption" to captions[i], "sitePiece" to card.id, "targets" to live.joinToString(","))
+            val file = ErpApi.FormFile("file", Album.fileName(base, i), "image/jpeg", blobs[i])
+            val text = try {
+                ErpApi.shared.upload("/api/website/post", fields, listOf(file), timeoutMs = 300_000)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Nothing took the first photo: nothing went, and the batch stops here. Later: the places left miss the rest.
+                if (i == 0) throw e
+                for (k in live) failed[k] = e.message ?: "Send failed"
+                break
             }
-            if (problem != null) notes.add(Note("Could not queue it", problem, failed = true))
-            return Outcome(notes)
+            val results = MarketingValue.parse(text)["results"].array
+            if (results.isEmpty()) for (k in live) got[k] = (got[k] ?: 0) + 1
+            for (r in results) {
+                val key = r.s("key")
+                if (r["ok"].bool) got[key] = (got[key] ?: 0) + 1
+                else failed[key] = r.s("error").ifEmpty { "Send failed" }
+            }
+        }
+        return WhatsAppResult(got, failed)
+    }
+
+    /**
+     * One piece's photos as one Instagram post: a carousel of the first ten, the caption once, WhatsApp's markers off. How many
+     * photos went in the post, and how many were left out.
+     */
+    private suspend fun sendInstagram(card: PostTrayCard, caption: String, blobs: List<ByteArray>): Pair<Int, Int> {
+        val plan = Album.carouselPlan(blobs.size)
+        val base = PostTrayLogic.slug(card.piece)
+        val files = (0 until plan.take).map { i -> ErpApi.FormFile("file", Album.fileName(base, i), "image/jpeg", feedJpeg(blobs[i])) }
+        val fields = listOf("caption" to Album.instagramText(caption), "fit" to "crop", "sitePiece" to card.id)
+        val answer = MarketingValue.parse(ErpApi.shared.upload("/api/instagram/post", fields, files, timeoutMs = 300_000))
+        // The answer's own count wins; a one-photo post says neither.
+        val took = if (answer["photos"].isNull) plan.take else answer.n("photos").toInt()
+        val left = if (answer["dropped"].isNull) plan.dropped else answer.n("dropped").toInt()
+        return took to left
+    }
+
+    /** A photo as Instagram's feed takes it: JPEG, at most 1440 px on its long side. */
+    private suspend fun feedJpeg(data: ByteArray): ByteArray = withContext(Dispatchers.Default) {
+        MarketingPhotos.decode(data, 1440)?.let { MarketingPhotos.jpeg(it, 1440, 90) } ?: data
+    }
+
+    /**
+     * Into the queue, to send later or spread over the day: each piece exactly as its card makes it now, every photo of it (up to
+     * Album.max), with an Instagram post when it is chosen. The photos are read here, then the tray clears at once and the queue
+     * is filled by the Outbox; a Retry carries on with what did not get in.
+     */
+    suspend fun queue(): Outcome {
+        val places = whatsappPlaces
+        val toIg = toInstagram
+        busy = "queue"
+        val batch = cards.toList()
+        val prepared: List<Prepared>
+        val thumbs = HashMap<String, ByteArray?>()
+        try {
+            val (ready, problem) = prepare(batch)
+            if (problem != null) return Outcome(listOf(problem))
+            prepared = ready
+            for (p in prepared) thumbs[p.card.id] = p.blobs.firstOrNull()?.let { d -> withContext(Dispatchers.Default) { MarketingPhotos.decode(d, 240)?.let { MarketingPhotos.jpeg(it, 240, 70) } } }
         } finally {
             busy = null
+        }
+        if (prepared.isEmpty()) return Outcome()
+        cards.clear()
+        active = null
+        val finished = HashSet<String>()
+        Outbox.post("Queue ${batch.size} ${PostTrayLogic.noun(batch.size)}") {
+            for (item in prepared) {
+                if (item.card.id in finished) continue
+                enqueue(item.card, item.caption, item.blobs, thumbs[item.card.id], places, toIg)
+                // Queued is as good as typed in for good: the website keeps the weight now, not when the post goes.
+                keepWeight(item.card)
+                finished.add(item.card.id)
+            }
+            PostsStore.refreshQueue()
+            "${batch.size} ${PostTrayLogic.noun(batch.size)} in the queue"
+        }
+        return Outcome(listOf(Note("Queueing ${batch.size} ${PostTrayLogic.noun(batch.size)}…", "They go to the queue in the background.")))
+    }
+
+    /**
+     * The queue's entry for a piece (PostQueueMaker's steps): the entry, each photo as "wa-<i>", then "ready" (held). A failure
+     * takes the half-made entry out so the retry starts clean.
+     */
+    private suspend fun enqueue(card: PostTrayCard, caption: String, blobs: List<ByteArray>, thumb: ByteArray?, places: List<String>, instagramPost: Boolean) {
+        var qid: String? = null
+        try {
+            val body = LinkedHashMap<String, Any?>()
+            body["headline"] = card.piece.name
+            body["caption"] = caption
+            body["fileBase"] = PostTrayLogic.slug(card.piece)
+            body["counts"] = mapOf("site" to 0, "wa" to blobs.size, "story" to false)
+            body["instagram"] = false
+            body["whatsapp"] = places
+            body["website"] = null
+            body["sitePiece"] = card.id
+            if (instagramPost) body["instagramPost"] = true
+            if (thumb != null) body["thumb"] = java.util.Base64.getEncoder().encodeToString(thumb)
+            val made = MarketingRequest.send("/api/website/post/queue", body)
+            val id = made["item"].s("id")
+            qid = id
+            if (id.isEmpty()) throw ErpApi.Failure(0, "The queue gave no entry.")
+            blobs.forEachIndexed { i, data ->
+                val key = "wa-$i"
+                ErpApi.shared.upload("/api/website/post/queue/$id", listOf("key" to key), listOf(ErpApi.FormFile("file", "$key.jpg", "image/jpeg", data)))
+            }
+            MarketingRequest.send("/api/website/post/queue/$id", mapOf("action" to "ready"), method = "PATCH")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val id = qid
+            if (!id.isNullOrEmpty()) try { MarketingRequest.send("/api/website/post/queue/$id", method = "DELETE") } catch (x: Exception) { }
+            throw e
         }
     }
 
@@ -558,6 +788,7 @@ class PostTrayModel(val engine: DesignEngine, private val scope: CoroutineScope)
 
     companion object {
         const val TARGETS_KEY = "erp.postTargets"
+        const val INSTAGRAM_KEY = "erp.postInstagramPost"
     }
 }
 

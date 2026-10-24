@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import erp.app.data.ErpApi
+import erp.app.ui.rememberHaptics
 import erp.app.data.Shelf
 import erp.app.data.Sort
 import erp.app.screens.customers.FormSection
@@ -240,27 +241,16 @@ fun WorkshopSilverSheet(karigar: Karigar, onDismiss: () -> Unit) {
     val problem = KarigarPay.silverProblem(grams, rate)
     val name = karigar.name.ifEmpty { karigar.id }
 
+    val haptics = rememberHaptics()
     fun save() {
         if (problem != null) return
         val write = WorkshopWrites.silver(karigar.id, grams, rate, notes)
-        saving = true
-        error = null
-        scope.launch {
-            try {
-                ErpApi.shared.write(write.op, write.fields)
-                note.show(Note("Silver transaction recorded"))
-                savedTick += 1
-                saving = false
-                onDismiss()
-                return@launch
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failedTick += 1
-                error = workshopSay(e)
-            }
-            saving = false
-        }
+        // Not money: the sheet closes at once and the Outbox carries the entry.
+        ErpApi.shared.enqueue(write.op, write.fields, "Silver entry")
+        note.show(Note("Silver transaction recorded"))
+        savedTick += 1
+        haptics.success()
+        onDismiss()
     }
 
     MoneyFeedback(success = savedTick, failure = failedTick)

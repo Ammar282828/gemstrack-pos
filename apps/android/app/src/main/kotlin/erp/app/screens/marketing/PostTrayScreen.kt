@@ -1,5 +1,6 @@
 package erp.app.screens.marketing
 
+import erp.core.logic.ShopNumber
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -102,6 +103,7 @@ import erp.app.ui.ledgerCard
 import erp.app.ui.ledgerRow
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.theme.TabularDigits
+import erp.core.logic.Album
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -153,7 +155,7 @@ fun PostTrayScreen(path: String) {
         TrayBar(
             primary = if (n > 1) "Send all $n" else "Send it", primaryBusy = model.busy == "send", enabled = model.canSend,
             onPrimary = { confirming = true }, secondaryBusy = model.busy == "queue", onSecondary = { scope.launch { say(model.queue().notes) } },
-            summary = PostTrayLogic.summary(n, model.targets) { model.label(it) },
+            summary = PostTrayLogic.summary(n, model.placeNames) { it },
         )
     })
 
@@ -195,7 +197,7 @@ fun PostTrayScreen(path: String) {
                 val wide = maxWidth >= 840.dp
                 val card = model.activeCard
                 val top: @Composable () -> Unit = {
-                    if (state.piecesPhase == PostsPhase.Loaded && !model.audience.canSend) {
+                    if (state.piecesPhase == PostsPhase.Loaded && !model.audience.canSend && !model.toInstagram) {
                         Row(Modifier.fillMaxWidth().ledgerCard(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Icon(Icons.Filled.Warning, null, tint = Tone.owed.color())
                             Text(
@@ -249,10 +251,14 @@ fun PostTrayScreen(path: String) {
     }
     if (confirming) {
         val lines = model.cards.map { PostTrayLogic.Line(it.piece.name, it.going, MarketingTime.postedAgo(state.posted[it.id])) }
-        val places = model.targets.map { k -> PostTrayLogic.placeLine(k, model.label(k), model.audience.channelName, model.reach(k)) }
+        val places = model.whatsappPlaces.map { k -> PostTrayLogic.placeLine(k, model.label(k), model.audience.channelName, model.reach(k)) } +
+            (if (model.toInstagram) {
+                val most = model.cards.maxOfOrNull { it.album.size } ?: 1
+                listOf("Instagram: one post" + if (most > Album.igCarouselMax) ", the first ${Album.igCarouselMax} photos of a piece (its limit)" else "")
+            } else emptyList())
         AlertDialog(
             onDismissRequest = { confirming = false },
-            title = { Text(PostTrayLogic.confirmTitle(model.cards.size, model.targets) { model.label(it) }) },
+            title = { Text(PostTrayLogic.confirmTitle(model.cards.size, model.placeNames) { it }) },
             text = { Column(Modifier.verticalScroll(rememberScrollState())) { Text(PostTrayLogic.confirmWords(lines, places, model.cards.size, model.blockers)) } },
             confirmButton = { TextButton(onClick = { confirming = false; scope.launch { say(model.send().notes) } }) { Text(if (model.blockers.isEmpty()) "Send" else "Send anyway") } },
             dismissButton = { TextButton(onClick = { confirming = false }) { Text("Not yet") } },
@@ -344,10 +350,16 @@ private fun TrayStrip(model: PostTrayModel, clearAll: () -> Unit) {
 @Composable
 private fun WhereSection(model: PostTrayModel) {
     val a = model.audience
-    if (a.groups.isEmpty() && a.channelName == null) return
+    val igConnected = model.instagram["connected"].bool
+    if (a.groups.isEmpty() && a.channelName == null && !igConnected) return
     FormSection("Where they go") {
         for (g in a.groups) PlaceToggle(model, g.key, g.label, g.size, "members")
         if (a.channelName != null) PlaceToggle(model, "channel", "Channel", a.channelFollowers, "followers")
+        // The photos as one Instagram carousel, the first ten, the caption once (album.ts).
+        if (igConnected) {
+            val user = model.instagram.s("username")
+            ToggleRow("Instagram post", model.instagramPost, { if (model.busy == null) model.chooseInstagram() }, sub = if (user.isEmpty()) null else "@$user")
+        }
     }
 }
 
@@ -407,6 +419,7 @@ private fun CardSections(
     val edit = card.design
     if (edit != null && edit.ready) DesignSection(card, edit, model, state, posted, locked, onDesignAI)
     else PlainPhotoSection(card, state, posted, locked, onDesign)
+    PostAlbumStrip(card, model, state.siteName, locked, onSay)
     WeightSection(card, state.siteName, locked)
     CaptionSection(card, model, locked, onAI)
     MoreSection(card, model, state.siteName, access, locked, onStory, onSay)
@@ -485,7 +498,7 @@ private fun WeightSection(card: PostTrayCard, siteName: String, locked: Boolean)
         Row(Modifier.fillMaxWidth().ledgerRow(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Weight", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
             OutlinedTextField(
-                card.weight, { v -> if (!locked) card.weight = v.filter { it.isDigit() || it == '.' } }, Modifier.width(120.dp), singleLine = true,
+                card.weight, { v -> if (!locked) card.weight = ShopNumber.ascii(v).replace(",", ".").filter { it in '0'..'9' || it == '.' } }, Modifier.width(120.dp), singleLine = true,
                 placeholder = { Text("0.00") }, textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End, fontFeatureSettings = TabularDigits),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), enabled = !locked,
             )

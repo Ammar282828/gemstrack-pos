@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Public
@@ -50,6 +51,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -92,7 +94,10 @@ import erp.app.ui.MoneySplit
 import erp.app.ui.Monogram
 import erp.app.ui.MonogramSize
 import erp.app.ui.NotAvailableState
+import erp.app.ui.Note
+import erp.app.ui.rememberLocalChanges
 import erp.app.ui.PaymentSheet
+import erp.app.ui.PaymentText
 import erp.app.ui.Pill
 import erp.app.ui.ShelfState
 import erp.app.ui.ShopDate
@@ -164,7 +169,7 @@ fun OrderScreen(id: String) {
 }
 
 @Composable
-private fun Detail(order: Order) {
+private fun Detail(shelfOrder: Order) {
     val book = LocalBook.current
     val session = LocalSession.current
     val navigator = LocalNavigator.current
@@ -175,10 +180,18 @@ private fun Detail(order: Order) {
     val isOwner = role == "owner"
     val person = session.shop.person
 
+    // What the person just did, until the books say so: a status or a tick leaves at once (Outbox).
+    val localStatus = rememberLocalChanges<String, String>()
+    val localDone = rememberLocalChanges<Int, Boolean>()
+    val order = OrdersLocal.shown(shelfOrder, localStatus["status"], localDone.entries.toMap())
+    LaunchedEffect(shelfOrder) {
+        localStatus.reconcile { _, s -> OrdersLocal.statusAgrees(shelfOrder, s) }
+        localDone.reconcile { i, d -> OrdersLocal.doneAgrees(shelfOrder, i, d) }
+    }
+    val note = LocalNoteState.current
+
     var advancing by remember { mutableStateOf(false) }
     var confirmCancel by remember { mutableStateOf(false) }
-    var updatingStatus by remember { mutableStateOf(false) }
-    var ticking by remember { mutableStateOf<Int?>(null) }
     var failure by remember { mutableStateOf<String?>(null) }
     var undo by remember { mutableStateOf<OrderUndoAsk?>(null) }
     var booking by remember { mutableStateOf(false) }
@@ -196,24 +209,14 @@ private fun Detail(order: Order) {
     val invoice: Invoice? = order.invoiceId?.takeIf { it.isNotEmpty() }?.let { rememberShelfItem(book.invoices, it) }
     // What the invoice still has owing, by the hub's own rule (isOwing), so the stage reads the same on both.
     val owed = invoice?.let { if (isOwing(it)) it.balanceDue else 0.0 } ?: 0.0
-    val stage = stageOf(order, owed)
+    val stage = OrdersLocal.stage(stageOf(shelfOrder, owed), OrdersLogic.hasInvoice(shelfOrder), localStatus["status"])
     val now = remember(order, invoice) { AppClock.now() }
 
     fun setStatus(status: String) {
-        if (updatingStatus) return
-        updatingStatus = true
-        scope.launch {
-            try {
-                ErpApi.shared.write("setOrderStatus", mapOf("orderId" to order.id, "status" to status))
-                if (status == "Completed") haptics.success()
-                if (status == "Cancelled") haptics.warning()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = ordersSay(e)
-            }
-            updatingStatus = false
-        }
+        localStatus["status"] = status
+        if (status == "Cancelled") haptics.warning() else haptics.success()
+        note.show(Note(OrdersLocal.said(status), order.id))
+        ErpApi.shared.enqueue("setOrderStatus", mapOf("orderId" to order.id, "status" to status), "${order.id} status")
     }
 
     fun choose(status: String) {
@@ -223,18 +226,9 @@ private fun Detail(order: Order) {
 
     /** Owners tick a piece done; the last one finishes the order, and unticking a finished one sends it back to the karigars (the server works that out: lib/order-stage.ts). */
     fun tick(index: Int, done: Boolean) {
-        if (ticking != null) return
-        ticking = index
-        scope.launch {
-            try {
-                ErpApi.shared.write("setPieceDone", mapOf("orderId" to order.id, "index" to index, "done" to done))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = ordersSay(e)
-            }
-            ticking = null
-        }
+        localDone[index] = done
+        haptics.success()
+        ErpApi.shared.enqueue("setPieceDone", mapOf("orderId" to order.id, "index" to index, "done" to done), "${order.id} piece ${index + 1}")
     }
 
     /** The hub's step, less what the foot of this page should not offer: an invoice only while it is owed (a paid one is the money card's link), the transfer only to the accounts the server lets move it (lib/website/staff-gate.ts). */
@@ -266,7 +260,7 @@ private fun Detail(order: Order) {
             IconButton(onClick = { navigator.open(OrderPaths.edit(order.id)) }) { Icon(Icons.Filled.Edit, "Edit order") }
         }
         MoreMenu(
-            order, stage, step, isOwner, offersAdvance, updatingStatus,
+            order, stage, step, isOwner, offersAdvance, false,
             onStatus = ::choose,
             onAdvance = { advancing = true },
             onFinalize = { navigator.open(OrderPaths.finalize(order.id)) },
@@ -276,6 +270,10 @@ private fun Detail(order: Order) {
             onBook = { booking = true },
             onUndo = { undo = it },
             onWeb = { navigator.open(OrderPaths.orderPage(order.id)) },
+            // Gold moves: Edit order (before an invoice) or Edit invoice (after), opened at the rates. Owners', as those are.
+            onChangeRate = if (isOwner && !OrderActions.isClosed(order)) {
+                { navigator.open(if (OrdersLogic.hasInvoice(order)) OrderPaths.invoice(order.invoiceId.orEmpty()) + "/edit?rates=1" else OrderPaths.changeRate(order.id)) }
+            } else null,
         )
     }
 
@@ -296,14 +294,14 @@ private fun Detail(order: Order) {
                 }
             }
             if (OrdersLogic.isOnline(order)) item("online") { OrderOnlineSection(order, leopards = { leopardsOpen = true }) }
-            item("pieces") { Pieces(order, ticking, isOwner, onGiveOut = { navigator.open(OrderPaths.giveOut(order.id)) }, onTick = ::tick) }
+            item("pieces") { Pieces(order, null, isOwner, onGiveOut = { navigator.open(OrderPaths.giveOut(order.id)) }, onTick = ::tick) }
             item("money") {
                 if (OrdersLogic.hasInvoice(order)) InvoiceCard(order, invoice, owed, isOwner)
                 else MoneyCard(order)
             }
             item("details") { Details(order, isOwner) }
         }
-        ActionBar(order, stage, step, offersAdvance, updatingStatus, onStep = ::run, onAdvance = { advancing = true })
+        ActionBar(order, stage, step, offersAdvance, false, onStep = ::run, onAdvance = { advancing = true })
     }
 
     if (advancing) {
@@ -313,13 +311,17 @@ private fun Detail(order: Order) {
             title = "Record an advance",
             onDismiss = { advancing = false },
             onSave = { entry ->
-                OrderAdvance.record(order, entry.amount, entry.method, entry.note)
+                OrderAdvance.record(order, entry.amount, entry.method, entry.note, entry.exchanges)
+                note.show(Note("Advance recorded", PaymentText.advanceSaid(entry.amount, entry.exchanges)))
                 // PaymentSheet plays the success tap itself.
             },
             owed = if (owesMoney(balance)) balance else null,
             noteDefault = "Advance payment received",
             // Settle gives a remainder under 5,000 off the order's discount (OrderAdvance.settle).
-            settle = if (erp.app.auth.LocalSession.current.isOwner) { entry, remainder -> OrderAdvance.settle(order, entry.amount, entry.method, entry.note, remainder) } else null,
+            settle = if (erp.app.auth.LocalSession.current.isOwner) { entry, remainder ->
+                OrderAdvance.settle(order, entry.amount, entry.method, entry.note, remainder)
+                note.show(Note("Advance recorded", PaymentText.advanceSaid(entry.amount, emptyList())))
+            } else null,
         )
     }
     if (booking) OrderCourierSheet(order) { booking = false }
@@ -536,6 +538,7 @@ private fun MoneyCard(order: Order) {
     val rates = OrdersLogic.rateLine(order)
     // One advance and no exchange is the split's Paid figure already; the line only says more than that.
     val showAdvance = order.advancePayment > 0 && (lines.size > 1 || exchangeValue > 0)
+    val hasGoldLine = lines.any { it.gold.isNotEmpty() }
     var open by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LedgerHeading("Money")
@@ -556,7 +559,7 @@ private fun MoneyCard(order: Order) {
                 if (discount > 0) MoneyRow("Discount", -discount, signed = true)
                 if (showAdvance) MoneyRow("Advance paid", -order.advancePayment, signed = true)
                 // Each advance with its day and how it was paid: these become the invoice's payments.
-                if (lines.size > 1) for (l in lines) AdvanceLineRow(l)
+                if (lines.size > 1 || hasGoldLine) for (l in lines) AdvanceLineRow(l)
                 if (exchangeValue > 0) MoneyRow("Taken in exchange", -exchangeValue, signed = true)
                 for (e in exchanges) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -576,9 +579,12 @@ private fun MoneyCard(order: Order) {
 @Composable
 private fun AdvanceLineRow(l: AdvanceLine) {
     val words = listOf(ShopDate.say(l.date), l.method, l.note).filter { it.isNotEmpty() }.joinToString(" · ")
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-        Text(words, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(Money.pkr(l.amount), style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+            Text(words, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (l.amount > 0 || l.gold.isEmpty()) Text(Money.pkr(l.amount), style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = TabularDigits), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (l.gold.isNotEmpty()) Text(l.gold, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -726,6 +732,7 @@ private fun MoreMenu(
     onBook: () -> Unit,
     onUndo: (OrderUndoAsk) -> Unit,
     onWeb: () -> Unit,
+    onChangeRate: (() -> Unit)? = null,
 ) {
     var open by remember { mutableStateOf(false) }
     val showAdvance = isOwner && OrdersLogic.canAdvance(order) && !(stage != OrderStage.closed && barOffersAdvance)
@@ -773,6 +780,7 @@ private fun MoreMenu(
         }
         HorizontalDivider()
         MenuHeader("More")
+        if (onChangeRate != null) item("Change rate", Icons.Filled.Percent, onClick = onChangeRate)()
         if (canUndo) item("Unlock & edit", Icons.Filled.LockOpen) { onUndo(OrderUndo.unlockAndEdit(order)) }()
         // Anything else the page has.
         item("Open in the ERP", Icons.Filled.Public, onClick = onWeb)()

@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { AmountInput } from '@/components/ui/amount-input';
-import { finalizedItemCosts, orderInvoiceRates, takesWastageAndMaking, wastageGramsFor, wastagePercentFor } from '@/lib/order-finalize';
+import { finalizeRateRows, finalizeRates, finalizedItemCosts, orderInvoiceRates, rateShown, takesWastageAndMaking, wastageGramsFor, wastagePercentFor, type RateField } from '@/lib/order-finalize';
 import { exchangeTotal, orderExchanges } from '@/lib/exchange';
 import { ExchangeRows, type ExchangeRow, blankExchangeRow, exchangeRowsTotal, exchangesFromRows } from '@/components/shared/exchange-rows';
 import { Label } from '@/components/ui/label';
@@ -108,8 +108,25 @@ export const FinalizeOrderDialog: React.FC<{
 
     const { fields } = useFieldArray({ control: form.control, name: "items" });
 
-    // What it comes to, live: the order's booked rate, the figures as typed.
-    const rates = React.useMemo(() => orderInvoiceRates(order, settings), [order, settings]);
+    // What it comes to, live: the order's booked rates (or the ones typed here), the figures as typed.
+    const booked = React.useMemo(() => orderInvoiceRates(order, settings), [order, settings]);
+    const rateRows = React.useMemo(() => finalizeRateRows(order.items), [order.items]);
+    // Rates typed in the block below; a field not here is at its booked figure.
+    const [typedRates, setTypedRates] = React.useState<Partial<Record<RateField, number>>>({});
+    // Today's: the shop's own, with a palladium karat falling back to the flat rate as pricing does.
+    const todayOf = (f: RateField) => rateShown(settings as unknown as Partial<Record<RateField, number>>, f);
+    const shownOf = (f: RateField) => typedRates[f] ?? rateShown(booked, f);
+    // Only what differs from the booked figure goes to the invoice; none, and it prices as booked.
+    const changedRates = React.useMemo(() => {
+        const out: Partial<Record<RateField, number>> = {};
+        for (const { field } of rateRows) {
+            const t = Number(typedRates[field]);
+            if (t > 0 && t !== rateShown(booked, field)) out[field] = t;
+        }
+        return out;
+    }, [rateRows, typedRates, booked]);
+    const rates = React.useMemo(() => finalizeRates(order, settings, changedRates), [order, settings, changedRates]);
+    const todayDiffers = rateRows.some(({ field }) => todayOf(field) > 0 && todayOf(field) !== shownOf(field));
     const typed = form.watch('items');
     const discount = Number(form.watch('additionalDiscount')) || 0;
     const costs = order.items.map((it, i) => typed?.[i] ? finalizedItemCosts(it, typed[i], rates) : null);
@@ -129,14 +146,13 @@ export const FinalizeOrderDialog: React.FC<{
         fixedPrice: !!typed?.[i]?.isManualPrice,
         setWithStones: !!(it.hasDiamonds || it.hasStones || it.stoneDetails?.trim() || it.diamondDetails?.trim() || (Number(it.stoneWeightG) || 0) > 0),
     })), subtotal - discount, costRate24k);
-    const rateLine = order.items.some(it => it.metalType === 'gold')
-      ? (['21k', '22k', '18k', '24k'] as const)
-          .filter(k => order.items.some(it => it.metalType === 'gold' && it.karat === k))
-          .map(k => `${k} ${Number(rates[`goldRatePerGram${k}`] || 0).toLocaleString('en-PK')}/g`).join(' · ')
-      : '';
+    const rateLine = rateRows
+      .map(({ field, label }) => `${label.replace('Gold ', '').replace(' (all-in)', '')} ${shownOf(field).toLocaleString('en-PK')}/g`)
+      .join(' · ');
 
     const handleFinalize = async (data: FinalizeOrderFormData) => {
-        const newInvoice = await generateInvoiceFromOrder(order, data.items, data.additionalDiscount, costRate24k);
+        const newInvoice = await generateInvoiceFromOrder(order, data.items, data.additionalDiscount, costRate24k,
+            Object.keys(changedRates).length ? changedRates : undefined);
         if (newInvoice) {
             toast({
                 title: "Invoice Generated",
@@ -262,6 +278,38 @@ export const FinalizeOrderDialog: React.FC<{
                                 })}
                             </div>
                         </div>
+                        {rateRows.length > 0 && (
+                            <>
+                            <Separator />
+                            {/* Gold moves daily and an order is delivered weeks after it was booked: the pieces are priced
+                                at the booked rates unless one is changed here. */}
+                            <div className="p-3 space-y-2">
+                                <div className="flex items-center justify-between gap-3">
+                                    <Label className="text-base">Rates (PKR per gram)</Label>
+                                    {todayDiffers && (
+                                        <Button type="button" variant="outline" size="sm"
+                                            onClick={() => setTypedRates(Object.fromEntries(rateRows.filter(r => todayOf(r.field) > 0).map(r => [r.field, todayOf(r.field)])))}>
+                                            Use today&apos;s rates
+                                        </Button>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    {rateRows.map(({ field, label }) => (
+                                        <div key={field}>
+                                            <Label className="text-xs">{label}</Label>
+                                            <AmountInput maxDecimals={2} aria-label={`${label} rate per gram`} value={shownOf(field)}
+                                                onValueChange={(v) => setTypedRates(prev => ({ ...prev, [field]: v ?? 0 }))} />
+                                            {field in changedRates && <p className="text-2xs text-muted-foreground">Booked at {rateShown(booked, field).toLocaleString('en-PK')}</p>}
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Booked rates unless you change one. {rateRows.some(r => r.field === 'silverRatePerGram') && 'Silver\u2019s rate already holds its making and wastage. '}
+                                    The invoice keeps the rates it was priced at.
+                                </p>
+                            </div>
+                            </>
+                        )}
                         <Separator />
                         <div className="p-3 grid gap-4 md:grid-cols-2">
                             <FormField control={form.control} name="additionalDiscount" render={({ field }) => (
@@ -285,7 +333,7 @@ export const FinalizeOrderDialog: React.FC<{
                               {exchange > 0 && <div className="flex justify-between text-muted-foreground"><span>Exchange</span><span>− {rs(exchange)}</span></div>}
                               {advances > 0 && <div className="flex justify-between text-muted-foreground"><span>Advances paid</span><span>− {rs(advances)}</span></div>}
                               <div className="flex justify-between border-t pt-1 font-semibold"><span>{balance < 0 ? 'Owed to the customer' : 'Balance due'}</span><span>{rs(Math.abs(balance))}</span></div>
-                              {rateLine && <p className="pt-1 text-xs text-muted-foreground">At the order&apos;s rate: {rateLine}</p>}
+                              {rateLine && <p className="pt-1 text-xs text-muted-foreground">{Object.keys(changedRates).length ? 'At the rates above' : 'At the order\u2019s rate'}: {rateLine}</p>}
                             </div>
                             {/* The shop's margin on the invoice this makes — blurred until tapped, never printed. */}
                             {SHOP_MARGIN_ON && (

@@ -92,7 +92,7 @@ fun RepairsSheet(id: String, seed: Repair?, onDismiss: () -> Unit) {
     val desk = rememberRepairsDesk()
     val shelfItem = rememberShelfItem(book.repairs, id)
     val loaded = rememberShelfStatus(book.repairs).loaded
-    val current: Repair? = shelfItem ?: seed
+    val current: Repair? = (shelfItem ?: seed)?.let(desk::shown)
 
     var web by remember { mutableStateOf<String?>(null) }
     var editing by remember { mutableStateOf(false) }

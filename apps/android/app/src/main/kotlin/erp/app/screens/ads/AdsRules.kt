@@ -104,9 +104,9 @@ fun AdsRulesScreen() {
         }
     }
 
-    suspend fun load() {
+    suspend fun load(fresh: Boolean = false) {
         try {
-            val s = backend.status()
+            val s = backend.status(fresh)
             status = s
             problem = null
             if (s.ready) loadRules()
@@ -210,7 +210,7 @@ fun AdsRulesScreen() {
                 )
             }
         }
-        else -> AdsNotReady(status, problem) { scope.launch { load() } }
+        else -> AdsNotReady(status, problem) { scope.launch { load(fresh = true) } }
     }
 
     if (making) {

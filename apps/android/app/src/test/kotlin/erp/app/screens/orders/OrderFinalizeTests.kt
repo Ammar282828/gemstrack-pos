@@ -1,6 +1,7 @@
 package erp.app.screens.orders
 
 import erp.core.ERPDecode
+import erp.core.logic.RateField
 import erp.core.models.Order
 import erp.core.models.Settings
 import kotlin.test.assertEquals
@@ -118,5 +119,56 @@ class OrderFinalizeTests {
         )
         val credit = f.copy(balance = -4_000.0)
         assertTrue(confirmWords(o, credit).contains("with PKR 4,000 in credit"))
+    }
+
+    // Rates typed at Finalize (the owner, 2026-10-24: "I don't have the option to change the per gram rate").
+
+    @Test fun theRateBoxesOpenOnTheBookedRatesAndOnlyForWhatIsUsed() {
+        val o = order()
+        assertEquals(mapOf(RateField.GOLD_21K to "30000"), OrderFinalizeMath.bookedTexts(o, settings))
+    }
+
+    @Test fun aTypedRatePricesThePiecesAndOnlyAChangedOneIsSent() {
+        val o = order()
+        val rows = o.items.mapIndexed { i, it -> OrderFinalizeRow.of(it, i) }
+        // Untouched boxes change nothing.
+        val booked = OrderFinalizeMath.bookedTexts(o, settings)
+        assertEquals(167_500.0, OrderFinalizeMath.figures(o, rows, "", settings, booked).prices[0])
+        assertTrue(OrderFinalizeMath.changedRates(o, settings, booked).isEmpty())
+        assertTrue(!OrderFinalizeMath.request(o.id, rows, "", "", OrderFinalizeMath.changedRates(o, settings, booked)).containsKey("ratesApplied"))
+        // 5 g of 21k at 35,000 = 175,000, wastage 10% = 17,500, making 2,000, stones 500.
+        val typed = mapOf(RateField.GOLD_21K to "35,000")
+        assertEquals(195_000.0, OrderFinalizeMath.figures(o, rows, "", settings, typed).prices[0])
+        val changed = OrderFinalizeMath.changedRates(o, settings, typed)
+        assertEquals(mapOf(RateField.GOLD_21K to 35_000.0), changed)
+        assertEquals(mapOf("goldRatePerGram21k" to 35_000.0), OrderFinalizeMath.request(o.id, rows, "", "", changed)["ratesApplied"])
+    }
+
+    @Test fun useTodaysRatesFillsTheShopsOwnAndShowsOnlyWhenTheyDiffer() {
+        val o = order()
+        val booked = OrderFinalizeMath.bookedTexts(o, settings)
+        assertTrue(OrderFinalizeMath.todayDiffers(o, settings, booked))
+        val today = OrderFinalizeMath.todayTexts(o, settings)
+        assertEquals(mapOf(RateField.GOLD_21K to "35000"), today)
+        assertTrue(!OrderFinalizeMath.todayDiffers(o, settings, booked + today))
+    }
+
+    @Test fun aRateThatIsNotANumberIsRefused() {
+        val o = order()
+        val rows = o.items.mapIndexed { i, it -> OrderFinalizeRow.of(it, i) }
+        assertEquals("Gold 21k rate cannot be negative.", OrderFinalizeMath.problem(rows, "", o, mapOf(RateField.GOLD_21K to "-5")))
+        assertEquals("The Gold 21k rate is not a number. Retype it, or clear it.", OrderFinalizeMath.problem(rows, "", o, mapOf(RateField.GOLD_21K to "12abc")))
+        assertNull(OrderFinalizeMath.problem(rows, "", o, mapOf(RateField.GOLD_21K to "")))
+    }
+
+    @Test fun silverIsOneAllInRateThatCanBeTyped() {
+        val o = order(
+            "ratesApplied" to mapOf("silverRatePerGram" to 400.0),
+            "items" to listOf(mapOf("description" to "Chain", "metalType" to "silver", "estimatedWeightG" to 10.0, "totalEstimate" to 4_000.0)),
+        )
+        val rows = o.items.mapIndexed { i, it -> OrderFinalizeRow.of(it, i) }
+        assertEquals(mapOf(RateField.SILVER to "400"), OrderFinalizeMath.bookedTexts(o, settings))
+        assertEquals(4_000.0, OrderFinalizeMath.figures(o, rows, "", settings, OrderFinalizeMath.bookedTexts(o, settings)).prices[0])
+        assertEquals(4_500.0, OrderFinalizeMath.figures(o, rows, "", settings, mapOf(RateField.SILVER to "450")).prices[0])
     }
 }

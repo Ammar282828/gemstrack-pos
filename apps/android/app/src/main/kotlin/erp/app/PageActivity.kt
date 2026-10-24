@@ -11,9 +11,11 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import erp.app.auth.Session
 import erp.app.config.House
+import erp.app.data.Outbox
 import erp.app.device.AppLock
 import erp.app.device.Foreground
 import erp.app.nav.AppShell
+import erp.app.nav.rebuildOnBusinessSwitch
 import erp.app.nav.LocalNavigator
 import erp.app.nav.Navigator
 import erp.app.nav.PlaceScreen
@@ -40,6 +42,8 @@ class PageActivity : FragmentActivity() {
         Foreground.attach(this)
         val path = intent.getStringExtra(EXTRA_PATH)
         if (path == null) { finish(); return }
+        // Another business opened while a page is up: the shell is rebuilt on it (this page goes with the task).
+        rebuildOnBusinessSwitch()
         // Signed out (or into someone else's account) while a page is up: the tabs' sign-in is the only place to be.
         lifecycleScope.launch {
             session.state.collect { s ->
@@ -70,6 +74,7 @@ class PageActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         AppLock.resumed(this, signedIn)
+        if (signedIn && !House.isDemo) { Outbox.warm(); Outbox.resume() }
         lifecycleScope.launch { AppLock.unlockIfNeeded(this@PageActivity) }
     }
 
