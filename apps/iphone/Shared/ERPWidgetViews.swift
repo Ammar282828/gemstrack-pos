@@ -82,6 +82,11 @@ struct ERPSummary: Codable {
 
 enum ERPWidgetSize {
     case small, medium, large, extraLarge, rectangular, circular, inline
+    /// One business's share of a widget that shows two (the entry view lays them out and links each): a row of a
+    /// small widget, a column of a medium one, a line of a rectangular accessory. They set no widgetURL of their own.
+    case smallHalf, mediumHalf, rectangularLine
+
+    var isHalf: Bool { self == .smallHalf || self == .mediumHalf || self == .rectangularLine }
 }
 
 /// Marks a view as part of the accent group when the system renders the widget tinted.
@@ -146,7 +151,9 @@ struct ERPWidgetFace: View {
 
     var body: some View {
         if let s = summary, let today = s.figures.first {
-            face(s, today).widgetURL(look?.rootURL)
+            if size.isHalf { face(s, today) } else { face(s, today).widgetURL(look?.rootURL) }
+        } else if size.isHalf {
+            waiting
         } else if size == .inline {
             // An inline accessory is one line of text: no wordmark fits there.
             Text(look == nil ? "Open ERP to sign in" : "\(look?.name ?? "") · no figures yet")
@@ -165,6 +172,9 @@ struct ERPWidgetFace: View {
         case .small: smallFace(s, today)
         case .medium: mediumFace(s, today)
         case .large, .extraLarge: largeFace(s, today)
+        case .smallHalf: smallHalfFace(s, today)
+        case .mediumHalf: mediumHalfFace(s, today)
+        case .rectangularLine: lineFace(s, today)
         }
     }
 
@@ -204,6 +214,19 @@ struct ERPWidgetFace: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// "Taheri  Rs 1.2 lac": one business on one line of a rectangular accessory that carries two.
+    private func lineFace(_ s: ERPSummary, _ today: ERPSummary.Figure) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(s.house).font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7).erpAccentable()
+            Spacer(minLength: 4)
+            Text(today.value)
+                .font(.system(.callout, design: .rounded).weight(.semibold)).monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.6).privacySensitive()
+                .contentTransition(.numericText()).invalidatableContent()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     // MARK: Home screen
 
     private func smallFace(_ s: ERPSummary, _ today: ERPSummary.Figure) -> some View {
@@ -214,6 +237,31 @@ struct ERPWidgetFace: View {
                 wordmark(width: 52, height: 14)
             }
             hero(today, style: .title).padding(.top, 4)
+            delta(s, font: .caption.weight(.semibold)).padding(.top, 1)
+            Spacer(minLength: 4)
+            if let days = s.extras?.days, days.count > 1 {
+                ERPSparkline(days: days, tint: ink).erpAccentable().frame(height: 38)
+            }
+            stamp(s)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    /// A small widget's row when it carries two businesses: the name in its accent, today's figure, a tiny delta.
+    private func smallHalfFace(_ s: ERPSummary, _ today: ERPSummary.Figure) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            nameTag(s)
+            hero(today, style: .title2)
+            delta(s, font: .caption2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
+    /// A medium widget's column when it carries two businesses: name, today's figure, delta, the week.
+    private func mediumHalfFace(_ s: ERPSummary, _ today: ERPSummary.Figure) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            nameTag(s)
+            hero(today, style: .title).padding(.top, 3)
             delta(s, font: .caption.weight(.semibold)).padding(.top, 1)
             Spacer(minLength: 4)
             if let days = s.extras?.days, days.count > 1 {
@@ -288,6 +336,13 @@ struct ERPWidgetFace: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    /// A share of a two-business widget whose figures have not come yet.
+    private var waiting: some View {
+        Text("\(look?.name ?? "ERP") · no figures yet")
+            .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
     private var unlinked: some View {
         VStack(alignment: .leading, spacing: 8) {
             wordmark(width: 92, height: 24)
@@ -305,6 +360,13 @@ struct ERPWidgetFace: View {
         Text(text).textCase(.uppercase)
             .font(.caption2.weight(.semibold)).tracking(1.1)
             .foregroundStyle(.secondary).lineLimit(1)
+    }
+
+    /// The business's name in its accent, small caps; what tells two businesses apart on one widget.
+    private func nameTag(_ s: ERPSummary) -> some View {
+        Text(s.house).textCase(.uppercase)
+            .font(.caption2.weight(.semibold)).tracking(1.1)
+            .foregroundStyle(ink).lineLimit(1).minimumScaleFactor(0.7).erpAccentable()
     }
 
     /// The hero figure: "Rs" small and quiet, the number large in rounded semibold numerals.

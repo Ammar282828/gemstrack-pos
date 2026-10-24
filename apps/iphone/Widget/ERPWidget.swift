@@ -5,16 +5,19 @@ import SwiftUI
 
 /// Revenue today and this month, the shared pinned note and supporting shop figures, from the ERP every half hour
 /// (/api/widget/summary, with the key the app keeps for each business in the shared keychain, ERPWidgetLink). One
-/// widget, many businesses: the person picks which one in Edit Widget (the first linked business until they do). The
-/// large and extra large widgets can carry a second business under the first (owner, 2026-10-17: "Big widget should
-/// let me add both business"), each in its own colours. The faces are Shared/ERPWidgetViews.swift.
+/// widget, many businesses: the person picks which one in Edit Widget (the first linked business until they do). With
+/// two or more linked, every size shows both by default (owner, 2026-10-17: "Big widget should let me add both
+/// business"; 2026-10-24: "the widgets should account for two businesses"): the second is the one chosen in Edit
+/// Widget, else the next linked business, and "Show both businesses" turns it off. Small stacks two rows, medium sets
+/// two columns, large and extra large stack two medium faces, a rectangular accessory takes a line each; the circular
+/// and inline accessories show the first only. Each in its own colours. The faces are Shared/ERPWidgetViews.swift.
 
 struct ERPEntry: TimelineEntry {
     let date: Date
     let summary: ERPSummary?
     /// The business shown; nil when none is linked.
     let link: ERPWidgetLink.Link?
-    /// The second business on a large widget, with its figures; nil for one business.
+    /// The second business, with its figures; nil for one business (or the circular and inline accessories).
     var second: ERPWidgetLink.Link? = nil
     var secondSummary: ERPSummary? = nil
 }
@@ -49,13 +52,17 @@ struct BusinessQuery: EntityQuery {
 
 struct SelectBusinessIntent: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Business"
-    static let description = IntentDescription("Choose which business this widget shows. The first one you signed in to is shown until you do.")
+    static let description = IntentDescription("Choose which business this widget shows. The first one you signed in to is shown until you do; with two linked, both are shown.")
 
     @Parameter(title: "Business")
     var business: BusinessEntity?
 
-    @Parameter(title: "Second business", description: "Large widgets only: shown under the first.")
+    @Parameter(title: "Second business", description: "Shown with the first. The next linked business is used until you choose.")
     var second: BusinessEntity?
+
+    /// On unless turned off; a widget placed before this existed has no stored value and gets true.
+    @Parameter(title: "Show both businesses", default: true)
+    var showBoth: Bool
 }
 
 // MARK: Figures
@@ -71,16 +78,23 @@ struct ERPProvider: AppIntentTimelineProvider {
         return all.first
     }
 
-    /// The large widget's second business: the one chosen, if it is still linked and not the first.
+    /// The second business: the one chosen, if it is still linked and not the first, else the next linked one after
+    /// the first (wrapping round). None when "Show both businesses" is off, only one is linked, or the widget is a
+    /// circular or inline accessory (one figure, the first business).
     private func second(for configuration: SelectBusinessIntent, after first: ERPWidgetLink.Link?, in context: Context) -> ERPWidgetLink.Link? {
-        guard context.family == .systemLarge || context.family == .systemExtraLarge,
-              let id = configuration.second?.id, id != first?.id else { return nil }
-        return ERPWidgetLink.all().first { $0.id == id }
+        guard configuration.showBoth, context.family != .accessoryCircular, context.family != .accessoryInline else { return nil }
+        let all = ERPWidgetLink.all()
+        if let id = configuration.second?.id, id != first?.id, let chosen = all.first(where: { $0.id == id }) { return chosen }
+        guard all.count > 1, let first, let i = all.firstIndex(where: { $0.id == first.id }) else { return nil }
+        return all[(i + 1) % all.count]
     }
 
     func placeholder(in context: Context) -> ERPEntry {
-        let first = ERPWidgetLink.all().first
-        return ERPEntry(date: Date(), summary: .sample(house: first?.name ?? "ERP"), link: first)
+        let all = ERPWidgetLink.all()
+        let first = all.first
+        let other = all.count > 1 ? all[1] : nil
+        return ERPEntry(date: Date(), summary: .sample(house: first?.name ?? "ERP"), link: first,
+                        second: other, secondSummary: other.map { ERPSummary.sample(house: $0.name) })
     }
 
     func snapshot(for configuration: SelectBusinessIntent, in context: Context) async -> ERPEntry {
@@ -158,9 +172,43 @@ struct ERPWidgetEntryView: View {
     }
 
     var body: some View {
-        if let other = entry.second, size == .large || size == .extraLarge {
-            // Two businesses, one above the other: each a medium face on its own paper.
-            let otherLook = ERPWidgetLook(other)
+        if let other = entry.second, size != .circular, size != .inline {
+            pair(other)
+        } else {
+            ERPWidgetFace(summary: entry.summary, size: size, look: look, accented: tinted)
+                .containerBackground(for: .widget) { background }
+        }
+    }
+
+    /// Two businesses on one widget, each in its own colours: rows (small), columns (medium), stacked medium faces
+    /// (large), lines (rectangular accessory).
+    @ViewBuilder private func pair(_ other: ERPWidgetLink.Link) -> some View {
+        let otherLook = ERPWidgetLook(other)
+        switch size {
+        case .small:
+            // A small widget has one tap target (widgetURL; a Link is ignored there): the first business.
+            VStack(spacing: 0) {
+                ERPWidgetFace(summary: entry.summary, size: .smallHalf, look: look, accented: tinted)
+                Rectangle().fill(.primary.opacity(0.12)).frame(height: 1).padding(.vertical, 6)
+                ERPWidgetFace(summary: entry.secondSummary, size: .smallHalf, look: otherLook, accented: tinted)
+            }
+            .widgetURL(look?.rootURL)
+            .containerBackground(for: .widget) { split(otherLook, stacked: true) }
+        case .medium:
+            HStack(alignment: .top, spacing: 16) {
+                opens(look) { ERPWidgetFace(summary: entry.summary, size: .mediumHalf, look: look, accented: tinted) }
+                opens(otherLook) { ERPWidgetFace(summary: entry.secondSummary, size: .mediumHalf, look: otherLook, accented: tinted) }
+            }
+            .containerBackground(for: .widget) { split(otherLook, stacked: false) }
+        case .rectangular:
+            VStack(alignment: .leading, spacing: 3) {
+                ERPWidgetFace(summary: entry.summary, size: .rectangularLine, look: look, accented: tinted)
+                ERPWidgetFace(summary: entry.secondSummary, size: .rectangularLine, look: otherLook, accented: tinted)
+            }
+            .widgetURL(look?.rootURL)
+            .containerBackground(for: .widget) { Color.clear }
+        default:
+            // Large and extra large: each business a medium face on its own paper.
             VStack(spacing: 0) {
                 ERPWidgetFace(summary: entry.summary, size: .medium, look: look, accented: tinted)
                     .frame(maxHeight: .infinity)
@@ -169,17 +217,29 @@ struct ERPWidgetEntryView: View {
                     .frame(maxHeight: .infinity)
                     .padding(.top, 12)
             }
-            .containerBackground(for: .widget) {
-                if tinted { Color.clear } else {
-                    VStack(spacing: 0) {
-                        ERPWidgetPaper(look: look)
-                        ERPWidgetPaper(look: otherLook)
-                    }
-                }
+            .containerBackground(for: .widget) { split(otherLook, stacked: true) }
+        }
+    }
+
+    /// A half that opens its business in the app (a Link; widgetURL allows only one).
+    @ViewBuilder private func opens<C: View>(_ look: ERPWidgetLook?, @ViewBuilder _ content: () -> C) -> some View {
+        if let url = look?.rootURL { Link(destination: url) { content() } } else { content() }
+    }
+
+    /// Each business's own paper for its half; tinted and clear home screens take none.
+    @ViewBuilder private func split(_ otherLook: ERPWidgetLook, stacked: Bool) -> some View {
+        if tinted {
+            Color.clear
+        } else if stacked {
+            VStack(spacing: 0) {
+                ERPWidgetPaper(look: look)
+                ERPWidgetPaper(look: otherLook)
             }
         } else {
-            ERPWidgetFace(summary: entry.summary, size: size, look: look, accented: tinted)
-                .containerBackground(for: .widget) { background }
+            HStack(spacing: 0) {
+                ERPWidgetPaper(look: look)
+                ERPWidgetPaper(look: otherLook)
+            }
         }
     }
 
@@ -193,12 +253,12 @@ struct ERPWidgetEntryView: View {
 struct ERPWidget: Widget {
     var body: some WidgetConfiguration {
         // The kind is the one the static widget had, so a widget already on a home screen keeps its place and shows
-        // the first linked business until it is edited.
+        // the first linked business, with the next one beside or under it, until it is edited.
         AppIntentConfiguration(kind: "ERPToday", intent: SelectBusinessIntent.self, provider: ERPProvider()) { entry in
             ERPWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("Today at the shop")
-        .description("Revenue today and this month, with the shop’s pinned message. Touch and hold, then Edit Widget, to choose the business; a large widget can show a second one under it.")
+        .description("Revenue today and this month, with the shop’s pinned message. Shows both businesses by default when two are linked; touch and hold, then Edit Widget, to choose which, or to show just one.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge, .accessoryRectangular, .accessoryCircular, .accessoryInline])
     }
 }

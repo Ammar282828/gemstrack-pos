@@ -61,11 +61,16 @@ enum HubSplitKind {
 
 /// A hub tab on an iPad's wide window: the hub as the list column, the picked item in a stack of its own beside it.
 ///
+/// Our own two columns, not a NavigationSplitView: inside the tab sidebar the split view folded to the list alone,
+/// stretched across the window, until something was picked (owner, 2026-10-24: "if I haven't selected anything
+/// … it should leave empty space"). Here the right-hand side is always there while the window is wide enough.
+///
 /// The hub's rows stay `NavigationLink(value: Route)`. The list column is a NavigationStack whose path binding
 /// never keeps anything: a tapped row appends its Route, the setter takes it as the detail's new root and the
 /// getter answers "empty", so the list never pushes and every row lands in the detail column. Pages opened from
 /// the item (a customer's invoice, an invoice's order) push on the detail's own stack and keep its back button.
-/// No zoom crosses the columns: neither stack has a zoom namespace here.
+/// No zoom crosses the columns: neither stack has a zoom namespace here. A narrow window (Split View, Slide Over)
+/// is the phone's one stack.
 struct HubSplit<Hub: View>: View {
     let prompt: (title: String, symbol: String)
     @ViewBuilder let hub: () -> Hub
@@ -74,31 +79,45 @@ struct HubSplit<Hub: View>: View {
     @State private var picked: Route?
     /// Pages opened from the item.
     @State private var deeper: [Route] = []
-    @State private var visibility = NavigationSplitViewVisibility.all
+    /// The narrow window's own stack.
+    @State private var stacked: [Route] = []
+
+    /// Below this the two columns would each be too tight to read.
+    private static var wideEnough: CGFloat { 700 }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $visibility) {
-            NavigationStack(path: intercept) {
-                hub()
-                    .navigationDestination(for: Route.self) { _ in EmptyView() }
-            }
-            .navigationSplitViewColumnWidth(min: 340, ideal: 400, max: 460)
-        } detail: {
-            NavigationStack(path: $deeper) {
-                Group {
-                    if let picked {
-                        PlaceScreen(path: picked.path).id(picked)
-                    } else {
-                        ContentUnavailableView(prompt.title, systemImage: prompt.symbol)
-                            .modifier(HouseGround())
+        GeometryReader { geo in
+            if geo.size.width >= Self.wideEnough {
+                HStack(spacing: 0) {
+                    NavigationStack(path: intercept) {
+                        hub()
+                            .navigationDestination(for: Route.self) { _ in EmptyView() }
                     }
+                    .frame(width: min(420, max(340, geo.size.width * 0.38)))
+                    Divider().ignoresSafeArea()
+                    NavigationStack(path: $deeper) {
+                        Group {
+                            if let picked {
+                                PlaceScreen(path: picked.path).id(picked)
+                            } else {
+                                ContentUnavailableView(prompt.title, systemImage: prompt.symbol)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .modifier(HouseGround())
+                            }
+                        }
+                        .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                // Rows in the list never grow into a page that is in another column.
+                .environment(\.zoomNamespace, nil)
+            } else {
+                NavigationStack(path: $stacked) {
+                    hub()
+                        .navigationDestination(for: Route.self) { PlaceScreen(path: $0.path) }
+                }
             }
         }
-        .navigationSplitViewStyle(.balanced)
-        // Rows in the list never grow into a page that is in another column.
-        .environment(\.zoomNamespace, nil)
     }
 
     private var intercept: Binding<[Route]> {
