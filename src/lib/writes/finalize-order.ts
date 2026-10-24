@@ -16,7 +16,7 @@ import type { Invoice, InvoiceItem, Order, Payment, Settings } from '@/lib/store
 import { exchangeTotal, invoiceExchangeFields, orderExchanges } from '@/lib/exchange';
 import { creditDescription } from '@/lib/invoice-credit';
 import { rupees } from '@/lib/money';
-import { finalizedItemCosts, orderInvoiceRates, type FinalizedItem } from '@/lib/order-finalize';
+import { finalizeRates, finalizedItemCosts, type FinalizedItem, type RateField } from '@/lib/order-finalize';
 import { orderAdvancePayments } from '@/lib/order-payment';
 import { newShareToken } from '@/lib/share-token';
 
@@ -41,8 +41,10 @@ export function invoiceFromOrder(
   settings: Settings,
   now: string,
   clean: <T extends object>(o: T) => T,
+  /** Rates typed at Finalize; they win over the booked ones (lib/order-finalize.ts finalizeRates). */
+  typedRates?: Partial<Record<RateField, number>>,
 ): Omit<Invoice, 'id'> {
-  const ratesForInvoice = orderInvoiceRates(order, settings);
+  const ratesForInvoice = finalizeRates(order, settings, typedRates);
   let finalSubtotal = 0;
   const finalInvoiceItems: InvoiceItem[] = [];
   order.items.forEach((originalItem, index) => {
@@ -158,7 +160,7 @@ export function finalizeHisaabRow(invoice: Invoice): Record<string, unknown> | n
  */
 export async function finalizeOrder(
   db: DbPort,
-  input: { orderId: string; items: FinalizedItem[]; additionalDiscount: number; costRate24k?: number; now?: string },
+  input: { orderId: string; items: FinalizedItem[]; additionalDiscount: number; costRate24k?: number; ratesApplied?: Partial<Record<RateField, number>>; now?: string },
   deps: { clean: <T extends object>(o: T) => T },
   fx: SideEffects = {},
 ): Promise<Invoice> {
@@ -180,7 +182,7 @@ export async function finalizeOrder(
     if (await tx.get(INVOICES, id)) {
       throw new Error(`Invoice ${id} already exists — the invoice counter (lastInvoiceNumber=${settings.lastInvoiceNumber}) is stale. Please contact your administrator to recalibrate it.`);
     }
-    const base = invoiceFromOrder({ ...order, id: input.orderId } as Order, input.items, input.additionalDiscount, input.costRate24k, settings, now, deps.clean);
+    const base = invoiceFromOrder({ ...order, id: input.orderId } as Order, input.items, input.additionalDiscount, input.costRate24k, settings, now, deps.clean, input.ratesApplied);
     const withKey = { ...base, shareToken: newShareToken() };
     const made = { id, ...withKey } as Invoice;
     tx.set(INVOICES, id, deps.clean({ ...withKey }) as Record<string, unknown>);

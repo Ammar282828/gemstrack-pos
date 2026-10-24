@@ -186,7 +186,7 @@ fun RepairsScreen(path: String) {
                         val firstInCard = !g.folded && i == 0
                         Column(Modifier.padding(horizontal = 16.dp)) {
                             Column(Modifier.cardEdges(first = firstInCard, last = i == g.rows.lastIndex)) {
-                                RepairRow(r, now, desk, context, isOwner = session.isOwner, shopName = session.shop.name) {
+                                RepairRow(desk.shown(r), now, desk, context, isOwner = session.isOwner, shopName = session.shop.name) {
                                     sheetSeed = null
                                     sheetId = r.id
                                 }

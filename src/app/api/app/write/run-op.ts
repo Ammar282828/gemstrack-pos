@@ -27,7 +27,7 @@ import { createOrder } from '@/lib/writes/create-order';
 import { InputError, checkIsoDate, checkMoney } from '@/lib/writes/validate';
 import { updateOrder } from '@/lib/writes/update-order';
 import { finalizeOrder } from '@/lib/writes/finalize-order';
-import type { FinalizedItem } from '@/lib/order-finalize';
+import { RATE_FIELDS, type FinalizedItem, type RateField } from '@/lib/order-finalize';
 import type { ExchangeEntry } from '@/lib/exchange';
 import { addRepair, recordRepairPayment, setRepairStatus, type NewRepair } from '@/lib/writes/repairs';
 import { REPAIR_STATUSES, type RepairStatus } from '@/lib/repairs';
@@ -379,9 +379,18 @@ export async function runWriteOp(caller: WriteCaller, body: Body): Promise<NextR
           }
           const discount = figure(body.additionalDiscount);
           if (Number.isNaN(discount)) return NextResponse.json({ error: 'Discount cannot be negative.' }, { status: 400 });
+          // Rates typed at Finalize win over the booked ones; a blank or 0 is "no change", anything else is checked.
+          const typedRates: Partial<Record<RateField, number>> = {};
+          const sentRates = body.ratesApplied && typeof body.ratesApplied === 'object' ? (body.ratesApplied as Record<string, unknown>) : {};
+          for (const f of RATE_FIELDS) {
+            const v = sentRates[f];
+            if (v === undefined || v === null || v === '' || Number(v) === 0) continue;
+            typedRates[f] = checkMoney(v, 'A per-gram rate', { positive: true });
+          }
           const before = (await adminDb.collection('orders').doc(orderId).get()).data() as { shopifyDraftOrderId?: string } | undefined;
           const invoice = await finalizeOrder(adminPort, {
             orderId, items, additionalDiscount: discount,
+            ...(Object.keys(typedRates).length ? { ratesApplied: typedRates } : {}),
             costRate24k: Number(body.costRate24k) > 0 ? Number(body.costRate24k) : undefined,
           }, { clean: cleanObject }, { log });
           // The order's Shopify draft goes, as the browser cancels it: the invoice is the record now.

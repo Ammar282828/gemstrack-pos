@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_description">Revenue today and this month, with the shop’s pinned message.</string>
+    <string name="widget_description">Takings today with the week’s line and its change, what is owed and due, and the shop’s pinned message. Shows both businesses when two are linked.</string>
 </resources>

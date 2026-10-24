@@ -2,6 +2,7 @@ package erp.app.device
 
 import android.app.Activity
 import android.content.Context
+import android.view.ViewGroup
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.Image
@@ -15,6 +16,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -140,17 +146,34 @@ object AppLock {
 /** What shows over the app while it is locked or being photographed for recents: the house's mark on its ground, nothing of the books. */
 @Composable
 fun LockCover(locked: Boolean, unlocking: Boolean, onUnlock: () -> Unit) {
+    // A ModalBottomSheet and a Dialog live in windows of their own, above the activity's content: a cover drawn in
+    // the content would sit under an open sheet and show the books over the lock. The cover is a window too, added
+    // after them, so it is above every one of them; Back does not dismiss it.
+    Dialog(
+        onDismissRequest = {},
+        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false, usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        (LocalView.current.parent as? DialogWindowProvider)?.window?.let { w ->
+            SideEffect {
+                w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                w.setDimAmount(0f)
+                w.setBackgroundDrawableResource(android.R.color.transparent)
+            }
+        }
+        LockCoverBody(locked, unlocking, onUnlock)
+    }
+}
+
+@Composable
+private fun LockCoverBody(locked: Boolean, unlocking: Boolean, onUnlock: () -> Unit) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             Modifier.padding(horizontal = 32.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Image(
-                painterResource(R.drawable.brand_logo),
-                contentDescription = stringResource(R.string.app_name),
-                modifier = Modifier.widthIn(max = 280.dp),
-            )
+            // The open business's own mark, not the build's.
+            erp.app.screens.businesses.BusinessLogo(House.business, Modifier.widthIn(max = 280.dp), height = 64.dp)
             if (locked) Button(onClick = onUnlock, enabled = !unlocking) { Text("Unlock") }
         }
     }

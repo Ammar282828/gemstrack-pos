@@ -1,15 +1,18 @@
 package erp.app.data
 
 import erp.app.ErpApp
+import erp.app.config.Business
+import erp.app.config.Businesses
 import erp.app.config.House
 import erp.core.Json
 import java.io.IOException
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.HttpUrl
@@ -24,15 +27,26 @@ import okhttp3.Response
 /**
  * The ERP's server routes, as the signed-in person (their Firebase ID token). Every write that moves money
  * goes this way (CONVENTIONS.md rule 1): the rules live once, in the ERP.
+ *
+ * One per business (`forBusiness`): its address, and the token of its own Firebase app. `shared` is the open business's. A
+ * call that began for one business is finished for that business, whichever is open by then (an Outbox entry, a push
+ * registration), so nothing of one business's reaches another's server.
  */
-class ErpApi private constructor() {
+class ErpApi private constructor(private val initial: Business) {
     class Failure(val status: Int, override val message: String) : Exception(message)
 
-    private val requestIds = RequestIds()
+    private val id = initial.id
 
-    /** The sign-in token goes to the house's own ERP and nowhere else, whatever path is passed in. */
-    suspend fun data(path: String, method: String = "GET", json: Map<String, Any?>? = null, timeoutMs: Long = 60_000): String =
-        open(path, method, json, timeoutMs, "application/json").use { r ->
+    /** The business as the phone has it now (a refresh may have given it its Android sign-in); the address never moves. */
+    private val biz: Business get() = Businesses.business(id) ?: initial
+
+    /**
+     * The sign-in token goes to the house's own ERP and nowhere else, whatever path is passed in. `timeoutMs` is how
+     * long the ERP may take to answer: a page load that has not answered in 15 s is a dead line, not a slow server, so
+     * it says so and lets the screen retry; writes and sends keep a minute.
+     */
+    suspend fun data(path: String, method: String = "GET", json: Map<String, Any?>? = null, timeoutMs: Long? = null): String =
+        open(path, method, json, timeoutMs ?: if (method == "GET") GET_TIMEOUT_MS else SEND_TIMEOUT_MS, "application/json").use { r ->
             val text = r.body.string()
             if (r.code !in 200..299) throw Failure(r.code, said(text) ?: "The ERP answered ${r.code}.")
             text
@@ -57,8 +71,9 @@ class ErpApi private constructor() {
     /** The one place a request is built and sent, so text and bytes cannot drift apart in auth, pinning or failure. */
     private suspend fun open(path: String, method: String, json: Map<String, Any?>?, timeoutMs: Long, accept: String, form: RequestBody? = null): Response {
         // The demo has no server and no Firebase: every call answers as if offline.
-        if (House.isDemo || !ErpApp.firebaseReady) throw Failure(0, "Not connected to the ERP in the demo.")
-        val url = resolve(House.serverUrl, path) ?: throw Failure(0, "Not an address of this ERP.")
+        if (House.isDemo || Businesses.firebaseApp(biz) == null) throw Failure(0, "Not connected to the ERP in the demo.")
+        val base = biz.serverURL
+        val url = resolve(base, path) ?: throw Failure(0, "Not an address of this ERP.")
         val builder = Request.Builder().url(url).header("Accept", accept)
         token()?.let { builder.header("Authorization", "Bearer $it") }
         if (form != null) {
@@ -69,7 +84,13 @@ class ErpApi private constructor() {
         } else if (method != "GET") {
             builder.method(method, ByteArray(0).toRequestBody(null))
         }
-        val call = client.newBuilder().callTimeout(timeoutMs, TimeUnit.MILLISECONDS).build().newCall(builder.build())
+        val call = client.newBuilder().callTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+            // A redirect off the ERP's own host (or off https) is refused, so the Authorization header never
+            // follows one somewhere else. Network interceptors see every hop.
+            .addNetworkInterceptor { chain ->
+                if (!stays(chain.request().url, base)) throw IOException("Redirected away from the ERP.")
+                chain.proceed(chain.request())
+            }.build().newCall(builder.build())
         return try {
             call.await()
         } catch (e: IOException) {
@@ -125,12 +146,31 @@ class ErpApi private constructor() {
      * A change to the books (/api/app/write): the ERP runs its own shared write, then names what
      * the browser would do next (the WhatsApp alert, a Shopify sync). Those are sent here without
      * waiting, so a slow PDF never holds the sale up.
+     *
+     * `requestId` is the one name for one intent: the Outbox keeps it in the entry for every retry, and the ERP
+     * records the change once however often it is sent. Without one, the name is remembered here (`WriteIntents`),
+     * on disk, against what the change is, until the ERP has answered: a retry after a timeout, or after the app was
+     * killed, goes with the same name, and the ERP replays its first answer (money ops require a name).
+     *
+     * The request is not cut off when the screen that asked goes away (the iPhone lends a few seconds in the
+     * background): the person may have left the sheet, and the write is already on its way.
      */
-    suspend fun write(op: String, fields: Map<String, Any?>): Map<String, Any?> {
+    suspend fun write(op: String, fields: Map<String, Any?>, requestId: String? = null): Map<String, Any?> {
         val body = LinkedHashMap(fields)
         body["op"] = op
-        body["requestId"] = requestIds.idFor(body)
-        val out = send("/api/app/write", body = body)
+        val intents = WriteIntents.forBusiness(id)
+        val intent = if (requestId == null) intents.key(body) else null
+        body["requestId"] = requestId ?: intents.id(intent!!)
+        val out = withContext(NonCancellable) {
+            try {
+                send("/api/app/write", body = body)
+            } catch (e: Failure) {
+                // "Already sent and recorded": the earlier try went through. The intent is done.
+                if (e.status == 409 && intent != null) intents.clear(intent)
+                throw e
+            }
+        }
+        if (intent != null) intents.clear(intent)
         // Staff read the books every 25 seconds: fetch them now, so the balance just paid is never
         // left on screen to be paid again.
         ServerShelf.wake()
@@ -140,22 +180,43 @@ class ErpApi private constructor() {
         return out
     }
 
-    suspend fun send(path: String, method: String = "POST", body: Map<String, Any?> = emptyMap(), timeoutMs: Long = 60_000): Map<String, Any?> {
+    /**
+     * A change that does not move money, queued and returned at once; the Outbox sends it in the background with the
+     * same name for every try, and says "Not saved: <label>" app-wide if it cannot (Outbox.kt). Money ops are refused
+     * here: they stay awaited through `write`.
+     */
+    fun enqueue(op: String, fields: Map<String, Any?>, label: String) = Outbox.of(biz).enqueue(op, fields, label)
+
+    suspend fun send(path: String, method: String = "POST", body: Map<String, Any?> = emptyMap(), timeoutMs: Long? = null): Map<String, Any?> {
         val text = data(path, method, body, timeoutMs)
         @Suppress("UNCHECKED_CAST")
         return (Json.parse(text) as? Map<String, Any?>) ?: emptyMap()
     }
 
     private suspend fun token(): String? = try {
-        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token
+        Businesses.auth(biz)?.currentUser?.getIdToken(false)?.await()?.token
     } catch (e: Exception) {
         null
     }
 
     companion object {
-        val shared: ErpApi by lazy { ErpApi() }
+        private val all = HashMap<String, ErpApi>()
+
+        /** The business's own: its address and its sign-in, whichever business is open. */
+        @Synchronized
+        fun forBusiness(b: Business): ErpApi = all.getOrPut(b.id) { ErpApi(b) }
+
+        /** The open business's. */
+        val shared: ErpApi get() = forBusiness(Businesses.current)
+
+        /** A business was removed from this phone. */
+        @Synchronized
+        fun drop(id: String) { all.remove(id) }
 
         private val JSON = "application/json".toMediaType()
+
+        const val GET_TIMEOUT_MS = 15_000L
+        const val SEND_TIMEOUT_MS = 60_000L
 
         /** No cache and no cookie outlives the app's own call (staff's copy of the books comes this way). */
         private val client: OkHttpClient by lazy {
@@ -163,13 +224,6 @@ class ErpApi private constructor() {
                 .cache(null)
                 .followRedirects(true)
                 .followSslRedirects(false)
-                // A redirect off the ERP's own host (or off https) is refused, so the Authorization header never
-                // follows one somewhere else. Network interceptors see every hop.
-                .addNetworkInterceptor { chain ->
-                    val u = chain.request().url
-                    if (!stays(u, House.serverUrl)) throw IOException("Redirected away from the ERP.")
-                    chain.proceed(chain.request())
-                }
                 .connectTimeout(20, TimeUnit.SECONDS)
                 .build()
         }
@@ -195,34 +249,6 @@ class ErpApi private constructor() {
                 val b = m["body"] as? Map<String, Any?> ?: return@mapNotNull null
                 path to b
             }
-    }
-}
-
-/**
- * The same change asked for again within half a minute (a double tap, the sheet opened again over a balance not
- * yet refreshed, a retry after the line dropped) goes with the same name, and the ERP records it once
- * (/api/app/write refuses a name it has seen). A second, genuinely separate payment of the same amount is
- * entered after that.
- */
-class RequestIds(private val now: () -> Long = System::currentTimeMillis, private val newId: () -> String = { UUID.randomUUID().toString() }) {
-    private val recent = HashMap<String, Pair<String, Long>>()
-
-    @Synchronized
-    fun idFor(body: Map<String, Any?>): String {
-        val t = now()
-        recent.entries.removeAll { t - it.value.second >= WINDOW_MS }
-        // "When" is not part of what the change is: two taps a second apart are the same payment.
-        val what = LinkedHashMap(body)
-        for (k in WHEN) what.remove(k)
-        val key = JsonText.of(what, sorted = true) ?: newId()
-        val id = recent[key]?.first ?: newId()
-        recent[key] = id to t
-        return id
-    }
-
-    companion object {
-        const val WINDOW_MS = 30_000L
-        private val WHEN = listOf("date", "createdAt", "at", "now")
     }
 }
 

@@ -16,6 +16,7 @@ import erp.core.logic.inCredit
 import erp.core.logic.marginOf
 import erp.core.logic.pakistanE164
 import erp.core.logic.rates
+import erp.core.logic.ShopNumber
 import erp.core.logic.ratesToKeep
 import erp.core.logic.resolveSaleCustomer
 import erp.core.logic.rupees
@@ -145,10 +146,13 @@ class SaleFigures(draft: SaleDraft, settings: Settings?, customers: List<Custome
     val inCreditNow: Boolean
     val locked: Boolean
     val discountProblem: String?
+    /** The first box holding text that is not a number, by name; Save waits for it. */
+    val unreadable: String?
     val margin: Margin?
 
     init {
         val book = rateBook
+        unreadable = draft.unreadableField
         val lines = draft.lines
         hasPieces = lines.isNotEmpty()
 
@@ -256,6 +260,7 @@ class SaleFigures(draft: SaleDraft, settings: Settings?, customers: List<Custome
                 return "Enter a ${missingRates.joinToString(" and ")} gold rate under Rates: it is zero, so the total cannot be worked out."
             }
             discountProblem?.let { return it }
+            unreadable?.let { return "The $it is not a number. Retype it, or clear it." }
             if (overpaid) {
                 return "The payments come to more than the total. To keep the rest as credit, name the customer; otherwise check the amounts received."
             }
@@ -268,6 +273,18 @@ class SaleFigures(draft: SaleDraft, settings: Settings?, customers: List<Custome
 }
 
 // What is sent
+
+/** The first box holding something that is not a number (it would otherwise count as 0), by name; null when all read. */
+val SaleDraft.unreadableField: String?
+    get() {
+        val u = ShopNumber::isUnreadable
+        if (u(discount)) return "discount"
+        if (u(costTola)) return "24k rate for the margin"
+        if (rates.values.any(u)) return "rate"
+        if (payments.any { u(it.amount) }) return "amount received"
+        if (exchanges.any { u(it.weightG) || u(it.ratePerGram) || u(it.value) }) return "exchange figure"
+        return null
+    }
 
 private fun exchangeJSON(e: ExchangeEntry): MutableMap<String, Any?> {
     val o = LinkedHashMap<String, Any?>()

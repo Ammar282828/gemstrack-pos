@@ -253,7 +253,10 @@ class MoneyLogicTests {
         assertEquals(1250.5, MoneyParse.amount("1 250.50"))
         assertEquals(1.23, MoneyParse.amount("1.234"))
         assertEquals(1.234, MoneyParse.amount("1.2345", maxDecimals = 3))
-        assertEquals(1.57, MoneyParse.amount("1.5.7"))
+        // The one reader: a second dot is not a number (it was once read as 1.57), and Urdu digits are digits.
+        assertNull(MoneyParse.amount("1.5.7"))
+        assertEquals(1500.5, MoneyParse.amount("۱٬۵۰۰٫۵"))
+        assertEquals(12.5, MoneyParse.amount("12,5"))
         assertEquals(0.5, MoneyParse.amount(".5"))
         assertNull(MoneyParse.amount("."))
         assertNull(MoneyParse.amount(""))
