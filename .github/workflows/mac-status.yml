@@ -9,7 +9,7 @@ name: Mac build
 on:
   push:
     branches: ['claude/**']
-    paths: ['apps/iphone/MAC-RELEASES.md', '.github/workflows/mac-status.yml']
+    paths: ['apps/iphone/MAC-RELEASES.md', '.github/workflows/mac-status.yml', 'apps/ios/scripts/asc.mjs']
   workflow_dispatch:
 
 permissions:
