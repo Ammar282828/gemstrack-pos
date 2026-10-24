@@ -89,9 +89,9 @@ function counterText(arg: string, labelIndex: number, override: number | undefin
     const t = (s ?? '').trim();
     if (t === '') return dflt;
     const v = Number(t);
-    return Number.isFinite(v) ? Math.trunc(v) : dflt;
+    return Number.isFinite(v) ? clampInt(Math.trunc(v), -1e12, 1e12) : dflt;
   };
-  const start = override !== undefined && Number.isFinite(override) ? Math.trunc(override) : read(parts[0], 1);
+  const start = override !== undefined && Number.isFinite(override) ? clampInt(Math.trunc(override), -1e12, 1e12) : read(parts[0], 1);
   const step = read(parts[1], 1);
   const width = clampInt(read(parts[2], 0), 0, 20);
   const value = start + labelIndex * step;

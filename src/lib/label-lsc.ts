@@ -35,7 +35,7 @@ function boxOf(fo: Obj, W: number, H: number, width: number, height: number): Bo
   const w = width * Math.abs(num(fo.scaleX, 1)), h = height * Math.abs(num(fo.scaleY, 1));
   const ox = fo.originX === 'center' ? 0.5 : fo.originX === 'right' ? 1 : 0;
   const oy = fo.originY === 'center' ? 0.5 : fo.originY === 'bottom' ? 1 : 0;
-  const quarter = ((Math.round(num(fo.angle) / 90) % 4) + 4) % 4;
+  const quarter = ((Math.round(clamp(num(fo.angle), -1e9, 1e9) / 90) % 4) + 4) % 4;
   const turn = (quarter * 90) as Box['turn'];
   const c = [1, 0, -1, 0][quarter], s = [0, 1, 0, -1][quarter];
   const rx = (px: number, py: number) => px * c - py * s;
