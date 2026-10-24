@@ -41,3 +41,7 @@ Claude Code runs these repos in the cloud too, with no Mac.
   Cloud's checks on a commit are Apple's hours, not GitHub's. taheri-site and mina-catalogue are public: their Actions are free.
 - **Mac only:** SSH to Hostinger (the sites deploy through Actions), Google sign-in to a local ERP (typecheck, tests and the
   gate's `?dev=1` work here), the Mac's memory files (this file is the handoff), GoDaddy / Hostinger API tokens.
+
+## Cloud Build token maintenance
+
+The owner configured `github-deploy-token` in Google Secret Manager on 2026-10-25. Its fine-grained GitHub token is limited to `taheri-pos` and `gemstrack-pos`, with Contents, Workflows and Commit statuses set to Read and write. The initial token expires on 2026-11-24; replace it with a new Secret Manager version before expiry. Never commit or print the token.
