@@ -107,6 +107,12 @@ struct AddExpenseSheet: View {
                 .houseRows()
             }
             .safeAreaInset(edge: .top, spacing: 0) { UpdateBanner() }
+            #if os(macOS)
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
+            .frame(minWidth: 520, idealWidth: 580, minHeight: 560)
+            #endif
             .navigationTitle("Add expense")
             .navigationBarTitleDisplayMode(.inline)
             .disabled(saving)

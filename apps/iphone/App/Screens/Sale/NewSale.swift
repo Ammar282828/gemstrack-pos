@@ -98,7 +98,11 @@ struct SaleForm: View {
             } else if !book.settings.loaded {
                 SkeletonLoading().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
+                #if os(macOS)
+                macPage
+                #else
                 page
+                #endif
             }
         }
         .navigationTitle(edit.map { "Edit \($0.invoiceId)" } ?? "New sale")
@@ -404,3 +408,194 @@ struct SaleForm: View {
         step = .customer
     }
 }
+
+// MARK: - The Mac: one window
+
+#if os(macOS)
+/// New sale and Edit invoice on the Mac (SaleMacKit.swift): the stock at the left with the scanner's box, the bill at the
+/// right with the rest of the sale's sections under it, Save in the footer (Return, or ⌘S). The steps of the phone are
+/// sections here; every action is SaleForm's own.
+extension SaleForm {
+    var macPage: some View {
+        let f = SaleFigures(draft: draft, settings: book.settings.value, customers: book.customers.items, marginSettings: House.margin)
+        let split = SaleMacSplit(
+            left: { scanner in
+                SaleMacPicker(products: book.products.items, taken: Set(draft.lines.map { $0.sku }),
+                              pricing: f.rateBook.pricing, query: $query, notice: notice, scannerFocused: scanner,
+                              add: { add($0) }, submit: { addTyped() }, scan: { scanning = true },
+                              newItem: { startNewItem() })
+            },
+            right: {
+                VSplitView {
+                    SaleMacBill(lines: draft.lines, figures: f, spec: { spec($0) },
+                                isGone: { line in book.products.loaded && !line.isOneOff && book.products.item(line.sku) == nil },
+                                edit: { editing = $0 },
+                                remove: { skus in draft.lines.removeAll { skus.contains($0.sku) } })
+                        .frame(minHeight: 230, idealHeight: 320)
+                    macForm(f)
+                        .frame(minHeight: 200)
+                }
+            },
+            footer: { scanner in macFooter(f, scannerFocused: scanner) })
+        return macWired(split, f)
+    }
+
+    /// The sale's other sections, one scrolling form under the bill: customer, rates, discount, exchange, payment,
+    /// the shop's own, delivery.
+    private func macForm(_ f: SaleFigures) -> some View {
+        Form {
+            Group {
+                if let edit {
+                    Section {
+                        Label(edit.paidBefore > 0
+                              ? "\(Money.pkr(edit.paidBefore)) paid before stays on \(edit.invoiceId). A payment added below is taken now. A piece taken off stays sold."
+                              : "Nothing is paid on \(edit.invoiceId) yet. A payment added below is taken now. A piece taken off stays sold.",
+                              systemImage: "pencil.and.list.clipboard")
+                            .font(.subheadline)
+                    }
+                }
+                customerSection(f)
+                ratesSection(f)
+                discountSection(f)
+                exchangeSection()
+                paymentSection(f)
+                shopSection(f)
+                deliverySection(f)
+                orderSection()
+            }
+            .houseRows()
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+    }
+
+    /// What Save will do, and Save: the dialog's footer. Return saves unless the scanner's box has the keyboard.
+    private func macFooter(_ f: SaleFigures, scannerFocused: Bool) -> some View {
+        VStack(spacing: 0) {
+            UpdateBanner()
+            Divider()
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    if alreadySold {
+                        Text("This sale was already saved. Look for it in Invoices before saving it again.")
+                            .font(.callout.weight(.semibold))
+                        NavigationLink(value: Route(path: "/invoices")) { Text("Open Invoices") }
+                    } else if !goneSkus.isEmpty {
+                        Button("Take them off the sale") {
+                            draft.lines.removeAll { goneSkus.contains($0.sku) }
+                            goneSkus = []
+                            alreadySold = false
+                        }
+                    } else if let reason = f.blockedReason {
+                        Text(reason)
+                            .font(.callout)
+                            .foregroundStyle(f.hasPieces ? Tone.problem.color : Tone.quiet.color)
+                            .lineLimit(2)
+                    } else if f.hasEstimate {
+                        let line = balanceLine(f.balance)
+                        Text(line.state == .paid ? "Paid in full" : "\(line.label) \(Money.pkr(line.amount))")
+                            .font(.callout).foregroundStyle(.secondary).monospacedDigit()
+                    }
+                }
+                Spacer(minLength: 12)
+                macSaveButton(f, scannerFocused: scannerFocused)
+            }
+            .padding(.horizontal, 20).padding(.vertical, 12)
+        }
+        .background(.bar)
+    }
+
+    @ViewBuilder
+    private func macSaveButton(_ f: SaleFigures, scannerFocused: Bool) -> some View {
+        let button = Button { Task { await save(f) } } label: {
+            HStack(spacing: 8) {
+                if saving { ProgressView().controlSize(.small) }
+                Text(edit != nil ? (f.hasEstimate ? "Save changes · \(Money.pkr(f.total))" : "Save changes")
+                     : (f.hasEstimate ? "Save sale · \(Money.pkr(f.total))" : "Save sale"))
+            }
+            .frame(minWidth: 140)
+        }
+        .buttonStyle(.houseProminent)
+        .controlSize(.large)
+        .disabled(!f.canSave || saving || UpdateGate.blocked)
+        // Return in the scanner's box adds a piece: it must never also save the sale.
+        if scannerFocused {
+            button
+        } else {
+            button.keyboardShortcut(.defaultAction)
+        }
+    }
+
+    /// The window's toolbar and everything the page presents: the same sheets, draft keeping and pages as the phone's.
+    private func macWired<V: View>(_ content: V, _ f: SaleFigures) -> some View {
+        content
+            .navigationSubtitle(f.hasEstimate ? "Total \(Money.pkr(f.total))" : "")
+            .background {
+                // ⌘S saves from anywhere (save(f) does nothing until the sale can be saved).
+                Button("Save") { Task { await save(f) } }
+                    .keyboardShortcut("s", modifiers: .command).opacity(0).accessibilityHidden(true)
+            }
+            .failureAlert($failure, title: "About this sale")
+            .toolbar {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button { startNewItem() } label: { Label("New item", systemImage: "plus.circle") }
+                        .help("A piece that is not in stock, described for this bill only")
+                    Button { readingBill = true } label: { Label("Read a written bill", systemImage: "camera.viewfinder") }
+                        .help("Read a handwritten bill and put its lines on this sale")
+                    Menu {
+                        if edit == nil {
+                            Button { if NewOrderDraftStore.orderInProgress { confirmingOrder = true } else { createOrder() } } label: {
+                                Label("Create order from these pieces", systemImage: "list.clipboard")
+                            }
+                            .disabled(draft.lines.isEmpty)
+                            Divider()
+                            Button(role: .destructive) { confirmingReset = true } label: {
+                                Label("Start over", systemImage: "arrow.counterclockwise")
+                            }
+                            .disabled(draft.isBlank)
+                        }
+                    } label: {
+                        Label("More", systemImage: "ellipsis.circle")
+                    }
+                    .disabled(edit != nil)
+                }
+            }
+            .sheet(item: $editing) { line in
+                SaleLineEditor(line: line, rates: f.rateBook.pricing) { changed in replace(line.sku, with: changed) }
+            }
+            .sheet(item: $newItem) { line in
+                SaleLineEditor(line: line, rates: f.rateBook.pricing, create: true) { made in addNew(made) }
+            }
+            .sheet(isPresented: $scanning) {
+                SaleScanSheet { code in scanned(code) }
+                    .presentationSizing(.page)
+            }
+            .sheet(isPresented: $rateSheet) { RateSheet() }
+            .confirmDestructive(isPresented: $confirmingReset, title: "Start over?",
+                                message: "This empties the sale on this Mac and takes it out of Drafts: the pieces, the customer and everything typed.",
+                                action: "Start over") { startOver() }
+            .confirmDestructive(isPresented: $confirmingOrder, title: "Replace the order in progress?",
+                                message: "An order is half typed on this Mac. Making one from these pieces replaces it.",
+                                action: "Replace it") { createOrder() }
+            // The unfinished sale is kept as it is typed, as on the phone (appeared / keepNow / sync).
+            .onAppear { appeared() }
+            .task(id: draft) {
+                guard edit == nil, takenByStarted else { return }
+                do { try await Task.sleep(for: .milliseconds(700)) } catch { return }
+                SaleDraftStore.save(draft, business: biz.id)
+                sync(draft)
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase != .active { keepNow() }
+            }
+            .onDisappear { keepNow() }
+            .onChange(of: query) { _, _ in notice = nil }
+            .navigationDestination(item: $openOrder) { r in
+                ScreenRegistry.view(for: r.path)
+            }
+            .navigationDestination(isPresented: $readingBill) {
+                SaleScanScreen(draft: $draft, keep: edit == nil)
+            }
+    }
+}
+#endif

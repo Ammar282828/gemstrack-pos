@@ -128,6 +128,9 @@ struct WorkshopPaySheet: View {
             .navigationTitle("Record payment")
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
+            #if os(macOS)
+            .formStyle(.grouped)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }
@@ -145,6 +148,9 @@ struct WorkshopPaySheet: View {
             }
         }
         .presentationSizing(.form)
+        #if os(macOS)
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 440, idealHeight: 520)
+        #endif
         .interactiveDismissDisabled(saving)
     }
 
@@ -251,6 +257,9 @@ struct WorkshopSilverSheet: View {
             .navigationTitle("Silver transaction")
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
+            #if os(macOS)
+            .formStyle(.grouped)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }
@@ -269,6 +278,9 @@ struct WorkshopSilverSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
+        #if os(macOS)
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 440, idealHeight: 520)
+        #endif
         .interactiveDismissDisabled(saving)
     }
 
@@ -322,6 +334,9 @@ struct WorkshopBatchStartSheet: View {
             .navigationTitle("Start a new pay batch")
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
+            #if os(macOS)
+            .formStyle(.grouped)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }
@@ -334,6 +349,9 @@ struct WorkshopBatchStartSheet: View {
         }
         .presentationDetents([.medium])
         .presentationSizing(.form)
+        #if os(macOS)
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 440, idealHeight: 520)
+        #endif
         .interactiveDismissDisabled(saving)
     }
 
@@ -401,6 +419,9 @@ struct WorkshopSettleSheet: View {
             .navigationTitle("Settle pay batch")
             .modifier(HouseGround())
             .navigationBarTitleDisplayMode(.inline)
+            #if os(macOS)
+            .formStyle(.grouped)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .cancel) { dismiss() }
@@ -420,6 +441,9 @@ struct WorkshopSettleSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationSizing(.form)
+        #if os(macOS)
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 440, idealHeight: 520)
+        #endif
         .interactiveDismissDisabled(saving)
     }
 

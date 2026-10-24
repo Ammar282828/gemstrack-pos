@@ -29,6 +29,8 @@ enum SettingsRoutes {
             .exact("/app/settings/website") { WebsiteSellingSettings() },
             .exact("/settings/data") { DataSettings() },
             .exact("/settings/voice") { VoiceSettings() },
+            // Connect an AI (src/app/settings/ai): native on the Mac and the iPhone, on the web's own /api/agent/keys routes.
+            .exact("/settings/ai") { SettingsAIKeysScreen() },
             .exact("/settings/printer") { LabelSettings() },
             .exact(LabelLiveSettingsScreen.path) { LabelLiveSettingsScreen() },
             .exact("/settings/weprint-api") { WeprintSettings() },

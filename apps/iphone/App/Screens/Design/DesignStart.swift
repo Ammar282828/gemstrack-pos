@@ -76,6 +76,15 @@ final class DesignStartModel {
 /// The three places a photograph comes from, as start photographs (start.tsx startPhotoFromSite, photos-section.tsx startPhotoFromWork).
 @MainActor
 enum DesignPhotoSources {
+    /// The name of a photograph taken from the device's own library.
+    static var deviceLabel: String {
+        #if os(macOS)
+        "Photo from this Mac"
+        #else
+        "Photo from this iPhone"
+        #endif
+    }
+
     /// A website piece. `data` when the picker already brought the photograph.
     static func site(_ p: MarketingValue, data: Data? = nil) -> DesignStartPhoto {
         let original = truthy(p["photoSource"])
@@ -159,11 +168,23 @@ struct DesignStartView: View {
     @State private var sitePicker = false
     @State private var camera = false
     @State private var problem: String?
+    #if os(macOS)
+    private let columns = [GridItem(.adaptive(minimum: 190), spacing: 10)]
+    #else
     private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+    #endif
 
     private var cards: [DesignKindCard] { DesignKinds.cards.filter { access.ads || !$0.ads } }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+
+    private var phoneBody: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 anything
@@ -274,11 +295,17 @@ struct DesignStartView: View {
                 ForEach(DesignSizes.groups) { g in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(g.title).font(.caption).foregroundStyle(.secondary)
+                        #if os(macOS)
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8)], alignment: .leading, spacing: 8) {
+                            ForEach(g.sizes) { s in FilterChip(title: s.ratio, chosen: start.sizes.contains(s.id)) { start.toggle(s.id) } }
+                        }
+                        #else
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
                                 ForEach(g.sizes) { s in FilterChip(title: s.ratio, chosen: start.sizes.contains(s.id)) { start.toggle(s.id) } }
                             }
                         }
+                        #endif
                     }
                 }
                 VStack(alignment: .leading, spacing: 2) {
@@ -309,6 +336,13 @@ struct DesignStartView: View {
                         .buttonStyle(.plain).accessibilityLabel("Choose another photograph")
                 }
             } else {
+                #if os(macOS)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8)], alignment: .leading, spacing: 8) {
+                    chip("Browse photos", "photo.on.rectangle", onBrowse)
+                    chip("From the website", "globe") { sitePicker = true }
+                    PhotosPicker(selection: $picked, matching: .images) { chipLabel("This Mac", "desktopcomputer") }.buttonStyle(.plain)
+                }
+                #else
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         chip("Browse photos", "photo.on.rectangle", onBrowse)
@@ -317,6 +351,7 @@ struct DesignStartView: View {
                         if MarketingCamera.available { chip("Camera", "camera") { camera = true } }
                     }
                 }
+                #endif
                 Text("A photograph is optional: without one the design starts on the house’s ground.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
@@ -370,7 +405,7 @@ struct DesignStartView: View {
             guard let data = try await item.loadTransferable(type: Data.self), WebsitePhoto.jpegCopy(data) != nil else {
                 throw ERPAPI.Failure(status: 0, message: "Choose a readable photo, or save it to Photos first.")
             }
-            start.photo = DesignPhotoSources.device(data, name: "Photo from this iPhone")
+            start.photo = DesignPhotoSources.device(data, name: DesignPhotoSources.deviceLabel)
         } catch { problem = error.localizedDescription }
     }
 }
@@ -378,6 +413,14 @@ struct DesignStartView: View {
 /// A device draft as a line.
 struct DesignDraftLine: View {
     let row: DesignDraftRow
+    /// Where a draft is kept.
+    static var device: String {
+        #if os(macOS)
+        "this Mac"
+        #else
+        "this phone"
+        #endif
+    }
     var body: some View {
         HStack(spacing: 12) {
             Group {
@@ -387,7 +430,7 @@ struct DesignDraftLine: View {
             .frame(width: 44, height: 44).background(Theme.ground).clipShape(.rect(cornerRadius: Radius.thumb, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.title).font(.subheadline.weight(.medium)).lineLimit(1)
-                Text((row.old == nil ? "Draft on this phone" : "Earlier Post a piece draft") + " · " + ShopDate.stamp(row.updated, withTime: false))
+                Text((row.old == nil ? "Draft on \(Self.device)" : "Earlier Post a piece draft") + " · " + ShopDate.stamp(row.updated, withTime: false))
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
@@ -418,3 +461,80 @@ struct DesignRecordLine: View {
         .contentShape(Rectangle())
     }
 }
+
+#if os(macOS)
+extension DesignStartView {
+    /// Start as a window: what to make (the kind, the sizes) and the smart input on the left; the photograph, a dropped
+    /// picture and where you left off on the right. Continue is the footer's default button (Return).
+    fileprivate var macBody: some View {
+        HStack(alignment: .top, spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    anything
+                    making
+                }
+                .padding(20)
+                .frame(maxWidth: 760, alignment: .leading)
+            }
+            .frame(minWidth: 460, maxWidth: .infinity)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    photograph
+                    investments
+                    macLeftOff
+                }
+                .padding(20)
+            }
+            .frame(minWidth: 320, idealWidth: 380, maxWidth: 460)
+            .dropDestination(for: URL.self) { urls, _ in
+                guard let url = urls.first else { return false }
+                Task { await takeFile(url) }
+                return true
+            }
+        }
+        .actionBar(primary: .init("Continue", isBusy: starting, action: onBegin))
+        .task { await shelf.load(); await shelf.loadDrafts() }
+        .onAppear { start.adsAllowed = access.ads }
+        .onChange(of: picked) { _, item in if let item { Task { await take(item) } } }
+        .sheet(isPresented: $sitePicker) {
+            NativeSitePhotoPicker { piece, data in
+                sitePicker = false
+                start.photo = DesignPhotoSources.site(piece, data: data)
+            }
+            .frame(minWidth: 760, minHeight: 600)
+        }
+        .sheet(item: $start.sheet) { $0.shown }
+        .failureAlert($problem, title: "Could not use that photograph")
+    }
+
+    @ViewBuilder private var macLeftOff: some View {
+        let drafts = Array(shelf.draftRows.prefix(5))
+        let recent = Array(shelf.items.prefix(6))
+        if !drafts.isEmpty || !recent.isEmpty {
+            SectionCard("Where you left off") {
+                ForEach(drafts) { d in
+                    Button { onOpenDraft(d) } label: { DesignDraftLine(row: d) }.buttonStyle(.plain)
+                        .contextMenu { Button("Open", systemImage: "folder") { onOpenDraft(d) } }
+                }
+                ForEach(recent) { r in
+                    Button { onOpenSaved(r) } label: { DesignRecordLine(record: r) }.buttonStyle(.plain)
+                        .contextMenu { Button("Open", systemImage: "folder") { onOpenSaved(r) } }
+                }
+                Button("See all saved", action: onSeeAll).font(.subheadline)
+            }
+        }
+    }
+
+    /// A picture file dropped on the window or picked from Finder.
+    fileprivate func takeFile(_ url: URL) async {
+        let open = url.startAccessingSecurityScopedResource()
+        defer { if open { url.stopAccessingSecurityScopedResource() } }
+        guard let data = try? Data(contentsOf: url), WebsitePhoto.jpegCopy(data) != nil else {
+            problem = "That is not a picture the ERP can read. Drop a photograph (JPEG, PNG or HEIC)."
+            return
+        }
+        start.photo = DesignPhotoSources.device(data, name: url.lastPathComponent)
+    }
+}
+#endif

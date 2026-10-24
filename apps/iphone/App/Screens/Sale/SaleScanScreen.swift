@@ -28,6 +28,9 @@ struct SaleScanScreen: View {
     @State private var problem: String?
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
         Group {
             if session.isOwner {
                 form
@@ -43,6 +46,7 @@ struct SaleScanScreen: View {
             book.customers.need()
             book.settings.need()
         }
+        #endif
     }
 
     // MARK: The screen
@@ -281,3 +285,157 @@ struct SaleScanScreen: View {
         dismiss()
     }
 }
+
+// MARK: - The Mac: the bill and its reading, side by side
+
+#if os(macOS)
+/// Read a written bill on the Mac: the photo at the left (choose a file, drop one, or take it with the iPhone), what was
+/// read at the right with its lines as a table to tick off, then the foot of the bill; "Add to the sale" is the footer.
+extension SaleScanScreen {
+    var macBody: some View {
+        Group {
+            if session.isOwner {
+                macForm
+            } else {
+                NotAvailableState("Reading a bill is for the owners",
+                                  why: "The ERP reads paper with the shop's AI account, which only an owner's sign-in may use.")
+            }
+        }
+        .navigationTitle("Read a written bill")
+        .selectionFeedback(trigger: reading?.skipped.count ?? 0)
+        .task {
+            book.customers.need()
+            book.settings.need()
+        }
+    }
+
+    private var macForm: some View {
+        HSplitView {
+            Form {
+                Group {
+                    photoSection
+                    if busy {
+                        Section {
+                            HStack(spacing: 12) {
+                                SkeletonLoading()
+                                Text("Reading it…")
+                            }
+                        }
+                    }
+                    if let problem {
+                        Section {
+                            Label(problem, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Tone.problem.color)
+                            if photo != nil {
+                                Button("Try again") { Task { await read() } }
+                                    .buttonStyle(.borderless)
+                            }
+                        } header: {
+                            LedgerHeading(title: "Could not read that")
+                        }
+                    }
+                }
+                .houseRows()
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .frame(minWidth: 320, idealWidth: 380, maxWidth: 480)
+            VStack(spacing: 0) {
+                if let reading, !busy {
+                    MacBillLines(lines: reading.answer.lines, skipped: reading.skipped,
+                                 row: { l, on in lineRow(l, on: on, billRate: reading.answer.ratePerGram) },
+                                 toggle: { toggle($0) })
+                        .frame(minHeight: 180, idealHeight: 280)
+                    Form {
+                        Group { macReadingRest(reading) }.houseRows()
+                    }
+                    .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
+                } else {
+                    ContentUnavailableView("Nothing read yet", systemImage: "doc.text.viewfinder",
+                                           description: Text("Choose or drop a photo of the bill. Its lines come here to check."))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .frame(minWidth: 460)
+        }
+        .background(Theme.ground)
+        .actionBar(primary: fillAction)
+    }
+
+    /// What follows the lines: anything unreadable, the customer it sounds like, and the foot of the bill.
+    @ViewBuilder
+    private func macReadingRest(_ r: SaleBillReading) -> some View {
+        let a = r.answer
+        if let unread = a.unreadable, !unread.isEmpty {
+            Section {
+                Label(unread, systemImage: "questionmark.circle").foregroundStyle(Tone.owed.color)
+            } header: {
+                LedgerHeading(title: "Could not make this out")
+            }
+        }
+        if let g = r.customer {
+            PaperNamePick(label: "Customer", guess: g, nobody: "Nobody in the book sounds like that: choose the customer on the sale.") { p in
+                reading?.customer?.pinned = p
+            }
+        }
+        footSection(r)
+    }
+}
+
+/// The bill's lines as a table: click a line (or press Space or double-click) to leave it off the sale or put it back.
+private struct MacBillLines: View {
+    let lines: [SaleBillLine]
+    let skipped: Set<Int>
+    let row: (SaleBillLine, Bool) -> AnyView
+    let toggle: (Int) -> Void
+    @State private var selection = Set<Int>()
+
+    init<Content: View>(lines: [SaleBillLine], skipped: Set<Int>, row: @escaping (SaleBillLine, Bool) -> Content, toggle: @escaping (Int) -> Void) {
+        self.lines = lines
+        self.skipped = skipped
+        self.row = { AnyView(row($0, $1)) }
+        self.toggle = toggle
+    }
+
+    private struct Row: Identifiable {
+        let id: Int
+        let line: SaleBillLine
+    }
+
+    var body: some View {
+        let rows = lines.enumerated().map { Row(id: $0.offset, line: $0.element) }
+        let kept = lines.count - skipped.count
+        VStack(alignment: .leading, spacing: 0) {
+            LedgerHeading(title: "\(kept) of \(lines.count) line\(lines.count == 1 ? "" : "s")")
+                .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 6)
+            Table(rows, selection: $selection) {
+                TableColumn("") { r in
+                    Image(systemName: skipped.contains(r.id) ? "circle" : "checkmark.circle.fill")
+                        .foregroundStyle(skipped.contains(r.id) ? Color.secondary : Theme.accent)
+                        .onTapGesture { toggle(r.id) }
+                }
+                .width(28)
+                TableColumn("Line") { r in row(r.line, !skipped.contains(r.id)) }
+            }
+            .contextMenu(forSelectionType: Int.self) { ids in
+                if !ids.isEmpty {
+                    Button(ids.allSatisfy({ skipped.contains($0) }) ? "Put Back on the Sale" : "Leave Off the Sale") {
+                        for i in ids { toggle(i) }
+                    }
+                }
+            } primaryAction: { ids in for i in ids { toggle(i) } }
+            .onKeyPress(.space) {
+                guard !selection.isEmpty else { return .ignored }
+                for i in selection { toggle(i) }
+                return .handled
+            }
+            .overlay {
+                if lines.isEmpty { Text("No lines could be read off this. You can still bill it by hand.").foregroundStyle(.secondary) }
+            }
+            Text("Leave a line off with a click on its circle. A line with only a figure is billed at that figure and will not move if you change the rate.")
+                .font(.caption).foregroundStyle(.secondary)
+                .padding(.horizontal, 20).padding(.vertical, 6)
+        }
+    }
+}
+#endif

@@ -72,6 +72,32 @@ struct WebsiteInvestmentsScreen: View {
     // MARK: The page
 
     private var page: some View {
+        #if os(macOS)
+        macPage
+        #else
+        phonePage
+        #endif
+    }
+
+    /// The "today's post hasn't arrived" note, shared by the phone's list and the Mac's schedule pane.
+    @ViewBuilder
+    var notArrivedSection: some View {
+        if gold.todays == nil {
+            Section {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Today's post hasn't arrived yet.")
+                        Text("The routine runs at 11:00 and files it here when it finishes\((gold.schedule?.enabled ?? false) ? "; the schedule sends it once it's here" : ""). If it ran and nothing came, check its last step on claude.ai, or add today's by hand.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "clock").foregroundStyle(Tone.owed.color)
+                }
+            }
+        }
+    }
+
+    private var phonePage: some View {
         List {
             Group {
                 scheduleSection
@@ -107,7 +133,7 @@ struct WebsiteInvestmentsScreen: View {
         .refreshable { await gold.load() }
     }
 
-    private func dayRow(_ p: WebsiteGoldPost) -> some View {
+    func dayRow(_ p: WebsiteGoldPost) -> some View {
         let targets = gold.targets
         let sent = targets.filter { (t: WebsiteGoldStatus.Target) in p.sent[t.id] != nil }.count
         return HStack(spacing: 10) {
@@ -127,7 +153,7 @@ struct WebsiteInvestmentsScreen: View {
 
     // MARK: Automatic sending
 
-    private var scheduleSection: some View {
+    var scheduleSection: some View {
         Section {
             if let s = gold.schedule {
                 Toggle(isOn: Binding(get: { s.enabled }, set: { (on: Bool) in flip(on) })) {
@@ -249,6 +275,9 @@ struct WebsiteGoldDaySheet: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
         }
+        #if os(macOS)
+        .frame(minWidth: 640, minHeight: 640)
+        #endif
         // Edited words aren't thrown away by a swipe: Done (or saving) closes it.
         .interactiveDismissDisabled(busy != nil || (filled && (post != (day?.post ?? "") || teaser != (day?.teaser ?? ""))))
         .onAppear { fill() }
@@ -646,3 +675,50 @@ final class WebsiteGold {
         return URL(string: "/api/public/investments/\(p.id)/\(kind)?v=\(v)", relativeTo: House.serverURL)?.absoluteURL
     }
 }
+
+#if os(macOS)
+extension WebsiteInvestmentsScreen {
+    /// The schedule on the left; the fortnight of posts on the right, each day opening its sheet (or right-click).
+    var macPage: some View {
+        MacTwoPane(sideWidth: 400) {
+            List {
+                Group {
+                    scheduleSection
+                    notArrivedSection
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        } main: {
+            List {
+                Group {
+                    Section {
+                        if gold.posts.isEmpty {
+                            Text("No posts yet. The first arrives with the routine's next run.").foregroundStyle(.secondary)
+                        }
+                        ForEach(gold.posts) { (p: WebsiteGoldPost) in
+                            Button { opened = Opened(id: p.id) } label: { dayRow(p) }
+                                .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button("Open this day", systemImage: "arrow.up.forward.square") { opened = Opened(id: p.id) }
+                                    Button("Copy the headline", systemImage: "doc.on.doc") { MacClipboard.copy(p.headline) }
+                                }
+                        }
+                    } header: {
+                        LedgerHeading(title: "The fortnight")
+                    }
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { Task { await gold.load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    .keyboardShortcut("r", modifiers: .command)
+                    .help("Read the posts again")
+            }
+        }
+    }
+}
+#endif

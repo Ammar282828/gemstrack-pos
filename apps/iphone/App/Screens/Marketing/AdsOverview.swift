@@ -44,6 +44,17 @@ struct AdsOverviewScreen: View {
         .toolbar {
             if mayRead {
                 ToolbarItem(placement: .primaryAction) { AdsRangeMenu(key: $rangeKey) }
+                #if os(macOS)
+                ToolbarItem(placement: .primaryAction) {
+                    Button { go = Route(path: "/ads/new") } label: { Label("New ad", systemImage: "plus") }
+                        .help("Make a new ad")
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button { Task { await load(fresh: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                        .keyboardShortcut("r", modifiers: .command)
+                        .help("Ask Meta again")
+                }
+                #endif
             }
         }
         .navigationDestination(item: $go) { (r: Route) in PlaceScreen(path: r.path) }
@@ -100,6 +111,14 @@ struct AdsOverviewScreen: View {
     // MARK: The page
 
     private func content(_ d: AdOverview) -> some View {
+        #if os(macOS)
+        macContent(d)
+        #else
+        phoneContent(d)
+        #endif
+    }
+
+    private func phoneContent(_ d: AdOverview) -> some View {
         let cur = d.account.currency
         return List {
             Group {
@@ -346,6 +365,17 @@ struct AdsOverviewScreen: View {
         let spend: Double
     }
 
+    private func dailyChart(_ points: [DayPoint], _ cur: String) -> some View {
+        #if os(macOS)
+        AdsDailyHoverChart(days: points.map { (p: DayPoint) in AdsDailyPoint(id: p.id, date: p.date, spend: p.spend) }, currency: cur)
+        #else
+        Chart(points) { (p: DayPoint) in
+            BarMark(x: .value("Day", p.date, unit: .day), y: .value("Spent", p.spend))
+                .foregroundStyle(Theme.accent)
+        }
+        #endif
+    }
+
     @ViewBuilder
     private func dailySection(_ d: AdOverview, _ cur: String) -> some View {
         let points: [DayPoint] = d.daily.compactMap { (day: AdDay) -> DayPoint? in
@@ -354,10 +384,7 @@ struct AdsOverviewScreen: View {
         }
         if points.count > 1 {
             Section {
-                Chart(points) { (p: DayPoint) in
-                    BarMark(x: .value("Day", p.date, unit: .day), y: .value("Spent", p.spend))
-                        .foregroundStyle(Theme.accent)
-                }
+                dailyChart(points, cur)
                 .frame(height: 180)
                 .accessibilityLabel("Spend each day over the range")
                 .accessibilityValue(ChartSummary.say(points.map { (label: ChartSummary.day($0.date), value: $0.spend) }, money: false))
@@ -449,3 +476,94 @@ struct AdsOverviewScreen: View {
         }
     }
 }
+
+#if os(macOS)
+/// Spend day by day, read by hovering: the day under the pointer is marked and its spend said.
+struct AdsDailyPoint: Identifiable {
+    let id: String
+    let date: Date
+    let spend: Double
+}
+
+struct AdsDailyHoverChart: View {
+    let days: [AdsDailyPoint]
+    let currency: String
+    @State private var hovered: Date?
+
+    var body: some View {
+        Chart {
+            ForEach(days) { (d: AdsDailyPoint) in
+                BarMark(x: .value("Day", d.date, unit: .day), y: .value("Spent", d.spend))
+                    .foregroundStyle(Theme.accent.opacity(hovered == nil || hovered == d.date ? 1 : 0.55))
+            }
+            if let h = hovered, let d = days.first(where: { (x: AdsDailyPoint) in x.date == h }) {
+                RuleMark(x: .value("Day", h, unit: .day))
+                    .foregroundStyle(Color.secondary.opacity(0.4))
+                    .annotation(position: .top, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(ChartSummary.day(h)).font(.caption.weight(.semibold))
+                            Text(AdsFormat.money(d.spend, currency)).font(.caption).monospacedDigit()
+                        }
+                        .padding(8)
+                        .background(Theme.card, in: .rect(cornerRadius: 8, style: .continuous))
+                        .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+                    }
+            }
+        }
+        .chartOverlay { (proxy: ChartProxy) in
+            GeometryReader { (geo: GeometryProxy) in
+                Rectangle().fill(.clear).contentShape(Rectangle())
+                    .onContinuousHover { (phase: HoverPhase) in
+                        switch phase {
+                        case .active(let at):
+                            guard let frame = proxy.plotFrame else { return }
+                            let x = at.x - geo[frame].origin.x
+                            guard let date: Date = proxy.value(atX: x) else { return }
+                            hovered = days.min { (a: AdsDailyPoint, b: AdsDailyPoint) in abs(a.date.timeIntervalSince(date)) < abs(b.date.timeIntervalSince(date)) }?.date
+                        case .ended:
+                            hovered = nil
+                        }
+                    }
+            }
+        }
+        .accessibilityLabel("Spend each day over the range")
+        .accessibilityValue(ChartSummary.say(days.map { (label: ChartSummary.day($0.date), value: $0.spend) }, money: false))
+    }
+}
+
+extension AdsOverviewScreen {
+    /// Two columns on a wide window: the figures, the days and the ads that spent most; beside them what needs a look,
+    /// what it brought, the month and who saw the ads.
+    func macContent(_ d: AdOverview) -> some View {
+        let cur = d.account.currency
+        return MacTwoPane(sideWidth: 420, sideOnRight: true) {
+            List {
+                Group {
+                    attentionSection(d)
+                    broughtSection(d)
+                    monthSection(d, cur)
+                    bottomSections(d, cur)
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        } main: {
+            List {
+                Group {
+                    accountSection(d)
+                    if let problem {
+                        Section { Label(problem, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary) } header: { LedgerHeading(title: "Couldn't refresh") }
+                    }
+                    figuresSection(d, cur)
+                    dailySection(d, cur)
+                    topAdsSection(d, cur)
+                }
+                .houseRows()
+            }
+            .listStyle(.inset)
+        }
+        .navigationSubtitle(periodLine(d))
+        .motion(d.totals.spend)
+    }
+}
+#endif

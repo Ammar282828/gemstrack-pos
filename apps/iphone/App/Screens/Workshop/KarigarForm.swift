@@ -148,6 +148,12 @@ private struct KarigarFormBody: View {
         .disabled(saving)
         .scrollDismissesKeyboard(.interactively)
         .keyboardDone()
+        #if os(macOS)
+        // A Mac form: grouped, in a column a form reads at, with the window's own ground around it.
+        .formStyle(.grouped)
+        .frame(maxWidth: 680)
+        .frame(maxWidth: .infinity)
+        #endif
         .failureAlert($error, title: "Not saved")
         .savedFeedback(trigger: savedTick)
         .toolbar {
@@ -157,6 +163,9 @@ private struct KarigarFormBody: View {
                 } else {
                     Button("Save") { Task { await save() } }
                         .disabled(!canSave)
+                        #if os(macOS)
+                        .keyboardShortcut("s", modifiers: .command)
+                        #endif
                 }
             }
         }

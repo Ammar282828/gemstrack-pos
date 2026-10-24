@@ -148,6 +148,11 @@ struct OrderFinalizeScreen: View {
             }
             .buttonStyle(.houseProminent)
             .controlSize(.large)
+            #if os(macOS)
+            // Return makes the invoice from the keyboard, as a Mac dialog's default button does.
+            .keyboardShortcut(.defaultAction)
+            .help("Make the invoice (Return)")
+            #endif
             .disabled(saving)
             }
             .padding(.horizontal, 16)

@@ -29,7 +29,13 @@ struct DesignPublishSheet: View {
             }
             .modifier(HouseGround())
             .navigationTitle("Publish").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .toolbar {
+                #if os(macOS)
+                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+                #else
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                #endif
+            }
             .modifier(DesignSpeech(get: { p.model.speak }, set: { p.model.speak = $0 }, note: $note))
             .failureAlert($problem, title: "Could not finish")
             .moneyFeedback(success: p.sent, failure: p.failures)
@@ -59,6 +65,14 @@ struct DesignPublishSheet: View {
     // MARK: The sheet
 
     private var content: some View {
+        #if os(macOS)
+        macContent
+        #else
+        phoneContent
+        #endif
+    }
+
+    private var phoneContent: some View {
         let plan = self.plan
         let problems = p.problems(plan)
         return ScrollView {
@@ -416,3 +430,47 @@ struct DesignShareRequest: Identifiable {
         self.step = step
     }
 }
+
+#if os(macOS)
+extension DesignPublishSheet {
+    /// Publish as a Mac sheet: where it goes, the captions and the ad's words on the left; the connections, the timing, what
+    /// is wrong and the steps on the right; the footer holds Send (Return) with what it will do.
+    fileprivate var macContent: some View {
+        let plan = self.plan
+        let problems = p.problems(plan)
+        return HStack(alignment: .top, spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    places
+                    if p.waOn || p.postOn { captions }
+                    if p.metaOn && p.ok("meta-ad") { metaWords }
+                }
+                .padding(20)
+            }
+            .frame(minWidth: 380)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    health
+                    timing
+                    if !(problems + p.wordIssues).isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(problems + p.wordIssues, id: \.self) { Label($0, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(Tone.problem.color) }
+                        }
+                    }
+                    if !plan.steps.isEmpty { steps(plan) }
+                    if let path = p.metaPath ?? p.ref("meta-ad") {
+                        Button { p.model.route = Route(path: path); dismiss() } label: { Label("Open the new ad", systemImage: "sparkles") }
+                            .buttonStyle(.bordered)
+                    }
+                    if let n = p.note { Text(n).font(.footnote).foregroundStyle(.secondary) }
+                    extras
+                }
+                .padding(20)
+            }
+            .frame(minWidth: 340)
+        }
+        .actionBar(primary: sendAction(plan, problems), summary: sendSummary(plan))
+    }
+}
+#endif

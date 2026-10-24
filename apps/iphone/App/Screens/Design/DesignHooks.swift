@@ -31,7 +31,12 @@ struct DesignSheet: Identifiable {
 
     /// The content at the iPad's sheet size for what it is.
     @ViewBuilder var shown: some View {
+        #if os(macOS)
+        // A Mac sheet at the size its content needs: the wide ones (Resize, Layers) are a window's worth.
+        content.frame(minWidth: wide ? 940 : 600, idealWidth: wide ? 1000 : 640, minHeight: wide ? 660 : 520)
+        #else
         if wide { content.presentationSizing(.page) } else { content.presentationSizing(.form) }
+        #endif
     }
 }
 

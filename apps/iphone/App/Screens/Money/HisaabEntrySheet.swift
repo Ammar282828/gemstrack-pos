@@ -72,6 +72,12 @@ struct HisaabEntrySheet: View {
             .scrollDismissesKeyboard(.interactively)
             .keyboardDone()
             .disabled(saving)
+            #if os(macOS)
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.ground)
+            .frame(minWidth: 520, idealWidth: 580, minHeight: 360)
+            #endif
             .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

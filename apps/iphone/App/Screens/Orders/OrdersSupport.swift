@@ -251,6 +251,13 @@ struct OrderAdvanceExchange: View {
                 Label("Remove", systemImage: "trash")
             }
         }
+        #if os(macOS)
+        .contextMenu {
+            Button(role: .destructive) { remove(row.id) } label: {
+                Label("Remove this exchange", systemImage: "trash")
+            }
+        }
+        #endif
     }
 
     @ViewBuilder
@@ -290,7 +297,10 @@ struct OrderAdvanceExchange: View {
 struct OrdersMacDestination: ViewModifier {
     @Binding var target: OrdersWebTarget?
 
-    private static func isPage(_ t: OrdersWebTarget) -> Bool { t.path.hasPrefix("/orders/") && !t.path.contains("/", after: "/orders/") }
+    private static func isPage(_ t: OrdersWebTarget) -> Bool {
+        guard t.path.hasPrefix("/orders/"), t.path != "/orders/add" else { return false }
+        return !t.path.dropFirst("/orders/".count).contains("/")
+    }
 
     private var pushed: Binding<OrdersWebTarget?> {
         Binding(get: { target.flatMap { Self.isPage($0) ? $0 : nil } },
@@ -321,14 +331,6 @@ struct OrdersMacDestination: ViewModifier {
                 }
                 .frame(minWidth: 900, idealWidth: 980, minHeight: 660, idealHeight: 760)
             }
-    }
-}
-
-private extension String {
-    /// Whether `self` has a `/` after the given prefix (an order's id is one path part).
-    func contains(_ character: Character, after prefix: String) -> Bool {
-        guard hasPrefix(prefix) else { return false }
-        return dropFirst(prefix.count).contains(character)
     }
 }
 #endif

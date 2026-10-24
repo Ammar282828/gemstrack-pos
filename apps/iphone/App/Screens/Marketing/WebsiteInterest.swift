@@ -161,6 +161,10 @@ struct WebsiteInterestScreen: View {
         .overlay { stateOverlay }
         .navigationTitle("Interest")
         .navigationBarTitleDisplayMode(.inline)
+        #if os(macOS)
+        .navigationSubtitle(report.map { (r: SiteReport) in spanLine(r) } ?? "")
+        .toolbar { macToolbar }
+        #endif
         .refreshable { await load() }
         .task(id: query) { await load() }
         .task(id: scenePhase) { await pollLive() }
@@ -221,6 +225,10 @@ struct WebsiteInterestScreen: View {
     }
 
     private var widePeriod: some View {
+        #if os(macOS)
+        // The period, Custom and Live are in the window's toolbar.
+        EmptyView()
+        #else
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 16) {
                 ChipRow {
@@ -238,6 +246,7 @@ struct WebsiteInterestScreen: View {
                 Text(spanLine(r)).font(.footnote).foregroundStyle(.secondary)
             }
         }
+        #endif
     }
 
     @ViewBuilder
@@ -311,7 +320,7 @@ struct WebsiteInterestScreen: View {
         }
     }
 
-    private func spanLine(_ r: SiteReport) -> String {
+    func spanLine(_ r: SiteReport) -> String {
         SiteWords.span(r.from, r.to) + " · compared with " + SiteWords.span(r.previous.from, r.previous.to)
     }
 
@@ -320,7 +329,7 @@ struct WebsiteInterestScreen: View {
             .listRowBackground(Theme.card)
     }
 
-    private var liveLabel: some View {
+    var liveLabel: some View {
         HStack(spacing: 10) {
             Image(systemName: "dot.radiowaves.left.and.right")
                 .foregroundStyle((liveNow ?? 0) > 0 ? Tone.settled.color : Color.secondary)
@@ -333,7 +342,7 @@ struct WebsiteInterestScreen: View {
         }
     }
 
-    private func choose(_ key: String) {
+    func choose(_ key: String) {
         guard custom || key != periodKey else { return }
         Motion.run(reduce: reduceMotion) {
             custom = false
@@ -566,3 +575,29 @@ struct WebsiteInterestScreen: View {
         }
     }
 }
+
+#if os(macOS)
+extension WebsiteInterestScreen {
+    /// The period as a segmented control in the toolbar, Custom beside it, and Live as a button with the count.
+    @ToolbarContentBuilder
+    var macToolbar: some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            Picker("Period", selection: Binding<String>(get: { custom ? "custom" : periodKey },
+                                                         set: { (k: String) in if k == "custom" { picking = true } else { choose(k) } })) {
+                ForEach(periods, id: \.key) { (p: (key: String, label: String)) in Text(p.label).tag(p.key) }
+                Text("Custom").tag("custom")
+            }
+            .pickerStyle(.segmented)
+            .frame(minWidth: 480)
+            .help("The days the report covers")
+        }
+        ToolbarItemGroup(placement: .primaryAction) {
+            NavigationLink(value: Route(path: "/website/interest/live")) { liveLabel }
+                .help("Who is on the website right now")
+            Button { Task { await load() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                .keyboardShortcut("r", modifiers: .command)
+                .help("Read the report again")
+        }
+    }
+}
+#endif

@@ -37,6 +37,14 @@ struct DesignScreen: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        phoneBody
+        #endif
+    }
+
+    private var phoneBody: some View {
         Group {
             if !access.post {
                 NotAvailableState("Design is for the shop’s team", why: "Sign in with an owner, staff or marketing account to make posts and ads.", symbol: "lock")
@@ -185,6 +193,50 @@ struct DesignScreen: View {
         } catch { workspace.error = "Couldn’t bring the piece in. " + error.localizedDescription }
     }
 }
+
+#if os(macOS)
+extension DesignScreen {
+    /// Design as a Mac app window: the sections (Make, Photos, Board, Saved) are a segmented control in the toolbar, not a row
+    /// of chips in the page; the open design's own tools are the workspace's toolbar.
+    fileprivate var macBody: some View {
+        Group {
+            if !access.post {
+                NotAvailableState("Design is for the shop’s team", why: "Sign in with an owner, staff or marketing account to make posts and ads.", symbol: "lock")
+            } else {
+                VStack(spacing: 0) {
+                    if workspace.isOpen && current != .make { openBanner }
+                    page
+                }
+            }
+        }
+        .modifier(HouseGround())
+        .navigationTitle("Design")
+        .toolbar {
+            if access.post {
+                ToolbarItem(placement: .principal) {
+                    Picker("Section", selection: Binding(get: { current }, set: { go($0) })) {
+                        ForEach(DesignSection.offered(access)) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(minWidth: 260)
+                    .help("Make, Photos, Board or Saved")
+                }
+            }
+        }
+        .noteToast($note)
+        .navigationDestination(item: $workspace.route) { PlaceScreen(path: $0.path) }
+        .failureAlert($workspace.error, title: "Could not finish")
+        .websiteBusy(workspace.starting ? "Opening…" : nil)
+        .task { await boot() }
+        .onAppear {
+            workspace.speak = { n in Note.show(n, in: $note, reduce: reduceMotion) }
+            start.speak = workspace.speak
+            start.launch = { req in Task { if await workspace.start(req) { start.photo = nil; start.fields = [:]; start.price = ""; go(.make) } } }
+        }
+        .onDisappear { Task { await workspace.flush() } }
+    }
+}
+#endif
 
 /// Board (owner and marketing): the Ad studio's board, native (StudioBoards), mounted in place as the web mounts it.
 struct DesignBoardSection: View {

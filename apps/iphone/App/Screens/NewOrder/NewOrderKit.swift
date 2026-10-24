@@ -32,6 +32,17 @@ extension View {
     func formColumn(_ maxWidth: CGFloat = 680) -> some View { modifier(FormColumn(maxWidth: maxWidth)) }
 }
 
+/// What the shop calls the device in its hand in a sentence ("kept on this phone", "kept on this Mac").
+enum OrderDevice {
+    static var word: String {
+        #if os(macOS)
+        return "Mac"
+        #else
+        return "phone"
+        #endif
+    }
+}
+
 // MARK: Controls
 
 /// A quick choice (7d, 10d, 14d): a bordered chip (glass stays off list rows), the selected one prominent.

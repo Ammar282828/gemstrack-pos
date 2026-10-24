@@ -17,6 +17,11 @@ struct OnlineOrdersScreen: View {
     @State private var note: Note?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var go: Route?
+    #if os(macOS)
+    /// The order picked in the Mac's list (an online order's number).
+    @State private var picked: String?
+    @Environment(\.openPlaceWindow) private var openPlaceWindow
+    #endif
 
     private var store: OnlineOrdersStore { OnlineOrdersStore.shared }
     /// The accounts the server lets act on online orders (lib/website/staff-gate.ts): marketing is refused.
@@ -60,7 +65,11 @@ struct OnlineOrdersScreen: View {
             case .failed(let message):
                 ErrorState(message) { Task { await store.load() } }
             case .loaded:
+                #if os(macOS)
+                macList
+                #else
                 list
+                #endif
             }
         }
     }
@@ -250,3 +259,149 @@ struct OnlineOrdersScreen: View {
         return s
     }
 }
+
+#if os(macOS)
+// MARK: The Mac's inbox: the orders down the left, the picked one in full on the right
+
+extension OnlineOrdersScreen {
+    private var macRows: [OnlineOrderRow] { store.waiting + store.lately }
+
+    fileprivate var macList: some View {
+        let waiting = store.waiting
+        let lately = store.lately
+        return HSplitView {
+            List(selection: $picked) {
+                if waiting.isEmpty && !lately.isEmpty {
+                    Label("Nothing to confirm", systemImage: "checkmark.seal").foregroundStyle(.secondary)
+                }
+                if !waiting.isEmpty {
+                    Section("To confirm") {
+                        ForEach(waiting) { (r: OnlineOrderRow) in whoRow(r).tag(r.id) }
+                    }
+                }
+                if !lately.isEmpty {
+                    Section("The last two weeks") {
+                        ForEach(lately) { (r: OnlineOrderRow) in macLatelyRow(r).tag(r.id) }
+                    }
+                }
+            }
+            .listStyle(.inset)
+            .frame(minWidth: 320, idealWidth: 380, maxWidth: 480)
+            .contextMenu(forSelectionType: String.self) { ids in
+                if let id = ids.first, let r = macRows.first(where: { $0.id == id }) { macMenu(r) }
+            }
+            macDetail(macRows.first { $0.id == picked })
+                .frame(minWidth: 460, maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .overlay {
+            if waiting.isEmpty && lately.isEmpty {
+                EmptyState("Nothing to confirm", symbol: "checkmark.seal",
+                           message: "Nothing is in the book, and nobody has the bank details, until you confirm.")
+            }
+        }
+        .onAppear { if picked == nil { picked = waiting.first?.id ?? lately.first?.id } }
+        .onChange(of: store.waiting.map(\.id)) { _, ids in
+            if picked == nil || !macRows.contains(where: { $0.id == picked }) { picked = ids.first ?? lately.first?.id }
+        }
+    }
+
+    @ViewBuilder
+    private func macLatelyRow(_ r: OnlineOrderRow) -> some View {
+        if r.state == "confirmed", let orderId = r.orderId, !orderId.isEmpty {
+            TwoLine(title: "\(r.id) \u{00B7} \(orderId)", subtitle: confirmedLine(r), trailing: Money.pkr(r.grandTotal))
+        } else if r.state == "declined" {
+            TwoLine(title: "\(r.id) \u{00B7} declined",
+                    subtitle: [r.customer.name, r.declineReason ?? ""].filter { !$0.isEmpty }.joined(separator: " \u{00B7} "),
+                    trailing: Money.pkr(r.grandTotal),
+                    trailingTint: .secondary)
+        } else {
+            TwoLine(title: r.id, subtitle: r.customer.name, trailing: Money.pkr(r.grandTotal))
+        }
+    }
+
+    /// Whether Confirm and Decline are on offer for this one: waiting, and nobody else pressing Confirm just now.
+    private func macCanDecide(_ r: OnlineOrderRow) -> Bool {
+        OnlineOrdersLogic.isWaiting(r) && r.state != "confirming" && mayAct
+    }
+
+    @ViewBuilder
+    private func macMenu(_ r: OnlineOrderRow) -> some View {
+        if macCanDecide(r) {
+            Button("Confirm\u{2026}") { confirming = r }
+            Button("Decline\u{2026}", role: .destructive) { declining = r }
+            Divider()
+        }
+        if let call = OnlineOrdersLogic.callURL(r.customer.phone) {
+            Button("Call \(r.customer.phone)") { openURL(call) }
+        }
+        if let chat = OnlineOrdersLogic.chatURL(r.customer.phone) {
+            Button("WhatsApp") { openURL(chat) }
+        }
+        if r.state == "confirmed", let orderId = r.orderId, !orderId.isEmpty {
+            Divider()
+            Button("Open the order") { go = Route(path: "/orders/\(orderId)") }
+            Button("Open in New Window") { openPlaceWindow?(Route(path: "/orders/\(orderId)")) }
+                .disabled(openPlaceWindow == nil)
+        }
+    }
+
+    @ViewBuilder
+    private func macDetail(_ r: OnlineOrderRow?) -> some View {
+        if let r {
+            List {
+                Section {
+                    whoRow(r)
+                    ForEach(Array(r.lines.enumerated()), id: \.offset) { pair in lineRow(pair.element) }
+                } header: {
+                    LedgerHeading(title: r.lines.count == 1 ? "1 piece" : "\(r.lines.count) pieces")
+                }
+                Section {
+                    customerRows(r)
+                    if let moved = OnlineOrdersLogic.movedLine(r) {
+                        let dearer = (OnlineOrdersLogic.moved(r)?.amount ?? 0) > 0
+                        Label(moved, systemImage: "chart.line.uptrend.xyaxis")
+                            .font(.footnote)
+                            .foregroundStyle(dearer ? Tone.owed.color : Color.secondary)
+                    }
+                } header: {
+                    LedgerHeading(title: "The customer")
+                }
+                if r.state == "confirming" {
+                    Section {
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small)
+                            Text("Being confirmed" + (OnlineOrdersLogic.who(r.claimedBy).map { " by \($0)" } ?? "") + "\u{2026}")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } else if r.state == "declined", let why = r.declineReason, !why.isEmpty {
+                    Section { Text(why).foregroundStyle(.secondary) } header: { LedgerHeading(title: "Declined") }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .modifier(HouseGround())
+            .toolbar {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    if macCanDecide(r) {
+                        Button(role: .destructive) { declining = r } label: {
+                            Label("Decline", systemImage: "xmark").labelStyle(.titleAndIcon)
+                        }
+                        Button { confirming = r } label: {
+                            Label("Confirm", systemImage: "checkmark").labelStyle(.titleAndIcon)
+                        }
+                        .keyboardShortcut(.return, modifiers: .command)
+                        .help("Confirm this order (\u{2318}\u{21A9})")
+                    } else if r.state == "confirmed", let orderId = r.orderId, !orderId.isEmpty {
+                        Button { go = Route(path: "/orders/\(orderId)") } label: {
+                            Label("Open the order", systemImage: "list.clipboard").labelStyle(.titleAndIcon)
+                        }
+                    }
+                }
+            }
+        } else {
+            ContentUnavailableView("Pick an online order", systemImage: "globe",
+                                   description: Text("The order and its pieces show here."))
+        }
+    }
+}
+#endif

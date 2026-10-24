@@ -132,5 +132,9 @@ struct SaleScanSheet: View {
             .sensoryFeedback(.success, trigger: added)
             .sensoryFeedback(.warning, trigger: missed)
         }
+        #if os(macOS)
+        // A Mac sheet the scanner's box and its answer fit in.
+        .frame(minWidth: 640, idealWidth: 720, minHeight: 440)
+        #endif
     }
 }
