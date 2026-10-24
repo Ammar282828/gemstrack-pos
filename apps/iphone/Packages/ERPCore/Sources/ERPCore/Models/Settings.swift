@@ -5,7 +5,7 @@ import Foundation
 /// fills any missing field from placeholder seed values (a 240,000 24k rate, a sample phone
 /// line); this model does not, so a missing rate is 0 and a missing text is "", honestly unset.
 /// Left out on purpose: `shopifyAccessToken` (a secret that must never reach a phone),
-/// `firebaseConfig`, `allowedDeviceIds`, `weprintApiSkus`, `labelLayout`, `overheadPlans` and
+/// `firebaseConfig`, `allowedDeviceIds`, `weprintApiSkus`, `overheadPlans` and
 /// `monthlyOverheads` (web-only screens). Every `notif*` switch reads as off when absent, as the
 /// server reads them (lib/notifications/schedule.ts); `autoDraftForms` defaults on. The times are
 /// "HH:MM" in Karachi (defaults on the server: checklist 09:00, end of day 19:00, report 21:00).
@@ -94,6 +94,9 @@ public struct Settings: Decodable, Identifiable, Hashable {
     /// variable pairings as Settings > Labels keeps them. Read it with `labelLiveConfig`.
     public let labelLive: StoredLabelLive?
 
+    /// The tag the label designer draws and the Zebra prints (lib/label-layout.ts); nil until one is saved.
+    public let labelLayout: LabelLayout?
+
     private enum K: String, CodingKey {
         case id
         case goldRatePerGram24k, goldRatePerGram22k, goldRatePerGram21k, goldRatePerGram18k
@@ -109,7 +112,7 @@ public struct Settings: Decodable, Identifiable, Hashable {
         case notifNewInvoice, notifPaymentReceived, notifDailyReport, notifDailyChecklist, notifEndOfDay
         case notifWeeklyReport, notifAdsDaily, notifMonthlyReport, notifOrderOverdue, notifGivenItems
         case notifKarigarPayment, notifDailyChecklistTime, notifEndOfDayTime, notifDailyReportTime
-        case labelLive
+        case labelLive, labelLayout
     }
 
     public init(from decoder: Decoder) throws {
@@ -164,6 +167,7 @@ public struct Settings: Decodable, Identifiable, Hashable {
         notifEndOfDayTime = c.string(.notifEndOfDayTime)
         notifDailyReportTime = c.string(.notifDailyReportTime)
         labelLive = c.object(.labelLive)
+        labelLayout = c.object(.labelLayout)
     }
 }
 
