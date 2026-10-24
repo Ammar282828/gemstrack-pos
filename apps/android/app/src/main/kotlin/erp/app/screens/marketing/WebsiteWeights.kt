@@ -58,6 +58,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import erp.app.auth.LocalSession
+import erp.app.data.Outbox
+import erp.app.data.OutboxEngine
 import erp.app.data.ErpApi
 import erp.app.nav.ScreenTitle
 import erp.app.screens.stock.StockImage
@@ -71,6 +73,8 @@ import erp.app.ui.Radius
 import erp.app.ui.ShopDate
 import erp.app.ui.SkeletonLoading
 import erp.app.ui.ToggleRow
+import erp.app.ui.Tone
+import erp.app.ui.color
 import erp.app.ui.ledgerCard
 import erp.app.ui.theme.ErpColors
 import erp.app.ui.theme.ErpFonts
@@ -103,7 +107,7 @@ fun WebsiteWeightsScreen() {
     var search by remember { mutableStateOf("") }
     var index by remember { mutableIntStateOf(0) }
     var value by remember { mutableStateOf("") }
-    var saving by remember { mutableStateOf(false) }
+    var savedCount by remember { mutableStateOf(0) }
     var confirming by remember { mutableStateOf<WebsiteWeightsLogic.Pending?>(null) }
     // The counter said not to ask again until the screen is left.
     var trusted by remember { mutableStateOf(false) }
@@ -147,35 +151,31 @@ fun WebsiteWeightsScreen() {
 
     fun advance(by: Int = 1) { index = (index + by).coerceIn(0, maxOf(0, queue.size - 1)) }
 
+    /**
+     * Instant: the piece is changed here and the counter moves on; the site's PUT goes through the Outbox (a failure comes back
+     * with Retry, and the same PUT is safe to repeat).
+     */
     fun save(p: WebsiteWeightsLogic.Pending) {
-        scope.launch {
-            saving = true
-            try {
-                val body = LinkedHashMap<String, Any?>().apply { put("key", p.key); put("weightGrams", p.grams) }
-                if (House.isDemo) throw ErpApi.Failure(0, "Not connected to the ERP in the demo.")
-                ErpApi.shared.send("/api/website/pieces", "PUT", body)
-                val was = queue
-                val list = WebsiteWeightsLogic.saved(pieces ?: emptyList(), p.key, p.grams, AppClock.now())
-                pieces = list
-                // With "only missing" on, the piece leaves the list and the next slides into its place; otherwise step on.
-                val next = if (p.advance && !onlyMissing) minOf(index + 1, maxOf(0, was.size - 1)) else index
-                index = next
-                prefill(WebsiteWeightsLogic.queue(list, collection, onlyMissing, search).getOrNull(next))
-                runCatching { typing.requestFocus() }
-                haptics.success()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = e.message ?: "Something went wrong."
-            } finally {
-                saving = false
-            }
+        val body = LinkedHashMap<String, Any?>().apply { put("key", p.key); put("weightGrams", p.grams) }
+        val was = queue
+        val list = WebsiteWeightsLogic.saved(pieces ?: emptyList(), p.key, p.grams, AppClock.now())
+        pieces = list
+        Outbox.post(WEIGHT_PREFIX + p.file) {
+            if (House.isDemo) throw ErpApi.Failure(0, "Not connected to the ERP in the demo.")
+            ErpApi.shared.send("/api/website/pieces", "PUT", body)
+            savedCount++
+            ""
         }
+        // With "only missing" on, the piece leaves the list and the next slides into its place; otherwise step on.
+        val next = if (p.advance && !onlyMissing) minOf(index + 1, maxOf(0, was.size - 1)) else index
+        index = next
+        prefill(WebsiteWeightsLogic.queue(list, collection, onlyMissing, search).getOrNull(next))
+        runCatching { typing.requestFocus() }
+        haptics.success()
     }
 
     fun ask(advance: Boolean) {
         val p = current ?: return
-        if (saving) return
         val typed = value.trim()
         val grams: Double? = if (typed.isEmpty()) null else (WebsiteNumber.parse(typed) ?: run { failure = "Enter a weight in grams."; return })
         // Nothing to change here: on to the next photo.
@@ -192,11 +192,11 @@ fun WebsiteWeightsScreen() {
     when {
         off -> NotAvailableState("This shop's website prices pieces without weights", icon = Icons.Filled.Scale)
         pieces != null -> MarketingPinned(bar = if (current != null) ({
-            MarketingActionBar(if (saving) "Saving…" else "Save & next", Icons.Filled.Check, { ask(true) }, busy = saving)
+            MarketingActionBar("Save & next", Icons.Filled.Check, { ask(true) }, busy = false)
         }) else null) {
             PullToRefreshBox(isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; load(); refreshing = false } }) {
                 WeightsPage(
-                    all, queue, current, index, collection, onlyMissing, search, value, saving, typing, site.siteName,
+                    all, queue, current, index, collection, onlyMissing, search, value, savedCount, typing, site.siteName,
                     setCollection = { collection = it }, setOnlyMissing = { onlyMissing = it }, setSearch = { search = it }, setValue = { value = it },
                     goTo = { index = it }, save = { ask(true) }, skip = { advance() },
                 )
@@ -226,7 +226,7 @@ private fun WeightsPage(
     onlyMissing: Boolean,
     search: String,
     value: String,
-    saving: Boolean,
+    savedCount: Int,
     typing: FocusRequester,
     siteName: String,
     setCollection: (String) -> Unit,
@@ -237,11 +237,11 @@ private fun WeightsPage(
     save: () -> Unit,
     skip: () -> Unit,
 ) {
-    val progress: @Composable () -> Unit = { ProgressCard(all, collection, onlyMissing, search, siteName, setCollection, setOnlyMissing, setSearch) }
+    val progress: @Composable () -> Unit = { ProgressCard(all, collection, onlyMissing, search, siteName, savedCount, setCollection, setOnlyMissing, setSearch) }
     val photo: @Composable () -> Unit = { if (current != null) PhotoSection(current, queue.size, index, value, goTo) }
     val work: @Composable () -> Unit = {
         if (current != null) {
-            WeightSection(current, value, saving, typing, setValue, save, skip, index >= queue.size - 1)
+            WeightSection(current, value, false, typing, setValue, save, skip, index >= queue.size - 1)
             val upcoming = WebsiteWeightsLogic.upcoming(queue, index)
             if (upcoming.isNotEmpty()) UpcomingStrip(upcoming, goTo)
         } else {
@@ -274,7 +274,7 @@ private fun WeightsPage(
 
 @Composable
 private fun ProgressCard(
-    all: List<WebsiteWeightPiece>, collection: String, onlyMissing: Boolean, search: String, siteName: String,
+    all: List<WebsiteWeightPiece>, collection: String, onlyMissing: Boolean, search: String, siteName: String, savedCount: Int,
     setCollection: (String) -> Unit, setOnlyMissing: (Boolean) -> Unit, setSearch: (String) -> Unit,
 ) {
     val (total, withWeight) = WebsiteWeightsLogic.counts(all, collection)
@@ -291,6 +291,7 @@ private fun ProgressCard(
                 )
             }
             LinearProgressIndicator(progress = { withWeight.toFloat() / maxOf(1, total) }, Modifier.fillMaxWidth(), color = ErpColors.accent)
+            WeightsSavingRow(savedCount)
         }
         PickerRow("Collection", collection, listOf("" to "All collections") + WebsiteWeightsLogic.collections(all).map { it to it }, setCollection)
         ToggleRow("Only photos without a weight", onlyMissing, setOnlyMissing)
@@ -404,5 +405,21 @@ private fun UpcomingStrip(upcoming: List<Pair<Int, WebsiteWeightPiece>>, goTo: (
                 }
             }
         }
+    }
+}
+
+/** The label an Outbox weight carries: "Weight: <file>". */
+private const val WEIGHT_PREFIX = "Weight: "
+
+/** "Saving…" while weights go, a warning if one failed (the banner has Retry), then a tick. */
+@Composable
+private fun WeightsSavingRow(savedCount: Int) {
+    val items = Outbox.items.collectAsStateWithLifecycle().value.filter { it.label.startsWith(WEIGHT_PREFIX) }
+    val bad = items.firstOrNull { it.status == OutboxEngine.Status.Failed }
+    val quiet = MaterialTheme.colorScheme.onSurfaceVariant
+    when {
+        bad != null -> Text("Not saved: ${bad.label.removePrefix(WEIGHT_PREFIX)}", style = MaterialTheme.typography.bodySmall, color = Tone.problem.color())
+        items.isNotEmpty() -> Text("Saving ${items.size}…", style = MaterialTheme.typography.bodySmall, color = quiet)
+        savedCount > 0 -> Text("$savedCount saved", style = MaterialTheme.typography.bodySmall, color = quiet)
     }
 }

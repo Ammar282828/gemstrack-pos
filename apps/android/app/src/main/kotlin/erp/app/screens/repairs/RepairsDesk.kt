@@ -8,6 +8,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -16,7 +18,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import erp.app.data.Book
 import erp.app.data.ErpApi
+import erp.app.data.Outbox
+import erp.app.ui.LocalNoteState
+import erp.app.ui.Note
+import erp.app.ui.OnChange
+import erp.app.ui.rememberHaptics
 import erp.app.ui.FailureAlert
 import erp.app.ui.MoneyFeedback
 import erp.app.ui.PaymentSheet
@@ -25,6 +34,7 @@ import erp.app.ui.color
 import erp.core.logic.Money
 import erp.core.logic.repairBalance
 import erp.core.models.Repair
+import erp.core.models.RepairStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -58,7 +68,13 @@ class RepairsDesk(private val scope: CoroutineScope) {
 
     /** The ERP's words when a write was refused. */
     var failure by mutableStateOf<String?>(null)
-    private var busy by mutableStateOf(emptySet<String>())
+
+    /** Bumped on each status move, so the screen can tap for it. */
+    var moves by mutableIntStateOf(0)
+        private set
+
+    /** What was just done, said on the screen's toast (Ready, Collected, Cancelled). */
+    var note by mutableStateOf<Note?>(null)
 
     /** Bumped as a payment lands, so the screen can tap for it (`MoneyFeedback`). */
     var paymentsTaken by mutableIntStateOf(0)
@@ -67,7 +83,14 @@ class RepairsDesk(private val scope: CoroutineScope) {
     /** Tickets whose balance was taken on the way out but whose status write has not landed: a retry must not charge twice. */
     private val balanceTaken = HashSet<String>()
 
-    fun isBusy(id: String): Boolean = id in busy
+    /** A status move leaves at once (Outbox): there is nothing in flight to wait on. */
+    fun isBusy(id: String): Boolean = false
+
+    /** The ticket as the person has just left it, until the shelf's copy has moved off the status it was. */
+    fun shown(r: Repair): Repair = moved[r.id]?.takeIf { it.from == r.status }?.let { r.copy(status = it.to) } ?: r
+
+    /** The Outbox gave up on a change: show the shelf's copy again. */
+    fun forgetMoves() = moved.clear()
 
     // MARK: The steps
 
@@ -82,10 +105,23 @@ class RepairsDesk(private val scope: CoroutineScope) {
         if (!isBusy(r.id)) asking = Ask.Cancel(r)
     }
 
-    /** "received" | "ready" | "collected" | "cancelled". */
+    /**
+     * "received" | "ready" | "collected" | "cancelled". Not money: the ticket moves on the screen at once and the write
+     * goes through the Outbox.
+     */
     fun setStatus(r: Repair, status: String) {
         val id = r.id
-        run(id) { ErpApi.shared.write("setRepairStatus", mapOf("repairId" to id, "status" to status)) }
+        moved[id] = Move(Book.shared.repairs.item(id)?.status ?: r.status, RepairStatus.of(status))
+        moves += 1
+        note = Note(words(id, status))
+        ErpApi.shared.enqueue("setRepairStatus", mapOf("repairId" to id, "status" to status), "$id status")
+    }
+
+    private fun words(id: String, status: String) = when (status) {
+        "ready" -> "$id is ready"
+        "collected" -> "$id is collected"
+        "cancelled" -> "$id is cancelled"
+        else -> "$id updated"
     }
 
     // MARK: Money
@@ -110,40 +146,32 @@ class RepairsDesk(private val scope: CoroutineScope) {
         paymentsTaken += 1
     }
 
-    // MARK: One write at a time per ticket
+    private class Move(val from: RepairStatus, val to: RepairStatus)
 
-    /**
-     * The shelf brings the change back within a second or so; until then the ticket stays busy, so a second tap cannot send
-     * the same step twice.
-     */
-    private fun run(id: String, work: suspend () -> Unit) {
-        if (isBusy(id)) return
-        busy = busy + id
-        scope.launch {
-            try {
-                work()
-                delay(1500)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = e.message ?: e.toString()
-            } finally {
-                busy = busy - id
-            }
-        }
+    companion object {
+        /** Statuses just chosen, by ticket: one for the app, as the list and a ticket's sheet each have a desk. */
+        private val moved = mutableStateMapOf<String, Move>()
     }
 }
 
 @Composable
 fun rememberRepairsDesk(): RepairsDesk {
     // The app's own scope, as the iPhone's unstructured Task: a write already sent finishes when the screen is left.
-    return remember { RepairsDesk(erp.app.ErpApp.scope) }
+    val desk = remember { RepairsDesk(erp.app.ErpApp.scope) }
+    // The Outbox gave up on a change: the shelf's copy shows again.
+    val failure by Outbox.failure.collectAsStateWithLifecycle()
+    OnChange(failure?.id) { desk.forgetMoves() }
+    return desk
 }
 
 /** The questions, payment sheets and failure alert of a [RepairsDesk]. */
 @Composable
 fun RepairsDeskHost(desk: RepairsDesk) {
     MoneyFeedback(success = desk.paymentsTaken, failure = false)
+    val feel = rememberHaptics()
+    OnChange(desk.moves) { feel.success() }
+    val toast = LocalNoteState.current
+    desk.note?.let { n -> LaunchedEffect(n) { toast.show(n); desk.note = null } }
     desk.asking?.let { ask -> RepairsAsk(desk, ask) }
     desk.paying?.let { r ->
         // Hand back: the money first, then Collected.

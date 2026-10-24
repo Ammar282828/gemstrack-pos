@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -27,6 +28,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -54,6 +58,9 @@ import erp.app.ui.readableColumn
 
 /** True under the phone layout's bottom bar, which already takes the system navigation inset. */
 val LocalBottomBar = compositionLocalOf { false }
+
+/** True where the business chip sits in the wide navigation rail's header already, so a screen's own top bar does not repeat it. */
+val LocalChipInRail = compositionLocalOf { false }
 
 /**
  * One ERP place: its tabs (the ERP's "one tab row per screen") as the title's menu, and the screen for the
@@ -83,10 +90,15 @@ fun PlaceScreen(
     val currentBare = ScreenRoute.bare(current)
     val mapTitle = tabs.firstOrNull { it.href == currentBare }?.title
         ?: entry?.takeIf { it.href == currentBare }?.let { it.heading ?: it.label }
+    // An entry whose tabs are sectioned (Analytics): a picker of the sections on top, and the title menu holds the open
+    // section's pages. Settings is its own sectioned list, so it takes neither.
+    val sections = if (entry?.id == "settings") emptyList() else (entry?.takeIf { atTab }?.sections ?: emptyList())
+    val openSection = tabs.firstOrNull { it.href == currentBare }?.section ?: sections.firstOrNull()
+    val menuTabs = if (sections.size > 1 && openSection != null) tabs.filter { it.section == openSection } else tabs
     val chrome = remember(current) { Chrome() }
     val native = path == SEARCH_PATH || ScreenRegistry.hasNative(current)
     // A native screen names itself (until it does, the map's name); an ERP page is named from the map.
-    val title = if (path == SEARCH_PATH) "Everything" else (if (native) chrome.title else null) ?: mapTitle ?: ""
+    val title = if (path == SEARCH_PATH) "Search" else (if (native) chrome.title else null) ?: mapTitle ?: ""
 
     // A tab's first screen carries the rate chip (everyone in the shop: an owner's opens the form, anyone else's a page
     // to read) and, with Search, the team note. A sheet's first screen, a pushed page and a karigar's portal carry neither.
@@ -101,7 +113,7 @@ fun PlaceScreen(
         contentWindowInsets = insets,
         topBar = {
             TopAppBar(
-                title = { TitleWithTabs(title, tabs, onChoose = { chosen = it }) },
+                title = { TitleWithTabs(title, menuTabs, section = if (sections.size > 1) openSection else null, current = currentBare, onChoose = { chosen = it }) },
                 navigationIcon = {
                     when {
                         navigator.canGoBack -> IconButton(onClick = navigator::back) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
@@ -110,6 +122,8 @@ fun PlaceScreen(
                     }
                 },
                 actions = {
+                    // The open business, at the head of every tab's first screen: tap for the Businesses sheet, hold to switch.
+                    if (isRoot && onClose == null && !LocalChipInRail.current) erp.app.screens.businesses.BusinessChip()
                     // On a tablet the create menu sits here, beside the page's own actions, so nothing floats over a form or the last row.
                     LocalCreateInBar.current?.let { if (isRoot) CreateMenuButton(it) }
                     chrome.actions?.invoke(this)
@@ -123,6 +137,9 @@ fun PlaceScreen(
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             if (teamNote) TeamNoteBanner()
+            if (sections.size > 1 && openSection != null) {
+                SectionPicker(sections, openSection) { name -> tabs.firstOrNull { it.section == name }?.let { chosen = it.href } }
+            }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 CompositionLocalProvider(LocalChrome provides chrome) {
                     key(current) {
@@ -156,7 +173,7 @@ private fun CreateMenuButton(spec: CreateSpec) {
 }
 
 @Composable
-private fun TitleWithTabs(title: String, tabs: List<NavPlace>, onChoose: (String) -> Unit) {
+private fun TitleWithTabs(title: String, tabs: List<NavPlace>, section: String?, current: String, onChoose: (String) -> Unit) {
     if (tabs.size <= 1) {
         Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
         return
@@ -168,10 +185,14 @@ private fun TitleWithTabs(title: String, tabs: List<NavPlace>, onChoose: (String
             Icon(Icons.Rounded.ArrowDropDown, contentDescription = "Switch tab")
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            if (section != null) {
+                Text(section, Modifier.padding(horizontal = 12.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            }
             tabs.forEach { t ->
                 DropdownMenuItem(
                     text = { Text(t.label) },
-                    leadingIcon = { Icon(NavIcon.vector(t.icon), null) },
+                    // The page showing now is ticked, as the iPhone's menu does.
+                    leadingIcon = { Icon(if (t.href == current) Icons.Rounded.Check else NavIcon.vector(t.icon), null) },
                     onClick = { open = false; onChoose(t.href) },
                 )
             }
@@ -187,6 +208,20 @@ private fun RowScope.AccountButton(name: String, onClick: () -> Unit) {
             Box(contentAlignment = Alignment.Center) {
                 Text(initials, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
+        }
+    }
+}
+
+/** The web's top row of a sectioned entry: its sections, each opening its first page. */
+@Composable
+private fun SectionPicker(sections: List<String>, open: String, onPick: (String) -> Unit) {
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        sections.forEachIndexed { i, name ->
+            SegmentedButton(
+                selected = name == open,
+                onClick = { onPick(name) },
+                shape = SegmentedButtonDefaults.itemShape(i, sections.size),
+            ) { Text(name, maxLines = 1) }
         }
     }
 }

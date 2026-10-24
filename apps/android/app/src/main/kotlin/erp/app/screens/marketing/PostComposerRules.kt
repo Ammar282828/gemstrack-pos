@@ -1,5 +1,7 @@
 package erp.app.screens.marketing
 
+import erp.core.logic.ShopNumber
+
 /**
  * What decides whether a piece can go and where, as plain functions of the draft (PostComposerModel's computed
  * properties): no screen, no network, so they are tested on the JVM. The caption's wording and every route are the web's;
@@ -15,10 +17,8 @@ object PostComposerRules {
     /** The weight as typed, "g" taken off and put back, only when it is a number above zero. */
     fun validWeight(words: MarketingValue): String {
         val text = words.s("weight").trim().replace("g", "", ignoreCase = true)
-        // Strictly a number, as Swift's Double(String): a space left inside is not one.
-        if (!Regex("""[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?""").matches(text)) return ""
-        if ((text.toDoubleOrNull() ?: return "") <= 0) return ""
-        return text + "g" + if (words["weightEach"].bool) " each" else ""
+        val value = ShopNumber.parse(text)?.takeIf { it > 0 } ?: return ""
+        return WebsiteNumber.grams(value) + "g" + if (words["weightEach"].bool) " each" else ""
     }
 
     fun makeSquare(words: MarketingValue) = words.s("formats") != "story"

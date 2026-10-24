@@ -29,7 +29,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import erp.app.R
+import erp.app.config.Business
+import erp.app.config.Businesses
 import erp.app.config.House
+import erp.app.screens.businesses.BusinessLogo
 
 fun Context.findActivity(): Activity? {
     var c: Context? = this
@@ -40,12 +43,24 @@ fun Context.findActivity(): Activity? {
     return null
 }
 
-/** Sign in with Google, on the house's own ground. */
+/**
+ * Sign in with Google, on the business's own ground: it says which business this is signing in to, with a way to switch (a business
+ * whose Android app is not registered yet says so here and offers the others, rather than failing).
+ */
 @Composable
 fun SignInScreen(session: Session) {
     val state by session.state.collectAsStateWithLifecycle()
     val error by session.error.collectAsStateWithLifecycle()
     val activity = LocalContext.current.findActivity()
+    SignInBody(
+        session.business, state, error, canAsk = activity != null,
+        onGoogle = { activity?.let(session::signIn) }, onBrowser = { activity?.let(session::signInThroughBrowser) },
+    )
+}
+
+/** The page itself, from what it shows (a screenshot draws it for a business that is not set up, which no Session in the demo can be). */
+@Composable
+internal fun SignInBody(business: Business, state: Session.State, error: String?, canAsk: Boolean, onGoogle: () -> Unit, onBrowser: () -> Unit) {
     val signingIn = state == Session.State.SigningIn
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -56,9 +71,9 @@ fun SignInScreen(session: Session) {
                 verticalArrangement = Arrangement.spacedBy(28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Image(painterResource(R.drawable.brand_logo), stringResource(R.string.app_name), Modifier.widthIn(max = 280.dp))
+                BusinessLogo(business, Modifier.widthIn(max = 280.dp), height = 64.dp)
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(House.storeName, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+                    Text(business.displayName, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
                     Text(
                         "Sign in with the Gmail the shop has for you.",
                         style = MaterialTheme.typography.bodyMedium,
@@ -67,17 +82,19 @@ fun SignInScreen(session: Session) {
                     )
                 }
                 if (state == Session.State.NeedsSetup) {
-                    Text(House.needsSetupMessage, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                    Text(House.needsSetupMessage(business), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                 } else {
                     // The button says what is happening; the page itself never goes to a loading state.
-                    Button(onClick = { activity?.let(session::signIn) }, enabled = !signingIn && activity != null) {
+                    Button(onClick = onGoogle, enabled = !signingIn && canAsk) {
                         Text(if (signingIn) "Signing in…" else "Sign in with Google")
                     }
-                    TextButton(onClick = { activity?.let(session::signInThroughBrowser) }, enabled = !signingIn && activity != null) {
+                    TextButton(onClick = onBrowser, enabled = !signingIn && canAsk) {
                         Text("Sign in through the browser")
                     }
                 }
                 error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center) }
+                // Another business of this phone's, or a new one by its address.
+                TextButton(onClick = Businesses::openSheet) { Text("Switch business") }
             }
         }
     }

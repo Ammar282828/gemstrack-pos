@@ -89,6 +89,9 @@ object OrderPaths {
     /** New order's form on the order on file (NewOrderEdit). */
     fun edit(id: String) = "/orders/${piece(id)}/edit"
 
+    /** Change rate: the same edit, opened at its rates. */
+    fun changeRate(id: String) = edit(id) + "?rates=1"
+
     fun invoice(id: String) = "/invoices/${piece(id)}"
 
     fun customer(id: String) = "/customers/${piece(id)}"
@@ -281,11 +284,15 @@ fun OrdersStatusLine(icon: ImageVector, text: String, tone: Tone, modifier: Modi
  * not made; the invoice made from the order carries the discount (Order to invoice). Settle is owners only.
  */
 object OrderAdvance {
-    suspend fun record(order: Order, amount: Double, method: String, note: String) {
-        ErpApi.shared.write(
-            "recordOrderAdvance",
-            mapOf("orderId" to order.id, "amount" to amount, "method" to method, "notes" to note),
-        )
+    /**
+     * Cash and/or gold handed over (`exchanges`, the rows as the order keeps them): the cash may be 0 when gold is
+     * given, and one of the two must be above 0 (lib/writes/order-advance.ts). The gold joins the order's exchange,
+     * comes off the balance, and is carried to the invoice.
+     */
+    suspend fun record(order: Order, amount: Double, method: String, note: String, exchanges: List<Map<String, Any?>> = emptyList()) {
+        val fields = linkedMapOf<String, Any?>("orderId" to order.id, "amount" to amount, "method" to method, "notes" to note)
+        if (exchanges.isNotEmpty()) fields["exchanges"] = exchanges
+        ErpApi.shared.write("recordOrderAdvance", fields)
     }
 
     suspend fun settle(order: Order, amount: Double, method: String, note: String, remainder: Double) {

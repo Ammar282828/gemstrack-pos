@@ -109,7 +109,7 @@ object DesignProtocol {
  *         options = mapOf("action" to "preset", "value" to "stack-left", "px" to 540))
  *     val doc2 = answer["doc"]; val jpeg = DesignProtocol.imageBytes(answer)
  */
-open class DesignEngine(context: Context, private val house: String = House.id, private val scriptSource: (() -> String)? = null) {
+open class DesignEngine(context: Context, private val house: String = House.art, private val scriptSource: (() -> String)? = null) {
     private val appContext = context.applicationContext
     private val lock = Mutex()
     private val ids = AtomicLong()

@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import erp.app.config.House
 import erp.app.config.Prefs
+import erp.app.data.Outbox
 import erp.app.data.ErpApi
 import erp.app.screens.ads.AdsStudioHandoffs
 import erp.app.screens.marketing.MarketingRequest
@@ -620,6 +621,28 @@ class DesignPublishModel(val model: DesignWorkspaceModel) {
             finished = true
             if (model.work?.id != null) model.finish()
             model.say("Sent", "Everything you chose has gone.")
+        }
+    }
+
+    /**
+     * Publish without waiting: the whole run is the Outbox's, and "Published to 3 places" (or which place failed, with Retry, which
+     * sends only what has not gone) comes back from there. The steps keep their states for anyone still looking at the sheet.
+     */
+    fun runInBackground() {
+        val todo = plan().steps.filter { memory[it.id] == null && !it.manual }
+        if (todo.isEmpty() || busy) return
+        busy = true
+        confirming = false
+        val title = work?.displayName ?: "the design"
+        Outbox.post("Publish “$title”") {
+            run()
+            val left = plan().steps.filter { states[it.id]?.status == Status.Failed && memory[it.id] == null }
+            left.firstOrNull()?.let { first ->
+                // A refusal is not retried by itself (a post must not go twice); the banner's Retry runs only what failed.
+                throw ErpApi.Failure(400, "${first.label} didn't go: ${states[first.id]?.error ?: "it failed"}" + if (left.size > 1) " (and ${left.size - 1} more)" else "")
+            }
+            val n = todo.size
+            if (queued) "Done: $n ${if (n == 1) "step" else "steps"} in the queue" else "Published to $n ${if (n == 1) "place" else "places"}"
         }
     }
 

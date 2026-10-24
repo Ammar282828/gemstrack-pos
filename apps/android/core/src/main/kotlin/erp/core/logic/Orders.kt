@@ -132,9 +132,12 @@ fun getOrderPaymentStatus(order: Order): PaymentStatus {
     return PaymentStatus.unpaid
 }
 
+/** An advance line that shows: cash, or gold handed over. */
+private fun isAdvanceLine(p: Payment): Boolean = p.amount > 0 || p.exchanges.isNotEmpty()
+
 /**
- * An order's cash advances as the invoice's payments, each with its day and how it was paid
- * (the owner, 2026-09-25: "carry over all details from order to invoice, such as advances").
+ * An order's advance lines as the order page lists them: the cash ones (the invoice's payments, see
+ * `orderAdvancePayments`) and those paid in gold only (amount 0, never a payment).
  *
  * `advancePayment` is the running total of every cash advance; `advances` lists the ones
  * recorded after the order was placed. What the list does not account for was taken with the
@@ -143,10 +146,10 @@ fun getOrderPaymentStatus(order: Order): PaymentStatus {
  * ORD-000123"); the order page shows the same lines. (The TS takes a `Pick` of the order: its
  * id, createdAt, advancePayment, advanceMethod and advances.)
  */
-fun orderAdvancePayments(order: Order, label: String? = null): List<Payment> {
+fun orderAdvanceLines(order: Order, label: String? = null): List<Payment> {
     val text = label ?: "Advance on order ${order.id}"
     val cash = order.advancePayment
-    val later = order.advances.filter { it.amount > 0 }
+    val later = order.advances.filter { isAdvanceLine(it) }
     val laterSum = later.fold(0.0) { acc, p -> acc + p.amount }
     if (laterSum > cash + 0.5) {
         return if (cash > 0) listOf(Payment(amount = cash, date = order.createdAt, notes = text)) else emptyList()
@@ -158,10 +161,20 @@ fun orderAdvancePayments(order: Order, label: String? = null): List<Payment> {
     }
     for (p in later) {
         val note = JS.trim(p.notes ?: "")
-        lines.add(Payment(amount = p.amount, date = p.date, notes = if (note.isEmpty()) text else "$text: $note", method = p.method, reference = p.reference))
+        lines.add(Payment(amount = p.amount, date = p.date, notes = if (note.isEmpty()) text else "$text: $note", method = p.method, reference = p.reference, exchanges = p.exchanges))
     }
     return lines
 }
+
+/**
+ * An order's cash advances as the invoice's payments, each with its day and how it was paid
+ * (the owner, 2026-09-25: "carry over all details from order to invoice, such as advances").
+ * Gold taken with an advance is not here: it is the order's exchange row, carried as that.
+ */
+fun orderAdvancePayments(order: Order, label: String? = null): List<Payment> =
+    orderAdvanceLines(order, label).filter { it.amount > 0 }.map {
+        Payment(amount = it.amount, date = it.date, notes = it.notes, method = it.method, reference = it.reference)
+    }
 
 /** The order after one of its advance lines is taken away (`withoutOrderAdvance`). */
 data class OrderAdvanceRemoval(
@@ -173,14 +186,14 @@ data class OrderAdvanceRemoval(
 )
 
 /**
- * The order without one of its advance lines, as `orderAdvancePayments` lists them (owner,
+ * The order without one of its advance lines, as `orderAdvanceLines` lists them (owner,
  * 2026-10-01: "add ability to delete … advances"). The first line, when the total is more than
  * the list, is the advance taken with the order (its `advanceMethod` goes with it); the rest are
  * the `advances` list, in order. Null for a line that isn't there. The balance is the caller's:
  * subtotal − discount − what is left − exchange, as recording an advance works it out.
  */
 fun withoutOrderAdvance(order: Order, lineIndex: Int): OrderAdvanceRemoval? {
-    val lines = orderAdvancePayments(order, label = "")
+    val lines = orderAdvanceLines(order, label = "")
     if (lineIndex < 0 || lineIndex >= lines.size) return null
     val removed = lines[lineIndex]
     val cash = order.advancePayment
@@ -192,11 +205,11 @@ fun withoutOrderAdvance(order: Order, lineIndex: Int): OrderAdvanceRemoval? {
     if (hasFirst && lineIndex == 0) {
         return OrderAdvanceRemoval(advancePayment = rupees(laterSum), advances = all, dropMethod = true, removed = removed)
     }
-    // The k-th positive entry of the list.
+    // The k-th line of the list (cash, or gold handed over).
     var k = lineIndex - (if (hasFirst) 1 else 0)
     var at = -1
     for ((i, p) in all.withIndex()) {
-        if (p.amount > 0) {
+        if (isAdvanceLine(p)) {
             if (k == 0) { at = i; break }
             k -= 1
         }

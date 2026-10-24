@@ -61,6 +61,9 @@ class SaleFormState(
     /** A piece being described that is not on the sale yet. */
     var newItem by mutableStateOf<SaleLine?>(null)
     var step by mutableStateOf(EntryStep.customer)
+
+    /** Change rate: the rates lead the Pieces step instead of following it. */
+    var ratesFirst = false
     var scanning by mutableStateOf(false)
     var rateSheet by mutableStateOf(false)
     var confirmingReset by mutableStateOf(false)
@@ -280,17 +283,11 @@ class SaleFormState(
 
     /**
      * A rate typed on the sale becomes the shop's, after the invoice is saved and never before (the invoice is priced
-     * from the rates in hand), as the web does. It is not waited for: if it does not go, the sale is still saved and a
-     * line says so.
+     * from the rates in hand), as the web does. It is not waited for: the Outbox sends it, and says app-wide if it
+     * cannot (the sale is still saved).
      */
-    private suspend fun keepRates(rates: Map<String, Double>) {
-        try {
-            ErpApi.shared.write("setRates", mapOf("rates" to rates))
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            ratesNote = "The sale is saved. The rate you typed was not kept for next time (${e.message}): set it from the rate chip."
-        }
+    private fun keepRates(rates: Map<String, Double>) {
+        ErpApi.shared.enqueue("setRates", mapOf("rates" to rates), "Rates")
     }
 
     // MARK: Save
@@ -352,7 +349,7 @@ class SaleFormState(
         try {
             val out = ErpApi.shared.write("createInvoice", sent.payload(f, qr))
             val id = ((out["invoice"] as? Map<*, *>)?.get("id") as? String).orEmpty()
-            if (kept != null) ErpApp.scope.launch { keepRates(kept) }
+            if (kept != null) keepRates(kept)
             SaleStore.clear()
             WorkDraftSync.sale.drop()
             replaceDraft(SaleDraft())

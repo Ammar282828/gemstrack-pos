@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import erp.app.data.ErpApi
+import erp.app.ui.rememberHaptics
 import erp.app.screens.customers.FormSection
 import erp.app.screens.neworder.FieldRow
 import erp.app.screens.neworder.PickerRow
@@ -50,26 +51,15 @@ fun WorkshopStockJobSheet(karigars: List<Karigar>, presetKarigarId: String, onDi
     val cleanedWhat = what.trim()
     val canSave = karigarId.isNotEmpty() && cleanedWhat.isNotEmpty() && !saving
 
+    val haptics = rememberHaptics()
     fun save() {
         if (!canSave) return
         val write = WorkshopWrites.stockJob(karigarId, what, category, metal, weightText, quantityText, makingText, size, notes)
-        saving = true
-        error = null
-        scope.launch {
-            try {
-                ErpApi.shared.write(write.op, write.fields)
-                val name = karigars.firstOrNull { it.id == karigarId }?.name ?: ""
-                note.show(Note("Job assigned", "$cleanedWhat → $name"))
-                saving = false
-                onDismiss()
-                return@launch
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                error = workshopSay(e)
-            }
-            saving = false
-        }
+        ErpApi.shared.enqueue(write.op, write.fields, "Job: $cleanedWhat")
+        val name = karigars.firstOrNull { it.id == karigarId }?.name ?: ""
+        note.show(Note("Job assigned", "$cleanedWhat → $name"))
+        haptics.success()
+        onDismiss()
     }
 
     WorkshopFormSheet("Assign Stock Work", onDismiss, "Assign", canSave, ::save, locked = saving) {
@@ -112,6 +102,7 @@ fun WorkshopJobDetailsSheet(job: KarigarJob, onDismiss: () -> Unit) {
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
+    val haptics = rememberHaptics()
     fun save() {
         // The web's own words when the name is cleared.
         if (name.trim().isEmpty()) {
@@ -119,22 +110,11 @@ fun WorkshopJobDetailsSheet(job: KarigarJob, onDismiss: () -> Unit) {
             return
         }
         val write = WorkshopWrites.jobDetails(job.id, name, size, weightText, instructions)
-        saving = true
         error = null
-        scope.launch {
-            try {
-                ErpApi.shared.write(write.op, write.fields)
-                note.show(Note("Details updated", job.description))
-                saving = false
-                onDismiss()
-                return@launch
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                error = workshopSay(e)
-            }
-            saving = false
-        }
+        ErpApi.shared.enqueue(write.op, write.fields, "Details of ${job.description}")
+        note.show(Note("Details updated", job.description))
+        haptics.success()
+        onDismiss()
     }
 
     WorkshopFormSheet("Making details", onDismiss, "Save", name.trim().isNotEmpty(), ::save, locked = saving) {
