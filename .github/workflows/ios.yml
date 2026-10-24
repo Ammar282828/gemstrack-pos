@@ -8,8 +8,10 @@ name: iPhone app
 # - Every other month: a fresh TestFlight build, before the last one's 90 days run out.
 # - By hand ("Run workflow"): mode check = the simulator check, testflight = upload; testers =
 #   emails to invite. From a cloud session, which cannot press it: a line in apps/ios/RELEASES.md.
-# macOS minutes count ten to one against the account's Actions minutes, which the deploys use too:
-# it builds only when the shell changes, never for a change to the ERP.
+# macOS minutes count ten to one against the account's Actions minutes, which the deploys use too. Since
+# 2026-10-24 the Mac jobs (simulator, TestFlight) run only by hand: a push or the schedule runs the Linux
+# plan and testers only. The native app (apps/iphone) has replaced this shell for both houses, and its
+# builds are Xcode Cloud's.
 
 on:
   push:
@@ -95,7 +97,8 @@ jobs:
 
   simulator:
     needs: plan
-    if: needs.plan.outputs.simulator == 'true' && needs.plan.outputs.native != 'false'
+    # The Mac jobs only by hand: a push or the schedule never spends Mac minutes (ten to one), even with the key missing.
+    if: github.event_name == 'workflow_dispatch' && needs.plan.outputs.simulator == 'true' && needs.plan.outputs.native != 'false'
     runs-on: macos-26
     timeout-minutes: 40
     defaults:
@@ -182,7 +185,7 @@ jobs:
 
   testflight:
     needs: plan
-    if: needs.plan.outputs.upload != '[]' && needs.plan.outputs.upload != '' && needs.plan.outputs.native != 'false'
+    if: github.event_name == 'workflow_dispatch' && needs.plan.outputs.upload != '[]' && needs.plan.outputs.upload != '' && needs.plan.outputs.native != 'false'
     runs-on: macos-26
     timeout-minutes: 50
     strategy:

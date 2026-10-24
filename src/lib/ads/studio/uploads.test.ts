@@ -18,7 +18,7 @@ describe('fitUpload', () => {
     const out = await fitUpload(await picture(4000, 3000, true));
     expect(Math.max(out.w, out.h)).toBeLessThanOrEqual(2400);
     expect(out.data.length).toBeLessThanOrEqual(900 * 1024);
-  });
+  }, 30_000); // a 12-megapixel encode: over 5 s on a 2-CPU build machine, where the deploy runs
   it('refuses a file that is not a picture', async () => {
     await expect(fitUpload(Buffer.from('not a picture'))).rejects.toMatchObject({ status: 400 });
   });

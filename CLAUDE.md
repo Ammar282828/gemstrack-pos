@@ -82,9 +82,10 @@ The rest (the account's reach, the setup script, network) is in `docs/cloud-sess
   credentials from `GCP_SA_KEY_B64` (`claude-cloud@gemstrack-pos`), Node 20, `.env.taheri.local` / `.env.mina.local` with secrets filled.
   **To cut the cloud off, delete that service account's key.**
 - **gcloud:** `env -u CLOUDSDK_AUTH_ACCESS_TOKEN gcloud …` (the placeholder token otherwise answers UNAUTHENTICATED).
-- **Going live:** push only your `claude/…` branch; `.github/workflows/cloud-deploy.yml` merges `main`, `taheri-next` and gemstrack-pos
-  `main` into it, typechecks, tests, and pushes both houses at once, **with no review** (owner, 2026-09-27). On a conflict, rebase on
-  `origin/main` and push again. "Run workflow" is a dry run.
+- **Going live:** push only your `claude/…` branch; **Google Cloud Build** (`scripts/cloud/deploy.sh`, since 2026-10-24: GitHub's free
+  Actions minutes ran out) merges `main`, `taheri-next` and gemstrack-pos `main` into it, typechecks, tests, and pushes both houses at
+  once, **with no review** (owner, 2026-09-27). Its result is the commit's `deploy (Cloud Build)` status. On a conflict, rebase on
+  `origin/main` and push again.
 - **Mac only:** SSH to Hostinger, Google sign-in to a local ERP (`?dev=1` works here), the Mac's memory files, GoDaddy / Hostinger tokens.
 
 ## Security: Mina's repo is public (found 2026-09-27)

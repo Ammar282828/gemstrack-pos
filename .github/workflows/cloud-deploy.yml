@@ -1,3 +1,7 @@
+# Since 2026-10-24 Google Cloud Build deploys every push to claude/** (scripts/cloud/deploy.sh, the trigger
+# "deploy-cloud-sessions"): GitHub's free Actions minutes ran out that day and stopped every deploy. This
+# workflow no longer runs on a push; "Run workflow" is left as a manual fallback.
+#
 # A Claude Code cloud session (claude.ai/code) goes live by itself.
 #
 # A cloud session may push only its own branch (claude/…) — never taheri-next, and never
@@ -16,8 +20,6 @@
 name: Deploy a cloud session to both houses
 
 on:
-  push:
-    branches: ['claude/**']
   workflow_dispatch:
     inputs:
       dry_run:
@@ -98,7 +100,7 @@ jobs:
         run: npm test
 
       - name: Ship to both houses
-        if: github.event_name == 'push' || !inputs.dry_run
+        if: '!inputs.dry_run'
         run: |
           set -e
           export GIT_SSH_COMMAND="ssh -i ~/.ssh/hom -o IdentitiesOnly=yes"

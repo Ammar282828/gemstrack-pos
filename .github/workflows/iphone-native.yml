@@ -11,10 +11,20 @@ name: iPhone app (native)
 #   macOS minutes here count ten to one against the Actions minutes the web deploys need, and spent the
 #   month's allowance in one day.
 
+# - Pushed, it runs only for the code those Linux tests compile: ERPCore, the Contract package and the screens it links
+#   (NewOrder, Sale), and cases.json. Every other Swift change (screens, the Mac, the widget) is compiled by Xcode Cloud's
+#   release. The test job cost about 5 billed minutes a push, and the month's 2,000 ran out on 2026-10-24 (owner: "do
+#   xcode cloud").
+
 on:
   push:
     branches: ['claude/**']
-    paths: ['apps/iphone/**', '.github/workflows/iphone-native.yml']
+    paths:
+      - 'apps/iphone/Packages/**'
+      - 'apps/iphone/contract/**'
+      - 'apps/iphone/App/Screens/NewOrder/**'
+      - 'apps/iphone/App/Screens/Sale/**'
+      - '.github/workflows/iphone-native.yml'
   workflow_dispatch:
     inputs:
       testflight:
