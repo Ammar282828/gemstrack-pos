@@ -310,7 +310,12 @@ struct ZoomDestination: ViewModifier {
     }
 
     func body(content: Content) -> some View {
+        #if os(iOS)
         if fromRow, let namespace { content.navigationTransition(.zoom(sourceID: id, in: namespace)) } else { content }
+        #else
+        // A Mac's pages open in place or in their own window: nothing grows from a row.
+        content
+        #endif
     }
 }
 

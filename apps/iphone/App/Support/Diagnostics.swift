@@ -63,11 +63,13 @@ final class Diagnostics: NSObject, MXMetricManagerSubscriber {
         for d in p.diskWriteExceptionDiagnostics ?? [] {
             out.append(base("disk", d, d.callStackTree))
         }
+        #if os(iOS)
         for d in p.appLaunchDiagnostics ?? [] {
             var r = base("launch", d, d.callStackTree)
             r["durationMs"] = Int(d.launchDuration.converted(to: .milliseconds).value)
             out.append(r)
         }
+        #endif
         return out
     }
 

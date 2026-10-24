@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A place in the ERP, by its path ("/orders/ORD-000123"): what NavigationStack pushes.
-struct Route: Hashable, Identifiable {
+struct Route: Hashable, Identifiable, Codable {
     let path: String
     var id: String { path }
 }

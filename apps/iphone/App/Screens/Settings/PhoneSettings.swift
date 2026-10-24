@@ -230,7 +230,7 @@ struct PhoneSettings: View {
         allowed = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
         // Coming back to the app re-reads quietly: the switches stay up while asking, and only a decided answer
         // changes them (a failed read keeps what was shown, with the error).
-        if allowed == .authorized || allowed == .provisional || allowed == .ephemeral {
+        if allowed == .authorized || allowed == .provisional || PhoneSettings.isEphemeral(allowed) {
             do {
                 off = Set(try await Push.shared.kindsOff())
                 loaded = true
@@ -261,5 +261,16 @@ struct PhoneSettings: View {
             self.error = error.localizedDescription
         }
         saving = false
+    }
+}
+
+extension PhoneSettings {
+    /// An App Clip's short-lived permission: only an iPhone has it.
+    static func isEphemeral(_ status: UNAuthorizationStatus?) -> Bool {
+        #if os(iOS)
+        status == .ephemeral
+        #else
+        false
+        #endif
     }
 }

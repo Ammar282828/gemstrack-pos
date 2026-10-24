@@ -360,6 +360,6 @@ private struct StockCard: View {
             .ledgerCard(padding: 10)
         }
         .buttonStyle(.plain)
-        .hoverEffect()
+        .pointerHover()
     }
 }

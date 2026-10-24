@@ -316,8 +316,7 @@ struct InvoicesList: View {
                                     }
                                 }
                                 .ledgerCard(padding: 20)
-                                .contentShape(.hoverEffect, .rect(cornerRadius: Radius.card, style: .continuous))
-                                .hoverEffect()
+                                .pointerHover(.rect(cornerRadius: Radius.card, style: .continuous))
                                 // The card carries the row's own actions (rule 16); the row says "You" itself.
                                 .contextMenu { invoiceActions(inv) }
                             }

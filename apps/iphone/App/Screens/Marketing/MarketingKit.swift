@@ -131,7 +131,7 @@ struct MarketingLink: View {
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .hoverEffect()
+            .pointerHover()
         } else {
             NavigationLink(value: Route(path: path)) { label }
         }

@@ -97,7 +97,7 @@ struct PostPiecesScreen: View {
                                         .overlay(alignment: .topTrailing) { pickMark(tray, p) }
                                 }
                                 .buttonStyle(.plain)
-                                .hoverEffect()
+                                .pointerHover()
                                 .accessibilityAddTraits(tray.has(p.id) ? .isSelected : [])
                             } else {
                                 NavigationLink(value: Route(path: MarketingKit.piecePath(p.id))) {
