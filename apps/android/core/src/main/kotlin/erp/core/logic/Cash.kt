@@ -52,6 +52,8 @@ data class CashIn(
     val total: Double,
     /** The part of `exchange` taken off an invoice's grand total, which revenue therefore never counted. Revenue less (total less this) is what is still owed. */
     val exchangeOffInvoices: Double,
+    /** Credit handed back to customers in the period (positive). Already taken off `invoicePayments`, like a refund; Cash Out shows it. */
+    val paidBack: Double = 0.0,
 )
 
 /** `inPeriod` of the TS: parseISO, as the rest of the page, so a bare "2026-09-01" is local (Karachi) midnight, not UTC. */
@@ -107,12 +109,14 @@ fun cashInForPeriod(
     var invoicePayments = 0.0
     var invoiceExchange = 0.0
     var legacyExchange = 0.0
+    var paidBack = 0.0
     for (inv in invoices) {
         if (inv.status == InvoiceStatus.refunded) continue
         for (p in inv.paymentHistory) {
             if (!inPeriod(p.date, period)) continue
             val inKind = paymentExchangePart(p)
             invoicePayments += (if (p.amount.isNaN()) 0.0 else p.amount) - inKind
+            if (isCreditPayback(p)) paidBack -= p.amount
             legacyExchange += inKind
         }
         if (inPeriod(invoiceDate?.invoke(inv) ?: inv.createdAt, period)) invoiceExchange += exchangeTotal(invoiceExchanges(inv))
@@ -136,6 +140,7 @@ fun cashInForPeriod(
         extraRevenue = extraRevenue,
         total = invoicePayments + orderAdvances + exchange + extraRevenue,
         exchangeOffInvoices = invoiceExchange,
+        paidBack = paidBack,
     )
 }
 
@@ -149,6 +154,8 @@ fun cashInForPeriod(
 //        recorded for those: "Not recorded")
 //   out  expenses paid by the business today: expenses carry no method, so every one the business
 //        paid (not a partner out of pocket) is counted as leaving the drawer
+//   (a customer's credit handed back is a negative invoice payment: it lowers money in and the drawer
+//   by its method, and is also shown as `paidBack`, money out; the sale's revenue is untouched)
 //   exchange  gold (or anything) taken in exchange today, at the value agreed: its own line, never
 //        in cash — it is in the safe, not the drawer
 // Net cash is the drawer: money in by Cash, less the business's expenses.
@@ -174,6 +181,8 @@ data class CashLine(
     val amount: Double,
     val method: CashMethod,
     val at: String,
+    /** A customer's credit handed back (amount is negative). */
+    val payback: Boolean = false,
 )
 
 data class ExpenseLine(val description: String, val amount: Double, val category: String)
@@ -186,6 +195,8 @@ class TodaysCash(
     /** Money in, every method. */
     val totalIn: Double,
     val exchange: Double,
+    /** Credit handed back to customers today (positive; already taken off money in and the drawer). */
+    val paidBack: Double,
     /** What the business paid out today. */
     val expenses: Double,
     val expenseLines: List<ExpenseLine>,
@@ -237,7 +248,7 @@ fun todaysCash(
             if (!within(p.date, period)) continue
             val amount = p.amount - paymentExchangePart(p)
             if (amount != 0.0) {
-                lines.add(CashLine(CashSource.invoice, inv.id, if (inv.customerName.isEmpty()) "Walk-in" else inv.customerName, amount, methodOf(p.method), p.date))
+                lines.add(CashLine(CashSource.invoice, inv.id, if (inv.customerName.isEmpty()) "Walk-in" else inv.customerName, amount, methodOf(p.method), p.date, isCreditPayback(p)))
             }
         }
     }
@@ -274,6 +285,7 @@ fun todaysCash(
     for (l in lines) byMethod[l.method] = (byMethod[l.method] ?: 0.0) + l.amount
     val totalIn = lines.fold(0.0) { acc, l -> acc + l.amount }
 
+    val paidBack = lines.fold(0.0) { s, l -> s + if (l.payback) -l.amount else 0.0 }
     val paidOut = expenses.filter { within(it.date, period) && it.paidBy == PaidBy.business }
     val spent = paidOut.fold(0.0) { acc, e -> acc + (if (e.amount.isNaN()) 0.0 else e.amount) }
 
@@ -282,6 +294,7 @@ fun todaysCash(
         byMethod = byMethod,
         totalIn = totalIn,
         exchange = cashIn.exchange,
+        paidBack = paidBack,
         expenses = spent,
         expenseLines = paidOut.map { ExpenseLine(it.description, if (it.amount.isNaN()) 0.0 else it.amount, it.category) },
         netCash = (byMethod[CashMethod.cash] ?: 0.0) - spent,

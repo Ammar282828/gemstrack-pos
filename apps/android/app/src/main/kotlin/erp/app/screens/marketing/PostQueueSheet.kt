@@ -55,8 +55,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import erp.app.ErpApp
+import erp.app.data.Outbox
+import erp.app.data.ErpApi
 import erp.app.nav.ScreenTitle
 import erp.app.screens.stock.StockImage
+import erp.app.ui.LocalNoteState
+import erp.app.ui.Note
+import erp.core.logic.Album
 import erp.app.ui.ActionRow
 import erp.app.ui.AppClock
 import erp.app.ui.FormSection
@@ -94,6 +100,12 @@ object PostQueueLogic {
             out.add(Place("website", "Website", shelf + " · " + photos + (if (e.websiteFeatured) " · featured" else ""), "website", site))
         }
         if ("instagram" in e.unitKeys) out.add(Place("instagram", "Instagram story", "The story picture", "instagram", listOf("instagram")))
+        if ("ig-post" in e.unitKeys) {
+            // The WhatsApp photos as one carousel, the first ten (album.ts); its own send, so its own line.
+            val n = minOf(e.waPhotos, Album.igCarouselMax)
+            val cut = if (e.waPhotos > Album.igCarouselMax) " · the first ${Album.igCarouselMax} of ${e.waPhotos}" else ""
+            out.add(Place("ig-post", "Instagram (${Album.photosLabel(n)})", "One post, the caption once$cut", "instagram", listOf("ig-post")))
+        }
         for (key in e.whatsapp) {
             val units = e.unitKeys.filter { it.startsWith("wa:$key:") }
             if (units.isEmpty()) continue
@@ -137,34 +149,33 @@ object PostQueueLogic {
  */
 @Composable
 fun PostQueueSheet(id: String, onClose: () -> Unit = {}, embedded: Boolean = false) {
-    var busy by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(id) { PostsStore.refreshQueue() }
     if (embedded) {
         ScreenTitle("In the queue")
-        Box(Modifier.fillMaxSize().readableColumn(720.dp)) { QueueContent(id, onClose, busy) { busy = it } }
+        Box(Modifier.fillMaxSize().readableColumn(720.dp)) { QueueContent(id, onClose, true) }
     } else {
-        // Not swiped away mid-send: the answer (or the error) is shown here.
-        FullScreenSheet(title = "In the queue", onCancel = { if (busy == null) onClose() }, cancelText = "Done") {
-            Box(Modifier.fillMaxSize().readableColumn(720.dp)) { QueueContent(id, onClose, busy) { busy = it } }
+        // Sends run in the background (the iPhone's Outbox), so the sheet is free at once: its result comes back as a toast.
+        FullScreenSheet(title = "In the queue", onCancel = onClose, cancelText = "Done") {
+            Box(Modifier.fillMaxSize().readableColumn(720.dp)) { QueueContent(id, onClose, false) }
         }
     }
 }
 
 @Composable
-private fun QueueContent(id: String, onClose: () -> Unit, busy: String?, setBusy: (String?) -> Unit) {
+private fun QueueContent(id: String, onClose: () -> Unit, embedded: Boolean) {
     val state by PostsStore.state.collectAsStateWithLifecycle()
     val entry = state.queue.firstOrNull { it.id == id }
     if (entry == null) {
         NotAvailableState("No longer in the queue", why = "It was sent, removed, or changed on another device.", icon = Icons.Filled.Inbox)
         return
     }
-    QueuePage(entry, state, onClose, busy, setBusy)
+    QueuePage(entry, state, onClose, embedded)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QueuePage(e: PostQueueEntry, state: PostsState, onClose: () -> Unit, busy: String?, setBusy: (String?) -> Unit) {
-    val scope = rememberCoroutineScope()
+private fun QueuePage(e: PostQueueEntry, state: PostsState, onClose: () -> Unit, embedded: Boolean) {
+    val note = LocalNoteState.current
     var said by remember { mutableStateOf<String?>(null) }
     var failure by remember { mutableStateOf<String?>(null) }
     var confirmingSend by remember { mutableStateOf(false) }
@@ -173,19 +184,12 @@ private fun QueuePage(e: PostQueueEntry, state: PostsState, onClose: () -> Unit,
     var choosing by remember { mutableStateOf(false) }
     var whenAt by remember { mutableStateOf(AppClock.now().plusSeconds(3600)) }
 
-    fun run(doing: String, work: suspend () -> String?) {
-        scope.launch {
-            setBusy(doing); failure = null; said = null
-            try {
-                said = work()
-            } catch (c: CancellationException) {
-                throw c
-            } catch (ex: Exception) {
-                failure = ex.message ?: "Something went wrong."
-            } finally {
-                setBusy(null)
-            }
-        }
+    // Handed to the Outbox: the sheet is free at once, and the words (or the failure, with Retry) come back from there.
+    fun hand(label: String, saying: String, close: Boolean = false, work: suspend () -> String) {
+        said = saying
+        failure = null
+        Outbox.post(label, work)
+        if (close && !embedded) onClose()
     }
 
     val haptics = erp.app.ui.rememberHaptics()
@@ -193,7 +197,7 @@ private fun QueuePage(e: PostQueueEntry, state: PostsState, onClose: () -> Unit,
     // Send now is the page's one action, pinned (the iPhone's ActionBar): only where there is something left to send.
     val sendBar: (@Composable () -> Unit)? = if (PostQueueLogic.canSend(e)) ({
         MarketingActionBar(
-            if (e.status == "failed") "Send what is left now" else "Send now", Icons.AutoMirrored.Filled.Send, { confirmingSend = true }, busy = busy != null,
+            if (e.status == "failed") "Send what is left now" else "Send now", Icons.AutoMirrored.Filled.Send, { confirmingSend = true }, busy = false,
         )
     }) else null
     MarketingPinned(sendBar) { Box(Modifier.fillMaxSize()) {
@@ -222,20 +226,20 @@ private fun QueuePage(e: PostQueueEntry, state: PostsState, onClose: () -> Unit,
                                     TextButton(onClick = { choosing = true }) { Text(ShopDate.stamp(whenAt, withTime = true)) }
                                 }
                                 ActionRow("Schedule for this time", {
-                                    run("Scheduling…") { PostsStore.schedule(e.id, whenAt); picking = false; "It goes " + ShopDate.stamp(whenAt, withTime = true) + "." }
+                                    val id = e.id
+                                    val at = whenAt
+                                    picking = false
+                                    hand("Scheduling the piece", "Scheduling…") { PostsStore.schedule(id, at); "It goes " + ShopDate.stamp(at, withTime = true) + "." }
                                 })
                             } else {
                                 ActionRow("Send at a time…", { picking = true }, Icons.Filled.Schedule)
                             }
-                            if (e.status == "scheduled") ActionRow("Hold it", { run("Holding…") { PostsStore.hold(e.id); "Held. It waits for you." } }, Icons.Filled.PauseCircle)
+                            if (e.status == "scheduled") ActionRow("Hold it", { val id = e.id; hand("Holding the piece", "Holding…") { PostsStore.hold(id); "Held. It waits for you." } }, Icons.Filled.PauseCircle)
                         }
                         if (e.status != "sent") ActionRow("Remove from the queue", { confirmingRemove = true }, Icons.Filled.Delete, tone = Tone.problem)
                     }
                 }
             }
-        }
-        if (busy != null) Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
-            Box(Modifier.clip(Radius.cardShape).background(ErpColors.card).padding(20.dp)) { SkeletonLoading(label = busy) }
         }
     } }
 
@@ -247,9 +251,12 @@ private fun QueuePage(e: PostQueueEntry, state: PostsState, onClose: () -> Unit,
             confirmButton = {
                 TextButton(onClick = {
                     confirmingSend = false
-                    run("Sending…") {
-                        val all = PostsStore.sendNow(e.id)
-                        if (all) "Sent to every place." else { failure = "Not all of it went. What failed is marked; Send what is left tries only those."; null }
+                    val id = e.id
+                    val n = PostQueueLogic.places(e, state).count { p -> !p.units.all { it in e.doneKeys } }
+                    hand("Sending “${e.headline.ifEmpty { "a piece" }}”", "Sending to $n ${if (n == 1) "place" else "places"}…", close = true) {
+                        // Not sent twice: "sendNow" sends only what has not gone, so sending again after a failure posts nothing twice.
+                        if (PostsStore.sendNow(id)) "Posted to $n ${if (n == 1) "place" else "places"}"
+                        else throw ErpApi.Failure(400, "Not all of it went. What failed is marked; Send what is left tries only those.")
                     }
                 }) { Text("Send now") }
             },
@@ -264,7 +271,8 @@ private fun QueuePage(e: PostQueueEntry, state: PostsState, onClose: () -> Unit,
             confirmButton = {
                 TextButton(onClick = {
                     confirmingRemove = false
-                    run("Removing…") { PostsStore.remove(e.id); onClose(); null }
+                    val id = e.id
+                    hand("Removing the piece", "Removing…", close = true) { PostsStore.remove(id); "Removed from the queue" }
                 }) { Text("Remove", color = Tone.problem.color()) }
             },
             dismissButton = { TextButton(onClick = { confirmingRemove = false }) { Text("Cancel") } },

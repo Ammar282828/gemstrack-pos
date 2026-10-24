@@ -30,6 +30,15 @@ describe('/api/app/launch', () => {
     expect(add).not.toHaveBeenCalled();
   });
 
+  it('says which app sent it (the iPhone sends nothing)', async () => {
+    expect((await call(good)).status).toBe(200);
+    expect(add.mock.calls[0][1].platform).toBe('ios');
+    expect((await call({ ...good, platform: 'android' })).status).toBe(200);
+    expect(add.mock.calls[1][1].platform).toBe('android');
+    expect((await call({ ...good, platform: 'toaster' })).status).toBe(200);
+    expect(add.mock.calls[2][1].platform).toBe('ios');
+  });
+
   it('saves the launch with its total, clamped', async () => {
     email = 'staff@example.com';
     const marks = Array.from({ length: 120 }, (_, i) => ({ step: 's'.repeat(100), ms: i === 79 ? 9e12 : i, detail: 'd'.repeat(500) }));

@@ -230,14 +230,14 @@ private fun CoinsSection(f: AnaFigures) {
 private fun CashSection(f: AnaFigures, showCosts: Boolean) {
     val net = f.netCashFlow
     // Gold taken off an invoice's total is in Cash In but was never in revenue.
-    val gap = f.totalSales - (f.cashIn - f.exchangeOffInvoices)
+    val gap = f.totalSales - (f.cashIn - f.creditPaidBack - f.exchangeOffInvoices)
     val netSign = if (net >= 0) "+" else "−"
     val netTint = if (net >= 0) Tone.settled.color() else Tone.owed.color()
     LedgerSection("Cash flow") {
         DividedColumn {
             TwoLine("Cash in", Modifier.ledgerRow(), trailing = Money.pkrLac(f.cashIn), trailingTint = Tone.settled.color())
             if (showCosts) {
-                TwoLine("Cash out", Modifier.ledgerRow(), subtitle = "Every expense paid in this period", trailing = Money.pkrLac(f.cashOut), trailingTint = Tone.owed.color())
+                TwoLine("Cash out", Modifier.ledgerRow(), subtitle = "Every expense paid in this period" + if (f.creditPaidBack > 0) " · Credit paid back: ${Money.pkrLac(f.creditPaidBack)}" else "", trailing = Money.pkrLac(f.cashOut), trailingTint = Tone.owed.color())
                 TwoLine(
                     "Net cash flow", Modifier.ledgerRow(),
                     subtitle = if (net >= 0) "Business gained cash in this period" else "Business spent more cash than it took in",
@@ -267,7 +267,7 @@ private fun CashSection(f: AnaFigures, showCosts: Boolean) {
 /** What the cash in was made of: invoice payments always, the rest when there was any. */
 internal fun cashInParts(f: AnaFigures): List<Pair<String, Double>> {
     val cash = f.cash ?: return listOf("Invoice payments" to 0.0)
-    val parts = arrayListOf("Invoice payments" to cash.invoicePayments)
+    val parts = arrayListOf("Invoice payments" to cash.invoicePayments + cash.paidBack)
     if (cash.orderAdvances > 0) parts.add("Order advances" to cash.orderAdvances)
     if (cash.exchange > 0) parts.add("Exchange" to cash.exchange)
     if (cash.extraRevenue > 0) parts.add("Extra revenue" to cash.extraRevenue)

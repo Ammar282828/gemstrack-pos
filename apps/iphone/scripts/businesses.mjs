@@ -6,6 +6,10 @@
 //   node scripts/businesses.mjs
 //
 // `storeName` is the one field the server does not send: the built-ins keep the "… ERP" names they always had.
+//
+// The same run writes the Android app's copy (apps/android/app/src/main/assets/businesses.json): the list above plus the
+// `android` block the server sends beside `ios` (src/lib/store-config.ts storeAppAndroid), from apps/android/houses.json.
+// A house whose Android app is not registered yet has `android: null`: the phone shows its sign-in page saying so.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -60,3 +64,22 @@ const out = Object.entries(houses).map(([id, h]) => ({
 const file = path.join(dir, 'App/Resources/businesses.json');
 fs.writeFileSync(file, JSON.stringify(out, null, 2) + '\n');
 console.log(`wrote ${file} (${out.map((b) => b.id).join(', ')})`);
+
+const androidDir = path.resolve(dir, '../android');
+const androidHouses = JSON.parse(fs.readFileSync(path.join(androidDir, 'houses.json'), 'utf8'));
+const forAndroid = out.map((b) => {
+  const a = androidHouses[b.id] || {};
+  const fb = houses[b.id].firebase;
+  const registered = String(a.firebaseAndroidAppId || '').includes(':android:') && String(a.googleWebClientId || '').endsWith('.apps.googleusercontent.com');
+  return {
+    ...b,
+    android: registered ? {
+      googleWebClientId: a.googleWebClientId,
+      firebase: { apiKey: fb.apiKey, appId: a.firebaseAndroidAppId, projectId: fb.projectId, senderId: fb.senderId, storageBucket: fb.storageBucket },
+    } : null,
+  };
+});
+const androidFile = path.join(androidDir, 'app/src/main/assets/businesses.json');
+fs.mkdirSync(path.dirname(androidFile), { recursive: true });
+fs.writeFileSync(androidFile, JSON.stringify(forAndroid, null, 2) + '\n');
+console.log(`wrote ${androidFile}`);

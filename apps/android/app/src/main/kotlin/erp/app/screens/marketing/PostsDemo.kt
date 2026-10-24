@@ -11,15 +11,17 @@ object PostsDemo {
     private fun ago(now: Instant, hours: Double): String = ERPDate.iso(now.minusSeconds((hours * 3600).toLong()))
     private fun ahead(now: Instant, hours: Double): String = ERPDate.iso(now.plusSeconds((hours * 3600).toLong()))
 
-    private fun piece(id: String, name: String, collection: String, grams: Double?, fresh: Boolean, now: Instant, daysOnSite: Long) = PostPiece(
+    private fun piece(id: String, name: String, collection: String, grams: Double?, fresh: Boolean, now: Instant, daysOnSite: Long, photos: Int = 0) = PostPiece(
         id = id, name = name, url = "https://example.test/${id.lowercase()}", image = "", thumb = "", collection = collection, weightGrams = grams,
         facts = listOf("Handmade", collection), about = "A made-up piece for the demo.",
         added = (now.minusSeconds(daysOnSite * 86_400)).toEpochMilli().toDouble(), newArrival = fresh, hidden = false,
+        // The piece's own other photographs, offered under the card (made-up addresses, no small picture: the demo draws an initial for each).
+        photos = (2..photos + 1).map { PostPiecePhoto("$id#$it", "https://example.test/${id.lowercase()}-$it.jpg", "") },
     )
 
     fun state(now: Instant): PostsState {
         val pieces = listOf(
-            piece("Rings/R-101.webp", "Solitaire ring", "Rings", 4.2, true, now, 2),
+            piece("Rings/R-101.webp", "Solitaire ring", "Rings", 4.2, true, now, 2, photos = 3),
             piece("Rings/R-102.webp", "Eternity band", "Rings", 3.1, true, now, 3),
             piece("Earrings/E-201.webp", "Jhumka pair", "Earrings", 11.8, true, now, 4),
             piece("Bangles/B-301.webp", "Kara bangle", "Bangles", 24.5, true, now, 5),

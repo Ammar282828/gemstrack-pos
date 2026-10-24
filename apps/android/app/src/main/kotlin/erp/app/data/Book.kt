@@ -1,6 +1,8 @@
 package erp.app.data
 
 import erp.app.ErpApp
+import erp.app.config.Business
+import erp.app.config.Businesses
 import erp.app.config.House
 import erp.core.Decodable
 import erp.core.Registry
@@ -43,7 +45,7 @@ import kotlinx.coroutines.withContext
  * and the change comes back down the shelf like anyone else's. Everything here runs on the main thread;
  * the sources decode elsewhere and hand over on it.
  */
-class Book private constructor() {
+class Book private constructor(val business: Business) {
     enum class Source { Firestore, Server, Demo }
 
     @Volatile var source: Source = if (House.isDemo) Source.Demo else Source.Firestore
@@ -95,12 +97,26 @@ class Book private constructor() {
             }
             ({ job.cancel() })
         }
-        Source.Server -> ServerShelf.poll(if (name == Collections.settings) "settings" else name, docId != null, model, deliver)
-        Source.Firestore -> FirestoreSource.listen(name, model, docId, deliver)
+        Source.Server -> ServerShelf.poll(ErpApi.forBusiness(business), if (name == Collections.settings) "settings" else name, docId != null, model, deliver)
+        Source.Firestore -> FirestoreSource.listen(business, name, model, docId, deliver)
     }
 
     companion object {
-        val shared: Book by lazy { Book() }
+        private val books = HashMap<String, Book>()
+
+        /** One book per business, so a business's shelves are never another's. */
+        @Synchronized
+        fun of(b: Business): Book = books.getOrPut(b.id) { Book(b) }
+
+        /** The open business's. */
+        val shared: Book get() = of(Businesses.current)
+
+        /** The business was left: its listeners stop and its shelves empty (they fill again, from its own sources, if it is opened again). */
+        @Synchronized
+        fun leave(b: Business) { books[b.id]?.signedOut() }
+
+        @Synchronized
+        fun drop(id: String) { books.remove(id)?.signedOut() }
 
         /** A document as a model: its id is the document's (as store.ts does, `{ ...doc.data(), id: doc.id }`). */
         fun <T : Any> decodeDoc(model: Decodable<T>, id: String, data: Map<String, Any?>, custom: (Any) -> Any? = { null }): T {
@@ -182,6 +198,7 @@ class Shelf<T : Any>(
             is Delivery.All -> {
                 byId = LinkedHashMap<String, T>().also { m -> d.items.forEach { m.putIfAbsent(idOf(it), it) } }
                 publish(d.offline)
+                stamp(d.offline)
             }
             is Delivery.Changes -> {
                 // Only the cache flag moved (Firestore's metadata change): no new books, so nothing re-reckoned.
@@ -218,6 +235,17 @@ class Shelf<T : Any>(
                 _loaded.value = true
             }
         }
+    }
+
+    private var firstMarked = false
+    private var liveMarked = false
+
+    /** The launch report's two stamps for this shelf: its first books (the phone's copy or a source), and the first from the source. */
+    private fun stamp(off: Boolean) {
+        val b = book ?: return
+        val detail = "${byId.size} " + when (b.source) { Book.Source.Demo -> "demo"; Book.Source.Server -> "server"; Book.Source.Firestore -> if (off) "cache" else "server" }
+        if (!firstMarked) { firstMarked = true; erp.app.device.LaunchClock.mark("shelf:$name", detail) }
+        if (!liveMarked && !off) { liveMarked = true; erp.app.device.LaunchClock.mark("shelf:$name:live", detail) }
     }
 
     private fun publish(off: Boolean) {

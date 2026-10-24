@@ -11,6 +11,8 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.OAuthProvider
 import erp.app.ErpApp
+import erp.app.config.Business
+import erp.app.config.Businesses
 import erp.app.config.House
 import erp.app.config.Prefs
 import erp.app.data.Book
@@ -22,6 +24,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,10 +37,11 @@ import kotlinx.coroutines.withTimeoutOrNull
 val LocalSession = staticCompositionLocalOf<Session> { error("No Session provided") }
 
 /**
- * Who is signed in and what they are to this house (the ERP says: /api/app/me). Owners get the whole app; a
- * karigar gets their work portal; anyone else is signed out again with the reason.
+ * Who is signed in and what they are to one business (the ERP says: /api/app/me). Owners get the whole app; a
+ * karigar gets their work portal; anyone else is signed out again with the reason. One per business, made for the open
+ * one (`Sessions`): Firebase keeps each business's sign-in in its own app, so every business stays signed in independently.
  */
-class Session(private val context: Context) {
+class Session(private val context: Context, val business: Business) {
     enum class State { Starting, SignedOut, SigningIn, SignedIn, NeedsSetup }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -49,11 +53,21 @@ class Session(private val context: Context) {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    /** This business's own ERP and books: never the open business's, whichever that is by the time a call lands. */
+    private val api: ErpApi get() = ErpApi.forBusiness(business)
+    private val book: Book get() = Book.of(business)
+
+    /** This business's Firebase sign-in (null in the demo, or until its Android app is registered). */
+    private fun auth(): FirebaseAuth? = Businesses.auth(business)
+
+    /** Stops what this session started (a switch drops the one left). */
+    fun close() { scope.cancel() }
+
     val role: String get() = _me.value?.role ?: "none"
     val isOwner: Boolean get() = role == "owner"
 
-    /** The house's settings for the screens (see Shop). */
-    val shop: Shop get() = _me.value?.shop ?: Shop.fallback(House.id)
+    /** The business's settings for the screens (see Shop). */
+    val shop: Shop get() = _me.value?.shop ?: Shop.fallbackFor(business)
 
     /**
      * The first frame is the app itself, not a wait: the demo, and anyone the ERP answered for last time (the same
@@ -64,14 +78,14 @@ class Session(private val context: Context) {
     init {
         val last = lastMe
         if (House.isDemo) {
-            _me.value = Me("owner@example.com", "owner", null, Shop.demo(House.id))
-            Book.shared.signedIn("owner")
+            _me.value = Me("owner@example.com", "owner", null, Shop.demo(business))
+            book.signedIn("owner")
             _state.value = State.SignedIn
-        } else if (House.firebaseOptions == null) {
+        } else if (Businesses.firebaseOptions(business) == null) {
             _state.value = State.NeedsSetup
         } else if (last != null && last.role != "none") {
             _me.value = last
-            Book.shared.signedIn(last.role)
+            book.signedIn(last.role)
             _state.value = State.SignedIn
         }
         scope.launch { start() }
@@ -79,11 +93,11 @@ class Session(private val context: Context) {
 
     suspend fun start() {
         if (House.isDemo) return
-        if (!ErpApp.ensureFirebase()) { _state.value = State.NeedsSetup; return }
+        if (Businesses.firebaseApp(business) == null) { _state.value = State.NeedsSetup; return }
         val user = awaitUser()
         if (user == null) {
             // Opened on the cached answer, but Firebase has nobody signed in: back to the sign-in page.
-            if (_me.value != null) { _me.value = null; lastMe = null; Book.shared.signedOut() }
+            if (_me.value != null) { _me.value = null; lastMe = null; book.signedOut() }
             _state.value = State.SignedOut
             return
         }
@@ -91,7 +105,7 @@ class Session(private val context: Context) {
         if (mine != null && !mine.email.equals(user.email, ignoreCase = true)) {
             // The cached answer was someone else's: show nothing of theirs while the ERP is asked.
             _me.value = null
-            Book.shared.signedOut()
+            book.signedOut()
             _state.value = State.Starting
         }
         loadMe()
@@ -103,12 +117,13 @@ class Session(private val context: Context) {
     }
 
     private suspend fun signInNow(activity: Activity) {
-        if (!ErpApp.ensureFirebase()) { _state.value = State.NeedsSetup; return }
+        val auth = auth()
+        if (auth == null) { _state.value = State.NeedsSetup; return }
         _state.value = State.SigningIn
         _error.value = null
         try {
             val t = GoogleAuth.signIn(activity)
-            FirebaseAuth.getInstance().signInWithCredential(GoogleAuthProvider.getCredential(t.idToken, null)).await()
+            auth.signInWithCredential(GoogleAuthProvider.getCredential(t.idToken, null)).await()
             loadMe()
         } catch (e: CancellationException) {
             throw e
@@ -127,7 +142,8 @@ class Session(private val context: Context) {
      */
     fun signInThroughBrowser(activity: Activity) {
         scope.launch {
-            if (!ErpApp.ensureFirebase()) { _state.value = State.NeedsSetup; return@launch }
+            val auth = auth()
+            if (auth == null) { _state.value = State.NeedsSetup; return@launch }
             _state.value = State.SigningIn
             _error.value = null
             try {
@@ -135,7 +151,6 @@ class Session(private val context: Context) {
                     .addCustomParameter("prompt", "select_account")
                     .setScopes(listOf("email", "profile"))
                     .build()
-                val auth = FirebaseAuth.getInstance()
                 (auth.pendingAuthResult ?: auth.startActivityForSignInWithProvider(activity, provider)).await()
                 loadMe()
             } catch (e: CancellationException) {
@@ -149,17 +164,17 @@ class Session(private val context: Context) {
 
     private suspend fun loadMe() {
         try {
-            val me = Me.from(ErpApi.shared.get("/api/app/me")) ?: throw ErpApi.Failure(0, "The ERP's answer couldn't be read.")
+            val me = Me.from(api.get("/api/app/me")) ?: throw ErpApi.Failure(0, "The ERP's answer couldn't be read.")
             if (me.role == "none") {
-                _error.value = "${me.email} isn't on ${House.storeName}'s list. Ask the shop to add this Gmail."
+                _error.value = "${me.email} isn't on ${business.displayName}'s list. Ask the shop to add this Gmail."
                 signOut()
                 return
             }
             _me.value = me
             lastMe = me
-            Book.shared.signedIn(me.role)
+            book.signedIn(me.role)
             _state.value = State.SignedIn
-            if (me.role == "owner") DeviceLinks.afterSignIn()
+            if (me.role == "owner") DeviceLinks.afterSignIn(business)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -173,7 +188,7 @@ class Session(private val context: Context) {
             val last = lastMe
             if (last != null && last.email.equals(currentUser()?.email, ignoreCase = true)) {
                 _me.value = last
-                Book.shared.signedIn(last.role)
+                book.signedIn(last.role)
                 _state.value = State.SignedIn
             } else {
                 _error.value = say(e)
@@ -187,34 +202,35 @@ class Session(private val context: Context) {
         // The screen leaves at once; the phone is unregistered for alerts while its sign-in token is still good
         // (after Firebase's sign-out the request would go without one, be refused, and alerts would keep coming).
         lastMe = null
-        Book.shared.signedOut()
+        book.signedOut()
         OnlineInbox.clear()
         _me.value = null
         _state.value = State.SignedOut
-        val leaving = if (ErpApp.firebaseReady) currentUser()?.uid else null
-        scope.launch {
+        val leaving = currentUser()?.uid
+        // Not this session's scope: a switch of business right after must not cancel the sign-out half done.
+        ErpApp.scope.launch {
             // Never waits more than a few seconds: offline, the sign-out must still happen.
-            withTimeoutOrNull(3_500) { DeviceLinks.beforeSignOut(unregister) }
+            withTimeoutOrNull(3_500) { DeviceLinks.beforeSignOut(unregister, business) }
             // Only the account that was leaving: a quick sign-in again meanwhile is not undone.
-            if (ErpApp.firebaseReady && currentUser()?.uid == leaving) FirebaseAuth.getInstance().signOut()
+            if (currentUser()?.uid == leaving) auth()?.signOut()
             val s = _state.value
             if (s != State.SignedIn && s != State.SigningIn) GoogleAuth.signOut(context)
             // The owner's books stay on no phone after sign-out: Firestore's copy on disk is erased too.
-            if (_state.value == State.SignedOut) FirestoreSource.forget()
+            if (_state.value == State.SignedOut) FirestoreSource.forget(business)
         }
     }
 
     /** The Firebase ID token the ERP's server routes check. */
     suspend fun idToken(): String? {
-        if (House.isDemo || !ErpApp.firebaseReady) return null
+        if (House.isDemo) return null
         return try { currentUser()?.getIdToken(false)?.await()?.token } catch (e: Exception) { null }
     }
 
-    private fun currentUser(): FirebaseUser? = if (ErpApp.firebaseReady) FirebaseAuth.getInstance().currentUser else null
+    private fun currentUser(): FirebaseUser? = auth()?.currentUser
 
     /** Android restores a signed-in user a moment after Firebase starts: the first auth-state callback is the answer. */
     private suspend fun awaitUser(): FirebaseUser? = suspendCancellableCoroutine { cont ->
-        val auth = FirebaseAuth.getInstance()
+        val auth = auth() ?: run { cont.resumeWith(Result.success(null)); return@suspendCancellableCoroutine }
         val listener = object : FirebaseAuth.AuthStateListener {
             override fun onAuthStateChanged(a: FirebaseAuth) {
                 a.removeAuthStateListener(this)
@@ -224,6 +240,11 @@ class Session(private val context: Context) {
         auth.addAuthStateListener(listener)
         cont.invokeOnCancellation { auth.removeAuthStateListener(listener) }
     }
+
+    /** The last answer, for opening with no connection: one per business (`erp.lastMe.<id>`). */
+    private var lastMe: Me?
+        get() = Me.fromJson(Prefs.string(LAST_ME_KEY, business.id))
+        set(value) = Prefs.putString(LAST_ME_KEY, value?.toJson(), business.id)
 
     /**
      * Whether a refusal means the account is really over: a forced token refresh that Firebase rejects for the
@@ -244,11 +265,10 @@ class Session(private val context: Context) {
     companion object {
         private val GONE = setOf("ERROR_USER_DISABLED", "ERROR_USER_NOT_FOUND", "ERROR_USER_TOKEN_EXPIRED", "ERROR_INVALID_USER_TOKEN")
 
-        /** The last answer, for opening with no connection: the role is the server's, never assumed. */
+        /** The last answer of one business, for opening with no connection: the role is the server's, never assumed. */
         private const val LAST_ME_KEY = "erp.lastMe"
-        private var lastMe: Me?
-            get() = Me.fromJson(Prefs.string(LAST_ME_KEY))
-            set(value) = Prefs.putString(LAST_ME_KEY, value?.toJson())
+
+        fun forgetLastMe(businessId: String) = Prefs.remove(LAST_ME_KEY, businessId)
 
         fun say(error: Throwable): String = when {
             error is FirebaseNetworkException -> say("ERROR_NETWORK_REQUEST_FAILED") ?: plain(error)
