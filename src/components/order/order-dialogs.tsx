@@ -27,6 +27,8 @@ import { Separator } from '@/components/ui/separator';
 import { AmountInput } from '@/components/ui/amount-input';
 import { finalizedItemCosts, orderInvoiceRates, takesWastageAndMaking, wastageGramsFor, wastagePercentFor } from '@/lib/order-finalize';
 import { exchangeTotal, orderExchanges } from '@/lib/exchange';
+import { ExchangeRows, type ExchangeRow, blankExchangeRow, exchangeRowsTotal, exchangesFromRows } from '@/components/shared/exchange-rows';
+import { Label } from '@/components/ui/label';
 import { orderAdvancePayments } from '@/lib/order-payment';
 import { CostRateField, MarginFigure, SHOP_MARGIN_ON } from '@/components/shared/shop-margin';
 import { marginOf } from '@/lib/margin';
@@ -309,7 +311,8 @@ export const FinalizeOrderDialog: React.FC<{
 };
 
 const recordAdvanceSchema = z.object({
-  amount: z.coerce.number().positive("Amount must be a positive number."),
+  // Cash may be left blank when gold is exchanged instead; the dialog asks for one of the two.
+  amount: z.preprocess((v) => (v === '' || v === null || v === undefined ? 0 : v), z.coerce.number().min(0, "Amount can't be negative.")),
   notes: z.string().min(3, "Please add a brief note for the payment.").default('Advance payment received'),
   method: z.enum(PAYMENT_TYPES).default('Cash'),
 });
@@ -328,23 +331,30 @@ export const RecordAdvanceDialog: React.FC<{
     });
 
     // What would be left to pay after the amount typed: a small remainder can be given off (lib/round-off.ts).
-    const typed = rupees(Number(form.watch('amount')));
-    const leftAfter = rupees(order.grandTotal) - typed;
+    const [exchangeRows, setExchangeRows] = React.useState<ExchangeRow[]>(() => [blankExchangeRow()]);
+    const exchangeValue = exchangeRowsTotal(exchangeRows);
+    const typed = rupees(Number(form.watch('amount')) || 0);
+    const leftAfter = rupees(order.grandTotal) - typed - exchangeValue;
 
     const handleRecordAdvance = async (data: RecordAdvanceFormData, settle = 0) => {
         try {
             const amount = rupees(data.amount);
+            const exchange = exchangesFromRows(exchangeRows);
+            if (amount <= 0 && exchange.length === 0) { form.setError('amount', { message: 'Enter the cash received, or add the gold exchanged.' }); return; }
+            if (exchange.some((e) => e.value <= 0)) { toast({ title: 'Exchange needs an amount', description: 'Give each exchange an amount (or grams and a rate).', variant: 'destructive' }); return; }
             // Settle: the leftover is added to the order's discount (not a payment that was never made), in the same
             // write as the advance (lib/writes/settle.ts); the stage is untouched. The invoice made from the order
             // carries the discount (Order to invoice).
             if (settle > 0) await settleOrderAdvance(order.id, amount, settle, data.notes, data.method);
-            else await recordOrderAdvance(order.id, amount, data.notes, data.method);
+            else await recordOrderAdvance(order.id, amount, data.notes, data.method, exchange);
+            const gold = exchangeRowsTotal(exchangeRows);
             toast({
                 title: "Advance Recorded",
-                description: `PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} by ${data.method} has been added to the advance for order ${order.id}${settle > 0 ? `, and PKR ${settle.toLocaleString()} taken off the bill` : ''}.`,
+                description: `${amount > 0 ? `PKR ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} by ${data.method}` : ''}${amount > 0 && gold > 0 ? ' and ' : ''}${gold > 0 ? `PKR ${gold.toLocaleString(undefined, { maximumFractionDigits: 0 })} in exchanged gold` : ''} has been added to the advance for order ${order.id}${settle > 0 ? `, and PKR ${settle.toLocaleString()} taken off the bill` : ''}.`,
             });
             onOpenChange(false);
             form.reset();
+            setExchangeRows([blankExchangeRow()]);
         } catch (error) {
              toast({
                 title: "Error",
@@ -366,8 +376,12 @@ export const RecordAdvanceDialog: React.FC<{
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit((d) => handleRecordAdvance(d))} className="space-y-4 pt-4">
                         <FormField control={form.control} name="amount" render={({ field }) => (
-                           <FormItem><FormLabel>Advance Amount (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} placeholder="Enter amount received" {...field} /></FormControl><FormMessage /></FormItem>
+                           <FormItem><FormLabel>Cash received (PKR)</FormLabel><FormControl><AmountInput maxDecimals={0} placeholder="Enter amount received" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
+                        <div className="space-y-2">
+                            <Label>Exchanged gold</Label>
+                            <ExchangeRows rows={exchangeRows} onChange={setExchangeRows} />
+                        </div>
                         <FormField control={form.control} name="method" render={({ field }) => (
                            <FormItem><FormLabel>Paid by</FormLabel>
                              <Select value={field.value} onValueChange={field.onChange}>
@@ -379,7 +393,7 @@ export const RecordAdvanceDialog: React.FC<{
                         <FormField control={form.control} name="notes" render={({ field }) => (
                            <FormItem><FormLabel>Notes</FormLabel><FormControl><Input placeholder="e.g., Second advance payment" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
-                        {typed > 0 && (
+                        {typed > 0 && exchangeValue === 0 && (
                             <SettleOffer remaining={leftAfter} busy={form.formState.isSubmitting} className="w-full"
                                 onSettle={(x) => void form.handleSubmit((d) => handleRecordAdvance(d, x))()} />
                         )}

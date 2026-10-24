@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// What the Work screens (Drafts, Calendar, Activity, My work) share: addresses, the lock for what is not a

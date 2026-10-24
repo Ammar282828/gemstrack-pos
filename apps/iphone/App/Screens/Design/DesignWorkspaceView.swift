@@ -25,7 +25,7 @@ struct DesignWorkspaceView: View {
     @State private var removing: DesignPageState?
     @State private var safe = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
 
@@ -53,12 +53,14 @@ struct DesignWorkspaceView: View {
             }
             .presentationSizing(.page)
         }
+        #if os(iOS)
         .sheet(isPresented: $camera) {
             NewOrderCamera { image in
                 camera = false
                 if let image, let data = WebsitePhoto.jpeg(image) { model.replacePhoto(data, label: "Camera photo") }
             }.ignoresSafeArea()
         }
+        #endif
         .onChange(of: picked) { _, item in if let item { Task { await take(item) } } }
         .onChange(of: morePicked) { _, items in if !items.isEmpty { Task { await takeMore(items) } } }
         .confirmDestructive(isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
@@ -246,7 +248,7 @@ struct DesignWorkspaceView: View {
                 Button { sitePicker = true } label: { Label("From the website", systemImage: "globe") }
                 // A PhotosPicker inside a Menu loses its sheet when the menu closes: the picker is presented from the screen (`.photosPicker`).
                 Button { devicePicker = true } label: { Label("This device", systemImage: "iphone") }
-                if UIImagePickerController.isSourceTypeAvailable(.camera) { Button { camera = true } label: { Label("Camera", systemImage: "camera") } }
+                if MarketingCamera.available { Button { camera = true } label: { Label("Camera", systemImage: "camera") } }
             } label: { Label(model.photos["photo"] == nil ? "Choose a photograph" : "Change the photograph", systemImage: "photo.badge.plus").frame(maxWidth: .infinity) }
                 .buttonStyle(.bordered).controlSize(.large)
             moreRow

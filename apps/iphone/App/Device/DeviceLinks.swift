@@ -99,7 +99,7 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(20))
                 guard let self, self.registering, !self.registeredOnServer else { return }
-                self.didFail(NSError(domain: "ERPPush", code: 1, userInfo: [NSLocalizedDescriptionKey: "iOS gave no notification token after 20 seconds."]))
+                self.didFail(NSError(domain: "ERPPush", code: 1, userInfo: [NSLocalizedDescriptionKey: "\(UIDevice.current.systemName) gave no notification token after 20 seconds."]))
             }
         } catch { didFail(error) }
     }

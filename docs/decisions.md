@@ -308,6 +308,12 @@ writes `apps/iphone/App/Resources/nav-<house>.json`, the Android app reads that 
 
 ### Order to invoice
 
+- **An advance can be gold** (2026-10-24, owner: "when adding an advance to an order, allow for adding exchanged gold also"):
+  Record an advance (web dialog, iPhone sheet, `recordOrderAdvance`) takes cash, exchanged gold, or both (`exchange` /
+  `exchanges`, the order's own rows; one of the two above 0). In the same write the rows join `order.exchanges`, the
+  single-exchange totals are kept as the order form keeps them, and the balance is `orderBalance`'s. The advance line is
+  kept in `advances` (amount 0 when gold only, so a retry finds it; it is not a payment) with its `exchanges`; the invoice
+  gets the rows through `orderExchanges`. Settle is cash-only, so it hides when gold is entered.
 - **An order carries everything to its invoice** (2026-09-25, owner: "carry over all details from order to invoice, such
   as advances, exchange gold"): exchange rows become the invoice's exchange (off its total, like the cart), each cash
   advance a payment of its own with its date and method (`orderAdvancePayments` in `lib/order-payment.ts`; `Order.advances`
@@ -495,7 +501,20 @@ balance below zero is the customer's credit (`lib/invoice-credit.ts`).
 - **How it reads:** "Credit to customer" on the invoice page, the PDF ("Credit to Customer") and the
   customer's page ("Credit to you"), and "Credit to you" in the WhatsApp caption, never a negative
   Balance due. Under half a rupee either way counts as settled.
-- **Not built yet:** spending the credit. It sits on the hisaab; using it against a later invoice is
+- **Giving it back** (owner, 2026-10-24: "in situations with credit let me finish that credit by giving
+  customer money"). "Give back PKR X" on the invoice page and the customer's page (web
+  `components/invoice/give-back-credit.tsx`), and the invoice screen and customer screen on the phone
+  (`InvoiceActionCreditSheet`): method Cash or Bank Transfer, the amount starts at the whole credit, a part is
+  allowed, more than is held is refused. The shared write is `payBackCredit` (`lib/writes/invoice-credit-payback.ts`;
+  owner-only money op in `/api/app/write`, so it needs a request name and is never queued): one transaction
+  adds a **negative payment line with `kind: 'credit-payback'`** to the invoice and brings the credit row down
+  through `followBalance` (it goes at zero). It is **not `refundInvoicePartial`**: that is a refund of the sale (it
+  asks the delete code, tells Shopify, and leaves the credit row stale). A payback asks no code, sends nothing to
+  Shopify, never marks the invoice Refunded, and leaves revenue alone (`invoiceSaleValue` reads the total, not
+  payments). It is money out: Today's cash takes it off money in and the drawer by its method and shows it in
+  Paid out (`paidBack`), and Analytics' Cash Out adds it (money in is grossed up by the same figure, so net cash
+  flow is unchanged). Deleting the line on the invoice page puts the credit back.
+- **Not built yet:** spending the credit against a later invoice. It sits on the hisaab; using it that way is
   done by hand for now.
 
 ### Whole rupees

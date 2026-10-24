@@ -37,9 +37,11 @@ final class SpeechEngine {
         guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: lang)) ?? SFSpeechRecognizer(), recognizer.isAvailable else {
             throw NSError(domain: "ERP", code: 1, userInfo: [NSLocalizedDescriptionKey: "Speech recognition isn't available right now."])
         }
+        #if os(iOS)
         let session = AVAudioSession.sharedInstance()
         if session.category != .playAndRecord { try session.setCategory(.playAndRecord, mode: .default, options: [.mixWithOthers, .defaultToSpeaker]) }
         try session.setActive(true)
+        #endif // a Mac has no audio session: the engine reads the microphone as it is
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
         req.addsPunctuation = true

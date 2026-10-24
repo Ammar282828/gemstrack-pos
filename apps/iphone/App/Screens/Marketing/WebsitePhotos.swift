@@ -1,6 +1,8 @@
 import SwiftUI
 import PhotosUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// Website → Add photos (src/app/website/photos/page.tsx): choose the collection once, then add the tray's
@@ -72,6 +74,7 @@ struct WebsitePhotosScreen: View {
             picked = []
             Task { await add(chosen) }
         }
+        #if os(iOS)
         .fullScreenCover(isPresented: $camera) {
             NewOrderCamera { (image: UIImage?) in
                 camera = false
@@ -79,6 +82,7 @@ struct WebsitePhotosScreen: View {
             }
             .ignoresSafeArea()
         }
+        #endif
         .sheet(isPresented: $choosing) {
             WebsiteCollectionSheet(collections: collections ?? [], folder: $folder).presentationSizing(.form)
         }
@@ -171,7 +175,7 @@ struct WebsitePhotosScreen: View {
         Section {
             Button { picking = true } label: { Label("Choose photographs", systemImage: "photo.on.rectangle") }
                 .disabled(folder.isEmpty || sending)
-            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+            if MarketingCamera.available {
                 Button { camera = true } label: { Label("Take a photo", systemImage: "camera") }
                     .disabled(folder.isEmpty || sending)
             }

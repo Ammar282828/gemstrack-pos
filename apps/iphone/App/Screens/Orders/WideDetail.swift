@@ -11,7 +11,7 @@ struct WideDetailList<Left: View, Right: View>: View {
     @ViewBuilder let left: () -> Left
     @ViewBuilder let right: () -> Right
 
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
 

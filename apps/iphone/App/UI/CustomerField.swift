@@ -58,7 +58,7 @@ struct CustomerField: View {
             } else {
                 LabeledContent {
                     TextField("Name", text: nameBinding, prompt: Text("Search or type a new name"))
-                        .textContentType(.name)
+                        .fieldKind(.name)
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
                         .submitLabel(.next)
@@ -75,7 +75,7 @@ struct CustomerField: View {
                 LabeledContent {
                     TextField("Phone", text: $phone, prompt: Text("Optional"))
                         .keyboardType(.phonePad)
-                        .textContentType(.telephoneNumber)
+                        .fieldKind(.telephoneNumber)
                         .focused($focus, equals: .phone)
                 } label: {
                     Text("Phone")

@@ -1,6 +1,8 @@
 import Foundation
 import FirebaseAuth
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// A design in progress, kept on this phone (the web keeps it in IndexedDB `taheri-post-drafts`). Same way as the native Post a
 /// piece drafts (NativePostDisk): atomic JSON files under Application Support, one folder per house and signed-in person,

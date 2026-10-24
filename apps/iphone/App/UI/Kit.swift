@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// Static placeholders never obscure a page with a spinning activity indicator.
@@ -144,7 +146,7 @@ struct FigureGrid<Content: View>: View {
     var spacing: CGFloat = 12
     @ViewBuilder let content: () -> Content
     @Environment(\.dynamicTypeSize) private var typeSize
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @State private var availableWidth: CGFloat = 0
 
     /// Two across, up to four where 240 pt each fit; on an iPad's wide window four across as soon as 160 pt each do
@@ -211,7 +213,26 @@ extension EnvironmentValues {
 extension Optional where Wrapped == UserInterfaceSizeClass {
     /// The iPad layout: an iPad whose window is wide. A Plus or Max iPhone turned sideways is `.regular` too, and must keep
     /// the phone's tabs and floating button; an iPad in Split View or Slide Over is `.compact` and takes the phone path.
-    @MainActor var isPadLayout: Bool { UIDevice.current.userInterfaceIdiom == .pad && self == .regular }
+    @MainActor var isPadLayout: Bool {
+        #if os(macOS)
+        // A Mac window is always the wide layout (the iPad's columns, lists beside their item).
+        self == .regular
+        #else
+        UIDevice.current.userInterfaceIdiom == .pad && self == .regular
+        #endif
+    }
+}
+
+extension EnvironmentValues {
+    /// The width class the screens lay themselves out by: the phone's and iPad's horizontal size class, and on the Mac,
+    /// which has none, always regular (its windows take the iPad's wide layout).
+    var layoutWidthClass: UserInterfaceSizeClass? {
+        #if os(macOS)
+        .regular
+        #else
+        horizontalSizeClass
+        #endif
+    }
 }
 
 /// A page's rows in a readable column on an iPad's wide window (about 70 characters of a form, as Settings
@@ -219,7 +240,7 @@ extension Optional where Wrapped == UserInterfaceSizeClass {
 /// List or Form insets its rows and keeps its scroll edge to edge; a phone (compact width) is never touched.
 struct ReadableColumn: ViewModifier {
     var maxWidth: CGFloat = 720
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @State private var width: CGFloat = 0
 
     func body(content: Content) -> some View {
@@ -515,7 +536,7 @@ struct PaymentSheet: View {
     /// Set for an advance: the note it is written with, which can be changed but not left bare.
     var noteDefault: String?
 
-    private let commit: (_ amount: Double, _ method: String, _ reference: String, _ note: String) async throws -> Void
+    private let commit: (_ amount: Double, _ method: String, _ reference: String, _ note: String, _ exchanges: [[String: Any]]) async throws -> Void
     /// Set where the remainder may be given off: an invoice (owners: the discount is theirs to change) and an advance.
     private let settle: SettleAction?
 
@@ -527,6 +548,8 @@ struct PaymentSheet: View {
     @State private var method = "Cash"
     @State private var reference = ""
     @State private var note: String
+    /// An advance may be paid in gold handed over, instead of or beside the cash (OrderAdvanceExchange).
+    @State private var exchangeRows: [ExchangeRow] = [blankExchangeRow()]
     @State private var saving = false
     @State private var error: String?
     /// Counted, so the confirming tap is felt once per attempt.
@@ -548,23 +571,28 @@ struct PaymentSheet: View {
         self.askReference = askReference
         self.customer = customer
         self.noteDefault = nil
-        self.commit = { amount, method, reference, _ in try await save(amount, method, reference) }
+        self.commit = { amount, method, reference, _, _ in try await save(amount, method, reference) }
         self.settle = settle
         _note = State(initialValue: "")
     }
 
-    /// An advance on an order: no reference, a note instead (order-dialogs.tsx RecordAdvanceDialog).
+    /// An advance on an order: no reference, a note instead, and gold exchanged beside the cash or alone
+    /// (order-dialogs.tsx RecordAdvanceDialog). `exchanges` are the rows as `recordOrderAdvance` takes them.
     init(title: String, owed: Double? = nil, note: String, settle: SettleAction? = nil,
-         save: @escaping (_ amount: Double, _ method: String, _ note: String) async throws -> Void) {
+         save: @escaping (_ amount: Double, _ method: String, _ note: String, _ exchanges: [[String: Any]]) async throws -> Void) {
         self.title = title
         self.owed = owed
         self.askReference = false
         self.customer = nil
         self.noteDefault = note
-        self.commit = { amount, method, _, note in try await save(amount, method, note) }
+        self.commit = { amount, method, _, note, exchanges in try await save(amount, method, note, exchanges) }
         self.settle = settle
         _note = State(initialValue: note)
     }
+
+    /// The exchange rows filled in, and what they come to (nothing for an invoice or a repair).
+    private var exchanged: [ExchangeEntry] { noteDefault == nil ? [] : exchangesFromRows(exchangeRows) }
+    private var exchangeValue: Double { exchanged.reduce(0) { $0 + $1.value } }
 
     private var amount: Double {
         if let pinned, pinned.text == amountText { return pinned.value }
@@ -585,7 +613,10 @@ struct PaymentSheet: View {
         if let customer, over > 0, !customer.canHoldCredit {
             return "More than the balance of \(PaymentText.pkr(balance)). Credit needs a customer: name who this invoice is for first."
         }
-        if noteDefault != nil, amount > 0, note.trimmingCharacters(in: .whitespacesAndNewlines).count < 3 {
+        if exchanged.contains(where: { $0.value <= 0 }) {
+            return "Give each exchange an amount, or its grams and rate."
+        }
+        if noteDefault != nil, amount > 0 || exchangeValue > 0, note.trimmingCharacters(in: .whitespacesAndNewlines).count < 3 {
             return "Please add a brief note for the payment."
         }
         return nil
@@ -594,7 +625,8 @@ struct PaymentSheet: View {
     /// What would be left owing after this amount, when it is small enough to give off (0 < it < 5,000):
     /// the web's `rupees(balance) - rupees(amount)`. Nil without a Settle, an amount, or a balance.
     private var settleOffer: Double? {
-        guard settle != nil, !taken, let owed, amount > 0, problem == nil else { return nil }
+        // Gold taken beside it is not offered a Settle (the web's dialog hides it too).
+        guard settle != nil, !taken, let owed, amount > 0, exchangeValue == 0, problem == nil else { return nil }
         return settleRemainderOffer(rupees(owed) - rupees(amount))
     }
 
@@ -638,6 +670,9 @@ struct PaymentSheet: View {
                         TextField("Note", text: $note, prompt: Text("e.g. Second advance payment"))
                     }
                 }
+                if noteDefault != nil {
+                    OrderAdvanceExchange(rows: $exchangeRows)
+                }
                 if let x = settleOffer {
                     Section {
                         Button(SettleWords.offer(x)) { send(settling: x) }
@@ -658,7 +693,7 @@ struct PaymentSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(role: .confirm) { send(settling: nil) }
-                        .disabled(amount <= 0 || problem != nil || saving || taken)
+                        .disabled((amount <= 0 && exchangeValue <= 0) || problem != nil || saving || taken)
                 }
             }
             // The ERP's words for a refusal, in an alert (which gives the error tap itself).
@@ -683,7 +718,7 @@ struct PaymentSheet: View {
                 if let remainder, let settle {
                     try await settle(amount, method, ref, said, remainder)
                 } else {
-                    try await commit(amount, method, ref, said)
+                    try await commit(amount, method, ref, said, exchanged.map { OrderAdvance.exchangeJSON($0) })
                 }
                 recorded += 1
                 dismiss()

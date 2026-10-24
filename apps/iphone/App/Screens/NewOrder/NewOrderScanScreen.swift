@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// Read a slip (components/order/order-scanner.tsx): a parchi photographed, front and back, a second page, or a

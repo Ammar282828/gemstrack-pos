@@ -90,6 +90,10 @@ public struct Settings: Decodable, Identifiable, Hashable {
     public let notifEndOfDayTime: String?
     public let notifDailyReportTime: String?
 
+    /// Label LIVE, the tag printer app (lib/label-live.ts): the design, printer, copies and the
+    /// variable pairings as Settings > Labels keeps them. Read it with `labelLiveConfig`.
+    public let labelLive: StoredLabelLive?
+
     private enum K: String, CodingKey {
         case id
         case goldRatePerGram24k, goldRatePerGram22k, goldRatePerGram21k, goldRatePerGram18k
@@ -105,6 +109,7 @@ public struct Settings: Decodable, Identifiable, Hashable {
         case notifNewInvoice, notifPaymentReceived, notifDailyReport, notifDailyChecklist, notifEndOfDay
         case notifWeeklyReport, notifAdsDaily, notifMonthlyReport, notifOrderOverdue, notifGivenItems
         case notifKarigarPayment, notifDailyChecklistTime, notifEndOfDayTime, notifDailyReportTime
+        case labelLive
     }
 
     public init(from decoder: Decoder) throws {
@@ -158,6 +163,7 @@ public struct Settings: Decodable, Identifiable, Hashable {
         notifDailyChecklistTime = c.string(.notifDailyChecklistTime)
         notifEndOfDayTime = c.string(.notifEndOfDayTime)
         notifDailyReportTime = c.string(.notifDailyReportTime)
+        labelLive = c.object(.labelLive)
     }
 }
 

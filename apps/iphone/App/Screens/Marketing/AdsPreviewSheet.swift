@@ -46,19 +46,25 @@ struct AdsPreviewSheet: View {
 
 /// One of Meta's preview frames. Only Facebook's own addresses load in it; a tap that would leave them is
 /// kept from opening anything.
-private struct AdsFrame: UIViewRepresentable {
+private struct AdsFrame: MarketingWebRepresentable {
     let url: URL
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    func makeUIView(context: Context) -> WKWebView {
+    private func make(_ coordinator: Coordinator) -> WKWebView {
         let web = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
-        web.navigationDelegate = context.coordinator
+        web.navigationDelegate = coordinator
         web.load(URLRequest(url: url))
         return web
     }
 
+    #if os(iOS)
+    func makeUIView(context: Context) -> WKWebView { make(context.coordinator) }
     func updateUIView(_ web: WKWebView, context: Context) {}
+    #else
+    func makeNSView(context: Context) -> WKWebView { make(context.coordinator) }
+    func updateNSView(_ web: WKWebView, context: Context) {}
+    #endif
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {

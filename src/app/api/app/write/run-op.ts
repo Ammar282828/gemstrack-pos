@@ -28,6 +28,7 @@ import { InputError, checkIsoDate, checkMoney } from '@/lib/writes/validate';
 import { updateOrder } from '@/lib/writes/update-order';
 import { finalizeOrder } from '@/lib/writes/finalize-order';
 import type { FinalizedItem } from '@/lib/order-finalize';
+import type { ExchangeEntry } from '@/lib/exchange';
 import { addRepair, recordRepairPayment, setRepairStatus, type NewRepair } from '@/lib/writes/repairs';
 import { REPAIR_STATUSES, type RepairStatus } from '@/lib/repairs';
 import { addExpense } from '@/lib/writes/expenses';
@@ -219,10 +220,15 @@ export async function runWriteOp(caller: WriteCaller, body: Body): Promise<NextR
 
         case 'recordOrderAdvance': {
           const orderId = text(body.orderId);
-          const amount = Number(body.amount);
-          if (!orderId || !Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: 'A positive amount is required.' }, { status: 400 });
+          const hasExchange = (body.exchange !== undefined && body.exchange !== null) || (Array.isArray(body.exchanges) && body.exchanges.length > 0);
+          // Cash may be 0 or left out when an exchange comes with it; one of the two must be above 0.
+          const amount = body.amount === undefined || body.amount === null ? 0 : Number(body.amount);
+          if (!orderId || !Number.isFinite(amount) || amount < 0 || (!hasExchange && amount <= 0)) return NextResponse.json({ error: 'A positive amount is required.' }, { status: 400 });
+          // The row is checked in the write (checkAdvanceExchange): an InputError answers 400.
+          const exchange = body.exchange !== undefined && body.exchange !== null ? (body.exchange as ExchangeEntry) : undefined;
+          const exchanges = Array.isArray(body.exchanges) ? (body.exchanges as ExchangeEntry[]) : undefined;
           const order = await recordOrderAdvance(adminPort,
-            { orderId, amount, notes: text(body.notes) || undefined, method: text(body.method) || undefined, requestId: requestId ?? undefined }, { log });
+            { orderId, amount, exchange, exchanges, notes: text(body.notes) || undefined, method: text(body.method) || undefined, requestId: requestId ?? undefined }, { log });
           return NextResponse.json({ ok: true, order, followUps });
         }
 

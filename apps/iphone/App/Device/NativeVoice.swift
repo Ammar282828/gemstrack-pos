@@ -178,9 +178,11 @@ final class NativeVoiceSession {
             starting = false
             guard allowed else { failure = "Turn on Microphone for this app in Settings, or type your request."; return }
             do {
+                #if os(iOS)
                 let audio = AVAudioSession.sharedInstance()
                 try audio.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .mixWithOthers])
                 try audio.setActive(true)
+                #endif // the Mac has no audio session to set
                 let url = FileManager.default.temporaryDirectory.appendingPathComponent("erp-voice-\(UUID().uuidString).m4a")
                 file = url
                 let r = try AVAudioRecorder(url: url, settings: [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 44_100, AVNumberOfChannelsKey: 1, AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue])
@@ -265,7 +267,9 @@ final class NativeVoiceSession {
         meter?.cancel(); recorder?.stop(); recorder = nil; speech?.stop(notify: false); speech = nil
         listening = false; level = 0
         if let file { try? FileManager.default.removeItem(at: file) }; file = nil
+        #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
     }
 }
 

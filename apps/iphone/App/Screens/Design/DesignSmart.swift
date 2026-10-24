@@ -1,7 +1,9 @@
 import SwiftUI
 import PhotosUI
 import Observation
+#if canImport(UIKit)
 import UIKit
+#endif
 
 // Start with anything (src/app/design/smart-input.tsx; POST /api/design/{parse,analyze,layers}, GET /api/design/fetch). Paste a caption, a
 // forwarded WhatsApp message, a link or a SKU, or choose photos: the server reads them and this shows what it understood BEFORE anything

@@ -1,6 +1,8 @@
 import SwiftUI
 import Observation
+#if canImport(UIKit)
 import UIKit
+#endif
 
 // The Publish sheet's engine (src/app/design/publish-sheet.tsx, lib/design/{destinations,publish}.ts), ported line for line: the rows come from
 // GET /api/design/destinations (a place the house or the role lacks is a row with its reason), each place says which picture it needs

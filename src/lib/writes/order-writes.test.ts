@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { DbPort, TxCtx } from '@/lib/db-port';
 import { orderStatusPatch, pieceDonePatch, pieceGivenPatch, pieceKarigarPatch, setOrderPieceDone, setOrderPieceGiven, setOrderPieceKarigar, setOrderStatus } from './order-status';
 import { recordOrderAdvance } from './order-advance';
+import { deleteOrderAdvance } from './order-pieces';
+import { invoiceFromOrder } from './finalize-order';
+import type { FinalizedItem } from '@/lib/order-finalize';
+import { orderAdvanceLines } from '@/lib/order-payment';
+import type { Order, Settings } from '@/lib/store';
 import { cleanRates, setRates } from './rates';
 import { addExpense } from './expenses';
 
@@ -95,6 +100,128 @@ describe('order advance', () => {
   it('is refused once the order is invoiced', async () => {
     const { db } = fakeDb({ orders: { 'ORD-4': { subtotal: 1, invoiceId: 'INV-9' } } });
     await expect(recordOrderAdvance(db, { orderId: 'ORD-4', amount: 1 })).rejects.toThrow(/take the payment on the invoice/);
+  });
+});
+
+describe('order advance with exchanged gold', () => {
+  const OLD_RING = { description: 'Old ring', karat: '22k', weightG: 5, ratePerGram: 20_000, value: 100_000 };
+  const seed = (extra: Record<string, unknown> = {}) => ({ orders: { 'ORD-5': { subtotal: 300_000, discountAmount: 0, advancePayment: 0, grandTotal: 300_000, advances: [], ...extra } } });
+
+  it('exchange only: no cash, the row joins the order, the totals and balance follow', async () => {
+    const { db, data } = fakeDb(seed());
+    const logs: string[] = [];
+    const out = await recordOrderAdvance(db, { orderId: 'ORD-5', exchange: OLD_RING, requestId: 'req-x-0001' }, { log: (_a, _t, d) => { logs.push(d); } });
+    expect(out.grandTotal).toBe(200_000);
+    expect(data.orders['ORD-5']).toMatchObject({
+      advancePayment: 0, grandTotal: 200_000, exchanges: [OLD_RING], advanceInExchangeValue: 100_000, advanceInExchangeDescription: 'Old ring · 22k · 5 g at 20,000/g',
+    });
+    expect(data.orders['ORD-5'].advances).toMatchObject([{ id: 'adv-req-x-0001', amount: 0, exchanges: [OLD_RING] }]);
+    expect(logs[0]).toMatch(/Exchange: Old ring/);
+  });
+
+  it('value is worked out from grams x rate when not typed, and cash 0 is allowed with an exchange', async () => {
+    const { db, data } = fakeDb(seed());
+    await recordOrderAdvance(db, { orderId: 'ORD-5', amount: 0, exchange: { description: '', weightG: 2.5, ratePerGram: 21_000, value: 0 } });
+    expect(data.orders['ORD-5']).toMatchObject({ advanceInExchangeValue: 52_500, grandTotal: 247_500 });
+  });
+
+  it('cash and exchange together, after an older order\'s single exchange: both kept as rows', async () => {
+    const { db, data } = fakeDb(seed({ advanceInExchangeDescription: 'Chain', advanceInExchangeValue: 20_000, grandTotal: 280_000 }));
+    const out = await recordOrderAdvance(db, { orderId: 'ORD-5', amount: 50_000, method: 'Cash', exchange: OLD_RING });
+    expect(data.orders['ORD-5']).toMatchObject({
+      advancePayment: 50_000, advanceInExchangeValue: 120_000, grandTotal: 130_000,
+      exchanges: [{ description: 'Chain', value: 20_000 }, OLD_RING],
+    });
+    expect(out.grandTotal).toBe(130_000);
+    expect(data.orders['ORD-5'].advances).toMatchObject([{ amount: 50_000, method: 'Cash', exchanges: [OLD_RING] }]);
+  });
+
+  it('a retry with the same request id adds nothing twice', async () => {
+    const { db, data } = fakeDb(seed());
+    for (let i = 0; i < 3; i++) await recordOrderAdvance(db, { orderId: 'ORD-5', amount: 10_000, exchange: OLD_RING, requestId: 'req-x-0002' });
+    expect(data.orders['ORD-5']).toMatchObject({ advancePayment: 10_000, advanceInExchangeValue: 100_000, grandTotal: 190_000 });
+    expect(data.orders['ORD-5'].exchanges).toHaveLength(1);
+    expect(data.orders['ORD-5'].advances).toHaveLength(1);
+  });
+
+  it('several rows at once join in one write', async () => {
+    const { db, data } = fakeDb(seed());
+    await recordOrderAdvance(db, { orderId: 'ORD-5', exchanges: [OLD_RING, { description: 'Chain', value: 20_000 }] });
+    expect(data.orders['ORD-5']).toMatchObject({ advanceInExchangeValue: 120_000, grandTotal: 180_000 });
+    expect(data.orders['ORD-5'].exchanges).toHaveLength(2);
+    expect(data.orders['ORD-5'].advances).toHaveLength(1);
+  });
+
+  it('needs cash or an exchange, and a real exchange value', async () => {
+    const { db, data } = fakeDb(seed());
+    await expect(recordOrderAdvance(db, { orderId: 'ORD-5' })).rejects.toThrow(/above 0/);
+    await expect(recordOrderAdvance(db, { orderId: 'ORD-5', amount: 0 })).rejects.toThrow(/above 0/);
+    await expect(recordOrderAdvance(db, { orderId: 'ORD-5', exchange: { description: 'x', value: 0 } })).rejects.toThrow(/value above 0/);
+    expect(data.orders['ORD-5'].advances).toEqual([]);
+  });
+
+  it('is refused once invoiced', async () => {
+    const { db, data } = fakeDb(seed({ invoiceId: 'INV-9' }));
+    await expect(recordOrderAdvance(db, { orderId: 'ORD-5', exchange: OLD_RING })).rejects.toThrow(/take the payment on the invoice/);
+    expect(data.orders['ORD-5'].exchanges).toBeUndefined();
+  });
+
+  describe('deleting the advance takes its gold with it', () => {
+    const deps = { deleteField: () => undefined };
+    const CHAIN = { description: 'Chain', value: 20_000 };
+
+    it('cash + gold: both go, the totals and balance are recomputed, untagged rows stay', async () => {
+      // An older order with its own exchange row (no tag), then an advance of cash + gold.
+      const { db, data } = fakeDb(seed({ exchanges: [CHAIN], advanceInExchangeValue: 20_000, advanceInExchangeDescription: 'Chain', grandTotal: 280_000 }));
+      await recordOrderAdvance(db, { orderId: 'ORD-5', amount: 50_000, method: 'Cash', exchange: OLD_RING, requestId: 'req-d-0001' });
+      expect(data.orders['ORD-5']).toMatchObject({ advanceInExchangeValue: 120_000, grandTotal: 130_000 });
+      const out = await deleteOrderAdvance(db, { orderId: 'ORD-5', lineIndex: 0, amount: 50_000 }, deps);
+      expect(out.advancePayment).toBe(0);
+      expect(data.orders['ORD-5']).toMatchObject({ advancePayment: 0, advanceInExchangeValue: 20_000, advanceInExchangeDescription: 'Chain', grandTotal: 280_000, exchanges: [CHAIN], advances: [] });
+    });
+
+    it('gold only: listed as a line of amount 0, deleted with its rows', async () => {
+      const { db, data } = fakeDb(seed({ advancePayment: 10_000, advances: [{ id: 'adv-old', amount: 10_000, date: '2026-10-01T00:00:00.000Z' }], grandTotal: 290_000 }));
+      await recordOrderAdvance(db, { orderId: 'ORD-5', exchanges: [OLD_RING, CHAIN], requestId: 'req-d-0002' });
+      const lines = orderAdvanceLines({ ...data.orders['ORD-5'], id: 'ORD-5', createdAt: '2026-10-01T00:00:00.000Z' } as unknown as Order, '');
+      expect(lines.map(l => l.amount)).toEqual([0 + 10_000, 0]);
+      expect(lines[1].exchanges).toHaveLength(2);
+      expect(data.orders['ORD-5'].exchanges).toEqual([{ ...OLD_RING, advanceId: 'adv-req-d-0002' }, { ...CHAIN, advanceId: 'adv-req-d-0002' }]);
+      await deleteOrderAdvance(db, { orderId: 'ORD-5', lineIndex: 1, amount: 0 }, deps);
+      expect(data.orders['ORD-5']).toMatchObject({ advancePayment: 10_000, advanceInExchangeValue: 0, advanceInExchangeDescription: '', exchanges: [], grandTotal: 290_000 });
+      expect(data.orders['ORD-5'].advances).toHaveLength(1);
+    });
+
+    it('a cash-only delete leaves untagged exchange rows alone', async () => {
+      const { db, data } = fakeDb(seed({ exchanges: [CHAIN], advanceInExchangeValue: 20_000, advanceInExchangeDescription: 'Chain', grandTotal: 280_000 }));
+      await recordOrderAdvance(db, { orderId: 'ORD-5', amount: 30_000, requestId: 'req-d-0003' });
+      await deleteOrderAdvance(db, { orderId: 'ORD-5', lineIndex: 0, amount: 30_000 }, deps);
+      expect(data.orders['ORD-5']).toMatchObject({ exchanges: [CHAIN], advanceInExchangeValue: 20_000, grandTotal: 280_000 });
+    });
+
+    it('the tag never reaches the invoice', async () => {
+      const { db, data } = fakeDb(seed());
+      await recordOrderAdvance(db, { orderId: 'ORD-5', exchange: OLD_RING, requestId: 'req-d-0004' });
+      const order = { ...data.orders['ORD-5'], id: 'ORD-000005', createdAt: '2026-10-01T00:00:00.000Z', items: [{ description: 'Set', metalType: 'gold' }] } as unknown as Order;
+      const inv = invoiceFromOrder(order, [{ isManualPrice: true, finalManualPrice: 300_000 } as FinalizedItem], 0, undefined, {} as Settings, '2026-10-24T00:00:00.000Z', o => o);
+      expect(JSON.stringify(inv)).not.toContain('advanceId');
+      expect(inv.exchanges).toEqual([OLD_RING]);
+    });
+  });
+
+  it('finalizing carries it to the invoice: exchange row off the total, only cash as a payment', async () => {
+    const { db, data } = fakeDb(seed());
+    await recordOrderAdvance(db, { orderId: 'ORD-5', amount: 50_000, method: 'Cash', exchange: OLD_RING, requestId: 'req-x-0003' });
+    await recordOrderAdvance(db, { orderId: 'ORD-5', exchange: { description: 'Chain', value: 20_000 }, requestId: 'req-x-0004' });
+    const order = { ...data.orders['ORD-5'], id: 'ORD-000005', createdAt: '2026-10-01T00:00:00.000Z', items: [{ description: 'Set', metalType: 'gold' }] } as unknown as Order;
+    const inv = invoiceFromOrder(order, [{ isManualPrice: true, finalManualPrice: 300_000 } as FinalizedItem], 0, undefined, {} as Settings, '2026-10-24T00:00:00.000Z', o => o);
+    expect(inv.exchanges).toEqual([OLD_RING, { description: 'Chain', value: 20_000 }]);
+    expect(inv.exchangeAmount1).toBe(120_000);
+    expect(inv.grandTotal).toBe(180_000);
+    expect(inv.paymentHistory).toHaveLength(1);
+    expect(inv.paymentHistory?.[0]).not.toHaveProperty('exchange');
+    expect(inv.amountPaid).toBe(50_000);
+    expect(inv.balanceDue).toBe(130_000);
   });
 });
 

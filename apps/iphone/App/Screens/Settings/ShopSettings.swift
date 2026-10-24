@@ -130,7 +130,7 @@ private struct ShopForm: View {
                 counterField("Last repair number", \Numbers.repair, prefix: "REP", stored: settings.lastRepairNumber ?? 0)
                 SecureField("Delete code", text: $deleteCode)
                     .keyboardType(.numberPad)
-                    .textContentType(.oneTimeCode)
+                    .fieldKind(.oneTimeCode)
                 Button { Task { await saveNumbers() } } label: {
                     Text(savingNumbers ? "Saving…" : "Save numbering").frame(maxWidth: .infinity)
                 }

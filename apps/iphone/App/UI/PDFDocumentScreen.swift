@@ -1,5 +1,8 @@
 import SwiftUI
 import PDFKit
+#if os(macOS)
+import AppKit
+#endif
 
 /// A PDF the ERP draws on its server with the browser's own builder — the invoice Print saves
 /// (lib/invoice-pdf.ts), the workshop slip (lib/order-slip-pdf.ts) — fetched as the signed-in person
@@ -51,11 +54,29 @@ struct PDFDocumentScreen: View {
     @ViewBuilder
     private var shareButton: some View {
         if let shown {
+            #if os(macOS)
+            // The Mac's print panel, straight from the PDF (also what Print, ⌘P, opens from the menu).
+            Button { Self.printDocument(shown.document) } label: {
+                Label("Print", systemImage: "printer")
+            }
+            #endif
             ShareLink(item: shown.file) {
                 Label("Share or print", systemImage: "square.and.arrow.up")
             }
         }
     }
+
+    #if os(macOS)
+    private static func printDocument(_ document: PDFDocument) {
+        let info = NSPrintInfo.shared.copy() as? NSPrintInfo ?? NSPrintInfo.shared
+        guard let operation = document.printOperation(for: info, scalingMode: .pageScaleDownToFit, autoRotate: true) else { return }
+        if let window = NSApp.keyWindow {
+            operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
+        } else {
+            operation.run()
+        }
+    }
+    #endif
 
     // MARK: The file
 
@@ -102,6 +123,27 @@ struct PDFDocumentScreen: View {
     }
 }
 
+#if os(macOS)
+/// PDFKit's own viewer on the Mac: the pages one under the other, scaled to the window, on the house's ground.
+private struct PDFKitView: NSViewRepresentable {
+    let document: PDFDocument
+
+    func makeNSView(context: Context) -> PDFView {
+        let view = PDFView()
+        view.autoScales = true
+        view.displayMode = .singlePageContinuous
+        view.displayDirection = .vertical
+        view.displaysPageBreaks = true
+        view.backgroundColor = .clear
+        view.document = document
+        return view
+    }
+
+    func updateNSView(_ view: PDFView, context: Context) {
+        if view.document !== document { view.document = document }
+    }
+}
+#else
 /// PDFKit's own viewer: pinch to zoom, the pages one under the other, on the house's ground.
 private struct PDFKitView: UIViewRepresentable {
     let document: PDFDocument
@@ -121,3 +163,4 @@ private struct PDFKitView: UIViewRepresentable {
         if view.document !== document { view.document = document }
     }
 }
+#endif

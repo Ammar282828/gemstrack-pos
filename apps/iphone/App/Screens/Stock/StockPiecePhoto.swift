@@ -1,7 +1,12 @@
 import SwiftUI
 import PhotosUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
+#if os(macOS)
+import UniformTypeIdentifiers
+#endif
 
 /// A piece's photo, added, changed or taken off from the phone (the product form's Photo, product-form.tsx).
 /// The web uploads it to Firebase Storage from the browser; the phone has no Storage SDK, so the photograph goes to
@@ -20,6 +25,7 @@ struct StockPiecePhotoField: View {
     @State private var library = false
     @State private var picked: PhotosPickerItem?
     @State private var camera = false
+    @State private var importing = false
     @State private var confirmRemove = false
     @State private var busy: Busy?
     @State private var failure: String?
@@ -49,12 +55,19 @@ struct StockPiecePhotoField: View {
                     Label(shown == nil ? "Add from Photos" : "Photos", systemImage: "photo.on.rectangle")
                 }
                 .buttonStyle(.bordered)
+                #if os(macOS)
+                Button { importing = true } label: {
+                    Label("Choose a file…", systemImage: "folder")
+                }
+                .buttonStyle(.bordered)
+                #else
                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
                     Button { camera = true } label: {
                         Label("Camera", systemImage: "camera")
                     }
                     .buttonStyle(.bordered)
                 }
+                #endif
                 if shown != nil {
                     Button(role: .destructive) { confirmRemove = true } label: {
                         Label("Remove photo", systemImage: "trash")
@@ -82,6 +95,17 @@ struct StockPiecePhotoField: View {
             }
             .ignoresSafeArea()
         }
+        #if os(macOS)
+        // A picture file chosen, or dropped on the field, takes the camera's place.
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.image]) { result in
+            if case .success(let url) = result { Task { await loadFile(url) } }
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            guard busy == nil, let url = urls.first else { return false }
+            Task { await loadFile(url) }
+            return true
+        }
+        #endif
         .confirmDestructive(isPresented: $confirmRemove, title: "Remove the photo of \(name)?",
                             message: "The piece keeps everything else. A new photo can be added at any time.",
                             action: "Remove photo") { Task { await remove() } }
@@ -107,6 +131,18 @@ struct StockPiecePhotoField: View {
         }
         await send(image)
     }
+
+    #if os(macOS)
+    private func loadFile(_ url: URL) async {
+        busy = .reading
+        guard let image = NewOrderPhotoCodec.macPicture(at: url) else {
+            busy = nil
+            failure = "Couldn't read that file as a photo. Try another."
+            return
+        }
+        await send(image)
+    }
+    #endif
 
     private func send(_ image: UIImage) async {
         busy = .reading
@@ -148,12 +184,16 @@ enum StockPhotoCodec {
         guard side > 0 else { return nil }
         let scale = min(1, longestEdge / side)
         let size = CGSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
+        // Drawn upright, so the ERP needs no orientation tag to show it the right way round.
+        #if os(macOS)
+        guard let small = NewOrderPhotoCodec.macScaled(image, to: size) else { return nil }
+        #else
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
-        // Drawn upright, so the ERP needs no orientation tag to show it the right way round.
         let small = UIGraphicsImageRenderer(size: size, format: format).image { _ in
             image.draw(in: CGRect(origin: .zero, size: size))
         }
+        #endif
         return small.jpegData(compressionQuality: 0.88)
     }
 }

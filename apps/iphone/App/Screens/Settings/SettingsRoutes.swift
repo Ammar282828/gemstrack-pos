@@ -30,6 +30,7 @@ enum SettingsRoutes {
             .exact("/settings/data") { DataSettings() },
             .exact("/settings/voice") { VoiceSettings() },
             .exact("/settings/printer") { LabelSettings() },
+            .exact(LabelLiveSettingsScreen.path) { LabelLiveSettingsScreen() },
             .exact("/settings/weprint-api") { WeprintSettings() },
             .exact("/settings/backups") { BackupSettings() },
             .exact("/settings/contact-import") { ContactImportSettings() },

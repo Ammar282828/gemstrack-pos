@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import Observation
 
 /// Edit a piece's photograph, re-made on the phone as edit/page.tsx `PieceEditor` re-makes it: always from the photo as

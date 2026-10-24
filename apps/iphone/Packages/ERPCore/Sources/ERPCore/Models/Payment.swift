@@ -12,11 +12,15 @@ public struct Payment: Decodable, Hashable {
     public let method: PaymentType?
     /// Cheque number, last four of the card, transfer reference.
     public let reference: String?
+    /// Gold handed over with an order's advance (alone when `amount` is 0). The same rows sit on the order's
+    /// `exchanges`; this is what lets the advance list show, and deleting the advance take them (lib/order-payment.ts).
+    public let exchanges: [ExchangeEntry]
 
-    private enum K: String, CodingKey { case amount, date, notes, method, reference }
+    private enum K: String, CodingKey { case amount, date, notes, method, reference, exchanges }
 
     /// For the rules that make payments (`orderAdvancePayments`), not for decoding.
-    public init(amount: Double, date: String, notes: String? = nil, method: PaymentType? = nil, reference: String? = nil) {
+    public init(amount: Double, date: String, notes: String? = nil, method: PaymentType? = nil, reference: String? = nil, exchanges: [ExchangeEntry] = []) {
+        self.exchanges = exchanges
         self.amount = amount
         self.date = date
         self.notes = notes
@@ -31,6 +35,7 @@ public struct Payment: Decodable, Hashable {
         notes = c.string(.notes)
         method = c.word(.method)
         reference = c.string(.reference)
+        exchanges = c.list(.exchanges)
     }
 }
 

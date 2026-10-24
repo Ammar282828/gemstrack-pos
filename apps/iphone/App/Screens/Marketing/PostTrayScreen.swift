@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// Posts → the tray (src/app/posts/page.tsx's tray and ./piece-card.tsx): website pieces picked one or a few, each with

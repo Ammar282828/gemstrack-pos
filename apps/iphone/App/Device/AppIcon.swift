@@ -1,4 +1,6 @@
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// The app's icon: the one app's own (AppIcon-erp, a diamond) is the primary; Taheri's and House of Mina's are alternates
 /// (project.yml ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES, from houses.json). It changes only when the person asks for it in
@@ -12,7 +14,8 @@ enum AppIcon {
     private static let taheriIcon = "AppIcon-taheri"
     private static let minaIcon = "AppIcon-mina"
 
-    /// False where the build declares no alternate: House of Mina's own (deprecated) build, whose primary icon is Mina's.
+    /// False on the Mac (the shim answers no: the Dock icon is the app's own, so Settings hides the icon choice), and
+    /// where the build declares no alternate: House of Mina's own (deprecated) build, whose primary icon is Mina's.
     static var supported: Bool { UIApplication.shared.supportsAlternateIcons }
 
     /// "erp", "taheri" or "mina": the icon showing now (the primary, AppIcon-erp, is no alternate name at all).

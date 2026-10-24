@@ -18,7 +18,7 @@ struct CalendarScreen: View {
     @State private var selected = CalendarScreen.todayKey()
     @State private var reckoned = Memo<Reckoned>()
     @State private var width: CGFloat = 0
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// A day cell's height grows with the reader's text.

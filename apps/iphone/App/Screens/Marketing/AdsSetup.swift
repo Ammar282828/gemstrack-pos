@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 /// Ads → Setup (src/app/ads/setup/page.tsx): what still stands between the shop and running every kind of ad,

@@ -1,6 +1,6 @@
 /**
  * What the invoice page does to a saved invoice besides taking a payment (components/invoice/invoice-viewer.tsx),
- * native on the phone: change the discount, delete one payment, a partial refund, and delete the invoice, which
+ * native on the phone: change the discount, delete one payment, a partial refund, give a customer's credit back, and delete the invoice, which
  * is also the page's full refund. Each runs the shared write the browser's store runs (lib/writes/
  * invoice-discount.ts, invoice-payment.ts `removeInvoicePayment`, invoice-refund.ts, invoice-delete.ts) on the
  * Admin SDK.
@@ -31,14 +31,17 @@ import { discountProblem } from '@/lib/invoice-actions';
 import { updateInvoiceDiscount } from '@/lib/writes/invoice-discount';
 import { removeInvoicePayment } from '@/lib/writes/invoice-payment';
 import { refundInvoicePartial } from '@/lib/writes/invoice-refund';
+import { payBackCredit, PaybackRefusal } from '@/lib/writes/invoice-credit-payback';
 import { deleteInvoice, deleteInvoiceWhat } from '@/lib/writes/invoice-delete';
 import type { OpHandler, OpRoles } from './op-context';
+import { REQUEST_ID } from './idempotency';
 
 /** Who may run each operation: as the browser allows it today. */
 export const INVOICE_ACTION_OPS: OpRoles = {
   updateInvoiceDiscount: ['owner'],
   deleteInvoicePayment: ['owner'],
   refundInvoicePartial: ['owner'],
+  payBackCredit: ['owner'],
   deleteInvoice: ['owner'],
 };
 
@@ -146,6 +149,32 @@ export const runInvoiceActionOp: OpHandler = async (op, body, ctx) => {
         }),
       });
       return NextResponse.json({ ok: true, invoice, followUps: ctx.followUps });
+    }
+
+    case 'payBackCredit': {
+      // Giving a customer their credit back (lib/writes/invoice-credit-payback.ts): not a refund of the sale, so no
+      // delete code and nothing for Shopify. `amount` left out is the whole credit. A money op: the request's name is
+      // required by the route, and a retry gets the first answer.
+      const amount = body.amount === undefined || body.amount === null ? undefined : figure(body.amount);
+      if (amount === null || (amount !== undefined && !(amount > 0))) return bad('Enter the amount to give back.');
+      if (body.method !== undefined && typeof body.method !== 'string') return bad('The method is text.');
+      if (body.notes !== undefined && typeof body.notes !== 'string') return bad('The note is text.');
+      const method = typeof body.method === 'string' && body.method.trim() ? body.method.trim().slice(0, 40) : undefined;
+      const moved = seenProblem(body.seen, onFile);
+      if (moved) return moved;
+      try {
+        const out = await payBackCredit(adminPort, {
+          invoiceId, amount, method,
+          ...(typeof body.notes === 'string' && { notes: body.notes }),
+          ...(typeof body.date === 'string' && body.date && { date: body.date }),
+          ...(typeof body.requestId === 'string' && REQUEST_ID.test(body.requestId) && { requestId: body.requestId }),
+        }, { log: ctx.log });
+        const { paidBack, ...invoice } = out;
+        return NextResponse.json({ ok: true, invoice, paidBack, followUps: ctx.followUps });
+      } catch (e) {
+        if (e instanceof PaybackRefusal) return bad(e.message, 409);
+        throw e;
+      }
     }
 
     case 'deleteInvoice': {

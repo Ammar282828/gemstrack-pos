@@ -45,7 +45,12 @@ struct RootGate: View {
                         }
                         .zoomScope()
                     } else {
+                        #if os(macOS)
+                        // The Mac's sidebar, windows and menus (Mac/MacShell.swift) over the same places.
+                        MacShell()
+                        #else
                         RootView()
+                        #endif
                     }
                 }
                 .transition(.opacity)
@@ -65,7 +70,7 @@ struct RootGate: View {
 /// Liquid Glass comes with the system's TabView, toolbars and sheets (CONVENTIONS.md rule 4).
 struct RootView: View {
     @Environment(Session.self) private var session
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     // The simulator check opens each tab in turn (`-ERPDemoTab orders`).
     @State private var tab = UserDefaults.standard.string(forKey: "ERPDemoTab") ?? "home"
     @State private var creating: Route?
@@ -220,7 +225,7 @@ private struct CreateAccessory: ViewModifier {
     let talk: () -> Void
     @State private var compact = false
 
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
 
     func body(content: Content) -> some View {
         if sizeClass.isPadLayout {
@@ -316,7 +321,7 @@ struct PlaceScreen: View {
     /// an owner's opens the form, anyone else's a page to read).
     var isRoot = false
     @Environment(Session.self) private var session
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @State private var chosen: String?
 
     var body: some View {

@@ -42,3 +42,10 @@ Label LIVE 4.3.3 failed on the ERP's `labellive://batch?payload=…` ("Unexpecte
 the base64 payload without undoing the link's percent-encoding. Several labels now go in **one print link with a
 list of variables** (`variables=[{…},{…}]`, Label LIVE's own form for one design on one printer). `batchUrl` stays
 for reference but nothing prints with it.
+
+### Native: the Mac app and the iPhone (2026-10-24)
+
+The logic is ported to ERPCore (`LabelLive.swift`, `LabelCSV.swift`, tests mirroring these files'), and Settings → Labels →
+Label LIVE is native on both apps. The Mac app reaches Label LIVE's HTTP API on localhost (an https page cannot) and falls
+back to the link; an iPhone sends the link through Label LIVE's MQTT broker on the counter Mac. `updateSettings` takes
+`labelLive` (checked by `cleanLabelLive`). Details: [Mac app](mac-app.md#label-live-on-the-mac-and-the-iphone).

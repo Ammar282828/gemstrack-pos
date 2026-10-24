@@ -36,7 +36,7 @@ struct InvoiceWhatsAppSheet: View {
                 Section {
                     TextField("WhatsApp number", text: $phone, prompt: Text("0300 1234567"))
                         .keyboardType(.phonePad)
-                        .textContentType(.telephoneNumber)
+                        .fieldKind(.telephoneNumber)
                 } footer: {
                     if CustomerKit.whatsAppNumber(phone).isEmpty {
                         Text("Enter the customer's WhatsApp number.")
@@ -109,7 +109,7 @@ struct InvoicePDFNumberSheet: View {
                 Section {
                     TextField("WhatsApp number", text: $phone, prompt: Text("0300 1234567"))
                         .keyboardType(.phonePad)
-                        .textContentType(.telephoneNumber)
+                        .fieldKind(.telephoneNumber)
                 } footer: {
                     if number.isEmpty {
                         Text("Enter the customer's WhatsApp number.")

@@ -102,4 +102,18 @@ final class OrderPaymentTests: XCTestCase {
         XCTAssertEqual(getOrderPaymentStatus(order(["grandTotal": 70_000, "advancePayment": 0, "advanceInExchangeValue": 30_000])), .partial)
         XCTAssertEqual(getOrderPaymentStatus(order([:])), .paid)
     }
+
+    // MARK: Gold handed over with an advance
+
+    func testAGoldOnlyAdvanceIsAListedLineButNeverAPayment() {
+        let gold: [String: Any] = ["id": "adv-x", "amount": 0, "date": "2026-09-10T12:00:00.000Z",
+                                   "exchanges": [["description": "Old ring", "value": 100000]]]
+        let o = withBase(["advancePayment": 0, "advances": [gold]])
+        XCTAssertEqual(orderAdvanceLines(o, label: "").count, 1)
+        XCTAssertEqual(orderAdvanceLines(o, label: "")[0].exchanges.first?.value, 100000)
+        XCTAssertEqual(orderAdvancePayments(o), [])
+        let removed = withoutOrderAdvance(o, lineIndex: 0)
+        XCTAssertEqual(removed?.advancePayment, 0)
+        XCTAssertEqual(removed?.advances, [])
+    }
 }

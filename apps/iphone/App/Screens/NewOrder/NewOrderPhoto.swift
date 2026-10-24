@@ -1,8 +1,13 @@
 import SwiftUI
 import PhotosUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import FirebaseFirestore
 import ERPCore
+#if os(macOS)
+import UniformTypeIdentifiers
+#endif
 
 /// Stored samples stay visible while editing; choosing or removing a photo is explicit.
 struct NewOrderSampleField: View {
@@ -61,11 +66,15 @@ enum NewOrderPhotoCodec {
         guard side > 0 else { return nil }
         let scale = min(1, longestEdge / side)
         let size = CGSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
+        #if os(macOS)
+        guard let small = macScaled(image, to: size) else { return nil }
+        #else
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         let small = UIGraphicsImageRenderer(size: size, format: format).image { _ in
             image.draw(in: CGRect(origin: .zero, size: size))
         }
+        #endif
         let steps: [CGFloat] = [0.82, 0.7, 0.6, 0.5, 0.4]
         for quality in steps {
             if let data = small.jpegData(compressionQuality: quality), data.count <= budget { return data }
@@ -74,6 +83,90 @@ enum NewOrderPhotoCodec {
     }
 }
 
+#if os(macOS)
+extension NewOrderPhotoCodec {
+    /// What UIGraphicsImageRenderer does on the phone: the picture redrawn at `size` (one pixel to a point), on white so
+    /// a picture with see-through parts still makes a JPEG.
+    nonisolated static func macScaled(_ image: UIImage, to size: CGSize) -> UIImage? {
+        guard let cg = image.cgImage, size.width >= 1, size.height >= 1,
+              let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let ctx = CGContext(data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8,
+                                  bytesPerRow: 0, space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)
+        else { return nil }
+        let rect = CGRect(origin: .zero, size: CGSize(width: Int(size.width), height: Int(size.height)))
+        ctx.setFillColor(CGColor(gray: 1, alpha: 1))
+        ctx.fill(rect)
+        ctx.interpolationQuality = .high
+        ctx.draw(cg, in: rect)
+        return ctx.makeImage().map { UIImage(cgImage: $0) }
+    }
+
+    /// The picture no longer than `longest` on its long side (DocumentScanner.fitted, for the Mac).
+    nonisolated static func macFitted(_ image: UIImage, longest: CGFloat) -> UIImage {
+        let side = max(image.size.width, image.size.height)
+        guard side > longest else { return image }
+        let scale = longest / side
+        let size = CGSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
+        return macScaled(image, to: size) ?? image
+    }
+
+    /// The picture inside a file the person chose or dropped, nil when it is not one.
+    nonisolated static func macPicture(at url: URL) -> UIImage? {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return UIImage(data: data)
+    }
+}
+
+/// The Mac has no camera to open over the screen: this sheet takes the place of Apple's camera wherever a screen asks
+/// for one. A picture comes from a file (Finder, or File › Import from iPhone for a Continuity Camera shot) or is
+/// dropped on it, and goes back by the same `onDone` as a photo taken on the phone.
+struct NewOrderCamera: View {
+    /// The picture chosen, or nil when it was cancelled.
+    let onDone: (UIImage?) -> Void
+
+    @State private var choosing = false
+    @State private var problem: String?
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "photo.badge.plus").font(.largeTitle).foregroundStyle(.secondary)
+            Text("Choose a photo").font(.headline)
+            Text("Pick a picture from your Mac, or drop one here.")
+                .font(.subheadline).foregroundStyle(.secondary)
+            if let problem { Text(problem).font(.footnote).foregroundStyle(Tone.problem.color) }
+            HStack(spacing: 10) {
+                Button("Cancel") { onDone(nil) }
+                    .buttonStyle(.bordered)
+                    .keyboardShortcut(.cancelAction)
+                Button("Choose a photo…") { choosing = true }
+                    .buttonStyle(.houseProminent)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .multilineTextAlignment(.center)
+        .padding(28)
+        .frame(minWidth: 380, minHeight: 240)
+        .fileImporter(isPresented: $choosing, allowedContentTypes: [.image]) { result in
+            if case .success(let url) = result { take(url) }
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first else { return false }
+            take(url)
+            return true
+        }
+    }
+
+    private func take(_ url: URL) {
+        if let image = NewOrderPhotoCodec.macPicture(at: url) {
+            onDone(image)
+        } else {
+            problem = "Couldn't read that file as a photo. Try another."
+        }
+    }
+}
+#else
 /// Apple's camera, for a photo of the customer's sample or a design.
 struct NewOrderCamera: UIViewControllerRepresentable {
     /// The picture taken, or nil when it was cancelled.
@@ -104,6 +197,7 @@ struct NewOrderCamera: UIViewControllerRepresentable {
         }
     }
 }
+#endif
 
 /// A piece's sample picture: shown, replaced from Photos or the camera, or removed.
 struct NewOrderPhotoField: View {
@@ -112,6 +206,7 @@ struct NewOrderPhotoField: View {
     @State private var library = false
     @State private var picked: PhotosPickerItem?
     @State private var camera = false
+    @State private var importing = false
     @State private var busy = false
     @State private var problem: String?
 
@@ -123,12 +218,19 @@ struct NewOrderPhotoField: View {
                     Label("Photos", systemImage: "photo.on.rectangle")
                 }
                 .buttonStyle(.bordered)
+                #if os(macOS)
+                Button { importing = true } label: {
+                    Label("Choose a file…", systemImage: "folder")
+                }
+                .buttonStyle(.bordered)
+                #else
                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
                     Button { camera = true } label: {
                         Label("Camera", systemImage: "camera")
                     }
                     .buttonStyle(.bordered)
                 }
+                #endif
                 if busy { SkeletonLoading() }
             }
             if let problem {
@@ -147,7 +249,31 @@ struct NewOrderPhotoField: View {
             }
             .ignoresSafeArea()
         }
+        #if os(macOS)
+        // A picture file chosen, or dropped on the field (the Mac's stand-in for the camera).
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.image]) { result in
+            if case .success(let url) = result { Task { await loadFile(url) } }
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first else { return false }
+            Task { await loadFile(url) }
+            return true
+        }
+        #endif
     }
+
+    #if os(macOS)
+    private func loadFile(_ url: URL) async {
+        busy = true
+        problem = nil
+        guard let image = NewOrderPhotoCodec.macPicture(at: url) else {
+            busy = false
+            problem = "Couldn't read that file as a photo. Try another."
+            return
+        }
+        await take(image)
+    }
+    #endif
 
     @ViewBuilder
     private var preview: some View {

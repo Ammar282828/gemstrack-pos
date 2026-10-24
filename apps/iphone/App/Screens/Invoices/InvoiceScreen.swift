@@ -130,6 +130,7 @@ struct InvoiceScreen: View {
             Group {
                 switch a {
                 case .discount: InvoiceActionDiscountSheet(invoice: inv, onDone: acted)
+                case .giveBack: InvoiceActionCreditSheet(invoice: inv, onDone: acted)
                 case .refund: InvoiceActionRefundSheet(invoice: inv, onDone: acted)
                 case .delete: InvoiceActionDeleteSheet(invoice: inv, onDone: acted)
                 }
@@ -421,6 +422,12 @@ struct InvoiceScreen: View {
                       systemImage: "arrow.uturn.left.circle.fill")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(Tone.credit.color)
+                // Finish the credit by handing the money over (an owner's; a walk-in holds none).
+                if session.isOwner && InvoiceCredit.held(inv) >= 1 {
+                    Button { act(.giveBack, inv) } label: {
+                        Label("Give back \(Money.pkr(InvoiceCredit.held(inv)))", systemImage: "banknote")
+                    }
+                }
             }
         } header: {
             // What was paid is the receipt's own line; the heading keeps the count.
@@ -743,6 +750,8 @@ private struct InvoicePaymentRow: View {
     let payment: Payment
 
     private var refund: Bool { payment.amount < 0 }
+    /// Credit handed back (lib/writes/invoice-credit-payback.ts): also a negative line, but not a refund of the sale.
+    private var paidBack: Bool { refund && (payment.notes ?? "").hasPrefix("Credit paid back") }
     @ScaledMetric(relativeTo: .subheadline) private var iconSize: CGFloat = 34
 
     var body: some View {
@@ -789,7 +798,7 @@ private struct InvoicePaymentRow: View {
 
     /// The method (older records predate payment types and have none), or Refund.
     private var title: String {
-        if refund { return "Refund" }
+        if refund { return paidBack ? "Credit paid back" : "Refund" }
         let method = payment.method?.rawValue ?? ""
         return method.isEmpty ? "Payment" : method
     }
@@ -801,7 +810,9 @@ private struct InvoicePaymentRow: View {
         if !when.isEmpty { parts.append(when) }
         if let ref = payment.reference, !ref.isEmpty { parts.append(ref) }
         if var note = payment.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty, !note.hasPrefix("Payment received") {
-            if refund, note.hasPrefix("Refund") {
+            if paidBack {
+                note = payment.method?.rawValue ?? ""
+            } else if refund, note.hasPrefix("Refund") {
                 note = String(note.dropFirst("Refund".count)).trimmingCharacters(in: CharacterSet(charactersIn: ": ").union(.whitespaces))
             }
             if !note.isEmpty { parts.append(note) }
@@ -874,13 +885,14 @@ private struct InvoiceMarginRow: View {
 
 /// The invoice's own actions, each a sheet (InvoiceAction*).
 enum InvoiceAct: String, Identifiable {
-    case discount, refund, delete
+    case discount, giveBack, refund, delete
     var id: String { rawValue }
 
     /// What the shop floor is told: each is an owner's (ops-invoice-actions.ts), and the server refuses staff.
     var ownersOnly: String {
         switch self {
         case .discount: return "Changing the discount is an owner's. Ask an owner to change it."
+        case .giveBack: return "Giving credit back is an owner's. Ask an owner to hand it back."
         case .refund: return "A refund is an owner's. Ask an owner to refund this invoice."
         case .delete: return "Deleting an invoice is an owner's. Ask an owner to delete it."
         }

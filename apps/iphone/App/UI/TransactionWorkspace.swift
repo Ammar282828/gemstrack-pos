@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 
 enum EntryStep: Int, CaseIterable, Identifiable {
     case customer, pieces, payment, review

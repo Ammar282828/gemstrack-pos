@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 // What New ad, the ad set designer, Audiences, Rules and Setup share on the phone: the routes they call (the
@@ -211,11 +213,7 @@ enum AdsPhotoCodec {
         guard side > 0 else { return nil }
         let scale = min(1, longestEdge / side)
         let size = CGSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        let small = UIGraphicsImageRenderer(size: size, format: format).image { _ in
-            image.draw(in: CGRect(origin: .zero, size: size))
-        }
+        let small = MarketingScale.image(image, to: size)
         return small.jpegData(compressionQuality: 0.92)
     }
 
@@ -225,11 +223,7 @@ enum AdsPhotoCodec {
         guard side > 0 else { return nil }
         let scale = min(1, 240 / side)
         let size = CGSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        let small = UIGraphicsImageRenderer(size: size, format: format).image { _ in
-            image.draw(in: CGRect(origin: .zero, size: size))
-        }
+        let small = MarketingScale.image(image, to: size)
         return small.jpegData(compressionQuality: 0.7)
     }
 }

@@ -128,13 +128,34 @@ struct OrdersMarginRow: View {
 /// (`settleOrderAdvance`, lib/writes/settle.ts), never a payment that was not made; the invoice made from the order
 /// carries the discount (Order to invoice). Settle is owners only, as the write is.
 enum OrderAdvance {
-    static func record(_ order: Order, amount: Double, method: String, note: String) async throws {
-        _ = try await ERPAPI.shared.write("recordOrderAdvance", [
+    /// Cash and/or gold handed over (`exchanges`, the rows as the order keeps them): the cash may be 0 when gold is
+    /// given, and one of the two must be above 0 (lib/writes/order-advance.ts). The gold joins the order's exchange,
+    /// comes off the balance, and is carried to the invoice.
+    static func record(_ order: Order, amount: Double, method: String, note: String, exchanges: [[String: Any]] = []) async throws {
+        var fields: [String: Any] = [
             "orderId": order.id,
             "amount": amount,
             "method": method,
             "notes": note,
-        ])
+        ]
+        if !exchanges.isEmpty { fields["exchanges"] = exchanges }
+        _ = try await ERPAPI.shared.write("recordOrderAdvance", fields)
+    }
+
+    /// What was recorded, in words: the cash, the gold, or both ("PKR 50,000 cash + PKR 100,000 gold").
+    static func said(amount: Double, exchanges: [[String: Any]]) -> String {
+        let gold = exchanges.reduce(0.0) { $0 + (($1["value"] as? Double) ?? 0) }
+        if gold <= 0 { return Money.pkr(amount) }
+        return amount > 0 ? "\(Money.pkr(amount)) cash + \(Money.pkr(gold)) gold" : "\(Money.pkr(gold)) gold"
+    }
+
+    /// One exchange row as the write takes it (as the new order sends its rows).
+    static func exchangeJSON(_ e: ExchangeEntry) -> [String: Any] {
+        var o: [String: Any] = ["description": e.description, "value": e.value]
+        if let k = e.karat, !k.isEmpty { o["karat"] = k }
+        if let w = e.weightG, w > 0 { o["weightG"] = w }
+        if let r = e.ratePerGram, r > 0 { o["ratePerGram"] = r }
+        return o
     }
 
     static func settle(_ order: Order, amount: Double, method: String, note: String, remainder: Double) async throws {
@@ -145,5 +166,116 @@ enum OrderAdvance {
             "method": method,
             "notes": note,
         ])
+    }
+}
+
+// MARK: Gold handed over with an advance
+
+/// The advance sheet's "Exchanged gold": the New order exchange line (what it is + the amount; karat, grams and
+/// rate fold away and fill the amount until someone types their own, ERPCore's `applyExchangeRowChange`), for a
+/// sheet that holds plain rows rather than a draft (components/shared/exchange-rows.tsx in RecordAdvanceDialog).
+struct OrderAdvanceExchange: View {
+    @Binding var rows: [ExchangeRow]
+    @State private var opened: Set<String> = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private let karats = ["24k", "22k", "21k", "18k"]
+
+    var body: some View {
+        Section {
+            ForEach(rows) { row in
+                exchangeRow(row)
+            }
+            Button {
+                Motion.run(reduce: reduceMotion) { rows.append(blankExchangeRow()) }
+            } label: {
+                Label("Add another exchange", systemImage: "plus")
+            }
+            if rows.count > 1 && total > 0 {
+                LabeledContent("Exchange total") {
+                    Text(Money.pkr(total)).monospacedDigit().fontWeight(.medium)
+                }
+            }
+        } header: {
+            Text("Exchanged gold")
+        } footer: {
+            Text("Gold handed over now comes off the balance, and goes to the invoice with the order.")
+        }
+        .motion(rows.count)
+        .motion(opened)
+    }
+
+    private var total: Double { exchangeRowsTotal(rows) }
+
+    private func text(_ id: String, _ read: @escaping (ExchangeRow) -> String, _ patch: @escaping (String) -> ExchangeRowPatch) -> Binding<String> {
+        Binding(
+            get: { rows.first { $0.id == id }.map(read) ?? "" },
+            set: { typed in rows = rows.map { $0.id == id ? applyExchangeRowChange($0, patch(typed)) : $0 } }
+        )
+    }
+
+    private func remove(_ id: String) {
+        Motion.run(reduce: reduceMotion) {
+            if rows.count > 1 { rows.removeAll { $0.id == id } } else { rows = [blankExchangeRow()] }
+        }
+    }
+
+    @ViewBuilder
+    private func exchangeRow(_ row: ExchangeRow) -> some View {
+        let showDetails = opened.contains(row.id) || !row.karat.isEmpty || !row.weightG.isEmpty || !row.ratePerGram.isEmpty
+        VStack(alignment: .leading, spacing: 8) {
+            AdaptiveStack(spacing: 10, alignment: .firstTextBaseline) {
+                TextField("What it is", text: text(row.id, { $0.description }, { ExchangeRowPatch(description: $0) }),
+                          prompt: Text("What it is (e.g. old ring)"))
+                TextField("Amount", text: text(row.id, { $0.value }, { ExchangeRowPatch(value: $0) }).wholeRupees, prompt: Text("Amount"))
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
+            }
+            if showDetails {
+                details(row)
+            } else {
+                Button { opened.insert(row.id) } label: {
+                    Label("Weight & rate", systemImage: "plus")
+                }
+                .font(.footnote)
+                .buttonStyle(.borderless)
+            }
+        }
+        .swipeActions {
+            Button(role: .destructive) { remove(row.id) } label: {
+                Label("Remove", systemImage: "trash")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func details(_ row: ExchangeRow) -> some View {
+        let computed = !row.valueTyped && NewOrderFormat.num(row.weightG) > 0 && NewOrderFormat.num(row.ratePerGram) > 0
+        HStack(spacing: 10) {
+            // Karat only means something where the house sells gold; a silver house weighs without it.
+            if House.metal == "gold" {
+                Picker("Karat", selection: text(row.id, { $0.karat }, { ExchangeRowPatch(karat: $0) })) {
+                    Text("Karat").tag("")
+                    ForEach(karats, id: \.self) { k in
+                        Text(k).tag(k)
+                    }
+                }
+                .labelsHidden()
+            }
+            TextField("Grams", text: text(row.id, { $0.weightG }, { ExchangeRowPatch(weightG: $0) }), prompt: Text("Grams"))
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .monospacedDigit()
+            TextField("Rate", text: text(row.id, { $0.ratePerGram }, { ExchangeRowPatch(ratePerGram: $0) }), prompt: Text("Rate / g"))
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .monospacedDigit()
+        }
+        if computed {
+            Text("Amount = grams × rate: type an amount to change it.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
     }
 }

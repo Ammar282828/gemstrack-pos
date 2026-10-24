@@ -169,7 +169,7 @@ private struct EditCustomerForm: View {
         Section {
             TextField("Full name", text: $draft.name, prompt: Text("Optional"))
                 .autocorrectionDisabled()
-                .textContentType(.name)
+                .fieldKind(.name)
                 .textInputAutocapitalization(.words)
         } header: {
             LedgerHeading(title: "Name")
@@ -180,7 +180,7 @@ private struct EditCustomerForm: View {
         Section {
             TextField("Phone number", text: $draft.phone, prompt: Text("Optional"))
                 .keyboardType(.phonePad)
-                .textContentType(.telephoneNumber)
+                .fieldKind(.telephoneNumber)
             TextField("Second number", text: $draft.altPhone, prompt: Text("Optional"))
                 .keyboardType(.phonePad)
         } header: {
@@ -192,7 +192,7 @@ private struct EditCustomerForm: View {
         Section {
             TextField("Email address", text: $draft.email, prompt: Text("Optional"))
                 .keyboardType(.emailAddress)
-                .textContentType(.emailAddress)
+                .fieldKind(.emailAddress)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
         } header: {
@@ -206,7 +206,7 @@ private struct EditCustomerForm: View {
         Section {
             TextField("Address", text: $draft.address, prompt: Text("Optional"), axis: .vertical)
                 .lineLimit(2...5)
-                .textContentType(.fullStreetAddress)
+                .fieldKind(.fullStreetAddress)
             TextField("City", text: $draft.city, prompt: Text("e.g. Karachi"))
             TextField("Country", text: $draft.country, prompt: Text("e.g. Pakistan"))
         } header: {

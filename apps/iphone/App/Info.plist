@@ -67,6 +67,8 @@
 	<string>To photograph pieces, bills and slips for the ERP.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>To use Face ID instead of typing the delete code.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>To send tags to Label LIVE on the Mac at the counter.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>To hear you when you speak to the ERP.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

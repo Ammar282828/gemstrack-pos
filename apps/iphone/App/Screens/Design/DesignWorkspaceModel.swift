@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import Observation
 
 /// A photograph to start from, fetched when the design opens so choosing it costs nothing (use-design.ts StartPhoto).

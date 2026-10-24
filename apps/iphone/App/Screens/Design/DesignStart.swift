@@ -190,12 +190,14 @@ struct DesignStartView: View {
             }
             .presentationSizing(.page)
         }
+        #if os(iOS)
         .sheet(isPresented: $camera) {
             NewOrderCamera { image in
                 camera = false
                 if let image, let data = WebsitePhoto.jpeg(image) { start.photo = DesignPhotoSources.device(data, name: "Camera photo") }
             }.ignoresSafeArea()
         }
+        #endif
         .sheet(item: $start.sheet) { $0.shown }
         .failureAlert($problem, title: "Could not use that photograph")
     }
@@ -312,7 +314,7 @@ struct DesignStartView: View {
                         chip("Browse photos", "photo.on.rectangle", onBrowse)
                         chip("From the website", "globe") { sitePicker = true }
                         PhotosPicker(selection: $picked, matching: .images) { chipLabel("This device", "iphone") }.buttonStyle(.plain)
-                        if UIImagePickerController.isSourceTypeAvailable(.camera) { chip("Camera", "camera") { camera = true } }
+                        if MarketingCamera.available { chip("Camera", "camera") { camera = true } }
                     }
                 }
                 Text("A photograph is optional: without one the design starts on the house’s ground.")

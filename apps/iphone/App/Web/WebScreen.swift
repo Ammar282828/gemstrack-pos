@@ -1,5 +1,8 @@
 import SwiftUI
 import WebKit
+#if os(macOS)
+import AppKit
+#endif
 
 /// An ERP page inside the app, for every place without a native screen yet (CONVENTIONS.md
 /// rule 5). Signed in with the app's own sign-in, shown without the ERP's sidebar and top bar
@@ -37,6 +40,7 @@ struct WebScreen: View {
     }
 }
 
+#if os(iOS)
 private struct WebView: UIViewRepresentable {
     let path: String
     @Binding var loading: Bool
@@ -150,6 +154,139 @@ private struct WebView: UIViewRepresentable {
     }
 }
 
+#else
+/// The Mac's twin of the phone's page view: the same web view, user agent and bridge in an NSView. Its differences:
+/// no pull to refresh (the Mac has "Try again" and the page's own links), no "Mobile" in the user agent (a wide
+/// window should get the wide page, still without the ERP's own bars), the page's alerts as the Mac's sheets, and
+/// the page's file fields answered by the Mac's open panel.
+private struct WebView: NSViewRepresentable {
+    let path: String
+    @Binding var loading: Bool
+    @Binding var failed: String?
+    @Binding var native: Route?
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.applicationNameForUserAgent = "ERPApp/2 (\(House.id)) ERPNative/1"
+        config.mediaTypesRequiringUserActionForPlayback = []
+        let bridge = WebBridge()
+        config.userContentController.addUserScript(WKUserScript(source: WebBridge.script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        config.userContentController.addScriptMessageHandler(bridge, contentWorld: .page, name: "erp")
+        let web = WKWebView(frame: .zero, configuration: config)
+        bridge.webView = web
+        let page = path, go = $native
+        bridge.openNative = { to in
+            guard WebScreen.nativePath(to, from: page) else { return false }
+            go.wrappedValue = Route(path: to)
+            return true
+        }
+        context.coordinator.bridge = bridge
+        web.navigationDelegate = context.coordinator
+        web.uiDelegate = context.coordinator
+        web.allowsBackForwardNavigationGestures = true
+        #if DEBUG
+        web.isInspectable = true
+        #endif
+        web.load(URLRequest(url: URL(string: path, relativeTo: House.serverURL)!))
+        return web
+    }
+
+    func updateNSView(_ web: WKWebView, context: Context) {
+        if failed == nil, loading, !web.isLoading, web.url == nil {
+            web.load(URLRequest(url: URL(string: path, relativeTo: House.serverURL)!))
+        }
+    }
+
+    static func dismantleNSView(_ web: WKWebView, coordinator: Coordinator) {
+        web.configuration.userContentController.removeScriptMessageHandler(forName: "erp", contentWorld: .page)
+        coordinator.bridge?.stop()
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+        let parent: WebView
+        var bridge: WebBridge?
+        init(_ parent: WebView) { self.parent = parent }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            parent.loading = false
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            parent.loading = false
+            parent.failed = error.localizedDescription
+        }
+
+        /// The ERP's own addresses stay here; any other site opens in its own app or the browser.
+        func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            guard let url = action.request.url else { return decisionHandler(.allow) }
+            let mine = url.host == House.serverURL.host || ["about", "blob", "data"].contains(url.scheme ?? "")
+            if mine || action.targetFrame?.isMainFrame == false { return decisionHandler(.allow) }
+            Self.openOutside(url)
+            decisionHandler(.cancel)
+        }
+
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+            if let url = action.request.url { Self.openOutside(url) }
+            return nil
+        }
+
+        /// Same short list as the phone's: what leaves the ERP for another app. Any other scheme is never followed.
+        private static let outside: Set<String> = ["https", "http", "tel", "mailto", "sms", "whatsapp"]
+
+        private static func openOutside(_ url: URL) {
+            guard let scheme = url.scheme?.lowercased(), outside.contains(scheme) else { return }
+            UIApplication.shared.open(url)
+        }
+
+        func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+            decisionHandler(origin.host == House.serverURL.host ? .grant : .prompt)
+        }
+
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { webView.reload() }
+
+        // The ERP's confirm() and alert() as the Mac's own sheet on the window (a panel when there is none).
+        func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
+            let alert = NSAlert()
+            alert.messageText = message
+            alert.addButton(withTitle: "OK")
+            alert.addButton(withTitle: "Cancel")
+            if let window = webView.window {
+                alert.beginSheetModal(for: window) { completionHandler($0 == .alertFirstButtonReturn) }
+            } else {
+                completionHandler(alert.runModal() == .alertFirstButtonReturn)
+            }
+        }
+
+        func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
+            let alert = NSAlert()
+            alert.messageText = message
+            alert.addButton(withTitle: "OK")
+            if let window = webView.window {
+                alert.beginSheetModal(for: window) { _ in completionHandler() }
+            } else {
+                alert.runModal()
+                completionHandler()
+            }
+        }
+
+        /// A file field on the page (the photos of a piece, a bill): the Mac's open panel, many files when the field allows.
+        func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
+            let panel = NSOpenPanel()
+            panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+            panel.canChooseDirectories = parameters.allowsDirectories
+            if let window = webView.window {
+                panel.beginSheetModal(for: window) { completionHandler($0 == .OK ? panel.urls : nil) }
+            } else {
+                completionHandler(panel.runModal() == .OK ? panel.urls : nil)
+            }
+        }
+    }
+}
+#endif
+
+#if os(iOS)
 /// The view controller on top, for UIKit sheets (share, alerts, scanner).
 enum Presenter {
     @MainActor static var top: UIViewController? {
@@ -159,3 +296,4 @@ enum Presenter {
         return vc
     }
 }
+#endif

@@ -1,6 +1,8 @@
 import Foundation
 import MetricKit
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// Crashes, hangs and CPU or disk-write kills, reported by iOS itself (MetricKit) at the next launch and sent to the
 /// ERP (`/api/app/diagnostics`, Firestore `app_diagnostics`): TestFlight shows crashes in App Store Connect, but a

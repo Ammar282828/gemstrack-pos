@@ -1,7 +1,9 @@
 import Foundation
 import AuthenticationServices
 import CryptoKit
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// Google sign-in the way Google allows it in an app: Apple's sign-in sheet (Safari's engine and
 /// cookies), the house's iOS OAuth client, PKCE. Google's ID token signs Firebase in (Session), and
@@ -109,10 +111,15 @@ final class GoogleAuth: NSObject, ASWebAuthenticationPresentationContextProvidin
 
     nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         MainActor.assumeIsolated {
+            #if os(macOS)
+            // The window the person clicked Sign in from; any of the app's windows otherwise.
+            return NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first ?? NSWindow()
+            #else
             let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             if let key = scenes.flatMap(\.windows).first(where: \.isKeyWindow) { return key }
             // Sign-in is only ever started from a screen, so there is always a scene to anchor to.
             return UIWindow(windowScene: scenes[0])
+            #endif
         }
     }
 

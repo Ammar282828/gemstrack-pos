@@ -32,7 +32,7 @@ struct StockList: View {
     @State private var deletion: OwnerDeletion?
     @State private var note: Note?
 
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @State private var width: CGFloat = 0
     @FocusState private var searching: Bool
 

@@ -33,3 +33,11 @@ export function balanceLine(balanceDue: number | undefined): { label: string; am
   if (isCredit(b)) return { label: 'Credit to customer', amount: -b, state: 'credit' };
   return { label: 'Paid in full', amount: 0, state: 'paid' };
 }
+
+/** The payment-history line written when the shop hands a customer their credit back (negative; not a refund of the sale). */
+export const isCreditPayback = (p: { amount?: number | null; kind?: string } | null | undefined) =>
+  !!p && p.kind === 'credit-payback' && (Number(p.amount) || 0) < 0;
+
+/** What is given back in a period's payments, as a positive figure (Today's cash and Analytics' Cash Out show it as money out). */
+export const creditPaidBack = (history: readonly { amount?: number | null; kind?: string }[] | null | undefined) =>
+  (history ?? []).reduce((s, p) => s + (isCreditPayback(p) ? -(Number(p.amount) || 0) : 0), 0);

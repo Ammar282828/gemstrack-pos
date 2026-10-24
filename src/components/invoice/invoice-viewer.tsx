@@ -44,6 +44,7 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { balanceLine, canHoldCredit } from '@/lib/invoice-credit';
+import { GiveBackCredit, creditHeld } from '@/components/invoice/give-back-credit';
 import { getInvoiceAdjustmentsAmount, getInvoiceExchangeTotal } from '@/lib/financials';
 import { stockSku } from '@/lib/sku';
 import { format } from 'date-fns';
@@ -427,6 +428,7 @@ export function InvoiceViewer({ invoiceId }: { invoiceId: string }) {
                       onPrint={() => printInvoice(invoice)}
                       onPrintPerPiece={() => printInvoice(invoice, true)}
                     />
+                    <GiveBackCredit invoiceId={invoice.id} customerName={invoice.customerName} credit={creditHeld(invoice)} onDone={setLatest} />
                     {invoice.status !== 'Refunded' && (
                       <Button variant="outline" onClick={() => setIsRefundDialogOpen(true)} className="border-destructive text-destructive hover:bg-destructive/10">
                         <RotateCcw className="mr-2 h-4 w-4"/> Refund

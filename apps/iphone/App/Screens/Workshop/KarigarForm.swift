@@ -166,7 +166,7 @@ private struct KarigarFormBody: View {
         Section {
             TextField("Full name", text: $draft.name, prompt: Text("Required"))
                 .personName()
-                .textContentType(.name)
+                .fieldKind(.name)
                 .textInputAutocapitalization(.words)
         } header: {
             LedgerHeading(title: "Name")
@@ -179,7 +179,7 @@ private struct KarigarFormBody: View {
         Section {
             TextField("Contact number", text: $draft.contact, prompt: Text("Optional"))
                 .keyboardType(.phonePad)
-                .textContentType(.telephoneNumber)
+                .fieldKind(.telephoneNumber)
             TextField("Second number", text: $draft.altPhone, prompt: Text("Workshop line, or a son's phone"))
         } header: {
             LedgerHeading(title: "Phone")
@@ -190,7 +190,7 @@ private struct KarigarFormBody: View {
         Section {
             TextField("Google login", text: $draft.email, prompt: Text("karigar@gmail.com"))
                 .keyboardType(.emailAddress)
-                .textContentType(.emailAddress)
+                .fieldKind(.emailAddress)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
         } header: {
@@ -218,7 +218,7 @@ private struct KarigarFormBody: View {
             TextField("City", text: $draft.city, prompt: Text("e.g. Karachi"))
             TextField("Address", text: $draft.address, prompt: Text("Street address"), axis: .vertical)
                 .lineLimit(1...4)
-                .textContentType(.fullStreetAddress)
+                .fieldKind(.fullStreetAddress)
         } header: {
             LedgerHeading(title: "Where")
         }

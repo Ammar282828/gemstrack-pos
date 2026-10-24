@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 // The confirmations before an online order moves (components/order/online-inbox.tsx's Confirm and Decline

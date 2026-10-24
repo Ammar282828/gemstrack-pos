@@ -505,7 +505,7 @@ private struct InsightPage<Narrow: View, Wide: View>: View {
     var refresh: () async -> Void
     @ViewBuilder let narrow: () -> Narrow
     @ViewBuilder let wide: (CGFloat) -> Wide
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
 

@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// Saves that do not move money leave the screen at once and finish in the background (owner, 2026-10-23: "make
 /// the app snappier"). `send` returns as soon as the change is queued; the write goes through `ERPAPI.write` with
@@ -16,7 +18,7 @@ final class Outbox {
         "recordPayment", "recordOrderAdvance", "createInvoice", "createOrder", "finalizeOrder",
         "addRepair", "recordRepairPayment", "addExpense",
         "addHisaabEntry", "addShareholderEntry", "addExtraRevenue",
-        "updateInvoiceDiscount", "refundInvoicePartial", "settleInvoicePayment", "settleOrderAdvance", "raiseOrderDiscount",
+        "updateInvoiceDiscount", "refundInvoicePartial", "payBackCredit", "settleInvoicePayment", "settleOrderAdvance", "raiseOrderDiscount",
         "startPayBatch", "settlePayBatch",
         "saveOverheadPlan", "deleteShareholderEntry", "deletePartnerSalary", "setWorkingCapitalFloor",
         "restoreRemoved", "purgeRemoved",

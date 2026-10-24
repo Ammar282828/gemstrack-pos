@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Monogram, Pill, HeroAmount, ContactActions, LedgerSection, EmptyState, type Tone } from '@/components/ledger';
 import { owedToYou } from '@/lib/owed';
+import { GiveBackCredit, creditHeld } from '@/components/invoice/give-back-credit';
 import { Edit3, Trash2, Phone, Mail, MapPin, BookUser, ClipboardList, FileText, Ruler, Cake, CalendarHeart, Heart, StickyNote } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -135,6 +136,8 @@ export default function CustomerDetailPage() {
   // their invoices plus their hand-written hisaab balance. Else what they have bought.
   const owedNow = owedToYou(allInvoices, id => (id === customerId ? customer.name : undefined), Array.isArray(hisaabEntries) ? hisaabEntries : [])
     .byKey.get(customerId)?.amount ?? 0;
+  // Credit they have paid ahead on invoices (lib/invoice-credit.ts): the owner can hand it back.
+  const creditInvoices = customerInvoices.map(i => ({ inv: i, credit: creditHeld(i) })).filter(c => c.credit > 0);
   const bought = customerInvoices.reduce((n, i) => n + (i.status === 'Refunded' ? 0 : i.grandTotal || 0), 0);
 
   const invoiceRows = customerInvoices.map(invoice => (
@@ -178,6 +181,17 @@ export default function CustomerDetailPage() {
                 <div>
                   <p className="text-ios-foot text-muted-foreground">{owedNow > 0 ? 'Owes you' : 'Lifetime sales'}</p>
                   <HeroAmount amount={owedNow > 0 ? owedNow : bought} lac={owedNow <= 0} tone={owedNow > 0 ? 'owed' : undefined} />
+                </div>
+              )}
+              {creditInvoices.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-ios-foot text-muted-foreground">Credit to you</p>
+                  {creditInvoices.map(({ inv, credit }) => (
+                    <div key={inv.id} className="flex flex-wrap items-center justify-between gap-2">
+                      <Link href={`/invoices/${inv.id}`} className="text-ios-sub font-semibold hover:underline">{inv.id}</Link>
+                      <GiveBackCredit invoiceId={inv.id} customerName={customer.name} credit={credit} size="sm" />
+                    </div>
+                  ))}
                 </div>
               )}
               <ContactActions phone={customer.phone} className="max-w-sm" />

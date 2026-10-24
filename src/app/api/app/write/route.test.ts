@@ -169,6 +169,16 @@ describe('money', () => {
     expect(r.status).toBe(200);
     expect(data.orders['ORD-000001']).toMatchObject({ advancePayment: 5_000, grandTotal: 45_000 });
   });
+
+  it('an advance may be exchanged gold alone or with cash; a bad row is a 400', async () => {
+    expect((await call({ op: 'recordOrderAdvance', orderId: 'ORD-000001', exchange: { description: 'x', value: 0 } })).status).toBe(400);
+    expect((await call({ op: 'recordOrderAdvance', orderId: 'ORD-000001', exchange: { description: 'x', value: 'many' } })).status).toBe(400);
+    const r = await call({ op: 'recordOrderAdvance', orderId: 'ORD-000001', exchange: { description: 'Old ring', karat: '22k', weightG: 4, ratePerGram: 10_000, value: 40_000 } });
+    expect(r.status).toBe(200);
+    expect(data.orders['ORD-000001']).toMatchObject({ advancePayment: 0, advanceInExchangeValue: 40_000, grandTotal: 10_000 });
+    expect((await call({ op: 'recordOrderAdvance', orderId: 'ORD-000001', amount: 4_000, exchanges: [{ description: 'Chain', value: 1_000 }] })).status).toBe(200);
+    expect(data.orders['ORD-000001']).toMatchObject({ advancePayment: 4_000, advanceInExchangeValue: 41_000, grandTotal: 5_000 });
+  });
 });
 
 describe('orders', () => {

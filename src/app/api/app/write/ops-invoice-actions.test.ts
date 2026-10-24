@@ -106,7 +106,7 @@ beforeEach(() => {
 describe('who may run the invoice actions', () => {
   it('owners only: each is the store\'s own Firestore write on the web', () => {
     expect(INVOICE_ACTION_OPS).toEqual({
-      updateInvoiceDiscount: ['owner'], deleteInvoicePayment: ['owner'], refundInvoicePartial: ['owner'], deleteInvoice: ['owner'],
+      updateInvoiceDiscount: ['owner'], deleteInvoicePayment: ['owner'], refundInvoicePartial: ['owner'], payBackCredit: ['owner'], deleteInvoice: ['owner'],
     });
   });
 
@@ -273,5 +273,37 @@ describe('deleteInvoice', () => {
     expect(invoiceReads).toBe(1);
     expect(r?.body.followUps).toEqual([{ path: '/api/shopify/sync/invoice', body: { invoiceId: 'INV-2', shopifyOrderId: '99001', action: 'cancel' } }]);
     expect(logged).toEqual([['invoice.delete', 'Deleted invoice INV-2', 'Customer: Sakina Demo | Total: 100,000 | Paid: 60,000 in 2 payment(s)', 'INV-2']]);
+  });
+});
+
+describe('payBackCredit', () => {
+  const inCredit = (more: Record<string, unknown> = {}) => invoice({ amountPaid: 120_000, balanceDue: -20_000, paymentHistory: [{ amount: 120_000, date: '2026-10-01', method: 'Cash' }], ...more });
+
+  it('gives back the whole credit by default: no delete code, nothing for Shopify, the credit row gone', async () => {
+    put('invoices', 'INV-1', inCredit());
+    put('hisaab', 'h1', { linkedInvoiceId: 'INV-1', cashCredit: 20_000, cashDebit: 0, description: 'Credit held for Invoice INV-1' });
+    const r = await run('payBackCredit', { invoiceId: 'INV-1', method: 'Cash', requestId: 'req-12345678' });
+    expect(r?.status).toBe(200);
+    expect(r?.body).toMatchObject({ ok: true, paidBack: 20_000, invoice: { amountPaid: 100_000, balanceDue: 0 } });
+    expect(codeChecks).toEqual([]);
+    expect(r?.body.followUps).toEqual([]);
+    expect(col('hisaab')['h1']).toBeUndefined();
+    expect(col('invoices')['INV-1'].status).toBeUndefined();
+    expect(logged.map((l) => l[0])).toEqual(['invoice.payment']);
+  });
+
+  it('a part; more than is held, a bad figure, and a moved invoice are refused', async () => {
+    put('invoices', 'INV-1', inCredit());
+    expect((await run('payBackCredit', { invoiceId: 'INV-1', amount: 5_000 }))?.body).toMatchObject({ paidBack: 5_000, invoice: { balanceDue: -15_000 } });
+    expect((await run('payBackCredit', { invoiceId: 'INV-1', amount: 15_001 }))?.status).toBe(409);
+    for (const amount of [0, -5, '500']) expect((await run('payBackCredit', { invoiceId: 'INV-1', amount }))?.status).toBe(400);
+    expect((await run('payBackCredit', { invoiceId: 'INV-1', seen: { grandTotal: 100_000, amountPaid: 1 } }))?.status).toBe(409);
+  });
+
+  it('refuses a walk-in\'s overpayment and an invoice with no credit', async () => {
+    put('invoices', 'INV-2', inCredit({ customerId: 'walk-in' }));
+    expect((await run('payBackCredit', { invoiceId: 'INV-2' }))?.status).toBe(409);
+    put('invoices', 'INV-3', invoice());
+    expect((await run('payBackCredit', { invoiceId: 'INV-3' }))?.status).toBe(409);
   });
 });

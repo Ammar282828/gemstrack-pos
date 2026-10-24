@@ -89,11 +89,13 @@ enum OrderUndo {
 
     /// Delete an advance (the page's trash on an advance line): the line by its place and its amount.
     static func deleteAdvance(_ order: Order, line: OrdersLogic.AdvanceLine) -> OrderUndoAsk {
-        let said = OrderActions.deletedAdvanceNote(order, amount: line.amount, balance: OrdersLogic.balance(order))
+        // The words count the gold too; the write is given the cash, the line it was shown.
+        let shown = line.amount + line.goldValue
+        let said = OrderActions.deletedAdvanceNote(order, amount: shown, balance: OrdersLogic.balance(order))
         return OrderUndoAsk(
-            deletion: OwnerDeletion(what: OrderActions.deleteAdvanceWhat(order, amount: line.amount),
+            deletion: OwnerDeletion(what: OrderActions.deleteAdvanceWhat(order, amount: shown),
                                     detail: OrderActions.deleteAdvanceDetail(order, day: ShopDate.say(line.date),
-                                                                             method: line.method, amount: line.amount)) { code in
+                                                                             method: line.method, amount: shown)) { code in
                 _ = try await ERPAPI.shared.write("deleteOrderAdvance", [
                     "orderId": order.id, "lineIndex": line.id, "amount": line.amount, "deleteCode": code,
                 ])

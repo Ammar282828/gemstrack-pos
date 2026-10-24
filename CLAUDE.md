@@ -151,7 +151,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Whole rupees](docs/decisions.md#whole-rupees) — no decimals; each line rounded, `lib/money-round.ts`; under 1 rupee is settled
 - [Round-off](docs/decisions.md#round-off) — up to 3 round-down chips by the discount; "Settle" a remainder under 5,000 as discount
 - [Lac and crore](docs/decisions.md#lac-and-crore) — `lib/money.ts`
-- [Invoice credit](docs/decisions.md#invoice-credit) — overpaid is a named customer's credit, on their hisaab
+- [Invoice credit](docs/decisions.md#invoice-credit) — overpaid is a named customer's credit, on their hisaab; the owner gives it back with "Give back" (`payBackCredit`, not a refund)
 - [Margin](docs/decisions.md#margin) — typed 24k less 6 ratti, else 10%; never the customer's
 - [Exchange as cash](docs/decisions.md#exchange-as-cash) — in Cash In and in revenue (`invoiceSaleValue`)
 - [Analytics default: this month](docs/decisions.md#analytics-default-this-month) — the 1st to today, not a rolling 30 days; Home's ledger too
@@ -236,6 +236,9 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 **iPhone app** (`docs/features/iphone-app.md`)
 - [iPhone app](docs/features/iphone-app.md#iphone-app) — `apps/ios`, Capacitor over the live ERP; TestFlight by `ios.yml`
 - [One app, many businesses](docs/features/iphone-app.md#one-app-many-businesses-2026-10-16) — `shop.taheri.erp` "ERP": Taheri, Mina and any business by its address (`/api/app/business`), each its own sign-in, data, push, widget; Mina's own app retired 2026-10-20; Mina needs `shop.taheri.erp` in its Firebase
+
+**Mac app** (`docs/features/mac-app.md`)
+- [Mac app](docs/features/mac-app.md#mac-app) — the `ERPMac` target in `apps/iphone/project.yml`, native SwiftUI, the iPhone's screens through `App/Platform/MacPlatform.swift`; same bundle `shop.taheri.erp`; Label LIVE native (localhost API, else the link; iPhone via MQTT); Xcode Cloud "Mac release" by `apps/iphone/MAC-RELEASES.md`, its errors in the "Mac build" workflow's log
 
 **Android app** (`docs/features/android-app.md`)
 - [Android app](docs/features/android-app.md#android-app) — `apps/android`, Kotlin/Compose port of `apps/iphone`, two flavors; money in `core` to the iPhone's contract; Play internal testing

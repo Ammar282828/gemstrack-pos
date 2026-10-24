@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The Mac app (docs/features/mac-app.md): the iPhone app's keys that mean anything on a Mac, read by the same code
+	     (House.swift, Businesses.swift), and the Mac's own. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>shop.taheri.erp.open</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>shoperp</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>$(ERP_DISPLAY_NAME)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(ERP_DISPLAY_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ERPAccent</key>
+	<string>$(ERP_ACCENT)</string>
+	<key>ERPFirebaseAPIKey</key>
+	<string>$(ERP_FIREBASE_API_KEY)</string>
+	<key>ERPFirebaseAppID</key>
+	<string>$(ERP_FIREBASE_APP_ID)</string>
+	<key>ERPFirebaseProjectID</key>
+	<string>$(ERP_FIREBASE_PROJECT_ID)</string>
+	<key>ERPFirebaseSenderID</key>
+	<string>$(ERP_FIREBASE_SENDER_ID)</string>
+	<key>ERPFirebaseStorageBucket</key>
+	<string>$(ERP_FIREBASE_STORAGE_BUCKET)</string>
+	<key>ERPGoogleClientID</key>
+	<string>$(ERP_GOOGLE_CLIENT_ID)</string>
+	<key>ERPGround</key>
+	<string>$(ERP_GROUND)</string>
+	<key>ERPMetal</key>
+	<string>$(ERP_METAL)</string>
+	<key>ERPServerURL</key>
+	<string>$(ERP_SERVER_URL)</string>
+	<key>ERPSharedKeychainGroup</key>
+	<string>$(AppIdentifierPrefix)$(ERP_BUNDLE_ID)</string>
+	<key>ERPStoreName</key>
+	<string>$(ERP_STORE_NAME)</string>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- A Mac app on the App Store or TestFlight must say what kind it is. -->
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.business</string>
+	<!-- The fonts sit at the top of Resources (XcodeGen flattens the groups). -->
+	<key>ATSApplicationFontsPath</key>
+	<string>.</string>
+	<!-- Label LIVE's own API on this Mac (http://localhost:11180) is plain http: allowed for local addresses only. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>To photograph pieces, bills and slips for the ERP, with this Mac's camera or an iPhone's (Continuity Camera).</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>To hear you when you speak to the ERP.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>To show your words while you speak to the ERP.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>To add photos of pieces from your library.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>To send tags to Label LIVE, the label printer's app, on this Mac.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>The shop's own ERP.</string>
+</dict>
+</plist>

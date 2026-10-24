@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 
 // Rule 16's pieces (CONVENTIONS.md): what every screen does the same way, so no screen solves it on its own.
 // The bottom bar, the failure and empty states, asking before a delete, the taps, the keyboard's Done.
@@ -216,6 +218,10 @@ extension View {
 
 private struct KeyboardDone: ViewModifier {
     func body(content: Content) -> some View {
+        #if os(macOS)
+        // A Mac's keyboard has Return and Tab; there is no keypad to put away.
+        content
+        #else
         content.toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -224,6 +230,7 @@ private struct KeyboardDone: ViewModifier {
                 }
             }
         }
+        #endif
     }
 }
 
@@ -255,11 +262,17 @@ extension View {
     func personName() -> some View {
         autocorrectionDisabled()
             .textInputAutocapitalization(.words)
-            .textContentType(.name)
+            #if os(iOS)
+            .fieldKind(.name)
+            #endif
     }
 
     /// A phone number box.
     func phoneNumber() -> some View {
-        keyboardType(.phonePad).textContentType(.telephoneNumber)
+        #if os(iOS)
+        keyboardType(.phonePad).fieldKind(.telephoneNumber)
+        #else
+        keyboardType(.phonePad)
+        #endif
     }
 }

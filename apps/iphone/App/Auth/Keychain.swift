@@ -5,7 +5,10 @@ import Security
 /// the ERP pages inside it get a fresh sign-in without asking again), and secrets behind Face ID.
 enum Keychain {
     static func set(_ value: String?, for account: String, service: String = "erp.app") {
-        let base: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
+        var base: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
+        #if os(macOS)
+        base[kSecUseDataProtectionKeychain as String] = true // the phone's keychain, not the Mac's file keychain
+        #endif
         SecItemDelete(base as CFDictionary)
         guard let value else { return }
         var item = base
@@ -15,10 +18,13 @@ enum Keychain {
     }
 
     static func get(_ account: String, service: String = "erp.app") -> String? {
-        let q: [String: Any] = [
+        var q: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account,
             kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne,
         ]
+        #if os(macOS)
+        q[kSecUseDataProtectionKeychain as String] = true
+        #endif
         var out: CFTypeRef?
         guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let d = out as? Data else { return nil }
         return String(data: d, encoding: .utf8)

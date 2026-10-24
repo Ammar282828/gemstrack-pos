@@ -19,7 +19,7 @@ export const MONEY_OP_NAMES: ReadonlySet<string> = new Set([
   'recordPayment', 'recordOrderAdvance', 'createInvoice', 'createOrder', 'finalizeOrder',
   'addRepair', 'recordRepairPayment', 'addExpense',
   'addHisaabEntry', 'addShareholderEntry', 'addExtraRevenue',
-  'updateInvoiceDiscount', 'refundInvoicePartial', 'settleInvoicePayment', 'settleOrderAdvance', 'raiseOrderDiscount',
+  'updateInvoiceDiscount', 'refundInvoicePartial', 'payBackCredit', 'settleInvoicePayment', 'settleOrderAdvance', 'raiseOrderDiscount',
   'startPayBatch', 'settlePayBatch',
 ]);
 

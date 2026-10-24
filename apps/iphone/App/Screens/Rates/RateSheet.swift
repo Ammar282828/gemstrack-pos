@@ -309,10 +309,12 @@ struct RateSheet: View {
                     Button("Save") { Task { await save() } }
                         .disabled(saving || filling || s == nil)
                 }
+                #if os(iOS)
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
                     Button("Done") { focused = nil }
                 }
+                #endif
             }
         }
         .presentationDetents([.medium, .large])

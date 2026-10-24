@@ -1,4 +1,8 @@
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 import WebKit
 
 /// What an ERP page inside the app asks of the phone: the same calls it made to the Capacitor
@@ -170,6 +174,15 @@ final class WebBridge: NSObject, WKScriptMessageHandlerWithReply {
         var items: [Any] = (o["files"] as? [String] ?? []).compactMap { URL(string: $0) }
         if let t = o["text"] as? String { items.append(t) }
         if let u = (o["url"] as? String).flatMap(URL.init(string:)) { items.append(u) }
+        #if os(macOS)
+        // The Mac's share menu, opened at the foot of the page where the phone's sheet comes up.
+        guard !items.isEmpty, let web = webView, web.window != nil else { return no("failed", "Nothing to share") }
+        let picker = NSSharingServicePicker(items: items)
+        let chosen = MacShareChoice(ok: ok, no: no)
+        sharePick = chosen
+        picker.delegate = chosen
+        picker.show(relativeTo: NSRect(x: web.bounds.midX, y: web.bounds.minY + 60, width: 1, height: 1), of: web, preferredEdge: .minY)
+        #else
         guard !items.isEmpty, let top = Presenter.top else { return no("failed", "Nothing to share") }
         let sheet = UIActivityViewController(activityItems: items, applicationActivities: nil)
         sheet.completionWithItemsHandler = { _, done, _, error in
@@ -177,5 +190,24 @@ final class WebBridge: NSObject, WKScriptMessageHandlerWithReply {
         }
         if let pop = sheet.popoverPresentationController { pop.sourceView = top.view; pop.sourceRect = CGRect(x: top.view.bounds.midX, y: top.view.bounds.maxY - 60, width: 1, height: 1) }
         top.present(sheet, animated: true)
+        #endif
+    }
+
+    #if os(macOS)
+    /// Kept while the share menu is up: it answers the page when a service is chosen, or when the menu is dismissed.
+    private var sharePick: MacShareChoice?
+    #endif
+}
+
+#if os(macOS)
+/// The page's share call, answered by what the person does in the Mac's share menu.
+final class MacShareChoice: NSObject, NSSharingServicePickerDelegate {
+    private let ok: () -> Void
+    private let no: (String, String) -> Void
+    init(ok: @escaping () -> Void, no: @escaping (String, String) -> Void) { self.ok = ok; self.no = no }
+
+    func sharingServicePicker(_ picker: NSSharingServicePicker, didChoose service: NSSharingService?) {
+        if service == nil { no("cancelled", "Share canceled") } else { ok() }
     }
 }
+#endif

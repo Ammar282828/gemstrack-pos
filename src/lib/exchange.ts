@@ -24,6 +24,11 @@ export interface ExchangeEntry {
   ratePerGram?: number;
   /** What comes off the bill, PKR. */
   value: number;
+  /**
+   * The advance this row came with (an advance paid partly or wholly in gold): deleting that advance takes the row
+   * with it. Kept on an order's rows only; an invoice's never carry it (invoiceExchangeFields).
+   */
+  advanceId?: string;
 }
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0);
@@ -41,9 +46,10 @@ export function describeExchangeEntry(e: ExchangeEntry): string {
 
 export const describeExchanges = (list: ExchangeEntry[]) => list.map(describeExchangeEntry).join('; ');
 
-const clean = (list: ExchangeEntry[]) => list
+const clean = (list: ExchangeEntry[], keepTag = false) => list
   .filter((e) => num(e.value) > 0 || e.description?.trim())
   .map((e) => ({
+    ...(keepTag && e.advanceId ? { advanceId: e.advanceId } : {}),
     description: e.description?.trim() || '',
     ...(e.karat ? { karat: e.karat } : {}),
     ...(num(e.weightG) > 0 ? { weightG: num(e.weightG) } : {}),
@@ -55,9 +61,9 @@ interface OrderExchangeLike { exchanges?: ExchangeEntry[]; advanceInExchangeDesc
 interface InvoiceExchangeLike { exchanges?: ExchangeEntry[]; exchangeDescription?: string; exchangeAmount1?: number; exchangeAmount2?: number }
 
 /** An order's exchange rows, from the list or from the one exchange older orders kept. */
-export function orderExchanges(order: OrderExchangeLike | null | undefined): ExchangeEntry[] {
+export function orderExchanges(order: OrderExchangeLike | null | undefined, keepTags = false): ExchangeEntry[] {
   if (!order) return [];
-  if (Array.isArray(order.exchanges) && order.exchanges.length) return clean(order.exchanges);
+  if (Array.isArray(order.exchanges) && order.exchanges.length) return clean(order.exchanges, keepTags);
   const value = num(order.advanceInExchangeValue);
   const description = order.advanceInExchangeDescription?.trim() || '';
   return value > 0 || description ? [{ description, value }] : [];
@@ -76,7 +82,7 @@ export function invoiceExchanges(inv: InvoiceExchangeLike | null | undefined): E
 
 /** What an order stores for its exchange rows: the rows, and the old single-exchange totals. */
 export function orderExchangeFields(list: ExchangeEntry[]) {
-  const rows = clean(list);
+  const rows = clean(list, true);
   return {
     exchanges: rows,
     advanceInExchangeDescription: describeExchanges(rows),

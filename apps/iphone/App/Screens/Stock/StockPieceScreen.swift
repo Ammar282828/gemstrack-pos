@@ -18,7 +18,7 @@ struct StockPieceScreen: View {
     /// Set once the ERP has deleted the piece: the page goes back to the list as the code's sheet closes, as the
     /// web's goes to /products.
     @State private var deleted = false
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var width: CGFloat = 0
 

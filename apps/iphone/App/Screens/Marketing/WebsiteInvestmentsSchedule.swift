@@ -1,6 +1,8 @@
 import SwiftUI
 import PhotosUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 // Investments' automatic sending (page.tsx `SchedulePanel`) and a day filed by hand (`AddByHand`), with the

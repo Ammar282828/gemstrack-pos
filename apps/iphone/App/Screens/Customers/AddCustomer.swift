@@ -116,7 +116,7 @@ struct AddCustomer: View {
             Section {
                 TextField("Full name", text: $name, prompt: Text("Optional"))
                     .autocorrectionDisabled()
-                    .textContentType(.name)
+                    .fieldKind(.name)
                     .textInputAutocapitalization(.words)
             } footer: {
                 if walkIn {
@@ -128,7 +128,7 @@ struct AddCustomer: View {
             Section {
                 TextField("Phone number", text: $phone, prompt: Text("Optional"))
                     .keyboardType(.phonePad)
-                    .textContentType(.telephoneNumber)
+                    .fieldKind(.telephoneNumber)
                 if let match = sameNumber {
                     Button {
                         opened = match.id
@@ -141,7 +141,7 @@ struct AddCustomer: View {
             Section {
                 TextField("Email address", text: $email, prompt: Text("Optional"))
                     .keyboardType(.emailAddress)
-                    .textContentType(.emailAddress)
+                    .fieldKind(.emailAddress)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             } footer: {
@@ -151,7 +151,7 @@ struct AddCustomer: View {
             Section {
                 TextField("Address", text: $address, prompt: Text("Optional"), axis: .vertical)
                     .lineLimit(2...5)
-                    .textContentType(.fullStreetAddress)
+                    .fieldKind(.fullStreetAddress)
             }
 
             Section {

@@ -17,7 +17,7 @@ struct TodaysCashScreen: View {
 
     @State private var now = Date()
     @State private var width: CGFloat = 0
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {

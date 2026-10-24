@@ -9,6 +9,8 @@
 //   node scripts/asc.mjs public-link <house> [--submit] the house's public TestFlight link (external group "Public"); --submit sends the build to beta review
 //   node scripts/asc.mjs keep-fresh <house> [--days N] [--dry]  an Xcode Cloud build of main when the newest valid build is N days old (default 60), before TestFlight's 90 end it
 //   node scripts/asc.mjs ci-off <house>                 the house's Xcode Cloud workflows switched off (a retired app builds no more)
+//   node scripts/asc.mjs mac-setup <house> [--dry]      the Mac app (docs/features/mac-app.md): macOS on the app record, the "Mac release" workflow
+//   node scripts/asc.mjs ci-runs <house> [--workflow re] [--commit sha] [--wait min] [--start]  a workflow's newest run, waited for, with every compile error
 //   node scripts/asc.mjs revoke                         the build's certificate and profile, gone again
 //   node scripts/asc.mjs key-file <path>                the key as a proper .p8, for xcodebuild's upload
 //
@@ -544,14 +546,14 @@ async function builds(name, fix) {
       }
     } catch (e) { say(`  App ID ${id}: could not read capabilities (${e.message})`); }
   }
-  const res = await api('GET', `/v1/builds?filter[app]=${app.id}&sort=-uploadedDate&limit=8&include=buildBetaDetail,preReleaseVersion`);
+  const res = await api('GET', `/v1/builds?filter[app]=${app.id}&sort=-uploadedDate&limit=12&include=buildBetaDetail,preReleaseVersion`);
   const inc = (type, id) => (res.included || []).find((i) => i.type === type && i.id === id);
   const rows = res.data.map((b) => {
     const a = b.attributes;
     const pre = inc('preReleaseVersions', b.relationships?.preReleaseVersion?.data?.id);
     const det = inc('buildBetaDetails', b.relationships?.buildBetaDetail?.data?.id);
     return {
-      id: b.id, version: pre?.attributes?.version || '?', build: a.version, uploaded: a.uploadedDate,
+      id: b.id, version: pre?.attributes?.version || '?', platform: pre?.attributes?.platform || 'IOS', build: a.version, uploaded: a.uploadedDate,
       state: a.processingState, expired: !!a.expired, encryption: a.usesNonExemptEncryption,
       internal: det?.attributes?.internalBuildState || '-', external: det?.attributes?.externalBuildState || '-',
     };
@@ -566,27 +568,30 @@ async function builds(name, fix) {
     say(`Group "Shop" ${group.id}: ${testerCount} tester(s), access to all builds: ${!!group.attributes.hasAccessToAllBuilds}`);
   } else say('No internal group "Shop" for this app (run testers first).');
   for (const r of rows) {
-    say(`  ${r.version} (${r.build})  ${r.uploaded}  ${r.state}${r.expired ? ' EXPIRED' : ''}  encryption ${r.encryption}  internal ${r.internal}  external ${r.external}  in Shop: ${inShop.has(r.id) ? 'yes' : 'no'}`);
+    say(`  ${r.platform} ${r.version} (${r.build})  ${r.uploaded}  ${r.state}${r.expired ? ' EXPIRED' : ''}  encryption ${r.encryption}  internal ${r.internal}  external ${r.external}  in Shop: ${inShop.has(r.id) ? 'yes' : 'no'}`);
   }
   const hhmm = (d) => new Date(d).toISOString().slice(11, 16);
-  const newest = rows[0];
-  if (!newest) { say(`::warning::${h.storeName}: no builds at all in App Store Connect.`); return; }
-  say(`${h.storeName}: newest build ${newest.version} (${newest.build}) uploaded ${hhmm(newest.uploaded)} UTC ${newest.uploaded.slice(0, 10)}, ${newest.state}, internal ${newest.internal}, in Shop: ${inShop.has(newest.id) ? 'yes' : 'no'}`);
+  if (!rows.length) { say(`::warning::${h.storeName}: no builds at all in App Store Connect.`); return; }
   if (!rows.some((r) => new Date(r.uploaded) > new Date(ARCHIVED_AT))) {
     say(`::error::${h.storeName}: Xcode Cloud archived but uploaded nothing (no build after ${ARCHIVED_AT}): the workflow has no TestFlight distribution / post-action.`);
     return;
   }
-  if (!fix) return;
-  if (newest.state !== 'VALID' || newest.expired) { say(`Not fixing: the newest build is ${newest.state}${newest.expired ? ', expired' : ''} (still processing, or Apple refused it).`); return; }
-  if (newest.encryption == null) {
-    // Info.plist declares ITSAppUsesNonExemptEncryption false; this answers it where the build missed it.
-    await api('PATCH', `/v1/builds/${newest.id}`, { data: { type: 'builds', id: newest.id, attributes: { usesNonExemptEncryption: false } } });
-    say(`Set export compliance (usesNonExemptEncryption false) on ${newest.version} (${newest.build})`);
+  // The iPhone's and the Mac's newest each, apart: a Mac upload never takes the iPhone's place in Shop (docs/features/mac-app.md).
+  for (const platform of [...new Set(rows.map((r) => r.platform))]) {
+    const newest = rows.find((r) => r.platform === platform);
+    say(`${h.storeName} ${platform}: newest build ${newest.version} (${newest.build}) uploaded ${hhmm(newest.uploaded)} UTC ${newest.uploaded.slice(0, 10)}, ${newest.state}, internal ${newest.internal}, in Shop: ${inShop.has(newest.id) ? 'yes' : 'no'}`);
+    if (!fix) continue;
+    if (newest.state !== 'VALID' || newest.expired) { say(`Not fixing: the newest build is ${newest.state}${newest.expired ? ', expired' : ''} (still processing, or Apple refused it).`); continue; }
+    if (newest.encryption == null) {
+      // Info.plist declares ITSAppUsesNonExemptEncryption false; this answers it where the build missed it.
+      await api('PATCH', `/v1/builds/${newest.id}`, { data: { type: 'builds', id: newest.id, attributes: { usesNonExemptEncryption: false } } });
+      say(`Set export compliance (usesNonExemptEncryption false) on ${newest.version} (${newest.build})`);
+    }
+    if (!group) { say('Not added: no "Shop" group.'); continue; }
+    if (inShop.has(newest.id)) { say(`${platform} ${newest.version} (${newest.build}) is already in Shop.`); continue; }
+    await api('POST', `/v1/betaGroups/${group.id}/relationships/builds`, { data: [{ type: 'builds', id: newest.id }] });
+    say(`Added ${platform} ${newest.version} (${newest.build}) to Shop (${testerCount} tester(s))`);
   }
-  if (!group) { say('Not added: no "Shop" group.'); return; }
-  if (inShop.has(newest.id)) { say(`${newest.version} (${newest.build}) is already in Shop.`); return; }
-  await api('POST', `/v1/betaGroups/${group.id}/relationships/builds`, { data: [{ type: 'builds', id: newest.id }] });
-  say(`Added ${newest.version} (${newest.build}) to Shop (${testerCount} tester(s))`);
 }
 
 /**
@@ -612,7 +617,9 @@ async function keepFresh(name, days, dry) {
     .filter((r) => r.attributes.executionProgress === 'PENDING' || r.attributes.executionProgress === 'RUNNING');
   if (running.length) { say(`A build is already ${running[0].attributes.executionProgress.toLowerCase()} (#${running[0].attributes.number}): nothing started.`); return; }
 
-  const flows = (await api('GET', `/v1/ciProducts/${product.id}/workflows?limit=50`)).data.filter((f) => f.attributes.isEnabled !== false);
+  // The Mac's workflow is its own line (mac-setup): a stale iPhone build is never answered with a Mac one.
+  const flows = (await api('GET', `/v1/ciProducts/${product.id}/workflows?limit=50`)).data
+    .filter((f) => f.attributes.isEnabled !== false && !MAC_FLOW.test(f.attributes.name));
   // The release line: a workflow named for TestFlight or release, else the only enabled one.
   const flow = flows.find((f) => /testflight|release|archive|deliver/i.test(f.attributes.name)) || (flows.length === 1 ? flows[0] : null);
   if (!flow) throw new Error(`Cannot tell which of the enabled workflows (${flows.map((f) => f.attributes.name).join(', ') || 'none'}) is the release one.`);
@@ -647,6 +654,181 @@ async function ciOff(name) {
   }
 }
 
+/** The Mac app's Xcode Cloud workflow, told apart by its name (keep-fresh and builds leave it to itself). */
+const MAC_FLOW = /\bmac\b/i;
+const MAC_FLOW_NAME = 'Mac release';
+/** A line added here on a claude/ branch builds the Mac app (as RELEASES.md does the iPhone's). */
+const MAC_TRIGGER = { directory: 'apps/iphone', fileName: 'MAC-RELEASES.md' };
+
+/** The app's Xcode Cloud product, or a clear error. */
+async function ciProductFor(h) {
+  const app = await appFor(h);
+  if (!app) throw new Error(`${h.storeName} has no app in App Store Connect`);
+  const product = await maybe(`/v1/apps/${app.id}/ciProduct`);
+  if (!product) throw new Error(`${h.storeName} has no Xcode Cloud product`);
+  return { app, product };
+}
+
+/**
+ * The Mac app is the same app record as the iPhone's (shop.taheri.erp, a universal purchase): macOS is added to it as a
+ * platform, and Xcode Cloud gets a "Mac release" workflow copied from the iPhone's release one (its repository, Xcode and
+ * macOS), archiving the "ERP Mac" scheme for TestFlight and building the iPhone's "ERP" scheme beside it, so a Mac change
+ * that breaks the iPhone's compile shows on the same run. Started by a line in apps/iphone/MAC-RELEASES.md on a claude/
+ * branch. Idempotent: what is there already is only described.
+ */
+async function macSetup(name, dry) {
+  const h = houses[name];
+  if (!h) throw new Error(`no house ${name}`);
+  const { app, product } = await ciProductFor(h);
+  say(`${h.storeName}: app ${app.id}, Xcode Cloud product ${product.id}`);
+
+  // The App ID: an explicit iOS one serves the Mac too (universal purchase), which Xcode's automatic signing relies on.
+  const ids = (await api('GET', `/v1/bundleIds?filter[identifier]=${q(h.bundleId)}&limit=20`)).data
+    .filter((b) => b.attributes.identifier === h.bundleId);
+  for (const b of ids) say(`  App ID ${b.attributes.identifier}: platform ${b.attributes.platform}`);
+
+  // macOS on the app record: a build for a platform the app does not have is refused at upload.
+  const macVersions = (await api('GET', `/v1/apps/${app.id}/appStoreVersions?filter[platform]=MAC_OS&limit=5`)).data;
+  if (macVersions.length) say(`  macOS on the app: yes (${macVersions.map((v) => `${v.attributes.versionString} ${v.attributes.appStoreState || v.attributes.appVersionState || ''}`).join(', ')})`);
+  else if (dry) say('  macOS on the app: no (would add it)');
+  else {
+    try {
+      await api('POST', '/v1/appStoreVersions', {
+        data: { type: 'appStoreVersions', attributes: { platform: 'MAC_OS', versionString: '2.2' }, relationships: { app: { data: { type: 'apps', id: app.id } } } },
+      });
+      say('  macOS on the app: added (a 2.2 macOS version, never submitted; TestFlight takes Mac builds now)');
+    } catch (e) { say(`::warning::Could not add macOS to the app (${e.message}). In App Store Connect → the app → the "+" beside iOS App → macOS.`); }
+  }
+
+  const flows = (await api('GET', `/v1/ciProducts/${product.id}/workflows?limit=50`)).data;
+  for (const f of flows) {
+    const a = f.attributes;
+    say(`  workflow "${a.name}" ${a.isEnabled === false ? '(off)' : ''} container ${a.containerFilePath}; actions ${(a.actions || []).map((x) => `${x.actionType} ${x.platform} ${x.scheme} ${x.destination || ''} ${x.buildDistributionAudience || ''}`).join(' | ')}`);
+    say(`    start: ${JSON.stringify(a.branchStartCondition || null)}`);
+  }
+  if (flows.some((f) => f.attributes.name === MAC_FLOW_NAME)) { say(`"${MAC_FLOW_NAME}" is there already.`); return; }
+
+  const enabled = flows.filter((f) => f.attributes.isEnabled !== false && !MAC_FLOW.test(f.attributes.name));
+  const ios = enabled.find((f) => /release|testflight|archive/i.test(f.attributes.name)) || enabled[0];
+  if (!ios) throw new Error('No iPhone workflow to copy the repository, Xcode and macOS versions from.');
+  // The workflow's own repository, Xcode and macOS (the relationship URLs are refused, 403; `include` answers), else the
+  // product's repository and Xcode Cloud's newest release of Xcode and the newest macOS it runs on.
+  let repository, xcodeVersion, macOsVersion;
+  try {
+    const full = await api('GET', `/v1/ciWorkflows/${ios.id}?include=repository,xcodeVersion,macOsVersion`);
+    const r = full.data.relationships || {};
+    repository = r.repository?.data?.id; xcodeVersion = r.xcodeVersion?.data?.id; macOsVersion = r.macOsVersion?.data?.id;
+  } catch (e) { say(`  (the workflow's relationships: ${e.message})`); }
+  if (!repository) repository = (await api('GET', `/v1/ciProducts/${product.id}/primaryRepositories?limit=5`)).data[0]?.id;
+  if (!xcodeVersion || !macOsVersion) {
+    const xcodes = (await api('GET', '/v1/ciXcodeVersions?limit=50&include=macOsVersions')).data;
+    const ver = (v) => String(v.attributes.version || '').split('.').map((n) => parseInt(n, 10) || 0);
+    const newer = (a, b) => { const x = ver(a), y = ver(b); for (let i = 0; i < 4; i++) if ((x[i] || 0) !== (y[i] || 0)) return (y[i] || 0) - (x[i] || 0); return 0; };
+    const releases = xcodes.filter((x) => !/beta|rc/i.test(x.attributes.name || ''));
+    const xcode = (releases.length ? releases : xcodes).sort(newer)[0];
+    if (!xcode) throw new Error('Xcode Cloud lists no Xcode versions.');
+    const oses = (await api('GET', `/v1/ciXcodeVersions/${xcode.id}/macOsVersions?limit=50`)).data;
+    const os = oses.filter((o) => !/beta/i.test(o.attributes.name || '')).sort(newer)[0] || oses[0];
+    xcodeVersion = xcodeVersion || xcode.id;
+    macOsVersion = macOsVersion || os?.id;
+    say(`  Xcode ${xcode.attributes.name} (${xcode.id}), macOS ${os?.attributes?.name} (${os?.id})`);
+  }
+  if (!repository || !xcodeVersion || !macOsVersion) throw new Error(`"${ios.attributes.name}" lacks a repository, Xcode or macOS version (${repository}, ${xcodeVersion}, ${macOsVersion}).`);
+  const start = ios.attributes.branchStartCondition || {};
+  const attributes = {
+    name: MAC_FLOW_NAME,
+    description: 'The Mac app (scheme ERP Mac) to TestFlight, and the iPhone app built beside it. Started by a line in apps/iphone/MAC-RELEASES.md on a claude/ branch.',
+    branchStartCondition: {
+      source: start.source || { isAllMatch: false, patterns: [{ pattern: 'claude/', isPrefix: true }] },
+      filesAndFoldersRule: { mode: 'START_IF_ANY_FILE_MATCHES', matchers: [MAC_TRIGGER] },
+      autoCancel: true,
+    },
+    actions: [
+      { name: 'Archive - macOS', actionType: 'ARCHIVE', destination: 'ANY_MAC', buildDistributionAudience: 'INTERNAL_ONLY', scheme: 'ERP Mac', platform: 'MACOS', isRequiredToPass: true },
+      { name: 'Build - iOS', actionType: 'BUILD', destination: 'ANY_IOS_DEVICE', scheme: 'ERP', platform: 'IOS', isRequiredToPass: true },
+    ],
+    isEnabled: true,
+    clean: false,
+    containerFilePath: ios.attributes.containerFilePath,
+  };
+  if (dry) { say(`Dry run: would create ${JSON.stringify(attributes)}`); return; }
+  const made = (await api('POST', '/v1/ciWorkflows', {
+    data: {
+      type: 'ciWorkflows', attributes,
+      relationships: {
+        product: { data: { type: 'ciProducts', id: product.id } },
+        repository: { data: { type: 'scmRepositories', id: repository } },
+        xcodeVersion: { data: { type: 'ciXcodeVersions', id: xcodeVersion } },
+        macOsVersion: { data: { type: 'ciMacOsVersions', id: macOsVersion } },
+      },
+    },
+  })).data;
+  say(`Created "${MAC_FLOW_NAME}" (${made.id}), copied from "${ios.attributes.name}".`);
+}
+
+/**
+ * A workflow's run for a commit (or its newest), waited for, then each action's result and every issue Xcode Cloud
+ * reported (compile errors with file and line): the compiler's answer, read in a GitHub log by a cloud session that has
+ * no Mac. With start, a run is started on the branch when none came for the commit (the workflow made after the push).
+ */
+async function ciRuns(name, { workflow, commit, wait, start, branch }) {
+  const h = houses[name];
+  if (!h) throw new Error(`no house ${name}`);
+  const { product } = await ciProductFor(h);
+  const flows = (await api('GET', `/v1/ciProducts/${product.id}/workflows?limit=50`)).data;
+  const re = new RegExp(workflow || 'release', 'i');
+  const flow = flows.find((f) => re.test(f.attributes.name));
+  if (!flow) throw new Error(`No workflow matches /${workflow}/ (${flows.map((f) => f.attributes.name).join(', ')})`);
+  const deadline = Date.now() + (wait || 0) * 60_000;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  let run = null;
+  let started = false;
+  for (;;) {
+    const runs = (await api('GET', `/v1/ciWorkflows/${flow.id}/buildRuns?limit=20&sort=-number`)).data;
+    run = commit ? runs.find((r) => r.attributes.sourceCommit?.commitSha?.startsWith(commit)) : runs[0];
+    if (!run && start && !started && branch && Date.now() > deadline - (wait || 0) * 60_000 + 120_000) {
+      const repo = (await api('GET', `/v1/ciProducts/${product.id}/primaryRepositories?limit=5`)).data[0];
+      const refs = repo ? (await api('GET', `/v1/scmRepositories/${repo.id}/gitReferences?limit=200`)).data : [];
+      const ref = refs.find((r) => r.attributes.name === branch && r.attributes.kind === 'BRANCH');
+      if (ref) {
+        const made = (await api('POST', '/v1/ciBuildRuns', {
+          data: { type: 'ciBuildRuns', attributes: { clean: false }, relationships: { workflow: { data: { type: 'ciWorkflows', id: flow.id } }, sourceBranchOrTag: { data: { type: 'scmGitReferences', id: ref.id } } } },
+        })).data;
+        say(`No run came for ${commit || 'the branch'}: started #${made.attributes?.number ?? made.id} of "${flow.attributes.name}" on ${branch}.`);
+      } else say(`::warning::Xcode Cloud does not list the branch ${branch} yet; nothing started.`);
+      started = true;
+    }
+    const a = run?.attributes;
+    if (run && a.executionProgress === 'COMPLETE') break;
+    if (Date.now() > deadline) break;
+    say(`${new Date().toISOString().slice(11, 19)} ${run ? `#${a.number} ${a.executionProgress}` : `no run yet for ${commit || 'the workflow'}`}`);
+    await sleep(60_000);
+  }
+  if (!run) { say(`::warning::No run of "${flow.attributes.name}" for ${commit || 'it'}.`); return; }
+  const a = run.attributes;
+  say(`"${flow.attributes.name}" #${a.number} on ${a.sourceCommit?.commitSha?.slice(0, 7)}: ${a.executionProgress} ${a.completionStatus || ''} (started ${a.startedDate || '-'}, finished ${a.finishedDate || '-'})`);
+  if (a.executionProgress !== 'COMPLETE') { say('::warning::Still running when the wait ran out.'); return; }
+  const actions = (await api('GET', `/v1/ciBuildRuns/${run.id}/actions?limit=20`)).data;
+  let errors = 0;
+  for (const act of actions) {
+    const x = act.attributes;
+    say(`\n== ${x.name}: ${x.completionStatus} (${x.issueCounts ? JSON.stringify(x.issueCounts) : ''})`);
+    let next = `/v1/ciBuildActions/${act.id}/issues?limit=200`;
+    for (let page = 0; next && page < 10; page++) {
+      const res = await api('GET', next);
+      for (const i of res.data) {
+        const t = i.attributes;
+        const where = t.fileSource ? `${t.fileSource.path}:${t.fileSource.lineNumber}` : '';
+        if (t.issueType === 'ERROR' || t.issueType === 'TEST_FAILURE') errors++;
+        if (t.issueType === 'WARNING' && !process.env.SHOW_WARNINGS) continue;
+        say(`${t.issueType} ${where} ${t.message}`);
+      }
+      next = res.links?.next ? res.links.next.replace('https://api.appstoreconnect.apple.com', '') : null;
+    }
+  }
+  if (a.completionStatus !== 'SUCCEEDED') say(`::error::"${flow.attributes.name}" #${a.number}: ${a.completionStatus}, ${errors} error(s).`);
+}
+
 const [cmd, ...args] = process.argv.slice(2);
 try {
   if (cmd === 'plan') await plan(args[0] || 'auto');
@@ -664,6 +846,11 @@ try {
     await keepFresh(args[0], days, args.includes('--dry'));
   }
   else if (cmd === 'ci-off') await ciOff(args[0]);
+  else if (cmd === 'mac-setup') await macSetup(args[0], args.includes('--dry'));
+  else if (cmd === 'ci-runs') {
+    const opt = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
+    await ciRuns(args[0], { workflow: opt('--workflow'), commit: opt('--commit'), wait: Number(opt('--wait') || 0), start: args.includes('--start'), branch: opt('--branch') });
+  }
   else if (cmd === 'testers') await testers(args[0], String(args[1] || '').split(/[\s,;]+/).filter(Boolean));
   else throw new Error(`unknown command ${cmd}`);
 } catch (e) {

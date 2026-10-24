@@ -200,8 +200,9 @@ function effectiveRole(): 'owner' | 'staff' | 'marketing' | 'none' {
 const readsThroughServer = (): boolean => { const r = effectiveRole(); return r === 'staff' || r === 'marketing'; };
 import { clientPort } from '@/lib/db-client-port';
 import { recordInvoicePayment, removeInvoicePayment } from '@/lib/writes/invoice-payment';
+import { payBackCredit as writePayBackCredit } from '@/lib/writes/invoice-credit-payback';
 import { type ExchangeEntry, exchangeTotal, invoiceExchangeFields, orderExchanges } from '@/lib/exchange';
-import { orderAdvancePayments } from '@/lib/order-payment';
+import { orderAdvanceLines } from '@/lib/order-payment';
 import { statusFromPieces } from '@/lib/order-stage';
 import { isWalkInName, shouldCreateCustomer } from '@/lib/walk-in';
 import { createOrder } from '@/lib/writes/create-order';
@@ -210,7 +211,7 @@ import { finalizeHisaabRow, invoiceFromOrder } from '@/lib/writes/finalize-order
 import { setInvoiceCustomer as writeInvoiceCustomer } from '@/lib/writes/invoice-customer';
 import { recordOrderAdvance as writeOrderAdvance } from '@/lib/writes/order-advance';
 import { settleInvoicePayment as writeSettleInvoice, settleOrderAdvance as writeSettleOrder } from '@/lib/writes/settle';
-import { deleteOrderAdvance as writeDeleteOrderAdvance, removeOrderPiece as writeRemoveOrderPiece } from '@/lib/writes/order-pieces';
+import { deleteAdvanceWhat, deleteOrderAdvance as writeDeleteOrderAdvance, removeOrderPiece as writeRemoveOrderPiece } from '@/lib/writes/order-pieces';
 import { rateChangeLog, rateConfirmLog } from '@/lib/writes/rates';
 import { createInvoice as createInvoiceWrite } from '@/lib/writes/create-invoice';
 import { addExpense as writeAddExpense } from '@/lib/writes/expenses';
@@ -513,6 +514,10 @@ export interface Payment {
   method?: PaymentType;
   /** Cheque number, last four of the card, transfer reference. */
   reference?: string;
+  /** 'credit-payback': money handed back to a customer to finish their credit (lib/writes/invoice-credit-payback.ts). A negative payment, but not a refund of the sale. */
+  kind?: 'credit-payback';
+  /** The change's own id (route idempotency), so a repeat is seen in the history. */
+  id?: string;
 }
 
 /**
@@ -721,7 +726,7 @@ export interface Order {
   advanceMethod?: PaymentType;
   /** Advances recorded after the order was placed, each with its date and how it was paid.
    *  advancePayment stays the running total of all cash advances, the first included. */
-  advances?: Payment[];
+  advances?: (Payment & { id?: string; exchanges?: ExchangeEntry[] })[];
   advanceGoldDetails?: string;
   grandTotal: number;
   summary?: string;
@@ -1434,6 +1439,8 @@ export interface AppState {
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string, method?: PaymentType, reference?: string) => Promise<Invoice | null>;
   /** One payment off an invoice (an advance carried over, a payment, a partial refund); asks for the delete code. */
+  /** Hand a customer their invoice's credit back (the whole of it unless an amount is given); owner only; throws the refusal. */
+  payBackCredit: (invoiceId: string, amount?: number, method?: PaymentType) => Promise<Invoice>;
   deleteInvoicePayment: (invoiceId: string, index: number, payment: { amount: number; date: string }) => Promise<Invoice>;
   refundInvoicePartial: (invoiceId: string, refundAmount: number, reason?: string) => Promise<Invoice | null>;
   updateInvoiceDiscount: (invoiceId: string, newDiscountAmount: number) => Promise<Invoice | null>;
@@ -1480,7 +1487,7 @@ export interface AppState {
   ) => Promise<Invoice | null>;
   revertOrderFromInvoice: (orderId: string, invoiceId: string) => Promise<void>;
   refundOrder: (orderId: string) => Promise<void>;
-  recordOrderAdvance: (orderId: string, amount: number, notes: string, method?: PaymentType) => Promise<Order | null>;
+  recordOrderAdvance: (orderId: string, amount: number, notes: string, method?: PaymentType, exchanges?: ExchangeEntry[]) => Promise<Order | null>;
   /** One advance off an order not yet invoiced, as its page lists them; asks for the delete code. */
   deleteOrderAdvance: (orderId: string, lineIndex: number) => Promise<Order>;
 
@@ -2642,6 +2649,17 @@ export const useAppStore = create<AppState>()(
         set(state => ({ generatedInvoices: state.generatedInvoices.map(i => i.id === invoiceId ? { ...i, ...updated } : i) }) as Partial<AppState>);
         return updated;
       },
+      payBackCredit: async (invoiceId, amount, method) => {
+        if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
+        if (effectiveRole() !== 'owner') throw new Error('Only an owner can give credit back.');
+        // A payment, not a refund of the sale: no delete code, nothing for Shopify (lib/writes/invoice-credit-payback.ts).
+        const out = await writePayBackCredit(clientPort, { invoiceId, amount, method }, {
+          log: (action, title, detail, ref) => { addActivityLog(action as LogEventType, title, detail, ref ?? ''); },
+        });
+        const { paidBack: _paidBack, ...updated } = out;
+        set(state => ({ generatedInvoices: state.generatedInvoices.map(i => i.id === invoiceId ? { ...i, ...updated } : i) }) as Partial<AppState>);
+        return updated as unknown as Invoice;
+      },
       deleteInvoicePayment: async (invoiceId, index, payment) => {
         if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
         await requireDeleteCode(`Delete the payment of PKR ${payment.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} on ${invoiceId}`);
@@ -3477,11 +3495,11 @@ export const useAppStore = create<AppState>()(
             throw error;
         }
       },
-      recordOrderAdvance: async (orderId, amount, notes, method) => {
+      recordOrderAdvance: async (orderId, amount, notes, method, exchanges) => {
         if (get().settings.databaseLocked) return null;
         try {
             // The one copy (lib/writes/order-advance.ts), which the iPhone app runs on the server too.
-            const updatedOrder = await writeOrderAdvance(clientPort, { orderId, amount, notes, method }, {
+            const updatedOrder = await writeOrderAdvance(clientPort, { orderId, amount, notes, method, exchanges }, {
               log: (action, title, detail, ref) => addActivityLog(action as LogEventType, title, detail, ref ?? ''),
             }) as unknown as Order;
             syncOrderShopify(orderId, 'upsert');
@@ -3503,11 +3521,11 @@ export const useAppStore = create<AppState>()(
       deleteOrderAdvance: async (orderId, lineIndex) => {
         if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
         const local = get().orders.find(o => o.id === orderId);
-        const line = local ? orderAdvancePayments(local, '')[lineIndex] : undefined;
+        const line = local ? orderAdvanceLines(local, '')[lineIndex] : undefined;
         if (!local || !line) throw new Error('That advance is not on this order any more.');
         // Once invoiced, the advances are the invoice's payments, and cash counts them there.
         if (local.invoiceId) throw new Error(`${orderId} is invoiced: delete the payment on ${local.invoiceId} instead.`);
-        await requireDeleteCode(`Delete the advance of PKR ${line.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })} on ${orderId}`);
+        await requireDeleteCode(deleteAdvanceWhat(orderId, line.amount));
         // The one copy (lib/writes/order-pieces.ts), the iPhone app's too: the line shown is the line taken.
         const updated = await writeDeleteOrderAdvance(clientPort, { orderId, lineIndex, amount: line.amount }, { deleteField }, {
           log: (a, t, d, r) => addActivityLog(a as LogEventType, t, d, r ?? ''),

@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import ERPCore
 
 // The small pieces New sale, the edit sheet and Scan a tag share.
@@ -81,7 +83,7 @@ struct SaleScanSheet: View {
     @State private var added = 0
     @State private var missed = 0
 
-    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutWidthClass) private var sizeClass
     @State private var width: CGFloat = 0
 
     private var wide: Bool { sizeClass.isPadLayout && width >= 700 }

@@ -8,6 +8,8 @@
  * The shapes are the ones the web stores (store.ts `Settings`, `PaymentMethod`).
  */
 
+import { cleanLabelLive, toStoredLabelLive } from '@/lib/label-live';
+
 export const SETTINGS_BOOLEANS = [
   'autoDraftForms', 'notifEnabled',
   'notifNewOrder', 'notifOrderCompleted', 'notifOrderCancelled', 'notifNewInvoice', 'notifPaymentReceived',
@@ -98,6 +100,14 @@ export function cleanSettingsPatch(input: unknown): SettingsPatchResult {
       methods.push({ id, bankName, accountName, accountNumber, ...(iban && { iban }) });
     }
     out.paymentMethods = methods;
+  }
+
+  // Label LIVE (Settings → Labels, docs/features/label-live.md): checked and stored exactly as the web card saves it,
+  // so the Mac app's set-up prints the same tags as the browser's.
+  if ('labelLive' in src) {
+    const config = cleanLabelLive(src.labelLive);
+    if (!config) return { ok: false, error: 'Label LIVE needs the design’s name (paste its Integrate link).' };
+    out.labelLive = toStoredLabelLive(config);
   }
 
   return Object.keys(out).length ? { ok: true, patch: out } : { ok: false, error: 'Nothing to save.' };

@@ -494,7 +494,7 @@ struct NewOrderDeliverySection: View {
         }
         LabeledContent("Receiver's phone") {
             TextField("Receiver's phone", text: $draft.deliveryPhone, prompt: Text("Optional"))
-                .textContentType(.telephoneNumber)
+                .fieldKind(.telephoneNumber)
                 .keyboardType(.phonePad)
         }
         NewOrderNumberRow(title: "Delivery charge (PKR)", text: $draft.deliveryCharge, prompt: "0 if free", rupees: true)
